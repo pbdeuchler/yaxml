@@ -6,7 +6,7 @@
 
 use super::*;
 
-const CASE_COUNT: u8 = 17;
+const CASE_COUNT: u8 = 27;
 
 fn check_created(document: &OwnedDocument, id: OwnedNodeId, expected: &ModelElement) {
     assert_element(document, id, expected);
@@ -219,6 +219,220 @@ fn parsed_parent(mode: u8, source: &str) -> OwnedDocument {
     bytes.fill(0);
     drop(bytes);
     document
+}
+
+fn append_expected(
+    document: &mut OwnedDocument,
+    before: &Snapshot,
+    parent: OwnedNodeId,
+    spec: ElementSpec<'_>,
+    expected: &ModelElement,
+) {
+    let child = document
+        .edit(EditLimits::default())
+        .unwrap()
+        .append_element(parent, spec)
+        .expect("valid literal namespace case was rejected");
+    check_created(document, child, expected);
+    assert_existing_nodes_preserved(document, before, parent, child);
+}
+
+fn append_rejected(
+    document: &mut OwnedDocument,
+    before: &Snapshot,
+    parent: OwnedNodeId,
+    spec: ElementSpec<'_>,
+    expected: EditError,
+) {
+    let recovery_name = ModelName::new(None, "recovered", None);
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    let error = editor
+        .append_element(parent, spec)
+        .expect_err("invalid literal namespace case was accepted");
+    assert_error_with_display(error, expected);
+    assert_eq!(
+        &snapshot(editor.document()),
+        before,
+        "namespace rejection mutated the tree"
+    );
+    let recovery_spec = ElementSpec {
+        name: spec_name("recovered", None, exact(None)),
+        items: &[],
+    };
+    let recovery = editor
+        .append_element(parent, recovery_spec)
+        .expect("editor did not recover after namespace rejection");
+    assert_eq!(
+        observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
+        recovery_name
+    );
+    assert_existing_nodes_preserved(editor.document(), before, parent, recovery);
+    assert_serializable(editor.document());
+}
+
+fn supplemental_append_case(input: &[u8], selector: u8, mode: u8) {
+    let local = make_local(input);
+    let source = match selector {
+        19 => "<r xmlns=''/>",
+        26 => "<r xmlns:p='u'/>",
+        _ => "<r/>",
+    };
+    let mut document = parsed_parent(mode, source);
+    let before = snapshot(&document);
+    let parent = document.root_element().id();
+
+    match selector {
+        17 => {
+            let items = [ElementItem::Namespace(NamespaceSpec {
+                prefix: None,
+                uri: "u",
+            })];
+            let spec = ElementSpec {
+                name: spec_name(&local, None, exact(None)),
+                items: &items,
+            };
+            let expected = located(
+                EditErrorKind::Namespace,
+                element_location(EditComponent::NamespaceUri, None),
+            );
+            append_rejected(&mut document, &before, parent, spec, expected);
+        }
+        18 | 19 => {
+            let spec = ElementSpec {
+                name: spec_name(&local, None, PrefixPolicy::Automatic),
+                items: &[],
+            };
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: Vec::new(),
+            };
+            append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        20 => {
+            let items = [ElementItem::Attribute(AttributeSpec {
+                name: spec_name("a", None, PrefixPolicy::Automatic),
+                value: "v",
+            })];
+            let spec = ElementSpec {
+                name: spec_name(&local, None, exact(None)),
+                items: &items,
+            };
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![attribute(None, "a", None, "v")],
+            };
+            append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        21 => {
+            let items = [ElementItem::Attribute(AttributeSpec {
+                name: spec_name("a", Some("u"), exact(None)),
+                value: "v",
+            })];
+            let spec = ElementSpec {
+                name: spec_name(&local, None, exact(None)),
+                items: &items,
+            };
+            let expected = located(EditErrorKind::Namespace, attribute_location(0, None, None));
+            append_rejected(&mut document, &before, parent, spec, expected);
+        }
+        22 => {
+            let items = [ElementItem::Namespace(NamespaceSpec {
+                prefix: None,
+                uri: "v",
+            })];
+            let spec = ElementSpec {
+                name: spec_name(&local, Some("u"), PrefixPolicy::Automatic),
+                items: &items,
+            };
+            let expected = ModelElement {
+                name: ModelName::new(Some("ns1"), &local, Some("u")),
+                attributes: vec![declaration(None, "v"), declaration(Some("ns1"), "u")],
+            };
+            append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        23 => {
+            let items = [ElementItem::Attribute(AttributeSpec {
+                name: spec_name("a", Some("u"), PrefixPolicy::Automatic),
+                value: "v",
+            })];
+            let spec = ElementSpec {
+                name: spec_name(&local, Some("v"), exact(Some("ns1"))),
+                items: &items,
+            };
+            let expected = ModelElement {
+                name: ModelName::new(Some("ns1"), &local, Some("v")),
+                attributes: vec![
+                    attribute(Some("ns2"), "a", Some("u"), "v"),
+                    declaration(Some("ns1"), "v"),
+                    declaration(Some("ns2"), "u"),
+                ],
+            };
+            append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        24 => {
+            let items = [
+                ElementItem::Namespace(NamespaceSpec {
+                    prefix: Some("ns1"),
+                    uri: "v",
+                }),
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("a", Some("u"), PrefixPolicy::Automatic),
+                    value: "v",
+                }),
+            ];
+            let spec = ElementSpec {
+                name: spec_name(&local, None, exact(None)),
+                items: &items,
+            };
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![
+                    declaration(Some("ns1"), "v"),
+                    attribute(Some("ns2"), "a", Some("u"), "v"),
+                    declaration(Some("ns2"), "u"),
+                ],
+            };
+            append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        25 => {
+            let items = [
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("a", Some("u"), PrefixPolicy::Automatic),
+                    value: "1",
+                }),
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("b", Some("v"), PrefixPolicy::Automatic),
+                    value: "2",
+                }),
+            ];
+            let spec = ElementSpec {
+                name: spec_name(&local, None, exact(None)),
+                items: &items,
+            };
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![
+                    attribute(Some("ns1"), "a", Some("u"), "1"),
+                    attribute(Some("ns2"), "b", Some("v"), "2"),
+                    declaration(Some("ns1"), "u"),
+                    declaration(Some("ns2"), "v"),
+                ],
+            };
+            append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        26 => {
+            let spec = ElementSpec {
+                name: spec_name(&local, Some("u"), exact(Some("p"))),
+                items: &[],
+            };
+            let expected = ModelElement {
+                name: ModelName::new(Some("p"), &local, Some("u")),
+                attributes: Vec::new(),
+            };
+            append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        _ => unreachable!("supplemental namespace selector is bounded"),
+    }
 }
 
 fn append_case(input: &[u8], selector: u8, mode: u8) {
@@ -716,8 +930,10 @@ pub(super) fn exercise(input: &[u8]) {
         create_case(input, selector);
     } else if selector == 13 {
         create_case(input, 4);
-    } else {
+    } else if selector < 17 {
         append_case(input, selector, input.get(7).copied().unwrap_or(0));
+    } else {
+        supplemental_append_case(input, selector, input.get(7).copied().unwrap_or(0));
     }
 }
 
