@@ -3,7 +3,7 @@ use std::{borrow::Cow, ops::Range};
 use memchr::{memchr, memmem};
 
 use crate::escape::xml_char;
-use crate::parser::{ParserState, space};
+use crate::parser::{Budget, ParserState, space};
 use crate::tokenizer::TokenKind;
 use crate::{Error, ErrorKind, Limit};
 
@@ -94,6 +94,10 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
+    pub(crate) fn owned_budget(&mut self) -> &mut Budget {
+        self.state.owned_budget()
+    }
+
     pub fn new(input: &'a [u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }

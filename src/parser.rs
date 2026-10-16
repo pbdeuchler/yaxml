@@ -18,6 +18,10 @@ pub(crate) struct Budget {
 }
 
 impl Budget {
+    pub(crate) fn remaining_owned(&self) -> usize {
+        self.limits.max_owned_bytes - self.owned_bytes
+    }
+
     pub(crate) fn charge_owned(&mut self, bytes: usize, offset: usize) -> Result<(), Error> {
         self.owned_bytes = self
             .owned_bytes
@@ -92,6 +96,10 @@ pub(crate) struct ParserState<'source> {
 }
 
 impl<'source> ParserState<'source> {
+    pub(crate) fn owned_budget(&mut self) -> &mut Budget {
+        &mut self.budget
+    }
+
     pub(crate) fn new(limits: Limits, initial_offset: usize) -> Self {
         Self {
             initial: initial_offset,

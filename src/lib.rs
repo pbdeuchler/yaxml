@@ -4,6 +4,7 @@
 mod dom;
 mod error;
 mod escape;
+mod owned;
 mod parser;
 mod push;
 mod reader;
@@ -12,6 +13,7 @@ mod writer;
 
 pub use dom::{Document, Node, NodeId, NodeKind};
 pub use error::{Error, ErrorKind, Limit, ReadError, WriteError};
+pub use owned::{OwnedDocument, OwnedNode, OwnedNodeKind};
 pub use push::PushParser;
 pub use reader::{Attribute, Declaration, Element, Event, Limits, Name, Reader};
 pub use writer::{Writer, WriterLimits};

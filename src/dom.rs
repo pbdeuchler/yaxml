@@ -5,7 +5,7 @@ use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limits, Na
 
 /// A document-local node index. IDs must only be used with their originating document.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NodeId(usize);
+pub struct NodeId(pub(crate) usize);
 
 /// The content of a DOM node. XML declarations are stored on the document.
 #[derive(Debug)]
@@ -22,14 +22,56 @@ pub enum NodeKind<'input> {
 }
 
 #[derive(Debug)]
-struct Record<'input> {
-    kind: NodeKind<'input>,
+pub(crate) struct Record<K> {
+    pub(crate) kind: K,
+    pub(crate) range: Range<usize>,
+    pub(crate) parent: Option<NodeId>,
+    pub(crate) first_child: Option<NodeId>,
+    pub(crate) last_child: Option<NodeId>,
+    pub(crate) next_sibling: Option<NodeId>,
+    pub(crate) subtree_end: usize,
+}
+
+impl<K> Record<K> {
+    pub(crate) fn root(kind: K, length: usize) -> Self {
+        Self {
+            kind,
+            range: 0..length,
+            parent: None,
+            first_child: None,
+            last_child: None,
+            next_sibling: None,
+            subtree_end: 1,
+        }
+    }
+}
+
+pub(crate) fn append_record<K>(
+    nodes: &mut Vec<Record<K>>,
+    parent: NodeId,
+    kind: K,
     range: Range<usize>,
-    parent: Option<NodeId>,
-    first_child: Option<NodeId>,
-    last_child: Option<NodeId>,
-    next_sibling: Option<NodeId>,
-    subtree_end: usize,
+) -> Result<NodeId, Error> {
+    nodes
+        .try_reserve(1)
+        .map_err(|_| Error::new(ErrorKind::Allocation, range.start))?;
+    let id = NodeId(nodes.len());
+    nodes.push(Record {
+        kind,
+        range,
+        parent: Some(parent),
+        first_child: None,
+        last_child: None,
+        next_sibling: None,
+        subtree_end: id.0 + 1,
+    });
+    if let Some(previous) = nodes[parent.0].last_child {
+        nodes[previous.0].next_sibling = Some(id);
+    } else {
+        nodes[parent.0].first_child = Some(id);
+    }
+    nodes[parent.0].last_child = Some(id);
+    Ok(id)
 }
 
 /// An immutable, flat XML tree that borrows unchanged strings from its input.
@@ -38,7 +80,7 @@ struct Record<'input> {
 /// element beneath its synthetic document root.
 #[derive(Debug)]
 pub struct Document<'input> {
-    nodes: Vec<Record<'input>>,
+    nodes: Vec<Record<NodeKind<'input>>>,
     root_element: NodeId,
     declaration: Option<Declaration<'input>>,
 }
@@ -61,15 +103,7 @@ impl<'input> Document<'input> {
         nodes
             .try_reserve(1)
             .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
-        nodes.push(Record {
-            kind: NodeKind::Document,
-            range: 0..input.len(),
-            parent: None,
-            first_child: None,
-            last_child: None,
-            next_sibling: None,
-            subtree_end: 1,
-        });
+        nodes.push(Record::root(NodeKind::Document, input.len()));
         let mut document = Self {
             nodes,
             root_element: NodeId(0),
@@ -137,26 +171,7 @@ impl<'input> Document<'input> {
         kind: NodeKind<'input>,
         range: Range<usize>,
     ) -> Result<NodeId, Error> {
-        self.nodes
-            .try_reserve(1)
-            .map_err(|_| Error::new(ErrorKind::Allocation, range.start))?;
-        let id = NodeId(self.nodes.len());
-        self.nodes.push(Record {
-            kind,
-            range,
-            parent: Some(parent),
-            first_child: None,
-            last_child: None,
-            next_sibling: None,
-            subtree_end: id.0 + 1,
-        });
-        if let Some(previous) = self.nodes[parent.0].last_child {
-            self.nodes[previous.0].next_sibling = Some(id);
-        } else {
-            self.nodes[parent.0].first_child = Some(id);
-        }
-        self.nodes[parent.0].last_child = Some(id);
-        Ok(id)
+        append_record(&mut self.nodes, parent, kind, range)
     }
 
     /// Returns the synthetic document root, including surrounding comments and PIs.
@@ -202,7 +217,7 @@ pub struct Node<'document, 'input> {
 }
 
 impl<'document, 'input> Node<'document, 'input> {
-    fn record(self) -> &'document Record<'input> {
+    fn record(self) -> &'document Record<NodeKind<'input>> {
         &self.document.nodes[self.id.0]
     }
 
