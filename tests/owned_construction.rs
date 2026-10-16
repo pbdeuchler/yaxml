@@ -1464,6 +1464,94 @@ fn namespace_work_stops_at_the_first_default_binding_uri_comparison() {
 }
 
 #[test]
+fn inherited_long_automatic_prefix_grows_scratch_and_keeps_failures_atomic() {
+    let prefix = "π".repeat(2_048);
+    assert_eq!(prefix.len(), 4_096);
+    let input = format!("<r xmlns:{prefix}='urn:long'/>");
+    let mut document = OwnedDocument::parse(&input).unwrap();
+    let parent = document.root_element().id();
+    let parent_range = document.node(parent).unwrap().range();
+    let document_range = document.root().range();
+    let before = snapshot(&document);
+    let items = [attribute(automatic("a", Some("urn:long")), "value")];
+    let child = ElementSpec {
+        name: exact("child", None, None),
+        items: &items,
+    };
+
+    assert_error(
+        document
+            .edit(EditLimits {
+                max_name_bytes: prefix.len() - 1,
+                ..EditLimits::default()
+            })
+            .unwrap()
+            .append_element(parent, child),
+        EditErrorKind::LimitExceeded(EditLimit::NameBytes),
+        Some(EditLocation::AttributeItem {
+            index: 0,
+            component: Some(EditComponent::Prefix),
+            byte_offset: Some(prefix.len() - 1),
+        }),
+    );
+    assert_eq!(snapshot(&document), before);
+
+    assert_error(
+        document
+            .edit(EditLimits {
+                max_namespace_work: 0,
+                ..EditLimits::default()
+            })
+            .unwrap()
+            .append_element(parent, child),
+        EditErrorKind::LimitExceeded(EditLimit::NamespaceWork),
+        None,
+    );
+    assert_eq!(snapshot(&document), before);
+
+    let child = document
+        .edit(EditLimits::default())
+        .unwrap()
+        .append_element(parent, child)
+        .unwrap();
+
+    let parent_node = document.node(parent).unwrap();
+    assert_name(parent_node.name().unwrap(), ("r", None, "r", None));
+    assert_eq!(parent_node.range(), parent_range);
+    assert_eq!(parent_node.first_child().unwrap().id(), child);
+    assert_eq!(parent_node.last_child().unwrap().id(), child);
+    let declaration = parent_node.attributes().next().unwrap();
+    let declaration_name = format!("xmlns:{prefix}");
+    assert_name(
+        declaration.name,
+        (&declaration_name, Some("xmlns"), &prefix, Some(XMLNS)),
+    );
+    assert_eq!(declaration.value, "urn:long");
+    assert_eq!(document.root().range(), document_range);
+
+    let child_node = document.node(child).unwrap();
+    assert_eq!(child_node.range(), None);
+    assert_name(child_node.name().unwrap(), ("child", None, "child", None));
+    assert_eq!(child_node.parent().unwrap().id(), parent);
+    assert!(child_node.first_child().is_none());
+    assert!(child_node.last_child().is_none());
+    assert!(child_node.next_sibling().is_none());
+    let mut attributes = child_node.attributes();
+    let attribute = attributes.next().unwrap();
+    let qualified = format!("{prefix}:a");
+    assert_name(
+        attribute.name,
+        (&qualified, Some(&prefix), "a", Some("urn:long")),
+    );
+    assert_eq!(attribute.value, "value");
+    assert!(attributes.next().is_none());
+    assert_eq!(
+        output(&document),
+        format!("<r xmlns:{prefix}=\"urn:long\"><child {prefix}:a=\"value\"/></r>")
+    );
+}
+
+#[test]
 fn append_precedence_is_handle_kind_depth_items_then_input() {
     let mut document = OwnedDocument::create(empty("r"), EditLimits::default()).unwrap();
     let root = document.root_element().id();
