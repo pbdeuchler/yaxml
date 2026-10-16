@@ -35,12 +35,22 @@ libxml2 comparison gates, and has no claim of complete semantic validation.
 
 Three local paired screens compared immutable release binaries. Each screen
 used six fixtures, UTF-8/UTF-16LE/UTF-16BE, buffer capacities 1 and 8,192, and four
-samples per build/case: one warmup and three retained samples. Build order
-alternated within pairs; case order reversed between samples. Every process
+samples per build/case: one warmup and three retained samples. Within each
+sample, adjacent case pairs alternated baseline-first and candidate-first
+order; case order reversed between samples. Because there are 36 cases, this
+schedule keeps each individual case's build order fixed across samples rather
+than counterbalancing it. Every process
 completed with one output row and empty stderr. All non-timing fields, including
 event counts, byte counts and first-event consumed bytes, matched within pairs.
 These are screening samples, not the 31-sample acceptance measurements used for
 accepted storage changes. No libxml2 performance claim follows from them.
+
+The builds were intended to compare baseline `9e4b3a6` with the experimental
+sources described above. Retained binary hashes establish their immutable
+identities, but the build logs do not retain source-revision and source-manifest
+hashes. They therefore do not independently establish that source-to-binary
+provenance. Any acceptance measurement must retain those manifests as well as
+counterbalance build order within each case.
 
 Representative final-screen medians are elapsed nanoseconds per configured
 fixture batch; negative change means faster:

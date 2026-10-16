@@ -189,6 +189,9 @@ eight-document drop batch have separate clocks. Exact serialized bytes and the
 combined observer checksum must match.
 
 This is a representation screen, not a public append/remove throughput result.
+Both edited-state modes use the same prototype executable and document layout;
+the baseline mode leaves membership unmigrated. The separate parsed-path A/B
+above compares the original and prototype implementations.
 The migration helper copies the current live metadata without changing XML
 semantics. It can model an element that was edited and later returned to the
 same membership, including an empty retained block. In `migration=all`, the
