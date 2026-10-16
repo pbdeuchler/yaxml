@@ -18,6 +18,9 @@ mod validation;
 #[path = "construction_limits.rs"]
 mod limits;
 
+#[path = "construction_namespaces.rs"]
+mod namespaces;
+
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 const MAX_DERIVED_BYTES: usize = 8;
@@ -1126,6 +1129,7 @@ pub(super) fn exercise(input: &[u8]) {
     long_inherited_prefix(input);
     validation::exercise(input);
     limits::exercise(input);
+    namespaces::exercise(input);
 }
 
 #[cfg(test)]
