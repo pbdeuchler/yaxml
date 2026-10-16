@@ -382,7 +382,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     uri: "urn:local",
                 }),
                 ElementItem::Attribute(AttributeSpec {
-                    name: spec_name("value", Some("urn:local"), exact(Some("p"))),
+                    name: spec_name("value", Some("urn:local"), PrefixPolicy::Automatic),
                     value: "x",
                 }),
             ];
@@ -396,7 +396,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                         items: &items,
                     },
                 )
-                .expect("exact prefix should reuse the matching local declaration");
+                .expect("automatic prefix should reuse the matching local declaration");
             check_created(&document, child, &expected);
             assert_existing_nodes_preserved(&document, &before, parent);
         }
