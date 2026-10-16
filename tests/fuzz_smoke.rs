@@ -89,6 +89,8 @@ fn writer_operation_and_output_selectors() {
         b"--",
         b"\0",
         b"plain",
+        b"r a='injected'",
+        b"a='injected' b",
     ] {
         for operations in [
             &[1][..],
@@ -99,6 +101,9 @@ fn writer_operation_and_output_selectors() {
             &[7, 1],
             &[1, 1],
             &[0, 0, 2, 2],
+            &[0x41],
+            &[0x80, 2],
+            &[0x40, 0x42],
         ] {
             for policy in [0, 1] {
                 let mut input = vec![policy, 255, 255, 7, 3, 255, 255, operations.len() as u8];

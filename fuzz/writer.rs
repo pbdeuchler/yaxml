@@ -116,7 +116,7 @@ fn operations(input: &[u8]) {
         limits.max_owned_bytes = byte(6) * 16;
     }
     let mut writer = Writer::with_limits(Vec::new(), limits);
-    // Seven policy/I/O bytes, an operation count, up to 32 operation bytes,
+    // Seven policy/I/O bytes, an operation count, up to 31 operation bytes,
     // then at most 96 bytes of shared logical data. Keep control bytes out of
     // the payload so mutations can reach valid sequences and invalid values.
     let count = (byte(7) & 31).min(input.len().saturating_sub(8));
@@ -126,7 +126,7 @@ fn operations(input: &[u8]) {
         String::from_utf8_lossy(&input[payload_start..input.len().min(payload_start + 96)]);
     let mut failed = false;
     for control in input[start..payload_start].iter().copied() {
-        let mut element_name = name("r");
+        let mut element_name = name(if control & 64 == 0 { "r" } else { &payload });
         match (control >> 4) & 3 {
             1 => element_name.local = "different",
             2 => element_name.prefix = Some("p"),
@@ -137,7 +137,13 @@ fn operations(input: &[u8]) {
             0 => Event::Start(Element {
                 name: element_name,
                 attributes: vec![Attribute {
-                    name: name(if control & 8 == 0 { "a" } else { "xmlns" }),
+                    name: name(if control & 128 != 0 {
+                        &payload
+                    } else if control & 8 == 0 {
+                        "a"
+                    } else {
+                        "xmlns"
+                    }),
                     value: Cow::Borrowed(&payload),
                 }],
             }),
