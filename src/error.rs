@@ -1,9 +1,11 @@
 use std::fmt;
 
-/// A resource ceiling, checked before retaining additional parser state.
+/// A resource ceiling, checked before retaining additional processor state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Limit {
     InputBytes,
+    OutputBytes,
     TokenBytes,
     Depth,
     Attributes,
@@ -11,7 +13,7 @@ pub enum Limit {
     OwnedBytes,
 }
 
-/// Structured failure categories; offsets are zero-based input byte offsets.
+/// Structured failures; offsets are input bytes, or prospective writer output bytes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ErrorKind {
@@ -35,7 +37,7 @@ pub enum ErrorKind {
     Allocation,
     /// The event callback requested terminal cancellation.
     Aborted,
-    /// The operation is disallowed after final EOF or a recovered callback panic.
+    /// The operation is disallowed after completion, failure, or a recovered panic.
     InvalidState,
 }
 
@@ -77,6 +79,33 @@ impl fmt::Display for ReadError {
 }
 
 impl std::error::Error for ReadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Xml(error) => Some(error),
+            Self::Io(error) => Some(error),
+        }
+    }
+}
+
+/// Failure while validating XML events or writing to a caller-provided sink.
+/// The first failure preserves its cause; later writer calls return InvalidState.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum WriteError {
+    Xml(Error),
+    Io(std::io::Error),
+}
+
+impl fmt::Display for WriteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Xml(error) => error.fmt(f),
+            Self::Io(error) => write!(f, "failed to write XML output: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for WriteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Xml(error) => Some(error),
