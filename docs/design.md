@@ -1,0 +1,244 @@
+# Design direction
+
+This is a working outline, not a frozen architecture. The first implementation
+is a strict XML 1.0 UTF-8 reader and immutable DOM. The feature inventory defines
+the larger compatibility target; completing this first slice does not establish
+libxml2 replacement status.
+
+## Constraints and compatibility
+
+The library forbids unsafe code and uses Rust's standard library plus `memchr`.
+No feature may quietly introduce another library dependency. `memchr` and the
+standard library can contain their own unsafe implementation; the enforceable
+crate guarantee is `#![forbid(unsafe_code)]`. Reimplementing their internals would
+not improve that boundary.
+
+Compatibility has three separate deliverables:
+
+1. **Behavior:** accepted documents, normalized values, namespaces, tree shape,
+   errors, serialization, and requested processing features.
+2. **Migration APIs:** Rust entry points and later language adapters that let
+   callers perform their existing operations with explicit ownership.
+3. **C source/ABI compatibility:** symbol names, exposed struct layouts, pointer
+   identity, callbacks, ownership, and allocator hooks expected by existing C
+   callers.
+
+The first two fit this core. Full C ABI compatibility with libxml2's mutable,
+public pointer graph is a separate problem. Its public [tree API](https://gnome.pages.gitlab.gnome.org/libxml2/html/tree_8h.html)
+exposes nodes, attributes, namespaces, and document ownership. An index arena
+cannot impersonate that layout. Receiving and dereferencing arbitrary C pointers
+also requires an unsafe boundary. We should report this incompatibility before
+claiming a binary drop-in replacement. No unsafe binding adapter is authorized
+by this design; keep the pure Rust core usable independently.
+
+Use XML specifications as the strict-mode authority. Use a versioned libxml2
+build as the behavioral reference for compatibility options, tree conventions,
+and recovery. A mismatch is a triage result, not permission to imitate an oracle
+bug. Record differences with the input, options, reference revision, and reason.
+
+## Lessons from the references
+
+These are design choices informed by the references, not claims that their
+complete behavior has been reproduced.
+
+| Reference | Structure worth adopting | Tradeoff to address |
+| --- | --- | --- |
+| [libxml2 parser API](https://gnome.pages.gitlab.gnome.org/libxml2/html/parser_8h.html) | Parser contexts, DOM/SAX/pull/push entry points, explicit resource loaders, amplification limits. | Legacy globals and permissive compatibility options complicate isolation. Keep policy and diagnostics per operation; require explicit access to external resources. |
+| [quick-xml 0.42 reader](https://docs.rs/quick-xml/0.42.0/quick_xml/reader/struct.Reader.html) | Events borrowed from slices, caller-reused buffers for I/O, ownership conversion when callers retain data. | A low-level event stream is not automatically a validating, namespace-aware XML processor. Compare equivalent processing work in benchmarks. |
+| [quick-xml 0.42 configuration source](https://docs.rs/quick-xml/0.42.0/src/quick_xml/reader/mod.rs.html) | Explicit parser state and configurable behavior. | Comment checking defaults off; per-event text trimming has mixed-content caveats. Our strict mode validates comments and preserves significant whitespace. Avoid option combinations that silently weaken its contract. |
+| [roxmltree 0.20 source](https://github.com/RazrFalcon/roxmltree/blob/v0.20.0/src/lib.rs) | Compact index-based tree links, borrowed input text, allocation only when normalization requires it, iterator-based navigation. | Read-only storage simplifies lifetimes and traversal. Mutation, owned input, and stable foreign handles need deliberate later designs rather than promises of zero cost. |
+| [xmloxide 0.5 module map](https://docs.rs/xmloxide/0.5.0/xmloxide/) | Separate parsing, tree, reader, SAX, query, validation, serialization, encoding, and inclusion modules; document-scoped node IDs. | Broad feature coverage expands the verification surface. Deliver independently tested subsystems and preserve common parser semantics across entry points. |
+| [xmloxide FFI](https://docs.rs/xmloxide/0.5.0/xmloxide/ffi/index.html) | Explicit document/string ownership and a separate foreign interface. | Its raw-pointer interface is explicitly unsafe and uses a different symbol prefix. A pure Rust replacement and a libxml2 ABI replacement are distinct claims. |
+
+The historical roxmltree benchmark table explicitly cautions that different
+feature sets limit comparisons. Treat published results as hypotheses for our
+own workload matrix, not as evidence of yaxml performance. Its [README](https://github.com/RazrFalcon/roxmltree/tree/v0.20.0)
+also explains the read-only choice and input-borrowing strategy.
+
+## One parser with several consumers
+
+Start with concrete internal functions and a small state machine:
+
+```text
+bytes -> encoding boundary -> XML scanner + document state + namespaces
+                                                |
+                                      validated logical events
+                                   /            |             \
+                               pull          DOM builder      SAX
+```
+
+The scanner finds delimiters with safe slice operations and `memchr`. XML name,
+character, reference, declaration, and namespace rules remain explicit. An ASCII
+fast path must have the same semantics as the Unicode path. Share those rules
+between text and attribute processing where their normalization rules agree;
+keep their differences visible.
+
+The parser owns document phase, element stack, namespace scope, and limits.
+Parsing is iterative; input depth must not become Rust call-stack depth. Every
+step either consumes input, emits an event, requests more input, or returns an
+error. Errors terminate strict parsing; repeated calls must have a documented
+terminal result. EOF validates the final state rather than merely exhausting
+bytes.
+
+The pull API comes first. Build the DOM directly from its validated events. This
+makes streaming and DOM normalization agree and gives us a differential test
+inside the crate. Avoid constructing a DOM to implement SAX or a reader. If
+temporary event allocation becomes a measured DOM bottleneck, add a concrete
+internal event-consumer path that shares the same state transitions. Do not
+create a public generic parser framework in anticipation of that result.
+
+Incremental input is a separate milestone. `Reader` over a complete byte slice
+can emit events incrementally, but it still retains the supplied input; this is
+not bounded-memory I/O streaming. A future `feed`/`finish` state machine must
+distinguish incomplete tokens from invalid XML and retain only bounded pending
+input. Test every possible split point, including UTF-8 sequences, CRLF,
+references, quotes, comment delimiters, and CDATA terminators. Thin `BufRead` and
+SAX drivers can then share it. Async runtimes remain caller concerns under the
+one-dependency rule.
+
+## Values, namespaces, and diagnostics
+
+The existing public vocabulary is `Reader`, `Event`, `Element`, `Attribute`,
+`Declaration`, `Name`, `Limits`, `Document`, `Node`, `NodeId`, and `NodeKind`.
+Retain these names while behavior stabilizes. New parser policy should extend
+explicit configuration, with strict XML as the default; avoid a bag of
+independent switches that permits contradictory contracts.
+
+`Name` must distinguish lexical qualified name from expanded name (namespace
+URI plus local name). End tags match the lexical start name. Attributes must be
+unique by expanded name after namespace declarations are processed. The default
+namespace applies to unprefixed elements, not unprefixed attributes. Preserve
+prefixes and declaration order when serialization or compatibility requires
+them; namespace identity does not depend on prefix spelling.
+
+Borrow unchanged UTF-8 text. Allocate on the first normalization change and keep
+source offsets separate from normalized values. Character references preserve
+their specified character; source whitespace normalization must not rewrite
+them as if they were literal source whitespace. Do not trim mixed content as a
+parser shortcut. DTD-driven attribute normalization is a later semantic layer.
+
+Keep `ErrorKind` and a zero-based byte offset machine-readable. Add source IDs
+when external inputs arrive; add line/column mapping without replacing offsets.
+Distinguish malformed XML, unsupported features, exhausted resource budgets,
+allocation failure, and underlying I/O errors. Future recovery should return a
+tree plus diagnostics and a clear incomplete/recovered status. It must never
+turn failure into an apparently valid strict document.
+
+## DOM ownership and mutation
+
+Use document-owned contiguous node storage with indices for parent/child/sibling
+relationships. Keep attributes contiguous where practical. This avoids one heap
+allocation per node and permits safe navigation after storage grows. A `Node`
+view borrows its document; no public reference points into a `Vec` across a
+mutation. Keep storage representation private so measurements can change it.
+
+Initially `Document` borrows the input and the DOM is immutable. This is a useful
+performance baseline, but owned documents are essential for language bindings
+and long-lived application state. The safe path to owning input is a document
+that owns bytes and stores ranges or string-pool IDs, resolving references on
+access. Avoid self-referential structs. Measure whether the borrowed and owned
+forms can share one representation before exposing another public type.
+
+`NodeId` is document-local identity, not a process-wide handle. Checked lookup
+must reject out-of-range IDs. Before exposing mutation or bindings, specify how
+cross-document IDs and stale handles are detected: document identity and
+generation counters at the boundary are candidates. Deletion must not silently
+make an old handle identify another node. Do not promise stable C addresses.
+
+Add mutation after immutable traversal and serialization have a tested contract.
+Mutators must preserve acyclicity, one parent per attached node, namespace
+well-formedness, and document ordering. Detach/import/adopt operations need
+explicit ownership rules. A separate mutation builder can be simpler than
+permanent interior mutability in every node.
+
+## Allocator strategy
+
+As checked on 2026-10-15, [Rust PR #156882](https://github.com/rust-lang/rust/pull/156882)
+merged on September 23. It stabilizes an MVP: `Allocator`, `Global`/`System`, and
+minimal allocator-aware `Vec`/`Box` APIs. Other functionality remains under
+[`allocator_ext` #163177](https://github.com/rust-lang/rust/issues/163177).
+The [original tracking issue](https://github.com/rust-lang/rust/issues/32838)
+records expected delivery in Rust 1.100, conditional on the release process.
+Installed older compilers do not verify that release's behavior.
+
+Use safe collection APIs with an allocator supplied by the application or the
+standard library. `Allocator` remains an unsafe trait; yaxml cannot implement
+its own bump allocator or allocation-counting wrapper under `forbid(unsafe_code)`.
+Index arenas built from ordinary vectors require no custom allocator.
+
+The first allocator milestone should cover DOM node and attribute vectors, then
+parser stacks and normalized text. Borrow one allocator into several vectors to
+avoid relying on `A: Clone` semantics. Prefer fallible reservation and report
+failure before publishing partial state. Do not assume `String`, `Cow`, shared
+strings, or every collection becomes allocator-aware with this stabilization.
+Document exactly which allocations still use the global allocator.
+
+Do not make the strict reader generic over an allocation framework merely to
+claim allocator support. Add allocator parameters where storage is actually
+allocated, with ordinary defaults. Validate the final public `parse_in` shape on
+the target compiler before committing to it. A temporary feature gate on older
+nightlies is experimental, not a claim of Rust 1.100 release validation.
+
+## Security boundaries
+
+Safe Rust removes a major class of memory errors in our code; it does not bound
+CPU, memory, entity amplification, or external effects. Budgets belong in the
+parser state and must be checked before allocating or performing expensive work.
+All size arithmetic needs checked addition/multiplication. Limits must apply to
+recovery and skip operations as well as normal parsing.
+
+The first slice limits input bytes, token bytes, nesting, attributes, and event
+count. DOM node/text totals, namespace work, query steps, schema states, expanded
+entity bytes, external bytes, and inclusion depth are required as those features
+arrive. Distinguish the input buffer supplied by the caller from extra memory
+retained by the parser. A byte ceiling alone does not prevent quadratic work on
+many attributes or namespace declarations; measure and bound those paths too.
+
+No implicit network, filesystem, process environment, or global catalog lookup
+belongs in parsing. A future resolver is an explicit per-operation capability
+with a shared budget and cancellation policy. DTD/entity support can then be
+added without changing the default trust boundary. Unsupported DTDs and encodings
+must be rejected explicitly until implemented.
+
+Every public byte-processing surface needs a fuzz target and a maintained corpus.
+Use structural invariants, independent specifications, and versioned external
+oracles alongside panic detection. Exercise valid and invalid input, limits,
+terminal states, normalization, and future chunk boundaries. Track source-region
+and branch coverage separately from API-target coverage. The goal is 100%
+reachable crate coverage with reviewed exclusions; any reported percentage must
+include the compiler, enabled features, corpus, execution budget, and denominator.
+No coverage percentage proves absence of security defects.
+
+## Performance evidence and bindings
+
+Measure full DOM parsing, event consumption, actual bounded I/O streaming,
+serialization, and destruction separately. Include tiny files, large text,
+attribute-heavy documents, namespace-heavy documents, Unicode, normalization,
+deep nesting, and adversarial failures. Record throughput, latency, allocations,
+and peak memory. Match parser options and materialized outputs across libxml2
+and yaxml. Fix the reference version, compiler settings, hardware, and corpus.
+Beating libxml2 across workloads is the target; a geometric mean must not conceal
+individual regressions. No claim is justified by an unvalidated microbenchmark.
+
+Python, Ruby, JavaScript/TypeScript, and Go benefit from owned document handles,
+batch traversal, stable error categories, bounded operations, and explicit
+string lifetimes. Keep language runtime ownership and garbage collection out of
+the core. Prefer bulk iteration or query results over one foreign call per byte
+or attribute. Browser integration can use a future separately scoped WebAssembly
+adapter, but no runtime dependency enters the core by accident.
+
+Bindings may require unsafe code or ecosystem dependencies in a separate adapter
+package. That requires an explicit scope decision later; it is not an exception
+to today's constraints. Designing for adapters now means choosing portable
+ownership and IDs, not implementing speculative wrappers.
+
+## Order of work
+
+Land strict UTF-8 parsing, namespace correctness, bounded failure, and DOM
+traversal together with regression tests and fuzz entry points. Next establish
+the conformance/differential harness and honest performance baseline. Then add
+owned storage, allocator support on the target compiler, true incremental input,
+serialization, and mutation. DTD/encoding, XPath, HTML compatibility, validation,
+canonicalization, inclusion, and adapters each need their own feature burndown
+and verification criteria. Recovery is an explicit compatibility project with a
+versioned oracle, not a shortcut around strict-parser failures.
