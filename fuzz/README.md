@@ -22,7 +22,8 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `Document::parse` | `driver::exercise`, for valid UTF-8 | Acceptance matches byte input |
 | `Document::with_limits` | Derived profiles and each explicit resource ceiling | Policy acceptance matches the reader; each limit has a known rejection case |
 | `OwnedDocument::parse`, `parse_bytes`, `with_limits`, `with_decode_limits` | `owned::exercise` and `encoding::exercise`, default and derived profiles | Temporary source overwritten/dropped before views; complete values/topology/spans match borrowing DOM or independently decoded reference; aggregate and decoded ceilings |
-| Owned tree views and navigation | Successful owned trees | Every kind, declaration, name, attribute, PI target, payload and navigation method compared; exact iterator lengths; valid and out-of-range ID lookup |
+| Owned tree views and navigation | Successful owned trees | Every kind, declaration, name, attribute, PI target, payload and navigation method compared; exact iterator lengths; valid lookup and foreign-identity rejection |
+| `OwnedDocument::edit`, `Editor::document`, `set_node_value`, `set_attribute_value`, owned handle lookup | `mutation::exercise`, independent operation and quota selectors | Model predicts exact outcomes before production; complete state after success/failure; foreign handles, moves, persistent quotas, recovery and strict model-based serialization |
 | `PushParser::new`, `default`, `with_limits`, `feed`, `finish`, `position`, `event_range` | Input-derived chunk and lifecycle schedules, capped at 4096 chunks | Acceptance and exact typed event/span parity with slice reader; monotonic consumed position; repeated EOF; sticky errors after feeding final EOF |
 | `PushParser::read_from` | Cursor plus bounded scheduled and invalid-count readers | Same events/spans; one Interrupted retry; original injected I/O error kind/message; cancellation stops reads; terminal parser states perform no I/O; oversized reported counts are rejected |
 | DOM traversal and node access | Successful document checks | Unique IDs; preorder traversal; parent/child/sibling agreement; nested source ranges; subtree sizes |
@@ -126,6 +127,69 @@ The same input selects a default constructor and terminal operation sequence. Su
 Acceptance comparisons allow streaming to exhaust its owned-byte budget earlier because it retains names that the slice parser borrows. Arbitrary malformed inputs compare acceptance rather than identical first-error precedence: slice construction validates the complete input first, while streaming validates arriving tokens. Successful inputs require exact values, namespaces, attribute order, event kinds, and spans, with no text coalescing.
 
 `tests/fuzz_smoke.rs` replays every seed and every prefix, replaces every seed byte with delimiter/boundary bytes, deletes every seed byte, generates deterministic arbitrary bytes, and generates accepted namespace-aware nested documents. These tests check invariants and some known acceptance outcomes. Reader/DOM agreement alone is weak because they share a parser; the structural and semantic regression checks remain necessary.
+
+## Owned-value mutation operations
+
+`fuzz/mutation.rs` runs once before the driver's UTF-16 early return, independently
+of whether the original testcase is valid XML. Two ten-node documents have
+manually specified logical models, explicit children, ordered attributes and
+fixed names/namespaces. They contain every leaf kind, Unicode, empty lexical
+nodes, same-local-name attributes in different namespaces, inherited/shadowed
+bindings and a default reset. Source bytes are overwritten and dropped before
+editing. The documents use independently selected UTF-8/BOM/UTF-16 transport;
+moving their containers must preserve saved handles and foreign rejection.
+
+The first eight bytes are controls: seed family, encoding, default/derived value
+ceiling, derived ceiling, quota case, quota boundary, lifecycle flags and operation
+count. The low five count bits select up to 31 complete eight-byte records, capped
+by available bytes. At most 256 bytes after the records form shared payload.
+Each record contains opcode, target container, saved-handle index, expanded-name
+selector, payload start/length, value variant and a repeat/save selector. The low
+three opcode bits select node replacement, attribute replacement, read/acquire,
+serialize, reopen, move, foreign node replacement or foreign attribute replacement.
+Payload slices become logical UTF-8 through bounded lossy decoding; fifteen fixed
+variants also force Unicode, delimiters, XML character boundaries and growth.
+Invalid UTF-8 is not an input to an `&str` mutation API.
+
+General sequences retain default cumulative capacity limits, with independently
+derived per-value ceilings. Their bounded work must succeed whenever the model
+permits it: there is no OwnedBytes or Allocation exception. Both setters also
+have mandatory small-valid success before operation interpretation. The model
+predicts handle, kind, lookup, namespace, length, XML-character and lexical errors
+in documented order, including exact UTF-8 indices. It updates expected state
+before invoking production. Every result checks complete values, names,
+namespace metadata, ordered attributes, declaration, topology, traversal,
+lookup, handles and persistent original provenance. An optional rescue operation
+uses the same editor after rejection; ordinary operations reopen editors.
+The model does not reuse production validation, pool ranges or sibling links.
+
+Quota selectors use separate literal fixtures, not a replica of pool growth.
+For `<r>x</r>`, a one-byte replacement requires a full request of at least three
+bytes. A fixed ceiling of ten allows four one-byte replacements and rejects the
+fifth, with or without reopening; equal-value replacements still spend work.
+For `<r a='x'/>`, a two-byte replacement needs five bytes, while one byte fits
+existing spare capacity at a zero growth ceiling. Further cases check Unicode
+value boundaries, rejection without spending/growing storage, lower/higher
+reopened ceilings and empty Text at zero ceilings. Deterministic tests run every
+case in UTF-8 and both UTF-16 orders. These assertions target blanket rejection,
+per-editor reset, delta-only/full duplicate charging and equal-value shortcuts.
+
+Final and selected intermediate states serialize through `write_owned_document`,
+reparse the complete output and compare against the independent model. The only
+projection removes empty Text. Templates have no adjacent Text siblings and
+value-only editing cannot create them. Empty CDATA, comments and PI data remain
+distinct. Output is capped at 64 KiB and encoded tokens at 16 KiB. Literal byte
+goldens cover quotas, escaping, CR/whitespace references, Unicode and namespace
+declarations; the `*` quota selector also runs the full namespace/lexical golden.
+`mutation-operations.bin` and `mutation-quotas.bin` are operation seeds, also
+replayed through every prefix and byte mutation by the existing corpus tests.
+
+Public callers cannot forge an owned slot; private tests cover invalid slots and
+identity exhaustion with a local counter. Allocation-failure injection remains
+separate evidence. Deletion, stale generations, cycles, namespace editing and
+structural mutation are not implemented and gain targets with those APIs. The
+existing external oracle checks original parsing and pristine serialization;
+it does not yet execute these modeled edit sequences against libxml2.
 
 ## Source coverage
 

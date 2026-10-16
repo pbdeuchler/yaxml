@@ -20,9 +20,139 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
     include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
     include_bytes!("../fuzz/corpus/serialize.xml"),
+    include_bytes!("../fuzz/corpus/mutation-operations.bin"),
+    include_bytes!("../fuzz/corpus/mutation-quotas.bin"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
+
+fn mutation_input(header: [u8; 7], operations: &[[u8; 8]], payload: &[u8]) -> Vec<u8> {
+    assert!(operations.len() <= 31);
+    let mut input = header.to_vec();
+    input.push(operations.len() as u8);
+    for operation in operations {
+        input.extend_from_slice(operation);
+    }
+    input.extend_from_slice(payload);
+    input
+}
+
+#[test]
+fn mutation_operations_predict_results_and_preserve_complete_trees() {
+    for encoding in 0..4 {
+        for family in 0..2 {
+            for variant in 0..16 {
+                for derived in [0, 1] {
+                    let mut operations = Vec::new();
+                    for node in [0, 1, 2, 3, 4, 5, 6, 8, 9] {
+                        operations.push([0, 0, node, 0, 0, 255, variant, 31]);
+                    }
+                    for selector in [0, 1, 2, 6, 7] {
+                        operations.push([1, 0, 1, selector, 0, 255, variant, 31]);
+                    }
+                    operations.extend([
+                        [0, 1, 12, 0, 0, 255, 12, 0],
+                        [1, 1, 11, 2, 0, 255, 2, 0],
+                        [6, 0, 2, 0, 0, 255, variant, 0],
+                        [7, 0, 1, 0, 0, 255, variant, 0],
+                        [5, 0, 0, 0, 0, 0, 0, 0],
+                        [2, 1, 2, 0, 0, 0, 1, 19],
+                        [0, 1, 19, 0, 0, 255, 12, 0],
+                        [4, 1, 0, 0, 0, 0, 0, 0],
+                        [3, 1, 0, 0, 0, 0, 0, 0],
+                    ]);
+                    driver::exercise_mutation(&mutation_input(
+                        [family, encoding, derived, variant, variant, derived, 1],
+                        &operations,
+                        b"logical payload <>&\"\r\n\t",
+                    ));
+                }
+            }
+            for selector in 0..12 {
+                let operations: Vec<_> = [0, 1, 2, 6, 7]
+                    .map(|node| [1, 0, node, selector, 0, 255, 12, 0])
+                    .into();
+                driver::exercise_mutation(&mutation_input(
+                    [family, encoding, 0, 0, 6, selector, 1],
+                    &operations,
+                    b"value",
+                ));
+            }
+        }
+    }
+}
+
+#[test]
+fn mutation_value_boundaries_and_error_indices_are_independent() {
+    for payload in [
+        "",
+        "é",
+        "🙂",
+        "é\0",
+        "🙂]]>",
+        "é--",
+        "é-",
+        "🙂?>",
+        "é\r",
+        "\tdata",
+        "\ndata",
+        " data",
+        "]]>\0",
+        " \u{ffff}",
+        "é\u{fffe}",
+        "\r--?>",
+        "\u{1}",
+        "\u{b}",
+        "\u{c}",
+        "\u{d7ff}",
+        "\u{e000}",
+        "\u{fffd}",
+        "\u{10000}",
+        "\u{10ffff}",
+        "\u{85}",
+        "\u{a0}",
+        "\u{2003}",
+        "\u{feff}",
+        "&<>\"\r\n\t",
+    ] {
+        for encoding in 0..4 {
+            for maximum in [
+                payload.len().saturating_sub(1),
+                payload.len(),
+                payload.len() + 1,
+            ] {
+                let operations: Vec<_> = [2, 3, 4, 5]
+                    .map(|node| [0, 0, node, 0, 0, 255, 0, 0])
+                    .into_iter()
+                    .chain(std::iter::once([1, 0, 1, 0, 0, 255, 0, 0]))
+                    .collect();
+                driver::exercise_mutation(&mutation_input(
+                    [0, encoding, 1, maximum as u8, 5, 0, 1],
+                    &operations,
+                    payload.as_bytes(),
+                ));
+            }
+        }
+    }
+}
+
+#[test]
+fn mutation_literal_quota_sequences_cover_reopened_and_encoded_trees() {
+    for encoding in 0..4 {
+        for case in 0..8 {
+            for boundary in 0..3 {
+                for lifecycle in [0, 2] {
+                    driver::exercise_mutation(&mutation_input(
+                        [0, encoding, 0, 0, case, boundary, lifecycle],
+                        &[],
+                        b"",
+                    ));
+                }
+            }
+        }
+        driver::exercise_mutation(&mutation_input([0, encoding, 0, 0, b'*', 0, 0], &[], b""));
+    }
+}
 
 #[test]
 fn document_serialization_semantics_and_independent_quotas() {

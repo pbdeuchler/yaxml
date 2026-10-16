@@ -20,6 +20,9 @@ mod pull;
 #[path = "serialize.rs"]
 mod serialize;
 
+#[path = "mutation.rs"]
+mod mutation;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -30,12 +33,13 @@ pub struct Outcome {
     pub events: usize,
 }
 
-/// Exercise all currently implemented byte-input parser entry points.
+/// Exercise byte-input APIs and caller-created writer and mutation operations.
 pub fn exercise(input: &[u8]) -> Outcome {
     assert!(
         input.len() <= MAX_INPUT_BYTES,
         "fuzz testcase exceeds the driver budget"
     );
+    exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
     if encoding::recognizes(input) {
         return encoding::exercise(input);
@@ -91,6 +95,12 @@ pub fn exercise(input: &[u8]) -> Outcome {
         },
     );
     outcome
+}
+
+/// Exercise caller-created edits independently from the XML grammar bytes.
+pub fn exercise_mutation(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    mutation::exercise(input);
 }
 
 /// Exercise pull scheduling independently from the XML grammar bytes.
