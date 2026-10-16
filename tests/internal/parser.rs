@@ -1,5 +1,16 @@
 use super::*;
 
+impl ParserState<'_> {
+    pub(crate) fn retained_snapshot(&self) -> [(usize, usize); 4] {
+        [
+            (self.stack.len(), self.stack.capacity()),
+            (self.bindings.len(), self.bindings.capacity()),
+            (self.namespace_index.len(), self.namespace_index.capacity()),
+            (self.namespace_ids.len(), self.namespace_ids.capacity()),
+        ]
+    }
+}
+
 fn owned<'event>(
     state: &mut ParserState<'static>,
     kind: TokenKind,

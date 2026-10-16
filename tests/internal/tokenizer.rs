@@ -1,5 +1,31 @@
 use super::*;
 
+impl Tokenizer {
+    pub(crate) fn retained_snapshot(&self) -> (usize, usize) {
+        (self.buffer.len(), self.buffer.capacity())
+    }
+}
+
+#[test]
+fn suspension_retains_completed_tokens_and_replays_lookahead_once() {
+    let mut tokenizer = Tokenizer::new(3, 3);
+    assert_eq!(tokenizer.advance(b"abc<r/>").unwrap(), 4);
+    let (kind, bytes, span) = tokenizer.current().unwrap();
+    assert_eq!(kind, TokenKind::Text);
+    assert_eq!(bytes, b"abc");
+    assert_eq!(span.source, 0..3);
+    assert_eq!(tokenizer.advance(b"r/>").unwrap(), 0);
+    tokenizer.release();
+    assert_eq!(tokenizer.advance(&[]).unwrap(), 0);
+    assert_eq!(tokenizer.source_position(), 4);
+    assert_eq!(tokenizer.buffer, b"<");
+    assert_eq!(
+        tokenizer.advance(b"r/>").unwrap_err(),
+        Error::new(ErrorKind::LimitExceeded(Limit::TokenBytes), 3)
+    );
+    assert_eq!(tokenizer.source_position(), 7);
+}
+
 #[test]
 fn tokens_and_spans_are_chunk_invariant() {
     let input = b"<?pi x?><r a='>'>text<!--c--><![CDATA[x]]><c/></r>";

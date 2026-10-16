@@ -298,3 +298,174 @@ fn semantic_offsets_use_unnormalized_scalar_prefixes() {
     assert!(!needs_decoding(b"\xef\xbb\xbf<r/>"));
     assert!(!needs_decoding(b"<r/>"));
 }
+
+#[test]
+fn utf16_scalar_is_charged_once_before_suspension_and_carry_survives() {
+    for little_endian in [false, true] {
+        for text in ["é", "中", "🙂"] {
+            let input = utf16(text, little_endian, true);
+            let mut decoder = Decoder::new(text.len());
+            let mut found = Vec::new();
+            let progress = decoder
+                .advance(&input, |event| {
+                    let Decoded::Bytes(bytes) = event else {
+                        return Ok(DecodeProgress {
+                            consumed: 0,
+                            suspended: false,
+                        });
+                    };
+                    found.push(bytes[0]);
+                    Ok(DecodeProgress {
+                        consumed: 1,
+                        suspended: true,
+                    })
+                })
+                .unwrap();
+            assert!(progress.suspended);
+            assert_eq!(progress.consumed, input.len());
+            assert_eq!(decoder.position(), input.len());
+            assert_eq!(decoder.decoded, text.len());
+            assert_eq!(decoder.pending_len - decoder.pending_cursor, text.len() - 1);
+            while found.len() < text.len() {
+                let progress = decoder
+                    .advance(&[], |event| {
+                        let Decoded::Bytes(bytes) = event else {
+                            panic!("encoding started twice")
+                        };
+                        found.push(bytes[0]);
+                        Ok(DecodeProgress {
+                            consumed: 1,
+                            suspended: true,
+                        })
+                    })
+                    .unwrap();
+                assert_eq!(progress.consumed, 0);
+                assert!(progress.suspended);
+                assert_eq!(decoder.decoded, text.len());
+            }
+            assert_eq!(found, text.as_bytes());
+            assert!(
+                !decoder
+                    .finish_step(|_| panic!("carry already delivered"))
+                    .unwrap()
+            );
+            let next = utf16("x", little_endian, false);
+            assert_eq!(
+                decoder
+                    .advance(&next, |_| panic!("total quota was exhausted"))
+                    .unwrap_err(),
+                Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0)
+            );
+            assert_eq!(decoder.position(), input.len() + 2);
+            let mut decoder = Decoder::new(text.len() - 1);
+            assert_eq!(
+                decoder
+                    .advance(&input, |event| {
+                        assert!(matches!(event, Decoded::Start { .. }));
+                        Ok(DecodeProgress {
+                            consumed: 0,
+                            suspended: false,
+                        })
+                    })
+                    .unwrap_err(),
+                Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0)
+            );
+        }
+    }
+}
+
+#[test]
+fn utf8_and_final_preamble_suspension_charge_only_delivered_bytes() {
+    let mut decoder = Decoder::new(4);
+    let mut collected = Vec::new();
+    let mut offset = 0;
+    while offset < 4 {
+        let progress = decoder
+            .advance(&b"abcd"[offset..], |event| {
+                let Decoded::Bytes(bytes) = event else {
+                    return Ok(DecodeProgress {
+                        consumed: 0,
+                        suspended: false,
+                    });
+                };
+                collected.push(bytes[0]);
+                Ok(DecodeProgress {
+                    consumed: 1,
+                    suspended: true,
+                })
+            })
+            .unwrap();
+        offset += progress.consumed;
+        assert_eq!(decoder.decoded, collected.len());
+        assert_eq!(decoder.position(), collected.len());
+    }
+    assert_eq!(collected, b"abcd");
+    decoder.finish(|_| panic!("no bytes remain")).unwrap();
+    let mut decoder = Decoder::new(2);
+    decoder
+        .feed(b"\xef\xbb", |_| panic!("preamble still ambiguous"))
+        .unwrap();
+    let mut found = Vec::new();
+    assert!(
+        decoder
+            .finish_step(|event| {
+                match event {
+                    Decoded::Start { .. } => Ok(DecodeProgress {
+                        consumed: 0,
+                        suspended: false,
+                    }),
+                    Decoded::Bytes(bytes) => {
+                        found.push(bytes[0]);
+                        Ok(DecodeProgress {
+                            consumed: 1,
+                            suspended: true,
+                        })
+                    }
+                }
+            })
+            .unwrap()
+    );
+    assert_eq!(decoder.decoded, 1);
+    assert!(
+        !decoder
+            .finish_step(|event| {
+                let Decoded::Bytes(bytes) = event else {
+                    panic!("encoding started twice")
+                };
+                found.extend(bytes);
+                Ok(DecodeProgress {
+                    consumed: bytes.len(),
+                    suspended: false,
+                })
+            })
+            .unwrap()
+    );
+    assert_eq!(found, b"\xef\xbb");
+    assert_eq!(decoder.position(), 2);
+    assert_eq!(decoder.decoded, 2);
+}
+
+#[test]
+fn decoded_consumer_progress_is_checked() {
+    for (consumed, suspended, available, accepted) in [
+        (0, false, 0, true),
+        (1, false, 1, true),
+        (0, true, 1, true),
+        (1, true, 2, true),
+        (2, true, 1, false),
+        (0, false, 1, false),
+    ] {
+        let result = check_progress(
+            DecodeProgress {
+                consumed,
+                suspended,
+            },
+            available,
+            7,
+        );
+        assert_eq!(result.is_ok(), accepted);
+        if !accepted {
+            assert_eq!(result, Err(Error::new(ErrorKind::InvalidState, 7)));
+        }
+    }
+}
