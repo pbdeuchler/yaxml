@@ -60,6 +60,14 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [ ] Extend the parsing baseline to size/attribute/namespace/depth series,
   UTF-16 and remaining encodings, malformed inputs, cold latency, allocation
   counts and retained/peak memory; profile and close the measured parser gaps.
+- [x] Profile long unchanged text and replace scalar normalization detection
+  with `memchr`, removing the duplicate check while preserving borrowing,
+  quotas and diagnostics. The [paired Rust validation](validation-normalization-scans.md)
+  records about 1.78–1.79× faster large-text DOM parsing and 1.37–1.38× faster
+  large-chunk streaming. All 65 workloads retain exact observations; a tiny
+  outlier did not repeat in 31 samples. Full XMLTS results remain unchanged.
+  Fresh fuzz-only coverage is 6,808/7,260 regions and 913/964 branch outcomes;
+  100% and performance superiority over libxml2 remain open.
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
 - [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
 - [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.
