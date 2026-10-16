@@ -1,6 +1,7 @@
 # Owned document storage
 
-`OwnedDocument` is an immutable tree that survives destruction of its UTF-8 or UTF-16 input.
+`OwnedDocument` survives destruction of its UTF-8 or UTF-16 input and supports
+bounded replacement of existing logical values.
 Its parser uses the same XML grammar, namespaces, normalization and resource
 policy as `Document`; strings are copied into a document-owned UTF-8 pool.
 Records keep pool ranges and flat node links rather than references into their
@@ -81,7 +82,7 @@ let owned = OwnedDocument::parse("<r/>").unwrap();
 owned.node(borrowed.root().id());
 ```
 
-## Aggregate string budget
+## Parsing string budget
 
 The six existing `Limits` fields apply. Owned parsing additionally charges its
 pool to the same `max_owned_bytes` counter used by parser normalization and
@@ -108,11 +109,75 @@ This is not a process-memory quota, a complete allocation-failure guarantee or
 custom allocator support. The core continues to forbid unsafe code and has only
 `memchr` as a dependency.
 
+## Editing existing values
+
+`document.edit(EditLimits)` takes an exclusive borrow and returns an `Editor`.
+Its `document()` accessor exposes read-only views between operations. Rust
+prevents using a node or string view across an edit; retain `OwnedNodeId`
+handles instead. Dropping the editor performs no implicit work.
+
+```rust
+use yaxml::{EditLimits, OwnedDocument};
+let mut document = OwnedDocument::parse("<r a='old'>text</r>")?;
+let root = document.root_element().id();
+let text = document.root_element().first_child().unwrap().id();
+let mut editor = document.edit(EditLimits::default())?;
+editor.set_node_value(text, "new & text")?;
+editor.set_attribute_value(root, None, "a", "new\tvalue")?;
+assert_eq!(editor.document().node(text).unwrap().text(), Some("new & text"));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`set_node_value` replaces Text, CDATA, Comment or PI data; PI targets stay fixed.
+`set_attribute_value` replaces one existing attribute by expanded name
+`(namespace, local)`, preserving its qualified spelling and position. Missing
+attributes are errors. The default namespace does not apply to ordinary
+unprefixed attributes; `Some("")` differs from `None`. Selector strings identify
+existing data and are not parsed as names. XMLNS declaration values cannot be
+edited.
+
+Values are literal logical strings: `"&amp;"` remains those five characters and
+serializes as `&amp;amp;` in Text or attributes. Every replacement must contain
+valid XML 1.0 characters. Text and attributes allow CR, LF and TAB, preserved by
+writer references where needed. CDATA rejects `]]>` and raw CR; comments reject
+`--`, a trailing `-`, and raw CR; PI data rejects `?>`, raw CR, and leading XML
+whitespace. These stricter lexical rules avoid changes on serialization/reparse.
+Empty values remain present nodes; only empty Text disappears from output.
+Adjacent Text runs can coalesce on reparse. Empty CDATA/comments/PIs stay distinct.
+
+`EditError` has public `kind` and `value_offset` fields. Target identity, kind,
+attribute lookup and XMLNS restrictions precede value validation. Validation
+checks byte length, then all XML characters, then the earliest lexical violation,
+then storage. Character and lexical failures report a UTF-8 index in the new
+value; other failures have no index. This index is never an original source
+coordinate. An error preserves logical state and the editor remains usable.
+Names, namespace metadata, declaration, topology, IDs and original source ranges
+also persist after successful edits.
+
+| `EditLimits` field | Default | Accounting |
+| --- | --- | --- |
+| `max_value_bytes` | 1 MiB (1,048,576 bytes) | Replacement UTF-8 bytes, checked before scanning; excludes selector keys. |
+| `max_owned_bytes` | 64 MiB (67,108,864 bytes) | Full newly requested pool capacities across all editors for this document. |
+
+Editing starts with the parsed pool and spare capacity as its baseline. It does
+not charge parsing again or reset its editing counter when an editor closes.
+A growth charges its full replacement capacity before reservation; earlier
+charges remain spent, including failed reservation requests. A lower ceiling
+than expenditure already incurred prevents opening an editor; a later higher
+ceiling is allowed. An equal-value replacement follows the same append path.
+Old values remain in the append-only pool. Capacity already available can serve
+an edit with zero remaining growth allowance. This bounds requested growth, not resident
+memory or all CPU work. Allocation-failure injection remains unimplemented.
+
+The [mutation validation report](validation-owned-mutation.md) distinguishes
+implemented behavior from pending coverage, review and performance evidence.
+
 ## Next steps
 
 Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
-adapters. Mutable trees, foreign registries, allocator parameters, formatting,
+adapters. Node construction/removal/reparenting, name and namespace edits,
+declaration editing, foreign registries, allocator parameters, formatting,
 namespace repair, and UTF-16 output remain separate work items. Comparative
 parsing/serialization performance and complete fuzz coverage remain open
 evidence gates.

@@ -47,6 +47,11 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [ ] Add namespace repair, detached-subtree output, formatting, save options,
   and UTF-16 output with separate behavior contracts and regression coverage.
 - [x] Add immutable owned document storage with pool-backed views, shared normalization/storage accounting, and input-independent lifetimes.
+- [x] Add checked owned-document handles and bounded atomic leaf/existing
+  ordinary-attribute value edits, with persistent provenance, cumulative edit
+  capacity accounting and an independent operation model.
+- [ ] Add structural owned-tree mutation with explicit deletion/reuse,
+  cross-document ownership, namespace and text-merging contracts.
 - [x] Add incremental UTF-16LE/BE input to push parsing and owned trees, with declaration agreement, raw/decoded ceilings and original byte spans; UTF-16 output remains pending.
 - [x] Add bounded buffered pull input with lending events, exact source consumption,
   terminal I/O contracts, retained-state size series, and time-to-first-event
@@ -63,6 +68,8 @@ and buffered pull parsing share one resumable engine and bounded token buffer;
 neither accumulates the input. Additional encodings and allocator support remain pending. The
 [owned DOM contract](owned-dom.md) describes the implemented independent storage
 mode; retained-memory and comparative performance evidence remain open.
+Its [value-mutation validation](validation-owned-mutation.md) records the narrow
+editing slice and explicitly pending final evidence; richer mutation remains open.
 
 The [writer contract](writer.md) describes event and complete-document output.
 Whole trees retain their explicit namespace declarations and are traversed

@@ -14,13 +14,22 @@ Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned documen
 
 The implemented subset now includes the borrowing slice reader, read-only DOM,
 callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
-writing, complete borrowed/owned DOM serialization, and an explicit `Read`
+writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
+and an explicit `Read`
 adapter. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
 also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
 full upstream reader/SAX/save option surfaces remain open.
 
-Two explicit behavior differences remain in the current profile. Detected
+The [owned edit API](owned-dom.md#editing-existing-values) replaces literal leaf
+and existing ordinary-attribute values by checked handle. It preserves names,
+namespace declarations, attribute order and topology. It does not implement
+entity-interpreting setters, QName-based attribute creation,
+structural moves, namespace repair, or C entry points. The header inventory
+remains an unmapped upstream catalogue, not a claim that these Rust methods
+provide full `tree.h` compatibility.
+
+Recorded parsing differences include encoding agreement and namespace URIs. Detected
 UTF-16 declarations must agree strictly, while libxml2's detected-encoding path
 can warn and continue. Namespace URI syntax is not validated: an exploratory
 2.15.3 run with `--strict-namespace` rejected `xmlns='urn:中'`, which yaxml

@@ -5,8 +5,9 @@ dependency. This is an early implementation, not a libxml2 drop-in replacement.
 
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comments,
-processing instructions, CDATA, and immutable borrowed/owned DOMs. DTDs and other encodings
-return structured errors. `Reader` and `Document` borrow complete UTF-8 input.
+processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
+value edits. DTDs and other encodings return structured errors.
+`Reader` and `Document` borrow complete UTF-8 input.
 `OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE.
 `PushParser` consumes arbitrary byte chunks; `read_from` drives it from a
 caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
@@ -104,21 +105,28 @@ output remain pending.
 Use `OwnedDocument` when a tree must outlive its source:
 
 ```rust
-use yaxml::OwnedDocument;
+use yaxml::{EditLimits, OwnedDocument};
 
-let document = {
+let mut document = {
     let input = String::from("<root a='value'>text</root>");
     OwnedDocument::parse(&input)?
 };
 assert_eq!(document.root_element().name().unwrap().local, "root");
 assert_eq!(document.root_element().first_child().unwrap().text(), Some("text"));
-# Ok::<(), yaxml::Error>(())
+let text = document.root_element().first_child().unwrap().id();
+document.edit(EditLimits::default())?.set_node_value(text, "updated")?;
+assert_eq!(document.node(text).unwrap().text(), Some("updated"));
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 The [owned DOM contract](docs/owned-dom.md) describes pool-backed views,
 source ranges and aggregate string accounting. Retained copies share the
 normalization budget, so owned parsing can reach its ceiling before borrowing
 parsing. `Document` continues to borrow unchanged input.
+`Editor` replaces existing leaf or ordinary-attribute values while preserving
+names, namespaces, topology, handles and original source provenance. Its
+separate `EditLimits` bounds each replacement and cumulative pool-capacity
+requests across editors. Structural and namespace edits remain pending.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
@@ -132,7 +140,7 @@ the current stable baseline uses ordinary safe vectors. No performance advantage
 over libxml2 or complete fuzz execution coverage is claimed yet.
 
 Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
-`cargo bench --bench parse`, `cargo bench --bench pull`, and
-`cargo bench --bench serialize`. The benchmarks report yaxml-only DOM,
-slice-event, push, buffered-pull, and complete-tree serialization measurements;
-they do not compare equivalent libxml2 workloads.
+`cargo bench --bench parse`, `cargo bench --bench pull`,
+`cargo bench --bench serialize`, and `cargo bench --bench mutation`. The benchmarks
+report yaxml-only DOM, slice-event, push, buffered-pull, complete-tree serialization,
+and value-edit measurements; they do not compare equivalent libxml2 workloads.

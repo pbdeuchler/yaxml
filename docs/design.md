@@ -119,7 +119,8 @@ the slice constructor's error precedence.
 
 The existing public vocabulary includes `Reader`, `PushParser`, `Writer`,
 `Event`, `Element`, `Attribute`, `Declaration`, `Name`, `Limits`, `WriterLimits`,
-`Document`, `Node`, `NodeId`, `NodeKind`, `OwnedDocument`, `OwnedNode`, and `OwnedNodeId`.
+`Document`, `Node`, `NodeId`, `NodeKind`, `OwnedDocument`, `OwnedNode`, `OwnedNodeId`,
+`Editor`, `EditLimits`, `EditError`, `EditErrorKind`, and `EditLimit`.
 Retain these names while behavior stabilizes. New parser policy should extend
 explicit configuration, with strict XML as the default; avoid a bag of
 independent switches that permits contradictory contracts.
@@ -194,11 +195,20 @@ content. Structural mutation will need an explicit deletion/reuse policy:
 deletion must not make an old handle identify another node. Neither type
 promises stable C addresses or replaces a future binding registry.
 
-Add mutation after immutable traversal and serialization have a tested contract.
-Mutators must preserve acyclicity, one parent per attached node, namespace
-well-formedness, and document ordering. Detach/import/adopt operations need
-explicit ownership rules. A separate mutation builder can be simpler than
-permanent interior mutability in every node.
+The first mutation slice replaces existing leaf and ordinary-attribute values
+through an exclusive `Editor`. It validates before append and publishes one
+range after storage succeeds. Original source locations remain provenance;
+they do not describe rewritten bytes. Editing has a separate cumulative
+capacity counter that persists across editor sessions, with parsed storage as
+the baseline. No topology, name, namespace declaration or declaration can change.
+See the [owned contract](owned-dom.md) for lexical and error rules.
+
+Structural mutation needs its own representation change: current owned
+preorder/subtree iteration assumes contiguous slots. Future operations must
+preserve acyclicity, one parent per attached node, namespace well-formedness,
+ordering and stale-handle rejection. Detach/import/adopt require explicit
+ownership rules. No interior mutability or generic mutation framework is added
+for this value-only slice.
 
 ## Allocator strategy
 

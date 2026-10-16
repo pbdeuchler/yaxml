@@ -1,4 +1,4 @@
-# Parser and serialization benchmark evidence
+# Parser, serialization and mutation benchmark evidence
 
 These runners measure yaxml. They do not establish a libxml2 performance win.
 Build release binaries before recording runs; debug execution under
@@ -114,6 +114,49 @@ Validate semantic equivalence separately and report unavoidable differences;
 do not compare this batch timer with whole-process xmllint startup. The pinned
 [save implementation](https://github.com/GNOME/libxml2/blob/v2.15.4/xmlsave.c)
 defines the reference lifecycle. No matched libxml2 timing harness is supplied.
+
+## Owned-value editing
+
+`cargo bench --bench mutation` reparses a fresh owned tree for each iteration,
+because edits consume cumulative capacity. Fixture generation and UTF-8/UTF-16
+encoding are outside all clocks. It reports separate times for parse/handle
+setup, Editor construction and edits, final value checks plus serialization/
+complete reparse/checksum, and destruction. The edit clock includes selector
+dispatch and handle selection. Documents and validation buffers are destroyed
+after that clock. No document clone or parse is hidden in edit throughput.
+
+Six cases cover repeated/distributed leaf updates, first/middle/last attribute
+lookup and alternating large/short values. Release defaults use widths 1/256,
+depths 1/64, 32 attributes, five fresh documents and 10,000 operations each;
+debug smoke uses widths 1/16, depths 1/4, four attributes, one document and 32
+operations. Both matrices cover UTF-8/UTF-16LE/UTF-16BE construction: 72 rows.
+Encoding conversion affects setup; the editable strings are always UTF-8.
+
+| Variable | Values |
+| --- | --- |
+| `YAXML_MUTATION_CASE` | `same_leaf`, `many_leaves`, `attribute_first`, `attribute_middle`, `attribute_last`, `growth_shrink` |
+| `YAXML_MUTATION_ENCODING` | `utf8`, `utf16le`, `utf16be` |
+| `YAXML_MUTATION_WIDTH`, `YAXML_MUTATION_DEPTH` | One positive size instead of that matrix axis |
+| `YAXML_MUTATION_ATTRIBUTES` | Positive attribute count for lookup cases |
+| `YAXML_MUTATION_ITERATIONS`, `YAXML_MUTATION_OPERATIONS` | Positive fresh-document and per-document operation counts |
+| `YAXML_MUTATION_PAYLOAD_BYTES` | Ordinary/short value bytes, default 32; zero is allowed |
+| `YAXML_MUTATION_GROWTH_BYTES` | Large value bytes, default 1,024; at least the short size for growth/shrink |
+| `YAXML_MUTATION_MAX_VALUE_BYTES`, `YAXML_MUTATION_MAX_OWNED_BYTES` | `EditLimits` ceilings, including zero for rejection studies |
+
+Rows record dimensions, ceilings, requested/completed operations, phase times,
+serialized bytes and an FNV checksum. A rejected edit stops that iteration,
+records its error, and validates the successful prefix. Its elapsed time
+includes the rejected attempt while throughput counts successful operations;
+do not compare such a row as complete-work throughput. Input parse rejection is
+reported separately. Serialization/reparse must pass: their depth and attribute
+ceilings follow the dimensions, but other byte/token budgets remain defaults.
+Oversized custom workloads can therefore terminate during validation.
+
+Use independently varied attribute-count, width, depth and payload series, with
+fixed operations and repeated alternating runs. These are yaxml measurements;
+no matched libxml2 editing harness, allocation profile or memory advantage is
+established. Final milestone results belong in the
+[mutation validation report](validation-owned-mutation.md).
 
 ## Comparability and reporting
 

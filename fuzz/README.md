@@ -33,7 +33,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 | `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
 
-Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Tree mutation, entities, queries, schemas, and binding handles require targets when implemented. A target that calls an API does not establish that all its branches execute.
+Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Structural mutation, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
 
 Owned trees use the same normalization budget for pool growth and parsing. They
 can reject a valid borrowed tree with OwnedBytes, or reach that ceiling before a
@@ -44,8 +44,8 @@ bound is `16*n*(n+64)`, at most 17 MiB here, below the 64 MiB default. This chec
 prevents the OwnedBytes exception from hiding blanket rejection; it must be
 revisited when entity expansion or storage accounting changes. Default byte and string constructors run sequentially, dropping the
 first owned tree before the second. Complete comparisons borrow pool views
-rather than cloning repeated namespace URIs. A small canonical owned tree checks
-out-of-range document-local IDs; generated Unicode/normalization cases force
+rather than cloning repeated namespace URIs. Canonical owned trees check
+foreign document identities; generated Unicode/normalization cases force
 pool growth, and tiny aggregate limit profiles exercise parser/storage sharing.
 Independent budget goldens require minima of 1, 3, 8 and 10 bytes for `<r/>`,
 `<r>a</r>`, `<r>&amp;</r>` and `<r a='&#9;'/>` respectively once the reader accepts.
