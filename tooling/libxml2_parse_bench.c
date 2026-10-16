@@ -12,9 +12,11 @@
 #include <libxml/tree.h>
 #include <libxml/xmlerror.h>
 #include <libxml/xmlreader.h>
+#include <libxml/xmlstring.h>
 #include <libxml/xmlversion.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stdint.h>
@@ -24,6 +26,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 #define MAGIC "YAXML-PARSE-BENCH-1"
 #define MAX_INPUT_BYTES (8U * 1024U * 1024U)
@@ -135,20 +138,36 @@ static const char *mode_name(enum Mode mode) {
 
 static struct Input read_input(const char *path, size_t chunk) {
     struct Input input;
+    struct stat path_info;
     struct stat info;
     FILE *file;
+    int fd;
     size_t length;
     memset(&input, 0, sizeof(input));
     input.chunk = chunk;
-    file = fopen(path, "rb");
-    if (file == NULL)
-        fail(66, "input open failure");
-    if (fstat(fileno(file), &info) != 0 || !S_ISREG(info.st_mode) ||
-        info.st_size < 0 ||
-        (uintmax_t)info.st_size > (uintmax_t)MAX_INPUT_BYTES)
+    if (stat(path, &path_info) != 0 || !S_ISREG(path_info.st_mode) ||
+        path_info.st_size < 0 ||
+        (uintmax_t)path_info.st_size > (uintmax_t)MAX_INPUT_BYTES)
         fail(65, "input must be a regular file no larger than 8 MiB");
+    fd = open(path, O_RDONLY | O_NONBLOCK);
+    if (fd < 0)
+        fail(66, "input open failure");
+    if (fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) ||
+        info.st_size < 0 ||
+        (uintmax_t)info.st_size > (uintmax_t)MAX_INPUT_BYTES ||
+        path_info.st_dev != info.st_dev || path_info.st_ino != info.st_ino) {
+        (void)close(fd);
+        fail(65, "input must be a regular file no larger than 8 MiB");
+    }
+    file = fdopen(fd, "rb");
+    if (file == NULL) {
+        (void)close(fd);
+        fail(66, "input open failure");
+    }
     length = (size_t)info.st_size;
-    input.bytes = (unsigned char *)malloc(length == 0 ? 1 : length);
+    if (length == SIZE_MAX)
+        fail(70, "input allocation size overflow");
+    input.bytes = (unsigned char *)malloc(length + 1U);
     if (input.bytes == NULL)
         fail(70, "input allocation failure");
     if (length != 0 && fread(input.bytes, 1, length, file) != length)
@@ -158,112 +177,8 @@ static struct Input read_input(const char *path, size_t chunk) {
     if (fclose(file) != 0)
         fail(66, "input close failure");
     input.length = length;
+    input.bytes[length] = 0U;
     return input;
-}
-
-static int valid_utf8(const unsigned char *bytes, size_t length) {
-    size_t offset = 0U;
-    while (offset < length) {
-        unsigned char first = bytes[offset];
-        size_t count;
-        unsigned char second_min = 0x80U;
-        unsigned char second_max = 0xBFU;
-        if (first <= 0x7FU) {
-            ++offset;
-            continue;
-        }
-        if (first >= 0xC2U && first <= 0xDFU) {
-            count = 2U;
-        } else if (first >= 0xE0U && first <= 0xEFU) {
-            count = 3U;
-            if (first == 0xE0U) second_min = 0xA0U;
-            if (first == 0xEDU) second_max = 0x9FU;
-        } else if (first >= 0xF0U && first <= 0xF4U) {
-            count = 4U;
-            if (first == 0xF0U) second_min = 0x90U;
-            if (first == 0xF4U) second_max = 0x8FU;
-        } else {
-            return 0;
-        }
-        if (count > length - offset || bytes[offset + 1U] < second_min ||
-            bytes[offset + 1U] > second_max)
-            return 0;
-        {
-            size_t index;
-            for (index = 2U; index < count; ++index) {
-                if (bytes[offset + index] < 0x80U ||
-                    bytes[offset + index] > 0xBFU)
-                    return 0;
-            }
-        }
-        offset += count;
-    }
-    return 1;
-}
-
-static int xml_space(unsigned char byte) {
-    return byte == (unsigned char)' ' || byte == (unsigned char)'\t' ||
-           byte == (unsigned char)'\r' || byte == (unsigned char)'\n';
-}
-
-/* The XML declaration is ASCII. This small scan only rejects a declared
- * non-UTF-8 encoding; the XML parser remains responsible for grammar. */
-static int declared_utf8(const unsigned char *bytes, size_t length) {
-    size_t offset = 0U;
-    if (length >= 3U && bytes[0] == 0xEFU && bytes[1] == 0xBBU &&
-        bytes[2] == 0xBFU)
-        offset = 3U;
-    if (length - offset < 6U || memcmp(bytes + offset, "<?xml", 5U) != 0 ||
-        !xml_space(bytes[offset + 5U]))
-        return 1;
-    offset += 5U;
-    while (offset < length) {
-        size_t name_start;
-        size_t name_length;
-        size_t value_start;
-        unsigned char quote;
-        while (offset < length && xml_space(bytes[offset])) ++offset;
-        if (offset + 1U < length && bytes[offset] == (unsigned char)'?' &&
-            bytes[offset + 1U] == (unsigned char)'>')
-            return 1;
-        name_start = offset;
-        while (offset < length &&
-               ((bytes[offset] >= (unsigned char)'A' &&
-                 bytes[offset] <= (unsigned char)'Z') ||
-                (bytes[offset] >= (unsigned char)'a' &&
-                 bytes[offset] <= (unsigned char)'z') ||
-                bytes[offset] == (unsigned char)'_' ||
-                bytes[offset] == (unsigned char)'-'))
-            ++offset;
-        if (offset == name_start)
-            return 1;
-        name_length = offset - name_start;
-        while (offset < length && xml_space(bytes[offset])) ++offset;
-        if (offset >= length || bytes[offset] != (unsigned char)'=')
-            return 1;
-        ++offset;
-        while (offset < length && xml_space(bytes[offset])) ++offset;
-        if (offset >= length ||
-            (bytes[offset] != (unsigned char)'\'' &&
-             bytes[offset] != (unsigned char)'"'))
-            return 1;
-        quote = bytes[offset++];
-        value_start = offset;
-        while (offset < length && bytes[offset] != quote) ++offset;
-        if (offset >= length)
-            return 1;
-        if (name_length == 8U &&
-            memcmp(bytes + name_start, "encoding", 8U) == 0) {
-            size_t value_length = offset - value_start;
-            if (!((value_length == 5U &&
-                   strncasecmp((const char *)bytes + value_start, "UTF-8", 5U) == 0) ||
-                  (value_length == 4U &&
-                   strncasecmp((const char *)bytes + value_start, "UTF8", 4U) == 0)))
-                return 0;
-        }
-        ++offset;
-    }
-    return 1;
 }
 
 static void hash_byte(struct Observation *obs, unsigned char byte) {
@@ -750,8 +665,7 @@ static int accepted_version(const xmlChar *value) {
 }
 
 static int accepted_encoding(const xmlChar *value) {
-    return value == NULL || strcasecmp((const char *)value, "UTF-8") == 0 ||
-           strcasecmp((const char *)value, "UTF8") == 0;
+    return value == NULL || strcasecmp((const char *)value, "UTF-8") == 0;
 }
 
 static void validate_dom(xmlDocPtr doc, struct Observation *obs) {
@@ -769,7 +683,7 @@ static void run_dom(const struct Input *input, size_t iterations,
         uint64_t started = now_ns();
         xmlSetStructuredErrorFunc(&obs, structured_error);
         doc = xmlReadMemory((const char *)input->bytes, (int)input->length,
-                            NULL, "UTF-8", XML_OPTIONS);
+                            NULL, NULL, XML_OPTIONS);
         xmlSetStructuredErrorFunc(NULL, NULL);
         totals->parse_ns = add_u64(totals->parse_ns, now_ns() - started,
                                    "parse time overflow");
@@ -817,11 +731,11 @@ static void run_reader_mode(const struct Input *input, size_t iterations,
         started = now_ns();
         if (buffered) {
             reader = xmlReaderForIO(reader_io, reader_close, &cursor, NULL,
-                                    "UTF-8", XML_OPTIONS);
+                                    NULL, XML_OPTIONS);
         } else {
             /* xmlReaderForMemory copies its input into an input buffer. */
             reader = xmlReaderForMemory((const char *)input->bytes,
-                                        (int)input->length, NULL, "UTF-8",
+                                        (int)input->length, NULL, NULL,
                                         XML_OPTIONS);
         }
         if (reader == NULL)
@@ -896,9 +810,11 @@ static void run_push(const struct Input *input, size_t iterations,
             if (result == 0)
                 result = xmlParseChunk(ctxt, NULL, 0, 1);
             if (ctxt->wellFormed == 0 || !accepted_version(ctxt->version) ||
-                !accepted_encoding(ctxt->encoding))
+                !accepted_encoding(xmlCtxtGetDeclaredEncoding(ctxt)))
                 obs.failed = 1;
         }
+        if (!obs.failed && !obs.doctype && obs.depth == 0U)
+            flush_text(&obs);
         totals->parse_ns = add_u64(totals->parse_ns, now_ns() - started,
                                    "parse time overflow");
         if (ctxt != NULL) {
@@ -909,7 +825,6 @@ static void run_push(const struct Input *input, size_t iterations,
         }
         if (result != 0 || obs.failed || obs.doctype || obs.depth != 0U)
             fail(65, "input is not supported well-formed XML");
-        flush_text(&obs);
         if (iteration == 0U)
             totals->expected = obs.stats;
         else if (memcmp(&totals->expected, &obs.stats, sizeof(obs.stats)) != 0)
@@ -950,8 +865,8 @@ int main(int argc, char **argv) {
     iterations = (size_t)iterations64;
     chunk = (size_t)chunk64;
     input = read_input(argv[2], chunk);
-    if (!valid_utf8(input.bytes, input.length) ||
-        !declared_utf8(input.bytes, input.length))
+    if (memchr(input.bytes, 0, input.length) != NULL ||
+        xmlCheckUTF8(input.bytes) == 0)
         fail(65, "input must use UTF-8");
     if (input.length > UINT64_MAX / iterations64)
         fail(64, "aggregate work size overflow");
@@ -967,11 +882,12 @@ int main(int argc, char **argv) {
         run_reader_mode(&input, iterations, &totals, 1);
     else
         run_push(&input, iterations, &totals);
-    (void)printf(MAGIC " engine=libxml2 mode=%s bytes=%zu iterations=%zu "
-                 "chunk=%zu parse_ns=%" PRIu64 " observe_ns=%" PRIu64 " "
-                 "drop_ns=%" PRIu64 " elements=%" PRIu64 " attributes=%" PRIu64 " "
-                 "namespaces=%" PRIu64 " text_bytes=%" PRIu64 " comments=%" PRIu64 " "
-                 "pis=%" PRIu64 " hash=%016" PRIx64 "\n",
+    (void)printf(MAGIC "\tengine=libxml2\tmode=%s\tbytes=%zu\titerations=%zu"
+                 "\tchunk=%zu\tparse_ns=%" PRIu64 "\tobserve_ns=%" PRIu64
+                 "\tdrop_ns=%" PRIu64 "\telements=%" PRIu64
+                 "\tattributes=%" PRIu64 "\tnamespaces=%" PRIu64
+                 "\ttext_bytes=%" PRIu64 "\tcomments=%" PRIu64
+                 "\tpis=%" PRIu64 "\thash=%016" PRIx64 "\n",
                  mode_name(mode), input.length, iterations, chunk,
                  totals.parse_ns, totals.observe_ns, totals.drop_ns,
                  totals.expected.elements, totals.expected.attributes,
