@@ -1,0 +1,291 @@
+#![forbid(unsafe_code)]
+
+#[path = "../fuzz/driver.rs"]
+mod driver;
+
+use std::ops::ControlFlow;
+use yaxml::{ErrorKind, Limit, Limits, PushParser};
+
+const VALID: &[&[u8]] = &[
+    b"<r/>",
+    b"\xef\xbb\xbf<?xml version='1.0' encoding='UTF-8' standalone='yes'?><r/>",
+    b"<!--before--><?before data?><r a='&quot;&apos;&#10;&#13;&#9;\r\n\t'>&lt;&gt;&amp;&#x10FFFF;\r\nx\ry<![CDATA[\r\na<&]]><!--x\r\ny--><?pi x\r\ny?><c/></r><!--after-->",
+    "<é a='中'>🙂é中</é>".as_bytes(),
+    b"<r xmlns='u' xmlns:p='p' a='0' p:a='1'><p:c xmlns:p='q'><p:d/></p:c><p:e/><c xmlns=''/><c/></r>",
+    b"<r xmlns:p='one'><a xmlns:p='two'/><p:b/><a xmlns='three'/><b/></r>",
+    b" \r\n<r a='>' b='&gt;'/>",
+];
+
+#[test]
+fn every_split_and_single_bytes() {
+    for input in VALID {
+        let expected = driver::slice_events(input).unwrap();
+        for split in 0..=input.len() {
+            let actual = driver::push_events(
+                input,
+                &[0, split, 0, input.len() - split, 0],
+                Limits::default(),
+            )
+            .unwrap();
+            assert_eq!(actual, expected, "split {split} for {input:?}");
+        }
+        assert_eq!(
+            driver::push_events(input, &vec![1; input.len()], Limits::default()).unwrap(),
+            expected
+        );
+    }
+    assert!(driver::exercise(VALID[0]).error.is_none());
+}
+
+#[test]
+fn deterministic_random_chunk_schedules() {
+    let input = format!(
+        "<r xmlns:p='one'>{}</r>",
+        "<p:n a='中&amp;'>\r\n🙂<![CDATA[x]]></p:n>".repeat(32)
+    );
+    let expected = driver::slice_events(input.as_bytes()).unwrap();
+    let mut state = 0x4d59_5df4_d0f3_3173_u64;
+    for _ in 0..64 {
+        let mut schedule = Vec::new();
+        let mut remaining = input.len();
+        while remaining > 0 {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            if state & 1 == 0 {
+                schedule.push(0);
+            }
+            let length = (1 + (state as usize % 37)).min(remaining);
+            schedule.push(length);
+            remaining -= length;
+        }
+        assert_eq!(
+            driver::push_events(input.as_bytes(), &schedule, Limits::default()).unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn every_malformed_split_and_prefix() {
+    for input in [
+        b"<r>".as_slice(),
+        b"<r></s>",
+        b"<r/><s/>",
+        b"<r/>tail",
+        b"<p:r/>",
+        b"<r a='1' a='2'/>",
+        b"<r xmlns:p='u' xmlns:q='u' p:a='1' q:a='2'/>",
+        b"<r xmlns:xml='wrong'/>",
+        b"<r>&unknown;</r>",
+        b"<r>&#0;</r>",
+        b"<r><!--a--b--></r>",
+        b"<r>]]></r>",
+        b"<r>\x00</r>",
+        b"<r>\xf0\x9f</r>",
+        b"<?xml version='1.1'?><r/>",
+        b"<?xml version='1.0' encoding='UTF-16'?><r/>",
+        b"<!DOCTYPE r><r/>",
+        b"\xff\xfe<\x00r\x00/\x00>\x00",
+        b"<r/ >",
+        b"<r></s>\xff",
+        b"<?pi",
+        b"<!--",
+        b"<r><![CDATA[",
+    ] {
+        assert!(driver::slice_events(input).is_err());
+        for split in 0..=input.len() {
+            assert!(
+                driver::push_events(input, &[split, input.len() - split], Limits::default())
+                    .is_err(),
+                "split {split} for {input:?}"
+            );
+        }
+    }
+    for input in VALID {
+        for end in 0..=input.len() {
+            let prefix = &input[..end];
+            assert_eq!(
+                driver::slice_events(prefix).is_ok(),
+                driver::push_events(prefix, &vec![1; end], Limits::default()).is_ok(),
+                "prefix {end} for {input:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn isolated_failures_keep_global_offsets() {
+    for input in [
+        b"<r></s>".as_slice(),
+        b"<r>&bad;</r>",
+        b"<r>&#0;</r>",
+        b"<p:r/>",
+        b"<r a='1' a='2'/>",
+        b"<r>\xff</r>",
+        b"<r>\x00</r>",
+    ] {
+        let expected = driver::slice_events(input).unwrap_err();
+        for split in 0..=input.len() {
+            assert_eq!(
+                driver::push_events(input, &[split], Limits::default()).unwrap_err(),
+                expected
+            );
+        }
+    }
+}
+
+#[test]
+fn normalization_has_independent_expected_values() {
+    let input = b"<r a='\r\n\t&#xA;&#xD;&#9;'>x\r\ny\rz&#13;<![CDATA[a\r\nb]]></r>";
+    let events = driver::push_events(input, &vec![1; input.len()], Limits::default()).unwrap();
+    assert_eq!(events[1].0, driver::Captured::Text("x\ny\nz\r".into()));
+    assert_eq!(events[2].0, driver::Captured::Cdata("a\nb".into()));
+    match &events[0].0 {
+        driver::Captured::Element(false, _, attributes) => assert_eq!(attributes[0].1, "  \n\r\t"),
+        event => panic!("expected start event, got {event:?}"),
+    }
+}
+
+#[test]
+fn finish_and_error_states_are_terminal() {
+    let mut parser = PushParser::default();
+    assert_eq!(parser.position(), 0);
+    assert_eq!(parser.event_range(), 0..0);
+    parser
+        .feed(&[], |_, _| panic!("empty feed emitted"))
+        .unwrap();
+    parser
+        .feed(b"<r/>", |_, _| ControlFlow::Continue(()))
+        .unwrap();
+    parser
+        .finish(|_, _| panic!("unexpected EOF callback"))
+        .unwrap();
+    parser
+        .finish(|_, _| panic!("repeated EOF callback"))
+        .unwrap();
+    let error = parser
+        .feed(&[], |_, _| panic!("callback after finish"))
+        .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::InvalidState);
+    assert_eq!(error.offset, 4);
+    assert_eq!(parser.feed(b"ignored", |_, _| panic!()).unwrap_err(), error);
+    assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
+    for input in [
+        b"<r>\xf0\x9f".as_slice(),
+        b"<r>&amp",
+        b"<r><!--",
+        b"<r><![CDATA[",
+    ] {
+        let mut parser = PushParser::new();
+        parser
+            .feed(input, |_, _| ControlFlow::Continue(()))
+            .unwrap();
+        let error = parser.finish(|_, _| ControlFlow::Continue(())).unwrap_err();
+        assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
+        assert_eq!(parser.feed(b"suffix", |_, _| panic!()).unwrap_err(), error);
+    }
+}
+
+#[test]
+fn cancellation_at_every_event_and_pending_text() {
+    let input = b"<?xml version='1.0'?><!--a--><r>x<c/><?pi data?><![CDATA[y]]></r>";
+    let expected = driver::slice_events(input).unwrap();
+    for stop in 0..expected.len() {
+        let mut parser = PushParser::new();
+        let mut events = Vec::new();
+        let error = parser
+            .feed(input, |event, range| {
+                events.push((driver::Captured::from(event), range));
+                if events.len() == stop + 1 {
+                    ControlFlow::Break(())
+                } else {
+                    ControlFlow::Continue(())
+                }
+            })
+            .unwrap_err();
+        assert_eq!(events, expected[..=stop]);
+        assert_eq!(error.kind, ErrorKind::Aborted);
+        assert_eq!(error.offset, expected[stop].1.end);
+        assert_eq!(parser.event_range(), expected[stop].1);
+        assert_eq!(parser.feed(b"", |_, _| panic!()).unwrap_err(), error);
+        assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
+    }
+    let mut parser = PushParser::new();
+    parser
+        .feed(b"<r>text", |_, _| ControlFlow::Continue(()))
+        .unwrap();
+    let error = parser
+        .finish(|event, range| {
+            assert_eq!(
+                driver::Captured::from(event),
+                driver::Captured::Text("text".into())
+            );
+            assert_eq!(range, 3..7);
+            ControlFlow::Break(())
+        })
+        .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::Aborted);
+    assert_eq!(error.offset, 7);
+    assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
+    assert_eq!(parser.feed(b"</r>", |_, _| panic!()).unwrap_err(), error);
+}
+
+#[test]
+fn resource_boundaries_are_chunk_independent() {
+    let defaults = Limits::default();
+    for (input, limit, values) in [
+        (b"<r/>".as_slice(), Limit::InputBytes, [3, 4, 5]),
+        (b"<r/>", Limit::TokenBytes, [3, 4, 5]),
+        (b"<r><c/></r>", Limit::Depth, [1, 2, 3]),
+        (b"<r a='1'/>", Limit::Attributes, [0, 1, 2]),
+        (b"<r>x</r>", Limit::Events, [2, 3, 4]),
+        (b"<r></r>", Limit::OwnedBytes, [0, 1, 2]),
+    ] {
+        for (index, value) in values.into_iter().enumerate() {
+            let mut limits = defaults;
+            match limit {
+                Limit::InputBytes => limits.max_input_bytes = value,
+                Limit::TokenBytes => limits.max_token_bytes = value,
+                Limit::Depth => limits.max_depth = value,
+                Limit::Attributes => limits.max_attributes = value,
+                Limit::Events => limits.max_events = value,
+                Limit::OwnedBytes => limits.max_owned_bytes = value,
+            }
+            for schedule in [vec![input.len()], vec![1; input.len()]] {
+                let result = driver::push_events(input, &schedule, limits);
+                if index == 0 {
+                    assert_eq!(result.unwrap_err().kind, ErrorKind::LimitExceeded(limit));
+                } else {
+                    assert!(result.is_ok(), "{limit:?} ceiling {value}: {result:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn large_input_small_tokens_and_long_single_token() {
+    let input = format!("<r>{}</r>", "<c/>".repeat(8192));
+    let limits = Limits {
+        max_token_bytes: 8,
+        ..Limits::default()
+    };
+    assert!(driver::push_events(input.as_bytes(), &[input.len()], limits).is_ok());
+    let input = format!("<r>{}</r>", "]-?".repeat(4096));
+    let expected = driver::slice_events(input.as_bytes()).unwrap();
+    assert_eq!(
+        driver::push_events(input.as_bytes(), &vec![1; input.len()], Limits::default()).unwrap(),
+        expected
+    );
+    let limits = Limits {
+        max_token_bytes: 32,
+        ..Limits::default()
+    };
+    assert_eq!(
+        driver::push_events(input.as_bytes(), &vec![1; input.len()], limits)
+            .unwrap_err()
+            .kind,
+        ErrorKind::LimitExceeded(Limit::TokenBytes)
+    );
+}

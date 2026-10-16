@@ -2,7 +2,10 @@
 //! runners preserve the failing input.
 
 use std::collections::HashSet;
-use yaxml::{Document, Error, Event, Limits, NodeKind, Reader};
+use std::ops::{ControlFlow, Range};
+use yaxml::{
+    Document, Error, ErrorKind, Event, Limits, Name, NodeKind, PushParser, ReadError, Reader,
+};
 
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
@@ -38,6 +41,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     if let Ok(text) = std::str::from_utf8(input) {
         assert_eq!(document.is_ok(), Document::parse(text).is_ok());
     }
+    check_streaming(input, outcome.error);
     // Vary policy independently from grammar bytes without needing a runtime.
     let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
     exercise_with_limits(
@@ -74,6 +78,15 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
             check_projection(&document, &stream);
         }
         Err(error) => check_error(error, input.len()),
+    }
+    let incremental = push_events(input, &[input.len()], limits);
+    if !matches!(&incremental, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
+    {
+        assert_eq!(
+            incremental.is_ok(),
+            outcome.error.is_none(),
+            "stream/slice policy acceptance differs for {input:?}"
+        );
     }
     outcome
 }
@@ -305,5 +318,283 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
     if nodes.len() > 2 {
         let smaller = Document::parse("<r/>").unwrap();
         assert!(smaller.node(nodes.last().unwrap().id()).is_none());
+    }
+}
+
+/// Owned callback values, compared by fields rather than debug formatting.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Captured {
+    Declaration(String, Option<String>, Option<bool>),
+    Element(bool, CapturedName, Vec<(CapturedName, String)>),
+    End(CapturedName),
+    Text(String),
+    Cdata(String),
+    Comment(String),
+    Pi(String, String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CapturedName(String, Option<String>, String, Option<String>);
+
+impl From<&Name<'_>> for CapturedName {
+    fn from(name: &Name<'_>) -> Self {
+        Self(
+            name.qualified.into(),
+            name.prefix.map(str::to_owned),
+            name.local.into(),
+            name.namespace.as_deref().map(str::to_owned),
+        )
+    }
+}
+
+impl From<Event<'_>> for Captured {
+    fn from(event: Event<'_>) -> Self {
+        match event {
+            Event::Declaration(value) => Self::Declaration(
+                value.version.into(),
+                value.encoding.map(str::to_owned),
+                value.standalone,
+            ),
+            Event::Start(value) => Self::Element(
+                false,
+                (&value.name).into(),
+                value
+                    .attributes
+                    .iter()
+                    .map(|a| ((&a.name).into(), a.value.to_string()))
+                    .collect(),
+            ),
+            Event::Empty(value) => Self::Element(
+                true,
+                (&value.name).into(),
+                value
+                    .attributes
+                    .iter()
+                    .map(|a| ((&a.name).into(), a.value.to_string()))
+                    .collect(),
+            ),
+            Event::End(value) => Self::End((&value).into()),
+            Event::Text(value) => Self::Text(value.into_owned()),
+            Event::Cdata(value) => Self::Cdata(value.into_owned()),
+            Event::Comment(value) => Self::Comment(value.into_owned()),
+            Event::ProcessingInstruction { target, data } => {
+                Self::Pi(target.into(), data.into_owned())
+            }
+        }
+    }
+}
+
+pub type CapturedEvent = (Captured, Range<usize>);
+
+pub fn slice_events(input: &[u8]) -> Result<Vec<CapturedEvent>, Error> {
+    let mut parser = Reader::new(input)?;
+    let mut events = Vec::new();
+    while let Some(event) = parser.read_event()? {
+        events.push((event.into(), parser.event_range()));
+    }
+    Ok(events)
+}
+
+pub fn push_events(
+    input: &[u8],
+    schedule: &[usize],
+    limits: Limits,
+) -> Result<Vec<CapturedEvent>, Error> {
+    let mut parser = PushParser::with_limits(limits);
+    let mut events = Vec::new();
+    let mut previous = 0;
+    let mut offset: usize = 0;
+    let mut result = Ok(());
+    for length in schedule.iter().copied().chain(std::iter::once(input.len())) {
+        let end = offset.saturating_add(length).min(input.len());
+        result = parser.feed(&input[offset..end], |event, range| {
+            events.push((event.into(), range));
+            ControlFlow::Continue(())
+        });
+        assert!((previous..=end).contains(&parser.position()));
+        previous = parser.position();
+        offset = end;
+        if result.is_err() {
+            break;
+        }
+    }
+    if result.is_ok() {
+        result = parser.finish(|event, range| {
+            events.push((event.into(), range));
+            ControlFlow::Continue(())
+        });
+    }
+    assert!(parser.position() <= input.len());
+    if let Some((_, range)) = events.last() {
+        assert_eq!(parser.event_range(), *range);
+    }
+    match result {
+        Ok(()) => {
+            parser
+                .finish(|_, _| panic!("finish emitted twice"))
+                .unwrap();
+            Ok(events)
+        }
+        Err(error) => {
+            check_error(error, input.len());
+            assert_eq!(
+                parser
+                    .feed(&[], |_, _| panic!("callback after error"))
+                    .unwrap_err(),
+                error
+            );
+            assert_eq!(
+                parser
+                    .finish(|_, _| panic!("callback after error"))
+                    .unwrap_err(),
+                error
+            );
+            Err(error)
+        }
+    }
+}
+
+fn check_streaming(input: &[u8], slice_error: Option<Error>) {
+    let expected = if slice_error.is_none() {
+        Some(slice_events(input).unwrap())
+    } else {
+        None
+    };
+    let mut schedule = Vec::new();
+    let mut remaining = input.len();
+    while remaining != 0 {
+        let byte = input[schedule.len() % input.len()] as usize;
+        let width = (1 + byte % 31)
+            .max(input.len().div_ceil(4096))
+            .min(remaining);
+        schedule.push(width);
+        remaining -= width;
+    }
+    let result = push_events(input, &schedule, Limits::default());
+    // Streaming owns structural names that the slice reader can borrow.
+    if !matches!(&result, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
+    {
+        assert_eq!(
+            result.is_ok(),
+            slice_error.is_none(),
+            "stream/slice acceptance differs for {input:?}"
+        );
+    }
+    if let (Ok(actual), Some(expected)) = (result, &expected) {
+        assert_eq!(actual, *expected);
+    }
+    let mut events = Vec::new();
+    let result = PushParser::new().read_from(std::io::Cursor::new(input), |event, range| {
+        events.push((event.into(), range));
+        ControlFlow::Continue(())
+    });
+    match result {
+        Ok(()) => assert_eq!(Some(events), expected),
+        Err(ReadError::Xml(error)) => {
+            check_error(error, input.len());
+            assert!(
+                slice_error.is_some()
+                    || error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes)
+            );
+        }
+        Err(error) => panic!("cursor produced I/O failure: {error}"),
+    }
+    check_io_schedule(input);
+}
+
+fn check_io_schedule(input: &[u8]) {
+    use std::{
+        cell::Cell,
+        io::{self, Read},
+    };
+    struct Scheduled<'a> {
+        input: &'a [u8],
+        calls: &'a Cell<usize>,
+        fail: usize,
+        interrupt: bool,
+    }
+    impl Read for Scheduled<'_> {
+        fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+            let call = self.calls.get();
+            self.calls.set(call + 1);
+            if self.interrupt {
+                self.interrupt = false;
+                return Err(io::ErrorKind::Interrupted.into());
+            }
+            if call == self.fail {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "fuzz injected I/O failure",
+                ));
+            }
+            let length = self.input.len().min(out.len()).min(7);
+            out[..length].copy_from_slice(&self.input[..length]);
+            self.input = &self.input[length..];
+            Ok(length)
+        }
+    }
+    let calls = Cell::new(0);
+    let fail = 1 + input.get(1).copied().unwrap_or(0) as usize % 4;
+    // Independently step the XML parser to locate the adapter's last permitted
+    // read. The source's first call is Interrupted; call `fail` is the I/O error.
+    let expected_calls = {
+        let mut parser = PushParser::new();
+        let mut offset = 0;
+        let mut terminal = fail + 1;
+        for call in 1..fail {
+            let end = (offset + 7).min(input.len());
+            let result = if offset == end {
+                parser.finish(|_, _| ControlFlow::Break(()))
+            } else {
+                parser.feed(&input[offset..end], |_, _| ControlFlow::Break(()))
+            };
+            if result.is_err() || offset == end {
+                terminal = call + 1;
+                break;
+            }
+            offset = end;
+        }
+        terminal
+    };
+    let reader = Scheduled {
+        input,
+        calls: &calls,
+        fail,
+        interrupt: true,
+    };
+    let mut cancelled = None;
+    let result = PushParser::new().read_from(reader, |_, range| {
+        cancelled = Some((calls.get(), range.end));
+        ControlFlow::Break(())
+    });
+    assert_eq!(
+        calls.get(),
+        expected_calls,
+        "I/O adapter read beyond its terminal operation"
+    );
+    if let Err(error) = &result {
+        assert!(!error.to_string().is_empty());
+        assert!(std::error::Error::source(error).is_some());
+    }
+    match result {
+        Err(ReadError::Io(error)) => {
+            assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+            assert_eq!(error.to_string(), "fuzz injected I/O failure");
+            assert_eq!(calls.get(), fail + 1);
+        }
+        Err(ReadError::Xml(error)) => {
+            check_error(error, input.len());
+            if let Some((call, end)) = cancelled {
+                assert_eq!(error.kind, ErrorKind::Aborted);
+                assert_eq!(error.offset, end);
+                assert_eq!(calls.get(), call, "read after callback cancellation");
+            }
+            assert!(
+                calls.get() <= fail + 1,
+                "read after terminal parser failure"
+            );
+        }
+        Ok(()) => assert!(cancelled.is_none()),
+        Err(error) => panic!("unexpected read error: {error}"),
     }
 }
