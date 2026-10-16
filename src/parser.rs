@@ -1,0 +1,954 @@
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
+use std::ops::Range;
+
+use memchr::memchr;
+
+use crate::escape::{copy_cow, needs_normalization, normalize};
+use crate::tokenizer::TokenKind;
+use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
+
+const XML: &str = "http://www.w3.org/XML/1998/namespace";
+const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
+
+/// Shared accounting for normalized strings and retained structural strings.
+pub(crate) struct Budget {
+    limits: Limits,
+    owned_bytes: usize,
+}
+
+impl Budget {
+    pub(crate) fn charge_owned(&mut self, bytes: usize, offset: usize) -> Result<(), Error> {
+        self.owned_bytes = self
+            .owned_bytes
+            .checked_add(bytes)
+            .filter(|total| *total <= self.limits.max_owned_bytes)
+            .ok_or(Error::new(
+                ErrorKind::LimitExceeded(Limit::OwnedBytes),
+                offset,
+            ))?;
+        Ok(())
+    }
+
+    /// Copies a string without tying its result to the temporary token lifetime.
+    pub(crate) fn copy<'result>(
+        &mut self,
+        text: &str,
+        offset: usize,
+    ) -> Result<Cow<'result, str>, Error> {
+        self.charge_owned(text.len(), offset)?;
+        let mut copied = String::new();
+        copied
+            .try_reserve(text.len())
+            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+        copied.push_str(text);
+        Ok(Cow::Owned(copied))
+    }
+}
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+enum NamespaceId {
+    Xml,
+    Xmlns,
+    Declared(usize),
+}
+
+struct NamespaceEntry {
+    id: NamespaceId,
+    bindings: usize,
+}
+
+struct Binding<'source> {
+    prefix: Cow<'source, str>,
+    uri: Cow<'source, str>,
+    namespace: Option<NamespaceId>,
+    previous: Option<usize>,
+}
+
+struct Frame<'source> {
+    qualified: Cow<'source, str>,
+    bindings_start: usize,
+}
+
+#[derive(Clone, Copy)]
+enum Phase {
+    Prolog,
+    Content,
+    Epilog,
+}
+
+/// XML semantics shared by borrowed slices and temporary streaming tokens.
+/// Events never borrow owned state: retained namespaces are copied as needed.
+pub(crate) struct ParserState<'source> {
+    initial: usize,
+    phase: Phase,
+    stack: Vec<Frame<'source>>,
+    bindings: Vec<Binding<'source>>,
+    namespace_index: HashMap<Cow<'source, str>, usize>,
+    namespace_ids: HashMap<Cow<'source, str>, NamespaceEntry>,
+    next_namespace: usize,
+    budget: Budget,
+    events: usize,
+}
+
+impl<'source> ParserState<'source> {
+    pub(crate) fn new(limits: Limits, initial_offset: usize) -> Self {
+        Self {
+            initial: initial_offset,
+            phase: Phase::Prolog,
+            stack: Vec::new(),
+            bindings: Vec::new(),
+            namespace_index: HashMap::new(),
+            namespace_ids: HashMap::new(),
+            next_namespace: 0,
+            budget: Budget {
+                limits,
+                owned_bytes: 0,
+            },
+            events: 0,
+        }
+    }
+
+    pub(crate) fn set_initial_offset(&mut self, offset: usize) {
+        self.initial = offset;
+    }
+
+    pub(crate) fn in_content(&self) -> bool {
+        matches!(self.phase, Phase::Content)
+    }
+
+    pub(crate) fn check_event_limit(&self, offset: usize) -> Result<(), Error> {
+        if self.events == self.budget.limits.max_events {
+            Err(Error::new(ErrorKind::LimitExceeded(Limit::Events), offset))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(crate) fn validate_finish(&self, offset: usize) -> Result<(), Error> {
+        match self.phase {
+            Phase::Prolog => Err(Error::new(ErrorKind::MissingRoot, offset)),
+            Phase::Content => Err(Error::new(ErrorKind::UnexpectedEof, offset)),
+            Phase::Epilog => Ok(()),
+        }
+    }
+
+    pub(crate) fn check_token_start(&self, kind: TokenKind, offset: usize) -> Result<(), Error> {
+        match kind {
+            TokenKind::Start if matches!(self.phase, Phase::Epilog) => {
+                Err(Error::new(ErrorKind::MultipleRoots, offset))
+            }
+            TokenKind::Start if self.stack.len() >= self.budget.limits.max_depth => {
+                Err(Error::new(ErrorKind::LimitExceeded(Limit::Depth), offset))
+            }
+            TokenKind::Cdata if !self.in_content() => {
+                Err(Error::new(ErrorKind::TextOutsideRoot, offset))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// `retain` borrows slice input or copies streaming structural strings.
+    /// Token bytes are already UTF-8 and XML-character validated by the frontend.
+    pub(crate) fn process_token<'event, F>(
+        &mut self,
+        kind: TokenKind,
+        raw: &'event str,
+        range: Range<usize>,
+        mut retain: F,
+    ) -> Result<Option<Event<'event>>, Error>
+    where
+        'source: 'event,
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        let start = range.start;
+        if matches!(kind, TokenKind::Bom) {
+            self.set_initial_offset(range.end);
+            return Ok(None);
+        }
+        if matches!(kind, TokenKind::Dtd | TokenKind::InvalidMarkup) {
+            self.check_event_limit(start)?;
+            return Err(Error::new(
+                if matches!(kind, TokenKind::Dtd) {
+                    ErrorKind::UnsupportedDtd
+                } else {
+                    ErrorKind::Syntax
+                },
+                start,
+            ));
+        }
+        if raw.len() > self.budget.limits.max_token_bytes {
+            return Err(Error::new(
+                ErrorKind::LimitExceeded(Limit::TokenBytes),
+                start,
+            ));
+        }
+        if raw.is_empty() {
+            return Ok(None);
+        }
+        if matches!(kind, TokenKind::Text) && !self.in_content() {
+            return match raw.bytes().position(|byte| !space(byte)) {
+                Some(relative) => Err(Error::new(ErrorKind::TextOutsideRoot, start + relative)),
+                None => Ok(None),
+            };
+        }
+        self.check_event_limit(start)?;
+        self.check_token_start(kind, start)?;
+        let event = match kind {
+            TokenKind::Start => self.start_element(raw, start, &mut retain)?,
+            TokenKind::End => self.end_element(raw, start)?,
+            TokenKind::Text => {
+                if let Some(relative) = raw.find("]]>") {
+                    return Err(Error::new(ErrorKind::Syntax, start + relative));
+                }
+                Event::Text(self.normalized(raw, start, false, true)?)
+            }
+            TokenKind::Comment => {
+                let body = delimited_body(raw, "<!--", "-->", start)?;
+                if body.contains("--") || body.ends_with('-') {
+                    return Err(Error::new(ErrorKind::Syntax, start));
+                }
+                Event::Comment(self.normalized(body, start + 4, false, false)?)
+            }
+            TokenKind::Cdata => {
+                if !self.in_content() {
+                    return Err(Error::new(ErrorKind::TextOutsideRoot, start));
+                }
+                let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
+                Event::Cdata(self.normalized(body, start + 9, false, false)?)
+            }
+            TokenKind::Instruction => self.instruction(raw, start)?,
+            TokenKind::Dtd => return Err(Error::new(ErrorKind::UnsupportedDtd, start)),
+            TokenKind::InvalidMarkup => return Err(Error::new(ErrorKind::Syntax, start)),
+            TokenKind::Bom => unreachable!("BOM handled before token processing"),
+        };
+        self.events += 1;
+        Ok(Some(event))
+    }
+
+    fn normalized<'event>(
+        &mut self,
+        raw: &'event str,
+        offset: usize,
+        attribute: bool,
+        references: bool,
+    ) -> Result<Cow<'event, str>, Error> {
+        if needs_normalization(raw, attribute, references) {
+            self.budget.charge_owned(raw.len(), offset)?;
+        }
+        normalize(raw, offset, attribute, references)
+    }
+
+    fn instruction<'event>(
+        &mut self,
+        raw: &'event str,
+        start: usize,
+    ) -> Result<Event<'event>, Error> {
+        let body = delimited_body(raw, "<?", "?>", start)?;
+        let name_end = body.bytes().position(space).unwrap_or(body.len());
+        let target = &body[..name_end];
+        validate_name(target, start + 2, false)?;
+        if target.eq_ignore_ascii_case("xml") {
+            if target != "xml" || start != self.initial {
+                return Err(Error::new(ErrorKind::InvalidDeclaration, start));
+            }
+            return Ok(Event::Declaration(parse_declaration(
+                &body[name_end..],
+                start + 2 + name_end,
+            )?));
+        }
+        let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
+        let offset = start + raw.len() - 2 - data.len();
+        Ok(Event::ProcessingInstruction {
+            target,
+            data: self.normalized(data, offset, false, false)?,
+        })
+    }
+
+    fn start_element<'event, F>(
+        &mut self,
+        raw: &'event str,
+        start: usize,
+        retain: &mut F,
+    ) -> Result<Event<'event>, Error>
+    where
+        'source: 'event,
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        if raw.len() < 2 || !raw.starts_with('<') || !raw.ends_with('>') {
+            return Err(Error::new(ErrorKind::Syntax, start));
+        }
+        let empty = raw.as_bytes()[raw.len() - 2] == b'/';
+        let content_end = raw.len() - if empty { 2 } else { 1 };
+        let mut scan = TagScanner {
+            raw: &raw[1..content_end],
+            cursor: 0,
+            offset: start + 1,
+        };
+        let qualified = scan.name()?;
+        qname(qualified, start + 1)?;
+        let bindings_start = self.bindings.len();
+        let mut attributes = Vec::new();
+        while let Some((name, value, offset, value_offset)) = scan.attribute()? {
+            if attributes.len() == self.budget.limits.max_attributes {
+                return Err(Error::new(
+                    ErrorKind::LimitExceeded(Limit::Attributes),
+                    offset,
+                ));
+            }
+            let (prefix, local) = qname(name, offset)?;
+            let value = self.normalized(value, value_offset, true, true)?;
+            let declaration = if name == "xmlns" {
+                Some("")
+            } else if prefix == Some("xmlns") {
+                Some(local)
+            } else {
+                None
+            };
+            if let Some(bound_prefix) = declaration {
+                if bound_prefix == "xmlns"
+                    || value == XMLNS
+                    || (bound_prefix == "xml" && value != XML)
+                    || (bound_prefix != "xml" && value == XML)
+                    || (!bound_prefix.is_empty() && value.is_empty())
+                {
+                    return Err(Error::new(ErrorKind::Namespace, offset));
+                }
+                let namespace = self.intern_namespace(&value, offset, retain)?;
+                self.bindings
+                    .try_reserve(1)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                let retained_prefix = retain(bound_prefix, offset, &mut self.budget)?;
+                let uri = self.retain_value(&value, offset, retain)?;
+                let previous = self.namespace_index.get(bound_prefix).copied();
+                if let Some(slot) = self.namespace_index.get_mut(bound_prefix) {
+                    *slot = self.bindings.len();
+                } else {
+                    self.namespace_index
+                        .try_reserve(1)
+                        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                    let key = retain(bound_prefix, offset, &mut self.budget)?;
+                    self.namespace_index.insert(key, self.bindings.len());
+                }
+                self.bindings.push(Binding {
+                    prefix: retained_prefix,
+                    uri,
+                    namespace,
+                    previous,
+                });
+            }
+            attributes
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+            attributes.push(Attribute {
+                name: Name {
+                    qualified: name,
+                    prefix,
+                    local,
+                    namespace: None,
+                },
+                value,
+            });
+        }
+        let (name, _) = self.resolve_name(qualified, false, start + 1)?;
+        let mut expanded = HashSet::new();
+        expanded
+            .try_reserve(attributes.len())
+            .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+        for attribute in &mut attributes {
+            let (name, namespace) = self.resolve_name(attribute.name.qualified, true, start)?;
+            attribute.name = name;
+            if !expanded.insert((attribute.name.local, namespace)) {
+                return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+            }
+        }
+        let element = Element { name, attributes };
+        if empty {
+            self.unwind_bindings(bindings_start);
+            if self.stack.is_empty() {
+                self.phase = Phase::Epilog;
+            }
+            Ok(Event::Empty(element))
+        } else {
+            self.stack
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            let qualified = retain(qualified, start + 1, &mut self.budget)?;
+            self.stack.push(Frame {
+                qualified,
+                bindings_start,
+            });
+            self.phase = Phase::Content;
+            Ok(Event::Start(element))
+        }
+    }
+
+    #[allow(
+        clippy::ptr_arg,
+        reason = "borrowed input and owned normalized values require different retention"
+    )]
+    fn retain_value<'event, F>(
+        &mut self,
+        value: &Cow<'event, str>,
+        offset: usize,
+        retain: &mut F,
+    ) -> Result<Cow<'source, str>, Error>
+    where
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        match value {
+            Cow::Borrowed(raw) => retain(raw, offset, &mut self.budget),
+            Cow::Owned(value) => self.budget.copy(value, offset),
+        }
+    }
+
+    #[allow(
+        clippy::ptr_arg,
+        reason = "the interner preserves borrowed input and charges owned copies"
+    )]
+    fn intern_namespace<'event, F>(
+        &mut self,
+        uri: &Cow<'event, str>,
+        offset: usize,
+        retain: &mut F,
+    ) -> Result<Option<NamespaceId>, Error>
+    where
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        if uri.is_empty() {
+            return Ok(None);
+        }
+        if uri == XML {
+            return Ok(Some(NamespaceId::Xml));
+        }
+        if let Some(entry) = self.namespace_ids.get_mut(uri.as_ref()) {
+            entry.bindings = entry
+                .bindings
+                .checked_add(1)
+                .ok_or(Error::new(ErrorKind::Allocation, offset))?;
+            return Ok(Some(entry.id));
+        }
+        self.namespace_ids
+            .try_reserve(1)
+            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+        let key = self.retain_value(uri, offset, retain)?;
+        let id = NamespaceId::Declared(self.next_namespace);
+        self.next_namespace = self
+            .next_namespace
+            .checked_add(1)
+            .ok_or(Error::new(ErrorKind::Allocation, offset))?;
+        self.namespace_ids
+            .insert(key, NamespaceEntry { id, bindings: 1 });
+        Ok(Some(id))
+    }
+
+    fn resolve_name<'event>(
+        &mut self,
+        qualified: &'event str,
+        attribute: bool,
+        offset: usize,
+    ) -> Result<(Name<'event>, Option<NamespaceId>), Error>
+    where
+        'source: 'event,
+    {
+        let (prefix, local) = qname(qualified, offset)?;
+        let (namespace, identity) = match prefix {
+            Some("xmlns") if attribute => (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns)),
+            Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
+            Some("xml") => (Some(Cow::Borrowed(XML)), Some(NamespaceId::Xml)),
+            None if attribute && qualified == "xmlns" => {
+                (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns))
+            }
+            None if attribute => (None, None),
+            _ => match self.namespace_index.get(prefix.unwrap_or("")).copied() {
+                Some(index) if !self.bindings[index].uri.is_empty() => {
+                    if let Cow::Owned(uri) = &self.bindings[index].uri {
+                        self.budget.charge_owned(uri.len(), offset)?;
+                    }
+                    (
+                        Some(copy_cow(&self.bindings[index].uri, offset)?),
+                        self.bindings[index].namespace,
+                    )
+                }
+                _ if prefix.is_some() => return Err(Error::new(ErrorKind::Namespace, offset)),
+                _ => (None, None),
+            },
+        };
+        Ok((
+            Name {
+                qualified,
+                prefix,
+                local,
+                namespace,
+            },
+            identity,
+        ))
+    }
+
+    fn end_element<'event>(
+        &mut self,
+        raw: &'event str,
+        start: usize,
+    ) -> Result<Event<'event>, Error>
+    where
+        'source: 'event,
+    {
+        let body = delimited_body(raw, "</", ">", start)?;
+        let mut scan = TagScanner {
+            raw: body,
+            cursor: 0,
+            offset: start + 2,
+        };
+        let qualified = scan.name()?;
+        scan.skip_space();
+        if scan.cursor != body.len() {
+            return Err(Error::new(ErrorKind::Syntax, start));
+        }
+        if self
+            .stack
+            .last()
+            .is_none_or(|frame| frame.qualified != qualified)
+        {
+            return Err(Error::new(ErrorKind::MismatchedEndTag, start));
+        }
+        let (name, _) = self.resolve_name(qualified, false, start + 2)?;
+        let frame = self.stack.pop().expect("matched frame");
+        self.unwind_bindings(frame.bindings_start);
+        if self.stack.is_empty() {
+            self.phase = Phase::Epilog;
+        }
+        Ok(Event::End(name))
+    }
+
+    fn unwind_bindings(&mut self, start: usize) {
+        while self.bindings.len() > start {
+            let binding = self.bindings.pop().expect("binding scope");
+            if let Some(previous) = binding.previous {
+                *self
+                    .namespace_index
+                    .get_mut(binding.prefix.as_ref())
+                    .expect("active namespace prefix") = previous;
+            } else {
+                self.namespace_index.remove(binding.prefix.as_ref());
+            }
+            if matches!(binding.namespace, Some(NamespaceId::Declared(_))) {
+                let entry = self
+                    .namespace_ids
+                    .get_mut(binding.uri.as_ref())
+                    .expect("active namespace URI");
+                entry.bindings -= 1;
+                if entry.bindings == 0 {
+                    self.namespace_ids.remove(binding.uri.as_ref());
+                }
+            }
+        }
+    }
+}
+
+fn delimited_body<'a>(
+    raw: &'a str,
+    prefix: &str,
+    suffix: &str,
+    offset: usize,
+) -> Result<&'a str, Error> {
+    raw.strip_prefix(prefix)
+        .and_then(|body| body.strip_suffix(suffix))
+        .ok_or(Error::new(ErrorKind::Syntax, offset))
+}
+
+pub(crate) fn space(byte: u8) -> bool {
+    matches!(byte, b' ' | b'\t' | b'\r' | b'\n')
+}
+struct TagScanner<'a> {
+    raw: &'a str,
+    cursor: usize,
+    offset: usize,
+}
+
+impl<'a> TagScanner<'a> {
+    fn skip_space(&mut self) -> bool {
+        let start = self.cursor;
+        while self
+            .raw
+            .as_bytes()
+            .get(self.cursor)
+            .is_some_and(|b| space(*b))
+        {
+            self.cursor += 1;
+        }
+        start != self.cursor
+    }
+
+    fn name(&mut self) -> Result<&'a str, Error> {
+        let start = self.cursor;
+        while let Some(byte) = self.raw.as_bytes().get(self.cursor) {
+            if space(*byte) || matches!(byte, b'=' | b'/' | b'>' | b'\'' | b'"') {
+                break;
+            }
+            self.cursor += 1;
+        }
+        let name = &self.raw[start..self.cursor];
+        validate_name(name, self.offset + start, true)?;
+        Ok(name)
+    }
+
+    // Returns the name's source offset; values are still unnormalized input.
+    fn attribute(&mut self) -> Result<Option<(&'a str, &'a str, usize, usize)>, Error> {
+        let spaced = self.skip_space();
+        if self.cursor == self.raw.len() {
+            return Ok(None);
+        }
+        if !spaced {
+            return Err(Error::new(ErrorKind::Syntax, self.offset + self.cursor));
+        }
+        let start = self.cursor;
+        let name = self.name()?;
+        self.skip_space();
+        if self.raw.as_bytes().get(self.cursor) != Some(&b'=') {
+            return Err(Error::new(ErrorKind::Syntax, self.offset + self.cursor));
+        }
+        self.cursor += 1;
+        self.skip_space();
+        let quote = *self
+            .raw
+            .as_bytes()
+            .get(self.cursor)
+            .filter(|b| matches!(b, b'\'' | b'"'))
+            .ok_or(Error::new(ErrorKind::Syntax, self.offset + self.cursor))?;
+        self.cursor += 1;
+        let value_start = self.cursor;
+        let length = memchr(quote, &self.raw.as_bytes()[value_start..]).ok_or(Error::new(
+            ErrorKind::UnexpectedEof,
+            self.offset + value_start,
+        ))?;
+        self.cursor += length;
+        let value = &self.raw[value_start..self.cursor];
+        if let Some(i) = memchr(b'<', value.as_bytes()) {
+            return Err(Error::new(ErrorKind::Syntax, self.offset + value_start + i));
+        }
+        self.cursor += 1;
+        Ok(Some((
+            name,
+            value,
+            self.offset + start,
+            self.offset + value_start,
+        )))
+    }
+}
+
+fn parse_declaration(raw: &str, offset: usize) -> Result<Declaration<'_>, Error> {
+    let mut scan = TagScanner {
+        raw,
+        cursor: 0,
+        offset,
+    };
+    let mut declaration = Declaration {
+        version: "1.0",
+        encoding: None,
+        standalone: None,
+    };
+    let mut count = 0;
+    while let Some((name, value, position, _)) = scan
+        .attribute()
+        .map_err(|e| Error::new(ErrorKind::InvalidDeclaration, e.offset))?
+    {
+        match name {
+            "version" if count == 0 && value == "1.0" => declaration.version = value,
+            "encoding" if count == 1 => {
+                if !value.eq_ignore_ascii_case("UTF-8") {
+                    return Err(Error::new(ErrorKind::UnsupportedEncoding, position));
+                }
+                declaration.encoding = Some(value);
+            }
+            "standalone" if count > 0 && declaration.standalone.is_none() => {
+                declaration.standalone = match value {
+                    "yes" => Some(true),
+                    "no" => Some(false),
+                    _ => return Err(Error::new(ErrorKind::InvalidDeclaration, position)),
+                };
+            }
+            _ => return Err(Error::new(ErrorKind::InvalidDeclaration, position)),
+        }
+        count += 1;
+    }
+    if count == 0 {
+        return Err(Error::new(ErrorKind::InvalidDeclaration, offset));
+    }
+    Ok(declaration)
+}
+
+fn qname(name: &str, offset: usize) -> Result<(Option<&str>, &str), Error> {
+    if let Some((prefix, local)) = name.split_once(':') {
+        validate_name(prefix, offset, false)?;
+        validate_name(local, offset + prefix.len() + 1, false)?;
+        Ok((Some(prefix), local))
+    } else {
+        validate_name(name, offset, false)?;
+        Ok((None, name))
+    }
+}
+
+fn validate_name(name: &str, offset: usize, colon: bool) -> Result<(), Error> {
+    let mut chars = name.char_indices();
+    let Some((_, first)) = chars.next() else {
+        return Err(Error::new(ErrorKind::InvalidName, offset));
+    };
+    if !name_start(first, colon) {
+        return Err(Error::new(ErrorKind::InvalidName, offset));
+    }
+    for (i, c) in chars {
+        if !name_start(c, colon)
+            && !matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')
+        {
+            return Err(Error::new(ErrorKind::InvalidName, offset + i));
+        }
+    }
+    Ok(())
+}
+
+fn name_start(c: char, colon: bool) -> bool {
+    (colon && c == ':')
+        || matches!(c, 'A'..='Z' | 'a'..='z' | '_'
+        | '\u{c0}'..='\u{d6}' | '\u{d8}'..='\u{f6}' | '\u{f8}'..='\u{2ff}'
+        | '\u{370}'..='\u{37d}' | '\u{37f}'..='\u{1fff}' | '\u{200c}'..='\u{200d}'
+        | '\u{2070}'..='\u{218f}' | '\u{2c00}'..='\u{2fef}' | '\u{3001}'..='\u{d7ff}'
+        | '\u{f900}'..='\u{fdcf}' | '\u{fdf0}'..='\u{fffd}' | '\u{10000}'..='\u{effff}')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn owned<'event>(
+        state: &mut ParserState<'static>,
+        kind: TokenKind,
+        raw: &'event str,
+        offset: usize,
+    ) -> Result<Option<Event<'event>>, Error> {
+        state.process_token(
+            kind,
+            raw,
+            offset..offset + raw.len(),
+            |raw, offset, budget| budget.copy(raw, offset),
+        )
+    }
+
+    #[test]
+    fn owned_state_outlives_temporary_tokens_and_events_outlive_scope_removal() {
+        let mut state = ParserState::new(Limits::default(), 0);
+        let length;
+        {
+            let token = String::from("<p:r xmlns:p='urn:p'>");
+            length = token.len();
+            let event = owned(&mut state, TokenKind::Start, &token, 0).unwrap();
+            assert!(
+                matches!(event, Some(Event::Start(element)) if element.name.namespace.as_deref() == Some("urn:p"))
+            );
+        }
+        let token = String::from("</p:r>");
+        let event = owned(&mut state, TokenKind::End, &token, length).unwrap();
+        assert!(state.stack.is_empty());
+        assert!(state.bindings.is_empty());
+        assert!(state.namespace_index.is_empty());
+        assert!(state.namespace_ids.is_empty());
+        assert!(
+            matches!(event, Some(Event::End(name)) if name.namespace.as_deref() == Some("urn:p"))
+        );
+        state.validate_finish(length + token.len()).unwrap();
+    }
+
+    #[test]
+    fn interner_reference_counts_include_aliases_and_shadowed_bindings() {
+        let mut state = ParserState::new(Limits::default(), 0);
+        let root = "<r xmlns:p='urn:a' xmlns:q='urn:a'>";
+        owned(&mut state, TokenKind::Start, root, 0).unwrap();
+        assert_eq!(state.namespace_ids.len(), 1);
+        assert_eq!(state.namespace_ids.get("urn:a").unwrap().bindings, 2);
+        let child = "<p:c xmlns:p='urn:b' xmlns:q='urn:a' p:a='' q:a=''/>";
+        let event = owned(&mut state, TokenKind::Start, child, root.len()).unwrap();
+        assert_eq!(state.namespace_ids.len(), 1);
+        assert_eq!(state.namespace_ids.get("urn:a").unwrap().bindings, 2);
+        assert!(!state.namespace_ids.contains_key("urn:b"));
+        assert!(
+            matches!(event, Some(Event::Empty(element)) if element.name.namespace.as_deref() == Some("urn:b") && element.attributes[2].name.namespace.as_deref() == Some("urn:b") && element.attributes[3].name.namespace.as_deref() == Some("urn:a"))
+        );
+        let sibling = "<p:c/>";
+        assert!(
+            matches!(owned(&mut state, TokenKind::Start, sibling, root.len() + child.len()).unwrap(), Some(Event::Empty(element)) if element.name.namespace.as_deref() == Some("urn:a"))
+        );
+        owned(
+            &mut state,
+            TokenKind::End,
+            "</r>",
+            root.len() + child.len() + sibling.len(),
+        )
+        .unwrap();
+        assert!(state.namespace_ids.is_empty());
+        assert!(state.namespace_index.is_empty());
+        assert_eq!(state.next_namespace, 2);
+    }
+
+    #[test]
+    fn completed_sibling_namespaces_do_not_accumulate() {
+        let mut state = ParserState::new(Limits::default(), 0);
+        owned(&mut state, TokenKind::Start, "<r>", 0).unwrap();
+        let mut offset = 3;
+        let mut capacity = None;
+        for index in 0..1000 {
+            let token = format!("<c xmlns:p='urn:{index}'/>");
+            owned(&mut state, TokenKind::Start, &token, offset).unwrap();
+            offset += token.len();
+            assert_eq!(state.stack.len(), 1);
+            assert!(state.bindings.is_empty());
+            assert!(state.namespace_ids.is_empty());
+            assert!(state.namespace_index.is_empty());
+            let retained_capacity = (
+                state.bindings.capacity(),
+                state.namespace_ids.capacity(),
+                state.namespace_index.capacity(),
+            );
+            assert_eq!(
+                *capacity.get_or_insert(retained_capacity),
+                retained_capacity
+            );
+        }
+        assert_eq!(state.next_namespace, 1000);
+        owned(&mut state, TokenKind::End, "</r>", offset).unwrap();
+        state.validate_finish(offset + 4).unwrap();
+    }
+
+    #[test]
+    fn retention_budget_differs_from_borrowing_without_changing_xml_semantics() {
+        let limits = Limits {
+            max_owned_bytes: 0,
+            ..Limits::default()
+        };
+        let mut owned_state = ParserState::new(limits, 0);
+        assert_eq!(
+            owned(&mut owned_state, TokenKind::Start, "<r>", 0).unwrap_err(),
+            Error::new(ErrorKind::LimitExceeded(Limit::OwnedBytes), 1)
+        );
+        let mut empty_state = ParserState::new(limits, 0);
+        assert!(
+            owned(&mut empty_state, TokenKind::Start, "<r/>", 0)
+                .unwrap()
+                .is_some()
+        );
+        empty_state.validate_finish(4).unwrap();
+        let mut borrowed = ParserState::new(limits, 0);
+        for (kind, token, offset) in [(TokenKind::Start, "<r>", 0), (TokenKind::End, "</r>", 3)] {
+            assert!(
+                borrowed
+                    .process_token(kind, token, offset..offset + token.len(), |raw, _, _| Ok(
+                        Cow::Borrowed(raw)
+                    ))
+                    .unwrap()
+                    .is_some()
+            );
+        }
+        borrowed.validate_finish(7).unwrap();
+    }
+
+    #[test]
+    fn copy_budget_is_cumulative_and_checks_overflow() {
+        let mut budget = Budget {
+            limits: Limits {
+                max_owned_bytes: 3,
+                ..Limits::default()
+            },
+            owned_bytes: 0,
+        };
+        assert_eq!(budget.copy("abc", 0).unwrap(), "abc");
+        assert_eq!(
+            budget.copy("d", 7).unwrap_err(),
+            Error::new(ErrorKind::LimitExceeded(Limit::OwnedBytes), 7)
+        );
+        assert_eq!(budget.copy("", 9).unwrap(), "");
+        budget.owned_bytes = usize::MAX;
+        assert_eq!(
+            budget.copy("d", 11).unwrap_err(),
+            Error::new(ErrorKind::LimitExceeded(Limit::OwnedBytes), 11)
+        );
+    }
+
+    #[test]
+    fn bom_whitespace_and_finish_states() {
+        let mut state = ParserState::new(
+            Limits {
+                max_events: 0,
+                ..Limits::default()
+            },
+            0,
+        );
+        assert!(
+            owned(&mut state, TokenKind::Bom, "\u{feff}", 0)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(state.initial, 3);
+        assert!(
+            owned(&mut state, TokenKind::Text, " \r\n", 3)
+                .unwrap()
+                .is_none()
+        );
+        assert!(owned(&mut state, TokenKind::Text, "", 6).unwrap().is_none());
+        assert_eq!(
+            state.validate_finish(6).unwrap_err().kind,
+            ErrorKind::MissingRoot
+        );
+        assert_eq!(
+            owned(&mut state, TokenKind::Start, "<r/>", 6)
+                .unwrap_err()
+                .kind,
+            ErrorKind::LimitExceeded(Limit::Events)
+        );
+        let mut state = ParserState::new(Limits::default(), 0);
+        owned(&mut state, TokenKind::Bom, "\u{feff}", 0).unwrap();
+        assert!(matches!(
+            owned(
+                &mut state,
+                TokenKind::Instruction,
+                "<?xml version='1.0'?>",
+                3
+            )
+            .unwrap(),
+            Some(Event::Declaration(_))
+        ));
+        owned(&mut state, TokenKind::Start, "<r>", 24).unwrap();
+        assert_eq!(
+            state.validate_finish(27).unwrap_err().kind,
+            ErrorKind::UnexpectedEof
+        );
+    }
+
+    #[test]
+    fn malformed_private_tokens_fail_without_slicing_panics() {
+        for (kind, raw) in [
+            (TokenKind::Start, ""),
+            (TokenKind::Start, "x"),
+            (TokenKind::Start, "r>"),
+            (TokenKind::Start, "<r"),
+            (TokenKind::End, "x>"),
+            (TokenKind::End, "</"),
+            (TokenKind::Comment, "<!--"),
+            (TokenKind::Cdata, "<![CDATA["),
+            (TokenKind::Instruction, "<?"),
+        ] {
+            let mut state = ParserState::new(Limits::default(), 0);
+            owned(&mut state, TokenKind::Start, "<r>", 0).unwrap();
+            let result = owned(&mut state, kind, raw, 3);
+            if raw.is_empty() {
+                assert!(result.unwrap().is_none());
+            } else {
+                assert_eq!(result.unwrap_err().kind, ErrorKind::Syntax);
+            }
+        }
+        for (kind, expected) in [
+            (TokenKind::Dtd, ErrorKind::UnsupportedDtd),
+            (TokenKind::InvalidMarkup, ErrorKind::Syntax),
+        ] {
+            let mut state = ParserState::new(Limits::default(), 0);
+            assert_eq!(owned(&mut state, kind, "<!", 0).unwrap_err().kind, expected);
+        }
+    }
+}
