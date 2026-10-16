@@ -1,4 +1,5 @@
 use crate::{Error, ErrorKind};
+use memchr::{memchr, memchr2, memchr3};
 use std::borrow::Cow;
 
 pub(crate) fn xml_char(c: char) -> bool {
@@ -6,9 +7,15 @@ pub(crate) fn xml_char(c: char) -> bool {
 }
 
 pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) -> bool {
-    raw.bytes().any(|b| {
-        b == b'\r' || (attribute && matches!(b, b'\n' | b'\t')) || (references && b == b'&')
-    })
+    let bytes = raw.as_bytes();
+    match (attribute, references) {
+        (false, false) => memchr(b'\r', bytes).is_some(),
+        (false, true) => memchr2(b'\r', b'&', bytes).is_some(),
+        (true, false) => memchr3(b'\r', b'\n', b'\t', bytes).is_some(),
+        (true, true) => {
+            memchr3(b'\r', b'\n', b'&', bytes).is_some() || memchr(b'\t', bytes).is_some()
+        }
+    }
 }
 
 /// XML end-of-line and CDATA attribute normalization. References are expanded
