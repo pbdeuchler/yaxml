@@ -120,3 +120,132 @@ At the review boundary, checksummed libxml2 2.15.4 execution and final coverage 
 ### Verdict
 
 **PASS (code quality)** -- Zero code-quality issues found. The implementation satisfies the reviewed code-quality bar; this bounded milestone remains gated on the frozen plan's matched libxml2 structural benchmark.
+
+## Matched benchmark follow-up
+
+This section records the later review that closed the historical benchmark gate
+above. The earlier boundary and verdict remain unchanged as a record of what was
+known at `08a1ff6`. This follow-up reviewed the matched benchmark implementation
+at `22fe425`, the strengthened tests at `546dfeb`, the immutable evidence at
+`abdd709`, and the assembled documentation through `0bc0564`.
+
+### Scope and mechanics
+
+Every changed line in the ten-file matched-benchmark implementation was reviewed.
+The Rust driver uses private temporary directories, bounded subprocess capture,
+controlled benchmark environment variables, a preflight, and alternating sample
+order. Configuration validation independently derives operation, creation,
+removal, live-node and traversal counts before comparing rows. Pair validation
+requires matching configuration, bytes and output hashes and permits only the
+documented adjacent-Text topology delta. The version gate requires an exact
+libxml2 2.15.4 protocol line with tree and output features enabled.
+
+The C helper bounds frames and dimensions, rejects NUL payloads and trailing
+request data, and parses with network and external-entity access disabled. Its
+edit clock includes construction plus `xmlAddChild`, or unlink plus free. It
+does not inspect a possibly freed input pointer after `xmlAddChild`; churn uses
+the returned survivor, frees detached nodes before the document, and does not
+read freed pointers. Traversal is iterative, observable under optimization and
+checked for a stable visit count. Validation compares exact final bytes and
+hashes. The report states the material asymmetries in allocation, handle and
+provenance checks, Text coalescing, serialization buffering, validation work,
+tombstones and quotas.
+
+The CI smoke job checksum-pins the source archive, requires compiled and runtime
+version 2.15.4, compiles the helper with strict warnings, and exercises all nine
+operations. Its one-sample matrix is a correctness smoke check; the retained
+local matrix supplies the performance evidence.
+
+### Follow-up findings
+
+#### Critical
+
+None.
+
+#### Important
+
+Two test gaps were found in the first implementation and reported before this
+verdict:
+
+1. Replacing required phase-time numeric parsing with presence checks passed the
+   original example tests.
+2. Weakening the exact helper-version line to accept any suffix passed the
+   original example tests, including disabled features, missing fields and
+   trailing data.
+
+`546dfeb` adds invalid numeric cases for every required phase/accounting field
+and exact version failures for compile/runtime mismatch, disabled features,
+missing, reordered and extra fields, and a missing final newline. Reintroducing
+each fault separately then failed the intended focused test. Both faults were
+restored, and no Important finding remains.
+
+#### Minor
+
+None.
+
+### Follow-up mutation results
+
+Each fault was applied separately and restored before the next one.
+
+| # | Deliberate fault | Expected gate | Result |
+| - | ---------------- | ------------- | ------ |
+| 33 | Omit the independently derived `completed_units_total` comparison | configuration gate rejects shared wrong work counts | caught by `configuration_gate_rejects_zero_or_wrong_work_and_missing_phase_fields` at `22fe425`; its strengthened successor is `configuration_gate_rejects_wrong_work_and_invalid_required_numbers` |
+| 34 | Stop requiring `serialization_ns` | configuration gate rejects a missing phase | caught by `configuration_gate_rejects_zero_or_wrong_work_and_missing_phase_fields` at `22fe425`; its strengthened successor is `configuration_gate_rejects_wrong_work_and_invalid_required_numbers` |
+| 35 | Check phase fields only for presence, accepting nonnumeric times | numeric phase gate | initially survived; after `546dfeb`, caught at `setup_ns` by `configuration_gate_rejects_wrong_work_and_invalid_required_numbers` |
+| 36 | Accept any suffix after the pinned compiled/runtime versions | exact version and feature gate | initially survived; after `546dfeb`, caught on `tree=0` by `version_gate_requires_both_pinned_versions_and_features` |
+| 37 | Omit `output_hash` from pair equivalence | exact-output pair gate | caught by `pair_gate_accepts_only_the_documented_text_coalescing_delta` |
+
+These extend the earlier independent-model and benchmark-accounting mutations
+in rows 28 and 29. A successful benchmark cannot be manufactured by using the
+same wrong operation count on both sides, omitting or corrupting a phase time,
+loosening the helper identity, or changing only one output hash.
+
+### Evidence audit
+
+The retained run contains 24 workloads with seven samples: 168 yaxml rows, 168
+libxml2 rows and 168 exact pair results. The summary contains 144
+workload/phase rows. Its 24-by-six-by-two medians, minima, maxima and median
+absolute deviations were independently recomputed from raw rows with no
+difference. The raw log, empty stderr, summary, analysis, runner, parsers,
+failure-gate log, helper and pinned static-library hashes match the validation
+report. The report itself has SHA-256
+`76d3f118494b6a0057f346d655effad21b2f02c4db4fe6b3f4fc35af86439ff3`.
+
+The result closes the plan's matched-mechanics requirement but does not satisfy
+the project's across-the-board performance goal. At the report's descriptive
+5% threshold, yaxml has the higher median in 106 of 144 phase rows, libxml2 in
+37, and one is within 5%. The report preserves those results and the limitations
+from different observer work, Text coalescing, short timings and a single host.
+
+A bounded audit of the adjacent evidence found no discrepancy. The matching
+LLVM 22.1.6 reruns have empty diagnostics and byte-identical library summary
+tables in both retained coverage directories. The corrected API catalogue has
+4,056 identifiers plus four empty-header rows; its kind totals, canonical and
+file checksums, 46 raw-header checksums, configured/header-feature union, public
+symbol count and private-external boundary match the retained audit artifacts.
+This catalogue audit covers one configured macOS static build and selected
+header feature views, not complete cross-platform ABI compatibility.
+
+### Restored verification
+
+After the final fault was restored, the focused example suite passed five tests,
+the structural benchmark integration suite passed seven, and the bounded process
+suite passed its public test with seven helper entry points ignored. Formatting
+and strict all-target Clippy passed at `0bc0564`; `cargo tree --offline --locked`
+still contains only `memchr 2.8.3`. Production source, `Cargo.toml` and
+`Cargo.lock` are byte-identical to `08a1ff6`, and the Rust source search found no
+unsafe block, unsafe declaration or foreign ABI.
+
+The retained assembled verification at `4208a2d` passed 300 all-target tests
+with seven ignored subprocess helpers, eight doctests, formatting and strict
+all-target Clippy. Later commits add benchmark-gate tests and documentation; no
+production source changed.
+
+### Current verdict
+
+**PASS (code quality and bounded evidence)** -- No Critical, Important or Minor
+finding remains. The matched libxml2 benchmark requirement is met, its evidence
+does not overstate performance, and this bounded milestone is ready for
+integration. This verdict does not claim across-the-board performance, 100%
+execution coverage, sustained coverage-guided fuzzing or complete libxml2
+compatibility.
