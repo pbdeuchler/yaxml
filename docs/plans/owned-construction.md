@@ -90,6 +90,11 @@ of first use.
 Generated prefixes obey `max_name_bytes` and `max_namespace_work`. This is a
 deterministic naming policy, not a storage promise.
 
+Before allocating `ns1`, `ns2`, and later names for an `ElementSpec`, reserve
+every nonempty prefix requested with `Exact` by its element and attribute
+names; generated names skip those reserved spellings so an earlier automatic
+choice cannot invalidate a later exact request.
+
 Gather all declarations in `ElementSpec` before resolving the element name or
 ordinary attributes, matching the parser's start-tag behavior. Preserve the
 order of supplied items in the attribute view; append generated declarations
@@ -147,7 +152,7 @@ as markup: callers add literal text through `append_text`.
 ## Open decisions before freezing
 
 The proposal intentionally leaves attribute storage to the matched
-geometric-block experiment. Two public-contract choices still need review:
+geometric-block experiment. Remaining public-contract choices still need review:
 
 - Adding five fields to public `EditLimits` and a typed location to `EditError`
   changes source compatibility for struct literals and error destructuring.
@@ -330,7 +335,7 @@ and `max_created_nodes` keep their current meanings:
 | `max_name_bytes` (1 MiB) | Per local name, prefix, namespace URI, declaration prefix or declaration URI, checked before scanning. |
 | `max_value_bytes` (1 MiB) | Per attribute value; keep existing value/PI-target behavior. |
 | Retained string work | Existing cumulative full requested pool capacities, including charged failures; initial construction has no free parsed baseline. Reuse known immutable URI pool ranges when safe, without content-dedup scans. |
-| `max_namespace_work` (64 MiB) | Per-operation work units, reset for each public call. Charge one per declaration/prefix candidate inspected; charge each URI validation scan by its full length and each equality/hash operation by the full length of every URI operand before scanning it. Include parsed ancestor bindings; charging only new declarations is insufficient. |
+| `max_namespace_work` (64 MiB) | Per-operation work units, reset for each public call. Charge one per declaration/prefix candidate inspected; charge prefix and URI validation scans by full length and each prefix/URI equality or hash operation by the full length of every operand before scanning it. Include parsed ancestor declaration prefixes; charging only new declarations is insufficient. |
 
 `EditLimits::default()` keeps the current 1 MiB value, 64 MiB pool-work and
 1,000,000 created-node ceilings, and adds 1 MiB name components, depth 256,
@@ -351,15 +356,21 @@ successful insertion can allocate many descriptors. Keep that bound open until
 the storage experiment provides concrete accounting. Reservations remain
 fallible.
 Temporary planning is bounded by `max_attributes` and uses fallible reservation.
+Local-name XML validation is bounded only by the per-component
+`max_name_bytes` ceiling, not by `max_namespace_work`. Since up to 1,024 items
+could each carry a near-limit local name or value, the implementation still
+needs an aggregate supplied-byte/work bound before this proposal can pass its
+resource gate; the per-component limits alone do not bound aggregate scanning.
 
 Build scope once per operation rather than scanning every ancestor for each
 attribute. Assign temporary URI identities once per distinct resolved binding
 and check duplicate attributes using those identities. Account for work before
 validating or comparing bytes: do not validate a shared 1 MiB URI independently
-for 1,024 items and only then discover the 64 MiB work ceiling. Before URI
-equality checks, charge the full length of each URI operand as a worst-case
-comparison bound; charge full input length before validation scans and hashing
-as well. The first operation that would exceed the allowance returns
+for 1,024 items and only then discover the 64 MiB work ceiling. Prefix and URI
+validation scans, plus their equality/hash comparisons, count against this
+allowance; charge the full length of each operand before scanning it. This
+includes prefix comparisons against declarations inherited from parsed
+ancestors. The first operation that would exceed the allowance returns
 `NamespaceWork` before beginning that scan. A bounded scratch table may
 deduplicate identical borrowed URI identities, but its lookup and comparison
 work must itself be charged and bounded; do not use content hashing that scans
