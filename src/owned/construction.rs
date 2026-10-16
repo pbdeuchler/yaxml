@@ -486,12 +486,12 @@ fn lookup<'a>(
         work.charge(1)?;
         for attribute_index in attributes.clone() {
             work.charge(1)?;
+            work.charge(1)?;
             let attribute = &document.attributes[attribute_index];
             let name = attribute.name.view(&document.pool.0);
             let Some(candidate_prefix) = declaration_prefix(&name) else {
                 continue;
             };
-            work.charge(1)?;
             if work.compare(candidate_prefix.unwrap_or(""), prefix.unwrap_or(""))? {
                 let uri = &document.pool.0[attribute.value.clone()];
                 return Ok(Some(uri));
@@ -771,6 +771,7 @@ fn find_matching_prefix<'a>(
         work.charge(1)?;
         for attribute_index in attributes.clone() {
             work.charge(1)?;
+            work.charge(1)?;
             let attribute = &document.attributes[attribute_index];
             let name = attribute.name.view(&document.pool.0);
             let Some(prefix) = declaration_prefix(&name) else {
@@ -978,7 +979,6 @@ fn resolve_name(
             EditComponent::Prefix,
         )));
     }
-    let explicit_default = declaration_exists(local, None, work)?;
     let prefix = match name.prefix {
         PrefixPolicy::Exact(prefix) => {
             let empty_prefix = prefix == Some("");
@@ -989,6 +989,7 @@ fn resolve_name(
             match (namespace, prefix) {
                 (None, None) => {
                     if is_element {
+                        let explicit_default = declaration_exists(local, None, work)?;
                         if let Some(current) =
                             lookup(document, parent, None, local, generated, work)?
                         {
@@ -1058,6 +1059,7 @@ fn resolve_name(
         PrefixPolicy::Automatic => match namespace {
             None => {
                 if is_element {
+                    let explicit_default = declaration_exists(local, None, work)?;
                     if let Some(current) = lookup(document, parent, None, local, generated, work)? {
                         if !work.compare(current, "")? {
                             if explicit_default {
@@ -1091,6 +1093,7 @@ fn resolve_name(
                 {
                     return make_name(scratch, name.local, namespace, None, scratch_limit);
                 }
+                let explicit_default = declaration_exists(local, None, work)?;
                 if !explicit_default {
                     ensure_binding(
                         document,
@@ -1909,6 +1912,77 @@ mod tests {
 
     #[test]
     fn namespace_work_charges_only_scope_steps_and_comparison_operands() {
+        let zero_work = EditLimits {
+            max_namespace_work: 0,
+            ..EditLimits::default()
+        };
+        assert!(OwnedDocument::create(root_spec(), zero_work).is_ok());
+
+        let mut deep = OwnedDocument::parse("<a><b><c/></b></a>").unwrap();
+        let ancestor = deep
+            .root_element()
+            .first_child()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .id();
+        let empty_name = ElementSpec {
+            name: NameSpec {
+                local: "d",
+                namespace: None,
+                prefix: PrefixPolicy::Exact(None),
+            },
+            items: &[],
+        };
+        {
+            let mut editor = deep
+                .edit(EditLimits {
+                    max_namespace_work: 2,
+                    ..EditLimits::default()
+                })
+                .unwrap();
+            assert_eq!(
+                editor
+                    .append_element(ancestor, empty_name)
+                    .unwrap_err()
+                    .kind,
+                EditErrorKind::LimitExceeded(EditLimit::NamespaceWork)
+            );
+        }
+        assert!(
+            deep.edit(EditLimits {
+                max_namespace_work: 3,
+                ..EditLimits::default()
+            })
+            .unwrap()
+            .append_element(ancestor, empty_name)
+            .is_ok()
+        );
+
+        let mut wide = OwnedDocument::parse("<r a='1' b='2'/>").unwrap();
+        let parent = wide.root_element().id();
+        {
+            let mut editor = wide
+                .edit(EditLimits {
+                    max_namespace_work: 4,
+                    ..EditLimits::default()
+                })
+                .unwrap();
+            assert_eq!(
+                editor.append_element(parent, empty_name).unwrap_err().kind,
+                EditErrorKind::LimitExceeded(EditLimit::NamespaceWork)
+            );
+        }
+        assert!(
+            wide.edit(EditLimits {
+                max_namespace_work: 5,
+                ..EditLimits::default()
+            })
+            .unwrap()
+            .append_element(parent, empty_name)
+            .is_ok()
+        );
+
         let root_items = [
             ElementItem::Namespace(NamespaceSpec {
                 prefix: None,
@@ -1996,7 +2070,6 @@ mod tests {
             value: &value,
         });
         for reservation in [
-            EditReservation::Scratch,
             EditReservation::Node,
             EditReservation::Attribute,
             EditReservation::Pool,
@@ -2036,6 +2109,106 @@ mod tests {
     }
 
     #[test]
+    fn generated_prefix_path_injects_every_scratch_reservation_atomically() {
+        let items = [ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "id",
+                namespace: Some("urn:generated"),
+                prefix: PrefixPolicy::Automatic,
+            },
+            value: "1",
+        })];
+        let mut failures = 0;
+        for skip in 0..32 {
+            let mut document = OwnedDocument::create(root_spec(), EditLimits::default()).unwrap();
+            let parent = document.root_element().id();
+            let mut editor = document.edit(EditLimits::default()).unwrap();
+            let failure = EditReservationFailureGuard::arm(EditReservation::Scratch, skip);
+            let result = editor.append_element(
+                parent,
+                ElementSpec {
+                    name: NameSpec {
+                        local: "item",
+                        namespace: None,
+                        prefix: PrefixPolicy::Exact(None),
+                    },
+                    items: &items,
+                },
+            );
+            if failure.fired() {
+                assert_eq!(result, Err(EditError::new(EditErrorKind::Allocation, None)));
+                assert_eq!(failure.attempts(), skip + 1);
+                assert_eq!(editor.document().nodes.len(), 2);
+                assert!(
+                    editor
+                        .document()
+                        .root_element()
+                        .attributes()
+                        .next()
+                        .is_none()
+                );
+                assert_eq!(editor.document().edit_created_nodes, 1);
+                assert_eq!(editor.document().edit_created_attributes, 0);
+                failures += 1;
+            } else {
+                assert!(result.is_ok());
+                assert_eq!(failure.attempts(), skip);
+                break;
+            }
+        }
+        assert!(failures >= 7, "expected generated prefix and clone sites");
+    }
+
+    #[test]
+    fn inherited_long_prefix_scratch_growth_is_injectable_before_publication() {
+        let prefix = format!("p{}", "a".repeat(1_000));
+        let xml = format!("<r xmlns:{prefix}='urn:inherited'/>");
+        let items = [ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "id",
+                namespace: Some("urn:inherited"),
+                prefix: PrefixPolicy::Automatic,
+            },
+            value: "1",
+        })];
+        let mut failures = 0;
+        for skip in 0..32 {
+            let mut document = OwnedDocument::parse(&xml).unwrap();
+            let parent = document.root_element().id();
+            let node_count = document.nodes.len();
+            let mut editor = document.edit(EditLimits::default()).unwrap();
+            let failure = EditReservationFailureGuard::arm(EditReservation::Scratch, skip);
+            let result = editor.append_element(
+                parent,
+                ElementSpec {
+                    name: NameSpec {
+                        local: "item",
+                        namespace: None,
+                        prefix: PrefixPolicy::Exact(None),
+                    },
+                    items: &items,
+                },
+            );
+            if failure.fired() {
+                assert_eq!(result, Err(EditError::new(EditErrorKind::Allocation, None)));
+                assert_eq!(failure.attempts(), skip + 1);
+                assert_eq!(editor.document().nodes.len(), node_count);
+                assert_eq!(editor.document().edit_created_nodes, 0);
+                assert_eq!(editor.document().edit_created_attributes, 0);
+                failures += 1;
+            } else {
+                assert!(result.is_ok());
+                assert_eq!(failure.attempts(), skip);
+                break;
+            }
+        }
+        assert!(
+            failures >= 5,
+            "expected inherited prefix clone and growth sites"
+        );
+    }
+
+    #[test]
     fn create_reservation_failures_return_without_publishing_a_document() {
         let items = [ElementItem::Attribute(AttributeSpec {
             name: NameSpec {
@@ -2046,7 +2219,6 @@ mod tests {
             value: "1",
         })];
         for reservation in [
-            EditReservation::Scratch,
             EditReservation::Node,
             EditReservation::Attribute,
             EditReservation::Pool,
@@ -2071,6 +2243,35 @@ mod tests {
             assert!(failure.fired(), "{reservation:?}");
             assert_eq!(failure.attempts(), 1, "{reservation:?}");
         }
+
+        let mut failures = 0;
+        for skip in 0..16 {
+            let failure = EditReservationFailureGuard::arm(EditReservation::Scratch, skip);
+            let result = OwnedDocument::create(
+                ElementSpec {
+                    name: NameSpec {
+                        local: "root",
+                        namespace: None,
+                        prefix: PrefixPolicy::Exact(None),
+                    },
+                    items: &items,
+                },
+                EditLimits::default(),
+            );
+            if failure.fired() {
+                assert_eq!(
+                    result.unwrap_err(),
+                    EditError::new(EditErrorKind::Allocation, None)
+                );
+                assert_eq!(failure.attempts(), skip + 1);
+                failures += 1;
+            } else {
+                assert!(result.is_ok());
+                assert_eq!(failure.attempts(), skip);
+                break;
+            }
+        }
+        assert!(failures >= 4, "expected all create scratch reservations");
     }
 
     #[test]
