@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 mod dom;
+mod encoding;
 mod error;
 mod escape;
 mod owned;
@@ -12,6 +13,7 @@ mod tokenizer;
 mod writer;
 
 pub use dom::{Document, Node, NodeId, NodeKind};
+pub use encoding::DecodeLimits;
 pub use error::{Error, ErrorKind, Limit, ReadError, WriteError};
 pub use owned::{OwnedDocument, OwnedNode, OwnedNodeKind};
 pub use push::PushParser;

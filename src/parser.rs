@@ -85,6 +85,10 @@ enum Phase {
 /// Events never borrow owned state: retained namespaces are copied as needed.
 pub(crate) struct ParserState<'source> {
     initial: usize,
+    encoding: crate::encoding::SourceEncoding,
+    declaration_seen: bool,
+    token_limit: usize,
+    token_limit_kind: Limit,
     phase: Phase,
     stack: Vec<Frame<'source>>,
     bindings: Vec<Binding<'source>>,
@@ -103,6 +107,10 @@ impl<'source> ParserState<'source> {
     pub(crate) fn new(limits: Limits, initial_offset: usize) -> Self {
         Self {
             initial: initial_offset,
+            encoding: crate::encoding::SourceEncoding::Utf8,
+            declaration_seen: false,
+            token_limit: limits.max_token_bytes,
+            token_limit_kind: Limit::TokenBytes,
             phase: Phase::Prolog,
             stack: Vec::new(),
             bindings: Vec::new(),
@@ -121,6 +129,18 @@ impl<'source> ParserState<'source> {
         self.initial = offset;
     }
 
+    pub(crate) fn set_encoding(
+        &mut self,
+        encoding: crate::encoding::SourceEncoding,
+        initial: usize,
+        decoded_token_limit: usize,
+    ) {
+        self.encoding = encoding;
+        self.set_initial_offset(initial);
+        self.token_limit = decoded_token_limit;
+        self.token_limit_kind = Limit::DecodedTokenBytes;
+    }
+
     pub(crate) fn in_content(&self) -> bool {
         matches!(self.phase, Phase::Content)
     }
@@ -134,6 +154,9 @@ impl<'source> ParserState<'source> {
     }
 
     pub(crate) fn validate_finish(&self, offset: usize) -> Result<(), Error> {
+        if self.encoding.requires_declaration() && !self.declaration_seen {
+            return Err(Error::new(ErrorKind::EncodingMismatch, offset));
+        }
         match self.phase {
             Phase::Prolog => Err(Error::new(ErrorKind::MissingRoot, offset)),
             Phase::Content => Err(Error::new(ErrorKind::UnexpectedEof, offset)),
@@ -170,10 +193,6 @@ impl<'source> ParserState<'source> {
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
         let start = range.start;
-        if matches!(kind, TokenKind::Bom) {
-            self.set_initial_offset(range.end);
-            return Ok(None);
-        }
         if matches!(kind, TokenKind::Dtd | TokenKind::InvalidMarkup) {
             self.check_event_limit(start)?;
             return Err(Error::new(
@@ -185,14 +204,20 @@ impl<'source> ParserState<'source> {
                 start,
             ));
         }
-        if raw.len() > self.budget.limits.max_token_bytes {
+        if raw.len() > self.token_limit {
             return Err(Error::new(
-                ErrorKind::LimitExceeded(Limit::TokenBytes),
+                ErrorKind::LimitExceeded(self.token_limit_kind),
                 start,
             ));
         }
         if raw.is_empty() {
             return Ok(None);
+        }
+        if self.encoding.requires_declaration()
+            && !self.declaration_seen
+            && !matches!(kind, TokenKind::Instruction)
+        {
+            return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         if matches!(kind, TokenKind::Text) && !self.in_content() {
             return match raw.bytes().position(|byte| !space(byte)) {
@@ -228,7 +253,6 @@ impl<'source> ParserState<'source> {
             TokenKind::Instruction => self.instruction(raw, start)?,
             TokenKind::Dtd => return Err(Error::new(ErrorKind::UnsupportedDtd, start)),
             TokenKind::InvalidMarkup => return Err(Error::new(ErrorKind::Syntax, start)),
-            TokenKind::Bom => unreachable!("BOM handled before token processing"),
         };
         self.events += 1;
         Ok(Some(event))
@@ -260,10 +284,18 @@ impl<'source> ParserState<'source> {
             if target != "xml" || start != self.initial {
                 return Err(Error::new(ErrorKind::InvalidDeclaration, start));
             }
-            return Ok(Event::Declaration(parse_declaration(
-                &body[name_end..],
-                start + 2 + name_end,
-            )?));
+            let (declaration, encoding_offset) =
+                parse_declaration(&body[name_end..], start + 2 + name_end)?;
+            validate_encoding(
+                self.encoding,
+                declaration.encoding,
+                encoding_offset.unwrap_or(start),
+            )?;
+            self.declaration_seen = true;
+            return Ok(Event::Declaration(declaration));
+        }
+        if self.encoding.requires_declaration() && !self.declaration_seen {
+            return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
@@ -644,7 +676,7 @@ impl<'a> TagScanner<'a> {
     }
 }
 
-fn parse_declaration(raw: &str, offset: usize) -> Result<Declaration<'_>, Error> {
+fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Option<usize>), Error> {
     let mut scan = TagScanner {
         raw,
         cursor: 0,
@@ -656,6 +688,7 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<Declaration<'_>, Error>
         standalone: None,
     };
     let mut count = 0;
+    let mut encoding_offset = None;
     while let Some((name, value, position, _)) = scan
         .attribute()
         .map_err(|e| Error::new(ErrorKind::InvalidDeclaration, e.offset))?
@@ -680,9 +713,7 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<Declaration<'_>, Error>
                 {
                     return Err(Error::new(ErrorKind::InvalidDeclaration, position));
                 }
-                if !value.eq_ignore_ascii_case("UTF-8") {
-                    return Err(Error::new(ErrorKind::UnsupportedEncoding, position));
-                }
+                encoding_offset = Some(position);
                 declaration.encoding = Some(value);
             }
             "standalone" if count > 0 && declaration.standalone.is_none() => {
@@ -699,7 +730,41 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<Declaration<'_>, Error>
     if count == 0 {
         return Err(Error::new(ErrorKind::InvalidDeclaration, offset));
     }
-    Ok(declaration)
+    Ok((declaration, encoding_offset))
+}
+
+fn validate_encoding(
+    source: crate::encoding::SourceEncoding,
+    label: Option<&str>,
+    offset: usize,
+) -> Result<(), Error> {
+    use crate::encoding::SourceEncoding;
+    let Some(label) = label else {
+        return if source.requires_declaration() {
+            Err(Error::new(ErrorKind::EncodingMismatch, offset))
+        } else {
+            Ok(())
+        };
+    };
+    let utf8 = label.eq_ignore_ascii_case("UTF-8");
+    let generic = label.eq_ignore_ascii_case("UTF-16");
+    let le = label.eq_ignore_ascii_case("UTF-16LE");
+    let be = label.eq_ignore_ascii_case("UTF-16BE");
+    let agrees = match source {
+        SourceEncoding::Utf8 => utf8,
+        SourceEncoding::Utf16 { little_endian, bom } => {
+            (bom && generic) || (little_endian && le) || (!little_endian && be)
+        }
+    };
+    if agrees {
+        return Ok(());
+    }
+    let kind = if matches!(source, SourceEncoding::Utf8) || !(utf8 || generic || le || be) {
+        ErrorKind::UnsupportedEncoding
+    } else {
+        ErrorKind::EncodingMismatch
+    };
+    Err(Error::new(kind, offset))
 }
 
 fn qname(name: &str, offset: usize) -> Result<(Option<&str>, &str), Error> {

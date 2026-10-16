@@ -159,11 +159,7 @@ fn bom_whitespace_and_finish_states() {
         },
         0,
     );
-    assert!(
-        owned(&mut state, TokenKind::Bom, "\u{feff}", 0)
-            .unwrap()
-            .is_none()
-    );
+    state.set_initial_offset(3);
     assert_eq!(state.initial, 3);
     assert!(
         owned(&mut state, TokenKind::Text, " \r\n", 3)
@@ -182,7 +178,7 @@ fn bom_whitespace_and_finish_states() {
         ErrorKind::LimitExceeded(Limit::Events)
     );
     let mut state = ParserState::new(Limits::default(), 0);
-    owned(&mut state, TokenKind::Bom, "\u{feff}", 0).unwrap();
+    state.set_initial_offset(3);
     assert!(matches!(
         owned(
             &mut state,
@@ -197,6 +193,135 @@ fn bom_whitespace_and_finish_states() {
     assert_eq!(
         state.validate_finish(27).unwrap_err().kind,
         ErrorKind::UnexpectedEof
+    );
+}
+
+#[test]
+fn encoding_agreement_follows_complete_declaration_grammar() {
+    use crate::encoding::SourceEncoding;
+    for (encoding, label) in [
+        (SourceEncoding::Utf8, Some("UTF-8")),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: true,
+            },
+            None,
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: false,
+                bom: true,
+            },
+            Some("uTf-16"),
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: false,
+            },
+            Some("UTF-16LE"),
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: false,
+                bom: false,
+            },
+            Some("utf-16be"),
+        ),
+    ] {
+        validate_encoding(encoding, label, 11).unwrap();
+    }
+    for (encoding, label, kind) in [
+        (
+            SourceEncoding::Utf8,
+            Some("UTF-16"),
+            ErrorKind::UnsupportedEncoding,
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: true,
+            },
+            Some("UTF-8"),
+            ErrorKind::EncodingMismatch,
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: false,
+                bom: true,
+            },
+            Some("UTF-16LE"),
+            ErrorKind::EncodingMismatch,
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: false,
+            },
+            Some("UTF-16"),
+            ErrorKind::EncodingMismatch,
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: false,
+            },
+            None,
+            ErrorKind::EncodingMismatch,
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: true,
+            },
+            Some("UTF16"),
+            ErrorKind::UnsupportedEncoding,
+        ),
+    ] {
+        assert_eq!(
+            validate_encoding(encoding, label, 11),
+            Err(Error::new(kind, 11))
+        );
+    }
+    let mut state = ParserState::new(Limits::default(), 0);
+    state.set_encoding(
+        SourceEncoding::Utf16 {
+            little_endian: true,
+            bom: false,
+        },
+        0,
+        1024,
+    );
+    assert_eq!(
+        state.validate_finish(4),
+        Err(Error::new(ErrorKind::EncodingMismatch, 4))
+    );
+    assert_eq!(
+        owned(&mut state, TokenKind::Start, "<r/>", 0)
+            .unwrap_err()
+            .kind,
+        ErrorKind::EncodingMismatch
+    );
+    assert_eq!(
+        owned(&mut state, TokenKind::Instruction, "<?pi?>", 0)
+            .unwrap_err()
+            .kind,
+        ErrorKind::EncodingMismatch
+    );
+    let malformed = "<?xml version='1.0' encoding='UTF-8' standalone='maybe'?>";
+    assert_eq!(
+        owned(&mut state, TokenKind::Instruction, malformed, 0)
+            .unwrap_err()
+            .kind,
+        ErrorKind::InvalidDeclaration
+    );
+    state.set_encoding(SourceEncoding::Utf8, 0, 3);
+    assert_eq!(
+        owned(&mut state, TokenKind::Start, "<r/>", 0)
+            .unwrap_err()
+            .kind,
+        ErrorKind::LimitExceeded(Limit::DecodedTokenBytes)
     );
 }
 

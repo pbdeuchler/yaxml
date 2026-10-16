@@ -90,6 +90,7 @@ pub struct Reader<'a> {
     range: Range<usize>,
     state: ParserState<'a>,
     limits: Limits,
+    token_limit_kind: Limit,
     failure: Option<Error>,
     finished: bool,
 }
@@ -126,9 +127,31 @@ impl<'a> Reader<'a> {
             range: initial..initial,
             state: ParserState::new(limits, initial),
             limits,
+            token_limit_kind: Limit::TokenBytes,
             failure: None,
             finished: false,
         })
+    }
+
+    pub(crate) fn with_decode_limits(
+        input: &'a [u8],
+        limits: Limits,
+        decode: crate::DecodeLimits,
+    ) -> Result<Self, Error> {
+        let mut reader = Self::with_limits(input, limits)?;
+        if input.len() - reader.cursor > decode.max_decoded_bytes {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
+        }
+        if decode.max_decoded_token_bytes < limits.max_token_bytes {
+            reader.limits.max_token_bytes = decode.max_decoded_token_bytes;
+            reader.token_limit_kind = Limit::DecodedTokenBytes;
+            reader.state.set_encoding(
+                crate::encoding::SourceEncoding::Utf8,
+                reader.cursor,
+                decode.max_decoded_token_bytes,
+            );
+        }
+        Ok(reader)
     }
 
     /// Byte position after the most recently consumed input.
@@ -237,7 +260,7 @@ impl<'a> Reader<'a> {
     fn check_token(&self, start: usize, end: usize) -> Result<(), Error> {
         if end - start > self.limits.max_token_bytes {
             Err(Error::new(
-                ErrorKind::LimitExceeded(Limit::TokenBytes),
+                ErrorKind::LimitExceeded(self.token_limit_kind),
                 start,
             ))
         } else {
@@ -258,7 +281,7 @@ impl<'a> Reader<'a> {
         }
         Err(Error::new(
             if available > self.limits.max_token_bytes {
-                ErrorKind::LimitExceeded(Limit::TokenBytes)
+                ErrorKind::LimitExceeded(self.token_limit_kind)
             } else {
                 ErrorKind::UnexpectedEof
             },
@@ -282,7 +305,7 @@ impl<'a> Reader<'a> {
         }
         Err(Error::new(
             if self.input.len() - start > self.limits.max_token_bytes {
-                ErrorKind::LimitExceeded(Limit::TokenBytes)
+                ErrorKind::LimitExceeded(self.token_limit_kind)
             } else {
                 ErrorKind::UnexpectedEof
             },

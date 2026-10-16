@@ -2,7 +2,9 @@ use std::borrow::Cow;
 use std::ops::Range;
 
 use crate::dom::{Record, append_record};
+use crate::parser::Budget;
 use crate::{Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader};
+use crate::{DecodeLimits, PushParser};
 
 /// The content category of a node in an owned document.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -98,7 +100,7 @@ impl Pool {
         &mut self,
         value: &str,
         offset: usize,
-        reader: &mut Reader<'_>,
+        budget: &mut Budget,
     ) -> Result<Range<usize>, Error> {
         let start = self.0.len();
         let needed = start.checked_add(value.len()).ok_or(Error::new(
@@ -106,7 +108,6 @@ impl Pool {
             offset,
         ))?;
         if needed > self.0.capacity() {
-            let budget = reader.owned_budget();
             let target = self
                 .0
                 .capacity()
@@ -134,21 +135,21 @@ impl Pool {
         &mut self,
         name: &Name<'_>,
         offset: usize,
-        reader: &mut Reader<'_>,
+        budget: &mut Budget,
     ) -> Result<StoredName, Error> {
         Ok(StoredName {
-            qualified: self.store(name.qualified, offset, reader)?,
+            qualified: self.store(name.qualified, offset, budget)?,
             prefix_length: name.qualified.find(':'),
             namespace: name
                 .namespace
                 .as_deref()
-                .map(|namespace| self.store(namespace, offset, reader))
+                .map(|namespace| self.store(namespace, offset, budget))
                 .transpose()?,
         })
     }
 }
 
-/// An immutable UTF-8 XML tree that owns all of its logical strings.
+/// An immutable XML tree that owns its logical strings as UTF-8.
 ///
 /// Nodes and attributes contain ranges into one string pool, so moving the
 /// document or growing its storage creates no self-references. Parsing,
@@ -167,7 +168,7 @@ impl OwnedDocument {
         Self::parse_bytes(input.as_bytes())
     }
 
-    /// Parses UTF-8 XML independently of the source's lifetime.
+    /// Parses UTF-8 or UTF-16 XML independently of the source's lifetime.
     pub fn parse_bytes(input: &[u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }
@@ -176,99 +177,36 @@ impl OwnedDocument {
     /// full new pool-capacity requests. Owned storage can exhaust this budget
     /// before the borrowing DOM; metadata and allocator overhead are separate.
     pub fn with_limits(input: &[u8], limits: Limits) -> Result<Self, Error> {
-        let mut reader = Reader::with_limits(input, limits)?;
-        let mut nodes = Vec::new();
-        nodes
-            .try_reserve(1)
-            .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
-        nodes.push(Record::root(Content::Document, input.len()));
-        let mut document = Self {
-            nodes,
-            attributes: Vec::new(),
-            pool: Pool::default(),
-            root_element: NodeId(0),
-            declaration: None,
-        };
-        let mut parents = Vec::new();
-        while let Some(event) = reader.read_event()? {
-            let starts = matches!(&event, Event::Start(_));
-            let range = reader.event_range();
-            let offset = range.start;
-            let parent = parents.last().copied().unwrap_or(NodeId(0));
-            let content = match event {
-                Event::Declaration(declaration) => {
-                    document.declaration = Some(StoredDeclaration {
-                        version: document
-                            .pool
-                            .store(declaration.version, offset, &mut reader)?,
-                        encoding: declaration
-                            .encoding
-                            .map(|encoding| document.pool.store(encoding, offset, &mut reader))
-                            .transpose()?,
-                        standalone: declaration.standalone,
-                    });
-                    continue;
-                }
-                Event::End(_) => {
-                    let id = parents
-                        .pop()
-                        .ok_or_else(|| Error::new(ErrorKind::MismatchedEndTag, offset))?;
-                    let end = document.nodes.len();
-                    let record = &mut document.nodes[id.0];
-                    record.range.end = range.end;
-                    record.subtree_end = end;
-                    continue;
-                }
-                Event::Start(element) | Event::Empty(element) => {
-                    let name = document.pool.name(&element.name, offset, &mut reader)?;
-                    let start = document.attributes.len();
-                    document
-                        .attributes
-                        .try_reserve(element.attributes.len())
-                        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                    for attribute in element.attributes {
-                        document.attributes.push(StoredAttribute {
-                            name: document.pool.name(&attribute.name, offset, &mut reader)?,
-                            value: document.pool.store(&attribute.value, offset, &mut reader)?,
-                        });
-                    }
-                    Content::Element {
-                        name,
-                        attributes: start..document.attributes.len(),
-                    }
-                }
-                Event::Text(value) => {
-                    Content::Text(document.pool.store(&value, offset, &mut reader)?)
-                }
-                Event::Cdata(value) => {
-                    Content::Cdata(document.pool.store(&value, offset, &mut reader)?)
-                }
-                Event::Comment(value) => {
-                    Content::Comment(document.pool.store(&value, offset, &mut reader)?)
-                }
-                Event::ProcessingInstruction { target, data } => Content::ProcessingInstruction {
-                    target: document.pool.store(target, offset, &mut reader)?,
-                    data: document.pool.store(&data, offset, &mut reader)?,
-                },
-            };
-            let id = append_record(&mut document.nodes, parent, content, range)?;
-            if matches!(document.nodes[id.0].kind, Content::Element { .. }) {
-                if parent == NodeId(0) {
-                    document.root_element = id;
-                }
-                if starts {
-                    parents
-                        .try_reserve(1)
-                        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                    parents.push(id);
-                }
+        Self::with_decode_limits(input, limits, DecodeLimits::default())
+    }
+
+    /// Parses UTF-8 or UTF-16 while bounding source, decoded and retained bytes.
+    pub fn with_decode_limits(
+        input: &[u8],
+        limits: Limits,
+        decode: DecodeLimits,
+    ) -> Result<Self, Error> {
+        if input.len() > limits.max_input_bytes {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
+        }
+        let mut builder = OwnedBuilder::new(input.len())?;
+
+        let position = if crate::encoding::needs_decoding(input) {
+            let mut parser = PushParser::with_decode_limits(limits, decode);
+            parser.feed_with(input, |event, range, budget| {
+                builder.consume(event, range, budget)
+            })?;
+            parser.finish_with(|event, range, budget| builder.consume(event, range, budget))?;
+            parser.position()
+        } else {
+            let mut reader = Reader::with_decode_limits(input, limits, decode)?;
+            while let Some(event) = reader.read_event()? {
+                let range = reader.event_range();
+                builder.consume(event, range, reader.owned_budget())?;
             }
-        }
-        if document.root_element == NodeId(0) {
-            return Err(Error::new(ErrorKind::MissingRoot, reader.position()));
-        }
-        document.nodes[0].subtree_end = document.nodes.len();
-        Ok(document)
+            reader.position()
+        };
+        builder.finish(position)
     }
 
     /// Returns the synthetic root, including surrounding comments and PIs.
@@ -302,6 +240,122 @@ impl OwnedDocument {
         self.declaration
             .as_ref()
             .map(|declaration| declaration.view(&self.pool.0))
+    }
+}
+
+/// Concrete shared sink: all strings are copied using the parser's budget.
+struct OwnedBuilder {
+    document: OwnedDocument,
+    parents: Vec<NodeId>,
+}
+
+impl OwnedBuilder {
+    fn new(source_length: usize) -> Result<Self, Error> {
+        let mut nodes = Vec::new();
+        nodes
+            .try_reserve(1)
+            .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
+        nodes.push(Record::root(Content::Document, source_length));
+        let document = OwnedDocument {
+            nodes,
+            attributes: Vec::new(),
+            pool: Pool::default(),
+            root_element: NodeId(0),
+            declaration: None,
+        };
+        Ok(Self {
+            document,
+            parents: Vec::new(),
+        })
+    }
+
+    fn consume(
+        &mut self,
+        event: Event<'_>,
+        range: Range<usize>,
+        budget: &mut Budget,
+    ) -> Result<(), Error> {
+        let starts = matches!(&event, Event::Start(_));
+
+        let offset = range.start;
+        let parent = self.parents.last().copied().unwrap_or(NodeId(0));
+        let content = match event {
+            Event::Declaration(declaration) => {
+                self.document.declaration = Some(StoredDeclaration {
+                    version: self
+                        .document
+                        .pool
+                        .store(declaration.version, offset, budget)?,
+                    encoding: declaration
+                        .encoding
+                        .map(|encoding| self.document.pool.store(encoding, offset, budget))
+                        .transpose()?,
+                    standalone: declaration.standalone,
+                });
+                return Ok(());
+            }
+            Event::End(_) => {
+                let id = self
+                    .parents
+                    .pop()
+                    .ok_or_else(|| Error::new(ErrorKind::MismatchedEndTag, offset))?;
+                let end = self.document.nodes.len();
+                let record = &mut self.document.nodes[id.0];
+                record.range.end = range.end;
+                record.subtree_end = end;
+                return Ok(());
+            }
+            Event::Start(element) | Event::Empty(element) => {
+                let name = self.document.pool.name(&element.name, offset, budget)?;
+                let start = self.document.attributes.len();
+                self.document
+                    .attributes
+                    .try_reserve(element.attributes.len())
+                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                for attribute in element.attributes {
+                    self.document.attributes.push(StoredAttribute {
+                        name: self.document.pool.name(&attribute.name, offset, budget)?,
+                        value: self.document.pool.store(&attribute.value, offset, budget)?,
+                    });
+                }
+                Content::Element {
+                    name,
+                    attributes: start..self.document.attributes.len(),
+                }
+            }
+            Event::Text(value) => Content::Text(self.document.pool.store(&value, offset, budget)?),
+            Event::Cdata(value) => {
+                Content::Cdata(self.document.pool.store(&value, offset, budget)?)
+            }
+            Event::Comment(value) => {
+                Content::Comment(self.document.pool.store(&value, offset, budget)?)
+            }
+            Event::ProcessingInstruction { target, data } => Content::ProcessingInstruction {
+                target: self.document.pool.store(target, offset, budget)?,
+                data: self.document.pool.store(&data, offset, budget)?,
+            },
+        };
+        let id = append_record(&mut self.document.nodes, parent, content, range)?;
+        if matches!(self.document.nodes[id.0].kind, Content::Element { .. }) {
+            if parent == NodeId(0) {
+                self.document.root_element = id;
+            }
+            if starts {
+                self.parents
+                    .try_reserve(1)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                self.parents.push(id);
+            }
+        }
+        Ok(())
+    }
+
+    fn finish(mut self, position: usize) -> Result<OwnedDocument, Error> {
+        if self.document.root_element == NodeId(0) {
+            return Err(Error::new(ErrorKind::MissingRoot, position));
+        }
+        self.document.nodes[0].subtree_end = self.document.nodes.len();
+        Ok(self.document)
     }
 }
 

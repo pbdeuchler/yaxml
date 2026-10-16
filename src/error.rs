@@ -7,6 +7,8 @@ pub enum Limit {
     InputBytes,
     OutputBytes,
     TokenBytes,
+    DecodedBytes,
+    DecodedTokenBytes,
     Depth,
     Attributes,
     Events,
@@ -18,6 +20,7 @@ pub enum Limit {
 #[non_exhaustive]
 pub enum ErrorKind {
     InvalidUtf8,
+    InvalidUtf16,
     InvalidCharacter,
     UnexpectedEof,
     Syntax,
@@ -32,6 +35,7 @@ pub enum ErrorKind {
     TextOutsideRoot,
     InvalidDeclaration,
     UnsupportedEncoding,
+    EncodingMismatch,
     UnsupportedDtd,
     LimitExceeded(Limit),
     Allocation,
