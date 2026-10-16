@@ -3,9 +3,10 @@
 This report covers fresh leaf insertion and permanent subtree removal in
 `OwnedDocument`. It is a working evidence record for the bounded structural
 slice, not a general mutable-DOM or production-readiness claim. Implementation
-and fuzz snapshot: `adefca6`; assembled implementation/tooling snapshot:
-`08a1ff6`. Final verification ran at `c9f9420`, with production source tree
-`6578b39f230ae5d22569235d3dd2e965a27ed47e` unchanged from both snapshots.
+and initial fuzz snapshot: `adefca6`; assembled implementation/tooling snapshot:
+`08a1ff6`; strengthened iterator/corpus snapshot: `0ef8e77`.
+Full assembled verification ran at `c9f9420`, with production source tree
+`6578b39f230ae5d22569235d3dd2e965a27ed47e` unchanged across these snapshots.
 
 ## Implemented contract
 
@@ -76,6 +77,13 @@ is reparsed under the documented empty/adjacent Text projection. This is
 deterministic corpus replay and mutation smoke, not a sustained feedback-guided
 fuzzing campaign.
 
+`0ef8e77` adds a registered 13-operation structural corpus seed and independent
+checks for full and partial iterator counts, midpoint identity, last identity,
+exact remaining size hints and repeated exhaustion. Its full 29-test smoke run
+passed in 63.53 seconds; the instrumented run passed in 77.41 seconds. The raw
+timing logs are `/private/tmp/yaxml-structure-iterator-fuzz-smoke.txt` and
+`/private/tmp/yaxml-coverage-structure-fuzz-0ef8e77/run.txt`.
+
 The assembled snapshot passed 293 all-target tests with six ignored subprocess
 helpers, eight doctests, strict all-target Clippy, formatting and the locked
 dependency audit. All 54 structural benchmark smoke rows completed. Logs are
@@ -97,22 +105,22 @@ private test seams and additional monomorphizations.
 
 | Run | Regions | Functions | Lines | Instrumented branch outcomes |
 | --- | --- | --- | --- | --- |
-| Fuzz smoke only (`adefca6`) | 4,814 / 5,047 (95.38%) | 310 / 336 (92.26%) | 3,244 / 3,324 (97.59%) | 657 / 692 (94.94%) |
+| Fuzz smoke only (`0ef8e77`) | 4,818 / 5,047 (95.46%) | 311 / 336 (92.56%) | 3,247 / 3,324 (97.68%) | 657 / 692 (94.94%) |
 | Ordinary tests only (`08a1ff6`) | 4,946 / 5,197 (95.17%) | 329 / 352 (93.47%) | 3,376 / 3,447 (97.94%) | 671 / 708 (94.77%) |
 
 Fuzz smoke ran all 29 tests with no failures. The ordinary
 run executed library, integration and example tests, excluding the fuzz-smoke
 binary and benchmark executables. Linked coverage objects include all built
-targets so unexecuted code is still visible. `owned.rs` reaches 1,135 / 1,194
-regions, 82 / 91 functions, 801 / 820 lines and 82 / 84 branch outcomes under
+targets so unexecuted code is still visible. `owned.rs` reaches 1,139 / 1,194
+regions, 83 / 91 functions, 804 / 820 lines and 82 / 84 branch outcomes under
 fuzz smoke. Ordinary tests reach 1,222 / 1,271 regions, 94 / 101 functions,
 869 / 883 lines and 93 / 94 branch outcomes.
 
-Checked-in summaries are [fuzz coverage](validation/fuzz-coverage-adefca6.txt)
+Checked-in summaries are [fuzz coverage](validation/fuzz-coverage-0ef8e77.txt)
 and [ordinary coverage](validation/test-coverage-08a1ff6.txt). Raw profiles,
 exports, executable inventories, compiler/reporter versions, revision and
 production SHA-256 manifests remain in
-`/private/tmp/yaxml-coverage-structure-fuzz-adefca6` and
+`/private/tmp/yaxml-coverage-structure-fuzz-0ef8e77` and
 `/private/tmp/yaxml-coverage-structure-tests-08a1ff6`. Their production manifests
 match the final verification manifest exactly.
 
