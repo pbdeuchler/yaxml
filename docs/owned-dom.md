@@ -52,15 +52,34 @@ attribute vector.
 None and do not concatenate descendant text. `processing_instruction_target()`
 returns a target only for PI nodes. Empty strings remain present values.
 
-Node source ranges refer to the original encoded input, including delimiters and
-an element's end tag. Pool ranges are private and describe normalized logical
+`range()` returns `Some(range)` for parsed nodes, referring to their location in
+the original encoded input, including delimiters and an element's end tag.
+This is persistent provenance, not a promise that current logical content can
+be sliced from the original bytes. Future created nodes can have no source
+range. Pool ranges are private and describe normalized logical
 strings. A source range cannot index the pool, and there is no retained source
 buffer to slice after input destruction.
 
-`NodeId` is the same document-local index used by the borrowing tree. `node(id)`
-rejects out-of-range indices, but an in-range ID from another document can select
-an unrelated node. Retain the originating document with each ID. Foreign handle
-registries and mutation generation checks remain future adapter work.
+`OwnedNodeId` is a Copy handle with private document identity and slot fields.
+`node(id)` rejects foreign handles, even when the slot exists in both documents,
+as well as out-of-range slots. Moving a document preserves its handles; separately
+parsed documents have different identities. The nonzero process-local identity
+counter never recycles or wraps; exhaustion returns `IdentifierExhausted` at
+offset zero after XML construction otherwise succeeds. IDs are not serialized
+identifiers or stable addresses. Binding registries and structural mutation
+remain future work. The borrowing tree keeps its separate `NodeId` type and
+document-local index contract.
+
+This is an intentional API change before stabilization: owned `id()`/`node()`
+use `OwnedNodeId`, and owned `range()` now returns an Option. Borrowing-tree IDs
+cannot be passed to an owned lookup:
+
+```compile_fail
+use yaxml::{Document, OwnedDocument};
+let borrowed = Document::parse("<r/>").unwrap();
+let owned = OwnedDocument::parse("<r/>").unwrap();
+owned.node(borrowed.root().id());
+```
 
 ## Aggregate string budget
 

@@ -39,6 +39,8 @@ pub enum ErrorKind {
     UnsupportedDtd,
     LimitExceeded(Limit),
     Allocation,
+    /// The non-recycled owned-document identity space is exhausted.
+    IdentifierExhausted,
     /// The event callback requested terminal cancellation.
     Aborted,
     /// The operation is disallowed after completion, failure, or a recovered panic.

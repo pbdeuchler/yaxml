@@ -119,7 +119,7 @@ the slice constructor's error precedence.
 
 The existing public vocabulary includes `Reader`, `PushParser`, `Writer`,
 `Event`, `Element`, `Attribute`, `Declaration`, `Name`, `Limits`, `WriterLimits`,
-`Document`, `Node`, `NodeId`, and `NodeKind`.
+`Document`, `Node`, `NodeId`, `NodeKind`, `OwnedDocument`, `OwnedNode`, and `OwnedNodeId`.
 Retain these names while behavior stabilizes. New parser policy should extend
 explicit configuration, with strict XML as the default; avoid a bag of
 independent switches that permits contradictory contracts.
@@ -185,11 +185,14 @@ logical namespace values; repeated-URI storage and other layout optimizations
 need adversarial size-series evidence. The [owned contract](owned-dom.md) records
 the view API, limits and remaining storage work.
 
-`NodeId` is document-local identity, not a process-wide handle. Checked lookup
-must reject out-of-range IDs. Before exposing mutation or bindings, specify how
-cross-document IDs and stale handles are detected: document identity and
-generation counters at the boundary are candidates. Deletion must not silently
-make an old handle identify another node. Do not promise stable C addresses.
+The borrowing tree's `NodeId` remains document-local; checked lookup rejects
+out-of-range slots but does not detect foreign documents. Owned trees use
+`OwnedNodeId` with a private non-recycled document identity and slot, rejecting
+foreign handles and preserving identity when a document moves. Parsed owned
+source ranges are optional persistent provenance, independent of later logical
+content. Structural mutation will need an explicit deletion/reuse policy:
+deletion must not make an old handle identify another node. Neither type
+promises stable C addresses or replaces a future binding registry.
 
 Add mutation after immutable traversal and serialization have a tested contract.
 Mutators must preserve acyclicity, one parent per attached node, namespace

@@ -1,5 +1,81 @@
 use super::*;
 
+#[test]
+fn document_identities_are_nonzero_nonrecycled_and_exhaust_without_wrapping() {
+    let counter = AtomicUsize::new(0);
+    assert_eq!(document_identity(&counter).unwrap().get(), 1);
+    assert_eq!(document_identity(&counter).unwrap().get(), 2);
+    let counter = AtomicUsize::new(usize::MAX - 1);
+    assert_eq!(document_identity(&counter).unwrap().get(), usize::MAX);
+    for _ in 0..2 {
+        assert_eq!(
+            document_identity(&counter).unwrap_err(),
+            Error::new(ErrorKind::IdentifierExhausted, 0)
+        );
+        assert_eq!(counter.load(Ordering::Relaxed), usize::MAX);
+    }
+}
+
+#[test]
+fn concurrent_identity_assignment_is_unique() {
+    let counter = std::sync::Arc::new(AtomicUsize::new(0));
+    let threads: Vec<_> = (0..4)
+        .map(|_| {
+            let counter = counter.clone();
+            std::thread::spawn(move || {
+                (0..128)
+                    .map(|_| document_identity(&counter).unwrap())
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect();
+    let identities: std::collections::HashSet<_> = threads
+        .into_iter()
+        .flat_map(|thread| thread.join().unwrap())
+        .collect();
+    assert_eq!(identities.len(), 512);
+    assert_eq!(counter.load(Ordering::Relaxed), 512);
+}
+
+#[test]
+fn construction_finishes_xml_before_assigning_identity() {
+    let counter = AtomicUsize::new(0);
+    assert_eq!(
+        OwnedBuilder::new(0)
+            .unwrap()
+            .finish_with_counter(0, &counter)
+            .unwrap_err(),
+        Error::new(ErrorKind::MissingRoot, 0)
+    );
+    assert_eq!(counter.load(Ordering::Relaxed), 0);
+
+    for last in [0, usize::MAX] {
+        let counter = AtomicUsize::new(last);
+        let mut reader = Reader::new(b"<r/>").unwrap();
+        let mut builder = OwnedBuilder::new(4).unwrap();
+        let event = reader.read_event().unwrap().unwrap();
+        builder
+            .consume(event, reader.event_range(), reader.owned_budget())
+            .unwrap();
+        let result = builder.finish_with_counter(4, &counter);
+        if last == 0 {
+            let document = result.unwrap();
+            assert_eq!(document.identity.get(), 1);
+            assert_eq!(document.root().range(), Some(0..4));
+            let invalid = OwnedNodeId {
+                document: document.identity,
+                slot: NodeId(usize::MAX),
+            };
+            assert!(document.node(invalid).is_none());
+        } else {
+            assert_eq!(
+                result.unwrap_err(),
+                Error::new(ErrorKind::IdentifierExhausted, 0)
+            );
+        }
+    }
+}
+
 fn reader(limit: usize) -> Reader<'static> {
     Reader::with_limits(
         b"<r/>",

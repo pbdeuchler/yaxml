@@ -74,12 +74,31 @@ pub(super) fn check_nodes(
     borrowed: &Document<'_>,
     mut source_range: impl FnMut(std::ops::Range<usize>) -> std::ops::Range<usize>,
 ) {
-    assert_eq!(owned.root().id(), borrowed.root().id());
-    assert_eq!(owned.root_element().id(), borrowed.root_element().id());
     assert_eq!(owned.nodes().len(), borrowed.nodes().len());
+    // Identity belongs to one tree, while correspondence follows preorder.
+    // Map the reference IDs to owned handles before checking every link.
+    let handles: std::collections::HashMap<_, _> = borrowed
+        .nodes()
+        .zip(owned.nodes())
+        .map(|(expected, actual)| (expected.id(), actual.id()))
+        .collect();
+    assert_eq!(
+        handles
+            .values()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        handles.len(),
+        "owned handles alias different nodes"
+    );
+    assert_eq!(owned.root().id(), handles[&borrowed.root().id()]);
+    assert_eq!(
+        owned.root_element().id(),
+        handles[&borrowed.root_element().id()]
+    );
     for (actual, expected) in owned.nodes().zip(borrowed.nodes()) {
-        assert_eq!(actual.id(), expected.id());
-        assert_eq!(actual.range(), source_range(expected.range()));
+        assert_eq!(actual.id(), handles[&expected.id()]);
+        assert_eq!(actual.range(), Some(source_range(expected.range())));
         assert!(
             actual.name().as_ref() == expected.name(),
             "owned name changed"
@@ -109,39 +128,49 @@ pub(super) fn check_nodes(
         );
         assert_eq!(
             actual.parent().map(|n| n.id()),
-            expected.parent().map(|n| n.id())
+            expected.parent().map(|n| handles[&n.id()])
         );
         assert_eq!(
             actual.first_child().map(|n| n.id()),
-            expected.first_child().map(|n| n.id())
+            expected.first_child().map(|n| handles[&n.id()])
         );
         assert_eq!(
             actual.last_child().map(|n| n.id()),
-            expected.last_child().map(|n| n.id())
+            expected.last_child().map(|n| handles[&n.id()])
         );
         assert_eq!(
             actual.next_sibling().map(|n| n.id()),
-            expected.next_sibling().map(|n| n.id())
+            expected.next_sibling().map(|n| handles[&n.id()])
         );
         assert!(
             actual
                 .children()
                 .map(|n| n.id())
-                .eq(expected.children().map(|n| n.id()))
+                .eq(expected.children().map(|n| handles[&n.id()]))
         );
         assert_eq!(actual.descendants().len(), expected.descendants().len());
         assert!(
             actual
                 .descendants()
                 .map(|n| n.id())
-                .eq(expected.descendants().map(|n| n.id()))
+                .eq(expected.descendants().map(|n| handles[&n.id()]))
         );
-        assert_eq!(owned.node(actual.id()).unwrap().id(), actual.id());
+        let resolved = owned.node(actual.id()).unwrap();
+        assert_eq!(resolved.id(), actual.id());
+        assert_eq!(resolved.kind(), actual.kind());
+        assert_eq!(resolved.name(), actual.name());
+        assert_eq!(resolved.text(), actual.text());
+        assert_eq!(resolved.range(), actual.range());
+        assert_eq!(
+            resolved.processing_instruction_target(),
+            actual.processing_instruction_target()
+        );
+        assert!(resolved.attributes().eq(actual.attributes()));
     }
     if let Some(last) = owned.nodes().last() {
         let small = OwnedDocument::parse("<r/>").unwrap();
-        if owned.nodes().len() > small.nodes().len() {
-            assert!(small.node(last.id()).is_none());
-        }
+        assert!(small.node(last.id()).is_none());
+        assert!(small.node(owned.root().id()).is_none());
+        assert!(owned.node(small.root().id()).is_none());
     }
 }

@@ -228,12 +228,12 @@ fn both_orders_every_split_preserve_logical_values_names_and_raw_spans() {
         assert_eq!(root.name().unwrap().namespace.as_deref(), Some("urn:ü"));
         assert_eq!(
             root.range(),
-            span(INPUT, &INPUT[INPUT.find("<é:r").unwrap()..])
+            Some(span(INPUT, &INPUT[INPUT.find("<é:r").unwrap()..]))
         );
         let children: Vec<_> = root.children().collect();
         assert_eq!(children.len(), 4);
         for (child, (expected, range)) in children.iter().zip(&expected[3..7]) {
-            assert_eq!(child.range(), *range);
+            assert_eq!(child.range(), Some(range.clone()));
             assert_eq!(child.parent().unwrap().id(), root.id());
             match expected {
                 Value::Text(text) | Value::Cdata(text) => {
@@ -248,7 +248,10 @@ fn both_orders_every_split_preserve_logical_values_names_and_raw_spans() {
             }
         }
         assert!(matches!(children[1].kind(), OwnedNodeKind::Cdata));
-        assert_eq!(owned.root().range(), 0..encode(INPUT, order, true).len());
+        assert_eq!(
+            owned.root().range(),
+            Some(0..encode(INPUT, order, true).len())
+        );
         let attributes: Vec<_> = root.attributes().collect();
         assert_eq!(attributes[1].value, "A B C\t\r");
         assert_eq!(attributes[2].name.local, "中");

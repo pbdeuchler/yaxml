@@ -35,7 +35,7 @@ fn check_golden(document: &OwnedDocument) {
     );
     let root = document.root();
     assert!(matches!(root.kind(), OwnedNodeKind::Document));
-    assert_eq!(root.range(), 0..SOURCE.len());
+    assert_eq!(root.range(), Some(0..SOURCE.len()));
     assert!(root.parent().is_none());
     assert!(root.next_sibling().is_none());
     assert!(root.name().is_none());
@@ -145,8 +145,8 @@ fn check_golden(document: &OwnedDocument) {
     ];
     for (node, raw) in document.nodes().skip(1).zip(raw_nodes) {
         let start = SOURCE.find(raw).unwrap();
-        assert_eq!(node.range(), start..start + raw.len());
-        assert_eq!(&SOURCE[node.range()], raw);
+        assert_eq!(node.range(), Some(start..start + raw.len()));
+        assert_eq!(&SOURCE[node.range().unwrap()], raw);
         assert_eq!(document.node(node.id()).unwrap().id(), node.id());
     }
 }
@@ -288,23 +288,28 @@ fn compare_borrowed(input: &str, owned: &OwnedDocument) {
     let borrowed = Document::parse(input).unwrap();
     assert_eq!(borrowed.declaration().copied(), owned.declaration());
     assert_eq!(borrowed.nodes().len(), owned.nodes().count());
+    let handles: std::collections::HashMap<_, _> = borrowed
+        .nodes()
+        .zip(owned.nodes())
+        .map(|(left, right)| (left.id(), right.id()))
+        .collect();
     for (left, right) in borrowed.nodes().zip(owned.nodes()) {
-        assert_eq!(left.id(), right.id());
-        assert_eq!(left.range(), right.range());
+        assert_eq!(handles[&left.id()], right.id());
+        assert_eq!(Some(left.range()), right.range());
         assert_eq!(
-            left.parent().map(|node| node.id()),
+            left.parent().map(|node| handles[&node.id()]),
             right.parent().map(|node| node.id())
         );
         assert_eq!(
-            left.first_child().map(|node| node.id()),
+            left.first_child().map(|node| handles[&node.id()]),
             right.first_child().map(|node| node.id())
         );
         assert_eq!(
-            left.last_child().map(|node| node.id()),
+            left.last_child().map(|node| handles[&node.id()]),
             right.last_child().map(|node| node.id())
         );
         assert_eq!(
-            left.next_sibling().map(|node| node.id()),
+            left.next_sibling().map(|node| handles[&node.id()]),
             right.next_sibling().map(|node| node.id())
         );
         assert_eq!(left.name(), right.name().as_ref());
@@ -315,11 +320,15 @@ fn compare_borrowed(input: &str, owned: &OwnedDocument) {
                 .eq(right.attributes().collect::<Vec<_>>().iter())
         );
         assert_eq!(
-            left.children().map(|node| node.id()).collect::<Vec<_>>(),
+            left.children()
+                .map(|node| handles[&node.id()])
+                .collect::<Vec<_>>(),
             right.children().map(|node| node.id()).collect::<Vec<_>>()
         );
         assert_eq!(
-            left.descendants().map(|node| node.id()).collect::<Vec<_>>(),
+            left.descendants()
+                .map(|node| handles[&node.id()])
+                .collect::<Vec<_>>(),
             right
                 .descendants()
                 .map(|node| node.id())
@@ -376,7 +385,7 @@ fn unicode_pool_growth_preserves_prior_views_and_navigation_ranges() {
     input.clear();
     input.push_str(&"overwritten".repeat(4096));
     drop(input);
-    assert_eq!(owned.root().range(), expected_range);
+    assert_eq!(owned.root().range(), Some(expected_range));
     check_name(
         owned.root_element().name().unwrap(),
         ("é:根", Some("é"), "根", Some("urn:u")),
@@ -582,15 +591,18 @@ fn generated_topology_and_deep_wide_destruction_are_iterative() {
                 for _ in 1..depth {
                     let child = parent.first_child().unwrap();
                     assert_eq!(child.parent().unwrap().id(), parent.id());
-                    assert_eq!(child.range().start, parent.range().start + 3);
-                    assert_eq!(child.range().end, parent.range().end - 4);
+                    assert_eq!(
+                        child.range().unwrap().start,
+                        parent.range().unwrap().start + 3
+                    );
+                    assert_eq!(child.range().unwrap().end, parent.range().unwrap().end - 4);
                     parent = child;
                 }
                 assert_eq!(parent.children().count(), width);
                 for (index, child) in parent.children().enumerate() {
                     assert_eq!(child.parent().unwrap().id(), parent.id());
-                    assert_eq!(child.range().start, depth * 3 + index * 7);
-                    assert_eq!(child.range().end, depth * 3 + (index + 1) * 7);
+                    assert_eq!(child.range().unwrap().start, depth * 3 + index * 7);
+                    assert_eq!(child.range().unwrap().end, depth * 3 + (index + 1) * 7);
                     assert_eq!(child.descendants().count(), 1);
                 }
                 assert_eq!(document.root().descendants().count(), 1 + depth + width);
@@ -603,16 +615,20 @@ fn generated_topology_and_deep_wide_destruction_are_iterative() {
 }
 
 #[test]
-fn ids_are_document_local_and_out_of_range_lookups_return_none() {
+fn owned_ids_reject_foreign_documents_and_survive_moves() {
     let larger = OwnedDocument::parse("<r><a/><b/></r>").unwrap();
     let smaller = OwnedDocument::parse("<other/>").unwrap();
     let foreign = larger.root_element().last_child().unwrap().id();
     assert!(smaller.node(foreign).is_none());
-    // In-range IDs carry no document identity; retain the originating owner.
     let same_index = larger.root_element().id();
+    assert!(smaller.node(same_index).is_none());
+    assert!(larger.node(smaller.root().id()).is_none());
+    assert_ne!(larger.root().id(), smaller.root().id());
+    let larger = vec![larger].pop().unwrap();
+    let larger = std::thread::spawn(move || larger).join().unwrap();
     assert_eq!(
-        smaller.node(same_index).unwrap().name().unwrap().qualified,
-        "other"
+        larger.node(same_index).unwrap().name().unwrap().qualified,
+        "r"
     );
     for node in larger.nodes() {
         assert_eq!(larger.node(node.id()).unwrap().id(), node.id());

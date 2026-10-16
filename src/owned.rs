@@ -1,10 +1,41 @@
 use std::borrow::Cow;
+use std::num::NonZeroUsize;
 use std::ops::Range;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::dom::{Record, append_record};
 use crate::parser::Budget;
 use crate::{Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader};
 use crate::{DecodeLimits, PushParser};
+
+static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
+
+fn document_identity(counter: &AtomicUsize) -> Result<NonZeroUsize, Error> {
+    let previous = counter
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last| {
+            last.checked_add(1)
+        })
+        .map_err(|_| Error::new(ErrorKind::IdentifierExhausted, 0))?;
+    // The successful checked increment guarantees previous < usize::MAX.
+    Ok(NonZeroUsize::MIN.saturating_add(previous))
+}
+
+/// A checked owned-tree handle, tied to one document's non-recycled identity.
+/// Moving a document preserves its handles; separately parsed documents have
+/// different identities. This is not a stable address or a serialized ID.
+/// Borrowing-DOM IDs cannot be used for owned lookup:
+///
+/// ```compile_fail
+/// use yaxml::{Document, OwnedDocument};
+/// let borrowed = Document::parse("<r/>").unwrap();
+/// let owned = OwnedDocument::parse("<r/>").unwrap();
+/// owned.node(borrowed.root().id());
+/// ```
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct OwnedNodeId {
+    document: NonZeroUsize,
+    slot: NodeId,
+}
 
 /// The content category of a node in an owned document.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -156,6 +187,7 @@ impl Pool {
 /// traversal and destruction are iterative. Source bytes are not retained.
 #[derive(Debug)]
 pub struct OwnedDocument {
+    identity: NonZeroUsize,
     nodes: Vec<Record<Content>>,
     attributes: Vec<StoredAttribute>,
     pool: Pool,
@@ -224,12 +256,15 @@ impl OwnedDocument {
         }
     }
 
-    /// Looks up a document-local ID. IDs have no document identity; an in-range
-    /// foreign ID can designate another node. Out-of-range IDs return None.
-    pub fn node(&self, id: NodeId) -> Option<OwnedNode<'_>> {
-        self.nodes
-            .get(id.0)
-            .map(|_| OwnedNode { document: self, id })
+    /// Looks up a checked owned handle, rejecting foreign or out-of-range IDs.
+    pub fn node(&self, id: OwnedNodeId) -> Option<OwnedNode<'_>> {
+        if id.document != self.identity {
+            return None;
+        }
+        self.nodes.get(id.slot.0).map(|_| OwnedNode {
+            document: self,
+            id: id.slot,
+        })
     }
 
     pub fn nodes(&self) -> impl ExactSizeIterator<Item = OwnedNode<'_>> + '_ {
@@ -245,7 +280,11 @@ impl OwnedDocument {
 
 /// Concrete shared sink: all strings are copied using the parser's budget.
 struct OwnedBuilder {
-    document: OwnedDocument,
+    nodes: Vec<Record<Content>>,
+    attributes: Vec<StoredAttribute>,
+    pool: Pool,
+    root_element: NodeId,
+    declaration: Option<StoredDeclaration>,
     parents: Vec<NodeId>,
 }
 
@@ -256,15 +295,12 @@ impl OwnedBuilder {
             .try_reserve(1)
             .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
         nodes.push(Record::root(Content::Document, source_length));
-        let document = OwnedDocument {
+        Ok(Self {
             nodes,
             attributes: Vec::new(),
             pool: Pool::default(),
             root_element: NodeId(0),
             declaration: None,
-        };
-        Ok(Self {
-            document,
             parents: Vec::new(),
         })
     }
@@ -281,14 +317,11 @@ impl OwnedBuilder {
         let parent = self.parents.last().copied().unwrap_or(NodeId(0));
         let content = match event {
             Event::Declaration(declaration) => {
-                self.document.declaration = Some(StoredDeclaration {
-                    version: self
-                        .document
-                        .pool
-                        .store(declaration.version, offset, budget)?,
+                self.declaration = Some(StoredDeclaration {
+                    version: self.pool.store(declaration.version, offset, budget)?,
                     encoding: declaration
                         .encoding
-                        .map(|encoding| self.document.pool.store(encoding, offset, budget))
+                        .map(|encoding| self.pool.store(encoding, offset, budget))
                         .transpose()?,
                     standalone: declaration.standalone,
                 });
@@ -299,46 +332,41 @@ impl OwnedBuilder {
                     .parents
                     .pop()
                     .ok_or_else(|| Error::new(ErrorKind::MismatchedEndTag, offset))?;
-                let end = self.document.nodes.len();
-                let record = &mut self.document.nodes[id.0];
+                let end = self.nodes.len();
+                let record = &mut self.nodes[id.0];
                 record.range.end = range.end;
                 record.subtree_end = end;
                 return Ok(());
             }
             Event::Start(element) | Event::Empty(element) => {
-                let name = self.document.pool.name(&element.name, offset, budget)?;
-                let start = self.document.attributes.len();
-                self.document
-                    .attributes
+                let name = self.pool.name(&element.name, offset, budget)?;
+                let start = self.attributes.len();
+                self.attributes
                     .try_reserve(element.attributes.len())
                     .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
                 for attribute in element.attributes {
-                    self.document.attributes.push(StoredAttribute {
-                        name: self.document.pool.name(&attribute.name, offset, budget)?,
-                        value: self.document.pool.store(&attribute.value, offset, budget)?,
+                    self.attributes.push(StoredAttribute {
+                        name: self.pool.name(&attribute.name, offset, budget)?,
+                        value: self.pool.store(&attribute.value, offset, budget)?,
                     });
                 }
                 Content::Element {
                     name,
-                    attributes: start..self.document.attributes.len(),
+                    attributes: start..self.attributes.len(),
                 }
             }
-            Event::Text(value) => Content::Text(self.document.pool.store(&value, offset, budget)?),
-            Event::Cdata(value) => {
-                Content::Cdata(self.document.pool.store(&value, offset, budget)?)
-            }
-            Event::Comment(value) => {
-                Content::Comment(self.document.pool.store(&value, offset, budget)?)
-            }
+            Event::Text(value) => Content::Text(self.pool.store(&value, offset, budget)?),
+            Event::Cdata(value) => Content::Cdata(self.pool.store(&value, offset, budget)?),
+            Event::Comment(value) => Content::Comment(self.pool.store(&value, offset, budget)?),
             Event::ProcessingInstruction { target, data } => Content::ProcessingInstruction {
-                target: self.document.pool.store(target, offset, budget)?,
-                data: self.document.pool.store(&data, offset, budget)?,
+                target: self.pool.store(target, offset, budget)?,
+                data: self.pool.store(&data, offset, budget)?,
             },
         };
-        let id = append_record(&mut self.document.nodes, parent, content, range)?;
-        if matches!(self.document.nodes[id.0].kind, Content::Element { .. }) {
+        let id = append_record(&mut self.nodes, parent, content, range)?;
+        if matches!(self.nodes[id.0].kind, Content::Element { .. }) {
             if parent == NodeId(0) {
-                self.document.root_element = id;
+                self.root_element = id;
             }
             if starts {
                 self.parents
@@ -350,12 +378,27 @@ impl OwnedBuilder {
         Ok(())
     }
 
-    fn finish(mut self, position: usize) -> Result<OwnedDocument, Error> {
-        if self.document.root_element == NodeId(0) {
+    fn finish(self, position: usize) -> Result<OwnedDocument, Error> {
+        self.finish_with_counter(position, &LAST_DOCUMENT_ID)
+    }
+
+    fn finish_with_counter(
+        mut self,
+        position: usize,
+        counter: &AtomicUsize,
+    ) -> Result<OwnedDocument, Error> {
+        if self.root_element == NodeId(0) {
             return Err(Error::new(ErrorKind::MissingRoot, position));
         }
-        self.document.nodes[0].subtree_end = self.document.nodes.len();
-        Ok(self.document)
+        self.nodes[0].subtree_end = self.nodes.len();
+        Ok(OwnedDocument {
+            identity: document_identity(counter)?,
+            nodes: self.nodes,
+            attributes: self.attributes,
+            pool: self.pool,
+            root_element: self.root_element,
+            declaration: self.declaration,
+        })
     }
 }
 
@@ -371,8 +414,11 @@ impl<'document> OwnedNode<'document> {
         &self.document.nodes[self.id.0]
     }
 
-    pub fn id(self) -> NodeId {
-        self.id
+    pub fn id(self) -> OwnedNodeId {
+        OwnedNodeId {
+            document: self.document.identity,
+            slot: self.id,
+        }
     }
 
     pub fn kind(self) -> OwnedNodeKind {
@@ -423,9 +469,11 @@ impl<'document> OwnedNode<'document> {
         range.map(move |index| self.document.attributes[index].view(&self.document.pool.0))
     }
 
-    /// Original source byte range, independent of normalized pool storage.
-    pub fn range(self) -> Range<usize> {
-        self.record().range.clone()
+    /// Original source location, independent of current logical content and
+    /// pool storage. Parsed nodes retain Some(range); future created nodes may
+    /// have no source provenance. This cannot index the owned string pool.
+    pub fn range(self) -> Option<Range<usize>> {
+        Some(self.record().range.clone())
     }
 
     pub fn parent(self) -> Option<Self> {
