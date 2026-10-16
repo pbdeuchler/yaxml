@@ -26,6 +26,9 @@ mod mutation;
 #[path = "construction.rs"]
 mod construction;
 
+#[path = "names.rs"]
+mod names;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -45,6 +48,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     if input.first().is_some_and(|byte| byte & 7 == b'<' & 7) {
         check_finish_abort(input);
     }
+    exercise_names(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -170,6 +174,14 @@ pub fn exercise_mutation(input: &[u8]) {
     mutation::exercise(input);
 }
 
+/// Exercise validated names and owned PI targets before XML/encoding dispatch.
+pub fn exercise_names(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    #[cfg(test)]
+    dispatch_tests::record_name_call();
+    names::exercise(input);
+}
+
 /// Exercise rooted creation and fresh-element insertion independently from
 /// whether the input bytes form XML.
 pub fn exercise_construction(input: &[u8]) {
@@ -186,6 +198,11 @@ mod dispatch_tests {
 
     thread_local! {
         static CONSTRUCTION_CALLS: Cell<usize> = const { Cell::new(0) };
+        static NAME_CALLS: Cell<usize> = const { Cell::new(0) };
+    }
+
+    pub(super) fn record_name_call() {
+        NAME_CALLS.with(|calls| calls.set(calls.get() + 1));
     }
 
     pub(super) fn record_construction_call() {
@@ -208,6 +225,25 @@ mod dispatch_tests {
                 CONSTRUCTION_CALLS.with(Cell::get),
                 before + 1,
                 "construction was skipped for {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn names_run_before_grammar_and_encoding_dispatch_for_every_input() {
+        for input in [
+            b"".as_slice(),
+            b"\x00",
+            b"\xff\xfe<\x00r\x00/\x00>\x00",
+            "π:δ".as_bytes(),
+            b"<r/>",
+        ] {
+            let before = NAME_CALLS.with(Cell::get);
+            exercise(input);
+            assert_eq!(
+                NAME_CALLS.with(Cell::get),
+                before + 1,
+                "name construction was skipped for {input:?}"
             );
         }
     }
