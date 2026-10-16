@@ -73,7 +73,7 @@ do not establish different accepted languages.
 
 Each interface's 611 unscored rows comprise 274 unsupported recommendation/
 version rows, 310 historical-edition rows and 27 discretionary-error rows,
-using the documented first applicable classification. Every row retains its
+using the documented first applicable classification. Every rejected row retains its
 typed error and source-byte offset; the suite does not specify yaxml's exact
 diagnostic categories or first-error precedence.
 
