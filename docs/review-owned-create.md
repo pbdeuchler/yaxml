@@ -1,9 +1,13 @@
 # Owned element construction holistic review
 
-**Plan:** `docs/plans/owned-create-slice.md`  
-**Base:** `3db2aad`  
-**Reviewed tip:** `02cb2a510156202ba1fb1b20ca2054d033115bac`  
-**Changed files:** 26  
+**Plan:** `docs/plans/owned-create-slice.md`
+
+**Base:** `3db2aad`
+
+**Reviewed tip:** `02cb2a510156202ba1fb1b20ca2054d033115bac`
+
+**Changed files:** 26
+
 **Commits:** 23
 
 ## Verdict
@@ -162,3 +166,40 @@ timing was measured during this review. Fresh source-complete fuzz coverage,
 actual pinned-oracle results, and bounded construction/append benchmark
 evidence must be reported against their exact source/tool manifests before the
 frozen milestone can be declared complete.
+
+## Integration evidence follow-up
+
+The pending evidence above was subsequently completed against the same
+`02cb2a5` source. The [validation report](validation-owned-create.md) records
+the exact artifacts and limitations. An independent documentation/evidence
+review checked the assembled updates through `1c11bde`, followed by the header
+whitespace correction and the clarification that only explicit declarations
+are gathered before resolution. It returned **PASS**, with no remaining
+findings or broken new local links.
+
+- The source-complete 46-test fuzz run reached 6,484/7,260 regions and 839/970
+  instrumented branch outcomes. An independent raw-profile remerge and
+  regenerated report/export are byte-identical. All 15 committed production
+  source identities match; no production source was omitted.
+- The actual 500-case campaign completed without target/infrastructure failure.
+  Independent offline replay reconstructed all 481 mutations and all 500
+  journal decisions; its retained corpus is 19 seeds plus 59 mutations.
+- Rebuilt libxml2 2.15.4 helpers and the exact Rust example completed all 12
+  construction cases: eleven byte-exact and one independently verified legal
+  attribute-escaping spelling difference. Direct execution stderr was empty.
+- The legacy revision comparison and separate Rust construction benchmark ran
+  under an exclusive timing lease. Root independently recomputed all 640 and
+  288 rows, their work/identity checks and 49 and 36 phase statistics. Both final
+  manifests and nested immutable-source/runner manifests verify. No legacy
+  median slowdown reached 5%; smaller regressions remain in the report.
+- Final production, fuzz Rust, tests, examples, benchmarks and Cargo files are
+  byte-identical to `02cb2a5`. Only Markdown/evidence summaries changed after
+  that checkpoint. Full-base whitespace and relative-file-link checks pass.
+
+**PASS for the bounded rooted-construction milestone.** The slice's required
+coverage artifact, pinned oracle and construction/append baseline gates are
+closed. This does not close the overall 100% fuzz execution goal, sustained
+security testing, allocator/toolchain work, general mutable-tree compatibility,
+bindings or broad matched-libxml2 performance goals. The next coverage work
+should target the new module's unexecuted public validation, namespace and
+configured-limit cases rather than treating them as unreachable.

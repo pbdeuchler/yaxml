@@ -16,9 +16,9 @@ a fresh last child under an element. Borrowed `ElementSpec`, `NameSpec`,
 `AttributeSpec` and `NamespaceSpec` inputs are copied before return. Exact
 prefixes keep their spelling; automatic names follow the documented bounded
 scope/default/generated-prefix policy. Explicit items preserve caller order,
-with generated declarations following in order of first use. All declarations
-are gathered before resolving names. Later exact prefix requests cannot retarget
-an earlier automatic name.
+with generated declarations following in order of first use. All explicit
+declarations are gathered before resolving names. Later exact prefix requests
+cannot retarget an earlier automatic name.
 
 Every element keeps one contiguous initial attribute range, using the existing
 attribute iterator, value editor and serializer. Existing-element attribute
