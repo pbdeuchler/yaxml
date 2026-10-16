@@ -154,7 +154,7 @@ keep allocation and other unexecuted errors in their coverage denominator.
 Three child catalogs extend these checks. `construction_validation.rs` has 42
 literal invalid/control pairs, each exercised through create and append. Bytes
 four and five select a family and variant; byte six selects create or append.
-`construction_namespaces.rs` uses byte six modulo 27 for namespace cases and
+`construction_namespaces.rs` uses byte six modulo 28 for namespace cases and
 byte seven for parsed-parent encoding. Its ordinary tests enumerate every
 append case in UTF-8 and both UTF-16 orders. `construction_limits.rs` uses bytes
 eight and nine for hand-counted namespace-work, name/item, depth, persistent

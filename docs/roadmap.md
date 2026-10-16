@@ -75,7 +75,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Extend independent construction validation, namespace and resource-limit
   catalogs; fix actual replay dispatch for sparse selectors; check complete
   topology against returned handles. [Fresh fuzz evidence](validation-construction-fuzz-gaps.md)
-  reaches 6,810/7,260 regions and 918/970 branch outcomes. Remaining allocation,
+  reaches 6,810/7,260 regions and 919/970 branch outcomes. Remaining allocation,
   overflow and defensive paths stay in the denominator; 100% remains open.
 - [ ] Add general element/attribute and sibling insertion, detach/move/copy,
   cross-document import/adoption, namespace repair, reclamation/compaction and
