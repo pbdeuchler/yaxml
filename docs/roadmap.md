@@ -66,9 +66,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add allocation-free borrowed and owned `text_chunks()` views in document
   order, with edited-tree and encoded-input checks and pinned external-oracle
   comparisons in the [validation report](validation-text-chunks.md).
-- [ ] Implement the next [owned construction slice](plans/owned-create-slice.md)
-  after freezing aggregate work limits. Creation and append of fresh elements
-  can retain existing contiguous attribute storage; existing-element attribute
+- [x] Implement bounded [rooted construction](plans/owned-create-slice.md) and
+  fresh element append with initial ordered attributes/declarations, typed
+  diagnostics and persistent quotas. The [validation](validation-owned-create.md)
+  records independent tests, failpoints, the pinned oracle, source-complete fuzz
+  coverage and Rust performance baselines. Fuzz-only coverage is now
+  6,484/7,260 regions and 839/970 branch outcomes; construction error-path
+  generation and the 100% target remain open. Existing-element attribute
   insertion/removal still needs an accepted membership design.
 - [ ] Add general element/attribute and sibling insertion, detach/move/copy,
   cross-document import/adoption, namespace repair, reclamation/compaction and

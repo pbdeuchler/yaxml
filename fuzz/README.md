@@ -25,6 +25,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `OwnedDocument::parse`, `parse_bytes`, `with_limits`, `with_decode_limits` | `owned::exercise` and `encoding::exercise`, default and derived profiles | Temporary source overwritten/dropped before views; complete values/topology/spans match borrowing DOM or independently decoded reference; aggregate and decoded ceilings |
 | Owned tree views and navigation | Successful owned trees | Every kind, declaration, name, attribute, PI target, payload and navigation method compared; exact iterator lengths; valid lookup and foreign-identity rejection |
 | `OwnedDocument::edit`, `Editor::document`, `set_node_value`, `set_attribute_value`, `append_text`, `append_cdata`, `append_comment`, `append_processing_instruction`, `remove_subtree`, owned handle lookup | `mutation::exercise`, independent operation and quota selectors | Exact predicted errors; live child-vector model; fresh/stale handles; provenance; persistent quotas without removal refunds; recovery; Text-run serialization projection |
+| `OwnedDocument::create`, `Editor::append_element`, construction specs/prefix policies and typed error locations | `construction::exercise`, independent bounded namespace catalog and input-derived payload/limit selectors | Exact lexical and expanded names, ordered attributes/declarations, complete snapshots, provenance, persistent quotas, foreign/stale handles, atomic rejection and long inherited-prefix growth |
 | `PushParser::new`, `default`, `with_limits`, `feed`, `finish`, `position`, `event_range` | Input-derived chunk and lifecycle schedules, capped at 4096 chunks | Acceptance and exact typed event/span parity with slice reader; monotonic consumed position; repeated EOF; sticky errors after feeding final EOF |
 | `PushParser::read_from` | Cursor plus bounded scheduled and invalid-count readers | Same events/spans; one Interrupted retry; original injected I/O error kind/message; cancellation stops reads; terminal parser states perform no I/O; oversized reported counts are rejected |
 | DOM traversal and node access | Successful document checks | Unique IDs; preorder traversal; parent/child/sibling agreement; nested source ranges; subtree sizes |
@@ -35,7 +36,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 | `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
 
-Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Element/attribute construction, existing-node moves, namespace editing, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
+Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Existing-element attribute insertion/removal, moves, namespace editing, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
 
 Owned trees use the same normalization budget for pool growth and parsing. They
 can reject a valid borrowed tree with OwnedBytes, or reach that ceiling before a
@@ -129,6 +130,29 @@ The same input selects a default constructor and terminal operation sequence. Su
 Acceptance comparisons allow streaming to exhaust its owned-byte budget earlier because it retains names that the slice parser borrows. Arbitrary malformed inputs compare acceptance rather than identical first-error precedence: slice construction validates the complete input first, while streaming validates arriving tokens. Successful inputs require exact values, namespaces, attribute order, event kinds, and spans, with no text coalescing.
 
 `tests/fuzz_smoke.rs` replays every seed and every prefix, replaces every seed byte with delimiter/boundary bytes, deletes every seed byte, generates deterministic arbitrary bytes, and generates accepted namespace-aware nested documents. These tests check invariants and some known acceptance outcomes. Reader/DOM agreement alone is weak because they share a parser; the structural and semantic regression checks remain necessary.
+
+## Rooted construction model
+
+[`construction.rs`](construction.rs) runs for every bounded testcase before
+encoding dispatch, including non-XML bytes. It predicts results from separate
+literal namespace cases rather than copying the production prefix planner.
+Input byte zero selects one of six root catalogs; byte one selects the parsed
+parent encoding; byte two selects one of four inherited-scope cases; byte three
+selects one of eight exact rejection/quota cases. Derived names and values use
+at most eight input bytes. Mandatory creation, append/edit/remove interactions,
+repeated borrowed strings and persistent-counter checks prevent blanket rejection.
+
+The model compares lexical and expanded names separately, ordered attributes
+and declarations, stable handles, complete topology, source provenance, exact
+errors/locations and unchanged snapshots after rejection. Serialize/reparse is
+an additional check rather than its sole oracle. UTF-8 and both UTF-16 orders
+exercise parsed parent scopes. Sparse selectors also check bounded formatting
+and a 512-to-4,336-byte inherited prefix, including exact `NameBytes` failure
+and successful retry. The latter forces scratch growth with a small child spec.
+Private reservation failpoints remain ordinary-test evidence; fuzz-only profiles
+keep allocation and other unexecuted errors in their coverage denominator.
+The [construction validation](../docs/validation-owned-create.md) records the
+source-complete measurements and remaining gaps.
 
 ## Owned mutation operations
 

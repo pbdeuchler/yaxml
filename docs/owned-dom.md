@@ -156,7 +156,10 @@ whitespace. These stricter lexical rules avoid changes on serialization/reparse.
 Empty values remain present nodes; only empty Text disappears from output.
 Adjacent Text runs can coalesce on reparse. Empty CDATA/comments/PIs stay distinct.
 
-`EditError` has public `kind`, `value_offset` and `location` fields. Existing
+`EditError` has public `kind`, `value_offset` and `location` fields. Adding
+`location` and the six construction fields in `EditLimits` breaks exhaustive
+struct literals under the crate's pre-1.0 API policy. Prefer defaults with
+explicit field overrides for limits. Existing
 scalar methods leave `location` empty. Target identity, kind,
 attribute lookup and XMLNS restrictions precede value validation. Validation
 checks byte length, then all XML characters, then the earliest lexical violation,
@@ -306,7 +309,7 @@ and pool allocation consume their respective counters; the synthetic root is
 excluded from created-node accounting.
 A growth charges its full replacement capacity before reservation; earlier
 charges remain spent, including failed reservation requests. A lower ceiling
-than expenditure already incurred prevents opening an editor; when both
+than expenditure already incurred prevents opening an editor; when multiple
 cumulative ceilings are too low, checks are `CreatedNodes`, `OwnedBytes`, then
 `CreatedAttributes`. A later
 higher ceiling is allowed. An equal-value replacement follows the same edit path.
@@ -324,14 +327,15 @@ reserved spelling validation belongs to the supplied-byte allowance.
 Temporary planning has separate input/work-derived bounds and fallible
 reservations. These logical limits exclude allocator overhead and do not form
 a process-memory quota.
-Private tests use a safe thread-local failpoint at actual editing node-vector and
-pool-growth reservation boundaries. They verify returned `Allocation` errors,
+Private tests use a safe thread-local failpoint at actual editing node-vector,
+attribute-vector, pool and construction-scratch growth boundaries. They verify returned `Allocation` errors,
 publication atomicity, retained pool charges and editor recovery without global
 test races. This seam does not inject faults inside the allocator or establish
 operating-system out-of-memory behavior.
 
 The [value-mutation validation report](validation-owned-mutation.md) and
-[leaf-structure validation report](validation-owned-structure.md) distinguish
+[leaf-structure validation report](validation-owned-structure.md), and
+[construction validation report](validation-owned-create.md) distinguish
 implemented behavior from pending coverage, review and performance evidence.
 
 ## Next steps

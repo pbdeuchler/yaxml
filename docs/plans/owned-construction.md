@@ -1,7 +1,8 @@
 # Bounded owned-tree construction API proposal
 
-This is a design proposal against source revision `9e4b3a6`, not an implemented
-feature. The preceding leaf-structure milestone has passed its implementation
+This is a broader design proposal against source revision `9e4b3a6`.
+Only the narrower rooted-construction subset below has been implemented.
+The preceding leaf-structure milestone has passed its implementation
 and evidence review. Its [matched benchmark
 report](../validation-owned-structure-matched.md) now records the required
 libxml2 comparison, including slower workloads and measurement limits.
@@ -12,7 +13,9 @@ namespace declarations. It uses existing contiguous attribute ranges. That
 narrow plan supersedes this broader draft's quota split, error locations and
 publication precedence for the first implementation: it adds an aggregate
 supplied-byte bound and charges namespace lookup work separately from supplied
-string validation. Its calls are not implemented yet.
+string validation. `create` and `append_element` are implemented; their
+[validation report](../validation-owned-create.md) records the actual scope and
+evidence. Other calls in this broader proposal remain unimplemented.
 
 The broader direction also includes ordinary-attribute upsert/removal and safe
 namespace declarations on existing elements, once attribute membership storage

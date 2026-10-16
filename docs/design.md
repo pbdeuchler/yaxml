@@ -203,16 +203,24 @@ append fresh Text/CDATA/comment/PI leaves and permanently remove non-root
 subtrees through an exclusive `Editor`. They validate before reservation and
 publish only after every fallible step succeeds. Original source locations
 remain provenance; they do not describe rewritten bytes. Editing has cumulative
-capacity and created-slot counters that persist across editor sessions, with
+capacity, created-slot and created-attribute counters that persist across editor sessions, with
 parsed storage as the baseline and no refunds on removal.
+
+Rooted creation and fresh element append accept borrowed name/attribute specs.
+They gather explicit declarations before resolving names, preserve exact prefix
+requests and bound automatic scope lookup by deterministic work units. Planning
+uses fallible input/work-bounded scratch, then reserves persistent arenas before
+publishing the element. Each new element receives one contiguous attribute
+range; existing attribute read paths stay shared with parsed trees. This avoids
+choosing a general attribute-membership representation prematurely.
 
 Owned records carry reciprocal parent/child/sibling links and cached live
 subtree sizes. Parsed and value-only documents keep contiguous-preorder
 traversal; the first structural success switches permanently to linked traversal.
 Removal clears each record to a tombstone iteratively while retaining its slot
 identity. The pool and attribute arena remain append-only, so removal is logical
-deletion rather than memory reclamation or secret-data erasure. General element
-and attribute construction, sibling insertion, detach/move/copy, cross-document
+deletion rather than memory reclamation or secret-data erasure. Existing-element
+attribute insertion/removal, sibling insertion, detach/move/copy, cross-document
 import/adoption, namespace repair, compaction and slot reuse remain future
 contracts. Those operations must preserve acyclicity, single ownership,
 namespace well-formedness and stale-handle rejection. See the
@@ -310,8 +318,10 @@ push input, the `Read` adapter, buffered lending pull input and strict UTF-8
 event output now share that semantic engine. Owned storage builds independent
 trees from its events; complete-tree serialization and bounded leaf/value edits
 are implemented. UTF-16 input shares incremental decoding across owning and
-streaming interfaces. The next work includes feedback-guided campaigns,
-element/attribute construction, broader comparative performance evidence and
+streaming interfaces. Bounded rooted creation and fresh element append retain
+contiguous attributes, and a finite feedback-guided campaign is available.
+The next work includes broader construction fuzz coverage, sustained campaigns,
+existing-element attribute membership, broader comparative performance evidence and
 allocator support on the target compiler. DTDs, remaining encodings, XPath,
 HTML compatibility, validation, canonicalization, inclusion and adapters each
 need their own feature burndown and verification criteria. Recovery is an

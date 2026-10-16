@@ -1,6 +1,9 @@
 # Rooted document and element construction slice
 
-This plan is a proposed next implementation slice against `9e4b3a6`. It adds
+This plan describes the slice implemented at `02cb2a5`, originally proposed
+against `9e4b3a6`.
+The [validation report](../validation-owned-create.md) records evidence and gaps.
+It adds
 complete rooted document creation and appending fresh empty elements with their
 initial attributes and namespace declarations. It does not add ordinary
 attribute insertion/removal on existing elements, namespace declaration on an
@@ -146,7 +149,7 @@ split: the earlier draft charges prefix/URI validation scans to
 `max_namespace_work` bounds namespace lookup and expanded-name comparisons.
 Both are per operation. This split is simpler to audit across local names and
 attribute values too, but it is a public quota-contract change that must be
-reconciled in the parent proposal before implementation.
+reconciled in the parent proposal before implementation, as now recorded there.
 
 Reserved spelling classification (`xml`, `xmlns`, empty prefix/URI and the two
 reserved URIs) is caller-string validation covered by `max_supplied_bytes`.
@@ -224,6 +227,13 @@ limit errors identify the current input component and the first excess byte.
 Handle, node-kind, persistent quota, identity and allocation failures have no
 location. Adding the field breaks public `EditError` struct literals; take that
 source compatibility change under the crate's current pre-1.0 policy.
+
+Element semantic errors retain the implicated component without a byte offset.
+An empty/XMLNS namespace URI identifies `NamespaceUri`; a nonreserved URI with
+the `xmlns` prefix identifies `Prefix`. The XML URI with a missing/wrong exact
+prefix identifies `Prefix`, while `xml` with a missing/wrong URI identifies
+`NamespaceUri`. Intrinsically forbidden URI values take precedence over prefix
+relationships. Item semantic errors use the item-only location described above.
 
 Freeze the error and publication order as follows:
 

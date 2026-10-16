@@ -15,7 +15,7 @@ Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned documen
 The implemented subset now includes the borrowing slice reader, read-only DOM,
 callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
 writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
-fresh leaf insertion, permanent subtree removal, and an explicit `Read`
+rooted document creation, fresh element/leaf insertion, permanent subtree removal, and an explicit `Read`
 adapter. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
 also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
@@ -37,8 +37,12 @@ document epilog. PI targets and lexical payloads are validated before allocation
 Insertion never merges Text nodes; removal makes every subtree handle stale and
 protects the document element and synthetic root. Parsed survivors retain source
 provenance and created nodes have none. Creation and pool-work counters persist
-across editors without refunds. Names, namespace declarations and attribute
-membership stay fixed. General element/attribute construction, sibling insertion,
+across editors without refunds. [Rooted construction](owned-dom.md#creating-documents-and-elements)
+also creates a complete document or appends a fresh empty element with ordered
+initial attributes and declarations. Exact prefixes are preserved; automatic
+prefixes follow a bounded deterministic policy. Each element retains one
+contiguous attribute range. Existing names, namespace declarations and attribute
+membership stay fixed. Existing-element attribute insertion/removal, sibling insertion,
 moves/copy/import/adoption, detached ownership, slot reuse, compaction,
 entity-interpreting setters, namespace repair and C entry points remain open.
 In particular, these operations do not reproduce `xmlAddChild`'s move/adopt and
