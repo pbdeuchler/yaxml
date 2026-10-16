@@ -1,8 +1,9 @@
 # Parser, serialization and mutation benchmark evidence
 
-These runners measure yaxml. They do not establish a libxml2 performance win.
-Build release binaries before recording runs; debug execution under
-`cargo test --all-targets` is only a functional smoke check.
+Matched parsing and structural runners compare yaxml with pinned libxml2;
+other runners measure yaxml alone. Results apply to their recorded workloads
+and lifecycles. Build release binaries before recording runs; debug execution
+under `cargo test --all-targets` is only a functional smoke check.
 
 ## Matched DOM and streaming parsing
 
@@ -47,6 +48,8 @@ source/binary/input hashes, build flags, reference build and host. Confirm
 identities again after all samples. A successful protocol exchange alone is
 neither optimized-build evidence nor a performance result. Broader size/chunk
 series, failure costs, latency, allocations and memory remain required.
+The [first matched parsing validation](validation-parse-baseline.md) records
+65 workloads with raw phase distributions and substantial remaining gaps.
 
 `cargo bench --bench parse` retains the pre-pull DOM parse/destruction, owned
 parse/destruction, slice events and 8 KiB push workloads. Set

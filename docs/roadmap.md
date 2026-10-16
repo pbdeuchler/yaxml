@@ -52,7 +52,14 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   BOM-less encoding-rejection and pre-root quota assertions. The
   [fresh measurement](validation-fuzz-gap-triage.md) reaches 4,859/5,082 regions
   and 658/692 instrumented branch outcomes; 100% remains open.
-- [ ] Record full DOM and streaming baselines for libxml2 and yaxml across a versioned corpus.
+- [x] Record the first [matched DOM and streaming baseline](validation-parse-baseline.md)
+  for the implemented UTF-8, DTD-free profile: nine shapes, five APIs, 65
+  workloads and 455 retained pairs. All observations agree; libxml2 has the
+  lower primary median in 42 workloads, yaxml in 19, with four within the
+  descriptive band. Performance superiority remains open.
+- [ ] Extend the parsing baseline to size/attribute/namespace/depth series,
+  UTF-16 and remaining encodings, malformed inputs, cold latency, allocation
+  counts and retained/peak memory; profile and close the measured parser gaps.
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
 - [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
 - [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.
@@ -89,7 +96,8 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add incremental UTF-16LE/BE input to push parsing and owned trees, with declaration agreement, raw/decoded ceilings and original byte spans; UTF-16 output remains pending.
 - [x] Add bounded buffered pull input with lending events, exact source consumption,
   terminal I/O contracts, retained-state size series, and time-to-first-event
-  benchmarks. Matched libxml2 performance remains pending.
+  benchmarks. The [matched baseline](validation-parse-baseline.md) includes
+  buffered throughput; comparative latency and memory remain pending.
 
 The reference release is pinned and 4,056 header identifiers are indexed. The
 [configured inventory audit](validation/libxml2-api-audit-21504.md) checks the
@@ -138,9 +146,14 @@ streaming loop reads to EOF without fetching every name, value and attribute;
 the [memory reader](https://github.com/GNOME/libxml2/blob/v2.15.4/xmlreader.c)
 also copies the whole input. These differ from yaxml's current fresh-context,
 borrowing DOM and bounded push measurements. Internal CLI timing is useful only
-with those lifecycle and workload differences stated. A matched external
-benchmark executable, shared fixture bytes, calibrated batches and alternating
-repeated trials remain required before claiming an engine-level performance win.
+with those lifecycle and workload differences stated. The
+[matched parsing baseline](validation-parse-baseline.md) now uses separately
+built executables, shared fixture bytes, calibrated batches and alternating
+trials. Its phase data exposes parse deficits even where cheap Rust destruction
+produces a combined DOM lifecycle win. Start with profiling long-text validation
+and normalization scans, then per-element allocation and scoped namespace work;
+preserve exact validation, error precedence and resource contracts. The broader
+matrix remains required before claiming an engine-level performance advantage.
 
 ## Toolchain and allocation gate
 
