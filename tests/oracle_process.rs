@@ -163,8 +163,8 @@ fn bounded_process_execution_and_cleanup() {
 #[test]
 #[ignore]
 fn child_echo() {
-    assert!(std::env::var_os("XML_CATALOG_FILES").is_none());
-    assert!(std::env::var_os("SGML_CATALOG_FILES").is_none());
+    assert_eq!(std::env::var_os("XML_CATALOG_FILES"), Some("".into()));
+    assert_eq!(std::env::var_os("SGML_CATALOG_FILES"), Some("".into()));
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
     io::stdout().write_all(&input).unwrap();

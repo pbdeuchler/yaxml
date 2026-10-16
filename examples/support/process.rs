@@ -55,8 +55,8 @@ pub fn run(
     let mut child = RunningChild(Some(
         Command::new(program)
             .args(args)
-            .env_remove("XML_CATALOG_FILES")
-            .env_remove("SGML_CATALOG_FILES")
+            .env("XML_CATALOG_FILES", "")
+            .env("SGML_CATALOG_FILES", "")
             .stdin(Stdio::from(stdin))
             .stdout(Stdio::from(stdout.try_clone()?))
             .stderr(Stdio::from(stderr.try_clone()?))
