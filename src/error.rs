@@ -33,6 +33,10 @@ pub enum ErrorKind {
     UnsupportedDtd,
     LimitExceeded(Limit),
     Allocation,
+    /// The event callback requested terminal cancellation.
+    Aborted,
+    /// Input was supplied after successful final EOF.
+    InvalidState,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,3 +58,29 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+/// Failure while consuming an explicit caller-provided byte reader.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ReadError {
+    Xml(Error),
+    Io(std::io::Error),
+}
+
+impl fmt::Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Xml(error) => error.fmt(f),
+            Self::Io(error) => write!(f, "failed to read XML input: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for ReadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Xml(error) => Some(error),
+            Self::Io(error) => Some(error),
+        }
+    }
+}
