@@ -103,6 +103,15 @@ fn write_catalog(path: &Path, rows: &[&str]) {
     fs::write(path, catalog).unwrap();
 }
 
+fn write_required_pass(path: &Path, pair_count: usize, rows: &[&str]) {
+    let mut baseline = format!("yaxml-xmlconf-required-v1\t{}\t{pair_count}\n", rows.len());
+    for row in rows {
+        baseline.push_str(row);
+        baseline.push('\n');
+    }
+    fs::write(path, baseline).unwrap();
+}
+
 fn run_catalog(
     command: &Path,
     manifest: &Path,
@@ -118,6 +127,30 @@ fn run_catalog(
             argument(root),
             "--expected-cases",
             &expected.to_string(),
+        ],
+        b"",
+        30,
+    )
+}
+
+fn run_catalog_with_required(
+    command: &Path,
+    manifest: &Path,
+    root: &Path,
+    expected: usize,
+    required: &Path,
+) -> process::ProcessOutput {
+    execute(
+        command,
+        &[
+            "--manifest",
+            argument(manifest),
+            "--suite-root",
+            argument(root),
+            "--expected-cases",
+            &expected.to_string(),
+            "--required-pass",
+            argument(required),
         ],
         b"",
         30,
@@ -339,6 +372,47 @@ fn actual_command_preserves_full_inventory_exit_policy_and_worker_bounds() {
     }
     assert!(stderr.contains("cases=9 result_rows=45 expected_rows=45\n"));
 
+    let required = directory.0.join("required.tsv");
+    write_required_pass(
+        &required,
+        15,
+        &["valid\t11111", "invalid\t11111", "not-wf\t11111"],
+    );
+    let output = run_catalog_with_required(&command, &manifest, &suite, rows.len(), &required);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        result_rows(&output.stdout, rows.len()).len(),
+        rows.len() * 5
+    );
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("required_pass_pairs=15 required_pass_regressions=0\n")
+    );
+
+    write_required_pass(&required, 1, &["dtd\t10000"]);
+    let output = run_catalog_with_required(&command, &manifest, &suite, rows.len(), &required);
+    assert!(!output.status.success());
+    let observed = result_rows(&output.stdout, rows.len());
+    assert_case(
+        &observed,
+        "dtd",
+        "valid",
+        "gap",
+        "dtd-processing",
+        "UnsupportedDtd",
+        "0",
+    );
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("required_pass_pairs=1 required_pass_regressions=1\n")
+    );
+
     fs::write(suite.join("accepted.xml"), b"<r/>").unwrap();
     let mismatch = directory.0.join("mismatch.tsv");
     write_catalog(
@@ -453,6 +527,32 @@ fn actual_command_rejects_cli_catalog_and_root_failures_without_dropping_rows() 
     assert!(!non_file_manifest.status.success());
     assert!(non_file_manifest.stdout.is_empty());
     assert!(!non_file_manifest.stderr.is_empty());
+
+    let required = directory.0.join("required.tsv");
+    let malformed_required = [
+        (
+            "unknown ID",
+            "yaxml-xmlconf-required-v1\t1\t1\nunknown\t10000\n",
+        ),
+        ("missing header", "one\t10000\n"),
+        ("missing row", "yaxml-xmlconf-required-v1\t1\t1\n"),
+        (
+            "duplicate ID",
+            "yaxml-xmlconf-required-v1\t2\t2\none\t10000\none\t01000\n",
+        ),
+        (
+            "invalid mask",
+            "yaxml-xmlconf-required-v1\t1\t1\none\t1000x\n",
+        ),
+        ("zero mask", "yaxml-xmlconf-required-v1\t1\t0\none\t00000\n"),
+    ];
+    for (label, contents) in malformed_required {
+        fs::write(&required, contents).unwrap();
+        let output = run_catalog_with_required(&command, &manifest, &suite, 1, &required);
+        assert!(!output.status.success(), "accepted {label}");
+        assert!(output.stdout.is_empty(), "{label}");
+        assert!(!output.stderr.is_empty(), "{label}");
+    }
 
     #[cfg(unix)]
     {
