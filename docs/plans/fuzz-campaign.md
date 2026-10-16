@@ -42,7 +42,8 @@ flags use the defaults in the table.
 | Per-target process time | 5 s | 30 s |
 | Input bytes per testcase | 1 MiB | 1 MiB |
 | Combined target stdout/stderr | 64 KiB | 1 MiB |
-| Raw profile bytes per case | 32 MiB | 128 MiB |
+| Any raw, pending-merge, or cumulative profile | 32 MiB | 128 MiB |
+| Total transient profile storage (raw + current + pending merge) | 96 MiB | 384 MiB |
 | Seed files | 128 | 128 |
 | Total seed bytes | 8 MiB | 8 MiB |
 | Retained corpus files (including seeds) | 256 | 1,024 |
@@ -66,9 +67,13 @@ Filesystem operations and process spawn are not hard-deadlined. Use the
 existing process helper's timeout and combined stdout/stderr cap. It returns
 an error without captured output on timeout or output overflow, so preserve the
 candidate and typed error and include captured bytes only when available.
-Check profile size after process completion and before merge; reject an
-over-limit or missing profile. These are observed per-run storage ceilings,
-not an operating-system disk quota against a misbehaving child.
+Check raw and pending cumulative profile size after each producer exits and
+before merge/rename; reject an over-limit or missing profile. Keep only the
+current cumulative profile, one pending merged profile, and the current raw
+profile. Remove a raw profile after a successful merge; do not archive every
+raw profile. The aggregate transient profile cap is three times the per-profile
+limit. These are observed storage ceilings, not an operating-system disk quota
+against a misbehaving child.
 
 Reject any target stderr, nonzero status, timeout, output-limit error, missing
 or invalid raw profile, failed merge, malformed report, report diagnostic,
@@ -82,7 +87,8 @@ Merge each successful raw profile exactly once into a newly written cumulative
 profile. Generate a library-only LLVM coverage summary from the fixed target
 binary and cumulative profile. Parse the exact LLVM 22 summary header, expected
 production source rows, and `TOTAL` row. The production file list is the
-explicit sorted set of tracked `src/*.rs` files; reject missing, extra, or
+explicit sorted set of every regular `src/*.rs` module in the source tree,
+including currently unexecuted modules; reject missing, extra, or
 duplicate rows. Freeze all four `TOTAL` denominators (regions, functions,
 lines, instrumented branches) from the first valid report and reject any later
 change. Lines remain diagnostic only. Retain a candidate only when cumulative
@@ -112,9 +118,11 @@ counts, region/function/branch gaps, seed and mutation counts, retained and
 rejected candidate counts, elapsed time, and failure classification if any.
 Use a stable non-cryptographic hash plus length for accidental mismatch checks;
 label it clearly as such. Verify that source-file, target-binary and tool
-identities stay unchanged during the run, but do not claim this proves the
-binary was built from those sources or flags. Record caller-provided revision
-and build-flags labels honestly. External artifact SHA-256 can be recorded by
+identities stay unchanged during the run. Hash the target and tools at start
+and end, with inexpensive metadata checks between cases; hash source files at
+start and end. Do not hash large binaries for every testcase or claim this
+proves the binary was built from those sources or flags. Record caller-provided
+revision and build-flags labels honestly. External artifact SHA-256 can be recorded by
 the caller. Never call a result "100%" without the raw counts and gaps.
 
 ## Validation
@@ -132,8 +140,9 @@ Tests must not depend on an installed coverage toolchain; one manual proof run
 with the pinned LLVM tools must then execute a short real mutation campaign,
 showing at least one retained candidate and one duplicate rejected by
 cumulative feedback. Save its full manifest, raw profiles, merged profiles,
-summary, target/tool metadata, and command log outside the repository. Review
-this implementation before running a longer campaign.
+summary, final raw profile, cumulative profile, target/tool metadata, and
+command log outside the repository. Do not retain every intermediate raw
+profile. Review this implementation before running a longer campaign.
 
 The report and README must state that LLVM source regions/functions/branches
 are proxies for execution, compiler instrumentation defines the branch
