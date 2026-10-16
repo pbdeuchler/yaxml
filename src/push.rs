@@ -235,8 +235,15 @@ fn dispatch(
     span: TokenSpan,
     emit: &mut impl FnMut(Event<'_>, Range<usize>, &mut Budget) -> Result<(), Error>,
 ) -> Result<(), Error> {
-    let raw = std::str::from_utf8(bytes)
-        .map_err(|e| Error::new(ErrorKind::InvalidUtf8, span.source.start + e.valid_up_to()))?;
+    // An invalid markup prefix can be recognized on a UTF-8 leading byte,
+    // before the scanner has retained the scalar's continuation bytes. The
+    // shared parser rejects this kind without inspecting its payload.
+    let raw = if matches!(kind, TokenKind::InvalidMarkup) {
+        ""
+    } else {
+        std::str::from_utf8(bytes)
+            .map_err(|e| Error::new(ErrorKind::InvalidUtf8, span.source.start + e.valid_up_to()))?
+    };
     if let Some((relative, _)) = raw.char_indices().find(|(_, c)| !xml_char(*c)) {
         return Err(span.map_error(
             raw,
