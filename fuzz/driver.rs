@@ -302,4 +302,8 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
         pending.extend(children.into_iter().rev());
     }
     assert_eq!(visited, nodes.iter().map(|n| n.id()).collect::<Vec<_>>());
+    if nodes.len() > 2 {
+        let smaller = Document::parse("<r/>").unwrap();
+        assert!(smaller.node(nodes.last().unwrap().id()).is_none());
+    }
 }

@@ -415,8 +415,10 @@ fn fatal_errors_are_sticky() {
     for input in ["<r></x>", "<r><p:x/></r>", "<r>&bad;</r>", "<r>"] {
         let mut reader = Reader::new(input.as_bytes()).unwrap();
         let error = loop {
-            if let Err(error) = reader.read_event() {
-                break error;
+            match reader.read_event() {
+                Err(error) => break error,
+                Ok(Some(_)) => {}
+                Ok(None) => panic!("invalid document reached EOF: {input:?}"),
             }
         };
         let position = reader.position();
