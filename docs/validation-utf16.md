@@ -1,8 +1,9 @@
 # UTF-16 input milestone validation
 
 This milestone adds UTF-16LE/BE input to push parsing and owned documents. It
-does not complete the libxml2 replacement goal. Production and executable test
-evidence below use clean `9338656765df486b36608b9f640b720f7f457bed`.
+does not complete the libxml2 replacement goal. The production source measured
+at clean `9338656765df486b36608b9f640b720f7f457bed` is byte-identical to final
+test and fuzz snapshot `e7e2691e4a0d4bb0cae464f19ea936d7e9ab1638`.
 The [encoding contract](encoding.md) and [frozen plan](plans/utf16.md) define the
 supported subset and deliberate compatibility differences.
 
@@ -57,18 +58,24 @@ whole/chunked/I/O push parsing and owned trees. Malformed grammar checks source
 offsets, with explicit exclusions for upfront character validation, resource
 ordering and two incomplete-token precedence differences.
 
-Review found two oracle gaps. Raw-byte-selected decoded quotas often failed
+Review found three oracle gaps. Raw-byte-selected decoded quotas often failed
 before useful parsing, so valid inputs now receive exact/below/above profiles
 for each independent ceiling and must succeed when within budget. Malformed
 semantic offsets originally had only bounds checks; they now have independent
-source-coordinate comparisons. Small valid inputs cannot hide blanket rejection
-behind the owned-budget exception.
+source-coordinate comparisons. The harness also lacked an independent boundary
+for the one aggregate budget shared by parsing and owned-tree construction. Four
+small canonical trees now supply exact allocation-work goldens in both UTF-16
+byte orders. Small valid inputs cannot hide blanket rejection behind the
+owned-budget exception.
 
 An isolated zero-offset mutation initially survived all 18 fuzz functions while
 the public Unicode-error test failed. After strengthening the oracle, the same
 mutation fails three fuzz functions. Three other mutations verify ignored total
-and token ceilings and blanket rejection by explicit decode constructors. Each
-was restored and the combined 30 focused tests and strict Clippy passed.
+and token ceilings and blanket rejection by explicit decode constructors. A
+mutation giving the UTF-16 owned builder a fresh budget originally survived fuzz
+smoke while the public aggregate-budget test caught it; the new exact boundary
+makes `encoded_equivalents_and_every_truncation` fail too. Each mutation was
+restored, and the combined 30 focused tests and strict Clippy passed.
 The independent [holistic review](review-utf16.md) records additional production
 mutations and the final restored verdict.
 
@@ -93,17 +100,17 @@ of security. Whole-library gaps include allocation-error closures, internal
 invariant/overflow guards and unexercised I/O outcomes; they remain in the
 denominator.
 
-The checked-in [fuzz summary](validation/fuzz-coverage-9338656.txt) and
+The checked-in [fuzz summary](validation/fuzz-coverage-e7e2691.txt) and
 [ordinary summary](validation/test-coverage-9338656.txt) exclude only dependency,
 toolchain and test/fuzz/example files. No production regions are excluded.
-Ignored local `coverage/fuzz-9338656/` and `coverage/tests-9338656/` retain raw and
+Ignored local `coverage/fuzz-e7e2691/` and `coverage/tests-9338656/` retain raw and
 merged profiles, full JSON exports, instrumented binaries, compiler/tool versions,
 source/corpus/harness and binary hashes, build/test logs and reproduction scripts.
 The fuzz reporting command needed an empty-array fix for macOS Bash after tests
 and profile merging; reporting was completed from those same profiles without
 rerunning or discarding executions.
 
-Fuzz smoke ran 18 functions in 13.46 seconds with zero unexpected failures.
+Fuzz smoke ran 18 functions in 12.54 seconds with zero unexpected failures.
 Individual testcase execution counts remain unrecorded. The separate ordinary
 coverage run executes 118 library/parser/DOM/streaming/I/O/writer functions and
 excludes fuzz smoke, oracle tools, examples and benchmarks. Neither run is a
