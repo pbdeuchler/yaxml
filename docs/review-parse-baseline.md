@@ -76,10 +76,12 @@ with 9 ignored across 40 test groups, plus 11 doctests. Strict all-target Clippy
 and formatting checks passed.
 
 After the clock corrections, focused validation covered the complete changed
-surface: 12 helper and protocol unit tests, all 7 actual CLI tests including the
-pinned libxml2 test, the controlled driver failure gate, strict C compilation,
-strict all-target Clippy and formatting. The final C command used the pinned
-libxml2 2.15.4 static archive and these flags:
+surface: 12 distinct helper and driver unit tests, plus 7 tests in the CLI test
+binary: 3 actual-command tests and 4 shared protocol units that Cargo ran a
+second time. The actual-command tests include the pinned libxml2 matrix and the
+controlled driver failure gate. Strict C compilation, strict all-target Clippy
+and formatting also passed. The final C command used the pinned libxml2 2.15.4
+static archive and these flags:
 
 ```text
 -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror -pedantic -Wconversion -Wshadow
@@ -93,14 +95,79 @@ The final controlled-driver log is
 SHA-256
 `1931f2092577a3a31ea7f4d0b434ac4e38ffb6072960543f1ceaf2c83d5a4c54`.
 
-## Performance evidence gate
+## Completed performance evidence audit
 
-The code review does not close the immutable performance-evidence gate. A
-retained run must verify that tracked helper sources equal their committed blobs,
-record exact release build commands, compiler and pinned-reference identities,
-hash all sources, binaries and inputs before sampling, then verify those hashes
-again after the full matrix. Every raw paired row and its alternating execution
-order must be retained.
+The retained run at
+`/private/tmp/yaxml-parse-baseline-evidence-233638a` passed the immutable
+evidence gate. It used documentation freeze
+`233638ab308d4377762c8c5ef779f509c9a5327e`, whose tree is
+`47ac283ea5397b88527768833fa4006bf7247057` and whose `src` tree is
+`34f9acb22ae65b99fcea2cc1cc52e9ee6e036b3f`. Both recorded working-tree status
+files are empty. An independent audit matched all 229 tracked source entries to
+the bytes of their Git blobs and confirmed that the source manifests were
+identical before and after the run.
 
-Until those artifacts pass independent review, the benchmark is ready to collect
-evidence but supports no performance claim.
+The reference was freshly extracted from the retained libxml2 2.15.4 archive,
+SHA-256
+`98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821`.
+An independent second extraction matched all 4,426 paths, sizes and hashes in
+the retained reference-source manifest. The retained CMake build is Release and
+uses `-O3 -DNDEBUG`; the C helper adds the strict warning flags listed above.
+Rust used rustc 1.95.0 with `opt-level=3`, thin LTO and one codegen unit. The
+pre-run and post-run binary manifests are identical. Their four identities are:
+
+- outer Rust driver:
+  `4894d0c6b25fdccbd66f9fd0e99999d813767a52789285b733319e4ed919812e`
+- Rust benchmark helper:
+  `33ce3f27e7e319169569394f5bffe4b1729f65ee5899b4e41e0d218f99f00943`
+- C benchmark helper:
+  `ce9c9ec97f0c2443322df7f4cbaaa4ced83399a602d5f04d3a627bc1cb3657ff`
+- fresh static `libxml2.a`:
+  `a7dec2ded28b38e5025cc273427a3950707742b4b9dfc181a6b60d41b3e7cf32`
+
+The independent audit reconstructed the required 65-workload inventory and all
+130 commands. It validated 130 calibration rows, recomputed every calibrated
+iteration count and work bound, and validated 455 retained pairs comprising 910
+rows. Every retained file has seven pairs; odd pairs run yaxml first and even
+pairs run libxml2 first. Requested bytes, iterations, chunks, literal semantic
+counts and semantic hashes match for every pair and surface. It regenerated all
+65 summary rows, 195 phase rows and the JSON analysis byte for byte from the raw
+rows. All 143 entries in the retained result manifest still match their file
+hashes. The identity marker precedes analysis, and `baseline-complete` was
+created only after analysis succeeded.
+
+The principal retained-manifest hashes are:
+
+- tracked source manifest:
+  `148b7ac8a92e78d7ba3d10a04deb47df2236d04bd6fbe3306a68cf25ce57ad59`
+- reference-source manifest:
+  `59ae81487f477e5c0e874c9b82f8633d138ac5754906bcbbee8e48be36a5e7df`
+- binary manifest:
+  `c6c26b42281253d79a4a1214660a998071867bb55e496d5ad601f2264714b4bb`
+- recipe manifest:
+  `817604d86b33a89e1dad72caa035d85859721f1870b7118cb27b7ed6ff6e8fa0`
+- input manifest:
+  `748c08357dc1821043d5fb69aabc91e04b8cbded75a2e629e2048b27039615bd`
+- result manifest:
+  `2c5b0fcfea71375fb8d04fbb2161b838363e16cd29736dfb43dddc5b28b85734`
+- matrix, summary, phases and analysis:
+  `c1c1611155494e2053aeacc2fc1c776c5da79bb904a7494f572e32df5b5d49c0`,
+  `351a49dc06fbe8ca3f6f6211a9059b290571c1ce45af737a39340f92734e2eaa`,
+  `95bec1a31c1fc1cb343f23934e6384133b27eba600d46729fe86077f5e6e8a55`
+  and
+  `f61ef2332d43536aae4fb6c750eb94667fed9ab3c4ca13c4095f0fda638a0e29`
+
+The independent audit script is
+`/private/tmp/yaxml-parse-baseline-audit-233638a.rb`, SHA-256
+`7f50c16b5a9ac1690c9c66b3a36b35a84d6f38c5bfdc2618d8d903fd8a810653`.
+Its PASS log is `/private/tmp/yaxml-parse-baseline-audit-233638a.log`, SHA-256
+`6b8316c7a77a08c41137b5de07b564d28fade6f805df4b307ebcaa0f9647a73b`.
+
+The outer run stderr contains one `system_profiler` Activation Lock timeout
+warning emitted before the builds. The benchmark matrix requires every driver
+invocation to succeed with empty stderr, so helper execution itself was clean.
+The comparison still has seven samples per workload and includes phase-specific
+clock and observer costs; small phase ratios can be noisy. Descriptively, yaxml
+has the lower median lifecycle time in 19 workloads, libxml2 in 42, and 4 fall
+within a symmetric five-percent band. These counts characterize this retained
+machine and matrix. They do not establish across-the-board superiority.
