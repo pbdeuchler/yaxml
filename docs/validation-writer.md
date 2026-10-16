@@ -41,6 +41,9 @@ the local-name coherence check was caught by ordinary tests but survived the
 initial fuzz smoke run. Explicit expected-rejection invariants were added for
 forbidden raw delimiters and generated inconsistent names/namespaces. Reparse
 alone cannot establish that a caller-created event was interpreted correctly.
+The [mutation review](review-writer.md) repeats both formerly missed mutations
+and verifies namespace coherence, partial positions and panic poisoning. All
+five final mutations are caught; no findings remain open in this milestone.
 
 Streaming and writer round-trip fuzz comparisons now advance borrowed readers
 in lockstep, preserving typed values, namespaces and spans without cloning a long
