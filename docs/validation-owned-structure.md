@@ -104,12 +104,13 @@ removal.
 
 ## Independent review
 
-**PENDING — final holistic review.** Review every structural production and test
-change, then record the restored source revision and verdict. The mutation audit
-must include blanket rejection, early counter/slot publication, missing ancestor
-size updates, dangling first/last/previous/next links, retained descendants,
-counter refunds, root removal, PI ordering, accidental Text merging, recursive
-removal and allocation-failure publication faults.
+The independent [holistic review](review-owned-structure.md) inspected every
+changed line from `c695e61` through `08a1ff6` and returned **PASS** with no
+Critical, Important or Minor findings. All 15 frozen-plan fault classes and the
+expanded allocation, handle, independent-model, benchmark and oracle failure-gate
+mutations were caught and restored. Clean format, clippy, all-target tests,
+dependency and unsafe-code checks passed; the review records exact commands and
+evidence limits.
 
 ## Remaining scope
 
@@ -118,5 +119,5 @@ change names or namespaces, move existing nodes, detach nodes, copy/import/adopt
 across documents, repair namespaces, reclaim pool/attribute storage, reuse slots
 or compact tombstones. Those operations need separate ownership, cycle,
 namespace and quota contracts. Sustained fuzzing, final coverage, matched
-performance, the pinned structural oracle and independent review remain open
-until the **PENDING** sections above are replaced with final evidence.
+performance and the pinned structural oracle remain open until the **PENDING**
+sections above are replaced with final evidence.
