@@ -10,6 +10,17 @@ const CASE_COUNT: u8 = 17;
 
 fn check_created(document: &OwnedDocument, id: OwnedNodeId, expected: &ModelElement) {
     assert_element(document, id, expected);
+    let node = document.node(id).unwrap();
+    let parent = node.parent().expect("constructed element has no parent");
+    assert_eq!(parent.last_child().map(|node| node.id()), Some(id));
+    assert_eq!(parent.children().last().map(|node| node.id()), Some(id));
+    assert!(
+        document.nodes().any(|node| node.id() == id),
+        "constructed element is absent from document order"
+    );
+    assert!(node.first_child().is_none());
+    assert!(node.last_child().is_none());
+    assert!(node.next_sibling().is_none());
     assert_serializable(document);
 }
 
@@ -24,6 +35,42 @@ fn assert_existing_nodes_preserved(
     before: &Snapshot,
     appended_parent: OwnedNodeId,
 ) {
+    let old_parent = before
+        .nodes
+        .iter()
+        .find(|node| node.id == appended_parent)
+        .expect("append parent was not in the original tree");
+    let inserted = document
+        .node(appended_parent)
+        .unwrap()
+        .last_child()
+        .expect("append did not publish a last child")
+        .id();
+    assert!(
+        before.nodes.iter().all(|node| node.id != inserted),
+        "append did not publish a fresh child"
+    );
+    let mut expected_order: Vec<_> = before.nodes.iter().map(|node| node.id).collect();
+    let parent_index = expected_order
+        .iter()
+        .position(|id| *id == appended_parent)
+        .unwrap();
+    expected_order.insert(parent_index + old_parent.descendants.len(), inserted);
+    assert_eq!(
+        document.nodes().map(|node| node.id()).collect::<Vec<_>>(),
+        expected_order,
+        "append changed document order or descendant counts"
+    );
+    assert_eq!(document.root().id(), before.root);
+    assert_eq!(document.root_element().id(), before.root_element);
+    assert_eq!(
+        document.declaration().map(|declaration| (
+            declaration.version.to_owned(),
+            declaration.encoding.map(str::to_owned),
+            declaration.standalone,
+        )),
+        before.declaration
+    );
     for expected in &before.nodes {
         let actual = document
             .node(expected.id)
@@ -59,13 +106,39 @@ fn assert_existing_nodes_preserved(
             expected.parent,
             "existing parent changed"
         );
-        if expected.id != appended_parent {
-            assert_eq!(
-                actual.first_child().map(|node| node.id()),
-                expected.first_child,
-                "existing first child changed"
-            );
+        let mut children = expected.children.clone();
+        if expected.id == appended_parent {
+            children.push(inserted);
         }
+        assert_eq!(
+            actual.children().map(|node| node.id()).collect::<Vec<_>>(),
+            children
+        );
+        assert_eq!(
+            actual.first_child().map(|node| node.id()),
+            children.first().copied()
+        );
+        assert_eq!(
+            actual.last_child().map(|node| node.id()),
+            children.last().copied()
+        );
+        let next_sibling = if old_parent.last_child == Some(expected.id) {
+            Some(inserted)
+        } else {
+            expected.next_sibling
+        };
+        assert_eq!(actual.next_sibling().map(|node| node.id()), next_sibling);
+        let mut descendants = expected.descendants.clone();
+        if let Some(index) = descendants.iter().position(|id| *id == appended_parent) {
+            descendants.insert(index + old_parent.descendants.len(), inserted);
+        }
+        assert_eq!(
+            actual
+                .descendants()
+                .map(|node| node.id())
+                .collect::<Vec<_>>(),
+            descendants
+        );
     }
 }
 
