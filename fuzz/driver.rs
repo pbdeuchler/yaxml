@@ -23,6 +23,9 @@ mod serialize;
 #[path = "mutation.rs"]
 mod mutation;
 
+#[path = "construction.rs"]
+mod construction;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -41,6 +44,9 @@ pub fn exercise(input: &[u8]) -> Outcome {
     );
     if input.first().is_some_and(|byte| byte & 7 == b'<' & 7) {
         check_finish_abort(input);
+    }
+    if input.first().is_some_and(|byte| byte & 15 == b'<' & 15) {
+        exercise_construction(input);
     }
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -164,6 +170,13 @@ fn check_abort(error: Error, expected_offset: usize) {
 pub fn exercise_mutation(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     mutation::exercise(input);
+}
+
+/// Exercise rooted creation and fresh-element insertion independently from
+/// whether the input bytes form XML.
+pub fn exercise_construction(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    construction::exercise(input);
 }
 
 /// Exercise pull scheduling independently from the XML grammar bytes.

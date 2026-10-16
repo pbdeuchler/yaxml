@@ -39,6 +39,44 @@ fn mutation_input(header: [u8; 7], operations: &[[u8; 8]], payload: &[u8]) -> Ve
 }
 
 #[test]
+fn construction_model_covers_prefix_catalogs_and_encoded_parents() {
+    for root_case in 0..6 {
+        for encoding in 0..3 {
+            driver::exercise_construction(&[
+                root_case,
+                encoding,
+                (root_case + encoding) % 4,
+                (root_case * 3 + encoding) % 8,
+                0x04,
+                0x7f,
+                0x80,
+                0xff,
+            ]);
+        }
+    }
+}
+
+#[test]
+fn construction_model_checks_exact_rejection_catalog() {
+    for rejection in 0..8 {
+        driver::exercise_construction(&[0, rejection % 3, rejection % 4, rejection]);
+    }
+}
+
+#[test]
+fn construction_model_derives_bounded_names_values_and_operations() {
+    for input in [
+        b"".as_slice(),
+        b"\x00",
+        b"<root attr='value'/>",
+        b"\xff\xfe\x00\xd8",
+        b"repeated-repeated-repeated",
+    ] {
+        driver::exercise_construction(input);
+    }
+}
+
+#[test]
 fn mutation_operations_predict_results_and_preserve_complete_trees() {
     for encoding in 0..4 {
         for family in 0..2 {
