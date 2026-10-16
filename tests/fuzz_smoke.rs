@@ -12,6 +12,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/dtd.xml"),
     include_bytes!("../fuzz/corpus/declaration.xml"),
     include_bytes!("../fuzz/corpus/encoding-name.xml"),
+    include_bytes!("../fuzz/corpus/infoset.xml"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];

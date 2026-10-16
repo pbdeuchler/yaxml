@@ -10,7 +10,7 @@ External oracle tooling adds no dependency or unsafe code to the yaxml library.
 the yaxml event reader. Run the query against the **original input** with:
 
 ```text
-xmllint --nocatalogs --strict-namespace --nocdata --xpath QUERY -
+xmllint --nonet --nocatalogs --strict-namespace --nowarning --nocdata --xpath QUERY -
 ```
 
 Compare stdout byte for byte against `Projection::expected()`. The oracle's
@@ -18,7 +18,8 @@ strings are never reparsed with yaxml, so a shared namespace or normalization
 bug cannot make both sides agree merely by traversing the same Rust parser.
 The CLI caller must check oracle version, successful exit, process time and
 output ceilings separately. Failure to build a bounded projection is an
-explicit inconclusive comparison, never semantic agreement.
+explicit skipped semantic comparison, never semantic agreement. The replay CLI
+still checks acceptance in that case and counts it separately.
 
 The first field is libxml2's actual normalized descendant node count. For each
 node in document order, subsequent fields contain kind, depth, qualified name,
@@ -76,3 +77,33 @@ fixtures agreed exactly, including long values, Unicode, CR/LF/tab references,
 all supported node kinds, namespace rebinding, relative namespace URIs and empty
 CDATA. A matching 2.15.4 execution remains required before recording a pinned
 semantic result.
+
+## Reproducible runner and build
+
+The replay example performs version, feature and process checks:
+
+```sh
+cargo run --release --example fuzz_replay -- --libxml2 /path/to/2.15.4/xmllint fuzz/corpus/*
+```
+
+For investigation with another installation, add `--allow-other-libxml2`. The
+runner labels this exploratory and continues to require Tree/XPath support.
+Unexpected exits or diagnostics fail the comparison. Forward-version warnings
+are suppressed, while strict namespace failures still produce rejection.
+
+The `libxml2-oracle` CI job verifies the official archive checksum before
+extraction. It builds static Release `xmllint` with CMake, disables external
+Iconv/ICU/Zlib and Python dependencies, and enables XPath/output. Documentation
+and upstream tests are not built. Remaining feature defaults come from the
+pinned [CMake configuration](https://github.com/GNOME/libxml2/blob/v2.15.4/CMakeLists.txt).
+Artifacts include the runtime version/features, full CMake option report,
+comparison summary, Rust compiler, revision and corpus hashes. Hosted execution
+has not yet been observed; a locally installed 2.15.3 is an exploratory oracle.
+
+Subprocesses receive input and capture output through private temporary files.
+The runner checks a five-second child-execution deadline and combined output
+ceilings, then performs bounded final reads. Both catalog environment variables
+are explicitly empty. The executable is caller-selected and trusted: this is
+not a sandbox. Disk writes can overshoot between polls; file operations have no
+deadline; termination targets the direct child; temporary cleanup is best effort.
+These limits are distinct from yaxml's parser budgets.

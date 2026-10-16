@@ -3,42 +3,54 @@
 
 #[path = "../fuzz/driver.rs"]
 mod driver;
+#[path = "support/infoset.rs"]
+mod infoset;
+#[path = "support/process.rs"]
+mod process;
 
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use yaxml::ErrorKind;
+use std::time::Duration;
+use yaxml::{Error, ErrorKind};
+
+use infoset::{Projection, ProjectionError};
+use process::ProcessLimits;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse(std::env::args_os().skip(1))?;
-    if let Some(oracle) = &args.oracle {
-        let version = Command::new(oracle).arg("--version").output()?;
-        if !version.status.success() {
-            return Err("xmllint --version failed".into());
-        }
-        eprintln!(
-            "comparison executable: {}\n{}{}",
-            oracle.display(),
-            String::from_utf8_lossy(&version.stdout),
-            String::from_utf8_lossy(&version.stderr)
-        );
-    }
-    let mut mismatches = 0;
+    let oracle = args
+        .oracle
+        .map(|path| Oracle::new(path, args.allow_other_version))
+        .transpose()?;
+    let mut counts = Counts::default();
     if args.files.is_empty() {
         let input = bounded_read(io::stdin().lock())?;
-        mismatches += replay(&input, "stdin", args.oracle.as_deref())? as usize;
+        counts.record(replay(&input, oracle.as_ref())?, "stdin");
     } else {
         for file in args.files {
             let input = bounded_read(File::open(&file)?)?;
-            mismatches +=
-                replay(&input, &file.display().to_string(), args.oracle.as_deref())? as usize;
+            counts.record(
+                replay(&input, oracle.as_ref())?,
+                &file.display().to_string(),
+            );
         }
     }
-    if mismatches != 0 {
+    if oracle.is_some() {
+        eprintln!(
+            "oracle summary: semantic_agreements={} rejection_agreements={} acceptance_only={} skipped_policy={} inconclusive={} disagreements={}",
+            counts.semantic,
+            counts.rejected,
+            counts.acceptance_only,
+            counts.skipped,
+            counts.inconclusive,
+            counts.disagreements
+        );
+    }
+    if counts.disagreements != 0 || counts.inconclusive != 0 {
         return Err(
-            format!("{mismatches} differential disagreements require classification").into(),
+            "differential disagreements or inconclusive results require classification".into(),
         );
     }
     Ok(())
@@ -47,6 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Debug, Default, Eq, PartialEq)]
 struct Args {
     oracle: Option<PathBuf>,
+    allow_other_version: bool,
     files: Vec<PathBuf>,
 }
 
@@ -65,6 +78,8 @@ impl Args {
                         .ok_or("--libxml2 requires an executable path")?
                         .into(),
                 );
+            } else if arg == "--allow-other-libxml2" && !result.allow_other_version {
+                result.allow_other_version = true;
             } else if arg.to_string_lossy().starts_with('-') {
                 return Err(format!(
                     "unknown or repeated option: {}",
@@ -74,14 +89,17 @@ impl Args {
                 result.files.push(arg.into());
             }
         }
+        if result.allow_other_version && result.oracle.is_none() {
+            return Err("--allow-other-libxml2 requires --libxml2".into());
+        }
         Ok(result)
     }
 }
 
-fn replay(input: &[u8], label: &str, oracle: Option<&std::path::Path>) -> io::Result<bool> {
+fn replay(input: &[u8], oracle: Option<&Oracle>) -> io::Result<Comparison> {
     let outcome = driver::exercise(input);
     let Some(oracle) = oracle else {
-        return Ok(false);
+        return Ok(Comparison::NotCompared);
     };
     if matches!(
         outcome.error.map(|error| error.kind),
@@ -95,51 +113,9 @@ fn replay(input: &[u8], label: &str, oracle: Option<&std::path::Path>) -> io::Re
         .windows(b"<!DOCTYPE".len())
         .any(|window| window == b"<!DOCTYPE")
     {
-        eprintln!("{label}: skipped unsupported feature, encoding, or unmatched limit policy");
-        return Ok(false);
+        return Ok(Comparison::SkippedPolicy);
     }
-    let mut child = Command::new(oracle)
-        .args(["--nonet", "--noout", "-"])
-        .env("XML_CATALOG_FILES", "")
-        .env("SGML_CATALOG_FILES", "")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()?;
-    let mut stdin = child.stdin.take().expect("piped stdin");
-    let output = std::thread::scope(|scope| -> io::Result<_> {
-        let writer = scope.spawn(move || stdin.write_all(input));
-        let output = child.wait_with_output()?;
-        if let Err(error) = writer.join().expect("input writer panicked")
-            && error.kind() != io::ErrorKind::BrokenPipe
-        {
-            return Err(error);
-        }
-        Ok(output)
-    })?;
-    match classify(output.status.code(), output.stderr.is_empty()) {
-        Some(accepted) => {
-            let mismatch = accepted != outcome.error.is_none();
-            eprintln!(
-                "{label}: {} (yaxml={:?}, libxml2 accepted={accepted})",
-                if mismatch {
-                    "disagreement"
-                } else {
-                    "agreement"
-                },
-                outcome.error
-            );
-            Ok(mismatch)
-        }
-        None => {
-            eprintln!(
-                "{label}: inconclusive oracle result (exit={:?}, diagnostic bytes={})",
-                output.status.code(),
-                output.stderr.len()
-            );
-            Ok(false)
-        }
-    }
+    oracle.compare(input, outcome.error)
 }
 
 fn classify(code: Option<i32>, diagnostics_empty: bool) -> Option<bool> {
@@ -147,6 +123,189 @@ fn classify(code: Option<i32>, diagnostics_empty: bool) -> Option<bool> {
         Some(0) if diagnostics_empty => Some(true),
         Some(4) => Some(false),
         _ => None,
+    }
+}
+
+struct Oracle {
+    path: PathBuf,
+    limits: ProcessLimits,
+}
+
+impl Oracle {
+    fn new(path: PathBuf, allow_other_version: bool) -> io::Result<Self> {
+        let version = process::run(
+            &path,
+            &["--version"],
+            b"",
+            ProcessLimits {
+                timeout: Duration::from_secs(5),
+                max_output_bytes: 16 * 1024,
+            },
+        )?;
+        if !version.status.success() {
+            return Err(io::Error::other("xmllint --version failed"));
+        }
+        let mut report = version.stdout;
+        report.extend_from_slice(&version.stderr);
+        validate_version(&report, allow_other_version)?;
+        eprintln!(
+            "comparison executable: {}\nmode: {}\n{}",
+            path.display(),
+            if allow_other_version {
+                "exploratory"
+            } else {
+                "pinned"
+            },
+            String::from_utf8_lossy(&report)
+        );
+        Ok(Self {
+            path,
+            limits: ProcessLimits {
+                timeout: Duration::from_secs(5),
+                max_output_bytes: infoset::MAX_EXPECTED_BYTES,
+            },
+        })
+    }
+
+    fn compare(&self, input: &[u8], error: Option<Error>) -> io::Result<Comparison> {
+        let (projection, limit) = if error.is_some() {
+            (None, None)
+        } else {
+            match Projection::from_input(input) {
+                Ok(projection) => (Some(projection), None),
+                Err(ProjectionError::Limit(name)) => (None, Some(name)),
+                Err(error) => return Err(io::Error::other(error)),
+            }
+        };
+        let mut args = vec![
+            "--nonet",
+            "--nocatalogs",
+            "--strict-namespace",
+            "--nowarning",
+        ];
+        if let Some(projection) = &projection {
+            args.extend(["--nocdata", "--xpath", projection.query(), "-"]);
+        } else {
+            args.extend(["--noout", "-"]);
+        }
+        let output = process::run(&self.path, &args, input, self.limits)?;
+        if classify(output.status.code(), output.stderr.is_empty()).is_none() {
+            eprintln!(
+                "oracle exit={:?}, diagnostic bytes={}: {}",
+                output.status.code(),
+                output.stderr.len(),
+                String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(4096)])
+            );
+        }
+        Ok(compare_output(
+            classify(output.status.code(), output.stderr.is_empty()),
+            error.is_none(),
+            &output.stdout,
+            projection.as_ref().map(Projection::expected),
+            limit,
+        ))
+    }
+}
+
+fn validate_version(report: &[u8], allow_other_version: bool) -> io::Result<()> {
+    let report = std::str::from_utf8(report).map_err(io::Error::other)?;
+    let version = report
+        .split_once("using libxml version ")
+        .and_then(|(_, rest)| rest.split_whitespace().next())
+        .filter(|version| version.bytes().all(|byte| byte.is_ascii_digit()))
+        .ok_or_else(|| io::Error::other("unrecognized xmllint version report"))?;
+    if !allow_other_version && version != infoset::LIBXML2_COMPILED_VERSION {
+        return Err(io::Error::other(format!(
+            "oracle must use libxml2 {}; found {version}; --allow-other-libxml2 enables exploratory comparison",
+            infoset::LIBXML2_VERSION
+        )));
+    }
+    let features = report
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix("compiled with:"))
+        .ok_or_else(|| io::Error::other("missing xmllint build features"))?;
+    for feature in ["Tree", "XPath"] {
+        if !features.split_whitespace().any(|value| value == feature) {
+            return Err(io::Error::other(format!(
+                "oracle requires {feature} support"
+            )));
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum Comparison {
+    NotCompared,
+    SkippedPolicy,
+    Rejected,
+    Semantic,
+    AcceptanceOnly(&'static str),
+    Disagreement(&'static str),
+    Inconclusive,
+}
+
+fn compare_output(
+    oracle_accepted: Option<bool>,
+    accepted: bool,
+    output: &[u8],
+    expected: Option<&[u8]>,
+    limit: Option<&'static str>,
+) -> Comparison {
+    match oracle_accepted {
+        None => Comparison::Inconclusive,
+        Some(oracle_accepted) if oracle_accepted != accepted => {
+            Comparison::Disagreement("acceptance")
+        }
+        Some(false) => Comparison::Rejected,
+        Some(true) => match expected {
+            Some(expected) if expected == output => Comparison::Semantic,
+            Some(_) => Comparison::Disagreement("infoset values or structure"),
+            None => Comparison::AcceptanceOnly(limit.unwrap_or("projection unavailable")),
+        },
+    }
+}
+
+#[derive(Default)]
+struct Counts {
+    semantic: usize,
+    rejected: usize,
+    acceptance_only: usize,
+    skipped: usize,
+    inconclusive: usize,
+    disagreements: usize,
+}
+
+impl Counts {
+    fn record(&mut self, comparison: Comparison, label: &str) {
+        let description = match comparison {
+            Comparison::NotCompared => return,
+            Comparison::SkippedPolicy => {
+                self.skipped += 1;
+                "skipped unsupported feature, encoding, or unmatched limit policy".to_owned()
+            }
+            Comparison::Rejected => {
+                self.rejected += 1;
+                "rejection agreement".to_owned()
+            }
+            Comparison::Semantic => {
+                self.semantic += 1;
+                "acceptance and infoset agreement".to_owned()
+            }
+            Comparison::AcceptanceOnly(reason) => {
+                self.acceptance_only += 1;
+                format!("acceptance agreement; semantic comparison skipped ({reason})")
+            }
+            Comparison::Disagreement(reason) => {
+                self.disagreements += 1;
+                format!("disagreement ({reason})")
+            }
+            Comparison::Inconclusive => {
+                self.inconclusive += 1;
+                "inconclusive oracle exit or diagnostics".to_owned()
+            }
+        };
+        eprintln!("{label}: {description}");
     }
 }
 
@@ -207,6 +366,7 @@ mod tests {
                 vec!["case.xml"],
                 Ok(Args {
                     oracle: None,
+                    allow_other_version: false,
                     files: vec!["case.xml".into()],
                 }),
             ),
@@ -214,8 +374,29 @@ mod tests {
                 vec!["--libxml2", "xmllint", "--", "-case"],
                 Ok(Args {
                     oracle: Some("xmllint".into()),
+                    allow_other_version: false,
                     files: vec!["-case".into()],
                 }),
+            ),
+            (
+                vec!["--allow-other-libxml2", "--libxml2", "xmllint"],
+                Ok(Args {
+                    oracle: Some("xmllint".into()),
+                    allow_other_version: true,
+                    files: vec![],
+                }),
+            ),
+            (
+                vec!["--allow-other-libxml2"],
+                Err("--allow-other-libxml2 requires --libxml2".into()),
+            ),
+            (
+                vec!["--allow-other-libxml2", "--allow-other-libxml2"],
+                Err("unknown or repeated option: --allow-other-libxml2".into()),
+            ),
+            (
+                vec!["--libxml2", ""],
+                Err("--libxml2 requires an executable path".into()),
             ),
             (
                 vec!["--libxml2"],
@@ -245,5 +426,163 @@ mod tests {
         ] {
             assert_eq!(classify(code, empty), expected);
         }
+    }
+
+    #[test]
+    fn pinned_version_and_capabilities() {
+        for (report, exploratory, accepted) in [
+            (
+                "xmllint: using libxml version 21504\n   compiled with: Tree XPath Output\n",
+                false,
+                true,
+            ),
+            (
+                "using libxml version 21503\ncompiled with: Tree XPath",
+                false,
+                false,
+            ),
+            (
+                "using libxml version 21503\ncompiled with: Tree XPath",
+                true,
+                true,
+            ),
+            (
+                "using libxml version 21504\ncompiled with: Tree",
+                false,
+                false,
+            ),
+            (
+                "using libxml version 21504\ncompiled with: XPath",
+                true,
+                false,
+            ),
+            ("using libxml version 21504", false, false),
+            (
+                "using libxml version broken\ncompiled with: Tree XPath",
+                true,
+                false,
+            ),
+            ("unrecognized program", true, false),
+        ] {
+            assert_eq!(
+                validate_version(report.as_bytes(), exploratory).is_ok(),
+                accepted,
+                "{report}"
+            );
+        }
+        assert!(validate_version(b"\xff", true).is_err());
+    }
+
+    #[test]
+    fn comparisons_and_summary_preserve_every_disposition() {
+        for (oracle, accepted, actual, expected, limit, result) in [
+            (
+                None,
+                true,
+                b"".as_slice(),
+                None,
+                None,
+                Comparison::Inconclusive,
+            ),
+            (
+                Some(true),
+                false,
+                b"",
+                None,
+                None,
+                Comparison::Disagreement("acceptance"),
+            ),
+            (
+                Some(false),
+                true,
+                b"",
+                Some(b"value".as_slice()),
+                None,
+                Comparison::Disagreement("acceptance"),
+            ),
+            (Some(false), false, b"", None, None, Comparison::Rejected),
+            (
+                Some(true),
+                true,
+                b"value",
+                Some(b"value".as_slice()),
+                None,
+                Comparison::Semantic,
+            ),
+            (
+                Some(true),
+                true,
+                b"changed",
+                Some(b"value".as_slice()),
+                None,
+                Comparison::Disagreement("infoset values or structure"),
+            ),
+            (
+                Some(true),
+                true,
+                b"",
+                None,
+                Some("query bytes"),
+                Comparison::AcceptanceOnly("query bytes"),
+            ),
+            (
+                Some(true),
+                true,
+                b"",
+                None,
+                None,
+                Comparison::AcceptanceOnly("projection unavailable"),
+            ),
+        ] {
+            assert_eq!(
+                compare_output(oracle, accepted, actual, expected, limit),
+                result
+            );
+        }
+        let mut counts = Counts::default();
+        for comparison in [
+            Comparison::NotCompared,
+            Comparison::SkippedPolicy,
+            Comparison::Rejected,
+            Comparison::Semantic,
+            Comparison::AcceptanceOnly("query bytes"),
+            Comparison::Disagreement("acceptance"),
+            Comparison::Inconclusive,
+        ] {
+            counts.record(comparison, "testcase");
+        }
+        assert_eq!(
+            (
+                counts.semantic,
+                counts.rejected,
+                counts.acceptance_only,
+                counts.skipped,
+                counts.inconclusive,
+                counts.disagreements
+            ),
+            (1, 1, 1, 1, 1, 1)
+        );
+    }
+
+    #[test]
+    fn replay_policy_skips_do_not_start_the_oracle() {
+        let oracle = Oracle {
+            path: "not-an-executable".into(),
+            limits: ProcessLimits {
+                timeout: Duration::from_secs(1),
+                max_output_bytes: 1024,
+            },
+        };
+        assert_eq!(replay(b"<r/>", None).unwrap(), Comparison::NotCompared);
+        for input in [b"<!DOCTYPE r><r/>".as_slice(), b"\xff", b"\xff\xfe"] {
+            assert_eq!(
+                replay(input, Some(&oracle)).unwrap(),
+                Comparison::SkippedPolicy
+            );
+        }
+        assert_eq!(
+            replay(b"<r>", Some(&oracle)).unwrap_err().kind(),
+            io::ErrorKind::NotFound
+        );
     }
 }

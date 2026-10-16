@@ -53,6 +53,12 @@ are independent of chunk boundaries. Callback values borrow only for the call.
 Incremental validation can deliver valid prefix events before discovering a later
 error; slice construction validates all input characters before emitting events.
 
+Declarations with a `1.x` version use XML 1.0 processing rules, as required by
+that specification; this does not enable XML 1.1 semantics. Encoding names are
+syntax-checked before an unsupported encoding is reported. The
+[conformance regressions](docs/conformance.md) and
+[independent oracle protocol](docs/oracle.md) describe the validation scope.
+
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
 their own scope decision because libxml2 exposes raw pointers and public mutable

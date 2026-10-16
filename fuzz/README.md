@@ -48,6 +48,35 @@ Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component
 
 An external process-based fuzzer can feed stdin to the release example without changing the crate's dependency graph. Validate its instrumentation and execution feedback before calling it coverage-guided fuzzing. This repository does not yet supply an AFL++/libFuzzer integration, custom mutation runtime, or sustained-run budget. Adding a runtime dependency or unsafe foreign export requires a policy decision.
 
-The optional `--libxml2 PATH` comparison runs `PATH --version` and records its output, then uses `--nonet --noout -` on stdin with ambient catalog variables cleared. It skips DTDs, unsupported encodings, invalid UTF-8, and yaxml limit failures because these do not share the same policy. A clean exit 0 is acceptance; exit 4 is rejection; every other status or a successful exit with diagnostics is inconclusive. This matters because system libxml2 2.9.13 can report a namespace error yet exit 0. Disagreements fail the replay command for classification. Inconclusive and skipped cases are reported explicitly and are not agreements. External subprocess timeouts must be enforced by the invoking runner. [xmllint options and return codes](https://gnome.pages.gitlab.gnome.org/libxml2/xmllint.html).
+`--libxml2 PATH` requires libxml2 **2.15.4** and records its version/build report.
+`--allow-other-libxml2` explicitly selects an exploratory comparison with another
+version; it does not change the target. Tree and XPath support are required.
+Accepted fixtures compare complete, independently evaluated XPath values through
+the [bounded infoset protocol](../docs/oracle.md); oracle values never pass through
+yaxml's parser. Rejected fixtures compare acceptance. All invocations use
+`--nonet --nocatalogs --strict-namespace --nowarning`, with both catalog variables
+explicitly empty. Warnings such as forward-version notices are suppressed;
+namespace errors remain fatal through `--strict-namespace`.
 
-A release comparison must use a separately built, pinned binary with recorded version/build flags. The CLI does not establish a shared resource policy beyond the exclusions above. Malformed-input recovery, diagnostic wording, and attribute/event ordering need their own comparison contracts. A system `xmllint` is useful for investigation but does not establish compatibility with a chosen release. Minimize disagreements and retain the original and reduced inputs with their classification. No external XML implementation is a Cargo dependency.
+Each oracle invocation has a five-second execution deadline and an 8 MiB combined
+stdout/stderr ceiling (16 KiB for its version report). Regular-file capture avoids
+pipe deadlocks. Output-size polling can overshoot temporary disk usage; this is
+not a disk quota or a sandbox for an untrusted executable. Timeout/output failures
+kill and reap the direct child. File operations and arbitrary descendants are
+outside that termination guarantee. Capture directories use best-effort cleanup.
+
+DTD-containing bytes, unsupported encodings, invalid UTF-8 and yaxml limit
+failures are policy skips. The DTD byte prefilter is conservative and can also
+skip that spelling inside a comment. Projection ceilings produce separately
+counted acceptance-only results. A clean exit 0 is acceptance; exit 4 is rejection;
+other statuses and successful exits with diagnostics are inconclusive. Both
+disagreements and inconclusive results fail the command. Summaries distinguish
+semantic agreement, rejection agreement, acceptance-only, policy skip,
+inconclusive and disagreement. [xmllint options and return codes](https://gnome.pages.gitlab.gnome.org/libxml2/xmllint.html).
+
+CI is configured to download the checksum-pinned release, build a static external
+oracle, compare the corpus, and retain metadata. Local availability and actual
+hosted execution must accompany any result; configuration alone is not evidence
+of a pinned pass. The comparison does not establish identical resource policy,
+error categories, recovery or diagnostic wording. Minimize disagreements and
+retain their classification. No external XML implementation is a Cargo dependency.

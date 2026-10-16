@@ -31,6 +31,8 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Complete bounded slice reader behavior, including sticky EOF/error and exact limit semantics.
 - [x] Build DOM from the reader; verify relationships, source spans, and iterative traversal. Allocation failure injection remains an open gate.
 - [x] Add a safe, dependency-free replay/mutation driver and map all implemented input APIs to it.
+- [x] Add spec-derived acceptance/value regressions across slice, DOM and push input; correct forward-version and encoding-name declaration grammar.
+- [x] Add bounded independent XPath infoset comparisons, strict oracle version checks and a checksum-pinned external-oracle CI build.
 - [ ] Add differential comparison against a pinned external libxml2 executable and classify every disagreement.
 - [x] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps. Reaching 100% remains open.
 - [ ] Record full DOM and streaming baselines for libxml2 and yaxml across a versioned corpus.

@@ -45,7 +45,7 @@ jobs:
           llvm_bin="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin"
           "$llvm_bin/llvm-profdata" merge -sparse target/fuzz-coverage/*.profraw -o target/fuzz-coverage/merged.profdata
           binary="$(jq -r 'select(.reason == "compiler-artifact" and .profile.test and .executable != null) | .executable' target/fuzz-coverage/artifacts.jsonl)"
-          "$llvm_bin/llvm-cov" report "$binary" --instr-profile=target/fuzz-coverage/merged.profdata --ignore-filename-regex='(/\.cargo/|/rustc/|/tests/|/fuzz/)' > target/fuzz-coverage/library-report.txt
+          "$llvm_bin/llvm-cov" report "$binary" --instr-profile=target/fuzz-coverage/merged.profdata --ignore-filename-regex='(/\.cargo/|/rustc/|/tests/|/fuzz/|/examples/)' > target/fuzz-coverage/library-report.txt
           "$llvm_bin/llvm-cov" export "$binary" --instr-profile=target/fuzz-coverage/merged.profdata > target/fuzz-coverage/coverage.json
           rustc -vV > target/fuzz-coverage/compiler.txt
           git rev-parse HEAD > target/fuzz-coverage/revision.txt
@@ -54,3 +54,53 @@ jobs:
         with:
           name: fuzz-smoke-coverage
           path: target/fuzz-coverage/
+
+  libxml2-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.95.0"
+      - name: Build the pinned external oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/oracle
+          curl --fail --location --retry 3 --max-time 120 \
+            https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz \
+            --output target/oracle/libxml2-2.15.4.tar.xz
+          echo '98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821  target/oracle/libxml2-2.15.4.tar.xz' | sha256sum --check
+          tar -xJf target/oracle/libxml2-2.15.4.tar.xz -C target/oracle
+          cmake -S target/oracle/libxml2-2.15.4 -B target/oracle/build \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+            -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_ISO8859X=OFF \
+            -DLIBXML2_WITH_ICU=OFF -DLIBXML2_WITH_ZLIB=OFF \
+            -DLIBXML2_WITH_PYTHON=OFF -DLIBXML2_WITH_DOCS=OFF \
+            -DLIBXML2_WITH_TESTS=OFF -DLIBXML2_WITH_PROGRAMS=ON \
+            -DLIBXML2_WITH_XPATH=ON -DLIBXML2_WITH_OUTPUT=ON
+          cmake --build target/oracle/build --target xmllint --parallel 2
+          target/oracle/build/xmllint --version > target/oracle/version.txt 2>&1
+          cmake -LA -N target/oracle/build > target/oracle/build-options.txt
+      - name: Compare acceptance and independent infosets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run --release --example fuzz_replay -- \
+            --libxml2 "$PWD/target/oracle/build/xmllint" fuzz/corpus/* \
+            2>&1 | tee target/oracle/comparison.txt
+          rustc -vV > target/oracle/compiler.txt
+          git rev-parse HEAD > target/oracle/revision.txt
+          sha256sum fuzz/corpus/* > target/oracle/corpus-sha256.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: libxml2-oracle
+          path: |
+            target/oracle/version.txt
+            target/oracle/build-options.txt
+            target/oracle/comparison.txt
+            target/oracle/compiler.txt
+            target/oracle/revision.txt
+            target/oracle/corpus-sha256.txt
