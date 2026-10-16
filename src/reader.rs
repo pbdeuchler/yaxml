@@ -17,8 +17,9 @@ pub struct Limits {
     /// Number of emitted events, including the declaration and empty elements.
     pub max_events: usize,
     /// Cumulative requested string capacity for normalization, namespace copies,
-    /// and streaming structural retention, including buffers already released.
-    /// Borrowed slice text is free; streaming can spend more of this budget.
+    /// streaming names and full new owned-DOM pool capacities, including buffers
+    /// already released. Borrowed slice text is free; retaining owned storage
+    /// can spend more of this budget.
     pub max_owned_bytes: usize,
 }
 
