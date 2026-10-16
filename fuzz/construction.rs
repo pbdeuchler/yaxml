@@ -188,6 +188,91 @@ fn assert_error(actual: EditError, expected: EditError) {
     assert_eq!(actual, expected, "construction error contract changed");
 }
 
+fn assert_error_with_display(actual: EditError, expected: EditError) {
+    assert_error(actual, expected);
+    super::check_display(&actual);
+}
+
+fn sparse_format_and_debug_contract(input: &[u8]) {
+    if input.first().copied().unwrap_or(0) & 0x3f != 0x2a {
+        return;
+    }
+
+    let local = derived_name(input);
+    let value = derived_value(input);
+    let duplicate_items = [
+        ElementItem::Attribute(AttributeSpec {
+            name: spec_name("same", Some("urn:same"), exact(Some("p"))),
+            value: &value,
+        }),
+        ElementItem::Attribute(AttributeSpec {
+            name: spec_name("same", Some("urn:same"), exact(Some("q"))),
+            value: &value,
+        }),
+    ];
+    let spec = ElementSpec {
+        name: spec_name(&local, None, exact(None)),
+        items: &duplicate_items,
+    };
+    let actual = OwnedDocument::create(spec, EditLimits::default())
+        .expect_err("duplicate expanded attribute was accepted");
+    assert_error_with_display(
+        actual,
+        located(
+            EditErrorKind::DuplicateAttribute,
+            attribute_location(1, None, None),
+        ),
+    );
+    assert_eq!(format!("{:?}", EditErrorKind::Namespace), "Namespace");
+    assert_eq!(
+        format!("{:?}", EditErrorKind::DuplicateAttribute),
+        "DuplicateAttribute"
+    );
+    assert_eq!(
+        format!("{:?}", EditErrorKind::IdentifierExhausted),
+        "IdentifierExhausted"
+    );
+    assert_eq!(format!("{:?}", PrefixPolicy::Automatic), "Automatic");
+    assert_eq!(
+        format!("{:?}", PrefixPolicy::Exact(Some("p"))),
+        "Exact(Some(\"p\"))"
+    );
+
+    let name = spec_name(&local, Some("urn:model"), PrefixPolicy::Automatic);
+    let attribute = AttributeSpec {
+        name,
+        value: &value,
+    };
+    let namespace = NamespaceSpec {
+        prefix: Some("p"),
+        uri: "urn:model",
+    };
+    let attribute_debug = format!("{attribute:?}");
+    assert!(attribute_debug.contains(&local));
+    assert!(attribute_debug.contains(&format!("{value:?}")));
+    let namespace_debug = format!("{namespace:?}");
+    assert!(namespace_debug.contains("urn:model"));
+    let name_debug = format!("{name:?}");
+    assert!(name_debug.contains(&local));
+    assert!(name_debug.contains("Automatic"));
+    assert!(format!("{:?}", ElementItem::Attribute(attribute)).contains("Attribute"));
+    assert!(format!("{:?}", ElementItem::Namespace(namespace)).contains("Namespace"));
+    let items = [
+        ElementItem::Namespace(namespace),
+        ElementItem::Attribute(attribute),
+    ];
+    let element_debug = format!(
+        "{:?}",
+        ElementSpec {
+            name,
+            items: &items,
+        }
+    );
+    assert!(element_debug.contains(&local));
+    assert!(element_debug.contains("urn:model"));
+    assert!(element_debug.contains(&format!("{value:?}")));
+}
+
 fn located(kind: EditErrorKind, location: EditLocation) -> EditError {
     EditError {
         kind,
@@ -958,6 +1043,7 @@ pub(super) fn exercise(input: &[u8]) {
     repeated_borrowed_strings(input);
     persistent_counters(input);
     handle_and_kind_rejections(input);
+    sparse_format_and_debug_contract(input);
 }
 
 #[cfg(test)]
@@ -991,5 +1077,67 @@ mod tests {
             global(EditErrorKind::LimitExceeded(EditLimit::CreatedNodes)),
             global(EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes)),
         );
+    }
+
+    #[test]
+    fn construction_display_catalog_propagates_sink_failures() {
+        let cases = [
+            (
+                located(
+                    EditErrorKind::Namespace,
+                    EditLocation::ElementName {
+                        component: EditComponent::LocalName,
+                        byte_offset: Some(3),
+                    },
+                ),
+                "XML edit error Namespace at ElementName { component: LocalName, byte_offset: Some(3) }",
+            ),
+            (
+                located(
+                    EditErrorKind::Namespace,
+                    EditLocation::NamespaceItem {
+                        index: 2,
+                        component: Some(EditComponent::NamespaceUri),
+                        byte_offset: Some(5),
+                    },
+                ),
+                "XML edit error Namespace at NamespaceItem { index: 2, component: Some(NamespaceUri), byte_offset: Some(5) }",
+            ),
+            (
+                located(
+                    EditErrorKind::DuplicateAttribute,
+                    EditLocation::AttributeItem {
+                        index: 7,
+                        component: Some(EditComponent::Prefix),
+                        byte_offset: None,
+                    },
+                ),
+                "XML edit error DuplicateAttribute at AttributeItem { index: 7, component: Some(Prefix), byte_offset: None }",
+            ),
+            (
+                located(
+                    EditErrorKind::InvalidCharacter,
+                    EditLocation::AttributeItem {
+                        index: 1,
+                        component: Some(EditComponent::Value),
+                        byte_offset: Some(9),
+                    },
+                ),
+                "XML edit error InvalidCharacter at AttributeItem { index: 1, component: Some(Value), byte_offset: Some(9) }",
+            ),
+            (
+                global(EditErrorKind::IdentifierExhausted),
+                "XML edit error IdentifierExhausted",
+            ),
+        ];
+        for (error, expected) in cases {
+            assert_eq!(error.to_string(), expected);
+            super::super::check_display(&error);
+        }
+    }
+
+    #[test]
+    fn sparse_format_path_exercises_bounded_public_debug_values() {
+        sparse_format_and_debug_contract(&[0x2a, 1, 2, 3]);
     }
 }
