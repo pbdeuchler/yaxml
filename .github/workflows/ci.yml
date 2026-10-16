@@ -81,7 +81,13 @@ jobs:
             -DLIBXML2_WITH_TESTS=OFF -DLIBXML2_WITH_PROGRAMS=ON \
             -DLIBXML2_WITH_XPATH=ON -DLIBXML2_WITH_OUTPUT=ON
           cmake --build target/oracle/build --target xmllint --parallel 2
+          cc -std=c11 -Wall -Wextra -Werror \
+            -Itarget/oracle/build -Itarget/oracle/libxml2-2.15.4/include \
+            tooling/libxml2_structure.c target/oracle/build/libxml2.a \
+            -lm -pthread -ldl -o target/oracle/structure-helper
           target/oracle/build/xmllint --version > target/oracle/version.txt 2>&1
+          target/oracle/structure-helper --version > target/oracle/structure-version.txt
+          cc --version > target/oracle/c-compiler.txt
           cmake -LA -N target/oracle/build > target/oracle/build-options.txt
       - name: Compare acceptance and independent infosets
         shell: bash
@@ -93,6 +99,15 @@ jobs:
           cargo run --release --example fuzz_replay -- \
             --libxml2 "$PWD/target/oracle/build/xmllint" fuzz/corpus/* \
             2>&1 | tee target/oracle/comparison.txt
+      - name: Compare leaf insertion and permanent removal
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum tooling/libxml2_structure.c examples/support/structure.rs \
+            > target/oracle/structure-source-sha256.txt
+          cargo run --release --example structure_oracle -- \
+            --libxml2-helper "$PWD/target/oracle/structure-helper" \
+            2>&1 | tee target/oracle/structure-comparison.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -104,3 +119,7 @@ jobs:
             target/oracle/compiler.txt
             target/oracle/revision.txt
             target/oracle/corpus-sha256.txt
+            target/oracle/structure-version.txt
+            target/oracle/structure-comparison.txt
+            target/oracle/structure-source-sha256.txt
+            target/oracle/c-compiler.txt
