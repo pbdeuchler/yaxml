@@ -1,0 +1,110 @@
+Private measure_push outlining diagnostic
+=======================================
+
+This is diagnostic evidence only. It does not change the repository, replace
+its published benchmark method, or remove the original ownership regressions.
+No production inlining hint is proposed or implemented.
+
+Pinned exports:
+- base: 2609aeff4c5287b5fbbdadd15eb55b1cbd296aa0 (242 tracked files)
+- candidate: e3dafa83ca2f7b2430a0613824010c337b8386ec (247 tracked files)
+
+Each export was first built unmodified. Then exactly one line,
+#[inline(never)], was inserted immediately before fn measure_push in
+examples/parse_bench.rs. Every other exported file still matches its Git blob.
+The original helper snapshots, exact patches and before/after source manifests
+are retained here. No dependency, core parser, observer or protocol changed.
+
+Compiler: rustc 1.95.0, LLVM 22.1.2, aarch64-apple-darwin; Cargo 1.95.0.
+Release: opt-level 3, thin LTO, one codegen unit, no debug assertions or overflow
+checks, panic unwind; RUSTFLAGS/CARGO_ENCODED_RUSTFLAGS and compiler wrappers
+cleared. Exact commands and verbose compiler invocations are in build.sh and
+*-build.stderr. Both library and helper Cargo fingerprint JSON objects match
+those of their retained original builds, including profile/config/rustflags.
+
+Binary identity control:
+The first build script deliberately attempted exact whole-binary equivalence
+with the retained original helpers. That guard failed before any timing ran.
+The failure is preserved in yaxml-push-outline-build.stderr; build.sh therefore
+has no successful build-complete marker. The parent explicitly authorized the
+fresh unmodified A/B control and outlined A/B comparison after this result.
+
+SHA256:
+retained base:      8fdbb1f7b85eaae4305a07f7a54c3e8ad0a98ca1439c3b47409be5f0f1db5b3d
+fresh base:         55a0fc27deb3b4e4222a107868ca3bbb2dd59d132943918639b6141d3a1b1e7b
+outlined base:      d6bceb6e8a15e0e58eb4e410542e18735ba118ac5471a0c85993acdbe7202588
+retained candidate: 1c35473ab41905a231ced141497550c12f24b2426c7acc4402e9fc0fd3defdfe
+fresh candidate:    59f2028b93c84cf03a8209165185e2f64b555ea246859474579c75460b8afb5f
+outlined candidate:2312471cdd09cff41ea711b8b823937f602040a23696d082067655319e53c326
+
+Build paths differ: retained base uses the text-normalization integration and
+/private/tmp/yaxml-text-normalization-ab-target; retained candidate uses
+/private/tmp/yaxml-name-ownership-integration and
+/private/tmp/yaxml-name-release-target. Fresh sources are base-src and
+candidate-src under this evidence directory, with a separate target for each
+of four builds. CARGO_MANIFEST_DIR/PATH, output/dependency paths and library
+search paths consequently differ; verbose logs retain them exactly. The exact
+cause of whole-file SHA differences was not isolated, and path effects are not
+assumed absent. After normalizing displayed instruction/target addresses and
+legacy Rust symbol hashes, the ENTIRE benchmark function, Stream::advance,
+Tokenizer::advance and append_slice match between each original and its fresh
+unmodified helper. Fresh unmodified A/B also reproduces the regression.
+
+Measurements:
+Four frozen workloads, 15 alternating pairs each, fresh child per helper
+invocation, one discarded preflight per helper/workload; same fixed iteration
+counts from the immutable 233638a matrix. The process runner enforces 60-second
+and 4 KiB output bounds, exit/stderr/schema/work checks. Every observation
+matches the frozen six counters plus hash. Input bytes are compared before and
+after each measured helper call. A pair is published only after both pass.
+Times below are median (parse_ns + drop_ns) / iterations, in milliseconds.
+
+workload          fresh base  fresh cand  B/C     outline base outline cand B/C
+text push 1       6.783708    6.810828    0.9960  6.734427     6.750062     0.9977
+text push 7       2.214850    2.479927    0.8931  2.266570     2.266998     0.9998
+text push 8192    1.214083    1.217314    0.9973  1.213822     1.213139     1.0006
+deep push 8192    0.025375    0.026020    0.9752  0.025742     0.025915     0.9933
+
+Totals: 120 complete pairs, 240 measured rows. All raw samples, minima/maxima,
+exact batch work and independently regenerated summary rows are retained.
+Original full65/seven-sample and focused14/15-sample raw results and summaries
+are copied unchanged into original-full-results and original-repeat-results.
+They retain original text push7 ratios 0.8950 and 0.8941, respectively. Their
+original buffered7/deep-reader regressions were NOT retested by this diagnostic.
+No CPU governor/pinning/OS-idle claim is made. Parent and other agent CPU jobs
+were quiesced during this exclusive build/timing lease. The two sets ran in
+sequence, each alternating base/candidate internally; the cross-set differences
+are not separate within-variant paired speed estimates.
+
+Assembly:
+Disassembled using installed Rust LLVM 22.1.6 tools, which read the LLVM 22.1.2
+Mach-O binaries. Exact .s/.nm files and normalized selected functions retained.
+Ordinary Stream::advance, Tokenizer::advance and append_slice implementations
+are unchanged in the original comparison. Their normalized instruction counts
+are 334, 778 and 100, respectively. No added no-event feed call or spill was found.
+The original benchmark frame shrinks 0x810 -> 0x7f0; it allocates once per
+benchmark invocation, not once per feed. The standalone feed_with symbol is an
+OwnedBuilder instantiation, not this benchmark's inlined feed loop.
+
+After outlining, measure_push has 469 base / 462 candidate instructions, with
+local frames 0x600 / 0x5f0 plus the same 0x60 save area. Its ordinary no-event
+feed instructions retain the same register assignments and parser stack
+placement in both variants; differences in the surrounding function concern
+frame size, event representation, branch offsets and metadata. Decoder/tokenizer
+ordinary instructions remain unchanged. Removing cross-mode caller context
+removes this measured ratio gap. This supports caller/codegen-context sensitivity
+and contradicts added per-feed semantic work or frame bloat as an explanation.
+It does not identify a microarchitectural cause or justify a production hint.
+
+Validation:
+audit.rb rechecks current identities against identical before/end manifests,
+all exported files against Git blobs (with the one explicit attribute exception),
+each 15-pair alternating inventory, exact work and all observations against the
+immutable baseline, every summary field from raw measurements, and unchanged
+copies of original full/repeat results. audit.log contains its passing output.
+identity-verified records timing completion/identity success. The final artifact
+manifest excludes Cargo target internals, includes all exported sources and
+analysis/raw artifacts, and separately records the measured binaries/external
+references through external-sha256.tsv and identity-before/after.tsv.
+
+All build and timing handles are terminal. No further experiments were run.

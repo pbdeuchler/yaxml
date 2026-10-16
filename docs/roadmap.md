@@ -68,6 +68,21 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   outlier did not repeat in 31 samples. Full XMLTS results remain unchanged.
   Fresh fuzz-only coverage is 6,808/7,260 regions and 913/964 branch outcomes;
   100% and performance superiority over libxml2 remain open.
+- [x] Establish [owned-capable names and PI targets](validation-name-ownership.md)
+  for future parser-owned replacement input: validated private QName storage,
+  constant-time getters/views, independent ownership and Unicode tests, and
+  fuzz dispatch. Name, Attribute, Element, Event and borrowing NodeKind are each
+  sixteen bytes smaller on the measured compiler. Complete XMLTS results remain
+  unchanged. Fresh fuzz-only coverage is 6,878/7,331 regions and 909/962 branch
+  outcomes, including all instrumented outcomes in `name.rs`. The original
+  performance matrix retains repeated streaming/deep regressions; controlled
+  helper outlining removes the seven-byte push difference without library
+  changes. This needed functionality is accepted with documented performance
+  debt; the benchmark remains unchanged. DTD acceptance and 100% remain open.
+- [ ] Establish original-input versus replacement-source provenance across
+  events, diagnostics and both DOMs before activating the remaining
+  [DTD foundations](plans/dtd-foundations.md). Preserve physical stream position,
+  UTF-16 source mapping, bounded expansion and explicit external-resource policy.
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
 - [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
 - [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.

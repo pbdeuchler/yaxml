@@ -1,0 +1,6 @@
+type	size_bytes	align_bytes
+Name	56	8
+Attribute	80	8
+Element	80	8
+Event	88	8
+NodeKind	80	8
