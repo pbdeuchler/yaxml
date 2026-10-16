@@ -3,6 +3,9 @@
 #[path = "../fuzz/driver.rs"]
 mod driver;
 
+#[path = "support/capture.rs"]
+mod capture;
+
 use std::borrow::Cow;
 
 use yaxml::{
@@ -76,10 +79,14 @@ fn assert_round_trip(input: &[u8], output: &[u8]) {
     let events = read(output);
     let document = Document::parse_bytes(output).unwrap();
     driver::check_projection(&document, &events);
-    let expected: Vec<_> = events.into_iter().map(driver::Captured::from).collect();
+    let expected: Vec<_> = capture::slice_events(output)
+        .unwrap()
+        .into_iter()
+        .map(|(event, _)| event)
+        .collect();
     for size in [1, 2, 3, 7, 31] {
         let schedule = vec![size; output.len().div_ceil(size)];
-        let actual: Vec<_> = driver::push_events(output, &schedule, yaxml::Limits::default())
+        let actual: Vec<_> = capture::push_events(output, &schedule, yaxml::Limits::default())
             .unwrap()
             .into_iter()
             .map(|(event, _)| event)

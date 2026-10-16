@@ -3,9 +3,10 @@
 
 use std::collections::HashSet;
 use std::ops::{ControlFlow, Range};
-use yaxml::{
-    Document, Error, ErrorKind, Event, Limits, Name, NodeKind, PushParser, ReadError, Reader,
-};
+use yaxml::{Document, Error, ErrorKind, Event, Limits, NodeKind, PushParser, ReadError, Reader};
+
+#[path = "writer.rs"]
+mod writer;
 
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
@@ -42,6 +43,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
         assert_eq!(document.is_ok(), Document::parse(text).is_ok());
     }
     check_streaming(input, outcome.error);
+    writer::exercise(input, outcome.error.is_none());
     // Vary policy independently from grammar bytes without needing a runtime.
     let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
     exercise_with_limits(
@@ -79,7 +81,7 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
         }
         Err(error) => check_error(error, input.len()),
     }
-    let incremental = push_events(input, &[input.len()], limits);
+    let incremental = drive_push(input, &[input.len()], limits, |_, _| {});
     if !matches!(&incremental, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
     {
         assert_eq!(
@@ -175,7 +177,7 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
             Event::End(name) => {
                 let parent = parents.pop().expect("end event without open element");
                 let node = document.node(parent).unwrap();
-                assert_eq!(node.name(), Some(name), "end name differs from DOM");
+                assert!(node.name() == Some(name), "end name differs from DOM");
                 continue;
             }
             _ => {}
@@ -189,8 +191,8 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
         );
         match (event, node.kind()) {
             (Event::Start(expected) | Event::Empty(expected), NodeKind::Element(actual)) => {
-                assert_eq!(
-                    actual, expected,
+                assert!(
+                    actual == expected,
                     "element names or attributes differ from stream"
                 );
                 if matches!(event, Event::Start(_)) {
@@ -200,7 +202,7 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
             (Event::Text(expected), NodeKind::Text(actual))
             | (Event::Cdata(expected), NodeKind::Cdata(actual))
             | (Event::Comment(expected), NodeKind::Comment(actual)) => {
-                assert_eq!(actual, expected, "DOM payload differs from stream");
+                assert!(actual == expected, "DOM payload differs from stream");
             }
             (
                 Event::ProcessingInstruction {
@@ -212,16 +214,13 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                     data: actual_data,
                 },
             ) => {
-                assert_eq!(
-                    actual_target, expected_target,
+                assert!(
+                    actual_target == expected_target,
                     "PI target differs from stream"
                 );
-                assert_eq!(actual_data, expected_data, "PI data differs from stream");
+                assert!(actual_data == expected_data, "PI data differs from stream");
             }
-            _ => panic!(
-                "DOM node kind differs from stream: {event:?} versus {:?}",
-                node.kind()
-            ),
+            _ => panic!("DOM node kind differs from stream"),
         }
     }
     assert!(parents.is_empty(), "stream did not close every element");
@@ -321,101 +320,30 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
     }
 }
 
-/// Owned callback values, compared by fields rather than debug formatting.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Captured {
-    Declaration(String, Option<String>, Option<bool>),
-    Element(bool, CapturedName, Vec<(CapturedName, String)>),
-    End(CapturedName),
-    Text(String),
-    Cdata(String),
-    Comment(String),
-    Pi(String, String),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CapturedName(String, Option<String>, String, Option<String>);
-
-impl From<&Name<'_>> for CapturedName {
-    fn from(name: &Name<'_>) -> Self {
-        Self(
-            name.qualified.into(),
-            name.prefix.map(str::to_owned),
-            name.local.into(),
-            name.namespace.as_deref().map(str::to_owned),
-        )
-    }
-}
-
-impl From<Event<'_>> for Captured {
-    fn from(event: Event<'_>) -> Self {
-        match event {
-            Event::Declaration(value) => Self::Declaration(
-                value.version.into(),
-                value.encoding.map(str::to_owned),
-                value.standalone,
-            ),
-            Event::Start(value) => Self::Element(
-                false,
-                (&value.name).into(),
-                value
-                    .attributes
-                    .iter()
-                    .map(|a| ((&a.name).into(), a.value.to_string()))
-                    .collect(),
-            ),
-            Event::Empty(value) => Self::Element(
-                true,
-                (&value.name).into(),
-                value
-                    .attributes
-                    .iter()
-                    .map(|a| ((&a.name).into(), a.value.to_string()))
-                    .collect(),
-            ),
-            Event::End(value) => Self::End((&value).into()),
-            Event::Text(value) => Self::Text(value.into_owned()),
-            Event::Cdata(value) => Self::Cdata(value.into_owned()),
-            Event::Comment(value) => Self::Comment(value.into_owned()),
-            Event::ProcessingInstruction { target, data } => {
-                Self::Pi(target.into(), data.into_owned())
-            }
-        }
-    }
-}
-
-pub type CapturedEvent = (Captured, Range<usize>);
-
-pub fn slice_events(input: &[u8]) -> Result<Vec<CapturedEvent>, Error> {
-    let mut parser = Reader::new(input)?;
-    let mut events = Vec::new();
-    while let Some(event) = parser.read_event()? {
-        events.push((event.into(), parser.event_range()));
-    }
-    Ok(events)
-}
-
-pub fn push_events(
+pub(crate) fn drive_push(
     input: &[u8],
     schedule: &[usize],
     limits: Limits,
-) -> Result<Vec<CapturedEvent>, Error> {
+    mut emit: impl FnMut(Event<'_>, Range<usize>),
+) -> Result<(), Error> {
     let control = input.get(input.len() / 2).copied().unwrap_or(0);
     let mut parser = if limits == Limits::default() && control & 1 == 0 {
         PushParser::default()
     } else {
         PushParser::with_limits(limits)
     };
-    let mut events = Vec::new();
+    let mut latest = None;
+    let mut capture = |event: Event<'_>, range: Range<usize>| {
+        latest = Some(range.clone());
+        emit(event, range);
+        ControlFlow::Continue(())
+    };
     let mut previous = 0;
     let mut offset: usize = 0;
     let mut result = Ok(());
     for length in schedule.iter().copied().chain(std::iter::once(input.len())) {
         let end = offset.saturating_add(length).min(input.len());
-        result = parser.feed(&input[offset..end], |event, range| {
-            events.push((event.into(), range));
-            ControlFlow::Continue(())
-        });
+        result = parser.feed(&input[offset..end], &mut capture);
         assert!((previous..=end).contains(&parser.position()));
         previous = parser.position();
         offset = end;
@@ -424,14 +352,11 @@ pub fn push_events(
         }
     }
     if result.is_ok() {
-        result = parser.finish(|event, range| {
-            events.push((event.into(), range));
-            ControlFlow::Continue(())
-        });
+        result = parser.finish(capture);
     }
     assert!(parser.position() <= input.len());
-    if let Some((_, range)) = events.last() {
-        assert_eq!(parser.event_range(), *range);
+    if let Some(range) = latest {
+        assert_eq!(parser.event_range(), range);
     }
     match result {
         Ok(()) => {
@@ -462,7 +387,7 @@ pub fn push_events(
                     },
                 );
             }
-            Ok(events)
+            Ok(())
         }
         Err(error) => {
             check_error(error, input.len());
@@ -502,11 +427,7 @@ fn assert_terminal_io(parser: PushParser, expected: Error) {
 }
 
 fn check_streaming(input: &[u8], slice_error: Option<Error>) {
-    let expected = if slice_error.is_none() {
-        Some(slice_events(input).unwrap())
-    } else {
-        None
-    };
+    let mut expected = slice_error.is_none().then(|| Reader::new(input).unwrap());
     let mut schedule = Vec::new();
     let mut remaining = input.len();
     while remaining != 0 {
@@ -517,7 +438,16 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
         schedule.push(width);
         remaining -= width;
     }
-    let result = push_events(input, &schedule, Limits::default());
+    let result = drive_push(input, &schedule, Limits::default(), |actual, range| {
+        if let Some(expected) = &mut expected {
+            let event = expected
+                .read_event()
+                .unwrap()
+                .expect("extra streaming event");
+            assert!(actual == event, "typed streaming event differs from slice");
+            assert_eq!(range, expected.event_range());
+        }
+    });
     // Streaming owns structural names that the slice reader can borrow.
     if !matches!(&result, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
     {
@@ -527,16 +457,30 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
             "stream/slice acceptance differs for {input:?}"
         );
     }
-    if let (Ok(actual), Some(expected)) = (result, &expected) {
-        assert_eq!(actual, *expected);
+    if result.is_ok() {
+        let expected = expected.as_mut().expect("stream accepted invalid XML");
+        assert!(
+            expected.read_event().unwrap().is_none(),
+            "missing streaming event"
+        );
     }
-    let mut events = Vec::new();
-    let result = PushParser::new().read_from(std::io::Cursor::new(input), |event, range| {
-        events.push((event.into(), range));
+    let mut expected = slice_error.is_none().then(|| Reader::new(input).unwrap());
+    let result = PushParser::new().read_from(std::io::Cursor::new(input), |actual, range| {
+        if let Some(expected) = &mut expected {
+            let event = expected.read_event().unwrap().expect("extra I/O event");
+            assert!(actual == event, "typed I/O event differs from slice");
+            assert_eq!(range, expected.event_range());
+        }
         ControlFlow::Continue(())
     });
     match result {
-        Ok(()) => assert_eq!(Some(events), expected),
+        Ok(()) => {
+            let expected = expected.as_mut().expect("I/O parser accepted invalid XML");
+            assert!(
+                expected.read_event().unwrap().is_none(),
+                "missing I/O event"
+            );
+        }
         Err(ReadError::Xml(error)) => {
             check_error(error, input.len());
             assert!(

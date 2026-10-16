@@ -75,6 +75,58 @@ fn deterministic_arbitrary_bytes() {
 }
 
 #[test]
+fn writer_operation_and_output_selectors() {
+    for control in 0..=255 {
+        for next in [0, 1, 2, 3, 4, 5, 6, 255] {
+            driver::exercise(&[control, next, 255, 7, 3, 255, 255, 1, control]);
+        }
+    }
+    for payload in [
+        b"".as_slice(),
+        b"<>&\"\r\n\t".as_slice(),
+        b"?>",
+        b"]]>",
+        b"--",
+        b"\0",
+        b"plain",
+    ] {
+        for operations in [
+            &[1][..],
+            &[0, 3, 2],
+            &[0, 4, 2],
+            &[0, 5, 2],
+            &[0, 6, 2],
+            &[7, 1],
+            &[1, 1],
+            &[0, 0, 2, 2],
+        ] {
+            for policy in [0, 1] {
+                let mut input = vec![policy, 255, 255, 7, 3, 255, 255, operations.len() as u8];
+                input.extend_from_slice(operations);
+                input.extend_from_slice(payload);
+                driver::exercise(&input);
+            }
+        }
+    }
+}
+
+#[test]
+fn shared_namespace_values_compare_without_owned_snapshots() {
+    // A small source can expose the same URI through many borrowed names.
+    // Lockstep comparison avoids cloning that URI once per attribute/event.
+    let mut input = format!("<r xmlns:p='{}'>", "u".repeat(16 * 1024));
+    for _ in 0..4 {
+        input.push_str("<p:n");
+        for index in 0..128 {
+            input.push_str(&format!(" p:a{index}='v'"));
+        }
+        input.push_str("/>");
+    }
+    input.push_str("</r>");
+    assert!(driver::exercise(input.as_bytes()).error.is_none());
+}
+
+#[test]
 fn generated_valid_documents() {
     for depth in 1..=64 {
         let mut input = String::from("<?xml version='1.0'?><r xmlns='urn:r' xmlns:p='urn:p'>");
