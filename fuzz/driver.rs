@@ -287,7 +287,47 @@ fn check_error(error: Error, len: usize) {
         error.offset <= len,
         "error offset points outside the input: {error}"
     );
-    assert!(!error.to_string().is_empty());
+    check_display(&error);
+}
+
+// Formatting is also a fallible output boundary. Exercise actual errors with
+// sinks that reject the first write or the final byte, then accept everything.
+fn check_display(error: &impl std::fmt::Display) {
+    use std::fmt::Write;
+
+    struct Bounded {
+        output: String,
+        limit: usize,
+    }
+
+    impl Write for Bounded {
+        fn write_str(&mut self, text: &str) -> std::fmt::Result {
+            if text.len() > self.limit - self.output.len() {
+                return Err(std::fmt::Error);
+            }
+            self.output.push_str(text);
+            Ok(())
+        }
+    }
+
+    let expected = error.to_string();
+    assert!(!expected.is_empty(), "empty error display");
+    for limit in [0, expected.len() - 1, expected.len()] {
+        let mut sink = Bounded {
+            output: String::new(),
+            limit,
+        };
+        let result = write!(&mut sink, "{error}");
+        assert_eq!(
+            result.is_ok(),
+            limit == expected.len(),
+            "error display did not propagate formatter failure"
+        );
+        assert!(expected.starts_with(&sink.output));
+        if result.is_ok() {
+            assert_eq!(sink.output, expected);
+        }
+    }
 }
 
 fn check_document(document: &Document<'_>, len: usize, events: usize) {
@@ -641,7 +681,7 @@ fn check_io_schedule(input: &[u8]) {
         "I/O adapter read beyond its terminal operation"
     );
     if let Err(error) = &result {
-        assert!(!error.to_string().is_empty());
+        check_display(error);
         assert!(std::error::Error::source(error).is_some());
     }
     match result {
@@ -664,5 +704,50 @@ fn check_io_schedule(input: &[u8]) {
         }
         Ok(()) => assert!(cancelled.is_none()),
         Err(error) => panic!("unexpected read error: {error}"),
+    }
+}
+
+#[cfg(test)]
+mod formatting_tests {
+    use super::check_display;
+    use yaxml::{EditError, EditErrorKind, Error, ErrorKind, ReadError, WriteError};
+
+    #[test]
+    fn real_errors_obey_formatter_failure_before_and_during_offsets() {
+        let error = Error {
+            kind: ErrorKind::InvalidCharacter,
+            offset: usize::MAX,
+        };
+        check_display(&error);
+        check_display(&ReadError::Xml(error));
+        check_display(&ReadError::Io(std::io::Error::other("read failure")));
+        check_display(&WriteError::Xml(error));
+        check_display(&WriteError::Io(std::io::Error::other("write failure")));
+        for value_offset in [None, Some(0), Some(usize::MAX)] {
+            check_display(&EditError {
+                kind: EditErrorKind::InvalidValue,
+                value_offset,
+            });
+        }
+        check_display(&"Unicode: 中😀");
+    }
+
+    #[test]
+    #[should_panic(expected = "error display did not propagate formatter failure")]
+    fn oracle_rejects_a_formatter_that_swallows_sink_errors() {
+        struct Swallowed;
+        impl std::fmt::Display for Swallowed {
+            fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let _ = output.write_str("ignored failure");
+                Ok(())
+            }
+        }
+        check_display(&Swallowed);
+    }
+
+    #[test]
+    #[should_panic(expected = "empty error display")]
+    fn oracle_rejects_an_empty_error_display() {
+        check_display(&"");
     }
 }

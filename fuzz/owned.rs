@@ -48,7 +48,7 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
         }
         Err(error) => {
             assert!(error.offset <= input.len());
-            assert!(!error.to_string().is_empty());
+            super::check_display(&error);
             // Pool reservations share the normalization budget. They can fail
             // before the borrowing reader reaches a later syntax error.
             if error.kind != ErrorKind::LimitExceeded(Limit::OwnedBytes) {

@@ -17,6 +17,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 
 | Implemented input surface | Exercise path | Oracle or invariant |
 | --- | --- | --- |
+| `Error`, `EditError`, `ReadError`, `WriteError` display | Actual parser, editor and I/O failures through `driver::check_display` | Complete deterministic message; formatter rejection at the first write and before the final byte propagates `fmt::Error`; successfully written prefixes match the full message |
 | `Reader::new`, `with_limits`, `read_event`, `position`, `event_range` | `driver::exercise`, `exercise_with_limits` | Bounded forward progress; terminal EOF/error; valid error offsets and event spans |
 | `Document::parse_bytes` | `driver::exercise` | Acceptance matches complete reader consumption; structural invariants |
 | `Document::parse` | `driver::exercise`, for valid UTF-8 | Acceptance matches byte input |

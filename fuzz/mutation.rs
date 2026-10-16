@@ -483,7 +483,7 @@ impl State {
                 "owned edit disagrees with independent model"
             );
             if let Err(error) = result {
-                assert!(!error.to_string().is_empty());
+                super::check_display(&error);
                 assert!(std::error::Error::source(&error).is_none());
             }
             check_document(
@@ -569,6 +569,10 @@ impl State {
             expected,
             "structural edit disagrees with independent prediction"
         );
+        if let Err(error) = &actual {
+            super::check_display(error);
+            assert!(std::error::Error::source(error).is_none());
+        }
         let mut saved = None;
         if let Ok(result) = actual {
             match action {
