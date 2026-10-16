@@ -13,7 +13,7 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::time::Duration;
-use yaxml::{Error, ErrorKind};
+use yaxml::{Document, Error, ErrorKind, Limit, OwnedDocument, WriteError, Writer, WriterLimits};
 
 use infoset::{Projection, ProjectionError};
 use process::ProcessLimits;
@@ -198,13 +198,69 @@ impl Oracle {
                 String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(4096)])
             );
         }
-        Ok(compare_output(
+        let comparison = compare_output(
             classify(output.status.code(), output.stderr.is_empty()),
             error.is_none(),
             &output.stdout,
             projection.as_ref().map(Projection::expected),
             limit,
-        ))
+        );
+        if comparison != Comparison::Semantic {
+            return Ok(comparison);
+        }
+        let Some(serialized) = serialize_for_oracle(input)? else {
+            return Ok(Comparison::AcceptanceOnly("serialized storage bytes"));
+        };
+        // Reuse the original tree's query and expected values. The independent
+        // oracle evaluates the new bytes without reparsing them through yaxml.
+        let output = process::run(&self.path, &args, &serialized, self.limits)?;
+        Ok(serialized_comparison(compare_output(
+            classify(output.status.code(), output.stderr.is_empty()),
+            true,
+            &output.stdout,
+            projection.as_ref().map(Projection::expected),
+            None,
+        )))
+    }
+}
+
+fn serialize_for_oracle(input: &[u8]) -> io::Result<Option<Vec<u8>>> {
+    // UTF-16 can decode to at most three UTF-8 bytes per code unit; escaping a
+    // quote can then expand sixfold. The input is already capped at one MiB.
+    let ceiling = input.len().saturating_mul(9).saturating_add(1024);
+    let mut writer = Writer::with_limits(
+        Vec::new(),
+        WriterLimits {
+            max_output_bytes: ceiling,
+            max_token_bytes: ceiling,
+            ..WriterLimits::default()
+        },
+    );
+    let result = match Document::parse_bytes(input) {
+        Ok(document) => writer.write_document(&document),
+        Err(_) => match OwnedDocument::parse_bytes(input) {
+            Ok(document) => writer.write_owned_document(&document),
+            Err(error) => Err(WriteError::Xml(error)),
+        },
+    };
+    match result {
+        Ok(()) => Ok(Some(writer.into_inner())),
+        Err(WriteError::Xml(error))
+            if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes) =>
+        {
+            Ok(None)
+        }
+        Err(error) => Err(io::Error::other(error)),
+    }
+}
+
+fn serialized_comparison(comparison: Comparison) -> Comparison {
+    match comparison {
+        Comparison::Disagreement("acceptance") => Comparison::Disagreement("serialized acceptance"),
+        Comparison::Disagreement(_) => {
+            Comparison::Disagreement("serialized infoset values or structure")
+        }
+        other => other,
     }
 }
 
@@ -292,7 +348,7 @@ impl Counts {
             }
             Comparison::Semantic => {
                 self.semantic += 1;
-                "acceptance and infoset agreement".to_owned()
+                "input and serialized output acceptance and infoset agreement".to_owned()
             }
             Comparison::AcceptanceOnly(reason) => {
                 self.acceptance_only += 1;
@@ -427,6 +483,56 @@ mod tests {
             (None, false, None),
         ] {
             assert_eq!(classify(code, empty), expected);
+        }
+    }
+
+    #[test]
+    fn serialized_oracle_bytes_and_dispositions() {
+        for (input, expected) in [
+            ("<r></r>", "<r/>"),
+            (
+                "<?xml version='1.0' encoding='uTf-8'?><r><![CDATA[]]></r>",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><r><![CDATA[]]></r>",
+            ),
+        ] {
+            assert_eq!(
+                serialize_for_oracle(input.as_bytes()).unwrap().unwrap(),
+                expected.as_bytes()
+            );
+        }
+        let text = "<?xml version='1.0' encoding='UTF-16'?><r>😀</r>";
+        for little in [true, false] {
+            let mut input = if little {
+                vec![0xff, 0xfe]
+            } else {
+                vec![0xfe, 0xff]
+            };
+            for unit in text.encode_utf16() {
+                input.extend_from_slice(&if little {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                });
+            }
+            assert_eq!(
+                serialize_for_oracle(&input).unwrap().unwrap(),
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><r>😀</r>".as_bytes()
+            );
+        }
+        assert!(serialize_for_oracle(b"<r>").is_err());
+        for (comparison, expected) in [
+            (Comparison::Semantic, Comparison::Semantic),
+            (Comparison::Inconclusive, Comparison::Inconclusive),
+            (
+                Comparison::Disagreement("acceptance"),
+                Comparison::Disagreement("serialized acceptance"),
+            ),
+            (
+                Comparison::Disagreement("infoset values or structure"),
+                Comparison::Disagreement("serialized infoset values or structure"),
+            ),
+        ] {
+            assert_eq!(serialized_comparison(comparison), expected);
         }
     }
 

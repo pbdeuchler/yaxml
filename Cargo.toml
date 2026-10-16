@@ -20,6 +20,10 @@ harness = false
 name = "pull"
 harness = false
 
+[[bench]]
+name = "serialize"
+harness = false
+
 [lints.rust]
 unsafe_code = "forbid"
 

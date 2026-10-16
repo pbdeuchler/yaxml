@@ -21,6 +21,18 @@ output ceilings separately. Failure to build a bounded projection is an
 explicit skipped semantic comparison, never semantic agreement. The replay CLI
 still checks acceptance in that case and counts it separately.
 
+After the original input agrees, the replay CLI serializes the complete tree
+and runs the same query against the output, using the original expected values.
+UTF-8 uses `write_document`; UTF-16 uses `write_owned_document`. The output is
+UTF-8 and bounded by `9 * original_input.len() + 1024`, allowing UTF-16 decoding
+and XML escaping. Each subprocess retains the same time/output limits. An
+owning-parser or writer OwnedBytes ceiling is separately counted as acceptance
+only (`serialized storage bytes`), never full semantic agreement. Other
+serialization failures fail the replay. A semantic result therefore requires
+both the original and serialized bytes to agree with the projection. This
+comparison inherits every omission listed below; the strict fuzz tree oracle
+separately checks declarations, ordered XMLNS attributes and empty lexical nodes.
+
 The first field is libxml2's actual normalized descendant node count. For each
 node in document order, subsequent fields contain kind, depth, qualified name,
 local name, namespace URI, value and actual attribute count. Attribute fields

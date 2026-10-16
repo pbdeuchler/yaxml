@@ -23,13 +23,19 @@ fn main() -> io::Result<()> {
     }
     let mut input = Vec::new();
     io::stdin().take(1024).read_to_end(&mut input)?;
-    if !matches!(input.as_slice(), b"<r/>" | b"<r>") {
+    if !matches!(input.as_slice(), b"<r/>" | b"<r></r>" | b"<r>") {
         return Err(io::Error::other(
             "fixture received unexpected testcase bytes",
         ));
     }
     match mode {
-        "agree" | "other-version" => {
+        "serialize-reject" if input == b"<r/>" => std::process::exit(4),
+        "serialize-disagree" if input == b"<r/>" => {
+            io::stdout().write_all(b"1:11:11:11:s1:s0:0:1:0\n")?;
+        }
+        "serialize-inconclusive" if input == b"<r/>" => std::process::exit(9),
+        "agree" | "other-version" | "serialize-reject" | "serialize-disagree"
+        | "serialize-inconclusive" => {
             io::stdout().write_all(b"1:11:11:11:r1:r0:0:1:0\n")?;
         }
         "disagree" => {

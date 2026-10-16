@@ -19,9 +19,44 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/utf16be-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
     include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
+    include_bytes!("../fuzz/corpus/serialize.xml"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
+
+#[test]
+fn document_serialization_semantics_and_independent_quotas() {
+    for body in [
+        "<r/>",
+        "<r></r>",
+        "<r>a</r>",
+        "<r>&amp;</r>",
+        "<r a='&#9;'/>",
+        "<r><![CDATA[]]></r>",
+        "<r><a/><b/></r>",
+        "<r><a>x</a><a>x</a></r>",
+        "<!--before--><?p?><r xmlns:p='urn:p' xmlns:q='urn:unused' a='q:T'><p:c/>x<![CDATA[]]><!----><c xmlns='urn:d'><c xmlns=''/></c></r><!--after-->",
+        "<é:r xmlns:é='urn:p' é:a='&#9;&#10;&#13;&quot;&amp;&lt;'>🙂&#13;<![CDATA[中]]><?空 data?></é:r>",
+    ] {
+        assert!(driver::exercise(body.as_bytes()).error.is_none());
+        for little in [false, true] {
+            assert!(driver::exercise(&utf16(body, little, true)).error.is_none());
+            let declared =
+                format!("<?xml version='1.00' encoding='UTF-16' standalone='no'?>{body}");
+            assert!(
+                driver::exercise(&utf16(&declared, little, true))
+                    .error
+                    .is_none()
+            );
+        }
+    }
+    for source in [
+        "<?xml version='1.0' encoding='uTf-8' standalone='yes'?><r/>",
+        "\u{feff} \n<r><![CDATA[]]><!--x--><?p?></r>\t",
+    ] {
+        assert!(driver::exercise(source.as_bytes()).error.is_none());
+    }
+}
 
 #[test]
 fn pull_schedules_and_independent_policy_boundaries() {

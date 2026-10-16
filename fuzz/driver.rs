@@ -17,6 +17,9 @@ mod encoding;
 #[path = "pull.rs"]
 mod pull;
 
+#[path = "serialize.rs"]
+mod serialize;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -51,6 +54,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     if let Ok(document) = &document {
         check_document(document, input.len(), outcome.events);
         check_projection(document, &stream);
+        serialize::borrowed(document, input);
     }
     owned::exercise(
         input,

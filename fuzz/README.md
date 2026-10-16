@@ -27,6 +27,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `PushParser::read_from` | Cursor plus bounded scheduled and invalid-count readers | Same events/spans; one Interrupted retry; original injected I/O error kind/message; cancellation stops reads; terminal parser states perform no I/O; oversized reported counts are rejected |
 | DOM traversal and node access | Successful document checks | Unique IDs; preorder traversal; parent/child/sibling agreement; nested source ranges; subtree sizes |
 | `Writer::new`, `with_limits`, `write_event`, `finish`, `position`, `into_inner` | Accepted reader events, generated caller-created event sequences and scheduled sinks | Exact typed round trips; complete output reparses; malformed operations emit no bytes; finite encoded bounds; confirmed partial positions; sticky failure; no I/O after failure or repeated successful finish |
+| `Writer::write_document`, `write_owned_document` | `serialize::borrowed`, `serialize::owned`, UTF-8 and independently decoded UTF-16 references | Complete tree/declaration comparison; exact output and quota goldens; fresh-writer requirement; short/interrupted/invalid writes, prefix and flush faults; successful completion and terminal misuse |
 | XML normalization and references | Reader/DOM corpora and generated documents | Exercised indirectly; semantic golden tests are also required in the ordinary test suite |
 | `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 | `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
@@ -87,6 +88,39 @@ Reparsing alone cannot detect a raw delimiter that changes the caller's value in
 
 The first two bytes independently select a small fixed valid output operation's sink schedule: short writes, one write/flush interruption, zero/oversized counts, a failure after a chosen prefix, immediate failure, or flush failure. Checks preserve the original I/O kind/message/source, confirmed output position and no subsequent I/O. Recovered sink panics are covered by ordinary tests, not the fuzz target, since the replay harness treats unexpected panics as crashes. No output-performance claim follows from these checks.
 
+Complete-document serialization has a separate oracle in `fuzz/serialize.rs`.
+Both borrowed and owned helpers serialize accepted trees, reparse the entire
+output and compare every node kind, name, namespace, ordered attribute, payload,
+PI target, declaration and navigation link. Node counts and complete DOM parsing
+prevent a matching prefix from concealing omitted or extra output. Comparisons
+borrow views rather than retaining namespace snapshots. Encoding labels become
+`UTF-8`; declaration absence, version and standalone remain exact. Source ranges,
+top-level whitespace and the lexical distinction between `<r/>` and `<r></r>`
+are not retained by the DOM. Empty CDATA, comments and PIs remain distinct nodes.
+
+The output ceiling is `6 * reference.len() + 1024`; reparse input/token ceilings
+are raised accordingly. A valid reference of at most 256 bytes must serialize
+successfully with default string budgets. Larger inputs may exhaust the
+cumulative owned-string budget, but only that specific error is allowed and it
+must poison the writer. This restriction prevents blanket OwnedBytes rejection,
+including on owned UTF-16 trees. A prior empty Text event must consume freshness;
+reusing a completed document writer must fail without further I/O.
+
+Seven small canonical shapes have independent literal output and below/exact/
+above ceilings for output bytes, encoded token bytes, output event count,
+attributes, depth and cumulative owned-string bytes. In particular,
+`<r><a>x</a><a>x</a></r>` requires three owned bytes and `<r>&amp;</r>` requires
+six; these catch per-token resets and duplicate normalization charges. Every
+shape runs through borrowed, owned UTF-8 and both UTF-16 orders, with deterministic
+sink selectors independent of grammar bytes. Scheduled sinks compare accepted
+prefixes directly with the expected output and preserve injected error identity,
+confirmed positions and the final flush. Arbitrary outputs up to 4096 bytes also
+run an input-selected sink schedule. Recovered sink panics, deep iterative
+traversal, retained capacity and allocation-failure evidence require ordinary
+tests and measurement in addition to these fuzz assertions. `serialize.xml`
+combines declaration rewriting, unused namespace declarations, inherited
+prefixes, namespace resets, normalization, empty lexical nodes and epilog nodes.
+
 The same input selects a default constructor and terminal operation sequence. Successful parsing is followed by either an empty/nonempty feed after final EOF or direct I/O consumption of the finished parser. Failed states are also exercised through `read_from` with a source that panics if touched. An input-selected invalid-count reader reports more bytes than its output buffer holds and must produce `InvalidData` after exactly one read. These operations reuse states reached by the testcase; no fixed canonical document is parsed on every invocation.
 
 Acceptance comparisons allow streaming to exhaust its owned-byte budget earlier because it retains names that the slice parser borrows. Arbitrary malformed inputs compare acceptance rather than identical first-error precedence: slice construction validates the complete input first, while streaming validates arriving tokens. Successful inputs require exact values, namespaces, attribute order, event kinds, and spans, with no text coalescing.
@@ -140,7 +174,14 @@ An external process-based fuzzer can feed stdin to the release example without c
 version; it does not change the target. Tree and XPath support are required.
 Accepted fixtures compare complete, independently evaluated XPath values through
 the [bounded infoset protocol](../docs/oracle.md); oracle values never pass through
-yaxml's parser. Rejected fixtures compare acceptance. All invocations use
+yaxml's parser. Once the original comparison succeeds, the complete-document
+helper serializes the tree and a second invocation evaluates those bytes with
+the original query and expected values. UTF-8 uses the borrowing document helper;
+UTF-16 uses the owning helper. Semantic agreement requires both comparisons.
+Projection or serialization storage ceilings remain explicitly counted
+acceptance-only outcomes. This external projection merges text/CDATA and omits
+declaration/XMLNS metadata; the stricter in-process tree comparison above covers
+those fields. Rejected fixtures compare acceptance. All invocations use
 `--nonet --nocatalogs --strict-namespace --nowarning`, with both catalog variables
 explicitly empty. Warnings such as forward-version notices are suppressed;
 namespace errors remain fatal through `--strict-namespace`.

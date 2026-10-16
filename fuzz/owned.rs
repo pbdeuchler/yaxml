@@ -42,6 +42,9 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
         Ok(owned) => {
             let borrowed = borrowed.expect("owned tree accepted invalid XML");
             check_document(&owned, borrowed);
+            if limits == Limits::default() {
+                super::serialize::owned(&owned, borrowed, input);
+            }
         }
         Err(error) => {
             assert!(error.offset <= input.len());

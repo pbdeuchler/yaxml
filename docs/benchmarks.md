@@ -1,4 +1,4 @@
-# Parser benchmark evidence
+# Parser and serialization benchmark evidence
 
 These runners measure yaxml. They do not establish a libxml2 performance win.
 Build release binaries before recording runs; debug execution under
@@ -57,6 +57,63 @@ to each comment, CDATA and PI payload. The runner records `status=rejected` and
 the error if a finite policy ceiling stops a sample, omitting its throughput.
 Namespace URI/depth/attribute axes remain separate experiments. Do not silently
 drop a rejected sample or call an unconsumed input a throughput measurement.
+
+## Complete-document serialization
+
+`cargo bench --bench serialize` measures `Writer::write_document` and
+`write_owned_document` on trees constructed before timing. Each iteration
+constructs a fresh writer and sink, writes the complete document, performs its
+final flush and destroys the writer/sink inside the timed batch. Parsing and tree
+destruction are excluded. The counter sink observes every output slice without
+retaining it; the buffered sink wraps the same counter in an 8 KiB `BufWriter`.
+Each successful iteration verifies confirmed output bytes and one underlying
+flush. Output reports shape, tree form, sink, source bytes, siblings, depth,
+iterations, total output bytes, underlying writes/flushes, elapsed nanoseconds
+and output MiB/s. Buffering changes sink-call overhead; neither sink measures
+filesystem or network performance.
+
+The release matrix uses sibling counts 1/256/4096, both tree forms and both sink
+forms. Debug smoke uses 1/16 and one iteration. Default batches target about one
+MiB of source input, capped at 100 iterations. These selectors reduce an axis to
+one value for controlled series:
+
+| Variable | Values |
+| --- | --- |
+| `YAXML_SERIALIZE_SHAPE` | `flat`, `text`, `normalized`, `lexical`, `namespaces` |
+| `YAXML_SERIALIZE_TREE` | `borrowed`, `owned` |
+| `YAXML_SERIALIZE_SINK` | `counting`, `buffered` |
+| `YAXML_SERIALIZE_SIBLINGS` | Positive sibling count |
+| `YAXML_SERIALIZE_DEPTH` | Positive enclosing element depth, default 1 |
+| `YAXML_SERIALIZE_ATTRIBUTES` | Attributes per namespace fixture child, default 1 |
+| `YAXML_SERIALIZE_PAYLOAD_BYTES` | Text/comment/CDATA/PI payload length, default 32 |
+| `YAXML_SERIALIZE_URI_BYTES` | Namespace URI suffix length, default 16 |
+| `YAXML_SERIALIZE_ITERATIONS` | Positive batch size |
+
+Use independent sibling, depth, attribute, URI and token-length series. Writer
+and parse depth/attribute ceilings follow requested dimensions; other finite
+budgets remain defaults. Rejected samples report `status=rejected` or
+`status=parse_rejected` and an error, without throughput. Do not drop these
+samples. UTF-16 output is outside this API; owning UTF-16 input conversion is
+tested separately and would occur before the serialization clock.
+
+For RSS measurements select a single tree/sink/shape and run the built binary in
+a fresh process. The selected tree and its source input remain live outside the
+clock. Their memory, the sink buffer, allocator caches and process baseline
+contribute to RSS; a whole-process reading does not isolate serializer scratch.
+Private traversal/allocation tests remain necessary to establish stackless
+traversal and reusable metadata capacity. The cumulative string quota does not
+measure live retained bytes. No memory or speed improvement is established by
+this runner alone.
+
+A fair libxml2 2.15.4 serialization comparison needs a separately built
+`xmlSaveDoc` harness with trees prepared outside timing, matched UTF-8 output,
+declaration/empty-element/formatting policy, counting or equivalently buffered
+callback sinks, final flush, context construction/destruction and output-byte
+verification. Namespace repair and richer libxml2 output options change the work.
+Validate semantic equivalence separately and report unavoidable differences;
+do not compare this batch timer with whole-process xmllint startup. The pinned
+[save implementation](https://github.com/GNOME/libxml2/blob/v2.15.4/xmlsave.c)
+defines the reference lifecycle. No matched libxml2 timing harness is supplied.
 
 ## Comparability and reporting
 

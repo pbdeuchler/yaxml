@@ -296,6 +296,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             assert!(valid, "owned tree accepted invalid UTF-16 XML");
             let reference = reference.as_ref().unwrap();
             let borrowed = document.as_ref().unwrap().as_ref().unwrap();
+            super::serialize::owned(&owned, borrowed, reference.canonical.as_bytes());
             let expected = borrowed.declaration();
             match (owned.declaration(), expected) {
                 (Some(actual), Some(expected)) => {
