@@ -6,9 +6,17 @@ and evidence review. Its [matched benchmark
 report](../validation-owned-structure-matched.md) now records the required
 libxml2 comparison, including slower workloads and measurement limits.
 
-The next coherent slice is complete rooted document creation, fresh child
-elements, ordinary-attribute upsert/removal, and namespace bindings that preserve
-every existing expanded name. It builds on
+The immediate [implementation slice](owned-create-slice.md) is complete rooted
+document creation and fresh child elements with their initial attributes and
+namespace declarations. It uses existing contiguous attribute ranges. That
+narrow plan supersedes this broader draft's quota split, error locations and
+publication precedence for the first implementation: it adds an aggregate
+supplied-byte bound and charges namespace lookup work separately from supplied
+string validation. Its calls are not implemented yet.
+
+The broader direction also includes ordinary-attribute upsert/removal and safe
+namespace declarations on existing elements, once attribute membership storage
+passes review. It builds on
 [leaf insertion and permanent removal](owned-leaf-structure.md). It does not
 reproduce libxml2's detached pointers, adopt/move operations or permissive invalid
 trees. The core remains safe Rust with `memchr` as its only dependency.
@@ -325,6 +333,12 @@ expanded name, returns a missing-attribute error when absent, and removes that
 ordered item. XMLNS items cannot be edited through ordinary-attribute APIs.
 
 ## Resource policy and transaction boundary
+
+This section retains the broader draft for future existing-element operations.
+Use [the narrow slice's resource and error contract](owned-create-slice.md#resource-limits-and-accounting)
+for creation and append implementation. In particular, its six added limits
+include `max_supplied_bytes`, and its typed locations allow absent byte offsets
+for semantic errors. Reconcile future extension contracts before exposing them.
 
 Extend the existing `EditLimits`; do not add another limits type. Add five
 inclusive construction fields. Existing `max_value_bytes`, `max_owned_bytes`,

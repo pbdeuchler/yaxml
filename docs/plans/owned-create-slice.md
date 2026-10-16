@@ -226,11 +226,13 @@ Freeze the error and publication order as follows:
    component-local UTF-8 byte offsets with the typed `EditLocation`.
 4. Fallibly reserve the bounded scratch needed for namespace planning. Scratch
    reservation errors are global `Allocation` errors and have no location.
-5. Resolve the element name and resolve/check each item in order. Charge
+5. Gather the local declaration plan and reject duplicate declaration prefixes
+   in item order before resolving names. Then resolve the element name and
+   resolve/check each ordinary attribute in item order. Charge
    namespace-work before each ancestor-node step, every ancestor attribute
    examined, candidate probe, and prefix/local-name/URI comparison; return the
-   first exceeded limit before that work. Check duplicate declarations and
-   expanded attribute names in item order. Check the per-element item count
+   first exceeded limit before that work. Check duplicate expanded attribute
+   names in item order. Check the per-element item count
    immediately after each generated namespace declaration is planned, as well
    as the final count.
 6. Check cumulative created node/attribute counts and the full new
