@@ -24,6 +24,10 @@ harness = false
 name = "serialize"
 harness = false
 
+[[bench]]
+name = "mutation"
+harness = false
+
 [lints.rust]
 unsafe_code = "forbid"
 
