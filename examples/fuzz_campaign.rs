@@ -722,7 +722,7 @@ impl Campaign {
         {
             return Err((
                 FailureKind::Infrastructure,
-                "coverage denominator changed or covered count decreased".into(),
+                "coverage denominator changed".into(),
                 Some(report),
             ));
         }
