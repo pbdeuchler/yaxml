@@ -103,10 +103,11 @@ borrow owned parser state, permitting scope removal before event delivery.
 
 Push callbacks borrow events for their call and receive raw source ranges. A
 callback break is terminal cancellation. `read_from` is a thin buffered `Read`
-driver with explicit I/O failures; a pull interface over buffered I/O remains
-pending. It consumes the parser on failure, avoiding ambiguous resumption after
-an external I/O error. Async runtimes remain caller concerns. Split-point tests
-cover UTF-8 sequences, CRLF, references, quotes, comments, and CDATA terminators.
+driver with explicit I/O failures. `BufferedReader` provides lending pull events
+over bounded `BufRead` input using the same incremental engine. Both preserve
+terminal I/O failures rather than allowing ambiguous resumption after an
+external error. Async runtimes remain caller concerns. Split-point tests cover
+UTF-8 sequences, CRLF, references, quotes, comments, and CDATA terminators.
 
 Whole-input slice validation and incremental token validation can choose different
 first errors when several defects occur. Streaming can deliver a valid prefix
@@ -179,12 +180,14 @@ prefix/local parts share one stored qualified spelling. Original source spans
 are separate from pool ranges. This supports long-lived application state and
 future bindings without self-references or changing the borrowing API.
 
-Both forms share a small private topology record/append helper and the same
-parser. Owned pool growth charges full new capacities to the parser's cumulative
-normalization budget before reservation. The initial representation copies
-logical namespace values; repeated-URI storage and other layout optimizations
-need adversarial size-series evidence. The [owned contract](owned-dom.md) records
-the view API, limits and remaining storage work.
+Both forms consume the same validated parser events. Borrowing records retain
+their compact immutable preorder layout; owned records separately carry the
+links and live subtree counts required for mutation. Owned pool growth charges
+full new capacities to the parser's cumulative normalization budget before
+reservation. Namespace values are copied into owned storage; repeated-URI
+storage and other layout optimizations need adversarial size-series evidence.
+The [owned contract](owned-dom.md) records the view API, limits and remaining
+storage work.
 
 The borrowing tree's `NodeId` remains document-local; checked lookup rejects
 out-of-range slots but does not detect foreign documents. Owned trees use
@@ -303,10 +306,14 @@ ownership and IDs, not implementing speculative wrappers.
 Land strict UTF-8 parsing, namespace correctness, bounded failure, and DOM
 traversal together with regression tests and fuzz entry points. Next establish
 the conformance/differential harness and honest performance baseline. Callback
-push input, an explicit `Read` adapter and a strict UTF-8 event writer now share
-that semantic engine. Owned storage now builds independent trees from its events.
-Add buffered pull input, allocator support on the target compiler, DOM
-serialization, and mutation. DTD/encoding, XPath, HTML compatibility, validation,
-canonicalization, inclusion, and adapters each need their own feature burndown
-and verification criteria. Recovery is an explicit compatibility project with a
-versioned oracle, not a shortcut around strict-parser failures.
+push input, the `Read` adapter, buffered lending pull input and strict UTF-8
+event output now share that semantic engine. Owned storage builds independent
+trees from its events; complete-tree serialization and bounded leaf/value edits
+are implemented. UTF-16 input shares incremental decoding across owning and
+streaming interfaces. The next work includes feedback-guided campaigns,
+element/attribute construction, broader comparative performance evidence and
+allocator support on the target compiler. DTDs, remaining encodings, XPath,
+HTML compatibility, validation, canonicalization, inclusion and adapters each
+need their own feature burndown and verification criteria. Recovery is an
+explicit compatibility project with a versioned oracle, not a shortcut around
+strict-parser failures.
