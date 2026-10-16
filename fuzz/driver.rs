@@ -45,9 +45,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     if input.first().is_some_and(|byte| byte & 7 == b'<' & 7) {
         check_finish_abort(input);
     }
-    if input.first().is_some_and(|byte| byte & 15 == b'<' & 15) {
-        exercise_construction(input);
-    }
+    exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
     if encoding::recognizes(input) {
@@ -176,7 +174,43 @@ pub fn exercise_mutation(input: &[u8]) {
 /// whether the input bytes form XML.
 pub fn exercise_construction(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
+    #[cfg(test)]
+    dispatch_tests::record_construction_call();
     construction::exercise(input);
+}
+
+#[cfg(test)]
+mod dispatch_tests {
+    use super::exercise;
+    use std::cell::Cell;
+
+    thread_local! {
+        static CONSTRUCTION_CALLS: Cell<usize> = const { Cell::new(0) };
+    }
+
+    pub(super) fn record_construction_call() {
+        CONSTRUCTION_CALLS.with(|calls| calls.set(calls.get() + 1));
+    }
+
+    #[test]
+    fn construction_runs_before_grammar_and_encoding_dispatch_for_every_input() {
+        for input in [
+            b"".as_slice(),
+            b"\x00",
+            b"\x2a\x00\x00\x00",
+            b"\x2b\x00\x00\x00",
+            b"\xff\xfe<\x00r\x00/\x00>\x00",
+            b"<r/>",
+        ] {
+            let before = CONSTRUCTION_CALLS.with(Cell::get);
+            exercise(input);
+            assert_eq!(
+                CONSTRUCTION_CALLS.with(Cell::get),
+                before + 1,
+                "construction was skipped for {input:?}"
+            );
+        }
+    }
 }
 
 /// Exercise pull scheduling independently from the XML grammar bytes.
