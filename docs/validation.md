@@ -1,5 +1,9 @@
 # Initial implementation validation
 
+The subsequent [streaming milestone report](validation-streaming.md) records
+the current expanded implementation, tests and coverage. This page preserves
+the initial slice/DOM measurements.
+
 This records the first UTF-8 reader/DOM slice, not completion of the replacement
 goal. Core source is unchanged between `bd52745` and `e935e2b`; later commits in
 that range strengthen tests and coverage reporting.
@@ -94,6 +98,6 @@ thresholds.
 Finish the pinned oracle/conformance harness, allocation audit and injection
 strategy, measured memory/work limits, sustained fuzzing, and comparable libxml2
 DOM/event baselines before making production or performance claims. Then expand
-to incremental input, owned documents, allocator-backed storage on the verified
+to buffered pull input, owned documents, allocator-backed storage on the verified
 target compiler, encoding support, writing, and mutation. The complete feature
 burndown remains in [the roadmap](roadmap.md).
