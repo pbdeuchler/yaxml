@@ -97,12 +97,15 @@ leaving the accepted case intact. Generate a library-only LLVM coverage summary
 from the fixed target binary and cumulative profile. Parse the exact LLVM 22
 summary header, expected
 production source rows, and `TOTAL` row. The production file list is the
-explicit sorted set of every regular `src/*.rs` module in the source tree,
-including currently unexecuted modules. Preserve identities for all 14 files.
-The current coverage mapping expects rows for the 13 executable modules;
-`src/lib.rs` is an explicit no-executable-mapping exception because it only
-declares/re-exports modules. Freeze that file's identity too, and fail if any
-other source lacks a report row or if `lib.rs` gains executable coverage.
+exact reviewed set of 15 regular source files: the existing 14 `src/*.rs`
+modules plus `src/owned/construction.rs`. Recursively enumerate `src` with
+fixed entry, directory and depth ceilings; reject symlinks, missing reviewed
+paths and unexpected Rust files at any visited depth. Preserve identities for
+all 15 files. The current coverage mapping expects rows for the 14 executable
+modules; `src/lib.rs` is an explicit no-executable-mapping exception because it
+only declares/re-exports modules. Reject ambiguous report basenames, freeze the
+library file's identity too, and fail if any other source lacks a report row or
+if `lib.rs` gains executable coverage.
 Reject extra or duplicate rows. Freeze all four `TOTAL` denominators (regions, functions,
 lines, instrumented branches) from the first valid report and reject any later
 change. Lines remain diagnostic only. Retain a candidate only when cumulative

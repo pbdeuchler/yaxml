@@ -1,11 +1,45 @@
-use std::env;
 use std::collections::BTreeSet;
+use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::thread;
 use std::time::Duration;
+
+const EXPECTED_SOURCE_PATHS: [&str; 15] = [
+    "src/buffered.rs",
+    "src/dom.rs",
+    "src/encoding.rs",
+    "src/error.rs",
+    "src/escape.rs",
+    "src/lib.rs",
+    "src/owned.rs",
+    "src/owned/construction.rs",
+    "src/parser.rs",
+    "src/push.rs",
+    "src/reader.rs",
+    "src/serialize.rs",
+    "src/stream.rs",
+    "src/tokenizer.rs",
+    "src/writer.rs",
+];
+const EXPECTED_REPORT_NAMES: [&str; 14] = [
+    "buffered.rs",
+    "construction.rs",
+    "dom.rs",
+    "encoding.rs",
+    "error.rs",
+    "escape.rs",
+    "owned.rs",
+    "parser.rs",
+    "push.rs",
+    "reader.rs",
+    "serialize.rs",
+    "stream.rs",
+    "tokenizer.rs",
+    "writer.rs",
+];
 
 fn main() {
     let mode = env::args_os()
@@ -119,7 +153,7 @@ fn cov(mode: &str) {
         process::exit(93);
     }
     if !has_exact_source_list() {
-        eprintln!("expected the exact 14-file production source set after --sources");
+        eprintln!("expected the exact 15-file production source set after --sources");
         process::exit(92);
     }
     if mode.starts_with("cov_change_source") {
@@ -144,11 +178,7 @@ fn cov(mode: &str) {
         thread::sleep(Duration::from_millis(500));
     }
     let profile = env::args()
-        .find_map(|argument| {
-            argument
-                .strip_prefix("--instr-profile=")
-                .map(str::to_owned)
-        })
+        .find_map(|argument| argument.strip_prefix("--instr-profile=").map(str::to_owned))
         .expect("profile argument");
     if mode == "cov_post_commit_fail" {
         let root = Path::new(&profile)
@@ -173,17 +203,17 @@ fn cov(mode: &str) {
     let novel = profile.windows(4).any(|window| window == b"high");
     if mode == "cov_cumulative_commit_fail" && novel {
         let profile_path = env::args()
-            .find_map(|argument| {
-                argument
-                    .strip_prefix("--instr-profile=")
-                    .map(str::to_owned)
-            })
+            .find_map(|argument| argument.strip_prefix("--instr-profile=").map(str::to_owned))
             .expect("profile argument");
         let root = Path::new(&profile_path)
             .parent()
             .and_then(Path::parent)
             .expect("output root");
-        fs::copy(root.join("cases.tsv"), root.join("pre-commit-journal.snapshot")).unwrap();
+        fs::copy(
+            root.join("cases.tsv"),
+            root.join("pre-commit-journal.snapshot"),
+        )
+        .unwrap();
         let cumulative = root.join("profiles/cumulative.profdata");
         fs::rename(&cumulative, root.join("profiles/cumulative.prior")).unwrap();
         fs::create_dir(cumulative).unwrap();
@@ -194,12 +224,14 @@ fn cov(mode: &str) {
 
 fn has_exact_source_list() -> bool {
     let arguments: Vec<_> = env::args_os().skip(1).collect();
-    let Some(sources_index) = arguments.iter().position(|argument| argument == "--sources")
+    let Some(sources_index) = arguments
+        .iter()
+        .position(|argument| argument == "--sources")
     else {
         return false;
     };
     let sources = &arguments[sources_index + 1..];
-    if sources.len() != 14
+    if sources.len() != EXPECTED_SOURCE_PATHS.len()
         || !sources.iter().all(|source| {
             let path = Path::new(source);
             path.is_absolute() && path.is_file()
@@ -214,18 +246,23 @@ fn has_exact_source_list() -> bool {
     else {
         return false;
     };
-    let parents: BTreeSet<_> = paths.iter().filter_map(|path| path.parent()).collect();
-    let names: BTreeSet<String> = paths
+    let Some(source_root) = paths
         .iter()
-        .filter_map(|path| path.file_name()?.to_str())
-        .map(str::to_owned)
+        .find(|path| path.ends_with("src/lib.rs"))
+        .and_then(|path| path.parent())
+        .and_then(Path::parent)
+    else {
+        return false;
+    };
+    let relative: BTreeSet<_> = paths
+        .iter()
+        .filter_map(|path| path.strip_prefix(source_root).ok())
+        .map(Path::to_path_buf)
         .collect();
-    let expected_names: BTreeSet<String> = std::iter::once("lib.rs".to_owned())
-        .chain((0..13).map(|index| format!("m{index:02}.rs")))
-        .collect();
-    paths.iter().collect::<BTreeSet<_>>().len() == 14
-        && parents.len() == 1
-        && names == expected_names
+    let expected: BTreeSet<_> = EXPECTED_SOURCE_PATHS.iter().map(PathBuf::from).collect();
+    paths.iter().collect::<BTreeSet<_>>().len() == EXPECTED_SOURCE_PATHS.len()
+        && relative.len() == paths.len()
+        && relative == expected
 }
 
 fn change_first_source(mode: &str) {
@@ -249,10 +286,14 @@ fn append_to_executable() {
 }
 
 fn report(novel: bool, drift: bool) {
-    println!("Filename Regions Missed Regions Cover Functions Missed Functions Executed Lines Missed Lines Cover Branches Missed Branches Cover");
-    println!("-------------------------------------------------------------------------------------------------------------");
+    println!(
+        "Filename Regions Missed Regions Cover Functions Missed Functions Executed Lines Missed Lines Cover Branches Missed Branches Cover"
+    );
+    println!(
+        "-------------------------------------------------------------------------------------------------------------"
+    );
     let mut totals = [0_u64; 8];
-    for index in 0..13 {
+    for (index, name) in EXPECTED_REPORT_NAMES.iter().enumerate() {
         let region_total = if drift { 2 } else { 1 };
         let region_covered = u64::from(index == 0 && novel);
         let function_total = 1;
@@ -270,7 +311,7 @@ fn report(novel: bool, drift: bool) {
         totals[6] += branch_total;
         totals[7] += branch_total - branch_covered;
         println!(
-            "m{index:02}.rs {region_total} {} {} {function_total} {} {} {line_total} {} {} {branch_total} {} {}",
+            "{name} {region_total} {} {} {function_total} {} {} {line_total} {} {} {branch_total} {} {}",
             region_total - region_covered,
             percent(region_covered, region_total),
             function_total - function_covered,

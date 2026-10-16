@@ -8,12 +8,34 @@ mod process;
 
 use campaign::{CampaignError, Counts, Limits, MutationRecord, Prng, Summary};
 use process::ProcessLimits;
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::ffi::OsString;
 use std::fs::{self, DirBuilder, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
+
+const PRODUCTION_SOURCE_PATHS: [&str; 15] = [
+    "src/buffered.rs",
+    "src/dom.rs",
+    "src/encoding.rs",
+    "src/error.rs",
+    "src/escape.rs",
+    "src/lib.rs",
+    "src/owned.rs",
+    "src/owned/construction.rs",
+    "src/parser.rs",
+    "src/push.rs",
+    "src/reader.rs",
+    "src/serialize.rs",
+    "src/stream.rs",
+    "src/tokenizer.rs",
+    "src/writer.rs",
+];
+const MAX_PRODUCTION_SOURCE_ENTRIES: usize = 64;
+const MAX_PRODUCTION_SOURCE_DIRECTORIES: usize = 8;
+const MAX_PRODUCTION_SOURCE_DEPTH: usize = 4;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FailureKind {
@@ -1246,7 +1268,7 @@ impl Campaign {
 
     fn write_report(&self, failure: Option<(&str, &str)>) -> Result<(), Box<dyn Error>> {
         let mut text = format!(
-            "revision={}\nsource_root={}\nbuild_flags={}\ncompiler_version_label={}\ntarget_args=stdin, no arguments\nmerge_options=-sparse\nreport_options=--color=0 --instr-profile --sources all 14 src/*.rs files; report expects 13 rows because lib.rs has no executable mapping\nprofile_format=LLVM raw plus indexed profdata\nidentity_hash=FNV-1a 64-bit plus length; non-cryptographic accidental-change check only\nprofile_storage_max_files=4 (previous successful raw, current raw, cumulative profile, pending merge)\nprofile_storage_max_bytes={}\nprng_seed={}\nlimits={:?}\ntermination={}\ntarget={}\ntarget_identity_fnv64_len={:016x}:{}\nllvm_profdata={}\nllvm_profdata_identity_fnv64_len={:016x}:{}\nllvm_cov={}\nllvm_cov_identity_fnv64_len={:016x}:{}\ntool_versions={:?}\ncases_attempted={}\nseed_cases_attempted={}\nmutation_cases_attempted={}\nfirst_seed_no_coverage={}\nretained={}\nduplicates={}\nnovel={}\nelapsed_seconds={}\n",
+            "revision={}\nsource_root={}\nbuild_flags={}\ncompiler_version_label={}\ntarget_args=stdin, no arguments\nmerge_options=-sparse\nreport_options=--color=0 --instr-profile --sources exact reviewed 15-file src manifest, including src/owned/construction.rs; report expects 14 rows because lib.rs has no executable mapping\nprofile_format=LLVM raw plus indexed profdata\nidentity_hash=FNV-1a 64-bit plus length; non-cryptographic accidental-change check only\nprofile_storage_max_files=4 (previous successful raw, current raw, cumulative profile, pending merge)\nprofile_storage_max_bytes={}\nprng_seed={}\nlimits={:?}\ntermination={}\ntarget={}\ntarget_identity_fnv64_len={:016x}:{}\nllvm_profdata={}\nllvm_profdata_identity_fnv64_len={:016x}:{}\nllvm_cov={}\nllvm_cov_identity_fnv64_len={:016x}:{}\ntool_versions={:?}\ncases_attempted={}\nseed_cases_attempted={}\nmutation_cases_attempted={}\nfirst_seed_no_coverage={}\nretained={}\nduplicates={}\nnovel={}\nelapsed_seconds={}\n",
             self.args.revision,
             escape_field(path_text(&self.args.source_root)),
             escape_field(&self.args.build_flags),
@@ -1382,36 +1404,75 @@ impl Drop for Candidate {
 }
 
 fn production_sources(source_root: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
-    let mut paths = Vec::new();
-    for entry in fs::read_dir(source_root.join("src"))? {
-        let entry = entry?;
-        let kind = entry.file_type()?;
-        if kind.is_symlink() {
-            return Err("symlink found in production source directory".into());
+    let source_directory = source_root.join("src");
+    let metadata = fs::symlink_metadata(&source_directory)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("production source path must be a real directory".into());
+    }
+
+    let mut directories = vec![(source_directory, 0_usize)];
+    let mut directory_count = 0_usize;
+    let mut entry_count = 0_usize;
+    let mut found = BTreeSet::new();
+    while let Some((directory, depth)) = directories.pop() {
+        directory_count = directory_count
+            .checked_add(1)
+            .ok_or("production source directory count overflow")?;
+        if directory_count > MAX_PRODUCTION_SOURCE_DIRECTORIES {
+            return Err("production source directory enumeration exceeds its limit".into());
         }
-        if kind.is_file()
-            && entry
-                .path()
-                .extension()
-                .is_some_and(|extension| extension == "rs")
-        {
-            let path = fs::canonicalize(entry.path())?;
-            require_utf8_path(&path)?;
-            paths.push(path);
-            if paths.len() > 14 {
-                return Err("production source inventory exceeds 14 Rust files".into());
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            entry_count = entry_count
+                .checked_add(1)
+                .ok_or("production source entry count overflow")?;
+            if entry_count > MAX_PRODUCTION_SOURCE_ENTRIES {
+                return Err("production source entry enumeration exceeds its limit".into());
+            }
+            let kind = entry.file_type()?;
+            if kind.is_symlink() {
+                return Err("symlink found in production source tree".into());
+            }
+            let path = entry.path();
+            if kind.is_dir() {
+                if depth >= MAX_PRODUCTION_SOURCE_DEPTH {
+                    return Err("production source directory depth exceeds its limit".into());
+                }
+                directories.push((path, depth + 1));
+            } else if kind.is_file() && path.extension().is_some_and(|extension| extension == "rs")
+            {
+                let relative = path
+                    .strip_prefix(source_root)
+                    .map_err(|_| "production source escaped its source root")?
+                    .to_path_buf();
+                require_utf8_path(&relative)?;
+                if !found.insert(relative) {
+                    return Err("duplicate production source path".into());
+                }
             }
         }
     }
-    paths.sort();
-    if paths.len() != 14
-        || !paths
-            .iter()
-            .any(|path| path.file_name().is_some_and(|name| name == "lib.rs"))
-    {
-        return Err("production source inventory differs from the reviewed 14-file mapping".into());
+
+    let expected: BTreeSet<_> = PRODUCTION_SOURCE_PATHS.iter().map(PathBuf::from).collect();
+    if found != expected {
+        return Err("production source inventory differs from the reviewed 15-file mapping".into());
     }
-    Ok(paths)
+    PRODUCTION_SOURCE_PATHS
+        .iter()
+        .map(|relative| {
+            let expected_path = source_root.join(relative);
+            let metadata = fs::symlink_metadata(&expected_path)?;
+            if metadata.file_type().is_symlink() || !metadata.is_file() {
+                return Err("reviewed production source path is not a regular file".into());
+            }
+            let path = fs::canonicalize(&expected_path)?;
+            if path != expected_path {
+                return Err("reviewed production source path is not canonical".into());
+            }
+            require_utf8_path(&path)?;
+            Ok(path)
+        })
+        .collect()
 }
 
 fn version(program: &Path) -> Result<String, Box<dyn Error>> {
@@ -1564,6 +1625,51 @@ mod tests {
     }
 
     #[test]
+    fn production_source_inventory_is_exact_nested_and_bounded() {
+        let root = fixture_root();
+        let source_root = fs::canonicalize(root.join("source")).unwrap();
+        let paths = production_sources(&source_root).unwrap();
+        assert_eq!(paths.len(), PRODUCTION_SOURCE_PATHS.len());
+        assert!(
+            paths
+                .iter()
+                .any(|path| path.ends_with("src/owned/construction.rs"))
+        );
+
+        let construction = root.join("source/src/owned/construction.rs");
+        fs::remove_file(&construction).unwrap();
+        let missing = production_sources(&source_root).unwrap_err().to_string();
+        assert!(missing.contains("reviewed 15-file mapping"));
+        fs::write(&construction, b"// restored fixture source\n").unwrap();
+
+        let extra = root.join("source/src/owned/extra.rs");
+        fs::write(&extra, b"// unexpected nested Rust source\n").unwrap();
+        let unexpected = production_sources(&source_root).unwrap_err().to_string();
+        assert!(unexpected.contains("reviewed 15-file mapping"));
+        fs::remove_file(extra).unwrap();
+
+        #[cfg(unix)]
+        {
+            let link = root.join("source/src/nested-link");
+            std::os::unix::fs::symlink(root.join("source/src/owned"), &link).unwrap();
+            let symlink = production_sources(&source_root).unwrap_err().to_string();
+            assert!(symlink.contains("symlink found in production source tree"));
+            fs::remove_file(link).unwrap();
+        }
+
+        for index in 0..MAX_PRODUCTION_SOURCE_ENTRIES {
+            fs::write(
+                root.join(format!("source/src/inventory-{index:02}.txt")),
+                b"bounded enumeration fixture\n",
+            )
+            .unwrap();
+        }
+        let over_limit = production_sources(&source_root).unwrap_err().to_string();
+        assert!(over_limit.contains("entry enumeration exceeds its limit"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn journal_budget_accepts_exact_bound_and_rejects_overflow() {
         assert!(journal_fits(MAX_JOURNAL_BYTES - 1, 1));
         assert!(journal_fits(MAX_JOURNAL_BYTES, 0));
@@ -1653,20 +1759,20 @@ mod tests {
         ));
         fs::create_dir_all(root.join("source/src")).unwrap();
         fs::create_dir(root.join("seeds")).unwrap();
-        for index in 0..13 {
-            fs::write(
-                root.join(format!("source/src/m{index:02}.rs")),
-                b"// fixture source\n",
-            )
-            .unwrap();
+        for relative in PRODUCTION_SOURCE_PATHS {
+            let path = root.join("source").join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"// fixture source\n").unwrap();
         }
-        fs::write(
-            root.join("source/src/lib.rs"),
-            b"// no executable mapping\n",
-        )
-        .unwrap();
         fs::write(root.join("seeds/seed % name.xml"), b"x").unwrap();
         root
+    }
+
+    fn fixture_source_paths(root: &Path) -> Vec<PathBuf> {
+        PRODUCTION_SOURCE_PATHS
+            .iter()
+            .map(|relative| root.join("source").join(relative))
+            .collect()
     }
 
     fn compile_fake_programs(root: &Path) -> (PathBuf, PathBuf) {
@@ -1938,8 +2044,8 @@ mod tests {
         );
         fs::remove_file(root.join("seeds/seed-z.xml")).unwrap();
 
-        let mut missing_lib = std::process::Command::new(&cov);
-        missing_lib
+        let mut missing_nested = std::process::Command::new(&cov);
+        missing_nested
             .args([
                 "report",
                 "--color=0",
@@ -1947,14 +2053,21 @@ mod tests {
                 "/unused-target",
                 "--sources",
             ])
-            .args((0..13).map(|index| root.join(format!("source/src/m{index:02}.rs"))));
-        let missing_lib = missing_lib.output().unwrap();
-        assert!(!missing_lib.status.success());
+            .args(
+                fixture_source_paths(&root)
+                    .into_iter()
+                    .filter(|path| !path.ends_with("src/owned/construction.rs")),
+            );
+        let missing_nested = missing_nested.output().unwrap();
+        assert!(!missing_nested.status.success());
         assert!(
-            String::from_utf8_lossy(&missing_lib.stderr)
-                .contains("exact 14-file production source set")
+            String::from_utf8_lossy(&missing_nested.stderr)
+                .contains("exact 15-file production source set")
         );
         let mut duplicate_source = std::process::Command::new(&cov);
+        let mut duplicated_paths = fixture_source_paths(&root);
+        duplicated_paths.pop();
+        duplicated_paths.push(root.join("source/src/buffered.rs"));
         duplicate_source
             .args([
                 "report",
@@ -1963,14 +2076,12 @@ mod tests {
                 "/unused-target",
                 "--sources",
             ])
-            .args((0..12).map(|index| root.join(format!("source/src/m{index:02}.rs"))))
-            .arg(root.join("source/src/m00.rs"))
-            .arg(root.join("source/src/lib.rs"));
+            .args(duplicated_paths);
         let duplicate_source = duplicate_source.output().unwrap();
         assert!(!duplicate_source.status.success());
         assert!(
             String::from_utf8_lossy(&duplicate_source.stderr)
-                .contains("exact 14-file production source set")
+                .contains("exact 15-file production source set")
         );
         let mut invalid_color = std::process::Command::new(&cov);
         invalid_color
@@ -1981,18 +2092,18 @@ mod tests {
                 "/unused-target",
                 "--sources",
             ])
-            .args(
-                (0..13)
-                    .map(|index| root.join(format!("source/src/m{index:02}.rs")))
-                    .chain(std::iter::once(root.join("source/src/lib.rs"))),
-            );
+            .args(fixture_source_paths(&root));
         let invalid_color = invalid_color.output().unwrap();
         assert!(!invalid_color.status.success());
         assert!(
             String::from_utf8_lossy(&invalid_color.stderr)
                 .contains("expected LLVM boolean color option --color=0")
         );
-        fs::write(root.join("source/src/m-extra.rs"), b"// extra source\n").unwrap();
+        fs::write(
+            root.join("source/src/owned/extra.rs"),
+            b"// extra nested source\n",
+        )
+        .unwrap();
         let source_count_limit = run_cli(
             &campaign,
             &target,
@@ -2006,9 +2117,9 @@ mod tests {
         assert!(!source_count_limit.status.success());
         assert!(
             String::from_utf8_lossy(&source_count_limit.stderr)
-                .contains("production source inventory exceeds 14 Rust files")
+                .contains("production source inventory differs from the reviewed 15-file mapping")
         );
-        fs::remove_file(root.join("source/src/m-extra.rs")).unwrap();
+        fs::remove_file(root.join("source/src/owned/extra.rs")).unwrap();
 
         let paused_cov = install_mode(&helper, &root, "cov_pause");
         let paused_output = root.join("four-profile-bound");
