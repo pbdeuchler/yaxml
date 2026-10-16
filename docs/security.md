@@ -72,6 +72,14 @@ complete execution coverage remains open.
 
 ## What “100% fuzzing coverage” means
 
+The [complete XMLTS catalog run](validation-xml-conformance.md) is separate
+conformance evidence. Every case and parser interface has an explicit result,
+including unsupported and unscored rows. A per-ID/interface pass baseline makes
+previously supported behavior becoming a capability gap a failing regression.
+The trusted metadata oracle can expand descriptor entities; testcase parsing
+does not gain external-resource access. This acceptance run neither replaces
+fuzzing nor contributes to the reported fuzz-only execution percentage.
+
 Maintain three separate reports. Never describe one as the others.
 
 1. **Target coverage: 100% required.** The denominator is every implemented public input-bearing API and every implemented parsing, normalization, encoding, query, validation, mutation, and writing subsystem. Each entry maps to at least one executable fuzz target, its input format, invariants, options, and seed corpus. New APIs extend the denominator in the same change. An API exercised only by unit tests is not fuzz-covered.

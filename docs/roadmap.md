@@ -27,16 +27,22 @@ records its scope and remaining gaps. A checked implementation item does not mea
 full libxml2 compatibility, production readiness, or completion of the P0 measurement gates.
 
 - [ ] Pin the libxml2 reference release/build features and generate a symbol inventory with per-symbol status and deviations.
-- [x] Implement XML character/name ranges, declarations, document boundaries, comments, PI, CDATA, references, and attribute normalization for the UTF-8 subset; full conformance-suite validation remains pending.
+- [x] Implement XML character/name ranges, declarations, document boundaries, comments, PI, CDATA, references, and attribute normalization for the UTF-8 subset; full XML conformance remains open.
 - [x] Resolve namespaces, reject reserved-prefix violations and duplicate expanded attribute names, and unwind bindings correctly.
 - [x] Complete bounded slice reader behavior, including sticky EOF/error and exact limit semantics.
 - [x] Build DOM from the reader; verify relationships, source spans, and iterative traversal. Allocation failure injection remains an open gate.
 - [x] Add a safe, dependency-free replay/mutation driver and map all implemented input APIs to it.
 - [x] Add spec-derived acceptance/value regressions across slice, DOM and push input; correct forward-version and encoding-name declaration grammar.
+- [x] Run the complete pinned W3C XMLTS 20130923 catalog across all five parser
+  interfaces: 2,585 cases, 12,925 classified rows. Preserve the supported subset
+  with a 407-ID/1,871-pair regression baseline. The
+  [validation report](validation-xml-conformance.md) records zero mismatches
+  within the scored slice and substantial remaining DTD/entity/version gaps;
+  it does not claim full-suite conformance.
 - [x] Add bounded independent XPath infoset comparisons, strict oracle version checks and a checksum-pinned external-oracle CI build.
 - [x] Run pinned external libxml2 comparisons for the 18-file replay corpus and
   34-case structural catalog, with every result classified. Full conformance
-  suites and broader multi-operation differential campaigns remain pending.
+  and broader multi-operation differential campaigns remain open.
 - [x] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps. Reaching 100% remains open.
 - [x] Add a bounded coverage-guided mutation campaign with replayable lineage,
   per-case execution/profile limits, strict coverage-schema checks and retained

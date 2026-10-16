@@ -1,4 +1,4 @@
-# XML conformance regression scope
+# XML conformance checks
 
 `tests/conformance.rs` contains independently expected cases for the implemented
 UTF-8, namespace-aware XML 1.0 subset. These supplement the existing reader and
@@ -45,3 +45,85 @@ declaration/BOM agreement, malformed code units, raw source ranges and errors,
 decoded/source budgets, cancellation, panic poisoning, I/O, and source-independent
 owned storage. These exercise the auto-decoding interfaces under the
 [encoding contract](encoding.md); they do not expand borrowing APIs to UTF-16.
+
+## Complete external catalog
+
+The `xml_conformance` example runs the complete root catalog from the
+[W3C XML Test Suite](https://www.w3.org/XML/Test/), release **20130923**.
+It records all 2,585 cases across Reader, borrowing DOM, owned DOM, push and
+buffered pull: 12,925 result rows. It does not silently omit XML 1.1, historical
+editions, unsupported features, discretionary errors or unavailable inputs.
+The [validation report](validation-xml-conformance.md) records the exact scope,
+counts, hashes, review and remaining gaps. This is a complete catalog run,
+not a claim of complete XML conformance.
+
+The suite's `testcases.dtd` defines nonvalidating behavior: both `valid` and
+`invalid` cases require acceptance; supported `not-wf` cases require rejection.
+`invalid` means DTD-invalid, not malformed XML. This runner scores terminal
+well-formedness outcomes, without DTD validity or canonical-output comparison.
+Namespace-disabled cases are capability gaps because every yaxml surface is
+namespace-aware. XML/Namespaces 1.1 and editions excluding XML 1.0 Fifth Edition
+are observed but unscored. External-entity requirements, explicit unsupported
+DTD/encoding errors and resource limits remain visible gaps. Worker failures
+are inconclusive and fail the run.
+
+Metadata extraction is separate from the processor under test. The optional
+`tooling/libxml2_xmlconf_catalog.c` executable uses the pinned libxml2 2.15.4
+oracle to expand trusted catalog entities/defaults and resolve XML Base. It
+emits a strict, versioned 12-column TSV catalog. No suite fixture or C helper
+is linked into the Rust crate; Cargo still depends only on `memchr`.
+The helper is for the checksum-pinned descriptor files, not untrusted XML.
+Test inputs reach yaxml without external resource resolution.
+
+After building the [pinned oracle](oracle.md), compile the metadata helper:
+
+```sh
+oracle_source=/path/to/libxml2-2.15.4
+oracle_build=/path/to/libxml2-build
+cc -std=c11 -Wall -Wextra -Werror -pedantic \
+  -I"$oracle_build" -I"$oracle_source/include" \
+  tooling/libxml2_xmlconf_catalog.c "$oracle_build/libxml2.a" \
+  -lm -pthread -o /tmp/xmlconf-catalog-helper
+```
+
+The archive must have SHA-256
+`9b61db9f5dbffa545f4b8d78422167083a8568c59bd1129f94138f936cf6fc1f`
+before extraction. This is our pinned digest of the official download, not a
+claim of an upstream signature. The CI workflow contains the complete download,
+checksum, extraction, helper-test and run recipe. Given the extracted `xmlconf`
+directory:
+
+```sh
+suite_root=/absolute/path/to/xmlconf
+XML_CATALOG_FILES= SGML_CATALOG_FILES= /tmp/xmlconf-catalog-helper \
+  "$suite_root/xmlconf.xml" "$suite_root" > /tmp/xmlconf-catalog.tsv
+cargo run --release --example xml_conformance -- \
+  --manifest /tmp/xmlconf-catalog.tsv --suite-root "$suite_root" \
+  --expected-cases 2585 \
+  --required-pass tests/fixtures/xmlconf-20130923-required.tsv
+```
+
+CI requires the checked-in per-ID, per-interface pass baseline. A required
+`pass` becoming a gap, unscored result or other failure makes the command fail;
+the original result row is retained. Newly supported pairs may become passes.
+The baseline protects 1,871 pairs across 407 IDs. Its masks follow
+`reader, document, owned, push, buffered`. Review baseline additions alongside
+new feature evidence; do not remove requirements merely to accept a regression.
+Omitting `--required-pass` is useful for exploring another catalog, and the
+summary explicitly reports zero required pairs.
+
+The runner reconciles its catalog count with `--expected-cases` before executing.
+Each input is at most 1 MiB; metadata is at most 4 MiB/10,000 cases, with
+1,024-byte fields. A fresh child runs all five surfaces, with a combined
+five-second deadline and 4 KiB combined output ceiling. Push cycles literal
+1/7/4,096-byte chunks and finishes; buffered pull drains a 17-byte buffer to EOF.
+A 300-second execution budget stops launching children and emits inconclusive
+rows for the remainder. Filesystem operations and output backpressure are not
+OS-enforced time or memory limits. Canonical path containment and regular-file
+checks assume the local extracted suite is not concurrently replaced.
+
+The upstream master catalog has nine EdUni base-directory errors. Exact ID/path
+corrections map `eduni/namespaces/misc/001..009.xml` to the existing
+`eduni/misc/001..009.xml`; the IDs are `hst-bh-001..006` and `hst-lhs-007..009`.
+Both original and effective paths plus the correction label remain in the
+result. No other path fallback is allowed.
