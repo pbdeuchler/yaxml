@@ -24,8 +24,8 @@ need boundary tests. A compatibility option must not quietly disable unrelated l
 | Input | Total source bytes and total decoded UTF-8 bytes | Aggregate resolved bytes and compressed input handled outside the core |
 | Tokens | Raw and decoded token bytes; constant decoder carry | Additional transcoding formats and their carry bounds |
 | Owned strings | Cumulative requested string capacity, including namespace copies, streaming names and full new owned-DOM pool capacities; one shared normalization/storage counter | Allocator-level byte accounting and failure injection; current budget is not a process memory quota |
-| Value edits | Replacement byte ceiling; separate cumulative full pool-capacity requests across editors, with parsed capacity as baseline; validate before storage and publish after append | Structural mutation/reclamation, metadata budgets and allocator-failure injection |
-| Structure | Element depth, attributes per element, event count | DOM nodes, retained DOM bytes, namespace declarations and bindings |
+| Owned edits | Per-string byte ceiling for replacements and fresh leaves; cumulative full pool-capacity requests across editors, with parsed capacity as baseline; persistent successful-created-slot ceiling; validate before storage and publish after reservation; permanent removal refunds neither counter | General element/attribute construction, metadata budgets, reclamation/compaction and allocator-level failure injection |
+| Structure | Element depth, attributes per element and event count; parsed node creation is bounded by events; fresh owned leaves have a separate persistent count; subtree removal is iterative | Retained DOM bytes, namespace declarations/bindings, general insertion and cycle checks, moves/import/adoption, detached ownership and slot reclamation/reuse |
 | Entities | Reject DTDs; recognize only predefined and numeric references | Entity nesting, reference count, expanded bytes, expansion work, and cycle detection |
 | External resources | No implicit I/O | Request count, cumulative bytes, nesting, redirects, and caller cancellation |
 | Query/validation | Unsupported initially | Expression size, evaluation steps, intermediate results, schema state and recursion |
@@ -48,12 +48,16 @@ Keep resource policy distinct from syntax compatibility. libxml2 documents that 
 
 Bindings require a separate design review. Opaque handles must reject stale and foreign-document identifiers; ownership and release must be explicit; strings need lengths and an encoding contract; panics must not cross a foreign boundary. Raw-pointer ABI glue cannot be promised under a whole-project unsafe prohibition. Resolve the binding mechanism and policy before implementing it, without weakening the core's prohibition by accident.
 
-Owned lookups and edits now reject foreign-document handles through a checked,
-non-recycled document identity. Value editing preserves slots and source
-provenance and never exposes detached nodes. This does not implement deletion,
-slot reuse/generations, release registries or a foreign ABI. Failed edits remain
-usable and preserve logical state; allocation requests already charged can
-remain spent. [Owned edit contract](owned-dom.md#editing-existing-values).
+Owned lookups and edits reject foreign-document handles through a checked,
+non-recycled document identity. Value editing preserves topology. Fresh leaf
+insertion creates stable handles without source ranges. Permanent subtree
+removal makes every removed handle stale while preserving surviving handles and
+provenance; slots are never reused or reclaimed. The API does not expose
+detached nodes or implement element/attribute construction, moves, import/adopt,
+cycle-forming operations, release registries or a foreign ABI. Failed appends
+remain usable and preserve logical state, though allocation requests already
+charged can remain spent. [Owned edit contract](owned-dom.md#editing-existing-values)
+and [structural edit contract](owned-dom.md#leaf-insertion-and-permanent-removal).
 
 ## What “100% fuzzing coverage” means
 
@@ -75,7 +79,8 @@ The coverage artifact records revision, compiler/LLVM version, target platform, 
 | Streaming | Same bytes across every split for small cases and generated schedules for larger cases; exact typed event/span agreement on success; distinguish feed from final EOF; sticky cancellation, I/O faults and no further reads after terminal failure |
 | Writer | Parsed-event sequences plus complete borrowed/owned trees, including UTF-16-owned input; strict tree round trips, emitted-event and encoded ceilings, fresh/terminal states, partial/Interrupted/invalid-count/erroring sinks, and no I/O after terminal results |
 | Owned-value mutation | Independent operation model predicts errors and values; compare complete state after every success/failure, foreign handles/moves, persistent quotas and literal output goldens; serialize/reparse with only documented empty/adjacent Text projection |
-| Structural mutation, when implemented | Reject cycles, stale/deleted handles and illegal namespace/ownership transitions; bound construction, import/adoption and reclamation |
+| Owned leaf structural mutation | Independent operation model predicts exact append/remove results; check placement, lexical rules, stale/foreign/protected handles, stable survivors, all reciprocal links, subtree sizes, source provenance, persistent quotas and serialized Text projection after every operation |
+| General structural mutation, when implemented | Reject cycles and illegal namespace/ownership transitions; bound element/attribute construction, sibling insertion, moves, import/adoption, reclamation and slot reuse |
 | Advanced features, when implemented | Separate grammar targets plus resolver, query, schema, entity, and cancellation operation sequences; assert budgets and deterministic results |
 
 Differential testing runs a separately built, version-pinned libxml2 executable outside the Rust dependency graph. Match options and limits before comparing. Compare acceptance and a documented semantic projection of events/trees; attribute order, text event segmentation, diagnostics, and recovery require explicit rules. A disagreement is a triage item, not automatic proof that either implementation is correct. Check the W3C specification and add the minimized case to regressions. Namespace duplicate checks must compare expanded names, and unprefixed attributes have different namespace rules from elements. [Namespaces in XML](https://www.w3.org/TR/REC-xml-names/).

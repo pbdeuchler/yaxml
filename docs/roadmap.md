@@ -68,8 +68,9 @@ and buffered pull parsing share one resumable engine and bounded token buffer;
 neither accumulates the input. Additional encodings and allocator support remain pending. The
 [owned DOM contract](owned-dom.md) describes the implemented independent storage
 mode; retained-memory and comparative performance evidence remain open.
-Its [value-mutation validation](validation-owned-mutation.md) records the narrow
-editing slice and explicitly pending final evidence; richer mutation remains open.
+Its [value-mutation validation](validation-owned-mutation.md) and
+[leaf-structure validation](validation-owned-structure.md) record the implemented
+editing slices and their evidence gaps; richer mutation remains open.
 
 The [writer contract](writer.md) describes event and complete-document output.
 Whole trees retain their explicit namespace declarations and are traversed
