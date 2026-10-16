@@ -2028,6 +2028,93 @@ mod tests {
     }
 
     #[test]
+    fn create_reservation_failures_return_without_publishing_a_document() {
+        let items = [ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "id",
+                namespace: None,
+                prefix: PrefixPolicy::Exact(None),
+            },
+            value: "1",
+        })];
+        for reservation in [
+            EditReservation::Scratch,
+            EditReservation::Node,
+            EditReservation::Attribute,
+            EditReservation::Pool,
+        ] {
+            let failure = EditReservationFailureGuard::arm(reservation, 0);
+            let result = OwnedDocument::create(
+                ElementSpec {
+                    name: NameSpec {
+                        local: "root",
+                        namespace: None,
+                        prefix: PrefixPolicy::Exact(None),
+                    },
+                    items: &items,
+                },
+                EditLimits::default(),
+            );
+            assert_eq!(
+                result.unwrap_err(),
+                EditError::new(EditErrorKind::Allocation, None),
+                "{reservation:?}"
+            );
+            assert!(failure.fired(), "{reservation:?}");
+            assert_eq!(failure.attempts(), 1, "{reservation:?}");
+        }
+    }
+
+    #[test]
+    fn saturating_user_ceilings_do_not_reject_a_small_valid_root() {
+        let limits = EditLimits {
+            max_value_bytes: usize::MAX,
+            max_owned_bytes: usize::MAX,
+            max_created_nodes: usize::MAX,
+            max_name_bytes: usize::MAX,
+            max_supplied_bytes: usize::MAX,
+            max_attributes: usize::MAX,
+            max_depth: usize::MAX,
+            max_created_attributes: usize::MAX,
+            max_namespace_work: usize::MAX,
+        };
+        assert!(OwnedDocument::create(root_spec(), limits).is_ok());
+    }
+
+    #[test]
+    fn creation_checks_created_node_quota_before_created_attributes() {
+        let items = [ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "id",
+                namespace: None,
+                prefix: PrefixPolicy::Exact(None),
+            },
+            value: "1",
+        })];
+        let error = OwnedDocument::create(
+            ElementSpec {
+                name: NameSpec {
+                    local: "root",
+                    namespace: None,
+                    prefix: PrefixPolicy::Exact(None),
+                },
+                items: &items,
+            },
+            EditLimits {
+                max_created_nodes: 0,
+                max_created_attributes: 0,
+                ..EditLimits::default()
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.kind,
+            EditErrorKind::LimitExceeded(EditLimit::CreatedNodes)
+        );
+        assert_eq!(error.location, None);
+    }
+
+    #[test]
     fn reserved_xml_namespace_errors_point_to_the_semantic_component() {
         for prefix in [PrefixPolicy::Exact(None), PrefixPolicy::Exact(Some("p"))] {
             let error = OwnedDocument::create(

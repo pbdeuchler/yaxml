@@ -631,7 +631,11 @@ pub struct EditLimits {
     pub max_depth: usize,
     /// Successful initial attributes and declarations across all editors. Default: 1,000,000.
     pub max_created_attributes: usize,
-    /// Namespace lookup and comparison work per construction call. Default: 64 MiB.
+    /// Namespace lookup and comparison work per construction call. Each
+    /// element ancestor, examined attribute, and prefix candidate costs one;
+    /// compared prefix, URI, and expanded-name bytes cost their full operand
+    /// lengths. Caller-string validation is charged to `max_supplied_bytes`.
+    /// Default: 64 MiB.
     pub max_namespace_work: usize,
 }
 
