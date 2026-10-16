@@ -93,6 +93,9 @@ impl Link {
 
 #[derive(Debug)]
 struct OwnedRecord {
+    // The stable slot follows the record into a view without a second arena
+    // lookup. Records never move between slots or documents.
+    id: NodeId,
     content: Content,
     source: Option<Range<usize>>,
     parent: Link,
@@ -106,6 +109,7 @@ struct OwnedRecord {
 impl OwnedRecord {
     fn root(source_length: usize) -> Self {
         Self {
+            id: NodeId(0),
             content: Content::Document,
             source: Some(0..source_length),
             parent: Link::NONE,
@@ -121,7 +125,7 @@ impl OwnedRecord {
 #[derive(Debug)]
 struct StoredName {
     qualified: Range<usize>,
-    prefix_length: Option<usize>,
+    prefix_length: Option<NonZeroUsize>,
     namespace: Option<Range<usize>>,
 }
 
@@ -130,7 +134,10 @@ impl StoredName {
     fn view<'pool>(&self, pool: &'pool str) -> Name<'pool> {
         let qualified = &pool[self.qualified.clone()];
         let (prefix, local) = match self.prefix_length {
-            Some(length) => (Some(&qualified[..length]), &qualified[length + 1..]),
+            Some(length) => (
+                Some(&qualified[..length.get()]),
+                &qualified[length.get() + 1..],
+            ),
             None => (None, qualified),
         };
         Name {
@@ -253,9 +260,16 @@ impl Pool {
         offset: usize,
         budget: &mut Budget,
     ) -> Result<StoredName, Error> {
+        let prefix_length = name
+            .qualified
+            .find(':')
+            .map(|length| {
+                NonZeroUsize::new(length).ok_or(Error::new(ErrorKind::InvalidName, offset))
+            })
+            .transpose()?;
         Ok(StoredName {
             qualified: self.store(name.qualified, offset, budget)?,
-            prefix_length: name.qualified.find(':'),
+            prefix_length,
             namespace: name
                 .namespace
                 .as_deref()
@@ -332,17 +346,12 @@ impl OwnedDocument {
 
     /// Returns the synthetic root, including surrounding comments and PIs.
     pub fn root(&self) -> OwnedNode<'_> {
-        OwnedNode {
-            document: self,
-            id: NodeId(0),
-        }
+        self.view(NodeId(0)).expect("owned document root is live")
     }
 
     pub fn root_element(&self) -> OwnedNode<'_> {
-        OwnedNode {
-            document: self,
-            id: self.root_element,
-        }
+        self.view(self.root_element)
+            .expect("owned document element is live")
     }
 
     /// Looks up a checked owned handle, rejecting foreign or out-of-range IDs.
@@ -351,13 +360,18 @@ impl OwnedDocument {
         if id.document != self.identity {
             return None;
         }
-        let record = self.nodes.get(id.slot.0)?;
+        self.view(id.slot)
+    }
+
+    #[inline]
+    fn view(&self, id: NodeId) -> Option<OwnedNode<'_>> {
+        let record = self.nodes.get(id.0)?;
         // Contiguous parsed slots are all live. Structural edits permanently
         // disable that invariant before any slot can become Removed.
         (self.slots_are_preorder || !matches!(record.content, Content::Removed)).then_some(
             OwnedNode {
                 document: self,
-                id: id.slot,
+                record,
             },
         )
     }
@@ -684,6 +698,7 @@ impl OwnedBuilder {
         self.nodes.try_reserve(1).map_err(|_| allocation)?;
         let previous_sibling = self.nodes[parent.0].last_child;
         self.nodes.push(OwnedRecord {
+            id,
             content,
             source: Some(source),
             parent: parent_link,
@@ -732,19 +747,19 @@ impl OwnedBuilder {
 #[derive(Clone, Copy, Debug)]
 pub struct OwnedNode<'document> {
     document: &'document OwnedDocument,
-    id: NodeId,
+    record: &'document OwnedRecord,
 }
 
 impl<'document> OwnedNode<'document> {
     #[inline]
     fn record(self) -> &'document OwnedRecord {
-        &self.document.nodes[self.id.0]
+        self.record
     }
 
     pub fn id(self) -> OwnedNodeId {
         OwnedNodeId {
             document: self.document.identity,
-            slot: self.id,
+            slot: self.record.id,
         }
     }
 
@@ -810,31 +825,31 @@ impl<'document> OwnedNode<'document> {
     }
 
     pub fn parent(self) -> Option<Self> {
-        self.record().parent.get().map(|id| Self {
-            document: self.document,
-            id,
-        })
+        self.record()
+            .parent
+            .get()
+            .and_then(|id| self.document.view(id))
     }
 
     pub fn first_child(self) -> Option<Self> {
-        self.record().first_child.get().map(|id| Self {
-            document: self.document,
-            id,
-        })
+        self.record()
+            .first_child
+            .get()
+            .and_then(|id| self.document.view(id))
     }
 
     pub fn last_child(self) -> Option<Self> {
-        self.record().last_child.get().map(|id| Self {
-            document: self.document,
-            id,
-        })
+        self.record()
+            .last_child
+            .get()
+            .and_then(|id| self.document.view(id))
     }
 
     pub fn next_sibling(self) -> Option<Self> {
-        self.record().next_sibling.get().map(|id| Self {
-            document: self.document,
-            id,
-        })
+        self.record()
+            .next_sibling
+            .get()
+            .and_then(|id| self.document.view(id))
     }
 
     pub fn children(self) -> impl Iterator<Item = Self> + 'document {
@@ -848,12 +863,12 @@ impl<'document> OwnedNode<'document> {
         if self.document.slots_are_preorder {
             Descendants::Contiguous {
                 document: self.document,
-                slots: self.id.0..self.id.0 + count,
+                slots: self.document.nodes[self.record.id.0..self.record.id.0 + count].iter(),
             }
         } else {
             Descendants::Linked(LinkedDescendants {
                 next: Some(self),
-                root: self.id,
+                root: self.record.id,
                 remaining: count,
             })
         }
@@ -863,7 +878,7 @@ impl<'document> OwnedNode<'document> {
 enum Descendants<'document> {
     Contiguous {
         document: &'document OwnedDocument,
-        slots: Range<usize>,
+        slots: std::slice::Iter<'document, OwnedRecord>,
     },
     Linked(LinkedDescendants<'document>),
 }
@@ -874,10 +889,9 @@ impl<'document> Iterator for Descendants<'document> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::Contiguous { document, slots } => slots.next().map(|index| OwnedNode {
-                document,
-                id: NodeId(index),
-            }),
+            Self::Contiguous { document, slots } => {
+                slots.next().map(|record| OwnedNode { document, record })
+            }
             Self::Linked(iterator) => iterator.next(),
         }
     }
@@ -917,7 +931,7 @@ impl<'document> Iterator for LinkedDescendants<'document> {
         } else {
             let mut current = node;
             loop {
-                if current.id == self.root {
+                if current.record.id == self.root {
                     break None;
                 }
                 if let Some(sibling) = current.next_sibling() {

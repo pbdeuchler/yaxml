@@ -191,6 +191,74 @@ fn qualified_name_views_split_at_unicode_byte_boundaries() {
 }
 
 #[test]
+fn name_views_preserve_default_prefixed_and_empty_namespace_ranges() {
+    let mut reader = reader(4096);
+    let mut pool = Pool::default();
+    let cases = [
+        ("plain", None, "plain", None),
+        ("é中", None, "é中", None),
+        ("root", None, "root", Some("urn:default")),
+        ("é:中", Some("é"), "中", Some("urn:🙂")),
+        ("empty", None, "empty", Some("")),
+    ];
+    let stored: Vec<_> = cases
+        .iter()
+        .map(|&(qualified, prefix, local, namespace)| {
+            pool.name(
+                &Name {
+                    qualified,
+                    prefix,
+                    local,
+                    namespace: namespace.map(Cow::Borrowed),
+                },
+                0,
+                reader.owned_budget(),
+            )
+            .unwrap()
+        })
+        .collect();
+    pool.store(&"growth".repeat(100), 0, reader.owned_budget())
+        .unwrap();
+    for (stored, expected) in stored.iter().zip(cases) {
+        let view = stored.view(&pool.0);
+        assert_eq!(
+            (
+                view.qualified,
+                view.prefix,
+                view.local,
+                view.namespace.as_deref()
+            ),
+            expected
+        );
+        assert!(matches!(view.namespace, None | Some(Cow::Borrowed(_))));
+    }
+}
+
+#[test]
+fn empty_prefixes_are_rejected_before_storage() {
+    assert_eq!(
+        OwnedDocument::parse("<p:r/>").unwrap_err().kind,
+        ErrorKind::Namespace
+    );
+    let mut reader = reader(16);
+    let mut pool = Pool::default();
+    let remaining = reader.owned_budget().remaining_owned();
+    let name = Name {
+        qualified: ":r",
+        prefix: Some(""),
+        local: "r",
+        namespace: Some(Cow::Borrowed("urn:p")),
+    };
+    assert_eq!(
+        pool.name(&name, 7, reader.owned_budget()).unwrap_err(),
+        Error::new(ErrorKind::InvalidName, 7)
+    );
+    assert!(pool.0.is_empty());
+    assert_eq!(pool.0.capacity(), 0);
+    assert_eq!(reader.owned_budget().remaining_owned(), remaining);
+}
+
+#[test]
 fn name_storage_failure_preserves_the_aggregate_budget() {
     let mut reader = reader(4);
     let mut pool = Pool::default();
@@ -308,6 +376,7 @@ fn owned_links_are_reciprocal_and_subtree_counts_match_ancestor_membership() {
         let document = OwnedDocument::parse(input).unwrap();
         let mut expected_sizes = vec![0; document.nodes.len()];
         for (index, record) in document.nodes.iter().enumerate() {
+            assert_eq!(record.id, NodeId(index));
             assert!(!matches!(record.content, Content::Removed));
             let mut ancestor = Some(NodeId(index));
             while let Some(id) = ancestor {
@@ -353,6 +422,7 @@ fn compact_links_preserve_the_full_slot_domain_except_the_private_sentinel() {
 fn compact_owned_record_layout_is_smaller_than_optional_usize_links() {
     #[allow(dead_code)]
     struct NaiveRecord {
+        id: NodeId,
         content: Content,
         source: Option<Range<usize>>,
         parent: Option<NodeId>,
@@ -363,16 +433,31 @@ fn compact_owned_record_layout_is_smaller_than_optional_usize_links() {
         subtree_size: usize,
     }
     println!(
-        "pointer={} option_node_id={} link={} previous_record={} naive_owned_record={} compact_owned_record={}",
+        "pointer={} option_node_id={} link={} stored_name={} stored_attribute={} content={} naive_owned_record={} compact_owned_record={} owned_node={}",
         size_of::<usize>(),
         size_of::<Option<NodeId>>(),
         size_of::<Link>(),
-        size_of::<crate::dom::Record<Content>>(),
+        size_of::<StoredName>(),
+        size_of::<StoredAttribute>(),
+        size_of::<Content>(),
         size_of::<NaiveRecord>(),
         size_of::<OwnedRecord>(),
+        size_of::<OwnedNode<'_>>(),
     );
     assert_eq!(size_of::<Link>(), size_of::<usize>());
     assert!(size_of::<OwnedRecord>() < size_of::<NaiveRecord>());
+    assert_eq!(size_of::<OwnedNode<'_>>(), 2 * size_of::<usize>());
+    println!(
+        "owned_offsets content={} source={} parent={} first={} last={} previous={} next={} size={}",
+        std::mem::offset_of!(OwnedRecord, content),
+        std::mem::offset_of!(OwnedRecord, source),
+        std::mem::offset_of!(OwnedRecord, parent),
+        std::mem::offset_of!(OwnedRecord, first_child),
+        std::mem::offset_of!(OwnedRecord, last_child),
+        std::mem::offset_of!(OwnedRecord, previous_sibling),
+        std::mem::offset_of!(OwnedRecord, next_sibling),
+        std::mem::offset_of!(OwnedRecord, subtree_size),
+    );
 }
 
 #[test]
@@ -383,6 +468,7 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
     let late = NodeId(document.nodes.len());
     let late_link = Link::new(late).unwrap();
     document.nodes.push(OwnedRecord {
+        id: late,
         content: Content::Comment(0..0),
         source: None,
         parent: Link::new(root).unwrap(),
@@ -403,14 +489,17 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
     let mut expected = Vec::new();
     let mut pending = vec![document.root()];
     while let Some(node) = pending.pop() {
-        expected.push(node.id.0);
+        expected.push(node.record.id.0);
         let children: Vec<_> = node.children().collect();
         pending.extend(children.into_iter().rev());
     }
     assert_eq!(expected, [0, 1, 2, 4, 3]);
 
     assert_eq!(
-        document.nodes().map(|node| node.id.0).collect::<Vec<_>>(),
+        document
+            .nodes()
+            .map(|node| node.record.id.0)
+            .collect::<Vec<_>>(),
         [0, 1, 2, 4, 3]
     );
     for (node, expected) in [
@@ -424,7 +513,7 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
         for (position, expected) in expected.iter().copied().enumerate() {
             assert_eq!(iterator.len(), node.record().subtree_size - position);
             assert_eq!(iterator.size_hint(), (iterator.len(), Some(iterator.len())));
-            assert_eq!(iterator.next().unwrap().id.0, expected);
+            assert_eq!(iterator.next().unwrap().record.id.0, expected);
         }
         assert_eq!(iterator.len(), 0);
         assert_eq!(iterator.size_hint(), (0, Some(0)));
@@ -449,6 +538,7 @@ fn removed_slots_are_rejected_by_lookup_and_existing_edit_boundaries() {
     let mut document = OwnedDocument::parse("<r/><!--removed-->").unwrap();
     let removed = document.root().last_child().unwrap().id();
     document.nodes[removed.slot.0] = OwnedRecord {
+        id: removed.slot,
         content: Content::Removed,
         source: None,
         parent: Link::NONE,
@@ -531,7 +621,7 @@ fn linked_mode_walks_deep_and_wide_trees_without_recursion() {
                 let mut nodes = document.nodes();
                 for index in 0..count {
                     assert_eq!(nodes.len(), count - index);
-                    assert_eq!(nodes.next().unwrap().id.0, index);
+                    assert_eq!(nodes.next().unwrap().record.id.0, index);
                 }
                 assert_eq!(nodes.size_hint(), (0, Some(0)));
                 assert!(nodes.next().is_none());
