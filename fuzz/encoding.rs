@@ -213,6 +213,7 @@ fn encoding_value(input: &str) -> Option<Range<usize>> {
 }
 
 pub(super) fn exercise(input: &[u8]) -> Outcome {
+    required_declaration_rejections(input);
     let reference = Reference::new(input);
     let document = reference.as_ref().map(|r| Document::parse(&r.canonical));
     let valid = matches!(&document, Some(Ok(_)));
@@ -364,6 +365,49 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
         error: result.err(),
         events: count,
     }
+}
+
+/// Exercise the public point where BOM-less UTF-16 must prove its required
+/// declaration has an encoding pseudo-attribute.
+fn required_declaration_rejections(input: &[u8]) {
+    let little_endian = input.starts_with(&[0xff, 0xfe]) || input.starts_with(&[b'<', 0, b'?', 0]);
+    let encoded = encode_utf16("<?xml version='1.0'?><r/>", little_endian);
+    let expected = Error {
+        kind: ErrorKind::EncodingMismatch,
+        offset: 0,
+    };
+    let streamed = super::drive_push(
+        &encoded,
+        &[1, 2, 3, encoded.len()],
+        Limits::default(),
+        |_, _| panic!("required-declaration rejection emitted an event"),
+    );
+    check_required_declaration(streamed, expected);
+    check_required_declaration(
+        super::pull::with_limits(&encoded, Limits::default(), DecodeLimits::default()),
+        expected,
+    );
+    check_required_declaration(OwnedDocument::parse_bytes(&encoded).map(|_| ()), expected);
+}
+
+fn encode_utf16(text: &str, little_endian: bool) -> Vec<u8> {
+    text.encode_utf16()
+        .flat_map(|unit| {
+            if little_endian {
+                unit.to_le_bytes()
+            } else {
+                unit.to_be_bytes()
+            }
+        })
+        .collect()
+}
+
+fn check_required_declaration(result: Result<(), Error>, expected: Error) {
+    assert_eq!(
+        result,
+        Err(expected),
+        "BOM-less UTF-16 declaration rejection changed"
+    );
 }
 
 fn resource_error(kind: ErrorKind) -> bool {
@@ -735,5 +779,35 @@ fn decode_profile(input: &[u8], limits: DecodeLimits, oracle: Option<&DecodeOrac
                 oracle.check_result(Err(error), limits, input.len());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod required_declaration_tests {
+    use super::check_required_declaration;
+    use yaxml::{Error, ErrorKind};
+
+    #[test]
+    fn rejection_oracle_accepts_the_exact_kind_and_source_offset() {
+        let expected = Error {
+            kind: ErrorKind::EncodingMismatch,
+            offset: 0,
+        };
+        check_required_declaration(Err(expected), expected);
+    }
+
+    #[test]
+    #[should_panic(expected = "BOM-less UTF-16 declaration rejection changed")]
+    fn rejection_oracle_rejects_a_shifted_source_offset() {
+        check_required_declaration(
+            Err(Error {
+                kind: ErrorKind::EncodingMismatch,
+                offset: 2,
+            }),
+            Error {
+                kind: ErrorKind::EncodingMismatch,
+                offset: 0,
+            },
+        );
     }
 }

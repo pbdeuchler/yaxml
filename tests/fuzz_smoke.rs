@@ -545,8 +545,31 @@ fn known_acceptance() {
 }
 
 #[test]
+fn bomless_utf16_requires_an_encoding_declaration() {
+    for little_endian in [false, true] {
+        let input: Vec<_> = "<?xml version='1.0'?><r/>"
+            .encode_utf16()
+            .flat_map(|unit| {
+                if little_endian {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                }
+            })
+            .collect();
+        assert_eq!(
+            driver::exercise(&input).error,
+            Some(yaxml::Error {
+                kind: yaxml::ErrorKind::EncodingMismatch,
+                offset: 0,
+            })
+        );
+    }
+}
+
+#[test]
 fn each_resource_budget() {
-    use yaxml::{ErrorKind, Limit, Limits};
+    use yaxml::{Error, ErrorKind, Limit, Limits};
     let default = Limits::default();
     for (input, limits, expected) in [
         (
@@ -559,6 +582,14 @@ fn each_resource_budget() {
         ),
         (
             b"<r/>",
+            Limits {
+                max_token_bytes: 3,
+                ..default
+            },
+            Limit::TokenBytes,
+        ),
+        (
+            b"    <r/>",
             Limits {
                 max_token_bytes: 3,
                 ..default
@@ -607,6 +638,21 @@ fn each_resource_budget() {
         );
         assert!(driver::exercise_with_limits(input, default).error.is_none());
     }
+    assert_eq!(
+        driver::exercise_with_limits(
+            b"    <r/>",
+            Limits {
+                max_token_bytes: 3,
+                ..default
+            },
+        )
+        .error,
+        Some(Error {
+            kind: ErrorKind::LimitExceeded(Limit::TokenBytes),
+            offset: 0,
+        }),
+        "pre-root whitespace quota lost its source start"
+    );
 }
 
 #[test]

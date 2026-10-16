@@ -39,6 +39,9 @@ pub fn exercise(input: &[u8]) -> Outcome {
         input.len() <= MAX_INPUT_BYTES,
         "fuzz testcase exceeds the driver budget"
     );
+    if input.first().is_some_and(|byte| byte & 7 == b'<' & 7) {
+        check_finish_abort(input);
+    }
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
     if encoding::recognizes(input) {
@@ -95,6 +98,66 @@ pub fn exercise(input: &[u8]) -> Outcome {
         },
     );
     outcome
+}
+
+/// A pending text token is emitted only when final EOF is declared. Model that
+/// boundary separately so callback cancellation cannot be mistaken for the
+/// incomplete document's later `UnexpectedEof` failure.
+fn check_finish_abort(input: &[u8]) {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+
+    let mut source = Vec::with_capacity(4 + input.len().min(16));
+    source.extend_from_slice(b"<r>");
+    source.extend(
+        input
+            .iter()
+            .take(16)
+            .map(|byte| HEX[usize::from(byte & 15)]),
+    );
+    let text = std::str::from_utf8(&source[3..]).unwrap();
+    let mut parser = PushParser::new();
+    let mut starts = 0;
+    parser
+        .feed(&source, |event, range| {
+            assert!(matches!(event, Event::Start(_)), "unexpected pre-EOF event");
+            assert_eq!(range, 0..3);
+            starts += 1;
+            ControlFlow::Continue(())
+        })
+        .unwrap();
+    assert_eq!(starts, 1, "missing generated start event");
+
+    let mut texts = 0;
+    let error = parser
+        .finish(|event, range| {
+            let Event::Text(actual) = event else {
+                panic!("unexpected finish event")
+            };
+            assert_eq!(actual, text);
+            assert_eq!(range, 3..source.len());
+            texts += 1;
+            ControlFlow::Break(())
+        })
+        .expect_err("finish cancellation was ignored");
+    assert_eq!(texts, 1, "finish delivered text more than once");
+    check_abort(error, source.len());
+    assert_eq!(parser.position(), source.len());
+    assert_eq!(
+        parser.feed(&[], |_, _| panic!("callback after cancellation")),
+        Err(error)
+    );
+    assert_eq!(
+        parser.finish(|_, _| panic!("callback after cancellation")),
+        Err(error)
+    );
+}
+
+fn check_abort(error: Error, expected_offset: usize) {
+    assert_eq!(error.kind, ErrorKind::Aborted, "wrong cancellation kind");
+    assert_eq!(
+        error.offset, expected_offset,
+        "cancellation offset did not end the delivered event"
+    );
 }
 
 /// Exercise caller-created edits independently from the XML grammar bytes.
@@ -719,7 +782,7 @@ fn check_io_schedule(input: &[u8]) {
 
 #[cfg(test)]
 mod formatting_tests {
-    use super::check_display;
+    use super::{check_abort, check_display};
     use yaxml::{EditError, EditErrorKind, Error, ErrorKind, ReadError, WriteError};
 
     #[test]
@@ -759,5 +822,28 @@ mod formatting_tests {
     #[should_panic(expected = "empty error display")]
     fn oracle_rejects_an_empty_error_display() {
         check_display(&"");
+    }
+
+    #[test]
+    fn cancellation_oracle_accepts_only_the_delivered_event_end() {
+        check_abort(
+            Error {
+                kind: ErrorKind::Aborted,
+                offset: 7,
+            },
+            7,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "cancellation offset did not end the delivered event")]
+    fn cancellation_oracle_rejects_a_stale_offset() {
+        check_abort(
+            Error {
+                kind: ErrorKind::Aborted,
+                offset: 6,
+            },
+            7,
+        );
     }
 }
