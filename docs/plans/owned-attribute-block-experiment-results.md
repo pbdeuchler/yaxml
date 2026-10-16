@@ -100,12 +100,14 @@ example target passed. Strict all-target Clippy and formatting also pass. The
 ignored release benchmark passed its exact output, checksum, and accounting
 gates.
 
-Two deliberate fault gates verify crucial assertions. Removing descriptor owner
+Three deliberate fault gates verify crucial assertions. Removing descriptor owner
 qualification makes the shared parsed `0..0` isolation test fail with the first
 element's block returned for the second. Replacing geometric doubling with
 linear growth makes the append/growth accounting test fail at 30 physical slots
-instead of the required 37. The source was restored before the final checks;
-both failure logs are retained with the other artifacts.
+instead of the required 37. Skipping the descriptor-vector reservation check
+makes the allocation-failure test observe a published block instead of an
+atomic error. The source was restored after each mutation and before the final
+checks; all three failure logs are retained with the other artifacts.
 
 ## Layout and optimized read path
 
@@ -345,8 +347,8 @@ Primary artifact hashes:
 | Minimum-one prototype binary / parsed driver | `2e668178b63f37f3a909950821dd354adf06600abba78026c1855b0cd48d3201` / `5b6b900379b11115b8a770b63bd5039472419f9a8dd25a082dc6e4549a274519` |
 | Minimum-one parsed raw / report | `5f53628cbf1918f2e0eb9d3850fb34f93c7f0125ea03523782748d0ddef008ba` / `bd5f5401c877de1e8691932da9830552910e1d6634ceb63463d9d73391518246` |
 | Minimum-one edited raw / report | `fc8e2f4d2b9d4f2bdf8188bd7ef75932f8ee997cbc98539ed0ab0f2e4e484be6` / `5f1f722241740a745ddf75356c920e0da24cb43d2df47a45799014cb17adb017` |
-| Owner / growth fault logs | `b2ce94808c06984991b2567ba45c04296362b2892a710e8eb6a778702dac2abb` / `42888d93b7bc949743d158fc85578c57a83f624281d8bf41743c52d5fba6fe26` |
-| Evidence manifest | `c6bb2cc50f49ed9f8359b1a18288ee80d05a75959449e3035ddf51f16c2b0934` |
+| Owner / growth / descriptor-reservation fault logs | `b2ce94808c06984991b2567ba45c04296362b2892a710e8eb6a778702dac2abb` / `42888d93b7bc949743d158fc85578c57a83f624281d8bf41743c52d5fba6fe26` / `1f66105c2948ecd51ddae0c349fa2cf0bfd425eb86ace8de488759c42d88d8a0` |
+| Evidence manifest | `14c71efe274450e1811dfe7f47bc0bdcb30fff3c2b03a674a307d73d5e4d79af` |
 
 `SHA256SUMS` and complete raw, summarized, superseded, IR, and assembly artifacts
 are under `/private/tmp/yaxml-attribute-blocks-evidence-20261016`. No result in
