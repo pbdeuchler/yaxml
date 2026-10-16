@@ -67,12 +67,13 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// A ceiling for bounded owned-value edits.
+/// A ceiling for bounded owned-tree edits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum EditLimit {
     ValueBytes,
     OwnedBytes,
+    CreatedNodes,
 }
 
 /// Failures leave logical values and source provenance unchanged.
@@ -81,15 +82,19 @@ pub enum EditLimit {
 pub enum EditErrorKind {
     InvalidHandle,
     WrongNodeKind,
+    ProtectedNode,
     MissingAttribute,
     NamespaceDeclaration,
     InvalidCharacter,
     InvalidValue,
+    InvalidName,
     LimitExceeded(EditLimit),
     Allocation,
 }
 
-/// An edit failure, with an optional UTF-8 byte index in the replacement value.
+/// An edit failure, with an optional UTF-8 byte index in the supplied value.
+/// PI construction uses an index into the target for target failures, or into
+/// the data for data failures.
 /// Handle, kind, lookup, namespace, limit and allocation errors have no index.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct EditError {

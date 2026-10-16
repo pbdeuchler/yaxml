@@ -393,6 +393,7 @@ fn target_resolution_and_value_length_precede_character_and_lexical_checks() {
             .edit(EditLimits {
                 max_value_bytes: 0,
                 max_owned_bytes: 0,
+                ..EditLimits::default()
             })
             .unwrap();
         for id in [
@@ -552,6 +553,7 @@ fn exact_full_capacity_and_persistent_reopen_quotas_match_literal_goldens() {
             .edit(EditLimits {
                 max_value_bytes: 1,
                 max_owned_bytes: 3,
+                ..EditLimits::default()
             })
             .unwrap();
         assert_eq!(

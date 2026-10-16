@@ -789,7 +789,7 @@ fn qname(name: &str, offset: usize) -> Result<(Option<&str>, &str), Error> {
     }
 }
 
-fn validate_name(name: &str, offset: usize, colon: bool) -> Result<(), Error> {
+pub(crate) fn validate_name(name: &str, offset: usize, colon: bool) -> Result<(), Error> {
     let mut chars = name.char_indices();
     let Some((_, first)) = chars.next() else {
         return Err(Error::new(ErrorKind::InvalidName, offset));

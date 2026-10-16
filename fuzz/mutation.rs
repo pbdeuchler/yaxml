@@ -917,6 +917,7 @@ fn quota_case(case: u8, boundary: u8, encoding: u8, reopen: bool) {
             EditLimits {
                 max_value_bytes: 0,
                 max_owned_bytes: 0,
+                ..EditLimits::default()
             },
             &[(request, true)],
             false,

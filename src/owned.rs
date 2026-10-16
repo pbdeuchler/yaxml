@@ -64,13 +64,6 @@ enum Content {
         target: Range<usize>,
         data: Range<usize>,
     },
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "Permanent removal is added in the next plan phase"
-        )
-    )]
     Removed,
 }
 
@@ -188,35 +181,53 @@ impl StoredDeclaration {
 struct Pool(String);
 
 impl Pool {
+    fn edit_capacity(
+        &self,
+        additional: usize,
+        spent: usize,
+        limit: usize,
+    ) -> Result<usize, EditError> {
+        let exceeded = EditError::new(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes), None);
+        let needed = self.0.len().checked_add(additional).ok_or(exceeded)?;
+        if needed <= self.0.capacity() {
+            return Ok(self.0.capacity());
+        }
+        let remaining = limit.checked_sub(spent).ok_or(exceeded)?;
+        let target = self
+            .0
+            .capacity()
+            .saturating_mul(2)
+            .max(needed)
+            .min(remaining);
+        if target < needed {
+            return Err(exceeded);
+        }
+        Ok(target)
+    }
+
+    fn reserve_edit(&mut self, target: usize, spent: &mut usize) -> Result<(), EditError> {
+        if target > self.0.capacity() {
+            // The preflight bounds the full request by the remaining budget.
+            // A failed allocation remains cumulative work.
+            *spent += target;
+            self.0
+                .try_reserve_exact(target - self.0.len())
+                .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+        }
+        Ok(())
+    }
+
     fn store_edit(
         &mut self,
         value: &str,
         spent: &mut usize,
         limit: usize,
     ) -> Result<Range<usize>, EditError> {
-        let exceeded = EditError::new(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes), None);
+        let target = self.edit_capacity(value.len(), *spent, limit)?;
+        self.reserve_edit(target, spent)?;
         let start = self.0.len();
-        let needed = start.checked_add(value.len()).ok_or(exceeded)?;
-        if needed > self.0.capacity() {
-            let remaining = limit.checked_sub(*spent).ok_or(exceeded)?;
-            let target = self
-                .0
-                .capacity()
-                .saturating_mul(2)
-                .max(needed)
-                .min(remaining);
-            if target < needed {
-                return Err(exceeded);
-            }
-            // Full replacement capacity is cumulative work, including failed
-            // reservations. Parsed capacity is the uncharged editing baseline.
-            *spent += target;
-            self.0
-                .try_reserve_exact(target - start)
-                .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
-        }
         self.0.push_str(value);
-        Ok(start..needed)
+        Ok(start..self.0.len())
     }
 
     fn store(
@@ -293,6 +304,7 @@ pub struct OwnedDocument {
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
     edit_owned_bytes: usize,
+    edit_created_nodes: usize,
     // Parsing produces contiguous preorder. A future structural edit clears
     // this permanently; value-only edits leave the fast path valid.
     slots_are_preorder: bool,
@@ -386,8 +398,8 @@ impl OwnedDocument {
             .map(|declaration| declaration.view(&self.pool.0))
     }
 
-    /// Opens a bounded value editor. The owned-byte counter persists across
-    /// editors; a ceiling below earlier editing expenditure is rejected.
+    /// Opens a bounded tree editor. Owned-byte and created-node counters persist
+    /// across editors; a ceiling below earlier editing expenditure is rejected.
     /// Parsed string capacity is the baseline and is not charged again.
     ///
     /// ```
@@ -409,6 +421,12 @@ impl OwnedDocument {
     /// editor.set_node_value(view.id(), "new").unwrap();
     /// ```
     pub fn edit(&mut self, limits: EditLimits) -> Result<Editor<'_>, EditError> {
+        if self.edit_created_nodes > limits.max_created_nodes {
+            return Err(EditError::new(
+                EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+                None,
+            ));
+        }
         if self.edit_owned_bytes > limits.max_owned_bytes {
             return Err(EditError::new(
                 EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
@@ -422,15 +440,19 @@ impl OwnedDocument {
     }
 }
 
-/// Inclusive ceilings for replacement values and cumulative editing capacity.
+/// Inclusive ceilings for supplied strings and cumulative editing work.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct EditLimits {
-    /// Replacement UTF-8 bytes, checked before scanning. Default: 1 MiB.
+    /// UTF-8 bytes per supplied value or PI target, checked before scanning.
+    /// Default: 1 MiB.
     pub max_value_bytes: usize,
     /// Full new pool-capacity requests across all editors. Default: 64 MiB.
     /// Includes earlier released buffers and failed reservation charges, but
     /// excludes parsed baseline capacity, metadata and allocator overhead.
     pub max_owned_bytes: usize,
+    /// Successful fresh slots across all editors, never refunded by removal.
+    /// Parsed nodes are excluded. Default: 1,000,000.
+    pub max_created_nodes: usize,
 }
 
 impl Default for EditLimits {
@@ -438,12 +460,14 @@ impl Default for EditLimits {
         Self {
             max_value_bytes: 1024 * 1024,
             max_owned_bytes: 64 * 1024 * 1024,
+            max_created_nodes: 1_000_000,
         }
     }
 }
 
-/// Exclusive, atomic edits to existing logical values. An editor remains usable
-/// after an error. Operations preserve topology, names and source provenance.
+/// Exclusive, atomic value edits, fresh leaf insertion and permanent removal.
+/// An editor remains usable after an error. Surviving names and provenance stay
+/// unchanged; created nodes have no original source location.
 /// Dropping an editor performs no work. Equal replacements take the edit path.
 pub struct Editor<'document> {
     document: &'document mut OwnedDocument,
@@ -453,6 +477,229 @@ pub struct Editor<'document> {
 impl Editor<'_> {
     pub fn document(&self) -> &OwnedDocument {
         self.document
+    }
+
+    /// Appends one fresh Text node under an element, without merging neighbors.
+    pub fn append_text(
+        &mut self,
+        parent: OwnedNodeId,
+        value: &str,
+    ) -> Result<OwnedNodeId, EditError> {
+        self.append_leaf(parent, ValueKind::Text, None, value)
+    }
+
+    /// Appends one fresh CDATA node under an element. Raw CR and `]]>` fail.
+    pub fn append_cdata(
+        &mut self,
+        parent: OwnedNodeId,
+        value: &str,
+    ) -> Result<OwnedNodeId, EditError> {
+        self.append_leaf(parent, ValueKind::Cdata, None, value)
+    }
+
+    /// Appends a comment under an element or after the document's epilog tail.
+    pub fn append_comment(
+        &mut self,
+        parent: OwnedNodeId,
+        value: &str,
+    ) -> Result<OwnedNodeId, EditError> {
+        self.append_leaf(parent, ValueKind::Comment, None, value)
+    }
+
+    /// Appends a PI under an element or after the document's epilog tail.
+    /// The target is an XML Name without a colon and cannot be any ASCII case
+    /// spelling of `xml`. Target failures index target; data failures index data.
+    /// Both string lengths are checked before either string is scanned.
+    /// Target and data share one pool reservation: on a parsed `<r/>` with one
+    /// pool byte, appending target `p` and data `d` charges capacity 3 once.
+    pub fn append_processing_instruction(
+        &mut self,
+        parent: OwnedNodeId,
+        target: &str,
+        data: &str,
+    ) -> Result<OwnedNodeId, EditError> {
+        self.append_leaf(parent, ValueKind::Pi, Some(target), data)
+    }
+
+    fn append_leaf(
+        &mut self,
+        parent: OwnedNodeId,
+        kind: ValueKind,
+        target: Option<&str>,
+        value: &str,
+    ) -> Result<OwnedNodeId, EditError> {
+        let parent = self.resolve(parent)?;
+        match (&self.document.nodes[parent].content, kind) {
+            (Content::Element { .. }, _)
+            | (Content::Document, ValueKind::Comment | ValueKind::Pi) => {}
+            _ => return Err(EditError::new(EditErrorKind::WrongNodeKind, None)),
+        }
+        // PI argument lengths precede all target/data validation, so a large
+        // data argument cannot make scanning an invalid target the first error.
+        if let Some(target) = target {
+            validate_value_length(target, self.limits.max_value_bytes)?;
+        }
+        validate_value_length(value, self.limits.max_value_bytes)?;
+        if let Some(target) = target {
+            validate_characters(target)?;
+            crate::parser::validate_name(target, 0, false)
+                .map_err(|error| EditError::new(EditErrorKind::InvalidName, Some(error.offset)))?;
+            if target.eq_ignore_ascii_case("xml") {
+                return Err(EditError::new(EditErrorKind::InvalidName, Some(0)));
+            }
+        }
+        validate_value(value, kind, self.limits.max_value_bytes)?;
+
+        let exceeded = EditError::new(EditErrorKind::LimitExceeded(EditLimit::CreatedNodes), None);
+        let created = self
+            .document
+            .edit_created_nodes
+            .checked_add(1)
+            .ok_or(exceeded)?;
+        if created > self.limits.max_created_nodes {
+            return Err(exceeded);
+        }
+        let additional =
+            target
+                .unwrap_or("")
+                .len()
+                .checked_add(value.len())
+                .ok_or(EditError::new(
+                    EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
+                    None,
+                ))?;
+        // Preflight every quota before reserving either arena. PI strings share
+        // one bounded growth request, so a later string cannot fail a quota
+        // after staging the first one.
+        let capacity = self.document.pool.edit_capacity(
+            additional,
+            self.document.edit_owned_bytes,
+            self.limits.max_owned_bytes,
+        )?;
+        let id = NodeId(self.document.nodes.len());
+        let allocation = EditError::new(EditErrorKind::Allocation, None);
+        let link = Link::new(id).ok_or(allocation)?;
+        let parent_link = Link::new(NodeId(parent)).ok_or(allocation)?;
+        self.document.nodes.try_reserve(1).map_err(|_| allocation)?;
+        self.document
+            .pool
+            .reserve_edit(capacity, &mut self.document.edit_owned_bytes)?;
+
+        // Everything below is infallible and uses the pre-reserved capacity.
+        let pool = &mut self.document.pool.0;
+        let target_start = pool.len();
+        pool.push_str(target.unwrap_or(""));
+        let target_range = target_start..pool.len();
+        let value_start = pool.len();
+        pool.push_str(value);
+        let value_range = value_start..pool.len();
+        let content = match kind {
+            ValueKind::Text => Content::Text(value_range),
+            ValueKind::Cdata => Content::Cdata(value_range),
+            ValueKind::Comment => Content::Comment(value_range),
+            ValueKind::Pi => Content::ProcessingInstruction {
+                target: target_range,
+                data: value_range,
+            },
+        };
+        let previous_sibling = self.document.nodes[parent].last_child;
+        self.document.slots_are_preorder = false;
+        self.document.nodes.push(OwnedRecord {
+            id,
+            content,
+            source: None,
+            parent: parent_link,
+            first_child: Link::NONE,
+            last_child: Link::NONE,
+            previous_sibling,
+            next_sibling: Link::NONE,
+            subtree_size: 1,
+        });
+        if let Some(previous) = previous_sibling.get() {
+            self.document.nodes[previous.0].next_sibling = link;
+        } else {
+            self.document.nodes[parent].first_child = link;
+        }
+        self.document.nodes[parent].last_child = link;
+        let mut ancestor = Some(NodeId(parent));
+        while let Some(id) = ancestor {
+            let record = &mut self.document.nodes[id.0];
+            record.subtree_size += 1;
+            ancestor = record.parent.get();
+        }
+        self.document.edit_created_nodes = created;
+        Ok(OwnedNodeId {
+            document: self.document.identity,
+            slot: id,
+        })
+    }
+
+    /// Permanently removes a node and all descendants without allocating.
+    /// The synthetic root and document element are protected. Removed handles
+    /// never become live again; slot and pool expenditure is not refunded.
+    pub fn remove_subtree(&mut self, node: OwnedNodeId) -> Result<(), EditError> {
+        let index = self.resolve(node)?;
+        if index == 0 || NodeId(index) == self.document.root_element {
+            return Err(EditError::new(EditErrorKind::ProtectedNode, None));
+        }
+        let record = &self.document.nodes[index];
+        let parent = record
+            .parent
+            .get()
+            .expect("unprotected live node has a parent");
+        let previous = record.previous_sibling;
+        let next = record.next_sibling;
+        let removed_count = record.subtree_size;
+        self.document.slots_are_preorder = false;
+        if let Some(previous) = previous.get() {
+            self.document.nodes[previous.0].next_sibling = next;
+        } else {
+            self.document.nodes[parent.0].first_child = next;
+        }
+        if let Some(next) = next.get() {
+            self.document.nodes[next.0].previous_sibling = previous;
+        } else {
+            self.document.nodes[parent.0].last_child = previous;
+        }
+        let mut ancestor = Some(parent);
+        while let Some(id) = ancestor {
+            let record = &mut self.document.nodes[id.0];
+            record.subtree_size -= removed_count;
+            ancestor = record.parent.get();
+        }
+        // Strip rightmost leaves, then their parents. Each edge is visited a
+        // constant number of times, without recursion or a temporary stack.
+        let mut current = NodeId(index);
+        loop {
+            if let Some(last) = self.document.nodes[current.0].last_child.get() {
+                current = last;
+                continue;
+            }
+            let record = &mut self.document.nodes[current.0];
+            let parent = record.parent;
+            let previous = record.previous_sibling;
+            record.content = Content::Removed;
+            record.source = None;
+            record.parent = Link::NONE;
+            record.first_child = Link::NONE;
+            record.last_child = Link::NONE;
+            record.previous_sibling = Link::NONE;
+            record.next_sibling = Link::NONE;
+            record.subtree_size = 0;
+            if current.0 == index {
+                break;
+            }
+            let parent = parent.get().expect("removed descendant has a parent");
+            self.document.nodes[parent.0].last_child = previous;
+            if let Some(previous) = previous.get() {
+                self.document.nodes[previous.0].next_sibling = Link::NONE;
+                current = previous;
+            } else {
+                self.document.nodes[parent.0].first_child = Link::NONE;
+                current = parent;
+            }
+        }
+        Ok(())
     }
 
     fn resolve(&self, node: OwnedNodeId) -> Result<usize, EditError> {
@@ -538,19 +785,29 @@ enum ValueKind {
     Pi,
 }
 
-fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), EditError> {
+fn validate_value_length(value: &str, limit: usize) -> Result<(), EditError> {
     if value.len() > limit {
         return Err(EditError::new(
             EditErrorKind::LimitExceeded(EditLimit::ValueBytes),
             None,
         ));
     }
+    Ok(())
+}
+
+fn validate_characters(value: &str) -> Result<(), EditError> {
     if let Some((index, _)) = value
         .char_indices()
         .find(|(_, character)| !crate::escape::xml_char(*character))
     {
         return Err(EditError::new(EditErrorKind::InvalidCharacter, Some(index)));
     }
+    Ok(())
+}
+
+fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), EditError> {
+    validate_value_length(value, limit)?;
+    validate_characters(value)?;
     let invalid = match kind {
         ValueKind::Text => None,
         ValueKind::Cdata => value.find("]]>").into_iter().chain(value.find('\r')).min(),
@@ -738,6 +995,7 @@ impl OwnedBuilder {
             root_element: self.root_element,
             declaration: self.declaration,
             edit_owned_bytes: 0,
+            edit_created_nodes: 0,
             slots_are_preorder: true,
         })
     }
@@ -965,3 +1223,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/internal/editor.rs"]
 mod edit_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/owned_structure.rs"]
+mod structure_tests;

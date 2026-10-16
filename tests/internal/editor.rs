@@ -249,6 +249,7 @@ fn handle_kind_lookup_and_namespace_fail_before_value_validation() {
         .edit(EditLimits {
             max_value_bytes: 0,
             max_owned_bytes: 0,
+            ..EditLimits::default()
         })
         .unwrap();
     for id in [foreign, invalid] {
@@ -359,7 +360,8 @@ fn edit_errors_display_optional_value_indices_and_defaults_are_finite() {
         EditLimits::default(),
         EditLimits {
             max_value_bytes: 1_048_576,
-            max_owned_bytes: 67_108_864
+            max_owned_bytes: 67_108_864,
+            max_created_nodes: 1_000_000,
         }
     );
     let indexed = error(EditErrorKind::InvalidCharacter, Some(2));

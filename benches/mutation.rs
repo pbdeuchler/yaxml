@@ -309,6 +309,7 @@ fn main() {
                 "YAXML_MUTATION_MAX_OWNED_BYTES",
                 EditLimits::default().max_owned_bytes,
             ),
+            ..EditLimits::default()
         },
     };
     assert!(config.iterations > 0 && config.operations > 0 && attributes > 0);
