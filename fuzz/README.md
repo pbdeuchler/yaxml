@@ -177,6 +177,9 @@ catalog before grammar/encoding returns.
 The [original construction validation](../docs/validation-owned-create.md) and
 [current fuzz-gap evidence](../docs/validation-construction-fuzz-gaps.md) record
 separate source-complete measurements and remaining gaps.
+The [binding/limit precedence validation](../docs/validation-construction-binding.md)
+records the twelve-case catalog, dispatch/encoding fault checks and its fresh
+fuzz-only measurement without production changes or exclusions.
 
 ## Owned mutation operations
 

@@ -83,6 +83,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   events, diagnostics and both DOMs before activating the remaining
   [DTD foundations](plans/dtd-foundations.md). Preserve physical stream position,
   UTF-16 source mapping, bounded expansion and explicit external-resource policy.
+- [x] Extend the independent construction fuzz model with twelve literal
+  binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
+  leaf-dispatch assertions and same-editor recovery. The
+  [fresh validation](validation-construction-binding.md) closes seven missed
+  regions/lines without production changes: 6,885/7,331 regions, 4,756/4,923
+  lines and unchanged 909/962 instrumented branch outcomes. The 100% target
+  remains open; no exclusions or production hooks were added.
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
 - [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
 - [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.
