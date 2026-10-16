@@ -257,7 +257,20 @@ fn grammar_regression_corpus() {
         ("<![CDATA[x]]><r/>", Some(TextOutsideRoot)),
         ("<r>]]></r>", Some(Syntax)),
         ("<r><!--a--b--></r>", Some(Syntax)),
+        ("<r><!--a---></r>", Some(Syntax)),
+        ("<r>\n&amp;\t</r>", None),
         ("<?xml?><r/>", Some(InvalidDeclaration)),
+        ("<?XML version='1.0'?><r/>", Some(InvalidDeclaration)),
+        (" <?xml version='1.0'?><r/>", Some(InvalidDeclaration)),
+        (
+            "<?xml version='1.0' version='1.0'?><r/>",
+            Some(InvalidDeclaration),
+        ),
+        ("<?xml standalone='yes'?><r/>", Some(InvalidDeclaration)),
+        (
+            "<?xml version='1.0' standalone='yes' standalone='no'?><r/>",
+            Some(InvalidDeclaration),
+        ),
         (
             "<?xml version='1.0' standalone='other'?><r/>",
             Some(InvalidDeclaration),
@@ -302,6 +315,24 @@ fn grammar_regression_corpus() {
         assert_eq!(
             driver::exercise(input).error.unwrap().kind,
             UnsupportedEncoding
+        );
+    }
+    for (input, ceiling) in [
+        (b"<!--x--><r/>".as_slice(), 3),
+        (b"<r><!--abcdefgh--></r>", 8),
+    ] {
+        assert_eq!(
+            driver::exercise_with_limits(
+                input,
+                yaxml::Limits {
+                    max_token_bytes: ceiling,
+                    ..yaxml::Limits::default()
+                }
+            )
+            .error
+            .unwrap()
+            .kind,
+            LimitExceeded(yaxml::Limit::TokenBytes)
         );
     }
 }
