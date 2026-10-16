@@ -223,6 +223,12 @@ error precedence before implementation. The proposed order is:
 Namespace-work exhaustion necessarily occurs while resolving step 3; document
 that first-exhaustion result rather than pretending resolution can finish for
 free before reporting step 4. The frozen plan should make this exception explicit.
+Scope and duplicate-name planning can also need fallible scratch allocation.
+Check its own size/work ceiling before each reservation, and freeze whether
+that allocation can precede later namespace/duplicate errors. Do not promise
+that all semantic checks precede every allocation while also requiring an
+allocated scope index to perform those checks. Persistent arena/pool growth
+and publication still wait until planning succeeds.
 Pool quota preflight must precede metadata reservations, as in leaf insertion.
 Combined operations reserve their complete string payload once; freeze literal
 capacity-charge goldens, not allocator-specific observed-capacity equalities.
