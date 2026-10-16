@@ -127,7 +127,7 @@ Use these defaults for the first slice:
 | `max_created_nodes` | 1,000,000 | Existing persistent counter across editors; new root and appended elements count, synthetic document root does not. No removal refund. |
 | `max_created_attributes` | 1,000,000 | Persistent count of initial and appended ordinary attributes and namespace declarations; no removal exists in this slice. |
 | `max_owned_bytes` | 64 MiB | Existing cumulative full pool-capacity requests across editor calls. Creation's pool allocation is charged from zero; names and values are stored once per occurrence, without requiring content deduplication. |
-| `max_namespace_work` | 64 MiB | Per-call namespace and expanded-name work: one unit per ancestor node and every attribute examined, plus declaration/prefix candidates and prefix/local-name/URI comparison bytes. |
+| `max_namespace_work` | 64 MiB | Per-call namespace and expanded-name work: one unit per element ancestor and every attribute examined, plus declaration/prefix candidates, binding/expanded-key comparison operands, and bytes copied for selected inherited/generated prefixes. The synthetic document is not a namespace scope. |
 
 The aggregate supplied-byte limit closes a gap in the wider proposal: a
 per-component 1 MiB name/value bound and a 1,024-item start tag could otherwise
@@ -147,6 +147,20 @@ split: the earlier draft charges prefix/URI validation scans to
 Both are per operation. This split is simpler to audit across local names and
 attribute values too, but it is a public quota-contract change that must be
 reconciled in the parent proposal before implementation.
+
+Reserved spelling classification (`xml`, `xmlns`, empty prefix/URI and the two
+reserved URIs) is caller-string validation covered by `max_supplied_bytes`.
+It does not spend namespace lookup work. That rule also covers checking whether
+an unprefixed ordinary attribute is named `xmlns`. Scope lookup and duplicate
+expanded-name comparisons charge their full operands before comparing, even
+when those operands came from supplied strings. Copying an inherited prefix is
+charged separately because its bytes were not supplied in this operation.
+Consequently a plain unnamespaced root with no items needs zero namespace work.
+An unnamespaced append beneath three empty element ancestors needs three scope
+steps; two ordinary attributes encountered on that path add two. A matching
+five-byte default URI needs one ancestor, one attribute, one declaration
+candidate and ten URI-comparison bytes: thirteen units, with no extra charge
+for returning a borrowed URI slice.
 
 The aggregate bounds validation work and supplied payload, not all metadata or
 allocation overhead. Here, each successful fresh attribute has fixed metadata
