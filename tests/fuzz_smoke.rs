@@ -543,6 +543,9 @@ fn encoded_equivalents_and_every_truncation() {
             "<r>🙂&unknown;</r>",
             "<r>é中</wrong>",
             "<r a='x' a='y'/>",
+            "<!é",
+            "<!🙂>",
+            "<r><!é></r>",
         ] {
             driver::exercise(&utf16(input, little, true));
             // A missing-BOM UTF-16 declaration is not the endian label this

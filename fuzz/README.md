@@ -62,6 +62,11 @@ to source bytes. Materializing decoded input and a global offset map is confined
 to this test oracle; production decoding retains constant carry. A second BOM is
 explicitly rejected rather than letting the UTF-8 reference strip it. Both
 auto-decoding surfaces must reject malformed code units, XML and labels.
+For independently decoded malformed grammar, error kinds and mapped source
+offsets are compared across whole/chunked/I/O/owned paths. Upfront character
+validation, allocation and resource ordering have scoped exclusions. Incomplete
+second-root markup or top-level CDATA can report streaming EOF instead of the
+slice boundary error; both must still identify the same source start.
 
 Successful UTF-16 input compares complete stream/I/O events and owned-tree views
 against the UTF-8 reference. Small valid inputs must succeed under default

@@ -18,8 +18,8 @@ Limits are per operation and checked before retaining more state or allocating a
 
 | Resource | Initial enforcement | Extension required before the related feature ships |
 | --- | --- | --- |
-| Input | Total source bytes | Aggregate resolved bytes, decoded bytes, and compressed input handled outside the core |
-| Tokens | Raw token bytes | Decoded token bytes and transcoding carry buffer |
+| Input | Total source bytes and total decoded UTF-8 bytes | Aggregate resolved bytes and compressed input handled outside the core |
+| Tokens | Raw and decoded token bytes; constant decoder carry | Additional transcoding formats and their carry bounds |
 | Owned strings | Cumulative requested string capacity, including namespace copies, streaming names and full new owned-DOM pool capacities; one shared normalization/storage counter | Allocator-level byte accounting and failure injection; current budget is not a process memory quota |
 | Structure | Element depth, attributes per element, event count | DOM nodes, retained DOM bytes, namespace declarations and bindings |
 | Entities | Reject DTDs; recognize only predefined and numeric references | Entity nesting, reference count, expanded bytes, expansion work, and cycle detection |

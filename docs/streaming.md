@@ -41,7 +41,9 @@ scalars through a stack buffer. The lexer retains at most one decoded token. It
 tracks partial comment, CDATA, PI and quoted-tag delimiters across chunks. Ordinary
 byte runs use `memchr` searches and bulk copies. It never restarts scanning from
 the beginning of an accumulated token. Requested scratch capacity grows
-geometrically up to both raw and decoded token ceilings, with limits checked before reservation.
+geometrically up to the decoded ceiling and the maximum decoded size implied by
+the source ceiling, with limits checked before reservation. The latter is the
+raw ceiling for UTF-8 and `3 * floor(raw / 2)` for UTF-16, capped without overflow.
 
 Remaining parser state depends on open elements and active/shadowed namespace
 bindings; metadata capacities retain their high-water marks. Completed sibling

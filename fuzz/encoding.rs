@@ -6,8 +6,8 @@
 use std::ops::{ControlFlow, Range};
 
 use yaxml::{
-    DecodeLimits, Document, ErrorKind, Event, Limit, Limits, OwnedDocument, PushParser, ReadError,
-    Reader,
+    DecodeLimits, Document, Error, ErrorKind, Event, Limit, Limits, OwnedDocument, PushParser,
+    ReadError, Reader,
 };
 
 use super::Outcome;
@@ -37,6 +37,7 @@ fn is_utf32(prefix: &[u8]) -> bool {
 struct Reference {
     canonical: String,
     original_encoding: Option<String>,
+    label_start: Option<usize>,
     raw_offsets: Vec<usize>,
 }
 
@@ -106,6 +107,7 @@ impl Reference {
         Some(Self {
             canonical,
             original_encoding,
+            label_start: span.map(|span| span.start),
             raw_offsets,
         })
     }
@@ -135,6 +137,55 @@ impl Reference {
             }
             (actual, expected) => assert!(actual == expected, "decoded typed event changed"),
         }
+    }
+
+    fn failure(&self, expected: Error, actual: Option<Error>, input_len: usize) {
+        // The slice reader validates all characters before grammar, whereas
+        // streaming may encounter an earlier semantic error. Resource and
+        // allocation failures can likewise precede later malformed markup.
+        if matches!(
+            expected.kind,
+            ErrorKind::InvalidUtf8
+                | ErrorKind::InvalidCharacter
+                | ErrorKind::Allocation
+                | ErrorKind::LimitExceeded(_)
+        ) {
+            return;
+        }
+        let actual = actual.expect("invalid decoded grammar accepted");
+        if input_len > 1024 && resource_error(actual.kind) {
+            return;
+        }
+        assert!(
+            !matches!(
+                actual.kind,
+                ErrorKind::LimitExceeded(_) | ErrorKind::Allocation
+            ),
+            "decoded grammar failure concealed by unrelated resource rejection"
+        );
+        // A slice can reject a second root or top-level CDATA before a
+        // streaming token is complete. Both still identify its raw start.
+        let incomplete_markup = actual.kind == ErrorKind::UnexpectedEof
+            && matches!(
+                expected.kind,
+                ErrorKind::MultipleRoots | ErrorKind::TextOutsideRoot
+            );
+        assert!(
+            actual.kind == expected.kind || incomplete_markup,
+            "decoded semantic error changed kind: actual={actual}, expected={expected}"
+        );
+        assert!(expected.offset <= self.canonical.len());
+        let boundary = self.canonical.floor_char_boundary(expected.offset);
+        let mut offset = self.raw_offsets[boundary];
+        if offset == usize::MAX {
+            // A location inside the synthetic ASCII label has no individual
+            // source-byte counterpart. Anchor it at the original value start.
+            offset = self.raw_offsets[self.label_start.expect("unmapped label location")];
+        }
+        assert_eq!(
+            actual.offset, offset,
+            "decoded semantic error changed original source offset"
+        );
     }
 }
 
@@ -169,6 +220,9 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
     assert!(Document::parse_bytes(input).is_err());
     let mut count = 0;
     let result = compare_stream(input, &[], reference.as_ref(), valid, &mut count);
+    if let (Some(reference), Some(Err(expected))) = (&reference, &document) {
+        reference.failure(*expected, result.err(), input.len());
+    }
     let mut schedule = Vec::new();
     let mut left = input.len();
     while left != 0 {
@@ -186,6 +240,9 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
         valid,
         &mut chunked_count,
     );
+    if let (Some(reference), Some(Err(expected))) = (&reference, &document) {
+        reference.failure(*expected, chunked.err(), input.len());
+    }
     assert_eq!(
         result.is_ok(),
         chunked.is_ok(),
@@ -216,12 +273,18 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
         Err(ReadError::Xml(error)) => {
             super::check_error(error, input.len());
             assert!(!valid || resource_error(error.kind));
+            if let (Some(reference), Some(Err(expected))) = (&reference, &document) {
+                reference.failure(*expected, Some(error), input.len());
+            }
         }
         Err(error) => panic!("cursor produced an I/O failure: {error}"),
     }
     let mut temporary = input.to_vec();
     let owned = OwnedDocument::parse_bytes(&temporary);
     let owned_error = owned.as_ref().err().copied();
+    if let (Some(reference), Some(Err(expected))) = (&reference, &document) {
+        reference.failure(*expected, owned_error, input.len());
+    }
     temporary.fill(0);
     drop(temporary);
     if valid && input.len() <= 1024 {
