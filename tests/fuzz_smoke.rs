@@ -234,3 +234,74 @@ fn projection_detects_reordered_attributes() {
     let document = yaxml::Document::parse("<r a='1' b='2'/>").unwrap();
     driver::check_projection(&document, &stream(b"<r b='2' a='1'/>"));
 }
+
+#[test]
+fn grammar_regression_corpus() {
+    use yaxml::ErrorKind::*;
+    for (input, expected) in [
+        (
+            "\u{feff}<?xml version='1.0' encoding='utf-8' standalone='no'?><r/>",
+            None,
+        ),
+        ("<r a='\t\n\r\n&#xA;'><!--a\r\nb--><?pi a\rb?></r>", None),
+        (
+            "<r xmlns:xml='http://www.w3.org/XML/1998/namespace' xml:lang='en'/>",
+            None,
+        ),
+        (
+            "<r xmlns:p='urn:&#x61;' xmlns:q='urn:a'><p:c q:a='1'/></r>",
+            None,
+        ),
+        ("<r xmlns='u'><c xmlns=''/></r>", None),
+        ("<r/>x", Some(TextOutsideRoot)),
+        ("<![CDATA[x]]><r/>", Some(TextOutsideRoot)),
+        ("<r>]]></r>", Some(Syntax)),
+        ("<r><!--a--b--></r>", Some(Syntax)),
+        ("<?xml?><r/>", Some(InvalidDeclaration)),
+        (
+            "<?xml version='1.0' standalone='other'?><r/>",
+            Some(InvalidDeclaration),
+        ),
+        (
+            "<?xml version='1.0' encoding='UTF-16'?><r/>",
+            Some(UnsupportedEncoding),
+        ),
+        (
+            "<?xml version='1.0' standalone='no' encoding='UTF-8'?><r/>",
+            Some(InvalidDeclaration),
+        ),
+        (
+            "<r xmlns:p='u' xmlns:q='u' p:a='' q:a=''/>",
+            Some(DuplicateAttribute),
+        ),
+        ("<r xmlns:xml='u'/>", Some(Namespace)),
+        ("<r xmlns:p=''/>", Some(Namespace)),
+        (
+            "<r xmlns='http://www.w3.org/XML/1998/namespace'/>",
+            Some(Namespace),
+        ),
+        ("<r xmlns:xmlns='u'/>", Some(Namespace)),
+        (
+            "<r xmlns='http://www.w3.org/2000/xmlns/'/>",
+            Some(Namespace),
+        ),
+        ("<xmlns:r/>", Some(Namespace)),
+        ("<r a='v'b='v'/>", Some(Syntax)),
+        ("<r></r x>", Some(Syntax)),
+        ("<r a:b:c=''/>", Some(InvalidName)),
+        ("<r a\u{2190}=''/>", Some(InvalidName)),
+        ("<r>\u{fffe}</r>", Some(InvalidCharacter)),
+    ] {
+        assert_eq!(
+            driver::exercise(input.as_bytes()).error.map(|e| e.kind),
+            expected,
+            "{input:?}"
+        );
+    }
+    for input in [b"\xfe\xff\0<".as_slice(), b"\0\0\xfe\xff", b"\0<\0?"] {
+        assert_eq!(
+            driver::exercise(input).error.unwrap().kind,
+            UnsupportedEncoding
+        );
+    }
+}
