@@ -21,10 +21,10 @@ pub struct CapturedName(String, Option<String>, String, Option<String>);
 impl From<&Name<'_>> for CapturedName {
     fn from(name: &Name<'_>) -> Self {
         Self(
-            name.qualified.into(),
-            name.prefix.map(str::to_owned),
-            name.local.into(),
-            name.namespace.as_deref().map(str::to_owned),
+            name.qualified().into(),
+            name.prefix().map(str::to_owned),
+            name.local().into(),
+            name.namespace().map(str::to_owned),
         )
     }
 }

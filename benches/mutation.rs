@@ -119,7 +119,7 @@ impl Case {
             let element = document.node(id).unwrap().parent().unwrap();
             assert_eq!(element.attributes().len(), self.attributes);
             for (attribute_index, attribute) in element.attributes().enumerate() {
-                assert_eq!(attribute.name.qualified, format!("a{attribute_index:04}"));
+                assert_eq!(attribute.name.qualified(), format!("a{attribute_index:04}"));
                 let expected =
                     if index == 0 && self.attribute == Some(attribute_index) && completed > 0 {
                         self.value(completed - 1)

@@ -316,7 +316,7 @@ fn validate_part(
         });
     }
     if is_name {
-        crate::parser::validate_name(value, 0, false).map_err(|error| match item {
+        crate::name::validate_name(value, 0, false).map_err(|error| match item {
             Some((index, namespace)) => located_item(
                 EditErrorKind::InvalidName,
                 index,
@@ -440,13 +440,13 @@ fn clone_string(value: &str) -> Result<String, EditError> {
     Ok(result)
 }
 
-fn declaration_prefix<'a>(name: &Name<'a>) -> Option<Option<&'a str>> {
-    if name.namespace.as_deref() != Some(XMLNS) {
+fn declaration_prefix<'a>(name: &'a Name<'_>) -> Option<Option<&'a str>> {
+    if name.namespace() != Some(XMLNS) {
         return None;
     }
-    if name.prefix == Some("xmlns") {
-        Some(Some(name.local))
-    } else if name.qualified == "xmlns" {
+    if name.prefix() == Some("xmlns") {
+        Some(Some(name.local()))
+    } else if name.qualified() == "xmlns" {
         Some(None)
     } else {
         None
@@ -1763,14 +1763,14 @@ mod tests {
             .unwrap();
         let view = editor.document().node(child).unwrap();
         assert_eq!(view.range(), None);
-        assert_eq!(view.name().unwrap().qualified, "s:item");
+        assert_eq!(view.name().unwrap().qualified(), "s:item");
         assert_eq!(
             view.attributes()
-                .map(|a| (a.name.qualified, a.value.into_owned()))
+                .map(|a| (a.name.qualified().to_owned(), a.value.into_owned()))
                 .collect::<Vec<_>>(),
             [
-                ("xmlns:s", "urn:shop".to_owned()),
-                ("id", "A-17".to_owned())
+                ("xmlns:s".to_owned(), "urn:shop".to_owned()),
+                ("id".to_owned(), "A-17".to_owned())
             ]
         );
         assert_eq!(editor.document().nodes().count(), 3);
@@ -1811,7 +1811,7 @@ mod tests {
                 .unwrap()
                 .name()
                 .unwrap()
-                .qualified,
+                .qualified(),
             "child"
         );
         let other = editor
@@ -1841,11 +1841,11 @@ mod tests {
             )
             .unwrap();
         let other = editor.document().node(other).unwrap();
-        assert_eq!(other.name().unwrap().qualified, "ns2:other");
+        assert_eq!(other.name().unwrap().qualified(), "ns2:other");
         assert_eq!(
             other
                 .attributes()
-                .map(|a| a.name.qualified)
+                .map(|a| a.name.qualified().to_owned())
                 .collect::<Vec<_>>(),
             ["xmlns", "ns1:a", "xmlns:ns2", "xmlns:ns1"]
         );
@@ -1903,7 +1903,7 @@ mod tests {
         assert_eq!(
             element
                 .attributes()
-                .map(|attribute| attribute.name.qualified)
+                .map(|attribute| attribute.name.qualified().to_owned())
                 .collect::<Vec<_>>(),
             ["ns1:id", "p:tag", "xmlns:ns1", "xmlns:p"]
         );
@@ -2179,7 +2179,7 @@ mod tests {
                     )
                     .unwrap();
                 let child = editor.document().node(child).unwrap();
-                assert_eq!(child.name().unwrap().qualified, "item");
+                assert_eq!(child.name().unwrap().qualified(), "item");
                 assert_eq!(child.parent().unwrap().id(), parent);
                 assert_eq!(child.attributes().count(), 2);
                 assert_eq!(editor.document().nodes.len(), 3);
@@ -2252,7 +2252,7 @@ mod tests {
                     )
                     .unwrap();
                 let child = editor.document().node(child).unwrap();
-                assert_eq!(child.name().unwrap().qualified, "item");
+                assert_eq!(child.name().unwrap().qualified(), "item");
                 assert_eq!(child.parent().unwrap().id(), parent);
                 assert_eq!(child.attributes().count(), 1);
                 assert_eq!(editor.document().nodes.len(), node_count + 1);

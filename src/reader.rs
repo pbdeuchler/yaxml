@@ -5,7 +5,7 @@ use memchr::{memchr, memmem};
 use crate::escape::xml_char;
 use crate::parser::{Budget, ParserState, space};
 use crate::tokenizer::TokenKind;
-use crate::{Error, ErrorKind, Limit};
+use crate::{Error, ErrorKind, Limit, Name};
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,15 +34,6 @@ impl Default for Limits {
             max_owned_bytes: 64 * 1024 * 1024,
         }
     }
-}
-
-/// Both lexical spelling and expanded name; an empty namespace is `None`.
-#[derive(Debug, Eq, PartialEq)]
-pub struct Name<'a> {
-    pub qualified: &'a str,
-    pub prefix: Option<&'a str>,
-    pub local: &'a str,
-    pub namespace: Option<Cow<'a, str>>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -75,7 +66,10 @@ pub enum Event<'a> {
     Text(Cow<'a, str>),
     Cdata(Cow<'a, str>),
     Comment(Cow<'a, str>),
-    ProcessingInstruction { target: &'a str, data: Cow<'a, str> },
+    ProcessingInstruction {
+        target: Cow<'a, str>,
+        data: Cow<'a, str>,
+    },
 }
 
 /// Strict, namespace-aware XML 1.0 event reader over a complete UTF-8 input.

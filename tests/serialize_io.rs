@@ -169,12 +169,7 @@ fn whole_document_success_finishes_flushes_and_rejects_later_operations() {
 fn all_prior_event_calls_consume_document_freshness_before_any_new_io() {
     let source = Document::parse("<?xml version='1.0'?><r></r>").unwrap();
     let element = || yaxml::Element {
-        name: yaxml::Name {
-            qualified: "r",
-            prefix: None,
-            local: "r",
-            namespace: None,
-        },
+        name: yaxml::Name::new("r", None).unwrap(),
         attributes: vec![],
     };
     for owned in [false, true] {

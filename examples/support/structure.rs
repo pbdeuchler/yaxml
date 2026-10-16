@@ -44,18 +44,12 @@ impl Snapshot {
                 let name = node.name();
                 let attrs = node
                     .attributes()
-                    .filter(|attribute| attribute.name.namespace.as_deref() != Some(XMLNS))
+                    .filter(|attribute| attribute.name.namespace() != Some(XMLNS))
                     .map(|attribute| {
                         attributes += 1;
                         Attribute {
-                            name: attribute.name.qualified.as_bytes().to_vec(),
-                            namespace: attribute
-                                .name
-                                .namespace
-                                .as_deref()
-                                .unwrap_or("")
-                                .as_bytes()
-                                .to_vec(),
+                            name: attribute.name.qualified().as_bytes().to_vec(),
+                            namespace: attribute.name.namespace().unwrap_or("").as_bytes().to_vec(),
                             value: attribute.value.as_bytes().to_vec(),
                         }
                     })
@@ -78,14 +72,14 @@ impl Snapshot {
                     }),
                     name: name
                         .as_ref()
-                        .map(|name| name.qualified)
+                        .map(|name| name.qualified())
                         .or_else(|| node.processing_instruction_target())
                         .unwrap_or("")
                         .as_bytes()
                         .to_vec(),
                     namespace: name
                         .as_ref()
-                        .and_then(|name| name.namespace.as_deref())
+                        .and_then(|name| name.namespace())
                         .unwrap_or("")
                         .as_bytes()
                         .to_vec(),

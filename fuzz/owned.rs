@@ -122,7 +122,7 @@ pub(super) fn check_nodes(
             NodeKind::Cdata(_) => (OwnedNodeKind::Cdata, None),
             NodeKind::Comment(_) => (OwnedNodeKind::Comment, None),
             NodeKind::ProcessingInstruction { target, .. } => {
-                (OwnedNodeKind::ProcessingInstruction, Some(*target))
+                (OwnedNodeKind::ProcessingInstruction, Some(target.as_ref()))
             }
         };
         assert_eq!(actual.kind(), kind);

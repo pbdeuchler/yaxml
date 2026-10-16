@@ -6,6 +6,7 @@ mod dom;
 mod encoding;
 mod error;
 mod escape;
+mod name;
 mod owned;
 mod parser;
 mod push;
@@ -22,10 +23,11 @@ pub use error::{
     EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
     ReadError, WriteError,
 };
+pub use name::Name;
 pub use owned::{
     AttributeSpec, EditLimits, Editor, ElementItem, ElementSpec, NameSpec, NamespaceSpec,
     OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, PrefixPolicy,
 };
 pub use push::PushParser;
-pub use reader::{Attribute, Declaration, Element, Event, Limits, Name, Reader};
+pub use reader::{Attribute, Declaration, Element, Event, Limits, Reader};
 pub use writer::{Writer, WriterLimits};

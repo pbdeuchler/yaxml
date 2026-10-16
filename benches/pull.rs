@@ -23,11 +23,11 @@ fn numbers(name: &str, defaults: &[usize]) -> Vec<usize> {
 
 fn observe(event: Event<'_>) -> usize {
     let name = |name: yaxml::Name<'_>| {
-        black_box(name.qualified);
-        black_box(name.prefix);
-        black_box(name.local);
-        black_box(name.namespace.as_deref());
-        name.qualified.len() + name.namespace.as_deref().map_or(0, str::len)
+        black_box(name.qualified());
+        black_box(name.prefix());
+        black_box(name.local());
+        black_box(name.namespace());
+        name.qualified().len() + name.namespace().map_or(0, str::len)
     };
     match event {
         Event::Start(element) | Event::Empty(element) => {

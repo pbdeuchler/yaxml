@@ -154,40 +154,26 @@ fn qualified_name_views_split_at_unicode_byte_boundaries() {
     pool.store("🙂", 0, reader.owned_budget()).unwrap();
     let prefixed = pool
         .name(
-            &Name {
-                qualified: "é:中",
-                prefix: Some("é"),
-                local: "中",
-                namespace: Some(Cow::Borrowed("urn:🙂")),
-            },
+            &Name::new("é:中", Some(Cow::Borrowed("urn:🙂"))).unwrap(),
             4,
             reader.owned_budget(),
         )
         .unwrap();
     let plain = pool
-        .name(
-            &Name {
-                qualified: "plain",
-                prefix: None,
-                local: "plain",
-                namespace: None,
-            },
-            8,
-            reader.owned_budget(),
-        )
+        .name(&Name::new("plain", None).unwrap(), 8, reader.owned_budget())
         .unwrap();
     pool.store(&"growth".repeat(100), 0, reader.owned_budget())
         .unwrap();
     let view = prefixed.view(&pool.0);
-    assert_eq!(view.qualified, "é:中");
-    assert_eq!(view.prefix, Some("é"));
-    assert_eq!(view.local, "中");
-    assert!(matches!(view.namespace, Some(Cow::Borrowed("urn:🙂"))));
+    assert_eq!(view.qualified(), "é:中");
+    assert_eq!(view.prefix(), Some("é"));
+    assert_eq!(view.local(), "中");
+    assert_eq!(view.namespace(), Some("urn:🙂"));
     let view = plain.view(&pool.0);
-    assert_eq!(view.qualified, "plain");
-    assert_eq!(view.prefix, None);
-    assert_eq!(view.local, "plain");
-    assert_eq!(view.namespace, None);
+    assert_eq!(view.qualified(), "plain");
+    assert_eq!(view.prefix(), None);
+    assert_eq!(view.local(), "plain");
+    assert_eq!(view.namespace(), None);
 }
 
 #[test]
@@ -203,14 +189,9 @@ fn name_views_preserve_default_prefixed_and_empty_namespace_ranges() {
     ];
     let stored: Vec<_> = cases
         .iter()
-        .map(|&(qualified, prefix, local, namespace)| {
+        .map(|&(qualified, _, _, namespace)| {
             pool.name(
-                &Name {
-                    qualified,
-                    prefix,
-                    local,
-                    namespace: namespace.map(Cow::Borrowed),
-                },
+                &Name::new(qualified, namespace.map(Cow::Borrowed)).unwrap(),
                 0,
                 reader.owned_budget(),
             )
@@ -223,14 +204,19 @@ fn name_views_preserve_default_prefixed_and_empty_namespace_ranges() {
         let view = stored.view(&pool.0);
         assert_eq!(
             (
-                view.qualified,
-                view.prefix,
-                view.local,
-                view.namespace.as_deref()
+                view.qualified(),
+                view.prefix(),
+                view.local(),
+                view.namespace()
             ),
             expected
         );
-        assert!(matches!(view.namespace, None | Some(Cow::Borrowed(_))));
+        if let Some(range) = &stored.namespace {
+            assert_eq!(
+                view.namespace().unwrap().as_ptr(),
+                pool.0[range.clone()].as_ptr()
+            );
+        }
     }
 }
 
@@ -240,34 +226,17 @@ fn empty_prefixes_are_rejected_before_storage() {
         OwnedDocument::parse("<p:r/>").unwrap_err().kind,
         ErrorKind::Namespace
     );
-    let mut reader = reader(16);
-    let mut pool = Pool::default();
-    let remaining = reader.owned_budget().remaining_owned();
-    let name = Name {
-        qualified: ":r",
-        prefix: Some(""),
-        local: "r",
-        namespace: Some(Cow::Borrowed("urn:p")),
-    };
     assert_eq!(
-        pool.name(&name, 7, reader.owned_budget()).unwrap_err(),
-        Error::new(ErrorKind::InvalidName, 7)
+        Name::new(":r", Some(Cow::Borrowed("urn:p"))).unwrap_err(),
+        Error::new(ErrorKind::InvalidName, 0),
     );
-    assert!(pool.0.is_empty());
-    assert_eq!(pool.0.capacity(), 0);
-    assert_eq!(reader.owned_budget().remaining_owned(), remaining);
 }
 
 #[test]
 fn name_storage_failure_preserves_the_aggregate_budget() {
     let mut reader = reader(4);
     let mut pool = Pool::default();
-    let name = Name {
-        qualified: "é:p",
-        prefix: Some("é"),
-        local: "p",
-        namespace: Some(Cow::Borrowed("urn:p")),
-    };
+    let name = Name::new("é:p", Some(Cow::Borrowed("urn:p"))).unwrap();
     assert_eq!(
         pool.name(&name, 3, reader.owned_budget()).unwrap_err(),
         Error::new(ErrorKind::LimitExceeded(Limit::OwnedBytes), 3)
@@ -282,16 +251,7 @@ fn attribute_and_declaration_views_borrow_the_pool() {
     let mut pool = Pool::default();
     let attribute = StoredAttribute {
         name: pool
-            .name(
-                &Name {
-                    qualified: "a",
-                    prefix: None,
-                    local: "a",
-                    namespace: None,
-                },
-                0,
-                reader.owned_budget(),
-            )
+            .name(&Name::new("a", None).unwrap(), 0, reader.owned_budget())
             .unwrap(),
         value: pool.store("\n\r\té🙂", 0, reader.owned_budget()).unwrap(),
     };
@@ -309,7 +269,7 @@ fn attribute_and_declaration_views_borrow_the_pool() {
         assert_eq!(view.standalone, Some(false));
     }
     let view = attribute.view(&pool.0);
-    assert_eq!(view.name.qualified, "a");
+    assert_eq!(view.name.qualified(), "a");
     assert!(matches!(view.value, Cow::Borrowed("\n\r\té🙂")));
 }
 
@@ -640,12 +600,7 @@ fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     let mut reader = reader(1);
     assert_eq!(
         builder.consume(
-            Event::End(Name {
-                qualified: "r",
-                prefix: None,
-                local: "r",
-                namespace: None
-            }),
+            Event::End(Name::new("r", None).unwrap()),
             6..10,
             reader.owned_budget()
         ),

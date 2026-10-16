@@ -200,9 +200,9 @@ fn logical_values_and_source_ranges() {
     assert!(matches!(&events[3], Event::Cdata(v) if v == "x\ny&z"));
     assert!(matches!(&events[4], Event::Comment(v) if v == "a\nb"));
     assert!(
-        matches!(&events[5], Event::ProcessingInstruction {target:"p", data} if data == "value\n")
+        matches!(&events[5], Event::ProcessingInstruction {target: Cow::Borrowed("p"), data} if data == "value\n")
     );
-    assert!(matches!(&events[6], Event::End(n) if n.qualified == "r"));
+    assert!(matches!(&events[6], Event::End(n) if n.qualified() == "r"));
     for (range, expected) in ranges.iter().zip([
         "<?xml version='1.0'?>",
         "<r a='\t\n\r\n&#xA;&#13;&lt;&gt;&amp;&apos;&quot;'>",
@@ -225,7 +225,7 @@ fn namespaces_shadow_and_unwind() {
             Event::Start(e) | Event::Empty(e) => e,
             _ => continue,
         };
-        names.push((element.name.qualified, element.name.namespace.as_deref()));
+        names.push((element.name.qualified(), element.name.namespace()));
     }
     assert_eq!(
         names,
@@ -241,14 +241,11 @@ fn namespaces_shadow_and_unwind() {
         panic!()
     };
     assert_eq!(
-        element.attributes[0].name.namespace.as_deref(),
+        element.attributes[0].name.namespace(),
         Some("http://www.w3.org/2000/xmlns/")
     );
-    assert_eq!(
-        element.attributes[1].name.namespace.as_deref(),
-        Some("urn:q")
-    );
-    assert_eq!(element.attributes[2].name.namespace, None);
+    assert_eq!(element.attributes[1].name.namespace(), Some("urn:q"));
+    assert_eq!(element.attributes[2].name.namespace(), None);
 
     let events = read(b"<p:r xmlns:p='urn:&#x61;'><p:c/></p:r>").unwrap();
     for event in events {
@@ -257,7 +254,7 @@ fn namespaces_shadow_and_unwind() {
             Event::End(n) => n,
             _ => continue,
         };
-        assert_eq!(name.namespace.as_deref(), Some("urn:a"));
+        assert_eq!(name.namespace(), Some("urn:a"));
     }
 }
 
@@ -619,7 +616,7 @@ fn long_namespace_uri_with_many_qualified_attributes() {
             children += 1;
             assert_eq!(element.attributes.len(), 256);
             for attribute in element.attributes {
-                assert_eq!(attribute.name.namespace.as_deref(), Some(uri.as_str()));
+                assert_eq!(attribute.name.namespace(), Some(uri.as_str()));
             }
         }
     }

@@ -13,7 +13,7 @@ fn consumes_reader_with_the_same_logical_events() {
         .read_from(input.as_slice(), |event, _| {
             match event {
                 Event::Start(element) | Event::Empty(element) => {
-                    names.push(element.name.qualified.to_owned())
+                    names.push(element.name.qualified().to_owned())
                 }
                 Event::Text(value) => text.push_str(&value),
                 _ => {}

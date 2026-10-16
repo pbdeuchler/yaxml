@@ -11,12 +11,7 @@ use yaxml::{Element, ErrorKind, Event, Name, WriteError, Writer};
 
 fn root() -> Event<'static> {
     Event::Empty(Element {
-        name: Name {
-            qualified: "r",
-            prefix: None,
-            local: "r",
-            namespace: None,
-        },
+        name: Name::new("r", None).unwrap(),
         attributes: vec![],
     })
 }

@@ -19,7 +19,7 @@ fn load() -> Result<OwnedDocument, Error> {
 let document = load()?;
 let root = document.root_element();
 assert_eq!(root.kind(), OwnedNodeKind::Element);
-assert_eq!(root.name().unwrap().namespace.as_deref(), Some("urn:example"));
+assert_eq!(root.name().unwrap().namespace(), Some("urn:example"));
 assert_eq!(root.attributes().nth(1).unwrap().value, "x\ty");
 assert_eq!(root.first_child().unwrap().text(), Some("text"));
 # Ok::<(), yaxml::Error>(())

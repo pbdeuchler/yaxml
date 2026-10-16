@@ -51,20 +51,20 @@ fn output(document: &OwnedDocument) -> String {
 
 fn name_tuple(name: Name<'_>) -> NameSnapshot {
     NameSnapshot(
-        name.qualified.to_owned(),
-        name.prefix.map(str::to_owned),
-        name.local.to_owned(),
-        name.namespace.as_deref().map(str::to_owned),
+        name.qualified().to_owned(),
+        name.prefix().map(str::to_owned),
+        name.local().to_owned(),
+        name.namespace().map(str::to_owned),
     )
 }
 
 fn assert_name(name: Name<'_>, expected: (&str, Option<&str>, &str, Option<&str>)) {
     assert_eq!(
         (
-            name.qualified,
-            name.prefix,
-            name.local,
-            name.namespace.as_deref(),
+            name.qualified(),
+            name.prefix(),
+            name.local(),
+            name.namespace(),
         ),
         expected
     );

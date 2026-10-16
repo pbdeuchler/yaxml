@@ -356,15 +356,15 @@ enum Value {
 
 fn element(value: &Element<'_>) -> Value {
     Value::Element(
-        value.name.qualified.into(),
-        value.name.namespace.as_deref().map(Into::into),
+        value.name.qualified().into(),
+        value.name.namespace().map(Into::into),
         value
             .attributes
             .iter()
             .map(|attribute| {
                 (
-                    attribute.name.qualified.into(),
-                    attribute.name.namespace.as_deref().map(Into::into),
+                    attribute.name.qualified().into(),
+                    attribute.name.namespace().map(Into::into),
                     attribute.value.to_string(),
                 )
             })
@@ -461,7 +461,7 @@ fn logical_values_have_spec_derived_goldens() {
                 NodeKind::Cdata(value) => Some(Value::Cdata(value.to_string())),
                 NodeKind::Comment(value) => Some(Value::Comment(value.to_string())),
                 NodeKind::ProcessingInstruction { target, data } => {
-                    Some(Value::Pi((*target).into(), data.to_string()))
+                    Some(Value::Pi(target.to_string(), data.to_string()))
                 }
                 NodeKind::Document => None,
             })

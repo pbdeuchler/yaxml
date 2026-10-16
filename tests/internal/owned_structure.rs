@@ -66,22 +66,19 @@ fn logical_snapshot(document: &OwnedDocument) -> LogicalSnapshot {
             .nodes()
             .map(|node| {
                 let name = node.name().map(|name| LogicalName {
-                    qualified: name.qualified.to_owned(),
-                    prefix: name.prefix.map(str::to_owned),
-                    local: name.local.to_owned(),
-                    namespace: name.namespace.map(|namespace| namespace.into_owned()),
+                    qualified: name.qualified().to_owned(),
+                    prefix: name.prefix().map(str::to_owned),
+                    local: name.local().to_owned(),
+                    namespace: name.namespace().map(str::to_owned),
                 });
                 let attributes = node
                     .attributes()
                     .map(|attribute| LogicalAttribute {
                         name: LogicalName {
-                            qualified: attribute.name.qualified.to_owned(),
-                            prefix: attribute.name.prefix.map(str::to_owned),
-                            local: attribute.name.local.to_owned(),
-                            namespace: attribute
-                                .name
-                                .namespace
-                                .map(|namespace| namespace.into_owned()),
+                            qualified: attribute.name.qualified().to_owned(),
+                            prefix: attribute.name.prefix().map(str::to_owned),
+                            local: attribute.name.local().to_owned(),
+                            namespace: attribute.name.namespace().map(str::to_owned),
                         },
                         value: attribute.value.into_owned(),
                     })
@@ -530,7 +527,7 @@ fn removal_stales_exact_subtree_and_updates_every_sibling_position() {
         let selected = document
             .root_element()
             .children()
-            .find(|node| node.name().unwrap().local == chosen)
+            .find(|node| node.name().unwrap().local() == chosen)
             .unwrap();
         let id = selected.id();
         let removed: Vec<_> = selected.descendants().map(|node| node.id()).collect();

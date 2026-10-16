@@ -242,22 +242,13 @@ impl StoredName {
     #[inline]
     fn view<'pool>(&self, pool: &'pool str) -> Name<'pool> {
         let qualified = &pool[self.qualified.clone()];
-        let (prefix, local) = match self.prefix_length {
-            Some(length) => (
-                Some(&qualified[..length.get()]),
-                &qualified[length.get() + 1..],
-            ),
-            None => (None, qualified),
-        };
-        Name {
-            qualified,
-            prefix,
-            local,
-            namespace: self
-                .namespace
+        Name::from_validated_parts(
+            Cow::Borrowed(qualified),
+            self.prefix_length,
+            self.namespace
                 .as_ref()
                 .map(|range| Cow::Borrowed(&pool[range.clone()])),
-        }
+        )
     }
 }
 
@@ -389,19 +380,11 @@ impl Pool {
         offset: usize,
         budget: &mut Budget,
     ) -> Result<StoredName, Error> {
-        let prefix_length = name
-            .qualified
-            .find(':')
-            .map(|length| {
-                NonZeroUsize::new(length).ok_or(Error::new(ErrorKind::InvalidName, offset))
-            })
-            .transpose()?;
         Ok(StoredName {
-            qualified: self.store(name.qualified, offset, budget)?,
-            prefix_length,
+            qualified: self.store(name.qualified(), offset, budget)?,
+            prefix_length: name.prefix_length(),
             namespace: name
-                .namespace
-                .as_deref()
+                .namespace()
                 .map(|namespace| self.store(namespace, offset, budget))
                 .transpose()?,
         })
@@ -797,7 +780,7 @@ impl Editor<'_> {
         validate_value_length(value, self.limits.max_value_bytes)?;
         if let Some(target) = target {
             validate_characters(target)?;
-            crate::parser::validate_name(target, 0, false)
+            crate::name::validate_name(target, 0, false)
                 .map_err(|error| EditError::new(EditErrorKind::InvalidName, Some(error.offset)))?;
             if target.eq_ignore_ascii_case("xml") {
                 return Err(EditError::new(EditErrorKind::InvalidName, Some(0)));
@@ -1019,7 +1002,7 @@ impl Editor<'_> {
                 let name = self.document.attributes[*index]
                     .name
                     .view(&self.document.pool.0);
-                name.local == local && name.namespace.as_deref() == namespace
+                name.local() == local && name.namespace() == namespace
             })
             .ok_or(EditError::new(EditErrorKind::MissingAttribute, None))?;
         if namespace == Some(XMLNS) {
@@ -1182,7 +1165,7 @@ impl OwnedBuilder {
             Event::Cdata(value) => Content::Cdata(self.pool.store(&value, offset, budget)?),
             Event::Comment(value) => Content::Comment(self.pool.store(&value, offset, budget)?),
             Event::ProcessingInstruction { target, data } => Content::ProcessingInstruction {
-                target: self.pool.store(target, offset, budget)?,
+                target: self.pool.store(&target, offset, budget)?,
                 data: self.pool.store(&data, offset, budget)?,
             },
         };

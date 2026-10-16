@@ -14,15 +14,7 @@ use yaxml::{
 };
 
 fn name<'a>(qualified: &'a str, namespace: Option<&'a str>) -> Name<'a> {
-    let (prefix, local) = qualified
-        .split_once(':')
-        .map_or((None, qualified), |(prefix, local)| (Some(prefix), local));
-    Name {
-        qualified,
-        prefix,
-        local,
-        namespace: namespace.map(Cow::Borrowed),
-    }
+    Name::new(qualified, namespace.map(Cow::Borrowed)).unwrap()
 }
 
 fn element<'a>(
@@ -236,83 +228,45 @@ fn explicit_namespaces_shadow_unwind_and_resolve_independent_of_attribute_order(
 }
 
 #[test]
-fn public_name_metadata_must_match_spelling_and_resolved_namespace() {
-    for invalid in [
-        Name {
-            qualified: "r",
-            prefix: Some("p"),
-            local: "r",
-            namespace: None,
-        },
-        Name {
-            qualified: "r",
-            prefix: None,
-            local: "other",
-            namespace: None,
-        },
-        Name {
-            qualified: "p:r",
-            prefix: Some("q"),
-            local: "r",
-            namespace: Some(Cow::Borrowed("urn:u")),
-        },
-        Name {
-            qualified: "p:r",
-            prefix: Some("p"),
-            local: "other",
-            namespace: Some(Cow::Borrowed("urn:u")),
-        },
+fn name_construction_rejects_invalid_spelling_before_writing() {
+    for (qualified, offset) in [
+        ("", 0),
+        ("1r", 0),
+        (":r", 0),
+        ("p:", 2),
+        ("p:q:r", 3),
+        ("r a='injected'", 1),
+        ("a='injected' b", 1),
+        ("r ", 1),
     ] {
-        assert_rejected(
-            &[element(
-                "r",
-                None,
-                vec![attribute(
-                    "xmlns:p",
-                    Some("http://www.w3.org/2000/xmlns/"),
-                    "urn:u",
-                )],
-                false,
-            )],
-            &Event::Empty(Element {
-                name: invalid,
-                attributes: vec![],
-            }),
-            ErrorKind::InvalidName,
-        );
+        let error = Name::new(qualified, None).unwrap_err();
+        assert_eq!((error.kind, error.offset), (ErrorKind::InvalidName, offset));
     }
+}
+
+#[test]
+fn writer_name_metadata_must_match_resolved_namespace() {
     for invalid in [
         element("r", Some(""), vec![], true),
         element("r", None, vec![attribute("a", Some("urn:u"), "v")], true),
         element("r", None, vec![attribute("xmlns:p", None, "urn:u")], true),
+        element(
+            "p:r",
+            Some("urn:wrong"),
+            vec![attribute(
+                "xmlns:p",
+                Some("http://www.w3.org/2000/xmlns/"),
+                "urn:u",
+            )],
+            true,
+        ),
     ] {
         assert_rejected(&[], &invalid, ErrorKind::Namespace);
     }
     assert_rejected(
         &[root(false)],
-        &Event::End(Name {
-            qualified: "r",
-            prefix: None,
-            local: "wrong",
-            namespace: None,
-        }),
-        ErrorKind::InvalidName,
-    );
-    assert_rejected(
-        &[root(false)],
-        &Event::Start(Element {
-            name: name("c", None),
-            attributes: vec![Attribute {
-                name: Name {
-                    qualified: "a",
-                    prefix: None,
-                    local: "wrong",
-                    namespace: None,
-                },
-                value: Cow::Borrowed("v"),
-            }],
-        }),
-        ErrorKind::InvalidName,
+        &Event::End(name("r", Some("urn:wrong"))),
+        ErrorKind::Namespace,
     );
 }
 
@@ -352,7 +306,7 @@ fn invalid_operations_emit_nothing_and_poison_later_calls() {
         (
             vec![root(false)],
             Event::ProcessingInstruction {
-                target: "p",
+                target: Cow::Borrowed("p"),
                 data: Cow::Borrowed("a?>b"),
             },
             Syntax,
@@ -360,7 +314,7 @@ fn invalid_operations_emit_nothing_and_poison_later_calls() {
         (
             vec![],
             Event::ProcessingInstruction {
-                target: "p:q",
+                target: Cow::Borrowed("p:q"),
                 data: Cow::Borrowed(""),
             },
             InvalidName,
@@ -368,7 +322,7 @@ fn invalid_operations_emit_nothing_and_poison_later_calls() {
         (
             vec![],
             Event::ProcessingInstruction {
-                target: "XML",
+                target: Cow::Borrowed("XML"),
                 data: Cow::Borrowed("version='1.0'"),
             },
             InvalidDeclaration,
@@ -386,7 +340,7 @@ fn invalid_operations_emit_nothing_and_poison_later_calls() {
         (
             vec![root(false)],
             Event::ProcessingInstruction {
-                target: "p",
+                target: Cow::Borrowed("p"),
                 data: Cow::Borrowed("\0"),
             },
             InvalidCharacter,
@@ -401,7 +355,6 @@ fn invalid_operations_emit_nothing_and_poison_later_calls() {
             Event::Cdata(Cow::Borrowed("\u{fffe}")),
             InvalidCharacter,
         ),
-        (vec![], element("1r", None, vec![], true), InvalidName),
     ] {
         assert_rejected(&prefix, &invalid, expected);
     }
@@ -446,24 +399,12 @@ fn invalid_operations_emit_nothing_and_poison_later_calls() {
 
 #[test]
 fn supplied_name_and_declaration_delimiter_injection_is_rejected() {
-    for invalid in [
-        element("r a='injected'", None, vec![], true),
-        element(
-            "r",
-            None,
-            vec![attribute("a='injected' b", None, "v")],
-            true,
-        ),
-        Event::ProcessingInstruction {
-            target: "p data",
+    assert_rejected(
+        &[],
+        &Event::ProcessingInstruction {
+            target: Cow::Borrowed("p data"),
             data: Cow::Borrowed(""),
         },
-    ] {
-        assert_rejected(&[], &invalid, ErrorKind::InvalidName);
-    }
-    assert_rejected(
-        &[root(false)],
-        &Event::End(name("r ", None)),
         ErrorKind::InvalidName,
     );
     for declaration in [
@@ -513,7 +454,7 @@ fn raw_markup_values_follow_reader_normalization_and_empty_text_is_not_markup() 
         Event::Cdata(Cow::Borrowed("a\r\nb\rc")),
         Event::Comment(Cow::Borrowed("a\r\nb\rc")),
         Event::ProcessingInstruction {
-            target: "p",
+            target: Cow::Borrowed("p"),
             data: Cow::Borrowed(" \t\r\na\rb"),
         },
         Event::End(name("r", None)),

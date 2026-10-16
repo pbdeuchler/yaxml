@@ -11,12 +11,7 @@ fn buffer(limit: usize) -> TokenBuffer {
 }
 
 fn name() -> Name<'static> {
-    Name {
-        qualified: "p:r",
-        prefix: Some("p"),
-        local: "r",
-        namespace: Some(Cow::Borrowed("urn:r")),
-    }
+    Name::new("p:r", Some(Cow::Borrowed("urn:r"))).unwrap()
 }
 
 fn element() -> Element<'static> {
@@ -86,25 +81,19 @@ fn escaping_preserves_logical_values_and_bounds_expansion() {
 }
 
 #[test]
-fn name_coherence_checks_every_public_field() {
+fn name_coherence_checks_spelling_and_namespace() {
     check_name(&name(), &name(), 9).unwrap();
-    for (index, expected) in [
-        ErrorKind::InvalidName,
-        ErrorKind::InvalidName,
-        ErrorKind::InvalidName,
-        ErrorKind::Namespace,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let mut supplied = name();
-        match index {
-            0 => supplied.qualified = "q:r",
-            1 => supplied.prefix = None,
-            2 => supplied.local = "other",
-            3 => supplied.namespace = None,
-            _ => unreachable!(),
-        }
+    for (supplied, expected) in [
+        (
+            Name::new("q:r", Some(Cow::Borrowed("urn:r"))).unwrap(),
+            ErrorKind::InvalidName,
+        ),
+        (
+            Name::new("p:other", Some(Cow::Borrowed("urn:r"))).unwrap(),
+            ErrorKind::InvalidName,
+        ),
+        (Name::new("p:r", None).unwrap(), ErrorKind::Namespace),
+    ] {
         assert_eq!(
             check_name(&supplied, &name(), 9).unwrap_err(),
             Error::new(expected, 9)
@@ -122,7 +111,7 @@ fn element_coherence_checks_structure_and_values() {
         ErrorKind::InvalidName
     );
     let mut parsed = element();
-    parsed.attributes[0].name.local = "other";
+    parsed.attributes[0].name = Name::new("p:other", Some(Cow::Borrowed("urn:r"))).unwrap();
     assert_eq!(
         check_element(&element(), &parsed, 3).unwrap_err().kind,
         ErrorKind::InvalidName
@@ -158,11 +147,11 @@ fn event_coherence_rejects_changed_kinds_and_declaration_fields() {
         ),
         (
             Event::ProcessingInstruction {
-                target: "pi",
+                target: Cow::Borrowed("pi"),
                 data: Cow::Borrowed(""),
             },
             Some(Event::ProcessingInstruction {
-                target: "other",
+                target: Cow::Borrowed("other"),
                 data: Cow::Borrowed(""),
             }),
             Err(Error::new(ErrorKind::InvalidName, 11)),

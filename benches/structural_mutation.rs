@@ -185,8 +185,8 @@ fn traverse(document: &OwnedDocument) -> (usize, u64) {
             checksum = mix(checksum, range.end);
         }
         if let Some(name) = node.name() {
-            checksum = mix(checksum, name.qualified.len());
-            checksum = mix(checksum, name.namespace.as_deref().map_or(0, str::len));
+            checksum = mix(checksum, name.qualified().len());
+            checksum = mix(checksum, name.namespace().map_or(0, str::len));
         }
         if let Some(text) = node.text() {
             checksum = mix(checksum, text.len());
@@ -196,7 +196,7 @@ fn traverse(document: &OwnedDocument) -> (usize, u64) {
             );
         }
         for attribute in node.attributes() {
-            checksum = mix(checksum, attribute.name.qualified.len());
+            checksum = mix(checksum, attribute.name.qualified().len());
             checksum = mix(checksum, attribute.value.len());
         }
     }

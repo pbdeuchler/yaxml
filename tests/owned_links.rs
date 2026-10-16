@@ -24,8 +24,8 @@ fn linked_walk_matches_immutable_preorder_ranges_and_exact_size_hints() {
                 assert_eq!(actual.range(), Some(expected.range()));
                 assert_eq!(actual.text(), expected.text());
                 assert_eq!(
-                    actual.name().map(|name| name.qualified),
-                    expected.name().map(|name| name.qualified)
+                    actual.name().map(|name| name.qualified().to_owned()),
+                    expected.name().map(|name| name.qualified().to_owned())
                 );
                 assert_eq!(owned.node(actual.id()).unwrap().id(), actual.id());
                 assert_eq!(

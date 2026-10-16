@@ -13,14 +13,13 @@ const SOURCE: &str = "\u{feff}<?xml version='1.2' encoding='uTf-8' standalone='y
 fn check_name(actual: Name<'_>, expected: (&str, Option<&str>, &str, Option<&str>)) {
     assert_eq!(
         (
-            actual.qualified,
-            actual.prefix,
-            actual.local,
-            actual.namespace.as_deref()
+            actual.qualified(),
+            actual.prefix(),
+            actual.local(),
+            actual.namespace()
         ),
         expected
     );
-    assert!(matches!(actual.namespace, None | Some(Cow::Borrowed(_))));
 }
 
 fn check_golden(document: &OwnedDocument) {
@@ -204,12 +203,7 @@ fn namespace_views_distinguish_default_predefined_and_normalized_unicode_uris() 
 }
 
 fn borrowed_name<'a>(value: &'a Name<'_>) -> Name<'a> {
-    Name {
-        qualified: value.qualified,
-        prefix: value.prefix,
-        local: value.local,
-        namespace: value.namespace.as_deref().map(Cow::Borrowed),
-    }
+    Name::new(value.qualified(), value.namespace().map(Cow::Borrowed)).unwrap()
 }
 
 fn writer_from_reader(input: &str) -> Vec<u8> {
@@ -269,7 +263,7 @@ fn writer_from_owned(document: &OwnedDocument) -> Vec<u8> {
             OwnedNodeKind::Cdata => Some(Event::Cdata(Cow::Borrowed(node.text().unwrap()))),
             OwnedNodeKind::Comment => Some(Event::Comment(Cow::Borrowed(node.text().unwrap()))),
             OwnedNodeKind::ProcessingInstruction => Some(Event::ProcessingInstruction {
-                target: node.processing_instruction_target().unwrap(),
+                target: Cow::Borrowed(node.processing_instruction_target().unwrap()),
                 data: Cow::Borrowed(node.text().unwrap()),
             }),
             _ => unreachable!("unknown owned node kind"),
@@ -345,7 +339,7 @@ fn compare_borrowed(input: &str, owned: &OwnedDocument) {
             (
                 NodeKind::ProcessingInstruction { target, .. },
                 OwnedNodeKind::ProcessingInstruction,
-            ) => assert_eq!(right.processing_instruction_target(), Some(*target)),
+            ) => assert_eq!(right.processing_instruction_target(), Some(target.as_ref())),
             _ => panic!("owned node kind differs from borrowed node"),
         }
     }
@@ -627,7 +621,7 @@ fn owned_ids_reject_foreign_documents_and_survive_moves() {
     let larger = vec![larger].pop().unwrap();
     let larger = std::thread::spawn(move || larger).join().unwrap();
     assert_eq!(
-        larger.node(same_index).unwrap().name().unwrap().qualified,
+        larger.node(same_index).unwrap().name().unwrap().qualified(),
         "r"
     );
     for node in larger.nodes() {

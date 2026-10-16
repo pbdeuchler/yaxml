@@ -14,15 +14,6 @@ enum TreeNode<'document, 'input> {
     Owned(OwnedNode<'document>),
 }
 
-fn name_view<'view>(name: &'view Name<'_>) -> Name<'view> {
-    Name {
-        qualified: name.qualified,
-        prefix: name.prefix,
-        local: name.local,
-        namespace: name.namespace.as_deref().map(Cow::Borrowed),
-    }
-}
-
 impl<'document, 'input> TreeNode<'document, 'input> {
     fn first_child(self) -> Option<Self> {
         match self {
@@ -47,7 +38,7 @@ impl<'document, 'input> TreeNode<'document, 'input> {
 
     fn name(self) -> Option<Name<'document>> {
         match self {
-            Self::Borrowed(node) => node.name().map(name_view),
+            Self::Borrowed(node) => node.name().map(Name::as_borrowed),
             Self::Owned(node) => node.name(),
         }
     }
@@ -60,7 +51,7 @@ impl<'document, 'input> TreeNode<'document, 'input> {
                 NodeKind::Comment(value) => Some(Event::Comment(Cow::Borrowed(value))),
                 NodeKind::ProcessingInstruction { target, data } => {
                     Some(Event::ProcessingInstruction {
-                        target,
+                        target: Cow::Borrowed(target),
                         data: Cow::Borrowed(data),
                     })
                 }
@@ -71,7 +62,7 @@ impl<'document, 'input> TreeNode<'document, 'input> {
                 OwnedNodeKind::Cdata => Some(Event::Cdata(Cow::Borrowed(node.text()?))),
                 OwnedNodeKind::Comment => Some(Event::Comment(Cow::Borrowed(node.text()?))),
                 OwnedNodeKind::ProcessingInstruction => Some(Event::ProcessingInstruction {
-                    target: node.processing_instruction_target()?,
+                    target: Cow::Borrowed(node.processing_instruction_target()?),
                     data: Cow::Borrowed(node.text()?),
                 }),
                 OwnedNodeKind::Document | OwnedNodeKind::Element => None,
@@ -102,7 +93,7 @@ impl<'document, 'input> TreeNode<'document, 'input> {
         match self {
             Self::Borrowed(node) => {
                 attributes.extend(node.attributes().iter().map(|attribute| Attribute {
-                    name: name_view(&attribute.name),
+                    name: attribute.name.as_borrowed(),
                     value: Cow::Borrowed(&attribute.value),
                 }))
             }

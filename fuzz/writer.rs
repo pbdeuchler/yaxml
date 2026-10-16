@@ -71,12 +71,7 @@ fn roundtrip(input: &[u8]) {
 }
 
 fn name(qualified: &str) -> Name<'_> {
-    Name {
-        qualified,
-        prefix: None,
-        local: qualified,
-        namespace: None,
-    }
+    Name::new(qualified, None).unwrap()
 }
 
 fn empty() -> Event<'static> {
@@ -84,16 +79,6 @@ fn empty() -> Event<'static> {
         name: name("r"),
         attributes: Vec::new(),
     })
-}
-
-fn inconsistent_name_fields(name: &Name<'_>) -> bool {
-    let (prefix, local) = name
-        .qualified
-        .split_once(':')
-        .map_or((None, name.qualified), |(prefix, local)| {
-            (Some(prefix), local)
-        });
-    name.prefix != prefix || name.local != local
 }
 
 fn assert_terminal<W: Write>(writer: &mut Writer<W>) {
@@ -136,37 +121,65 @@ fn operations(input: &[u8]) {
         String::from_utf8_lossy(&input[payload_start..input.len().min(payload_start + 96)]);
     let mut failed = false;
     for control in input[start..payload_start].iter().copied() {
-        let mut element_name = name(if control & 64 == 0 { "r" } else { &payload });
-        match (control >> 4) & 3 {
-            1 => element_name.local = "different",
-            2 => element_name.prefix = Some("p"),
-            3 => element_name.namespace = Some(Cow::Borrowed("urn:undeclared")),
-            _ => {}
-        }
         let event = match control & 7 {
-            0 => Event::Start(Element {
-                name: element_name,
-                attributes: vec![Attribute {
-                    name: name(if control & 128 != 0 {
-                        &payload
+            0..=2 => {
+                let qualified = if control & 64 != 0 {
+                    payload.as_ref()
+                } else {
+                    "r"
+                };
+                let (qualified, namespace) = match (control >> 4) & 3 {
+                    1 => ("different", None),
+                    2 => ("p:r", None),
+                    3 => (qualified, Some(Cow::Borrowed("urn:undeclared"))),
+                    _ => (qualified, None),
+                };
+                let element_name = match Name::new(qualified, namespace) {
+                    Ok(name) => name,
+                    Err(error) => {
+                        assert_eq!(error.kind, ErrorKind::InvalidName);
+                        super::check_display(&error);
+                        // No writer operation occurred; continue the sequence without poisoning it.
+                        continue;
+                    }
+                };
+                if control & 7 == 0 {
+                    let qualified = if control & 128 != 0 {
+                        payload.as_ref()
                     } else if control & 8 == 0 {
                         "a"
                     } else {
                         "xmlns"
-                    }),
-                    value: Cow::Borrowed(&payload),
-                }],
-            }),
-            1 => Event::Empty(Element {
-                name: element_name,
-                attributes: Vec::new(),
-            }),
-            2 => Event::End(element_name),
+                    };
+                    let attribute_name = match Name::new(qualified, None) {
+                        Ok(name) => name,
+                        Err(error) => {
+                            assert_eq!(error.kind, ErrorKind::InvalidName);
+                            super::check_display(&error);
+                            continue;
+                        }
+                    };
+                    Event::Start(Element {
+                        name: element_name,
+                        attributes: vec![Attribute {
+                            name: attribute_name,
+                            value: Cow::Borrowed(&payload),
+                        }],
+                    })
+                } else if control & 7 == 1 {
+                    Event::Empty(Element {
+                        name: element_name,
+                        attributes: Vec::new(),
+                    })
+                } else {
+                    Event::End(element_name)
+                }
+            }
             3 => Event::Text(Cow::Borrowed(&payload)),
             4 => Event::Cdata(Cow::Borrowed(&payload)),
             5 => Event::Comment(Cow::Borrowed(&payload)),
             6 => Event::ProcessingInstruction {
-                target: if control & 8 == 0 { "pi" } else { &payload },
+                target: Cow::Borrowed(if control & 8 == 0 { "pi" } else { &payload }),
                 data: Cow::Borrowed(&payload),
             },
             _ => Event::Declaration(Declaration {
@@ -192,19 +205,16 @@ fn operations(input: &[u8]) {
             Event::Start(element) | Event::Empty(element) => {
                 // This generator cannot supply a coherent XMLNS attribute, so
                 // no successful operation can establish a namespace binding.
-                inconsistent_name_fields(&element.name)
-                    || element.name.namespace.is_some()
+                element.name.namespace().is_some()
                     || element.attributes.iter().any(|attribute| {
-                        inconsistent_name_fields(&attribute.name)
-                            || (attribute.name.qualified == "xmlns"
-                                && attribute.name.namespace.as_deref()
-                                    != Some("http://www.w3.org/2000/xmlns/"))
-                            || (attribute.name.prefix.is_none()
-                                && attribute.name.qualified != "xmlns"
-                                && attribute.name.namespace.is_some())
+                        (attribute.name.qualified() == "xmlns"
+                            && attribute.name.namespace() != Some("http://www.w3.org/2000/xmlns/"))
+                            || (attribute.name.prefix().is_none()
+                                && attribute.name.qualified() != "xmlns"
+                                && attribute.name.namespace().is_some())
                     })
             }
-            Event::End(name) => inconsistent_name_fields(name) || name.namespace.is_some(),
+            Event::End(name) => name.namespace().is_some(),
             _ => false,
         };
         let previous = writer.position();

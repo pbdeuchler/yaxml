@@ -104,10 +104,10 @@ struct Snapshot {
 
 fn observed_name(name: Name<'_>) -> ModelName {
     ModelName {
-        qualified: name.qualified.to_owned(),
-        prefix: name.prefix.map(str::to_owned),
-        local: name.local.to_owned(),
-        namespace: name.namespace.as_deref().map(str::to_owned),
+        qualified: name.qualified().to_owned(),
+        prefix: name.prefix().map(str::to_owned),
+        local: name.local().to_owned(),
+        namespace: name.namespace().map(str::to_owned),
     }
 }
 
@@ -1109,7 +1109,7 @@ fn long_inherited_prefix(input: &[u8]) {
         },
     );
     assert_eq!(
-        document.node(inserted).unwrap().name().unwrap().qualified,
+        document.node(inserted).unwrap().name().unwrap().qualified(),
         "c"
     );
     assert_serializable(&document);

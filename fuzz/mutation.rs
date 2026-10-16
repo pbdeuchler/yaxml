@@ -670,10 +670,10 @@ fn invoke(editor: &mut Editor<'_>, request: Request<'_>) -> Result<(), EditError
 
 fn check_name(actual: &Name<'_>, expected: ModelName) {
     assert!(
-        actual.qualified == expected.qualified
-            && actual.prefix == expected.prefix
-            && actual.local == expected.local
-            && actual.namespace.as_deref() == expected.namespace,
+        actual.qualified() == expected.qualified
+            && actual.prefix() == expected.prefix
+            && actual.local() == expected.local
+            && actual.namespace() == expected.namespace,
         "mutation changed a qualified or expanded name"
     );
 }
@@ -909,7 +909,7 @@ fn serialized(state: &State) -> Vec<u8> {
             NodeKind::Cdata(_) => Kind::Cdata,
             NodeKind::Comment(_) => Kind::Comment,
             NodeKind::ProcessingInstruction { target, .. } => {
-                assert_eq!(Some(*target), expected.target.as_deref());
+                assert_eq!(Some(target.as_ref()), expected.target.as_deref());
                 Kind::Pi
             }
         };

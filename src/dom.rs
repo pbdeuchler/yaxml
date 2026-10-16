@@ -16,7 +16,7 @@ pub enum NodeKind<'input> {
     Cdata(Cow<'input, str>),
     Comment(Cow<'input, str>),
     ProcessingInstruction {
-        target: &'input str,
+        target: Cow<'input, str>,
         data: Cow<'input, str>,
     },
 }

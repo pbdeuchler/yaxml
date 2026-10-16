@@ -29,7 +29,7 @@ fn main() -> Result<(), yaxml::Error> {
     let document = Document::parse(xml)?;
     for node in document.root_element().descendants() {
         if let Some(name) = node.name() {
-            println!("{} {:?}", name.local, name.namespace);
+            println!("{} {:?}", name.local(), name.namespace());
         }
     }
 
@@ -46,6 +46,27 @@ fn main() -> Result<(), yaxml::Error> {
     Ok(())
 }
 ```
+
+Names use `Name::new(qualified, namespace)` for validated construction and
+`qualified()`, `prefix()`, `local()` and `namespace()` for access. Borrowed
+QName inputs are not copied; owned strings move into the name. Namespace
+metadata is preserved, including `Some("")`; Writer checks it against the
+actual namespace scope. For example:
+
+```rust
+use std::borrow::Cow;
+use yaxml::Name;
+
+let name = Name::new(String::from("p:item"), Some(Cow::Borrowed("urn:example")))?;
+assert_eq!(name.prefix(), Some("p"));
+assert_eq!(name.local(), "item");
+# Ok::<(), yaxml::Error>(())
+```
+
+This replaces the earlier public name fields. Getter references borrow the
+name view, which may own its QName: keep that view alive while using them.
+Processing-instruction event and borrowing-DOM targets now use `Cow<str>` too;
+construct a borrowed target with `Cow::Borrowed("pi")` or move an owned string.
 
 `Limits` controls input bytes, raw token bytes, element depth, attributes per
 element, emitted events, and cumulative requested string capacity for normalized
@@ -115,7 +136,7 @@ let mut document = {
     let input = String::from("<root a='value'>text</root>");
     OwnedDocument::parse(&input)?
 };
-assert_eq!(document.root_element().name().unwrap().local, "root");
+assert_eq!(document.root_element().name().unwrap().local(), "root");
 assert_eq!(document.root_element().first_child().unwrap().text(), Some("text"));
 let text = document.root_element().first_child().unwrap().id();
 document.edit(EditLimits::default())?.set_node_value(text, "updated")?;

@@ -586,17 +586,17 @@ fn assert_valid_control(
     assert_eq!(node.parent().map(|node| node.id()), Some(parent));
     assert_eq!(node.range(), None, "constructed control gained provenance");
     let actual = node.name().expect("valid control lost its element name");
-    assert_eq!(actual.local, spec.name.local);
-    assert_eq!(actual.namespace.as_deref(), spec.name.namespace);
+    assert_eq!(actual.local(), spec.name.local);
+    assert_eq!(actual.namespace(), spec.name.namespace);
     let PrefixPolicy::Exact(prefix) = spec.name.prefix else {
         unreachable!("validation controls use exact prefixes")
     };
-    assert_eq!(actual.prefix, prefix);
+    assert_eq!(actual.prefix(), prefix);
     let qualified = prefix.map_or_else(
         || spec.name.local.to_owned(),
         |prefix| format!("{prefix}:{}", spec.name.local),
     );
-    assert_eq!(actual.qualified, qualified);
+    assert_eq!(actual.qualified(), qualified);
     let attributes: Vec<_> = node.attributes().collect();
     assert!(
         attributes.len() >= spec.items.len(),
@@ -605,22 +605,22 @@ fn assert_valid_control(
     for (actual, expected) in attributes.iter().zip(spec.items) {
         match expected {
             ElementItem::Namespace(namespace) => {
-                assert_eq!(actual.name.prefix, namespace.prefix.map(|_| "xmlns"));
+                assert_eq!(actual.name.prefix(), namespace.prefix.map(|_| "xmlns"));
                 assert_eq!(
-                    actual.name.local,
+                    actual.name.local(),
                     namespace.prefix.unwrap_or("xmlns"),
                     "valid control changed a declaration prefix"
                 );
-                assert_eq!(actual.name.namespace.as_deref(), Some(XMLNS));
+                assert_eq!(actual.name.namespace(), Some(XMLNS));
                 assert_eq!(actual.value.as_ref(), namespace.uri);
             }
             ElementItem::Attribute(attribute) => {
-                assert_eq!(actual.name.local, attribute.name.local);
-                assert_eq!(actual.name.namespace.as_deref(), attribute.name.namespace);
+                assert_eq!(actual.name.local(), attribute.name.local);
+                assert_eq!(actual.name.namespace(), attribute.name.namespace);
                 let PrefixPolicy::Exact(prefix) = attribute.name.prefix else {
                     unreachable!("validation controls use exact prefixes")
                 };
-                assert_eq!(actual.name.prefix, prefix);
+                assert_eq!(actual.name.prefix(), prefix);
                 assert_eq!(actual.value.as_ref(), attribute.value);
             }
         }

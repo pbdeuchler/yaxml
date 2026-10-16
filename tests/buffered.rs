@@ -125,14 +125,14 @@ fn value(event: Event<'_>) -> Value {
     let empty = matches!(event, Event::Empty(_));
     let name = |name: &yaxml::Name<'_>| {
         let (prefix, local) = name
-            .qualified
+            .qualified()
             .split_once(':')
-            .map_or((None, name.qualified), |(p, l)| (Some(p), l));
-        assert_eq!(name.prefix, prefix);
-        assert_eq!(name.local, local);
+            .map_or((None, name.qualified()), |(p, l)| (Some(p), l));
+        assert_eq!(name.prefix(), prefix);
+        assert_eq!(name.local(), local);
         (
-            name.qualified.to_owned(),
-            name.namespace.as_deref().map(str::to_owned),
+            name.qualified().to_owned(),
+            name.namespace().map(str::to_owned),
         )
     };
     match event {
@@ -161,7 +161,7 @@ fn value(event: Event<'_>) -> Value {
         Event::Cdata(text) => Value::Cdata(text.into_owned()),
         Event::Comment(text) => Value::Comment(text.into_owned()),
         Event::ProcessingInstruction { target, data } => {
-            Value::Pi(target.to_owned(), data.into_owned())
+            Value::Pi(target.into_owned(), data.into_owned())
         }
     }
 }

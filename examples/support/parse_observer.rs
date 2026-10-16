@@ -52,7 +52,7 @@ impl Observer {
             Event::End(name) => self.end(&name),
             Event::Text(value) | Event::Cdata(value) => self.text(&value),
             Event::Comment(value) => self.comment(&value),
-            Event::ProcessingInstruction { target, data } => self.pi(target, &data),
+            Event::ProcessingInstruction { target, data } => self.pi(&target, &data),
         }
     }
 
@@ -101,16 +101,16 @@ impl Observer {
     fn begin_start(&mut self, name: &Name<'_>) {
         self.flush_text();
         self.byte(b'S');
-        self.field(name.qualified);
-        self.field(name.namespace.as_deref().unwrap_or(""));
+        self.field(name.qualified());
+        self.field(name.namespace().unwrap_or(""));
     }
 
     fn namespace(&mut self, attribute: &Attribute<'_>) {
         self.byte(b'N');
-        self.field(if attribute.name.qualified == "xmlns" {
+        self.field(if attribute.name.qualified() == "xmlns" {
             ""
         } else {
-            attribute.name.local
+            attribute.name.local()
         });
         self.field(&attribute.value);
         self.observation.namespaces += 1;
@@ -118,8 +118,8 @@ impl Observer {
 
     fn ordinary_attribute(&mut self, attribute: &Attribute<'_>) {
         self.byte(b'A');
-        self.field(attribute.name.qualified);
-        self.field(attribute.name.namespace.as_deref().unwrap_or(""));
+        self.field(attribute.name.qualified());
+        self.field(attribute.name.namespace().unwrap_or(""));
         self.field(&attribute.value);
         self.observation.attributes += 1;
     }
@@ -132,8 +132,8 @@ impl Observer {
     fn end(&mut self, name: &Name<'_>) {
         self.flush_text();
         self.byte(b'E');
-        self.field(name.qualified);
-        self.field(name.namespace.as_deref().unwrap_or(""));
+        self.field(name.qualified());
+        self.field(name.namespace().unwrap_or(""));
     }
 
     fn text(&mut self, value: &str) {
@@ -292,7 +292,7 @@ fn owned_leaf(observer: &mut Observer, node: OwnedNode<'_>) -> Result<(), String
 }
 
 fn is_namespace(attribute: &Attribute<'_>) -> bool {
-    attribute.name.namespace.as_deref() == Some(XMLNS_NAMESPACE)
+    attribute.name.namespace() == Some(XMLNS_NAMESPACE)
 }
 
 #[cfg(test)]

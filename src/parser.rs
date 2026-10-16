@@ -5,6 +5,7 @@ use std::ops::Range;
 use memchr::memchr;
 
 use crate::escape::{copy_cow, needs_normalization, normalize_required};
+use crate::name::{qname, validate_name};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
 
@@ -312,7 +313,7 @@ impl<'source> ParserState<'source> {
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
         Ok(Event::ProcessingInstruction {
-            target,
+            target: Cow::Borrowed(target),
             data: self.normalized(data, offset, false, false)?,
         })
     }
@@ -393,12 +394,11 @@ impl<'source> ParserState<'source> {
                 .try_reserve(1)
                 .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
             attributes.push(Attribute {
-                name: Name {
-                    qualified: name,
-                    prefix,
-                    local,
-                    namespace: None,
-                },
+                name: Name::from_validated_parts(
+                    Cow::Borrowed(name),
+                    prefix.and_then(|prefix| std::num::NonZeroUsize::new(prefix.len())),
+                    None,
+                ),
                 value,
             });
         }
@@ -408,9 +408,8 @@ impl<'source> ParserState<'source> {
             .try_reserve(attributes.len())
             .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
         for attribute in &mut attributes {
-            let (name, namespace) = self.resolve_name(attribute.name.qualified, true, start)?;
-            attribute.name = name;
-            if !expanded.insert((attribute.name.local, namespace)) {
+            let namespace = self.resolve_namespace(&mut attribute.name, true, start)?;
+            if !expanded.insert((attribute.name.local(), namespace)) {
                 return Err(Error::new(ErrorKind::DuplicateAttribute, start));
             }
         }
@@ -503,7 +502,27 @@ impl<'source> ParserState<'source> {
     where
         'source: 'event,
     {
-        let (prefix, local) = qname(qualified, offset)?;
+        let (prefix, _) = qname(qualified, offset)?;
+        let mut name = Name::from_validated_parts(
+            Cow::Borrowed(qualified),
+            prefix.and_then(|prefix| std::num::NonZeroUsize::new(prefix.len())),
+            None,
+        );
+        let identity = self.resolve_namespace(&mut name, attribute, offset)?;
+        Ok((name, identity))
+    }
+
+    fn resolve_namespace<'event>(
+        &mut self,
+        name: &mut Name<'event>,
+        attribute: bool,
+        offset: usize,
+    ) -> Result<Option<NamespaceId>, Error>
+    where
+        'source: 'event,
+    {
+        let prefix = name.prefix();
+        let qualified = name.qualified();
         let (namespace, identity) = match prefix {
             Some("xmlns") if attribute => (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns)),
             Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
@@ -526,15 +545,8 @@ impl<'source> ParserState<'source> {
                 _ => (None, None),
             },
         };
-        Ok((
-            Name {
-                qualified,
-                prefix,
-                local,
-                namespace,
-            },
-            identity,
-        ))
+        name.set_namespace(namespace);
+        Ok(identity)
     }
 
     fn end_element<'event>(
@@ -777,44 +789,6 @@ fn validate_encoding(
         ErrorKind::EncodingMismatch
     };
     Err(Error::new(kind, offset))
-}
-
-fn qname(name: &str, offset: usize) -> Result<(Option<&str>, &str), Error> {
-    if let Some((prefix, local)) = name.split_once(':') {
-        validate_name(prefix, offset, false)?;
-        validate_name(local, offset + prefix.len() + 1, false)?;
-        Ok((Some(prefix), local))
-    } else {
-        validate_name(name, offset, false)?;
-        Ok((None, name))
-    }
-}
-
-pub(crate) fn validate_name(name: &str, offset: usize, colon: bool) -> Result<(), Error> {
-    let mut chars = name.char_indices();
-    let Some((_, first)) = chars.next() else {
-        return Err(Error::new(ErrorKind::InvalidName, offset));
-    };
-    if !name_start(first, colon) {
-        return Err(Error::new(ErrorKind::InvalidName, offset));
-    }
-    for (i, c) in chars {
-        if !name_start(c, colon)
-            && !matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')
-        {
-            return Err(Error::new(ErrorKind::InvalidName, offset + i));
-        }
-    }
-    Ok(())
-}
-
-fn name_start(c: char, colon: bool) -> bool {
-    (colon && c == ':')
-        || matches!(c, 'A'..='Z' | 'a'..='z' | '_'
-        | '\u{c0}'..='\u{d6}' | '\u{d8}'..='\u{f6}' | '\u{f8}'..='\u{2ff}'
-        | '\u{370}'..='\u{37d}' | '\u{37f}'..='\u{1fff}' | '\u{200c}'..='\u{200d}'
-        | '\u{2070}'..='\u{218f}' | '\u{2c00}'..='\u{2fef}' | '\u{3001}'..='\u{d7ff}'
-        | '\u{f900}'..='\u{fdcf}' | '\u{fdf0}'..='\u{fffd}' | '\u{10000}'..='\u{effff}')
 }
 
 #[cfg(test)]

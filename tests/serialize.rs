@@ -10,10 +10,10 @@ struct NameValue(String, Option<String>, String, Option<String>);
 
 fn name(value: &Name<'_>) -> NameValue {
     NameValue(
-        value.qualified.into(),
-        value.prefix.map(str::to_owned),
-        value.local.into(),
-        value.namespace.as_deref().map(str::to_owned),
+        value.qualified().into(),
+        value.prefix().map(str::to_owned),
+        value.local().into(),
+        value.namespace().map(str::to_owned),
     )
 }
 
@@ -61,7 +61,7 @@ fn borrowed_values(document: &Document<'_>) -> LogicalDocument {
                     .collect(),
                 text: node.text().map(str::to_owned),
                 target: match node.kind() {
-                    NodeKind::ProcessingInstruction { target, .. } => Some((*target).into()),
+                    NodeKind::ProcessingInstruction { target, .. } => Some(target.to_string()),
                     _ => None,
                 },
                 children: node.children().count(),

@@ -22,14 +22,17 @@ fn document_structure_and_navigation() {
     assert_eq!(top[1].text(), Some("b"));
     assert!(matches!(
         top[1].kind(),
-        NodeKind::ProcessingInstruction { target: "a", .. }
+        NodeKind::ProcessingInstruction {
+            target: Cow::Borrowed("a"),
+            ..
+        }
     ));
     assert_eq!(top[2].id(), document.root_element().id());
     assert_eq!(top[3].text(), Some("after"));
     assert_eq!(root.last_child().unwrap().id(), top[3].id());
 
     let element = document.root_element();
-    assert_eq!(element.name().unwrap().qualified, "root");
+    assert_eq!(element.name().unwrap().qualified(), "root");
     assert_eq!(element.parent().unwrap().id(), root.id());
     assert!(element.text().is_none());
     assert_eq!(
@@ -40,7 +43,7 @@ fn document_structure_and_navigation() {
     assert_eq!(children.len(), 3);
     assert_eq!(element.first_child().unwrap().id(), children[0].id());
     assert_eq!(children[0].next_sibling().unwrap().id(), children[1].id());
-    assert_eq!(children[0].name().unwrap().local, "first");
+    assert_eq!(children[0].name().unwrap().local(), "first");
     assert!(children[0].first_child().is_none());
     assert!(children[0].last_child().is_none());
     assert!(children[0].attributes().is_empty());
@@ -65,13 +68,13 @@ fn declaration_namespaces_and_normalization() {
     assert_eq!(declaration.standalone, Some(true));
     let root = document.root_element();
     let name = root.name().unwrap();
-    assert_eq!(name.qualified, "p:r");
-    assert_eq!(name.local, "r");
-    assert_eq!(name.prefix, Some("p"));
-    assert_eq!(name.namespace.as_deref(), Some("urn:one"));
+    assert_eq!(name.qualified(), "p:r");
+    assert_eq!(name.local(), "r");
+    assert_eq!(name.prefix(), Some("p"));
+    assert_eq!(name.namespace(), Some("urn:one"));
     let attributes = root.attributes();
     assert_eq!(attributes.len(), 2);
-    assert_eq!(attributes[0].name.qualified, "xmlns:p");
+    assert_eq!(attributes[0].name.qualified(), "xmlns:p");
     assert_eq!(attributes[1].value, "x\ty");
     let children: Vec<_> = root.children().collect();
     assert_eq!(children.len(), 3);

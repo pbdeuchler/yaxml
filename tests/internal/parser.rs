@@ -34,7 +34,7 @@ fn owned_state_outlives_temporary_tokens_and_events_outlive_scope_removal() {
         length = token.len();
         let event = owned(&mut state, TokenKind::Start, &token, 0).unwrap();
         assert!(
-            matches!(event, Some(Event::Start(element)) if element.name.namespace.as_deref() == Some("urn:p"))
+            matches!(event, Some(Event::Start(element)) if element.name.namespace() == Some("urn:p"))
         );
     }
     let token = String::from("</p:r>");
@@ -43,7 +43,7 @@ fn owned_state_outlives_temporary_tokens_and_events_outlive_scope_removal() {
     assert!(state.bindings.is_empty());
     assert!(state.namespace_index.is_empty());
     assert!(state.namespace_ids.is_empty());
-    assert!(matches!(event, Some(Event::End(name)) if name.namespace.as_deref() == Some("urn:p")));
+    assert!(matches!(event, Some(Event::End(name)) if name.namespace() == Some("urn:p")));
     state.validate_finish(length + token.len()).unwrap();
 }
 
@@ -60,11 +60,11 @@ fn interner_reference_counts_include_aliases_and_shadowed_bindings() {
     assert_eq!(state.namespace_ids.get("urn:a").unwrap().bindings, 2);
     assert!(!state.namespace_ids.contains_key("urn:b"));
     assert!(
-        matches!(event, Some(Event::Empty(element)) if element.name.namespace.as_deref() == Some("urn:b") && element.attributes[2].name.namespace.as_deref() == Some("urn:b") && element.attributes[3].name.namespace.as_deref() == Some("urn:a"))
+        matches!(event, Some(Event::Empty(element)) if element.name.namespace() == Some("urn:b") && element.attributes[2].name.namespace() == Some("urn:b") && element.attributes[3].name.namespace() == Some("urn:a"))
     );
     let sibling = "<p:c/>";
     assert!(
-        matches!(owned(&mut state, TokenKind::Start, sibling, root.len() + child.len()).unwrap(), Some(Event::Empty(element)) if element.name.namespace.as_deref() == Some("urn:a"))
+        matches!(owned(&mut state, TokenKind::Start, sibling, root.len() + child.len()).unwrap(), Some(Event::Empty(element)) if element.name.namespace() == Some("urn:a"))
     );
     owned(
         &mut state,

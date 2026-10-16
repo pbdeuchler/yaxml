@@ -6,15 +6,14 @@ fn views_borrow_normalized_names_and_attributes_and_reuse_metadata() {
     let mut attributes = Vec::new();
     let root = TreeNode::Borrowed(document.root_element());
     let name = root.name().unwrap();
-    assert!(matches!(name.namespace, Some(Cow::Borrowed("urn:r"))));
+    assert_eq!(name.namespace(), Some("urn:r"));
     assert_eq!(
-        name.namespace.as_deref().unwrap().as_ptr(),
+        name.namespace().unwrap().as_ptr(),
         document
             .root_element()
             .name()
             .unwrap()
-            .namespace
-            .as_deref()
+            .namespace()
             .unwrap()
             .as_ptr()
     );

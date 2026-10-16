@@ -14,10 +14,10 @@ struct NameValue(String, Option<String>, String, Option<String>);
 
 fn name(value: Name<'_>) -> NameValue {
     NameValue(
-        value.qualified.into(),
-        value.prefix.map(str::to_owned),
-        value.local.into(),
-        value.namespace.as_deref().map(str::to_owned),
+        value.qualified().into(),
+        value.prefix().map(str::to_owned),
+        value.local().into(),
+        value.namespace().map(str::to_owned),
     )
 }
 

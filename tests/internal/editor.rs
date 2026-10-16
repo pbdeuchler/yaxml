@@ -199,15 +199,15 @@ fn attribute_and_node_updates_publish_only_the_selected_value() {
         .document()
         .root_element()
         .attributes()
-        .map(|attribute| (attribute.name.qualified, attribute.value))
+        .map(|attribute| (attribute.name.qualified().to_owned(), attribute.value))
         .collect();
     assert_eq!(
         values,
         [
-            ("xmlns", Cow::Borrowed("u")),
-            ("xmlns:p", Cow::Borrowed("p")),
-            ("a", Cow::Borrowed("\r\n\t&")),
-            ("p:a", Cow::Borrowed("é🙂"))
+            ("xmlns".to_owned(), Cow::Borrowed("u")),
+            ("xmlns:p".to_owned(), Cow::Borrowed("p")),
+            ("a".to_owned(), Cow::Borrowed("\r\n\t&")),
+            ("p:a".to_owned(), Cow::Borrowed("é🙂"))
         ]
     );
     assert_eq!(

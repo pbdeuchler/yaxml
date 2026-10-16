@@ -233,10 +233,10 @@ impl<W: Write> Writer<W> {
                     ));
                 }
                 buffer.push("<")?;
-                buffer.push(element.name.qualified)?;
+                buffer.push(element.name.qualified())?;
                 for attribute in &element.attributes {
                     buffer.push(" ")?;
-                    buffer.push(attribute.name.qualified)?;
+                    buffer.push(attribute.name.qualified())?;
                     buffer.push("=\"")?;
                     buffer.escaped(&attribute.value, true)?;
                     buffer.push("\"")?;
@@ -250,7 +250,7 @@ impl<W: Write> Writer<W> {
             }
             Event::End(name) => {
                 buffer.push("</")?;
-                buffer.push(name.qualified)?;
+                buffer.push(name.qualified())?;
                 buffer.push(">")?;
                 TokenKind::End
             }
@@ -337,13 +337,10 @@ impl<W: Write> Writer<W> {
 }
 
 fn check_name(supplied: &Name<'_>, parsed: &Name<'_>, offset: usize) -> Result<(), Error> {
-    if supplied.qualified != parsed.qualified
-        || supplied.prefix != parsed.prefix
-        || supplied.local != parsed.local
-    {
+    if supplied.qualified() != parsed.qualified() {
         return Err(Error::new(ErrorKind::InvalidName, offset));
     }
-    if supplied.namespace != parsed.namespace {
+    if supplied.namespace() != parsed.namespace() {
         return Err(Error::new(ErrorKind::Namespace, offset));
     }
     Ok(())

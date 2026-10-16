@@ -61,14 +61,14 @@ fn record(event: Event<'_>) -> Value {
     let empty = matches!(event, Event::Empty(_));
     let name = |name: &yaxml::Name<'_>| {
         let (prefix, local) = name
-            .qualified
+            .qualified()
             .split_once(':')
-            .map_or((None, name.qualified), |(p, l)| (Some(p), l));
-        assert_eq!(name.prefix, prefix);
-        assert_eq!(name.local, local);
+            .map_or((None, name.qualified()), |(p, l)| (Some(p), l));
+        assert_eq!(name.prefix(), prefix);
+        assert_eq!(name.local(), local);
         (
-            name.qualified.to_owned(),
-            name.namespace.as_deref().map(str::to_owned),
+            name.qualified().to_owned(),
+            name.namespace().map(str::to_owned),
         )
     };
     match event {
@@ -101,7 +101,7 @@ fn record(event: Event<'_>) -> Value {
         Event::Cdata(text) => Value::Cdata(text.into_owned()),
         Event::Comment(text) => Value::Comment(text.into_owned()),
         Event::ProcessingInstruction { target, data } => {
-            Value::Pi(target.to_owned(), data.into_owned())
+            Value::Pi(target.into_owned(), data.into_owned())
         }
     }
 }
@@ -224,8 +224,8 @@ fn both_orders_every_split_preserve_logical_values_names_and_raw_spans() {
         let owned = std::thread::spawn(move || owned).join().unwrap();
         assert_eq!(owned.declaration().unwrap().encoding, Some("uTf-16"));
         let root = owned.root_element();
-        assert_eq!(root.name().unwrap().qualified, "é:r");
-        assert_eq!(root.name().unwrap().namespace.as_deref(), Some("urn:ü"));
+        assert_eq!(root.name().unwrap().qualified(), "é:r");
+        assert_eq!(root.name().unwrap().namespace(), Some("urn:ü"));
         assert_eq!(
             root.range(),
             Some(span(INPUT, &INPUT[INPUT.find("<é:r").unwrap()..]))
@@ -243,7 +243,7 @@ fn both_orders_every_split_preserve_logical_values_names_and_raw_spans() {
                     assert_eq!(child.processing_instruction_target(), Some(target.as_str()));
                     assert_eq!(child.text(), Some(data.as_str()));
                 }
-                Value::Empty(name, ..) => assert_eq!(child.name().unwrap().qualified, name),
+                Value::Empty(name, ..) => assert_eq!(child.name().unwrap().qualified(), name),
                 _ => unreachable!(),
             }
         }
@@ -254,7 +254,7 @@ fn both_orders_every_split_preserve_logical_values_names_and_raw_spans() {
         );
         let attributes: Vec<_> = root.attributes().collect();
         assert_eq!(attributes[1].value, "A B C\t\r");
-        assert_eq!(attributes[2].name.local, "中");
+        assert_eq!(attributes[2].name.local(), "中");
         assert_eq!(attributes[2].value, "🙂");
     }
 }
@@ -865,7 +865,7 @@ fn utf8_surfaces_and_writer_keep_their_existing_encoding_contracts() {
                 .root_element()
                 .name()
                 .unwrap()
-                .qualified,
+                .qualified(),
             "r"
         );
     }

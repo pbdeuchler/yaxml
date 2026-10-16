@@ -105,7 +105,7 @@ impl Projection {
                 &format!("count({path}/ancestor::node())"),
                 &node.depth.to_string(),
             )?;
-            builder.name(&path, &node.name)?;
+            builder.name(&path, node.name.as_ref())?;
             let value_expression = if node.kind == "1" {
                 "''".to_owned()
             } else {
@@ -118,7 +118,7 @@ impl Projection {
             )?;
             for (index, attribute) in node.attributes.iter().enumerate() {
                 let path = format!("{path}/@*[{}]", index + 1);
-                builder.name(&path, &attribute.name)?;
+                builder.name(&path, Some(&attribute.name))?;
                 builder.field(&format!("string({path})"), &attribute.value)?;
             }
         }
@@ -148,7 +148,7 @@ impl Projection {
 
 struct ProjectedNode<'input> {
     depth: usize,
-    name: Name<'input>,
+    name: Option<Name<'input>>,
     value: Cow<'input, str>,
     attributes: Vec<Attribute<'input>>,
     kind: &'static str,
@@ -163,12 +163,7 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
         let starts = matches!(&event, Event::Start(_));
         let mut node = ProjectedNode {
             depth: depth + 1,
-            name: Name {
-                qualified: "",
-                prefix: None,
-                local: "",
-                namespace: None,
-            },
+            name: None,
             value: Cow::Borrowed(""),
             attributes: Vec::new(),
             kind: "1",
@@ -180,11 +175,10 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
                 continue;
             }
             Event::Start(element) | Event::Empty(element) => {
-                node.name = element.name;
+                node.name = Some(element.name);
                 node.attributes = element.attributes;
-                node.attributes.retain(|attribute| {
-                    attribute.name.namespace.as_deref() != Some(XMLNS_NAMESPACE)
-                });
+                node.attributes
+                    .retain(|attribute| attribute.name.namespace() != Some(XMLNS_NAMESPACE));
                 attributes = attributes
                     .checked_add(node.attributes.len())
                     .ok_or(ProjectionError::Limit("attribute count"))?;
@@ -215,8 +209,7 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
             }
             Event::ProcessingInstruction { target, data } => {
                 node.kind = "4";
-                node.name.qualified = target;
-                node.name.local = target;
+                node.name = Some(Name::new(target, None)?);
                 node.value = data;
             }
         }
@@ -237,12 +230,7 @@ fn owned_nodes(document: &OwnedDocument) -> Result<Vec<ProjectedNode<'_>>, Proje
     for source in document.nodes().skip(1) {
         let mut node = ProjectedNode {
             depth: std::iter::successors(source.parent(), |node| node.parent()).count(),
-            name: source.name().unwrap_or(Name {
-                qualified: "",
-                prefix: None,
-                local: "",
-                namespace: None,
-            }),
+            name: source.name(),
             value: Cow::Borrowed(source.text().unwrap_or("")),
             attributes: Vec::new(),
             kind: match source.kind() {
@@ -254,11 +242,10 @@ fn owned_nodes(document: &OwnedDocument) -> Result<Vec<ProjectedNode<'_>>, Proje
             },
         };
         if let Some(target) = source.processing_instruction_target() {
-            node.name.qualified = target;
-            node.name.local = target;
+            node.name = Some(Name::new(target, None)?);
         }
         for attribute in source.attributes() {
-            if attribute.name.namespace.as_deref() == Some(XMLNS_NAMESPACE) {
+            if attribute.name.namespace() == Some(XMLNS_NAMESPACE) {
                 continue;
             }
             if attributes == MAX_ATTRIBUTES {
@@ -324,12 +311,12 @@ struct Builder {
 }
 
 impl Builder {
-    fn name(&mut self, path: &str, name: &Name<'_>) -> Result<(), ProjectionError> {
-        self.field(&format!("name({path})"), name.qualified)?;
-        self.field(&format!("local-name({path})"), name.local)?;
+    fn name(&mut self, path: &str, name: Option<&Name<'_>>) -> Result<(), ProjectionError> {
+        self.field(&format!("name({path})"), name.map_or("", Name::qualified))?;
+        self.field(&format!("local-name({path})"), name.map_or("", Name::local))?;
         self.field(
             &format!("namespace-uri({path})"),
-            name.namespace.as_deref().unwrap_or(""),
+            name.and_then(Name::namespace).unwrap_or(""),
         )
     }
 
