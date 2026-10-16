@@ -2,7 +2,7 @@
 
 The subsequent [streaming milestone report](validation-streaming.md) and
 [declaration/oracle report](validation-oracle.md) and
-[writer report](validation-writer.md) record the expanded
+[writer report](validation-writer.md) and [owned DOM report](validation-owned.md) record the expanded
 implementation, tests and coverage. This page preserves the initial slice/DOM
 measurements.
 
