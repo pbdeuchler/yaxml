@@ -1722,6 +1722,12 @@ mod tests {
         }
     }
 
+    fn serialized(document: &OwnedDocument) -> Vec<u8> {
+        let mut writer = Writer::new(Vec::new());
+        writer.write_owned_document(document).unwrap();
+        writer.into_inner()
+    }
+
     #[test]
     fn create_and_append_publish_attributes_links_and_complete_xml() {
         let mut document = OwnedDocument::create(root_spec(), EditLimits::default()).unwrap();
@@ -2125,10 +2131,12 @@ mod tests {
             value: "1",
         })];
         let mut failures = 0;
+        let mut saw_success = false;
         for skip in 0..32 {
             let mut document = OwnedDocument::create(root_spec(), EditLimits::default()).unwrap();
             let parent = document.root_element().id();
             let mut editor = document.edit(EditLimits::default()).unwrap();
+            let before = serialized(editor.document());
             let failure = EditReservationFailureGuard::arm(EditReservation::Scratch, skip);
             let result = editor.append_element(
                 parent,
@@ -2155,14 +2163,39 @@ mod tests {
                 );
                 assert_eq!(editor.document().edit_created_nodes, 1);
                 assert_eq!(editor.document().edit_created_attributes, 0);
+                drop(failure);
+                assert_eq!(serialized(editor.document()), before);
+                let child = editor
+                    .append_element(
+                        parent,
+                        ElementSpec {
+                            name: NameSpec {
+                                local: "item",
+                                namespace: None,
+                                prefix: PrefixPolicy::Exact(None),
+                            },
+                            items: &items,
+                        },
+                    )
+                    .unwrap();
+                let child = editor.document().node(child).unwrap();
+                assert_eq!(child.name().unwrap().qualified, "item");
+                assert_eq!(child.parent().unwrap().id(), parent);
+                assert_eq!(child.attributes().count(), 2);
+                assert_eq!(editor.document().nodes.len(), 3);
+                assert_eq!(editor.document().edit_created_nodes, 2);
+                assert_eq!(editor.document().edit_created_attributes, 2);
                 failures += 1;
             } else {
                 assert!(result.is_ok());
                 assert_eq!(failure.attempts(), skip);
+                drop(failure);
+                saw_success = true;
                 break;
             }
         }
         assert!(failures >= 7, "expected generated prefix and clone sites");
+        assert!(saw_success, "scratch failure loop never reached success");
     }
 
     #[test]
@@ -2178,11 +2211,13 @@ mod tests {
             value: "1",
         })];
         let mut failures = 0;
+        let mut saw_success = false;
         for skip in 0..32 {
             let mut document = OwnedDocument::parse(&xml).unwrap();
             let parent = document.root_element().id();
             let node_count = document.nodes.len();
             let mut editor = document.edit(EditLimits::default()).unwrap();
+            let before = serialized(editor.document());
             let failure = EditReservationFailureGuard::arm(EditReservation::Scratch, skip);
             let result = editor.append_element(
                 parent,
@@ -2201,10 +2236,34 @@ mod tests {
                 assert_eq!(editor.document().nodes.len(), node_count);
                 assert_eq!(editor.document().edit_created_nodes, 0);
                 assert_eq!(editor.document().edit_created_attributes, 0);
+                drop(failure);
+                assert_eq!(serialized(editor.document()), before);
+                let child = editor
+                    .append_element(
+                        parent,
+                        ElementSpec {
+                            name: NameSpec {
+                                local: "item",
+                                namespace: None,
+                                prefix: PrefixPolicy::Exact(None),
+                            },
+                            items: &items,
+                        },
+                    )
+                    .unwrap();
+                let child = editor.document().node(child).unwrap();
+                assert_eq!(child.name().unwrap().qualified, "item");
+                assert_eq!(child.parent().unwrap().id(), parent);
+                assert_eq!(child.attributes().count(), 1);
+                assert_eq!(editor.document().nodes.len(), node_count + 1);
+                assert_eq!(editor.document().edit_created_nodes, 1);
+                assert_eq!(editor.document().edit_created_attributes, 1);
                 failures += 1;
             } else {
                 assert!(result.is_ok());
                 assert_eq!(failure.attempts(), skip);
+                drop(failure);
+                saw_success = true;
                 break;
             }
         }
@@ -2212,6 +2271,7 @@ mod tests {
             failures >= 5,
             "expected inherited prefix clone and growth sites"
         );
+        assert!(saw_success, "scratch failure loop never reached success");
     }
 
     #[test]
@@ -2251,6 +2311,7 @@ mod tests {
         }
 
         let mut failures = 0;
+        let mut saw_success = false;
         for skip in 0..16 {
             let failure = EditReservationFailureGuard::arm(EditReservation::Scratch, skip);
             let result = OwnedDocument::create(
@@ -2274,10 +2335,27 @@ mod tests {
             } else {
                 assert!(result.is_ok());
                 assert_eq!(failure.attempts(), skip);
+                drop(failure);
+                assert!(
+                    OwnedDocument::create(
+                        ElementSpec {
+                            name: NameSpec {
+                                local: "root",
+                                namespace: None,
+                                prefix: PrefixPolicy::Exact(None),
+                            },
+                            items: &items,
+                        },
+                        EditLimits::default(),
+                    )
+                    .is_ok()
+                );
+                saw_success = true;
                 break;
             }
         }
         assert!(failures >= 4, "expected all create scratch reservations");
+        assert!(saw_success, "scratch failure loop never reached success");
     }
 
     #[test]
