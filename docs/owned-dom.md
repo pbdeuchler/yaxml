@@ -225,7 +225,11 @@ memory or all CPU work. PI target and data share one combined reservation: after
 parsing `<r/>` into one pool byte, appending target `p` and data `d` charges one
 full-capacity request of 3 bytes. A 2-byte editing allowance fails and a 3-byte
 allowance succeeds. Removal refunds neither cumulative counter.
-Allocation-failure injection remains unimplemented.
+Private tests use a safe thread-local failpoint at actual editing node-vector and
+pool-growth reservation boundaries. They verify returned `Allocation` errors,
+publication atomicity, retained pool charges and editor recovery without global
+test races. This seam does not inject faults inside the allocator or establish
+operating-system out-of-memory behavior.
 
 The [mutation validation report](validation-owned-mutation.md) distinguishes
 implemented behavior from pending coverage, review and performance evidence.

@@ -3,6 +3,13 @@ use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[cfg(test)]
+use std::cell::Cell;
+#[cfg(test)]
+use std::marker::PhantomData;
+#[cfg(test)]
+use std::rc::Rc;
+
 use crate::parser::Budget;
 use crate::{Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader};
 use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
@@ -10,6 +17,109 @@ use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 
 static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum EditReservation {
+    Node,
+    Pool,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+struct EditReservationFailure {
+    reservation: EditReservation,
+    remaining: usize,
+    attempts: usize,
+    fired: bool,
+}
+
+#[cfg(test)]
+thread_local! {
+    static EDIT_RESERVATION_FAILURE: Cell<Option<EditReservationFailure>> = const {
+        Cell::new(None)
+    };
+}
+
+/// A thread-local, one-shot failure scope for private allocation-path tests.
+/// The `Rc` marker keeps the guard on the thread whose TLS entry it owns.
+#[cfg(test)]
+struct EditReservationFailureGuard {
+    _not_send_or_sync: PhantomData<Rc<()>>,
+}
+
+#[cfg(test)]
+impl EditReservationFailureGuard {
+    fn arm(reservation: EditReservation, skip: usize) -> Self {
+        EDIT_RESERVATION_FAILURE.with(|failure| {
+            assert!(
+                failure.get().is_none(),
+                "edit reservation failure already armed"
+            );
+            failure.set(Some(EditReservationFailure {
+                reservation,
+                remaining: skip,
+                attempts: 0,
+                fired: false,
+            }));
+        });
+        Self {
+            _not_send_or_sync: PhantomData,
+        }
+    }
+
+    fn attempts(&self) -> usize {
+        EDIT_RESERVATION_FAILURE.with(|failure| {
+            failure
+                .get()
+                .expect("edit reservation failure guard lost its state")
+                .attempts
+        })
+    }
+
+    fn fired(&self) -> bool {
+        EDIT_RESERVATION_FAILURE.with(|failure| {
+            failure
+                .get()
+                .expect("edit reservation failure guard lost its state")
+                .fired
+        })
+    }
+}
+
+#[cfg(test)]
+impl Drop for EditReservationFailureGuard {
+    fn drop(&mut self) {
+        EDIT_RESERVATION_FAILURE.with(|failure| {
+            assert!(
+                failure.replace(None).is_some(),
+                "edit reservation failure guard lost its state"
+            );
+        });
+    }
+}
+
+#[cfg(test)]
+fn inject_edit_reservation_failure(reservation: EditReservation) -> Result<(), EditError> {
+    EDIT_RESERVATION_FAILURE.with(|failure| {
+        let Some(mut state) = failure.get() else {
+            return Ok(());
+        };
+        if state.reservation != reservation || state.fired {
+            return Ok(());
+        }
+        state.attempts = state.attempts.saturating_add(1);
+        if state.remaining == 0 {
+            state.fired = true;
+            failure.set(Some(state));
+            Err(EditError::new(EditErrorKind::Allocation, None))
+        } else {
+            state.remaining -= 1;
+            failure.set(Some(state));
+            Ok(())
+        }
+    })
+}
 
 fn document_identity(counter: &AtomicUsize) -> Result<NonZeroUsize, Error> {
     let previous = counter
@@ -210,6 +320,8 @@ impl Pool {
             // The preflight bounds the full request by the remaining budget.
             // A failed allocation remains cumulative work.
             *spent += target;
+            #[cfg(test)]
+            inject_edit_reservation_failure(EditReservation::Pool)?;
             self.0
                 .try_reserve_exact(target - self.0.len())
                 .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
@@ -580,6 +692,10 @@ impl Editor<'_> {
         let allocation = EditError::new(EditErrorKind::Allocation, None);
         let link = Link::new(id).ok_or(allocation)?;
         let parent_link = Link::new(NodeId(parent)).ok_or(allocation)?;
+        #[cfg(test)]
+        if self.document.nodes.len() == self.document.nodes.capacity() {
+            inject_edit_reservation_failure(EditReservation::Node)?;
+        }
         self.document.nodes.try_reserve(1).map_err(|_| allocation)?;
         self.document
             .pool

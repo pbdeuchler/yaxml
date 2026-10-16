@@ -16,6 +16,134 @@ fn output(document: &OwnedDocument) -> Vec<u8> {
     writer.into_inner()
 }
 
+#[derive(Debug, Eq, PartialEq)]
+struct LogicalName {
+    qualified: String,
+    prefix: Option<String>,
+    local: String,
+    namespace: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct LogicalAttribute {
+    name: LogicalName,
+    value: String,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct LogicalNode {
+    id: OwnedNodeId,
+    kind: OwnedNodeKind,
+    name: Option<LogicalName>,
+    text: Option<String>,
+    pi_target: Option<String>,
+    attributes: Vec<LogicalAttribute>,
+    range: Option<Range<usize>>,
+    parent: Option<OwnedNodeId>,
+    first_child: Option<OwnedNodeId>,
+    last_child: Option<OwnedNodeId>,
+    next_sibling: Option<OwnedNodeId>,
+    children: Vec<OwnedNodeId>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct LogicalSnapshot {
+    declaration: Option<(String, Option<String>, Option<bool>)>,
+    nodes: Vec<LogicalNode>,
+    bytes: Vec<u8>,
+}
+
+fn logical_snapshot(document: &OwnedDocument) -> LogicalSnapshot {
+    LogicalSnapshot {
+        declaration: document.declaration().map(|declaration| {
+            (
+                declaration.version.to_owned(),
+                declaration.encoding.map(str::to_owned),
+                declaration.standalone,
+            )
+        }),
+        nodes: document
+            .nodes()
+            .map(|node| {
+                let name = node.name().map(|name| LogicalName {
+                    qualified: name.qualified.to_owned(),
+                    prefix: name.prefix.map(str::to_owned),
+                    local: name.local.to_owned(),
+                    namespace: name.namespace.map(|namespace| namespace.into_owned()),
+                });
+                let attributes = node
+                    .attributes()
+                    .map(|attribute| LogicalAttribute {
+                        name: LogicalName {
+                            qualified: attribute.name.qualified.to_owned(),
+                            prefix: attribute.name.prefix.map(str::to_owned),
+                            local: attribute.name.local.to_owned(),
+                            namespace: attribute
+                                .name
+                                .namespace
+                                .map(|namespace| namespace.into_owned()),
+                        },
+                        value: attribute.value.into_owned(),
+                    })
+                    .collect();
+                LogicalNode {
+                    id: node.id(),
+                    kind: node.kind(),
+                    name,
+                    text: node.text().map(str::to_owned),
+                    pi_target: node.processing_instruction_target().map(str::to_owned),
+                    attributes,
+                    range: node.range(),
+                    parent: node.parent().map(OwnedNode::id),
+                    first_child: node.first_child().map(OwnedNode::id),
+                    last_child: node.last_child().map(OwnedNode::id),
+                    next_sibling: node.next_sibling().map(OwnedNode::id),
+                    children: node.children().map(OwnedNode::id).collect(),
+                }
+            })
+            .collect(),
+        bytes: output(document),
+    }
+}
+
+fn append_test_leaf(
+    editor: &mut Editor<'_>,
+    parent: OwnedNodeId,
+    kind: ValueKind,
+    value: &str,
+) -> Result<OwnedNodeId, EditError> {
+    match kind {
+        ValueKind::Text => editor.append_text(parent, value),
+        ValueKind::Cdata => editor.append_cdata(parent, value),
+        ValueKind::Comment => editor.append_comment(parent, value),
+        ValueKind::Pi => editor.append_processing_instruction(parent, "pi", value),
+    }
+}
+
+fn leaf_additional(kind: ValueKind, value: &str) -> usize {
+    value.len() + usize::from(matches!(kind, ValueKind::Pi)) * 2
+}
+
+fn value_for_pool_growth(document: &OwnedDocument, kind: ValueKind) -> String {
+    let target = usize::from(matches!(kind, ValueKind::Pi)) * 2;
+    let spare = document
+        .pool
+        .0
+        .capacity()
+        .saturating_sub(document.pool.0.len());
+    "x".repeat(spare.saturating_sub(target) + 1)
+}
+
+fn fill_node_capacity(editor: &mut Editor<'_>, parent: OwnedNodeId) {
+    while editor.document().nodes.len() < editor.document().nodes.capacity() {
+        editor.append_text(parent, "").unwrap();
+    }
+    assert_eq!(
+        editor.document().nodes.len(),
+        editor.document().nodes.capacity()
+    );
+}
+
 // Independently reconstruct preorder and sizes from child/sibling links, rather
 // than trusting the production descendant iterator or cached counts.
 fn assert_topology(document: &OwnedDocument) {
@@ -567,4 +695,265 @@ fn private_overflow_preflights_do_not_mutate_pool_or_creation_work() {
         ))
     );
     assert_eq!(format!("{:?}", editor.document()), before);
+}
+
+#[test]
+fn node_reservation_failures_precede_pool_work_and_publish_nothing() {
+    for kind in [
+        ValueKind::Text,
+        ValueKind::Cdata,
+        ValueKind::Comment,
+        ValueKind::Pi,
+    ] {
+        let mut document = OwnedDocument::parse("<r/>").unwrap();
+        let parent = document.root_element().id();
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        fill_node_capacity(&mut editor, parent);
+        let value = value_for_pool_growth(editor.document(), kind);
+        let before = logical_snapshot(editor.document());
+        let nodes_len = editor.document().nodes.len();
+        let nodes_capacity = editor.document().nodes.capacity();
+        let pool_len = editor.document().pool.0.len();
+        let pool_capacity = editor.document().pool.0.capacity();
+        let spent = editor.document().edit_owned_bytes;
+        let created = editor.document().edit_created_nodes;
+        let preorder = editor.document().slots_are_preorder;
+        let provenance: Vec<_> = editor
+            .document()
+            .nodes()
+            .map(|node| (node.id(), node.range()))
+            .collect();
+
+        let failure = EditReservationFailureGuard::arm(EditReservation::Node, 0);
+        assert_eq!(
+            append_test_leaf(&mut editor, parent, kind, &value),
+            Err(error(EditErrorKind::Allocation, None))
+        );
+        assert!(failure.fired());
+        assert_eq!(failure.attempts(), 1);
+        assert_eq!(logical_snapshot(editor.document()), before);
+        assert_eq!(editor.document().nodes.len(), nodes_len);
+        assert_eq!(editor.document().nodes.capacity(), nodes_capacity);
+        assert_eq!(editor.document().pool.0.len(), pool_len);
+        assert_eq!(editor.document().pool.0.capacity(), pool_capacity);
+        assert_eq!(editor.document().edit_owned_bytes, spent);
+        assert_eq!(editor.document().edit_created_nodes, created);
+        assert_eq!(editor.document().slots_are_preorder, preorder);
+        assert_topology(editor.document());
+
+        let id = append_test_leaf(&mut editor, parent, kind, &value).unwrap();
+        assert_eq!(failure.attempts(), 1);
+        assert_eq!(id.slot.0, nodes_len);
+        assert_eq!(editor.document().node(id).unwrap().range(), None);
+        assert_eq!(editor.document().edit_created_nodes, created + 1);
+        for (id, range) in provenance {
+            assert_eq!(editor.document().node(id).unwrap().range(), range);
+        }
+        assert_topology(editor.document());
+    }
+}
+
+#[test]
+fn pool_reservation_failures_keep_charge_and_node_capacity_but_publish_nothing() {
+    for kind in [
+        ValueKind::Text,
+        ValueKind::Cdata,
+        ValueKind::Comment,
+        ValueKind::Pi,
+    ] {
+        let mut document = OwnedDocument::parse("<r/>").unwrap();
+        let parent = document.root_element().id();
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        fill_node_capacity(&mut editor, parent);
+        let value = value_for_pool_growth(editor.document(), kind);
+        let additional = leaf_additional(kind, &value);
+        let requested = editor
+            .document()
+            .pool
+            .edit_capacity(
+                additional,
+                editor.document().edit_owned_bytes,
+                EditLimits::default().max_owned_bytes,
+            )
+            .unwrap();
+        assert!(requested > editor.document().pool.0.capacity());
+        let before = logical_snapshot(editor.document());
+        let nodes_len = editor.document().nodes.len();
+        let nodes_capacity = editor.document().nodes.capacity();
+        let pool_len = editor.document().pool.0.len();
+        let pool_capacity = editor.document().pool.0.capacity();
+        let spent = editor.document().edit_owned_bytes;
+        let created = editor.document().edit_created_nodes;
+        let preorder = editor.document().slots_are_preorder;
+
+        let failure = EditReservationFailureGuard::arm(EditReservation::Pool, 0);
+        assert_eq!(
+            append_test_leaf(&mut editor, parent, kind, &value),
+            Err(error(EditErrorKind::Allocation, None))
+        );
+        assert!(failure.fired());
+        assert_eq!(failure.attempts(), 1);
+        assert_eq!(logical_snapshot(editor.document()), before);
+        assert_eq!(editor.document().nodes.len(), nodes_len);
+        assert!(editor.document().nodes.capacity() > nodes_capacity);
+        assert_eq!(editor.document().pool.0.len(), pool_len);
+        assert_eq!(editor.document().pool.0.capacity(), pool_capacity);
+        assert_eq!(editor.document().edit_owned_bytes, spent + requested);
+        assert_eq!(editor.document().edit_created_nodes, created);
+        assert_eq!(editor.document().slots_are_preorder, preorder);
+        assert_topology(editor.document());
+
+        let id = append_test_leaf(&mut editor, parent, kind, &value).unwrap();
+        assert_eq!(failure.attempts(), 1);
+        assert_eq!(id.slot.0, nodes_len);
+        assert_eq!(editor.document().node(id).unwrap().range(), None);
+        assert_eq!(editor.document().edit_created_nodes, created + 1);
+        assert_topology(editor.document());
+    }
+}
+
+#[test]
+fn spare_pool_capacity_has_no_failure_boundary_for_every_leaf_kind() {
+    for kind in [
+        ValueKind::Text,
+        ValueKind::Cdata,
+        ValueKind::Comment,
+        ValueKind::Pi,
+    ] {
+        let mut document = OwnedDocument::parse("<r/>").unwrap();
+        document.pool.0.try_reserve_exact(32).unwrap();
+        let parent = document.root_element().id();
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        let value = "data";
+        assert!(
+            leaf_additional(kind, value)
+                <= editor
+                    .document()
+                    .pool
+                    .0
+                    .capacity()
+                    .saturating_sub(editor.document().pool.0.len())
+        );
+        let spent = editor.document().edit_owned_bytes;
+        let created = editor.document().edit_created_nodes;
+        let failure = EditReservationFailureGuard::arm(EditReservation::Pool, 0);
+        let id = append_test_leaf(&mut editor, parent, kind, value).unwrap();
+        assert!(!failure.fired());
+        assert_eq!(failure.attempts(), 0);
+        assert_eq!(editor.document().edit_owned_bytes, spent);
+        assert_eq!(editor.document().edit_created_nodes, created + 1);
+        assert_eq!(editor.document().node(id).unwrap().range(), None);
+        assert_topology(editor.document());
+    }
+}
+
+#[test]
+fn reservation_failure_counts_matching_growths_and_resets_after_panic() {
+    let panic = std::panic::catch_unwind(|| {
+        let _failure = EditReservationFailureGuard::arm(EditReservation::Pool, 0);
+        panic!("exercise failpoint guard unwinding");
+    });
+    assert!(panic.is_err());
+
+    let mut document = OwnedDocument::parse("<r/>").unwrap();
+    let parent = document.root_element().id();
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    let failure = EditReservationFailureGuard::arm(EditReservation::Pool, 1);
+    let first = value_for_pool_growth(editor.document(), ValueKind::Text);
+    editor.append_text(parent, &first).unwrap();
+    assert_eq!(failure.attempts(), 1);
+    assert!(!failure.fired());
+    let second = value_for_pool_growth(editor.document(), ValueKind::Text);
+    let before = logical_snapshot(editor.document());
+    let created = editor.document().edit_created_nodes;
+    assert_eq!(
+        editor.append_text(parent, &second),
+        Err(error(EditErrorKind::Allocation, None))
+    );
+    assert_eq!(failure.attempts(), 2);
+    assert!(failure.fired());
+    assert_eq!(logical_snapshot(editor.document()), before);
+    assert_eq!(editor.document().edit_created_nodes, created);
+    assert_topology(editor.document());
+}
+
+#[test]
+fn validation_and_quota_errors_do_not_reach_node_reservation_failure() {
+    let mut document = OwnedDocument::parse("<r/>").unwrap();
+    let parent = document.root_element().id();
+    {
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        fill_node_capacity(&mut editor, parent);
+    }
+    let created = document.edit_created_nodes;
+
+    {
+        let mut editor = document
+            .edit(EditLimits {
+                max_owned_bytes: 0,
+                max_created_nodes: created + 1,
+                ..EditLimits::default()
+            })
+            .unwrap();
+        let failure = EditReservationFailureGuard::arm(EditReservation::Node, 0);
+        assert_eq!(
+            editor.append_comment(parent, "--"),
+            Err(error(EditErrorKind::InvalidValue, Some(0)))
+        );
+        assert_eq!(
+            editor.append_text(parent, "x"),
+            Err(error(
+                EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
+                None
+            ))
+        );
+        assert_eq!(failure.attempts(), 0);
+        assert!(!failure.fired());
+    }
+
+    let mut editor = document
+        .edit(EditLimits {
+            max_created_nodes: created,
+            ..EditLimits::default()
+        })
+        .unwrap();
+    let failure = EditReservationFailureGuard::arm(EditReservation::Node, 0);
+    assert_eq!(
+        editor.append_text(parent, ""),
+        Err(error(
+            EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+            None
+        ))
+    );
+    assert_eq!(failure.attempts(), 0);
+    assert!(!failure.fired());
+    assert_topology(editor.document());
+}
+
+#[test]
+fn reservation_failures_are_isolated_between_threads() {
+    use std::sync::{Arc, Barrier};
+
+    let barrier = Arc::new(Barrier::new(2));
+    std::thread::scope(|scope| {
+        for reservation in [EditReservation::Node, EditReservation::Pool] {
+            let barrier = Arc::clone(&barrier);
+            scope.spawn(move || {
+                let mut document = OwnedDocument::parse("<r/>").unwrap();
+                let parent = document.root_element().id();
+                let mut editor = document.edit(EditLimits::default()).unwrap();
+                fill_node_capacity(&mut editor, parent);
+                let value = value_for_pool_growth(editor.document(), ValueKind::Text);
+                let failure = EditReservationFailureGuard::arm(reservation, 0);
+                barrier.wait();
+                assert_eq!(
+                    editor.append_text(parent, &value),
+                    Err(error(EditErrorKind::Allocation, None))
+                );
+                assert!(failure.fired());
+                assert_eq!(failure.attempts(), 1);
+                assert_topology(editor.document());
+            });
+        }
+    });
 }
