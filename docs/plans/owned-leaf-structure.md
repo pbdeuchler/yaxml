@@ -207,9 +207,13 @@ Every public view is constructed only from a live slot. No live link can target 
 removed slot. The document root remains live, its `subtree_size` equals the live
 node count, and each other live node is reachable exactly once from it.
 
-Owned traversal must stop treating slot order as document order. `children()`,
-`descendants()` and `nodes()` follow live links iteratively. `descendants()` keeps
-its current `ExactSizeIterator` contract by maintaining `subtree_size` on all
+Owned traversal must stop treating slot order as an unconditional source of
+document order. Parsed and value-only documents retain a contiguous-preorder
+fast path. The first successful structural mutation clears that invariant
+permanently, after which `children()`, `descendants()` and `nodes()` follow live
+links iteratively. Clearing it before a later failed publication is also safe;
+the only consequence is using the linked path early. `descendants()` keeps its
+current `ExactSizeIterator` contract by maintaining `subtree_size` on all
 ancestors during append/removal. Appending a new slot after an epilog comment but
 under the document element is the decisive regression: slot order places it last,
 while document preorder places it before the epilog comment.
@@ -225,6 +229,31 @@ The implementation may use a private sentinel-backed link wrapper instead of
 The sentinel remains private, converts through checked helpers and can never be a
 published slot. Record size and owned parse/traversal performance are measured
 before choosing; no representation detail enters the public handle contract.
+
+### Recorded phase-one representation decision
+
+The migration uses private `Content::Removed` tombstones and five sentinel-backed
+links. On the measured 64-bit target, `Option<NodeId>` is 16 bytes, a sentinel
+link is 8 bytes, the rejected naive record is 184 bytes, and the selected owned
+record is 144 bytes versus the former shared record's 160 bytes. The public
+`OwnedNode` view remains two words.
+
+Each record stores its immutable slot ID. An `OwnedNode` caches shared references
+to its document and record, avoiding repeated checked arena indexing while the
+borrow rules prevent mutation or vector reallocation. Prefix byte lengths use
+`Option<NonZeroUsize>` because a valid QName prefix is never empty; this keeps
+stored names at 48 bytes and stored attributes at 64 bytes. Parsed contiguous
+traversal uses a validated record slice. Linked traversal remains authoritative
+after the monotonic preorder flag is cleared, and removed lookup then checks the
+tombstone state.
+
+The final independent counterbalanced benchmark used 63 samples per fixture and
+phase against the pre-migration revision. Parse improved by 1.3–3.0%,
+serialization by 2.0–4.7%, and deep/flat traversal by 14.2–28.7%. Namespace-heavy
+traversal and lookup were 1.6% and 2.6% slower, below the frozen 5% material
+threshold. Earlier preorder-thread, cached three-word view, record-layout and
+annotation-only candidates were rejected because the complete matrix exposed
+larger regressions that lighter traversal loops missed.
 
 ## Limits, error order and atomicity
 
