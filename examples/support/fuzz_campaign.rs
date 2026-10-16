@@ -452,23 +452,75 @@ mod tests {
 
     #[test]
     fn defaults_and_hard_limits_are_enforced() {
-        assert_eq!(Limits::default().validate(), Ok(Limits::default()));
-        let mut too_many = Limits::default();
-        too_many.cases = 10_001;
-        assert_eq!(
-            too_many.validate(),
-            Err(CampaignError::Invalid(
-                "campaign limit exceeds its hard maximum"
-            ))
-        );
-        let mut zero = Limits::default();
-        zero.profile_bytes = 0;
-        assert_eq!(
-            zero.validate(),
-            Err(CampaignError::Invalid(
-                "all campaign limits must be positive"
-            ))
-        );
+        let defaults = Limits {
+            cases: 500,
+            wall_seconds: 300,
+            target_seconds: 5,
+            input_bytes: MAX_INPUT_BYTES,
+            output_bytes: 64 * 1024,
+            profile_bytes: 32 * 1024 * 1024,
+            seed_files: 128,
+            seed_bytes: MAX_SEED_BYTES,
+            corpus_files: 256,
+            corpus_bytes: 16 * 1024 * 1024,
+            pending_bytes: 2 * 1024 * 1024,
+        };
+        assert_eq!(Limits::default(), defaults);
+        assert_eq!(defaults.validate(), Ok(defaults));
+
+        // This literal is the frozen public hard-limit contract. Accept the
+        // exact maxima together, and reject zero or maximum+1 independently
+        // for every public limit field.
+        let hard = Limits {
+            cases: 10_000,
+            wall_seconds: 3_600,
+            target_seconds: 30,
+            input_bytes: MAX_INPUT_BYTES,
+            output_bytes: 1024 * 1024,
+            profile_bytes: 128 * 1024 * 1024,
+            seed_files: 128,
+            seed_bytes: MAX_SEED_BYTES,
+            corpus_files: 1_024,
+            corpus_bytes: 64 * 1024 * 1024,
+            pending_bytes: 2 * 1024 * 1024,
+        };
+        assert_eq!(hard.validate(), Ok(hard));
+
+        macro_rules! check_limit {
+            ($field:ident) => {{
+                let mut zero = hard;
+                zero.$field = 0;
+                assert_eq!(
+                    zero.validate(),
+                    Err(CampaignError::Invalid(
+                        "all campaign limits must be positive"
+                    )),
+                    "zero {}",
+                    stringify!($field)
+                );
+                let mut above = hard;
+                above.$field += 1;
+                assert_eq!(
+                    above.validate(),
+                    Err(CampaignError::Invalid(
+                        "campaign limit exceeds its hard maximum"
+                    )),
+                    "maximum+1 {}",
+                    stringify!($field)
+                );
+            }};
+        }
+        check_limit!(cases);
+        check_limit!(wall_seconds);
+        check_limit!(target_seconds);
+        check_limit!(input_bytes);
+        check_limit!(output_bytes);
+        check_limit!(profile_bytes);
+        check_limit!(seed_files);
+        check_limit!(seed_bytes);
+        check_limit!(corpus_files);
+        check_limit!(corpus_bytes);
+        check_limit!(pending_bytes);
     }
 
     #[test]

@@ -25,6 +25,17 @@ enum FailureKind {
     Infrastructure,
 }
 
+#[derive(Debug)]
+struct PendingCapacityError;
+
+impl std::fmt::Display for PendingCapacityError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("candidate plus metadata exceeds pending-byte limit")
+    }
+}
+
+impl Error for PendingCapacityError {}
+
 impl FailureKind {
     fn label(self) -> &'static str {
         match self {
@@ -322,6 +333,9 @@ impl Campaign {
     fn execute(&mut self) -> Result<(), Box<dyn Error>> {
         let result = self.execute_inner();
         if let Err(error) = result {
+            if error.is::<PendingCapacityError>() {
+                return self.fail(FailureKind::Capacity, &error.to_string(), None);
+            }
             let classification = self.root.join("failures").join("classification.txt");
             if classification.exists() {
                 return Err(error);
@@ -426,6 +440,9 @@ impl Campaign {
         let mut paths = Vec::new();
         for entry in fs::read_dir(&self.args.seeds)? {
             let entry = entry?;
+            if paths.len() >= self.args.limits.seed_files {
+                return Err("seed-file limit exceeded during directory enumeration".into());
+            }
             let kind = entry.file_type()?;
             if kind.is_symlink() || !kind.is_file() {
                 return Err(format!(
@@ -437,7 +454,7 @@ impl Campaign {
             paths.push(entry.path());
         }
         paths.sort();
-        if paths.is_empty() || paths.len() > self.args.limits.seed_files {
+        if paths.is_empty() {
             return Err("seed set is empty or exceeds the seed-file limit".into());
         }
         let mut total = 0usize;
@@ -527,7 +544,7 @@ impl Campaign {
             .checked_add(metadata.len())
             .is_none_or(|size| size > self.args.limits.pending_bytes)
         {
-            return Err("candidate plus metadata exceeds pending-byte limit".into());
+            return Err(Box::new(PendingCapacityError));
         }
         let input = self
             .root
@@ -1381,6 +1398,9 @@ fn production_sources(source_root: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>
             let path = fs::canonicalize(entry.path())?;
             require_utf8_path(&path)?;
             paths.push(path);
+            if paths.len() > 14 {
+                return Err("production source inventory exceeds 14 Rust files".into());
+            }
         }
     }
     paths.sort();
@@ -1818,6 +1838,106 @@ mod tests {
                 })
         );
 
+        let original_seed = root.join("seeds/seed % name.xml");
+        fs::write(&original_seed, b"xy").unwrap();
+        let input_byte_limit = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &cov,
+            &root,
+            "input-byte-cap",
+            1,
+            &["--max-input-bytes", "1"],
+        );
+        assert!(!input_byte_limit.status.success());
+        let input_cap_root = root.join("input-byte-cap");
+        let input_cap_classification =
+            fs::read_to_string(input_cap_root.join("failures/classification.txt")).unwrap();
+        assert!(input_cap_classification.contains("exceeds input limit"));
+        assert!(!input_cap_root.join("profiles/final.profraw").exists());
+        fs::write(&original_seed, b"x").unwrap();
+
+        fs::write(root.join("seeds/seed-z.xml"), b"y").unwrap();
+        let seed_file_limit = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &cov,
+            &root,
+            "seed-file-cap",
+            2,
+            &["--max-seeds", "1"],
+        );
+        assert!(!seed_file_limit.status.success());
+        let seed_file_root = root.join("seed-file-cap");
+        let seed_file_classification =
+            fs::read_to_string(seed_file_root.join("failures/classification.txt")).unwrap();
+        assert!(seed_file_classification.contains("exceeded during directory enumeration"));
+        assert!(
+            fs::read_dir(seed_file_root.join("corpus"))
+                .unwrap()
+                .next()
+                .is_none()
+        );
+
+        let seed_byte_limit = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &cov,
+            &root,
+            "seed-byte-cap",
+            2,
+            &["--max-seed-bytes", "1"],
+        );
+        assert!(!seed_byte_limit.status.success());
+        let seed_cap_root = root.join("seed-byte-cap");
+        let seed_cap_classification =
+            fs::read_to_string(seed_cap_root.join("failures/classification.txt")).unwrap();
+        assert!(seed_cap_classification.contains("seed bytes exceed"));
+        assert!(
+            fs::read_dir(seed_cap_root.join("corpus"))
+                .unwrap()
+                .next()
+                .is_none()
+        );
+        assert!(!seed_cap_root.join("profiles/final.profraw").exists());
+
+        let corpus_byte_limit = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &cov,
+            &root,
+            "corpus-byte-cap",
+            2,
+            &["--max-corpus-bytes", "1"],
+        );
+        assert!(!corpus_byte_limit.status.success());
+        let corpus_cap_root = root.join("corpus-byte-cap");
+        let corpus_cap_classification =
+            fs::read_to_string(corpus_cap_root.join("failures/classification.txt")).unwrap();
+        assert!(
+            corpus_cap_classification.contains("novel candidate exceeds retained corpus limits")
+        );
+        assert_eq!(
+            fs::read_dir(corpus_cap_root.join("corpus"))
+                .unwrap()
+                .count(),
+            1
+        );
+        assert_eq!(
+            fs::read(corpus_cap_root.join("profiles/final.profraw")).unwrap(),
+            b"low"
+        );
+        assert!(
+            corpus_cap_root
+                .join("profiles/cumulative.profdata")
+                .exists()
+        );
+        fs::remove_file(root.join("seeds/seed-z.xml")).unwrap();
+
         let mut missing_lib = std::process::Command::new(&cov);
         missing_lib
             .args([
@@ -1852,6 +1972,23 @@ mod tests {
             String::from_utf8_lossy(&duplicate_source.stderr)
                 .contains("exact 14-file production source set")
         );
+        fs::write(root.join("source/src/m-extra.rs"), b"// extra source\n").unwrap();
+        let source_count_limit = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &cov,
+            &root,
+            "source-count-cap",
+            1,
+            &[],
+        );
+        assert!(!source_count_limit.status.success());
+        assert!(
+            String::from_utf8_lossy(&source_count_limit.stderr)
+                .contains("production source inventory exceeds 14 Rust files")
+        );
+        fs::remove_file(root.join("source/src/m-extra.rs")).unwrap();
 
         let paused_cov = install_mode(&helper, &root, "cov_pause");
         let paused_output = root.join("four-profile-bound");
@@ -2011,6 +2148,27 @@ mod tests {
                 .exists()
         );
 
+        let large_profdata = install_mode(&helper, &root, "profdata_large_output");
+        let oversized_indexed = run_cli(
+            &campaign,
+            &target,
+            &large_profdata,
+            &cov,
+            &root,
+            "oversized-indexed-profile",
+            1,
+            &["--max-profile-bytes", "64"],
+        );
+        assert!(!oversized_indexed.status.success());
+        let indexed_root = root.join("oversized-indexed-profile");
+        let indexed_classification =
+            fs::read_to_string(indexed_root.join("failures/classification.txt")).unwrap();
+        assert!(indexed_classification.contains("cumulative profile size"));
+        assert!(indexed_classification.contains("over limit"));
+        assert!(indexed_root.join("failures/first-failure.profraw").exists());
+        assert!(!indexed_root.join("profiles/pending.profdata").exists());
+        assert!(!indexed_root.join("profiles/cumulative.profdata").exists());
+
         for (mode, name) in [
             ("profdata_fail", "merge-failure"),
             ("profdata_diag", "merge-diagnostic"),
@@ -2081,6 +2239,7 @@ mod tests {
         let pending_root = root.join("pending-capacity");
         let pending_classification =
             fs::read_to_string(pending_root.join("failures/classification.txt")).unwrap();
+        assert!(pending_classification.starts_with("capacity\n"));
         assert!(pending_classification.contains("pending-byte limit"));
         assert!(
             fs::read_dir(pending_root.join("pending"))

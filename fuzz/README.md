@@ -1,6 +1,6 @@
 # Fuzzing and replay
 
-The current harness is safe Rust with no added Cargo dependencies. It provides deterministic mutation smoke tests and a process-per-testcase replay entry point. It does not yet provide a validated coverage-guided campaign or 100% execution coverage. The release policy and coverage definitions are in [the security plan](../docs/security.md).
+The current harness is safe Rust with no added Cargo dependencies. It provides deterministic mutation smoke tests, a process-per-testcase replay entry point, and a bounded LLVM feedback campaign. Passing campaign checks does not imply 100% execution coverage. The release policy and coverage definitions are in [the security plan](../docs/security.md).
 
 Run the smoke tests and replay a testcase:
 
@@ -351,6 +351,10 @@ prove how the target was built. Save the separate build manifest and external
 artifact hashes with campaign results. Defaults and hard ceilings are listed
 in [`fuzz-campaign.md`](../docs/plans/fuzz-campaign.md). The runner stops at
 the first target or infrastructure failure and does not resume campaigns.
+The runner and its campaign tests currently support Unix only: commit
+publication relies on rename-over-existing-file behavior, output roots use
+Unix mode `0700`, and the process-helper test invokes `/bin/sh`. Windows
+campaign runs are unsupported.
 
 The report gives all four LLVM denominators and raw covered/gap counts.
 Regions, functions, and instrumented branch outcomes drive novelty; line counts

@@ -92,6 +92,9 @@ fn profdata(mode: &str) {
         eprintln!("controlled merge diagnostic");
     }
     fs::write(output, combined).unwrap();
+    if mode == "profdata_large_output" {
+        fs::write(output, vec![b'p'; 1024 * 1024]).unwrap();
+    }
     if mode == "profdata_change_self" || mode == "profdata_change_self_fail" {
         append_to_executable();
     }
