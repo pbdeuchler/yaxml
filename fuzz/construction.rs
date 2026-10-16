@@ -15,6 +15,9 @@ use yaxml::{
 #[path = "construction_validation.rs"]
 mod validation;
 
+#[path = "construction_limits.rs"]
+mod limits;
+
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 const MAX_DERIVED_BYTES: usize = 8;
@@ -1122,6 +1125,7 @@ pub(super) fn exercise(input: &[u8]) {
     sparse_format_and_debug_contract(input);
     long_inherited_prefix(input);
     validation::exercise(input);
+    limits::exercise(input);
 }
 
 #[cfg(test)]
