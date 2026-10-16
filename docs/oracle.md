@@ -1,0 +1,78 @@
+# Independent libxml2 oracle protocol
+
+The compatibility target is libxml2 **2.15.4**, compiled version `21504`.
+The official [source archive](https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz)
+has SHA-256 `98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821`,
+published in GNOME's [checksum file](https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.sha256sum).
+External oracle tooling adds no dependency or unsafe code to the yaxml library.
+
+`examples/support/infoset.rs` builds an XPath 1.0 query and expected stdout from
+the yaxml event reader. Run the query against the **original input** with:
+
+```text
+xmllint --nocatalogs --strict-namespace --nocdata --xpath QUERY -
+```
+
+Compare stdout byte for byte against `Projection::expected()`. The oracle's
+strings are never reparsed with yaxml, so a shared namespace or normalization
+bug cannot make both sides agree merely by traversing the same Rust parser.
+The CLI caller must check oracle version, successful exit, process time and
+output ceilings separately. Failure to build a bounded projection is an
+explicit inconclusive comparison, never semantic agreement.
+
+The first field is libxml2's actual normalized descendant node count. For each
+node in document order, subsequent fields contain kind, depth, qualified name,
+local name, namespace URI, value and actual attribute count. Attribute fields
+contain qualified name, local name, namespace URI and normalized value, in
+source attribute order. Kind codes are element `1`, text `2`, comment `3`, and
+processing instruction `4`; depth counts the synthetic document ancestor, so
+the root element has depth `1`. Element value fields are empty: descendant text
+already appears in its own nodes. PI qualified and local names both contain
+the target. Namespace declaration attributes are excluded from attribute counts.
+
+Each string is framed as its decimal Unicode scalar count, a colon, and the
+complete value. XPath `string-length` matches Rust `str::chars().count()` for
+accepted XML characters. Framing preserves embedded colons, quotes, newlines,
+CR, tabs and multibyte characters without an escaping decoder. The complete
+stdout contains one final LF added by `--xpath`. Query strings contain only
+fixed XPath and generated integer positions; XML names and values cannot
+inject query syntax. Actual node and attribute counts catch extra records
+beyond the expected positions.
+
+Adjacent text and CDATA are merged, and empty text is omitted. `--nocdata`
+coalesces nonempty text, but local libxml2 probes retained some empty CDATA as
+empty text nodes. The XPath selector therefore explicitly excludes those nodes.
+Positions are attached directly to the forward descendant axis. Local 2.15.3
+probes showed that parenthesized node-set indexing can reorder an epilog comment
+before a nested element; direct axis positions preserved document order.
+
+The helper rejects more than 256 projected nodes, 4,096 ordinary attributes,
+64 KiB of query text or 8 MiB of expected stdout. The query ceiling leaves room
+under Linux's per-argument limit. Queries repeat node selections and are intended
+for bounded conformance fixtures, not throughput measurements. Reader resource
+limits apply independently. A small node or attribute count can still exceed
+the query or output ceiling.
+
+This is a normalized infoset projection. It deliberately omits declaration
+metadata, source spans, empty-tag spelling, CDATA boundaries, namespace
+declaration placement and unused namespace bindings. Effective expanded names
+are compared for every element and ordinary attribute. The namespace axis is
+deferred: local libxml2 exposes an empty-prefix, empty-URI namespace node after
+default namespace undeclaration. DTDs and unsupported encodings remain outside
+the initial supported profile. Comparing source attribute order is stricter than
+an unordered attribute infoset and is an explicit protocol choice.
+
+The alternatives have weaker contracts. Pinned [xmllint source](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/xmllint.c)
+shows that SAX debug output truncates text, CDATA and attribute values. Local
+tree debug output also truncated long content and rewrote whitespace; streaming
+debug output omitted attributes and namespace identity and emitted unescaped
+values. Ordinary UTF-8 serialization preserves more information, but reparsing
+it with yaxml shares semantic blind spots. C14N folds CDATA, removes declaration
+metadata, changes attribute order, and rejected a relative namespace URI in a
+local probe. Debug output is documented as unstable in the [xmllint manual](https://gnome.pages.gitlab.gnome.org/libxml2/xmllint.html).
+
+Exploratory checks used Homebrew libxml2 **2.15.3**, not the pinned oracle. Eleven
+fixtures agreed exactly, including long values, Unicode, CR/LF/tab references,
+all supported node kinds, namespace rebinding, relative namespace URIs and empty
+CDATA. A matching 2.15.4 execution remains required before recording a pinned
+semantic result.
