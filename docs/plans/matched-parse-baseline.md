@@ -29,6 +29,9 @@ EOF checks share the parse clock; destruction is separate. The primary DOM
 parse/destruction result is `parse_ns + drop_ns`, without traversal. Streaming
 includes observation and therefore cannot be compared directly to DOM parsing.
 Clock calls occur per iteration and matter on tiny documents.
+Compiler anchors materialize completed observations before the ending timestamp;
+their fixed overhead is included. Global C DOM diagnostic-hook wiring is outside
+its parse clock; per-parser streaming callback setup remains inside.
 
 Libxml2 uses `NONET | NO_XXE`, without recovery, DTD loading, entity substitution,
 blank removal, `HUGE` or `COMPACT`. Its resource policies differ from yaxml's
