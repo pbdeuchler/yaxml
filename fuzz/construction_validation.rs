@@ -679,6 +679,252 @@ fn check_append(case: ValidationCase) {
     assert_eq!(parent_node.children().count(), 1);
 }
 
+const BINDING_SURFACE_COUNT: u8 = 4;
+const BINDING_VARIANT_COUNT: u8 = 3;
+
+fn binding_items(compatible: bool) -> [ElementItem<'static>; 3] {
+    [
+        ElementItem::Namespace(NamespaceSpec {
+            prefix: None,
+            uri: "v",
+        }),
+        ElementItem::Namespace(NamespaceSpec {
+            prefix: Some("r"),
+            uri: "u",
+        }),
+        ElementItem::Attribute(AttributeSpec {
+            name: spec_name("a", compatible.then_some("u"), exact(Some("r"))),
+            value: "x",
+        }),
+    ]
+}
+
+fn binding_spec<'a>(items: &'a [ElementItem<'static>]) -> ElementSpec<'a> {
+    ElementSpec {
+        name: spec_name("e", Some("u"), PrefixPolicy::Automatic),
+        items,
+    }
+}
+
+fn binding_limits(variant: u8) -> EditLimits {
+    EditLimits {
+        max_name_bytes: if variant == 1 { 3 } else { 2 },
+        ..EditLimits::default()
+    }
+}
+
+fn binding_expected_error(variant: u8) -> EditError {
+    if variant == 0 {
+        located(
+            EditErrorKind::LimitExceeded(EditLimit::NameBytes),
+            element_location(EditComponent::Prefix, Some(2)),
+        )
+    } else {
+        located(EditErrorKind::Namespace, attribute_location(2, None, None))
+    }
+}
+
+fn serialized(document: &OwnedDocument) -> Vec<u8> {
+    let mut writer = Writer::new(Vec::new());
+    writer.write_owned_document(document).unwrap();
+    writer.finish().unwrap();
+    writer.into_inner()
+}
+
+fn assert_binding_success(document: &OwnedDocument, id: OwnedNodeId, parent: OwnedNodeId) {
+    assert_element(
+        document,
+        id,
+        &ModelElement {
+            name: ModelName::new(Some("r"), "e", Some("u")),
+            attributes: vec![
+                declaration(None, "v"),
+                declaration(Some("r"), "u"),
+                attribute(Some("r"), "a", Some("u"), "x"),
+            ],
+        },
+    );
+    assert_eq!(
+        document.node(id).unwrap().parent().map(|node| node.id()),
+        Some(parent)
+    );
+}
+
+fn check_binding_create(variant: u8) {
+    let compatible = variant == 2;
+    let items = binding_items(compatible);
+    let limits = binding_limits(variant);
+    if compatible {
+        let document = OwnedDocument::create(binding_spec(&items), limits)
+            .expect("compatible exact prefix was rejected");
+        assert_binding_success(
+            &document,
+            document.root_element().id(),
+            document.root().id(),
+        );
+        assert_eq!(
+            serialized(&document),
+            b"<r:e xmlns=\"v\" xmlns:r=\"u\" r:a=\"x\"/>"
+        );
+        return;
+    }
+
+    let actual = OwnedDocument::create(binding_spec(&items), limits)
+        .expect_err("incompatible exact prefix was accepted");
+    assert_error(actual, binding_expected_error(variant));
+
+    // A failed constructor has no editor to recover. The paired exact control
+    // proves that the same bounds do not reject an unrelated valid root.
+    let document = OwnedDocument::create(
+        ElementSpec {
+            name: plain("ok"),
+            items: &[],
+        },
+        limits,
+    )
+    .expect("constructor did not accept its paired valid control");
+    assert_eq!(serialized(&document), b"<ok/>");
+}
+
+fn assert_binding_append_topology(
+    document: &OwnedDocument,
+    before: &Snapshot,
+    parent: OwnedNodeId,
+    inserted: OwnedNodeId,
+) {
+    let old_ids: Vec<_> = before.nodes.iter().map(|node| node.id).collect();
+    let old_child = before
+        .nodes
+        .iter()
+        .find(|node| node.parent == Some(parent))
+        .expect("fixed parent lost its original child")
+        .id;
+    let parent_node = document.node(parent).unwrap();
+    assert_eq!(
+        parent_node
+            .children()
+            .map(|node| node.id())
+            .collect::<Vec<_>>(),
+        vec![old_child, inserted]
+    );
+    assert_eq!(
+        parent_node.first_child().map(|node| node.id()),
+        Some(old_child)
+    );
+    assert_eq!(
+        parent_node.last_child().map(|node| node.id()),
+        Some(inserted)
+    );
+    assert_eq!(
+        parent_node
+            .descendants()
+            .map(|node| node.id())
+            .collect::<Vec<_>>(),
+        vec![parent, old_child, inserted]
+    );
+    assert_eq!(
+        document.nodes().map(|node| node.id()).collect::<Vec<_>>(),
+        old_ids
+            .iter()
+            .copied()
+            .chain(std::iter::once(inserted))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        document
+            .node(old_child)
+            .unwrap()
+            .next_sibling()
+            .map(|node| node.id()),
+        Some(inserted)
+    );
+    let inserted_node = document.node(inserted).unwrap();
+    assert_eq!(inserted_node.parent().map(|node| node.id()), Some(parent));
+    assert!(inserted_node.next_sibling().is_none());
+    assert!(inserted_node.first_child().is_none());
+    assert!(inserted_node.last_child().is_none());
+}
+
+fn check_binding_append(surface: u8, variant: u8) {
+    let mut bytes = encode("<host keep='stable'><old/></host>", surface - 1);
+    let mut document = OwnedDocument::parse_bytes(&bytes).expect("fixed parent must parse");
+    bytes.fill(0);
+    drop(bytes);
+
+    let parent = document.root_element().id();
+    let before = snapshot(&document);
+    let before_bytes = serialized(&document);
+    let compatible = variant == 2;
+    let items = binding_items(compatible);
+    let limits = binding_limits(variant);
+    let mut editor = document.edit(limits).unwrap();
+    if compatible {
+        let inserted = editor
+            .append_element(parent, binding_spec(&items))
+            .expect("compatible exact prefix append was rejected");
+        assert_binding_success(editor.document(), inserted, parent);
+        assert_binding_append_topology(editor.document(), &before, parent, inserted);
+        assert_eq!(
+            serialized(editor.document()),
+            b"<host keep=\"stable\"><old/><r:e xmlns=\"v\" xmlns:r=\"u\" r:a=\"x\"/></host>"
+        );
+        return;
+    }
+
+    let actual = editor
+        .append_element(parent, binding_spec(&items))
+        .expect_err("incompatible exact prefix append was accepted");
+    assert_error(actual, binding_expected_error(variant));
+    assert_eq!(
+        snapshot(editor.document()),
+        before,
+        "rejection changed topology"
+    );
+    assert_eq!(
+        serialized(editor.document()),
+        before_bytes,
+        "rejection changed output"
+    );
+
+    let recovery = editor
+        .append_element(
+            parent,
+            ElementSpec {
+                name: plain("ok"),
+                items: &[],
+            },
+        )
+        .expect("same editor did not recover after rejection");
+    assert_element(
+        editor.document(),
+        recovery,
+        &ModelElement {
+            name: ModelName::new(None, "ok", None),
+            attributes: Vec::new(),
+        },
+    );
+    assert_binding_append_topology(editor.document(), &before, parent, recovery);
+    assert_eq!(
+        serialized(editor.document()),
+        b"<host keep=\"stable\"><old/><ok/></host>"
+    );
+}
+
+fn binding_limit_precedence(surface: u8, variant: u8) {
+    let surface = surface % BINDING_SURFACE_COUNT;
+    let variant = variant % BINDING_VARIANT_COUNT;
+    if surface == 0 {
+        check_binding_create(variant);
+    } else {
+        check_binding_append(surface, variant);
+    }
+}
+
+fn exercise_binding_limit_precedence(input: &[u8]) {
+    let byte = |index| input.get(index).copied().unwrap_or(0);
+    binding_limit_precedence(byte(7), byte(8));
+}
+
 pub(super) fn exercise(input: &[u8]) {
     assert!(input.len() <= super::super::MAX_INPUT_BYTES);
     let byte = |index| input.get(index).copied().unwrap_or(0);
@@ -688,6 +934,7 @@ pub(super) fn exercise(input: &[u8]) {
     } else {
         check_append(case);
     }
+    exercise_binding_limit_precedence(input);
 }
 
 #[cfg(test)]
@@ -721,5 +968,34 @@ mod tests {
         ] {
             exercise(input);
         }
+    }
+
+    #[test]
+    fn binding_limit_precedence_catalog_covers_all_surfaces_and_variants() {
+        for surface in 0..BINDING_SURFACE_COUNT {
+            for variant in 0..BINDING_VARIANT_COUNT {
+                let result = std::panic::catch_unwind(|| {
+                    binding_limit_precedence(surface, variant);
+                });
+                assert!(
+                    result.is_ok(),
+                    "surface {surface}, variant {variant} failed"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn binding_limit_precedence_dispatch_is_total_and_bounded() {
+        for surface in 0..BINDING_SURFACE_COUNT {
+            for variant in 0..BINDING_VARIANT_COUNT {
+                let mut input = [0_u8; 9];
+                input[7] = surface;
+                input[8] = variant;
+                exercise_binding_limit_precedence(&input);
+            }
+        }
+        exercise_binding_limit_precedence(&[]);
+        exercise_binding_limit_precedence(&[0xff; 9]);
     }
 }
