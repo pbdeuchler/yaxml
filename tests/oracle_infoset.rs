@@ -3,6 +3,35 @@ mod infoset;
 
 use infoset::{Projection, ProjectionError};
 
+#[test]
+fn utf16_projection_storage_exhaustion_is_an_acceptance_only_ceiling() {
+    use std::ops::ControlFlow;
+    use yaxml::{ErrorKind, Limit, OwnedDocument, PushParser};
+
+    let mut xml = format!("<p:r xmlns:p='{}'", "u".repeat(327_680));
+    for index in 0..80 {
+        xml.push_str(&format!(" p:a{index}=''"));
+    }
+    xml.push_str("/>");
+    let bytes: Vec<_> = std::iter::once(0xfeff)
+        .chain(xml.encode_utf16())
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    let mut parser = PushParser::new();
+    parser
+        .feed(&bytes, |_, _| ControlFlow::Continue(()))
+        .unwrap();
+    parser.finish(|_, _| ControlFlow::Continue(())).unwrap();
+    assert_eq!(
+        OwnedDocument::parse_bytes(&bytes).unwrap_err().kind,
+        ErrorKind::LimitExceeded(Limit::OwnedBytes)
+    );
+    assert!(matches!(
+        Projection::from_input(&bytes),
+        Err(ProjectionError::Limit("projection storage bytes"))
+    ));
+}
+
 fn utf16(input: &str, little_endian: bool, bom: bool) -> Vec<u8> {
     let mut bytes = Vec::new();
     if bom {

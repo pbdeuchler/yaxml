@@ -7,7 +7,7 @@ published in GNOME's [checksum file](https://download.gnome.org/sources/libxml2/
 External oracle tooling adds no dependency or unsafe code to the yaxml library.
 
 `examples/support/infoset.rs` builds an XPath 1.0 query and expected stdout from
-the yaxml event reader. Run the query against the **original input** with:
+the yaxml event reader for UTF-8 or owned-tree views for UTF-16. Run the query against the **original input** with:
 
 ```text
 xmllint --nonet --nocatalogs --strict-namespace --nowarning --nocdata --xpath QUERY -
@@ -51,7 +51,9 @@ The helper rejects more than 256 projected nodes, 4,096 ordinary attributes,
 64 KiB of query text or 8 MiB of expected stdout. The query ceiling leaves room
 under Linux's per-argument limit. Queries repeat node selections and are intended
 for bounded conformance fixtures, not throughput measurements. Reader resource
-limits apply independently. A small node or attribute count can still exceed
+and owned-parser limits apply independently. Owned-pool exhaustion while building
+a UTF-16 projection is an explicit `projection storage bytes` ceiling and counts
+as acceptance-only. A small node or attribute count can still exceed
 the query or output ceiling.
 
 This is a normalized infoset projection. It deliberately omits declaration
@@ -59,9 +61,15 @@ metadata, source spans, empty-tag spelling, CDATA boundaries, namespace
 declaration placement and unused namespace bindings. Effective expanded names
 are compared for every element and ordinary attribute. The namespace axis is
 deferred: local libxml2 exposes an empty-prefix, empty-URI namespace node after
-default namespace undeclaration. DTDs and unsupported encodings remain outside
+default namespace undeclaration. UTF-16 values are compared directly from owned
+views against the oracle reading original bytes. DTDs and unsupported encodings remain outside
 the initial supported profile. Comparing source attribute order is stricter than
 an unordered attribute infoset and is an explicit protocol choice.
+
+Declared-encoding mismatches are counted as policy skips because yaxml rejects
+them strictly while libxml2 can warn and retain its detected encoding. This
+documented difference does not count as compatibility agreement. Malformed
+UTF-16 code units still participate in rejection comparisons.
 
 The alternatives have weaker contracts. Pinned [xmllint source](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/xmllint.c)
 shows that SAX debug output truncates text, CDATA and attribute values. Local

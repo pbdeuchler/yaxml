@@ -29,7 +29,7 @@ does not apply to unprefixed attributes. These details have acceptance fixtures
 and explicit expanded-name goldens.
 
 Valid DTD documents and valid non-UTF-8 encoding declarations have a separate
-unsupported-feature table. DTD parsing, validation, external entities, UTF-16,
+unsupported-feature table for the borrowing interfaces. DTD parsing, validation, external entities,
 XML 1.1 semantics, and URI-reference validation are outside this suite's scope.
 Namespace processors are not required to validate namespace URI syntax
 ([Namespaces §8](https://www.w3.org/TR/2009/REC-xml-names-20091208/#Conformance)).
@@ -39,3 +39,9 @@ Run `cargo test --offline --test conformance`. Expected error kinds are yaxml's
 public diagnostic categories; the specifications define acceptance and values,
 not yaxml's exact categories or byte offsets. Fixtures avoid relying on error
 precedence when multiple independent defects are present.
+
+`tests/utf16.rs` independently checks both byte orders, every byte split,
+declaration/BOM agreement, malformed code units, raw source ranges and errors,
+decoded/source budgets, cancellation, panic poisoning, I/O, and source-independent
+owned storage. These exercise the auto-decoding interfaces under the
+[encoding contract](encoding.md); they do not expand borrowing APIs to UTF-16.

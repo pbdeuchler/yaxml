@@ -11,6 +11,9 @@ mod writer;
 #[path = "owned.rs"]
 mod owned;
 
+#[path = "encoding.rs"]
+mod encoding;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -27,6 +30,9 @@ pub fn exercise(input: &[u8]) -> Outcome {
         input.len() <= MAX_INPUT_BYTES,
         "fuzz testcase exceeds the driver budget"
     );
+    if encoding::recognizes(input) {
+        return encoding::exercise(input);
+    }
     let mut stream = Vec::new();
     let outcome = read(input, None, |event| stream.push(event));
     let document = Document::parse_bytes(input);
@@ -69,11 +75,21 @@ pub fn exercise(input: &[u8]) -> Outcome {
             max_owned_bytes: byte(4),
         },
     );
+    encoding::exercise_decode_limits(
+        input,
+        yaxml::DecodeLimits {
+            max_decoded_bytes: byte(6),
+            max_decoded_token_bytes: byte(7),
+        },
+    );
     outcome
 }
 
 /// Exercise the explicit policy boundary with the same budget in both APIs.
 pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
+    if encoding::recognizes(input) {
+        return encoding::exercise_with_limits(input, limits);
+    }
     let mut stream = Vec::new();
     let outcome = read(input, Some(limits), |event| stream.push(event));
     let document = Document::with_limits(input, limits);

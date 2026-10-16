@@ -43,6 +43,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add a bounded UTF-8 event writer sharing grammar and namespace validation, with explicit finish, escaping, prospective XML offsets, and terminal partial-I/O failures.
 - [ ] Add DOM serialization helpers, namespace repair, formatting, and UTF-16 output with separate behavior contracts and regression coverage.
 - [x] Add immutable owned document storage with pool-backed views, shared normalization/storage accounting, and input-independent lifetimes.
+- [x] Add incremental UTF-16LE/BE input to push parsing and owned trees, with declaration agreement, raw/decoded ceilings and original byte spans; UTF-16 output remains pending.
 - [ ] Add buffered pull input; verify memory and time-to-first-event across large-input size series for every storage mode.
 
 The reference release is pinned and 4,051 header identifiers are indexed. A built
@@ -53,7 +54,7 @@ Later rows receive their own detailed burndown when their dependencies are under
 
 The [streaming contract](streaming.md) describes the implemented P1 subset. Push
 parsing uses one bounded token buffer; it does not accumulate the input. Buffered
-pull, encoding expansion and allocator support remain pending. The
+pull, additional encodings and allocator support remain pending. The
 [owned DOM contract](owned-dom.md) describes the implemented independent storage
 mode; retained-memory and comparative performance evidence remain open.
 
@@ -88,6 +89,6 @@ Document ownership and arena boundaries now; defer a pervasive generic allocator
 
 ## References and review
 
-Conformance follows [XML 1.0 Fifth Edition](https://www.w3.org/TR/2008/REC-xml-20081126/) and [Namespaces in XML](https://www.w3.org/TR/REC-xml-names/). The UTF-8 milestone is explicitly partial because XML processors must also support UTF-16. The [libxml2 API reference](https://gnome.pages.gitlab.gnome.org/libxml2/) defines the comparison surface; version and build features must accompany every compatibility claim. The [security plan](security.md) defines the evidence needed for fuzzing and hostile-input readiness.
+Conformance follows [XML 1.0 Fifth Edition](https://www.w3.org/TR/2008/REC-xml-20081126/) and [Namespaces in XML](https://www.w3.org/TR/REC-xml-names/). UTF-16 input closes one gap; DTDs and the full conformance suites remain pending. The [libxml2 API reference](https://gnome.pages.gitlab.gnome.org/libxml2/) defines the comparison surface; version and build features must accompany every compatibility claim. The [security plan](security.md) defines the evidence needed for fuzzing and hostile-input readiness.
 
 Delegated work is reviewed before it reaches local main. Review the actual diff, behavioral tests, error paths, complexity, dependencies, unsafe prohibition, and public API impact. Integrate small coherent changes; update the compatibility and coverage inventories in the same change. A passing test suite establishes only its tested scope, so milestone notes must state the remaining gaps.

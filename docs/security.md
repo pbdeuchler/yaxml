@@ -10,7 +10,7 @@ Treat document bytes, parser options, caller-created tree data, resolver respons
 
 Use iterative stacks for input-driven nesting, including parsing, traversal, serialization, entity processing, and destruction. Avoid one heap object whose recursive ownership follows each input element. Check additions, multiplications, offsets, and conversions before using them as sizes or indices. A parser error terminates ordinary event production; diagnostic recovery, if implemented, is a separate mode with an explicit contract. XML defines fatal-error handling and requires normal processing to stop after such an error. [XML 1.0, terminology](https://www.w3.org/TR/2008/REC-xml-20081126/#sec-terminology).
 
-The initial reader rejects DTDs and unsupported encodings explicitly. It must not silently skip a construct and return a misleading success. A UTF-8-only milestone is an XML subset: XML requires UTF-16 support as well. [XML 1.0, characters](https://www.w3.org/TR/2008/REC-xml-20081126/#charsets).
+The parser rejects DTDs and unsupported encodings explicitly. It must not silently skip a construct and return a misleading success. Borrowing interfaces require UTF-8; owned and streaming input also accept UTF-16 under the [encoding contract](encoding.md). Decoded totals and token bytes have separate finite limits, malformed surrogates fail, and the decoder retains constant carry rather than a complete expanded source.
 
 ## Resource policy
 

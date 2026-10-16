@@ -89,7 +89,6 @@ fn every_malformed_split_and_prefix() {
         b"<?xml version='1.x'?><r/>",
         b"<?xml version='1.0' encoding='UTF-16'?><r/>",
         b"<!DOCTYPE r><r/>",
-        b"\xff\xfe<\x00r\x00/\x00>\x00",
         b"<r/ >",
         b"<r></s>\xff",
         b"<?pi",

@@ -4,9 +4,10 @@ A safe Rust XML processor pursuing libxml2 behavior, with `memchr` as its only
 dependency. This is an early implementation, not a libxml2 drop-in replacement.
 
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
-in UTF-8, namespaces, attributes, predefined/numeric references, comments,
+in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, and immutable borrowed/owned DOMs. DTDs and other encodings
-return structured errors. `Reader` borrows complete input. `PushParser` consumes
+return structured errors. `Reader` and `Document` borrow complete UTF-8 input.
+`OwnedDocument` and `PushParser` detect UTF-8 and UTF-16LE/BE. `PushParser` consumes
 arbitrary byte chunks, retaining a bounded token and active document/namespace
 state; `read_from` drives it from a caller-provided `std::io::Read`. `Writer`
 validates UTF-8 events and serializes them to a caller-provided `std::io::Write`.
@@ -42,8 +43,9 @@ fn main() -> Result<(), yaxml::Error> {
 element, emitted events, and cumulative requested string capacity for normalized
 values, namespace copies, and retained streaming names. Defaults are finite. The string budget counts work
 across an entire operation, including released buffers; it is not a precise
-process memory quota. Scratch token storage is bounded separately by the raw token
-ceiling. Streaming copies spend more of the string budget than borrowing slices.
+process memory quota. `DecodeLimits` separately bounds decoded UTF-8 bytes and
+decoded token bytes, including on the UTF-8 owning/streaming paths. Scratch token
+storage is bounded by both token ceilings. Streaming copies spend more of the string budget than borrowing slices.
 Parsing opens no files or network connections; `read_from` reads only its supplied
 source and preserves underlying I/O errors in `ReadError`.
 
@@ -57,6 +59,8 @@ error; slice construction validates all input characters before emitting events.
 Declarations with a `1.x` version use XML 1.0 processing rules, as required by
 that specification; this does not enable XML 1.1 semantics. Encoding names are
 syntax-checked before an unsupported encoding is reported. The
+[encoding contract](docs/encoding.md) defines BOM detection, declaration agreement,
+surrogate rejection, original byte offsets, and intentional libxml2 differences. The
 [conformance regressions](docs/conformance.md) and
 [independent oracle protocol](docs/oracle.md) describe the validation scope.
 

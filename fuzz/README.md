@@ -21,13 +21,14 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `Document::parse_bytes` | `driver::exercise` | Acceptance matches complete reader consumption; structural invariants |
 | `Document::parse` | `driver::exercise`, for valid UTF-8 | Acceptance matches byte input |
 | `Document::with_limits` | Derived profiles and each explicit resource ceiling | Policy acceptance matches the reader; each limit has a known rejection case |
-| `OwnedDocument::parse`, `parse_bytes`, `with_limits` | `owned::exercise`, default and derived profiles | Temporary source overwritten/dropped before views; complete values/topology/spans match borrowing DOM; earlier aggregate OwnedBytes exhaustion is explicit |
+| `OwnedDocument::parse`, `parse_bytes`, `with_limits`, `with_decode_limits` | `owned::exercise` and `encoding::exercise`, default and derived profiles | Temporary source overwritten/dropped before views; complete values/topology/spans match borrowing DOM or independently decoded reference; aggregate and decoded ceilings |
 | Owned tree views and navigation | Successful owned trees | Every kind, declaration, name, attribute, PI target, payload and navigation method compared; exact iterator lengths; valid and out-of-range ID lookup |
 | `PushParser::new`, `default`, `with_limits`, `feed`, `finish`, `position`, `event_range` | Input-derived chunk and lifecycle schedules, capped at 4096 chunks | Acceptance and exact typed event/span parity with slice reader; monotonic consumed position; repeated EOF; sticky errors after feeding final EOF |
 | `PushParser::read_from` | Cursor plus bounded scheduled and invalid-count readers | Same events/spans; one Interrupted retry; original injected I/O error kind/message; cancellation stops reads; terminal parser states perform no I/O; oversized reported counts are rejected |
 | DOM traversal and node access | Successful document checks | Unique IDs; preorder traversal; parent/child/sibling agreement; nested source ranges; subtree sizes |
 | `Writer::new`, `with_limits`, `write_event`, `finish`, `position`, `into_inner` | Accepted reader events, generated caller-created event sequences and scheduled sinks | Exact typed round trips; complete output reparses; malformed operations emit no bytes; finite encoded bounds; confirmed partial positions; sticky failure; no I/O after failure or repeated successful finish |
 | XML normalization and references | Reader/DOM corpora and generated documents | Exercised indirectly; semantic golden tests are also required in the ordinary test suite |
+| `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 
 Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Tree mutation, entities, queries, schemas, and binding handles require targets when implemented. A target that calls an API does not establish that all its branches execute.
 
@@ -51,6 +52,26 @@ so accepting extra documents after undercounting does not evade fuzz assertions.
 Streaming comparisons preserve exact logical token boundaries and raw byte spans. `tests/stream.rs` checks every split of small valid/malformed fixtures, all prefixes, single-byte and deterministic random schedules, normalization goldens, resource boundaries, and cancellation at every event. The fuzz driver adds one bounded input-derived schedule per testcase, ordinary `Cursor` I/O, and a custom reader that interrupts once before either delivering bytes or injecting an error at a chosen read. It verifies error kind/message/source and the exact last allowed read after XML failure or cancellation. Arbitrary-input comparisons advance a borrowed slice reader inside each callback: they do not clone expanded namespace URIs into snapshots. Owned captures in `tests/support/capture.rs` are restricted to bounded ordinary fixtures. These checks do not measure process memory or replace retention tests with a discard callback.
 
 ## Writer operation format
+
+Recognized UTF-16/UTF-32 signatures take a dedicated path in `fuzz/encoding.rs`.
+The bounded harness independently decodes code units using `char::decode_utf16`,
+requires BOM/declaration agreement, and rewrites only a matching declaration's
+encoding value to UTF-8 for reference grammar validation. It preserves the
+original declaration for comparison and independently maps reference spans back
+to source bytes. Materializing decoded input and a global offset map is confined
+to this test oracle; production decoding retains constant carry. A second BOM is
+explicitly rejected rather than letting the UTF-8 reference strip it. Both
+auto-decoding surfaces must reject malformed code units, XML and labels.
+
+Successful UTF-16 input compares complete stream/I/O events and owned-tree views
+against the UTF-8 reference. Small valid inputs must succeed under default
+budgets, preventing blanket rejection behind resource exceptions. Larger inputs
+can reach owned/decoded-token ceilings. Derived source, owned and decoded profiles
+check offsets, sticky errors and split-independent acceptance. Every UTF-8 input
+also exercises derived decoded ceilings. Writer operation/sink generation still
+runs for encoded inputs; their retained UTF-16 declaration is not blindly copied
+to the UTF-8 writer. Generated fixtures cover both orders, optional/matching BOMs,
+surrogates, normalization, malformed declarations, truncations and mutations.
 
 Every testcase also enters `fuzz/writer.rs`. Accepted XML events are serialized with an encoded byte ceiling of `6 * input.len() + 1024`, then compared in lockstep with the original reader and reparsed by DOM and push APIs. The writer may exhaust its owned-string budget earlier than the borrowing slice reader; this outcome is explicitly checked for terminal failure. Escaping can expand output, so reader input/token ceilings are raised for the reparse. Raw markup values supplied by the reader have already undergone XML normalization.
 
@@ -95,7 +116,7 @@ not a disk quota or a sandbox for an untrusted executable. Timeout/output failur
 kill and reap the direct child. File operations and arbitrary descendants are
 outside that termination guarantee. Capture directories use best-effort cleanup.
 
-DTD-containing bytes, unsupported encodings, invalid UTF-8 and yaxml limit
+DTD-containing bytes, unsupported encodings, declared-encoding mismatches, invalid UTF-8 and yaxml limit
 failures are policy skips. The DTD byte prefilter is conservative and can also
 skip that spelling inside a comment. Projection ceilings produce separately
 counted acceptance-only results. A clean exit 0 is acceptance; exit 4 is rejection;

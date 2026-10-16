@@ -13,6 +13,11 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/declaration.xml"),
     include_bytes!("../fuzz/corpus/encoding-name.xml"),
     include_bytes!("../fuzz/corpus/infoset.xml"),
+    include_bytes!("../fuzz/corpus/utf16le-bom.xml"),
+    include_bytes!("../fuzz/corpus/utf16be-bom.xml"),
+    include_bytes!("../fuzz/corpus/utf16le-declaration.xml"),
+    include_bytes!("../fuzz/corpus/utf16be-declaration.xml"),
+    include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
@@ -463,12 +468,10 @@ fn grammar_regression_corpus() {
             "{input:?}"
         );
     }
-    for input in [b"\xfe\xff\0<".as_slice(), b"\0\0\xfe\xff", b"\0<\0?"] {
-        assert_eq!(
-            driver::exercise(input).error.unwrap().kind,
-            UnsupportedEncoding
-        );
-    }
+    assert_eq!(
+        driver::exercise(b"\0\0\xfe\xff").error.unwrap().kind,
+        UnsupportedEncoding
+    );
     for (input, ceiling) in [
         (b"<!--x--><r/>".as_slice(), 3),
         (b"<r><!--abcdefgh--></r>", 8),
@@ -486,5 +489,76 @@ fn grammar_regression_corpus() {
             .kind,
             LimitExceeded(yaxml::Limit::TokenBytes)
         );
+    }
+}
+
+fn utf16(input: &str, little: bool, bom: bool) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    if bom {
+        bytes.extend_from_slice(if little { &[0xff, 0xfe] } else { &[0xfe, 0xff] });
+    }
+    for unit in input.encode_utf16() {
+        bytes.extend_from_slice(&if little {
+            unit.to_le_bytes()
+        } else {
+            unit.to_be_bytes()
+        });
+    }
+    bytes
+}
+
+#[test]
+fn encoded_equivalents_and_every_truncation() {
+    for little in [false, true] {
+        for bom in [false, true] {
+            let label = if little { "uTf-16LE" } else { "UTF-16BE" };
+            for body in [
+                "<r/>",
+                "<!--é--><?空 x\ry?><é:r xmlns:é='urn:中' é:a='&#9;'>é中🙂\r\n&amp;<![CDATA[x\ry]]><é:c/></é:r><!--z-->",
+                "<r><![CDATA[]]><!----><?p?><a a=''/></r>",
+            ] {
+                let source =
+                    format!("<?xml version='1.0' encoding='{label}' standalone='no'?>{body}");
+                let bytes = utf16(&source, little, bom);
+                assert!(driver::exercise(&bytes).error.is_none());
+                for end in 0..bytes.len() {
+                    driver::exercise(&bytes[..end]);
+                }
+            }
+        }
+        let source = utf16("<r>é中🙂</r>", little, true);
+        for offset in 0..source.len() {
+            for replacement in [0, 0xff, 0xd8, 0xdc, b'<', b'&'] {
+                let mut mutated = source.clone();
+                mutated[offset] = replacement;
+                driver::exercise(&mutated);
+            }
+        }
+        for input in [
+            "<?xml version='1.0' encoding='UTF-8'?><r/>",
+            "<?xml version='1.0' encoding='unknown'?><r/>",
+            "<?xml version='1.0' encoding='UTF-16'?><r/>",
+            "<?xml version='1.0' encoding='UTF-16' encoding='UTF-16'?><r/>",
+            "\u{feff}<r/>",
+            "<r>🙂&unknown;</r>",
+            "<r>é中</wrong>",
+            "<r a='x' a='y'/>",
+        ] {
+            driver::exercise(&utf16(input, little, true));
+            // A missing-BOM UTF-16 declaration is not the endian label this
+            // library requires, and signatures only select a leading <?xml.
+            if input.starts_with("<?xml") {
+                driver::exercise(&utf16(input, little, false));
+            }
+        }
+        for maximum in 0..=80 {
+            driver::exercise_with_limits(
+                &utf16("<r>&amp;</r>", little, true),
+                yaxml::Limits {
+                    max_owned_bytes: maximum,
+                    ..yaxml::Limits::default()
+                },
+            );
+        }
     }
 }

@@ -13,10 +13,19 @@ The adjacent [`libxml2-api.tsv`](libxml2-api.tsv) indexes **4,051 identifiers** 
 Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned document handles and document-scoped node identifiers. Foreign references must keep their document alive; deletion must reject stale handles. Avoid exposing the internal tree layout. WebAssembly with copied inputs/results offers one binding route without requiring unsafe Rust in this crate. Native runtime adapters ordinarily need dependencies and unsafe foreign interfaces outside the core.
 
 The implemented subset now includes the borrowing slice reader, read-only DOM,
-callback `PushParser`, and its explicit `Read` adapter. All share strict UTF-8
-XML 1.0 semantics and reject DTDs. See the [streaming contract](streaming.md) for
+callback `PushParser`, owned trees, UTF-8 event writing, and an explicit `Read`
+adapter. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
+also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md) for
 event lifetimes, limits, cancellation and incremental error ordering. Buffered
 pull input and the full upstream reader/SAX option surfaces remain open.
+
+Two explicit behavior differences remain in the current profile. Detected
+UTF-16 declarations must agree strictly, while libxml2's detected-encoding path
+can warn and continue. Namespace URI syntax is not validated: an exploratory
+2.15.3 run with `--strict-namespace` rejected `xmlns='urn:中'`, which yaxml
+accepts. That observation applies to both UTF-8 and UTF-16; it is not a pinned
+2.15.4 result. Encoding corpus fixtures use ASCII namespace URIs to isolate
+decoding, and this URI-validation gap remains part of the compatibility burndown.
 
 ## Prioritized feature map
 

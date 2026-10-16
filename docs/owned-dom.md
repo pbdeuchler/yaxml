@@ -1,6 +1,6 @@
 # Owned document storage
 
-`OwnedDocument` is an immutable UTF-8 tree that survives destruction of its input.
+`OwnedDocument` is an immutable tree that survives destruction of its UTF-8 or UTF-16 input.
 Its parser uses the same XML grammar, namespaces, normalization and resource
 policy as `Document`; strings are copied into a document-owned UTF-8 pool.
 Records keep pool ranges and flat node links rather than references into their
@@ -25,9 +25,14 @@ assert_eq!(root.first_child().unwrap().text(), Some("text"));
 
 ## Views and source ranges
 
-`parse(&str)`, `parse_bytes(&[u8])` and `with_limits(&[u8], Limits)` consume complete
+`parse(&str)`, `parse_bytes(&[u8])`, `with_limits(&[u8], Limits)` and
+`with_decode_limits(&[u8], Limits, DecodeLimits)` consume complete
 input and return a tree only on success. The source is neither borrowed nor
-retained. DTDs and encodings other than UTF-8 remain explicitly unsupported.
+retained. UTF-8 and UTF-16LE/BE are detected under the [encoding contract](encoding.md).
+DTDs and other encodings remain explicitly unsupported. UTF-8 retains the
+borrowing-reader construction path; UTF-16 feeds the same concrete tree builder
+from the incremental decoder. Normalization, streaming names and the owned pool
+share one aggregate budget.
 
 `root()` includes the synthetic document node and surrounding comments/PIs.
 `root_element()` returns the single element. `nodes()` visits every node in
@@ -47,7 +52,7 @@ attribute vector.
 None and do not concatenate descendant text. `processing_instruction_target()`
 returns a target only for PI nodes. Empty strings remain present values.
 
-Node source ranges refer to the original UTF-8 input, including delimiters and
+Node source ranges refer to the original encoded input, including delimiters and
 an element's end tag. Pool ranges are private and describe normalized logical
 strings. A source range cannot index the pool, and there is no retained source
 buffer to slice after input destruction.
@@ -86,10 +91,8 @@ custom allocator support. The core continues to forbid unsafe code and has only
 
 ## Next steps
 
-Owned storage prepares for decoding temporary UTF-16 input and retaining trees
-in language adapters. UTF-16 still needs endian/declaration checks, raw and
-decoded byte ceilings, malformed-surrogate handling and original-byte offsets.
-It is not enabled by this storage API. Mutable trees, foreign registries,
+Owned storage supports temporary decoded input and prepares for retaining trees
+in language adapters. Mutable trees, foreign registries,
 allocator parameters and DOM serialization convenience methods remain separate
 work items. Comparative parsing performance and complete fuzz coverage remain
 open evidence gates.

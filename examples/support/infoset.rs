@@ -9,7 +9,9 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use yaxml::{Attribute, Error, Event, Name, OwnedDocument, OwnedNodeKind, Reader};
+use yaxml::{
+    Attribute, Error, ErrorKind, Event, Limit, Name, OwnedDocument, OwnedNodeKind, Reader,
+};
 
 pub const LIBXML2_VERSION: &str = "2.15.4";
 pub const LIBXML2_COMPILED_VERSION: &str = "21504";
@@ -70,7 +72,13 @@ impl Projection {
             || input.starts_with(&[0, b'<', 0, b'?'])
             || input.starts_with(&[b'<', 0, b'?', 0])
         {
-            let document = OwnedDocument::parse_bytes(input)?;
+            let document = OwnedDocument::parse_bytes(input).map_err(|error| {
+                if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes) {
+                    ProjectionError::Limit("projection storage bytes")
+                } else {
+                    ProjectionError::Xml(error)
+                }
+            })?;
             Self::from_nodes(owned_nodes(&document)?)
         } else {
             Self::from_nodes(nodes(input)?)

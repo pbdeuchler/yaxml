@@ -451,7 +451,6 @@ fn malformed_and_unsupported_inputs_return_explicit_errors() {
             b"<?xml version='1.0' encoding='UTF-16'?><r/>",
             ErrorKind::UnsupportedEncoding,
         ),
-        (b"\xff\xfe<\0r\0/\0>\0", ErrorKind::UnsupportedEncoding),
     ] {
         let error = OwnedDocument::parse_bytes(input).expect_err("invalid input accepted");
         assert_eq!(error.kind, expected, "{input:?}");

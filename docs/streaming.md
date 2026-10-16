@@ -11,7 +11,7 @@ at its end offset. Cancellation and parser errors are sticky. Successful finish
 is idempotent and delivers no further events. Any feed after successful finish,
 including an empty chunk, starts a sticky `InvalidState` error. A failed feed can
 leave an input suffix unconsumed. `position()` includes encoding detection and
-one byte of lookahead when `<` terminates text; callback ranges identify the
+one decoded scalar of lookahead when `<` terminates text; callback ranges identify the
 logical event precisely.
 
 A callback panic propagates normally through Rust unwinding. If the caller
@@ -35,11 +35,13 @@ streaming token storage is reused. Namespace identities avoid rehashing long URI
 per attribute. Reference counts release interned URIs when their last retained
 binding leaves scope, including aliases and shadowed ancestor bindings.
 
-The lexer retains at most one token plus a constant-size encoding preamble. It
+The decoder retains at most four signature bytes, one partial UTF-16 code unit
+and one high surrogate. It forwards borrowed UTF-8 chunks or complete UTF-16
+scalars through a stack buffer. The lexer retains at most one decoded token. It
 tracks partial comment, CDATA, PI and quoted-tag delimiters across chunks. Ordinary
 byte runs use `memchr` searches and bulk copies. It never restarts scanning from
 the beginning of an accumulated token. Requested scratch capacity grows
-geometrically up to `max_token_bytes`, with limits checked before reservation.
+geometrically up to both raw and decoded token ceilings, with limits checked before reservation.
 
 Remaining parser state depends on open elements and active/shadowed namespace
 bindings; metadata capacities retain their high-water marks. Completed sibling
@@ -53,6 +55,9 @@ normalization, namespace copies, and retained structural strings, even after
 buffers are freed. Streaming therefore spends more of it than borrowing slices.
 This is an allocation-work budget, not an exact resident-memory quota. Ordinary
 unchanged token bytes spend scratch capacity without a cumulative string charge.
+`DecodeLimits` bounds the decoded UTF-8 total and each decoded token independently
+of source bytes. Transport BOMs count toward source input and neither decoded
+counter. See [encoding](encoding.md) for constructors and exact detection policy.
 
 ## Error ordering and compatibility
 
@@ -64,7 +69,8 @@ its discovery position can differ between frontends. Final acceptance and valid
 logical events agree under sufficient budgets; isolated errors have split-point
 regressions. A truncated token reports final EOF, while an incomplete feed waits.
 
-Both APIs still reject DTDs and non-UTF-8 encodings. UTF-16, entity declarations,
-owned DOM storage, allocator-backed collections and recovery modes remain open
+Both APIs reject DTDs. The borrowing APIs remain UTF-8-only; push parsing and
+owned trees also support UTF-16. UTF-16 output, other encodings, entity declarations,
+allocator-backed collections and recovery modes remain open
 items in [the roadmap](roadmap.md). Streaming support does not establish complete
 libxml2 reader/SAX compatibility or the performance goal.

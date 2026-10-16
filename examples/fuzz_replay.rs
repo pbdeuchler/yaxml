@@ -106,6 +106,7 @@ fn replay(input: &[u8], oracle: Option<&Oracle>) -> io::Result<Comparison> {
         Some(
             ErrorKind::UnsupportedDtd
                 | ErrorKind::UnsupportedEncoding
+                | ErrorKind::EncodingMismatch
                 | ErrorKind::InvalidUtf8
                 | ErrorKind::LimitExceeded(_)
         )
@@ -282,7 +283,8 @@ impl Counts {
             Comparison::NotCompared => return,
             Comparison::SkippedPolicy => {
                 self.skipped += 1;
-                "skipped unsupported feature, encoding, or unmatched limit policy".to_owned()
+                "skipped unsupported feature, encoding agreement, or unmatched limit policy"
+                    .to_owned()
             }
             Comparison::Rejected => {
                 self.rejected += 1;
@@ -574,7 +576,16 @@ mod tests {
             },
         };
         assert_eq!(replay(b"<r/>", None).unwrap(), Comparison::NotCompared);
-        for input in [b"<!DOCTYPE r><r/>".as_slice(), b"\xff", b"\xff\xfe"] {
+        let mut mismatch = vec![0xff, 0xfe];
+        for unit in "<?xml version='1.0' encoding='UTF-8'?><r/>".encode_utf16() {
+            mismatch.extend_from_slice(&unit.to_le_bytes());
+        }
+        for input in [
+            b"<!DOCTYPE r><r/>".as_slice(),
+            b"\xff",
+            b"\0\0\xfe\xff",
+            &mismatch,
+        ] {
             assert_eq!(
                 replay(input, Some(&oracle)).unwrap(),
                 Comparison::SkippedPolicy
@@ -584,5 +595,16 @@ mod tests {
             replay(b"<r>", Some(&oracle)).unwrap_err().kind(),
             io::ErrorKind::NotFound
         );
+        for input in [
+            b"\xff\xfe<\0r\0/\0>\0".as_slice(),
+            b"\xff\xfe\0\xdc",
+            b"\xff\xfe",
+        ] {
+            assert_eq!(
+                replay(input, Some(&oracle)).unwrap_err().kind(),
+                io::ErrorKind::NotFound,
+                "supported and malformed UTF-16 must reach the oracle"
+            );
+        }
     }
 }

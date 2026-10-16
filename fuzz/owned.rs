@@ -63,12 +63,20 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
 
 fn check_document(owned: &OwnedDocument, borrowed: &Document<'_>) {
     assert_eq!(owned.declaration(), borrowed.declaration().copied());
+    check_nodes(owned, borrowed, |range| range);
+}
+
+pub(super) fn check_nodes(
+    owned: &OwnedDocument,
+    borrowed: &Document<'_>,
+    mut source_range: impl FnMut(std::ops::Range<usize>) -> std::ops::Range<usize>,
+) {
     assert_eq!(owned.root().id(), borrowed.root().id());
     assert_eq!(owned.root_element().id(), borrowed.root_element().id());
     assert_eq!(owned.nodes().len(), borrowed.nodes().len());
     for (actual, expected) in owned.nodes().zip(borrowed.nodes()) {
         assert_eq!(actual.id(), expected.id());
-        assert_eq!(actual.range(), expected.range());
+        assert_eq!(actual.range(), source_range(expected.range()));
         assert!(
             actual.name().as_ref() == expected.name(),
             "owned name changed"
