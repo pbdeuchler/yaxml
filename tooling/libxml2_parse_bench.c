@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +58,15 @@ struct Observation {
     int doctype;
     xmlParserCtxtPtr parser;
 };
+
+/* Materialize every observed field before the ending clock call. The sink and
+ * compiler fence are benchmark anchors, not synchronization between threads. */
+static volatile struct Observation observation_sink;
+
+static void anchor_observation(const struct Observation *obs) {
+    observation_sink = *obs;
+    atomic_signal_fence(memory_order_seq_cst);
+}
 
 struct Input {
     unsigned char *bytes;
@@ -695,6 +705,7 @@ static void run_dom(const struct Input *input, size_t iterations,
              * observer to traversal, as the Rust DOM helpers do. */
             obs = new_observation();
             observe_dom(&obs, doc);
+            anchor_observation(&obs);
             totals->observe_ns = add_u64(totals->observe_ns,
                                          now_ns() - started,
                                          "observe time overflow");
@@ -750,6 +761,10 @@ static void run_reader_mode(const struct Input *input, size_t iterations,
             reader_events(&obs, reader);
             validate_reader(reader, &obs);
         }
+        if (cursor.failed || (buffered && cursor.offset != input->length) ||
+            obs.doctype)
+            obs.failed = 1;
+        anchor_observation(&obs);
         totals->parse_ns = add_u64(totals->parse_ns, now_ns() - started,
                                    "parse time overflow");
         if (reader != NULL) {
@@ -758,8 +773,7 @@ static void run_reader_mode(const struct Input *input, size_t iterations,
             totals->drop_ns = add_u64(totals->drop_ns, now_ns() - started,
                                       "drop time overflow");
         }
-        if (cursor.failed || (buffered && cursor.offset != input->length) ||
-            obs.failed || obs.doctype)
+        if (obs.failed)
             fail(65, "input is not supported well-formed XML");
         if (iteration == 0U)
             totals->expected = obs.stats;
@@ -819,8 +833,12 @@ static void run_push(const struct Input *input, size_t iterations,
                 !accepted_encoding(xmlCtxtGetDeclaredEncoding(ctxt)))
                 obs.failed = 1;
         }
-        if (!obs.failed && !obs.doctype && obs.depth == 0U)
+        if (result != 0 || obs.doctype || obs.depth != 0U ||
+            offset != input->length)
+            obs.failed = 1;
+        if (!obs.failed)
             flush_text(&obs);
+        anchor_observation(&obs);
         totals->parse_ns = add_u64(totals->parse_ns, now_ns() - started,
                                    "parse time overflow");
         if (ctxt != NULL) {
@@ -829,7 +847,7 @@ static void run_push(const struct Input *input, size_t iterations,
             totals->drop_ns = add_u64(totals->drop_ns, now_ns() - started,
                                       "drop time overflow");
         }
-        if (result != 0 || obs.failed || obs.doctype || obs.depth != 0U)
+        if (obs.failed)
             fail(65, "input is not supported well-formed XML");
         if (iteration == 0U)
             totals->expected = obs.stats;

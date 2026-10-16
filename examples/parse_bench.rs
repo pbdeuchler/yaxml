@@ -227,9 +227,11 @@ fn measure_once(
             let started = Instant::now();
             let document = Document::parse_bytes(black_box(input))
                 .map_err(|error| format!("DOM parse failed: {error}"))?;
+            black_box(&document);
             let parse = started.elapsed();
             let started = Instant::now();
             let observed = parse_observer::borrowed_document(black_box(&document))?;
+            black_box(&observed);
             let observe = started.elapsed();
             let started = Instant::now();
             drop(document);
@@ -240,9 +242,11 @@ fn measure_once(
             let started = Instant::now();
             let document = OwnedDocument::parse_bytes(black_box(input))
                 .map_err(|error| format!("owned DOM parse failed: {error}"))?;
+            black_box(&document);
             let parse = started.elapsed();
             let started = Instant::now();
             let observed = parse_observer::owned_document(black_box(&document))?;
+            black_box(&observed);
             let observe = started.elapsed();
             let started = Instant::now();
             drop(document);
@@ -270,6 +274,7 @@ fn measure_reader(input: &[u8]) -> Result<(Observation, Duration, Duration, Dura
         return Err("reader did not consume the complete input".into());
     }
     let observed = observer.finish();
+    black_box(&observed);
     let parse = started.elapsed();
     let started = Instant::now();
     drop(reader);
@@ -302,6 +307,7 @@ fn measure_push(
         return Err("push parser did not consume the complete input".into());
     }
     let observed = observer.finish();
+    black_box(&observed);
     let parse = started.elapsed();
     let started = Instant::now();
     drop(parser);
@@ -327,6 +333,7 @@ fn measure_buffered(
         return Err("buffered reader did not consume the complete input".into());
     }
     let observed = observer.finish();
+    black_box(&observed);
     let parse = started.elapsed();
     let started = Instant::now();
     drop(reader);
