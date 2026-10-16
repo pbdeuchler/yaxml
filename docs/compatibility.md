@@ -21,6 +21,13 @@ also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
 full upstream reader/SAX/save option surfaces remain open.
 
+`Node::text_chunks()` and `OwnedNode::text_chunks()` provide allocation-free
+string-value pieces for supported node kinds. Containers concatenate descendant
+Text/CDATA logically; comment and PI leaves expose their own data. Joining the
+pieces matches `xmlNodeGetContent` on the bounded [pinned oracle cases](validation-text-chunks.md).
+The methods retain chunk boundaries and do not add entity/DTD nodes, attribute
+nodes or the allocating C entry point.
+
 The [owned edit API](owned-dom.md#editing-existing-values) replaces literal leaf
 and existing ordinary-attribute values by checked handle. Value edits preserve
 topology. [Structural edits](owned-dom.md#leaf-insertion-and-permanent-removal)

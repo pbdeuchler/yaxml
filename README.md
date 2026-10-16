@@ -8,6 +8,9 @@ in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comm
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
 value edits, leaf insertion and permanent subtree removal. DTDs and other
 encodings return structured errors.
+`Node::text_chunks` and `OwnedNode::text_chunks` visit string values without
+allocating: containers yield descendant Text/CDATA, and leaves yield their
+own payload. Callers can collect the chunks or stream them to a sink.
 `Reader` and `Document` borrow complete UTF-8 input.
 `OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE.
 `PushParser` consumes arbitrary byte chunks; `read_from` drives it from a

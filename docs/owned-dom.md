@@ -53,6 +53,14 @@ attribute vector.
 None and do not concatenate descendant text. `processing_instruction_target()`
 returns a target only for PI nodes. Empty strings remain present values.
 
+`text_chunks()` visits the string value without allocating. Documents and
+elements yield descendant Text/CDATA in document order, excluding comment and
+PI data; leaves yield their own payload once. Empty leaves and adjacent Text
+remain separate chunks. Collecting the iterator into a `String` joins those
+values; callers can instead write each chunk directly. Iteration uses constant
+extra space and visits only the selected subtree. Its shared borrow prevents
+edits while the iterator is still in use.
+
 `range()` returns `Some(range)` for parsed nodes, referring to their location in
 the original encoded input, including delimiters and an element's end tag.
 This is persistent provenance, not a promise that current logical content can
