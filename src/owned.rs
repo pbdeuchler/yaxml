@@ -560,8 +560,8 @@ impl OwnedDocument {
             .map(|declaration| declaration.view(&self.pool.0))
     }
 
-    /// Opens a bounded tree editor. Owned-byte and created-node counters persist
-    /// across editors; a ceiling below earlier editing expenditure is rejected.
+    /// Opens a bounded tree editor. Owned-byte, created-node and created-attribute
+    /// counters persist across editors; a ceiling below earlier expenditure is rejected.
     /// Parsed string capacity is the baseline and is not charged again.
     ///
     /// ```
@@ -1362,8 +1362,8 @@ impl<'document> OwnedNode<'document> {
     }
 
     /// Original source location, independent of current logical content and
-    /// pool storage. Parsed nodes retain Some(range); future created nodes may
-    /// have no source provenance. This cannot index the owned string pool.
+    /// pool storage. Parsed nodes retain Some(range); constructed nodes have
+    /// no source provenance. This cannot index the owned string pool.
     #[inline]
     pub fn range(self) -> Option<Range<usize>> {
         self.record().source.clone()
