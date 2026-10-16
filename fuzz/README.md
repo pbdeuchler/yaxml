@@ -43,6 +43,10 @@ first owned tree before the second. Complete comparisons borrow pool views
 rather than cloning repeated namespace URIs. A small canonical owned tree checks
 out-of-range document-local IDs; generated Unicode/normalization cases force
 pool growth, and tiny aggregate limit profiles exercise parser/storage sharing.
+Independent budget goldens require minima of 1, 3, 8 and 10 bytes for `<r/>`,
+`<r>a</r>`, `<r>&amp;</r>` and `<r a='&#9;'/>` respectively once the reader accepts.
+These check full replacement-capacity charges as well as parser/storage sharing,
+so accepting extra documents after undercounting does not evade fuzz assertions.
 
 Streaming comparisons preserve exact logical token boundaries and raw byte spans. `tests/stream.rs` checks every split of small valid/malformed fixtures, all prefixes, single-byte and deterministic random schedules, normalization goldens, resource boundaries, and cancellation at every event. The fuzz driver adds one bounded input-derived schedule per testcase, ordinary `Cursor` I/O, and a custom reader that interrupts once before either delivering bytes or injecting an error at a chosen read. It verifies error kind/message/source and the exact last allowed read after XML failure or cancellation. Arbitrary-input comparisons advance a borrowed slice reader inside each callback: they do not clone expanded namespace URIs into snapshots. Owned captures in `tests/support/capture.rs` are restricted to bounded ordinary fixtures. These checks do not measure process memory or replace retention tests with a discard callback.
 

@@ -155,7 +155,12 @@ fn owned_storage_growth_and_aggregate_limits() {
     }
     input.push_str("</r>");
     assert!(driver::exercise(input.as_bytes()).error.is_none());
-    for input in [b"<r/>".as_slice(), b"<r>&amp;</r>", b"<r a='&#9;'/>"] {
+    for input in [
+        b"<r/>".as_slice(),
+        b"<r>a</r>",
+        b"<r>&amp;</r>",
+        b"<r a='&#9;'/>",
+    ] {
         for maximum in 0..=80 {
             driver::exercise_with_limits(
                 input,

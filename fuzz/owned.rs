@@ -18,6 +18,25 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
     if limits == Limits::default() && input.len() <= 1024 && borrowed.is_ok() {
         assert!(owned.is_ok(), "small valid input failed owned construction");
     }
+    // Independent allocation-work goldens distinguish full replacement
+    // capacity from net retained length. Reader acceptance isolates all other
+    // ceilings; reference normalization spends its raw length before storage.
+    let minimum = match input {
+        b"<r/>" => Some(1),
+        b"<r>a</r>" => Some(3),
+        b"<r>&amp;</r>" => Some(8),
+        b"<r a='&#9;'/>" => Some(10),
+        _ => None,
+    };
+    if borrowed.is_ok()
+        && let Some(minimum) = minimum
+    {
+        assert_eq!(
+            owned.is_ok(),
+            limits.max_owned_bytes >= minimum,
+            "owned aggregate budget boundary changed"
+        );
+    }
     let outcome = owned.as_ref().err().copied();
     match owned {
         Ok(owned) => {
