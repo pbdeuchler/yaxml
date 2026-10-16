@@ -318,6 +318,45 @@ Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component
 
 ## External fuzz engines and differential testing
 
+### Bounded LLVM feedback campaign
+
+`fuzz_campaign` is a finite, process-based mutation runner. It feeds the
+instrumented `fuzz_replay` executable and retains a candidate only when its
+cumulative LLVM report increases covered regions, executed functions, or
+covered branches. It is feedback-guided mutation, not merely a replay loop;
+LLVM's cumulative counts do not provide edge-level novelty or path-frequency
+feedback.
+
+Build the replay target with the pinned nightly, branch instrumentation, and
+LTO disabled. Then run the campaign with matching `llvm-profdata` and
+`llvm-cov` binaries:
+
+```sh
+cargo +nightly-2026-06-06 run --release --example fuzz_campaign -- \
+  --target /absolute/path/to/fuzz_replay \
+  --llvm-profdata /absolute/path/to/llvm-profdata \
+  --llvm-cov /absolute/path/to/llvm-cov \
+  --source-root /absolute/path/to/yaxml \
+  --seeds fuzz/corpus --output /private/tmp/yaxml-campaign-run \
+  --source-revision REVISION --build-flags 'coverage,branch,no-lto' \
+  --compiler-version 'rustc nightly-2026-06-06 LLVM version: 22.1.6'
+```
+
+The output path must be new. The runner writes a bounded manifest, case
+journal, retained corpus, current cumulative profile, and first-failure
+evidence there. Its revision, build-flags, and compiler-version values are
+caller-supplied labels; file identities detect accidental changes but do not
+prove how the target was built. Save the separate build manifest and external
+artifact hashes with campaign results. Defaults and hard ceilings are listed
+in [`fuzz-campaign.md`](../docs/plans/fuzz-campaign.md). The runner stops at
+the first target or infrastructure failure and does not resume campaigns.
+
+The report gives all four LLVM denominators and raw covered/gap counts.
+Regions, functions, and instrumented branch outcomes drive novelty; line counts
+are diagnostic. These metrics do not establish parser-state or semantic
+coverage, and a 100% percentage would only describe those instrumented LLVM
+metrics for the explicit production source list.
+
 An external process-based fuzzer can feed stdin to the release example without changing the crate's dependency graph. Validate its instrumentation and execution feedback before calling it coverage-guided fuzzing. This repository does not yet supply an AFL++/libFuzzer integration, custom mutation runtime, or sustained-run budget. Adding a runtime dependency or unsafe foreign export requires a policy decision.
 
 `--libxml2 PATH` requires libxml2 **2.15.4** and records its version/build report.

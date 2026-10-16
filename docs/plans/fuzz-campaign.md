@@ -24,10 +24,12 @@ be recorded; the profiler and report tools must match the compiler LLVM major.
 
 ## Campaign contract
 
-The command accepts a target binary, `llvm-profdata`, `llvm-cov`, a seed
-directory, a fresh output path, a source revision label, and finite case/time
-limits. Defaults and hard maxima are frozen here; the CLI may lower a limit
-but must reject values above the maximum.
+The command accepts a target binary, `llvm-profdata`, `llvm-cov`, an explicit
+source root, a seed directory, a fresh output path, source revision/build
+flags/compiler-version labels, and finite case/time limits. The two tool
+versions must exactly match the LLVM version in the caller-provided compiler
+label. Defaults and hard maxima are frozen here; the CLI may lower a limit but
+must reject values above the maximum.
 
 The CLI limit flags are `--max-cases`, `--max-seconds`,
 `--target-timeout-seconds`, `--max-input-bytes`, `--max-output-bytes`,
@@ -43,7 +45,7 @@ flags use the defaults in the table.
 | Input bytes per testcase | 1 MiB | 1 MiB |
 | Combined target stdout/stderr | 64 KiB | 1 MiB |
 | Any raw, pending-merge, or cumulative profile | 32 MiB | 128 MiB |
-| Total transient profile storage (raw + current + pending merge) | 96 MiB | 384 MiB |
+| Total transient profile storage (previous raw + current raw + cumulative + pending merge) | 128 MiB | 512 MiB |
 | Seed files | 128 | 128 |
 | Total seed bytes | 8 MiB | 8 MiB |
 | Retained corpus files (including seeds) | 256 | 1,024 |
@@ -68,12 +70,15 @@ existing process helper's timeout and combined stdout/stderr cap. It returns
 an error without captured output on timeout or output overflow, so preserve the
 candidate and typed error and include captured bytes only when available.
 Check raw and pending cumulative profile size after each producer exits and
-before merge/rename; reject an over-limit or missing profile. Keep only the
-current cumulative profile, one pending merged profile, and the current raw
-profile. Remove a raw profile after a successful merge; do not archive every
-raw profile. The aggregate transient profile cap is three times the per-profile
-limit. These are observed storage ceilings, not an operating-system disk quota
-against a misbehaving child.
+before merge/rename; reject an over-limit or missing profile. Keep the previous
+successful raw profile until the next case fully validates, because it is the
+last completed evidence if that case fails. At peak, retain the previous raw,
+current raw, current cumulative profile, and pending merged profile. The
+aggregate transient profile cap is four times the per-profile limit. Move a
+bounded failed raw profile into first-failure evidence; omit an oversized one
+with its observed size recorded, while retaining the input and metadata. These
+are observed storage ceilings, not an operating-system disk quota against a
+misbehaving child.
 
 Reject any target stderr, nonzero status, timeout, output-limit error, missing
 or invalid raw profile, failed merge, malformed report, report diagnostic,
@@ -84,8 +89,13 @@ campaign infrastructure failure. Clean only pending temporary files owned by
 the campaign using RAII; retain completed cases and failure evidence.
 
 Merge each successful raw profile exactly once into a newly written cumulative
-profile. Generate a library-only LLVM coverage summary from the fixed target
-binary and cumulative profile. Parse the exact LLVM 22 summary header, expected
+profile. Before commit, stage the corpus decision and append the bounded case
+journal; roll them back if cumulative-profile publication fails. Renaming the
+pending cumulative profile to its final path is the case commit point. Report
+any later evidence-publication or manifest error as a post-commit failure while
+leaving the accepted case intact. Generate a library-only LLVM coverage summary
+from the fixed target binary and cumulative profile. Parse the exact LLVM 22
+summary header, expected
 production source rows, and `TOTAL` row. The production file list is the
 explicit sorted set of every regular `src/*.rs` module in the source tree,
 including currently unexecuted modules. Preserve identities for all 14 files.
