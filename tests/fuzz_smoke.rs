@@ -91,6 +91,9 @@ fn writer_operation_and_output_selectors() {
         b"plain",
         b"r a='injected'",
         b"a='injected' b",
+        b"p data",
+        b"1.0\" standalone=\"yes",
+        b"a-",
     ] {
         for operations in [
             &[1][..],
@@ -99,6 +102,8 @@ fn writer_operation_and_output_selectors() {
             &[0, 5, 2],
             &[0, 6, 2],
             &[7, 1],
+            &[15, 1],
+            &[14, 1],
             &[1, 1],
             &[0, 0, 2, 2],
             &[0x41],
@@ -111,6 +116,15 @@ fn writer_operation_and_output_selectors() {
                 input.extend_from_slice(payload);
                 driver::exercise(&input);
             }
+        }
+    }
+    // Isolate each writer policy byte with enough operations to reach it.
+    for field in 1..=6 {
+        for value in 0..=8 {
+            let mut input = vec![0, 255, 255, 7, 3, 255, 255, 3, 0, 3, 2];
+            input[field] = value;
+            input.extend_from_slice(b"<&>\"\r\n\t");
+            driver::exercise(&input);
         }
     }
 }

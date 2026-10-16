@@ -253,6 +253,9 @@ fn output_schedule(input: &[u8]) {
 
         fn flush(&mut self) -> io::Result<()> {
             self.flushes.set(self.flushes.get() + 1);
+            if self.mode == 7 && self.flushes.get() == 1 {
+                return Err(io::ErrorKind::Interrupted.into());
+            }
             if self.mode == 5 {
                 Err(io::Error::new(
                     io::ErrorKind::BrokenPipe,
@@ -265,7 +268,7 @@ fn output_schedule(input: &[u8]) {
     }
     let calls = Cell::new(0);
     let flushes = Cell::new(0);
-    let mode = input.first().copied().unwrap_or(0) % 7;
+    let mode = input.first().copied().unwrap_or(0) % 8;
     let boundary = input.get(1).copied().unwrap_or(0) as usize % 6;
     let sink = Sink {
         bytes: Vec::new(),
@@ -282,12 +285,13 @@ fn output_schedule(input: &[u8]) {
     }
     match result {
         Ok(()) => {
-            assert!(matches!(mode, 0 | 1 | 4));
+            assert!(matches!(mode, 0 | 1 | 4 | 7));
             assert!(mode != 4 || boundary >= 4);
             assert_eq!(writer.position(), 4);
-            assert_eq!(flushes.get(), 1);
+            let expected_flushes = if mode == 7 { 2 } else { 1 };
+            assert_eq!(flushes.get(), expected_flushes);
             writer.finish().unwrap();
-            assert_eq!(flushes.get(), 1);
+            assert_eq!(flushes.get(), expected_flushes);
         }
         Err(WriteError::Io(error)) => {
             let expected = match mode {
