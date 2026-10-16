@@ -400,7 +400,12 @@ pub fn push_events(
     schedule: &[usize],
     limits: Limits,
 ) -> Result<Vec<CapturedEvent>, Error> {
-    let mut parser = PushParser::with_limits(limits);
+    let control = input.get(input.len() / 2).copied().unwrap_or(0);
+    let mut parser = if limits == Limits::default() && control & 1 == 0 {
+        PushParser::default()
+    } else {
+        PushParser::with_limits(limits)
+    };
     let mut events = Vec::new();
     let mut previous = 0;
     let mut offset: usize = 0;
@@ -433,6 +438,30 @@ pub fn push_events(
             parser
                 .finish(|_, _| panic!("finish emitted twice"))
                 .unwrap();
+            let position = parser.position();
+            if control & 1 == 0 {
+                let suffix = if control & 2 == 0 {
+                    &[][..]
+                } else {
+                    &input[..input.len().min(1)]
+                };
+                let error = parser
+                    .feed(suffix, |_, _| panic!("callback after final EOF"))
+                    .unwrap_err();
+                assert_eq!(error.kind, ErrorKind::InvalidState);
+                assert_eq!(error.offset, position);
+                assert_eq!(parser.feed(&[], |_, _| panic!()).unwrap_err(), error);
+                assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
+                assert_terminal_io(parser, error);
+            } else {
+                assert_terminal_io(
+                    parser,
+                    Error {
+                        kind: ErrorKind::InvalidState,
+                        offset: position,
+                    },
+                );
+            }
             Ok(events)
         }
         Err(error) => {
@@ -449,8 +478,26 @@ pub fn push_events(
                     .unwrap_err(),
                 error
             );
+            if control & 1 == 0 {
+                assert_terminal_io(parser, error);
+            }
             Err(error)
         }
+    }
+}
+
+fn assert_terminal_io(parser: PushParser, expected: Error) {
+    struct ForbiddenRead;
+    impl std::io::Read for ForbiddenRead {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            panic!("terminal parser touched its I/O source");
+        }
+    }
+    match parser.read_from(ForbiddenRead, |_, _| {
+        panic!("terminal parser emitted a callback")
+    }) {
+        Err(ReadError::Xml(error)) => assert_eq!(error, expected),
+        result => panic!("terminal parser returned {result:?}"),
     }
 }
 
@@ -512,6 +559,33 @@ fn check_io_schedule(input: &[u8]) {
         calls: &'a Cell<usize>,
         fail: usize,
         interrupt: bool,
+    }
+    if input.get(2).copied().unwrap_or(0) & 7 == 0 {
+        struct Oversized<'a> {
+            calls: &'a Cell<usize>,
+            extra: usize,
+        }
+        impl Read for Oversized<'_> {
+            fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+                self.calls.set(self.calls.get() + 1);
+                Ok(out.len() + self.extra)
+            }
+        }
+        let calls = Cell::new(0);
+        let source = Oversized {
+            calls: &calls,
+            extra: 1 + input.first().copied().unwrap_or(0) as usize,
+        };
+        match PushParser::default()
+            .read_from(source, |_, _| panic!("oversized count delivered XML"))
+        {
+            Err(ReadError::Io(error)) => {
+                assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+                assert_eq!(error.to_string(), "reader returned an oversized byte count");
+            }
+            result => panic!("oversized read count returned {result:?}"),
+        }
+        assert_eq!(calls.get(), 1, "read again after invalid byte count");
     }
     impl Read for Scheduled<'_> {
         fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {

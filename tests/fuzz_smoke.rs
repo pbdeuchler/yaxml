@@ -15,6 +15,23 @@ const SEEDS: &[&[u8]] = &[
 ];
 
 #[test]
+fn streaming_lifecycle_operation_selectors() {
+    // Middle-byte parity selects finished versus newly poisoned parser states;
+    // the declaration also selects the invalid Read byte-count action.
+    for (input, accepted) in [
+        (b"<r/>".as_slice(), true),
+        (b"<r>x</r>", true),
+        (b"<r>xy</r>", true),
+        (b"<r>xyz</r>", true),
+        (b"<?xml version='1.0'?><r/>", true),
+        (b"<r></s>", false),
+        (b"<r>\xff</r>", false),
+    ] {
+        assert_eq!(driver::exercise(input).error.is_none(), accepted);
+    }
+}
+
+#[test]
 fn replay_corpus_and_every_truncation() {
     for seed in SEEDS {
         for end in 0..=seed.len() {
