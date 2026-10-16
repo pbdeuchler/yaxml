@@ -1,6 +1,6 @@
 //! Strict metadata and result policy for the external XML conformance suite.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path};
 
 pub const MAX_MANIFEST_BYTES: usize = 4 * 1024 * 1024;
@@ -177,6 +177,83 @@ impl Case<'_> {
         }
         (self.path, "none")
     }
+}
+
+#[derive(Debug, Default)]
+pub struct RequiredPasses<'a> {
+    masks: HashMap<&'a str, [bool; 5]>,
+    pub pairs: usize,
+}
+
+impl RequiredPasses<'_> {
+    /// Surface indices follow the version-one worker protocol's fixed order.
+    pub fn expects(&self, id: &str, surface: usize) -> bool {
+        self.masks.get(id).is_some_and(|mask| mask[surface])
+    }
+}
+
+/// A compatibility baseline protects identities, not just aggregate counts.
+pub fn required_passes<'a>(
+    input: &'a [u8],
+    cases: &[Case<'_>],
+) -> Result<RequiredPasses<'a>, String> {
+    if input.len() > MAX_MANIFEST_BYTES {
+        return Err("required-pass manifest is too large".into());
+    }
+    let text = std::str::from_utf8(input).map_err(|_| "required-pass manifest is not UTF-8")?;
+    if !text.ends_with('\n') || text.contains('\r') {
+        return Err("required-pass records must be LF terminated".into());
+    }
+    let mut lines = text.lines();
+    let header: Vec<_> = lines
+        .next()
+        .ok_or("missing required-pass header")?
+        .split('\t')
+        .collect();
+    if header.len() != 3 || header[0] != "yaxml-xmlconf-required-v1" {
+        return Err("wrong required-pass header".into());
+    }
+    let mut numbers = [0usize; 2];
+    for (index, field) in header[1..].iter().enumerate() {
+        if field.is_empty() || !field.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err("required-pass counts must contain decimal digits".into());
+        }
+        numbers[index] = field.parse().map_err(|_| "required-pass count overflow")?;
+    }
+    let [expected_cases, expected_pairs] = numbers;
+    if !(1..=MAX_CASES).contains(&expected_cases)
+        || !(expected_cases..=expected_cases * 5).contains(&expected_pairs)
+    {
+        return Err("required-pass counts are outside the protocol bounds".into());
+    }
+    let identifiers: HashSet<_> = cases.iter().map(|case| case.id).collect();
+    let mut required = RequiredPasses::default();
+    for line in lines {
+        if required.masks.len() >= expected_cases {
+            return Err("extra required-pass records".into());
+        }
+        let fields: Vec<_> = line.split('\t').collect();
+        if fields.len() != 2
+            || !identifiers.contains(fields[0])
+            || fields[1].len() != 5
+            || !fields[1].bytes().all(|byte| matches!(byte, b'0' | b'1'))
+            || !fields[1].contains('1')
+        {
+            return Err("invalid required-pass ID or mask".into());
+        }
+        let mut mask = [false; 5];
+        for (index, bit) in fields[1].bytes().enumerate() {
+            mask[index] = bit == b'1';
+            required.pairs += usize::from(mask[index]);
+        }
+        if required.masks.insert(fields[0], mask).is_some() {
+            return Err("duplicate required-pass ID".into());
+        }
+    }
+    if required.masks.len() != expected_cases || required.pairs != expected_pairs {
+        return Err("required-pass inventory is incomplete or disagrees with its counts".into());
+    }
+    Ok(required)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -507,5 +584,52 @@ mod tests {
             );
         }
         assert_eq!(base.run_path(), ("a.xml", "none"));
+    }
+
+    #[test]
+    fn required_pass_inventory_rejects_loss_unknown_ids_and_malformed_masks() {
+        let cases = [
+            literal(),
+            Case {
+                id: "two",
+                ..literal()
+            },
+        ];
+        let good = "yaxml-xmlconf-required-v1\t2\t4\none\t10101\ntwo\t00010\n";
+        let required = required_passes(good.as_bytes(), &cases).unwrap();
+        assert_eq!(required.pairs, 4);
+        for index in 0..5 {
+            assert_eq!(
+                required.expects("one", index),
+                [true, false, true, false, true][index]
+            );
+        }
+        assert!(required.expects("two", 3));
+        assert!(!required.expects("missing", 0));
+        assert!(!RequiredPasses::default().expects("one", 0));
+        for bad in [
+            good.replace("required-v1", "required-v2"),
+            good.trim_end().into(),
+            good.replace("\n", "\r\n"),
+            good.replace("2\t4", "0\t0"),
+            good.replace("2\t4", "10001\t10001"),
+            good.replace("2\t4", "2\t11"),
+            good.replace("2\t4", "2\t3"),
+            good.replace("2\t4", "2\t+4"),
+            good.replace("2\t4", "2\t99999999999999999999999999999999"),
+            good.replace("two\t00010\n", ""),
+            format!("{good}one\t10000\n"),
+            good.replace("two", "unknown"),
+            good.replace("two", "one"),
+            good.replace("10101", "00000"),
+            good.replace("10101", "1010"),
+            good.replace("10101", "101012"),
+            good.replace("00010", "0x010"),
+            good.replace("one\t10101", "one\t10101\textra"),
+        ] {
+            assert!(required_passes(bad.as_bytes(), &cases).is_err(), "{bad:?}");
+        }
+        assert!(required_passes(&[0xff], &cases).is_err());
+        assert!(required_passes(&vec![b'x'; MAX_MANIFEST_BYTES + 1], &cases).is_err());
     }
 }

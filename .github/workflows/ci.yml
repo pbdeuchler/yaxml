@@ -142,12 +142,14 @@ jobs:
           target/release/examples/xml_conformance \
             --manifest target/oracle/xmlconf-catalog.tsv \
             --suite-root target/oracle/xml-suite/xmlconf --expected-cases 2585 \
+            --required-pass tests/fixtures/xmlconf-20130923-required.tsv \
             > target/oracle/xmlconf-results.tsv 2> target/oracle/xmlconf-results.stderr
           find target/oracle/xml-suite/xmlconf -type f -print0 \
             | sort -z | xargs -0 sha256sum > target/oracle/xmlconf-input-sha256-end.txt
           cmp target/oracle/xmlconf-input-sha256.txt target/oracle/xmlconf-input-sha256-end.txt
           sha256sum tooling/libxml2_xmlconf_catalog.c examples/xml_conformance.rs \
             examples/support/conformance_catalog.rs examples/support/conformance_worker.rs \
+            tests/fixtures/xmlconf-20130923-required.tsv \
             target/oracle/xmlconf-catalog.tsv target/oracle/xmlconf-results.tsv \
             > target/oracle/xmlconf-artifact-sha256.txt
           cat target/oracle/xmlconf-results.stderr

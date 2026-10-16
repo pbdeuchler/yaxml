@@ -24,6 +24,7 @@ struct Args {
     manifest: PathBuf,
     root: PathBuf,
     expected: usize,
+    required_pass: Option<PathBuf>,
 }
 
 impl Args {
@@ -31,6 +32,7 @@ impl Args {
         let mut manifest = None;
         let mut root = None;
         let mut expected = None;
+        let mut required_pass = None;
         let mut args = args.into_iter();
         while let Some(option) = args.next() {
             let value = args
@@ -41,6 +43,8 @@ impl Args {
                 manifest = Some(PathBuf::from(value));
             } else if option == "--suite-root" && root.is_none() {
                 root = Some(PathBuf::from(value));
+            } else if option == "--required-pass" && required_pass.is_none() {
+                required_pass = Some(PathBuf::from(value));
             } else if option == "--expected-cases" && expected.is_none() {
                 let number = value.to_str().ok_or("case count must be UTF-8")?;
                 if number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
@@ -62,6 +66,7 @@ impl Args {
             manifest: manifest.ok_or("--manifest is required")?,
             root: root.ok_or("--suite-root is required")?,
             expected: expected.ok_or("--expected-cases is required")?,
+            required_pass,
         })
     }
 }
@@ -230,6 +235,16 @@ fn case_input(root: &Path, relative: &str) -> io::Result<Vec<u8>> {
 fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let manifest = read_file(&args.manifest, catalog::MAX_MANIFEST_BYTES)?;
     let cases = catalog::parse(&manifest, args.expected)?;
+    let required_bytes = args
+        .required_pass
+        .as_ref()
+        .map(|path| read_file(path, catalog::MAX_MANIFEST_BYTES))
+        .transpose()?;
+    let required = required_bytes
+        .as_deref()
+        .map(|bytes| catalog::required_passes(bytes, &cases))
+        .transpose()?
+        .unwrap_or_default();
     let root = args.root.canonicalize()?;
     if !root.is_dir() {
         return Err("suite root is not a directory".into());
@@ -242,6 +257,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut counts = BTreeMap::new();
     let mut rows = 0;
     let mut failed = false;
+    let mut regressions = 0usize;
     let start = Instant::now();
     let mut output = io::BufWriter::new(io::stdout().lock());
     writeln!(
@@ -308,6 +324,14 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
                 ),
             };
             failed |= matches!(verdict.status, "mismatch" | "inconclusive");
+            if required.expects(case.id, index) && verdict.status != "pass" {
+                failed = true;
+                regressions += 1;
+                eprintln!(
+                    "required pass regressed: {}/{surface} -> {} ({})",
+                    case.id, verdict.status, verdict.reason
+                );
+            }
             *counts.entry((surface, verdict.status)).or_insert(0usize) += 1;
             writeln!(
                 output,
@@ -337,8 +361,15 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         "cases={} result_rows={rows} expected_rows={expected_rows}",
         args.expected
     );
+    eprintln!(
+        "required_pass_pairs={} required_pass_regressions={regressions}",
+        required.pairs
+    );
     if failed {
-        return Err("conformance mismatches or inconclusive rows require classification".into());
+        return Err(
+            "conformance mismatches, regressions or inconclusive rows require classification"
+                .into(),
+        );
     }
     Ok(())
 }
@@ -372,6 +403,7 @@ mod tests {
                 manifest: "catalog.tsv".into(),
                 root: "suite".into(),
                 expected: 2585,
+                required_pass: None,
             }
         );
         for args in [
@@ -389,6 +421,14 @@ mod tests {
         ] {
             assert!(Args::parse(args.into_iter().map(OsString::from)).is_err());
         }
+        let mut with_baseline = valid.map(OsString::from).to_vec();
+        with_baseline.extend(["--required-pass", "required.tsv"].map(OsString::from));
+        assert_eq!(
+            Args::parse(with_baseline.clone()).unwrap().required_pass,
+            Some("required.tsv".into())
+        );
+        with_baseline.extend(["--required-pass", "again.tsv"].map(OsString::from));
+        assert!(Args::parse(with_baseline).is_err());
     }
 
     #[test]
