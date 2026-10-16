@@ -1,0 +1,24 @@
+   Compiling memchr v2.8.3
+   Compiling yaxml v0.1.0 (/private/tmp/yaxml-utf16-oracle-final)
+    Finished `release` profile [optimized] target(s) in 10.93s
+     Running `target/release/examples/fuzz_replay --libxml2 /opt/homebrew/Cellar/libxml2/2.15.3/bin/xmllint --allow-other-libxml2 fuzz/corpus/declaration.xml fuzz/corpus/dtd.xml fuzz/corpus/encoding-name.xml fuzz/corpus/infoset.xml fuzz/corpus/lexical.xml fuzz/corpus/malformed.xml fuzz/corpus/minimal.xml fuzz/corpus/namespaces.xml fuzz/corpus/references.xml fuzz/corpus/utf16-malformed.xml fuzz/corpus/utf16be-bom.xml fuzz/corpus/utf16be-declaration.xml fuzz/corpus/utf16le-bom.xml fuzz/corpus/utf16le-declaration.xml`
+comparison executable: /opt/homebrew/Cellar/libxml2/2.15.3/bin/xmllint
+mode: exploratory
+/opt/homebrew/Cellar/libxml2/2.15.3/bin/xmllint: using libxml version 21503
+   compiled with: Threads Tree Output Push Reader Patterns Writer SAXv1 DTDValid HTML C14N Catalog XPath XPointer XInclude Iconv ISO8859X Regexps Automata RelaxNG Schemas Schematron Modules Debug Zlib 
+
+fuzz/corpus/declaration.xml: acceptance and infoset agreement
+fuzz/corpus/dtd.xml: skipped unsupported feature, encoding agreement, or unmatched limit policy
+fuzz/corpus/encoding-name.xml: rejection agreement
+fuzz/corpus/infoset.xml: acceptance and infoset agreement
+fuzz/corpus/lexical.xml: acceptance and infoset agreement
+fuzz/corpus/malformed.xml: rejection agreement
+fuzz/corpus/minimal.xml: acceptance and infoset agreement
+fuzz/corpus/namespaces.xml: acceptance and infoset agreement
+fuzz/corpus/references.xml: acceptance and infoset agreement
+fuzz/corpus/utf16-malformed.xml: rejection agreement
+fuzz/corpus/utf16be-bom.xml: acceptance and infoset agreement
+fuzz/corpus/utf16be-declaration.xml: acceptance and infoset agreement
+fuzz/corpus/utf16le-bom.xml: acceptance and infoset agreement
+fuzz/corpus/utf16le-declaration.xml: acceptance and infoset agreement
+oracle summary: semantic_agreements=10 rejection_agreements=3 acceptance_only=0 skipped_policy=1 inconclusive=0 disagreements=0
