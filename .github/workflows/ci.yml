@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: ["1.95.0", stable]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --all-targets
+
+  fuzz-smoke-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Replay and mutate corpus with source coverage
+        shell: bash
+        env:
+          RUSTFLAGS: -C instrument-coverage
+          CARGO_TARGET_DIR: target/fuzz-coverage-build
+          LLVM_PROFILE_FILE: target/fuzz-coverage/%p-%m.profraw
+        run: |
+          mkdir -p target/fuzz-coverage
+          cargo test --test fuzz_smoke --no-run --message-format=json > target/fuzz-coverage/artifacts.jsonl
+          cargo test --test fuzz_smoke
+          llvm_bin="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin"
+          "$llvm_bin/llvm-profdata" merge -sparse target/fuzz-coverage/*.profraw -o target/fuzz-coverage/merged.profdata
+          binary="$(jq -r 'select(.reason == "compiler-artifact" and .profile.test and .executable != null) | .executable' target/fuzz-coverage/artifacts.jsonl)"
+          "$llvm_bin/llvm-cov" report "$binary" --instr-profile=target/fuzz-coverage/merged.profdata --ignore-filename-regex='(/\.cargo/|/rustc/|/tests/|/fuzz/)' > target/fuzz-coverage/library-report.txt
+          "$llvm_bin/llvm-cov" export "$binary" --instr-profile=target/fuzz-coverage/merged.profdata > target/fuzz-coverage/coverage.json
+          rustc -vV > target/fuzz-coverage/compiler.txt
+          git rev-parse HEAD > target/fuzz-coverage/revision.txt
+          cat target/fuzz-coverage/library-report.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-smoke-coverage
+          path: target/fuzz-coverage/
