@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use memchr::{memchr, memchr3};
+
 use crate::{Error, ErrorKind, Limit};
 
 /// Complete lexical units; semantic validation belongs to the shared parser.
@@ -62,7 +64,32 @@ impl Tokenizer {
         input: &[u8],
         mut emit: impl FnMut(TokenKind, &[u8], Range<usize>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        for &byte in input {
+        let mut cursor = 0;
+        while cursor < input.len() {
+            if !self.checking_preamble {
+                let length = self.plain_run(&input[cursor..]);
+                if length > 0 {
+                    if self.buffer.is_empty() {
+                        self.start = self.position;
+                    }
+                    let available = self.limit - self.buffer.len();
+                    if length > available {
+                        // Consume through the first offending byte, as the
+                        // scalar path does, without allocating a rejected run.
+                        self.position += available + 1;
+                        return Err(Error::new(
+                            ErrorKind::LimitExceeded(Limit::TokenBytes),
+                            self.start,
+                        ));
+                    }
+                    self.append_slice(&input[cursor..cursor + length])?;
+                    self.position += length;
+                    cursor += length;
+                    continue;
+                }
+            }
+            let byte = input[cursor];
+            cursor += 1;
             let offset = self.position;
             self.position += 1;
             if self.checking_preamble {
@@ -98,6 +125,21 @@ impl Tokenizer {
         Ok(())
     }
 
+    /// Skip bytes that cannot change the current delimiter state. Each scan
+    /// resumes at the next chunk; no accumulated token prefix is rescanned.
+    fn plain_run(&self, input: &[u8]) -> usize {
+        let boundary = match self.scan {
+            Scan::Text => memchr(b'<', input),
+            Scan::Tag { quote: Some(quote) } => memchr(quote, input),
+            Scan::Tag { quote: None } => memchr3(b'\'', b'"', b'>', input),
+            Scan::Comment { hyphens: 0 } => memchr(b'-', input),
+            Scan::Cdata { brackets: 0 } => memchr(b']', input),
+            Scan::Instruction { question: false } => memchr(b'?', input),
+            _ => return 0,
+        };
+        boundary.unwrap_or(input.len())
+    }
+
     pub(crate) fn finish(
         &mut self,
         mut emit: impl FnMut(TokenKind, &[u8], Range<usize>) -> Result<(), Error>,
@@ -127,26 +169,36 @@ impl Tokenizer {
     }
 
     fn append(&mut self, byte: u8) -> Result<(), Error> {
-        if self.buffer.len() == self.limit {
+        self.append_slice(std::slice::from_ref(&byte))
+    }
+
+    fn append_slice(&mut self, bytes: &[u8]) -> Result<(), Error> {
+        let Some(needed) = self
+            .buffer
+            .len()
+            .checked_add(bytes.len())
+            .filter(|n| *n <= self.limit)
+        else {
             return Err(Error::new(
                 ErrorKind::LimitExceeded(Limit::TokenBytes),
                 self.start,
             ));
-        }
+        };
         // Explicit geometric growth caps requested scratch capacity at the
         // token ceiling; reserving one byte exactly would be quadratic.
-        if self.buffer.len() == self.buffer.capacity() {
+        if needed > self.buffer.capacity() {
             let target = self
                 .buffer
                 .capacity()
                 .saturating_mul(2)
                 .max(64)
+                .max(needed)
                 .min(self.limit);
             self.buffer
                 .try_reserve_exact(target - self.buffer.len())
                 .map_err(|_| Error::new(ErrorKind::Allocation, self.start))?;
         }
-        self.buffer.push(byte);
+        self.buffer.extend_from_slice(bytes);
         Ok(())
     }
 
@@ -365,5 +417,60 @@ mod tests {
         );
         assert_eq!(calls, 1);
         assert_eq!(tokenizer.position(), 4);
+    }
+
+    #[test]
+    fn long_runs_and_delimiter_prefixes_match_scalar_chunks() {
+        let body = "x> y<&".repeat(10_000);
+        let parts = [
+            (TokenKind::Start, format!("<r a='{body}'>")),
+            (TokenKind::Text, "plain ".repeat(10_000)),
+            (TokenKind::Comment, format!("<!--{body}--->")),
+            (TokenKind::Cdata, format!("<![CDATA[{body}]]]>")),
+            (TokenKind::Instruction, format!("<?pi {body}??>")),
+            (TokenKind::End, "</r>".to_owned()),
+        ];
+        let input = parts
+            .iter()
+            .map(|(_, text)| text.as_str())
+            .collect::<String>();
+        for size in [1, 7, 8192, input.len()] {
+            let mut tokenizer = Tokenizer::new(128 * 1024);
+            let mut found = Vec::new();
+            let mut emit = |kind, raw: &[u8], range: Range<usize>| {
+                assert_eq!(raw, &input.as_bytes()[range]);
+                found.push((kind, raw.to_vec()));
+                Ok(())
+            };
+            for chunk in input.as_bytes().chunks(size) {
+                tokenizer.feed(chunk, &mut emit).unwrap();
+            }
+            tokenizer.finish(emit).unwrap();
+            assert_eq!(
+                found
+                    .iter()
+                    .map(|(kind, bytes)| (*kind, bytes.as_slice()))
+                    .collect::<Vec<_>>(),
+                parts
+                    .iter()
+                    .map(|(kind, text)| (*kind, text.as_bytes()))
+                    .collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn oversized_bulk_runs_fail_at_the_first_offending_byte() {
+        for first in [b"".as_slice(), b"x", b"xx", b"xxx"] {
+            let mut tokenizer = Tokenizer::new(3);
+            tokenizer.feed(first, |_, _, _| Ok(())).unwrap();
+            let error = tokenizer.feed(b"xxxxxxxx", |_, _, _| Ok(())).unwrap_err();
+            assert_eq!(
+                error,
+                Error::new(ErrorKind::LimitExceeded(Limit::TokenBytes), 0)
+            );
+            assert_eq!(tokenizer.position(), 4);
+            assert!(tokenizer.buffer.capacity() <= 3);
+        }
     }
 }
