@@ -778,6 +778,29 @@ fn check_document(
                 .eq(subtree.iter().map(|index| handles[*index])),
             "mutation changed subtree traversal"
         );
+        assert_eq!(actual.descendants().count(), subtree.len());
+        assert_eq!(
+            actual.descendants().last().map(|node| node.id()),
+            subtree.last().map(|index| handles[*index])
+        );
+        // Check progress independently of the iterator's cached length. A
+        // midpoint exercises both contiguous slots and linked/tombstoned trees.
+        let midpoint = subtree.len() / 2;
+        let mut partial = actual.descendants();
+        assert_eq!(
+            partial.nth(midpoint).map(|node| node.id()),
+            Some(handles[subtree[midpoint]])
+        );
+        let remaining = subtree.len() - midpoint - 1;
+        assert_eq!(partial.len(), remaining);
+        assert_eq!(partial.size_hint(), (remaining, Some(remaining)));
+        assert_eq!(partial.count(), remaining);
+        let mut exhausted = actual.descendants();
+        assert!(exhausted.nth(subtree.len()).is_none());
+        assert_eq!(exhausted.len(), 0);
+        assert_eq!(exhausted.size_hint(), (0, Some(0)));
+        assert!(exhausted.next().is_none());
+        assert!(exhausted.next().is_none());
         let resolved = document
             .node(handles[index])
             .expect("mutation invalidated a live handle");
