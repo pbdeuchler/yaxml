@@ -12,6 +12,9 @@ use yaxml::{
     OwnedNodeKind, PrefixPolicy, Writer,
 };
 
+#[path = "construction_validation.rs"]
+mod validation;
+
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 const MAX_DERIVED_BYTES: usize = 8;
@@ -1118,6 +1121,7 @@ pub(super) fn exercise(input: &[u8]) {
     handle_and_kind_rejections(input);
     sparse_format_and_debug_contract(input);
     long_inherited_prefix(input);
+    validation::exercise(input);
 }
 
 #[cfg(test)]
