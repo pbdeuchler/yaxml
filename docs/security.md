@@ -64,8 +64,11 @@ caller-string validation; a separate namespace-work budget bounds ancestor scans
 and expanded-name comparisons, including long inherited bindings. Scratch is
 input/work-bounded and reserved fallibly. Exact-prefix intent is gathered before
 automatic choices so a later name cannot retarget an earlier name's namespace.
-The [construction evidence](validation-owned-create.md) retains unexecuted
-error paths in its fuzz-only denominator; full execution coverage remains open.
+The [construction evidence](validation-owned-create.md) and
+[subsequent fuzz-gap audit](validation-construction-fuzz-gaps.md) retain
+unexecuted error paths in their fuzz-only denominators. Independent validation,
+quota and namespace catalogs now enter through every bounded replay input;
+complete execution coverage remains open.
 
 ## What “100% fuzzing coverage” means
 

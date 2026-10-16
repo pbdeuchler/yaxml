@@ -70,10 +70,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   fresh element append with initial ordered attributes/declarations, typed
   diagnostics and persistent quotas. The [validation](validation-owned-create.md)
   records independent tests, failpoints, the pinned oracle, source-complete fuzz
-  coverage and Rust performance baselines. Fuzz-only coverage is now
-  6,484/7,260 regions and 839/970 branch outcomes; construction error-path
-  generation and the 100% target remain open. Existing-element attribute
+  coverage and Rust performance baselines. Existing-element attribute
   insertion/removal still needs an accepted membership design.
+- [x] Extend independent construction validation, namespace and resource-limit
+  catalogs; fix actual replay dispatch for sparse selectors; check complete
+  topology against returned handles. [Fresh fuzz evidence](validation-construction-fuzz-gaps.md)
+  reaches 6,810/7,260 regions and 918/970 branch outcomes. Remaining allocation,
+  overflow and defensive paths stay in the denominator; 100% remains open.
 - [ ] Add general element/attribute and sibling insertion, detach/move/copy,
   cross-document import/adoption, namespace repair, reclamation/compaction and
   any slot-reuse policy with explicit cycle, ownership and text-merging contracts.

@@ -151,8 +151,27 @@ and a 512-to-4,336-byte inherited prefix, including exact `NameBytes` failure
 and successful retry. The latter forces scratch growth with a small child spec.
 Private reservation failpoints remain ordinary-test evidence; fuzz-only profiles
 keep allocation and other unexecuted errors in their coverage denominator.
-The [construction validation](../docs/validation-owned-create.md) records the
-source-complete measurements and remaining gaps.
+Three child catalogs extend these checks. `construction_validation.rs` has 42
+literal invalid/control pairs, each exercised through create and append. Bytes
+four and five select a family and variant; byte six selects create or append.
+`construction_namespaces.rs` uses byte six modulo 27 for namespace cases and
+byte seven for parsed-parent encoding. Its ordinary tests enumerate every
+append case in UTF-8 and both UTF-16 orders. `construction_limits.rs` uses bytes
+eight and nine for hand-counted namespace-work, name/item, depth, persistent
+quota, component-byte and aggregate-byte boundaries, including first-error
+precedence. Missing control bytes are zero. These are bounded independent
+examples, not complete namespace or quota state-space exploration.
+
+`construction-controls.bin` supplies independent selector bytes. The format seed
+starts with `0x2a`; the four-byte long-prefix seed is `[0x2b, 0xff, 2, 3]`, forcing
+the 4,336-byte prefix with a UTF-16BE parent. All three run through actual replay
+dispatch and the ordinary corpus mutation schedules. A test-only counter checks
+that empty, malformed, sparse-selector and encoded inputs enter construction
+exactly once before grammar/encoding returns.
+
+The [original construction validation](../docs/validation-owned-create.md) and
+[current fuzz-gap evidence](../docs/validation-construction-fuzz-gaps.md) record
+separate source-complete measurements and remaining gaps.
 
 ## Owned mutation operations
 

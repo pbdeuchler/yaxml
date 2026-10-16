@@ -82,6 +82,11 @@ The oracle fault logs are
 
 ## Source-complete fuzz evidence
 
+The measurements below describe the original construction milestone.
+[Subsequent construction fuzz-gap work](validation-construction-fuzz-gaps.md)
+records a fresh harness, coverage report and campaign over identical production
+source. Profiles from the two milestones are not combined.
+
 Fresh fuzz-only coverage at `02cb2a5` used nightly `2026-06-06`, rustc
 1.98.0-nightly (`8954863c8`), matching LLVM **22.1.6** tools, debug optimization,
 default features and `-C instrument-coverage -Z coverage-options=branch` on
