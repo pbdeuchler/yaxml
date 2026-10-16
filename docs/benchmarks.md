@@ -4,6 +4,50 @@ These runners measure yaxml. They do not establish a libxml2 performance win.
 Build release binaries before recording runs; debug execution under
 `cargo test --all-targets` is only a functional smoke check.
 
+## Matched DOM and streaming parsing
+
+The `parse_bench` example and external `tooling/libxml2_parse_bench.c` helper
+implement the [matched parsing contract](plans/matched-parse-baseline.md).
+They measure fresh borrowing/owned DOMs, memory readers, SAX push input and
+buffered pull input with complete logical-value observations. DOM traversal
+has its own clock; streaming observes values during parsing. Both include
+destruction separately. Neither includes process startup or fixture loading.
+
+Compile the C helper against the [pinned oracle](oracle.md), then build both
+Rust examples with `cargo build --release --example parse_bench --example
+parse_benchmark`. Invoke the driver with prebuilt executable paths:
+
+```sh
+target/release/examples/parse_benchmark \
+  --libxml2-helper /path/to/libxml2-parse-bench \
+  --yaxml-helper "$PWD/target/release/examples/parse_bench" \
+  --fixture namespaces --mode push --iterations 20 --samples 7 --chunk-size 8192
+```
+
+Fixtures are `tiny`, `flat`, `text`, `attributes`, `namespaces`, `normalized`,
+`unicode`, `deep` and `mixed`. Select `--input PATH` instead of `--fixture` for
+external UTF-8, XML 1.0, DTD-free bytes. Modes are `dom`, `owned`, `reader`,
+`push` and `buffered`; `owned` compares to the reference DOM. The driver checks
+engine/version identity, requested work, six semantic counters and the digest
+against both the pair and preflight before publishing a retained pair. It
+alternates order and fails on diagnostics, invalid rows, incomplete work,
+observation drift or input changes. The literal transcript test separately
+anchors counters and digest; differential agreement alone is insufficient.
+
+The reference DOM owns strings where the borrowing DOM can retain input slices.
+`xmlReaderForMemory` copies the supplied input, while Rust's slice reader
+borrows it. Buffered input caps each C read callback at the chosen chunk size;
+the Rust caller uses that capacity for its `BufReader`. Their internal buffering
+and event fragmentation differ. Finite default parser policies also differ.
+These are explicit lifecycle comparisons for inputs accepted by both sides.
+
+The handshake deliberately permits debug helpers for functional testing. Before
+publishing performance, use an immutable release checkpoint and record exact
+source/binary/input hashes, build flags, reference build and host. Confirm
+identities again after all samples. A successful protocol exchange alone is
+neither optimized-build evidence nor a performance result. Broader size/chunk
+series, failure costs, latency, allocations and memory remain required.
+
 `cargo bench --bench parse` retains the pre-pull DOM parse/destruction, owned
 parse/destruction, slice events and 8 KiB push workloads. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and

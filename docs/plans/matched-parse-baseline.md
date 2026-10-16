@@ -76,8 +76,9 @@ order in fresh processes; each must match both the other implementation and
 the preflight observation before publication. A later failure leaves a nonzero
 command result even if earlier successful pairs were printed.
 
-The existing subprocess runner bounds each child to 60 seconds and combined
-output to 4 KiB. It trusts the caller-selected executable. These are not OS
+The existing subprocess runner bounds each child to 60 seconds by default and
+combined output to 4 KiB. `--timeout-ms` can reduce the deadline to 1–60,000 ms.
+It trusts the caller-selected executable. These are not OS
 memory/disk quotas, filesystem deadlines or a hostile-filesystem sandbox.
 
 The versioned corpus generator includes tiny, flat, long-text, attribute-heavy,
@@ -87,6 +88,14 @@ sample order, iterations and every raw row. Report medians and spread for every
 case and mode. Byte/chunk size series, latency, allocations, retained and peak
 memory, malformed inputs, other encodings and unsupported features remain
 separate required gates. No average may conceal an individual regression.
+
+The version handshake verifies protocol, engine and reference-version
+compatibility. It intentionally permits debug helpers for functional tests;
+it does not establish optimization or source identity. Retained performance
+evidence requires a frozen outer recipe that verifies committed source blobs,
+records the complete release build commands and compiler/reference settings,
+and compares source and binary hashes before and after the entire run. A
+mismatch invalidates publication of that run.
 
 Acceptance requires actual-command happy and error tests, independent C/Rust
 observations across chunk sizes, restored-fault tests of schema/comparison/exit
