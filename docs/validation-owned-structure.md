@@ -98,7 +98,11 @@ the dependency tree and production source manifest are
 Both runs use default features, debug optimization and
 `-C instrument-coverage -Z coverage-options=branch` on nightly `2026-06-06`:
 rustc 1.98.0-nightly (`8954863c8`, dated 2026-06-05), LLVM 22.1.6,
-`aarch64-apple-darwin`. Apple LLVM 21.0.0 reports the profiles. Summaries exclude
+`aarch64-apple-darwin`. Initial reporting used Apple LLVM 21.0.0. After installing
+the pinned toolchain's matching LLVM 22.1.6 tools, both sets of raw profiles were
+remerged and reported with zero diagnostics and byte-identical summary tables.
+The raw directories retain `merged-llvm22.profdata`, `library-report-llvm22.txt`,
+`reporter-llvm22.txt` and empty `diagnostics-llvm22.txt` files. Summaries exclude
 dependency/toolchain, test, fuzz, example and benchmark source; no production
 source is excluded. Denominators differ because ordinary tests compile the
 private test seams and additional monomorphizations.
