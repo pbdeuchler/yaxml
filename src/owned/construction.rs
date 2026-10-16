@@ -902,7 +902,6 @@ fn make_declaration(
     uri: &str,
     scratch_limit: usize,
 ) -> Result<StagedAttribute, EditError> {
-    let local = prefix.unwrap_or("xmlns");
     let required = (if prefix.is_some() { 6usize } else { 5usize })
         .checked_add(prefix.map_or(0, str::len))
         .and_then(|bytes| bytes.checked_add(XMLNS.len()))
@@ -918,7 +917,11 @@ fn make_declaration(
     }
     let qualified = start..scratch.len();
     let prefix_length = prefix.and_then(|_| NonZeroUsize::new(5));
-    let local = put_string(scratch, local);
+    let local = if prefix.is_some() {
+        start + 6..qualified.end
+    } else {
+        qualified.clone()
+    };
     let namespace = Some(put_string(scratch, XMLNS));
     let value = put_string(scratch, uri);
     Ok(StagedAttribute {
@@ -1959,6 +1962,29 @@ mod tests {
     }
 
     #[test]
+    fn declaration_name_local_is_a_range_without_extra_scratch_bytes() {
+        for (prefix, uri, qualified, local) in [
+            (None, "urn:default", "xmlns", "xmlns"),
+            (Some("p"), "urn:prefixed", "xmlns:p", "p"),
+        ] {
+            let required = (if prefix.is_some() { 6 } else { 5 })
+                + prefix.map_or(0, str::len)
+                + XMLNS.len()
+                + uri.len();
+            let mut scratch = String::new();
+            let staged = make_declaration(&mut scratch, prefix, uri, required).unwrap();
+            assert_eq!(scratch.len(), required);
+            assert_eq!(&scratch[staged.name.qualified], qualified);
+            assert_eq!(&scratch[staged.name.local], local);
+            assert_eq!(
+                staged.name.namespace.map(|range| &scratch[range]),
+                Some(XMLNS)
+            );
+            assert_eq!(&scratch[staged.value], uri);
+        }
+    }
+
+    #[test]
     fn append_reservation_failures_leave_no_published_element_or_items() {
         let value = "v".repeat(256);
         let item = ElementItem::Attribute(AttributeSpec {
@@ -2116,6 +2142,29 @@ mod tests {
                 error.location,
                 Some(EditLocation::ElementName {
                     component: EditComponent::Prefix,
+                    byte_offset: None,
+                })
+            );
+        }
+
+        for namespace in [None, Some("urn:wrong")] {
+            let error = OwnedDocument::create(
+                ElementSpec {
+                    name: NameSpec {
+                        local: "root",
+                        namespace,
+                        prefix: PrefixPolicy::Exact(Some("xml")),
+                    },
+                    items: &[],
+                },
+                EditLimits::default(),
+            )
+            .unwrap_err();
+            assert_eq!(error.kind, EditErrorKind::Namespace);
+            assert_eq!(
+                error.location,
+                Some(EditLocation::ElementName {
+                    component: EditComponent::NamespaceUri,
                     byte_offset: None,
                 })
             );
