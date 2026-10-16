@@ -72,9 +72,9 @@ Both runs use default features, debug optimization and
 `-C instrument-coverage -Z coverage-options=branch`, with nightly `2026-06-06`:
 rustc 1.98.0-nightly (`8954863c8`, dated 2026-06-05), LLVM 22.1.6,
 `aarch64-apple-darwin`. The reporter is Apple LLVM 21.0.0. Reports exclude
-dependency/toolchain/test/fuzz/example/benchmark sources and no production
-source. Build-specific denominators are reported separately rather than
-combined or treated as identical.
+dependency, toolchain, test, fuzz, example, and benchmark sources; no production
+sources are excluded. Build-specific denominators are reported separately
+rather than combined or treated as identical.
 
 | Run | Regions | Functions | Lines | Instrumented branch outcomes |
 | --- | --- | --- | --- | --- |
@@ -92,8 +92,14 @@ Checked-in summaries: [fuzz coverage](validation/fuzz-coverage-688c3cf.txt) and
 `/private/tmp/yaxml-coverage-mutation-tests-688c3cf` retain compiler/reporter
 versions, production revision and SHA-256 source manifests, profiles and exports.
 
-**PENDING: independent holistic review verdict, caught mutation list and report
-link.** No final review pass or 100% execution claim is made here.
+The [independent holistic review](review-owned-mutation.md) records a **PASS**
+with zero findings. All 15 deliberate fault shapes were caught, including
+blanket rejection, persistent-accounting errors, premature publication,
+foreign/wrong targets, UTF-8 offset errors, metadata/order loss, empty CDATA
+loss, invalid delimiters and recursive traversal. The reviewer restored source
+tree object `610b44ca7ae9c3c52aaffd2e4fb3311c0614b97b`, exactly matching
+`8a89d29:src`. Final restored integration verification after this review commit
+remains pending; no 100% execution claim is made here.
 
 ## Benchmark evidence
 
