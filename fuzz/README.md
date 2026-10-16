@@ -355,6 +355,7 @@ The runner and its campaign tests currently support Unix only: commit
 publication relies on rename-over-existing-file behavior, output roots use
 Unix mode `0700`, and the process-helper test invokes `/bin/sh`. Windows
 campaign runs are unsupported.
+See the [latest campaign results and retained artifact paths](../docs/validation-fuzz-campaign.md).
 
 The report gives all four LLVM denominators and raw covered/gap counts.
 Regions, functions, and instrumented branch outcomes drive novelty; line counts
