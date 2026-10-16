@@ -191,24 +191,30 @@ out-of-range slots but does not detect foreign documents. Owned trees use
 `OwnedNodeId` with a private non-recycled document identity and slot, rejecting
 foreign handles and preserving identity when a document moves. Parsed owned
 source ranges are optional persistent provenance, independent of later logical
-content. Structural mutation will need an explicit deletion/reuse policy:
-deletion must not make an old handle identify another node. Neither type
-promises stable C addresses or replaces a future binding registry.
+content. Removed owned slots are permanent tombstones and are never reused, so
+an old handle cannot identify a new node. Neither type promises stable C
+addresses or replaces a future binding registry.
 
-The first mutation slice replaces existing leaf and ordinary-attribute values
-through an exclusive `Editor`. It validates before append and publishes one
-range after storage succeeds. Original source locations remain provenance;
-they do not describe rewritten bytes. Editing has a separate cumulative
-capacity counter that persists across editor sessions, with parsed storage as
-the baseline. No topology, name, namespace declaration or declaration can change.
-See the [owned contract](owned-dom.md) for lexical and error rules.
+The first mutation slices replace existing leaf and ordinary-attribute values,
+append fresh Text/CDATA/comment/PI leaves and permanently remove non-root
+subtrees through an exclusive `Editor`. They validate before reservation and
+publish only after every fallible step succeeds. Original source locations
+remain provenance; they do not describe rewritten bytes. Editing has cumulative
+capacity and created-slot counters that persist across editor sessions, with
+parsed storage as the baseline and no refunds on removal.
 
-Structural mutation needs its own representation change: current owned
-preorder/subtree iteration assumes contiguous slots. Future operations must
-preserve acyclicity, one parent per attached node, namespace well-formedness,
-ordering and stale-handle rejection. Detach/import/adopt require explicit
-ownership rules. No interior mutability or generic mutation framework is added
-for this value-only slice.
+Owned records carry reciprocal parent/child/sibling links and cached live
+subtree sizes. Parsed and value-only documents keep contiguous-preorder
+traversal; the first structural success switches permanently to linked traversal.
+Removal clears each record to a tombstone iteratively while retaining its slot
+identity. The pool and attribute arena remain append-only, so removal is logical
+deletion rather than memory reclamation or secret-data erasure. General element
+and attribute construction, sibling insertion, detach/move/copy, cross-document
+import/adoption, namespace repair, compaction and slot reuse remain future
+contracts. Those operations must preserve acyclicity, single ownership,
+namespace well-formedness and stale-handle rejection. See the
+[owned contract](owned-dom.md) for the implemented lexical, placement, quota and
+error-order rules.
 
 ## Allocator strategy
 

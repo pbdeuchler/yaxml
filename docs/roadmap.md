@@ -50,8 +50,12 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add checked owned-document handles and bounded atomic leaf/existing
   ordinary-attribute value edits, with persistent provenance, cumulative edit
   capacity accounting and an independent operation model.
-- [ ] Add structural owned-tree mutation with explicit deletion/reuse,
-  cross-document ownership, namespace and text-merging contracts.
+- [x] Add fresh owned leaf insertion and permanent subtree removal with stable
+  checked handles, persistent edit quotas, iterative deletion and an independent
+  operation model. Slots and retained string storage are not reclaimed or reused.
+- [ ] Add general element/attribute and sibling insertion, detach/move/copy,
+  cross-document import/adoption, namespace repair, reclamation/compaction and
+  any slot-reuse policy with explicit cycle, ownership and text-merging contracts.
 - [x] Add incremental UTF-16LE/BE input to push parsing and owned trees, with declaration agreement, raw/decoded ceilings and original byte spans; UTF-16 output remains pending.
 - [x] Add bounded buffered pull input with lending events, exact source consumption,
   terminal I/O contracts, retained-state size series, and time-to-first-event
