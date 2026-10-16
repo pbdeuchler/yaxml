@@ -2,7 +2,7 @@
 //! runners preserve the failing input.
 
 use std::collections::HashSet;
-use yaxml::{Document, Error, Limits, NodeKind, Reader};
+use yaxml::{Document, Error, Event, Limits, NodeKind, Reader};
 
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
@@ -20,7 +20,8 @@ pub fn exercise(input: &[u8]) -> Outcome {
         input.len() <= MAX_INPUT_BYTES,
         "fuzz testcase exceeds the driver budget"
     );
-    let outcome = read(input, None);
+    let mut stream = Vec::new();
+    let outcome = read(input, None, |event| stream.push(event));
     let document = Document::parse_bytes(input);
     assert_eq!(
         outcome.error.is_none(),
@@ -32,6 +33,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     }
     if let Ok(document) = &document {
         check_document(document, input.len(), outcome.events);
+        check_projection(document, &stream);
     }
     if let Ok(text) = std::str::from_utf8(input) {
         assert_eq!(document.is_ok(), Document::parse(text).is_ok());
@@ -58,7 +60,8 @@ pub fn exercise(input: &[u8]) -> Outcome {
 
 /// Exercise the explicit policy boundary with the same budget in both APIs.
 pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
-    let outcome = read(input, Some(limits));
+    let mut stream = Vec::new();
+    let outcome = read(input, Some(limits), |event| stream.push(event));
     let document = Document::with_limits(input, limits);
     assert_eq!(
         outcome.error.is_none(),
@@ -66,13 +69,20 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
         "reader/DOM policy acceptance mismatch for {input:?}"
     );
     match document {
-        Ok(document) => check_document(&document, input.len(), outcome.events),
+        Ok(document) => {
+            check_document(&document, input.len(), outcome.events);
+            check_projection(&document, &stream);
+        }
         Err(error) => check_error(error, input.len()),
     }
     outcome
 }
 
-fn read(input: &[u8], limits: Option<Limits>) -> Outcome {
+fn read<'input>(
+    input: &'input [u8],
+    limits: Option<Limits>,
+    mut emit: impl FnMut(Event<'input>),
+) -> Outcome {
     let mut reader = match limits.map_or_else(
         || Reader::new(input),
         |limits| Reader::with_limits(input, limits),
@@ -97,7 +107,7 @@ fn read(input: &[u8], limits: Option<Limits>) -> Outcome {
         );
         previous = position;
         match result {
-            Ok(Some(_)) => {
+            Ok(Some(event)) => {
                 let range = reader.event_range();
                 assert!(range.start <= range.end && range.end <= position);
                 events += 1;
@@ -105,6 +115,7 @@ fn read(input: &[u8], limits: Option<Limits>) -> Outcome {
                     events <= input.len().saturating_mul(2).saturating_add(1),
                     "reader made no bounded progress"
                 );
+                emit(event);
             }
             Ok(None) => {
                 assert!(
@@ -131,6 +142,82 @@ fn read(input: &[u8], limits: Option<Limits>) -> Outcome {
             }
         }
     }
+}
+
+/// Compare the complete logical stream with the DOM, including values and names.
+/// This detects conversion loss even though both APIs share lexical parsing.
+pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
+    let mut nodes = document.nodes().skip(1);
+    let mut parents = Vec::new();
+    let mut declaration = None;
+    for event in stream {
+        match event {
+            Event::Declaration(value) => {
+                assert!(
+                    declaration.replace(value).is_none(),
+                    "duplicate declaration"
+                );
+                continue;
+            }
+            Event::End(name) => {
+                let parent = parents.pop().expect("end event without open element");
+                let node = document.node(parent).unwrap();
+                assert_eq!(node.name(), Some(name), "end name differs from DOM");
+                continue;
+            }
+            _ => {}
+        }
+        let node = nodes.next().expect("DOM lost an event node");
+        let expected_parent = parents.last().copied().unwrap_or(document.root().id());
+        assert_eq!(
+            node.parent().unwrap().id(),
+            expected_parent,
+            "DOM changed event nesting"
+        );
+        match (event, node.kind()) {
+            (Event::Start(expected) | Event::Empty(expected), NodeKind::Element(actual)) => {
+                assert_eq!(
+                    actual, expected,
+                    "element names or attributes differ from stream"
+                );
+                if matches!(event, Event::Start(_)) {
+                    parents.push(node.id());
+                }
+            }
+            (Event::Text(expected), NodeKind::Text(actual))
+            | (Event::Cdata(expected), NodeKind::Cdata(actual))
+            | (Event::Comment(expected), NodeKind::Comment(actual)) => {
+                assert_eq!(actual, expected, "DOM payload differs from stream");
+            }
+            (
+                Event::ProcessingInstruction {
+                    target: expected_target,
+                    data: expected_data,
+                },
+                NodeKind::ProcessingInstruction {
+                    target: actual_target,
+                    data: actual_data,
+                },
+            ) => {
+                assert_eq!(
+                    actual_target, expected_target,
+                    "PI target differs from stream"
+                );
+                assert_eq!(actual_data, expected_data, "PI data differs from stream");
+            }
+            _ => panic!(
+                "DOM node kind differs from stream: {event:?} versus {:?}",
+                node.kind()
+            ),
+        }
+    }
+    assert!(parents.is_empty(), "stream did not close every element");
+    assert!(nodes.next().is_none(), "DOM added nodes absent from stream");
+    assert_eq!(
+        document.declaration(),
+        declaration,
+        "DOM declaration differs from stream"
+    );
 }
 
 fn check_error(error: Error, len: usize) {

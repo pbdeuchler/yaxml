@@ -198,3 +198,39 @@ fn generated_reference_semantics() {
         );
     }
 }
+
+fn stream(input: &[u8]) -> Vec<yaxml::Event<'_>> {
+    let mut reader = yaxml::Reader::new(input).unwrap();
+    let mut events = Vec::new();
+    while let Some(event) = reader.read_event().unwrap() {
+        events.push(event);
+    }
+    events
+}
+
+#[test]
+fn projection_preserves_all_payload_kinds() {
+    let input = b"<?xml version='1.0' standalone='yes'?><!--a--><?pi a?><r xmlns:p='urn:p' p:a='&amp;'>a<![CDATA[b]]><p:c/>c</r><!--z-->";
+    assert!(driver::exercise(input).error.is_none());
+}
+
+#[test]
+#[should_panic(expected = "DOM payload differs from stream")]
+fn projection_detects_changed_payload() {
+    let document = yaxml::Document::parse("<r>right</r>").unwrap();
+    driver::check_projection(&document, &stream(b"<r>wrong</r>"));
+}
+
+#[test]
+#[should_panic(expected = "element names or attributes differ from stream")]
+fn projection_detects_changed_expanded_name() {
+    let document = yaxml::Document::parse("<r xmlns='urn:one'/>").unwrap();
+    driver::check_projection(&document, &stream(b"<r xmlns='urn:two'/>"));
+}
+
+#[test]
+#[should_panic(expected = "element names or attributes differ from stream")]
+fn projection_detects_reordered_attributes() {
+    let document = yaxml::Document::parse("<r a='1' b='2'/>").unwrap();
+    driver::check_projection(&document, &stream(b"<r b='2' a='1'/>"));
+}
