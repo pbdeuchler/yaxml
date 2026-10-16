@@ -59,6 +59,11 @@ survived helper tests. The command regression now exercises that boundary. CI
 compiler/revision/corpus metadata is collected before replay so a failed
 comparison cannot skip those artifacts.
 
+The [independent integration review](review-oracle.md) verified both repairs,
+including repeating the originally surviving mutation and independently removing
+the disagreement failure gate. Both now fail the actual command test. All
+mutations were restored; the reviewed scope has no outstanding findings.
+
 CI is configured to verify GNOME's source-archive checksum and build static
 2.15.4 with recorded CMake features. Workflow YAML and all seven shell steps
 parse locally. Neither this build nor hosted CI has executed here, so a pinned
