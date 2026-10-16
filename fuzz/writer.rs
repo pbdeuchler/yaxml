@@ -190,7 +190,10 @@ fn operations(input: &[u8]) {
         };
         let inconsistent_metadata = match &event {
             Event::Start(element) | Event::Empty(element) => {
+                // This generator cannot supply a coherent XMLNS attribute, so
+                // no successful operation can establish a namespace binding.
                 inconsistent_name_fields(&element.name)
+                    || element.name.namespace.is_some()
                     || element.attributes.iter().any(|attribute| {
                         inconsistent_name_fields(&attribute.name)
                             || (attribute.name.qualified == "xmlns"
@@ -201,7 +204,7 @@ fn operations(input: &[u8]) {
                                 && attribute.name.namespace.is_some())
                     })
             }
-            Event::End(name) => inconsistent_name_fields(name),
+            Event::End(name) => inconsistent_name_fields(name) || name.namespace.is_some(),
             _ => false,
         };
         let previous = writer.position();
