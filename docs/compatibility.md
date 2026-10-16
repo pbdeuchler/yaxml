@@ -2,7 +2,7 @@
 
 This is a work inventory, not a claim of implemented compatibility. The baseline is **libxml2 2.15.4**, released 2026-09-04. Pin a source release, build options, and option combinations for every differential test; libxml2 behavior and available symbols vary by release and configuration. The [official release directory](https://download.gnome.org/sources/libxml2/2.15/) identifies this release. The [tagged headers](https://github.com/GNOME/libxml2/tree/v2.15.4/include/libxml) define the source API.
 
-The adjacent [`libxml2-api.tsv`](libxml2-api.tsv) indexes **4,051 identifiers** across the 46 tagged public header/template files. Four compatibility headers contain no API declarations and have explicit `empty_header` rows. This document groups the required behavior and orders implementation. Nothing below is implicitly out of scope because it is low priority.
+The adjacent [`libxml2-api.tsv`](libxml2-api.tsv) indexes **4,056 identifiers** across the 46 tagged public header/template files. Four compatibility headers contain no API declarations and have explicit `empty_header` rows. This document groups the required behavior and orders implementation. Nothing below is implicitly out of scope because it is low priority.
 
 ## Meaning of replacement
 
@@ -105,64 +105,66 @@ Start with the bounded UTF-8 XML scanner and pull events, then construct the rea
 
 ## API inventory method and limits
 
-The inventory contains 1,404 functions, 18 variables, 86 callback typedefs, 202 other typedefs, 48 enums, 1,288 enum values, 284 macros, 55 named structs, and 666 member paths. It includes deprecated compatibility declarations and declarations hidden behind build options. The `status` column is `unmapped`: listing a C identifier does not claim that a corresponding Rust operation or C symbol is implemented. Priority ranges identify modules spanning several roadmap stages; the feature table determines operation-level order.
+The inventory contains 1,405 functions, 22 variables, 86 callback typedefs, 202 other typedefs, 48 enums, 1,288 enum values, 284 macros, 55 named structs, and 666 member paths. It includes deprecated compatibility declarations and declarations hidden behind build options. The `status` column is `unmapped`: listing a C identifier does not claim that a corresponding Rust operation or C symbol is implemented. Priority ranges identify modules spanning several roadmap stages; the feature table determines operation-level order.
 
-`deprecated_marker=yes` records an adjacent `XML_DEPRECATED` attribute or a member's `XML_DEPRECATED_MEMBER`. `not_marked` does **not** mean supported, recommended or non-deprecated: upstream also describes deprecations in documentation comments. This column is a mechanical hint, not a full lifecycle classification. For example, the parser context's public members include documented deprecations without compiler attributes.
+`deprecated_marker=yes` records an adjacent `XML_DEPRECATED` attribute or a member's `XML_DEPRECATED_MEMBER`. Nested member paths inherit the marker of an enclosing member, such as `_xmlCharEncodingHandler.input`. `not_marked` does **not** mean supported, recommended or non-deprecated: upstream also describes deprecations in documentation comments. This column is a mechanical hint, not a full lifecycle classification. For example, the parser context's public members include documented deprecations without compiler attributes.
 
-This is a lexical source sweep with an audit, not an ABI extractor. It strips C comments, collects `XMLPUBFUN`/`XMLPUBVAR` declarations, callback and simple typedefs, enums and enumerators, named structs and member declarations, and non-underscore `#define` identifiers. It removes preprocessor directives before reading member names and excludes the export macro's `__declspec` expansion. Nested encoding-handler unions use qualified paths such as `_xmlCharEncodingHandler.input.func`; function-pointer members are fields, while named callback typedefs are callbacks. Include guards beginning with underscores are excluded. Internal compatibility macros exposed by public headers remain listed.
+The initial lexical sweep strips C comments, collects `XMLPUBFUN`/`XMLPUBVAR` declarations, callback and simple typedefs, enums and enumerators, named structs and member declarations, and non-underscore `#define` identifiers. It removes preprocessor directives before reading member names and excludes the export macro's `__declspec` expansion. Nested encoding-handler unions use qualified paths such as `_xmlCharEncodingHandler.input.func`; function-pointer members are fields, while named callback typedefs are callbacks. Include guards beginning with underscores are excluded. Internal compatibility macros exposed by public headers remain listed.
 
-The extraction does not preprocess conditional builds, evaluate macro/enum values, duplicate full signatures, encode struct layouts, or establish platform symbol availability. `xmlversion.h.in` is the version/configuration template; a configured `xmlversion.h` must be checked separately for each oracle build. Historical releases and removed APIs absent from these headers need separate compatibility inventories if targeted. Before claiming complete C source or binary compatibility, compare against a C AST and built-library exports for each supported configuration. The tagged headers are authoritative for signatures and these remaining checks.
+A [configured Clang AST and static-symbol audit](validation/libxml2-api-audit-21504.md) corrected five omissions: one single-line function declaration in `xmlexports.h` and four array variables. The catalogue retains both sides of conditional APIs. The audited build exposes 1,367 functions and 22 variables; all 1,389 names are defined with public visibility. Its 119 additional private-external symbols are not public API additions. A controlled header-feature view covers disabled declarations without claiming those implementations are present in the built library.
 
-The canonical identifier checksum is `dbfde559ca150a1505455a98024c16fdfe2955e066de90ff5a225ac636d13cba`. To reproduce it from the TSV, omit `empty_header` rows, render each row as `header<TAB>identifier<TAB>kind<TAB>marker`, where marker is `1` for `yes` and `0` otherwise, sort the complete strings by Unicode code point, join with LF, append one LF, and compute SHA-256 over UTF-8. The result matched both the source extraction in the browser and the independently transferred local rows. This verifies transfer integrity; it does not prove semantic completeness.
+The TSV does not encode configured availability, full signatures, evaluated constants or ABI layouts. `xmlversion.h.in` is the version/configuration template; each build's configured `xmlversion.h` needs separate verification. This audit covers one arm64 macOS static build and controlled header feature flags, not every platform, option combination or shared-library export surface. Historical releases and removed APIs absent from these headers need separate compatibility inventories if targeted. Complete C source or binary compatibility remains unimplemented; the pinned headers are authoritative for signatures.
 
-The source text was read from GitHub's `v2.15.4` file-content view. Twenty headers were also retrieved through the web tool; normalization of blank lines there makes those copies unsuitable as original source-byte checksums. The table below hashes the UTF-8 text of each original file-content view. To rerun the sweep, obtain all 46 files from the pinned tag, check these hashes, apply the extraction rules above, and compare canonical rows. A maintained AST-based generator is a follow-up tooling task.
+The canonical identifier checksum is `0dff01385dba45acbd7d42eff82b6d5d65048e156807c5bdbd4b87024361ae43`. To reproduce it from the TSV, omit `empty_header` rows, render each row as `header<TAB>identifier<TAB>kind<TAB>marker`, where marker is `1` for `yes` and `0` otherwise, sort the complete strings by Unicode code point, join with LF, append one LF, and compute SHA-256 over UTF-8. This verifies row integrity; it does not prove semantic completeness.
+
+The table below now hashes raw release-header bytes from the checksum-pinned `libxml2-2.15.4.tar.xz` archive, SHA-256 `98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821`. It replaces the original browser file-content-view hashes, none of which matched raw release bytes; those view hashes could not verify an extracted source tree. To rerun, verify the archive and these 46 raw files, then perform the configured/header-feature audit. A maintained cross-configuration AST generator remains follow-up tooling work.
 
 ```text
 header sha256
-parser.h b4c2821d32f272b34e01572d3246388fb1be5b9bfe35696bae866a0b56a01c2b
-HTMLparser.h 80a4faa9d65d4f5c6fe0e036ecde300f98fc3fdda92bdea3634e78cfc470304b
-HTMLtree.h 251ca85dc41bdb9d8a00695fd7dc8b27e873739b3091d2b7aed168252f1c07d6
-SAX.h f2a12a855c8c28f3c2cb7f6c671847969077683f9152ba603a1a8714fac6b724
-SAX2.h 056172ae32592c59496b4b2d5f4bd57f93ce2f613de4708a6d67ef232e5be0b8
-c14n.h d4dd43f23d0d99189885c819b019ff4cf9e20013494382278af15498d12495da
-catalog.h d45c54511493eabb52f4da3afc170c071ec828a81fa4844da85a069c72ac752d
-chvalid.h 2af7f1677a53b8e7b58e0b1d2ab6448161a1a83e94954ec7e5e8e2eb985807c2
-debugXML.h b270cafe5e70078844eaf8e24462a90d41beab2ecdb2b8fc769f7bb91e0fbb0c
-dict.h c5db5cf34e45b52836f78f5367e1425c34c0c823463a6cc89fbf33e7134e0d9b
-encoding.h a209d2db9d54b8a633529323b61c88e6f68c260ba71e33507857679997a8b239
-entities.h bd1c6b5698d7db685bb58b6dcf925dcaa2d05b75511d0ccd1d93b742ae4e6d53
-globals.h e9f26df5b564287ef2a4f43ffd4b9a44b91e3c50ed691b8a5c0ee3aa5c7011d4
-hash.h dfd5a891ceebed2991977be45f5201b003c3c747874a5036c162e3c4e15348e6
-list.h f78454a27dddc90554d9f8be0b6cf02f81b1991b4d3281c8bf405c65041b7d9f
-nanoftp.h a8a06436f1eee25321b9577abad5b9d821f66b3031105d37ba9bf60a3744d15e
-nanohttp.h 912bf7293a554119227f8885984dc8b92638dd0728be068ee9879900f968fbc0
-parserInternals.h 4a65dd93449a2c9034d3cc863f470170d29526500798a96cd6e91d0839d79b10
-pattern.h cc7f600ed465679661f252fa761e525ee51620f1550abe8b3b960cb8d8ac7c27
-relaxng.h ca487d06f72956d413a6bc3592639282704ebada603b5245d7b81551f7cc6d62
-schemasInternals.h 50a37b6a5c70dff7221d7720b065522617e0cfe27ebd039faea7c9f9522cabaf
-schematron.h 08c4992667b80585c879d90e69396f557e2d42571d20ff1b48133ea96d7f622c
-threads.h f3e1f354437176cc64419d876d73824057fff3e0f98fee1f96e6217c4f28140c
-tree.h 19ad178432433576ff2896ae93d65b1f3bba6820866936d91c51183019982721
-uri.h 7f24c6bed123101d20da9efdc515cdf02768bc56b85b6ad3f10c83d834014fe4
-valid.h 3890145eebc9eca52e4397e5c900e3e6932e3923ae872f8bec6c572f1ed3aeeb
-xinclude.h be8634ee5267f6d20e449016fc54983c508f5268fd206f4e00f0091fa7e61946
-xlink.h 3e1a5d534f0233f1d6456f45fc2e58f69a42ed4a724c581de6132153fe3f0204
-xmlIO.h b585b16d015b8b4522ae5877c3ea24552aa37de7aa3c2d03d2712bab489cdcff
-xmlautomata.h 234bdfb083f89f35938e79165930488a1b9eab517dfc302915b10d63c4f80556
-xmlerror.h 8018f2f22b7d6d5309b14c755d61411f485d4cb961ad67a6ba0da64c9a71897f
-xmlexports.h 68d4ff841221cc4d4299e19861d5163353b8a31898cd492953ff3c3d4b7a05dc
-xmlmemory.h 7b545ef68b0b72ec94514e30baee8471783c328038e0ba279c6659587e09a6bd
-xmlmodule.h d82f9204edbff8ff480609506fff2b7f888f0da98afacf96b2a7d860899d16b4
-xmlreader.h dd34c0024a04da2af487918bd975489b3b816219758d128fda7f605ebd737f63
-xmlregexp.h cf90aa97a1a87bc47c6575e01cd471db71f56812f2748d76c58e0c41df2535b3
-xmlsave.h 09918bf7814dfc0ae0139a587c192551e7f5873f885935028f116a498c114bcc
-xmlschemas.h 4977f45a01c13f30fd8a1edbb02bd9766aee6f493f832ee3a116b65b24a4a82a
-xmlschemastypes.h 874e1377756ba07d1a8eac17e799cf59a3b5a9e0c27841db5bf7e2f4033b402f
-xmlstring.h 90cb949305050fd0420d35594f1279a3349c3983b3e2a5aafc2794e1abf68c88
-xmlunicode.h 9dc186b7f058fdd31bed2c3c923ad4980568e82f3b7d2903de3bc83e1e3d18ce
-xmlversion.h.in 54ece9fdea9c0d7ae1af87aca6f7baff9abc848d4e6f661962a93de40b87f39c
-xmlwriter.h 367e95d332e6617a6310bf28fc1941696a9330907600ada62303fdd954819a1c
-xpath.h 1561ad68d4b85385eaaacb9a2f86ff024bf5b069f2e17943708d7d230d351202
-xpathInternals.h ff33ac48412396540cc48984e19468b2f0e8d9c743e012f0f9cdf2e140e80556
-xpointer.h 1d10e2a9a253b6d9188f56c3fa7e1830aa9b6e242075da8c6799f09206c4a433
+parser.h 3062aaa97d435de0afc34630162c0b3c8a994e76854a92a0e3a217b6297545e2
+HTMLparser.h c4f81e8cbd194fbd4c121db47ff0eadf4b3efa9d0c780300787fb0e08372ffa4
+HTMLtree.h d2280b971a031a5ed2f7f8ecff4906a9df6c3f35cb40c588eb05d60e24d8fdcb
+SAX.h 777fc2057fd2a39a6ca7648ee5f148014a65643e750cc5a2fe2e2fc3b4a0ff79
+SAX2.h d3228dc9e18dec65660f7ff43eb5af2cb7a9e6dad00369f76f058300c0cb1b37
+c14n.h c9adaf74b4d5c0f5e23e06deb9194e7d595142914a8c36f5e725010a37e6a7c6
+catalog.h 8418816149bed7463eb13fd6d260354a91f1819d2180685dc8d285181932b9c5
+chvalid.h 00acfc327dc00dfb2dd640ab4e1156effd8f5fb8311f0c20d2707440456dc7ce
+debugXML.h 1380bb85a7dccdbfebb1cc9ba9921873e6be11cbd4b0813824754feaa5aa5820
+dict.h 12302fd488f2b735c791f2b1d9fa5b2008dd5e40f94da12e56da0aebea6e1321
+encoding.h 0eabe928a57824d52b95daba1ee3e663f004d8622800f8c1f40177ea15a8a74c
+entities.h ff61a6eedb81b52ad7e6bd5c005a705c871587c68314d94f7a3511f4afff8739
+globals.h 4e4a9866916b928b201d0ff4a544d90098c6b639da50ca25cc9c7ce395c26349
+hash.h ee8ba2adce87d740581d6763e783828b622ea8da93a5e9ac4ff36436f607bc75
+list.h ba1174b44be729cde0eb443180968def8a2879db54199af670e965d331648912
+nanoftp.h b902e60279e35a4818cf1834a04e654a9cf51b5136f785e89179047304cc52ef
+nanohttp.h 8000d0196f6e6defd5e2468118cf3b534b15da7818b7db18167259ed857d4b7e
+parserInternals.h 543da365c6c72699926ff11c0f4afa6c1990f028d7b8fcaaa30de2f284ae0718
+pattern.h 169dca568e076cba001c9a445b22fb73ffa64c9699fd785abcfaf31a8e22337a
+relaxng.h 7d46056b24c572f8a656637cb287fe462e880c7a1fbcd32d5ca7e618f838564c
+schemasInternals.h e05a6496f4ca8e5017a94812b25bba7856110d7d85d91590ed50780ea6d98cdf
+schematron.h a3d96d68d801f984b0eaab68d2b193b571ec3b27ba50bbc1c66d3f4dca187f0e
+threads.h 8cee9610d9e3ec2146af6a074a2c6161bd87629e55ab231e61c0fbd8686142d2
+tree.h 29bb46867633b5da9ac289f72f8667863a14b7105843f8fa2b16df21b26d0496
+uri.h f761d9ac289b051ec7bbc73ae723468fa80f96461dc664fe5781bc009a92ac90
+valid.h e51b4ca60f3f7921b3be0e78fe750f202b9d0a47fafc0750a806d665239f1fb9
+xinclude.h 54df174ccb9f272aa5483b9c18c83153ca6bbea93e706453240ad09381fad037
+xlink.h 6b0495de5f706d571995cde9e41ae6673d906a53899f7cae2061108ddad00d39
+xmlIO.h e623b00dcabbf5c559567fcea561cc97f03b9fb3c8642d9edcaf70ade988385d
+xmlautomata.h 41eeba10a1dc5f727694618a5513ffef4b1dcb0c27169d91b264e54eedad7d08
+xmlerror.h ff6fb62996e5478f08ef99258c4f49b1a0830f93565ff3a92f47a316f792202f
+xmlexports.h 36f6cc28976fed8b6c8587fd521f14ee1f4b96615f10e9b7c35c76ef2876e525
+xmlmemory.h b8a8addf9376aa9bee7d3f5b6f8b58d2af4c2c284921bd418da5b27b70fe1085
+xmlmodule.h ed0d48e89b3f1aac1618d4f74e87ee64bde0a8b4c7057fa56a03b56703af67cb
+xmlreader.h 11fd34156675d65c73bfa83c69c8dda3d87a56553df92a5ab713bd95ab525c16
+xmlregexp.h 7df116616ee4319f0654ce00b467bc165dbaf38ed318b1193d4a474a73ee1298
+xmlsave.h fb99635f075e4d1c2fe858b16ef0d8853839c5df971f5dec54dcb29b872ccbbe
+xmlschemas.h 0e4eeabaa87ede8e7deb65e25078bfd0caa1ddfe5c7c9a98a043f2b870fa10fd
+xmlschemastypes.h 9c9b26c8badbcbf12e580ad301bc261051a4b861a9cf5801b79585b218886622
+xmlstring.h 479db08576ff1a61dee723ca0285893e19d806a23c1c287f75be5242f22e8aaa
+xmlunicode.h 8a5b06d87968144cdb77908a4d6c3f8b04012a26f0cf64b186869d240a696f7e
+xmlversion.h.in d04e84d0b26bded0e033d17758ba7bcadbfe13721eeb2c94e5cbd9f1c8ad2ec7
+xmlwriter.h 9cf89ac9e8485869db835ed25643fe58a0dbb7ee30f9191d6c400ffd7c1405d9
+xpath.h 5f6392d4a0fa7fe97407738baf692a99be31218cb786cc2225d28ea66c413f9c
+xpathInternals.h 4daa466e29c75e91e70556911278542c65ac3168c7ce0287ccb566bf0ce58807
+xpointer.h f39e26a9380e0035c3f1c26f0a5ae2bc84ec7d1f2a172af809541c74eb1697b6
 ```

@@ -61,9 +61,11 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   terminal I/O contracts, retained-state size series, and time-to-first-event
   benchmarks. Matched libxml2 performance remains pending.
 
-The reference release is pinned and 4,051 header identifiers are indexed. A built
-2.15.4 oracle, configured export verification, and per-operation Rust mappings are
-still needed to close the first item. The crate has no C ABI exports.
+The reference release is pinned and 4,056 header identifiers are indexed. The
+[configured inventory audit](validation/libxml2-api-audit-21504.md) checks the
+built 2.15.4 static oracle's public declarations and symbol visibility. Other
+platform/configuration and shared-library checks, plus per-operation Rust
+mappings, remain open. The crate has no C ABI exports.
 
 Later rows receive their own detailed burndown when their dependencies are understood. Avoid building a generic engine for schemas, XPath, and HTML before implementing their actual semantics.
 

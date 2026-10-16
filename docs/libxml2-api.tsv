@@ -264,6 +264,7 @@ chvalid.h	xmlIsIdeographicQ	macro	not_marked	P0	unmapped	https://github.com/GNOM
 chvalid.h	xmlIsPubidChar	function	yes	P0	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h
 chvalid.h	xmlIsPubidCharQ	macro	not_marked	P0	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h
 chvalid.h	xmlIsPubidChar_ch	macro	not_marked	P0	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h
+chvalid.h	xmlIsPubidChar_tab	variable	not_marked	P0	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h
 debugXML.h	xmlDebugCheckDocument	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h
 debugXML.h	xmlDebugDumpAttr	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h
 debugXML.h	xmlDebugDumpAttrList	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h
@@ -1107,9 +1108,12 @@ parserInternals.h	xmlPopInput	function	yes	P3	unmapped	https://github.com/GNOME/
 parserInternals.h	xmlPushInput	function	yes	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlSkipBlankChars	function	yes	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlSplitQName	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
+parserInternals.h	xmlStringComment	variable	yes	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlStringCurrentChar	function	yes	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlStringDecodeEntities	function	yes	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlStringLenDecodeEntities	function	yes	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
+parserInternals.h	xmlStringText	variable	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
+parserInternals.h	xmlStringTextNoenc	variable	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlSwitchEncoding	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlSwitchEncodingName	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
 parserInternals.h	xmlSwitchInputEncoding	function	yes	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h
@@ -3224,6 +3228,7 @@ xmlexports.h	XMLPUBFUN	macro	not_marked	P3	unmapped	https://github.com/GNOME/lib
 xmlexports.h	XMLPUBVAR	macro	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlexports.h
 xmlexports.h	XML_DEPRECATED	macro	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlexports.h
 xmlexports.h	XML_DEPRECATED_MEMBER	macro	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlexports.h
+xmlexports.h	xmlCheckVersion	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlexports.h
 xmlmemory.h	__xmlFree	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlmemory.h
 xmlmemory.h	__xmlMalloc	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlmemory.h
 xmlmemory.h	__xmlMallocAtomic	function	not_marked	P3	unmapped	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlmemory.h
