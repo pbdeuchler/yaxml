@@ -87,12 +87,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo run --release --example fuzz_replay -- \
-            --libxml2 "$PWD/target/oracle/build/xmllint" fuzz/corpus/* \
-            2>&1 | tee target/oracle/comparison.txt
           rustc -vV > target/oracle/compiler.txt
           git rev-parse HEAD > target/oracle/revision.txt
           sha256sum fuzz/corpus/* > target/oracle/corpus-sha256.txt
+          cargo run --release --example fuzz_replay -- \
+            --libxml2 "$PWD/target/oracle/build/xmllint" fuzz/corpus/* \
+            2>&1 | tee target/oracle/comparison.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
