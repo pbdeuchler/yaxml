@@ -194,9 +194,11 @@ fn generated_tree_preorder_and_parent_invariants() {
             assert_eq!(nodes.len(), 1 + depth + width);
             for (index, node) in nodes.iter().copied().enumerate().skip(1) {
                 let parent = node.parent().unwrap();
-                assert!(nodes[..index]
-                    .iter()
-                    .any(|candidate| candidate.id() == parent.id()));
+                assert!(
+                    nodes[..index]
+                        .iter()
+                        .any(|candidate| candidate.id() == parent.id())
+                );
                 assert_eq!(
                     parent
                         .children()
@@ -204,9 +206,11 @@ fn generated_tree_preorder_and_parent_invariants() {
                         .count(),
                     1
                 );
-                assert!(parent
-                    .descendants()
-                    .any(|descendant| descendant.id() == node.id()));
+                assert!(
+                    parent
+                        .descendants()
+                        .any(|descendant| descendant.id() == node.id())
+                );
                 let range = node.range();
                 assert!(range.start < range.end && range.end <= input.len());
             }

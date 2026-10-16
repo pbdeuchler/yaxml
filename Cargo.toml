@@ -11,8 +11,6 @@ memchr = "2.8.0"
 
 [features]
 default = []
-# std allocator_api is still gated on the locally available compilers.
-allocator-api = []
 
 [[bench]]
 name = "parse"

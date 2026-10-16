@@ -8,6 +8,7 @@ pub enum Limit {
     Depth,
     Attributes,
     Events,
+    OwnedBytes,
 }
 
 /// Structured failure categories; offsets are zero-based input byte offsets.
