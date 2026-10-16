@@ -3,7 +3,6 @@ use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::dom::{Record, append_record};
 use crate::parser::Budget;
 use crate::{Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader};
 use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
@@ -53,6 +52,14 @@ pub enum OwnedNodeKind {
 
 #[derive(Debug)]
 enum Content {
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "Permanent removal is added in the next plan phase"
+        )
+    )]
+    Removed,
     Document,
     Element {
         name: StoredName,
@@ -65,6 +72,50 @@ enum Content {
         target: Range<usize>,
         data: Range<usize>,
     },
+}
+
+// usize::MAX is never a published slot. Keeping the sentinel private saves one
+// word per link compared with Option<NodeId>, without narrowing public IDs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Link(usize);
+
+impl Link {
+    const NONE: Self = Self(usize::MAX);
+
+    fn new(id: NodeId) -> Option<Self> {
+        (id.0 != usize::MAX).then_some(Self(id.0))
+    }
+
+    fn get(self) -> Option<NodeId> {
+        (self != Self::NONE).then_some(NodeId(self.0))
+    }
+}
+
+#[derive(Debug)]
+struct OwnedRecord {
+    content: Content,
+    source: Option<Range<usize>>,
+    parent: Link,
+    first_child: Link,
+    last_child: Link,
+    previous_sibling: Link,
+    next_sibling: Link,
+    subtree_size: usize,
+}
+
+impl OwnedRecord {
+    fn root(source_length: usize) -> Self {
+        Self {
+            content: Content::Document,
+            source: Some(0..source_length),
+            parent: Link::NONE,
+            first_child: Link::NONE,
+            last_child: Link::NONE,
+            previous_sibling: Link::NONE,
+            next_sibling: Link::NONE,
+            subtree_size: 1,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -221,12 +272,15 @@ impl Pool {
 #[derive(Debug)]
 pub struct OwnedDocument {
     identity: NonZeroUsize,
-    nodes: Vec<Record<Content>>,
+    nodes: Vec<OwnedRecord>,
     attributes: Vec<StoredAttribute>,
     pool: Pool,
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
     edit_owned_bytes: usize,
+    // Parsing produces contiguous preorder. A future structural edit clears
+    // this permanently; value-only edits leave the fast path valid.
+    slots_are_preorder: bool,
 }
 
 impl OwnedDocument {
@@ -295,7 +349,8 @@ impl OwnedDocument {
         if id.document != self.identity {
             return None;
         }
-        self.nodes.get(id.slot.0).map(|_| OwnedNode {
+        let record = self.nodes.get(id.slot.0)?;
+        (!matches!(record.content, Content::Removed)).then_some(OwnedNode {
             document: self,
             id: id.slot,
         })
@@ -381,7 +436,13 @@ impl Editor<'_> {
     }
 
     fn resolve(&self, node: OwnedNodeId) -> Result<usize, EditError> {
-        if node.document != self.document.identity || node.slot.0 >= self.document.nodes.len() {
+        if node.document != self.document.identity
+            || self
+                .document
+                .nodes
+                .get(node.slot.0)
+                .is_none_or(|record| matches!(record.content, Content::Removed))
+        {
             return Err(EditError::new(EditErrorKind::InvalidHandle, None));
         }
         Ok(node.slot.0)
@@ -392,12 +453,12 @@ impl Editor<'_> {
     /// Comments also reject a trailing dash; PI data rejects leading XML space.
     pub fn set_node_value(&mut self, node: OwnedNodeId, value: &str) -> Result<(), EditError> {
         let index = self.resolve(node)?;
-        let (target, kind) = match &mut self.document.nodes[index].kind {
+        let (target, kind) = match &mut self.document.nodes[index].content {
             Content::Text(range) => (range, ValueKind::Text),
             Content::Cdata(range) => (range, ValueKind::Cdata),
             Content::Comment(range) => (range, ValueKind::Comment),
             Content::ProcessingInstruction { data, .. } => (data, ValueKind::Pi),
-            Content::Document | Content::Element { .. } => {
+            Content::Removed | Content::Document | Content::Element { .. } => {
                 return Err(EditError::new(EditErrorKind::WrongNodeKind, None));
             }
         };
@@ -422,7 +483,7 @@ impl Editor<'_> {
         value: &str,
     ) -> Result<(), EditError> {
         let index = self.resolve(element)?;
-        let attributes = match &self.document.nodes[index].kind {
+        let attributes = match &self.document.nodes[index].content {
             Content::Element { attributes, .. } => attributes,
             _ => return Err(EditError::new(EditErrorKind::WrongNodeKind, None)),
         };
@@ -500,7 +561,7 @@ fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), Edit
 
 /// Concrete shared sink: all strings are copied using the parser's budget.
 struct OwnedBuilder {
-    nodes: Vec<Record<Content>>,
+    nodes: Vec<OwnedRecord>,
     attributes: Vec<StoredAttribute>,
     pool: Pool,
     root_element: NodeId,
@@ -514,7 +575,7 @@ impl OwnedBuilder {
         nodes
             .try_reserve(1)
             .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
-        nodes.push(Record::root(Content::Document, source_length));
+        nodes.push(OwnedRecord::root(source_length));
         Ok(Self {
             nodes,
             attributes: Vec::new(),
@@ -554,8 +615,14 @@ impl OwnedBuilder {
                     .ok_or_else(|| Error::new(ErrorKind::MismatchedEndTag, offset))?;
                 let end = self.nodes.len();
                 let record = &mut self.nodes[id.0];
-                record.range.end = range.end;
-                record.subtree_end = end;
+                record
+                    .source
+                    .as_mut()
+                    .expect("parsed node has provenance")
+                    .end = range.end;
+                // Parsing still appends in preorder. Closing an element gives
+                // its count directly, without updating every open ancestor.
+                record.subtree_size = end - id.0;
                 return Ok(());
             }
             Event::Start(element) | Event::Empty(element) => {
@@ -583,8 +650,8 @@ impl OwnedBuilder {
                 data: self.pool.store(&data, offset, budget)?,
             },
         };
-        let id = append_record(&mut self.nodes, parent, content, range)?;
-        if matches!(self.nodes[id.0].kind, Content::Element { .. }) {
+        let id = self.append(parent, content, range)?;
+        if matches!(self.nodes[id.0].content, Content::Element { .. }) {
             if parent == NodeId(0) {
                 self.root_element = id;
             }
@@ -596,6 +663,37 @@ impl OwnedBuilder {
             }
         }
         Ok(())
+    }
+
+    fn append(
+        &mut self,
+        parent: NodeId,
+        content: Content,
+        source: Range<usize>,
+    ) -> Result<NodeId, Error> {
+        let allocation = Error::new(ErrorKind::Allocation, source.start);
+        let id = NodeId(self.nodes.len());
+        let link = Link::new(id).ok_or(allocation)?;
+        let parent_link = Link::new(parent).ok_or(allocation)?;
+        self.nodes.try_reserve(1).map_err(|_| allocation)?;
+        let previous_sibling = self.nodes[parent.0].last_child;
+        self.nodes.push(OwnedRecord {
+            content,
+            source: Some(source),
+            parent: parent_link,
+            first_child: Link::NONE,
+            last_child: Link::NONE,
+            previous_sibling,
+            next_sibling: Link::NONE,
+            subtree_size: 1,
+        });
+        if let Some(previous) = self.nodes[id.0].previous_sibling.get() {
+            self.nodes[previous.0].next_sibling = link;
+        } else {
+            self.nodes[parent.0].first_child = link;
+        }
+        self.nodes[parent.0].last_child = link;
+        Ok(id)
     }
 
     fn finish(self, position: usize) -> Result<OwnedDocument, Error> {
@@ -610,7 +708,7 @@ impl OwnedBuilder {
         if self.root_element == NodeId(0) {
             return Err(Error::new(ErrorKind::MissingRoot, position));
         }
-        self.nodes[0].subtree_end = self.nodes.len();
+        self.nodes[0].subtree_size = self.nodes.len();
         Ok(OwnedDocument {
             identity: document_identity(counter)?,
             nodes: self.nodes,
@@ -619,6 +717,7 @@ impl OwnedBuilder {
             root_element: self.root_element,
             declaration: self.declaration,
             edit_owned_bytes: 0,
+            slots_are_preorder: true,
         })
     }
 }
@@ -631,7 +730,7 @@ pub struct OwnedNode<'document> {
 }
 
 impl<'document> OwnedNode<'document> {
-    fn record(self) -> &'document Record<Content> {
+    fn record(self) -> &'document OwnedRecord {
         &self.document.nodes[self.id.0]
     }
 
@@ -643,7 +742,8 @@ impl<'document> OwnedNode<'document> {
     }
 
     pub fn kind(self) -> OwnedNodeKind {
-        match &self.record().kind {
+        match &self.record().content {
+            Content::Removed => unreachable!("owned node is live"),
             Content::Document => OwnedNodeKind::Document,
             Content::Element { .. } => OwnedNodeKind::Element,
             Content::Text(_) => OwnedNodeKind::Text,
@@ -654,7 +754,7 @@ impl<'document> OwnedNode<'document> {
     }
 
     pub fn name(self) -> Option<Name<'document>> {
-        match &self.record().kind {
+        match &self.record().content {
             Content::Element { name, .. } => Some(name.view(&self.document.pool.0)),
             _ => None,
         }
@@ -663,16 +763,16 @@ impl<'document> OwnedNode<'document> {
     /// Returns the direct Text, CDATA, comment or PI payload, without joining
     /// descendant text. Elements and the document root return None.
     pub fn text(self) -> Option<&'document str> {
-        let range = match &self.record().kind {
+        let range = match &self.record().content {
             Content::Text(range) | Content::Cdata(range) | Content::Comment(range) => range,
             Content::ProcessingInstruction { data, .. } => data,
-            Content::Document | Content::Element { .. } => return None,
+            _ => return None,
         };
         Some(&self.document.pool.0[range.clone()])
     }
 
     pub fn processing_instruction_target(self) -> Option<&'document str> {
-        match &self.record().kind {
+        match &self.record().content {
             Content::ProcessingInstruction { target, .. } => {
                 Some(&self.document.pool.0[target.clone()])
             }
@@ -683,7 +783,7 @@ impl<'document> OwnedNode<'document> {
     /// Visits attributes in source order, including namespace declarations.
     /// Each view borrows the pool without allocating.
     pub fn attributes(self) -> impl ExactSizeIterator<Item = Attribute<'document>> + 'document {
-        let range = match &self.record().kind {
+        let range = match &self.record().content {
             Content::Element { attributes, .. } => attributes.clone(),
             _ => 0..0,
         };
@@ -694,32 +794,32 @@ impl<'document> OwnedNode<'document> {
     /// pool storage. Parsed nodes retain Some(range); future created nodes may
     /// have no source provenance. This cannot index the owned string pool.
     pub fn range(self) -> Option<Range<usize>> {
-        Some(self.record().range.clone())
+        self.record().source.clone()
     }
 
     pub fn parent(self) -> Option<Self> {
-        self.record().parent.map(|id| Self {
+        self.record().parent.get().map(|id| Self {
             document: self.document,
             id,
         })
     }
 
     pub fn first_child(self) -> Option<Self> {
-        self.record().first_child.map(|id| Self {
+        self.record().first_child.get().map(|id| Self {
             document: self.document,
             id,
         })
     }
 
     pub fn last_child(self) -> Option<Self> {
-        self.record().last_child.map(|id| Self {
+        self.record().last_child.get().map(|id| Self {
             document: self.document,
             id,
         })
     }
 
     pub fn next_sibling(self) -> Option<Self> {
-        self.record().next_sibling.map(|id| Self {
+        self.record().next_sibling.get().map(|id| Self {
             document: self.document,
             id,
         })
@@ -730,13 +830,107 @@ impl<'document> OwnedNode<'document> {
     }
 
     /// Visits this node and its descendants in preorder without recursion.
+    #[inline]
     pub fn descendants(self) -> impl ExactSizeIterator<Item = Self> + 'document {
-        (self.id.0..self.record().subtree_end).map(move |index| Self {
-            document: self.document,
-            id: NodeId(index),
-        })
+        let count = self.record().subtree_size;
+        if self.document.slots_are_preorder {
+            Descendants::Contiguous {
+                document: self.document,
+                slots: self.id.0..self.id.0 + count,
+            }
+        } else {
+            Descendants::Linked(LinkedDescendants {
+                next: Some(self),
+                root: self.id,
+                remaining: count,
+            })
+        }
     }
 }
+
+enum Descendants<'document> {
+    Contiguous {
+        document: &'document OwnedDocument,
+        slots: Range<usize>,
+    },
+    Linked(LinkedDescendants<'document>),
+}
+
+impl<'document> Iterator for Descendants<'document> {
+    type Item = OwnedNode<'document>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Contiguous { document, slots } => slots.next().map(|index| OwnedNode {
+                document,
+                id: NodeId(index),
+            }),
+            Self::Linked(iterator) => iterator.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Contiguous { slots, .. } => slots.size_hint(),
+            Self::Linked(iterator) => iterator.size_hint(),
+        }
+    }
+
+    fn count(self) -> usize {
+        self.len()
+    }
+}
+
+impl ExactSizeIterator for Descendants<'_> {}
+impl std::iter::FusedIterator for Descendants<'_> {}
+
+struct LinkedDescendants<'document> {
+    next: Option<OwnedNode<'document>>,
+    root: NodeId,
+    remaining: usize,
+}
+
+impl<'document> Iterator for LinkedDescendants<'document> {
+    type Item = OwnedNode<'document>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let node = self.next?;
+        self.remaining -= 1;
+        self.next = if self.remaining == 0 {
+            None
+        } else if let Some(child) = node.first_child() {
+            Some(child)
+        } else {
+            let mut current = node;
+            loop {
+                if current.id == self.root {
+                    break None;
+                }
+                if let Some(sibling) = current.next_sibling() {
+                    break Some(sibling);
+                }
+                match current.parent() {
+                    Some(parent) => current = parent,
+                    None => break None,
+                }
+            }
+        };
+        Some(node)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+
+    fn count(self) -> usize {
+        self.remaining
+    }
+}
+
+impl ExactSizeIterator for LinkedDescendants<'_> {}
+impl std::iter::FusedIterator for LinkedDescendants<'_> {}
 
 #[cfg(test)]
 #[path = "../tests/internal/owned.rs"]
