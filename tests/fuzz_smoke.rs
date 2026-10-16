@@ -10,6 +10,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/references.xml"),
     include_bytes!("../fuzz/corpus/malformed.xml"),
     include_bytes!("../fuzz/corpus/dtd.xml"),
+    include_bytes!("../fuzz/corpus/declaration.xml"),
+    include_bytes!("../fuzz/corpus/encoding-name.xml"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
@@ -256,6 +258,32 @@ fn projection_detects_reordered_attributes() {
 fn grammar_regression_corpus() {
     use yaxml::ErrorKind::*;
     for (input, expected) in [
+        ("<?xml version='1.1'?><r/>", None),
+        ("<?xml version='1.234'?><r/>", None),
+        ("<?xml version='1.00'?><r/>", None),
+        ("<?xml version='1.'?><r/>", Some(InvalidDeclaration)),
+        ("<?xml version='1.١'?><r/>", Some(InvalidDeclaration)),
+        ("<?xml version='1.1'?><r>&#x1;</r>", Some(InvalidReference)),
+        (
+            "<?xml version='1.0' encoding=''?><r/>",
+            Some(InvalidDeclaration),
+        ),
+        (
+            "<?xml version='1.0' encoding='8UTF'?><r/>",
+            Some(InvalidDeclaration),
+        ),
+        (
+            "<?xml version='1.0' encoding='UTF 8'?><r/>",
+            Some(InvalidDeclaration),
+        ),
+        (
+            "<?xml version='1.0' encoding='UTé'?><r/>",
+            Some(InvalidDeclaration),
+        ),
+        (
+            "<?xml version='1.0' encoding='x.Custom_1-2'?><r/>",
+            Some(UnsupportedEncoding),
+        ),
         (
             "\u{feff}<?xml version='1.0' encoding='utf-8' standalone='no'?><r/>",
             None,

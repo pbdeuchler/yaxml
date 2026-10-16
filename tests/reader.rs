@@ -118,7 +118,7 @@ fn malformed_documents_are_rejected() {
             "<?xml version='1.0'?><?xml version='1.0'?><r/>",
             InvalidDeclaration,
         ),
-        ("<?xml version='1.1'?><r/>", InvalidDeclaration),
+        ("<?xml version='1.x'?><r/>", InvalidDeclaration),
         ("<?xml standalone='yes'?><r/>", InvalidDeclaration),
         (
             "<?xml version='1.0' version='1.0'?><r/>",

@@ -653,8 +653,25 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<Declaration<'_>, Error>
         .map_err(|e| Error::new(ErrorKind::InvalidDeclaration, e.offset))?
     {
         match name {
-            "version" if count == 0 && value == "1.0" => declaration.version = value,
+            "version"
+                if count == 0
+                    && value.strip_prefix("1.").is_some_and(|minor| {
+                        !minor.is_empty() && minor.bytes().all(|b| b.is_ascii_digit())
+                    }) =>
+            {
+                declaration.version = value;
+            }
             "encoding" if count == 1 => {
+                if !value
+                    .as_bytes()
+                    .first()
+                    .is_some_and(u8::is_ascii_alphabetic)
+                    || !value
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+                {
+                    return Err(Error::new(ErrorKind::InvalidDeclaration, position));
+                }
                 if !value.eq_ignore_ascii_case("UTF-8") {
                     return Err(Error::new(ErrorKind::UnsupportedEncoding, position));
                 }
