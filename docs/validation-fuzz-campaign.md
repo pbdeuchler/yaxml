@@ -19,9 +19,17 @@ seeds and PRNG state, then matched each candidate's lineage, novelty decision,
 and retained bytes. It confirmed all 19 seed cases were retained and 60
 mutation cases added novel coverage; the other 18 feedback-increasing outcomes
 were baseline seed cases. The final corpus has 79 files totaling 9,057 bytes.
-An independently merged library profile reproduced the LLVM totals below.
+An independent LLVM report of the saved cumulative profile reproduced the totals below.
 The replay function count for `fuzz_replay::main` was 500, confirming one
 process execution per journaled candidate.
+
+After the 19 baseline seeds, the cumulative profile reached 4,560 regions,
+308 functions and 557 branch outcomes. Mutations added 185 regions, six
+functions and 45 branch outcomes. Independently replaying the 79 retained files
+into a separate fresh profile reproduced the full library report byte for byte,
+showing that the retained corpus preserves the measured coverage. Those replay
+artifacts are in
+`/private/tmp/yaxml-feedback-retained-replay-e9edcb4-independent`.
 
 ## Per-file coverage
 
@@ -116,3 +124,11 @@ separately as
 `/private/tmp/yaxml-feedback-build-e9edcb4/initial-thin-lto-failure.log`. The
 independent journal and profile audits, along with their hash manifest, are in
 `/private/tmp/yaxml-feedback-build-e9edcb4/`.
+
+The combined integration suite passed 329 tests with seven ignored subprocess
+helpers, plus ten doctests, strict all-target Clippy, formatting and diff checks
+on stable Rust 1.95.0. Both the runner and text-chunk implementation passed
+independent code review. Deliberate faults were caught for configured ceilings,
+identity changes, profile/report validation, publication rollback, evidence
+preservation, source selection and the real LLVM color-option spelling.
+These tooling checks remain distinct from production-library fuzz coverage.
