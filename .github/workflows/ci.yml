@@ -22,6 +22,7 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all-targets
+      - run: cargo test --doc
 
   fuzz-smoke-coverage:
     runs-on: ubuntu-latest
