@@ -22,6 +22,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/serialize.xml"),
     include_bytes!("../fuzz/corpus/mutation-operations.bin"),
     include_bytes!("../fuzz/corpus/mutation-quotas.bin"),
+    include_bytes!("../fuzz/corpus/structure-operations.bin"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];

@@ -23,7 +23,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `Document::with_limits` | Derived profiles and each explicit resource ceiling | Policy acceptance matches the reader; each limit has a known rejection case |
 | `OwnedDocument::parse`, `parse_bytes`, `with_limits`, `with_decode_limits` | `owned::exercise` and `encoding::exercise`, default and derived profiles | Temporary source overwritten/dropped before views; complete values/topology/spans match borrowing DOM or independently decoded reference; aggregate and decoded ceilings |
 | Owned tree views and navigation | Successful owned trees | Every kind, declaration, name, attribute, PI target, payload and navigation method compared; exact iterator lengths; valid lookup and foreign-identity rejection |
-| `OwnedDocument::edit`, `Editor::document`, `set_node_value`, `set_attribute_value`, owned handle lookup | `mutation::exercise`, independent operation and quota selectors | Model predicts exact outcomes before production; complete state after success/failure; foreign handles, moves, persistent quotas, recovery and strict model-based serialization |
+| `OwnedDocument::edit`, `Editor::document`, `set_node_value`, `set_attribute_value`, `append_text`, `append_cdata`, `append_comment`, `append_processing_instruction`, `remove_subtree`, owned handle lookup | `mutation::exercise`, independent operation and quota selectors | Exact predicted errors; live child-vector model; fresh/stale handles; provenance; persistent quotas without removal refunds; recovery; Text-run serialization projection |
 | `PushParser::new`, `default`, `with_limits`, `feed`, `finish`, `position`, `event_range` | Input-derived chunk and lifecycle schedules, capped at 4096 chunks | Acceptance and exact typed event/span parity with slice reader; monotonic consumed position; repeated EOF; sticky errors after feeding final EOF |
 | `PushParser::read_from` | Cursor plus bounded scheduled and invalid-count readers | Same events/spans; one Interrupted retry; original injected I/O error kind/message; cancellation stops reads; terminal parser states perform no I/O; oversized reported counts are rejected |
 | DOM traversal and node access | Successful document checks | Unique IDs; preorder traversal; parent/child/sibling agreement; nested source ranges; subtree sizes |
@@ -33,7 +33,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 | `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
 
-Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Structural mutation, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
+Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Element/attribute construction, existing-node moves, namespace editing, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
 
 Owned trees use the same normalization budget for pool growth and parsing. They
 can reject a valid borrowed tree with OwnedBytes, or reach that ceiling before a
@@ -128,68 +128,154 @@ Acceptance comparisons allow streaming to exhaust its owned-byte budget earlier 
 
 `tests/fuzz_smoke.rs` replays every seed and every prefix, replaces every seed byte with delimiter/boundary bytes, deletes every seed byte, generates deterministic arbitrary bytes, and generates accepted namespace-aware nested documents. These tests check invariants and some known acceptance outcomes. Reader/DOM agreement alone is weak because they share a parser; the structural and semantic regression checks remain necessary.
 
-## Owned-value mutation operations
+## Owned mutation operations
 
-`fuzz/mutation.rs` runs once before the driver's UTF-16 early return, independently
-of whether the original testcase is valid XML. Two ten-node documents have
-manually specified logical models, explicit children, ordered attributes and
-fixed names/namespaces. They contain every leaf kind, Unicode, empty lexical
-nodes, same-local-name attributes in different namespaces, inherited/shadowed
-bindings and a default reset. Source bytes are overwritten and dropped before
-editing. The documents use independently selected UTF-8/BOM/UTF-16 transport;
-moving their containers must preserve saved handles and foreign rejection.
+[`mutation.rs`](mutation.rs) runs before the driver's UTF-16 early return,
+whether or not the testcase itself is XML. Two ten-node documents have manually
+specified names, namespaces, ordered attributes, values and child vectors. They
+contain every leaf kind, Unicode, empty lexical nodes, inherited/shadowed bindings
+and a default namespace reset. Source bytes are overwritten and dropped before
+editing. Moving the containers must preserve saved handle ownership.
 
-The first eight bytes are controls: seed family, encoding, default/derived value
-ceiling, derived ceiling, quota case, quota boundary, lifecycle flags and operation
-count. The low five count bits select up to 31 complete eight-byte records, capped
-by available bytes. At most 256 bytes after the records form shared payload.
-Each record contains opcode, target container, saved-handle index, expanded-name
-selector, payload start/length, value variant and a repeat/save selector. The low
-three opcode bits select node replacement, attribute replacement, read/acquire,
-serialize, reopen, move, foreign node replacement or foreign attribute replacement.
-Payload slices become logical UTF-8 through bounded lossy decoding; fifteen fixed
-variants also force Unicode, delimiters, XML character boundaries and growth.
-Invalid UTF-8 is not an input to an `&str` mutation API.
+Model IDs increase monotonically. Each ID keeps a live flag and ordered children;
+removal unlinks a subtree and marks every descendant dead. Neither model IDs nor
+production slots may be reused. Parsed survivors retain their original source
+ranges, fresh leaves have no source range, and removed handles must fail lookup
+and later edits. Traversal follows model children rather than production slot
+order, links or subtree counts.
 
-General sequences retain default cumulative capacity limits, with independently
-derived per-value ceilings. Their bounded work must succeed whenever the model
-permits it: there is no OwnedBytes or Allocation exception. Both setters also
-have mandatory small-valid success before operation interpretation. The model
-predicts handle, kind, lookup, namespace, length, XML-character and lexical errors
-in documented order, including exact UTF-8 indices. It updates expected state
-before invoking production. Every result checks complete values, names,
-namespace metadata, ordered attributes, declaration, topology, traversal,
-lookup, handles and persistent original provenance. An optional rescue operation
-uses the same editor after rejection; ordinary operations reopen editors.
-The model does not reuse production validation, pool ranges or sibling links.
+Both documents must accept a small valid operation through each value setter.
+The first document must also accept all four append methods and a document-level
+comment, then permanently remove a created comment. These mandatory operations
+prevent blanket rejection from passing before arbitrary records are interpreted.
 
-Quota selectors use separate literal fixtures, not a replica of pool growth.
-For `<r>x</r>`, a one-byte replacement requires a full request of at least three
-bytes. A fixed ceiling of ten allows four one-byte replacements and rejects the
-fifth, with or without reopening; equal-value replacements still spend work.
-For `<r a='x'/>`, a two-byte replacement needs five bytes, while one byte fits
-existing spare capacity at a zero growth ceiling. Further cases check Unicode
-value boundaries, rejection without spending/growing storage, lower/higher
-reopened ceilings and empty Text at zero ceilings. Deterministic tests run every
-case in UTF-8 and both UTF-16 orders. These assertions target blanket rejection,
-per-editor reset, delta-only/full duplicate charging and equal-value shortcuts.
+### Header and records
 
-Final and selected intermediate states serialize through `write_owned_document`,
-reparse the complete output and compare against the independent model. The only
-projection removes empty Text. Templates have no adjacent Text siblings and
-value-only editing cannot create them. Empty CDATA, comments and PI data remain
-distinct. Output is capped at 64 KiB and encoded tokens at 16 KiB. Literal byte
-goldens cover quotas, escaping, CR/whitespace references, Unicode and namespace
-declarations; the `*` quota selector also runs the full namespace/lexical golden.
-`mutation-operations.bin` and `mutation-quotas.bin` are operation seeds, also
-replayed through every prefix and byte mutation by the existing corpus tests.
+Missing header bytes read as zero. Header bytes `H0` through `H7` control:
 
-Public callers cannot forge an owned slot; private tests cover invalid slots and
-identity exhaustion with a local counter. Allocation-failure injection remains
-separate evidence. Deletion, stale generations, cycles, namespace editing and
-structural mutation are not implemented and gain targets with those APIs. The
-existing external oracle checks original parsing and pristine serialization;
-it does not yet execute these modeled edit sequences against libxml2.
+| Byte | Interpretation |
+| --- | --- |
+| `H0` | Low bit selects the first seed family; the second uses the opposite family. |
+| `H1` | Low two bits select UTF-8, UTF-8 BOM, UTF-16LE BOM or UTF-16BE BOM, in that order. The second document uses the next mode modulo four. |
+| `H2` | Bit 0 enables per-string byte ceiling `H3`; bit 1 enables created-node ceiling `H5 & 63`. Otherwise each uses its default. |
+| `H3` | Derived per-string byte ceiling, from 0 through 255. |
+| `H4` | `H4 & 7` selects the value-quota family; `(H4 >> 3) & 7` selects the structural-quota family below. Exactly `42` (`*`) also runs the namespace/lexical byte golden. |
+| `H5` | Boundary selector modulo three, and derived created-node ceiling when enabled. |
+| `H6` | Bit 0 requests same-editor recovery after rejected operations; bit 1 selects reopened editors in the repeated value-quota sequence. |
+| `H7` | Low five bits request up to 31 complete eight-byte records, capped by bytes available after the header. |
+
+At most 256 bytes after the records form shared payload. General sequences keep
+the default cumulative owned-byte ceiling. Value and creation ceilings can vary
+independently; opening below already-spent creation work must reject. Bounded
+valid operations must succeed: OwnedBytes and Allocation are not exceptions for
+general sequences.
+
+Record bytes are `R0` through `R7`. `R0 & 15` selects the operation; `R1 & 1`
+selects the current document container. Most operations select a saved handle
+with `R2 % saved.len()`. The initial registry contains both parsed trees, first
+document then second. Successful append records add returned handles; removed
+handles remain selectable.
+
+| Opcode | Operation and remaining controls |
+| --- | --- |
+| 0 / 1 | Replace node / existing attribute value. Attribute selection uses `R3 % 12`. |
+| 2 | Lookup the saved handle. If `R6` bit 0 is set, replace saved entry `R7 % saved.len()` with current-document handle `R2 % current.handles.len()`, including stale handles. |
+| 3 | Serialize and compare the complete tree with the model projection. |
+| 4 | Open an editor with header limits; compare acceptance with spent creation work. |
+| 5 | Swap document containers and models without changing handle owners. |
+| 6 / 7 | Foreign node / attribute replacement. Select `R2 % foreign.handles.len()` from the other owner instead of the saved registry. |
+| 8 / 9 / 10 / 11 | Append Text / CDATA / Comment / PI to the saved parent. PI target selection uses `R3 % 16`. |
+| 12 | Permanently remove the saved subtree. |
+| 13 | Add current-document handle `R2 % current.handles.len()` to the saved registry, including stale handles. |
+| 14 | Reopen with created ceiling selected by `R6 & 3`: zero, spent-minus-one saturating at zero, spent, or spent-plus-one. Later records still use header limits. |
+| 15 | Force a foreign structural operation. `R3` bit 4 selects removal; otherwise append the kind selected by `R4 & 3` in Text/CDATA/Comment/PI order. |
+
+For replacements and appends, `R4`/`R5` select payload start/length, clamped to the
+shared payload. `R6 % 16` selects the value: 0 uses lossy UTF-8 decoding, 1 is empty,
+12 is `valid`, and 15 repeats `🙂` `R7 & 31` times. Other variants supply Unicode,
+forbidden XML characters, delimiters, CR or leading whitespace. PI target variant
+0 uses the same lossy slice; 9 is `é🙂` and 12 is `p`. Other targets include empty,
+reserved `xml`, invalid Name characters and valid Unicode names. The complete
+variant and expanded-attribute selector tables are the `value`, `pi_target_value`
+and `selector` functions in [the decoder](mutation.rs). Invalid UTF-8 never
+reaches an `&str` mutation API.
+
+The model predicts exact errors before production, including PI argument order
+and UTF-8 byte indices. Append success publishes one fresh model ID; removal
+invalidates the independently computed descendant set. After each operation,
+checks compare all live values, names, namespaces, ordered attributes,
+declaration, handles, provenance, navigation, traversal order and exact iterator
+lengths. Dead handles must remain unresolved. Recovery uses the same editor for
+a known-valid empty comment or existing-value edit; ordinary records open fresh
+editors. The model reuses no production validation or pool accounting.
+
+### Literal quota families
+
+Quota fixtures have independent expected acceptance, not a replica of pool
+growth. Existing value families exercise full-capacity charges, equal-value
+appends, spare capacity, Unicode byte limits and editor reopening. For
+`<r>x</r>`, one-byte replacement needs three owned bytes; a ceiling of ten allows
+four replacements and rejects the fifth. For `<r a='x'/>`, two-byte replacement
+needs five bytes, while one byte fits parsed spare capacity for zero new owned
+bytes.
+
+Structural families use `H5 % 3` to select these below/exact/above profiles:
+
+| Family | Fixture and expected boundary |
+| --- | --- |
+| 0 | `<r/>`, append empty Text with created ceilings 0/1/2 and zero owned bytes: reject/accept/accept. |
+| 1 | `<r/>`, append Text `x` with owned ceilings 1/2/3: reject/accept/accept. |
+| 2 | `<r/>`, append PI target `p`, data `x`, with owned ceilings 2/3/4: reject/accept/accept. A rejected PI leaves zero-budget reopening and subsequent Text growth probes unchanged. |
+| 3 | Create/remove an empty comment, then reopen with created ceilings 0/1/2. Zero rejects opening; one rejects the next append; two accepts empty CDATA. Removal refunds nothing. |
+| 4 | Create PI `p`/`x` for three owned bytes and remove it. Next Text `x` needs a full request of four: cumulative ceilings 6/7/8 reject/accept/accept. Lower reopened ceilings and a recovery append check both counters. |
+| 5 | `<r a='x'/>`, append one Text byte using parsed spare capacity at zero owned bytes, then remove it. Creation ceiling one still rejects a new node; raising it to two accepts an empty comment. |
+| 6 | PI target and data each equal `é🙂`; per-string ceilings 5/6/7 reject/accept/accept. Their combined length is not the per-string limit. |
+| 7 | At zero creation/owned ceilings, invalid PI targets/data and invalid CDATA report earlier semantic errors; valid Text reaches CreatedNodes. |
+
+All families run in UTF-8 and both UTF-16 orders in deterministic smoke tests.
+They target quota resets/refunds, delta-only or duplicate full-capacity charges,
+partial PI staging and creation work spent on rejection.
+
+### Serialization and corpus
+
+Final and selected intermediate trees serialize through `write_owned_document`
+and reparse completely. The only model projection drops empty Text and combines
+each maximal adjacent Text run by concatenating values. In-memory Text nodes
+never merge. CDATA never joins a Text run; empty CDATA, Comment and PI remain
+distinct. An empty Text child can emit `<e></e>` while reparsing drops that child
+and later emits `<e/>`, so byte idempotence is not assumed. Output is capped at
+64 KiB and encoded tokens at 16 KiB.
+
+`mutation-operations.bin` and `mutation-quotas.bin` retain value-edit coverage.
+[`structure-operations.bin`](corpus/structure-operations.bin) adds 13 explicit
+structural records with header `00 02 00 00 20 01 00 0d`. It constructs the first
+tree through UTF-16LE, appends nonempty and empty Text beneath the nested element,
+and serializes their Text-run projection. It then appends empty CDATA, a
+document-level comment and a Unicode-target PI; removes the nested subtree;
+checks a saved new descendant is stale; rejects a stale append and a foreign
+removal; reopens at the exact creation count; swaps containers and serializes.
+The header also selects structural family 4's exact cumulative pool profile.
+All three operation seeds are registered for ordinary prefix and byte-mutation
+smoke tests. Replay this seed directly with:
+
+```sh
+cargo run --release --example fuzz_replay -- fuzz/corpus/structure-operations.bin
+```
+
+Public callers cannot forge slots. Invalid slots and identity exhaustion use
+private tests. Safe thread-local node/pool reservation failpoints are also
+private unit-test controls, absent from normal replay and fuzz-smoke library
+builds. Simulated allocation errors and rollback tests are separate evidence;
+fuzz assertions do not exercise actual allocator exhaustion. Element/attribute
+construction, existing-node moves and namespace editing remain outside this slice.
+
+The [structural libxml2 oracle](../docs/oracle-structure.md) reparses a fixed
+catalog fixture and performs exactly one operation per helper invocation. It
+compares compatible C/Rust tree projections and selected bytes, and classifies
+intentional differences such as Text coalescing and root removal. It does not
+execute modeled multi-operation sequences or their saved/stale handle and quota
+protocol against libxml2. The parsing/serialization `--libxml2` replay comparison
+is a separate oracle as well.
 
 ## Source coverage
 
