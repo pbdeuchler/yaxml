@@ -41,3 +41,20 @@ aggregate work and public compatibility gates. It is not an implemented API.
 The accompanying UTF-16 batching report rejects its prototype and preserves
 the observed regressions. Neither experiment's production code enters this
 integration.
+
+Follow-up artifact review also recomputed the rejected attribute-block
+experiment's two edited-state matrices: each has 868 retained process rows
+covering 31 samples for every case/migration/mode. Group inventory, unchanged
+observer checksums and logical counts, physical/live/obsolete accounting,
+descriptor counts, medians and MADs agree with the report. The sparse edited
+regressions reproduce at 6.59% and 6.38%. Every entry in the retained
+`SHA256SUMS` verifies when run from the prototype repository. Only the plan and
+rejection report are integrated; prototype implementation and tests stay on the
+experiment branch. The audit is retained in
+`/private/tmp/yaxml-attribute-blocks-root-audit.txt` and
+`/private/tmp/yaxml-attribute-blocks-root-manifest-check.txt`.
+
+A second report audit reproduced all three UTF-16 screens' semantic pair
+fields, final summary medians and hashes. It identified fixed build order per
+case and missing retained source-to-binary manifests; the report now states
+both limitations explicitly. Its rejection decision is unchanged.

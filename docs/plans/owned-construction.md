@@ -152,7 +152,8 @@ as markup: callers add literal text through `append_text`.
 ## Open decisions before freezing
 
 The proposal leaves existing-element attribute membership open. The matched
-geometric-block experiment has not passed its edited-tree performance gate.
+[geometric-block experiment](owned-attribute-block-experiment-results.md) has
+not passed its edited-tree performance gate.
 Creation and append of a fresh element can use the existing contiguous arena
 without changing membership on an existing element. Remaining public-contract
 choices still need review:
