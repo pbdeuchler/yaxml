@@ -74,10 +74,11 @@ impl Editor<'_> {
 
 `PrefixPolicy::Exact(None)` preserves no prefix, `Exact(Some("p"))` preserves `p`,
 and `Automatic` delegates spelling choice. Exact prefixes are never silently
-substituted. Automatic attributes first keep their existing prefix if it still
-resolves to the requested URI, then use the first matching nondefault binding
-in scope order (nearest element first, declaration order within that element),
-then try `ns1`, `ns2`, and so on. An automatic namespaced element uses a
+substituted. Automatic attributes in an existing-element upsert first keep
+their existing prefix if it still resolves to the requested URI, then use the
+first matching nondefault binding in scope order (nearest element first,
+declaration order within that element), then try `ns1`, `ns2`, and so on. An
+automatic namespaced element uses a
 matching default binding when available; otherwise it declares the requested
 URI as the local default namespace on the fresh element unless an explicit
 default declaration conflicts, then uses a matching nondefault binding or a
@@ -92,9 +93,16 @@ deterministic naming policy, not a storage promise.
 Gather all declarations in `ElementSpec` before resolving the element name or
 ordinary attributes, matching the parser's start-tag behavior. Preserve the
 order of supplied items in the attribute view; append generated declarations
-after them. Reject duplicate declaration prefixes and duplicate ordinary
-attribute expanded names. Namespace declarations are excluded from ordinary
-attribute upsert and removal.
+after them. On a fresh element, an exact prefixed ordinary attribute may
+declare or shadow an inherited binding when its requested URI is consistent
+with the new element name and every other exact use of that prefix in the
+specification. This is safe because the new element has no existing descendants
+whose stored expanded names could be retargeted. Conflicting exact uses within
+the same specification fail. Existing-element upserts retain the stricter
+rule: they may add a declaration only for an unbound or already-matching
+prefix, because shadowing could change existing descendants. Reject duplicate
+declaration prefixes and duplicate ordinary attribute expanded names.
+Namespace declarations are excluded from ordinary attribute upsert and removal.
 
 These calls show creation, append, upsert, removal and a safe declaration:
 
@@ -139,7 +147,7 @@ as markup: callers add literal text through `append_text`.
 ## Open decisions before freezing
 
 The proposal intentionally leaves attribute storage to the matched
-geometric-block experiment. Three public-contract choices still need review:
+geometric-block experiment. Two public-contract choices still need review:
 
 - Adding five fields to public `EditLimits` and a typed location to `EditError`
   changes source compatibility for struct literals and error destructuring.
@@ -151,11 +159,12 @@ geometric-block experiment. Three public-contract choices still need review:
 - Automatic prefix behavior is concrete here (`ns1`, `ns2`, ...; nearest
   matching binding first; default namespace for a fresh element when safe).
   Freeze it before implementation because it determines serialized bytes.
-- `max_namespace_work` uses one unit per declaration/prefix probe and one per
-  URI byte inspected; 64 MiB is a starting default. Adversarial depth/width
-  tests should confirm that this ceiling bounds work without rejecting intended
-  common cases. Changing the unit definition or default later changes resource
-  policy.
+- Namespace work is now specified as a per-operation allowance: charge before
+  each URI validation scan and declaration/prefix probe, including parsed
+  ancestor bindings. The 64 MiB default and exact units still need adversarial
+  depth/width tests before implementation. This work limit is independent of
+  the persistent metadata bound, which remains open pending the geometric-block
+  descriptor-cost results.
 
 ## Fit with the current owned API
 
@@ -215,7 +224,7 @@ an XML token and reparsing it merely to validate construction.
 | Namespaced new element with exact prefix | Preserve that prefix; safely declare/shadow it on the fresh element if needed |
 | Prefix with no namespace | Reject |
 | Ordinary unprefixed attribute | No namespace; the default binding never applies |
-| Namespaced attribute with exact prefix | Preserve the prefix; accept the same in-scope binding or declare an unbound prefix; reject a conflicting binding |
+| Namespaced attribute with exact prefix | On a fresh element, preserve the prefix and allow a consistent local declaration/shadow of inherited bindings; on an existing element, accept the same in-scope binding or declare an unbound prefix, and reject a conflicting binding |
 | Namespaced attribute with automatic prefix | Reuse a deterministic matching nondefault binding, otherwise generate a fresh prefix |
 | Namespaced attribute with explicitly unprefixed spelling | Reject; do not silently add a prefix |
 
@@ -264,12 +273,19 @@ can retarget existing unprefixed nodes. A fresh prefixed binding absent from
 scope cannot retarget an existing valid use:
 descendants using that prefix already require their own local declaration.
 
-Attribute upsert may add a matching declaration only when that prefix is
-currently unbound or already resolves to the same URI; shadowing a conflicting
-binding on an existing element could change descendants' lexical meaning. For
-an ordinary nonreserved URI, automatic choice can select an unused prefix
+Attribute upsert on an existing element may add a matching declaration only
+when that prefix is currently unbound or already resolves to the same URI;
+shadowing a conflicting binding on an existing element could change
+descendants' lexical meaning. Fresh `ElementSpec` construction has no existing
+descendants, so exact prefixed attribute bindings may safely shadow inherited
+bindings if the element name and all exact uses of that prefix in the new
+specification agree on one URI. Conflicting exact uses are a `Namespace` error;
+automatic names may use or generate another prefix. For an ordinary
+nonreserved URI, automatic choice can select an unused prefix
 within its work allowance. The XML URI uses its reserved `xml` prefix. An exact
-conflicting prefix fails. Thus an arbitrary supported
+conflict with a local explicit declaration or another exact use fails; for an
+existing-element upsert, a conflict with the current binding also fails.
+Thus an arbitrary supported
 namespace URI remains usable without changing the requested spelling silently.
 Namespace replacement/removal is deferred. Removing an ordinary attribute leaves
 its declarations in place; do not guess that a binding is unused.
@@ -314,7 +330,7 @@ and `max_created_nodes` keep their current meanings:
 | `max_name_bytes` (1 MiB) | Per local name, prefix, namespace URI, declaration prefix or declaration URI, checked before scanning. |
 | `max_value_bytes` (1 MiB) | Per attribute value; keep existing value/PI-target behavior. |
 | Retained string work | Existing cumulative full requested pool capacities, including charged failures; initial construction has no free parsed baseline. Reuse known immutable URI pool ranges when safe, without content-dedup scans. |
-| `max_namespace_work` (64 MiB) | Persistent work units across editors. Charge one per declaration/prefix candidate inspected and one per namespace URI byte compared or hashed. Include parsed ancestor bindings; charging only new declarations is insufficient. |
+| `max_namespace_work` (64 MiB) | Per-operation work units, reset for each public call. Charge one per declaration/prefix candidate inspected; charge each URI validation scan by its full length and each equality/hash operation by the full length of every URI operand before scanning it. Include parsed ancestor bindings; charging only new declarations is insufficient. |
 
 `EditLimits::default()` keeps the current 1 MiB value, 64 MiB pool-work and
 1,000,000 created-node ceilings, and adds 1 MiB name components, depth 256,
@@ -322,20 +338,33 @@ and `max_created_nodes` keep their current meanings:
 namespace work. Add `EditLimit::NameBytes`, `Depth`, `Attributes`,
 `CreatedAttributes`, and `NamespaceWork` for these ceilings. Opening an editor
 below a spent persistent counter fails in this order: created nodes, owned
-bytes, created attributes, namespace work. The first two preserve current
-`edit()` precedence. Raising a ceiling is allowed; no
-counter resets on reopen. Depth and live attribute ceilings are checked for
+bytes, created attributes. The first two preserve current `edit()` precedence.
+Namespace work is per-call and is not an editor-open failure. Raising a ceiling
+is allowed; persistent counters do not reset on reopen. Depth and live
+attribute ceilings are checked for
 prospective insertions, so a parsed baseline above a lowered ceiling remains
 value-editable or reducible. Attribute/node metadata is outside the string
-ceiling but bounded by baseline plus persistent entry/node quotas and fallible reservation.
+ceiling. Its precise bound depends on the geometric-block representation and
+must include both membership entries and block/descriptor overhead;
+`max_created_attributes` alone does not prove a finite metadata bound if one
+successful insertion can allocate many descriptors. Keep that bound open until
+the storage experiment provides concrete accounting. Reservations remain
+fallible.
 Temporary planning is bounded by `max_attributes` and uses fallible reservation.
 
 Build scope once per operation rather than scanning every ancestor for each
 attribute. Assign temporary URI identities once per distinct resolved binding
-and check duplicate attributes using those identities. Include bytes in the work
-allowance: rehashing a long shared URI for every attribute must not bypass bounds
-merely because its pool range is reused. Store pool ranges/indices in staged
-metadata; do not retain pool references across a reservation that can move it.
+and check duplicate attributes using those identities. Account for work before
+validating or comparing bytes: do not validate a shared 1 MiB URI independently
+for 1,024 items and only then discover the 64 MiB work ceiling. Before URI
+equality checks, charge the full length of each URI operand as a worst-case
+comparison bound; charge full input length before validation scans and hashing
+as well. The first operation that would exceed the allowance returns
+`NamespaceWork` before beginning that scan. A bounded scratch table may
+deduplicate identical borrowed URI identities, but its lookup and comparison
+work must itself be charged and bounded; do not use content hashing that scans
+an uncharged URI. Store pool ranges/indices in staged metadata; do not retain
+pool references across a reservation that can move it.
 
 The transaction is validate, plan, reserve, store, then publish. Freeze this
 error precedence:
@@ -349,22 +378,28 @@ error precedence:
    namespace URI, prefix; then each item in order (declaration prefix then URI;
    attribute local name, namespace URI, prefix, then value). Name components use
    `max_name_bytes`, values use `max_value_bytes`.
-4. Validate XML characters and XML Names in the same order. Return the first
-   component-local UTF-8 byte offset.
-5. Check every explicit declaration's reserved namespace rules in item order,
-   then resolve the element name using all declarations. Walk items in order;
-   resolve each ordinary attribute and immediately check its expanded-name
-   duplicate. Declaration items have their XMLNS expanded name checked at their
-   position in that same pass, so duplicate declaration prefixes return
-   `DuplicateAttribute`. Charge namespace work at each comparison/probe; if
-   that charge exceeds its ceiling, return that limit immediately. Check final
-   live-item count each time prefix planning adds a declaration and when an
-   upsert resolves to a new attribute; this returns `Attributes` before later
+4. Validate XML characters and XML Names in the same order. Before scanning a
+   namespace URI for XML characters, charge its full byte length to this
+   operation's namespace-work allowance; if that would exceed the ceiling,
+   return `NamespaceWork` before scanning the URI. Return the first
+   component-local UTF-8 byte offset for validation failures that fit the
+   allowance.
+5. Charge namespace work before each declaration/prefix candidate probe and
+   before each URI equality check (charge full operand lengths as the worst-case
+   comparison cost). Then validate explicit declaration reserved rules in item
+   order and resolve the element name using all declarations. Walk items in order; resolve each
+   ordinary attribute and immediately check its expanded-name duplicate.
+   Declaration items have their XMLNS expanded name checked at their position
+   in that same pass, so duplicate declaration prefixes return
+   `DuplicateAttribute`. If a prospective probe charge exceeds the
+   per-operation ceiling, return `NamespaceWork` before beginning that probe.
+   Check the final live-item count each time prefix planning adds a declaration
+   or an upsert resolves to a new attribute; this returns `Attributes` before later
    item validation if the newly planned start tag is already too large.
 6. Check applicable persistent created-node and created-attribute-entry limits,
    then the complete cumulative pool-capacity request (`OwnedBytes`). For
-   `edit()`, below-spent ceilings are checked created nodes, owned bytes, created
-   attribute entries, namespace work, preserving the current first two checks.
+   `edit()`, below-spent ceilings are checked created nodes, owned bytes and
+   created attribute entries, preserving the current first two checks.
 7. Reserve all scratch, node, attribute-membership and pool capacity; store all
    strings/records; publish one coherent update and successful-entry counters.
 
@@ -378,10 +413,11 @@ Bound local name and URI by `max_name_bytes` before scanning. For an XMLNS
 selector, preserve `set_attribute_value` precedence: return `MissingAttribute`
 if no declaration matches, otherwise `NamespaceDeclaration`.
 `declare_namespace` checks an existing local declaration before checking
-safe-rebind conflicts. Validation/quota failures leave logical values
-and successful-entry counters unchanged. Namespace work and attempted pool
-capacity reservations stay charged; allocation failure may retain capacity but
-never publishes a partial node, attribute, declaration, link or handle.
+safe-rebind conflicts. Validation/quota failures leave logical values and
+successful-entry counters unchanged. Namespace work counts against this call's
+allowance and is not a persistent counter; attempted pool-capacity reservations
+retain their existing cumulative charge. Allocation failure may retain capacity
+but never publishes a partial node, attribute, declaration, link or handle.
 Planning scratch is bounded and fallibly reserved. Persistent arena/pool growth
 and publication wait until the plan succeeds.
 Pool quota preflight precedes persistent metadata reservation, as in leaf
