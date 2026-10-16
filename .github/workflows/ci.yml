@@ -159,6 +159,32 @@ jobs:
             target/oracle/xmlconf-catalog.tsv target/oracle/xmlconf-results.tsv \
             > target/oracle/xmlconf-artifact-sha256.txt
           cat target/oracle/xmlconf-results.stderr
+      - name: Check matched DOM and streaming parsing helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror -pedantic -Wconversion -Wshadow \
+            -Itarget/oracle/build -Itarget/oracle/libxml2-2.15.4/include \
+            tooling/libxml2_parse_bench.c target/oracle/build/libxml2.a \
+            -lm -pthread -ldl -o target/oracle/parse-bench-helper
+          target/oracle/parse-bench-helper --version > target/oracle/parse-bench-version.txt
+          YAXML_PARSE_LIBXML2_HELPER="$PWD/target/oracle/parse-bench-helper" \
+            cargo test --test parse_benchmark_cli -- --ignored
+          cargo build --release --example parse_bench --example parse_benchmark
+          : > target/oracle/parse-benchmark-smoke.txt
+          for mode in dom owned reader push buffered; do
+            target/release/examples/parse_benchmark \
+              --libxml2-helper "$PWD/target/oracle/parse-bench-helper" \
+              --yaxml-helper "$PWD/target/release/examples/parse_bench" \
+              --fixture mixed --mode "$mode" --iterations 1 --samples 1 --chunk-size 7 \
+              >> target/oracle/parse-benchmark-smoke.txt
+          done
+          sha256sum tooling/libxml2_parse_bench.c examples/parse_bench.rs \
+            examples/parse_benchmark.rs examples/support/parse_observer.rs \
+            examples/support/parse_benchmark.rs examples/support/process.rs \
+            target/oracle/parse-bench-helper target/oracle/build/libxml2.a \
+            target/release/examples/parse_bench target/release/examples/parse_benchmark \
+            > target/oracle/parse-benchmark-sha256.txt
       - name: Smoke matched structural editing phases
         shell: bash
         run: |
@@ -212,3 +238,6 @@ jobs:
             target/oracle/xmlconf-required-pass.tsv
             target/oracle/xmlconf-binary-sha256-start.txt
             target/oracle/xmlconf-binary-sha256-end.txt
+            target/oracle/parse-bench-version.txt
+            target/oracle/parse-benchmark-smoke.txt
+            target/oracle/parse-benchmark-sha256.txt

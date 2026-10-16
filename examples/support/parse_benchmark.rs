@@ -143,7 +143,7 @@ pub fn fixture(name: &str) -> Result<Vec<u8>, &'static str> {
             "<item a='a\r\nb&#x9;c'>a&amp;b\r\nc&#13;d</item>".repeat(4096)
         ),
         "unicode" => format!(
-            "<根 xmlns:前='urn:例'>{}</根>",
+            "<根 xmlns:前='urn:example'>{}</根>",
             "<前:項 前:属='é😀'>かなé😀</前:項>".repeat(4096)
         ),
         "deep" => format!("{}text{}", "<n>".repeat(128), "</n>".repeat(128)),
