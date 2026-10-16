@@ -399,22 +399,10 @@ fn validate_reserved_declarations(spec: &ElementSpec<'_>) -> Result<(), EditErro
             || (declaration.prefix != Some("xml") && declaration.uri == XML)
             || (declaration.prefix.is_some() && declaration.uri.is_empty());
         if invalid_prefix {
-            return Err(located_item(
-                EditErrorKind::Namespace,
-                index,
-                true,
-                None,
-                None,
-            ));
+            return Err(namespace_error(item_location(index, true, None, None)));
         }
         if invalid_uri {
-            return Err(located_item(
-                EditErrorKind::Namespace,
-                index,
-                true,
-                None,
-                None,
-            ));
+            return Err(namespace_error(item_location(index, true, None, None)));
         }
     }
     Ok(())
@@ -563,20 +551,20 @@ fn ensure_binding(
         if work.compare(current, uri)? {
             return Ok(());
         }
-        return Err(EditError::located(EditErrorKind::Namespace, error_location));
+        return Err(namespace_error(error_location));
     }
     if let Some(current) = lookup_generated(generated, prefix, work)? {
         if work.compare(current, uri)? {
             return Ok(());
         }
-        return Err(EditError::located(EditErrorKind::Namespace, error_location));
+        return Err(namespace_error(error_location));
     }
     if let Some(current) = lookup(document, parent, prefix, local, generated, work)? {
         if work.compare(current, uri)? {
             return Ok(());
         }
         if !exact {
-            return Err(EditError::located(EditErrorKind::Namespace, error_location));
+            return Err(namespace_error(error_location));
         }
     }
     let planned_count = supplied_items
@@ -841,7 +829,12 @@ fn prefix_limit_location(location: EditLocation, offset: usize) -> EditLocation 
 }
 
 fn namespace_error(loc: EditLocation) -> EditError {
-    EditError::located(EditErrorKind::Namespace, loc)
+    let location = match loc {
+        EditLocation::ElementName { .. } => loc,
+        EditLocation::NamespaceItem { index, .. } => item_location(index, true, None, None),
+        EditLocation::AttributeItem { index, .. } => item_location(index, false, None, None),
+    };
+    EditError::located(EditErrorKind::Namespace, location)
 }
 
 fn put_string(scratch: &mut String, value: &str) -> Range<usize> {
@@ -938,17 +931,6 @@ fn make_declaration(
         value,
         is_declaration: true,
     })
-}
-
-fn name_location(
-    index: Option<usize>,
-    is_namespace: bool,
-    component: EditComponent,
-) -> EditLocation {
-    match index {
-        Some(index) => item_location(index, is_namespace, Some(component), None),
-        None => location(component, None),
-    }
 }
 
 fn semantic_name_location(
@@ -1210,10 +1192,10 @@ fn resolve_name(
         false
     };
     if unprefixed_xmlns_attribute {
-        return Err(EditError::located(
-            EditErrorKind::Namespace,
-            name_location(item_index, false, EditComponent::LocalName),
-        ));
+        return Err(namespace_error(semantic_name_location(
+            item_index,
+            EditComponent::LocalName,
+        )));
     }
     make_name(
         scratch,
@@ -2151,6 +2133,37 @@ mod tests {
         })];
         let mut root = root;
         let mut editor = root.edit(EditLimits::default()).unwrap();
+        let error = editor
+            .append_element(
+                parent,
+                ElementSpec {
+                    name: NameSpec {
+                        local: "child",
+                        namespace: None,
+                        prefix: PrefixPolicy::Exact(None),
+                    },
+                    items: &items,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.kind, EditErrorKind::Namespace);
+        assert_eq!(
+            error.location,
+            Some(EditLocation::AttributeItem {
+                index: 0,
+                component: None,
+                byte_offset: None,
+            })
+        );
+
+        let items = [ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "xmlns",
+                namespace: None,
+                prefix: PrefixPolicy::Exact(None),
+            },
+            value: "urn:wrong",
+        })];
         let error = editor
             .append_element(
                 parent,
