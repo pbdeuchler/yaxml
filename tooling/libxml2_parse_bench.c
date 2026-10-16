@@ -691,6 +691,9 @@ static void run_dom(const struct Input *input, size_t iterations,
         validate_dom(doc, &obs);
         if (doc != NULL && !obs.failed && !obs.doctype) {
             started = now_ns();
+            /* Parsing diagnostics were checked above. Charge a fresh logical
+             * observer to traversal, as the Rust DOM helpers do. */
+            obs = new_observation();
             observe_dom(&obs, doc);
             totals->observe_ns = add_u64(totals->observe_ns,
                                          now_ns() - started,
