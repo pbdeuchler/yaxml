@@ -112,7 +112,8 @@ lifecycle wins. For example, attribute-heavy borrowing DOM has parse medians
 0.608 ms. A combined lifecycle win must not be reported as a parse-only win.
 
 The clearest gap is long-text DOM parsing: 500,013 input bytes take median
-1.034 ms for borrowing DOM and 1.043 ms for owned DOM, versus approximately
+parse-plus-destruction time of 1.034 ms for borrowing DOM and 1.043 ms for owned
+DOM, versus approximately
 0.188 ms for the reference, about **5.5 times longer**. Flat push takes 2.084 ms
 versus 0.753 ms, about 2.77 times longer. These are measured lifecycle gaps;
 the timings alone do not identify the responsible functions.
@@ -149,12 +150,19 @@ and calibration rows, sample order and stable per-fixture hashes. It regenerated
 both summary tables byte-for-byte and verified all 143 pre-audit result hashes.
 The audit scripts, metrics and notes are in `independent-results-audit/` under
 the evidence directory.
+The separate identity audit re-extracted the pinned archive and checked all
+4,426 source files, all 229 committed blobs, four release binary identities,
+source/recipe manifests and publication gates. Its PASS log is
+`/private/tmp/yaxml-parse-baseline-audit-233638a.log`; the holistic review records
+its script, hashes and exact scope.
 
 The scripts are `/private/tmp/yaxml-parse-baseline-{run.sh,matrix.rb,analyze.rb}`.
 Immutable copies, inputs, binaries, manifests and results are under
 `/private/tmp/yaxml-parse-baseline-evidence-233638a`. Root checks are retained at
 `/private/tmp/yaxml-parse-baseline-{all-targets,doctests,clippy,fmt}-8830f74.log`
 and `/private/tmp/yaxml-parse-baseline-anchored-{cli,clippy}.log`.
+The final 12-unit rerun is retained in
+`/private/tmp/yaxml-parse-baseline-final-helper-units.log`.
 
 Broader size/attribute/namespace/depth series, UTF-16/other encodings, malformed
 inputs, cold latency, allocation counts, retained/peak memory and real workloads
