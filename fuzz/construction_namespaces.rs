@@ -6,7 +6,7 @@
 
 use super::*;
 
-const CASE_COUNT: u8 = 27;
+const CASE_COUNT: u8 = 28;
 
 fn check_created(document: &OwnedDocument, id: OwnedNodeId, expected: &ModelElement) {
     assert_element(document, id, expected);
@@ -430,6 +430,28 @@ fn supplemental_append_case(input: &[u8], selector: u8, mode: u8) {
                 attributes: Vec::new(),
             };
             append_expected(&mut document, &before, parent, spec, &expected);
+        }
+        27 => {
+            let items = [
+                ElementItem::Namespace(NamespaceSpec {
+                    prefix: None,
+                    uri: "v",
+                }),
+                ElementItem::Namespace(NamespaceSpec {
+                    prefix: Some("p"),
+                    uri: "u",
+                }),
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("a", Some("v"), exact(Some("p"))),
+                    value: "value",
+                }),
+            ];
+            let spec = ElementSpec {
+                name: spec_name(&local, Some("u"), PrefixPolicy::Automatic),
+                items: &items,
+            };
+            let expected = located(EditErrorKind::Namespace, attribute_location(2, None, None));
+            append_rejected(&mut document, &before, parent, spec, expected);
         }
         _ => unreachable!("supplemental namespace selector is bounded"),
     }
