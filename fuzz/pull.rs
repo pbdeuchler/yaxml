@@ -49,6 +49,14 @@ impl<'a> Source<'a> {
             failed: false,
         }
     }
+
+    fn operation(&mut self) {
+        self.calls += 1;
+        assert!(
+            self.calls <= self.input.len().saturating_mul(8).saturating_add(32),
+            "pull source made no bounded progress"
+        );
+    }
 }
 
 impl Read for Source<'_> {
@@ -59,7 +67,7 @@ impl Read for Source<'_> {
 
 impl BufRead for Source<'_> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        self.calls += 1;
+        self.operation();
         if std::mem::take(&mut self.interrupted) {
             return Err(io::Error::from(io::ErrorKind::Interrupted));
         }
@@ -77,7 +85,7 @@ impl BufRead for Source<'_> {
     }
 
     fn consume(&mut self, amount: usize) {
-        self.calls += 1;
+        self.operation();
         assert!(amount <= self.visible, "pull consumed beyond exposed bytes");
         self.visible -= amount;
         self.position += amount;
