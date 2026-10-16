@@ -7,6 +7,12 @@ The subsequent [streaming milestone report](validation-streaming.md) and
 implementation, tests and coverage. This page preserves the initial slice/DOM
 measurements.
 
+The later [buffered-pull](validation-buffered-pull.md),
+[complete-document output](validation-dom-serialization.md),
+[value-editing](validation-owned-mutation.md) and
+[leaf-structure](validation-owned-structure.md) reports record the subsequent
+implemented surfaces and their current evidence gaps.
+
 This records the first UTF-8 reader/DOM slice, not completion of the replacement
 goal. Core source is unchanged between `bd52745` and `e935e2b`; later commits in
 that range strengthen tests and coverage reporting.
