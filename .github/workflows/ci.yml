@@ -112,6 +112,45 @@ jobs:
           cargo run --release --example structure_oracle -- \
             --libxml2-helper "$PWD/target/oracle/structure-helper" \
             2>&1 | tee target/oracle/structure-comparison.txt
+      - name: Run the complete pinned XML conformance catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+            -Itarget/oracle/build -Itarget/oracle/libxml2-2.15.4/include \
+            tooling/libxml2_xmlconf_catalog.c target/oracle/build/libxml2.a \
+            -lm -pthread -ldl -o target/oracle/xmlconf-catalog-helper
+          target/oracle/xmlconf-catalog-helper --version > target/oracle/xmlconf-helper-version.txt
+          YAXML_XMLCONF_HELPER="$PWD/target/oracle/xmlconf-catalog-helper" \
+            cargo test --test xml_conformance_catalog_cli -- --ignored
+          curl --fail --location --retry 3 --max-time 120 --max-filesize 8388608 \
+            https://www.w3.org/XML/Test/xmlts20130923.tar.gz \
+            --output target/oracle/xmlts20130923.tar.gz
+          echo '9b61db9f5dbffa545f4b8d78422167083a8568c59bd1129f94138f936cf6fc1f  target/oracle/xmlts20130923.tar.gz' \
+            | sha256sum --check
+          mkdir -p target/oracle/xml-suite
+          tar -xzf target/oracle/xmlts20130923.tar.gz -C target/oracle/xml-suite
+          XML_CATALOG_FILES= SGML_CATALOG_FILES= target/oracle/xmlconf-catalog-helper \
+            "$PWD/target/oracle/xml-suite/xmlconf/xmlconf.xml" \
+            "$PWD/target/oracle/xml-suite/xmlconf" > target/oracle/xmlconf-catalog.tsv \
+            2> target/oracle/xmlconf-catalog.stderr
+          test ! -s target/oracle/xmlconf-catalog.stderr
+          test "$(wc -l < target/oracle/xmlconf-catalog.tsv)" -eq 2586
+          find target/oracle/xml-suite/xmlconf -type f -print0 \
+            | sort -z | xargs -0 sha256sum > target/oracle/xmlconf-input-sha256.txt
+          cargo build --release --example xml_conformance
+          target/release/examples/xml_conformance \
+            --manifest target/oracle/xmlconf-catalog.tsv \
+            --suite-root target/oracle/xml-suite/xmlconf --expected-cases 2585 \
+            > target/oracle/xmlconf-results.tsv 2> target/oracle/xmlconf-results.stderr
+          find target/oracle/xml-suite/xmlconf -type f -print0 \
+            | sort -z | xargs -0 sha256sum > target/oracle/xmlconf-input-sha256-end.txt
+          cmp target/oracle/xmlconf-input-sha256.txt target/oracle/xmlconf-input-sha256-end.txt
+          sha256sum tooling/libxml2_xmlconf_catalog.c examples/xml_conformance.rs \
+            examples/support/conformance_catalog.rs examples/support/conformance_worker.rs \
+            target/oracle/xmlconf-catalog.tsv target/oracle/xmlconf-results.tsv \
+            > target/oracle/xmlconf-artifact-sha256.txt
+          cat target/oracle/xmlconf-results.stderr
       - name: Smoke matched structural editing phases
         shell: bash
         run: |
@@ -154,3 +193,11 @@ jobs:
             target/oracle/structure-benchmark-smoke.txt
             target/oracle/structure-benchmark-source-sha256.txt
             target/oracle/c-compiler.txt
+            target/oracle/xmlconf-helper-version.txt
+            target/oracle/xmlconf-catalog.tsv
+            target/oracle/xmlconf-catalog.stderr
+            target/oracle/xmlconf-results.tsv
+            target/oracle/xmlconf-results.stderr
+            target/oracle/xmlconf-input-sha256.txt
+            target/oracle/xmlconf-input-sha256-end.txt
+            target/oracle/xmlconf-artifact-sha256.txt
