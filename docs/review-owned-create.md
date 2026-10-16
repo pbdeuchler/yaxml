@@ -125,10 +125,13 @@ the restored run is
 
 ## Verification evidence
 
-The assembled checkpoint's retained `cargo test --all-targets --offline
---locked` log contains 404 passed tests, zero failures, and seven ignored tests.
-The reviewer independently ran the restored 17-test public construction suite,
-strict all-target Clippy, formatting, and doctests. Results were:
+The retained `cargo test --all-targets --offline --locked` log was captured at
+`9e145bf` and contains 404 passed tests, zero failures, and seven ignored tests.
+The subsequent `02cb2a5` commit changes four source doc-comment lines concerning
+persistent attribute expenditure and created-node provenance; executable Rust,
+tests, and harness bytes are unchanged. At `02cb2a5`, the reviewer independently
+ran the restored 17-test public construction suite, strict all-target Clippy,
+formatting, and doctests. Results were:
 
 - `cargo +stable test --test owned_construction --offline --locked`: 17 passed.
 - `cargo +stable clippy --all-targets --offline --locked -- -D warnings`: passed.
