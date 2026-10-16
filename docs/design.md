@@ -117,8 +117,9 @@ the slice constructor's error precedence.
 
 ## Values, namespaces, and diagnostics
 
-The existing public vocabulary is `Reader`, `Event`, `Element`, `Attribute`,
-`Declaration`, `Name`, `Limits`, `Document`, `Node`, `NodeId`, and `NodeKind`.
+The existing public vocabulary includes `Reader`, `PushParser`, `Writer`,
+`Event`, `Element`, `Attribute`, `Declaration`, `Name`, `Limits`, `WriterLimits`,
+`Document`, `Node`, `NodeId`, and `NodeKind`.
 Retain these names while behavior stabilizes. New parser policy should extend
 explicit configuration, with strict XML as the default; avoid a bag of
 independent switches that permits contradictory contracts.
@@ -142,6 +143,25 @@ Distinguish malformed XML, unsupported features, exhausted resource budgets,
 allocation failure, and underlying I/O errors. Future recovery should return a
 tree plus diagnostics and a clear incomplete/recovered status. It must never
 turn failure into an apparently valid strict document.
+
+## Output validation
+
+The first `Writer` encodes one event into a reusable bounded scratch token,
+validates its XML characters and raw delimiters, then submits it to the same
+semantic state machine as the readers. Supplied public name and declaration
+metadata must agree with the parsed token before sink I/O begins. This prevents
+caller-created events from bypassing grammar or namespace checks while keeping
+one document-state implementation. It costs an extra scan and temporary event
+allocation; measure those costs before replacing the path with direct semantic
+operations.
+
+The sink is an explicit `Write` capability. Output limits count encoded bytes;
+confirmed partial writes remain visible, and a failed or panicking operation
+poisons later calls. Completion validates closure and flushes without generating
+missing end tags. Namespace repair, pretty printing and raw insertion each need
+a separate contract. Formatting can change mixed content, and repair can change
+prefix spelling, so neither belongs in the strict default implicitly. See the
+[writer contract](writer.md) for the current API and normalization behavior.
 
 ## DOM ownership and mutation
 
