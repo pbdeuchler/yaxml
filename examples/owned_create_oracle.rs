@@ -217,14 +217,24 @@ fn compare(helper: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     if !version.status.success() || !version.stderr.is_empty() {
         return Err("construction oracle version command failed".into());
     }
-    verify(&version.stdout, VERSION)?;
+    verify(&version.stdout, VERSION).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "expected libxml2 2.15.4 compiled/runtime identity with tree and output enabled",
+        )
+    })?;
     let mut expected = Vec::new();
     for (index, (label, literal)) in CASES.iter().enumerate() {
         let document = build_case(index)?;
         let mut writer = Writer::new(Vec::new());
         writer.write_owned_document(&document)?;
         let actual = writer.into_inner();
-        verify(&actual, literal.as_bytes())?;
+        verify(&actual, literal.as_bytes()).map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("construction case {label}: yaxml differs from literal serialization"),
+            )
+        })?;
         frame(&mut expected, label, &actual);
     }
     let actual = process::run(helper, &[], b"", limits)?;
