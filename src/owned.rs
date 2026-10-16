@@ -52,14 +52,6 @@ pub enum OwnedNodeKind {
 
 #[derive(Debug)]
 enum Content {
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "Permanent removal is added in the next plan phase"
-        )
-    )]
-    Removed,
     Document,
     Element {
         name: StoredName,
@@ -72,6 +64,14 @@ enum Content {
         target: Range<usize>,
         data: Range<usize>,
     },
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "Permanent removal is added in the next plan phase"
+        )
+    )]
+    Removed,
 }
 
 // usize::MAX is never a published slot. Keeping the sentinel private saves one
@@ -126,6 +126,7 @@ struct StoredName {
 }
 
 impl StoredName {
+    #[inline]
     fn view<'pool>(&self, pool: &'pool str) -> Name<'pool> {
         let qualified = &pool[self.qualified.clone()];
         let (prefix, local) = match self.prefix_length {
@@ -345,15 +346,20 @@ impl OwnedDocument {
     }
 
     /// Looks up a checked owned handle, rejecting foreign or out-of-range IDs.
+    #[inline]
     pub fn node(&self, id: OwnedNodeId) -> Option<OwnedNode<'_>> {
         if id.document != self.identity {
             return None;
         }
         let record = self.nodes.get(id.slot.0)?;
-        (!matches!(record.content, Content::Removed)).then_some(OwnedNode {
-            document: self,
-            id: id.slot,
-        })
+        // Contiguous parsed slots are all live. Structural edits permanently
+        // disable that invariant before any slot can become Removed.
+        (self.slots_are_preorder || !matches!(record.content, Content::Removed)).then_some(
+            OwnedNode {
+                document: self,
+                id: id.slot,
+            },
+        )
     }
 
     pub fn nodes(&self) -> impl ExactSizeIterator<Item = OwnedNode<'_>> + '_ {
@@ -730,6 +736,7 @@ pub struct OwnedNode<'document> {
 }
 
 impl<'document> OwnedNode<'document> {
+    #[inline]
     fn record(self) -> &'document OwnedRecord {
         &self.document.nodes[self.id.0]
     }
@@ -741,6 +748,7 @@ impl<'document> OwnedNode<'document> {
         }
     }
 
+    #[inline]
     pub fn kind(self) -> OwnedNodeKind {
         match &self.record().content {
             Content::Removed => unreachable!("owned node is live"),
@@ -753,6 +761,7 @@ impl<'document> OwnedNode<'document> {
         }
     }
 
+    #[inline]
     pub fn name(self) -> Option<Name<'document>> {
         match &self.record().content {
             Content::Element { name, .. } => Some(name.view(&self.document.pool.0)),
@@ -762,6 +771,7 @@ impl<'document> OwnedNode<'document> {
 
     /// Returns the direct Text, CDATA, comment or PI payload, without joining
     /// descendant text. Elements and the document root return None.
+    #[inline]
     pub fn text(self) -> Option<&'document str> {
         let range = match &self.record().content {
             Content::Text(range) | Content::Cdata(range) | Content::Comment(range) => range,
@@ -782,6 +792,7 @@ impl<'document> OwnedNode<'document> {
 
     /// Visits attributes in source order, including namespace declarations.
     /// Each view borrows the pool without allocating.
+    #[inline]
     pub fn attributes(self) -> impl ExactSizeIterator<Item = Attribute<'document>> + 'document {
         let range = match &self.record().content {
             Content::Element { attributes, .. } => attributes.clone(),
@@ -793,6 +804,7 @@ impl<'document> OwnedNode<'document> {
     /// Original source location, independent of current logical content and
     /// pool storage. Parsed nodes retain Some(range); future created nodes may
     /// have no source provenance. This cannot index the owned string pool.
+    #[inline]
     pub fn range(self) -> Option<Range<usize>> {
         self.record().source.clone()
     }

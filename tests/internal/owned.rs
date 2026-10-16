@@ -492,6 +492,9 @@ fn value_edits_preserve_both_contiguous_and_linked_traversal_modes() {
             .set_attribute_value(element, None, "a", "updated")
             .unwrap();
         assert_eq!(editor.document().slots_are_preorder, contiguous);
+        for id in &expected {
+            assert_eq!(editor.document().node(*id).unwrap().id(), *id);
+        }
         assert_eq!(
             editor
                 .document()
