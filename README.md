@@ -133,15 +133,20 @@ The [owned DOM contract](docs/owned-dom.md) describes pool-backed views,
 source ranges and aggregate string accounting. Retained copies share the
 normalization budget, so owned parsing can reach its ceiling before borrowing
 parsing. `Document` continues to borrow unchanged input.
-`Editor` replaces existing leaf or ordinary-attribute values, appends fresh
+`OwnedDocument::create` builds a complete rooted document from borrowed name,
+attribute and namespace specifications. `Editor::append_element` adds fresh
+elements with initial attributes, preserving expanded names and checked handles.
+`Editor` also replaces existing leaf or ordinary-attribute values, appends fresh
 Text/CDATA/comment/PI leaves, and permanently removes non-root subtrees.
 Text and CDATA require an element parent; comments and PIs may also append after
 the document's epilog. Insertion never merges Text nodes. Removal makes all
 subtree handles stale and protects the synthetic root and document element.
 Parsed survivors retain their source ranges; new nodes have none. `EditLimits`
 bounds each supplied string, cumulative pool-capacity requests, and successful
-created slots across editors; removal refunds neither counter. Element/attribute
-construction, moves/adoption, detached ownership, namespace edits, slot reuse and
+created slots/attributes across editors. Construction also bounds aggregate
+supplied bytes, element depth/items and namespace lookup work. Removal refunds
+no cumulative counters. Existing-element attribute insertion/removal,
+moves/adoption, detached ownership, namespace edits, slot reuse and
 compaction remain pending.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals

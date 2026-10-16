@@ -1,7 +1,8 @@
 # Owned document storage
 
 `OwnedDocument` survives destruction of its UTF-8 or UTF-16 input and supports
-bounded value replacement, leaf insertion and permanent subtree removal.
+bounded rooted construction, element/leaf insertion, value replacement and
+permanent subtree removal.
 Its parser uses the same XML grammar, namespaces, normalization and resource
 policy as `Document`; strings are copied into a document-owned UTF-8 pool.
 Records keep pool ranges and flat node links rather than references into their
@@ -73,8 +74,9 @@ buffer to slice after input destruction.
 `node(id)` rejects foreign handles, even when the slot exists in both documents,
 as well as out-of-range and permanently removed slots. Moving a document preserves its handles; separately
 parsed documents have different identities. The nonzero process-local identity
-counter never recycles or wraps; exhaustion returns `IdentifierExhausted` at
-offset zero after XML construction otherwise succeeds. IDs are not serialized
+counter never recycles or wraps. Parsing reports exhaustion at source offset
+zero; rooted creation reports `EditErrorKind::IdentifierExhausted` without an
+input location. IDs are not serialized
 identifiers or stable addresses. Slots are never reused, so removed handles
 cannot resolve to later insertions. Binding registries remain future work.
 The borrowing tree keeps its separate `NodeId` type and
@@ -154,7 +156,8 @@ whitespace. These stricter lexical rules avoid changes on serialization/reparse.
 Empty values remain present nodes; only empty Text disappears from output.
 Adjacent Text runs can coalesce on reparse. Empty CDATA/comments/PIs stay distinct.
 
-`EditError` has public `kind` and `value_offset` fields. Target identity, kind,
+`EditError` has public `kind`, `value_offset` and `location` fields. Existing
+scalar methods leave `location` empty. Target identity, kind,
 attribute lookup and XMLNS restrictions precede value validation. Validation
 checks byte length, then all XML characters, then the earliest lexical violation,
 then storage. Character and lexical failures report a UTF-8 index in the new
@@ -162,6 +165,76 @@ value; other failures have no index. This index is never an original source
 coordinate. An error preserves logical state and the editor remains usable.
 Names, namespace metadata, declaration, topology, IDs and original source ranges
 also persist after successful value edits.
+
+## Creating documents and elements
+
+`OwnedDocument::create(ElementSpec, EditLimits)` returns a complete document
+with one root element. `Editor::append_element(parent, ElementSpec)` creates a
+fresh last child under an element. Neither exposes a detached or rootless tree.
+The synthetic document node and every new element have no source range. Names,
+attributes and namespace declarations are copied before the call returns.
+
+```rust
+use yaxml::{AttributeSpec, EditLimits, ElementItem, ElementSpec, NameSpec,
+            OwnedDocument, PrefixPolicy};
+let mut document = OwnedDocument::create(ElementSpec {
+    name: NameSpec { local: "catalog", namespace: Some("urn:shop"),
+                     prefix: PrefixPolicy::Exact(None) },
+    items: &[],
+}, EditLimits::default())?;
+let root = document.root_element().id();
+let mut editor = document.edit(EditLimits::default())?;
+let item = editor.append_element(root, ElementSpec {
+    name: NameSpec { local: "item", namespace: Some("urn:shop"),
+                     prefix: PrefixPolicy::Automatic },
+    items: &[ElementItem::Attribute(AttributeSpec {
+        name: NameSpec { local: "id", namespace: None,
+                         prefix: PrefixPolicy::Exact(None) },
+        value: "A-17",
+    })],
+})?;
+editor.append_text(item, "literal & text")?;
+assert_eq!(editor.document().node(item).unwrap().range(), None);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`NameSpec` separates local name, namespace URI and prefix policy. `None` means
+no namespace; `Some("")` is invalid. `Exact(None)` requests no prefix and
+`Exact(Some("p"))` requests `p` without substitution. Ordinary unprefixed
+attributes have no namespace. A namespaced attribute must request a prefix or
+use `Automatic`; the XML namespace always uses `xml`. The XMLNS URI and
+ordinary unprefixed attribute name `xmlns` are reserved for declarations.
+Namespace URIs must contain XML characters; general URI syntax is not checked.
+
+`ElementItem::Namespace(NamespaceSpec)` supplies a declaration. All explicit
+declarations apply before resolving names, regardless of item order. The
+attribute view preserves caller item order, followed by generated declarations
+in order of first use. Duplicate prefixes and duplicate expanded attribute
+names fail. A fresh element can safely shadow an inherited binding when every
+exact use in that specification agrees. Existing descendants are unchanged.
+
+`Automatic` elements prefer a matching default namespace, or declare the
+requested URI as their local default when safe. Otherwise they reuse a matching
+nondefault prefix or generate `ns1`, `ns2`, and so on. Automatic attributes reuse
+the nearest usable nondefault binding in declaration order, then generate a
+prefix. A shadowed binding is unusable. Generated prefixes skip later exact
+prefix requests, and automatic choices cannot conflict with their requested
+URIs. An unnamespaced element adds `xmlns=""` when needed. Conflicting explicit
+declarations fail instead of being silently rewritten.
+
+Initial attributes occupy one contiguous range. Their values can use
+`set_attribute_value`; membership stays fixed. Attribute insertion/removal on
+existing elements and namespace rebinding remain separate work.
+
+Construction errors use `EditError.location`, identifying an element field or
+zero-based `ElementSpec.items` index. Byte offsets refer to the supplied UTF-8
+component, including the first excess byte for component/aggregate byte
+limits. Semantic item errors identify the item without inventing a byte offset.
+Handle, node-kind, persistent quota and allocation errors have no location.
+Handle/kind and depth/item-count checks precede supplied lengths; all supplied
+length checks precede character/name scans. Namespace planning and duplicates
+precede persistent node/attribute/pool quota checks and publication. Failed
+operations preserve the complete logical tree and remain retryable.
 
 ## Leaf insertion and permanent removal
 
@@ -219,20 +292,38 @@ remains available under the writer's own limits.
 | `max_value_bytes` | 1 MiB (1,048,576 bytes) | UTF-8 bytes per supplied value or PI target, checked before scanning; excludes selector keys. |
 | `max_owned_bytes` | 64 MiB (67,108,864 bytes) | Full newly requested pool capacities across all editors for this document. |
 | `max_created_nodes` | 1,000,000 | Successful fresh slots across all editors; excludes parsed nodes and never refunds removal. |
+| `max_name_bytes` | 1 MiB | Per local name, prefix or namespace URI in construction. |
+| `max_supplied_bytes` | 8 MiB | All string occurrences in one construction call; repeated borrowed strings count repeatedly. |
+| `max_attributes` | 1,024 | Explicit plus generated items on a newly constructed element. |
+| `max_depth` | 256 | Prospective element depth; the real document element is depth one. |
+| `max_created_attributes` | 1,000,000 | Successful fresh ordinary attributes and declarations, including initial creation; no removal refund. |
+| `max_namespace_work` | 64 MiB | Per-call element-scope probes, binding/expanded-name comparisons and selected prefix work. |
 
 Editing starts with the parsed pool and spare capacity as its baseline. It does
-not charge parsing again or reset either editing counter when an editor closes.
+not charge parsing again or reset persistent editing counters when an editor closes.
+Rooted creation has no free parsed baseline: its real root, initial attributes
+and pool allocation consume their respective counters; the synthetic root is
+excluded from created-node accounting.
 A growth charges its full replacement capacity before reservation; earlier
 charges remain spent, including failed reservation requests. A lower ceiling
 than expenditure already incurred prevents opening an editor; when both
-cumulative ceilings are too low, `CreatedNodes` precedes `OwnedBytes`. A later
+cumulative ceilings are too low, checks are `CreatedNodes`, `OwnedBytes`, then
+`CreatedAttributes`. A later
 higher ceiling is allowed. An equal-value replacement follows the same edit path.
 Old values remain in the append-only pool. Capacity already available can serve
 an edit with zero remaining growth allowance. This bounds requested growth, not resident
 memory or all CPU work. PI target and data share one combined reservation: after
 parsing `<r/>` into one pool byte, appending target `p` and data `d` charges one
 full-capacity request of 3 bytes. A 2-byte editing allowance fails and a 3-byte
-allowance succeeds. Removal refunds neither cumulative counter.
+allowance succeeds. Removal refunds none of these cumulative counters.
+Construction-specific live depth/item limits do not prevent editing values on
+a parsed baseline above those ceilings. Supplied-byte and namespace-work
+allowances reset for each construction call. Namespace work charges ancestor
+attributes even when they are ordinary attributes skipped during scope lookup;
+reserved spelling validation belongs to the supplied-byte allowance.
+Temporary planning has separate input/work-derived bounds and fallible
+reservations. These logical limits exclude allocator overhead and do not form
+a process-memory quota.
 Private tests use a safe thread-local failpoint at actual editing node-vector and
 pool-growth reservation boundaries. They verify returned `Allocation` errors,
 publication atomicity, retained pool charges and editor recovery without global
@@ -247,7 +338,7 @@ implemented behavior from pending coverage, review and performance evidence.
 
 Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
-adapters. General element/attribute construction, sibling insertion, moves,
+adapters. Existing-element attribute insertion/removal, sibling insertion, moves,
 copy/import/adoption, detached ownership, slot reuse, compaction, name and namespace
 edits, declaration editing, foreign registries, allocator parameters, formatting,
 namespace repair, and UTF-16 output remain separate work items. Comparative
