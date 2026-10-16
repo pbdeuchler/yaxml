@@ -697,7 +697,7 @@ impl Campaign {
         }
         let mut report_args = vec![
             "report".to_owned(),
-            "--color=never".to_owned(),
+            "--color=0".to_owned(),
             format!("--instr-profile={}", path_text(&pending)),
             path_text(&self.args.target).to_owned(),
             "--sources".to_owned(),
@@ -1246,7 +1246,7 @@ impl Campaign {
 
     fn write_report(&self, failure: Option<(&str, &str)>) -> Result<(), Box<dyn Error>> {
         let mut text = format!(
-            "revision={}\nsource_root={}\nbuild_flags={}\ncompiler_version_label={}\ntarget_args=stdin, no arguments\nmerge_options=-sparse\nreport_options=--color=never --instr-profile --sources all 14 src/*.rs files; report expects 13 rows because lib.rs has no executable mapping\nprofile_format=LLVM raw plus indexed profdata\nidentity_hash=FNV-1a 64-bit plus length; non-cryptographic accidental-change check only\nprofile_storage_max_files=4 (previous successful raw, current raw, cumulative profile, pending merge)\nprofile_storage_max_bytes={}\nprng_seed={}\nlimits={:?}\ntermination={}\ntarget={}\ntarget_identity_fnv64_len={:016x}:{}\nllvm_profdata={}\nllvm_profdata_identity_fnv64_len={:016x}:{}\nllvm_cov={}\nllvm_cov_identity_fnv64_len={:016x}:{}\ntool_versions={:?}\ncases_attempted={}\nseed_cases_attempted={}\nmutation_cases_attempted={}\nfirst_seed_no_coverage={}\nretained={}\nduplicates={}\nnovel={}\nelapsed_seconds={}\n",
+            "revision={}\nsource_root={}\nbuild_flags={}\ncompiler_version_label={}\ntarget_args=stdin, no arguments\nmerge_options=-sparse\nreport_options=--color=0 --instr-profile --sources all 14 src/*.rs files; report expects 13 rows because lib.rs has no executable mapping\nprofile_format=LLVM raw plus indexed profdata\nidentity_hash=FNV-1a 64-bit plus length; non-cryptographic accidental-change check only\nprofile_storage_max_files=4 (previous successful raw, current raw, cumulative profile, pending merge)\nprofile_storage_max_bytes={}\nprng_seed={}\nlimits={:?}\ntermination={}\ntarget={}\ntarget_identity_fnv64_len={:016x}:{}\nllvm_profdata={}\nllvm_profdata_identity_fnv64_len={:016x}:{}\nllvm_cov={}\nllvm_cov_identity_fnv64_len={:016x}:{}\ntool_versions={:?}\ncases_attempted={}\nseed_cases_attempted={}\nmutation_cases_attempted={}\nfirst_seed_no_coverage={}\nretained={}\nduplicates={}\nnovel={}\nelapsed_seconds={}\n",
             self.args.revision,
             escape_field(path_text(&self.args.source_root)),
             escape_field(&self.args.build_flags),
@@ -1942,7 +1942,7 @@ mod tests {
         missing_lib
             .args([
                 "report",
-                "--color=never",
+                "--color=0",
                 "--instr-profile=/unused",
                 "/unused-target",
                 "--sources",
@@ -1958,7 +1958,7 @@ mod tests {
         duplicate_source
             .args([
                 "report",
-                "--color=never",
+                "--color=0",
                 "--instr-profile=/unused",
                 "/unused-target",
                 "--sources",
@@ -1971,6 +1971,26 @@ mod tests {
         assert!(
             String::from_utf8_lossy(&duplicate_source.stderr)
                 .contains("exact 14-file production source set")
+        );
+        let mut invalid_color = std::process::Command::new(&cov);
+        invalid_color
+            .args([
+                "report",
+                "--color=never",
+                "--instr-profile=/unused",
+                "/unused-target",
+                "--sources",
+            ])
+            .args(
+                (0..13)
+                    .map(|index| root.join(format!("source/src/m{index:02}.rs")))
+                    .chain(std::iter::once(root.join("source/src/lib.rs"))),
+            );
+        let invalid_color = invalid_color.output().unwrap();
+        assert!(!invalid_color.status.success());
+        assert!(
+            String::from_utf8_lossy(&invalid_color.stderr)
+                .contains("expected LLVM boolean color option --color=0")
         );
         fs::write(root.join("source/src/m-extra.rs"), b"// extra source\n").unwrap();
         let source_count_limit = run_cli(

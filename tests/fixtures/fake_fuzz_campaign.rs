@@ -114,6 +114,10 @@ fn cov(mode: &str) {
         println!("LLVM version {version}-rust-fixture");
         return;
     }
+    if !env::args().any(|argument| argument == "--color=0") {
+        eprintln!("expected LLVM boolean color option --color=0");
+        process::exit(93);
+    }
     if !has_exact_source_list() {
         eprintln!("expected the exact 14-file production source set after --sources");
         process::exit(92);
