@@ -14,15 +14,69 @@ fn check_created(document: &OwnedDocument, id: OwnedNodeId, expected: &ModelElem
 }
 
 fn make_local(input: &[u8]) -> String {
-    // Keep names small and valid; the catalog's namespace behavior is selected
-    // by case byte zero, while only this bounded suffix varies.
-    derived_name(input.get(8..16).unwrap_or_default())
+    // Keep names small and valid; byte 6 selects the namespace case, byte 7
+    // selects the parent encoding, and up to 8 remaining bytes vary the name.
+    derived_name(input.get(8..).unwrap_or_default())
+}
+
+fn assert_existing_nodes_preserved(
+    document: &OwnedDocument,
+    before: &Snapshot,
+    appended_parent: OwnedNodeId,
+) {
+    for expected in &before.nodes {
+        let actual = document
+            .node(expected.id)
+            .expect("append invalidated an existing node");
+        assert_eq!(actual.kind(), expected.kind, "existing node kind changed");
+        assert_eq!(
+            actual.name().map(observed_name),
+            expected.name,
+            "existing node name changed"
+        );
+        assert_eq!(
+            actual.text().map(str::to_owned),
+            expected.text,
+            "existing node text changed"
+        );
+        assert_eq!(
+            actual.processing_instruction_target().map(str::to_owned),
+            expected.target,
+            "existing PI target changed"
+        );
+        assert_eq!(
+            observed_attributes(actual),
+            expected.attributes,
+            "existing attributes changed"
+        );
+        assert_eq!(
+            actual.range(),
+            expected.range,
+            "existing provenance changed"
+        );
+        assert_eq!(
+            actual.parent().map(|node| node.id()),
+            expected.parent,
+            "existing parent changed"
+        );
+        if expected.id != appended_parent {
+            assert_eq!(
+                actual.first_child().map(|node| node.id()),
+                expected.first_child,
+                "existing first child changed"
+            );
+        }
+    }
 }
 
 fn create_case(input: &[u8], selector: u8) {
     let local = make_local(input);
     match selector {
         0 => {
+            let expected = ModelElement {
+                name: ModelName::new(Some("xml"), &local, Some(XML)),
+                attributes: Vec::new(),
+            };
             let document = OwnedDocument::create(
                 ElementSpec {
                     name: spec_name(&local, Some(XML), PrefixPolicy::Automatic),
@@ -31,17 +85,14 @@ fn create_case(input: &[u8], selector: u8) {
                 EditLimits::default(),
             )
             .expect("Automatic XML namespace must use the implicit xml binding");
-            check_created(
-                &document,
-                document.root_element().id(),
-                &ModelElement {
-                    name: ModelName::new(Some("xml"), &local, Some(XML)),
-                    attributes: Vec::new(),
-                },
-            );
+            check_created(&document, document.root_element().id(), &expected);
         }
         1 | 2 => {
             let prefix = if selector == 1 { None } else { Some("p") };
+            let expected = located(
+                EditErrorKind::Namespace,
+                element_location(EditComponent::Prefix, None),
+            );
             let error = OwnedDocument::create(
                 ElementSpec {
                     name: spec_name(&local, Some(XML), exact(prefix)),
@@ -50,15 +101,13 @@ fn create_case(input: &[u8], selector: u8) {
                 EditLimits::default(),
             )
             .expect_err("XML namespace must reject an incorrect exact prefix");
-            assert_error_with_display(
-                error,
-                located(
-                    EditErrorKind::Namespace,
-                    element_location(EditComponent::Prefix, None),
-                ),
-            );
+            assert_error_with_display(error, expected);
         }
         3 => {
+            let expected = located(
+                EditErrorKind::Namespace,
+                element_location(EditComponent::NamespaceUri, None),
+            );
             let error = OwnedDocument::create(
                 ElementSpec {
                     name: spec_name(&local, Some("urn:not-xml"), exact(Some("xml"))),
@@ -67,15 +116,13 @@ fn create_case(input: &[u8], selector: u8) {
                 EditLimits::default(),
             )
             .expect_err("xml prefix must reject a non-XML namespace");
-            assert_error_with_display(
-                error,
-                located(
-                    EditErrorKind::Namespace,
-                    element_location(EditComponent::NamespaceUri, None),
-                ),
-            );
+            assert_error_with_display(error, expected);
         }
         _ => {
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, Some("urn:root")),
+                attributes: vec![declaration(None, "urn:root")],
+            };
             let document = OwnedDocument::create(
                 ElementSpec {
                     name: spec_name(&local, Some("urn:root"), exact(None)),
@@ -84,14 +131,7 @@ fn create_case(input: &[u8], selector: u8) {
                 EditLimits::default(),
             )
             .expect("exact unprefixed namespaced root should bind the default namespace");
-            check_created(
-                &document,
-                document.root_element().id(),
-                &ModelElement {
-                    name: ModelName::new(None, &local, Some("urn:root")),
-                    attributes: vec![declaration(None, "urn:root")],
-                },
-            );
+            check_created(&document, document.root_element().id(), &expected);
         }
     }
 }
@@ -132,6 +172,13 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
 
     match selector {
         4 => {
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![
+                    attribute(Some("p"), "a", Some("urn:p"), "v"),
+                    declaration(None, ""),
+                ],
+            };
             let items = [ElementItem::Attribute(AttributeSpec {
                 name: spec_name("a", Some("urn:p"), PrefixPolicy::Automatic),
                 value: "v",
@@ -147,19 +194,14 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect("automatic attribute should reuse an inherited matching prefix");
-            check_created(
-                &document,
-                child,
-                &ModelElement {
-                    name: ModelName::new(None, &local, None),
-                    attributes: vec![
-                        attribute(Some("p"), "a", Some("urn:p"), "v"),
-                        declaration(None, ""),
-                    ],
-                },
-            );
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
         }
         5 => {
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, Some("urn:default")),
+                attributes: Vec::new(),
+            };
             let child = document
                 .edit(EditLimits::default())
                 .unwrap()
@@ -171,16 +213,14 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect("automatic element should reuse inherited default binding");
-            check_created(
-                &document,
-                child,
-                &ModelElement {
-                    name: ModelName::new(None, &local, Some("urn:default")),
-                    attributes: Vec::new(),
-                },
-            );
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
         }
         6 => {
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![declaration(None, "")],
+            };
             let child = document
                 .edit(EditLimits::default())
                 .unwrap()
@@ -192,16 +232,14 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect("no-namespace element should undeclare inherited default");
-            check_created(
-                &document,
-                child,
-                &ModelElement {
-                    name: ModelName::new(None, &local, None),
-                    attributes: vec![declaration(None, "")],
-                },
-            );
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
         }
         7 => {
+            let expected = ModelElement {
+                name: ModelName::new(Some("p"), &local, Some("urn:old")),
+                attributes: vec![declaration(None, "urn:local-default")],
+            };
             let items = [ElementItem::Namespace(NamespaceSpec {
                 prefix: None,
                 uri: "urn:local-default",
@@ -217,16 +255,19 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect("automatic element should use inherited non-default matching prefix");
-            check_created(
-                &document,
-                child,
-                &ModelElement {
-                    name: ModelName::new(Some("p"), &local, Some("urn:old")),
-                    attributes: vec![declaration(None, "urn:local-default")],
-                },
-            );
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
         }
         8 => {
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![
+                    attribute(Some("ns2"), "auto", Some("urn:new"), "a"),
+                    attribute(Some("ns1"), "fixed", Some("urn:fixed"), "b"),
+                    declaration(Some("ns2"), "urn:new"),
+                    declaration(Some("ns1"), "urn:fixed"),
+                ],
+            };
             let items = [
                 ElementItem::Attribute(AttributeSpec {
                     name: spec_name("auto", Some("urn:new"), PrefixPolicy::Automatic),
@@ -248,21 +289,20 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect("generated prefix should skip inherited ns1 and reserve exact ns1");
-            check_created(
-                &document,
-                child,
-                &ModelElement {
-                    name: ModelName::new(None, &local, None),
-                    attributes: vec![
-                        attribute(Some("ns2"), "auto", Some("urn:new"), "a"),
-                        attribute(Some("ns1"), "fixed", Some("urn:fixed"), "b"),
-                        declaration(Some("ns2"), "urn:new"),
-                        declaration(Some("ns1"), "urn:fixed"),
-                    ],
-                },
-            );
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
         }
         9 => {
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![
+                    attribute(Some("ns1"), "first", Some("urn:old"), "1"),
+                    attribute(Some("ns1"), "reused", Some("urn:old"), "again"),
+                    attribute(Some("p"), "second", Some("urn:new"), "2"),
+                    declaration(Some("ns1"), "urn:old"),
+                    declaration(Some("p"), "urn:new"),
+                ],
+            };
             let items = [
                 ElementItem::Attribute(AttributeSpec {
                     name: spec_name("first", Some("urn:old"), PrefixPolicy::Automatic),
@@ -288,20 +328,8 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect("automatic prefix must not be retargeted by a later Exact intent");
-            check_created(
-                &document,
-                child,
-                &ModelElement {
-                    name: ModelName::new(None, &local, None),
-                    attributes: vec![
-                        attribute(Some("ns1"), "first", Some("urn:old"), "1"),
-                        attribute(Some("ns1"), "reused", Some("urn:old"), "again"),
-                        attribute(Some("p"), "second", Some("urn:new"), "2"),
-                        declaration(Some("ns1"), "urn:old"),
-                        declaration(Some("p"), "urn:new"),
-                    ],
-                },
-            );
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
         }
         10 => {
             // The root binds p to old; the nearer element shadows p with new,
@@ -313,6 +341,11 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
             })];
             let source = "<r xmlns:p='urn:old' xmlns:q='urn:old' plain='root'><m xmlns:p='urn:new' plain='middle'><n a='one' b='two'/></m></r>";
             let mut shadowed = parsed_parent(mode, source);
+            let shadowed_before = snapshot(&shadowed);
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![attribute(Some("q"), "picked", Some("urn:old"), "yes")],
+            };
             let root_id = shadowed.root_element().id();
             let middle = shadowed
                 .node(root_id)
@@ -339,16 +372,15 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect("shadowed p must resolve through inherited q");
-            check_created(
-                &shadowed,
-                child,
-                &ModelElement {
-                    name: ModelName::new(None, &local, None),
-                    attributes: vec![attribute(Some("q"), "picked", Some("urn:old"), "yes")],
-                },
-            );
+            check_created(&shadowed, child, &expected);
+            assert_existing_nodes_preserved(&shadowed, &shadowed_before, nested);
         }
         12 => {
+            let expected = located(
+                EditErrorKind::Namespace,
+                element_location(EditComponent::NamespaceUri, None),
+            );
+            let recovery_name = ModelName::new(None, "recovered", None);
             let items = [ElementItem::Namespace(NamespaceSpec {
                 prefix: None,
                 uri: "urn:local-default",
@@ -363,13 +395,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     },
                 )
                 .expect_err("explicit default binding must conflict with Automatic no namespace");
-            assert_error_with_display(
-                error,
-                located(
-                    EditErrorKind::Namespace,
-                    element_location(EditComponent::NamespaceUri, None),
-                ),
-            );
+            assert_error_with_display(error, expected);
             assert_eq!(
                 &snapshot(editor.document()),
                 &before,
@@ -386,8 +412,9 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 .expect("editor should recover after explicit-default conflict");
             assert_eq!(
                 observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
-                ModelName::new(None, "recovered", None)
+                recovery_name
             );
+            assert_existing_nodes_preserved(editor.document(), &before, parent);
             assert_serializable(editor.document());
         }
         _ => duplicate_and_alias_cases(mode, &mut document, &local, &before),
@@ -412,6 +439,10 @@ fn duplicate_and_alias_cases(
             value: "two",
         }),
     ];
+    let duplicate_error = located(
+        EditErrorKind::DuplicateAttribute,
+        attribute_location(1, None, None),
+    );
     let mut editor = document.edit(EditLimits::default()).unwrap();
     let root_id = editor.document().root_element().id();
     let error = editor
@@ -423,18 +454,13 @@ fn duplicate_and_alias_cases(
             },
         )
         .expect_err("duplicate expanded names with lexical aliases must fail");
-    assert_error_with_display(
-        error,
-        located(
-            EditErrorKind::DuplicateAttribute,
-            attribute_location(1, None, None),
-        ),
-    );
+    assert_error_with_display(error, duplicate_error);
     assert_eq!(
         &snapshot(editor.document()),
         before,
         "duplicate changed tree"
     );
+    let recovery_name = ModelName::new(None, "recovered", None);
     let recovery_parent = editor.document().root_element().id();
     let recovery = editor
         .append_element(
@@ -447,8 +473,9 @@ fn duplicate_and_alias_cases(
         .expect("editor should recover after duplicate-name rejection");
     assert_eq!(
         observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
-        ModelName::new(None, "recovered", None)
+        recovery_name
     );
+    assert_existing_nodes_preserved(editor.document(), before, recovery_parent);
 
     // Equal local names in distinct namespaces are not duplicate expanded
     // names, even when both are explicitly prefixed on the new element.
@@ -462,9 +489,19 @@ fn duplicate_and_alias_cases(
             value: "R",
         }),
     ];
+    let alias_expected = ModelElement {
+        name: ModelName::new(None, local, None),
+        attributes: vec![
+            attribute(Some("l"), "same", Some("urn:left"), "L"),
+            attribute(Some("r"), "same", Some("urn:right"), "R"),
+            declaration(Some("l"), "urn:left"),
+            declaration(Some("r"), "urn:right"),
+        ],
+    };
     let mut bytes = encode("<r/>", mode);
     let mut fresh = OwnedDocument::parse_bytes(&bytes).unwrap();
     bytes.fill(0);
+    let fresh_before = snapshot(&fresh);
     let fresh_root = fresh.root_element().id();
     let child = fresh
         .edit(EditLimits::default())
@@ -477,13 +514,8 @@ fn duplicate_and_alias_cases(
             },
         )
         .expect("different expanded attribute names should remain distinct");
-    assert_eq!(
-        observed_attributes(fresh.node(child).unwrap())[..2],
-        [
-            attribute(Some("l"), "same", Some("urn:left"), "L"),
-            attribute(Some("r"), "same", Some("urn:right"), "R"),
-        ]
-    );
+    assert_element(&fresh, child, &alias_expected);
+    assert_existing_nodes_preserved(&fresh, &fresh_before, fresh_root);
     assert_serializable(&fresh);
 }
 
