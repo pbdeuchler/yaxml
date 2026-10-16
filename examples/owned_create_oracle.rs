@@ -17,10 +17,7 @@ const VERSION: &[u8] = b"YAXML-CREATE-1 compiled=21504 runtime=21504 tree=1 outp
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const CASES: &[(&str, &str)] = &[
     ("plain", "<root/>"),
-    (
-        "attributes",
-        "<root id=\"A&amp;B\" quote=\"&quot;&lt;&gt;\"/>",
-    ),
+    ("attributes", "<root id=\"A&amp;B\" quote=\"&quot;&lt;>\"/>"),
     ("prefixed-root", "<p:root xmlns:p=\"urn:p\"/>"),
     ("default-root", "<root xmlns=\"urn:d\"/>"),
     (
@@ -235,7 +232,15 @@ fn compare(helper: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
                 format!("construction case {label}: yaxml differs from literal serialization"),
             )
         })?;
-        frame(&mut expected, label, &actual);
+        // Existing serializers choose different legal spellings for `>` in an
+        // attribute value. Pin both exact byte strings; do not normalize other
+        // differences into agreement.
+        let libxml = if *label == "attributes" {
+            b"<root id=\"A&amp;B\" quote=\"&quot;&lt;&gt;\"/>".as_slice()
+        } else {
+            &actual
+        };
+        frame(&mut expected, label, libxml);
     }
     let actual = process::run(helper, &[], b"", limits)?;
     if !actual.status.success() || !actual.stderr.is_empty() {
