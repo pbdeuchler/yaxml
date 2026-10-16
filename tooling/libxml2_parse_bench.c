@@ -680,13 +680,14 @@ static void run_dom(const struct Input *input, size_t iterations,
     for (iteration = 0; iteration < iterations; ++iteration) {
         struct Observation obs = new_observation();
         xmlDocPtr doc;
-        uint64_t started = now_ns();
+        uint64_t started;
         xmlSetStructuredErrorFunc(&obs, structured_error);
+        started = now_ns();
         doc = xmlReadMemory((const char *)input->bytes, (int)input->length,
                             NULL, NULL, XML_OPTIONS);
-        xmlSetStructuredErrorFunc(NULL, NULL);
         totals->parse_ns = add_u64(totals->parse_ns, now_ns() - started,
                                    "parse time overflow");
+        xmlSetStructuredErrorFunc(NULL, NULL);
         validate_dom(doc, &obs);
         if (doc != NULL && !obs.failed && !obs.doctype) {
             started = now_ns();
@@ -722,13 +723,14 @@ static void run_reader_mode(const struct Input *input, size_t iterations,
                             struct Totals *totals, int buffered) {
     size_t iteration;
     for (iteration = 0; iteration < iterations; ++iteration) {
-        struct Observation obs = new_observation();
+        struct Observation obs;
         struct Cursor cursor;
         xmlTextReaderPtr reader;
         uint64_t started;
+        started = now_ns();
+        obs = new_observation();
         memset(&cursor, 0, sizeof(cursor));
         cursor.input = input;
-        started = now_ns();
         if (buffered) {
             reader = xmlReaderForIO(reader_io, reader_close, &cursor, NULL,
                                     NULL, XML_OPTIONS);
@@ -767,12 +769,14 @@ static void run_push(const struct Input *input, size_t iterations,
                      struct Totals *totals) {
     size_t iteration;
     for (iteration = 0; iteration < iterations; ++iteration) {
-        struct Observation obs = new_observation();
+        struct Observation obs;
         xmlSAXHandler sax;
         xmlParserCtxtPtr ctxt;
         uint64_t started;
         size_t offset = 0U;
         int result = 0;
+        started = now_ns();
+        obs = new_observation();
         memset(&sax, 0, sizeof(sax));
         sax.initialized = XML_SAX2_MAGIC;
         sax.startElementNs = sax_start;
@@ -788,7 +792,6 @@ static void run_push(const struct Input *input, size_t iterations,
         sax.warning = sax_error;
         sax.error = sax_error;
         sax.fatalError = sax_error;
-        started = now_ns();
         ctxt = xmlCreatePushParserCtxt(&sax, &obs, NULL, 0, NULL);
         if (ctxt == NULL)
             obs.failed = 1;
