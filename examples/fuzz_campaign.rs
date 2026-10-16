@@ -964,21 +964,21 @@ impl Campaign {
         let final_raw = self.root.join("profiles/final.profraw");
         if let Err(error) = fs::rename(&profile.raw, &final_raw) {
             return self.post_commit_failure(
-                &candidate,
+                &mut candidate,
                 &profile.raw,
                 &format!("raw profile publication failed after cumulative commit: {error}"),
             );
         }
         if let Err(error) = self.write_report(None) {
             return self.post_commit_failure(
-                &candidate,
+                &mut candidate,
                 &profile.raw,
                 &format!("campaign report write failed after commit: {error}"),
             );
         }
         if retain && let Err(error) = fs::remove_file(&candidate.meta) {
             return self.post_commit_failure(
-                &candidate,
+                &mut candidate,
                 &profile.raw,
                 &format!("candidate metadata cleanup failed after commit: {error}"),
             );
@@ -1087,17 +1087,22 @@ impl Campaign {
 
     fn post_commit_failure<T>(
         &mut self,
-        candidate: &Candidate,
+        candidate: &mut Candidate,
         raw: &Path,
         message: &str,
     ) -> Result<T, Box<dyn Error>> {
+        // Candidate::drop owns pending input and metadata. Preserve that
+        // ownership before attempting copies, so a failed evidence write can
+        // never turn into evidence deletion when this function returns.
+        candidate.preserve_on_drop = true;
         self.termination = "post_commit_failure".to_owned();
-        let message = match self.verify_identities() {
+        let mut message = match self.verify_identities() {
             Ok(()) => message.to_owned(),
             Err(error) => format!("{message}; end-of-run identity verification failed: {error}"),
         };
         let failure_dir = self.root.join("failures");
         let mut errors = Vec::new();
+        let mut copies_succeeded = true;
         for (source, name) in [
             (&candidate.input, "first-failure.input"),
             (&candidate.meta, "first-failure.meta"),
@@ -1105,13 +1110,34 @@ impl Campaign {
             if source.exists()
                 && let Err(error) = fs::copy(source, failure_dir.join(name))
             {
+                copies_succeeded = false;
                 errors.push(format!("could not preserve {name}: {error}"));
+            }
+        }
+        if copies_succeeded {
+            let corpus = self.root.join("corpus");
+            if !candidate.input.starts_with(&corpus)
+                && candidate.input.exists()
+                && let Err(error) = fs::remove_file(&candidate.input)
+            {
+                errors.push(format!("could not remove copied candidate: {error}"));
+            }
+            if candidate.meta.exists()
+                && let Err(error) = fs::remove_file(&candidate.meta)
+            {
+                errors.push(format!(
+                    "could not remove copied candidate metadata: {error}"
+                ));
             }
         }
         if raw.exists()
             && let Err(error) = fs::rename(raw, failure_dir.join("first-failure.profraw"))
         {
             errors.push(format!("could not preserve failed raw profile: {error}"));
+        }
+        if !errors.is_empty() {
+            message.push_str("; evidence preservation: ");
+            message.push_str(&errors.join("; "));
         }
         fs::write(
             failure_dir.join("classification.txt"),
@@ -1792,6 +1818,23 @@ mod tests {
                 })
         );
 
+        let mut missing_lib = std::process::Command::new(&cov);
+        missing_lib
+            .args([
+                "report",
+                "--color=never",
+                "--instr-profile=/unused",
+                "/unused-target",
+                "--sources",
+            ])
+            .args((0..13).map(|index| root.join(format!("source/src/m{index:02}.rs"))));
+        let missing_lib = missing_lib.output().unwrap();
+        assert!(!missing_lib.status.success());
+        assert!(
+            String::from_utf8_lossy(&missing_lib.stderr)
+                .contains("expected all 14 absolute source paths")
+        );
+
         let paused_cov = install_mode(&helper, &root, "cov_pause");
         let paused_output = root.join("four-profile-bound");
         let mut child = cli_command(
@@ -2006,6 +2049,69 @@ mod tests {
             }
         }
 
+        let pending_capacity = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &cov,
+            &root,
+            "pending-capacity",
+            1,
+            &["--max-pending-bytes", "64"],
+        );
+        assert!(!pending_capacity.status.success());
+        let pending_root = root.join("pending-capacity");
+        let pending_classification =
+            fs::read_to_string(pending_root.join("failures/classification.txt")).unwrap();
+        assert!(pending_classification.contains("pending-byte limit"));
+        assert!(
+            fs::read_dir(pending_root.join("pending"))
+                .unwrap()
+                .next()
+                .is_none()
+        );
+        assert!(!pending_root.join("profiles/final.profraw").exists());
+
+        let commit_fail_cov = install_mode(&helper, &root, "cov_cumulative_commit_fail");
+        let commit_failure = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &commit_fail_cov,
+            &root,
+            "cumulative-commit-failure",
+            100,
+            &[],
+        );
+        assert!(!commit_failure.status.success());
+        let commit_root = root.join("cumulative-commit-failure");
+        let commit_classification =
+            fs::read_to_string(commit_root.join("failures/classification.txt")).unwrap();
+        assert!(commit_classification.contains("cumulative profile commit failed"));
+        assert_eq!(
+            fs::read(commit_root.join("cases.tsv")).unwrap(),
+            fs::read(commit_root.join("pre-commit-journal.snapshot")).unwrap()
+        );
+        assert_eq!(
+            fs::read(commit_root.join("profiles/cumulative.prior")).unwrap(),
+            b"low"
+        );
+        assert!(commit_root.join("profiles/cumulative.profdata").is_dir());
+        assert_eq!(
+            fs::read(commit_root.join("profiles/final.profraw")).unwrap(),
+            b"low"
+        );
+        assert!(!commit_root.join("profiles/pending.profdata").exists());
+        assert_eq!(fs::read_dir(commit_root.join("corpus")).unwrap().count(), 1);
+        let failed_input = fs::read(commit_root.join("failures/first-failure.input")).unwrap();
+        let failed_meta =
+            fs::read_to_string(commit_root.join("failures/first-failure.meta")).unwrap();
+        let failed_identity = campaign::identity(&failed_input);
+        assert!(failed_meta.contains(&format!(
+            "candidate_identity_fnv64_len={:016x}:{}",
+            failed_identity.0, failed_identity.1
+        )));
+
         let capacity = run_cli(
             &campaign,
             &target,
@@ -2033,7 +2139,102 @@ mod tests {
         assert!(failure_root.join("profiles/cumulative.profdata").exists());
         assert!(!failure_root.join("profiles/pending.profdata").exists());
 
+        // The first two seeds cover the low and high fixture states. The third
+        // candidate reaches the post-commit path; the fake cov tool makes
+        // evidence publication fail so Candidate::drop must leave its original
+        // pending files intact.
+        fs::write(root.join("seeds/seed-z.xml"), b"y").unwrap();
+        let post_commit_cov = install_mode(&helper, &root, "cov_post_commit_fail");
+        let post_commit = run_cli(
+            &campaign,
+            &target,
+            &profdata,
+            &post_commit_cov,
+            &root,
+            "post-commit-evidence",
+            3,
+            &[],
+        );
+        assert!(!post_commit.status.success());
+        let post_root = root.join("post-commit-evidence");
+        let classification =
+            fs::read_to_string(post_root.join("failures/classification.txt")).unwrap();
+        assert!(classification.contains("post-commit"), "{classification}");
+        assert!(
+            classification.contains("could not preserve first-failure.input"),
+            "{classification}"
+        );
+        let pending_input = fs::read(post_root.join("pending/candidate-000002.bin")).unwrap();
+        let pending_meta =
+            fs::read_to_string(post_root.join("pending/candidate-000002.meta")).unwrap();
+        let identity = campaign::identity(&pending_input);
+        assert!(
+            pending_meta.contains(&format!(
+                "candidate_identity_fnv64_len={:016x}:{}",
+                identity.0, identity.1
+            )),
+            "{pending_meta}"
+        );
+        assert!(post_root.join("failures/first-failure.input").is_dir());
+        assert!(post_root.join("profiles/cumulative.profdata").exists());
+        let post_journal = fs::read_to_string(post_root.join("cases.tsv")).unwrap();
+        assert_eq!(post_journal.lines().count(), 3);
+        assert!(
+            post_journal
+                .lines()
+                .last()
+                .unwrap()
+                .contains("\tduplicate\t"),
+            "{post_journal}"
+        );
+
         fs::remove_dir_all(root).unwrap();
+
+        let identity_root = fixture_root();
+        let (identity_helper, identity_campaign) = compile_fake_programs(&identity_root);
+        let identity_target = install_mode(&identity_helper, &identity_root, "target_ok");
+        let identity_profdata = install_mode(&identity_helper, &identity_root, "profdata_ok");
+        let changed_clean_cov =
+            install_mode(&identity_helper, &identity_root, "cov_change_source_clean");
+        let changed_clean = run_cli(
+            &identity_campaign,
+            &identity_target,
+            &identity_profdata,
+            &changed_clean_cov,
+            &identity_root,
+            "identity-clean",
+            1,
+            &[],
+        );
+        assert!(!changed_clean.status.success());
+        let clean_classification =
+            fs::read_to_string(identity_root.join("identity-clean/failures/classification.txt"))
+                .unwrap();
+        assert!(
+            clean_classification.contains("source identity changed"),
+            "{clean_classification}"
+        );
+        let changed_failure_cov =
+            install_mode(&identity_helper, &identity_root, "cov_change_source_fail");
+        let changed_failure = run_cli(
+            &identity_campaign,
+            &identity_target,
+            &identity_profdata,
+            &changed_failure_cov,
+            &identity_root,
+            "identity-failure",
+            1,
+            &[],
+        );
+        assert!(!changed_failure.status.success());
+        let failure_classification =
+            fs::read_to_string(identity_root.join("identity-failure/failures/classification.txt"))
+                .unwrap();
+        assert!(
+            failure_classification.contains("source identity changed"),
+            "{failure_classification}"
+        );
+        fs::remove_dir_all(identity_root).unwrap();
     }
 
     #[test]

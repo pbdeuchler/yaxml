@@ -102,6 +102,17 @@ fn cov(mode: &str) {
         println!("LLVM version {version}-rust-fixture");
         return;
     }
+    if !has_exact_source_list() {
+        eprintln!("expected all 14 absolute source paths after --sources");
+        process::exit(92);
+    }
+    if mode.starts_with("cov_change_source") {
+        change_first_source(&mode);
+    }
+    if mode == "cov_change_source_fail" {
+        println!("unexpected report schema");
+        return;
+    }
     if mode == "cov_malformed" {
         println!("unexpected report schema");
         return;
@@ -116,10 +127,75 @@ fn cov(mode: &str) {
                 .map(str::to_owned)
         })
         .expect("profile argument");
+    if mode == "cov_post_commit_fail" {
+        let root = Path::new(&profile)
+            .parent()
+            .and_then(Path::parent)
+            .expect("output root");
+        let counter_path = root.join("post-commit-cov-count");
+        let count = fs::read_to_string(&counter_path)
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(0)
+            + 1;
+        fs::write(counter_path, count.to_string()).unwrap();
+        if count >= 3 {
+            let prior_raw = root.join("profiles/final.profraw");
+            fs::remove_file(&prior_raw).unwrap();
+            fs::create_dir(prior_raw).unwrap();
+            fs::create_dir(root.join("failures/first-failure.input")).unwrap();
+        }
+    }
     let profile = fs::read(profile).unwrap();
     let novel = profile.windows(4).any(|window| window == b"high");
+    if mode == "cov_cumulative_commit_fail" && novel {
+        let profile_path = env::args()
+            .find_map(|argument| {
+                argument
+                    .strip_prefix("--instr-profile=")
+                    .map(str::to_owned)
+            })
+            .expect("profile argument");
+        let root = Path::new(&profile_path)
+            .parent()
+            .and_then(Path::parent)
+            .expect("output root");
+        fs::copy(root.join("cases.tsv"), root.join("pre-commit-journal.snapshot")).unwrap();
+        let cumulative = root.join("profiles/cumulative.profdata");
+        fs::rename(&cumulative, root.join("profiles/cumulative.prior")).unwrap();
+        fs::create_dir(cumulative).unwrap();
+    }
     let drift = mode == "cov_drift" && novel;
     report(novel, drift);
+}
+
+fn has_exact_source_list() -> bool {
+    let arguments: Vec<_> = env::args_os().skip(1).collect();
+    let Some(sources_index) = arguments.iter().position(|argument| argument == "--sources")
+    else {
+        return false;
+    };
+    let sources = &arguments[sources_index + 1..];
+    sources.len() == 14
+        && sources.iter().all(|source| {
+            let path = Path::new(source);
+            path.is_absolute() && path.is_file()
+        })
+        && sources
+            .iter()
+            .filter(|source| Path::new(source).file_name().is_some_and(|name| name == "lib.rs"))
+            .count()
+            == 1
+}
+
+fn change_first_source(mode: &str) {
+    let arguments: Vec<_> = env::args_os().skip(1).collect();
+    let index = arguments
+        .iter()
+        .position(|argument| argument == "--sources")
+        .expect("sources argument");
+    let source = arguments.get(index + 1).expect("first source path");
+    fs::write(source, format!("// changed during campaign: {mode}\n")).unwrap();
 }
 
 fn report(novel: bool, drift: bool) {
