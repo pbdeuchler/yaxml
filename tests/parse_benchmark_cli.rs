@@ -261,6 +261,26 @@ fn pinned_helpers_and_driver_agree_on_all_versioned_fixtures_and_failure_paths()
             assert!(row.starts_with(prefix), "{row}");
         }
     }
+    // Exercise semantic framing independently of the throughput corpus. These
+    // spellings make the SAX/DOM normalization and namespace-order differences
+    // observable even when the logical document is unchanged.
+    for xml in [
+        "<r a='v' xmlns:p='urn:p' p:b='x' xmlns:q='urn:q'><p:e q:a='y'/></r>",
+        "<r xmlns='urn:root'><x xmlns=''><y/></x></r>",
+        "<r a='&amp;#38; &quot; &#x9; &#13; &#x1F600;'>a<![CDATA[b]]>&amp;c<![CDATA[]]>d</r>",
+        "<!--before--><?start?><r/><?end ?><!--after-->",
+        "<?xml version='1.0' encoding='utf-8'?><r>é😀</r>",
+        "<r xmlns:p='urn:a&amp;b'><p:e p:a='v'/></r>",
+    ] {
+        fs::write(&input, xml).unwrap();
+        let expected = successful_row(&rust, "dom", &input, "1");
+        for mode in ["dom", "reader", "push", "buffered"] {
+            let observed = successful_row(&c, mode, &input, "1");
+            expected
+                .same_observation(&observed)
+                .unwrap_or_else(|error| panic!("independent spelling {xml:?}/{mode}: {error}"));
+        }
+    }
     for bytes in [
         b"".as_slice(),
         b"<r>",
