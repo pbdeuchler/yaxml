@@ -450,11 +450,105 @@ fn generated_item_count_boundary() {
     }
 }
 
+fn generated_item_count_precedes_later_namespace_semantics() {
+    let invalid_items = [
+        ElementItem::Attribute(AttributeSpec {
+            name: spec_name("a", Some("urn:auto"), PrefixPolicy::Automatic),
+            value: "1",
+        }),
+        ElementItem::Attribute(AttributeSpec {
+            name: spec_name("b", None, exact(Some("unbound"))),
+            value: "2",
+        }),
+    ];
+    let invalid = ElementSpec {
+        name: spec_name("child", None, exact(None)),
+        items: &invalid_items,
+    };
+
+    let mut below = OwnedDocument::parse("<r/>").unwrap();
+    let root = below.root_element().id();
+    let before = public_snapshot(&below);
+    let mut editor = below
+        .edit(EditLimits {
+            max_attributes: 2,
+            ..EditLimits::default()
+        })
+        .unwrap();
+    let actual = editor
+        .append_element(root, invalid)
+        .expect_err("generated declaration exceeded the item ceiling");
+    assert_error(
+        actual,
+        global(EditErrorKind::LimitExceeded(EditLimit::Attributes)),
+    );
+    assert_eq!(public_snapshot(editor.document()), before);
+    editor
+        .append_element(root, empty_spec("ok"))
+        .expect("generated-count rejection poisoned the editor");
+
+    let mut semantic = OwnedDocument::parse("<r/>").unwrap();
+    let root = semantic.root_element().id();
+    let before = public_snapshot(&semantic);
+    let mut editor = semantic
+        .edit(EditLimits {
+            max_attributes: 3,
+            ..EditLimits::default()
+        })
+        .unwrap();
+    let actual = editor
+        .append_element(root, invalid)
+        .expect_err("unbound exact prefix was accepted at the higher item ceiling");
+    assert_error(
+        actual,
+        located(EditErrorKind::Namespace, attribute_location(1, None, None)),
+    );
+    assert_eq!(public_snapshot(editor.document()), before);
+    editor
+        .append_element(root, empty_spec("ok"))
+        .expect("namespace rejection poisoned the editor");
+
+    let valid_items = [
+        invalid_items[0],
+        ElementItem::Attribute(AttributeSpec {
+            name: spec_name("b", None, exact(None)),
+            value: "2",
+        }),
+    ];
+    let valid = ElementSpec {
+        name: invalid.name,
+        items: &valid_items,
+    };
+    let mut document = OwnedDocument::parse("<r/>").unwrap();
+    let root = document.root_element().id();
+    let child = document
+        .edit(EditLimits {
+            max_attributes: 3,
+            ..EditLimits::default()
+        })
+        .unwrap()
+        .append_element(root, valid)
+        .expect("exact generated-item control was rejected");
+    assert_element(
+        &document,
+        child,
+        &ModelElement {
+            name: ModelName::new(None, "child", None),
+            attributes: vec![
+                attribute(Some("ns1"), "a", Some("urn:auto"), "1"),
+                attribute(None, "b", None, "2"),
+                declaration(Some("ns1"), "urn:auto"),
+            ],
+        },
+    );
+    assert_serializable(&document);
+}
+
 fn generated_bound_family(variant: u8) {
-    if variant & 1 == 0 {
-        generated_prefix_name_boundary();
-    } else {
-        generated_item_count_boundary();
+    match variant % 3 {
+        0 => generated_prefix_name_boundary(),
+        1 => generated_item_count_boundary(),
+        _ => generated_item_count_precedes_later_namespace_semantics(),
     }
 }
 
@@ -943,8 +1037,8 @@ mod tests {
     }
 
     #[test]
-    fn generated_bounds_check_name_and_final_item_count() {
-        for variant in 0..2 {
+    fn generated_bounds_check_name_item_count_and_error_precedence() {
+        for variant in 0..3 {
             exercise(&selected(1, variant));
         }
     }
