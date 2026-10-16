@@ -81,16 +81,26 @@ pub(crate) enum Decoded<'a> {
     Bytes(&'a [u8]),
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct DecodeProgress {
+    pub(crate) consumed: usize,
+    pub(crate) suspended: bool,
+}
+
 /// The sole transport boundary. It retains no decoded input and no offset map.
 pub(crate) struct Decoder {
     encoding: Option<SourceEncoding>,
     preamble: [u8; 4],
     preamble_len: usize,
+    preamble_cursor: usize,
     position: usize,
     decoded: usize,
     limit: usize,
     byte: Option<(u8, usize)>,
     high: Option<(u16, usize)>,
+    pending: [u8; 4],
+    pending_cursor: usize,
+    pending_len: usize,
 }
 
 impl Decoder {
@@ -99,11 +109,15 @@ impl Decoder {
             encoding: None,
             preamble: [0; 4],
             preamble_len: 0,
+            preamble_cursor: 0,
             position: 0,
             decoded: 0,
             limit,
             byte: None,
             high: None,
+            pending: [0; 4],
+            pending_cursor: 0,
+            pending_len: 0,
         }
     }
 
@@ -111,34 +125,107 @@ impl Decoder {
         self.position
     }
 
-    pub(crate) fn feed(
+    pub(crate) fn advance(
         &mut self,
-        mut input: &[u8],
-        mut emit: impl FnMut(Decoded<'_>) -> Result<(), Error>,
-    ) -> Result<(), Error> {
-        while self.encoding.is_none() && !input.is_empty() {
-            self.preamble[self.preamble_len] = input[0];
-            self.preamble_len += 1;
-            self.position += 1;
-            input = &input[1..];
-            if let Some(selection) = select(&self.preamble[..self.preamble_len], false) {
-                self.start(selection?, &mut emit)?;
+        input: &[u8],
+        mut emit: impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
+    ) -> Result<DecodeProgress, Error> {
+        let mut cursor = 0;
+        loop {
+            let Some(encoding) = self.encoding else {
+                if cursor == input.len() {
+                    return Ok(DecodeProgress {
+                        consumed: cursor,
+                        suspended: false,
+                    });
+                }
+                self.preamble[self.preamble_len] = input[cursor];
+                self.preamble_len += 1;
+                self.position += 1;
+                cursor += 1;
+                if let Some(selection) = select(&self.preamble[..self.preamble_len], false) {
+                    self.start(selection?, &mut emit)?;
+                }
+                continue;
+            };
+            if self.pending_cursor < self.pending_len {
+                let remaining = &self.pending[self.pending_cursor..self.pending_len];
+                let progress = emit(Decoded::Bytes(remaining))?;
+                check_progress(progress, remaining.len(), self.position)?;
+                self.pending_cursor += progress.consumed;
+                if progress.suspended {
+                    return Ok(DecodeProgress {
+                        consumed: cursor,
+                        suspended: true,
+                    });
+                }
+                continue;
+            }
+            if self.preamble_cursor < self.preamble_len {
+                match encoding {
+                    SourceEncoding::Utf8 => {
+                        let preamble = self.preamble;
+                        let progress = self.forward_utf8(
+                            &preamble[self.preamble_cursor..self.preamble_len],
+                            true,
+                            &mut emit,
+                        )?;
+                        self.preamble_cursor += progress.consumed;
+                        if progress.suspended {
+                            return Ok(DecodeProgress {
+                                consumed: cursor,
+                                suspended: true,
+                            });
+                        }
+                    }
+                    SourceEncoding::Utf16 { little_endian, .. } => {
+                        let offset = self.preamble_cursor;
+                        let byte = self.preamble[offset];
+                        self.preamble_cursor += 1;
+                        self.unit_byte(byte, offset, little_endian)?;
+                    }
+                }
+                continue;
+            }
+            if cursor == input.len() {
+                return Ok(DecodeProgress {
+                    consumed: cursor,
+                    suspended: false,
+                });
+            }
+            match encoding {
+                SourceEncoding::Utf8 => {
+                    let progress = self.forward_utf8(&input[cursor..], false, &mut emit)?;
+                    cursor += progress.consumed;
+                    if progress.suspended {
+                        return Ok(DecodeProgress {
+                            consumed: cursor,
+                            suspended: true,
+                        });
+                    }
+                }
+                SourceEncoding::Utf16 { little_endian, .. } => {
+                    let offset = self.position;
+                    self.position += 1;
+                    let byte = input[cursor];
+                    cursor += 1;
+                    self.unit_byte(byte, offset, little_endian)?;
+                }
             }
         }
-        if let Some(encoding) = self.encoding {
-            self.convert(input, encoding, false, &mut emit)?;
-        }
-        Ok(())
     }
 
-    pub(crate) fn finish(
+    pub(crate) fn finish_step(
         &mut self,
-        mut emit: impl FnMut(Decoded<'_>) -> Result<(), Error>,
-    ) -> Result<(), Error> {
+        mut emit: impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
+    ) -> Result<bool, Error> {
         if self.encoding.is_none() {
             let selection = select(&self.preamble[..self.preamble_len], true)
                 .expect("final encoding selection");
             self.start(selection?, &mut emit)?;
+        }
+        if self.advance(&[], emit)?.suspended {
+            return Ok(true);
         }
         if let Some((_, offset)) = self.high {
             return Err(Error::new(ErrorKind::InvalidUtf16, offset));
@@ -146,91 +233,130 @@ impl Decoder {
         if let Some((_, offset)) = self.byte {
             return Err(Error::new(ErrorKind::InvalidUtf16, offset));
         }
-        Ok(())
+        Ok(false)
     }
 
     fn start(
         &mut self,
         (encoding, bom): (SourceEncoding, usize),
-        emit: &mut impl FnMut(Decoded<'_>) -> Result<(), Error>,
+        emit: &mut impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
     ) -> Result<(), Error> {
         self.encoding = Some(encoding);
-        emit(Decoded::Start { encoding, bom })?;
-        let preamble = self.preamble;
-        self.convert(&preamble[bom..self.preamble_len], encoding, true, emit)
+        self.preamble_cursor = bom;
+        let progress = emit(Decoded::Start { encoding, bom })?;
+        check_progress(progress, 0, self.position)
     }
 
-    fn convert(
+    fn forward_utf8(
         &mut self,
         input: &[u8],
-        encoding: SourceEncoding,
         already_consumed: bool,
-        emit: &mut impl FnMut(Decoded<'_>) -> Result<(), Error>,
-    ) -> Result<(), Error> {
-        match encoding {
-            SourceEncoding::Utf8 => {
-                let allowed = input.len().min(self.limit - self.decoded);
-                if allowed > 0 {
-                    emit(Decoded::Bytes(&input[..allowed]))?;
-                    self.decoded += allowed;
-                    if !already_consumed {
-                        self.position += allowed;
-                    }
-                }
-                if allowed < input.len() {
-                    if !already_consumed {
-                        self.position += 1;
-                    }
-                    return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
-                }
+        emit: &mut impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
+    ) -> Result<DecodeProgress, Error> {
+        let allowed = input.len().min(self.limit - self.decoded);
+        if allowed > 0 {
+            let progress = emit(Decoded::Bytes(&input[..allowed]))?;
+            check_progress(progress, allowed, self.position)?;
+            self.decoded += progress.consumed;
+            if !already_consumed {
+                self.position += progress.consumed;
             }
-            SourceEncoding::Utf16 { little_endian, .. } => {
-                let start = if already_consumed {
-                    self.position - input.len()
-                } else {
-                    self.position
-                };
-                for (index, &byte) in input.iter().enumerate() {
-                    let offset = start + index;
-                    if !already_consumed {
-                        self.position += 1;
-                    }
-                    let Some((first, unit_offset)) = self.byte.take() else {
-                        self.byte = Some((byte, offset));
-                        continue;
-                    };
-                    let unit = if little_endian {
-                        u16::from_le_bytes([first, byte])
-                    } else {
-                        u16::from_be_bytes([first, byte])
-                    };
-                    let scalar = if let Some((high, high_offset)) = self.high.take() {
-                        if !(0xdc00..=0xdfff).contains(&unit) {
-                            return Err(Error::new(ErrorKind::InvalidUtf16, high_offset));
-                        }
-                        0x10000 + ((u32::from(high) - 0xd800) << 10) + u32::from(unit) - 0xdc00
-                    } else if (0xd800..=0xdbff).contains(&unit) {
-                        self.high = Some((unit, unit_offset));
-                        continue;
-                    } else if (0xdc00..=0xdfff).contains(&unit) {
-                        return Err(Error::new(ErrorKind::InvalidUtf16, unit_offset));
-                    } else {
-                        u32::from(unit)
-                    };
-                    let character = char::from_u32(scalar).expect("validated UTF-16 scalar");
-                    if character.len_utf8() > self.limit - self.decoded {
-                        return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
-                    }
-                    let mut buffer = [0; 4];
-                    emit(Decoded::Bytes(
-                        character.encode_utf8(&mut buffer).as_bytes(),
-                    ))?;
-                    self.decoded += character.len_utf8();
-                }
+            if progress.suspended {
+                return Ok(progress);
             }
         }
+        if allowed < input.len() {
+            if !already_consumed {
+                self.position += 1;
+            }
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
+        }
+        Ok(DecodeProgress {
+            consumed: allowed,
+            suspended: false,
+        })
+    }
+
+    fn unit_byte(&mut self, byte: u8, offset: usize, little_endian: bool) -> Result<(), Error> {
+        let Some((first, unit_offset)) = self.byte.take() else {
+            self.byte = Some((byte, offset));
+            return Ok(());
+        };
+        let unit = if little_endian {
+            u16::from_le_bytes([first, byte])
+        } else {
+            u16::from_be_bytes([first, byte])
+        };
+        let scalar = if let Some((high, high_offset)) = self.high.take() {
+            if !(0xdc00..=0xdfff).contains(&unit) {
+                return Err(Error::new(ErrorKind::InvalidUtf16, high_offset));
+            }
+            0x10000 + ((u32::from(high) - 0xd800) << 10) + u32::from(unit) - 0xdc00
+        } else if (0xd800..=0xdbff).contains(&unit) {
+            self.high = Some((unit, unit_offset));
+            return Ok(());
+        } else if (0xdc00..=0xdfff).contains(&unit) {
+            return Err(Error::new(ErrorKind::InvalidUtf16, unit_offset));
+        } else {
+            u32::from(unit)
+        };
+        let character = char::from_u32(scalar).expect("validated UTF-16 scalar");
+        if character.len_utf8() > self.limit - self.decoded {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
+        }
+        self.pending_len = character.encode_utf8(&mut self.pending).len();
+        self.pending_cursor = 0;
+        // A complete scalar is charged before any of its bytes can
+        // trigger a tokenizer suspension or malformed-prefix error.
+        self.decoded += character.len_utf8();
         Ok(())
     }
+
+    #[cfg(test)]
+    fn feed(
+        &mut self,
+        input: &[u8],
+        mut emit: impl FnMut(Decoded<'_>) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.advance(input, |decoded| {
+            let consumed = match &decoded {
+                Decoded::Start { .. } => 0,
+                Decoded::Bytes(bytes) => bytes.len(),
+            };
+            emit(decoded)?;
+            Ok(DecodeProgress {
+                consumed,
+                suspended: false,
+            })
+        })
+        .map(|_| ())
+    }
+
+    #[cfg(test)]
+    fn finish(
+        &mut self,
+        mut emit: impl FnMut(Decoded<'_>) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.finish_step(|decoded| {
+            let consumed = match &decoded {
+                Decoded::Start { .. } => 0,
+                Decoded::Bytes(bytes) => bytes.len(),
+            };
+            emit(decoded)?;
+            Ok(DecodeProgress {
+                consumed,
+                suspended: false,
+            })
+        })
+        .map(|_| ())
+    }
+}
+
+fn check_progress(progress: DecodeProgress, available: usize, offset: usize) -> Result<(), Error> {
+    if progress.consumed > available || (!progress.suspended && progress.consumed != available) {
+        return Err(Error::new(ErrorKind::InvalidState, offset));
+    }
+    Ok(())
 }
 
 const UTF32: [[u8; 4]; 8] = [

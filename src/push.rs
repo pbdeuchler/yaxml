@@ -1,9 +1,7 @@
 use std::ops::{ControlFlow, Range};
 
-use crate::encoding::{Decoded, Decoder, TokenSpan};
-use crate::escape::xml_char;
-use crate::parser::{Budget, ParserState};
-use crate::tokenizer::{TokenKind, Tokenizer};
+use crate::parser::Budget;
+use crate::stream::Stream;
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError};
 
 /// Incremental XML 1.0 parsing with a bounded scratch token and no retained input.
@@ -24,10 +22,7 @@ use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError};
 /// a later invalid byte is discovered, and the first reported error can differ
 /// from the slice reader's whole-input UTF-8/character validation.
 pub struct PushParser {
-    tokenizer: Tokenizer,
-    decoder: Decoder,
-    decode_limits: DecodeLimits,
-    state: ParserState<'static>,
+    stream: Stream,
     limits: Limits,
     received: usize,
     range: Range<usize>,
@@ -47,13 +42,7 @@ impl PushParser {
     /// Parses UTF-8 or UTF-16 with independent source and decoded ceilings.
     pub fn with_decode_limits(limits: Limits, decode_limits: DecodeLimits) -> Self {
         Self {
-            tokenizer: Tokenizer::new(
-                limits.max_token_bytes,
-                decode_limits.max_decoded_token_bytes,
-            ),
-            decoder: Decoder::new(decode_limits.max_decoded_bytes),
-            decode_limits,
-            state: ParserState::new(limits, 0),
+            stream: Stream::new(limits, decode_limits),
             limits,
             received: 0,
             range: 0..0,
@@ -65,9 +54,7 @@ impl PushParser {
     /// Source bytes consumed, including encoding detection and one scalar of lookahead
     /// when a `<` terminates text. On failure, a chunk's suffix can be unconsumed.
     pub fn position(&self) -> usize {
-        self.tokenizer
-            .source_position()
-            .max(self.decoder.position())
+        self.stream.position()
     }
 
     /// Raw source span of the latest delivered event, including its delimiters.
@@ -160,13 +147,22 @@ impl PushParser {
         // A recovered callback panic must not permit reuse of partially
         // delivered tokens or mutated document state.
         self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
-        let state = &mut self.state;
         let range = &mut self.range;
-        let tokenizer = &mut self.tokenizer;
-        let decoded_limit = self.decode_limits.max_decoded_token_bytes;
-        let result = self.decoder.feed(input, |decoded| {
-            decode(tokenizer, state, range, decoded, decoded_limit, &mut emit)
-        });
+        let result = (|| {
+            let mut remaining = input;
+            while !remaining.is_empty() {
+                let consumed = self.stream.advance(remaining)?;
+                remaining = &remaining[consumed..];
+                if self.stream.has_token() {
+                    self.stream.emit(&mut |event, source, budget| {
+                        *range = source.clone();
+                        emit(event, source, budget)
+                    })?;
+                    self.stream.release();
+                }
+            }
+            Ok(())
+        })();
         self.remember(result)
     }
 
@@ -196,19 +192,17 @@ impl PushParser {
             return Ok(());
         }
         self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
-        let state = &mut self.state;
         let range = &mut self.range;
-        let tokenizer = &mut self.tokenizer;
-        let decoded_limit = self.decode_limits.max_decoded_token_bytes;
-        let result = self
-            .decoder
-            .finish(|decoded| decode(tokenizer, state, range, decoded, decoded_limit, &mut emit))
-            .and_then(|()| {
-                tokenizer.finish(|kind, bytes, source| {
-                    dispatch(state, range, kind, bytes, source, &mut emit)
-                })
-            })
-            .and_then(|()| self.state.validate_finish(self.position()));
+        let result = (|| {
+            while self.stream.finish_step()? {
+                self.stream.emit(&mut |event, source, budget| {
+                    *range = source.clone();
+                    emit(event, source, budget)
+                })?;
+                self.stream.release();
+            }
+            self.stream.validate_finish()
+        })();
         if result.is_ok() {
             self.finished = true;
         }
@@ -224,65 +218,5 @@ impl PushParser {
 impl Default for PushParser {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-fn dispatch(
-    state: &mut ParserState<'static>,
-    latest: &mut Range<usize>,
-    kind: TokenKind,
-    bytes: &[u8],
-    span: TokenSpan,
-    emit: &mut impl FnMut(Event<'_>, Range<usize>, &mut Budget) -> Result<(), Error>,
-) -> Result<(), Error> {
-    // An invalid markup prefix can be recognized on a UTF-8 leading byte,
-    // before the scanner has retained the scalar's continuation bytes. The
-    // shared parser rejects this kind without inspecting its payload.
-    let raw = if matches!(kind, TokenKind::InvalidMarkup) {
-        ""
-    } else {
-        std::str::from_utf8(bytes)
-            .map_err(|e| Error::new(ErrorKind::InvalidUtf8, span.source.start + e.valid_up_to()))?
-    };
-    if let Some((relative, _)) = raw.char_indices().find(|(_, c)| !xml_char(*c)) {
-        return Err(span.map_error(
-            raw,
-            Error::new(ErrorKind::InvalidCharacter, span.decoded.start + relative),
-        ));
-    }
-    if let Some(event) = state
-        .process_token(kind, raw, span.decoded.clone(), |raw, offset, budget| {
-            budget.copy(raw, offset)
-        })
-        .map_err(|error| span.map_error(raw, error))?
-    {
-        *latest = span.source.clone();
-        emit(event, span.source, state.owned_budget())?;
-    }
-    Ok(())
-}
-
-fn decode(
-    tokenizer: &mut Tokenizer,
-    state: &mut ParserState<'static>,
-    latest: &mut Range<usize>,
-    decoded: Decoded<'_>,
-    decoded_limit: usize,
-    emit: &mut impl FnMut(Event<'_>, Range<usize>, &mut Budget) -> Result<(), Error>,
-) -> Result<(), Error> {
-    match decoded {
-        Decoded::Start { encoding, bom } => {
-            tokenizer.configure(encoding, bom);
-            let initial = if encoding == crate::encoding::SourceEncoding::Utf8 {
-                bom
-            } else {
-                0
-            };
-            state.set_encoding(encoding, initial, decoded_limit);
-            Ok(())
-        }
-        Decoded::Bytes(bytes) => tokenizer.feed(bytes, |kind, bytes, span| {
-            dispatch(state, latest, kind, bytes, span, emit)
-        }),
     }
 }

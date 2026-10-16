@@ -145,6 +145,17 @@ impl<'source> ParserState<'source> {
         matches!(self.phase, Phase::Content)
     }
 
+    /// The lending driver must skip non-events before borrowing its token for
+    /// the return value. These bytes are necessarily valid UTF-8/XML whitespace.
+    pub(crate) fn is_non_event(&self, kind: TokenKind, bytes: &[u8]) -> bool {
+        !matches!(kind, TokenKind::Dtd | TokenKind::InvalidMarkup)
+            && (bytes.is_empty()
+                || (matches!(kind, TokenKind::Text)
+                    && !self.in_content()
+                    && (!self.encoding.requires_declaration() || self.declaration_seen)
+                    && bytes.iter().all(|byte| space(*byte))))
+    }
+
     pub(crate) fn check_event_limit(&self, offset: usize) -> Result<(), Error> {
         if self.events == self.budget.limits.max_events {
             Err(Error::new(ErrorKind::LimitExceeded(Limit::Events), offset))
@@ -210,7 +221,7 @@ impl<'source> ParserState<'source> {
                 start,
             ));
         }
-        if raw.is_empty() {
+        if self.is_non_event(kind, raw.as_bytes()) {
             return Ok(None);
         }
         if self.encoding.requires_declaration()
@@ -222,7 +233,7 @@ impl<'source> ParserState<'source> {
         if matches!(kind, TokenKind::Text) && !self.in_content() {
             return match raw.bytes().position(|byte| !space(byte)) {
                 Some(relative) => Err(Error::new(ErrorKind::TextOutsideRoot, start + relative)),
-                None => Ok(None),
+                None => Err(Error::new(ErrorKind::TextOutsideRoot, start)),
             };
         }
         self.check_event_limit(start)?;

@@ -38,6 +38,8 @@ pub(crate) struct Tokenizer {
     encoding: SourceEncoding,
     limit: usize,
     decoded_limit: usize,
+    ready: Option<(TokenKind, TokenSpan)>,
+    lookahead: Option<(usize, usize)>,
 }
 
 impl Tokenizer {
@@ -52,6 +54,8 @@ impl Tokenizer {
             encoding: SourceEncoding::Utf8,
             limit,
             decoded_limit,
+            ready: None,
+            lookahead: None,
         }
     }
 
@@ -71,11 +75,28 @@ impl Tokenizer {
         self.start = self.position;
     }
 
-    pub(crate) fn feed(
-        &mut self,
-        input: &[u8],
-        mut emit: impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
-    ) -> Result<(), Error> {
+    pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], &TokenSpan)> {
+        self.ready
+            .as_ref()
+            .map(|(kind, span)| (*kind, self.buffer.as_slice(), span))
+    }
+
+    pub(crate) fn release(&mut self) {
+        if self.ready.take().is_some() {
+            self.buffer.clear();
+            self.scan = Scan::Text;
+        }
+    }
+
+    /// Consume only through the next complete token. A text delimiter already
+    /// counted in the positions is replayed from constant lookahead storage.
+    pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
+        if self.ready.is_some() {
+            return Ok(0);
+        }
+        if let Some((offset, source_offset)) = self.lookahead.take() {
+            self.consume(b'<', offset, source_offset)?;
+        }
         let mut cursor = 0;
         while cursor < input.len() {
             if self.encoding == SourceEncoding::Utf8 {
@@ -115,9 +136,12 @@ impl Tokenizer {
             let source_offset = self.source_position;
             self.position += 1;
             self.source_position += self.encoding.source_length(std::slice::from_ref(&byte));
-            self.consume(byte, offset, source_offset, &mut emit)?;
+            self.consume(byte, offset, source_offset)?;
+            if self.ready.is_some() {
+                break;
+            }
         }
-        Ok(())
+        Ok(cursor)
     }
 
     /// Skip bytes that cannot change the current delimiter state. Each scan
@@ -135,15 +159,20 @@ impl Tokenizer {
         boundary.unwrap_or(input.len())
     }
 
-    pub(crate) fn finish(
-        &mut self,
-        mut emit: impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
-    ) -> Result<(), Error> {
+    pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
+        self.advance(&[])?;
+        if self.ready.is_some() {
+            return Ok(());
+        }
         match self.scan {
             Scan::Text if self.buffer.is_empty() => Ok(()),
-            Scan::Text => self.emit(TokenKind::Text, self.position, &mut emit),
+            Scan::Text => {
+                self.mark(TokenKind::Text, self.position);
+                Ok(())
+            }
             Scan::Prefix if self.buffer.starts_with(b"<!") => {
-                self.emit(TokenKind::InvalidMarkup, self.position, &mut emit)
+                self.mark(TokenKind::InvalidMarkup, self.position);
+                Ok(())
             }
             _ => Err(Error::new(ErrorKind::UnexpectedEof, self.source_start)),
         }
@@ -189,15 +218,11 @@ impl Tokenizer {
         Ok(())
     }
 
-    fn consume(
-        &mut self,
-        byte: u8,
-        offset: usize,
-        source_offset: usize,
-        emit: &mut impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
-    ) -> Result<(), Error> {
+    fn consume(&mut self, byte: u8, offset: usize, source_offset: usize) -> Result<(), Error> {
         if matches!(self.scan, Scan::Text) && byte == b'<' && !self.buffer.is_empty() {
-            self.emit_at(TokenKind::Text, offset, source_offset, emit)?;
+            self.mark_at(TokenKind::Text, offset, source_offset);
+            self.lookahead = Some((offset, source_offset));
+            return Ok(());
         }
         if self.buffer.is_empty() {
             self.start = offset;
@@ -218,7 +243,7 @@ impl Tokenizer {
                     self.scan = Scan::Instruction { question: false };
                 } else {
                     self.scan = Scan::Tag { quote: None };
-                    self.tag_byte(byte, offset, emit)?;
+                    self.tag_byte(byte, offset);
                 }
             }
             Scan::Prefix => {
@@ -227,18 +252,18 @@ impl Tokenizer {
                 } else if self.buffer == b"<![CDATA[" {
                     self.scan = Scan::Cdata { brackets: 0 };
                 } else if self.buffer == b"<!DOCTYPE" {
-                    self.emit(TokenKind::Dtd, offset + 1, emit)?;
+                    self.mark(TokenKind::Dtd, offset + 1);
                 } else if ![&b"<!--"[..], &b"<![CDATA["[..], &b"<!DOCTYPE"[..]]
                     .iter()
                     .any(|prefix| prefix.starts_with(&self.buffer))
                 {
-                    self.emit(TokenKind::InvalidMarkup, offset + 1, emit)?;
+                    self.mark(TokenKind::InvalidMarkup, offset + 1);
                 }
             }
-            Scan::Tag { .. } => self.tag_byte(byte, offset, emit)?,
+            Scan::Tag { .. } => self.tag_byte(byte, offset),
             Scan::Comment { hyphens } => {
                 if byte == b'>' && hyphens == 2 {
-                    self.emit(TokenKind::Comment, offset + 1, emit)?;
+                    self.mark(TokenKind::Comment, offset + 1);
                 } else {
                     self.scan = Scan::Comment {
                         hyphens: if byte == b'-' {
@@ -251,7 +276,7 @@ impl Tokenizer {
             }
             Scan::Cdata { brackets } => {
                 if byte == b'>' && brackets == 2 {
-                    self.emit(TokenKind::Cdata, offset + 1, emit)?;
+                    self.mark(TokenKind::Cdata, offset + 1);
                 } else {
                     self.scan = Scan::Cdata {
                         brackets: if byte == b']' {
@@ -264,7 +289,7 @@ impl Tokenizer {
             }
             Scan::Instruction { question } => {
                 if byte == b'>' && question {
-                    self.emit(TokenKind::Instruction, offset + 1, emit)?;
+                    self.mark(TokenKind::Instruction, offset + 1);
                 } else {
                     self.scan = Scan::Instruction {
                         question: byte == b'?',
@@ -275,12 +300,7 @@ impl Tokenizer {
         Ok(())
     }
 
-    fn tag_byte(
-        &mut self,
-        byte: u8,
-        offset: usize,
-        emit: &mut impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
-    ) -> Result<(), Error> {
+    fn tag_byte(&mut self, byte: u8, offset: usize) {
         let Scan::Tag { quote } = self.scan else {
             unreachable!("tag scanner state")
         };
@@ -293,40 +313,54 @@ impl Tokenizer {
                 } else {
                     TokenKind::Start
                 };
-                self.emit(kind, offset + 1, emit)?;
+                self.mark(kind, offset + 1);
             }
             _ => {}
         }
-        Ok(())
     }
 
-    fn emit(
-        &mut self,
-        kind: TokenKind,
-        end: usize,
-        emit: &mut impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
-    ) -> Result<(), Error> {
-        self.emit_at(kind, end, self.source_position, emit)
+    fn mark(&mut self, kind: TokenKind, end: usize) {
+        self.mark_at(kind, end, self.source_position)
     }
 
-    fn emit_at(
-        &mut self,
-        kind: TokenKind,
-        end: usize,
-        source_end: usize,
-        emit: &mut impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
-    ) -> Result<(), Error> {
-        emit(
+    fn mark_at(&mut self, kind: TokenKind, end: usize, source_end: usize) {
+        self.ready = Some((
             kind,
-            &self.buffer,
             TokenSpan {
                 decoded: self.start..end,
                 source: self.source_start..source_end,
                 encoding: self.encoding,
             },
-        )?;
-        self.buffer.clear();
-        self.scan = Scan::Text;
+        ));
+    }
+
+    #[cfg(test)]
+    fn feed(
+        &mut self,
+        mut input: &[u8],
+        mut emit: impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        while !input.is_empty() {
+            let consumed = self.advance(input)?;
+            input = &input[consumed..];
+            if let Some((kind, bytes, span)) = self.current() {
+                emit(kind, bytes, span.clone())?;
+                self.release();
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn finish(
+        &mut self,
+        mut emit: impl FnMut(TokenKind, &[u8], TokenSpan) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.finish_step()?;
+        if let Some((kind, bytes, span)) = self.current() {
+            emit(kind, bytes, span.clone())?;
+            self.release();
+        }
         Ok(())
     }
 }
