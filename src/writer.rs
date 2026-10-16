@@ -3,7 +3,9 @@ use std::io::{self, Write};
 use crate::escape::xml_char;
 use crate::parser::{ParserState, space};
 use crate::tokenizer::TokenKind;
-use crate::{Element, Error, ErrorKind, Event, Limit, Limits, Name, WriteError};
+use crate::{
+    Document, Element, Error, ErrorKind, Event, Limit, Limits, Name, OwnedDocument, WriteError,
+};
 
 /// Inclusive writer ceilings. Token bytes count one complete encoded event.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,6 +36,7 @@ impl Default for WriterLimits {
 
 #[derive(Clone, Copy)]
 enum Status {
+    Fresh,
     Active,
     Finished,
     Failed,
@@ -86,7 +89,7 @@ impl<W: Write> Writer<W> {
             },
             limits,
             position: 0,
-            status: Status::Active,
+            status: Status::Fresh,
         }
     }
 
@@ -104,13 +107,52 @@ impl<W: Write> Writer<W> {
     /// Writes one complete event after validation. Adjacent Text events can
     /// coalesce into a larger lexical token when the output is parsed again.
     pub fn write_event(&mut self, event: &Event<'_>) -> Result<(), WriteError> {
-        if !matches!(self.status, Status::Active) {
+        if !matches!(self.status, Status::Fresh | Status::Active) {
             self.status = Status::Failed;
             return Err(self.invalid_state());
         }
         // Poison before state mutation or sink calls; unwinding cannot expose a
         // partially processed token as a reusable writer.
         self.status = Status::Failed;
+        self.write_event_inner(event)?;
+        self.status = Status::Active;
+        Ok(())
+    }
+
+    /// Serializes a complete borrowing DOM as UTF-8, then validates and flushes.
+    /// Requires a fresh writer and leaves it finished on success. A present
+    /// declaration encoding is rewritten to UTF-8; childless elements use `/>`.
+    pub fn write_document(&mut self, document: &Document<'_>) -> Result<(), WriteError> {
+        self.begin_document()?;
+        crate::serialize::borrowed(self, document, self.limits.max_attributes)?;
+        self.finish_inner()?;
+        self.status = Status::Finished;
+        Ok(())
+    }
+
+    /// Serializes a complete owned DOM, with the same policy as write_document.
+    /// Its original UTF-8 or UTF-16 source encoding does not affect output bytes.
+    pub fn write_owned_document(&mut self, document: &OwnedDocument) -> Result<(), WriteError> {
+        self.begin_document()?;
+        crate::serialize::owned(self, document, self.limits.max_attributes)?;
+        self.finish_inner()?;
+        self.status = Status::Finished;
+        Ok(())
+    }
+
+    fn begin_document(&mut self) -> Result<(), WriteError> {
+        let fresh = matches!(self.status, Status::Fresh);
+        // Cover traversal allocations and the final flush with the same guard
+        // as event validation and writing. Helpers never reopen the lifecycle.
+        self.status = Status::Failed;
+        if fresh {
+            Ok(())
+        } else {
+            Err(self.invalid_state())
+        }
+    }
+
+    pub(crate) fn write_event_inner(&mut self, event: &Event<'_>) -> Result<(), WriteError> {
         self.prepare(event).map_err(WriteError::Xml)?;
         let mut cursor = 0;
         let bytes = self.buffer.text.as_bytes();
@@ -136,7 +178,6 @@ impl<W: Write> Writer<W> {
                 Err(error) => return Err(WriteError::Io(error)),
             }
         }
-        self.status = Status::Active;
         Ok(())
     }
 
@@ -146,9 +187,15 @@ impl<W: Write> Writer<W> {
         match self.status {
             Status::Finished => return Ok(()),
             Status::Failed => return Err(self.invalid_state()),
-            Status::Active => {}
+            Status::Fresh | Status::Active => {}
         }
         self.status = Status::Failed;
+        self.finish_inner()?;
+        self.status = Status::Finished;
+        Ok(())
+    }
+
+    fn finish_inner(&mut self) -> Result<(), WriteError> {
         self.state
             .validate_finish(self.position)
             .map_err(WriteError::Xml)?;
@@ -159,7 +206,6 @@ impl<W: Write> Writer<W> {
                 Err(error) => return Err(WriteError::Io(error)),
             }
         }
-        self.status = Status::Finished;
         Ok(())
     }
 

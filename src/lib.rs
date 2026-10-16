@@ -10,6 +10,7 @@ mod owned;
 mod parser;
 mod push;
 mod reader;
+mod serialize;
 mod stream;
 mod tokenizer;
 mod writer;

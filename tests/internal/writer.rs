@@ -177,3 +177,86 @@ fn event_coherence_rejects_changed_kinds_and_declaration_fields() {
         assert_eq!(check_event(&supplied, parsed.as_ref(), 11), expected);
     }
 }
+
+#[test]
+fn complete_document_guards_include_empty_events_and_finish() {
+    let document = Document::parse("<r/>").unwrap();
+    let owned = OwnedDocument::parse("<r/>").unwrap();
+    let mut writer = Writer::new(Vec::new());
+    assert!(matches!(writer.status, Status::Fresh));
+    writer.write_event(&Event::Text(Cow::Borrowed(""))).unwrap();
+    assert!(matches!(writer.status, Status::Active));
+    assert!(matches!(
+        writer.write_document(&document),
+        Err(WriteError::Xml(Error {
+            kind: ErrorKind::InvalidState,
+            offset: 0
+        }))
+    ));
+    assert!(matches!(writer.status, Status::Failed));
+    assert!(writer.into_inner().is_empty());
+
+    let mut writer = Writer::new(Vec::new());
+    writer.write_owned_document(&owned).unwrap();
+    assert!(matches!(writer.status, Status::Finished));
+    writer.finish().unwrap();
+    assert!(matches!(
+        writer.write_document(&document),
+        Err(WriteError::Xml(Error {
+            kind: ErrorKind::InvalidState,
+            offset: 4
+        }))
+    ));
+    assert!(matches!(writer.status, Status::Failed));
+    assert_eq!(writer.into_inner(), b"<r/>");
+}
+
+#[test]
+fn complete_document_flush_failure_and_panic_stay_terminal() {
+    struct Sink {
+        bytes: Vec<u8>,
+        panic: bool,
+        flushes: usize,
+    }
+    impl Write for Sink {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.bytes.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            self.flushes += 1;
+            assert!(!self.panic, "flush panic");
+            Err(io::Error::other("flush failure"))
+        }
+    }
+    let document = Document::parse("<r/>").unwrap();
+    for panic in [false, true] {
+        let mut writer = Writer::new(Sink {
+            bytes: Vec::new(),
+            panic,
+            flushes: 0,
+        });
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            writer.write_document(&document)
+        }));
+        if panic {
+            assert!(result.is_err());
+        } else {
+            assert!(
+                matches!(result.unwrap(), Err(WriteError::Io(error)) if error.to_string() == "flush failure")
+            );
+        }
+        assert_eq!(writer.position(), 4);
+        assert!(matches!(writer.status, Status::Failed));
+        assert!(matches!(
+            writer.finish(),
+            Err(WriteError::Xml(Error {
+                kind: ErrorKind::InvalidState,
+                ..
+            }))
+        ));
+        let sink = writer.into_inner();
+        assert_eq!(sink.bytes, b"<r/>");
+        assert_eq!(sink.flushes, 1);
+    }
+}
