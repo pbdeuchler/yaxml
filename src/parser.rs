@@ -4,7 +4,7 @@ use std::ops::Range;
 
 use memchr::memchr;
 
-use crate::escape::{copy_cow, needs_normalization, normalize};
+use crate::escape::{copy_cow, needs_normalization, normalize_required};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
 
@@ -276,10 +276,11 @@ impl<'source> ParserState<'source> {
         attribute: bool,
         references: bool,
     ) -> Result<Cow<'event, str>, Error> {
-        if needs_normalization(raw, attribute, references) {
-            self.budget.charge_owned(raw.len(), offset)?;
+        if !needs_normalization(raw, attribute, references) {
+            return Ok(Cow::Borrowed(raw));
         }
-        normalize(raw, offset, attribute, references)
+        self.budget.charge_owned(raw.len(), offset)?;
+        normalize_required(raw, offset, attribute, references).map(Cow::Owned)
     }
 
     fn instruction<'event>(

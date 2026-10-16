@@ -20,15 +20,12 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
 
 /// XML end-of-line and CDATA attribute normalization. References are expanded
 /// after literal whitespace normalization: &#xA; must remain a newline.
-pub(crate) fn normalize<'a>(
-    raw: &'a str,
+pub(crate) fn normalize_required(
+    raw: &str,
     offset: usize,
     attribute: bool,
     references: bool,
-) -> Result<Cow<'a, str>, Error> {
-    if !needs_normalization(raw, attribute, references) {
-        return Ok(Cow::Borrowed(raw));
-    }
+) -> Result<String, Error> {
     let mut out = String::new();
     out.try_reserve(raw.len())
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
@@ -87,7 +84,7 @@ pub(crate) fn normalize<'a>(
             _ => out.push(c),
         }
     }
-    Ok(Cow::Owned(out))
+    Ok(out)
 }
 
 pub(crate) fn copy_cow<'a>(s: &Cow<'a, str>, offset: usize) -> Result<Cow<'a, str>, Error> {
