@@ -1832,7 +1832,25 @@ mod tests {
         assert!(!missing_lib.status.success());
         assert!(
             String::from_utf8_lossy(&missing_lib.stderr)
-                .contains("expected all 14 absolute source paths")
+                .contains("exact 14-file production source set")
+        );
+        let mut duplicate_source = std::process::Command::new(&cov);
+        duplicate_source
+            .args([
+                "report",
+                "--color=never",
+                "--instr-profile=/unused",
+                "/unused-target",
+                "--sources",
+            ])
+            .args((0..12).map(|index| root.join(format!("source/src/m{index:02}.rs"))))
+            .arg(root.join("source/src/m00.rs"))
+            .arg(root.join("source/src/lib.rs"));
+        let duplicate_source = duplicate_source.output().unwrap();
+        assert!(!duplicate_source.status.success());
+        assert!(
+            String::from_utf8_lossy(&duplicate_source.stderr)
+                .contains("exact 14-file production source set")
         );
 
         let paused_cov = install_mode(&helper, &root, "cov_pause");
@@ -2194,6 +2212,61 @@ mod tests {
         let (identity_helper, identity_campaign) = compile_fake_programs(&identity_root);
         let identity_target = install_mode(&identity_helper, &identity_root, "target_ok");
         let identity_profdata = install_mode(&identity_helper, &identity_root, "profdata_ok");
+        let identity_cov = install_mode(&identity_helper, &identity_root, "cov_ok");
+        for (label, target_mode, profdata_mode, cov_mode) in [
+            ("target", "target_change_self", "profdata_ok", "cov_ok"),
+            ("profdata", "target_ok", "profdata_change_self", "cov_ok"),
+            ("cov", "target_ok", "profdata_ok", "cov_change_self"),
+        ] {
+            let changed_target = install_mode(&identity_helper, &identity_root, target_mode);
+            let changed_profdata = install_mode(&identity_helper, &identity_root, profdata_mode);
+            let changed_cov = install_mode(&identity_helper, &identity_root, cov_mode);
+            let output = run_cli(
+                &identity_campaign,
+                &changed_target,
+                &changed_profdata,
+                &changed_cov,
+                &identity_root,
+                &format!("identity-{label}"),
+                1,
+                &[],
+            );
+            assert!(!output.status.success(), "{label}");
+            let classification = fs::read_to_string(
+                identity_root
+                    .join(format!("identity-{label}"))
+                    .join("failures/classification.txt"),
+            )
+            .unwrap();
+            assert!(
+                classification.contains("target or LLVM tool identity changed"),
+                "{label}: {classification}"
+            );
+        }
+        let changed_profdata = install_mode(
+            &identity_helper,
+            &identity_root,
+            "profdata_change_self_fail",
+        );
+        let tool_failure = run_cli(
+            &identity_campaign,
+            &identity_target,
+            &changed_profdata,
+            &identity_cov,
+            &identity_root,
+            "identity-tool-failure",
+            1,
+            &[],
+        );
+        assert!(!tool_failure.status.success());
+        let tool_failure_classification = fs::read_to_string(
+            identity_root.join("identity-tool-failure/failures/classification.txt"),
+        )
+        .unwrap();
+        assert!(
+            tool_failure_classification.contains("target or LLVM tool identity changed"),
+            "{tool_failure_classification}"
+        );
         let changed_clean_cov =
             install_mode(&identity_helper, &identity_root, "cov_change_source_clean");
         let changed_clean = run_cli(

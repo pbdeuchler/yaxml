@@ -1,6 +1,7 @@
 use std::env;
+use std::collections::BTreeSet;
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process;
 use std::thread;
@@ -36,6 +37,7 @@ fn target(mode: &str) {
         }
         "target_timeout" => thread::sleep(Duration::from_secs(2)),
         "target_output" => print!("{}", "x".repeat(4096)),
+        "target_change_self" => append_to_executable(),
         "target_large_profile" => {
             let path = env::var_os("LLVM_PROFILE_FILE").expect("profile path is set");
             fs::write(path, vec![b'x'; 1024 * 1024]).unwrap();
@@ -90,6 +92,13 @@ fn profdata(mode: &str) {
         eprintln!("controlled merge diagnostic");
     }
     fs::write(output, combined).unwrap();
+    if mode == "profdata_change_self" || mode == "profdata_change_self_fail" {
+        append_to_executable();
+    }
+    if mode == "profdata_change_self_fail" {
+        eprintln!("controlled merge failure after changing tool identity");
+        process::exit(6);
+    }
 }
 
 fn cov(mode: &str) {
@@ -103,11 +112,18 @@ fn cov(mode: &str) {
         return;
     }
     if !has_exact_source_list() {
-        eprintln!("expected all 14 absolute source paths after --sources");
+        eprintln!("expected the exact 14-file production source set after --sources");
         process::exit(92);
     }
     if mode.starts_with("cov_change_source") {
         change_first_source(&mode);
+    }
+    if mode == "cov_change_self" || mode == "cov_change_self_fail" {
+        append_to_executable();
+    }
+    if mode == "cov_change_self_fail" {
+        println!("unexpected report schema");
+        return;
     }
     if mode == "cov_change_source_fail" {
         println!("unexpected report schema");
@@ -176,16 +192,33 @@ fn has_exact_source_list() -> bool {
         return false;
     };
     let sources = &arguments[sources_index + 1..];
-    sources.len() == 14
-        && sources.iter().all(|source| {
+    if sources.len() != 14
+        || !sources.iter().all(|source| {
             let path = Path::new(source);
             path.is_absolute() && path.is_file()
         })
-        && sources
-            .iter()
-            .filter(|source| Path::new(source).file_name().is_some_and(|name| name == "lib.rs"))
-            .count()
-            == 1
+    {
+        return false;
+    }
+    let Ok(paths) = sources
+        .iter()
+        .map(|source| Path::new(source).canonicalize())
+        .collect::<Result<Vec<_>, _>>()
+    else {
+        return false;
+    };
+    let parents: BTreeSet<_> = paths.iter().filter_map(|path| path.parent()).collect();
+    let names: BTreeSet<String> = paths
+        .iter()
+        .filter_map(|path| path.file_name()?.to_str())
+        .map(str::to_owned)
+        .collect();
+    let expected_names: BTreeSet<String> = std::iter::once("lib.rs".to_owned())
+        .chain((0..13).map(|index| format!("m{index:02}.rs")))
+        .collect();
+    paths.iter().collect::<BTreeSet<_>>().len() == 14
+        && parents.len() == 1
+        && names == expected_names
 }
 
 fn change_first_source(mode: &str) {
@@ -196,6 +229,16 @@ fn change_first_source(mode: &str) {
         .expect("sources argument");
     let source = arguments.get(index + 1).expect("first source path");
     fs::write(source, format!("// changed during campaign: {mode}\n")).unwrap();
+}
+
+fn append_to_executable() {
+    let path = env::current_exe().expect("current executable");
+    fs::OpenOptions::new()
+        .append(true)
+        .open(path)
+        .expect("open running executable for identity mutation")
+        .write_all(b"fixture identity mutation")
+        .expect("append identity mutation");
 }
 
 fn report(novel: bool, drift: bool) {
