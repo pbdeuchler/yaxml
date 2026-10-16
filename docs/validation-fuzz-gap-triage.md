@@ -34,7 +34,7 @@ functions collapse exactly as follows:
 The source-span triage is below. A line group names every zero-count location
 from that file without repeating LLVM subregions on the same expression.
 
-| File | Baseline missed regions | Source line groups | Reachability classification |
+| File | Distinct zero source spans | Source line groups | Reachability classification |
 | --- | ---: | --- | --- |
 | `buffered.rs` | 3 | 152-154, 179-181 | Candidate public decoder-carry/lookahead and zero-consume schedules. This pass did not establish an exact reaching sequence; a separate pull-schedule model should resolve them. |
 | `dom.rs` | 24 | 57, 105, 121, 130-162 | Allocation failures and builder invariants already established by `Reader`; the final missing-root guard is redundant after successful reader EOF. |
