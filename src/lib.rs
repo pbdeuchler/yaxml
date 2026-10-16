@@ -19,9 +19,13 @@ pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};
 pub use encoding::DecodeLimits;
 pub use error::{
-    EditError, EditErrorKind, EditLimit, Error, ErrorKind, Limit, ReadError, WriteError,
+    EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
+    ReadError, WriteError,
 };
-pub use owned::{EditLimits, Editor, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind};
+pub use owned::{
+    AttributeSpec, EditLimits, Editor, ElementItem, ElementSpec, NameSpec, NamespaceSpec,
+    OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, PrefixPolicy,
+};
 pub use push::PushParser;
 pub use reader::{Attribute, Declaration, Element, Event, Limits, Name, Reader};
 pub use writer::{Writer, WriterLimits};

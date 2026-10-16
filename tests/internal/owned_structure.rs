@@ -382,6 +382,7 @@ fn handles_and_parent_rules_precede_payloads_and_quota() {
             max_value_bytes: 0,
             max_created_nodes: 0,
             max_owned_bytes: 0,
+            ..EditLimits::default()
         })
         .unwrap();
     for parent in [foreign, invalid] {

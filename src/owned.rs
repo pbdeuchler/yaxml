@@ -13,6 +13,7 @@ use std::rc::Rc;
 use crate::parser::Budget;
 use crate::{Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader};
 use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
+use crate::{EditComponent, EditLocation};
 
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 
@@ -417,6 +418,7 @@ pub struct OwnedDocument {
     declaration: Option<StoredDeclaration>,
     edit_owned_bytes: usize,
     edit_created_nodes: usize,
+    edit_created_attributes: usize,
     // Parsing produces contiguous preorder. A future structural edit clears
     // this permanently; value-only edits leave the fast path valid.
     slots_are_preorder: bool,
@@ -545,6 +547,12 @@ impl OwnedDocument {
                 None,
             ));
         }
+        if self.edit_created_attributes > limits.max_created_attributes {
+            return Err(EditError::new(
+                EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes),
+                None,
+            ));
+        }
         Ok(Editor {
             document: self,
             limits,
@@ -565,6 +573,59 @@ pub struct EditLimits {
     /// Successful fresh slots across all editors, never refunded by removal.
     /// Parsed nodes are excluded. Default: 1,000,000.
     pub max_created_nodes: usize,
+    /// UTF-8 bytes per supplied XML name, prefix or namespace URI. Default: 1 MiB.
+    pub max_name_bytes: usize,
+    /// Aggregate supplied string bytes per construction call. Default: 8 MiB.
+    pub max_supplied_bytes: usize,
+    /// Initial items on one constructed element, including declarations. Default: 1,024.
+    pub max_attributes: usize,
+    /// Prospective element depth, with the document element at depth one. Default: 256.
+    pub max_depth: usize,
+    /// Successful initial attributes and declarations across all editors. Default: 1,000,000.
+    pub max_created_attributes: usize,
+    /// Namespace lookup and comparison work per construction call. Default: 64 MiB.
+    pub max_namespace_work: usize,
+}
+
+/// A lexical prefix choice for a constructed element or attribute name.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PrefixPolicy<'a> {
+    /// Preserve this exact prefix choice; `None` means unprefixed.
+    Exact(Option<&'a str>),
+    /// Reuse a suitable in-scope binding or choose a deterministic prefix.
+    Automatic,
+}
+
+/// Borrowed expanded name and requested lexical spelling for construction.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct NameSpec<'a> {
+    pub local: &'a str,
+    pub namespace: Option<&'a str>,
+    pub prefix: PrefixPolicy<'a>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AttributeSpec<'a> {
+    pub name: NameSpec<'a>,
+    pub value: &'a str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct NamespaceSpec<'a> {
+    pub prefix: Option<&'a str>,
+    pub uri: &'a str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ElementItem<'a> {
+    Namespace(NamespaceSpec<'a>),
+    Attribute(AttributeSpec<'a>),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ElementSpec<'a> {
+    pub name: NameSpec<'a>,
+    pub items: &'a [ElementItem<'a>],
 }
 
 impl Default for EditLimits {
@@ -573,6 +634,12 @@ impl Default for EditLimits {
             max_value_bytes: 1024 * 1024,
             max_owned_bytes: 64 * 1024 * 1024,
             max_created_nodes: 1_000_000,
+            max_name_bytes: 1024 * 1024,
+            max_supplied_bytes: 8 * 1024 * 1024,
+            max_attributes: 1024,
+            max_depth: 256,
+            max_created_attributes: 1_000_000,
+            max_namespace_work: 64 * 1024 * 1024,
         }
     }
 }
@@ -1112,6 +1179,7 @@ impl OwnedBuilder {
             declaration: self.declaration,
             edit_owned_bytes: 0,
             edit_created_nodes: 0,
+            edit_created_attributes: 0,
             slots_are_preorder: true,
         })
     }

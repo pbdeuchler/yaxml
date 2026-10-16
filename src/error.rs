@@ -72,8 +72,29 @@ impl std::error::Error for Error {}
 #[non_exhaustive]
 pub enum EditLimit {
     ValueBytes,
+    NameBytes,
+    SuppliedBytes,
+    Attributes,
+    Depth,
     OwnedBytes,
     CreatedNodes,
+    CreatedAttributes,
+    NamespaceWork,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EditComponent {
+    LocalName,
+    NamespaceUri,
+    Prefix,
+    Value,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EditLocation {
+    ElementName { component: EditComponent, byte_offset: Option<usize> },
+    NamespaceItem { index: usize, component: Option<EditComponent>, byte_offset: Option<usize> },
+    AttributeItem { index: usize, component: Option<EditComponent>, byte_offset: Option<usize> },
 }
 
 /// Failures leave logical values and source provenance unchanged.
@@ -88,6 +109,9 @@ pub enum EditErrorKind {
     InvalidCharacter,
     InvalidValue,
     InvalidName,
+    Namespace,
+    DuplicateAttribute,
+    IdentifierExhausted,
     LimitExceeded(EditLimit),
     Allocation,
 }
@@ -100,11 +124,16 @@ pub enum EditErrorKind {
 pub struct EditError {
     pub kind: EditErrorKind,
     pub value_offset: Option<usize>,
+    pub location: Option<EditLocation>,
 }
 
 impl EditError {
     pub(crate) const fn new(kind: EditErrorKind, value_offset: Option<usize>) -> Self {
-        Self { kind, value_offset }
+        Self { kind, value_offset, location: None }
+    }
+
+    pub(crate) const fn located(kind: EditErrorKind, location: EditLocation) -> Self {
+        Self { kind, value_offset: None, location: Some(location) }
     }
 }
 

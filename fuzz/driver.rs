@@ -800,6 +800,7 @@ mod formatting_tests {
             check_display(&EditError {
                 kind: EditErrorKind::InvalidValue,
                 value_offset,
+                location: None,
             });
         }
         check_display(&"Unicode: 中😀");

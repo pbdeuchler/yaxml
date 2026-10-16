@@ -323,7 +323,7 @@ fn expected_target(target: &str) -> Result<(), EditError> {
 }
 
 fn error(kind: EditErrorKind, value_offset: Option<usize>) -> EditError {
-    EditError { kind, value_offset }
+    EditError { kind, value_offset, location: None }
 }
 
 // This oracle walks UTF-8 scalars and then byte positions, independently of
@@ -1550,7 +1550,8 @@ fn quota_case(case: u8, boundary: u8, encoding: u8, reopen: bool) {
                     state.document.edit(limits(2)),
                     Err(EditError {
                         kind: EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
-                        value_offset: None
+                        value_offset: None,
+                        ..
                     })
                 ),
                 "opening an editor reset cumulative expenditure"

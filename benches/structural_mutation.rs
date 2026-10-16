@@ -620,6 +620,7 @@ fn main() {
                 "YAXML_STRUCTURE_MAX_CREATED_NODES",
                 EditLimits::default().max_created_nodes,
             ),
+            ..EditLimits::default()
         },
     };
     if export_path.is_some() {

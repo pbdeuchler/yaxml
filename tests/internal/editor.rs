@@ -150,7 +150,8 @@ fn reopened_editors_keep_full_capacity_golden_at_six_seven_and_eight() {
             document.edit(limits(2)),
             Err(EditError {
                 kind: EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
-                value_offset: None
+                value_offset: None,
+                ..
             })
         ));
         let mut editor = document.edit(limits(ceiling)).unwrap();
@@ -362,6 +363,12 @@ fn edit_errors_display_optional_value_indices_and_defaults_are_finite() {
             max_value_bytes: 1_048_576,
             max_owned_bytes: 67_108_864,
             max_created_nodes: 1_000_000,
+            max_name_bytes: 1_048_576,
+            max_supplied_bytes: 8_388_608,
+            max_attributes: 1_024,
+            max_depth: 256,
+            max_created_attributes: 1_000_000,
+            max_namespace_work: 67_108_864,
         }
     );
     let indexed = error(EditErrorKind::InvalidCharacter, Some(2));
