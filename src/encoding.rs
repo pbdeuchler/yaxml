@@ -130,6 +130,12 @@ impl Decoder {
         input: &[u8],
         mut emit: impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
     ) -> Result<DecodeProgress, Error> {
+        // UTF-8 has no scalar carry. Once its preamble is drained, each token
+        // suspension can return directly without reentering detection/carry.
+        if self.encoding == Some(SourceEncoding::Utf8) && self.preamble_cursor == self.preamble_len
+        {
+            return self.forward_utf8(input, false, &mut emit);
+        }
         let mut cursor = 0;
         loop {
             let Some(encoding) = self.encoding else {
