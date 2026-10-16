@@ -39,6 +39,7 @@ environment variables selects a single value instead of its matrix axis:
 | `YAXML_PULL_CAPACITY` | Positive source-buffer capacity |
 | `YAXML_PULL_ENCODING` | `utf8`, `utf16le`, `utf16be` |
 | `YAXML_PULL_ITERATIONS` | Positive batch size |
+| `YAXML_PULL_PAYLOAD_BYTES` | Text/comment/CDATA/PI payload length, default 16 |
 
 Select all axes for one sample per fresh process when collecting resident-memory
 series. Record the exact executable path from Cargo's build output; do not time
@@ -50,9 +51,11 @@ fresh-process memory series. Caller buffer, input Vec, allocator caches and
 process baseline contribute to RSS and must be distinguished. The cumulative
 owned-string budget is not a measurement of live memory.
 
-The default matrix has short tokens. Larger text/comment/CDATA token-size
-series and namespace URI/depth/attribute axes remain separate experiments;
-record policy rejection if an axis reaches its finite ceiling. Do not silently
+The default matrix has short tokens. Select a larger `YAXML_PULL_PAYLOAD_BYTES`
+with one sibling for token-size series; the lexical fixture applies that length
+to each comment, CDATA and PI payload. The runner records `status=rejected` and
+the error if a finite policy ceiling stops a sample, omitting its throughput.
+Namespace URI/depth/attribute axes remain separate experiments. Do not silently
 drop a rejected sample or call an unconsumed input a throughput measurement.
 
 ## Comparability and reporting

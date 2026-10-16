@@ -79,27 +79,41 @@ fn main() {
         &[1, 256, 4096][..]
     };
     let fixtures = [
-        ("tiny", "<n/>"),
-        ("attributes", "<n a='é中🙂' b='value'/>"),
-        ("text", "<n>text text text text</n>"),
-        (
-            "lexical",
-            "<n><!--comment--><![CDATA[cdata]]><?pi data?></n>",
-        ),
-        ("normalized", "<n a='&#9;'>é&amp;中&#13;</n>"),
-        (
-            "namespaces",
-            "<p:n xmlns:p='urn:p' p:a='v'><n xmlns='urn:n'/></p:n>",
-        ),
+        "tiny",
+        "attributes",
+        "text",
+        "lexical",
+        "normalized",
+        "namespaces",
     ];
-    for (fixture, item) in fixtures {
+    let encodings = ["utf8", "utf16le", "utf16be"];
+    if let Some(value) = parameter("YAXML_PULL_FIXTURE") {
+        assert!(fixtures.contains(&value.as_str()), "unknown pull fixture");
+    }
+    if let Some(value) = parameter("YAXML_PULL_ENCODING") {
+        assert!(encodings.contains(&value.as_str()), "unknown pull encoding");
+    }
+    let payload_bytes = numbers("YAXML_PULL_PAYLOAD_BYTES", &[16])[0];
+    for fixture in fixtures {
         if parameter("YAXML_PULL_FIXTURE").is_some_and(|selected| selected != fixture) {
             continue;
         }
+        let item = match fixture {
+            "tiny" => "<n/>".to_owned(),
+            "attributes" => "<n a='é中🙂' b='value'/>".to_owned(),
+            "text" => format!("<n>{}</n>", "x".repeat(payload_bytes)),
+            "lexical" => {
+                let value = "x".repeat(payload_bytes);
+                format!("<n><!--{value}--><![CDATA[{value}]]><?pi {value}?></n>")
+            }
+            "normalized" => "<n a='&#9;'>é&amp;中&#13;</n>".to_owned(),
+            "namespaces" => "<p:n xmlns:p='urn:p' p:a='v'><n xmlns='urn:n'/></p:n>".to_owned(),
+            _ => unreachable!(),
+        };
         for siblings in numbers("YAXML_PULL_SIBLINGS", sizes) {
             assert!(siblings > 0);
             let xml = format!("<r>{}</r>", item.repeat(siblings));
-            for encoding in ["utf8", "utf16le", "utf16be"] {
+            for encoding in encodings {
                 if parameter("YAXML_PULL_ENCODING").is_some_and(|selected| selected != encoding) {
                     continue;
                 }
@@ -119,6 +133,7 @@ fn main() {
                     let mut early_bytes = 0;
                     let mut events = 0;
                     let mut logical_bytes = 0;
+                    let mut rejected = None;
                     let started = Instant::now();
                     for _ in 0..iterations {
                         let before_first = Instant::now();
@@ -133,10 +148,22 @@ fn main() {
                         black_box(range);
                         early_bytes += reader.position();
                         events += 1;
-                        while let Some((event, range)) = reader.read_event().unwrap() {
-                            logical_bytes += observe(event);
-                            black_box(range);
-                            events += 1;
+                        loop {
+                            match reader.read_event() {
+                                Ok(Some((event, range))) => {
+                                    logical_bytes += observe(event);
+                                    black_box(range);
+                                    events += 1;
+                                }
+                                Ok(None) => break,
+                                Err(error) => {
+                                    rejected = Some(error);
+                                    break;
+                                }
+                            }
+                        }
+                        if rejected.is_some() {
+                            break;
                         }
                         assert_eq!(
                             reader.position(),
@@ -146,8 +173,15 @@ fn main() {
                         black_box(reader.into_inner());
                     }
                     let elapsed = started.elapsed();
+                    if let Some(error) = rejected {
+                        println!(
+                            "fixture={fixture} encoding={encoding} siblings={siblings} capacity={capacity} payload_bytes={payload_bytes} bytes={} status=rejected error={error}",
+                            input.len()
+                        );
+                        continue;
+                    }
                     println!(
-                        "fixture={fixture} encoding={encoding} siblings={siblings} capacity={capacity} bytes={} iterations={iterations} events={events} logical_bytes={logical_bytes} elapsed_ns={} first_event_ns_total={first_ns} first_event_consumed_bytes_total={early_bytes} mib_per_s={:.2}",
+                        "fixture={fixture} encoding={encoding} siblings={siblings} capacity={capacity} payload_bytes={payload_bytes} bytes={} status=complete iterations={iterations} events={events} logical_bytes={logical_bytes} elapsed_ns={} first_event_ns_total={first_ns} first_event_consumed_bytes_total={early_bytes} mib_per_s={:.2}",
                         input.len(),
                         elapsed.as_nanos(),
                         input.len() as f64 * iterations as f64

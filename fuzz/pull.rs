@@ -12,6 +12,17 @@ use super::encoding::{self, Reference};
 const CAPACITIES: [usize; 7] = [1, 2, 3, 7, 64, 8192, 65536];
 const IO_MESSAGE: &str = "injected pull source failure";
 
+#[derive(Debug)]
+struct Injected;
+
+impl std::fmt::Display for Injected {
+    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        output.write_str(IO_MESSAGE)
+    }
+}
+
+impl std::error::Error for Injected {}
+
 /// A source whose exposed slice and consume ledger are independently bounded.
 /// It owns no input copy and exposes no bytes beyond an injected failure.
 struct Source<'a> {
@@ -54,7 +65,7 @@ impl BufRead for Source<'_> {
         }
         if self.failure == Some(self.position) {
             self.failed = true;
-            return Err(io::Error::other(IO_MESSAGE));
+            return Err(io::Error::other(Injected));
         }
         let end = self
             .position
@@ -137,17 +148,18 @@ impl<'a> Oracle<'a> {
     }
 
     fn result(&self, result: Result<(), Error>) {
-        if result.is_ok() {
-            assert!(self.valid(), "pull accepted invalid XML");
-        } else if self.valid() {
-            let error = result.unwrap_err();
-            assert!(
+        match result {
+            Ok(()) => assert!(self.valid(), "pull accepted invalid XML"),
+            Err(error) if self.valid() => assert!(
                 self.input.len() > 1024
                     && matches!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes)),
                 "pull rejected bounded valid XML: {error}"
-            );
-        } else if let (Some(reference), Some(Err(expected))) = (&self.reference, self.grammar) {
-            reference.failure(expected, result.err(), self.input.len());
+            ),
+            Err(error) => {
+                if let (Some(reference), Some(Err(expected))) = (&self.reference, self.grammar) {
+                    reference.failure(expected, Some(error), self.input.len());
+                }
+            }
         }
     }
 }
@@ -157,26 +169,20 @@ pub(super) fn exercise(input: &[u8], control: u8) {
     let capacity =
         CAPACITIES[usize::from(control) % CAPACITIES.len()].max(input.len().div_ceil(4096));
     let result = drive(
-        input,
-        capacity,
+        Source::new(input, capacity, true, None),
         Limits::default(),
         DecodeLimits::default(),
         Some(&oracle),
         None,
-        None,
-        true,
     );
     oracle.result(result);
     // A large visible suffix must stay unread when an event suspends parsing.
     let bulk = drive(
-        input,
-        input.len().max(1),
+        Source::new(input, input.len().max(1), false, None),
         Limits::default(),
         DecodeLimits::default(),
         Some(&oracle),
         None,
-        None,
-        false,
     );
     assert_eq!(
         result, bulk,
@@ -185,25 +191,19 @@ pub(super) fn exercise(input: &[u8], control: u8) {
     oracle.result(bulk);
 
     let _ = drive(
-        input,
-        capacity,
+        Source::new(input, capacity, false, None),
         Limits::default(),
         DecodeLimits::default(),
         Some(&oracle),
         Some(usize::from(control & 7)),
-        None,
-        false,
     );
     let failure = usize::from(control).saturating_mul(input.len()) / 255;
     let _ = drive(
-        input,
-        capacity,
+        Source::new(input, capacity, control & 1 == 0, Some(failure)),
         Limits::default(),
         DecodeLimits::default(),
         Some(&oracle),
         None,
-        Some(failure),
-        control & 1 == 0,
     );
     golden_limits(input, &oracle);
 }
@@ -211,32 +211,24 @@ pub(super) fn exercise(input: &[u8], control: u8) {
 /// Explicit profiles share the existing independent decoded-limit oracle.
 pub(super) fn with_limits(input: &[u8], limits: Limits, decode: DecodeLimits) -> Result<(), Error> {
     drive(
-        input,
-        3.max(input.len().div_ceil(4096)),
+        Source::new(input, 3.max(input.len().div_ceil(4096)), false, None),
         limits,
         decode,
         None,
         None,
-        None,
-        false,
     )
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "one bounded driver, with explicit source and parser policies"
-)]
 fn drive(
-    input: &[u8],
-    capacity: usize,
+    source: Source<'_>,
     limits: Limits,
     decode: DecodeLimits,
     oracle: Option<&Oracle<'_>>,
     stop: Option<usize>,
-    failure: Option<usize>,
-    interrupted: bool,
 ) -> Result<(), Error> {
-    let source = Source::new(input, capacity, interrupted, failure);
+    let input = source.input;
+    let capacity = source.capacity;
+    let interrupted = source.interrupted;
     let default_decode = decode.max_decoded_bytes == DecodeLimits::default().max_decoded_bytes
         && decode.max_decoded_token_bytes == DecodeLimits::default().max_decoded_token_bytes;
     let mut pull = if limits == Limits::default() && default_decode && interrupted {
@@ -262,6 +254,12 @@ fn drive(
         match result {
             Ok(Some((event, range))) => {
                 assert!(range.start <= range.end && range.end <= input.len());
+                let lookahead = if matches!(&event, Event::Text(_)) {
+                    if encoding::recognizes(input) { 2 } else { 1 }
+                } else {
+                    0
+                };
+                let latest_position = range.end.saturating_add(lookahead).max(4);
                 if count == capacity % 7 {
                     let payload = match &event {
                         Event::Text(value) | Event::Cdata(value) | Event::Comment(value) => {
@@ -285,6 +283,10 @@ fn drive(
                     "pull made no bounded progress"
                 );
                 assert!(range.end <= pull.position());
+                assert!(
+                    pull.position() <= latest_position,
+                    "pull read beyond an event suspension"
+                );
             }
             Ok(None) => {
                 if let Some(expected) = &mut expected {
@@ -316,6 +318,14 @@ fn drive(
                 assert!(pull.get_ref().failed, "pull invented an I/O error");
                 assert_eq!(error.kind(), io::ErrorKind::Other);
                 assert_eq!(error.to_string(), IO_MESSAGE);
+                assert!(
+                    error
+                        .get_ref()
+                        .unwrap()
+                        .downcast_ref::<Injected>()
+                        .is_some(),
+                    "pull replaced the original I/O cause"
+                );
                 let calls = pull.get_ref().calls;
                 assert!(
                     matches!(pull.read_event(), Err(ReadError::Xml(error)) if error.kind == ErrorKind::InvalidState)
@@ -327,6 +337,7 @@ fn drive(
                 );
                 break Ok(());
             }
+            Err(error) => panic!("unexpected pull error variant: {error}"),
         }
         let position = pull.position();
         assert!((previous..=input.len()).contains(&position));
