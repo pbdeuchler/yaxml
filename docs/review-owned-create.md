@@ -11,9 +11,10 @@
 **PASS (code quality).** No Critical, Important, or Minor finding remains in
 the assembled implementation, public tests, independent fuzz model, bounded
 oracle tooling, source-inventory changes, or current contract documentation.
-The milestone is not yet complete under its frozen plan: fresh coverage,
-actual pinned libxml2 2.15.4 oracle execution, and matched construction
-performance evidence remain external pending gates.
+At the reviewed `02cb2a5` boundary, the milestone is not yet complete under its
+frozen plan: fresh source-complete fuzz coverage, actual pinned libxml2 2.15.4
+oracle execution, and construction/append benchmark evidence remain external
+pending gates.
 
 ## Findings
 
@@ -117,9 +118,9 @@ the restored run is
 | Independent public and fuzz models | Met | Public goldens and the separate bounded construction model check exact trees and errors across UTF-8/UTF-16, created/parsed documents, long inherited prefixes, and existing edit operations. |
 | Pure safe Rust and dependency constraint | Met | The crate forbids unsafe code; a source search found no unsafe block/declaration or Rust foreign ABI. The locked runtime graph is `yaxml -> memchr 2.8.3`. |
 | Source-complete feedback-campaign inventory | Met as tooling | The exact nested 15-file inventory and relative report labels are tested. This establishes the input manifest for a future run, not coverage results. |
-| Fresh fuzz/ordinary coverage | **Pending** | No coverage percentage is claimed here. Root is producing the source-complete profile separately; its raw profiles, tool identities, source hashes, exclusions, and uncovered regions require their own validation. |
+| Fresh source-complete fuzz coverage | **Pending** | No coverage percentage is claimed here. Root is producing the source-complete profile separately; its raw profiles, tool identities, source hashes, exclusions, and uncovered regions require their own validation. Ordinary tests and failpoints are recorded separately as deterministic verification. |
 | Pinned libxml2 2.15.4 oracle | **Pending execution** | The fixed helper, expected table, protocol parser, version gate, and fake-helper failure tests are reviewed and green. An actual pinned 2.15.4 helper run and retained result are still required. |
-| Matched construction performance | **Pending** | This review found no retained matched create/append benchmark matrix. No claim of parity or superiority over libxml2 follows from the implementation or correctness tests. |
+| Construction/append benchmark evidence | **Pending** | This review found no retained bounded construction/append benchmark evidence at `02cb2a5`. The slice plan does not require a matched C timing matrix; no claim of parity or superiority over libxml2 follows from the implementation or correctness tests. |
 | Independent holistic review | Met for code quality | This report covers the assembled `02cb2a5` boundary and the three restored production mutations above. |
 
 ## Verification evidence
@@ -154,6 +155,7 @@ failpoint is a safe returned-error seam, not arbitrary OOM injection. The fuzz
 model is deliberately bounded, and this review did not run a sustained
 feedback-guided campaign. The oracle implementation and fake-helper gates do
 not substitute for executing the pinned external library. No construction
-timing was measured during this review. Coverage, actual pinned-oracle results,
-and matched performance must be reported against their exact source/tool
-manifests before the frozen milestone can be declared complete.
+timing was measured during this review. Fresh source-complete fuzz coverage,
+actual pinned-oracle results, and bounded construction/append benchmark
+evidence must be reported against their exact source/tool manifests before the
+frozen milestone can be declared complete.
