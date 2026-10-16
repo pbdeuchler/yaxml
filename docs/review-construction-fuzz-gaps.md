@@ -156,3 +156,76 @@ exclusion identities. A bounded campaign must separately retain its corpus,
 journal, first-failure evidence, and target/tool identities. Until those
 artifacts are reviewed, this report makes no new coverage percentage or
 sustained-security claim.
+
+## Final executable-freeze supplement
+
+The executable/harness freeze advanced from `011b0e2` to
+`d5ea7d183b6592db5c3a7e249ebded1933a24272` after the review above. The two
+additional commits are `7fe6528` and `d5ea7d1`. The complete base-to-freeze
+diff is 17 commits, nine files, 2,849 insertions and three deletions. This
+supplement reviewed every changed line in `011b0e2..d5ea7d1` and retains the
+**PASS** verdict with no new finding.
+
+`7fe6528` adds two corpus inputs and registers both in the actual fuzz-smoke
+`SEEDS` array. `construction-format.bin` begins with `0x2a`, which satisfies the
+sparse formatter/debug selector. `construction-long-prefix.bin` is exactly
+`[0x2b, 0xff, 0x02, 0x03]`: `0x2b` selects the inherited-prefix path; `0xff`
+selects the maximum bounded 4,336-byte prefix; `0x02` selects UTF-16BE with a
+BOM; and `0x03 & 3` selects the literal `中` value. Because construction now
+runs before grammar/encoding dispatch for every input, both seeds reach these
+paths through the real replay entry point. Registration also subjects their
+prefixes, single-byte mutations, and deletions to the existing smoke tests.
+
+`d5ea7d1` extends the namespace catalog from 17 to 27 cases. Cases 17 through
+26 cover:
+
+- an explicit nonempty default declaration conflicting with an exact
+  no-namespace element;
+- automatic no-namespace elements with absent and explicit-empty inherited
+  defaults;
+- an automatic ordinary no-namespace attribute;
+- rejection of a namespaced explicitly unprefixed attribute;
+- automatic element prefix generation when an explicit default is reserved
+  for another URI;
+- automatic attribute generation skipping an exact element's `ns1` prefix;
+- automatic attribute generation skipping an explicit local `ns1`
+  declaration;
+- stable `ns1`/`ns2` assignment for two automatic attribute namespaces; and
+- exact reuse of an inherited `p="u"` binding.
+
+The expected lexical prefixes, expanded namespaces, declaration placement,
+attribute order, and semantic error locations are literal. Accepted cases use
+the returned-handle topology/provenance helper. Rejected cases compare the
+complete prior snapshot, assert the exact error, and recover with the same
+editor. Every new case runs with UTF-8, UTF-16LE+BOM, and UTF-16BE+BOM parsed
+parents. The focused 27-case namespace catalog passed at the final freeze.
+
+Production and dependency inputs remain frozen. The `src` tree is still
+`34f9acb22ae65b99fcea2cc1cc52e9ee6e036b3f`; `Cargo.toml` and `Cargo.lock`
+still match the base. The final changed blobs are:
+
+- `fuzz/construction_namespaces.rs`:
+  `41b9fd94ca92339862f8306ad9655064874316e3`
+- `fuzz/corpus/construction-format.bin`:
+  `44f2a217bf726a818fe6e9b2686452dc23a8a2ad`
+- `fuzz/corpus/construction-long-prefix.bin`:
+  `fb7a5bf6c34199ea10e39df28798304b0a540a6a`
+- `tests/fuzz_smoke.rs`: `0effdb72add50547ed42f0918001ce4f63a0cdde`
+
+Fresh final-freeze validation is planned against these exact paths:
+
+- all-target log:
+  `/private/tmp/yaxml-construction-fuzz-all-targets-d5ea7d1.txt`
+- source-complete coverage:
+  `/private/tmp/yaxml-construction-fuzz-coverage-d5ea7d1`
+- 500-case campaign:
+  `/private/tmp/yaxml-construction-fuzz-campaign-d5ea7d1-500`
+- independent campaign evidence:
+  `/private/tmp/yaxml-construction-fuzz-campaign-evidence-d5ea7d1`
+- direct sparse-seed oracle:
+  `/private/tmp/yaxml-construction-fuzz-seeds-oracle-d5ea7d1.txt`
+
+Those paths identify the intended evidence boundary; their eventual existence
+or partial contents are not treated as completed evidence here. Counts,
+manifests, diagnostics, corpus decisions, and post-run identities require a
+separate completed-evidence review.
