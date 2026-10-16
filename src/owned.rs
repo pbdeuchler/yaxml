@@ -16,6 +16,9 @@ use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
 use crate::{EditComponent, EditLocation};
 
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
+const XML: &str = "http://www.w3.org/XML/1998/namespace";
+
+mod construction;
 
 static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -425,6 +428,11 @@ pub struct OwnedDocument {
 }
 
 impl OwnedDocument {
+    /// Creates a complete owned document containing one constructed root element.
+    pub fn create(root: ElementSpec<'_>, limits: EditLimits) -> Result<Self, EditError> {
+        construction::create(root, limits)
+    }
+
     pub fn parse(input: &str) -> Result<Self, Error> {
         Self::parse_bytes(input.as_bytes())
     }
@@ -599,32 +607,45 @@ pub enum PrefixPolicy<'a> {
 /// Borrowed expanded name and requested lexical spelling for construction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct NameSpec<'a> {
+    /// XML local name, without a colon.
     pub local: &'a str,
+    /// Expanded-name namespace; `None` means no namespace.
     pub namespace: Option<&'a str>,
+    /// Exact lexical spelling or deterministic automatic resolution.
     pub prefix: PrefixPolicy<'a>,
 }
 
+/// One ordinary attribute in a fresh element specification.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AttributeSpec<'a> {
+    /// Expanded name and requested lexical spelling.
     pub name: NameSpec<'a>,
+    /// Literal attribute value, never parsed as markup.
     pub value: &'a str,
 }
 
+/// One namespace declaration in a fresh element specification.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct NamespaceSpec<'a> {
+    /// Bound prefix; `None` declares or undeclares the default namespace.
     pub prefix: Option<&'a str>,
+    /// Namespace URI; empty is permitted only for default undeclaration.
     pub uri: &'a str,
 }
 
+/// An ordered initial namespace declaration or ordinary attribute.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ElementItem<'a> {
     Namespace(NamespaceSpec<'a>),
     Attribute(AttributeSpec<'a>),
 }
 
+/// Borrowed definition of a fresh element and its initial items.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ElementSpec<'a> {
+    /// Expanded name and requested lexical spelling.
     pub name: NameSpec<'a>,
+    /// Initial declarations and attributes, kept in caller order.
     pub items: &'a [ElementItem<'a>],
 }
 
@@ -656,6 +677,15 @@ pub struct Editor<'document> {
 impl Editor<'_> {
     pub fn document(&self) -> &OwnedDocument {
         self.document
+    }
+
+    /// Appends a fresh element with its initial attributes and namespace declarations.
+    pub fn append_element(
+        &mut self,
+        parent: OwnedNodeId,
+        element: ElementSpec<'_>,
+    ) -> Result<OwnedNodeId, EditError> {
+        construction::append(self, parent, element)
     }
 
     /// Appends one fresh Text node under an element, without merging neighbors.

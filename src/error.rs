@@ -67,37 +67,68 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// A ceiling for bounded owned-tree edits.
+/// A ceiling for bounded owned-tree edits and construction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum EditLimit {
+    /// Bytes in one node or attribute value.
     ValueBytes,
+    /// Bytes in one local name, prefix or namespace URI.
     NameBytes,
+    /// Aggregate supplied construction-string bytes in one call.
     SuppliedBytes,
+    /// Explicit and generated items on one constructed element.
     Attributes,
+    /// Prospective element depth.
     Depth,
+    /// Full new string-pool capacity requests across editor calls.
     OwnedBytes,
+    /// Successful fresh node slots across editor calls.
     CreatedNodes,
+    /// Successful initial attributes and namespace declarations across calls.
     CreatedAttributes,
+    /// Per-call namespace and expanded-name lookup work.
     NamespaceWork,
 }
 
+/// A string field in a construction specification.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EditComponent {
+    /// An element or attribute local name.
     LocalName,
+    /// A namespace URI.
     NamespaceUri,
+    /// A requested or selected prefix.
     Prefix,
+    /// An ordinary attribute value.
     Value,
 }
 
+/// A component/item location for construction errors. Semantic errors have no
+/// byte offset; global limits and allocation failures have no location.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EditLocation {
-    ElementName { component: EditComponent, byte_offset: Option<usize> },
-    NamespaceItem { index: usize, component: Option<EditComponent>, byte_offset: Option<usize> },
-    AttributeItem { index: usize, component: Option<EditComponent>, byte_offset: Option<usize> },
+    /// The element name supplied directly in `ElementSpec`.
+    ElementName {
+        component: EditComponent,
+        byte_offset: Option<usize>,
+    },
+    /// A namespace declaration in `ElementSpec.items`.
+    NamespaceItem {
+        index: usize,
+        component: Option<EditComponent>,
+        byte_offset: Option<usize>,
+    },
+    /// An ordinary attribute in `ElementSpec.items`.
+    AttributeItem {
+        index: usize,
+        component: Option<EditComponent>,
+        byte_offset: Option<usize>,
+    },
 }
 
-/// Failures leave logical values and source provenance unchanged.
+/// A bounded edit/construction failure. Existing scalar edit methods report
+/// `value_offset`; construction methods report the typed `location` instead.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum EditErrorKind {
@@ -116,10 +147,10 @@ pub enum EditErrorKind {
     Allocation,
 }
 
-/// An edit failure, with an optional UTF-8 byte index in the supplied value.
-/// PI construction uses an index into the target for target failures, or into
-/// the data for data failures.
-/// Handle, kind, lookup, namespace, limit and allocation errors have no index.
+/// An edit failure. Existing scalar methods retain their optional UTF-8 byte
+/// index in `value_offset`. Construction failures use `location`, whose byte
+/// offset is relative to the named UTF-8 component. Global failures have no
+/// location.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct EditError {
     pub kind: EditErrorKind,
@@ -129,11 +160,19 @@ pub struct EditError {
 
 impl EditError {
     pub(crate) const fn new(kind: EditErrorKind, value_offset: Option<usize>) -> Self {
-        Self { kind, value_offset, location: None }
+        Self {
+            kind,
+            value_offset,
+            location: None,
+        }
     }
 
     pub(crate) const fn located(kind: EditErrorKind, location: EditLocation) -> Self {
-        Self { kind, value_offset: None, location: Some(location) }
+        Self {
+            kind,
+            value_offset: None,
+            location: Some(location),
+        }
     }
 }
 
@@ -142,6 +181,9 @@ impl fmt::Display for EditError {
         write!(f, "XML edit error {:?}", self.kind)?;
         if let Some(offset) = self.value_offset {
             write!(f, " at value byte {offset}")?;
+        }
+        if let Some(location) = self.location {
+            write!(f, " at {location:?}")?;
         }
         Ok(())
     }
