@@ -1170,6 +1170,33 @@ impl<'document> OwnedNode<'document> {
         Some(&self.document.pool.0[range.clone()])
     }
 
+    /// Visits the node's string value as borrowed chunks without allocating.
+    ///
+    /// Documents and elements yield descendant Text/CDATA payloads in document
+    /// order, ignoring comments and PIs. Leaves yield their own payload once,
+    /// including an empty payload. Adjacent and empty Text/CDATA nodes remain
+    /// distinct chunks; `text()` still returns only a direct leaf payload.
+    /// An iterator's shared borrow prevents editing while it remains in use:
+    ///
+    /// ```compile_fail
+    /// use yaxml::{EditLimits, OwnedDocument};
+    /// let mut document = OwnedDocument::parse("<r>old</r>").unwrap();
+    /// let root = document.root_element().id();
+    /// let mut chunks = document.root_element().text_chunks();
+    /// document.edit(EditLimits::default()).unwrap().append_text(root, "new").unwrap();
+    /// assert_eq!(chunks.next(), Some("old"));
+    /// ```
+    pub fn text_chunks(self) -> impl Iterator<Item = &'document str> + 'document {
+        let descendants = self
+            .descendants()
+            .skip(1)
+            .filter_map(|node| match node.kind() {
+                OwnedNodeKind::Text | OwnedNodeKind::Cdata => node.text(),
+                _ => None,
+            });
+        self.text().into_iter().chain(descendants)
+    }
+
     pub fn processing_instruction_target(self) -> Option<&'document str> {
         match &self.record().content {
             Content::ProcessingInstruction { target, .. } => {

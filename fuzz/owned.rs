@@ -104,6 +104,10 @@ pub(super) fn check_nodes(
             "owned name changed"
         );
         assert!(actual.text() == expected.text(), "owned payload changed");
+        assert!(
+            actual.text_chunks().eq(expected.text_chunks()),
+            "owned string-value chunks changed"
+        );
         let mut attributes = actual.attributes();
         assert_eq!(attributes.len(), expected.attributes().len());
         for expected in expected.attributes() {

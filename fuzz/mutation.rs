@@ -774,6 +774,16 @@ fn check_document(
             "mutation changed child order"
         );
         let subtree = model.subtree(index);
+        let expected_chunks = subtree
+            .iter()
+            .filter(|&&child| {
+                child == index || matches!(model.nodes[child].kind, Kind::Text | Kind::Cdata)
+            })
+            .filter_map(|&child| model.nodes[child].value.as_deref());
+        assert!(
+            actual.text_chunks().eq(expected_chunks),
+            "mutation changed string-value chunks"
+        );
         assert_eq!(actual.descendants().len(), subtree.len());
         assert!(
             actual

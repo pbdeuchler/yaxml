@@ -253,6 +253,29 @@ impl<'document, 'input> Node<'document, 'input> {
         }
     }
 
+    /// Visits the node's string value as borrowed chunks without allocating.
+    ///
+    /// Documents and elements yield descendant Text/CDATA payloads in document
+    /// order, ignoring comments and PIs. Leaves yield their own payload once,
+    /// including an empty payload. Chunk boundaries are retained; `text()`
+    /// continues to return only a direct leaf payload.
+    ///
+    /// ```
+    /// let document = yaxml::Document::parse("<r>a<c>b</c><!--skip--><![CDATA[c]]></r>")?;
+    /// assert_eq!(document.root_element().text_chunks().collect::<String>(), "abc");
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn text_chunks(self) -> impl Iterator<Item = &'document str> + 'document {
+        let descendants = self
+            .descendants()
+            .skip(1)
+            .filter_map(|node| match node.kind() {
+                NodeKind::Text(value) | NodeKind::Cdata(value) => Some(value.as_ref()),
+                _ => None,
+            });
+        self.text().into_iter().chain(descendants)
+    }
+
     /// Returns an element's attributes in source order, including namespace declarations.
     pub fn attributes(self) -> &'document [Attribute<'input>] {
         match self.kind() {

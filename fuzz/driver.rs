@@ -212,6 +212,16 @@ fn read<'input>(
 /// Compare the complete logical stream with the DOM, including values and names.
 /// This detects conversion loss even though both APIs share lexical parsing.
 pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
+    assert!(
+        document
+            .root()
+            .text_chunks()
+            .eq(stream.iter().filter_map(|event| match event {
+                Event::Text(value) | Event::Cdata(value) => Some(value.as_ref()),
+                _ => None,
+            })),
+        "document string-value chunks differ from reader payloads"
+    );
     let mut nodes = document.nodes().skip(1);
     let mut parents = Vec::new();
     let mut declaration = None;
