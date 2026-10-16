@@ -277,9 +277,9 @@ ownership and IDs, not implementing speculative wrappers.
 Land strict UTF-8 parsing, namespace correctness, bounded failure, and DOM
 traversal together with regression tests and fuzz entry points. Next establish
 the conformance/differential harness and honest performance baseline. Callback
-push input and an explicit `Read` adapter now share that semantic engine. Add
-buffered pull input, owned storage, allocator support on the target compiler,
-serialization, and mutation. DTD/encoding, XPath, HTML compatibility, validation,
+push input, an explicit `Read` adapter and a strict UTF-8 event writer now share
+that semantic engine. Add buffered pull input, owned storage, allocator support
+on the target compiler, DOM serialization, and mutation. DTD/encoding, XPath, HTML compatibility, validation,
 canonicalization, inclusion, and adapters each need their own feature burndown
 and verification criteria. Recovery is an explicit compatibility project with a
 versioned oracle, not a shortcut around strict-parser failures.
