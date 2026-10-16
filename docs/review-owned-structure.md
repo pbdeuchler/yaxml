@@ -97,6 +97,22 @@ The restored `08a1ff6` source passed:
 
 The external C helper compiled locally with Apple Clang under `-std=c11 -Wall -Wextra -Werror` against Homebrew libxml2 2.15.3. The exploratory catalog completed with 23 exact agreements, 3 documented projections, 6 verified intentional differences, 2 explicit non-comparisons, 0 disagreements and 0 inconclusive cases.
 
+### Subsequent corpus and iterator review
+
+An independent follow-up reviewed `08a1ff6..0ef8e77`, including the evidence
+updates, explicit structural corpus seed, decoder documentation and iterator
+invariants. It returned **PASS (code quality)** with zero findings. Production
+source remained byte-identical to `08a1ff6`.
+
+Three separate restored faults proved the new checks: returning zero from
+`Descendants::count` failed the full-count assertion; a correct midpoint node
+with an overstated remaining count failed the partial-length assertion; and
+resetting the remaining count after an exhausted `nth` failed the exhaustion
+assertion. Each failed `structural_operations_cover_live_stale_foreign_and_protected_handles`
+at the intended assertion. Formatting, strict all-target Clippy, structural fuzz,
+all corpus prefixes, every seed-byte replacement/deletion and direct release
+seed replay passed after restoration. The matched benchmark gate remained open.
+
 ### Evidence Limitations
 
 At the review boundary, checksummed libxml2 2.15.4 execution and final coverage were still pending; the local 2.15.3 result could not substitute for the pinned run. The subsequent [validation report](validation-owned-structure.md) records the completed local 2.15.4 run and measured coverage. The safe reservation seam proves the library's returned-error boundaries and logical atomicity, not arbitrary allocator or operating-system OOM behavior. The benchmark is yaxml-only and supports no libxml2 performance claim. This review did not conduct a sustained feedback-guided fuzzing campaign.

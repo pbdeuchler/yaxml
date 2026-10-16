@@ -190,6 +190,10 @@ mutations were caught and restored. Clean format, clippy, all-target tests,
 dependency and unsafe-code checks passed; the review records exact commands and
 evidence limits.
 
+The follow-up review through `0ef8e77` also passed. Three deliberate count,
+partial-progress and exhausted-iterator faults were caught by the new model
+assertions and restored. Production source stayed unchanged.
+
 ## Remaining scope
 
 This milestone does not construct elements or attributes, insert siblings,
