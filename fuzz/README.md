@@ -25,7 +25,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `OwnedDocument::parse`, `parse_bytes`, `with_limits`, `with_decode_limits` | `owned::exercise` and `encoding::exercise`, default and derived profiles | Temporary source overwritten/dropped before views; complete values/topology/spans match borrowing DOM or independently decoded reference; aggregate and decoded ceilings |
 | Owned tree views and navigation | Successful owned trees | Every kind, declaration, name, attribute, PI target, payload and navigation method compared; exact iterator lengths; valid lookup and foreign-identity rejection |
 | `OwnedDocument::edit`, `Editor::document`, `set_node_value`, `set_attribute_value`, `append_text`, `append_cdata`, `append_comment`, `append_processing_instruction`, `remove_subtree`, owned handle lookup | `mutation::exercise`, independent operation and quota selectors | Exact predicted errors; live child-vector model; fresh/stale handles; provenance; persistent quotas without removal refunds; recovery; Text-run serialization projection |
-| `OwnedDocument::create`, `Editor::append_element`, construction specs/prefix policies and typed error locations | `construction::exercise`, independent bounded namespace catalog and input-derived payload/limit selectors | Exact lexical and expanded names, ordered attributes/declarations, complete snapshots, provenance, persistent quotas, foreign/stale handles, atomic rejection and long inherited-prefix growth |
+| `OwnedDocument::create`, `Editor::append_element`, construction specs/prefix policies and typed error locations | `construction::exercise`, independent bounded namespace catalog and input-derived payload/limit selectors | Exact lexical and expanded names, ordered attributes/declarations, complete snapshots, provenance, persistent quotas, foreign/stale handles, atomic rejection, binding/name-limit precedence and long inherited-prefix growth |
 | `PushParser::new`, `default`, `with_limits`, `feed`, `finish`, `position`, `event_range` | Input-derived chunk and lifecycle schedules, capped at 4096 chunks | Acceptance and exact typed event/span parity with slice reader; monotonic consumed position; repeated EOF; sticky errors after feeding final EOF |
 | `PushParser::read_from` | Cursor plus bounded scheduled and invalid-count readers | Same events/spans; one Interrupted retry; original injected I/O error kind/message; cancellation stops reads; terminal parser states perform no I/O; oversized reported counts are rejected |
 | DOM traversal and node access | Successful document checks | Unique IDs; preorder traversal; parent/child/sibling agreement; nested source ranges; subtree sizes |
@@ -160,15 +160,19 @@ byte seven for parsed-parent encoding. Its ordinary tests enumerate every
 append case in UTF-8 and both UTF-16 orders. `construction_limits.rs` uses bytes
 eight and nine for hand-counted namespace-work, name/item, depth, persistent
 quota, component-byte and aggregate-byte boundaries, including first-error
-precedence. Missing control bytes are zero. These are bounded independent
-examples, not complete namespace or quota state-space exploration.
+precedence. `construction_validation.rs` additionally uses bytes seven and eight
+for a 4-surface by 3-variant prefix-compatibility and `NameBytes` precedence
+catalog. Missing control bytes are zero. These are bounded independent examples,
+not complete namespace or quota state-space exploration.
 
-`construction-controls.bin` supplies independent selector bytes. The format seed
-starts with `0x2a`; the four-byte long-prefix seed is `[0x2b, 0xff, 2, 3]`, forcing
-the 4,336-byte prefix with a UTF-16BE parent. All three run through actual replay
-dispatch and the ordinary corpus mutation schedules. A test-only counter checks
-that empty, malformed, sparse-selector and encoded inputs enter construction
-exactly once before grammar/encoding returns.
+`construction-controls.bin` supplies independent selector bytes. The
+`construction-binding-limit.bin` seed selects the UTF-16BE compatible control
+with bytes seven and eight equal to 3 and 2. The format seed starts with `0x2a`;
+the four-byte long-prefix seed is `[0x2b, 0xff, 2, 3]`, forcing the 4,336-byte
+prefix with a UTF-16BE parent. All four run through actual replay dispatch and
+the ordinary corpus mutation schedules. Test-only counters check that empty,
+malformed, sparse-selector and encoded inputs enter construction and the binding
+catalog before grammar/encoding returns.
 
 The [original construction validation](../docs/validation-owned-create.md) and
 [current fuzz-gap evidence](../docs/validation-construction-fuzz-gaps.md) record

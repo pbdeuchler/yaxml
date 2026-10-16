@@ -24,6 +24,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/mutation-quotas.bin"),
     include_bytes!("../fuzz/corpus/structure-operations.bin"),
     include_bytes!("../fuzz/corpus/construction-controls.bin"),
+    include_bytes!("../fuzz/corpus/construction-binding-limit.bin"),
     include_bytes!("../fuzz/corpus/construction-format.bin"),
     include_bytes!("../fuzz/corpus/construction-long-prefix.bin"),
     include_bytes!("../fuzz/corpus/name-owned-views.txt"),

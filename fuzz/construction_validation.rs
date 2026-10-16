@@ -682,6 +682,13 @@ fn check_append(case: ValidationCase) {
 const BINDING_SURFACE_COUNT: u8 = 4;
 const BINDING_VARIANT_COUNT: u8 = 3;
 
+#[cfg(test)]
+thread_local! {
+    static LAST_BINDING_SELECTION: std::cell::Cell<Option<(u8, u8)>> = const {
+        std::cell::Cell::new(None)
+    };
+}
+
 fn binding_items(compatible: bool) -> [ElementItem<'static>; 3] {
     [
         ElementItem::Namespace(NamespaceSpec {
@@ -769,9 +776,10 @@ fn check_binding_create(variant: u8) {
         return;
     }
 
+    let expected = binding_expected_error(variant);
     let actual = OwnedDocument::create(binding_spec(&items), limits)
         .expect_err("incompatible exact prefix was accepted");
-    assert_error(actual, binding_expected_error(variant));
+    assert_error(actual, expected);
 
     // A failed constructor has no editor to recover. The paired exact control
     // proves that the same bounds do not reject an unrelated valid root.
@@ -846,17 +854,41 @@ fn assert_binding_append_topology(
 }
 
 fn check_binding_append(surface: u8, variant: u8) {
-    let mut bytes = encode("<host keep='stable'><old/></host>", surface - 1);
+    const SOURCE: &str = "<host keep='stable'><old/></host>";
+    let mut bytes = encode(SOURCE, surface - 1);
+    let (parent_range, old_range) = match surface {
+        1 => {
+            assert_eq!(bytes, SOURCE.as_bytes());
+            (0..33, 20..26)
+        }
+        2 => {
+            assert_eq!(&bytes[..6], &[0xff, 0xfe, 0x3c, 0x00, 0x68, 0x00]);
+            (2..68, 42..54)
+        }
+        3 => {
+            assert_eq!(&bytes[..6], &[0xfe, 0xff, 0x00, 0x3c, 0x00, 0x68]);
+            (2..68, 42..54)
+        }
+        _ => unreachable!("append surface is normalized to 1..=3"),
+    };
     let mut document = OwnedDocument::parse_bytes(&bytes).expect("fixed parent must parse");
     bytes.fill(0);
     drop(bytes);
 
     let parent = document.root_element().id();
+    let old_child = document
+        .node(parent)
+        .unwrap()
+        .first_child()
+        .expect("fixed parent has its old child");
+    assert_eq!(document.node(parent).unwrap().range(), Some(parent_range));
+    assert_eq!(old_child.range(), Some(old_range));
     let before = snapshot(&document);
     let before_bytes = serialized(&document);
     let compatible = variant == 2;
     let items = binding_items(compatible);
     let limits = binding_limits(variant);
+    let expected = (!compatible).then(|| binding_expected_error(variant));
     let mut editor = document.edit(limits).unwrap();
     if compatible {
         let inserted = editor
@@ -874,7 +906,7 @@ fn check_binding_append(surface: u8, variant: u8) {
     let actual = editor
         .append_element(parent, binding_spec(&items))
         .expect_err("incompatible exact prefix append was accepted");
-    assert_error(actual, binding_expected_error(variant));
+    assert_error(actual, expected.expect("rejection expectation is present"));
     assert_eq!(
         snapshot(editor.document()),
         before,
@@ -913,6 +945,8 @@ fn check_binding_append(surface: u8, variant: u8) {
 fn binding_limit_precedence(surface: u8, variant: u8) {
     let surface = surface % BINDING_SURFACE_COUNT;
     let variant = variant % BINDING_VARIANT_COUNT;
+    #[cfg(test)]
+    LAST_BINDING_SELECTION.with(|selection| selection.set(Some((surface, variant))));
     if surface == 0 {
         check_binding_create(variant);
     } else {
@@ -997,5 +1031,30 @@ mod tests {
         }
         exercise_binding_limit_precedence(&[]);
         exercise_binding_limit_precedence(&[0xff; 9]);
+    }
+
+    #[test]
+    fn top_level_driver_reaches_every_binding_limit_selection() {
+        fn assert_selection(input: &[u8], expected: (u8, u8)) {
+            LAST_BINDING_SELECTION.with(|selection| selection.set(None));
+            super::super::super::exercise(input);
+            assert_eq!(
+                LAST_BINDING_SELECTION.with(std::cell::Cell::get),
+                Some(expected),
+                "top-level driver skipped the binding catalog for {input:?}"
+            );
+        }
+
+        for surface in 0..BINDING_SURFACE_COUNT {
+            for variant in 0..BINDING_VARIANT_COUNT {
+                let mut input = [0_u8; 9];
+                input[7] = surface;
+                input[8] = variant;
+                assert_selection(&input, (surface, variant));
+            }
+        }
+        assert_selection(&[], (0, 0));
+        assert_selection(b"\xff", (0, 0));
+        assert_selection(b"\xff\xfe<\0r\0/\0>\0", (0, 2));
     }
 }
