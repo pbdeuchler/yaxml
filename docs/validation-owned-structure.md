@@ -7,6 +7,8 @@ and initial fuzz snapshot: `adefca6`; assembled implementation/tooling snapshot:
 `08a1ff6`; strengthened iterator/corpus snapshot: `0ef8e77`.
 Full assembled verification ran at `c9f9420`, with production source tree
 `6578b39f230ae5d22569235d3dd2e965a27ed47e` unchanged across these snapshots.
+Matched benchmark tooling was assembled at `4208a2d`, with additional gate
+assertions at `546dfeb`; production source remains unchanged.
 
 ## Implemented contract
 
@@ -92,6 +94,16 @@ the dependency tree and production source manifest are
 `/private/tmp/yaxml-structure-final-dependencies.txt` and
 `/private/tmp/yaxml-structure-final-source-hashes.txt`. The graph remains
 `yaxml -> memchr 2.8.3`; Rust source contains no unsafe syntax or foreign ABI.
+
+The later assembled benchmark snapshot (`4208a2d`) passed 300 all-target tests
+with seven ignored subprocess helpers, eight doctests, strict all-target Clippy
+and formatting. The strengthened numeric/version gate assertions passed
+separately at `546dfeb`. Logs are
+`/private/tmp/yaxml-structure-matched-integration-{all-targets,doc-tests,clippy,fmt,gate-tests}.txt`.
+The matching dependency and production SHA-256 manifests use the same prefix
+with `dependencies.txt` and `source-hashes.txt`. A source search found no Rust
+unsafe syntax or foreign ABI; the locked dependency tree still contains only
+`memchr 2.8.3`.
 
 ## Coverage evidence
 
@@ -179,10 +191,26 @@ Every row completed. Setup, editing, live traversal, serialization, validation
 and document destruction have separate clocks. The report retains compiler,
 host, parameters, phase medians/ranges and raw artifact hashes.
 
-These are yaxml-only measurements. A libxml2 comparison still requires matched
-fresh-leaf construction, insertion and unlink/free work; unlink alone does not
-match permanent removal. The conformance helper supplies no timings and does
-not close this performance gate.
+The subsequent [matched comparison](validation-owned-structure-matched.md)
+measures fresh-leaf construction/insertion and unlink/free against pinned
+libxml2 2.15.4. All 24 workloads with seven counterbalanced samples passed:
+168 exact final UTF-8, hash and independently derived operation-count checks.
+The matrix spans all nine operations and width, depth, payload and UTF-16 axes.
+Root independently recomputed all 288 implementation/phase distributions from
+the raw log; every median, minimum, maximum and MAD matched the summary TSV.
+Root also rebuilt the optimized C helper and passed seven additional UTF-16BE
+comment-append pairs. Its log is
+`/private/tmp/yaxml-structure-matched-root-append-comment-utf16be.txt`.
+
+These results do not meet the across-the-board performance target. At the base
+fixture, yaxml CDATA/comment/PI insertion and churn have higher edit medians.
+Text append avoids libxml2's adjacent-Text concatenation, so its lower edit
+median does not establish general insertion superiority. Rust and C also do
+different validation work; serialization uses different buffering; provenance,
+quotas, tombstones and handle bookkeeping affect the measured lifecycle.
+Microsecond C clock quantization limits conclusions from short batches. The
+matched report preserves these boundaries, slower rows, spread and artifact
+hashes. The conformance helper itself supplies no timings.
 
 ## Independent review
 
@@ -206,7 +234,8 @@ across documents, repair namespaces, reclaim pool/attribute storage, reuse slots
 or compact tombstones. Those operations need separate ownership, cycle,
 namespace and quota contracts. The implementation, deterministic tests, measured
 coverage, pinned structural oracle, yaxml benchmark runner and independent review
-are complete. The frozen milestone remains open until the matched libxml2
-structural benchmark is recorded. Reaching 100% execution coverage, sustained
+are complete, including the recorded matched libxml2 structural benchmark.
+The final benchmark-tooling review remains pending before local-main integration.
+Reaching 100% execution coverage, sustained
 feedback-guided fuzzing, allocator-level failure testing and retained memory
 measurements remain open.

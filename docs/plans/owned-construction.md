@@ -1,10 +1,10 @@
 # Rough plan for bounded owned-tree construction
 
 This is a design proposal based on `28ca0a4`, not a frozen API or an implemented
-feature. Implementation waits until the existing leaf-structure milestone's
-matched libxml2 benchmark gate closes. Its current
-[benchmark report](../validation-owned-structure-benchmark.md) records yaxml-only
-measurements and the missing comparison.
+feature. Implementation waits until the existing leaf-structure milestone is
+reviewed and integrated. Its [matched benchmark
+report](../validation-owned-structure-matched.md) now records the required
+libxml2 comparison, including slower workloads and measurement limits.
 
 The next coherent slice is complete rooted document creation, fresh child
 elements, ordinary-attribute upsert/removal, and namespace bindings that preserve

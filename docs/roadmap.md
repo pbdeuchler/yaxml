@@ -34,7 +34,9 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add a safe, dependency-free replay/mutation driver and map all implemented input APIs to it.
 - [x] Add spec-derived acceptance/value regressions across slice, DOM and push input; correct forward-version and encoding-name declaration grammar.
 - [x] Add bounded independent XPath infoset comparisons, strict oracle version checks and a checksum-pinned external-oracle CI build.
-- [ ] Add differential comparison against a pinned external libxml2 executable and classify every disagreement.
+- [x] Run pinned external libxml2 comparisons for the 18-file replay corpus and
+  34-case structural catalog, with every result classified. Full conformance
+  suites and broader multi-operation differential campaigns remain pending.
 - [x] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps. Reaching 100% remains open.
 - [ ] Record full DOM and streaming baselines for libxml2 and yaxml across a versioned corpus.
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
@@ -81,8 +83,10 @@ editing slices and their evidence gaps; richer mutation remains open.
 The [writer contract](writer.md) describes event and complete-document output.
 Whole trees retain their explicit namespace declarations and are traversed
 without recursion; document calls validate closure and flush before returning.
-This remains a subset of libxml2's save/writer surfaces, with no matched libxml2
-serialization performance comparison established. The
+This remains a subset of libxml2's save/writer surfaces. The
+[matched structural benchmark](validation-owned-structure-matched.md) includes
+counting serialization after edits with explicit buffering and topology
+differences; a broader isolated serialization comparison remains pending. The
 [complete-document validation report](validation-dom-serialization.md) records
 tests, mutation review, raw coverage, exploratory oracle, and benchmark-runner
 evidence for this slice.

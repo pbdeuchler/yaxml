@@ -155,8 +155,10 @@ over libxml2 or complete fuzz execution coverage is claimed yet.
 Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
 `cargo bench --bench parse`, `cargo bench --bench pull`,
 `cargo bench --bench serialize`, `cargo bench --bench mutation`, and
-`cargo bench --bench structural_mutation`. The benchmarks report yaxml-only DOM,
+`cargo bench --bench structural_mutation`. These runners report yaxml-only DOM,
 slice-event, push, buffered-pull, complete-tree serialization, value-edit and
 structural-edit measurements. The [structural validation report](docs/validation-owned-structure.md)
-records the pinned libxml2 conformance results, independent review, measured
-fuzz coverage and pending matched-performance gate.
+records the pinned libxml2 conformance results, independent review and measured
+fuzz coverage. A separate [matched structural benchmark](docs/validation-owned-structure-matched.md)
+compares edit lifecycles with libxml2, including slower workloads and the
+differences in Text topology, validation and buffering.
