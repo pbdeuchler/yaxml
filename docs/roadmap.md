@@ -68,7 +68,10 @@ The [writer contract](writer.md) describes event and complete-document output.
 Whole trees retain their explicit namespace declarations and are traversed
 without recursion; document calls validate closure and flush before returning.
 This remains a subset of libxml2's save/writer surfaces, with no matched libxml2
-serialization performance comparison established.
+serialization performance comparison established. The
+[complete-document validation report](validation-dom-serialization.md) records
+tests, mutation review, raw coverage, exploratory oracle, and benchmark-runner
+evidence for this slice.
 
 ## Performance decisions
 
