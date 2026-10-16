@@ -24,6 +24,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/mutation-quotas.bin"),
     include_bytes!("../fuzz/corpus/structure-operations.bin"),
     include_bytes!("../fuzz/corpus/construction-controls.bin"),
+    include_bytes!("../fuzz/corpus/construction-format.bin"),
+    include_bytes!("../fuzz/corpus/construction-long-prefix.bin"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
