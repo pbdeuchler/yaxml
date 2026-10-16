@@ -9,7 +9,6 @@ use super::*;
 const FAMILY_COUNT: u8 = 12;
 const FAMILY_VARIANTS: [u8; FAMILY_COUNT as usize] = [6, 2, 3, 2, 2, 3, 2, 2, 2, 6, 7, 5];
 
-#[derive(Clone)]
 struct LiteralSpec {
     name: NameSpec<'static>,
     items: Vec<ElementItem<'static>>,
@@ -24,7 +23,6 @@ impl LiteralSpec {
     }
 }
 
-#[derive(Clone)]
 struct ValidationCase {
     invalid: LiteralSpec,
     valid: LiteralSpec,
