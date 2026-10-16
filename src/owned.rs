@@ -6,7 +6,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::dom::{Record, append_record};
 use crate::parser::Budget;
 use crate::{Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader};
-use crate::{DecodeLimits, PushParser};
+use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
+
+const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 
 static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -127,6 +129,37 @@ impl StoredDeclaration {
 struct Pool(String);
 
 impl Pool {
+    fn store_edit(
+        &mut self,
+        value: &str,
+        spent: &mut usize,
+        limit: usize,
+    ) -> Result<Range<usize>, EditError> {
+        let exceeded = EditError::new(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes), None);
+        let start = self.0.len();
+        let needed = start.checked_add(value.len()).ok_or(exceeded)?;
+        if needed > self.0.capacity() {
+            let remaining = limit.checked_sub(*spent).ok_or(exceeded)?;
+            let target = self
+                .0
+                .capacity()
+                .saturating_mul(2)
+                .max(needed)
+                .min(remaining);
+            if target < needed {
+                return Err(exceeded);
+            }
+            // Full replacement capacity is cumulative work, including failed
+            // reservations. Parsed capacity is the uncharged editing baseline.
+            *spent += target;
+            self.0
+                .try_reserve_exact(target - start)
+                .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+        }
+        self.0.push_str(value);
+        Ok(start..needed)
+    }
+
     fn store(
         &mut self,
         value: &str,
@@ -180,7 +213,7 @@ impl Pool {
     }
 }
 
-/// An immutable XML tree that owns its logical strings as UTF-8.
+/// An XML tree that owns its logical strings as UTF-8.
 ///
 /// Nodes and attributes contain ranges into one string pool, so moving the
 /// document or growing its storage creates no self-references. Parsing,
@@ -193,6 +226,7 @@ pub struct OwnedDocument {
     pool: Pool,
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
+    edit_owned_bytes: usize,
 }
 
 impl OwnedDocument {
@@ -276,6 +310,192 @@ impl OwnedDocument {
             .as_ref()
             .map(|declaration| declaration.view(&self.pool.0))
     }
+
+    /// Opens a bounded value editor. The owned-byte counter persists across
+    /// editors; a ceiling below earlier editing expenditure is rejected.
+    /// Parsed string capacity is the baseline and is not charged again.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument};
+    /// let mut document = OwnedDocument::parse("<r>old</r>")?;
+    /// let text = document.root_element().first_child().unwrap().id();
+    /// document.edit(EditLimits::default())?.set_node_value(text, "new")?;
+    /// assert_eq!(document.node(text).unwrap().text(), Some("new"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// Views cannot be used across mutation:
+    ///
+    /// ```compile_fail
+    /// use yaxml::{EditLimits, OwnedDocument};
+    /// let mut document = OwnedDocument::parse("<r>old</r>").unwrap();
+    /// let view = document.root_element().first_child().unwrap();
+    /// let mut editor = document.edit(EditLimits::default()).unwrap();
+    /// editor.set_node_value(view.id(), "new").unwrap();
+    /// ```
+    pub fn edit(&mut self, limits: EditLimits) -> Result<Editor<'_>, EditError> {
+        if self.edit_owned_bytes > limits.max_owned_bytes {
+            return Err(EditError::new(
+                EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
+                None,
+            ));
+        }
+        Ok(Editor {
+            document: self,
+            limits,
+        })
+    }
+}
+
+/// Inclusive ceilings for replacement values and cumulative editing capacity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EditLimits {
+    /// Replacement UTF-8 bytes, checked before scanning. Default: 1 MiB.
+    pub max_value_bytes: usize,
+    /// Full new pool-capacity requests across all editors. Default: 64 MiB.
+    /// Includes earlier released buffers and failed reservation charges, but
+    /// excludes parsed baseline capacity, metadata and allocator overhead.
+    pub max_owned_bytes: usize,
+}
+
+impl Default for EditLimits {
+    fn default() -> Self {
+        Self {
+            max_value_bytes: 1024 * 1024,
+            max_owned_bytes: 64 * 1024 * 1024,
+        }
+    }
+}
+
+/// Exclusive, atomic edits to existing logical values. An editor remains usable
+/// after an error. Operations preserve topology, names and source provenance.
+/// Dropping an editor performs no work. Equal replacements take the edit path.
+pub struct Editor<'document> {
+    document: &'document mut OwnedDocument,
+    limits: EditLimits,
+}
+
+impl Editor<'_> {
+    pub fn document(&self) -> &OwnedDocument {
+        self.document
+    }
+
+    fn resolve(&self, node: OwnedNodeId) -> Result<usize, EditError> {
+        if node.document != self.document.identity || node.slot.0 >= self.document.nodes.len() {
+            return Err(EditError::new(EditErrorKind::InvalidHandle, None));
+        }
+        Ok(node.slot.0)
+    }
+
+    /// Replaces Text, CDATA, Comment or PI data; PI targets remain unchanged.
+    /// Non-text lexical values reject raw CR and their closing delimiters.
+    /// Comments also reject a trailing dash; PI data rejects leading XML space.
+    pub fn set_node_value(&mut self, node: OwnedNodeId, value: &str) -> Result<(), EditError> {
+        let index = self.resolve(node)?;
+        let (target, kind) = match &mut self.document.nodes[index].kind {
+            Content::Text(range) => (range, ValueKind::Text),
+            Content::Cdata(range) => (range, ValueKind::Cdata),
+            Content::Comment(range) => (range, ValueKind::Comment),
+            Content::ProcessingInstruction { data, .. } => (data, ValueKind::Pi),
+            Content::Document | Content::Element { .. } => {
+                return Err(EditError::new(EditErrorKind::WrongNodeKind, None));
+            }
+        };
+        validate_value(value, kind, self.limits.max_value_bytes)?;
+        let replacement = self.document.pool.store_edit(
+            value,
+            &mut self.document.edit_owned_bytes,
+            self.limits.max_owned_bytes,
+        )?;
+        *target = replacement;
+        Ok(())
+    }
+
+    /// Replaces one existing attribute by expanded name, retaining its spelling
+    /// and position. Some("") differs from None; selector names are not parsed.
+    /// Missing attributes and XMLNS declaration edits are rejected.
+    pub fn set_attribute_value(
+        &mut self,
+        element: OwnedNodeId,
+        namespace: Option<&str>,
+        local: &str,
+        value: &str,
+    ) -> Result<(), EditError> {
+        let index = self.resolve(element)?;
+        let attributes = match &self.document.nodes[index].kind {
+            Content::Element { attributes, .. } => attributes,
+            _ => return Err(EditError::new(EditErrorKind::WrongNodeKind, None)),
+        };
+        let target = attributes
+            .clone()
+            .find(|index| {
+                let name = self.document.attributes[*index]
+                    .name
+                    .view(&self.document.pool.0);
+                name.local == local && name.namespace.as_deref() == namespace
+            })
+            .ok_or(EditError::new(EditErrorKind::MissingAttribute, None))?;
+        if namespace == Some(XMLNS) {
+            return Err(EditError::new(EditErrorKind::NamespaceDeclaration, None));
+        }
+        validate_value(value, ValueKind::Text, self.limits.max_value_bytes)?;
+        let replacement = self.document.pool.store_edit(
+            value,
+            &mut self.document.edit_owned_bytes,
+            self.limits.max_owned_bytes,
+        )?;
+        self.document.attributes[target].value = replacement;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ValueKind {
+    Text,
+    Cdata,
+    Comment,
+    Pi,
+}
+
+fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), EditError> {
+    if value.len() > limit {
+        return Err(EditError::new(
+            EditErrorKind::LimitExceeded(EditLimit::ValueBytes),
+            None,
+        ));
+    }
+    if let Some((index, _)) = value
+        .char_indices()
+        .find(|(_, character)| !crate::escape::xml_char(*character))
+    {
+        return Err(EditError::new(EditErrorKind::InvalidCharacter, Some(index)));
+    }
+    let invalid = match kind {
+        ValueKind::Text => None,
+        ValueKind::Cdata => value.find("]]>").into_iter().chain(value.find('\r')).min(),
+        ValueKind::Comment => value
+            .find("--")
+            .into_iter()
+            .chain(value.find('\r'))
+            .chain(value.ends_with('-').then(|| value.len() - 1))
+            .min(),
+        ValueKind::Pi => value
+            .find("?>")
+            .into_iter()
+            .chain(value.find('\r'))
+            .chain(
+                value
+                    .as_bytes()
+                    .first()
+                    .is_some_and(|byte| crate::parser::space(*byte))
+                    .then_some(0),
+            )
+            .min(),
+    };
+    if let Some(index) = invalid {
+        return Err(EditError::new(EditErrorKind::InvalidValue, Some(index)));
+    }
+    Ok(())
 }
 
 /// Concrete shared sink: all strings are copied using the parser's budget.
@@ -398,6 +618,7 @@ impl OwnedBuilder {
             pool: self.pool,
             root_element: self.root_element,
             declaration: self.declaration,
+            edit_owned_bytes: 0,
         })
     }
 }
@@ -520,3 +741,7 @@ impl<'document> OwnedNode<'document> {
 #[cfg(test)]
 #[path = "../tests/internal/owned.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/editor.rs"]
+mod edit_tests;

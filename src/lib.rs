@@ -18,8 +18,10 @@ mod writer;
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};
 pub use encoding::DecodeLimits;
-pub use error::{Error, ErrorKind, Limit, ReadError, WriteError};
-pub use owned::{OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind};
+pub use error::{
+    EditError, EditErrorKind, EditLimit, Error, ErrorKind, Limit, ReadError, WriteError,
+};
+pub use owned::{EditLimits, Editor, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind};
 pub use push::PushParser;
 pub use reader::{Attribute, Declaration, Element, Event, Limits, Name, Reader};
 pub use writer::{Writer, WriterLimits};

@@ -67,6 +67,54 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// A ceiling for bounded owned-value edits.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum EditLimit {
+    ValueBytes,
+    OwnedBytes,
+}
+
+/// Failures leave logical values and source provenance unchanged.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum EditErrorKind {
+    InvalidHandle,
+    WrongNodeKind,
+    MissingAttribute,
+    NamespaceDeclaration,
+    InvalidCharacter,
+    InvalidValue,
+    LimitExceeded(EditLimit),
+    Allocation,
+}
+
+/// An edit failure, with an optional UTF-8 byte index in the replacement value.
+/// Handle, kind, lookup, namespace, limit and allocation errors have no index.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EditError {
+    pub kind: EditErrorKind,
+    pub value_offset: Option<usize>,
+}
+
+impl EditError {
+    pub(crate) const fn new(kind: EditErrorKind, value_offset: Option<usize>) -> Self {
+        Self { kind, value_offset }
+    }
+}
+
+impl fmt::Display for EditError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "XML edit error {:?}", self.kind)?;
+        if let Some(offset) = self.value_offset {
+            write!(f, " at value byte {offset}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for EditError {}
+
 /// Failure while consuming an explicit caller-provided byte reader.
 #[derive(Debug)]
 #[non_exhaustive]
