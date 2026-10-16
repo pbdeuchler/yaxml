@@ -229,3 +229,92 @@ Those paths identify the intended evidence boundary; their eventual existence
 or partial contents are not treated as completed evidence here. Counts,
 manifests, diagnostics, corpus decisions, and post-run identities require a
 separate completed-evidence review.
+
+## Completed evidence supplement
+
+This append-only supplement closes the evidence review at executable checkpoint
+`d6848862c3b77e9ea52adfcef25844d13f8af413`. It preserves the earlier review's
+historical boundary and pending statements. The only executable change after
+`d5ea7d1` is the 23-line namespace case in `d684886`; production source,
+`Cargo.toml`, and `Cargo.lock` remain byte-identical to base `51e0aea`. The
+`src` tree object remains
+`34f9acb22ae65b99fcea2cc1cc52e9ee6e036b3f`.
+
+The new case raises the finite namespace catalog from 27 to 28 cases and the
+append subset from 22 to 23. It supplies local declarations for default
+namespace `v` and prefix `p="u"`, requests an automatic element in namespace
+`u`, and supplies a later exact `p` attribute in namespace `v`. In each of the
+three parsed encodings, the production planner considers and rejects the local
+`p` candidate because it conflicts with the later exact intent, then returns
+the literal item-2 `Namespace` error. The existing rejection helper checks the
+complete prior public snapshot, exact formatting, same-editor recovery, and
+serialization. The case is bounded and its expectation is independent of the
+production planner. Review of `d5ea7d1..d684886` therefore retains the
+**PASS** code-quality verdict with no Critical, Important, or Minor finding.
+
+This case executes the previously missed false outcome at
+`src/owned/construction.rs:736:20`, but its final namespace error is not
+fault-sensitive to every internal alternate prefix choice: an implementation
+that incorrectly selected `p` for the element could still reject the same
+attribute. The evidence establishes branch execution and public rejection
+atomicity, not sensitivity to that hypothetical fault. A future
+resource-precedence case could make that internal choice observable. The
+bounded catalogs do not claim exhaustive mutation sensitivity.
+
+Final root verification at `d684886` completed successfully:
+
+- the all-target log sums to 456 passed, zero failed, and seven ignored tests;
+  all five custom benchmark smoke executables completed;
+- 11 doctests passed;
+- strict all-target Clippy, formatting, and base-to-tip whitespace checks
+  passed;
+- the 59-test fuzz-smoke binary passed in 102.47 seconds; and
+- direct replay of the three construction seeds against pinned libxml2 2.15.4
+  recorded two rejection agreements, one explicit unsupported/policy skip,
+  zero disagreements, and zero inconclusive results.
+
+The fresh source-complete fuzz profile covers 6,810/7,260 regions,
+386/436 functions, 4,712/4,883 lines, and 919/970 instrumented branch
+outcomes. `owned/construction.rs` covers 1,922/2,149 regions, 68/93 functions,
+1,406/1,501 lines, and 257/274 branch outcomes. All 15 recursive production
+sources were identified and passed to LLVM; the report has 14 executable rows
+because `lib.rs` has no executable mapping. No production source is excluded.
+
+I independently reran the retained coverage auditors. All 51 saved
+source/harness SHA-256 records match committed blobs, start/end manifests and
+statuses match, and the single raw profile remerge succeeds with matching LLVM
+22.1.6 tools. The independently generated indexed profile, text report, and
+JSON export are byte-identical to the saved artifacts. Every merge, report,
+and export diagnostic file is empty. The retained per-module report has
+SHA-256
+`09256087b3c212217be2d6fd517206ada957103e3d14d47c5aefc4767d486bb7`,
+matching `docs/validation/fuzz-coverage-construction-d684886.txt`.
+
+The separate 500-case feedback campaign contains 22 seeds and 478 mutations,
+stopped at its case limit after 37 seconds, and reported no target or
+infrastructure failure. It retained 86 inputs, classified 414 duplicates, and
+recorded 85 coverage-novel transitions. Its saved cumulative profile covers
+6,632/7,260 regions, 384/436 functions, 4,640/4,883 lines, and 840/970 branch
+outcomes. I reran the offline auditor: it reproduced all 500 PRNG states,
+parent choices, mutation operations and parameters, candidate bytes,
+identities, lineage, novelty decisions, and retained bytes. The corpus has 21
+retained seeds and 65 retained mutations totaling 10,478 bytes. All 60 saved
+input hashes match committed blobs, start/end input and binary identities
+match, and independent report/export from the cumulative indexed profile
+reproduce the final counters with empty diagnostics. Per-case raw profiles
+were not retained, so this does not claim an independent merge of 500 raw
+profiles.
+
+The final validation report, roadmap, security cross-reference, original
+milestone cross-reference, fuzz README, and retained coverage tables were
+checked against these artifacts. Links resolve inside the repository, the
+coverage and campaign profiles remain separate, and the remaining 17
+construction branch outcomes stay in the denominator with bounded guard/call
+sequence assessments. Documentation correctly limits the result to this
+harness milestone and leaves 100% fuzz execution, sustained campaigns, broad
+compatibility, and matched libxml2 performance open.
+
+**Final verdict: PASS for the reviewed code and retained evidence at
+`d684886`.** The six documented deliberate faults remain the complete claimed
+mutation set; the report does not add the unretained seventh experiment. No
+production or performance conclusion follows from this harness-only work.
