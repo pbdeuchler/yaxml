@@ -1,8 +1,7 @@
 use std::io::{self, BufRead};
-use std::ops::Range;
 
 use crate::stream::Stream;
-use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError};
+use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, SourceOrigin};
 
 #[derive(Clone, Copy)]
 enum Status {
@@ -27,10 +26,10 @@ enum Status {
 /// ```
 /// use yaxml::{BufferedReader, Event};
 /// let mut reader = BufferedReader::new(b"<r>text</r>".as_slice());
-/// while let Some((event, range)) = reader.read_event()? {
+/// while let Some((event, origin)) = reader.read_event()? {
 ///     if let Event::Text(text) = event {
 ///         assert_eq!(text, "text");
-///         assert_eq!(range, 3..7);
+///         assert_eq!(origin.input_range(), Some(3..7));
 ///     }
 /// }
 /// # Ok::<(), yaxml::ReadError>(())
@@ -89,7 +88,7 @@ impl<R: BufRead> BufferedReader<R> {
 
     /// Advances to one logical event, borrowing the retained decoded token.
     /// Successful EOF repeats `None` without further source operations.
-    pub fn read_event(&mut self) -> Result<Option<(Event<'_>, Range<usize>)>, ReadError> {
+    pub fn read_event(&mut self) -> Result<Option<(Event<'_>, SourceOrigin)>, ReadError> {
         match self.status {
             Status::Finished => return Ok(None),
             Status::Xml(error) => return Err(ReadError::Xml(error)),

@@ -55,7 +55,11 @@ fn construction_finishes_xml_before_assigning_identity() {
         let mut builder = OwnedBuilder::new(4).unwrap();
         let event = reader.read_event().unwrap().unwrap();
         builder
-            .consume(event, reader.event_range(), reader.owned_budget())
+            .consume(
+                event,
+                reader.event_origin().expect("parsed origin"),
+                reader.owned_budget(),
+            )
             .unwrap();
         let result = builder.finish_with_counter(4, &counter);
         if last == 0 {
@@ -601,7 +605,7 @@ fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     assert_eq!(
         builder.consume(
             Event::End(Name::new("r", None).unwrap()),
-            6..10,
+            SourceOrigin::input(6..10),
             reader.owned_budget()
         ),
         Err(Error::new(ErrorKind::MismatchedEndTag, 6))
@@ -618,7 +622,7 @@ fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
         .collect();
     assert_eq!(
         parser.feed_with(&input, |_, range, _| {
-            assert_eq!(range, 2..10);
+            assert_eq!(range.input_range(), Some(2..10));
             Err(expected)
         }),
         Err(expected)
@@ -670,5 +674,27 @@ fn utf8_owned_fast_path_applies_decoded_limits_without_retention_charges() {
             OwnedDocument::with_decode_limits(b"<r/>", limits, decode).unwrap_err(),
             Error::new(ErrorKind::LimitExceeded(kind), 0)
         );
+    }
+}
+
+#[test]
+fn closing_requires_existing_provenance_and_forward_token_order() {
+    for source in [None, Some(SourceOrigin::input(4..7))] {
+        let mut input = Reader::new(b"<r></r>").unwrap();
+        let mut builder = OwnedBuilder::new(7).unwrap();
+        let start = input.read_event().unwrap().unwrap();
+        builder
+            .consume(start, input.event_origin().unwrap(), input.owned_budget())
+            .unwrap();
+        let id = builder.parents[0];
+        builder.nodes[id.0].source = source;
+        let end = input.read_event().unwrap().unwrap();
+        let error = builder
+            .consume(end, input.event_origin().unwrap(), input.owned_budget())
+            .unwrap_err();
+        assert_eq!(error, Error::new(ErrorKind::InvalidState, 3));
+        assert_eq!(builder.nodes[id.0].source, source);
+        assert_eq!(builder.nodes[id.0].subtree_size, 1);
+        assert_eq!(builder.parents, vec![id]);
     }
 }

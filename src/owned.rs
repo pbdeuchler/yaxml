@@ -11,7 +11,10 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::parser::Budget;
-use crate::{Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader};
+use crate::{
+    Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
+    SourceOrigin,
+};
 use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
 use crate::{EditComponent, EditLocation};
 
@@ -206,7 +209,7 @@ struct OwnedRecord {
     // lookup. Records never move between slots or documents.
     id: NodeId,
     content: Content,
-    source: Option<Range<usize>>,
+    source: Option<SourceOrigin>,
     parent: Link,
     first_child: Link,
     last_child: Link,
@@ -220,7 +223,7 @@ impl OwnedRecord {
         Self {
             id: NodeId(0),
             content: Content::Document,
-            source: Some(0..source_length),
+            source: Some(SourceOrigin::input(0..source_length)),
             parent: Link::NONE,
             first_child: Link::NONE,
             last_child: Link::NONE,
@@ -485,16 +488,18 @@ impl OwnedDocument {
 
         let position = if crate::encoding::needs_decoding(input) {
             let mut parser = PushParser::with_decode_limits(limits, decode);
-            parser.feed_with(input, |event, range, budget| {
-                builder.consume(event, range, budget)
+            parser.feed_with(input, |event, origin, budget| {
+                builder.consume(event, origin, budget)
             })?;
-            parser.finish_with(|event, range, budget| builder.consume(event, range, budget))?;
+            parser.finish_with(|event, origin, budget| builder.consume(event, origin, budget))?;
             parser.position()
         } else {
             let mut reader = Reader::with_decode_limits(input, limits, decode)?;
             while let Some(event) = reader.read_event()? {
-                let range = reader.event_range();
-                builder.consume(event, range, reader.owned_budget())?;
+                let origin = reader
+                    .event_origin()
+                    .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
+                builder.consume(event, origin, reader.owned_budget())?;
             }
             reader.position()
         };
@@ -1108,12 +1113,12 @@ impl OwnedBuilder {
     fn consume(
         &mut self,
         event: Event<'_>,
-        range: Range<usize>,
+        origin: SourceOrigin,
         budget: &mut Budget,
     ) -> Result<(), Error> {
         let starts = matches!(&event, Event::Start(_));
 
-        let offset = range.start;
+        let offset = origin.error_offset();
         let parent = self.parents.last().copied().unwrap_or(NodeId(0));
         let content = match event {
             Event::Declaration(declaration) => {
@@ -1130,15 +1135,16 @@ impl OwnedBuilder {
             Event::End(_) => {
                 let id = self
                     .parents
-                    .pop()
+                    .last()
+                    .copied()
                     .ok_or_else(|| Error::new(ErrorKind::MismatchedEndTag, offset))?;
                 let end = self.nodes.len();
                 let record = &mut self.nodes[id.0];
-                record
+                let opening = record
                     .source
-                    .as_mut()
-                    .expect("parsed node has provenance")
-                    .end = range.end;
+                    .ok_or_else(|| Error::new(ErrorKind::InvalidState, offset))?;
+                record.source = Some(opening.close_element(origin)?);
+                self.parents.pop();
                 // Parsing still appends in preorder. Closing an element gives
                 // its count directly, without updating every open ancestor.
                 record.subtree_size = end - id.0;
@@ -1169,7 +1175,7 @@ impl OwnedBuilder {
                 data: self.pool.store(&data, offset, budget)?,
             },
         };
-        let id = self.append(parent, content, range)?;
+        let id = self.append(parent, content, origin)?;
         if matches!(self.nodes[id.0].content, Content::Element { .. }) {
             if parent == NodeId(0) {
                 self.root_element = id;
@@ -1188,9 +1194,9 @@ impl OwnedBuilder {
         &mut self,
         parent: NodeId,
         content: Content,
-        source: Range<usize>,
+        source: SourceOrigin,
     ) -> Result<NodeId, Error> {
-        let allocation = Error::new(ErrorKind::Allocation, source.start);
+        let allocation = Error::new(ErrorKind::Allocation, source.error_offset());
         let id = NodeId(self.nodes.len());
         let link = Link::new(id).ok_or(allocation)?;
         let parent_link = Link::new(parent).ok_or(allocation)?;
@@ -1345,11 +1351,17 @@ impl<'document> OwnedNode<'document> {
     }
 
     /// Original source location, independent of current logical content and
-    /// pool storage. Parsed nodes retain Some(range); constructed nodes have
+    /// pool storage. Parsed nodes retain their origins; constructed nodes have
     /// no source provenance. This cannot index the owned string pool.
     #[inline]
     pub fn range(self) -> Option<Range<usize>> {
-        self.record().source.clone()
+        self.origin().and_then(SourceOrigin::input_range)
+    }
+
+    /// Parsed origin; constructed nodes have no parsed provenance.
+    #[inline]
+    pub fn origin(self) -> Option<SourceOrigin> {
+        self.record().source
     }
 
     pub fn parent(self) -> Option<Self> {

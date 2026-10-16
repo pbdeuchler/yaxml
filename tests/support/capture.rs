@@ -72,7 +72,10 @@ pub fn slice_events(input: &[u8]) -> Result<Vec<CapturedEvent>, Error> {
     let mut parser = Reader::new(input)?;
     let mut events = Vec::new();
     while let Some(event) = parser.read_event()? {
-        events.push((event.into(), parser.event_range()));
+        events.push((
+            event.into(),
+            parser.event_range().expect("direct input event"),
+        ));
     }
     Ok(events)
 }

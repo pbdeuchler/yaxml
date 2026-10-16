@@ -289,7 +289,7 @@ fn compare_borrowed(input: &str, owned: &OwnedDocument) {
         .collect();
     for (left, right) in borrowed.nodes().zip(owned.nodes()) {
         assert_eq!(handles[&left.id()], right.id());
-        assert_eq!(Some(left.range()), right.range());
+        assert_eq!(left.range(), right.range());
         assert_eq!(
             left.parent().map(|node| handles[&node.id()]),
             right.parent().map(|node| node.id())

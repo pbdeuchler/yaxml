@@ -34,8 +34,10 @@ lone low surrogate identifies itself; an odd final byte identifies that byte.
 If EOF leaves both a pending high surrogate and an odd byte, the high surrogate
 is reported first.
 
-All public positions, event ranges, node ranges and errors count original source
-bytes. Semantic errors are translated once from the unnormalized token; consumer
+Public positions, available exact input ranges, and current parse errors count
+original source bytes. Event metadata uses `SourceOrigin`; `input_range()`
+returns its optional exact input span. All currently supported parsed origins
+have such a span. Semantic errors are translated once from the unnormalized token; consumer
 errors already use source coordinates. A declaration's source range includes its
 original label. `position()` counts consumed signature and incomplete code-unit
 bytes and can include one decoded scalar of text-delimiter lookahead. It need

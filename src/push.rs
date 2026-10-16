@@ -2,7 +2,7 @@ use std::ops::{ControlFlow, Range};
 
 use crate::parser::Budget;
 use crate::stream::Stream;
-use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError};
+use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, SourceOrigin};
 
 /// Incremental XML 1.0 parsing with a bounded scratch token and no retained input.
 ///
@@ -25,7 +25,7 @@ pub struct PushParser {
     stream: Stream,
     limits: Limits,
     received: usize,
-    range: Range<usize>,
+    origin: Option<SourceOrigin>,
     failure: Option<Error>,
     finished: bool,
 }
@@ -45,7 +45,7 @@ impl PushParser {
             stream: Stream::new(limits, decode_limits),
             limits,
             received: 0,
-            range: 0..0,
+            origin: None,
             failure: None,
             finished: false,
         }
@@ -57,9 +57,15 @@ impl PushParser {
         self.stream.position()
     }
 
-    /// Raw source span of the latest delivered event, including its delimiters.
-    pub fn event_range(&self) -> Range<usize> {
-        self.range.clone()
+    /// Origin of the latest delivered event; absent before the first event.
+    /// Stored before the callback, and retained after cancellation, failure or EOF.
+    pub fn event_origin(&self) -> Option<SourceOrigin> {
+        self.origin
+    }
+
+    /// Exact original input span of the latest delivered event, when available.
+    pub fn event_range(&self) -> Option<Range<usize>> {
+        self.event_origin().and_then(SourceOrigin::input_range)
     }
 
     /// Consumes this parser and a caller-provided reader, delivering events until
@@ -71,7 +77,7 @@ impl PushParser {
     pub fn read_from(
         mut self,
         mut input: impl std::io::Read,
-        mut emit: impl FnMut(Event<'_>, Range<usize>) -> ControlFlow<()>,
+        mut emit: impl FnMut(Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), ReadError> {
         if let Some(error) = self.failure {
             return Err(ReadError::Xml(error));
@@ -111,11 +117,11 @@ impl PushParser {
     pub fn feed(
         &mut self,
         input: &[u8],
-        mut emit: impl FnMut(Event<'_>, Range<usize>) -> ControlFlow<()>,
+        mut emit: impl FnMut(Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), Error> {
-        self.feed_with(input, |event, range, _| {
-            if emit(event, range.clone()).is_break() {
-                Err(Error::new(ErrorKind::Aborted, range.end))
+        self.feed_with(input, |event, origin, _| {
+            if emit(event, origin).is_break() {
+                Err(Error::new(ErrorKind::Aborted, origin.cancellation_offset()))
             } else {
                 Ok(())
             }
@@ -125,7 +131,7 @@ impl PushParser {
     pub(crate) fn feed_with(
         &mut self,
         input: &[u8],
-        mut emit: impl FnMut(Event<'_>, Range<usize>, &mut Budget) -> Result<(), Error>,
+        mut emit: impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         if let Some(error) = self.failure {
             return Err(error);
@@ -147,7 +153,7 @@ impl PushParser {
         // A recovered callback panic must not permit reuse of partially
         // delivered tokens or mutated document state.
         self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
-        let range = &mut self.range;
+        let origin = &mut self.origin;
         let result = (|| {
             let mut remaining = input;
             while !remaining.is_empty() {
@@ -155,7 +161,7 @@ impl PushParser {
                 remaining = &remaining[consumed..];
                 if self.stream.has_token() {
                     self.stream.emit(&mut |event, source, budget| {
-                        *range = source.clone();
+                        *origin = Some(source);
                         emit(event, source, budget)
                     })?;
                     self.stream.release();
@@ -170,11 +176,11 @@ impl PushParser {
     /// Repeating a successful finish is harmless and delivers no further events.
     pub fn finish(
         &mut self,
-        mut emit: impl FnMut(Event<'_>, Range<usize>) -> ControlFlow<()>,
+        mut emit: impl FnMut(Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), Error> {
-        self.finish_with(|event, range, _| {
-            if emit(event, range.clone()).is_break() {
-                Err(Error::new(ErrorKind::Aborted, range.end))
+        self.finish_with(|event, origin, _| {
+            if emit(event, origin).is_break() {
+                Err(Error::new(ErrorKind::Aborted, origin.cancellation_offset()))
             } else {
                 Ok(())
             }
@@ -183,7 +189,7 @@ impl PushParser {
 
     pub(crate) fn finish_with(
         &mut self,
-        mut emit: impl FnMut(Event<'_>, Range<usize>, &mut Budget) -> Result<(), Error>,
+        mut emit: impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         if let Some(error) = self.failure {
             return Err(error);
@@ -192,11 +198,11 @@ impl PushParser {
             return Ok(());
         }
         self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
-        let range = &mut self.range;
+        let origin = &mut self.origin;
         let result = (|| {
             while self.stream.finish_step()? {
                 self.stream.emit(&mut |event, source, budget| {
-                    *range = source.clone();
+                    *origin = Some(source);
                     emit(event, source, budget)
                 })?;
                 self.stream.release();

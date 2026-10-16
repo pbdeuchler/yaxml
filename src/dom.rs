@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limits, Name, Reader};
+use crate::{
+    Attribute, Declaration, Element, Error, ErrorKind, Event, Limits, Name, Reader, SourceOrigin,
+};
 
 /// A document-local node index. IDs must only be used with their originating document.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -24,7 +26,7 @@ pub enum NodeKind<'input> {
 #[derive(Debug)]
 pub(crate) struct Record<K> {
     pub(crate) kind: K,
-    pub(crate) range: Range<usize>,
+    pub(crate) origin: SourceOrigin,
     pub(crate) parent: Option<NodeId>,
     pub(crate) first_child: Option<NodeId>,
     pub(crate) last_child: Option<NodeId>,
@@ -36,7 +38,7 @@ impl<K> Record<K> {
     pub(crate) fn root(kind: K, length: usize) -> Self {
         Self {
             kind,
-            range: 0..length,
+            origin: SourceOrigin::input(0..length),
             parent: None,
             first_child: None,
             last_child: None,
@@ -50,15 +52,15 @@ pub(crate) fn append_record<K>(
     nodes: &mut Vec<Record<K>>,
     parent: NodeId,
     kind: K,
-    range: Range<usize>,
+    origin: SourceOrigin,
 ) -> Result<NodeId, Error> {
     nodes
         .try_reserve(1)
-        .map_err(|_| Error::new(ErrorKind::Allocation, range.start))?;
+        .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
     let id = NodeId(nodes.len());
     nodes.push(Record {
         kind,
-        range,
+        origin,
         parent: Some(parent),
         first_child: None,
         last_child: None,
@@ -111,49 +113,52 @@ impl<'input> Document<'input> {
         };
         let mut parents = Vec::new();
         while let Some(event) = reader.read_event()? {
-            let range = reader.event_range();
+            let origin = reader
+                .event_origin()
+                .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
             let parent = parents.last().copied().unwrap_or(NodeId(0));
             match event {
                 Event::Declaration(declaration) => document.declaration = Some(declaration),
                 Event::End(_) => {
-                    let id = parents
-                        .pop()
-                        .ok_or_else(|| Error::new(ErrorKind::MismatchedEndTag, range.start))?;
+                    let id = parents.last().copied().ok_or_else(|| {
+                        Error::new(ErrorKind::MismatchedEndTag, origin.error_offset())
+                    })?;
                     let subtree_end = document.nodes.len();
                     let record = &mut document.nodes[id.0];
-                    record.range.end = range.end;
+                    record.origin = record.origin.close_element(origin)?;
+                    parents.pop();
                     record.subtree_end = subtree_end;
                 }
                 Event::Start(element) => {
                     parents
                         .try_reserve(1)
-                        .map_err(|_| Error::new(ErrorKind::Allocation, range.start))?;
-                    let id = document.append(parent, NodeKind::Element(element), range)?;
+                        .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
+                    let id = document.append(parent, NodeKind::Element(element), origin)?;
                     if parent == NodeId(0) {
                         document.root_element = id;
                     }
                     parents.push(id);
                 }
                 Event::Empty(element) => {
-                    let id = document.append(parent, NodeKind::Element(element), range)?;
+                    let id = document.append(parent, NodeKind::Element(element), origin)?;
                     if parent == NodeId(0) {
                         document.root_element = id;
                     }
                 }
                 Event::Text(value) => {
-                    document.append(parent, NodeKind::Text(value), range)?;
+                    document.append(parent, NodeKind::Text(value), origin)?;
                 }
                 Event::Cdata(value) => {
-                    document.append(parent, NodeKind::Cdata(value), range)?;
+                    document.append(parent, NodeKind::Cdata(value), origin)?;
                 }
                 Event::Comment(value) => {
-                    document.append(parent, NodeKind::Comment(value), range)?;
+                    document.append(parent, NodeKind::Comment(value), origin)?;
                 }
                 Event::ProcessingInstruction { target, data } => {
                     document.append(
                         parent,
                         NodeKind::ProcessingInstruction { target, data },
-                        range,
+                        origin,
                     )?;
                 }
             }
@@ -169,9 +174,9 @@ impl<'input> Document<'input> {
         &mut self,
         parent: NodeId,
         kind: NodeKind<'input>,
-        range: Range<usize>,
+        origin: SourceOrigin,
     ) -> Result<NodeId, Error> {
-        append_record(&mut self.nodes, parent, kind, range)
+        append_record(&mut self.nodes, parent, kind, origin)
     }
 
     /// Returns the synthetic document root, including surrounding comments and PIs.
@@ -284,9 +289,15 @@ impl<'document, 'input> Node<'document, 'input> {
         }
     }
 
-    /// Returns the source byte range, including delimiters and the element's end tag.
-    pub fn range(self) -> Range<usize> {
-        self.record().range.clone()
+    /// Exact original input span, including delimiters and the element's end tag.
+    /// The range is independent of the node's normalized logical value.
+    pub fn range(self) -> Option<Range<usize>> {
+        self.origin().input_range()
+    }
+
+    /// Parsed origin, independent of the node's logical value.
+    pub fn origin(self) -> SourceOrigin {
+        self.record().origin
     }
 
     /// Returns the parent; only the synthetic document root has no parent.

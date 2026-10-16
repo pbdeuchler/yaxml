@@ -35,7 +35,7 @@ fn main() -> Result<(), yaxml::Error> {
 
     let mut parser = PushParser::new();
     for chunk in xml.as_bytes().chunks(7) {
-        parser.feed(chunk, |event, _range| {
+        parser.feed(chunk, |event, _origin| {
             if let Event::Text(value) = event {
                 assert_eq!(value, "text&more");
             }
@@ -78,12 +78,23 @@ storage is bounded by both token ceilings. Streaming copies spend more of the st
 Parsing opens no files or network connections; `read_from` reads only its supplied
 source and preserves underlying I/O errors in `ReadError`.
 
-`BufferedReader::read_event` returns the typed event and its original-byte range.
+`BufferedReader::read_event` returns the typed event and a `SourceOrigin`.
 The event can borrow the retained token, so it must be dropped before advancing
 again. Successful EOF repeats without I/O. XML failures are sticky; an I/O error
 is returned once and later calls return `InvalidState` without touching the
 source. See the [streaming contract](docs/streaming.md) for exact consumption,
 lookahead, and limit behavior.
+
+`SourceOrigin::input_range()` returns an optional exact original-byte span,
+including lexical delimiters. Normalization changes values without changing
+these spans. Push callbacks receive origins too. `Reader::event_origin()` and
+`PushParser::event_origin()` are absent before the first event and retain the
+last delivered origin after EOF or failure. Their `event_range()` convenience
+method now returns `Option<Range<usize>>`; `Node::range()` does too.
+`OwnedNode::origin()` is absent for constructed nodes. `position()` still counts
+physical input consumption, which can include lookahead beyond the event span.
+All currently supported parsed origins have input ranges. Replacement-text
+provenance remains unimplemented; this API change does not enable DTDs.
 
 An empty feed means temporary exhaustion; `finish` means final EOF. A callback's
 `Break(())` cancels permanently with `Aborted`. Errors are sticky, successful finish

@@ -98,7 +98,7 @@ pub(super) fn check_nodes(
     );
     for (actual, expected) in owned.nodes().zip(borrowed.nodes()) {
         assert_eq!(actual.id(), handles[&expected.id()]);
-        assert_eq!(actual.range(), Some(source_range(expected.range())));
+        assert_eq!(actual.range(), expected.range().map(&mut source_range));
         assert!(
             actual.name().as_ref() == expected.name(),
             "owned name changed"

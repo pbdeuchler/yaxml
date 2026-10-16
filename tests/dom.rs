@@ -8,7 +8,7 @@ fn document_structure_and_navigation() {
     let document = Document::parse(input).unwrap();
     let root = document.root();
     assert!(matches!(root.kind(), NodeKind::Document));
-    assert_eq!(root.range(), 0..input.len());
+    assert_eq!(root.range(), Some(0..input.len()));
     assert!(root.parent().is_none());
     assert!(root.next_sibling().is_none());
     assert!(root.name().is_none());
@@ -36,7 +36,7 @@ fn document_structure_and_navigation() {
     assert_eq!(element.parent().unwrap().id(), root.id());
     assert!(element.text().is_none());
     assert_eq!(
-        &input[element.range()],
+        &input[element.range().expect("direct input node")],
         "<root><first/><second><leaf/></second>tail</root>"
     );
     let children: Vec<_> = element.children().collect();
@@ -82,7 +82,10 @@ fn declaration_namespaces_and_normalization() {
     assert!(matches!(children[0].kind(), NodeKind::Text(Cow::Owned(_))));
     assert_eq!(children[1].text(), Some("a\nb"));
     assert!(matches!(children[1].kind(), NodeKind::Cdata(_)));
-    assert_eq!(&input[children[1].range()], "<![CDATA[a\r\nb]]>");
+    assert_eq!(
+        &input[children[1].range().expect("direct input node")],
+        "<![CDATA[a\r\nb]]>"
+    );
     assert_eq!(children[2].text(), Some("c"));
     assert!(matches!(
         children[2].kind(),
@@ -214,7 +217,7 @@ fn generated_tree_preorder_and_parent_invariants() {
                         .descendants()
                         .any(|descendant| descendant.id() == node.id())
                 );
-                let range = node.range();
+                let range = node.range().expect("direct input node");
                 assert!(range.start < range.end && range.end <= input.len());
             }
         }

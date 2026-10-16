@@ -186,7 +186,7 @@ fn constructors_getters_drop_and_early_extraction_do_not_touch_the_source() {
         let mut reader = BufferedReader::new(source);
         let (event, range) = reader.read_event().unwrap().unwrap();
         assert!(matches!(event, Event::Empty(_)));
-        assert_eq!(range, 0..4);
+        assert_eq!(range.input_range(), Some(0..4));
         let before = trace.borrow().clone();
         assert_eq!(before.consumed, 4);
         if extract {
@@ -343,7 +343,7 @@ fn exact_input_quota_probes_eof_without_consuming_an_excess_byte() {
                 );
                 let (event, range) = reader.read_event().unwrap().unwrap();
                 assert!(matches!(event, Event::Empty(_)));
-                assert_eq!(range, start..quota);
+                assert_eq!(range.input_range(), Some(start..quota));
                 assert_eq!(reader.position(), quota);
                 let before = trace.borrow().clone();
                 let result = reader.read_event();

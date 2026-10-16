@@ -5,7 +5,7 @@ use memchr::{memchr, memmem};
 use crate::escape::xml_char;
 use crate::parser::{Budget, ParserState, space};
 use crate::tokenizer::TokenKind;
-use crate::{Error, ErrorKind, Limit, Name};
+use crate::{Error, ErrorKind, Limit, Name, SourceOrigin};
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -81,7 +81,7 @@ pub enum Event<'a> {
 pub struct Reader<'a> {
     input: &'a str,
     cursor: usize,
-    range: Range<usize>,
+    origin: Option<SourceOrigin>,
     state: ParserState<'a>,
     limits: Limits,
     token_limit_kind: Limit,
@@ -118,7 +118,7 @@ impl<'a> Reader<'a> {
         Ok(Self {
             input,
             cursor: initial,
-            range: initial..initial,
+            origin: None,
             state: ParserState::new(limits, initial),
             limits,
             token_limit_kind: Limit::TokenBytes,
@@ -153,9 +153,15 @@ impl<'a> Reader<'a> {
         self.cursor
     }
 
-    /// Raw source span of the latest emitted event, including markup delimiters.
-    pub fn event_range(&self) -> Range<usize> {
-        self.range.clone()
+    /// Origin of the latest emitted event; absent before the first event.
+    /// EOF and failures preserve the last delivered origin.
+    pub fn event_origin(&self) -> Option<SourceOrigin> {
+        self.origin
+    }
+
+    /// Exact original input span of the latest emitted event, when available.
+    pub fn event_range(&self) -> Option<Range<usize>> {
+        self.event_origin().and_then(SourceOrigin::input_range)
     }
 
     pub fn read_event(&mut self) -> Result<Option<Event<'a>>, Error> {
@@ -245,7 +251,7 @@ impl<'a> Reader<'a> {
             }
             let event = result?;
             if event.is_some() {
-                self.range = start..end;
+                self.origin = Some(SourceOrigin::input(start..end));
                 return Ok(event);
             }
         }

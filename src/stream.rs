@@ -1,10 +1,8 @@
-use std::ops::Range;
-
 use crate::encoding::{DecodeProgress, Decoded, Decoder, TokenSpan};
 use crate::escape::xml_char;
 use crate::parser::{Budget, ParserState};
 use crate::tokenizer::{TokenKind, Tokenizer};
-use crate::{DecodeLimits, Error, ErrorKind, Event, Limits};
+use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, SourceOrigin};
 
 /// Concrete incremental engine shared by callback and lending frontends.
 pub(crate) struct Stream {
@@ -70,7 +68,7 @@ impl Stream {
         self.state.validate_finish(self.position())
     }
 
-    pub(crate) fn event(&mut self) -> Result<(Event<'_>, Range<usize>), Error> {
+    pub(crate) fn event(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         let position = self.position();
         parse(&self.tokenizer, &mut self.state)?
             .ok_or_else(|| Error::new(ErrorKind::InvalidState, position))
@@ -78,10 +76,10 @@ impl Stream {
 
     pub(crate) fn emit(
         &mut self,
-        emit: &mut impl FnMut(Event<'_>, Range<usize>, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        if let Some((event, range)) = parse(&self.tokenizer, &mut self.state)? {
-            emit(event, range, self.state.owned_budget())?;
+        if let Some((event, origin)) = parse(&self.tokenizer, &mut self.state)? {
+            emit(event, origin, self.state.owned_budget())?;
         }
         Ok(())
     }
@@ -120,7 +118,7 @@ fn decode(
 fn parse<'token>(
     tokenizer: &'token Tokenizer,
     state: &mut ParserState<'static>,
-) -> Result<Option<(Event<'token>, Range<usize>)>, Error> {
+) -> Result<Option<(Event<'token>, SourceOrigin)>, Error> {
     let Some((kind, bytes, span)) = tokenizer.current() else {
         return Err(Error::new(
             ErrorKind::InvalidState,
@@ -133,7 +131,7 @@ fn parse<'token>(
             budget.copy(raw, offset)
         })
         .map_err(|error| span.map_error(raw, error))
-        .map(|event| event.map(|event| (event, span.source.clone())))
+        .map(|event| event.map(|event| (event, SourceOrigin::input(span.source.clone()))))
 }
 
 fn validate<'token>(

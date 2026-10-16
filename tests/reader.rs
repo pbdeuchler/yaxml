@@ -178,11 +178,11 @@ fn logical_values_and_source_ranges() {
     let input = "\u{feff}<?xml version='1.0'?>\r\n<r a='\t\n\r\n&#xA;&#13;&lt;&gt;&amp;&apos;&quot;'>a\r\nb\rc&#xD;&#10;<![CDATA[x\r\ny&z]]><!--a\rb--><?p \r\nvalue\r?></r> ";
     let mut reader = Reader::new(input.as_bytes()).unwrap();
     assert_eq!(reader.position(), 3);
-    assert_eq!(reader.event_range(), 3..3);
+    assert_eq!(reader.event_range(), None);
     let mut ranges = Vec::new();
     let mut events = Vec::new();
     while let Some(event) = reader.read_event().unwrap() {
-        ranges.push(reader.event_range());
+        ranges.push(reader.event_range().expect("direct input event"));
         events.push(event);
     }
     let Event::Declaration(d) = &events[0] else {
@@ -419,11 +419,11 @@ fn fatal_errors_are_sticky() {
             }
         };
         let position = reader.position();
-        let range = reader.event_range();
+        let range = reader.event_range().expect("direct input event");
         for _ in 0..3 {
             assert_eq!(reader.read_event().unwrap_err(), error);
             assert_eq!(reader.position(), position);
-            assert_eq!(reader.event_range(), range);
+            assert_eq!(reader.event_range().expect("direct input event"), range);
         }
     }
 }

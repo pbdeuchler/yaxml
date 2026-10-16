@@ -4,15 +4,23 @@
 does not mean EOF; `finish` flushes pending text and requires a completed root.
 Empty feeds are harmless before finish. Text has one event per lexical run,
 independent of chunk sizes. Markup spans include delimiters. Callbacks receive
-`Event<'_>` and the absolute source byte range; borrowed values live for the call.
+`Event<'_>` and a `SourceOrigin`; borrowed event values live for the call.
+`origin.input_range()` gives the optional exact original-byte span, including
+markup delimiters. All currently supported parsed origins have an input span.
 
 `ControlFlow::Break(())` delivers that event, then returns `ErrorKind::Aborted`
 at its end offset. Cancellation and parser errors are sticky. Successful finish
 is idempotent and delivers no further events. Any feed after successful finish,
 including an empty chunk, starts a sticky `InvalidState` error. A failed feed can
 leave an input suffix unconsumed. `position()` includes encoding detection and
-one decoded scalar of lookahead when `<` terminates text; callback ranges identify the
+one decoded scalar of lookahead when `<` terminates text; origin input ranges identify the
 logical event precisely.
+
+`event_origin()` is absent before the first delivery and retains the latest
+delivered origin after EOF, cancellation or failure. `event_range()` derives its
+optional exact input span. Neither accessor controls physical source progress.
+Replacement-text origins remain a prerequisite for future entity expansion;
+this boundary change does not add DTD acceptance.
 
 A callback panic propagates normally through Rust unwinding. If the caller
 recovers it, the parser remains poisoned with `InvalidState`; partially delivered
@@ -26,7 +34,7 @@ resources. A parser already in a terminal error returns that error before touchi
 the reader. A successfully finished parser returns `InvalidState` before I/O.
 
 `BufferedReader<R: BufRead>` owns a caller-provided buffered source and lends one
-event plus its original-byte range from `read_event`. It consumes exactly the
+event plus its `SourceOrigin` from `read_event`. It consumes exactly the
 raw prefix accepted by the shared decoder. A large visible suffix remains in
 `R`; callers with only `Read` wrap it in `std::io::BufReader`. `get_ref` permits
 inspection without mutation, while `into_inner` returns the source at the

@@ -178,7 +178,10 @@ fn collect(reader: &mut BufferedReader<Window<'_>>) -> Result<Vec<(Value, Range<
     let mut previous = reader.position();
     loop {
         match reader.read_event() {
-            Ok(Some((event, range))) => events.push((value(event), range)),
+            Ok(Some((event, range))) => events.push((
+                value(event),
+                range.input_range().expect("direct input event"),
+            )),
             Ok(None) => {
                 let calls = reader.get_ref().fills;
                 for _ in 0..3 {
@@ -288,7 +291,7 @@ fn ordinary_suspension_preserves_namespace_scopes_and_owned_caller_copies() {
         let (first, first_range) = reader.read_event().unwrap().unwrap();
         let saved = value(first);
         assert_eq!(
-            first_range,
+            first_range.input_range().expect("direct input event"),
             encoding.span(INPUT, "<r xmlns='urn:d' xmlns:p='urn:a'>")
         );
         let rest = collect(&mut reader).unwrap();
@@ -342,12 +345,18 @@ fn event_delivery_consumes_only_its_prefix_and_documented_text_lookahead() {
         let mut reader = BufferedReader::new(Window::new(&bytes, 65536, bytes.len()));
         let (event, range) = reader.read_event().unwrap().unwrap();
         assert!(matches!(event, Event::Start(_)));
-        assert_eq!(range, encoding.offset("")..encoding.offset("<r>"));
+        assert_eq!(
+            range.input_range().expect("direct input event"),
+            encoding.offset("")..encoding.offset("<r>")
+        );
         assert_eq!(reader.position(), encoding.offset("<r>"));
         assert_eq!(reader.get_ref().offset, reader.position());
         let (event, range) = reader.read_event().unwrap().unwrap();
         assert_eq!(value(event), Value::Text("text".into()));
-        assert_eq!(range, encoding.offset("<r>")..encoding.offset("<r>text"));
+        assert_eq!(
+            range.input_range().expect("direct input event"),
+            encoding.offset("<r>")..encoding.offset("<r>text")
+        );
         let position = encoding.offset("<r>text<");
         assert_eq!(reader.position(), position);
         let input = reader.into_inner();
@@ -691,7 +700,10 @@ fn prepositioned_sources_start_a_new_relative_coordinate_system() {
         assert_eq!(reader.position(), 0);
         let (event, range) = reader.read_event().unwrap().unwrap();
         assert!(matches!(event, Event::Empty(_)));
-        assert_eq!(range, encoding.offset("")..encoding.offset("<r/>"));
+        assert_eq!(
+            range.input_range().expect("direct input event"),
+            encoding.offset("")..encoding.offset("<r/>")
+        );
         assert_eq!(reader.position(), encoding.offset("<r/>"));
         let source = reader.into_inner();
         assert_eq!(source.offset, 6 + encoding.offset("<r/>"));

@@ -21,7 +21,7 @@ fn linked_walk_matches_immutable_preorder_ranges_and_exact_size_hints() {
                 assert_eq!(nodes.len(), remaining);
                 assert_eq!(nodes.size_hint(), (remaining, Some(remaining)));
                 let actual = nodes.next().unwrap();
-                assert_eq!(actual.range(), Some(expected.range()));
+                assert_eq!(actual.range(), expected.range());
                 assert_eq!(actual.text(), expected.text());
                 assert_eq!(
                     actual.name().map(|name| name.qualified().to_owned()),
@@ -30,19 +30,19 @@ fn linked_walk_matches_immutable_preorder_ranges_and_exact_size_hints() {
                 assert_eq!(owned.node(actual.id()).unwrap().id(), actual.id());
                 assert_eq!(
                     actual.parent().and_then(|node| node.range()),
-                    expected.parent().map(|node| node.range())
+                    expected.parent().and_then(|node| node.range())
                 );
                 assert_eq!(
                     actual.first_child().and_then(|node| node.range()),
-                    expected.first_child().map(|node| node.range())
+                    expected.first_child().and_then(|node| node.range())
                 );
                 assert_eq!(
                     actual.last_child().and_then(|node| node.range()),
-                    expected.last_child().map(|node| node.range())
+                    expected.last_child().and_then(|node| node.range())
                 );
                 assert_eq!(
                     actual.next_sibling().and_then(|node| node.range()),
-                    expected.next_sibling().map(|node| node.range())
+                    expected.next_sibling().and_then(|node| node.range())
                 );
                 assert_eq!(
                     actual
@@ -51,13 +51,13 @@ fn linked_walk_matches_immutable_preorder_ranges_and_exact_size_hints() {
                         .collect::<Vec<_>>(),
                     expected
                         .children()
-                        .map(|node| Some(node.range()))
+                        .map(|node| node.range())
                         .collect::<Vec<_>>()
                 );
                 let mut descendants = actual.descendants();
                 for (position, expected) in expected.descendants().enumerate() {
                     assert_eq!(descendants.len(), actual.descendants().len() - position);
-                    assert_eq!(descendants.next().unwrap().range(), Some(expected.range()));
+                    assert_eq!(descendants.next().unwrap().range(), expected.range());
                 }
                 assert_eq!(descendants.size_hint(), (0, Some(0)));
                 assert!(descendants.next().is_none());

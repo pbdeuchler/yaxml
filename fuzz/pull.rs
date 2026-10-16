@@ -260,7 +260,8 @@ fn drive(
         }
         let result = pull.read_event();
         match result {
-            Ok(Some((event, range))) => {
+            Ok(Some((event, origin))) => {
+                let range = origin.input_range().expect("direct input event");
                 assert!(range.start <= range.end && range.end <= input.len());
                 let lookahead = if matches!(&event, Event::Text(_)) {
                     if encoding::recognizes(input) { 2 } else { 1 }
@@ -281,9 +282,12 @@ fn drive(
                 }
                 if let Some(expected) = &mut expected {
                     let value = expected.read_event().unwrap().expect("extra pull event");
-                    oracle
-                        .unwrap()
-                        .event(event, value, range.clone(), expected.event_range());
+                    oracle.unwrap().event(
+                        event,
+                        value,
+                        range.clone(),
+                        expected.event_range().expect("direct input event"),
+                    );
                 }
                 count += 1;
                 assert!(

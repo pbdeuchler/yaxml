@@ -109,7 +109,8 @@ fn record(event: Event<'_>) -> Value {
 fn stream(input: &[u8], split: usize) -> Result<Vec<(Value, Range<usize>)>, Error> {
     let mut parser = PushParser::new();
     let mut events = Vec::new();
-    let mut emit = |event: Event<'_>, source: Range<usize>| {
+    let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+        let source = origin.input_range().expect("direct input event");
         events.push((record(event), source));
         ControlFlow::Continue(())
     };
@@ -205,14 +206,20 @@ fn both_orders_every_split_preserve_logical_values_names_and_raw_spans() {
             for chunk in bytes.chunks(chunk_size) {
                 parser
                     .feed(chunk, |event, source| {
-                        events.push((record(event), source));
+                        events.push((
+                            record(event),
+                            source.input_range().expect("direct input event"),
+                        ));
                         ControlFlow::Continue(())
                     })
                     .unwrap();
             }
             parser
                 .finish(|event, source| {
-                    events.push((record(event), source));
+                    events.push((
+                        record(event),
+                        source.input_range().expect("direct input event"),
+                    ));
                     ControlFlow::Continue(())
                 })
                 .unwrap();
@@ -554,14 +561,15 @@ fn raw_progress_includes_incomplete_units_surrogates_and_text_lookahead() {
         // The '<' code unit (bytes 12..14) terminates the text event.
         let mut delivered = Vec::new();
         parser
-            .feed(&bytes[13..14], |event, range| {
+            .feed(&bytes[13..14], |event, origin| {
+                let range = origin.input_range().expect("direct input event");
                 delivered.push((record(event), range));
                 ControlFlow::Continue(())
             })
             .unwrap();
         assert_eq!(parser.position(), 14);
         assert_eq!(delivered, [(Value::Text("🙂".into()), 8..12)]);
-        assert_eq!(parser.event_range(), 8..12);
+        assert_eq!(parser.event_range().expect("direct input event"), 8..12);
         parser
             .feed(&bytes[14..], |_, _| ControlFlow::Continue(()))
             .unwrap();
@@ -635,7 +643,8 @@ fn cancellation_panics_and_terminal_calls_preserve_decoding_lifecycle() {
         let mut parser = PushParser::new();
         let mut count = 0;
         let error = parser
-            .feed(&bytes, |event, range| {
+            .feed(&bytes, |event, origin| {
+                let range = origin.input_range().expect("direct input event");
                 count += 1;
                 assert!(matches!(event, Event::Start(_)));
                 assert_eq!(range, 2..8);
@@ -666,7 +675,8 @@ fn cancellation_panics_and_terminal_calls_preserve_decoding_lifecycle() {
 
         let mut parser = PushParser::new();
         let error = parser
-            .feed(&bytes, |event, range| {
+            .feed(&bytes, |event, origin| {
+                let range = origin.input_range().expect("direct input event");
                 if matches!(event, Event::Text(_)) {
                     assert_eq!(range, 8..12);
                     ControlFlow::Break(())
@@ -683,7 +693,7 @@ fn cancellation_panics_and_terminal_calls_preserve_decoding_lifecycle() {
             }
         );
         assert_eq!(parser.position(), 14);
-        assert_eq!(parser.event_range(), 8..12);
+        assert_eq!(parser.event_range().expect("direct input event"), 8..12);
 
         let pending_text = encode("<r>🙂", order, true);
         let mut parser = PushParser::new();
@@ -775,7 +785,8 @@ fn reader_io_handles_one_byte_reads_interruptions_and_partial_encoding_failures(
                     input: &bytes,
                     interrupt: false,
                 },
-                |event, range| {
+                |event, origin| {
+                    let range = origin.input_range().expect("direct input event");
                     if let Event::Text(value) = event {
                         text.push_str(&value);
                         assert_eq!(range, 8..12);
@@ -854,7 +865,10 @@ fn utf8_surfaces_and_writer_keep_their_existing_encoding_contracts() {
         let mut reader = Reader::new(input.as_bytes()).unwrap();
         let mut expected = Vec::new();
         while let Some(event) = reader.read_event().unwrap() {
-            expected.push((record(event), reader.event_range()));
+            expected.push((
+                record(event),
+                reader.event_range().expect("direct input event"),
+            ));
         }
         for split in 0..=input.len() {
             assert_eq!(stream(input.as_bytes(), split).unwrap(), expected);

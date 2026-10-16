@@ -7,7 +7,7 @@ fn tokens_remain_available_until_explicit_release() {
     assert_eq!(stream.position(), 4);
     let (event, range) = stream.event().unwrap();
     assert!(matches!(event, Event::Empty(_)));
-    assert_eq!(range, 0..4);
+    assert_eq!(range.input_range(), Some(0..4));
     stream.release();
     assert_eq!(stream.advance(b" ").unwrap(), 1);
     assert!(stream.finish_step().unwrap());

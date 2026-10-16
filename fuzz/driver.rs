@@ -126,7 +126,8 @@ fn check_finish_abort(input: &[u8]) {
     let mut parser = PushParser::new();
     let mut starts = 0;
     parser
-        .feed(&source, |event, range| {
+        .feed(&source, |event, origin| {
+            let range = origin.input_range().expect("direct input event");
             assert!(matches!(event, Event::Start(_)), "unexpected pre-EOF event");
             assert_eq!(range, 0..3);
             starts += 1;
@@ -137,7 +138,8 @@ fn check_finish_abort(input: &[u8]) {
 
     let mut texts = 0;
     let error = parser
-        .finish(|event, range| {
+        .finish(|event, origin| {
+            let range = origin.input_range().expect("direct input event");
             let Event::Text(actual) = event else {
                 panic!("unexpected finish event")
             };
@@ -319,7 +321,7 @@ fn read<'input>(
         previous = position;
         match result {
             Ok(Some(event)) => {
-                let range = reader.event_range();
+                let range = reader.event_range().expect("direct input event");
                 assert!(range.start <= range.end && range.end <= position);
                 events += 1;
                 assert!(
@@ -495,7 +497,7 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
         NodeKind::Element(_)
     ));
     let _ = document.declaration();
-    assert_eq!(document.root().range(), 0..len);
+    assert_eq!(document.root().range(), Some(0..len));
     assert!(document.root().parent().is_none());
     assert!(document.root().next_sibling().is_none());
     assert_eq!(
@@ -514,7 +516,7 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
         );
         visited.push(node.id());
         assert_eq!(document.node(node.id()).unwrap().id(), node.id());
-        let range = node.range();
+        let range = node.range().expect("direct input node");
         assert!(range.start <= range.end && range.end <= len);
         let children: Vec<_> = node.children().take(nodes.len() + 1).collect();
         assert!(children.len() <= nodes.len(), "sibling cycle");
@@ -534,7 +536,7 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
                 child.next_sibling().map(|n| n.id()),
                 children.get(index + 1).map(|n| n.id())
             );
-            let child_range = child.range();
+            let child_range = child.range().expect("direct input node");
             assert!(child_range.start >= previous_end && child_range.end <= range.end);
             previous_end = child_range.end;
             subtree_size += child.descendants().len();
@@ -579,7 +581,8 @@ pub(crate) fn drive_push(
         PushParser::with_limits(limits)
     };
     let mut latest = None;
-    let mut capture = |event: Event<'_>, range: Range<usize>| {
+    let mut capture = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+        let range = origin.input_range().expect("direct input event");
         latest = Some(range.clone());
         emit(event, range);
         ControlFlow::Continue(())
@@ -602,7 +605,7 @@ pub(crate) fn drive_push(
     }
     assert!(parser.position() <= input.len());
     if let Some(range) = latest {
-        assert_eq!(parser.event_range(), range);
+        assert_eq!(parser.event_range().expect("direct input event"), range);
     }
     match result {
         Ok(()) => {
@@ -691,7 +694,7 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
                 .unwrap()
                 .expect("extra streaming event");
             assert!(actual == event, "typed streaming event differs from slice");
-            assert_eq!(range, expected.event_range());
+            assert_eq!(range, expected.event_range().expect("direct input event"));
         }
     });
     // Streaming owns structural names that the slice reader can borrow.
@@ -711,11 +714,12 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
         );
     }
     let mut expected = slice_error.is_none().then(|| Reader::new(input).unwrap());
-    let result = PushParser::new().read_from(std::io::Cursor::new(input), |actual, range| {
+    let result = PushParser::new().read_from(std::io::Cursor::new(input), |actual, origin| {
+        let range = origin.input_range().expect("direct input event");
         if let Some(expected) = &mut expected {
             let event = expected.read_event().unwrap().expect("extra I/O event");
             assert!(actual == event, "typed I/O event differs from slice");
-            assert_eq!(range, expected.event_range());
+            assert_eq!(range, expected.event_range().expect("direct input event"));
         }
         ControlFlow::Continue(())
     });
@@ -827,7 +831,8 @@ fn check_io_schedule(input: &[u8]) {
         interrupt: true,
     };
     let mut cancelled = None;
-    let result = PushParser::new().read_from(reader, |_, range| {
+    let result = PushParser::new().read_from(reader, |_, origin| {
+        let range = origin.input_range().expect("direct input event");
         cancelled = Some((calls.get(), range.end));
         ControlFlow::Break(())
     });

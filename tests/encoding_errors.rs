@@ -38,8 +38,8 @@ fn non_ascii_invalid_markup_is_syntax_at_its_original_start() {
             for split in 0..=input.len() {
                 let mut parser = PushParser::new();
                 let mut events = Vec::new();
-                let mut emit = |_: yaxml::Event<'_>, range| {
-                    events.push(range);
+                let mut emit = |_: yaxml::Event<'_>, origin: yaxml::SourceOrigin| {
+                    events.push(origin.input_range().expect("direct input event"));
                     ControlFlow::Continue(())
                 };
                 let error = parser
@@ -53,7 +53,11 @@ fn non_ascii_invalid_markup_is_syntax_at_its_original_start() {
                 );
                 assert_eq!(
                     parser.event_range(),
-                    if text.starts_with("<r>") { 2..8 } else { 0..0 }
+                    if text.starts_with("<r>") {
+                        Some(2..8)
+                    } else {
+                        None
+                    }
                 );
                 if text.starts_with("<r>") {
                     assert_eq!(events.len(), 1);

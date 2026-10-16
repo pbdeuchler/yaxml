@@ -7,6 +7,7 @@ mod encoding;
 mod error;
 mod escape;
 mod name;
+mod origin;
 mod owned;
 mod parser;
 mod push;
@@ -24,6 +25,7 @@ pub use error::{
     ReadError, WriteError,
 };
 pub use name::Name;
+pub use origin::SourceOrigin;
 pub use owned::{
     AttributeSpec, EditLimits, Editor, ElementItem, ElementSpec, NameSpec, NamespaceSpec,
     OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, PrefixPolicy,

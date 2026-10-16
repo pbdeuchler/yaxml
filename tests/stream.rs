@@ -153,7 +153,7 @@ fn normalization_has_independent_expected_values() {
 fn finish_and_error_states_are_terminal() {
     let mut parser = PushParser::default();
     assert_eq!(parser.position(), 0);
-    assert_eq!(parser.event_range(), 0..0);
+    assert_eq!(parser.event_range(), None);
     parser
         .feed(&[], |_, _| panic!("empty feed emitted"))
         .unwrap();
@@ -197,7 +197,8 @@ fn cancellation_at_every_event_and_pending_text() {
         let mut parser = PushParser::new();
         let mut events = Vec::new();
         let error = parser
-            .feed(input, |event, range| {
+            .feed(input, |event, origin| {
+                let range = origin.input_range().expect("direct input event");
                 events.push((capture::Captured::from(event), range));
                 if events.len() == stop + 1 {
                     ControlFlow::Break(())
@@ -209,7 +210,10 @@ fn cancellation_at_every_event_and_pending_text() {
         assert_eq!(events, expected[..=stop]);
         assert_eq!(error.kind, ErrorKind::Aborted);
         assert_eq!(error.offset, expected[stop].1.end);
-        assert_eq!(parser.event_range(), expected[stop].1);
+        assert_eq!(
+            parser.event_range().expect("direct input event"),
+            expected[stop].1
+        );
         assert_eq!(parser.feed(b"", |_, _| panic!()).unwrap_err(), error);
         assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
     }
@@ -218,7 +222,8 @@ fn cancellation_at_every_event_and_pending_text() {
         .feed(b"<r>text", |_, _| ControlFlow::Continue(()))
         .unwrap();
     let error = parser
-        .finish(|event, range| {
+        .finish(|event, origin| {
+            let range = origin.input_range().expect("direct input event");
             assert_eq!(
                 capture::Captured::from(event),
                 capture::Captured::Text("text".into())

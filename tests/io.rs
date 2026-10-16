@@ -31,7 +31,7 @@ fn consumes_reader_with_the_same_logical_events() {
     let mut range = 0..0;
     parser
         .read_from(b"</r>".as_slice(), |_, span| {
-            range = span;
+            range = span.input_range().expect("direct input event");
             ControlFlow::Continue(())
         })
         .unwrap();
