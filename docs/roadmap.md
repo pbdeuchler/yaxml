@@ -59,6 +59,16 @@ Compare release builds on the same machine with matched options, validation, lim
 
 Use `memchr` for delimiter search when profiles justify it, borrow unchanged strings, and allocate normalized strings only when necessary. Favor contiguous arena storage and explicit stacks. Choose interning, extra indices, and compact node layouts based on measured workloads; each can trade parse time for memory or later query speed. Track adversarial scaling as well as typical throughput.
 
+Benchmark preflight found that [xmllint batch timing](https://github.com/GNOME/libxml2/blob/v2.15.4/xmllint.c)
+excludes startup and memory mapping but reuses its DOM parser context. Its
+streaming loop reads to EOF without fetching every name, value and attribute;
+the [memory reader](https://github.com/GNOME/libxml2/blob/v2.15.4/xmlreader.c)
+also copies the whole input. These differ from yaxml's current fresh-context,
+borrowing DOM and bounded push measurements. Internal CLI timing is useful only
+with those lifecycle and workload differences stated. A matched external
+benchmark executable, shared fixture bytes, calibrated batches and alternating
+repeated trials remain required before claiming an engine-level performance win.
+
 ## Toolchain and allocation gate
 
 Verify the user's Rust 1.100 allocator premise against the official issue, compiler availability, and a minimal compile probe before setting the minimum supported Rust version or making the public API generic over allocators. Standard-library allocator support, collection support, and the ability to implement a custom allocator without unsafe are separate questions. Keep the default API usable with the verified compiler, and document experimental configurations honestly. The requested reference is the [allocator API tracking issue](https://github.com/rust-lang/rust/issues/32838).
