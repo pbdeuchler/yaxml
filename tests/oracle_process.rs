@@ -7,7 +7,7 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use process::{ProcessLimits, run};
+use process::{ProcessLimits, run, run_with_environment};
 
 fn scratch_directories() -> BTreeSet<PathBuf> {
     let prefix = format!("yaxml-oracle-{}-", std::process::id());
@@ -42,6 +42,21 @@ fn bounded_process_execution_and_cleanup() {
     assert!(output.status.success());
     assert!(output.stdout.ends_with(input));
     assert_eq!(output.stderr, b"oracle stderr");
+    assert_eq!(scratch_directories(), before);
+    let working_directory = std::env::current_dir().unwrap();
+    let controlled = run_with_environment(
+        &executable,
+        &["--exact", "child_environment", "--ignored", "--nocapture"],
+        b"",
+        ordinary,
+        &[("YAXML_ORACLE_MARKER".into(), "matched".into())],
+        &["PATH"],
+        Some(&working_directory),
+    )
+    .unwrap();
+    assert!(controlled.status.success());
+    assert!(controlled.stdout.ends_with(b"controlled environment"));
+    assert!(controlled.stderr.is_empty());
     assert_eq!(scratch_directories(), before);
     let exact_size = output.stdout.len() + output.stderr.len();
     for (ceiling, accepted) in [(exact_size, true), (exact_size - 1, false)] {
@@ -210,5 +225,21 @@ fn child_large_stderr() {
 fn child_combined_output() {
     io::stdout().write_all(&[b'x'; 1024]).unwrap();
     io::stderr().write_all(&[b'y'; 1024]).unwrap();
+    std::process::exit(0);
+}
+
+#[test]
+#[ignore]
+fn child_environment() {
+    assert_eq!(
+        std::env::var_os("YAXML_ORACLE_MARKER"),
+        Some("matched".into())
+    );
+    assert_eq!(std::env::var_os("PATH"), None);
+    assert_eq!(
+        std::env::current_dir().unwrap(),
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+    );
+    io::stdout().write_all(b"controlled environment").unwrap();
     std::process::exit(0);
 }

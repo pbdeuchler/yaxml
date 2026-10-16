@@ -85,6 +85,10 @@ jobs:
             -Itarget/oracle/build -Itarget/oracle/libxml2-2.15.4/include \
             tooling/libxml2_structure.c target/oracle/build/libxml2.a \
             -lm -pthread -ldl -o target/oracle/structure-helper
+          cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror -pedantic \
+            -Itarget/oracle/build -Itarget/oracle/libxml2-2.15.4/include \
+            tooling/libxml2_structure_bench.c target/oracle/build/libxml2.a \
+            -lm -pthread -ldl -o target/oracle/structure-bench-helper
           target/oracle/build/xmllint --version > target/oracle/version.txt 2>&1
           target/oracle/structure-helper --version > target/oracle/structure-version.txt
           cc --version > target/oracle/c-compiler.txt
@@ -108,6 +112,31 @@ jobs:
           cargo run --release --example structure_oracle -- \
             --libxml2-helper "$PWD/target/oracle/structure-helper" \
             2>&1 | tee target/oracle/structure-comparison.txt
+      - name: Smoke matched structural editing phases
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo bench --bench structural_mutation --no-run --message-format=json \
+            > target/oracle/structure-benchmark-artifacts.jsonl
+          yaxml_bench="$(jq -r 'select(.target.name == "structural_mutation" and .executable != null) | .executable' \
+            target/oracle/structure-benchmark-artifacts.jsonl | tail -n 1)"
+          test -x "$yaxml_bench"
+          : > target/oracle/structure-benchmark-smoke.txt
+          for case_name in append_text append_cdata append_comment append_pi \
+                           remove_first remove_middle remove_last remove_deep churn; do
+            cargo run --release --example structure_benchmark -- \
+              --libxml2-helper "$PWD/target/oracle/structure-bench-helper" \
+              --yaxml-helper "$yaxml_bench" \
+              --samples 1 --case "$case_name" --encoding utf8 \
+              --width 4 --depth 4 --payload-bytes 8 \
+              --iterations 1 --operations 4 \
+              --traversal-passes 1 --serialization-passes 1 \
+              >> target/oracle/structure-benchmark-smoke.txt
+          done
+          sha256sum tooling/libxml2_structure_bench.c \
+            benches/structural_mutation.rs \
+            examples/support/structure_benchmark.rs \
+            > target/oracle/structure-benchmark-source-sha256.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -122,4 +151,6 @@ jobs:
             target/oracle/structure-version.txt
             target/oracle/structure-comparison.txt
             target/oracle/structure-source-sha256.txt
+            target/oracle/structure-benchmark-smoke.txt
+            target/oracle/structure-benchmark-source-sha256.txt
             target/oracle/c-compiler.txt

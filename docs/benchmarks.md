@@ -165,9 +165,9 @@ permanent subtree removal and tombstone-heavy churn. Fixture generation and
 UTF-8/UTF-16 transport encoding occur before all clocks. Each row separately
 reports parse/handle setup, structural edit calls, complete live traversal,
 counting-sink serialization, semantic validation plus serialization/reparse,
-and owned-document destruction. Traversal touches public kinds, provenance, names, values and
-attributes; churn appends and removes one fresh Text node per unit so the final
-live tree stays small while permanent slots accumulate.
+and owned-document destruction. Traversal touches public kinds, provenance,
+names, values and attributes; churn appends and removes one fresh Text node per
+unit so the final live tree stays small while permanent slots accumulate.
 
 The cases are `append_text`, `append_cdata`, `append_comment`, `append_pi`,
 `remove_first`, `remove_middle`, `remove_last`, `remove_deep` and `churn`.
@@ -195,14 +195,79 @@ completed edit calls, completed units, created/removed/live node counts,
 expected permanent slots, traversal visits, serialized bytes, sink calls,
 limits, phase nanoseconds, disposition and checksum.
 
-Each row also emits a `reference_model` naming the future matched libxml2
-fresh-node plus `xmlAddChild`, or `xmlUnlinkNode` plus `xmlFreeNode`, lifecycle.
-`comparison_status=unmeasured` is deliberate: no C helper or comparative result
-is supplied. A future comparison must validate the compatible logical
-projection first, include node construction and final freeing in the matching
-clock, retain libxml2's Text-coalescing difference, and keep parse, traversal,
-serialization and destruction policies equivalent. These yaxml-only rows do
-not establish a speed or memory advantage.
+Each row also emits the exact final-output FNV hash and a `reference_model` for
+the matched libxml2 lifecycle. `YAXML_STRUCTURE_EXPORT` writes one framed
+comparison request after all timers; export requires explicit case, encoding,
+width, depth and payload selectors. The request contains the original encoded
+input, payload, dimensions, pass counts and exact final UTF-8 bytes. It contains
+no Rust pointers or private arena state.
+
+### Matched libxml2 structural run
+
+`tooling/libxml2_structure_bench.c` is compiled separately and never linked by
+Cargo. Build it against the pinned static libxml2 2.15.4 archive:
+
+```console
+cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror -pedantic \
+  -I/private/tmp/yaxml-oracle-21504/build \
+  -I/private/tmp/yaxml-oracle-21504/libxml2-2.15.4/include \
+  tooling/libxml2_structure_bench.c \
+  /private/tmp/yaxml-oracle-21504/build/libxml2.a -lm -pthread -ldl \
+  -o /private/tmp/yaxml-libxml2-structure-bench
+```
+
+The safe-Rust driver performs an unrecorded version/fixture preflight, then
+alternates two prebuilt executables under the same deadline/output ceiling and
+validates every pair before printing it. First run
+`cargo bench --bench structural_mutation --no-run --offline --locked` and use
+the executable path printed by Cargo:
+
+```console
+cargo run --release --offline --locked --example structure_benchmark -- \
+  --libxml2-helper /private/tmp/yaxml-libxml2-structure-bench \
+  --yaxml-helper /absolute/path/to/structural_mutation-HASH \
+  --samples 7 --case churn --encoding utf8 \
+  --width 16 --depth 64 --payload-bytes 32 \
+  --iterations 5 --operations 1000 \
+  --traversal-passes 16 --serialization-passes 4
+```
+
+Both implementations parse fresh documents and use the same original bytes,
+payload, iteration count and edit-unit count. Setup includes parsing, parent
+selection and removal-order bookkeeping. The edit clock includes fresh C node
+construction plus `xmlAddChild`; removal and churn include both
+`xmlUnlinkNode` and `xmlFreeNode`. Target selection and removed-subtree counting
+occur before that clock. C's whole-document initial node-count check occurs
+outside every clock, avoiding traversal work where Rust has an O(1) arena
+length. Traversal, serialization, exact-byte validation and document
+destruction have separate clocks. The driver requires each row to match the
+requested dimensions and deterministic operation/node counts, then requires
+matching byte, hash and common live-traversal accounting across the pair.
+
+libxml2 coalesces adjacent Text nodes and may free the pointer supplied to
+`xmlAddChild`. The C helper never reads that pointer again, records the merged
+count and traverses the returned survivor. The driver permits and prominently
+reports only this live-node-count difference. Empty PI data is an intentional
+lexical difference (`<?bench ?>` versus `<?bench?>`) and the matched driver
+rejects that configuration; other empty leaf payloads remain exact checks.
+
+libxml2 frees removed records immediately. yaxml retains tombstone slots for
+stable handles and counts cumulative owned bytes and created nodes against
+public quotas. libxml2 has neither those quotas nor yaxml source provenance;
+caller arrays and target-order work are excluded from edit time on both sides.
+The current Rust edit clock starts before allocating its live/stale validation
+vectors and includes their pushes; the C edit clock uses scalar counters and
+has no equivalent allocation. The C `xmlSave` path also buffers internally,
+while the Rust `Writer` calls the counting sink directly, so sink-call counts
+and serialization times include different buffering policies. These differences
+must accompany results. Common traversal observes node kind, qualified-name and
+namespace lengths, direct payload length/first byte and attributes. Rust also
+observes source provenance ranges, for which libxml2 has no matching retained
+representation. The C helper places C11 compiler fences around each traversal
+pass and folds pass checksums without even-pass cancellation, keeping those
+observations in the timed loop under optimization. A matched row establishes
+its measured lifecycle only; it does not isolate the internal algorithm or
+establish a blanket speed or memory win.
 
 ## Comparability and reporting
 

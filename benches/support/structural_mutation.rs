@@ -137,3 +137,53 @@ pub(crate) fn removal_order(length: usize, case: CaseKind) -> Vec<usize> {
     }
     order
 }
+
+pub(crate) struct MatchedRequest<'a> {
+    pub(crate) case: CaseKind,
+    pub(crate) encoding: &'a str,
+    pub(crate) width: usize,
+    pub(crate) depth: usize,
+    pub(crate) payload: &'a [u8],
+    pub(crate) iterations: usize,
+    pub(crate) operations: usize,
+    pub(crate) traversal_passes: usize,
+    pub(crate) serialization_passes: usize,
+    pub(crate) input: &'a [u8],
+    pub(crate) expected: &'a [u8],
+}
+
+impl MatchedRequest<'_> {
+    pub(crate) fn write(&self, output: &mut impl Write) -> io::Result<()> {
+        writeln!(output, "{MATCHED_PROTOCOL}")?;
+        writeln!(output, "{}", self.case.label())?;
+        writeln!(output, "{}", self.encoding)?;
+        for value in [
+            self.width,
+            self.depth,
+            self.payload.len(),
+            self.iterations,
+            self.operations,
+            self.traversal_passes,
+            self.serialization_passes,
+        ] {
+            writeln!(output, "{value}")?;
+        }
+        for bytes in [self.input, self.payload, self.expected] {
+            write!(output, "{}:", bytes.len())?;
+            output.write_all(bytes)?;
+            output.write_all(b"\n")?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn write_file(&self, path: &Path) -> io::Result<()> {
+        let mut output = BufWriter::new(File::create(path)?);
+        self.write(&mut output)?;
+        output.flush()
+    }
+}
+use std::fs::File;
+use std::io::{self, BufWriter, Write};
+use std::path::Path;
+
+pub(crate) const MATCHED_PROTOCOL: &str = "YAXML-STRUCTURE-BENCH-1";

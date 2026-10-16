@@ -15,15 +15,17 @@ mod support;
 use std::collections::HashSet;
 use std::hint::black_box;
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use support::{CaseKind, OperationCounts, removal_order};
+use support::{CaseKind, MatchedRequest, OperationCounts, removal_order};
 use yaxml::{
     EditError, EditLimits, Limits, OwnedDocument, OwnedNodeId, OwnedNodeKind, Reader, Writer,
     WriterLimits,
 };
 
 const ENCODINGS: &[&str] = &["utf8", "utf16le", "utf16be"];
+const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 
 fn parameter(name: &str) -> Option<String> {
     std::env::var(name).ok()
@@ -239,6 +241,7 @@ fn measure(
     depth: usize,
     payload: &str,
     config: &Config,
+    export_path: Option<&Path>,
 ) {
     let xml = if case == CaseKind::RemoveDeep {
         deep_xml(width, depth, payload)
@@ -274,6 +277,8 @@ fn measure(
     let mut validation_output_bytes_total = 0_u128;
     let mut sink_writes_total = 0_u128;
     let mut checksum = 0xcbf2_9ce4_8422_2325;
+    let mut output_hash = None;
+    let mut exported_output = None;
 
     for _ in 0..config.iterations {
         let started = Instant::now();
@@ -281,7 +286,7 @@ fn measure(
             Ok(document) => document,
             Err(error) => {
                 println!(
-                    "benchmark=owned_structure schema=1 case={} encoding={encoding} width={width} depth={depth} payload_bytes={} input_bytes={} status=parse_rejected error_kind={:?} error_offset={}",
+                    "benchmark=owned_structure schema=2 implementation=yaxml case={} encoding={encoding} width={width} depth={depth} payload_bytes={} input_bytes={} status=parse_rejected error_kind={:?} error_offset={}",
                     case.label(),
                     payload.len(),
                     input.len(),
@@ -465,6 +470,8 @@ fn measure(
             black_box(event);
         }
         assert_eq!(reader.position(), bytes.len());
+        let row_output_hash = fnv(&bytes, FNV_OFFSET);
+        assert_eq!(*output_hash.get_or_insert(row_output_hash), row_output_hash);
         checksum = fnv(&bytes, checksum ^ visit_checksum);
         validation_output_bytes_total = validation_output_bytes_total
             .checked_add(bytes.len() as u128)
@@ -492,7 +499,11 @@ fn measure(
             .expect("benchmark unit accounting overflow");
 
         drop(reader);
-        drop(bytes);
+        if export_path.is_some() && exported_output.is_none() {
+            exported_output = Some(bytes);
+        } else {
+            drop(bytes);
+        }
         drop(removal_targets);
         drop(live);
         drop(stale);
@@ -513,8 +524,30 @@ fn measure(
     };
     let error_kind = failure.map(|error| error.kind);
     let error_value_offset = failure.and_then(|error| error.value_offset);
+    if let Some(path) = export_path {
+        MatchedRequest {
+            case,
+            encoding,
+            width,
+            depth,
+            payload: payload.as_bytes(),
+            iterations: config.iterations,
+            operations: config.operations,
+            traversal_passes: config.traversal_passes,
+            serialization_passes: config.serialization_passes,
+            input: &input,
+            expected: exported_output.as_deref().unwrap(),
+        }
+        .write_file(path)
+        .expect("matched benchmark request export must complete");
+    }
+    let comparison_status = if export_path.is_some() {
+        "matched_input"
+    } else {
+        "unmeasured"
+    };
     println!(
-        "benchmark=owned_structure schema=1 case={} encoding={encoding} reference_model={} comparison_status=unmeasured width={width} depth={depth} payload_bytes={} source_utf8_bytes={} input_bytes={} iterations={} configured_units_per_iteration={} planned_units_per_iteration={planned_units} completed_units_total={completed_units_total} requested_edit_calls_total={} completed_edit_calls_total={} created_nodes_total={} removed_nodes_total={} initial_live_nodes_per_iteration={initial_live} final_live_nodes_per_iteration={final_live} expected_slots_per_iteration={slot_count} traversal_passes={} traversal_visits_total={traversal_visits_total} serialization_passes={} counted_output_bytes_total={counted_output_bytes_total} validation_output_bytes_total={validation_output_bytes_total} sink_writes_total={sink_writes_total} max_value_bytes={} max_owned_bytes={} max_created_nodes={} status={status} error_kind={error_kind:?} error_value_offset={error_value_offset:?} setup_ns={} edit_ns={} traversal_ns={} serialization_ns={} validation_ns={} drop_ns={} checksum={checksum:016x} edit_calls_per_s={:.2}",
+        "benchmark=owned_structure schema=2 implementation=yaxml case={} encoding={encoding} reference_model={} comparison_status={comparison_status} width={width} depth={depth} payload_bytes={} source_utf8_bytes={} input_bytes={} iterations={} configured_units_per_iteration={} planned_units_per_iteration={planned_units} completed_units_total={completed_units_total} requested_edit_calls_total={} completed_edit_calls_total={} created_nodes_total={} merged_nodes_total=0 removed_nodes_total={} initial_live_nodes_per_iteration={initial_live} final_live_nodes_per_iteration={final_live} expected_slots_per_iteration={slot_count} traversal_passes={} traversal_visits_total={traversal_visits_total} serialization_passes={} counted_output_bytes_total={counted_output_bytes_total} validation_output_bytes_total={validation_output_bytes_total} sink_writes_total={sink_writes_total} max_value_bytes={} max_owned_bytes={} max_created_nodes={} status={status} error_kind={error_kind:?} error_value_offset={error_value_offset:?} setup_ns={} edit_ns={} traversal_ns={} serialization_ns={} validation_ns={} drop_ns={} output_hash={:016x} checksum={checksum:016x} edit_calls_per_s={:.2}",
         case.label(),
         case.reference_model(),
         payload.len(),
@@ -537,11 +570,13 @@ fn measure(
         serialization.as_nanos(),
         validation.as_nanos(),
         destruction.as_nanos(),
+        output_hash.unwrap(),
         aggregate.completed as f64 / edit.as_secs_f64()
     );
 }
 
 fn main() {
+    let export_path = parameter("YAXML_STRUCTURE_EXPORT").map(PathBuf::from);
     let selected_case = parameter("YAXML_STRUCTURE_CASE").map(|value| {
         CaseKind::parse(&value).unwrap_or_else(|| panic!("unknown structural benchmark case"))
     });
@@ -587,6 +622,20 @@ fn main() {
             ),
         },
     };
+    if export_path.is_some() {
+        for required in [
+            "YAXML_STRUCTURE_CASE",
+            "YAXML_STRUCTURE_ENCODING",
+            "YAXML_STRUCTURE_WIDTH",
+            "YAXML_STRUCTURE_DEPTH",
+            "YAXML_STRUCTURE_PAYLOAD_BYTES",
+        ] {
+            assert!(
+                parameter(required).is_some(),
+                "{required} is required for export"
+            );
+        }
+    }
     assert!(
         config.iterations > 0
             && config.operations > 0
@@ -609,7 +658,15 @@ fn main() {
                     let payload = "x".repeat(*payload_bytes);
                     for encoding in ENCODINGS {
                         if selected("YAXML_STRUCTURE_ENCODING", encoding) {
-                            measure(case, encoding, *width, *depth, &payload, &config);
+                            measure(
+                                case,
+                                encoding,
+                                *width,
+                                *depth,
+                                &payload,
+                                &config,
+                                export_path.as_deref(),
+                            );
                         }
                     }
                 }

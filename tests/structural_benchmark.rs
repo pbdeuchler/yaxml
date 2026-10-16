@@ -1,7 +1,7 @@
 #[path = "../benches/support/structural_mutation.rs"]
 mod support;
 
-use support::{AccountingError, CaseKind, OperationCounts, removal_order};
+use support::{AccountingError, CaseKind, MatchedRequest, OperationCounts, removal_order};
 
 #[test]
 fn case_labels_parse_and_unknown_labels_do_not() {
@@ -129,4 +129,66 @@ fn removal_orders_cover_first_middle_last_and_deep_without_duplicates() {
 #[should_panic(expected = "removal order requires a removal case")]
 fn removal_order_rejects_append_cases() {
     removal_order(1, CaseKind::AppendText);
+}
+
+#[test]
+fn matched_request_preserves_binary_frames_and_all_dimensions() {
+    let request = MatchedRequest {
+        case: CaseKind::AppendPi,
+        encoding: "utf16le",
+        width: 3,
+        depth: 4,
+        payload: b"x\ny",
+        iterations: 5,
+        operations: 6,
+        traversal_passes: 7,
+        serialization_passes: 8,
+        input: b"\xff\xfe\0<\n",
+        expected: b"<r><?bench x\ny?></r>",
+    };
+    let mut output = Vec::new();
+    request.write(&mut output).unwrap();
+    assert_eq!(
+        output,
+        b"YAXML-STRUCTURE-BENCH-1\nappend_pi\nutf16le\n3\n4\n3\n5\n6\n7\n8\n5:\xff\xfe\0<\n\n3:x\ny\n20:<r><?bench x\ny?></r>\n"
+    );
+    let path = std::env::temp_dir().join(format!(
+        "yaxml-structure-request-test-{}",
+        std::process::id()
+    ));
+    request.write_file(&path).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), output);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn matched_request_propagates_output_failure() {
+    struct Broken;
+    impl std::io::Write for Broken {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("broken benchmark fixture sink"))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    let request = MatchedRequest {
+        case: CaseKind::Churn,
+        encoding: "utf8",
+        width: 1,
+        depth: 1,
+        payload: b"",
+        iterations: 1,
+        operations: 1,
+        traversal_passes: 1,
+        serialization_passes: 1,
+        input: b"<r/>",
+        expected: b"<r/>",
+    };
+    assert_eq!(
+        request.write(&mut Broken).unwrap_err().kind(),
+        std::io::ErrorKind::Other
+    );
 }

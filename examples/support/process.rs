@@ -34,6 +34,21 @@ pub fn run(
     input: &[u8],
     limits: ProcessLimits,
 ) -> io::Result<ProcessOutput> {
+    run_with_environment(program, args, input, limits, &[], &[], None)
+}
+
+/// The same bounded runner with an explicit working directory and environment
+/// overlay. Named variables are removed before the overlay is installed.
+#[allow(dead_code)]
+pub fn run_with_environment(
+    program: &Path,
+    args: &[&str],
+    input: &[u8],
+    limits: ProcessLimits,
+    environment: &[(String, String)],
+    remove_environment: &[&str],
+    current_dir: Option<&Path>,
+) -> io::Result<ProcessOutput> {
     if limits.timeout.is_zero()
         || Instant::now().checked_add(limits.timeout).is_none()
         || limits.max_output_bytes == 0
@@ -52,9 +67,17 @@ pub fn run(
     let mut stdout = capture_file(&directory.0.join("stdout"))?;
     let mut stderr = capture_file(&directory.0.join("stderr"))?;
     let start = Instant::now();
+    let mut command = Command::new(program);
+    command.args(args);
+    if let Some(directory) = current_dir {
+        command.current_dir(directory);
+    }
+    for name in remove_environment {
+        command.env_remove(name);
+    }
+    command.envs(environment.iter().map(|(name, value)| (name, value)));
     let mut child = RunningChild(Some(
-        Command::new(program)
-            .args(args)
+        command
             .env("XML_CATALOG_FILES", "")
             .env("SGML_CATALOG_FILES", "")
             .stdin(Stdio::from(stdin))
