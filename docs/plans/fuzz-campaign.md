@@ -88,8 +88,12 @@ profile. Generate a library-only LLVM coverage summary from the fixed target
 binary and cumulative profile. Parse the exact LLVM 22 summary header, expected
 production source rows, and `TOTAL` row. The production file list is the
 explicit sorted set of every regular `src/*.rs` module in the source tree,
-including currently unexecuted modules; reject missing, extra, or
-duplicate rows. Freeze all four `TOTAL` denominators (regions, functions,
+including currently unexecuted modules. Preserve identities for all 14 files.
+The current coverage mapping expects rows for the 13 executable modules;
+`src/lib.rs` is an explicit no-executable-mapping exception because it only
+declares/re-exports modules. Freeze that file's identity too, and fail if any
+other source lacks a report row or if `lib.rs` gains executable coverage.
+Reject extra or duplicate rows. Freeze all four `TOTAL` denominators (regions, functions,
 lines, instrumented branches) from the first valid report and reject any later
 change. Lines remain diagnostic only. Retain a candidate only when cumulative
 covered-region, executed-function, or covered-branch count increases; otherwise
