@@ -9,7 +9,8 @@ The first useful release is a bounded XML reader and DOM with precisely stated c
 | P0 | UTF-8 XML 1.0 Fifth Edition slice reader; namespaces; structured errors; finite limits; arena DOM; normalization and references | Establish one semantic engine and ownership model before multiplying interfaces | Accepted/rejected grammar tests; limit boundaries; reader/DOM parity; target inventory and corpus replay; documented unsupported constructs |
 | P0 | Compatibility harness, corpus management, coverage reporting, benchmark runner | Measure behavior, security, and performance before tuning representation | Reproducible commands and raw results; pinned libxml2 oracle; no unsupported “100%” or performance claims |
 | P1 | Buffered and push streaming; SAX-style event adapter; owned input/document mode | Make large-document use practical and support callback-oriented bindings | Chunk-split equivalence; temporary/final EOF; bounded retained memory; I/O error and cancellation tests |
-| P1 | XML writer/serializer; UTF-16 input/output and encoding detection; basic tree mutation | Complete common XML workflows and close the UTF-8-only conformance gap | Parse/write semantic round trips; malformed operation tests; encoding boundary corpus; namespace repair specification |
+| P1 | UTF-8 event writer; DOM serialization helpers; namespace repair and formatting | Complete common output workflows with explicit namespace and failure contracts | Parse/write semantic round trips; invalid-event rejection; encoded-output limits; partial I/O and panic tests; namespace repair specification |
+| P1 | UTF-16 input/output and encoding detection; basic tree mutation | Close the UTF-8-only conformance gap and support editing workflows | Encoding boundary corpus; parse/write semantic round trips; malformed operation tests |
 | P1 | Stable Rust API review and binding boundary prototype | Avoid committing language bindings to unstable node ownership | Lifetime/handle tests; thread and callback contract; explicit resolution of ABI/unsafe constraints |
 | P2 | DTD declarations, entity representation/expansion, defaults, IDs and DTD validation; resolvers and catalogs | Common legacy XML workflows, with substantial new security exposure | Capability-based resolution; aggregate budgets; entity cycles/amplification tests; validation corpus and differential results |
 | P2 | XPath 1.0 and pattern selection; Canonical XML; XInclude; URI utilities | High-value document processing built on stable tree and resolver semantics | W3C suites where available; explicit data model; query/output budgets; canonical byte comparisons |
@@ -39,6 +40,8 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
 - [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
 - [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.
+- [x] Add a bounded UTF-8 event writer sharing grammar and namespace validation, with explicit finish, escaping, prospective XML offsets, and terminal partial-I/O failures.
+- [ ] Add DOM serialization helpers, namespace repair, formatting, and UTF-16 output with separate behavior contracts and regression coverage.
 - [ ] Add buffered pull input and owned document storage; verify memory and time-to-first-event across large-input size series.
 
 The reference release is pinned and 4,051 header identifiers are indexed. A built
@@ -50,6 +53,11 @@ Later rows receive their own detailed burndown when their dependencies are under
 The [streaming contract](streaming.md) describes the implemented P1 subset. Push
 parsing uses one bounded token buffer; it does not accumulate the input. Buffered
 pull, owned DOM, encoding expansion and allocator support remain pending.
+
+The [writer contract](writer.md) describes the implemented event serializer.
+It requires explicit namespace declarations and complete end events; finishing
+validates closure and flushes the sink. This is a subset of libxml2's writer
+surface, with no serialization performance comparison established.
 
 ## Performance decisions
 

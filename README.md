@@ -8,7 +8,8 @@ in UTF-8, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, and an immutable DOM. DTDs and other encodings
 return structured errors. `Reader` borrows complete input. `PushParser` consumes
 arbitrary byte chunks, retaining a bounded token and active document/namespace
-state; `read_from` drives it from a caller-provided `std::io::Read`.
+state; `read_from` drives it from a caller-provided `std::io::Read`. `Writer`
+validates UTF-8 events and serializes them to a caller-provided `std::io::Write`.
 
 ```rust
 use std::ops::ControlFlow;
@@ -58,6 +59,30 @@ that specification; this does not enable XML 1.1 semantics. Encoding names are
 syntax-checked before an unsupported encoding is reported. The
 [conformance regressions](docs/conformance.md) and
 [independent oracle protocol](docs/oracle.md) describe the validation scope.
+
+Copy reader events to a writer with explicit namespace declarations:
+
+```rust
+use yaxml::{Reader, Writer};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let input = br#"<p:root xmlns:p="urn:example" key="a&amp;b"/>"#;
+    let mut reader = Reader::new(input)?;
+    let mut writer = Writer::new(Vec::new());
+    while let Some(event) = reader.read_event()? {
+        writer.write_event(&event)?;
+    }
+    writer.finish()?;
+    assert_eq!(writer.into_inner().as_slice(), input);
+    Ok(())
+}
+```
+
+The [writer contract](docs/writer.md) defines its six resource ceilings,
+escaping, namespace checks, and partial-output behavior. Each event is validated
+before writing. A sink failure can leave a partial event; later calls return
+`InvalidState`. `finish` requires a closed document and flushes once. Namespace
+repair, formatting, DOM serialization helpers, and UTF-16 output remain pending.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
