@@ -3,6 +3,25 @@ mod infoset;
 
 use infoset::{Projection, ProjectionError};
 
+fn utf16(input: &str, little_endian: bool, bom: bool) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    if bom {
+        bytes.extend_from_slice(if little_endian {
+            &[0xff, 0xfe]
+        } else {
+            &[0xfe, 0xff]
+        });
+    }
+    for unit in input.encode_utf16() {
+        bytes.extend_from_slice(&if little_endian {
+            unit.to_le_bytes()
+        } else {
+            unit.to_be_bytes()
+        });
+    }
+    bytes
+}
+
 fn fields(output: &[u8]) -> Vec<&str> {
     let mut remainder = std::str::from_utf8(output)
         .unwrap()
@@ -136,6 +155,157 @@ fn namespaces_attributes_and_node_kinds_are_preserved() {
 }
 
 #[test]
+fn utf16_views_preserve_the_utf8_query_values_and_text_grouping() {
+    let body = "<!--é--><?空 data?><é:r xmlns:é='urn:ü' é:a='&#9;🙂' a='&quot;'>A\r\n<![CDATA[é]]><![CDATA[]]>🙂<n/>B</é:r><!--tail-->";
+    let expected = Projection::from_input(body.as_bytes()).unwrap();
+    assert_eq!(
+        fields(expected.expected()),
+        [
+            "7",
+            "3",
+            "1",
+            "",
+            "",
+            "",
+            "é",
+            "0",
+            "4",
+            "1",
+            "空",
+            "空",
+            "",
+            "data",
+            "0",
+            "1",
+            "1",
+            "é:r",
+            "r",
+            "urn:ü",
+            "",
+            "2",
+            "é:a",
+            "a",
+            "urn:ü",
+            "\t🙂",
+            "a",
+            "a",
+            "",
+            "\"",
+            "2",
+            "2",
+            "",
+            "",
+            "",
+            "A\né🙂",
+            "0",
+            "1",
+            "2",
+            "n",
+            "n",
+            "",
+            "",
+            "0",
+            "2",
+            "2",
+            "",
+            "",
+            "",
+            "B",
+            "0",
+            "3",
+            "1",
+            "",
+            "",
+            "",
+            "tail",
+            "0"
+        ]
+    );
+    for (little_endian, bom, label) in [
+        (true, true, None),
+        (false, true, None),
+        (true, true, Some("UTF-16")),
+        (false, true, Some("uTf-16")),
+        (true, true, Some("UTF-16LE")),
+        (false, true, Some("UTF-16BE")),
+        (true, false, Some("uTf-16Le")),
+        (false, false, Some("UTF-16BE")),
+    ] {
+        let input = match label {
+            Some(label) => format!("<?xml version='1.0' encoding='{label}'?>{body}"),
+            None => body.to_owned(),
+        };
+        let input = utf16(&input, little_endian, bom);
+        let actual = Projection::from_input(&input).unwrap();
+        assert_eq!(actual.query(), expected.query());
+        assert_eq!(actual.expected(), expected.expected());
+    }
+    for body in [
+        "<r/>",
+        "<r><![CDATA[]]></r>",
+        "<r>a<![CDATA[b]]>c<![CDATA[d]]></r>",
+        "<r>a<x>b</x>c<!--d-->e</r>",
+    ] {
+        let expected = Projection::from_input(body.as_bytes()).unwrap();
+        for little_endian in [false, true] {
+            let actual = Projection::from_input(&utf16(body, little_endian, true)).unwrap();
+            assert_eq!(actual.query(), expected.query());
+            assert_eq!(actual.expected(), expected.expected());
+        }
+    }
+}
+
+#[test]
+fn malformed_utf16_and_encoding_disagreements_are_xml_errors() {
+    use yaxml::ErrorKind;
+    for little_endian in [false, true] {
+        for units in [&[0xdc00][..], &[0xd800], &[0xd800, 0x3c]] {
+            let mut input = utf16("<r>", little_endian, true);
+            for unit in units {
+                let unit: u16 = *unit;
+                input.extend_from_slice(&if little_endian {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                });
+            }
+            let error = Projection::from_input(&input).unwrap_err();
+            assert!(
+                matches!(error, ProjectionError::Xml(error) if error.kind == ErrorKind::InvalidUtf16 && error.offset == 8)
+            );
+        }
+        let mut odd = utf16("<r>", little_endian, true);
+        odd.push(0);
+        let error = Projection::from_input(&odd).unwrap_err();
+        assert!(
+            matches!(error, ProjectionError::Xml(error) if error.kind == ErrorKind::InvalidUtf16 && error.offset == 8)
+        );
+        for (label, bom, kind) in [
+            ("UTF-8", true, ErrorKind::EncodingMismatch),
+            ("UTF-16", false, ErrorKind::EncodingMismatch),
+            ("legacy", true, ErrorKind::UnsupportedEncoding),
+            ("UTF 16", true, ErrorKind::InvalidDeclaration),
+        ] {
+            let input = utf16(
+                &format!("<?xml version='1.0' encoding='{label}'?><r/>"),
+                little_endian,
+                bom,
+            );
+            let error = Projection::from_input(&input).unwrap_err();
+            assert!(
+                matches!(error, ProjectionError::Xml(error) if error.kind == kind && error.offset <= input.len())
+            );
+            assert!(std::error::Error::source(&error).is_some());
+        }
+        let error =
+            Projection::from_input(&utf16("\u{feff}<r/>", little_endian, true)).unwrap_err();
+        assert!(
+            matches!(error, ProjectionError::Xml(error) if error.kind == ErrorKind::TextOutsideRoot)
+        );
+    }
+}
+
+#[test]
 fn malformed_and_unsupported_documents_are_errors() {
     for input in [
         b"".as_slice(),
@@ -202,7 +372,9 @@ fn projection_ceilings_are_errors_instead_of_partial_comparisons() {
     large_query.push_str("/>");
     let large_output = format!(
         "<r>{}</r>",
-        format!("<n>{}</n>", "a".repeat(900_000)).repeat(10)
+        // Encoded tokens fit the raw ceiling; coalescing keeps the generated
+        // query below its own ceiling while exceeding the output bound.
+        format!("<![CDATA[{}]]>", "a".repeat(450_000)).repeat(20)
     );
     for (input, ceiling) in [
         (many_nodes, "node count"),
@@ -210,18 +382,36 @@ fn projection_ceilings_are_errors_instead_of_partial_comparisons() {
         (large_query, "query bytes"),
         (large_output, "expected output bytes"),
     ] {
-        let error = Projection::from_input(input.as_bytes()).unwrap_err();
-        assert!(
-            matches!(error, ProjectionError::Limit(name) if name == ceiling),
-            "{error}"
-        );
-        assert_eq!(
-            error.to_string(),
-            format!("infoset projection exceeds {ceiling} ceiling")
-        );
-        assert!(std::error::Error::source(&error).is_none());
+        for input in [
+            input.as_bytes().to_vec(),
+            utf16(&input, false, true),
+            utf16(&input, true, true),
+        ] {
+            let error = Projection::from_input(&input).unwrap_err();
+            assert!(
+                matches!(error, ProjectionError::Limit(name) if name == ceiling),
+                "{error}"
+            );
+            assert_eq!(
+                error.to_string(),
+                format!("infoset projection exceeds {ceiling} ceiling")
+            );
+            assert!(std::error::Error::source(&error).is_none());
+        }
     }
     assert_eq!(infoset::MAX_QUERY_BYTES, 64 * 1024);
     assert_eq!(infoset::MAX_ATTRIBUTES, 4096);
     assert_eq!(infoset::MAX_EXPECTED_BYTES, 8 * 1024 * 1024);
+}
+
+#[test]
+fn framing_total_is_bounded_without_text_coalescing() {
+    let input = format!(
+        "<r>{}</r>",
+        format!("<n>{}</n>", "a".repeat(900_000)).repeat(10)
+    );
+    assert!(matches!(
+        Projection::from_input(input.as_bytes()),
+        Err(ProjectionError::Limit("expected output bytes"))
+    ));
 }

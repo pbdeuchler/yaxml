@@ -3,11 +3,13 @@
 //! Run the returned query with `xmllint --nocdata --strict-namespace
 //! --nocatalogs --xpath QUERY -`. Compare stdout directly with `expected()`;
 //! oracle values never pass through yaxml's parser.
+//! UTF-8 borrows Reader events; UTF-16 borrows an owned tree's logical views.
+//! Supply the original encoded bytes to the external oracle in either case.
 
 use std::borrow::Cow;
 use std::fmt;
 
-use yaxml::{Attribute, Error, Event, Name, Reader};
+use yaxml::{Attribute, Error, Event, Name, OwnedDocument, OwnedNodeKind, Reader};
 
 pub const LIBXML2_VERSION: &str = "2.15.4";
 pub const LIBXML2_COMPILED_VERSION: &str = "21504";
@@ -61,7 +63,21 @@ pub struct Projection {
 
 impl Projection {
     pub fn from_input(input: &[u8]) -> Result<Self, ProjectionError> {
-        let nodes = nodes(input)?;
+        // The borrowing interfaces deliberately remain UTF-8-only. Own logical
+        // values for the auto-decoding surface without retaining decoded input.
+        if input.starts_with(&[0xff, 0xfe])
+            || input.starts_with(&[0xfe, 0xff])
+            || input.starts_with(&[0, b'<', 0, b'?'])
+            || input.starts_with(&[b'<', 0, b'?', 0])
+        {
+            let document = OwnedDocument::parse_bytes(input)?;
+            Self::from_nodes(owned_nodes(&document)?)
+        } else {
+            Self::from_nodes(nodes(input)?)
+        }
+    }
+
+    fn from_nodes(nodes: Vec<ProjectedNode<'_>>) -> Result<Self, ProjectionError> {
         let mut builder = Builder {
             query: String::from("concat("),
             expected: String::new(),
@@ -179,26 +195,7 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
                     && previous.kind == "2"
                     && previous.depth == node.depth
                 {
-                    let mut merged = match std::mem::take(&mut previous.value) {
-                        Cow::Borrowed(value) => {
-                            let mut owned = String::new();
-                            append(
-                                &mut owned,
-                                value,
-                                MAX_EXPECTED_BYTES,
-                                "expected output bytes",
-                            )?;
-                            owned
-                        }
-                        Cow::Owned(value) => value,
-                    };
-                    append(
-                        &mut merged,
-                        &value,
-                        MAX_EXPECTED_BYTES,
-                        "expected output bytes",
-                    )?;
-                    previous.value = Cow::Owned(merged);
+                    merge_value(&mut previous.value, &value)?;
                     continue;
                 }
                 node.kind = "2";
@@ -224,6 +221,92 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
         nodes.push(node);
     }
     Ok(nodes)
+}
+
+fn owned_nodes(document: &OwnedDocument) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
+    let mut nodes: Vec<ProjectedNode<'_>> = Vec::new();
+    let mut attributes = 0usize;
+    for source in document.nodes().skip(1) {
+        let mut node = ProjectedNode {
+            depth: std::iter::successors(source.parent(), |node| node.parent()).count(),
+            name: source.name().unwrap_or(Name {
+                qualified: "",
+                prefix: None,
+                local: "",
+                namespace: None,
+            }),
+            value: Cow::Borrowed(source.text().unwrap_or("")),
+            attributes: Vec::new(),
+            kind: match source.kind() {
+                OwnedNodeKind::Element => "1",
+                OwnedNodeKind::Text | OwnedNodeKind::Cdata => "2",
+                OwnedNodeKind::Comment => "3",
+                OwnedNodeKind::ProcessingInstruction => "4",
+                _ => return Err(ProjectionError::Limit("supported node kinds")),
+            },
+        };
+        if let Some(target) = source.processing_instruction_target() {
+            node.name.qualified = target;
+            node.name.local = target;
+        }
+        for attribute in source.attributes() {
+            if attribute.name.namespace.as_deref() == Some(XMLNS_NAMESPACE) {
+                continue;
+            }
+            if attributes == MAX_ATTRIBUTES {
+                return Err(ProjectionError::Limit("attribute count"));
+            }
+            attributes += 1;
+            node.attributes
+                .try_reserve(1)
+                .map_err(|_| ProjectionError::Allocation)?;
+            node.attributes.push(attribute);
+        }
+        if node.kind == "2" {
+            if node.value.is_empty() {
+                continue;
+            }
+            if let Some(previous) = nodes.last_mut()
+                && previous.kind == "2"
+                && previous.depth == node.depth
+            {
+                merge_value(&mut previous.value, &node.value)?;
+                continue;
+            }
+        }
+        if nodes.len() == MAX_NODES {
+            return Err(ProjectionError::Limit("node count"));
+        }
+        nodes
+            .try_reserve(1)
+            .map_err(|_| ProjectionError::Allocation)?;
+        nodes.push(node);
+    }
+    Ok(nodes)
+}
+
+fn merge_value(previous: &mut Cow<'_, str>, value: &str) -> Result<(), ProjectionError> {
+    let mut merged = match std::mem::take(previous) {
+        Cow::Borrowed(value) => {
+            let mut owned = String::new();
+            append(
+                &mut owned,
+                value,
+                MAX_EXPECTED_BYTES,
+                "expected output bytes",
+            )?;
+            owned
+        }
+        Cow::Owned(value) => value,
+    };
+    append(
+        &mut merged,
+        value,
+        MAX_EXPECTED_BYTES,
+        "expected output bytes",
+    )?;
+    *previous = Cow::Owned(merged);
+    Ok(())
 }
 
 struct Builder {
