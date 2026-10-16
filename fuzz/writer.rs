@@ -86,6 +86,16 @@ fn empty() -> Event<'static> {
     })
 }
 
+fn inconsistent_name_fields(name: &Name<'_>) -> bool {
+    let (prefix, local) = name
+        .qualified
+        .split_once(':')
+        .map_or((None, name.qualified), |(prefix, local)| {
+            (Some(prefix), local)
+        });
+    name.prefix != prefix || name.local != local
+}
+
 fn assert_terminal<W: Write>(writer: &mut Writer<W>) {
     let position = writer.position();
     for result in [
@@ -178,11 +188,27 @@ fn operations(input: &[u8]) {
             Event::ProcessingInstruction { data, .. } => data.contains("?>"),
             _ => false,
         };
+        let inconsistent_metadata = match &event {
+            Event::Start(element) | Event::Empty(element) => {
+                inconsistent_name_fields(&element.name)
+                    || element.attributes.iter().any(|attribute| {
+                        inconsistent_name_fields(&attribute.name)
+                            || (attribute.name.qualified == "xmlns"
+                                && attribute.name.namespace.as_deref()
+                                    != Some("http://www.w3.org/2000/xmlns/"))
+                            || (attribute.name.prefix.is_none()
+                                && attribute.name.qualified != "xmlns"
+                                && attribute.name.namespace.is_some())
+                    })
+            }
+            Event::End(name) => inconsistent_name_fields(name),
+            _ => false,
+        };
         let previous = writer.position();
         let result = writer.write_event(&event);
         assert!(
-            !forbidden_delimiter || result.is_err(),
-            "writer accepted a forbidden raw delimiter"
+            !(forbidden_delimiter || inconsistent_metadata) || result.is_err(),
+            "writer accepted forbidden delimiters or inconsistent name metadata"
         );
         if let Err(error) = result {
             assert!(

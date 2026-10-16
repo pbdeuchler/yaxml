@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 The [writer contract](docs/writer.md) defines its six resource ceilings,
 escaping, namespace checks, and partial-output behavior. Each event is validated
 before writing. A sink failure can leave a partial event; later calls return
-`InvalidState`. `finish` requires a closed document and flushes once. Namespace
+`InvalidState`. `finish` requires a closed document and flushes the sink. Namespace
 repair, formatting, DOM serialization helpers, and UTF-16 output remain pending.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
