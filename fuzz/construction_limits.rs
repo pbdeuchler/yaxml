@@ -29,6 +29,18 @@ fn empty_spec(local: &str) -> ElementSpec<'_> {
     }
 }
 
+fn namespace_location(
+    index: usize,
+    component: Option<EditComponent>,
+    byte_offset: Option<usize>,
+) -> EditLocation {
+    EditLocation::NamespaceItem {
+        index,
+        component,
+        byte_offset,
+    }
+}
+
 fn namespace_limits(max_namespace_work: usize) -> EditLimits {
     EditLimits {
         max_namespace_work,
@@ -668,15 +680,31 @@ fn persistent_quota_family(variant: u8) {
 
 #[derive(Clone, Copy)]
 enum LengthCase {
+    NamespacePrefix,
+    NamespaceUri,
     AttributeLocal,
     AttributeNamespace,
     AttributePrefix,
     AttributeValue,
+    AggregateNamespacePrefix,
+    AggregateNamespaceUri,
     AggregateValue,
 }
 
 fn length_item(case: LengthCase) -> ElementItem<'static> {
     match case {
+        LengthCase::NamespacePrefix | LengthCase::AggregateNamespacePrefix => {
+            ElementItem::Namespace(NamespaceSpec {
+                prefix: Some("éé"),
+                uri: "u",
+            })
+        }
+        LengthCase::NamespaceUri | LengthCase::AggregateNamespaceUri => {
+            ElementItem::Namespace(NamespaceSpec {
+                prefix: Some("p"),
+                uri: "urn:u",
+            })
+        }
         LengthCase::AttributeLocal => ElementItem::Attribute(AttributeSpec {
             name: spec_name("name", None, exact(None)),
             value: "v",
@@ -700,6 +728,28 @@ fn length_item(case: LengthCase) -> ElementItem<'static> {
 
 fn length_limits(case: LengthCase, exact: bool) -> (EditLimits, EditError) {
     match case {
+        LengthCase::NamespacePrefix => (
+            EditLimits {
+                max_name_bytes: if exact { 4 } else { 3 },
+                max_supplied_bytes: usize::MAX,
+                ..EditLimits::default()
+            },
+            located(
+                EditErrorKind::LimitExceeded(EditLimit::NameBytes),
+                namespace_location(0, Some(EditComponent::Prefix), Some(3)),
+            ),
+        ),
+        LengthCase::NamespaceUri => (
+            EditLimits {
+                max_name_bytes: if exact { 5 } else { 4 },
+                max_supplied_bytes: usize::MAX,
+                ..EditLimits::default()
+            },
+            located(
+                EditErrorKind::LimitExceeded(EditLimit::NameBytes),
+                namespace_location(0, Some(EditComponent::NamespaceUri), Some(4)),
+            ),
+        ),
         LengthCase::AttributeLocal => (
             EditLimits {
                 max_name_bytes: if exact { 4 } else { 3 },
@@ -744,6 +794,30 @@ fn length_limits(case: LengthCase, exact: bool) -> (EditLimits, EditError) {
                 attribute_location(0, Some(EditComponent::Value), Some(3)),
             ),
         ),
+        LengthCase::AggregateNamespacePrefix => (
+            EditLimits {
+                max_name_bytes: 4,
+                // c (1) + éé (4) + u (1) = 6 supplied bytes.
+                max_supplied_bytes: if exact { 6 } else { 4 },
+                ..EditLimits::default()
+            },
+            located(
+                EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
+                namespace_location(0, Some(EditComponent::Prefix), Some(3)),
+            ),
+        ),
+        LengthCase::AggregateNamespaceUri => (
+            EditLimits {
+                max_name_bytes: 5,
+                // c (1) + p (1) + urn:u (5) = 7 supplied bytes.
+                max_supplied_bytes: if exact { 7 } else { 6 },
+                ..EditLimits::default()
+            },
+            located(
+                EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
+                namespace_location(0, Some(EditComponent::NamespaceUri), Some(4)),
+            ),
+        ),
         LengthCase::AggregateValue => (
             EditLimits {
                 max_value_bytes: 4,
@@ -759,11 +833,15 @@ fn length_limits(case: LengthCase, exact: bool) -> (EditLimits, EditError) {
 }
 
 fn length_precedence_family(variant: u8) {
-    let case = match variant % 5 {
-        0 => LengthCase::AttributeLocal,
-        1 => LengthCase::AttributeNamespace,
-        2 => LengthCase::AttributePrefix,
-        3 => LengthCase::AttributeValue,
+    let case = match variant % 9 {
+        0 => LengthCase::NamespacePrefix,
+        1 => LengthCase::NamespaceUri,
+        2 => LengthCase::AttributeLocal,
+        3 => LengthCase::AttributeNamespace,
+        4 => LengthCase::AttributePrefix,
+        5 => LengthCase::AttributeValue,
+        6 => LengthCase::AggregateNamespacePrefix,
+        7 => LengthCase::AggregateNamespaceUri,
         _ => LengthCase::AggregateValue,
     };
     let items = [length_item(case)];
@@ -803,6 +881,12 @@ fn length_precedence_family(variant: u8) {
             .append_element(root, spec)
             .expect("exact/above non-root string bound was rejected");
         let expected_attributes = match case {
+            LengthCase::NamespacePrefix | LengthCase::AggregateNamespacePrefix => {
+                vec![declaration(Some("éé"), "u")]
+            }
+            LengthCase::NamespaceUri | LengthCase::AggregateNamespaceUri => {
+                vec![declaration(Some("p"), "urn:u")]
+            }
             LengthCase::AttributeLocal => vec![attribute(None, "name", None, "v")],
             LengthCase::AttributeNamespace => vec![
                 attribute(Some("p"), "a", Some("urn:u"), "v"),
@@ -881,7 +965,7 @@ mod tests {
 
     #[test]
     fn non_root_string_limits_preserve_argument_precedence() {
-        for variant in 0..5 {
+        for variant in 0..9 {
             exercise(&selected(4, variant));
         }
     }
@@ -897,6 +981,21 @@ mod tests {
             located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
                 attribute_location(0, Some(EditComponent::Prefix), Some(2)),
+            ),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "construction error contract changed")]
+    fn limit_oracle_rejects_a_shifted_namespace_item_offset() {
+        assert_error(
+            located(
+                EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
+                namespace_location(0, Some(EditComponent::Prefix), Some(2)),
+            ),
+            located(
+                EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
+                namespace_location(0, Some(EditComponent::Prefix), Some(3)),
             ),
         );
     }
