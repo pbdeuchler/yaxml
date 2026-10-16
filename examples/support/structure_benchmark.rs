@@ -560,7 +560,7 @@ mod tests {
     }
 
     #[test]
-    fn configuration_gate_rejects_zero_or_wrong_work_and_missing_phase_fields() {
+    fn configuration_gate_rejects_wrong_work_and_invalid_required_numbers() {
         let config = parse_args(args("append_text", "32")).unwrap();
         let valid = row("yaxml", "append_text", 107, 0, 1070);
         assert_eq!(validate_config(&config, &valid), Ok(()));
@@ -581,21 +581,57 @@ mod tests {
             validate_config(&config, &missing.unwrap()),
             Err(Error::Row("required field is missing"))
         );
+        for (field, value) in [
+            ("setup_ns", "1"),
+            ("edit_ns", "1"),
+            ("traversal_ns", "1"),
+            ("serialization_ns", "1"),
+            ("validation_ns", "1"),
+            ("drop_ns", "1"),
+            ("counted_output_bytes_total", "100"),
+            ("validation_output_bytes_total", "100"),
+            ("sink_writes_total", "1"),
+        ] {
+            let invalid = Row::parse(
+                valid
+                    .text
+                    .replace(
+                        &format!(" {field}={value}"),
+                        &format!(" {field}=not-a-number"),
+                    )
+                    .as_bytes(),
+            )
+            .unwrap();
+            assert_eq!(
+                validate_config(&config, &invalid),
+                Err(Error::Row("numeric field is invalid")),
+                "{field}"
+            );
+        }
     }
 
     #[test]
     fn version_gate_requires_both_pinned_versions_and_features() {
-        assert_eq!(
-            verify_version(
-                b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21504 tree=1 output=1\n"
-            ),
-            Ok(())
-        );
-        assert!(
-            verify_version(
-                b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21503 tree=1 output=1\n"
-            )
-            .is_err()
-        );
+        const VALID: &[u8] =
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21504 tree=1 output=1\n";
+        assert_eq!(verify_version(VALID), Ok(()));
+        for invalid in [
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21503 runtime=21504 tree=1 output=1\n".as_slice(),
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21503 tree=1 output=1\n".as_slice(),
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21504 tree=0 output=1\n".as_slice(),
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21504 tree=1 output=0\n".as_slice(),
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21504 tree=1\n".as_slice(),
+            b"YAXML-STRUCTURE-BENCH-1 runtime=21504 compiled=21504 tree=1 output=1\n".as_slice(),
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21504 tree=1 output=1 extra=1\n"
+                .as_slice(),
+            b"YAXML-STRUCTURE-BENCH-1 compiled=21504 runtime=21504 tree=1 output=1".as_slice(),
+        ] {
+            assert_eq!(
+                verify_version(invalid),
+                Err(Error::Mismatch("helper is not pinned libxml2 2.15.4")),
+                "{}",
+                String::from_utf8_lossy(invalid)
+            );
+        }
     }
 }
