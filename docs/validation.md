@@ -1,8 +1,9 @@
 # Initial implementation validation
 
-The subsequent [streaming milestone report](validation-streaming.md) records
-the current expanded implementation, tests and coverage. This page preserves
-the initial slice/DOM measurements.
+The subsequent [streaming milestone report](validation-streaming.md) and
+[declaration/oracle report](validation-oracle.md) record the expanded
+implementation, tests and coverage. This page preserves the initial slice/DOM
+measurements.
 
 This records the first UTF-8 reader/DOM slice, not completion of the replacement
 goal. Core source is unchanged between `bd52745` and `e935e2b`; later commits in
