@@ -6,7 +6,8 @@ dependency. This is an early implementation, not a libxml2 drop-in replacement.
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
-value edits. DTDs and other encodings return structured errors.
+value edits, leaf insertion and permanent subtree removal. DTDs and other
+encodings return structured errors.
 `Reader` and `Document` borrow complete UTF-8 input.
 `OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE.
 `PushParser` consumes arbitrary byte chunks; `read_from` drives it from a
@@ -116,6 +117,12 @@ assert_eq!(document.root_element().first_child().unwrap().text(), Some("text"));
 let text = document.root_element().first_child().unwrap().id();
 document.edit(EditLimits::default())?.set_node_value(text, "updated")?;
 assert_eq!(document.node(text).unwrap().text(), Some("updated"));
+let root = document.root_element().id();
+let mut editor = document.edit(EditLimits::default())?;
+let note = editor.append_comment(root, "reviewed")?;
+assert_eq!(editor.document().node(note).unwrap().range(), None);
+editor.remove_subtree(text)?;
+assert!(editor.document().node(text).is_none());
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
@@ -123,10 +130,16 @@ The [owned DOM contract](docs/owned-dom.md) describes pool-backed views,
 source ranges and aggregate string accounting. Retained copies share the
 normalization budget, so owned parsing can reach its ceiling before borrowing
 parsing. `Document` continues to borrow unchanged input.
-`Editor` replaces existing leaf or ordinary-attribute values while preserving
-names, namespaces, topology, handles and original source provenance. Its
-separate `EditLimits` bounds each replacement and cumulative pool-capacity
-requests across editors. Structural and namespace edits remain pending.
+`Editor` replaces existing leaf or ordinary-attribute values, appends fresh
+Text/CDATA/comment/PI leaves, and permanently removes non-root subtrees.
+Text and CDATA require an element parent; comments and PIs may also append after
+the document's epilog. Insertion never merges Text nodes. Removal makes all
+subtree handles stale and protects the synthetic root and document element.
+Parsed survivors retain their source ranges; new nodes have none. `EditLimits`
+bounds each supplied string, cumulative pool-capacity requests, and successful
+created slots across editors; removal refunds neither counter. Element/attribute
+construction, moves/adoption, detached ownership, namespace edits, slot reuse and
+compaction remain pending.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need

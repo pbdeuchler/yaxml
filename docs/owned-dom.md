@@ -1,7 +1,7 @@
 # Owned document storage
 
 `OwnedDocument` survives destruction of its UTF-8 or UTF-16 input and supports
-bounded replacement of existing logical values.
+bounded value replacement, leaf insertion and permanent subtree removal.
 Its parser uses the same XML grammar, namespaces, normalization and resource
 policy as `Document`; strings are copied into a document-owned UTF-8 pool.
 Records keep pool ranges and flat node links rather than references into their
@@ -56,19 +56,20 @@ returns a target only for PI nodes. Empty strings remain present values.
 `range()` returns `Some(range)` for parsed nodes, referring to their location in
 the original encoded input, including delimiters and an element's end tag.
 This is persistent provenance, not a promise that current logical content can
-be sliced from the original bytes. Future created nodes can have no source
-range. Pool ranges are private and describe normalized logical
+be sliced from the original bytes. Created nodes return `None`; parsed survivors
+keep their original ranges after edits and removal elsewhere. Pool ranges are private and describe normalized logical
 strings. A source range cannot index the pool, and there is no retained source
 buffer to slice after input destruction.
 
 `OwnedNodeId` is a Copy handle with private document identity and slot fields.
 `node(id)` rejects foreign handles, even when the slot exists in both documents,
-as well as out-of-range slots. Moving a document preserves its handles; separately
+as well as out-of-range and permanently removed slots. Moving a document preserves its handles; separately
 parsed documents have different identities. The nonzero process-local identity
 counter never recycles or wraps; exhaustion returns `IdentifierExhausted` at
 offset zero after XML construction otherwise succeeds. IDs are not serialized
-identifiers or stable addresses. Binding registries and structural mutation
-remain future work. The borrowing tree keeps its separate `NodeId` type and
+identifiers or stable addresses. Slots are never reused, so removed handles
+cannot resolve to later insertions. Binding registries remain future work.
+The borrowing tree keeps its separate `NodeId` type and
 document-local index contract.
 
 This is an intentional API change before stabilization: owned `id()`/`node()`
@@ -152,22 +153,79 @@ then storage. Character and lexical failures report a UTF-8 index in the new
 value; other failures have no index. This index is never an original source
 coordinate. An error preserves logical state and the editor remains usable.
 Names, namespace metadata, declaration, topology, IDs and original source ranges
-also persist after successful edits.
+also persist after successful value edits.
+
+## Leaf insertion and permanent removal
+
+`append_text`, `append_cdata`, `append_comment` and
+`append_processing_instruction` create one fresh last child and return its
+stable handle. Text and CDATA require an element parent. Comments and PIs also
+accept the synthetic document parent, placing the new node after all epilog
+content. A leaf cannot be a parent. New nodes have no source range.
+
+```rust
+use yaxml::{EditLimits, OwnedDocument};
+let mut document = OwnedDocument::parse("<r><private>secret</private></r><!--end-->")?;
+let root = document.root_element().id();
+let private = document.root_element().first_child().unwrap().id();
+let mut editor = document.edit(EditLimits::default())?;
+let note = editor.append_comment(root, "redacted")?;
+editor.remove_subtree(private)?;
+assert!(editor.document().node(private).is_none());
+assert_eq!(editor.document().node(note).unwrap().range(), None);
+assert_eq!(editor.document().root_element().first_child().unwrap().id(), note);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+Payloads follow the value rules above. A PI target must be an XML Name without a
+colon and cannot be any ASCII case spelling of `xml`. Invalid XML characters
+precede name or lexical errors within each string. Append checks the parent
+handle, placement, each string's byte ceiling, target/data validation in argument
+order, created-node quota, owned-byte quota, then allocation. Both PI byte
+ceilings precede scanning either string. `InvalidName` indexes the target;
+character/lexical errors index whichever target or data argument failed.
+
+`remove_subtree` permanently removes a node and every descendant. All their
+handles become stale for lookup and editing. The synthetic root and document
+element return `ProtectedNode`; foreign, invalid or stale handles return
+`InvalidHandle` first. Surviving handles, values, namespace metadata and source
+ranges remain unchanged. Removal allocates nothing and does not recurse.
+
+Neither insertion nor removal merges adjacent Text nodes. Appending Text `b`
+after Text `a` retains both handles but writes `ab`; empty Text retains a handle
+while contributing no bytes. Removing an intervening element has the same Text
+behavior. Reparse can coalesce Text runs and omit empty Text. CDATA, comments and
+PIs retain their distinct nodes, including empty payloads.
+
+Every error preserves the logical tree and leaves the editor usable. Appends
+reserve storage before publishing links. Capacity changes and cumulative charges
+may remain after allocation failure. Removal clears payload, provenance and
+links from each tombstone; slots, old pool strings and attribute storage are not
+reclaimed or zeroized. The document stays well-formed, so complete serialization
+remains available under the writer's own limits.
+
+## Editing limits
 
 | `EditLimits` field | Default | Accounting |
 | --- | --- | --- |
-| `max_value_bytes` | 1 MiB (1,048,576 bytes) | Replacement UTF-8 bytes, checked before scanning; excludes selector keys. |
+| `max_value_bytes` | 1 MiB (1,048,576 bytes) | UTF-8 bytes per supplied value or PI target, checked before scanning; excludes selector keys. |
 | `max_owned_bytes` | 64 MiB (67,108,864 bytes) | Full newly requested pool capacities across all editors for this document. |
+| `max_created_nodes` | 1,000,000 | Successful fresh slots across all editors; excludes parsed nodes and never refunds removal. |
 
 Editing starts with the parsed pool and spare capacity as its baseline. It does
-not charge parsing again or reset its editing counter when an editor closes.
+not charge parsing again or reset either editing counter when an editor closes.
 A growth charges its full replacement capacity before reservation; earlier
 charges remain spent, including failed reservation requests. A lower ceiling
-than expenditure already incurred prevents opening an editor; a later higher
-ceiling is allowed. An equal-value replacement follows the same append path.
+than expenditure already incurred prevents opening an editor; when both
+cumulative ceilings are too low, `CreatedNodes` precedes `OwnedBytes`. A later
+higher ceiling is allowed. An equal-value replacement follows the same append path.
 Old values remain in the append-only pool. Capacity already available can serve
 an edit with zero remaining growth allowance. This bounds requested growth, not resident
-memory or all CPU work. Allocation-failure injection remains unimplemented.
+memory or all CPU work. PI target and data share one combined reservation: after
+parsing `<r/>` into one pool byte, appending target `p` and data `d` charges one
+full-capacity request of 3 bytes. A 2-byte editing allowance fails and a 3-byte
+allowance succeeds. Removal refunds neither cumulative counter.
+Allocation-failure injection remains unimplemented.
 
 The [mutation validation report](validation-owned-mutation.md) distinguishes
 implemented behavior from pending coverage, review and performance evidence.
@@ -176,8 +234,9 @@ implemented behavior from pending coverage, review and performance evidence.
 
 Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
-adapters. Node construction/removal/reparenting, name and namespace edits,
-declaration editing, foreign registries, allocator parameters, formatting,
+adapters. General element/attribute construction, sibling insertion, moves,
+copy/import/adoption, detached ownership, slot reuse, compaction, name and namespace
+edits, declaration editing, foreign registries, allocator parameters, formatting,
 namespace repair, and UTF-16 output remain separate work items. Comparative
 parsing/serialization performance and complete fuzz coverage remain open
 evidence gates.

@@ -15,17 +15,27 @@ Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned documen
 The implemented subset now includes the borrowing slice reader, read-only DOM,
 callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
 writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
-and an explicit `Read`
+fresh leaf insertion, permanent subtree removal, and an explicit `Read`
 adapter. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
 also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
 full upstream reader/SAX/save option surfaces remain open.
 
 The [owned edit API](owned-dom.md#editing-existing-values) replaces literal leaf
-and existing ordinary-attribute values by checked handle. It preserves names,
-namespace declarations, attribute order and topology. It does not implement
-entity-interpreting setters, QName-based attribute creation,
-structural moves, namespace repair, or C entry points. The header inventory
+and existing ordinary-attribute values by checked handle. Value edits preserve
+topology. [Structural edits](owned-dom.md#leaf-insertion-and-permanent-removal)
+append fresh Text/CDATA/comment/PI leaves and permanently remove non-root
+subtrees. Text/CDATA require an element parent; comments/PIs also append to the
+document epilog. PI targets and lexical payloads are validated before allocation.
+Insertion never merges Text nodes; removal makes every subtree handle stale and
+protects the document element and synthetic root. Parsed survivors retain source
+provenance and created nodes have none. Creation and pool-work counters persist
+across editors without refunds. Names, namespace declarations and attribute
+membership stay fixed. General element/attribute construction, sibling insertion,
+moves/copy/import/adoption, detached ownership, slot reuse, compaction,
+entity-interpreting setters, namespace repair and C entry points remain open.
+In particular, these operations do not reproduce `xmlAddChild`'s move/adopt and
+Text-merging behavior or `xmlUnlinkNode`'s detached ownership. The header inventory
 remains an unmapped upstream catalogue, not a claim that these Rust methods
 provide full `tree.h` compatibility.
 
