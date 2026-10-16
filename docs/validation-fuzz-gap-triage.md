@@ -96,8 +96,8 @@ executable mapping. Merge, report and export diagnostics were empty.
 
 At source-span granularity, zero-count spans fell from 207 to 202 and unique
 branch sites with a missed outcome fell from 27 to 25. The gains are the two
-regions for required-declaration rejection, the finish-cancellation region,
-the pre-root quota propagation region and their associated branch outcomes;
+source spans for required-declaration rejection, the two finish-cancellation
+spans, and the pre-root quota propagation span and associated branch outcomes;
 LLVM's official region aggregation accounts for four additional reached
 regions rather than the five distinct coordinates.
 
@@ -106,8 +106,9 @@ versions, coverage JSON, the per-file report, the collapsed triage and empty
 diagnostics are in `/private/tmp/yaxml-fuzz-gap-coverage-1598673`. The report
 SHA-256 is `f3b8918338e2c5e3b2cac93b21f836f1682230822901bee827357a4ee159f042`.
 
-The committed harness passed all 350 listed all-target tests, with 343 run and
-7 ignored helpers, plus 10 documentation tests. Strict Clippy and formatting
+The committed harness passed 346 all-target tests, with 7 ignored helpers,
+plus 10 documentation tests. This includes three successful custom-harness
+executions omitted by the ordinary test-list inventory. Strict Clippy and formatting
 checks also passed. `git diff --exit-code 9e4b3a6 -- src` confirms that the
 production source is byte-identical to the reviewed base. The measurement
 manifests refer to the exact code commit `1598673`; this documentation is a

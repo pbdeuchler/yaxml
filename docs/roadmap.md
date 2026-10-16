@@ -38,6 +38,14 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   34-case structural catalog, with every result classified. Full conformance
   suites and broader multi-operation differential campaigns remain pending.
 - [x] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps. Reaching 100% remains open.
+- [x] Add a bounded coverage-guided mutation campaign with replayable lineage,
+  per-case execution/profile limits, strict coverage-schema checks and retained
+  failure evidence. The [500-case validation](validation-fuzz-campaign.md)
+  establishes the harness mechanics, not sustained security assurance.
+- [x] Triage remaining fuzz-only gaps and add independent finish-cancellation,
+  BOM-less encoding-rejection and pre-root quota assertions. The
+  [fresh measurement](validation-fuzz-gap-triage.md) reaches 4,859/5,082 regions
+  and 658/692 instrumented branch outcomes; 100% remains open.
 - [ ] Record full DOM and streaming baselines for libxml2 and yaxml across a versioned corpus.
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
 - [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
@@ -55,6 +63,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add fresh owned leaf insertion and permanent subtree removal with stable
   checked handles, persistent edit quotas, iterative deletion and an independent
   operation model. Slots and retained string storage are not reclaimed or reused.
+- [x] Add allocation-free borrowed and owned `text_chunks()` views in document
+  order, with edited-tree and encoded-input checks and pinned external-oracle
+  comparisons in the [validation report](validation-text-chunks.md).
+- [ ] Implement the next [owned construction slice](plans/owned-construction.md)
+  after freezing aggregate work limits. Creation and append of fresh elements
+  can retain existing contiguous attribute storage; existing-element attribute
+  insertion/removal still needs an accepted membership design.
 - [ ] Add general element/attribute and sibling insertion, detach/move/copy,
   cross-document import/adoption, namespace repair, reclamation/compaction and
   any slot-reuse policy with explicit cycle, ownership and text-merging contracts.
@@ -98,6 +113,11 @@ evidence for this slice.
 Compare release builds on the same machine with matched options, validation, limits, encoding, and event work. Record compiler, CPU, allocator, input hash, warm/cold policy, repetitions, median and spread. Parsing a borrowed input is different from copying and decoding an owned document; report both. A faster tokenizer is not a full DOM result. Run performance work in isolated experiments after correctness and security gates pass. Reject optimizations that weaken validation or turn valid input into an undocumented subset.
 
 Use `memchr` for delimiter search when profiles justify it, borrow unchanged strings, and allocate normalized strings only when necessary. Favor contiguous arena storage and explicit stacks. Choose interning, extra indices, and compact node layouts based on measured workloads; each can trade parse time for memory or later query speed. Track adversarial scaling as well as typical throughput.
+
+The [UTF-16 ASCII batching screen](validation-utf16-ascii-batches.md) records
+large long-token gains together with a repeated UTF-8 tiny-element regression.
+That prototype remains off main; the preliminary samples do not establish an
+accepted optimization or a libxml2 performance result.
 
 Benchmark preflight found that [xmllint batch timing](https://github.com/GNOME/libxml2/blob/v2.15.4/xmllint.c)
 excludes startup and memory mapping but reuses its DOM parser context. Its

@@ -151,8 +151,11 @@ as markup: callers add literal text through `append_text`.
 
 ## Open decisions before freezing
 
-The proposal intentionally leaves attribute storage to the matched
-geometric-block experiment. Remaining public-contract choices still need review:
+The proposal leaves existing-element attribute membership open. The matched
+geometric-block experiment has not passed its edited-tree performance gate.
+Creation and append of a fresh element can use the existing contiguous arena
+without changing membership on an existing element. Remaining public-contract
+choices still need review:
 
 - Adding five fields to public `EditLimits` and a typed location to `EditError`
   changes source compatibility for struct literals and error destructuring.
@@ -306,8 +309,8 @@ out of scope.
 The current [builder](../../src/owned.rs) and
 [serializer](../../src/serialize.rs) expose an ordered, exact-size borrowed
 attribute view over contiguous ranges. Keep that view and read path unchanged.
-Storage for insertion/removal remains open; the geometric-block experiment
-owns that decision. This API proposal requires ordered membership, replacement
+Storage for insertion/removal remains open; the geometric-block experiment did
+not clear its edited-tree performance gate. This API proposal requires ordered membership, replacement
 at the existing position, exact iteration length and atomic updates. It does not
 prescribe per-element vectors, links, block descriptors, record size or public
 layout.
@@ -357,10 +360,11 @@ the storage experiment provides concrete accounting. Reservations remain
 fallible.
 Temporary planning is bounded by `max_attributes` and uses fallible reservation.
 Local-name XML validation is bounded only by the per-component
-`max_name_bytes` ceiling, not by `max_namespace_work`. Since up to 1,024 items
-could each carry a near-limit local name or value, the implementation still
-needs an aggregate supplied-byte/work bound before this proposal can pass its
-resource gate; the per-component limits alone do not bound aggregate scanning.
+`max_name_bytes` ceiling, not by `max_namespace_work`. Up to 1,024 items could
+each carry a near-limit local name or value, permitting roughly 1 GiB of
+scanning for just one component per item. The implementation still needs a
+smaller aggregate supplied-byte/work bound before this proposal can pass its
+resource gate.
 
 Build scope once per operation rather than scanning every ancestor for each
 attribute. Assign temporary URI identities once per distinct resolved binding
@@ -389,14 +393,14 @@ error precedence:
    namespace URI, prefix; then each item in order (declaration prefix then URI;
    attribute local name, namespace URI, prefix, then value). Name components use
    `max_name_bytes`, values use `max_value_bytes`.
-4. Validate XML characters and XML Names in the same order. Before scanning a
-   namespace URI for XML characters, charge its full byte length to this
+4. Validate XML characters and XML Names in the same order. Before validating a
+   prefix or namespace URI, charge its full byte length to this
    operation's namespace-work allowance; if that would exceed the ceiling,
-   return `NamespaceWork` before scanning the URI. Return the first
+   return `NamespaceWork` before scanning the component. Return the first
    component-local UTF-8 byte offset for validation failures that fit the
    allowance.
 5. Charge namespace work before each declaration/prefix candidate probe and
-   before each URI equality check (charge full operand lengths as the worst-case
+   before each prefix/URI equality or hash operation (charge full operand lengths as the worst-case
    comparison cost). Then validate explicit declaration reserved rules in item
    order and resolve the element name using all declarations. Walk items in order; resolve each
    ordinary attribute and immediately check its expanded-name duplicate.
