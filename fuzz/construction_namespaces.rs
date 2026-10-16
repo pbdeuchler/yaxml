@@ -34,18 +34,22 @@ fn assert_existing_nodes_preserved(
     document: &OwnedDocument,
     before: &Snapshot,
     appended_parent: OwnedNodeId,
+    inserted: OwnedNodeId,
 ) {
     let old_parent = before
         .nodes
         .iter()
         .find(|node| node.id == appended_parent)
         .expect("append parent was not in the original tree");
-    let inserted = document
-        .node(appended_parent)
-        .unwrap()
-        .last_child()
-        .expect("append did not publish a last child")
-        .id();
+    assert_eq!(
+        document
+            .node(appended_parent)
+            .unwrap()
+            .last_child()
+            .map(|node| node.id()),
+        Some(inserted),
+        "append did not publish the returned child"
+    );
     assert!(
         before.nodes.iter().all(|node| node.id != inserted),
         "append did not publish a fresh child"
@@ -278,7 +282,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("automatic attribute should reuse an inherited matching prefix");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         5 => {
             let expected = ModelElement {
@@ -297,7 +301,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("automatic element should reuse inherited default binding");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         6 => {
             let expected = ModelElement {
@@ -316,7 +320,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("no-namespace element should undeclare inherited default");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         7 => {
             let expected = ModelElement {
@@ -339,7 +343,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("automatic element should use inherited non-default matching prefix");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         8 => {
             let expected = ModelElement {
@@ -373,7 +377,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("generated prefix should skip inherited ns1 and reserve exact ns1");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         9 => {
             let expected = ModelElement {
@@ -412,7 +416,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("automatic prefix must not be retargeted by a later Exact intent");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         10 => {
             // The root binds p to old; the nearer element shadows p with new,
@@ -438,7 +442,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("shadowed p must resolve through inherited q");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         14 => {
             let expected = ModelElement {
@@ -471,7 +475,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 )
                 .expect("automatic prefix should reuse the matching local declaration");
             check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent);
+            assert_existing_nodes_preserved(&document, &before, parent, child);
         }
         15 => {
             let expected = located(EditErrorKind::Namespace, attribute_location(1, None, None));
@@ -515,7 +519,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
                 recovery_name
             );
-            assert_existing_nodes_preserved(editor.document(), &before, parent);
+            assert_existing_nodes_preserved(editor.document(), &before, parent, recovery);
         }
         16 => {
             let expected = located(EditErrorKind::Namespace, attribute_location(1, None, None));
@@ -559,7 +563,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
                 recovery_name
             );
-            assert_existing_nodes_preserved(editor.document(), &before, parent);
+            assert_existing_nodes_preserved(editor.document(), &before, parent, recovery);
         }
         12 => {
             let expected = located(
@@ -600,7 +604,7 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
                 recovery_name
             );
-            assert_existing_nodes_preserved(editor.document(), &before, parent);
+            assert_existing_nodes_preserved(editor.document(), &before, parent, recovery);
             assert_serializable(editor.document());
         }
         _ => duplicate_and_alias_cases(mode, &mut document, &local, &before),
@@ -661,7 +665,7 @@ fn duplicate_and_alias_cases(
         observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
         recovery_name
     );
-    assert_existing_nodes_preserved(editor.document(), before, recovery_parent);
+    assert_existing_nodes_preserved(editor.document(), before, recovery_parent, recovery);
 
     // Equal local names in distinct namespaces are not duplicate expanded
     // names, even when both are explicitly prefixed on the new element.
@@ -701,7 +705,7 @@ fn duplicate_and_alias_cases(
         )
         .expect("different expanded attribute names should remain distinct");
     assert_element(&fresh, child, &alias_expected);
-    assert_existing_nodes_preserved(&fresh, &fresh_before, fresh_root);
+    assert_existing_nodes_preserved(&fresh, &fresh_before, fresh_root, child);
     assert_serializable(&fresh);
 }
 
