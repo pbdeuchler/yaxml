@@ -3,7 +3,7 @@
 This report covers existing-value edits and checked owned handles. It is a
 working evidence record, not a structural-mutation or production-readiness
 claim. Production, fuzz and measurement snapshot: `688c3cf`. The final restored
-verification after documentation and independent review remains pending.
+verification snapshot after documentation and independent review: `1929ca3`.
 
 ## Implemented contract
 
@@ -43,8 +43,11 @@ accounting, moves and source destruction. Byte goldens and complete snapshots
 check state after success and rejection. Depth 8,192 succeeds on a 256 KiB
 stack; a 10,000-sibling case preserves order. The integrated snapshot passed
 225 all-target tests with six ignored subprocess helpers, eight doctests,
-formatting, strict Clippy and the dependency/unsafe checks. The combined run
-completed in the integration terminal without a retained standalone log.
+formatting, strict Clippy and the dependency/unsafe checks. Final logs are
+`/private/tmp/yaxml-mutation-final-{all-targets,doc-tests,clippy,fmt}.txt`,
+`/private/tmp/yaxml-mutation-final-dependencies.txt`,
+`/private/tmp/yaxml-mutation-final-unsafe-audit.txt`, and
+`/private/tmp/yaxml-mutation-final-source-hashes.txt`.
 
 Draft-document verification on the `688c3cf` production snapshot passed all 12
 public mutation tests, the three mutation-filtered fuzz functions, eight crate
@@ -52,8 +55,8 @@ doctests and three Markdown-guide doctests. Local logs are
 `/private/tmp/yaxml-mutation-docs-public-tests.log`,
 `/private/tmp/yaxml-mutation-docs-fuzz-tests.log`,
 `/private/tmp/yaxml-mutation-docs-doctests.log` and
-`/private/tmp/yaxml-mutation-docs-guide-tests.log`. These focused runs do not
-replace the pending final integrated suite.
+`/private/tmp/yaxml-mutation-docs-guide-tests.log`. The restored integrated
+suite above supersedes these focused runs.
 
 The [operation target](../fuzz/mutation.rs), integrated at `688c3cf`, uses two
 independent logical models and up to 31 eight-byte operations with bounded
@@ -98,8 +101,9 @@ blanket rejection, persistent-accounting errors, premature publication,
 foreign/wrong targets, UTF-8 offset errors, metadata/order loss, empty CDATA
 loss, invalid delimiters and recursive traversal. The reviewer restored source
 tree object `610b44ca7ae9c3c52aaffd2e4fb3311c0614b97b`, exactly matching
-`8a89d29:src`. Final restored integration verification after this review commit
-remains pending; no 100% execution claim is made here.
+`8a89d29:src`. The assembled `1929ca3` commit then passed the restored suite
+listed above with the same source tree and coverage-source manifest. This is
+the completed bounded-milestone gate, not a 100% execution claim.
 
 ## Benchmark evidence
 
@@ -127,8 +131,6 @@ remaining finite validation ceilings.
 
 ## Remaining gates
 
-- Complete the independent mutation review and retain the final restored
-  verification results after documentation/review integration.
 - Add deterministic allocation-failure injection and investigate uncovered code.
 - Run sustained feedback-guided fuzzing and a matched libxml2 mutation benchmark.
 - Establish an external modeled mutation oracle if one is added; the existing
