@@ -18,9 +18,43 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/utf16le-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16be-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
+    include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
+
+#[test]
+fn pull_schedules_and_independent_policy_boundaries() {
+    for control in 0..=255 {
+        for input in [
+            b"<r/>".as_slice(),
+            b"<r>a</r>",
+            b"<r>&amp;</r>",
+            b"<r a='&#9;'/>",
+            b"<r>a<c/>b</r> ",
+            b"<r xmlns:p='u'><p:c/><c xmlns='v'/></r>",
+            b"<r>unterminated",
+            b"<r a='unterminated",
+            b"<r></wrong>",
+        ] {
+            driver::exercise_pull(input, control);
+        }
+    }
+    for little in [false, true] {
+        for input in [
+            "<r/>",
+            "<r>a</r>",
+            "<r>&amp;</r>",
+            "<r a='&#9;'/>",
+            "<r>🙂<c/>é</r>",
+        ] {
+            let input = utf16(input, little, true);
+            for control in [0, 1, 2, 3, 7, 64, 128, 254, 255] {
+                driver::exercise_pull(&input, control);
+            }
+        }
+    }
+}
 
 #[test]
 fn streaming_lifecycle_operation_selectors() {

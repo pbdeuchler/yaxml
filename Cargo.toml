@@ -16,6 +16,10 @@ default = []
 name = "parse"
 harness = false
 
+[[bench]]
+name = "pull"
+harness = false
+
 [lints.rust]
 unsafe_code = "forbid"
 

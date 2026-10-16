@@ -29,6 +29,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `Writer::new`, `with_limits`, `write_event`, `finish`, `position`, `into_inner` | Accepted reader events, generated caller-created event sequences and scheduled sinks | Exact typed round trips; complete output reparses; malformed operations emit no bytes; finite encoded bounds; confirmed partial positions; sticky failure; no I/O after failure or repeated successful finish |
 | XML normalization and references | Reader/DOM corpora and generated documents | Exercised indirectly; semantic golden tests are also required in the ordinary test suite |
 | `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
+| `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
 
 Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Tree mutation, entities, queries, schemas, and binding handles require targets when implemented. A target that calls an API does not establish that all its branches execute.
 
@@ -93,6 +94,36 @@ Acceptance comparisons allow streaming to exhaust its owned-byte budget earlier 
 `tests/fuzz_smoke.rs` replays every seed and every prefix, replaces every seed byte with delimiter/boundary bytes, deletes every seed byte, generates deterministic arbitrary bytes, and generates accepted namespace-aware nested documents. These tests check invariants and some known acceptance outcomes. Reader/DOM agreement alone is weak because they share a parser; the structural and semantic regression checks remain necessary.
 
 ## Source coverage
+
+Pull schedules derive a capacity from 1/2/3/7/64/8192/65536, an early-stop event
+count from the low three control bits, and an I/O-failure byte boundary from the
+full control byte. Ordinary replay derives that byte from the testcase midpoint;
+the deterministic selector test varies it independently of XML grammar bytes.
+Large cases raise the smallest visible slice to `ceil(input length / 4096)`;
+per-event fill/consume calls can still exceed 4096. A second complete run exposes
+the entire remaining input, so buffer
+capacity cannot change the final XML result. One source retries an interruption;
+another fails at an exact input boundary, including EOF. Source operations are
+counted and rejected after terminal states; `consume` cannot exceed the exposed
+slice. Source extraction must agree exactly with the parser's consumed position.
+Recovered source panics remain ordinary-test cases: unexpected fuzz panics are
+crashes, not swallowed outcomes.
+
+The pull oracle compares live events rather than cloning namespaces. It copies
+at most 32 payload scalars for the caller-retention operation. Default cases of
+at most 1024 input bytes cannot conceal rejection behind an owned-budget
+exception. Four canonical tiny documents have independent minima for raw input,
+raw token, cumulative retained/normalized strings, events, attributes and depth.
+Their below/exact/above profiles run through ordinary suspension. The existing
+independent decoded-total/token profiles also exercise pull, including cases
+which must succeed at the exact ceilings. UTF-16 values, raw spans and semantic
+error offsets reuse the standard-library reference, not the shared push engine.
+
+The `pull-lookahead.xml` corpus seed combines text/markup suspension, empty
+CDATA, PI, references, inherited prefixes and a default-namespace reset. Every
+prefix and byte mutation is replayed by the existing corpus tests. Retained-state
+plateau and source-panic checks require ordinary private/public tests in addition
+to the fuzz assertions; a source-region percentage alone cannot establish them.
 
 CI instruments `fuzz_smoke` and uploads raw profiles, merged profiles, a compiler version, a revision, a library-only summary, and the complete LLVM coverage export. The summary excludes dependency/toolchain code and the test/driver source so its denominator is library code. The complete export retains those files for inspection. No production library regions are excluded by this filter. The run exercises only the default feature set and only deterministic fuzz smoke tests; it is separate from ordinary unit-test coverage.
 

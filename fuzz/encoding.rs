@@ -34,15 +34,15 @@ fn is_utf32(prefix: &[u8]) -> bool {
     )
 }
 
-struct Reference {
-    canonical: String,
+pub(super) struct Reference {
+    pub(super) canonical: String,
     original_encoding: Option<String>,
     label_start: Option<usize>,
     raw_offsets: Vec<usize>,
 }
 
 impl Reference {
-    fn new(input: &[u8]) -> Option<Self> {
+    pub(super) fn new(input: &[u8]) -> Option<Self> {
         if input.get(..4).is_some_and(is_utf32) {
             return None;
         }
@@ -112,7 +112,7 @@ impl Reference {
         })
     }
 
-    fn range(&self, range: Range<usize>) -> Range<usize> {
+    pub(super) fn range(&self, range: Range<usize>) -> Range<usize> {
         let start = self.raw_offsets[range.start];
         let end = self.raw_offsets[range.end];
         assert_ne!(
@@ -128,7 +128,7 @@ impl Reference {
         start..end
     }
 
-    fn event(&self, actual: Event<'_>, expected: Event<'_>) {
+    pub(super) fn event(&self, actual: Event<'_>, expected: Event<'_>) {
         match (actual, expected) {
             (Event::Declaration(actual), Event::Declaration(expected)) => {
                 assert_eq!(actual.version, expected.version);
@@ -139,7 +139,7 @@ impl Reference {
         }
     }
 
-    fn failure(&self, expected: Error, actual: Option<Error>, input_len: usize) {
+    pub(super) fn failure(&self, expected: Error, actual: Option<Error>, input_len: usize) {
         // The slice reader validates all characters before grammar, whereas
         // streaming may encounter an earlier semantic error. Resource and
         // allocation failures can likewise precede later malformed markup.
@@ -705,6 +705,10 @@ fn decode_stream(
 }
 
 fn decode_profile(input: &[u8], limits: DecodeLimits, oracle: Option<&DecodeOracle<'_>>) {
+    let pull = super::pull::with_limits(input, Limits::default(), limits);
+    if let Some(oracle) = oracle {
+        oracle.check_result(pull, limits, input.len());
+    }
     let result = decode_stream(input, limits, oracle, input.len().max(1));
     let split = decode_stream(input, limits, oracle, 3.max(input.len().div_ceil(4096)));
     assert_eq!(

@@ -14,6 +14,9 @@ mod owned;
 #[path = "encoding.rs"]
 mod encoding;
 
+#[path = "pull.rs"]
+mod pull;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -30,6 +33,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
         input.len() <= MAX_INPUT_BYTES,
         "fuzz testcase exceeds the driver budget"
     );
+    exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
     if encoding::recognizes(input) {
         return encoding::exercise(input);
     }
@@ -85,8 +89,15 @@ pub fn exercise(input: &[u8]) -> Outcome {
     outcome
 }
 
+/// Exercise pull scheduling independently from the XML grammar bytes.
+pub fn exercise_pull(input: &[u8], control: u8) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    pull::exercise(input, control);
+}
+
 /// Exercise the explicit policy boundary with the same budget in both APIs.
 pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
+    let _ = pull::with_limits(input, limits, yaxml::DecodeLimits::default());
     if encoding::recognizes(input) {
         return encoding::exercise_with_limits(input, limits);
     }
