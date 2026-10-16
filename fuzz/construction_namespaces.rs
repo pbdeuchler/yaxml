@@ -6,7 +6,7 @@
 
 use super::*;
 
-const CASE_COUNT: u8 = 14;
+const CASE_COUNT: u8 = 17;
 
 fn check_created(document: &OwnedDocument, id: OwnedNodeId, expected: &ModelElement) {
     assert_element(document, id, expected);
@@ -153,14 +153,24 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
         7 => "<r xmlns='urn:old' xmlns:p='urn:old'><old/></r>",
         8 => "<r xmlns:p='urn:old' xmlns:q='urn:old' xmlns:ns1='urn:occupied'><old/></r>",
         9 => "<r xmlns:p='urn:old'><old/></r>",
+        10 => {
+            "<r xmlns:p='urn:old' xmlns:q='urn:old' plain='root'><m xmlns:p='urn:new' plain='middle'><n a='one' b='two'/></m></r>"
+        }
         _ => "<r xmlns='urn:old' xmlns:p='urn:old' keep='v'><old a='a' b='b'/></r>",
     };
     let mut document = parsed_parent(mode, source);
     let before = snapshot(&document);
     let root = document.root_element().id();
     let parent = if selector == 10 {
-        document
+        let middle = document
             .node(root)
+            .unwrap()
+            .children()
+            .next()
+            .expect("middle fixture child")
+            .id();
+        document
+            .node(middle)
             .unwrap()
             .children()
             .next()
@@ -339,41 +349,144 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 name: spec_name("picked", Some("urn:old"), PrefixPolicy::Automatic),
                 value: "yes",
             })];
-            let source = "<r xmlns:p='urn:old' xmlns:q='urn:old' plain='root'><m xmlns:p='urn:new' plain='middle'><n a='one' b='two'/></m></r>";
-            let mut shadowed = parsed_parent(mode, source);
-            let shadowed_before = snapshot(&shadowed);
             let expected = ModelElement {
                 name: ModelName::new(None, &local, None),
                 attributes: vec![attribute(Some("q"), "picked", Some("urn:old"), "yes")],
             };
-            let root_id = shadowed.root_element().id();
-            let middle = shadowed
-                .node(root_id)
-                .unwrap()
-                .children()
-                .next()
-                .unwrap()
-                .id();
-            let nested = shadowed
-                .node(middle)
-                .unwrap()
-                .children()
-                .next()
-                .unwrap()
-                .id();
-            let child = shadowed
+            let child = document
                 .edit(EditLimits::default())
                 .unwrap()
                 .append_element(
-                    nested,
+                    parent,
                     ElementSpec {
                         name: spec_name(&local, None, exact(None)),
                         items: &items,
                     },
                 )
                 .expect("shadowed p must resolve through inherited q");
-            check_created(&shadowed, child, &expected);
-            assert_existing_nodes_preserved(&shadowed, &shadowed_before, nested);
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
+        }
+        14 => {
+            let expected = ModelElement {
+                name: ModelName::new(None, &local, None),
+                attributes: vec![
+                    declaration(Some("p"), "urn:local"),
+                    attribute(Some("p"), "value", Some("urn:local"), "x"),
+                    declaration(None, ""),
+                ],
+            };
+            let items = [
+                ElementItem::Namespace(NamespaceSpec {
+                    prefix: Some("p"),
+                    uri: "urn:local",
+                }),
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("value", Some("urn:local"), exact(Some("p"))),
+                    value: "x",
+                }),
+            ];
+            let child = document
+                .edit(EditLimits::default())
+                .unwrap()
+                .append_element(
+                    parent,
+                    ElementSpec {
+                        name: spec_name(&local, None, exact(None)),
+                        items: &items,
+                    },
+                )
+                .expect("exact prefix should reuse the matching local declaration");
+            check_created(&document, child, &expected);
+            assert_existing_nodes_preserved(&document, &before, parent);
+        }
+        15 => {
+            let expected = located(EditErrorKind::Namespace, attribute_location(1, None, None));
+            let recovery_name = ModelName::new(None, "recovered", None);
+            let items = [
+                ElementItem::Namespace(NamespaceSpec {
+                    prefix: Some("p"),
+                    uri: "urn:local",
+                }),
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("value", Some("urn:other"), exact(Some("p"))),
+                    value: "x",
+                }),
+            ];
+            let mut editor = document.edit(EditLimits::default()).unwrap();
+            let error = editor
+                .append_element(
+                    parent,
+                    ElementSpec {
+                        name: spec_name(&local, None, exact(None)),
+                        items: &items,
+                    },
+                )
+                .expect_err("Exact prefix must reject a conflicting local declaration");
+            assert_error_with_display(error, expected);
+            assert_eq!(
+                &snapshot(editor.document()),
+                &before,
+                "local prefix conflict mutated tree"
+            );
+            let recovery = editor
+                .append_element(
+                    parent,
+                    ElementSpec {
+                        name: spec_name("recovered", None, exact(None)),
+                        items: &[],
+                    },
+                )
+                .expect("editor should recover after local prefix conflict");
+            assert_eq!(
+                observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
+                recovery_name
+            );
+            assert_existing_nodes_preserved(editor.document(), &before, parent);
+        }
+        16 => {
+            let expected = located(EditErrorKind::Namespace, attribute_location(1, None, None));
+            let recovery_name = ModelName::new(None, "recovered", None);
+            let items = [
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("first", Some("urn:left"), exact(Some("p"))),
+                    value: "L",
+                }),
+                ElementItem::Attribute(AttributeSpec {
+                    name: spec_name("second", Some("urn:right"), exact(Some("p"))),
+                    value: "R",
+                }),
+            ];
+            let mut editor = document.edit(EditLimits::default()).unwrap();
+            let error = editor
+                .append_element(
+                    parent,
+                    ElementSpec {
+                        name: spec_name(&local, None, exact(None)),
+                        items: &items,
+                    },
+                )
+                .expect_err("a generated exact binding must reject later conflicting URI");
+            assert_error_with_display(error, expected);
+            assert_eq!(
+                &snapshot(editor.document()),
+                &before,
+                "generated prefix conflict mutated tree"
+            );
+            let recovery = editor
+                .append_element(
+                    parent,
+                    ElementSpec {
+                        name: spec_name("recovered", None, exact(None)),
+                        items: &[],
+                    },
+                )
+                .expect("editor should recover after generated prefix conflict");
+            assert_eq!(
+                observed_name(editor.document().node(recovery).unwrap().name().unwrap()),
+                recovery_name
+            );
+            assert_existing_nodes_preserved(editor.document(), &before, parent);
         }
         12 => {
             let expected = located(
@@ -538,11 +651,14 @@ mod tests {
     #[test]
     fn finite_namespace_catalog_matches_literal_expectations_in_utf8_and_utf16() {
         for selector in 0..CASE_COUNT {
-            let input = [0, 1, 2, 3, 4, 5, selector, 1, 4, 5, 6, 7, 0xff];
-            exercise(&input);
-            if (4..=12).contains(&selector) {
-                append_case(&input, selector, 1);
-                append_case(&input, selector, 2);
+            let mut input = [0, 1, 2, 3, 4, 5, selector, 0, 4, 5, 6, 7, 0xff];
+            if selector <= 3 || selector == 13 {
+                exercise(&input);
+            } else {
+                for mode in 0..3 {
+                    input[7] = mode;
+                    exercise(&input);
+                }
             }
         }
     }
