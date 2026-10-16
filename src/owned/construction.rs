@@ -486,12 +486,12 @@ fn lookup<'a>(
         work.charge(1)?;
         for attribute_index in attributes.clone() {
             work.charge(1)?;
-            work.charge(1)?;
             let attribute = &document.attributes[attribute_index];
             let name = attribute.name.view(&document.pool.0);
             let Some(candidate_prefix) = declaration_prefix(&name) else {
                 continue;
             };
+            work.charge(1)?;
             if work.compare(candidate_prefix.unwrap_or(""), prefix.unwrap_or(""))? {
                 let uri = &document.pool.0[attribute.value.clone()];
                 return Ok(Some(uri));
@@ -771,12 +771,12 @@ fn find_matching_prefix<'a>(
         work.charge(1)?;
         for attribute_index in attributes.clone() {
             work.charge(1)?;
-            work.charge(1)?;
             let attribute = &document.attributes[attribute_index];
             let name = attribute.name.view(&document.pool.0);
             let Some(prefix) = declaration_prefix(&name) else {
                 continue;
             };
+            work.charge(1)?;
             if prefix.is_none() && !include_default {
                 continue;
             }
@@ -1959,8 +1959,14 @@ mod tests {
             .is_ok()
         );
 
-        let mut wide = OwnedDocument::parse("<r a='1' b='2'/>").unwrap();
-        let parent = wide.root_element().id();
+        let mut wide = OwnedDocument::parse("<r a='1' b='2'><e><f/></e></r>").unwrap();
+        let parent = wide
+            .root_element()
+            .first_child()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .id();
         {
             let mut editor = wide
                 .edit(EditLimits {
