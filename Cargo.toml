@@ -28,6 +28,10 @@ harness = false
 name = "mutation"
 harness = false
 
+[[bench]]
+name = "structural_mutation"
+harness = false
+
 [lints.rust]
 unsafe_code = "forbid"
 

@@ -158,6 +158,52 @@ no matched libxml2 editing harness, allocation profile or memory advantage is
 established. Final milestone results belong in the
 [mutation validation report](validation-owned-mutation.md).
 
+## Owned structural editing
+
+`cargo bench --bench structural_mutation` measures fresh leaf insertion,
+permanent subtree removal and tombstone-heavy churn. Fixture generation and
+UTF-8/UTF-16 transport encoding occur before all clocks. Each row separately
+reports parse/handle setup, structural edit calls, complete live traversal,
+counting-sink serialization, semantic validation plus serialization/reparse,
+and owned-document destruction. Traversal touches public kinds, provenance, names, values and
+attributes; churn appends and removes one fresh Text node per unit so the final
+live tree stays small while permanent slots accumulate.
+
+The cases are `append_text`, `append_cdata`, `append_comment`, `append_pi`,
+`remove_first`, `remove_middle`, `remove_last`, `remove_deep` and `churn`.
+Removal selection is prepared outside the edit clock. Shallow removals delete
+complete sibling subtrees beneath a depth-selected parent; deep removal deletes
+nested branches. Every final state checks live/stale handles, stable fresh IDs,
+logical kinds and values, exact live traversal counts, serialization byte
+counts and a complete reparse.
+
+| Variable | Meaning |
+| --- | --- |
+| `YAXML_STRUCTURE_CASE`, `YAXML_STRUCTURE_ENCODING` | Select one case or UTF-8/UTF-16LE/UTF-16BE input |
+| `YAXML_STRUCTURE_WIDTH`, `YAXML_STRUCTURE_DEPTH` | Select one positive sibling/ancestor or branch-depth dimension |
+| `YAXML_STRUCTURE_PAYLOAD_BYTES` | Select one nonnegative payload size |
+| `YAXML_STRUCTURE_ITERATIONS`, `YAXML_STRUCTURE_OPERATIONS` | Fresh documents and edit units per document |
+| `YAXML_STRUCTURE_TRAVERSAL_PASSES`, `YAXML_STRUCTURE_SERIALIZATION_PASSES` | Repeated post-edit public-view and counting-sink passes |
+| `YAXML_STRUCTURE_MAX_VALUE_BYTES`, `YAXML_STRUCTURE_MAX_OWNED_BYTES`, `YAXML_STRUCTURE_MAX_CREATED_NODES` | Public edit ceilings, including deliberate rejection studies |
+
+Debug defaults keep the all-target smoke execution bounded at width/depth four,
+payloads zero/eight, one document and four units. Release defaults cover widths
+16/256, depths 1/64, payloads 32/1,024, all three encodings, five documents and
+1,000 units; select rows for repeated measurements rather than averaging that
+entire matrix. Output uses `key=value` fields with schema version, requested and
+completed edit calls, completed units, created/removed/live node counts,
+expected permanent slots, traversal visits, serialized bytes, sink calls,
+limits, phase nanoseconds, disposition and checksum.
+
+Each row also emits a `reference_model` naming the future matched libxml2
+fresh-node plus `xmlAddChild`, or `xmlUnlinkNode` plus `xmlFreeNode`, lifecycle.
+`comparison_status=unmeasured` is deliberate: no C helper or comparative result
+is supplied. A future comparison must validate the compatible logical
+projection first, include node construction and final freeing in the matching
+clock, retain libxml2's Text-coalescing difference, and keep parse, traversal,
+serialization and destruction policies equivalent. These yaxml-only rows do
+not establish a speed or memory advantage.
+
 ## Comparability and reporting
 
 For published measurements retain the revision, production/fixture hashes,
