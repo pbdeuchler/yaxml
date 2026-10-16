@@ -192,3 +192,64 @@ The final clean full-suite and official-suite artifacts must be reviewed
 against this exact executable/source boundary before the milestone evidence is
 closed. This report deliberately makes no claim about their in-progress row
 counts, status distribution, diagnostics, or terminal result.
+
+## Completed evidence supplement
+
+This append-only supplement closes the external evidence gate at the exact
+reviewed executable checkpoint
+`21c746fd6e05281bda86764ee5e6dfebd2e12086`. It preserves the historical
+pending statements above rather than rewriting the earlier review boundary.
+
+The final root checks all exited successfully. The all-target run contained
+470 passing tests and eight ignored tests across 37 test binaries; a separate
+doctest run passed seven ordinary and four compile-fail examples. Strict
+all-target Clippy and formatting checks passed. The retained logs are:
+
+- `/private/tmp/yaxml-xmlconf-all-targets-21c746f.txt`
+- `/private/tmp/yaxml-xmlconf-doctests-21c746f.txt`
+- `/private/tmp/yaxml-xmlconf-clippy-21c746f.txt`
+- `/private/tmp/yaxml-xmlconf-fmt-21c746f.txt`
+
+The final pinned-suite command completed all 2,585 catalog cases and emitted
+exactly 12,925 unique case/surface rows. There were zero mismatch and zero
+inconclusive rows. Pass counts were 372 for reader, 372 for borrowed document,
+407 for owned document, 360 for push, and 360 for buffered pull. The remaining
+rows stay explicitly classified as capability gaps or unscored cases. In
+particular, none of the 812 `TYPE=valid` cases per surface is currently scored
+as a pass: 728 are capability gaps and 84 are unscored. The passing acceptance
+cases are DTD-invalid documents that a nonvalidating parser must accept; the
+remaining passes are applicable `TYPE=not-wf` rejections. This result does not
+claim that the current P0 parser implements DTD processing, external entities,
+all catalog encodings, namespace-disabled parsing, XML 1.1, historical XML
+editions, or discretionary `TYPE=error` behavior.
+
+The required-pass gate checked all 1,871 frozen case/surface pairs with zero
+regressions. The raw result table has SHA-256
+`c68982b4e33d2bb55a2dc59f1aa0fd30ac185cd61b3a97809667d8e96b67b99d`.
+Its stderr contains only the expected per-surface/count and required-pass
+summary; the wrapper's error stderr is empty.
+
+An independent audit replayed every worker result and recomputed the catalog
+policy for all rows. It completed 93,096 assertions with no discrepancy,
+verified all and only the nine explicit path corrections, and independently
+derived a required-pass body byte-identical to both the checked-in fixture and
+the earlier `77af2c2` result. The audit records per-surface masks of reader 372,
+document 372, owned 407, push 360, and buffered 360. Its report and retained
+inputs are under:
+
+- `/private/tmp/yaxml-xmlconf-evidence-21c746f/independent-audit/final-audit.txt`
+- `/private/tmp/yaxml-xmlconf-evidence-21c746f/independent-audit/`
+
+The fresh evidence records a clean start and end tree, 121 matching tracked
+build-input identities, 3,385 matching suite-file identities, and identical
+start/end hashes for the Rust runner and C helper. The catalog helper again
+reported compile-time and runtime libxml2 2.15.4, emitted empty catalog stderr,
+and produced the same catalog SHA-256
+`bb1245f6adf9296b000db1c12b03cb3da9c8d8474548f20edcc507b3cbf2da39`.
+The complete evidence directory is
+`/private/tmp/yaxml-xmlconf-evidence-21c746f`.
+
+The review verdict remains **PASS** for this bounded acceptance/rejection
+conformance runner and its regression gate. The broader limitations above
+remain open; this evidence does not establish full XML, DTD, or libxml2
+conformance.
