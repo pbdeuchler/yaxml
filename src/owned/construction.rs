@@ -403,7 +403,7 @@ fn validate_reserved_declarations(spec: &ElementSpec<'_>) -> Result<(), EditErro
                 EditErrorKind::Namespace,
                 index,
                 true,
-                Some(EditComponent::Prefix),
+                None,
                 None,
             ));
         }
@@ -412,7 +412,7 @@ fn validate_reserved_declarations(spec: &ElementSpec<'_>) -> Result<(), EditErro
                 EditErrorKind::Namespace,
                 index,
                 true,
-                Some(EditComponent::NamespaceUri),
+                None,
                 None,
             ));
         }
@@ -421,12 +421,24 @@ fn validate_reserved_declarations(spec: &ElementSpec<'_>) -> Result<(), EditErro
 }
 
 fn reserve_vec<T>(items: &mut Vec<T>, amount: usize) -> Result<(), EditError> {
+    #[cfg(test)]
+    if items
+        .len()
+        .checked_add(amount)
+        .is_some_and(|needed| needed > items.capacity())
+    {
+        inject_edit_reservation_failure(EditReservation::Scratch)?;
+    }
     items
         .try_reserve_exact(amount)
         .map_err(|_| allocation_error())
 }
 
 fn push_string(target: &mut String, value: &str) -> Result<(), EditError> {
+    #[cfg(test)]
+    if !value.is_empty() && target.len().saturating_add(value.len()) > target.capacity() {
+        inject_edit_reservation_failure(EditReservation::Scratch)?;
+    }
     target
         .try_reserve_exact(value.len())
         .map_err(|_| allocation_error())?;
@@ -479,12 +491,11 @@ fn lookup<'a>(
     }
     let mut current = parent;
     while let Some(index) = current {
-        work.charge(1)?;
         let record = document.nodes.get(index).ok_or_else(allocation_error)?;
         let Content::Element { attributes, .. } = &record.content else {
-            current = record.parent.get().map(|node| node.0);
-            continue;
+            break;
         };
+        work.charge(1)?;
         for attribute_index in attributes.clone() {
             work.charge(1)?;
             let attribute = &document.attributes[attribute_index];
@@ -495,7 +506,6 @@ fn lookup<'a>(
             work.charge(1)?;
             if work.compare(candidate_prefix.unwrap_or(""), prefix.unwrap_or(""))? {
                 let uri = &document.pool.0[attribute.value.clone()];
-                work.charge(uri.len())?;
                 return Ok(Some(uri));
             }
         }
@@ -512,7 +522,6 @@ fn lookup_explicit<'a>(
     for binding in local {
         work.charge(1)?;
         if work.compare(binding.prefix.unwrap_or(""), prefix.unwrap_or(""))? {
-            work.charge(binding.uri.len())?;
             return Ok(Some(binding.uri));
         }
     }
@@ -530,13 +539,13 @@ fn lookup_generated<'a>(
             binding.prefix.as_deref().unwrap_or(""),
             prefix.unwrap_or(""),
         )? {
-            work.charge(binding.uri.len())?;
             return Ok(Some(&binding.uri));
         }
     }
     Ok(None)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ensure_binding(
     document: &OwnedDocument,
     parent: Option<usize>,
@@ -614,13 +623,48 @@ fn exact_prefix_reserved(
         return Ok(true);
     }
     for item in spec.items {
-        if let ElementItem::Attribute(attribute) = item {
-            if check(attribute.name.prefix)? {
-                return Ok(true);
-            }
+        if let ElementItem::Attribute(attribute) = item
+            && check(attribute.name.prefix)?
+        {
+            return Ok(true);
         }
     }
     Ok(false)
+}
+
+fn exact_prefix_is_compatible(
+    spec: &ElementSpec<'_>,
+    candidate: &str,
+    uri: &str,
+    work: &mut Work,
+) -> Result<bool, EditError> {
+    let mut check = |name: NameSpec<'_>| -> Result<bool, EditError> {
+        let PrefixPolicy::Exact(Some(prefix)) = name.prefix else {
+            return Ok(true);
+        };
+        work.charge(1)?;
+        if !work.compare(prefix, candidate)? {
+            return Ok(true);
+        }
+        match name.namespace {
+            Some(exact_uri) => work.compare(exact_uri, uri),
+            None => {
+                work.charge(uri.len())?;
+                Ok(uri.is_empty())
+            }
+        }
+    };
+    if !check(spec.name)? {
+        return Ok(false);
+    }
+    for item in spec.items {
+        if let ElementItem::Attribute(attribute) = item
+            && !check(attribute.name)?
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn generated_prefix_available(
@@ -641,6 +685,7 @@ fn generated_prefix_available(
     Ok(lookup(document, parent, Some(prefix), local, generated, work)?.is_none())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn next_prefix(
     document: &OwnedDocument,
     parent: Option<usize>,
@@ -653,6 +698,8 @@ fn next_prefix(
 ) -> Result<String, EditError> {
     let mut number = 1usize;
     let mut candidate = String::new();
+    #[cfg(test)]
+    inject_edit_reservation_failure(EditReservation::Scratch)?;
     candidate
         .try_reserve_exact(22)
         .map_err(|_| allocation_error())?;
@@ -664,7 +711,7 @@ fn next_prefix(
         if candidate.len() > limits.max_name_bytes {
             return Err(EditError::located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
-                error_location,
+                prefix_limit_location(error_location, limits.max_name_bytes),
             ));
         }
         work.charge(1)?;
@@ -678,9 +725,11 @@ fn next_prefix(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn find_matching_prefix<'a>(
     document: &'a OwnedDocument,
     parent: Option<usize>,
+    spec: &ElementSpec<'_>,
     local: &'a [LocalBinding<'a>],
     generated: &'a [GeneratedBinding],
     uri: &str,
@@ -694,11 +743,14 @@ fn find_matching_prefix<'a>(
         if binding.prefix.is_none() && !include_default {
             continue;
         }
-        if work.compare(binding.uri, uri)? {
-            return Ok(binding
+        if work.compare(binding.uri, uri)?
+            && (binding.prefix.is_none()
+                || exact_prefix_is_compatible(spec, binding.prefix.unwrap_or(""), uri, work)?)
+        {
+            return binding
                 .prefix
                 .map(|prefix| selected_prefix(prefix, limits, work, error_location))
-                .transpose()?);
+                .transpose();
         }
     }
     for binding in generated {
@@ -706,36 +758,46 @@ fn find_matching_prefix<'a>(
         if binding.prefix.is_none() && !include_default {
             continue;
         }
-        if work.compare(&binding.uri, uri)? {
-            return Ok(binding
+        if work.compare(&binding.uri, uri)?
+            && (binding.prefix.is_none()
+                || exact_prefix_is_compatible(
+                    spec,
+                    binding.prefix.as_deref().unwrap_or(""),
+                    uri,
+                    work,
+                )?)
+        {
+            return binding
                 .prefix
                 .as_deref()
                 .map(|prefix| selected_prefix(prefix, limits, work, error_location))
-                .transpose()?);
+                .transpose();
         }
     }
     let mut current = parent;
     while let Some(index) = current {
-        work.charge(1)?;
         let record = &document.nodes[index];
-        if let Content::Element { attributes, .. } = &record.content {
-            for attribute_index in attributes.clone() {
-                work.charge(1)?;
-                let attribute = &document.attributes[attribute_index];
-                let name = attribute.name.view(&document.pool.0);
-                let Some(prefix) = declaration_prefix(&name) else {
-                    continue;
-                };
-                if prefix.is_none() && !include_default {
-                    continue;
-                }
-                if let Some(effective) = lookup(document, parent, prefix, local, generated, work)? {
-                    if work.compare(effective, uri)? {
-                        return Ok(prefix
-                            .map(|value| selected_prefix(value, limits, work, error_location))
-                            .transpose()?);
-                    }
-                }
+        let Content::Element { attributes, .. } = &record.content else {
+            break;
+        };
+        work.charge(1)?;
+        for attribute_index in attributes.clone() {
+            work.charge(1)?;
+            let attribute = &document.attributes[attribute_index];
+            let name = attribute.name.view(&document.pool.0);
+            let Some(prefix) = declaration_prefix(&name) else {
+                continue;
+            };
+            if prefix.is_none() && !include_default {
+                continue;
+            }
+            if let Some(effective) = lookup(document, parent, prefix, local, generated, work)?
+                && work.compare(effective, uri)?
+                && exact_prefix_is_compatible(spec, prefix.unwrap_or(""), uri, work)?
+            {
+                return prefix
+                    .map(|value| selected_prefix(value, limits, work, error_location))
+                    .transpose();
             }
         }
         current = record.parent.get().map(|node| node.0);
@@ -750,29 +812,32 @@ fn selected_prefix(
     error_location: EditLocation,
 ) -> Result<String, EditError> {
     if prefix.len() > limits.max_name_bytes {
-        let location = match error_location {
-            EditLocation::ElementName { .. } => EditLocation::ElementName {
-                component: EditComponent::Prefix,
-                byte_offset: Some(limits.max_name_bytes),
-            },
-            EditLocation::NamespaceItem { index, .. } => EditLocation::NamespaceItem {
-                index,
-                component: Some(EditComponent::Prefix),
-                byte_offset: Some(limits.max_name_bytes),
-            },
-            EditLocation::AttributeItem { index, .. } => EditLocation::AttributeItem {
-                index,
-                component: Some(EditComponent::Prefix),
-                byte_offset: Some(limits.max_name_bytes),
-            },
-        };
         return Err(EditError::located(
             EditErrorKind::LimitExceeded(EditLimit::NameBytes),
-            location,
+            prefix_limit_location(error_location, limits.max_name_bytes),
         ));
     }
     work.charge(prefix.len())?;
     clone_string(prefix)
+}
+
+fn prefix_limit_location(location: EditLocation, offset: usize) -> EditLocation {
+    match location {
+        EditLocation::ElementName { .. } => EditLocation::ElementName {
+            component: EditComponent::Prefix,
+            byte_offset: Some(offset),
+        },
+        EditLocation::NamespaceItem { index, .. } => EditLocation::NamespaceItem {
+            index,
+            component: Some(EditComponent::Prefix),
+            byte_offset: Some(offset),
+        },
+        EditLocation::AttributeItem { index, .. } => EditLocation::AttributeItem {
+            index,
+            component: Some(EditComponent::Prefix),
+            byte_offset: Some(offset),
+        },
+    }
 }
 
 fn namespace_error(loc: EditLocation) -> EditError {
@@ -785,7 +850,22 @@ fn put_string(scratch: &mut String, value: &str) -> Range<usize> {
     start..scratch.len()
 }
 
-fn ensure_scratch(scratch: &mut String, additional: usize) -> Result<(), EditError> {
+fn ensure_scratch(
+    scratch: &mut String,
+    additional: usize,
+    maximum: usize,
+) -> Result<(), EditError> {
+    let required = scratch
+        .len()
+        .checked_add(additional)
+        .ok_or_else(allocation_error)?;
+    if required > maximum {
+        return Err(namespace_work_error());
+    }
+    if required > scratch.capacity() {
+        #[cfg(test)]
+        inject_edit_reservation_failure(EditReservation::Scratch)?;
+    }
     scratch
         .try_reserve_exact(additional)
         .map_err(|_| allocation_error())
@@ -796,15 +876,14 @@ fn make_name(
     local_name: &str,
     namespace: Option<&str>,
     prefix: Option<&str>,
+    scratch_limit: usize,
 ) -> Result<StagedName, EditError> {
     let required = prefix
-        .map_or(0, |prefix| {
-            prefix.len().checked_add(1).unwrap_or(usize::MAX)
-        })
+        .map_or(0, |prefix| prefix.len().saturating_add(1))
         .checked_add(local_name.len())
         .and_then(|bytes| bytes.checked_add(namespace.map_or(0, str::len)))
         .ok_or_else(allocation_error)?;
-    ensure_scratch(scratch, required)?;
+    ensure_scratch(scratch, required, scratch_limit)?;
     let start = scratch.len();
     if let Some(prefix) = prefix {
         scratch.push_str(prefix);
@@ -828,6 +907,7 @@ fn make_declaration(
     scratch: &mut String,
     prefix: Option<&str>,
     uri: &str,
+    scratch_limit: usize,
 ) -> Result<StagedAttribute, EditError> {
     let local = prefix.unwrap_or("xmlns");
     let required = (if prefix.is_some() { 6usize } else { 5usize })
@@ -835,7 +915,7 @@ fn make_declaration(
         .and_then(|bytes| bytes.checked_add(XMLNS.len()))
         .and_then(|bytes| bytes.checked_add(uri.len()))
         .ok_or_else(allocation_error)?;
-    ensure_scratch(scratch, required)?;
+    ensure_scratch(scratch, required, scratch_limit)?;
     let start = scratch.len();
     if let Some(prefix) = prefix {
         scratch.push_str("xmlns:");
@@ -871,6 +951,17 @@ fn name_location(
     }
 }
 
+fn semantic_name_location(
+    item_index: Option<usize>,
+    element_component: EditComponent,
+) -> EditLocation {
+    match item_index {
+        Some(index) => item_location(index, false, None, None),
+        None => location(element_component, None),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn resolve_name(
     document: &OwnedDocument,
     parent: Option<usize>,
@@ -883,44 +974,30 @@ fn resolve_name(
     work: &mut Work,
     limits: EditLimits,
     scratch: &mut String,
+    scratch_limit: usize,
 ) -> Result<StagedName, EditError> {
-    let component_location = name_location(item_index, false, EditComponent::Prefix);
-    let namespace_location = name_location(item_index, false, EditComponent::NamespaceUri);
+    let component_location = semantic_name_location(item_index, EditComponent::Prefix);
+    let namespace_location = semantic_name_location(item_index, EditComponent::NamespaceUri);
     let namespace = name.namespace;
-    work.charge(XMLNS.len())?;
-    let empty_namespace = match namespace {
-        Some(uri) => work.compare(uri, "")?,
-        None => false,
-    };
-    let xmlns_namespace = match namespace {
-        Some(uri) => work.compare(uri, XMLNS)?,
-        None => false,
-    };
-    if empty_namespace || xmlns_namespace {
+    if namespace.is_some_and(|uri| uri.is_empty() || uri == XMLNS) {
         return Err(namespace_error(namespace_location));
     }
-    let xml_namespace = match namespace {
-        Some(uri) => work.compare(uri, XML)?,
-        None => false,
-    };
+    let xml_namespace = namespace == Some(XML);
     let exact_xml_prefix = match name.prefix {
-        PrefixPolicy::Exact(Some(prefix)) => work.compare(prefix, "xml")?,
+        PrefixPolicy::Exact(Some(prefix)) => prefix == "xml",
         _ => false,
     };
     if matches!(name.prefix, PrefixPolicy::Exact(_)) && xml_namespace && !exact_xml_prefix {
-        return Err(namespace_error(namespace_location));
+        return Err(namespace_error(semantic_name_location(
+            item_index,
+            EditComponent::Prefix,
+        )));
     }
     let explicit_default = declaration_exists(local, None, work)?;
     let prefix = match name.prefix {
         PrefixPolicy::Exact(prefix) => {
-            let empty_prefix = match prefix {
-                Some(prefix) => work.compare(prefix, "")?,
-                None => false,
-            };
-            let xmlns_prefix = match prefix {
-                Some(prefix) => work.compare(prefix, "xmlns")?,
-                None => false,
-            };
+            let empty_prefix = prefix == Some("");
+            let xmlns_prefix = prefix == Some("xmlns");
             if empty_prefix || xmlns_prefix {
                 return Err(namespace_error(component_location));
             }
@@ -954,6 +1031,7 @@ fn resolve_name(
                     }
                     None
                 }
+                (None, Some("xml")) => return Err(namespace_error(namespace_location)),
                 (None, Some(_)) => return Err(namespace_error(component_location)),
                 (Some(_uri), Some("xml")) if xml_namespace => Some(clone_string("xml")?),
                 (Some(_uri), Some("xml")) => return Err(namespace_error(namespace_location)),
@@ -1023,10 +1101,10 @@ fn resolve_name(
             Some(_uri) if xml_namespace => Some(clone_string("xml")?),
             Some(uri) if is_element => {
                 let default_binding = lookup(document, parent, None, local, generated, work)?;
-                if let Some(bound) = default_binding {
-                    if work.compare(bound, uri)? {
-                        return make_name(scratch, name.local, namespace, None);
-                    }
+                if let Some(bound) = default_binding
+                    && work.compare(bound, uri)?
+                {
+                    return make_name(scratch, name.local, namespace, None, scratch_limit);
                 }
                 if !explicit_default {
                     ensure_binding(
@@ -1046,6 +1124,7 @@ fn resolve_name(
                 } else if let Some(prefix) = find_matching_prefix(
                     document,
                     parent,
+                    spec,
                     local,
                     generated,
                     uri,
@@ -1086,6 +1165,7 @@ fn resolve_name(
                 if let Some(prefix) = find_matching_prefix(
                     document,
                     parent,
+                    spec,
                     local,
                     generated,
                     uri,
@@ -1124,13 +1204,8 @@ fn resolve_name(
             }
         },
     };
-    if let PrefixPolicy::Exact(prefix) = name.prefix {
-        if let Some(prefix) = prefix {
-            work.charge(prefix.len())?;
-        }
-    }
     let unprefixed_xmlns_attribute = if !is_element && namespace.is_none() && prefix.is_none() {
-        work.compare(name.local, "xmlns")?
+        name.local == "xmlns"
     } else {
         false
     };
@@ -1140,7 +1215,13 @@ fn resolve_name(
             name_location(item_index, false, EditComponent::LocalName),
         ));
     }
-    make_name(scratch, name.local, namespace, prefix.as_deref())
+    make_name(
+        scratch,
+        name.local,
+        namespace,
+        prefix.as_deref(),
+        scratch_limit,
+    )
 }
 
 fn stage(
@@ -1175,13 +1256,25 @@ fn stage(
         .checked_add(generated_bound)
         .and_then(|count| count.checked_mul(6 + XMLNS.len()))
         .ok_or_else(allocation_error)?;
+    // Supplied bytes account for up to four copies in staged names, values,
+    // generated bindings, and declaration values. A chosen inherited prefix
+    // is copied into a temporary and final qualified name, bounded by charged
+    // namespace work. Saturation preserves valid operations when callers use
+    // very large limits; no memory is reserved from this ceiling itself.
+    let scratch_limit = supplied_bytes
+        .saturating_mul(4)
+        .saturating_add(limits.max_namespace_work.saturating_mul(2))
+        .saturating_add(generated_bound.saturating_mul(22 + 6 + XMLNS.len()))
+        .saturating_add(declaration_overhead)
+        .saturating_add(128);
     let string_capacity = supplied_bytes
-        .checked_mul(2)
-        .and_then(|bytes| bytes.checked_add(generated_bound.checked_mul(22 + 6 + XMLNS.len())?))
-        .and_then(|bytes| bytes.checked_add(declaration_overhead))
-        .and_then(|bytes| bytes.checked_add(128))
-        .ok_or_else(allocation_error)?;
+        .saturating_mul(2)
+        .saturating_add(generated_bound.saturating_mul(22 + 6 + XMLNS.len()))
+        .saturating_add(declaration_overhead)
+        .saturating_add(128);
     let mut strings = String::new();
+    #[cfg(test)]
+    inject_edit_reservation_failure(EditReservation::Scratch)?;
     strings
         .try_reserve_exact(string_capacity)
         .map_err(|_| allocation_error())?;
@@ -1223,6 +1316,7 @@ fn stage(
         &mut work,
         limits,
         &mut strings,
+        scratch_limit,
     )?;
     for (index, item) in spec.items.iter().enumerate() {
         match item {
@@ -1231,6 +1325,7 @@ fn stage(
                     &mut strings,
                     declaration.prefix,
                     declaration.uri,
+                    scratch_limit,
                 )?);
             }
             ElementItem::Attribute(attribute) => {
@@ -1246,6 +1341,7 @@ fn stage(
                     &mut work,
                     limits,
                     &mut strings,
+                    scratch_limit,
                 )?;
                 for previous in &attributes {
                     if previous.is_declaration {
@@ -1259,21 +1355,22 @@ fn stage(
                         }
                         _ => false,
                     };
-                    if namespace_matches {
-                        if work.compare(
+                    if namespace_matches
+                        && work.compare(
                             &strings[previous.name.local.clone()],
                             &strings[name.local.clone()],
-                        )? {
-                            return Err(located_item(
-                                EditErrorKind::DuplicateAttribute,
-                                index,
-                                false,
-                                None,
-                                None,
-                            ));
-                        }
+                        )?
+                    {
+                        return Err(located_item(
+                            EditErrorKind::DuplicateAttribute,
+                            index,
+                            false,
+                            None,
+                            None,
+                        ));
                     }
                 }
+                ensure_scratch(&mut strings, attribute.value.len(), scratch_limit)?;
                 let value = put_string(&mut strings, attribute.value);
                 attributes.push(StagedAttribute {
                     name,
@@ -1299,6 +1396,7 @@ fn stage(
             &mut strings,
             declaration.prefix.as_deref(),
             &declaration.uri,
+            scratch_limit,
         )?);
     }
     debug_assert!(strings.len() <= strings.capacity());
@@ -1423,22 +1521,28 @@ pub(super) fn create(
         slots_are_preorder: true,
     };
     let staged = stage(&staging_document, None, &root, limits)?;
+    if limits.max_created_nodes < 1 {
+        return Err(limit_global(EditLimit::CreatedNodes));
+    }
     let created_attributes = staged.attributes.len();
     if created_attributes > limits.max_created_attributes {
         return Err(limit_global(EditLimit::CreatedAttributes));
-    }
-    if limits.max_created_nodes < 1 {
-        return Err(limit_global(EditLimit::CreatedNodes));
     }
     let additional = checked_payload_size(&staged)?;
     let capacity = staging_document
         .pool
         .edit_capacity(additional, 0, limits.max_owned_bytes)?;
 
+    #[cfg(test)]
+    inject_edit_reservation_failure(EditReservation::Node)?;
     staging_document
         .nodes
         .try_reserve_exact(2)
         .map_err(|_| allocation_error())?;
+    #[cfg(test)]
+    if created_attributes > 0 {
+        inject_edit_reservation_failure(EditReservation::Attribute)?;
+    }
     staging_document
         .attributes
         .try_reserve_exact(created_attributes)
@@ -1447,7 +1551,8 @@ pub(super) fn create(
         .pool
         .reserve_edit(capacity, &mut staging_document.edit_owned_bytes)?;
 
-    let document_node = OwnedRecord::root(0);
+    let mut document_node = OwnedRecord::root(0);
+    document_node.source = None;
     let root_id = NodeId(1);
     let root_link = Link::new(root_id).ok_or_else(allocation_error)?;
     let document_link = Link::new(NodeId(0)).ok_or_else(allocation_error)?;
@@ -1546,6 +1651,16 @@ pub(super) fn append(
         .nodes
         .try_reserve(1)
         .map_err(|_| allocation_error())?;
+    #[cfg(test)]
+    if editor
+        .document
+        .attributes
+        .len()
+        .checked_add(staged.attributes.len())
+        .is_some_and(|needed| needed > editor.document.attributes.capacity())
+    {
+        inject_edit_reservation_failure(EditReservation::Attribute)?;
+    }
     editor
         .document
         .attributes
@@ -1623,6 +1738,8 @@ mod tests {
     fn create_and_append_publish_attributes_links_and_complete_xml() {
         let mut document = OwnedDocument::create(root_spec(), EditLimits::default()).unwrap();
         let root = document.root_element().id();
+        assert_eq!(document.root().range(), None);
+        assert_eq!(document.root_element().range(), None);
         let mut editor = document.edit(EditLimits::default()).unwrap();
         let child = editor
             .append_element(
@@ -1651,6 +1768,7 @@ mod tests {
             )
             .unwrap();
         let view = editor.document().node(child).unwrap();
+        assert_eq!(view.range(), None);
         assert_eq!(view.name().unwrap().qualified, "s:item");
         assert_eq!(
             view.attributes()
@@ -1736,6 +1854,237 @@ mod tests {
                 .map(|a| a.name.qualified)
                 .collect::<Vec<_>>(),
             ["xmlns", "ns1:a", "xmlns:ns2", "xmlns:ns1"]
+        );
+    }
+
+    #[test]
+    fn automatic_name_does_not_reuse_prefix_shadowed_by_later_exact_intent() {
+        let root_items = [ElementItem::Namespace(NamespaceSpec {
+            prefix: Some("p"),
+            uri: "urn:old",
+        })];
+        let root = ElementSpec {
+            name: NameSpec {
+                local: "root",
+                namespace: None,
+                prefix: PrefixPolicy::Exact(None),
+            },
+            items: &root_items,
+        };
+        let mut document = OwnedDocument::create(root, EditLimits::default()).unwrap();
+        let parent = document.root_element().id();
+        let items = [
+            ElementItem::Attribute(AttributeSpec {
+                name: NameSpec {
+                    local: "id",
+                    namespace: Some("urn:old"),
+                    prefix: PrefixPolicy::Automatic,
+                },
+                value: "1",
+            }),
+            ElementItem::Attribute(AttributeSpec {
+                name: NameSpec {
+                    local: "tag",
+                    namespace: Some("urn:new"),
+                    prefix: PrefixPolicy::Exact(Some("p")),
+                },
+                value: "x",
+            }),
+        ];
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        let child = editor
+            .append_element(
+                parent,
+                ElementSpec {
+                    name: NameSpec {
+                        local: "child",
+                        namespace: None,
+                        prefix: PrefixPolicy::Exact(None),
+                    },
+                    items: &items,
+                },
+            )
+            .unwrap();
+        let element = editor.document().node(child).unwrap();
+        assert_eq!(
+            element
+                .attributes()
+                .map(|attribute| attribute.name.qualified)
+                .collect::<Vec<_>>(),
+            ["ns1:id", "p:tag", "xmlns:ns1", "xmlns:p"]
+        );
+        assert_eq!(
+            element
+                .attributes()
+                .map(|attribute| attribute.value.into_owned())
+                .collect::<Vec<_>>(),
+            ["1", "x", "urn:old", "urn:new"]
+        );
+    }
+
+    #[test]
+    fn namespace_work_charges_only_scope_steps_and_comparison_operands() {
+        let root_items = [
+            ElementItem::Namespace(NamespaceSpec {
+                prefix: None,
+                uri: "urn:u",
+            }),
+            ElementItem::Namespace(NamespaceSpec {
+                prefix: Some("p"),
+                uri: "urn:u",
+            }),
+        ];
+        let mut document = OwnedDocument::create(
+            ElementSpec {
+                name: NameSpec {
+                    local: "root",
+                    namespace: Some("urn:u"),
+                    prefix: PrefixPolicy::Automatic,
+                },
+                items: &root_items,
+            },
+            EditLimits::default(),
+        )
+        .unwrap();
+        let parent = document.root_element().id();
+        let child = ElementSpec {
+            name: NameSpec {
+                local: "child",
+                namespace: Some("urn:u"),
+                prefix: PrefixPolicy::Automatic,
+            },
+            items: &[],
+        };
+        {
+            let limits = EditLimits {
+                max_namespace_work: 12,
+                ..EditLimits::default()
+            };
+            let mut editor = document.edit(limits).unwrap();
+            let error = editor.append_element(parent, child).unwrap_err();
+            assert_eq!(
+                error.kind,
+                EditErrorKind::LimitExceeded(EditLimit::NamespaceWork)
+            );
+            assert_eq!(error.location, None);
+        }
+        let limits = EditLimits {
+            max_namespace_work: 13,
+            ..EditLimits::default()
+        };
+        let mut editor = document.edit(limits).unwrap();
+        assert!(editor.append_element(parent, child).is_ok());
+    }
+
+    #[test]
+    fn append_reservation_failures_leave_no_published_element_or_items() {
+        let value = "v".repeat(256);
+        let item = ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "id",
+                namespace: None,
+                prefix: PrefixPolicy::Exact(None),
+            },
+            value: &value,
+        });
+        for reservation in [
+            EditReservation::Scratch,
+            EditReservation::Node,
+            EditReservation::Attribute,
+            EditReservation::Pool,
+        ] {
+            let mut document = OwnedDocument::create(root_spec(), EditLimits::default()).unwrap();
+            let parent = document.root_element().id();
+            let mut editor = document.edit(EditLimits::default()).unwrap();
+            let failure = EditReservationFailureGuard::arm(reservation, 0);
+            assert_eq!(
+                editor.append_element(
+                    parent,
+                    ElementSpec {
+                        name: NameSpec {
+                            local: "item",
+                            namespace: None,
+                            prefix: PrefixPolicy::Exact(None),
+                        },
+                        items: std::slice::from_ref(&item),
+                    }
+                ),
+                Err(EditError::new(EditErrorKind::Allocation, None))
+            );
+            assert!(failure.fired(), "{reservation:?}");
+            assert_eq!(failure.attempts(), 1, "{reservation:?}");
+            assert_eq!(editor.document().nodes.len(), 2, "{reservation:?}");
+            assert!(
+                editor
+                    .document()
+                    .root_element()
+                    .attributes()
+                    .next()
+                    .is_none()
+            );
+            assert_eq!(editor.document().edit_created_nodes, 1);
+            assert_eq!(editor.document().edit_created_attributes, 0);
+        }
+    }
+
+    #[test]
+    fn reserved_xml_namespace_errors_point_to_the_semantic_component() {
+        for prefix in [PrefixPolicy::Exact(None), PrefixPolicy::Exact(Some("p"))] {
+            let error = OwnedDocument::create(
+                ElementSpec {
+                    name: NameSpec {
+                        local: "root",
+                        namespace: Some(XML),
+                        prefix,
+                    },
+                    items: &[],
+                },
+                EditLimits::default(),
+            )
+            .unwrap_err();
+            assert_eq!(error.kind, EditErrorKind::Namespace);
+            assert_eq!(
+                error.location,
+                Some(EditLocation::ElementName {
+                    component: EditComponent::Prefix,
+                    byte_offset: None,
+                })
+            );
+        }
+
+        let root = OwnedDocument::create(root_spec(), EditLimits::default()).unwrap();
+        let parent = root.root_element().id();
+        let items = [ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "lang",
+                namespace: Some("urn:wrong"),
+                prefix: PrefixPolicy::Exact(Some("xml")),
+            },
+            value: "en",
+        })];
+        let mut root = root;
+        let mut editor = root.edit(EditLimits::default()).unwrap();
+        let error = editor
+            .append_element(
+                parent,
+                ElementSpec {
+                    name: NameSpec {
+                        local: "child",
+                        namespace: None,
+                        prefix: PrefixPolicy::Exact(None),
+                    },
+                    items: &items,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.kind, EditErrorKind::Namespace);
+        assert_eq!(
+            error.location,
+            Some(EditLocation::AttributeItem {
+                index: 0,
+                component: None,
+                byte_offset: None,
+            })
         );
     }
 

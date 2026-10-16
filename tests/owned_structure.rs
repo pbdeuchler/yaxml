@@ -333,7 +333,11 @@ fn output(document: &OwnedDocument) -> Vec<u8> {
 }
 
 fn error(kind: EditErrorKind, value_offset: Option<usize>) -> EditError {
-    EditError { kind, value_offset, location: None }
+    EditError {
+        kind,
+        value_offset,
+        location: None,
+    }
 }
 fn quota(limit: EditLimit) -> EditError {
     error(EditErrorKind::LimitExceeded(limit), None)

@@ -25,7 +25,9 @@ static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum EditReservation {
+    Scratch,
     Node,
+    Attribute,
     Pool,
 }
 
@@ -429,6 +431,44 @@ pub struct OwnedDocument {
 
 impl OwnedDocument {
     /// Creates a complete owned document containing one constructed root element.
+    ///
+    /// Initial namespace declarations and attributes become part of the root's
+    /// fixed attribute range. Values remain editable, but this API does not add
+    /// or remove items from an existing element.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, ElementSpec, NameSpec, OwnedDocument, PrefixPolicy, Writer};
+    ///
+    /// let mut document = OwnedDocument::create(
+    ///     ElementSpec {
+    ///         name: NameSpec {
+    ///             local: "catalog",
+    ///             namespace: None,
+    ///             prefix: PrefixPolicy::Exact(None),
+    ///         },
+    ///         items: &[],
+    ///     },
+    ///     EditLimits::default(),
+    /// )?;
+    /// let root = document.root_element().id();
+    /// let mut edit = document.edit(EditLimits::default())?;
+    /// let child = edit.append_element(
+    ///     root,
+    ///     ElementSpec {
+    ///         name: NameSpec {
+    ///             local: "item",
+    ///             namespace: None,
+    ///             prefix: PrefixPolicy::Exact(None),
+    ///         },
+    ///         items: &[],
+    ///     },
+    /// )?;
+    /// edit.append_text(child, "literal text")?;
+    /// let mut writer = Writer::new(Vec::new());
+    /// writer.write_owned_document(edit.document())?;
+    /// assert_eq!(writer.into_inner(), b"<catalog><item>literal text</item></catalog>");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn create(root: ElementSpec<'_>, limits: EditLimits) -> Result<Self, EditError> {
         construction::create(root, limits)
     }
@@ -680,6 +720,8 @@ impl Editor<'_> {
     }
 
     /// Appends a fresh element with its initial attributes and namespace declarations.
+    /// The element's attribute membership and contiguous range are fixed after
+    /// insertion; existing value-edit methods remain available.
     pub fn append_element(
         &mut self,
         parent: OwnedNodeId,

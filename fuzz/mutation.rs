@@ -323,7 +323,11 @@ fn expected_target(target: &str) -> Result<(), EditError> {
 }
 
 fn error(kind: EditErrorKind, value_offset: Option<usize>) -> EditError {
-    EditError { kind, value_offset, location: None }
+    EditError {
+        kind,
+        value_offset,
+        location: None,
+    }
 }
 
 // This oracle walks UTF-8 scalars and then byte positions, independently of

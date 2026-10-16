@@ -171,7 +171,11 @@ fn round_trip(document: &OwnedDocument) {
 }
 
 fn error(kind: EditErrorKind, value_offset: Option<usize>) -> EditError {
-    EditError { kind, value_offset, location: None }
+    EditError {
+        kind,
+        value_offset,
+        location: None,
+    }
 }
 
 fn owned_limit() -> EditError {

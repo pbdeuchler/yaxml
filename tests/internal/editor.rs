@@ -378,6 +378,18 @@ fn edit_errors_display_optional_value_indices_and_defaults_are_finite() {
     );
     let plain = error(EditErrorKind::Allocation, None);
     assert_eq!(plain.to_string(), "XML edit error Allocation");
+    let located = EditError::located(
+        EditErrorKind::Namespace,
+        EditLocation::AttributeItem {
+            index: 2,
+            component: None,
+            byte_offset: None,
+        },
+    );
+    assert_eq!(
+        located.to_string(),
+        "XML edit error Namespace at AttributeItem { index: 2, component: None, byte_offset: None }"
+    );
     assert!(std::error::Error::source(&indexed).is_none());
     let mut pool = Pool("r".to_owned());
     let mut spent = 2;
