@@ -62,11 +62,22 @@ impl PushParser {
     /// final EOF or failure. Interrupted reads are retried; other I/O errors are
     /// preserved. No document-controlled resource is opened by this operation.
     /// Existing state can precede the reader, for example after feeding a prefix.
+    /// A terminal parser error is returned before I/O; a successfully finished
+    /// parser returns `InvalidState` before touching the source.
     pub fn read_from(
         mut self,
         mut input: impl std::io::Read,
         mut emit: impl FnMut(Event<'_>, Range<usize>) -> ControlFlow<()>,
     ) -> Result<(), ReadError> {
+        if let Some(error) = self.failure {
+            return Err(ReadError::Xml(error));
+        }
+        if self.finished {
+            return Err(ReadError::Xml(Error::new(
+                ErrorKind::InvalidState,
+                self.position(),
+            )));
+        }
         let mut buffer = [0; 8192];
         loop {
             match input.read(&mut buffer) {
@@ -115,6 +126,9 @@ impl PushParser {
             )));
         };
         self.received = total;
+        // A recovered callback panic must not permit reuse of partially
+        // delivered tokens or mutated document state.
+        self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
         let state = &mut self.state;
         let range = &mut self.range;
         let result = self.tokenizer.feed(input, |kind, bytes, source| {
@@ -135,6 +149,7 @@ impl PushParser {
         if self.finished {
             return Ok(());
         }
+        self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
         let state = &mut self.state;
         let range = &mut self.range;
         let result = self
@@ -148,9 +163,7 @@ impl PushParser {
     }
 
     fn remember(&mut self, result: Result<(), Error>) -> Result<(), Error> {
-        if let Err(error) = result {
-            self.failure = Some(error);
-        }
+        self.failure = result.err();
         result
     }
 }

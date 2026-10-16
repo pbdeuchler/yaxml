@@ -35,12 +35,19 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps. Reaching 100% remains open.
 - [ ] Record full DOM and streaming baselines for libxml2 and yaxml across a versioned corpus.
 - [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
+- [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
+- [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.
+- [ ] Add buffered pull input and owned document storage; verify memory and time-to-first-event across large-input size series.
 
 The reference release is pinned and 4,051 header identifiers are indexed. A built
 2.15.4 oracle, configured export verification, and per-operation Rust mappings are
 still needed to close the first item. The crate has no C ABI exports.
 
 Later rows receive their own detailed burndown when their dependencies are understood. Avoid building a generic engine for schemas, XPath, and HTML before implementing their actual semantics.
+
+The [streaming contract](streaming.md) describes the implemented P1 subset. Push
+parsing uses one bounded token buffer; it does not accumulate the input. Buffered
+pull, owned DOM, encoding expansion and allocator support remain pending.
 
 ## Performance decisions
 

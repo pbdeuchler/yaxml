@@ -170,3 +170,40 @@ fn terminal_parser_errors_stop_reading_immediately() {
         assert!(matches!(result,Err(ReadError::Xml(e)) if e.kind==expected));
     }
 }
+
+#[test]
+fn terminal_parsers_do_not_touch_new_readers() {
+    struct Untouched;
+    impl Read for Untouched {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            panic!("terminal parser touched I/O")
+        }
+    }
+    for (input, cancel) in [(b"<r></x>".as_slice(), false), (b"<r/>", true)] {
+        let mut parser = PushParser::new();
+        let expected = parser
+            .feed(input, |_, _| {
+                if cancel {
+                    ControlFlow::Break(())
+                } else {
+                    ControlFlow::Continue(())
+                }
+            })
+            .unwrap_err();
+        let error = parser
+            .read_from(Untouched, |_, _| panic!("callback after terminal failure"))
+            .unwrap_err();
+        assert!(matches!(error,ReadError::Xml(actual) if actual==expected));
+    }
+    let mut parser = PushParser::new();
+    parser
+        .feed(b"<r/>", |_, _| ControlFlow::Continue(()))
+        .unwrap();
+    parser.finish(|_, _| ControlFlow::Continue(())).unwrap();
+    let error = parser
+        .read_from(Untouched, |_, _| panic!("callback after final EOF"))
+        .unwrap_err();
+    assert!(
+        matches!(error,ReadError::Xml(actual) if actual.kind==ErrorKind::InvalidState && actual.offset==4)
+    );
+}

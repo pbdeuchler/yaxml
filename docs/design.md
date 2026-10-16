@@ -87,14 +87,33 @@ temporary event allocation becomes a measured DOM bottleneck, add a concrete
 internal event-consumer path that shares the same state transitions. Do not
 create a public generic parser framework in anticipation of that result.
 
-Incremental input is a separate milestone. `Reader` over a complete byte slice
-can emit events incrementally, but it still retains the supplied input; this is
-not bounded-memory I/O streaming. A future `feed`/`finish` state machine must
-distinguish incomplete tokens from invalid XML and retain only bounded pending
-input. Test every possible split point, including UTF-8 sequences, CRLF,
-references, quotes, comment delimiters, and CDATA terminators. Thin `BufRead` and
-SAX drivers can then share it. Async runtimes remain caller concerns under the
-one-dependency rule.
+`Reader` over a complete byte slice emits borrowed events while retaining the
+supplied input. `PushParser` implements incremental `feed`/`finish` with a separate
+bounded lexical scanner. It retains a raw token until its delimiter arrives,
+including text until the next `<` or final EOF, so event boundaries and token
+limits are independent of chunking. The lexer carries quote/delimiter state
+instead of rescanning an accumulated prefix. Safe `memchr` searches copy ordinary
+byte runs in bulk. A four-byte preamble handles split encoding signatures.
+
+Both frontends use `ParserState` for names, declarations, normalization, document
+phase, namespaces, and budgets. A narrow retention callback borrows slice strings
+or fallibly copies streaming structural strings. Namespace IDs have scoped
+reference counts; completed scopes release inactive URI entries. Events never
+borrow owned parser state, permitting scope removal before event delivery.
+
+Push callbacks borrow events for their call and receive raw source ranges. A
+callback break is terminal cancellation. `read_from` is a thin buffered `Read`
+driver with explicit I/O failures; a pull interface over buffered I/O remains
+pending. It consumes the parser on failure, avoiding ambiguous resumption after
+an external I/O error. Async runtimes remain caller concerns. Split-point tests
+cover UTF-8 sequences, CRLF, references, quotes, comments, and CDATA terminators.
+
+Whole-input slice validation and incremental token validation can choose different
+first errors when several defects occur. Streaming can deliver a valid prefix
+before a later failure. Grammar acceptance and logical event/spans agree for
+successful documents; resource comparisons account for streaming's additional
+retained string copies. No frontend silently buffers the entire stream to imitate
+the slice constructor's error precedence.
 
 ## Values, namespaces, and diagnostics
 

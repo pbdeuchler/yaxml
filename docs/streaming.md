@@ -1,0 +1,70 @@
+# Streaming contract and implementation
+
+`PushParser` accepts byte chunks without retaining the complete input. `feed`
+does not mean EOF; `finish` flushes pending text and requires a completed root.
+Empty feeds are harmless before finish. Text has one event per lexical run,
+independent of chunk sizes. Markup spans include delimiters. Callbacks receive
+`Event<'_>` and the absolute source byte range; borrowed values live for the call.
+
+`ControlFlow::Break(())` delivers that event, then returns `ErrorKind::Aborted`
+at its end offset. Cancellation and parser errors are sticky. Successful finish
+is idempotent and delivers no further events. Any feed after successful finish,
+including an empty chunk, starts a sticky `InvalidState` error. A failed feed can
+leave an input suffix unconsumed. `position()` includes encoding detection and
+one byte of lookahead when `<` terminates text; callback ranges identify the
+logical event precisely.
+
+A callback panic propagates normally through Rust unwinding. If the caller
+recovers it, the parser remains poisoned with `InvalidState`; partially delivered
+tokens cannot be resumed. Ordinary returned cancellation uses `Aborted` instead.
+
+`PushParser::read_from` consumes its parser and a caller-provided `Read`, using an
+8 KiB stack buffer. It retries `Interrupted`, preserves other I/O failures in
+`ReadError::Io`, and reports XML/cancellation errors in `ReadError::Xml`. It stops
+reading immediately after a parser failure. Parsing opens no document-controlled
+resources. A parser already in a terminal error returns that error before touching
+the reader. A successfully finished parser returns `InvalidState` before I/O.
+A true buffered pull API and async adapters remain separate work.
+
+## Shared semantics and storage
+
+The slice reader and push parser share document phases, name/reference validation,
+normalization, namespace scope, and event budgets through `ParserState`. Its
+retention callback preserves borrowed slice strings or copies names needed after
+streaming token storage is reused. Namespace identities avoid rehashing long URIs
+per attribute. Reference counts release interned URIs when their last retained
+binding leaves scope, including aliases and shadowed ancestor bindings.
+
+The lexer retains at most one token plus a constant-size encoding preamble. It
+tracks partial comment, CDATA, PI and quoted-tag delimiters across chunks. Ordinary
+byte runs use `memchr` searches and bulk copies. It never restarts scanning from
+the beginning of an accumulated token. Requested scratch capacity grows
+geometrically up to `max_token_bytes`, with limits checked before reservation.
+
+Remaining parser state depends on open elements and active/shadowed namespace
+bindings; metadata capacities retain their high-water marks. Completed sibling
+namespace declarations do not accumulate strings or interner entries. Callbacks
+that save their own snapshots necessarily retain additional caller-owned memory.
+
+`max_input_bytes` counts all supplied chunks and is checked against each complete
+chunk before processing. Depth, attributes, events and raw token limits apply as
+for the slice reader. `max_owned_bytes` counts cumulative requested capacity for
+normalization, namespace copies, and retained structural strings, even after
+buffers are freed. Streaming therefore spends more of it than borrowing slices.
+This is an allocation-work budget, not an exact resident-memory quota. Ordinary
+unchanged token bytes spend scratch capacity without a cumulative string charge.
+
+## Error ordering and compatibility
+
+The slice constructor validates UTF-8 and XML characters across the whole input.
+The push parser validates each completed token, then applies the shared grammar.
+It can emit valid prefix events before seeing a later error. When input contains
+several defects or simultaneously exceeds several limits, the first error and
+its discovery position can differ between frontends. Final acceptance and valid
+logical events agree under sufficient budgets; isolated errors have split-point
+regressions. A truncated token reports final EOF, while an incomplete feed waits.
+
+Both APIs still reject DTDs and non-UTF-8 encodings. UTF-16, entity declarations,
+owned DOM storage, allocator-backed collections and recovery modes remain open
+items in [the roadmap](roadmap.md). Streaming support does not establish complete
+libxml2 reader/SAX compatibility or the performance goal.

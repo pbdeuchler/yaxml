@@ -12,6 +12,12 @@ The adjacent [`libxml2-api.tsv`](libxml2-api.tsv) indexes **4,051 identifiers** 
 
 Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned document handles and document-scoped node identifiers. Foreign references must keep their document alive; deletion must reject stale handles. Avoid exposing the internal tree layout. WebAssembly with copied inputs/results offers one binding route without requiring unsafe Rust in this crate. Native runtime adapters ordinarily need dependencies and unsafe foreign interfaces outside the core.
 
+The implemented subset now includes the borrowing slice reader, read-only DOM,
+callback `PushParser`, and its explicit `Read` adapter. All share strict UTF-8
+XML 1.0 semantics and reject DTDs. See the [streaming contract](streaming.md) for
+event lifetimes, limits, cancellation and incremental error ordering. Buffered
+pull input and the full upstream reader/SAX option surfaces remain open.
+
 ## Prioritized feature map
 
 Priority is dependency order and migration value. P0 is the first usable secure XML subset; P1 adds true buffered streaming and ordinary editing/output; P2 enables XML document-processing stacks; P3 covers HTML, schemas and legacy clients; P4 adds language adapters.

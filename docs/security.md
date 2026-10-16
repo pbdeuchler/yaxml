@@ -20,7 +20,7 @@ Limits are per operation and checked before retaining more state or allocating a
 | --- | --- | --- |
 | Input | Total source bytes | Aggregate resolved bytes, decoded bytes, and compressed input handled outside the core |
 | Tokens | Raw token bytes | Decoded token bytes and transcoding carry buffer |
-| Normalized strings | Cumulative requested string capacity, including owned namespace copies | Allocator-level byte accounting and failure injection; current budget is not a process memory quota |
+| Owned strings | Cumulative requested string capacity, including owned namespace copies and streaming structural names | Allocator-level byte accounting and failure injection; current budget is not a process memory quota |
 | Structure | Element depth, attributes per element, event count | DOM nodes, retained DOM bytes, namespace declarations and bindings |
 | Entities | Reject DTDs; recognize only predefined and numeric references | Entity nesting, reference count, expanded bytes, expansion work, and cycle detection |
 | External resources | No implicit I/O | Request count, cumulative bytes, nesting, redirects, and caller cancellation |
@@ -61,7 +61,7 @@ The coverage artifact records revision, compiler/LLVM version, target platform, 
 | Slice reader | Arbitrary bytes, limit profiles, repeated calls after EOF/error; terminate without panic; offsets remain inside source; names and references obey XML rules |
 | DOM | Arbitrary bytes; agree with the reader on acceptance; valid parent/child/sibling links; iterative traversal visits exactly the stored nodes |
 | Normalization | Text/attribute/reference contexts; legal scalar references; distinguish literal whitespace from referenced whitespace; preserve documented normalization semantics |
-| Streaming, when implemented | Same bytes across every split for small cases and generated schedules for larger cases; agree with slice parsing after documented text-event coalescing; distinguish temporary exhaustion from final EOF |
+| Streaming | Same bytes across every split for small cases and generated schedules for larger cases; exact typed event/span agreement on success; distinguish feed from final EOF; sticky cancellation, I/O faults and no further reads after terminal failure |
 | Writer and mutation, when implemented | Generated valid and invalid operation sequences; reject illegal state transitions; parse output and compare semantic structure; reject cycles and stale handles |
 | Advanced features, when implemented | Separate grammar targets plus resolver, query, schema, entity, and cancellation operation sequences; assert budgets and deterministic results |
 

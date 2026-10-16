@@ -6,11 +6,13 @@ dependency. This is an early implementation, not a libxml2 drop-in replacement.
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, and an immutable DOM. DTDs and other encodings
-return structured errors. The slice reader emits events without constructing a
-DOM, but retains the complete input; buffered/push I/O streaming is still pending.
+return structured errors. `Reader` borrows complete input. `PushParser` consumes
+arbitrary byte chunks, retaining a bounded token and active document/namespace
+state; `read_from` drives it from a caller-provided `std::io::Read`.
 
 ```rust
-use yaxml::{Document, Event, Reader};
+use std::ops::ControlFlow;
+use yaxml::{Document, Event, PushParser};
 
 fn main() -> Result<(), yaxml::Error> {
     let xml = "<root xmlns='urn:example'><item key='v'>text&amp;more</item></root>";
@@ -21,21 +23,35 @@ fn main() -> Result<(), yaxml::Error> {
         }
     }
 
-    let mut reader = Reader::new(xml.as_bytes())?;
-    while let Some(event) = reader.read_event()? {
-        if let Event::Text(value) = event {
-            assert_eq!(value, "text&more");
-        }
+    let mut parser = PushParser::new();
+    for chunk in xml.as_bytes().chunks(7) {
+        parser.feed(chunk, |event, _range| {
+            if let Event::Text(value) = event {
+                assert_eq!(value, "text&more");
+            }
+            ControlFlow::Continue(())
+        })?;
     }
+    parser.finish(|_, _| ControlFlow::Continue(()))?;
     Ok(())
 }
 ```
 
 `Limits` controls input bytes, raw token bytes, element depth, attributes per
 element, emitted events, and cumulative requested string capacity for normalized
-values and namespace copies. Defaults are finite. The string budget counts work
+values, namespace copies, and retained streaming names. Defaults are finite. The string budget counts work
 across an entire operation, including released buffers; it is not a precise
-process memory quota. Parsing performs no filesystem or network access.
+process memory quota. Scratch token storage is bounded separately by the raw token
+ceiling. Streaming copies spend more of the string budget than borrowing slices.
+Parsing opens no files or network connections; `read_from` reads only its supplied
+source and preserves underlying I/O errors in `ReadError`.
+
+An empty feed means temporary exhaustion; `finish` means final EOF. A callback's
+`Break(())` cancels permanently with `Aborted`. Errors are sticky, successful finish
+is idempotent, and feeding after finish returns `InvalidState`. Text event spans
+are independent of chunk boundaries. Callback values borrow only for the call.
+Incremental validation can deliver valid prefix events before discovering a later
+error; slice construction validates all input characters before emitting events.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
@@ -50,4 +66,4 @@ over libxml2 or complete fuzz execution coverage is claimed yet.
 
 Run `cargo test`, `cargo clippy --all-targets -- -D warnings`, and
 `cargo bench --bench parse`. The benchmark reports yaxml-only DOM and slice-event
-throughput; it does not compare equivalent libxml2 workloads.
+and push throughput with 8 KiB chunks; it does not compare equivalent libxml2 workloads.

@@ -35,7 +35,7 @@ pub enum ErrorKind {
     Allocation,
     /// The event callback requested terminal cancellation.
     Aborted,
-    /// Input was supplied after successful final EOF.
+    /// The operation is disallowed after final EOF or a recovered callback panic.
     InvalidState,
 }
 
