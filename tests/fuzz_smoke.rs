@@ -554,6 +554,9 @@ fn encoded_equivalents_and_every_truncation() {
                 driver::exercise(&utf16(input, little, false));
             }
         }
+        for body in ["<r/>", "<r>a</r>", "<r>&amp;</r>", "<r a='&#9;'/>"] {
+            assert!(driver::exercise(&utf16(body, little, true)).error.is_none());
+        }
         for maximum in 0..=80 {
             driver::exercise_with_limits(
                 &utf16("<r>&amp;</r>", little, true),

@@ -347,6 +347,18 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             max_decoded_token_bytes: byte(6),
         },
     );
+    if let Some(minimum) = reference.as_ref().and_then(owned_minimum) {
+        for maximum in [minimum - 1, minimum] {
+            owned_limit_profile(
+                input,
+                Limits {
+                    max_owned_bytes: maximum,
+                    ..Limits::default()
+                },
+                Some(minimum),
+            );
+        }
+    }
     Outcome {
         error: result.err(),
         events: count,
@@ -394,9 +406,50 @@ fn compare_stream(
 }
 
 pub(super) fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
+    let minimum = if input.len() <= 80 && recognizes(input) && aggregate_only(limits) {
+        Reference::new(input).as_ref().and_then(owned_minimum)
+    } else {
+        None
+    };
+    owned_limit_profile(input, limits, minimum)
+}
+
+fn aggregate_only(limits: Limits) -> bool {
+    Limits {
+        max_owned_bytes: Limits::default().max_owned_bytes,
+        ..limits
+    } == Limits::default()
+}
+
+fn owned_minimum(reference: &Reference) -> Option<usize> {
+    // Independent allocation-work goldens: an open root retains one name,
+    // normalization charges decoded source length, and pool growth charges
+    // each full replacement capacity. Empty roots retain no open name.
+    match reference.canonical.as_str() {
+        "<r/>" => Some(1),
+        "<r>a</r>" => Some(4),
+        "<r>&amp;</r>" => Some(9),
+        "<r a='&#9;'/>" => Some(10),
+        _ => None,
+    }
+}
+
+fn owned_limit_profile(input: &[u8], limits: Limits, minimum: Option<usize>) -> Outcome {
     let mut events = 0;
     let result = super::drive_push(input, &[input.len()], limits, |_, _| events += 1);
     let owned = OwnedDocument::with_limits(input, limits);
+    if aggregate_only(limits)
+        && let Some(minimum) = minimum
+    {
+        assert_eq!(
+            owned.is_ok(),
+            limits.max_owned_bytes >= minimum,
+            "UTF-16 owned aggregate budget boundary changed"
+        );
+        if let Err(error) = &owned {
+            assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
+        }
+    }
     if let Err(error) = owned {
         super::check_error(error, input.len());
     } else {
