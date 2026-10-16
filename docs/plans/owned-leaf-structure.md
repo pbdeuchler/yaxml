@@ -195,6 +195,13 @@ Removal changes every slot in the subtree to `Removed`. Pool strings and element
 attribute ranges remain append-only and are not reclaimed. This is predictable
 stale-handle behavior, not a reclamation design.
 
+A removed slot retains no usable topology or payload metadata: take and drop its
+content, clear provenance and all five links, and set its subtree size to zero.
+The underlying append-only pool and attribute arena still retain their bytes;
+removal is logical deletion, not memory reclamation or secret-data zeroization.
+Clearing records prevents historical links from becoming a second accidental
+graph or a future resurrection path.
+
 `OwnedDocument::node` validates document identity, slot range and live state.
 Every public view is constructed only from a live slot. No live link can target a
 removed slot. The document root remains live, its `subtree_size` equals the live
@@ -213,6 +220,12 @@ right to left, then tombstone their parents without recursion or a temporary
 allocation. Ancestor sizes and the exterior sibling chain are updated only after
 all validation has succeeded.
 
+The implementation may use a private sentinel-backed link wrapper instead of
+`Option<NodeId>` if measurement confirms the latter doubles each link's width.
+The sentinel remains private, converts through checked helpers and can never be a
+published slot. Record size and owned parse/traversal performance are measured
+before choosing; no representation detail enters the public handle contract.
+
 ## Limits, error order and atomicity
 
 Add an inclusive `max_created_nodes` field to `EditLimits` and a corresponding
@@ -227,7 +240,11 @@ metadata costs justify a lower documented value.
 each PI string. `max_owned_bytes` retains its cumulative full pool-capacity
 accounting. Node-vector growth uses `try_reserve`; successful created-node count
 bounds retained slots, while deterministic allocator-failure injection remains a
-separate evidence gap.
+separate claim from actual operating-system exhaustion. Add a safe, test-only,
+thread-local reservation failpoint around node and pool growth so every allocation
+error path and publication boundary can be exercised without a custom allocator,
+global test races, unsafe code or another dependency. It simulates the returned
+failure path; it does not prove allocator implementation behavior.
 
 Add `EditErrorKind::ProtectedNode` and `EditErrorKind::InvalidName`. For PI target
 errors, `value_offset` is the UTF-8 byte index in `target`; PI data errors point
@@ -412,6 +429,8 @@ The independent holistic review must deliberately inject and catch at least:
 3. Add persistent created-node accounting, new errors and transactional fresh
    leaf publication.
 4. Add allocation-free permanent subtree removal and stale-handle rejection.
-5. Add public conformance tests, independent modeled fuzzing, exact quota cases,
+5. Add safe reservation-failure injection and atomic rollback tests for every
+   structural and string-growth boundary.
+6. Add public conformance tests, independent modeled fuzzing, exact quota cases,
    libxml2 projection tests, deep/wide stress, coverage and matched benchmarks.
-6. Perform a clean-tree holistic review with deliberate faults before integration.
+7. Perform a clean-tree holistic review with deliberate faults before integration.
