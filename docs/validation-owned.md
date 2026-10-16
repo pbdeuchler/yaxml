@@ -42,6 +42,12 @@ for accepted default-profile inputs up to 1024 bytes. Generated Unicode-prefix
 and empty-value fixtures exercise byte boundaries and ranges across pool growth.
 These checks and the new public APIs are mapped in the [target inventory](../fuzz/README.md).
 
+The [independent mutation review](review-owned.md) found no open issues. It
+deliberately undercounted pool capacity, used character counts for Unicode byte
+splits, truncated element source spans and made the default constructor reject
+everything. All four faults fail ordinary and fuzz tests; the restored suite,
+doctests, formatting and strict Clippy pass with a clean review worktree.
+
 ## Source coverage
 
 The fuzz run is pinned to clean `ee7b645`. The ordinary run uses clean `47f78df`;
