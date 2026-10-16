@@ -1,4 +1,5 @@
 /* Metadata oracle for the checksum-pinned W3C XML conformance catalog. */
+#define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 200809L
 
 #include <libxml/hash.h>
@@ -71,15 +72,15 @@ static char *relative_case_path(xmlDocPtr doc, xmlNodePtr node,
         goto done;
 
     root_len = strlen(suite_root);
-    if (strncmp(path, suite_root, root_len) != 0 ||
-        (path[root_len] != '\0' && path[root_len] != '/'))
-        goto done;
     if (root_len == 1 && suite_root[0] == '/')
         relative = strdup(path + 1);
-    else if (path[root_len] == '/')
-        relative = strdup(path + root_len + 1);
-    else
-        relative = strdup(".");
+    else if (strncmp(path, suite_root, root_len) == 0 &&
+             (path[root_len] == '\0' || path[root_len] == '/')) {
+        if (path[root_len] == '/')
+            relative = strdup(path + root_len + 1);
+        else
+            relative = strdup(".");
+    }
 done:
     if (parsed != NULL)
         xmlFreeURI(parsed);
@@ -135,6 +136,8 @@ static int emit_test(xmlDocPtr doc, xmlNodePtr node, const char *suite_root,
         fprintf(stderr, "xmlconf catalog: nonlocal or outside-root URI for ID %s\n", f[0]);
         goto done;
     }
+    if (!safe_field(BAD_CAST path, "resolved path"))
+        goto done;
     if (printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
                f[0], f[1], f[2], f[3], f[4] == NULL ? BAD_CAST "" : f[4],
                f[5] == NULL ? BAD_CAST "" : f[5], f[6], f[7], path,
