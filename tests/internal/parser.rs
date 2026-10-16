@@ -366,3 +366,75 @@ fn malformed_private_tokens_fail_without_slicing_panics() {
         assert_eq!(owned(&mut state, kind, "<!", 0).unwrap_err().kind, expected);
     }
 }
+
+#[test]
+fn normalization_predicate_matches_all_flag_contexts_and_scan_boundaries() {
+    use crate::escape::needs_normalization;
+
+    let contexts = [
+        (false, false, b"\r".as_slice()),
+        (false, true, b"\r&".as_slice()),
+        (true, false, b"\r\n\t".as_slice()),
+        (true, true, b"\r\n\t&".as_slice()),
+    ];
+    let alphabet = ["a", "\r", "\n", "\t", "&", "é", "🙂"];
+    let mut values = vec![String::new()];
+    let mut frontier = vec![String::new()];
+    for _ in 0..4 {
+        let mut next = Vec::new();
+        for prefix in &frontier {
+            for suffix in alphabet {
+                next.push(format!("{prefix}{suffix}"));
+            }
+        }
+        values.extend(next.iter().cloned());
+        frontier = next;
+    }
+
+    for (attribute, references, triggers) in contexts {
+        for raw in &values {
+            let expected = raw.bytes().any(|byte| triggers.contains(&byte));
+            assert_eq!(
+                needs_normalization(raw, attribute, references),
+                expected,
+                "attribute={attribute} references={references} raw={raw:?}"
+            );
+        }
+    }
+
+    let lengths = [0, 1, 7, 15, 16, 31, 32, 63, 64, 65, 127, 128, 129, 257];
+    for (attribute, references, triggers) in contexts {
+        for length in lengths {
+            let safe = "x".repeat(length);
+            assert!(!needs_normalization(&safe, attribute, references));
+            assert!(!needs_normalization(
+                &format!("é{safe}🙂"),
+                attribute,
+                references
+            ));
+            if length == 0 {
+                continue;
+            }
+            let mut positions = [0, length / 2, length - 1];
+            positions.sort_unstable();
+            for position in positions
+                .into_iter()
+                .enumerate()
+                .filter_map(|(index, value)| {
+                    (index == 0 || positions[index - 1] != value).then_some(value)
+                })
+            {
+                for sentinel in [b'\r', b'\n', b'\t', b'&'] {
+                    let mut bytes = vec![b'x'; length];
+                    bytes[position] = sentinel;
+                    let raw = std::str::from_utf8(&bytes).unwrap();
+                    assert_eq!(
+                        needs_normalization(raw, attribute, references),
+                        triggers.contains(&sentinel),
+                        "attribute={attribute} references={references} length={length} position={position} sentinel={sentinel:?}"
+                    );
+                }
+            }
+        }
+    }
+}
