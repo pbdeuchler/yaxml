@@ -188,13 +188,12 @@ impl Model {
                 if text.is_empty() {
                     continue;
                 }
-                if previous_parent == node.parent {
-                    if let Some((_, prior)) = result.last_mut() {
-                        if prior.kind == OwnedNodeKind::Text {
-                            prior.text.as_mut().unwrap().push_str(text);
-                            continue;
-                        }
-                    }
+                if previous_parent == node.parent
+                    && let Some((_, prior)) = result.last_mut()
+                    && prior.kind == OwnedNodeKind::Text
+                {
+                    prior.text.as_mut().unwrap().push_str(text);
+                    continue;
                 }
             }
             previous_parent = node.parent;
