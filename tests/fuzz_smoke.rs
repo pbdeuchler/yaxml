@@ -147,6 +147,13 @@ fn shared_namespace_values_compare_without_owned_snapshots() {
 
 #[test]
 fn owned_storage_growth_and_aggregate_limits() {
+    assert!(
+        driver::exercise(
+            "<é:r xmlns:é='urn:ü' é:a=''><![CDATA[]]><!----><?空?><é:c/></é:r>".as_bytes()
+        )
+        .error
+        .is_none()
+    );
     let mut input = String::from("<?xml version='1.0' encoding='UTF-8'?><r xmlns:p='urn:é'>");
     for index in 0..128 {
         input.push_str(&format!(
