@@ -187,8 +187,9 @@ parser state and must be checked before allocating or performing expensive work.
 All size arithmetic needs checked addition/multiplication. Limits must apply to
 recovery and skip operations as well as normal parsing.
 
-The first slice limits input bytes, token bytes, nesting, attributes, and event
-count. DOM node/text totals, namespace work, query steps, schema states, expanded
+The first slice limits input bytes, token bytes, nesting, attributes, event
+count, and cumulative requested string capacity for normalization and namespace
+copies. DOM node/text totals, namespace work, query steps, schema states, expanded
 entity bytes, external bytes, and inclusion depth are required as those features
 arrive. Distinguish the input buffer supplied by the caller from extra memory
 retained by the parser. A byte ceiling alone does not prevent quadratic work on

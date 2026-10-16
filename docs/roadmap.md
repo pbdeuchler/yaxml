@@ -12,27 +12,33 @@ The first useful release is a bounded XML reader and DOM with precisely stated c
 | P1 | XML writer/serializer; UTF-16 input/output and encoding detection; basic tree mutation | Complete common XML workflows and close the UTF-8-only conformance gap | Parse/write semantic round trips; malformed operation tests; encoding boundary corpus; namespace repair specification |
 | P1 | Stable Rust API review and binding boundary prototype | Avoid committing language bindings to unstable node ownership | Lifetime/handle tests; thread and callback contract; explicit resolution of ABI/unsafe constraints |
 | P2 | DTD declarations, entity representation/expansion, defaults, IDs and DTD validation; resolvers and catalogs | Common legacy XML workflows, with substantial new security exposure | Capability-based resolution; aggregate budgets; entity cycles/amplification tests; validation corpus and differential results |
-| P2 | XPath 1.0 and pattern selection; Canonical XML; XInclude | High-value document processing built on stable tree and resolver semantics | W3C suites where available; explicit data model; query/output budgets; canonical byte comparisons |
+| P2 | XPath 1.0 and pattern selection; Canonical XML; XInclude; URI utilities | High-value document processing built on stable tree and resolver semantics | W3C suites where available; explicit data model; query/output budgets; canonical byte comparisons |
 | P3 | HTML parser/serializer with documented libxml2 dialect; RELAX NG; XML Schema 1.0; Schematron | Independent grammars and large compatibility surfaces need dedicated workstreams | Versioned compatibility matrices and suites per subsystem; dedicated fuzz targets and limits |
-| P3 | XPointer, XML 1.1, remaining legacy encodings, Unicode regex/automata, URI utilities, debug/tooling compatibility | Complete the selected libxml2 baseline after core workflows stabilize | Symbol/behavior inventory burndown; explicit exceptions for removed/deprecated behavior |
+| P3 | XPointer, XML 1.1, remaining legacy encodings, Unicode regex/automata, debug/tooling compatibility | Complete the selected libxml2 baseline after core workflows stabilize | Symbol/behavior inventory burndown; explicit exceptions for removed/deprecated behavior |
 | P4 | Python, Ruby, JavaScript/TypeScript, and Go packages; migration tools; any approved ABI adapter | Distribute a core whose contracts have settled | Per-language ownership, error, concurrency, streaming, packaging and integration tests |
 
 These priorities order implementation, not importance. Security and measurement accompany every row. Binding requirements influence handles, ownership, errors, and callbacks from P0 onward even though packages ship later. HTML parsing must identify the libxml2 version/dialect being reproduced rather than silently substitute browser HTML5 behavior.
 
 ## Milestone burndown
 
-Use these as work items, not a claim that the first scaffold satisfies them. Update statuses only after reviewing code and checking the stated evidence.
+The first slice is implemented and independently reviewed; [validation evidence](validation.md)
+records its scope and remaining gaps. A checked implementation item does not mean
+full libxml2 compatibility, production readiness, or completion of the P0 measurement gates.
 
 - [ ] Pin the libxml2 reference release/build features and generate a symbol inventory with per-symbol status and deviations.
-- [ ] Validate XML character/name ranges, declarations, document boundaries, comments, PI, CDATA, references, and attribute normalization.
-- [ ] Resolve namespaces, reject reserved-prefix violations and duplicate expanded attribute names, and unwind bindings correctly.
-- [ ] Complete bounded slice reader behavior, including sticky EOF/error and exact limit semantics.
-- [ ] Build DOM from the reader; verify relationships, source spans, traversal, and allocation behavior.
-- [ ] Add a safe, dependency-free replay/mutation driver and map all implemented input APIs to it.
+- [x] Implement XML character/name ranges, declarations, document boundaries, comments, PI, CDATA, references, and attribute normalization for the UTF-8 subset; full conformance-suite validation remains pending.
+- [x] Resolve namespaces, reject reserved-prefix violations and duplicate expanded attribute names, and unwind bindings correctly.
+- [x] Complete bounded slice reader behavior, including sticky EOF/error and exact limit semantics.
+- [x] Build DOM from the reader; verify relationships, source spans, and iterative traversal. Allocation failure injection remains an open gate.
+- [x] Add a safe, dependency-free replay/mutation driver and map all implemented input APIs to it.
 - [ ] Add differential comparison against a pinned external libxml2 executable and classify every disagreement.
-- [ ] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps.
+- [x] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps. Reaching 100% remains open.
 - [ ] Record full DOM and streaming baselines for libxml2 and yaxml across a versioned corpus.
-- [ ] Review the initial public API and resource policy before expanding to buffered/push streaming.
+- [x] Review the initial public API and resource policy before expanding to buffered/push streaming; final API stabilization is a separate P1 gate.
+
+The reference release is pinned and 4,051 header identifiers are indexed. A built
+2.15.4 oracle, configured export verification, and per-operation Rust mappings are
+still needed to close the first item. The crate has no C ABI exports.
 
 Later rows receive their own detailed burndown when their dependencies are understood. Avoid building a generic engine for schemas, XPath, and HTML before implementing their actual semantics.
 
