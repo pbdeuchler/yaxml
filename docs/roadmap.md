@@ -44,7 +44,9 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [ ] Add DOM serialization helpers, namespace repair, formatting, and UTF-16 output with separate behavior contracts and regression coverage.
 - [x] Add immutable owned document storage with pool-backed views, shared normalization/storage accounting, and input-independent lifetimes.
 - [x] Add incremental UTF-16LE/BE input to push parsing and owned trees, with declaration agreement, raw/decoded ceilings and original byte spans; UTF-16 output remains pending.
-- [ ] Add buffered pull input; verify memory and time-to-first-event across large-input size series for every storage mode.
+- [x] Add bounded buffered pull input with lending events, exact source consumption,
+  terminal I/O contracts, retained-state size series, and time-to-first-event
+  benchmarks. Matched libxml2 performance remains pending.
 
 The reference release is pinned and 4,051 header identifiers are indexed. A built
 2.15.4 oracle, configured export verification, and per-operation Rust mappings are
@@ -53,8 +55,8 @@ still needed to close the first item. The crate has no C ABI exports.
 Later rows receive their own detailed burndown when their dependencies are understood. Avoid building a generic engine for schemas, XPath, and HTML before implementing their actual semantics.
 
 The [streaming contract](streaming.md) describes the implemented P1 subset. Push
-parsing uses one bounded token buffer; it does not accumulate the input. Buffered
-pull, additional encodings and allocator support remain pending. The
+and buffered pull parsing share one resumable engine and bounded token buffer;
+neither accumulates the input. Additional encodings and allocator support remain pending. The
 [owned DOM contract](owned-dom.md) describes the implemented independent storage
 mode; retained-memory and comparative performance evidence remain open.
 

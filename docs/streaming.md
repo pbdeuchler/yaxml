@@ -24,7 +24,22 @@ tokens cannot be resumed. Ordinary returned cancellation uses `Aborted` instead.
 reading immediately after a parser failure. Parsing opens no document-controlled
 resources. A parser already in a terminal error returns that error before touching
 the reader. A successfully finished parser returns `InvalidState` before I/O.
-A true buffered pull API and async adapters remain separate work.
+
+`BufferedReader<R: BufRead>` owns a caller-provided buffered source and lends one
+event plus its original-byte range from `read_event`. It consumes exactly the
+raw prefix accepted by the shared decoder. A large visible suffix remains in
+`R`; callers with only `Read` wrap it in `std::io::BufReader`. `get_ref` permits
+inspection without mutation, while `into_inner` returns the source at the
+parser-consumed position without draining or validating the remainder.
+
+The pull reader retries `Interrupted`. It returns an original I/O error once,
+then becomes `InvalidState` without further I/O. XML errors remain sticky and
+successful EOF repeats without source access. It validates trailing input only
+when advanced to final EOF; returning the root end event does not establish a
+complete document. At the exact input-byte ceiling it probes the source once:
+empty input finalizes, an I/O error is preserved, and a nonempty slice produces
+`InputBytes` without consuming the excess byte. A caught source panic poisons the
+reader. Async adapters remain separate work.
 
 ## Shared semantics and storage
 
@@ -35,9 +50,10 @@ streaming token storage is reused. Namespace identities avoid rehashing long URI
 per attribute. Reference counts release interned URIs when their last retained
 binding leaves scope, including aliases and shadowed ancestor bindings.
 
-The decoder retains at most four signature bytes, one partial UTF-16 code unit
-and one high surrogate. It forwards borrowed UTF-8 chunks or complete UTF-16
-scalars through a stack buffer. The lexer retains at most one decoded token. It
+The decoder retains at most four signature bytes, one partial UTF-16 code unit,
+one high surrogate, and one decoded scalar suffix across pull suspension. It
+forwards borrowed UTF-8 chunks or complete UTF-16 scalars through a stack buffer.
+The lexer retains at most one decoded token. It
 tracks partial comment, CDATA, PI and quoted-tag delimiters across chunks. Ordinary
 byte runs use `memchr` searches and bulk copies. It never restarts scanning from
 the beginning of an accumulated token. Requested scratch capacity grows
@@ -50,9 +66,10 @@ bindings; metadata capacities retain their high-water marks. Completed sibling
 namespace declarations do not accumulate strings or interner entries. Callbacks
 that save their own snapshots necessarily retain additional caller-owned memory.
 
-`max_input_bytes` counts all supplied chunks and is checked against each complete
-chunk before processing. Depth, attributes, events and raw token limits apply as
-for the slice reader. `max_owned_bytes` counts cumulative requested capacity for
+For push parsing, `max_input_bytes` counts all supplied chunks and is checked
+against each complete chunk before processing. Pull parsing counts only the raw
+prefix accepted by the decoder. Depth, attributes, events and raw token limits
+apply as for the slice reader. `max_owned_bytes` counts cumulative requested capacity for
 normalization, namespace copies, and retained structural strings, even after
 buffers are freed. Streaming therefore spends more of it than borrowing slices.
 This is an allocation-work budget, not an exact resident-memory quota. Ordinary
@@ -71,8 +88,8 @@ its discovery position can differ between frontends. Final acceptance and valid
 logical events agree under sufficient budgets; isolated errors have split-point
 regressions. A truncated token reports final EOF, while an incomplete feed waits.
 
-Both APIs reject DTDs. The borrowing APIs remain UTF-8-only; push parsing and
-owned trees also support UTF-16. UTF-16 output, other encodings, entity declarations,
+All APIs reject DTDs. Complete-input borrowing remains UTF-8-only; push, pull,
+and owned parsing also support UTF-16. UTF-16 output, other encodings, entity declarations,
 allocator-backed collections and recovery modes remain open
 items in [the roadmap](roadmap.md). Streaming support does not establish complete
 libxml2 reader/SAX compatibility or the performance goal.

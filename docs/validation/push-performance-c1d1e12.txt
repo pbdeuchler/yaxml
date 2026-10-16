@@ -1,0 +1,21 @@
+50 iterations per sample, six samples per build, balanced permutation order; median MiB/s and median absolute deviation
+tiny pre n=6 median=29.6189 MAD=1.0229 min=26.9413 max=30.7129
+tiny post n=6 median=28.6029 MAD=0.7906 min=27.7652 max=29.5080
+tiny fix n=6 median=28.6266 MAD=0.1404 min=27.5331 max=29.0523
+tiny post/pre=-3.430% fix/post=+0.083% fix/pre=-3.350%
+flat pre n=6 median=63.5997 MAD=0.0471 min=62.5532 max=63.6597
+flat post n=6 median=58.7555 MAD=0.0929 min=57.3779 max=59.1290
+flat fix n=6 median=59.7314 MAD=0.2696 min=59.3091 max=60.1620
+flat post/pre=-7.617% fix/post=+1.661% fix/pre=-6.082%
+text pre n=6 median=449.6193 MAD=1.8199 min=437.2336 max=452.9386
+text post n=6 median=448.6006 MAD=1.6109 min=421.9718 max=451.1953
+text fix n=6 median=449.6741 MAD=1.0830 min=445.7111 max=454.6216
+text post/pre=-0.227% fix/post=+0.239% fix/pre=+0.012%
+normalized pre n=6 median=60.1427 MAD=0.0265 min=57.6713 max=60.2483
+normalized post n=6 median=56.5528 MAD=0.6975 min=55.3265 max=57.2638
+normalized fix n=6 median=57.9152 MAD=0.3128 min=56.8930 max=58.2730
+normalized post/pre=-5.969% fix/post=+2.409% fix/pre=-3.704%
+namespaces pre n=6 median=46.0224 MAD=0.0256 min=44.5553 max=46.0542
+namespaces post n=6 median=45.2421 MAD=0.1219 min=43.8366 max=45.3802
+namespaces fix n=6 median=45.2110 MAD=0.3334 min=44.8314 max=45.5704
+namespaces post/pre=-1.695% fix/post=-0.069% fix/pre=-1.763%

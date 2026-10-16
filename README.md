@@ -7,10 +7,12 @@ The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, and immutable borrowed/owned DOMs. DTDs and other encodings
 return structured errors. `Reader` and `Document` borrow complete UTF-8 input.
-`OwnedDocument` and `PushParser` detect UTF-8 and UTF-16LE/BE. `PushParser` consumes
-arbitrary byte chunks, retaining a bounded token and active document/namespace
-state; `read_from` drives it from a caller-provided `std::io::Read`. `Writer`
-validates UTF-8 events and serializes them to a caller-provided `std::io::Write`.
+`OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE.
+`PushParser` consumes arbitrary byte chunks; `read_from` drives it from a
+caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
+caller-provided `BufRead` input without consuming the unread suffix. Both retain
+a bounded token and active document/namespace state. `Writer` validates UTF-8
+events and serializes them to a caller-provided `std::io::Write`.
 
 ```rust
 use std::ops::ControlFlow;
@@ -48,6 +50,13 @@ decoded token bytes, including on the UTF-8 owning/streaming paths. Scratch toke
 storage is bounded by both token ceilings. Streaming copies spend more of the string budget than borrowing slices.
 Parsing opens no files or network connections; `read_from` reads only its supplied
 source and preserves underlying I/O errors in `ReadError`.
+
+`BufferedReader::read_event` returns the typed event and its original-byte range.
+The event can borrow the retained token, so it must be dropped before advancing
+again. Successful EOF repeats without I/O. XML failures are sticky; an I/O error
+is returned once and later calls return `InvalidState` without touching the
+source. See the [streaming contract](docs/streaming.md) for exact consumption,
+lookahead, and limit behavior.
 
 An empty feed means temporary exhaustion; `finish` means final EOF. A callback's
 `Break(())` cancels permanently with `Aborted`. Errors are sticky, successful finish
@@ -119,5 +128,6 @@ the current stable baseline uses ordinary safe vectors. No performance advantage
 over libxml2 or complete fuzz execution coverage is claimed yet.
 
 Run `cargo test`, `cargo clippy --all-targets -- -D warnings`, and
-`cargo bench --bench parse`. The benchmark reports yaxml-only DOM and slice-event
-and push throughput with 8 KiB chunks; it does not compare equivalent libxml2 workloads.
+`cargo bench --bench parse`, and `cargo bench --bench pull`. The benchmarks report
+yaxml-only DOM, slice-event, push, and buffered-pull measurements; they do not
+compare equivalent libxml2 workloads.
