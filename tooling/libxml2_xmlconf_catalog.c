@@ -1,381 +1,155 @@
-/*
- * Emit the XML Test Suite catalog as a bounded, path-resolved TSV using the
- * pinned libxml2 oracle. This is an external test tool, not library code.
- */
+/* Metadata oracle for the checksum-pinned W3C XML conformance catalog. */
 #define _POSIX_C_SOURCE 200809L
 
+#include <libxml/hash.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/uri.h>
 #include <libxml/xpath.h>
 
-#include <errno.h>
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
-#define MAX_CASES 10000
-#define PATH_LIMIT (1024 * 1024)
+#define MAX_TESTS 10000
+#define MAX_FIELD 1024
 
-typedef struct {
-    char **slots;
-    size_t capacity;
-    size_t count;
-} IdSet;
-
-static void fail(const char *message) {
+static void error(const char *message) {
     fprintf(stderr, "xmlconf catalog: %s\n", message);
 }
 
-static int has_forbidden_tsv_byte(const char *value) {
-    const unsigned char *p = (const unsigned char *) value;
-    for (; *p != '\0'; p++) {
-        if (*p == '\t' || *p == '\n' || *p == '\r')
-            return 1;
-    }
-    return 0;
-}
-
-static uint64_t hash_id(const char *id) {
-    uint64_t hash = UINT64_C(14695981039346656037);
-    const unsigned char *p = (const unsigned char *) id;
-    for (; *p != '\0'; p++) {
-        hash ^= *p;
-        hash *= UINT64_C(1099511628211);
-    }
-    return hash;
-}
-
-static int ids_grow(IdSet *ids) {
-    size_t new_capacity = ids->capacity == 0 ? 64 : ids->capacity * 2;
-    char **new_slots;
-    size_t i;
-
-    if (new_capacity < ids->capacity || new_capacity > MAX_CASES * 2)
+static int safe_field(const xmlChar *value, const char *name) {
+    const unsigned char *p;
+    if (value == NULL)
+        return 1;
+    if (strlen((const char *) value) > MAX_FIELD) {
+        fprintf(stderr, "xmlconf catalog: %s exceeds %d bytes\n", name, MAX_FIELD);
         return 0;
-    new_slots = calloc(new_capacity, sizeof(*new_slots));
-    if (new_slots == NULL)
-        return 0;
-    for (i = 0; i < ids->capacity; i++) {
-        char *id = ids->slots[i];
-        if (id != NULL) {
-            size_t slot = (size_t) (hash_id(id) & (new_capacity - 1));
-            while (new_slots[slot] != NULL)
-                slot = (slot + 1) & (new_capacity - 1);
-            new_slots[slot] = id;
-        }
     }
-    free(ids->slots);
-    ids->slots = new_slots;
-    ids->capacity = new_capacity;
-    return 1;
-}
-
-static int ids_insert(IdSet *ids, const char *id) {
-    size_t slot;
-    char *copy;
-
-    if (ids->capacity == 0 || (ids->count + 1) * 2 >= ids->capacity) {
-        if (!ids_grow(ids))
-            return -1;
-    }
-    slot = (size_t) (hash_id(id) & (ids->capacity - 1));
-    while (ids->slots[slot] != NULL) {
-        if (strcmp(ids->slots[slot], id) == 0)
+    for (p = value; *p != '\0'; p++) {
+        if (*p == '\t' || *p == '\n' || *p == '\r') {
+            fprintf(stderr, "xmlconf catalog: %s contains a TSV control byte\n", name);
             return 0;
-        slot = (slot + 1) & (ids->capacity - 1);
+        }
     }
-    copy = strdup(id);
-    if (copy == NULL)
-        return -1;
-    ids->slots[slot] = copy;
-    ids->count++;
     return 1;
 }
 
-static void ids_destroy(IdSet *ids) {
-    size_t i;
-    for (i = 0; i < ids->capacity; i++)
-        free(ids->slots[i]);
-    free(ids->slots);
+static int valid_type(const xmlChar *type) {
+    return xmlStrEqual(type, BAD_CAST "valid") ||
+           xmlStrEqual(type, BAD_CAST "invalid") ||
+           xmlStrEqual(type, BAD_CAST "not-wf") ||
+           xmlStrEqual(type, BAD_CAST "error");
 }
 
-static xmlChar *property(xmlNodePtr node, const char *name, int required) {
-    xmlChar *value = xmlGetProp(node, BAD_CAST name);
-    if (value == NULL && required) {
-        fprintf(stderr, "xmlconf catalog: TEST is missing required %s\n", name);
-        return NULL;
-    }
-    return value;
-}
-
-static int inside_root(const char *root, const char *path) {
-    size_t n = strlen(root);
-    if (strncmp(root, path, n) != 0)
-        return 0;
-    return path[n] == '\0' || (n == 1 && root[0] == '/') || path[n] == '/';
-}
-
-/* Normalize a local absolute path without requiring the leaf to exist. */
-static char *normalize_absolute(const char *path) {
-    char *copy;
-    char **parts;
-    size_t count = 0, capacity, i, out_len;
-    char *cursor;
-    char *out;
-
-    if (path == NULL || path[0] != '/')
-        return NULL;
-    if (strlen(path) > PATH_LIMIT)
-        return NULL;
-    copy = strdup(path);
-    if (copy == NULL)
-        return NULL;
-    capacity = strlen(path) / 2 + 2;
-    if (capacity > PATH_LIMIT / sizeof(*parts)) {
-        free(copy);
-        return NULL;
-    }
-    parts = calloc(capacity, sizeof(*parts));
-    if (parts == NULL) {
-        free(copy);
-        return NULL;
-    }
-    cursor = copy;
-    while (*cursor != '\0') {
-        char *start;
-        while (*cursor == '/')
-            cursor++;
-        if (*cursor == '\0')
-            break;
-        start = cursor;
-        while (*cursor != '\0' && *cursor != '/')
-            cursor++;
-        if (*cursor == '/')
-            *cursor++ = '\0';
-        if (strcmp(start, ".") == 0 || start[0] == '\0')
-            continue;
-        if (strcmp(start, "..") == 0) {
-            if (count == 0) {
-                free(parts);
-                free(copy);
-                return NULL;
-            }
-            count--;
-        } else {
-            if (count >= capacity) {
-                free(parts);
-                free(copy);
-                return NULL;
-            }
-            parts[count++] = start;
-        }
-    }
-    out_len = 2;
-    for (i = 0; i < count; i++) {
-        size_t len = strlen(parts[i]);
-        if (out_len > PATH_LIMIT - len - 1) {
-            free(parts);
-            free(copy);
-            return NULL;
-        }
-        out_len += len + 1;
-    }
-    out = malloc(out_len);
-    if (out == NULL) {
-        free(parts);
-        free(copy);
-        return NULL;
-    }
-    out[0] = '/';
-    out[1] = '\0';
-    for (i = 0; i < count; i++) {
-        if (i != 0)
-            strcat(out, "/");
-        strcat(out, parts[i]);
-    }
-    free(parts);
-    free(copy);
-    return out;
-}
-
-static char *local_path_from_uri(const xmlChar *uri) {
-    xmlURIPtr parsed = NULL;
-    char *decoded = NULL;
-    char *result = NULL;
-    const char *path;
-    int decoded_len;
-
-    parsed = xmlParseURI((const char *) uri);
-    if (parsed == NULL)
-        goto done;
-    if (parsed->scheme != NULL && strcmp(parsed->scheme, "file") != 0)
-        goto done;
-    if (parsed->server != NULL && parsed->server[0] != '\0' &&
-        strcmp(parsed->server, "localhost") != 0)
-        goto done;
-    if (parsed->query != NULL || parsed->fragment != NULL)
-        goto done;
-    path = parsed->path;
-    if (path == NULL || path[0] != '/')
-        goto done;
-    decoded = xmlURIUnescapeString(path, 0, NULL);
-    if (decoded == NULL)
-        goto done;
-    decoded_len = (int) strlen(decoded);
-    if (decoded_len < 0 || (size_t) decoded_len > PATH_LIMIT)
-        goto done;
-    result = normalize_absolute(decoded);
-done:
-    xmlFree(decoded);
-    if (parsed != NULL)
-        xmlFreeURI(parsed);
-    return result;
-}
-
-static char *resolved_test_path(xmlDocPtr doc, xmlNodePtr node,
-                                const char *suite_root, const char *uri) {
-    xmlChar *base = NULL;
+/* xmlBuildURI performs URI dot-segment normalization. No file is opened here. */
+static char *relative_case_path(xmlDocPtr doc, xmlNodePtr node,
+                                const char *suite_root, const xmlChar *uri) {
+    xmlChar *base = xmlNodeGetBase(doc, node);
     xmlChar *resolved = NULL;
-    char *absolute = NULL;
+    xmlURIPtr parsed = NULL;
+    const char *path;
     char *relative = NULL;
-    char *real = NULL;
-    struct stat st;
     size_t root_len;
 
-    base = xmlNodeGetBase(doc, node);
     if (base == NULL)
         goto done;
-    resolved = xmlBuildURI(BAD_CAST uri, base);
+    resolved = xmlBuildURI(uri, base);
     if (resolved == NULL)
         goto done;
-    absolute = local_path_from_uri(resolved);
-    if (absolute == NULL || !inside_root(suite_root, absolute))
+    parsed = xmlParseURI((const char *) resolved);
+    if (parsed == NULL ||
+        (parsed->scheme != NULL && strcmp(parsed->scheme, "file") != 0) ||
+        (parsed->server != NULL && parsed->server[0] != '\0' &&
+         strcmp(parsed->server, "localhost") != 0) ||
+        parsed->query != NULL || parsed->fragment != NULL)
+        goto done;
+    path = parsed->path;
+    if (path == NULL || path[0] != '/' || strchr(path, '%') != NULL)
         goto done;
 
-    if (lstat(absolute, &st) == 0) {
-        real = realpath(absolute, NULL);
-        if (real == NULL || !inside_root(suite_root, real))
-            goto done;
-        free(absolute);
-        absolute = real;
-        real = NULL;
-        if (!S_ISREG(st.st_mode))
-            goto done;
-    } else if (errno != ENOENT) {
-        goto done;
-    }
     root_len = strlen(suite_root);
+    if (strncmp(path, suite_root, root_len) != 0 ||
+        (path[root_len] != '\0' && path[root_len] != '/'))
+        goto done;
     if (root_len == 1 && suite_root[0] == '/')
-        relative = strdup(absolute + 1);
-    else if (absolute[root_len] == '/')
-        relative = strdup(absolute + root_len + 1);
-    else if (absolute[root_len] == '\0')
+        relative = strdup(path + 1);
+    else if (path[root_len] == '/')
+        relative = strdup(path + root_len + 1);
+    else
         relative = strdup(".");
 done:
-    xmlFree(base);
+    if (parsed != NULL)
+        xmlFreeURI(parsed);
     xmlFree(resolved);
-    free(absolute);
-    free(real);
+    xmlFree(base);
     return relative;
 }
 
-static int validate_value(const char *value, const char *field) {
-    if (value == NULL)
-        return 1;
-    if (has_forbidden_tsv_byte(value)) {
-        fprintf(stderr, "xmlconf catalog: %s contains a TSV control byte\n", field);
-        return 0;
-    }
-    return 1;
-}
-
-static int emit_row(xmlDocPtr doc, xmlNodePtr node, const char *suite_root,
-                    IdSet *ids, size_t *count) {
-    xmlChar *id = NULL, *type = NULL, *entities = NULL, *recommendation = NULL;
-    xmlChar *version = NULL, *edition = NULL, *name_space = NULL, *uri = NULL;
-    xmlChar *output = NULL, *output3 = NULL, *sections = NULL;
+static int emit_test(xmlDocPtr doc, xmlNodePtr node, const char *suite_root,
+                     xmlHashTablePtr ids, size_t *type_counts, size_t *emitted) {
+    static const char *const names[] = {
+        "ID", "TYPE", "ENTITIES", "RECOMMENDATION", "VERSION", "EDITION",
+        "NAMESPACE", "URI", "OUTPUT", "OUTPUT3", "SECTIONS"
+    };
+    xmlChar *f[11] = {0};
     char *path = NULL;
-    int inserted, ok = 0;
+    int ok = 0;
+    size_t i, type_index;
 
-    id = property(node, "ID", 1);
-    type = property(node, "TYPE", 1);
-    uri = property(node, "URI", 1);
-    sections = property(node, "SECTIONS", 1);
-    if (id == NULL || type == NULL || uri == NULL || sections == NULL)
-        goto done;
-    entities = property(node, "ENTITIES", 1);
-    recommendation = property(node, "RECOMMENDATION", 1);
-    version = property(node, "VERSION", 0);
-    edition = property(node, "EDITION", 0);
-    name_space = property(node, "NAMESPACE", 1);
-    output = property(node, "OUTPUT", 0);
-    output3 = property(node, "OUTPUT3", 0);
-    if (entities == NULL || recommendation == NULL || name_space == NULL)
-        goto done;
-
-    if (!validate_value((const char *) id, "ID") ||
-        !validate_value((const char *) type, "TYPE") ||
-        !validate_value((const char *) entities, "ENTITIES") ||
-        !validate_value((const char *) recommendation, "RECOMMENDATION") ||
-        !validate_value((const char *) version, "VERSION") ||
-        !validate_value((const char *) edition, "EDITION") ||
-        !validate_value((const char *) name_space, "NAMESPACE") ||
-        !validate_value((const char *) uri, "URI") ||
-        !validate_value((const char *) output, "OUTPUT") ||
-        !validate_value((const char *) output3, "OUTPUT3") ||
-        !validate_value((const char *) sections, "SECTIONS"))
-        goto done;
-
-    inserted = ids_insert(ids, (const char *) id);
-    if (inserted < 0) {
-        fail("out of memory while checking duplicate IDs");
+    for (i = 0; i < 11; i++) {
+        f[i] = xmlGetProp(node, BAD_CAST names[i]);
+        if (f[i] == NULL && (i == 0 || i == 1 || i == 2 || i == 3 ||
+                             i == 6 || i == 7 || i == 10)) {
+            fprintf(stderr, "xmlconf catalog: TEST is missing required %s\n", names[i]);
+            goto done;
+        }
+        if (!safe_field(f[i], names[i]))
+            goto done;
+    }
+    if (!valid_type(f[1])) {
+        fprintf(stderr, "xmlconf catalog: unknown TYPE for ID %s\n", f[0]);
         goto done;
     }
-    if (inserted == 0) {
-        fprintf(stderr, "xmlconf catalog: duplicate ID: %s\n", (const char *) id);
+    if (xmlHashLookup(ids, f[0]) != NULL) {
+        fprintf(stderr, "xmlconf catalog: duplicate ID: %s\n", f[0]);
         goto done;
     }
-    path = resolved_test_path(doc, node, suite_root, (const char *) uri);
+    if (xmlHashAddEntry(ids, f[0], node) != 0) {
+        error("could not record catalog ID");
+        goto done;
+    }
+    if (xmlStrEqual(f[1], BAD_CAST "valid"))
+        type_index = 0;
+    else if (xmlStrEqual(f[1], BAD_CAST "invalid"))
+        type_index = 1;
+    else if (xmlStrEqual(f[1], BAD_CAST "not-wf"))
+        type_index = 2;
+    else
+        type_index = 3;
+
+    path = relative_case_path(doc, node, suite_root, f[7]);
     if (path == NULL) {
-        fprintf(stderr, "xmlconf catalog: nonlocal, outside-root, or invalid path for ID %s\n",
-                (const char *) id);
+        fprintf(stderr, "xmlconf catalog: nonlocal or outside-root URI for ID %s\n", f[0]);
         goto done;
     }
-    if (!validate_value(path, "resolved path"))
-        goto done;
-
     if (printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-               (const char *) id, (const char *) type, (const char *) entities,
-               (const char *) recommendation,
-               version == NULL ? BAD_CAST "" : version,
-               edition == NULL ? BAD_CAST "" : edition,
-               (const char *) name_space, (const char *) uri, path,
-               output == NULL ? BAD_CAST "" : output,
-               output3 == NULL ? BAD_CAST "" : output3,
-               (const char *) sections) < 0) {
-        fail("failed writing TSV row");
+               f[0], f[1], f[2], f[3], f[4] == NULL ? BAD_CAST "" : f[4],
+               f[5] == NULL ? BAD_CAST "" : f[5], f[6], f[7], path,
+               f[8] == NULL ? BAD_CAST "" : f[8],
+               f[9] == NULL ? BAD_CAST "" : f[9], f[10]) < 0) {
+        error("failed writing TSV row");
         goto done;
     }
-    (*count)++;
+    type_counts[type_index]++;
+    (*emitted)++;
     ok = 1;
 done:
-    xmlFree(id);
-    xmlFree(type);
-    xmlFree(entities);
-    xmlFree(recommendation);
-    xmlFree(version);
-    xmlFree(edition);
-    xmlFree(name_space);
-    xmlFree(uri);
-    xmlFree(output);
-    xmlFree(output3);
-    xmlFree(sections);
     free(path);
+    for (i = 0; i < 11; i++)
+        xmlFree(f[i]);
     return ok;
 }
 
@@ -387,101 +161,99 @@ static int version_command(void) {
 }
 
 int main(int argc, char **argv) {
-    char catalog_real[PATH_MAX];
-    char root_real[PATH_MAX];
+    char catalog_path[PATH_MAX], root_path[PATH_MAX];
+    struct stat root_stat, catalog_stat;
     xmlDocPtr doc = NULL;
-    xmlXPathContextPtr xpath = NULL;
-    xmlXPathObjectPtr nodes = NULL;
-    IdSet ids = {0};
-    size_t count = 0;
-    int i, exit_code = 1;
+    xmlXPathContextPtr context = NULL;
+    xmlXPathObjectPtr tests = NULL;
+    xmlHashTablePtr ids = NULL;
+    size_t type_counts[4] = {0, 0, 0, 0};
+    size_t emitted = 0;
+    int i, result = 1;
 
     if (argc == 2 && strcmp(argv[1], "--version") == 0)
         return version_command();
-    if (argc != 3) {
-        fail("usage: helper CATALOG.xml ABSOLUTE_SUITE_ROOT | --version");
+    if (argc != 3 || argv[1][0] != '/' || argv[2][0] != '/' ||
+        realpath(argv[1], catalog_path) == NULL || realpath(argv[2], root_path) == NULL) {
+        error("usage: helper ABSOLUTE_CATALOG.xml ABSOLUTE_SUITE_ROOT | --version");
         return 2;
     }
-    if (argv[1][0] != '/' || argv[2][0] != '/' ||
-        realpath(argv[1], catalog_real) == NULL ||
-        realpath(argv[2], root_real) == NULL) {
-        fail("catalog and suite root must be existing absolute paths");
+    if (stat(root_path, &root_stat) != 0 || !S_ISDIR(root_stat.st_mode) ||
+        stat(catalog_path, &catalog_stat) != 0 || !S_ISREG(catalog_stat.st_mode)) {
+        error("suite root must be a directory and catalog must be a regular file");
         return 2;
     }
-    {
-        struct stat root_stat;
-        if (stat(root_real, &root_stat) != 0 || !S_ISDIR(root_stat.st_mode)) {
-            fail("suite root must be a directory");
-            return 2;
-        }
-    }
-    if (!inside_root(root_real, catalog_real)) {
-        fail("catalog must be inside suite root");
+    if (!(root_path[0] == '/' && root_path[1] == '\0') &&
+        (strncmp(catalog_path, root_path, strlen(root_path)) != 0 ||
+        (catalog_path[strlen(root_path)] != '\0' &&
+         catalog_path[strlen(root_path)] != '/'))) {
+        error("catalog must be inside suite root");
         return 2;
     }
     if (LIBXML_VERSION != 21504 || xmlParserVersion == NULL ||
         strcmp(xmlParserVersion, "21504") != 0) {
-        fail("helper must be compiled and run with libxml2 2.15.4 (21504)");
+        error("helper must be compiled and run with libxml2 2.15.4 (21504)");
         return 2;
     }
 
     xmlInitParser();
-    doc = xmlReadFile(catalog_real, NULL,
+    doc = xmlReadFile(catalog_path, NULL,
                       XML_PARSE_NOENT | XML_PARSE_DTDATTR | XML_PARSE_NONET);
     if (doc == NULL) {
-        fail("could not parse catalog");
+        error("could not parse catalog");
         goto done;
     }
     if (xmlDocGetRootElement(doc) == NULL ||
-        xmlStrcmp(xmlDocGetRootElement(doc)->name, BAD_CAST "TESTSUITE") != 0) {
-        fail("catalog root must be TESTSUITE");
+        !xmlStrEqual(xmlDocGetRootElement(doc)->name, BAD_CAST "TESTSUITE")) {
+        error("catalog root must be TESTSUITE");
         goto done;
     }
-    xpath = xmlXPathNewContext(doc);
-    if (xpath == NULL) {
-        fail("could not create XPath context");
+    context = xmlXPathNewContext(doc);
+    if (context == NULL) {
+        error("could not create XPath context");
         goto done;
     }
-    nodes = xmlXPathEvalExpression(BAD_CAST "//TEST", xpath);
-    if (nodes == NULL || nodes->type != XPATH_NODESET || nodes->nodesetval == NULL) {
-        fail("could not enumerate TEST nodes");
+    tests = xmlXPathEvalExpression(BAD_CAST "//TEST", context);
+    if (tests == NULL || tests->type != XPATH_NODESET || tests->nodesetval == NULL ||
+        tests->nodesetval->nodeNr <= 0 || tests->nodesetval->nodeNr > MAX_TESTS) {
+        error("catalog TEST count is empty or exceeds 10000");
         goto done;
     }
-    if (nodes->nodesetval->nodeNr <= 0 || nodes->nodesetval->nodeNr > MAX_CASES) {
-        fail("catalog TEST count is empty or exceeds the 10000-case bound");
+    ids = xmlHashCreate(MAX_TESTS);
+    if (ids == NULL) {
+        error("could not allocate ID set");
         goto done;
     }
-    if (printf("yaxml-xmlconf-v1\t%d\n", nodes->nodesetval->nodeNr) < 0) {
-        fail("failed writing manifest header");
+    if (printf("yaxml-xmlconf-v1\t%d\n", tests->nodesetval->nodeNr) < 0) {
+        error("failed writing TSV header");
         goto done;
     }
-    for (i = 0; i < nodes->nodesetval->nodeNr; i++) {
-        xmlNodePtr node = nodes->nodesetval->nodeTab[i];
+    for (i = 0; i < tests->nodesetval->nodeNr; i++) {
+        xmlNodePtr node = tests->nodesetval->nodeTab[i];
         if (node == NULL || node->type != XML_ELEMENT_NODE ||
-            xmlStrcmp(node->name, BAD_CAST "TEST") != 0) {
-            fprintf(stderr, "xmlconf catalog: XPath returned a non-TEST node at index %d\n", i);
-            goto done;
-        }
-        if (!emit_row(doc, node, root_real, &ids, &count))
+            !xmlStrEqual(node->name, BAD_CAST "TEST") ||
+            !emit_test(doc, node, root_path, ids, type_counts, &emitted))
             goto done;
     }
-    if (count != (size_t) nodes->nodesetval->nodeNr) {
-        fail("emitted row count differs from catalog TEST count");
+    if (emitted != (size_t) tests->nodesetval->nodeNr ||
+        type_counts[0] + type_counts[1] + type_counts[2] + type_counts[3] != emitted) {
+        error("emitted or type count differs from catalog TEST count");
         goto done;
     }
     if (fflush(stdout) != 0 || ferror(stdout)) {
-        fail("failed flushing manifest");
+        error("failed flushing manifest");
         goto done;
     }
-    exit_code = 0;
+    result = 0;
 done:
-    ids_destroy(&ids);
-    if (nodes != NULL)
-        xmlXPathFreeObject(nodes);
-    if (xpath != NULL)
-        xmlXPathFreeContext(xpath);
+    if (ids != NULL)
+        xmlHashFree(ids, NULL);
+    if (tests != NULL)
+        xmlXPathFreeObject(tests);
+    if (context != NULL)
+        xmlXPathFreeContext(context);
     if (doc != NULL)
         xmlFreeDoc(doc);
     xmlCleanupParser();
-    return exit_code;
+    return result;
 }
