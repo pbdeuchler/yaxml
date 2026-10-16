@@ -1,0 +1,43 @@
+   Compiling memchr v2.8.3
+   Compiling yaxml v0.1.0 (/private/tmp/yaxml-structure-integration)
+    Finished `release` profile [optimized] target(s) in 4.62s
+     Running `target/release/examples/structure_oracle --libxml2-helper /private/tmp/yaxml-oracle-21504/structure-helper`
+structural executable: /private/tmp/yaxml-oracle-21504/structure-helper
+mode: pinned
+YAXML-STRUCTURE-1 compiled=21504 runtime=21504 tree=1 output=1
+
+append-text: exact tree and byte agreement
+append-cdata: exact tree and byte agreement
+append-comment: exact tree and byte agreement
+append-pi: exact tree and byte agreement
+append-document-comment: exact tree and byte agreement
+append-document-pi: exact tree and byte agreement
+empty-text: exact tree and byte agreement
+empty-cdata: exact tree and byte agreement
+empty-comment: exact tree and byte agreement
+empty-pi: projected agreement (empty PI whitespace spelling)
+text-coalescing: projected agreement (Text coalescing and returned sibling)
+empty-text-coalescing: projected agreement (Text coalescing and returned sibling)
+text-cdata-boundary: exact tree and byte agreement
+cdata-cdata-boundary: exact tree and byte agreement
+append-before-epilog: exact tree and byte agreement
+text-escaping: exact tree and byte agreement
+remove-first: exact tree and byte agreement
+remove-middle: exact tree and byte agreement
+remove-last: exact tree and byte agreement
+remove-sole: exact tree and byte agreement
+remove-text-separator: exact tree and byte agreement
+remove-namespace-subtree: exact tree and byte agreement
+remove-prolog: exact tree and byte agreement
+remove-epilog: exact tree and byte agreement
+root-unlink: intentional difference; libxml2 result verified (root-element unlink)
+text-parent: intentional difference; libxml2 result verified (Text parent consumes the fresh node)
+document-text: intentional difference; libxml2 result verified (Text outside the document element)
+invalid-comment: intentional difference; libxml2 result verified (permissive comment construction)
+reserved-pi: intentional difference; libxml2 result verified (permissive PI target construction)
+pi-leading-space: intentional difference; libxml2 result verified (raw PI data normalization profile)
+ownership-oom: not compared (pointer ownership, foreign/stale handles, quotas and OOM partial updates)
+namespace-moves: not compared (namespace adoption, moves and repair)
+utf16le-append: exact tree and byte agreement
+utf16be-append: exact tree and byte agreement
+structural summary: exact=23 projected=3 intentional=6 skipped=2 disagreements=0 inconclusive=0

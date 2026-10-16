@@ -78,7 +78,7 @@ None.
 | Atomic reservation failure behavior | Met | Safe thread-local node/pool failpoints verify node-before-pool order, no logical publication, retained allowed charges, recovery, skip counts, panic cleanup, and thread isolation. |
 | No adjacent-Text merging and explicit serialized projection | Met | In-memory Text handles stay distinct; only serialize/reparse removes empty Text and coalesces maximal Text runs. CDATA remains separate. |
 | Independent public and fuzz models | Met | Public tests and `fuzz/mutation.rs` independently predict state/errors and compare complete trees, stale handles, quotas, serialization, UTF-8 and UTF-16 inputs. |
-| Structural benchmark with honest accounting | Met | Nine cases separate setup, edit, traversal, serialization, validation and drop, and report `comparison_status=unmeasured`; support tests cover counters and order. |
+| Structural benchmark with honest accounting | Partial | Nine yaxml cases separate setup, edit, traversal, serialization, validation and drop, and report `comparison_status=unmeasured`; support tests cover counters and order. The plan-required matched libxml2 fresh-leaf and unlink/free comparison remains pending. |
 | Version-pinned external structural oracle | Met as tooling; pinned execution pending | CI pins and checksums 2.15.4 and rejects compile/runtime mismatch. The helper bounds protocol I/O, observes live pointers before free, frees detached nodes before the document, and treats nonzero status or stderr as inconclusive. Local 2.15.3 evidence remains explicitly exploratory. |
 | Pure safe Rust library and dependency constraint | Met | Cargo's runtime tree is `yaxml -> memchr`; Rust sources contain no unsafe block or declaration, and crate linting forbids unsafe code. The C file is an external test helper that Cargo never compiles or links. |
 | Documented bounded scope | Met | General element/attribute construction, moves, namespace repair, reclamation, reuse and compaction remain explicitly deferred. |
@@ -99,8 +99,8 @@ The external C helper compiled locally with Apple Clang under `-std=c11 -Wall -W
 
 ### Evidence Limitations
 
-The hosted checksummed libxml2 2.15.4 execution is still pending; the local 2.15.3 result cannot substitute for it. The safe reservation seam proves the library's returned-error boundaries and logical atomicity, not arbitrary allocator or operating-system OOM behavior. The benchmark is yaxml-only and supports no libxml2 performance claim. This review did not generate coverage percentages or conduct a sustained feedback-guided fuzzing campaign; those evidence gates remain pending in the validation report.
+At the review boundary, checksummed libxml2 2.15.4 execution and final coverage were still pending; the local 2.15.3 result could not substitute for the pinned run. The subsequent [validation report](validation-owned-structure.md) records the completed local 2.15.4 run and measured coverage. The safe reservation seam proves the library's returned-error boundaries and logical atomicity, not arbitrary allocator or operating-system OOM behavior. The benchmark is yaxml-only and supports no libxml2 performance claim. This review did not conduct a sustained feedback-guided fuzzing campaign.
 
 ### Verdict
 
-**PASS** -- Zero issues found. Implementation is ready for this bounded milestone's integration.
+**PASS (code quality)** -- Zero code-quality issues found. The implementation satisfies the reviewed code-quality bar; this bounded milestone remains gated on the frozen plan's matched libxml2 structural benchmark.

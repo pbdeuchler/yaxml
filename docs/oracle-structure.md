@@ -126,7 +126,10 @@ Unicode/control framing, ordered namespace-bearing attributes and every response
 truncation. These tests verify failure gates without installed libxml2 headers.
 
 Local exploratory execution against Homebrew libxml2 **2.15.3** passed the full
-catalog. A local 2.15.4 archive download failed DNS resolution; no local pinned
-execution is claimed. CI builds the checksummed 2.15.4 source and runs this
-catalog without the exploratory override. Its configured execution is a pending
-evidence source until the hosted job actually completes.
+catalog, including an AddressSanitizer/UndefinedBehaviorSanitizer helper run.
+The checksummed **2.15.4** source was then built locally and the pinned catalog
+passed with 23 exact agreements, three documented projections, six verified
+intentional differences, two explicit non-comparisons and no disagreement or
+inconclusive result. The [structural validation report](validation-owned-structure.md)
+records build options, hashes and raw evidence. CI runs the same pinned catalog;
+the hosted job has not been executed in this local session.
