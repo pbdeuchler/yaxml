@@ -8,6 +8,9 @@ use yaxml::{Document, Error, ErrorKind, Event, Limits, NodeKind, PushParser, Rea
 #[path = "writer.rs"]
 mod writer;
 
+#[path = "owned.rs"]
+mod owned;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -39,6 +42,11 @@ pub fn exercise(input: &[u8]) -> Outcome {
         check_document(document, input.len(), outcome.events);
         check_projection(document, &stream);
     }
+    owned::exercise(
+        input,
+        Limits::default(),
+        document.as_ref().map_err(|error| *error),
+    );
     if let Ok(text) = std::str::from_utf8(input) {
         assert_eq!(document.is_ok(), Document::parse(text).is_ok());
     }
@@ -74,6 +82,7 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
         document.is_ok(),
         "reader/DOM policy acceptance mismatch for {input:?}"
     );
+    owned::exercise(input, limits, document.as_ref().map_err(|error| *error));
     match document {
         Ok(document) => {
             check_document(&document, input.len(), outcome.events);

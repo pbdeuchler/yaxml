@@ -5,7 +5,7 @@ dependency. This is an early implementation, not a libxml2 drop-in replacement.
 
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8, namespaces, attributes, predefined/numeric references, comments,
-processing instructions, CDATA, and an immutable DOM. DTDs and other encodings
+processing instructions, CDATA, and immutable borrowed/owned DOMs. DTDs and other encodings
 return structured errors. `Reader` borrows complete input. `PushParser` consumes
 arbitrary byte chunks, retaining a bounded token and active document/namespace
 state; `read_from` drives it from a caller-provided `std::io::Read`. `Writer`
@@ -83,6 +83,25 @@ escaping, namespace checks, and partial-output behavior. Each event is validated
 before writing. A sink failure can leave a partial event; later calls return
 `InvalidState`. `finish` requires a closed document and flushes the sink. Namespace
 repair, formatting, DOM serialization helpers, and UTF-16 output remain pending.
+
+Use `OwnedDocument` when a tree must outlive its source:
+
+```rust
+use yaxml::OwnedDocument;
+
+let document = {
+    let input = String::from("<root a='value'>text</root>");
+    OwnedDocument::parse(&input)?
+};
+assert_eq!(document.root_element().name().unwrap().local, "root");
+assert_eq!(document.root_element().first_child().unwrap().text(), Some("text"));
+# Ok::<(), yaxml::Error>(())
+```
+
+The [owned DOM contract](docs/owned-dom.md) describes pool-backed views,
+source ranges and aggregate string accounting. Retained copies share the
+normalization budget, so owned parsing can reach its ceiling before borrowing
+parsing. `Document` continues to borrow unchanged input.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need

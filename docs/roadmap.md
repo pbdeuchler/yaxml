@@ -42,7 +42,8 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.
 - [x] Add a bounded UTF-8 event writer sharing grammar and namespace validation, with explicit finish, escaping, prospective XML offsets, and terminal partial-I/O failures.
 - [ ] Add DOM serialization helpers, namespace repair, formatting, and UTF-16 output with separate behavior contracts and regression coverage.
-- [ ] Add buffered pull input and owned document storage; verify memory and time-to-first-event across large-input size series.
+- [x] Add immutable owned document storage with pool-backed views, shared normalization/storage accounting, and input-independent lifetimes.
+- [ ] Add buffered pull input; verify memory and time-to-first-event across large-input size series for every storage mode.
 
 The reference release is pinned and 4,051 header identifiers are indexed. A built
 2.15.4 oracle, configured export verification, and per-operation Rust mappings are
@@ -52,7 +53,9 @@ Later rows receive their own detailed burndown when their dependencies are under
 
 The [streaming contract](streaming.md) describes the implemented P1 subset. Push
 parsing uses one bounded token buffer; it does not accumulate the input. Buffered
-pull, owned DOM, encoding expansion and allocator support remain pending.
+pull, encoding expansion and allocator support remain pending. The
+[owned DOM contract](owned-dom.md) describes the implemented independent storage
+mode; retained-memory and comparative performance evidence remain open.
 
 The [writer contract](writer.md) describes the implemented event serializer.
 It requires explicit namespace declarations and complete end events; finishing

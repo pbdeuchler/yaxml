@@ -171,12 +171,19 @@ allocation per node and permits safe navigation after storage grows. A `Node`
 view borrows its document; no public reference points into a `Vec` across a
 mutation. Keep storage representation private so measurements can change it.
 
-Initially `Document` borrows the input and the DOM is immutable. This is a useful
-performance baseline, but owned documents are essential for language bindings
-and long-lived application state. The safe path to owning input is a document
-that owns bytes and stores ranges or string-pool IDs, resolving references on
-access. Avoid self-referential structs. Measure whether the borrowed and owned
-forms can share one representation before exposing another public type.
+`Document` borrows input and remains an immutable performance baseline.
+`OwnedDocument` owns a logical UTF-8 pool and stores ranges rather than references
+into itself. Names and attributes resolve to borrowed views at access time;
+prefix/local parts share one stored qualified spelling. Original source spans
+are separate from pool ranges. This supports long-lived application state and
+future bindings without self-references or changing the borrowing API.
+
+Both forms share a small private topology record/append helper and the same
+parser. Owned pool growth charges full new capacities to the parser's cumulative
+normalization budget before reservation. The initial representation copies
+logical namespace values; repeated-URI storage and other layout optimizations
+need adversarial size-series evidence. The [owned contract](owned-dom.md) records
+the view API, limits and remaining storage work.
 
 `NodeId` is document-local identity, not a process-wide handle. Checked lookup
 must reject out-of-range IDs. Before exposing mutation or bindings, specify how
@@ -278,8 +285,9 @@ Land strict UTF-8 parsing, namespace correctness, bounded failure, and DOM
 traversal together with regression tests and fuzz entry points. Next establish
 the conformance/differential harness and honest performance baseline. Callback
 push input, an explicit `Read` adapter and a strict UTF-8 event writer now share
-that semantic engine. Add buffered pull input, owned storage, allocator support
-on the target compiler, DOM serialization, and mutation. DTD/encoding, XPath, HTML compatibility, validation,
+that semantic engine. Owned storage now builds independent trees from its events.
+Add buffered pull input, allocator support on the target compiler, DOM
+serialization, and mutation. DTD/encoding, XPath, HTML compatibility, validation,
 canonicalization, inclusion, and adapters each need their own feature burndown
 and verification criteria. Recovery is an explicit compatibility project with a
 versioned oracle, not a shortcut around strict-parser failures.

@@ -146,6 +146,29 @@ fn shared_namespace_values_compare_without_owned_snapshots() {
 }
 
 #[test]
+fn owned_storage_growth_and_aggregate_limits() {
+    let mut input = String::from("<?xml version='1.0' encoding='UTF-8'?><r xmlns:p='urn:é'>");
+    for index in 0..128 {
+        input.push_str(&format!(
+            "<p:n a='{index}&#9;'>é中&amp;<![CDATA[🙂]]><?pi x\ry?></p:n>"
+        ));
+    }
+    input.push_str("</r>");
+    assert!(driver::exercise(input.as_bytes()).error.is_none());
+    for input in [b"<r/>".as_slice(), b"<r>&amp;</r>", b"<r a='&#9;'/>"] {
+        for maximum in 0..=80 {
+            driver::exercise_with_limits(
+                input,
+                yaxml::Limits {
+                    max_owned_bytes: maximum,
+                    ..yaxml::Limits::default()
+                },
+            );
+        }
+    }
+}
+
+#[test]
 fn generated_valid_documents() {
     for depth in 1..=64 {
         let mut input = String::from("<?xml version='1.0'?><r xmlns='urn:r' xmlns:p='urn:p'>");

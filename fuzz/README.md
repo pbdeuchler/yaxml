@@ -21,6 +21,8 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `Document::parse_bytes` | `driver::exercise` | Acceptance matches complete reader consumption; structural invariants |
 | `Document::parse` | `driver::exercise`, for valid UTF-8 | Acceptance matches byte input |
 | `Document::with_limits` | Derived profiles and each explicit resource ceiling | Policy acceptance matches the reader; each limit has a known rejection case |
+| `OwnedDocument::parse`, `parse_bytes`, `with_limits` | `owned::exercise`, default and derived profiles | Temporary source overwritten/dropped before views; complete values/topology/spans match borrowing DOM; earlier aggregate OwnedBytes exhaustion is explicit |
+| Owned tree views and navigation | Successful owned trees | Every kind, declaration, name, attribute, PI target, payload and navigation method compared; exact iterator lengths; valid and out-of-range ID lookup |
 | `PushParser::new`, `default`, `with_limits`, `feed`, `finish`, `position`, `event_range` | Input-derived chunk and lifecycle schedules, capped at 4096 chunks | Acceptance and exact typed event/span parity with slice reader; monotonic consumed position; repeated EOF; sticky errors after feeding final EOF |
 | `PushParser::read_from` | Cursor plus bounded scheduled and invalid-count readers | Same events/spans; one Interrupted retry; original injected I/O error kind/message; cancellation stops reads; terminal parser states perform no I/O; oversized reported counts are rejected |
 | DOM traversal and node access | Successful document checks | Unique IDs; preorder traversal; parent/child/sibling agreement; nested source ranges; subtree sizes |
@@ -28,6 +30,19 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | XML normalization and references | Reader/DOM corpora and generated documents | Exercised indirectly; semantic golden tests are also required in the ordinary test suite |
 
 Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Tree mutation, entities, queries, schemas, and binding handles require targets when implemented. A target that calls an API does not establish that all its branches execute.
+
+Owned trees use the same normalization budget for pool growth and parsing. They
+can reject a valid borrowed tree with OwnedBytes, or reach that ceiling before a
+later syntax failure. All other errors and successful trees are compared
+explicitly. For accepted inputs up to 1024 bytes under default limits, owned
+success is required: with DTDs unsupported, a conservative parser/pool capacity
+bound is `16*n*(n+64)`, at most 17 MiB here, below the 64 MiB default. This check
+prevents the OwnedBytes exception from hiding blanket rejection; it must be
+revisited when entity expansion or storage accounting changes. Default byte and string constructors run sequentially, dropping the
+first owned tree before the second. Complete comparisons borrow pool views
+rather than cloning repeated namespace URIs. A small canonical owned tree checks
+out-of-range document-local IDs; generated Unicode/normalization cases force
+pool growth, and tiny aggregate limit profiles exercise parser/storage sharing.
 
 Streaming comparisons preserve exact logical token boundaries and raw byte spans. `tests/stream.rs` checks every split of small valid/malformed fixtures, all prefixes, single-byte and deterministic random schedules, normalization goldens, resource boundaries, and cancellation at every event. The fuzz driver adds one bounded input-derived schedule per testcase, ordinary `Cursor` I/O, and a custom reader that interrupts once before either delivering bytes or injecting an error at a chosen read. It verifies error kind/message/source and the exact last allowed read after XML failure or cancellation. Arbitrary-input comparisons advance a borrowed slice reader inside each callback: they do not clone expanded namespace URIs into snapshots. Owned captures in `tests/support/capture.rs` are restricted to bounded ordinary fixtures. These checks do not measure process memory or replace retention tests with a discard callback.
 

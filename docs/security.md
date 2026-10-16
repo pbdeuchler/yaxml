@@ -20,7 +20,7 @@ Limits are per operation and checked before retaining more state or allocating a
 | --- | --- | --- |
 | Input | Total source bytes | Aggregate resolved bytes, decoded bytes, and compressed input handled outside the core |
 | Tokens | Raw token bytes | Decoded token bytes and transcoding carry buffer |
-| Owned strings | Cumulative requested string capacity, including owned namespace copies and streaming structural names | Allocator-level byte accounting and failure injection; current budget is not a process memory quota |
+| Owned strings | Cumulative requested string capacity, including namespace copies, streaming names and full new owned-DOM pool capacities; one shared normalization/storage counter | Allocator-level byte accounting and failure injection; current budget is not a process memory quota |
 | Structure | Element depth, attributes per element, event count | DOM nodes, retained DOM bytes, namespace declarations and bindings |
 | Entities | Reject DTDs; recognize only predefined and numeric references | Entity nesting, reference count, expanded bytes, expansion work, and cycle detection |
 | External resources | No implicit I/O | Request count, cumulative bytes, nesting, redirects, and caller cancellation |
@@ -59,7 +59,7 @@ The coverage artifact records revision, compiler/LLVM version, target platform, 
 | Target family | Inputs and checks |
 | --- | --- |
 | Slice reader | Arbitrary bytes, limit profiles, repeated calls after EOF/error; terminate without panic; offsets remain inside source; names and references obey XML rules |
-| DOM | Arbitrary bytes; agree with the reader on acceptance; valid parent/child/sibling links; iterative traversal visits exactly the stored nodes |
+| DOM | Arbitrary bytes; agree with the reader on grammar acceptance; valid parent/child/sibling links; iterative traversal visits exactly the stored nodes; owned storage survives input destruction and preserves complete views/ranges with explicit earlier OwnedBytes exhaustion |
 | Normalization | Text/attribute/reference contexts; legal scalar references; distinguish literal whitespace from referenced whitespace; preserve documented normalization semantics |
 | Streaming | Same bytes across every split for small cases and generated schedules for larger cases; exact typed event/span agreement on success; distinguish feed from final EOF; sticky cancellation, I/O faults and no further reads after terminal failure |
 | Writer | Parsed-event round trips and generated caller-created operation sequences; explicit encoded ceilings; invalid values and state transitions; partial/Interrupted/invalid-count/erroring sinks; terminal failures perform no further I/O |

@@ -1,6 +1,6 @@
 use std::{hint::black_box, ops::ControlFlow, time::Instant};
 
-use yaxml::{Document, PushParser, Reader};
+use yaxml::{Document, OwnedDocument, PushParser, Reader};
 
 fn main() {
     let fixtures = [
@@ -34,12 +34,15 @@ fn main() {
         .unwrap_or(if cfg!(debug_assertions) { 1 } else { 50 });
     assert!(iterations > 0, "iterations must be positive");
     for (name, xml) in fixtures {
-        for mode in ["dom", "events", "push"] {
+        for mode in ["dom", "owned", "events", "push"] {
             let start = Instant::now();
             for _ in 0..iterations {
                 match mode {
                     "dom" => {
                         black_box(Document::parse(black_box(&xml)).unwrap());
+                    }
+                    "owned" => {
+                        black_box(OwnedDocument::parse(black_box(&xml)).unwrap());
                     }
                     "events" => {
                         let mut reader = Reader::new(black_box(xml.as_bytes())).unwrap();
