@@ -97,7 +97,8 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add bounded buffered pull input with lending events, exact source consumption,
   terminal I/O contracts, retained-state size series, and time-to-first-event
   benchmarks. The [matched baseline](validation-parse-baseline.md) includes
-  buffered throughput; comparative latency and memory remain pending.
+  buffered throughput; comparative time-to-first-event latency and memory remain
+  pending.
 
 The reference release is pinned and 4,056 header identifiers are indexed. The
 [configured inventory audit](validation/libxml2-api-audit-21504.md) checks the
