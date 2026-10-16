@@ -218,7 +218,7 @@ A growth charges its full replacement capacity before reservation; earlier
 charges remain spent, including failed reservation requests. A lower ceiling
 than expenditure already incurred prevents opening an editor; when both
 cumulative ceilings are too low, `CreatedNodes` precedes `OwnedBytes`. A later
-higher ceiling is allowed. An equal-value replacement follows the same append path.
+higher ceiling is allowed. An equal-value replacement follows the same edit path.
 Old values remain in the append-only pool. Capacity already available can serve
 an edit with zero remaining growth allowance. This bounds requested growth, not resident
 memory or all CPU work. PI target and data share one combined reservation: after
