@@ -104,6 +104,18 @@ fn rejected(helper: &Path, args: &[&str]) {
     );
 }
 
+fn literal_anchor(helper: &Path, input: &Path, modes: &[&str]) {
+    // Independently framed 295-byte transcript, also evaluated with Ruby's
+    // little-endian Q< packing. No parser result supplies the expected fields.
+    let xml = "<!--pre--><?top d?><p:r a='x&#x9;y' xmlns='urn:d' p:b='&amp;' xmlns:p='urn:p'>x&amp;<![CDATA[y]]>&#x7a;<p:e/><!--c--><?pi data?></p:r><!--post-->";
+    fs::write(input, xml).unwrap();
+    for mode in modes {
+        let observed = successful_row(helper, mode, input, "1");
+        assert_eq!(observed.observations, [2, 2, 2, 4, 3, 2], "{mode}");
+        assert_eq!(observed.hash, 0x63bbd2c6aa2a2ec9, "{mode}");
+    }
+}
+
 #[test]
 fn rust_helper_observes_complete_documents_and_rejects_invalid_requests() {
     let directory = Directory::new();
@@ -134,6 +146,7 @@ fn rust_helper_observes_complete_documents_and_rejects_invalid_requests() {
             }
         }
     }
+    literal_anchor(&rust, &input, &benchmark::MODES);
     fs::write(&input, b"<r/>").unwrap();
     for args in [
         vec![],
@@ -210,6 +223,7 @@ fn pinned_helpers_and_driver_agree_on_all_versioned_fixtures_and_failure_paths()
         b"YAXML-PARSE-BENCH-1\tengine=libxml2\tversion=21504\n"
     );
     let input = directory.0.join("input.xml");
+    literal_anchor(&c, &input, &["dom", "reader", "push", "buffered"]);
     for fixture in benchmark::FIXTURES {
         fs::write(&input, benchmark::fixture(fixture).unwrap()).unwrap();
         let expected = successful_row(&rust, "dom", &input, "7");
@@ -313,5 +327,90 @@ fn pinned_helpers_and_driver_agree_on_all_versioned_fixtures_and_failure_paths()
         vec!["dom", path(&directory.0), "1", "1"],
     ] {
         rejected(&c, &args);
+    }
+}
+
+#[test]
+fn driver_failure_gates_preserve_only_complete_verified_pairs() {
+    let directory = Directory::new();
+    let (_, driver) = build(&directory);
+    let rust = directory
+        .0
+        .join(format!("r-helper{}", std::env::consts::EXE_SUFFIX));
+    let c = directory
+        .0
+        .join(format!("c-helper{}", std::env::consts::EXE_SUFFIX));
+    let source =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/support/parse_benchmark_helper.rs");
+    let compiler = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+    let compiled = execute(
+        Path::new(&compiler),
+        &["--edition=2024", path(&source), "-o", path(&rust)],
+    );
+    assert!(
+        compiled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    fs::copy(&rust, &c).unwrap();
+    for behavior in [
+        "normal",
+        "schema",
+        "wrong-work",
+        "semantic",
+        "exit",
+        "large-output",
+        "input-change",
+        "timeout",
+        "stderr",
+        "late-exit",
+    ] {
+        fs::write(directory.0.join("behavior"), behavior).unwrap();
+        for engine in ["yaxml", "libxml2"] {
+            let counter = directory.0.join(format!("{engine}.calls"));
+            if counter.exists() {
+                fs::remove_file(counter).unwrap();
+            }
+        }
+        let output = execute(
+            &driver,
+            &[
+                "--libxml2-helper",
+                path(&c),
+                "--yaxml-helper",
+                path(&rust),
+                "--fixture",
+                "tiny",
+                "--mode",
+                "dom",
+                "--iterations",
+                "1",
+                "--samples",
+                "2",
+                "--chunk-size",
+                "7",
+                "--timeout-ms",
+                "1000",
+            ],
+        );
+        let text = String::from_utf8(output.stdout).unwrap();
+        let rows: Vec<_> = text.lines().collect();
+        assert!(
+            rows[0].ends_with("status=preflight_complete"),
+            "{behavior}: {text}"
+        );
+        if behavior == "normal" {
+            assert!(output.status.success());
+            assert!(output.stderr.is_empty());
+            assert_eq!(rows.len(), 5);
+        } else {
+            assert!(!output.status.success(), "{behavior}");
+            assert!(!output.stderr.is_empty(), "{behavior}");
+            assert_eq!(
+                rows.len(),
+                if behavior == "late-exit" { 3 } else { 1 },
+                "{behavior}: {text}"
+            );
+        }
     }
 }

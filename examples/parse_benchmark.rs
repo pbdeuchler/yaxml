@@ -68,13 +68,17 @@ fn read_input(path: &Path) -> io::Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn helper(path: &Path, args: &[&str]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn helper(
+    path: &Path,
+    args: &[&str],
+    timeout_ms: u64,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let output = process::run(
         path,
         args,
         b"",
         process::ProcessLimits {
-            timeout: Duration::from_secs(60),
+            timeout: Duration::from_millis(timeout_ms),
             max_output_bytes: 4096,
         },
     )?;
@@ -114,7 +118,11 @@ fn sample(
     let iterations = config.iterations.to_string();
     let chunk = config.chunk.to_string();
     let path_string = input.to_str().ok_or("private input path is not UTF-8")?;
-    let row = Row::parse(&helper(path, &[mode, path_string, &iterations, &chunk])?)?;
+    let row = Row::parse(&helper(
+        path,
+        &[mode, path_string, &iterations, &chunk],
+        config.timeout_ms,
+    )?)?;
     row.validate(config, engine, original.len())?;
     if read_input(input)? != original {
         return Err("benchmark input changed during helper execution".into());
@@ -141,7 +149,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         (&config.libxml2, "libxml2", "21504"),
     ] {
         let expected = format!("{}\tengine={engine}\tversion={version}\n", benchmark::MAGIC);
-        if helper(path, &["--version"])? != expected.as_bytes() {
+        if helper(path, &["--version"], config.timeout_ms)? != expected.as_bytes() {
             return Err("unexpected helper version or protocol".into());
         }
     }

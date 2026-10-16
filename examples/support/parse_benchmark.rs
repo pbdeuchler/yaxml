@@ -30,6 +30,7 @@ pub struct Config {
     pub iterations: usize,
     pub chunk: usize,
     pub samples: usize,
+    pub timeout_ms: u64,
 }
 
 fn decimal(text: &str) -> Result<u64, &'static str> {
@@ -53,6 +54,7 @@ pub fn config(arguments: impl IntoIterator<Item = OsString>) -> Result<Config, &
             "--iterations",
             "--chunk-size",
             "--samples",
+            "--timeout-ms",
         ]
         .contains(&key.as_str())
         {
@@ -76,9 +78,11 @@ pub fn config(arguments: impl IntoIterator<Item = OsString>) -> Result<Config, &
     let iterations = decimal(&text("--iterations", Some("10"))?)?;
     let chunk = decimal(&text("--chunk-size", Some("8192"))?)?;
     let samples = decimal(&text("--samples", Some("7"))?)?;
+    let timeout_ms = decimal(&text("--timeout-ms", Some("60000"))?)?;
     if !(1..=10000).contains(&iterations)
         || !(1..=65536).contains(&chunk)
         || !(1..=31).contains(&samples)
+        || !(1..=60000).contains(&timeout_ms)
     {
         return Err("numeric option outside bounds");
     }
@@ -114,6 +118,7 @@ pub fn config(arguments: impl IntoIterator<Item = OsString>) -> Result<Config, &
         iterations: iterations as usize,
         chunk: chunk as usize,
         samples: samples as usize,
+        timeout_ms,
     })
 }
 
@@ -314,6 +319,8 @@ mod tests {
             vec!["--chunk-size", "65537"],
             vec!["--chunk-size", "+1"],
             vec!["--samples", "1.5"],
+            vec!["--timeout-ms", "0"],
+            vec!["--timeout-ms", "60001"],
             vec!["--samples", "18446744073709551616"],
             vec!["--input", "x"],
             vec!["--mode", "reader"],
@@ -429,6 +436,6 @@ mod tests {
         assert!(fixture("unknown").is_err());
         assert_eq!(input_hash(b""), 14695981039346656037);
         assert_eq!(input_hash(b"hello"), 0xa430d84680aabd0b);
-        assert!(MAX_WORK > MAX_INPUT);
+        const { assert!(MAX_WORK > MAX_INPUT) };
     }
 }
