@@ -77,6 +77,15 @@ fn construction_model_derives_bounded_names_values_and_operations() {
 }
 
 #[test]
+fn construction_model_reuses_long_inherited_prefixes_with_exact_bounds() {
+    for encoding in 0..3 {
+        for length in [0, 255] {
+            driver::exercise_construction(&[0x2b, length, encoding, encoding]);
+        }
+    }
+}
+
+#[test]
 fn mutation_operations_predict_results_and_preserve_complete_trees() {
     for encoding in 0..4 {
         for family in 0..2 {

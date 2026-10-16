@@ -1033,6 +1033,79 @@ fn handle_and_kind_rejections(input: &[u8]) {
     assert_element(editor.document(), root, &root_model);
 }
 
+fn long_inherited_prefix(input: &[u8]) {
+    if input.first().copied().unwrap_or(0) & 0x3f != 0x2b {
+        return;
+    }
+
+    let length_selector = input.get(1).copied().unwrap_or(0);
+    let prefix_length = 256 + usize::from(length_selector.max(16)) * 16;
+    debug_assert!(prefix_length <= 4_336);
+    let prefix = "p".repeat(prefix_length);
+    let source = format!("<r xmlns:{prefix}='urn:long'/>");
+    let mut bytes = encode(&source, input.get(2).copied().unwrap_or(0));
+    let mut document = OwnedDocument::parse_bytes(&bytes).unwrap();
+    bytes.fill(0);
+    drop(bytes);
+
+    let parent = document.root_element().id();
+    let value = match input.get(3).copied().unwrap_or(0) & 3 {
+        0 => "v",
+        1 => "é",
+        2 => "<&",
+        _ => "中",
+    };
+    let items = [ElementItem::Attribute(AttributeSpec {
+        name: spec_name("a", Some("urn:long"), PrefixPolicy::Automatic),
+        value,
+    })];
+    let child = ElementSpec {
+        name: spec_name("c", None, exact(None)),
+        items: &items,
+    };
+
+    let before = snapshot(&document);
+    let rejection = document
+        .edit(EditLimits {
+            max_name_bytes: prefix.len() - 1,
+            ..EditLimits::default()
+        })
+        .unwrap()
+        .append_element(parent, child)
+        .expect_err("an over-limit inherited prefix was selected");
+    assert_error(
+        rejection,
+        located(
+            EditErrorKind::LimitExceeded(EditLimit::NameBytes),
+            attribute_location(0, Some(EditComponent::Prefix), Some(prefix.len() - 1)),
+        ),
+    );
+    assert_eq!(
+        snapshot(&document),
+        before,
+        "prefix rejection published state"
+    );
+
+    let inserted = document
+        .edit(EditLimits::default())
+        .unwrap()
+        .append_element(parent, child)
+        .expect("a bounded inherited prefix was rejected");
+    assert_element(
+        &document,
+        inserted,
+        &ModelElement {
+            name: ModelName::new(None, "c", None),
+            attributes: vec![attribute(Some(&prefix), "a", Some("urn:long"), value)],
+        },
+    );
+    assert_eq!(
+        document.node(inserted).unwrap().name().unwrap().qualified,
+        "c"
+    );
+    assert_serializable(&document);
+}
+
 pub(super) fn exercise(input: &[u8]) {
     assert!(input.len() <= super::MAX_INPUT_BYTES);
     let byte = |index| input.get(index).copied().unwrap_or(0);
@@ -1044,6 +1117,7 @@ pub(super) fn exercise(input: &[u8]) {
     persistent_counters(input);
     handle_and_kind_rejections(input);
     sparse_format_and_debug_contract(input);
+    long_inherited_prefix(input);
 }
 
 #[cfg(test)]
