@@ -171,6 +171,10 @@ fn operations(input: &[u8]) {
         };
         let previous = writer.position();
         if let Err(error) = writer.write_event(&event) {
+            assert!(
+                matches!(error, WriteError::Xml(_)),
+                "Vec sink returned I/O error"
+            );
             assert!(!error.to_string().is_empty());
             assert!(std::error::Error::source(&error).is_some());
             assert_eq!(writer.position(), previous, "invalid event reached output");
@@ -186,7 +190,11 @@ fn operations(input: &[u8]) {
                 writer.finish().unwrap();
                 assert_terminal_after_finish(&mut writer);
             }
-            Err(_) => {
+            Err(error) => {
+                assert!(
+                    matches!(error, WriteError::Xml(_)),
+                    "Vec flush returned I/O error"
+                );
                 assert_terminal(&mut writer);
                 failed = true;
             }
@@ -268,6 +276,10 @@ fn output_schedule(input: &[u8]) {
     };
     let mut writer = Writer::new(sink);
     let result = writer.write_event(&empty()).and_then(|()| writer.finish());
+    if let Err(error) = &result {
+        assert!(!error.to_string().is_empty());
+        assert!(std::error::Error::source(error).is_some());
+    }
     match result {
         Ok(()) => {
             assert!(matches!(mode, 0 | 1 | 4));
