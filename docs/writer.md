@@ -28,6 +28,21 @@ other inclusive ceilings. Neither constructor performs I/O. `write_event(&event)
 borrows the supplied event for the call; retained names and namespace bindings
 are copied, so later calls do not depend on its storage.
 
+`write_document(&Document)` and `write_owned_document(&OwnedDocument)` require a
+fresh writer. They traverse the complete tree without recursion, validate each
+generated event through the same writer state, flush the sink, and leave the
+writer finished. Any earlier event call consumes freshness, including empty
+Text. A document-call failure is terminal and preserves the same partial-output,
+position, panic, and I/O-error behavior as event writing.
+
+Complete-tree output is compact UTF-8 with no BOM, indentation, inserted
+separator, or trailing newline. Declaration absence, version, and standalone are
+preserved; a present encoding is rewritten to `UTF-8`. Qualified and expanded
+names, explicit namespace declarations, ordered attributes, document-child
+order, and node kinds are preserved. Every childless element becomes `<name/>`
+because the immutable DOM does not retain the source's empty-tag spelling.
+Top-level whitespace was not retained and is not reconstructed.
+
 ## Namespaces and spelling
 
 When constructing events directly, every `Name` must have matching `qualified`,
@@ -77,7 +92,7 @@ CDATA and empty-tag spelling are preserved only when represented by those events
 | `max_token_bytes` | 1 MiB (1,048,576 bytes) | Encoded bytes of one supplied event. |
 | `max_depth` | 256 | Element nesting, with the root at depth one. |
 | `max_attributes` | 1,024 | Attributes per element, including namespace declarations. |
-| `max_events` | 1,000,000 | Shared semantic events, including declarations, Empty, and empty CDATA. Empty Text and top-level whitespace are ignored. |
+| `max_events` | 1,000,000 | Shared semantic events, including declarations, Empty, and empty CDATA. Complete-tree output counts emitted events after folding childless elements to one Empty event. Empty Text and top-level whitespace are ignored. |
 | `max_owned_bytes` | 64 MiB (67,108,864 bytes) | Cumulative requested string capacity for normalization, namespace copies, and retained structural names, including allocations already released. |
 
 Encoded expansion counts against both byte ceilings. The attribute-count limit
@@ -100,6 +115,8 @@ Choose reparse limits for the encoded output rather than assuming equal quotas.
 It reports `MissingRoot` or `UnexpectedEof` for an incomplete document and does
 not generate missing end tags. Repeating successful finish performs no I/O.
 Any later write, including empty Text, starts terminal `InvalidState`.
+Successful complete-document calls already perform this finish operation;
+subsequent `finish()` calls remain harmless and perform no I/O.
 
 The first failure returns `WriteError::Xml(Error)` or the original
 `WriteError::Io(std::io::Error)`. Display and `source()` preserve that cause.
@@ -122,15 +139,16 @@ usual behavior, so dropping a `BufWriter` can still flush its buffer.
 
 ## Remaining scope
 
-The first writer supports the reader's UTF-8 XML profile, with explicit namespace
-declarations and end events. DOM serialization helpers, namespace repair,
-formatting, UTF-16 output, DTD writing, raw XML injection, and libxml2's remaining
-writer convenience APIs are pending. This is neither a canonicalizer nor a
-byte-preserving rewrite of source spelling.
+The writer supports the reader's UTF-8 XML profile, explicit event output, and
+complete borrowed/owned DOM output. Namespace repair, detached-subtree output,
+formatting, UTF-16 output, DTD writing, raw XML injection, save options, and
+libxml2's remaining writer convenience APIs are pending. This is neither a
+canonicalizer nor a byte-preserving rewrite of source spelling.
 
 The pinned [libxml2 writer](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/xmlwriter.c)
 informs the state and escaping boundaries. Its EndDocument operation can close
 open elements before flushing; this API requires callers to supply complete
 events so omitted end tags remain visible as errors. The writer adds no unsafe
 code or Cargo dependency. Complete compatibility, sustained coverage-guided
-fuzzing, and comparative serialization performance remain open validation work.
+fuzzing, and matched libxml2 serialization measurements remain open validation
+work.

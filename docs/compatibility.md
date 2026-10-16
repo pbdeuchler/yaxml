@@ -13,11 +13,12 @@ The adjacent [`libxml2-api.tsv`](libxml2-api.tsv) indexes **4,051 identifiers** 
 Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned document handles and document-scoped node identifiers. Foreign references must keep their document alive; deletion must reject stale handles. Avoid exposing the internal tree layout. WebAssembly with copied inputs/results offers one binding route without requiring unsafe Rust in this crate. Native runtime adapters ordinarily need dependencies and unsafe foreign interfaces outside the core.
 
 The implemented subset now includes the borrowing slice reader, read-only DOM,
-callback `PushParser`, owned trees, UTF-8 event writing, and an explicit `Read`
+callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
+writing, complete borrowed/owned DOM serialization, and an explicit `Read`
 adapter. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
-also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md) for
-event lifetimes, limits, cancellation and incremental error ordering. Buffered
-pull input and the full upstream reader/SAX option surfaces remain open.
+also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
+for event lifetimes, limits, cancellation and incremental error ordering. The
+full upstream reader/SAX/save option surfaces remain open.
 
 Two explicit behavior differences remain in the current profile. Detected
 UTF-16 declarations must agree strictly, while libxml2's detected-encoding path

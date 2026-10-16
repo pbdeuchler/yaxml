@@ -54,6 +54,7 @@ before retaining excess decoded data; they do not establish a process memory quo
 The decoder uses constant carry and never retains a complete decoded source or
 a document-wide offset map. The tokenizer retains one bounded UTF-8 token; the
 owned tree copies logical values into its existing pool under the shared string
-budget. UTF-16 output and other input encodings remain open work. Copying a
-retained UTF-16 declaration to the UTF-8 writer requires explicitly changing its
-encoding field to UTF-8.
+budget. `Writer::write_owned_document` accepts such a tree, emits UTF-8, and
+rewrites a present declaration encoding to `UTF-8`. UTF-16 output and other
+input encodings remain open work. Event-by-event callers remain responsible for
+supplying a declaration compatible with UTF-8 output.

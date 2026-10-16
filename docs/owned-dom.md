@@ -91,8 +91,9 @@ custom allocator support. The core continues to forbid unsafe code and has only
 
 ## Next steps
 
-Owned storage supports temporary decoded input and prepares for retaining trees
-in language adapters. Mutable trees, foreign registries,
-allocator parameters and DOM serialization convenience methods remain separate
-work items. Comparative parsing performance and complete fuzz coverage remain
-open evidence gates.
+Owned storage supports temporary decoded input, complete UTF-8 serialization
+through `Writer::write_owned_document`, and retaining trees in language
+adapters. Mutable trees, foreign registries, allocator parameters, formatting,
+namespace repair, and UTF-16 output remain separate work items. Comparative
+parsing/serialization performance and complete fuzz coverage remain open
+evidence gates.

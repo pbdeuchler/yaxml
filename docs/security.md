@@ -25,7 +25,7 @@ Limits are per operation and checked before retaining more state or allocating a
 | Entities | Reject DTDs; recognize only predefined and numeric references | Entity nesting, reference count, expanded bytes, expansion work, and cycle detection |
 | External resources | No implicit I/O | Request count, cumulative bytes, nesting, redirects, and caller cancellation |
 | Query/validation | Unsupported initially | Expression size, evaluation steps, intermediate results, schema state and recursion |
-| Output | Encoded event and total byte ceilings, depth/attributes/events/owned strings; validation before sink I/O; partial positions and terminal errors | Namespace repair, tree serialization, transcoding, canonicalization and their additional budgets |
+| Output | Encoded event and total byte ceilings, depth/attributes/events/owned strings; validation before sink I/O; iterative complete-tree serialization; partial positions and terminal errors | Namespace repair, subtree output, transcoding, canonicalization and their additional budgets |
 
 Input size alone does not bound all work. Many attributes can cause quadratic duplicate-name checks; deeply nested namespace rebinding can cause repeated scans. Benchmark adversarial size series and record the algorithmic bound for each such path. CPU budgets should count deterministic work where possible; wall-clock deadlines belong in the embedding application or an explicit cancellation interface.
 
@@ -62,7 +62,7 @@ The coverage artifact records revision, compiler/LLVM version, target platform, 
 | DOM | Arbitrary bytes; agree with the reader on grammar acceptance; valid parent/child/sibling links; iterative traversal visits exactly the stored nodes; owned storage survives input destruction and preserves complete views/ranges with explicit earlier OwnedBytes exhaustion |
 | Normalization | Text/attribute/reference contexts; legal scalar references; distinguish literal whitespace from referenced whitespace; preserve documented normalization semantics |
 | Streaming | Same bytes across every split for small cases and generated schedules for larger cases; exact typed event/span agreement on success; distinguish feed from final EOF; sticky cancellation, I/O faults and no further reads after terminal failure |
-| Writer | Parsed-event round trips and generated caller-created operation sequences; explicit encoded ceilings; invalid values and state transitions; partial/Interrupted/invalid-count/erroring sinks; terminal failures perform no further I/O |
+| Writer | Parsed-event sequences plus complete borrowed/owned trees, including UTF-16-owned input; strict tree round trips, emitted-event and encoded ceilings, fresh/terminal states, partial/Interrupted/invalid-count/erroring sinks, and no I/O after terminal results |
 | Mutation, when implemented | Generated edits; reject cycles, stale handles and illegal namespace/ownership transitions; serialize and compare structure |
 | Advanced features, when implemented | Separate grammar targets plus resolver, query, schema, entity, and cancellation operation sequences; assert budgets and deterministic results |
 

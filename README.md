@@ -12,7 +12,8 @@ return structured errors. `Reader` and `Document` borrow complete UTF-8 input.
 caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain
 a bounded token and active document/namespace state. `Writer` validates UTF-8
-events and serializes them to a caller-provided `std::io::Write`.
+events and serializes them to a caller-provided `std::io::Write`; fresh writers
+can also serialize complete borrowed or owned DOMs.
 
 ```rust
 use std::ops::ControlFlow;
@@ -94,8 +95,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 The [writer contract](docs/writer.md) defines its six resource ceilings,
 escaping, namespace checks, and partial-output behavior. Each event is validated
 before writing. A sink failure can leave a partial event; later calls return
-`InvalidState`. `finish` requires a closed document and flushes the sink. Namespace
-repair, formatting, DOM serialization helpers, and UTF-16 output remain pending.
+`InvalidState`. `finish` requires a closed document and flushes the sink.
+`write_document` and `write_owned_document` traverse complete trees iteratively,
+rewrite a present declaration encoding to `UTF-8`, flush on success, and leave
+the writer finished. Namespace repair, subtree output, formatting, and UTF-16
+output remain pending.
 
 Use `OwnedDocument` when a tree must outlive its source:
 
@@ -127,7 +131,8 @@ target and known gaps. Rust 1.100 allocator support is a planned storage milesto
 the current stable baseline uses ordinary safe vectors. No performance advantage
 over libxml2 or complete fuzz execution coverage is claimed yet.
 
-Run `cargo test`, `cargo clippy --all-targets -- -D warnings`, and
-`cargo bench --bench parse`, and `cargo bench --bench pull`. The benchmarks report
-yaxml-only DOM, slice-event, push, and buffered-pull measurements; they do not
-compare equivalent libxml2 workloads.
+Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
+`cargo bench --bench parse`, `cargo bench --bench pull`, and
+`cargo bench --bench serialize`. The benchmarks report yaxml-only DOM,
+slice-event, push, buffered-pull, and complete-tree serialization measurements;
+they do not compare equivalent libxml2 workloads.

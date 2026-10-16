@@ -41,7 +41,11 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Share semantic state between borrowing slices and bounded push input; retain only open-element names and live namespace scopes.
 - [x] Add callback push parsing and a `Read` adapter with explicit final EOF, sticky cancellation/errors, I/O failure preservation, and chunk-independent event values/spans.
 - [x] Add a bounded UTF-8 event writer sharing grammar and namespace validation, with explicit finish, escaping, prospective XML offsets, and terminal partial-I/O failures.
-- [ ] Add DOM serialization helpers, namespace repair, formatting, and UTF-16 output with separate behavior contracts and regression coverage.
+- [x] Add fresh-writer complete borrowed/owned DOM serialization with iterative
+  traversal, UTF-8 declaration adaptation, final flush, strict semantic
+  round trips, independent quotas, sink faults, and fuzz coverage.
+- [ ] Add namespace repair, detached-subtree output, formatting, save options,
+  and UTF-16 output with separate behavior contracts and regression coverage.
 - [x] Add immutable owned document storage with pool-backed views, shared normalization/storage accounting, and input-independent lifetimes.
 - [x] Add incremental UTF-16LE/BE input to push parsing and owned trees, with declaration agreement, raw/decoded ceilings and original byte spans; UTF-16 output remains pending.
 - [x] Add bounded buffered pull input with lending events, exact source consumption,
@@ -60,10 +64,11 @@ neither accumulates the input. Additional encodings and allocator support remain
 [owned DOM contract](owned-dom.md) describes the implemented independent storage
 mode; retained-memory and comparative performance evidence remain open.
 
-The [writer contract](writer.md) describes the implemented event serializer.
-It requires explicit namespace declarations and complete end events; finishing
-validates closure and flushes the sink. This is a subset of libxml2's writer
-surface, with no serialization performance comparison established.
+The [writer contract](writer.md) describes event and complete-document output.
+Whole trees retain their explicit namespace declarations and are traversed
+without recursion; document calls validate closure and flush before returning.
+This remains a subset of libxml2's save/writer surfaces, with no matched libxml2
+serialization performance comparison established.
 
 ## Performance decisions
 
