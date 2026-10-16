@@ -1,8 +1,8 @@
 # Rough plan for bounded owned-tree construction
 
 This is a design proposal based on `28ca0a4`, not a frozen API or an implemented
-feature. Implementation waits until the existing leaf-structure milestone is
-reviewed and integrated. Its [matched benchmark
+feature. The preceding leaf-structure milestone has passed its implementation
+and evidence review. Its [matched benchmark
 report](../validation-owned-structure-matched.md) now records the required
 libxml2 comparison, including slower workloads and measurement limits.
 

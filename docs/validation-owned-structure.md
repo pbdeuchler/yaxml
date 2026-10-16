@@ -226,6 +226,16 @@ The follow-up review through `0ef8e77` also passed. Three deliberate count,
 partial-progress and exhausted-iterator faults were caught by the new model
 assertions and restored. Production source stayed unchanged.
 
+The final tooling/evidence review through `0bc0564` returned **PASS (code quality
+and bounded evidence)**. It reproduced the matched distributions, checked the
+catalogue/LLVM evidence, and verified independent wrong-work, missing-phase and
+hash-mismatch rejection. Two initially escaped test faults exposed missing
+negative cases for nonnumeric phase values and loose helper feature/version
+suffixes. `546dfeb` adds those cases; reintroducing both faults then failed at
+the intended assertions. The review records their restoration and passing
+focused suites, formatting, Clippy and dependency/source audits. No Critical,
+Important or Minor finding remains, and the matched benchmark gate is met.
+
 ## Remaining scope
 
 This milestone does not construct elements or attributes, insert siblings,
@@ -234,8 +244,8 @@ across documents, repair namespaces, reclaim pool/attribute storage, reuse slots
 or compact tombstones. Those operations need separate ownership, cycle,
 namespace and quota contracts. The implementation, deterministic tests, measured
 coverage, pinned structural oracle, yaxml benchmark runner and independent review
-are complete, including the recorded matched libxml2 structural benchmark.
-The final benchmark-tooling review remains pending before local-main integration.
+are complete, including the recorded matched libxml2 structural benchmark and
+its final independent review. This closes the bounded leaf-structure milestone.
 Reaching 100% execution coverage, sustained
 feedback-guided fuzzing, allocator-level failure testing and retained memory
 measurements remain open.
