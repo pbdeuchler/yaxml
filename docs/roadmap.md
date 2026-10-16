@@ -83,6 +83,16 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   events, diagnostics and both DOMs before activating the remaining
   [DTD foundations](plans/dtd-foundations.md). Preserve physical stream position,
   UTF-16 source mapping, bounded expansion and explicit external-resource policy.
+- [x] Introduce the limited [source-origin metadata boundary](validation-source-origin.md)
+  across Reader, Push, Buffered and both DOMs, with optional exact physical spans,
+  absent/sticky last delivery, explicit cancellation endpoints and fallible DOM
+  joins. All 535 tests and 13 doctests pass; complete XMLTS results remain
+  unchanged. Fresh fuzz-only coverage is 6,936/7,406 regions and 910/964 branch
+  outcomes, with new defensive failures retained in the denominator. Reader/Push
+  grow eight bytes; node records/Event stay unchanged. The 65-workload Rust A/B
+  run has no median slowdown above two percent. Real replacement provenance and
+  DTD acceptance remain open; the [representation outline](plans/dtd-representation.md)
+  preserves the broader internal-DTD/GE/defaults milestone.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
