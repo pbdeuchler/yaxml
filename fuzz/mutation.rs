@@ -1,4 +1,4 @@
-//! Bounded value edits have an independent logical model, not a pool model.
+//! Bounded edits use stable model IDs and ordered live children, not arena links.
 
 use std::ops::Range;
 
@@ -46,16 +46,18 @@ struct ModelAttribute {
 }
 
 struct ModelNode {
+    live: bool,
     kind: Kind,
     name: Option<ModelName>,
     value: Option<String>,
-    target: Option<&'static str>,
+    target: Option<String>,
     attributes: Vec<ModelAttribute>,
     children: Vec<usize>,
 }
 
 fn node(kind: Kind, value: Option<&str>, children: &[usize]) -> ModelNode {
     ModelNode {
+        live: true,
         kind,
         name: None,
         value: value.map(str::to_owned),
@@ -89,21 +91,22 @@ fn attribute(
 struct Model {
     nodes: Vec<ModelNode>,
     declaration: Option<(&'static str, bool)>,
+    created: usize,
 }
 
 impl Model {
     fn parent(&self, index: usize) -> Option<usize> {
         self.nodes
             .iter()
-            .position(|node| node.children.contains(&index))
+            .position(|node| node.live && node.children.contains(&index))
     }
 
-    fn subtree(&self, index: usize, projected: bool) -> Vec<usize> {
+    fn subtree(&self, index: usize) -> Vec<usize> {
         let mut order = Vec::new();
         let mut pending = vec![index];
         while let Some(index) = pending.pop() {
             let node = &self.nodes[index];
-            if projected && node.kind == Kind::Text && node.value.as_deref() == Some("") {
+            if !node.live {
                 continue;
             }
             order.push(index);
@@ -121,7 +124,11 @@ impl Model {
         if request.handle.owner != owner {
             return Err(error(EditErrorKind::InvalidHandle, None));
         }
-        let node = &self.nodes[request.handle.node];
+        let node = self
+            .nodes
+            .get(request.handle.node)
+            .filter(|node| node.live)
+            .ok_or(error(EditErrorKind::InvalidHandle, None))?;
         let kind = if let Some(selector) = request.selector {
             if node.kind != Kind::Element {
                 return Err(error(EditErrorKind::WrongNodeKind, None));
@@ -164,6 +171,155 @@ impl Model {
             node.value = Some(request.value.into());
         }
     }
+
+    fn rescue(&self, owner: usize, handles: &[OwnedNodeId]) -> Option<Request<'static>> {
+        self.nodes.iter().enumerate().find_map(|(index, node)| {
+            if !node.live {
+                return None;
+            }
+            let selector = if matches!(node.kind, Kind::Document | Kind::Element) {
+                let attribute = node
+                    .attributes
+                    .iter()
+                    .find(|attribute| attribute.name.namespace != Some(XMLNS))?;
+                Some(Selector {
+                    namespace: attribute.name.namespace,
+                    local: attribute.name.local,
+                })
+            } else {
+                None
+            };
+            Some(Request {
+                handle: Saved {
+                    owner,
+                    node: index,
+                    id: handles[index],
+                },
+                selector,
+                value: "",
+            })
+        })
+    }
+
+    fn expected_structure(
+        &self,
+        owner: usize,
+        action: Action<'_>,
+        limits: EditLimits,
+    ) -> Result<(), EditError> {
+        let handle = action.handle();
+        if handle.owner != owner || !self.nodes.get(handle.node).is_some_and(|node| node.live) {
+            return Err(error(EditErrorKind::InvalidHandle, None));
+        }
+        let node = &self.nodes[handle.node];
+        match action {
+            Action::Remove(_) => {
+                if handle.node <= 1 {
+                    return Err(error(EditErrorKind::ProtectedNode, None));
+                }
+            }
+            Action::Append {
+                kind,
+                target,
+                value,
+                ..
+            } => {
+                if node.kind != Kind::Element
+                    && !(node.kind == Kind::Document && matches!(kind, Kind::Comment | Kind::Pi))
+                {
+                    return Err(error(EditErrorKind::WrongNodeKind, None));
+                }
+                if value.len() > limits.max_value_bytes
+                    || (kind == Kind::Pi && target.len() > limits.max_value_bytes)
+                {
+                    return Err(error(
+                        EditErrorKind::LimitExceeded(EditLimit::ValueBytes),
+                        None,
+                    ));
+                }
+                if kind == Kind::Pi {
+                    expected_target(target)?;
+                }
+                expected_value(value, kind, limits.max_value_bytes)?;
+                if self.created >= limits.max_created_nodes {
+                    return Err(error(
+                        EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+                        None,
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn append(&mut self, parent: usize, kind: Kind, target: &str, value: &str) -> usize {
+        let id = self.nodes.len(); // Monotonic model identity; never reuse holes.
+        let mut fresh = node(kind, Some(value), &[]);
+        if kind == Kind::Pi {
+            fresh.target = Some(target.into());
+        }
+        self.nodes.push(fresh);
+        self.nodes[parent].children.push(id);
+        self.created += 1;
+        id
+    }
+
+    fn remove(&mut self, index: usize) -> Vec<usize> {
+        let removed = self.subtree(index);
+        let parent = self.parent(index).unwrap();
+        self.nodes[parent].children.retain(|child| *child != index);
+        for &index in &removed {
+            self.nodes[index].live = false;
+            self.nodes[index].children.clear();
+        }
+        removed
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Action<'a> {
+    Append {
+        parent: Saved,
+        kind: Kind,
+        target: &'a str,
+        value: &'a str,
+    },
+    Remove(Saved),
+}
+
+impl Action<'_> {
+    fn handle(self) -> Saved {
+        match self {
+            Self::Append { parent, .. } => parent,
+            Self::Remove(handle) => handle,
+        }
+    }
+}
+
+fn expected_target(target: &str) -> Result<(), EditError> {
+    expected_value(target, Kind::Text, usize::MAX)?;
+    let start = |character: char| {
+        matches!(u32::from(character),
+        0x41..=0x5a | 0x5f | 0x61..=0x7a | 0xc0..=0xd6 | 0xd8..=0xf6 |
+        0xf8..=0x2ff | 0x370..=0x37d | 0x37f..=0x1fff | 0x200c..=0x200d |
+        0x2070..=0x218f | 0x2c00..=0x2fef | 0x3001..=0xd7ff | 0xf900..=0xfdcf |
+        0xfdf0..=0xfffd | 0x10000..=0xeffff)
+    };
+    if target.is_empty() {
+        return Err(error(EditErrorKind::InvalidName, Some(0)));
+    }
+    for (offset, character) in target.char_indices() {
+        if !(start(character)
+            || (offset > 0
+                && matches!(u32::from(character), 0x2d..=0x2e | 0x30..=0x39 | 0xb7 | 0x300..=0x36f | 0x203f..=0x2040)))
+        {
+            return Err(error(EditErrorKind::InvalidName, Some(offset)));
+        }
+    }
+    if target.eq_ignore_ascii_case("xml") {
+        return Err(error(EditErrorKind::InvalidName, Some(0)));
+    }
+    Ok(())
 }
 
 fn error(kind: EditErrorKind, value_offset: Option<usize>) -> EditError {
@@ -298,6 +454,17 @@ impl State {
     }
 
     fn session(&mut self, limits: EditLimits, actions: &[(Request<'_>, bool)], recover: bool) {
+        if self.model.created > limits.max_created_nodes {
+            assert_eq!(
+                self.document.edit(limits).err(),
+                Some(error(
+                    EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+                    None
+                ))
+            );
+            self.check();
+            return;
+        }
         let mut editor = self.document.edit(limits).unwrap();
         for (request, storage_ok) in actions.iter().copied() {
             let mut expected = self.model.expected(self.owner, request, limits);
@@ -326,23 +493,16 @@ impl State {
                 &self.provenance,
             );
             if recover && expected.is_err() {
-                // All general-operation seeds have a Text at model index 2.
-                let rescue = Request {
-                    handle: Saved {
-                        owner: self.owner,
-                        node: 2,
-                        id: self.handles[2],
-                    },
-                    selector: None,
-                    value: if limits.max_value_bytes == 0 { "" } else { "x" },
-                };
-                assert_eq!(self.model.expected(self.owner, rescue, limits), Ok(()));
-                self.model.replace(rescue);
-                assert_eq!(
-                    invoke(&mut editor, rescue),
-                    Ok(()),
-                    "editor became terminal after rejection"
-                );
+                // Empty replacement needs neither value bytes nor pool growth.
+                if let Some(rescue) = self.model.rescue(self.owner, &self.handles) {
+                    assert_eq!(self.model.expected(self.owner, rescue, limits), Ok(()));
+                    self.model.replace(rescue);
+                    assert_eq!(
+                        invoke(&mut editor, rescue),
+                        Ok(()),
+                        "editor became terminal after rejection"
+                    );
+                }
                 check_document(
                     editor.document(),
                     &self.model,
@@ -351,6 +511,139 @@ impl State {
                 );
             }
         }
+    }
+
+    fn structure(
+        &mut self,
+        limits: EditLimits,
+        action: Action<'_>,
+        storage_ok: bool,
+    ) -> Option<Saved> {
+        self.structure_with_recovery(limits, action, storage_ok, false)
+    }
+
+    fn structure_with_recovery(
+        &mut self,
+        limits: EditLimits,
+        action: Action<'_>,
+        storage_ok: bool,
+        recover: bool,
+    ) -> Option<Saved> {
+        if self.model.created > limits.max_created_nodes {
+            assert_eq!(
+                self.document.edit(limits).err(),
+                Some(error(
+                    EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+                    None
+                ))
+            );
+            self.check();
+            return None;
+        }
+        let mut expected = self.model.expected_structure(self.owner, action, limits);
+        if expected.is_ok() && matches!(action, Action::Append { .. }) && !storage_ok {
+            expected = Err(error(
+                EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
+                None,
+            ));
+        }
+        let mut editor = self.document.edit(limits).unwrap();
+        let actual = match action {
+            Action::Remove(handle) => editor.remove_subtree(handle.id).map(|()| None),
+            Action::Append {
+                parent,
+                kind,
+                target,
+                value,
+            } => match kind {
+                Kind::Text => editor.append_text(parent.id, value),
+                Kind::Cdata => editor.append_cdata(parent.id, value),
+                Kind::Comment => editor.append_comment(parent.id, value),
+                Kind::Pi => editor.append_processing_instruction(parent.id, target, value),
+                _ => unreachable!(),
+            }
+            .map(Some),
+        };
+        assert_eq!(
+            actual.as_ref().map(|_| ()).map_err(|error| *error),
+            expected,
+            "structural edit disagrees with independent prediction"
+        );
+        let mut saved = None;
+        if let Ok(result) = actual {
+            match action {
+                Action::Remove(handle) => {
+                    for index in self.model.remove(handle.node) {
+                        self.provenance[index] = None;
+                    }
+                }
+                Action::Append {
+                    parent,
+                    kind,
+                    target,
+                    value,
+                } => {
+                    let id = result.unwrap();
+                    assert!(
+                        !self.handles.contains(&id),
+                        "created handle aliases a live or stale ID"
+                    );
+                    let index = self.model.append(parent.node, kind, target, value);
+                    assert_eq!(index, self.handles.len());
+                    self.handles.push(id);
+                    self.provenance.push(None);
+                    saved = Some(Saved {
+                        owner: self.owner,
+                        node: index,
+                        id,
+                    });
+                }
+            }
+        }
+        check_document(
+            editor.document(),
+            &self.model,
+            &self.handles,
+            &self.provenance,
+        );
+        if recover && expected.is_err() {
+            if self.model.created < limits.max_created_nodes {
+                let parent = Saved {
+                    owner: self.owner,
+                    node: 0,
+                    id: self.handles[0],
+                };
+                let rescue = Action::Append {
+                    parent,
+                    kind: Kind::Comment,
+                    target: "",
+                    value: "",
+                };
+                assert_eq!(
+                    self.model.expected_structure(self.owner, rescue, limits),
+                    Ok(())
+                );
+                let id = editor
+                    .append_comment(parent.id, "")
+                    .expect("structural rejection poisoned its editor");
+                assert!(!self.handles.contains(&id));
+                let index = self.model.append(0, Kind::Comment, "", "");
+                assert_eq!(index, self.handles.len());
+                self.handles.push(id);
+                self.provenance.push(None);
+            } else if let Some(rescue) = self.model.rescue(self.owner, &self.handles) {
+                assert_eq!(self.model.expected(self.owner, rescue, limits), Ok(()));
+                self.model.replace(rescue);
+                invoke(&mut editor, rescue).expect("structural rejection poisoned value editing");
+            }
+            check_document(
+                editor.document(),
+                &self.model,
+                &self.handles,
+                &self.provenance,
+            );
+        }
+        saved
     }
 }
 
@@ -409,7 +702,7 @@ fn check_document(
 ) {
     assert_eq!(
         document.nodes().len(),
-        model.nodes.len(),
+        model.nodes.iter().filter(|node| node.live).count(),
         "mutation changed topology"
     );
     match (document.declaration(), model.declaration) {
@@ -423,7 +716,9 @@ fn check_document(
     }
     assert_eq!(document.root().id(), handles[0]);
     assert_eq!(document.root_element().id(), handles[1]);
-    for (index, actual) in document.nodes().enumerate() {
+    let order = model.subtree(0);
+    for (position, actual) in document.nodes().enumerate() {
+        let index = order[position];
         let expected = &model.nodes[index];
         assert_eq!(actual.id(), handles[index]);
         assert_eq!(actual.range(), provenance[index]);
@@ -432,7 +727,10 @@ fn check_document(
             actual.text() == expected.value.as_deref(),
             "mutation changed the wrong node value"
         );
-        assert_eq!(actual.processing_instruction_target(), expected.target);
+        assert_eq!(
+            actual.processing_instruction_target(),
+            expected.target.as_deref()
+        );
         match (actual.name(), expected.name) {
             (None, None) => {}
             (Some(actual), Some(expected)) => check_name(&actual, expected),
@@ -471,7 +769,7 @@ fn check_document(
                 .eq(expected.children.iter().map(|index| handles[*index])),
             "mutation changed child order"
         );
-        let subtree = model.subtree(index, false);
+        let subtree = model.subtree(index);
         assert_eq!(actual.descendants().len(), subtree.len());
         assert!(
             actual
@@ -494,6 +792,13 @@ fn check_document(
         assert_eq!(resolved.range(), actual.range());
         assert!(resolved.attributes().eq(actual.attributes()));
     }
+    for (index, expected) in model.nodes.iter().enumerate() {
+        assert_eq!(
+            document.node(handles[index]).is_some(),
+            expected.live,
+            "lookup disagrees with live model membership"
+        );
+    }
 }
 
 fn serialized(state: &State) -> Vec<u8> {
@@ -512,7 +817,30 @@ fn serialized(state: &State) -> Vec<u8> {
     assert_eq!(position, output.len());
     assert!(output.len() <= OUTPUT_BYTES);
     let parsed = Document::parse_bytes(&output).unwrap();
-    let order = state.model.subtree(0, true);
+    // Only empty/adjacent Text is projected. CDATA remains a separate kind.
+    let mut order: Vec<usize> = Vec::new();
+    let mut values: Vec<Option<String>> = Vec::new();
+    let mut representative = vec![None; state.model.nodes.len()];
+    for index in state.model.subtree(0) {
+        let expected = &state.model.nodes[index];
+        if expected.kind == Kind::Text {
+            let value = expected.value.as_deref().unwrap();
+            if value.is_empty() {
+                continue;
+            }
+            if let Some(&previous) = order.last()
+                && state.model.nodes[previous].kind == Kind::Text
+                && state.model.parent(previous) == state.model.parent(index)
+            {
+                values.last_mut().unwrap().as_mut().unwrap().push_str(value);
+                representative[index] = Some(previous);
+                continue;
+            }
+        }
+        representative[index] = Some(index);
+        order.push(index);
+        values.push(expected.value.clone());
+    }
     let nodes: Vec<_> = parsed.nodes().collect();
     assert_eq!(
         nodes.len(),
@@ -540,7 +868,7 @@ fn serialized(state: &State) -> Vec<u8> {
             NodeKind::Cdata(_) => Kind::Cdata,
             NodeKind::Comment(_) => Kind::Comment,
             NodeKind::ProcessingInstruction { target, .. } => {
-                assert_eq!(Some(*target), expected.target);
+                assert_eq!(Some(*target), expected.target.as_deref());
                 Kind::Pi
             }
         };
@@ -549,7 +877,7 @@ fn serialized(state: &State) -> Vec<u8> {
             "mutated serialization changed node kind"
         );
         assert!(
-            actual.text() == expected.value.as_deref(),
+            actual.text() == values[position].as_deref(),
             "mutated serialization changed logical value"
         );
         match (actual.name(), expected.name) {
@@ -565,12 +893,13 @@ fn serialized(state: &State) -> Vec<u8> {
                 "serialized attribute value changed"
             );
         }
-        let expected_children: Vec<_> = expected
+        let mut expected_children: Vec<_> = expected
             .children
             .iter()
             .copied()
-            .filter(|child| order.contains(child))
+            .filter_map(|child| representative[child])
             .collect();
+        expected_children.dedup();
         let id = |index| nodes[order.iter().position(|value| *value == index).unwrap()].id();
         assert_eq!(
             actual.parent().map(|node| node.id()),
@@ -644,7 +973,7 @@ fn seed(owner: usize, family: u8, encoding: u8) -> State {
         attribute("p:a", Some("urn:p"), "P"),
         attribute("q:a", Some("urn:q"), "Q"),
     ];
-    nodes[5].target = Some(target);
+    nodes[5].target = Some(target.into());
     nodes[6].attributes = vec![
         attribute("xmlns:p", Some(XMLNS), "urn:shadow"),
         attribute("a", None, "C"),
@@ -656,6 +985,7 @@ fn seed(owner: usize, family: u8, encoding: u8) -> State {
         Model {
             nodes,
             declaration: Some((version, standalone)),
+            created: 0,
         },
         encoding,
     )
@@ -679,6 +1009,27 @@ fn value(payload: &[u8], operation: &[u8]) -> String {
         13 => "é\u{fffe}".into(),
         14 => "\r--?>".into(),
         _ => "🙂".repeat(usize::from(operation[7] & 31)),
+    }
+}
+
+fn pi_target_value(payload: &[u8], selector: u8) -> String {
+    match selector % 16 {
+        0 => String::from_utf8_lossy(payload).into_owned(),
+        1 => "".into(),
+        2 => "1bad".into(),
+        3 => "a:b".into(),
+        4 => "xml".into(),
+        5 => "XmL".into(),
+        6 => "é🙂!".into(),
+        7 => "1\0".into(),
+        8 => "é\0".into(),
+        9 => "é🙂".into(),
+        10 => "xml-stylesheet".into(),
+        11 => "_p.2".into(),
+        12 => "p".into(),
+        13 => "a b".into(),
+        14 => "\u{f0000}".into(),
+        _ => "a\u{b7}".into(),
     }
 }
 
@@ -712,6 +1063,47 @@ pub(super) fn exercise(input: &[u8]) {
             &[(text, true), (attribute, true)],
             false,
         );
+        // One document exercises every mandatory structural success; the other
+        // supplies independent foreign handles and arbitrary-operation coverage.
+        if state.owner != 0 {
+            continue;
+        }
+        // Mandatory acceptance and removal prevent a self-consistent blanket
+        // rejection from passing regardless of arbitrary operation selectors.
+        let parent = state.saved(1);
+        for kind in [Kind::Text, Kind::Cdata, Kind::Comment, Kind::Pi] {
+            let created = state
+                .structure(
+                    EditLimits::default(),
+                    Action::Append {
+                        parent,
+                        kind,
+                        target: "p",
+                        value: "ok",
+                    },
+                    true,
+                )
+                .unwrap();
+            saved.push(created);
+            if kind == Kind::Comment {
+                state.structure(EditLimits::default(), Action::Remove(created), true);
+            }
+        }
+        let root = state.saved(0);
+        saved.push(
+            state
+                .structure(
+                    EditLimits::default(),
+                    Action::Append {
+                        parent: root,
+                        kind: Kind::Comment,
+                        target: "",
+                        value: "tail",
+                    },
+                    true,
+                )
+                .unwrap(),
+        );
     }
     let count = usize::from(byte(7) & 31).min(input.len().saturating_sub(8) / 8);
     let start = input.len().min(8);
@@ -723,18 +1115,20 @@ pub(super) fn exercise(input: &[u8]) {
         } else {
             usize::from(byte(3))
         },
+        max_created_nodes: if byte(2) & 2 == 0 {
+            EditLimits::default().max_created_nodes
+        } else {
+            usize::from(byte(5) & 63)
+        },
         ..EditLimits::default()
     };
     for operation in input[start..end].chunks_exact(8) {
         let target = usize::from(operation[1] & 1);
-        let opcode = operation[0] & 7;
-        let handle = if opcode >= 6 {
+        let opcode = operation[0] & 15;
+        let handle = if matches!(opcode, 6 | 7 | 15) {
             let owner = 1 - states[target].owner;
-            states
-                .iter()
-                .find(|state| state.owner == owner)
-                .unwrap()
-                .saved(usize::from(operation[2]) % 10)
+            let foreign = states.iter().find(|state| state.owner == owner).unwrap();
+            foreign.saved(usize::from(operation[2]) % foreign.handles.len())
         } else {
             saved[usize::from(operation[2]) % saved.len()]
         };
@@ -752,9 +1146,14 @@ pub(super) fn exercise(input: &[u8]) {
             }
             2 => {
                 let resolved = states[target].document.node(handle.id);
-                assert_eq!(resolved.is_some(), handle.owner == states[target].owner);
+                assert_eq!(
+                    resolved.is_some(),
+                    handle.owner == states[target].owner
+                        && states[target].model.nodes[handle.node].live
+                );
                 if operation[6] & 1 != 0 {
-                    let replacement = states[target].saved(usize::from(operation[2]) % 10);
+                    let replacement = states[target]
+                        .saved(usize::from(operation[2]) % states[target].handles.len());
                     let index = usize::from(operation[7]) % saved.len();
                     saved[index] = replacement;
                 }
@@ -763,9 +1162,75 @@ pub(super) fn exercise(input: &[u8]) {
                 serialized(&states[target]);
             }
             4 => {
-                states[target].document.edit(limits).unwrap();
+                assert_eq!(
+                    states[target].document.edit(limits).err(),
+                    (states[target].model.created > limits.max_created_nodes).then(|| error(
+                        EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+                        None
+                    ))
+                );
             }
             5 => states.swap(0, 1),
+            8..=11 | 15 => {
+                let start = usize::from(operation[4]).min(payload.len());
+                let end = start + usize::from(operation[5]).min(payload.len() - start);
+                let payload = &payload[start..end];
+                let data = value(payload, operation);
+                let pi_target = pi_target_value(payload, operation[3]);
+                let kind = [Kind::Text, Kind::Cdata, Kind::Comment, Kind::Pi][usize::from(
+                    if opcode == 15 {
+                        operation[4] & 3
+                    } else {
+                        opcode - 8
+                    },
+                )];
+                let action = if opcode == 15 && operation[3] & 16 != 0 {
+                    Action::Remove(handle)
+                } else {
+                    Action::Append {
+                        parent: handle,
+                        kind,
+                        target: &pi_target,
+                        value: &data,
+                    }
+                };
+                if let Some(created) =
+                    states[target].structure_with_recovery(limits, action, true, byte(6) & 1 != 0)
+                {
+                    saved.push(created);
+                }
+            }
+            12 => {
+                states[target].structure_with_recovery(
+                    limits,
+                    Action::Remove(handle),
+                    true,
+                    byte(6) & 1 != 0,
+                );
+            }
+            13 => {
+                saved.push(
+                    states[target].saved(usize::from(operation[2]) % states[target].handles.len()),
+                );
+            }
+            14 => {
+                let count = states[target].model.created;
+                let maximum =
+                    [0, count.saturating_sub(1), count, count + 1][usize::from(operation[6] & 3)];
+                assert_eq!(
+                    states[target]
+                        .document
+                        .edit(EditLimits {
+                            max_created_nodes: maximum,
+                            ..limits
+                        })
+                        .err(),
+                    (maximum < count).then(|| error(
+                        EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+                        None
+                    ))
+                );
+            }
             _ => unreachable!(),
         }
         for state in &states {
@@ -778,6 +1243,7 @@ pub(super) fn exercise(input: &[u8]) {
         serialized(state);
     }
     quota_case(byte(4), byte(5), byte(1), byte(6) & 2 != 0);
+    structure_quota(byte(4) >> 3, byte(5), byte(1));
     if byte(4) == b'*' {
         byte_golden(byte(1));
     }
@@ -823,9 +1289,156 @@ fn tiny(attribute_value: bool, encoding: u8) -> State {
         Model {
             nodes,
             declaration: None,
+            created: 0,
         },
         encoding,
     )
+}
+
+fn empty(encoding: u8) -> State {
+    State::new(
+        0,
+        "<r/>",
+        Model {
+            nodes: vec![node(Kind::Document, None, &[1]), element("r", None, &[])],
+            declaration: None,
+            created: 0,
+        },
+        encoding,
+    )
+}
+
+fn structural_limits(created: usize, owned: usize) -> EditLimits {
+    EditLimits {
+        max_created_nodes: created,
+        max_owned_bytes: owned,
+        ..EditLimits::default()
+    }
+}
+
+fn structure_quota(case: u8, boundary: u8, encoding: u8) {
+    let case = case & 7;
+    let boundary = usize::from(boundary % 3);
+    let mut state = if case == 5 {
+        tiny(true, encoding)
+    } else {
+        empty(encoding)
+    };
+    let parent = state.saved(1);
+    let append = |kind, target, value| Action::Append {
+        parent,
+        kind,
+        target,
+        value,
+    };
+    match case {
+        0 => {
+            state.structure(
+                structural_limits(boundary, 0),
+                append(Kind::Text, "", ""),
+                true,
+            );
+        }
+        1 => {
+            let maximum = [1, 2, 3][boundary];
+            state.structure(
+                structural_limits(1, maximum),
+                append(Kind::Text, "", "x"),
+                maximum >= 2,
+            );
+        }
+        2 => {
+            // A single combined PI reservation grows baseline1 to capacity3.
+            let maximum = [2, 3, 4][boundary];
+            state.structure(
+                structural_limits(1, maximum),
+                append(Kind::Pi, "p", "x"),
+                maximum >= 3,
+            );
+            if maximum == 2 {
+                // Quota rejection must neither spend creation work nor stage
+                // PI strings/capacity before the independent two-byte probe.
+                state.document.edit(structural_limits(1, 0)).unwrap();
+                state.structure(structural_limits(1, 1), append(Kind::Text, "", "x"), false);
+                state.structure(structural_limits(1, 2), append(Kind::Text, "", "x"), true);
+            }
+        }
+        3 => {
+            let saved = state
+                .structure(structural_limits(1, 0), append(Kind::Comment, "", ""), true)
+                .unwrap();
+            state.structure(structural_limits(1, 0), Action::Remove(saved), true);
+            state.structure(
+                structural_limits(boundary, 0),
+                append(Kind::Cdata, "", ""),
+                true,
+            );
+        }
+        4 => {
+            let saved = state
+                .structure(structural_limits(1, 3), append(Kind::Pi, "p", "x"), true)
+                .unwrap();
+            state.structure(structural_limits(1, 3), Action::Remove(saved), true);
+            assert_eq!(
+                state.document.edit(structural_limits(1, 2)).err(),
+                Some(error(
+                    EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
+                    None
+                ))
+            );
+            assert_eq!(
+                state.document.edit(structural_limits(0, 2)).err(),
+                Some(error(
+                    EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
+                    None
+                ))
+            );
+            let maximum = [6, 7, 8][boundary];
+            state.structure(
+                structural_limits(2, maximum),
+                append(Kind::Text, "", "x"),
+                maximum >= 7,
+            );
+            if maximum == 6 {
+                state.structure(
+                    structural_limits(2, maximum),
+                    append(Kind::Cdata, "", ""),
+                    true,
+                );
+            }
+        }
+        5 => {
+            let saved = state
+                .structure(structural_limits(1, 0), append(Kind::Text, "", "x"), true)
+                .unwrap();
+            state.structure(structural_limits(1, 0), Action::Remove(saved), true);
+            state.structure(structural_limits(1, 0), append(Kind::Text, "", ""), true);
+            state.structure(structural_limits(2, 0), append(Kind::Comment, "", ""), true);
+        }
+        6 => {
+            state.structure(
+                EditLimits {
+                    max_value_bytes: [5, 6, 7][boundary],
+                    ..EditLimits::default()
+                },
+                append(Kind::Pi, "é🙂", "é🙂"),
+                true,
+            );
+        }
+        7 => {
+            let limits = structural_limits(0, 0);
+            for action in [
+                append(Kind::Pi, "1\0", ""),
+                append(Kind::Pi, "1", "\0"),
+                append(Kind::Cdata, "", "]]>\0"),
+                append(Kind::Text, "", "x"),
+            ] {
+                state.structure(limits, action, true);
+            }
+        }
+        _ => unreachable!(),
+    }
+    serialized(&state);
 }
 
 fn quota_case(case: u8, boundary: u8, encoding: u8, reopen: bool) {
@@ -934,4 +1547,214 @@ fn quota_case(case: u8, boundary: u8, encoding: u8, reopen: bool) {
         _ => b"<r>x</r>",
     };
     assert_eq!(output, expected, "mutation changed literal output policy");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pi_name_oracle_has_literal_happy_and_sad_boundaries() {
+        for valid in [
+            "p",
+            "é🙂",
+            "xml-stylesheet",
+            "_p.2",
+            "a\u{b7}",
+            "a\u{300}",
+            "\u{37d}",
+            "\u{37f}",
+            "\u{effff}",
+        ] {
+            assert_eq!(expected_target(valid), Ok(()));
+        }
+        for (invalid, kind, offset) in [
+            ("", EditErrorKind::InvalidName, 0),
+            ("1p", EditErrorKind::InvalidName, 0),
+            ("p:x", EditErrorKind::InvalidName, 1),
+            ("é🙂!", EditErrorKind::InvalidName, 6),
+            ("a b", EditErrorKind::InvalidName, 1),
+            ("\u{300}", EditErrorKind::InvalidName, 0),
+            ("\u{37e}", EditErrorKind::InvalidName, 0),
+            ("\u{f0000}", EditErrorKind::InvalidName, 0),
+            ("1\0", EditErrorKind::InvalidCharacter, 1),
+            ("é\u{ffff}", EditErrorKind::InvalidCharacter, 2),
+        ] {
+            assert_eq!(expected_target(invalid), Err(error(kind, Some(offset))));
+        }
+        for bits in 0..8 {
+            let value: String = "xml"
+                .bytes()
+                .enumerate()
+                .map(|(index, byte)| {
+                    char::from(if bits & (1 << index) == 0 {
+                        byte
+                    } else {
+                        byte.to_ascii_uppercase()
+                    })
+                })
+                .collect();
+            assert_eq!(
+                expected_target(&value),
+                Err(error(EditErrorKind::InvalidName, Some(0)))
+            );
+        }
+    }
+
+    #[test]
+    fn structural_model_predicts_every_semantic_error_before_mutation() {
+        let mut state = seed(0, 0, 0);
+        let parent = state.saved(1);
+        let append = |parent, kind, target, value| Action::Append {
+            parent,
+            kind,
+            target,
+            value,
+        };
+        let normal = EditLimits::default();
+        for (action, limits, expected) in [
+            (
+                append(
+                    Saved {
+                        node: usize::MAX,
+                        ..parent
+                    },
+                    Kind::Pi,
+                    "",
+                    "\0",
+                ),
+                normal,
+                error(EditErrorKind::InvalidHandle, None),
+            ),
+            (
+                append(Saved { owner: 1, ..parent }, Kind::Pi, "", "\0"),
+                normal,
+                error(EditErrorKind::InvalidHandle, None),
+            ),
+            (
+                append(state.saved(2), Kind::Pi, "", "\0"),
+                normal,
+                error(EditErrorKind::WrongNodeKind, None),
+            ),
+            (
+                append(state.saved(0), Kind::Text, "", ""),
+                normal,
+                error(EditErrorKind::WrongNodeKind, None),
+            ),
+            (
+                append(parent, Kind::Pi, "", "\0"),
+                EditLimits {
+                    max_value_bytes: 0,
+                    ..normal
+                },
+                error(EditErrorKind::LimitExceeded(EditLimit::ValueBytes), None),
+            ),
+            (
+                append(parent, Kind::Pi, "1\0", ""),
+                normal,
+                error(EditErrorKind::InvalidCharacter, Some(1)),
+            ),
+            (
+                append(parent, Kind::Pi, "1", "\0"),
+                normal,
+                error(EditErrorKind::InvalidName, Some(0)),
+            ),
+            (
+                append(parent, Kind::Pi, "p", " \0"),
+                normal,
+                error(EditErrorKind::InvalidCharacter, Some(1)),
+            ),
+            (
+                append(parent, Kind::Pi, "p", "?>"),
+                normal,
+                error(EditErrorKind::InvalidValue, Some(0)),
+            ),
+            (
+                append(parent, Kind::Text, "", ""),
+                structural_limits(0, 0),
+                error(EditErrorKind::LimitExceeded(EditLimit::CreatedNodes), None),
+            ),
+            (
+                Action::Remove(state.saved(0)),
+                normal,
+                error(EditErrorKind::ProtectedNode, None),
+            ),
+            (
+                Action::Remove(parent),
+                normal,
+                error(EditErrorKind::ProtectedNode, None),
+            ),
+        ] {
+            assert_eq!(
+                state.model.expected_structure(0, action, limits),
+                Err(expected)
+            );
+        }
+        assert_eq!(
+            state
+                .model
+                .expected_structure(0, Action::Remove(state.saved(6)), normal),
+            Ok(())
+        );
+        assert_eq!(state.model.remove(6), [6, 7, 8]);
+        for index in [6, 7, 8] {
+            assert_eq!(
+                state
+                    .model
+                    .expected_structure(0, Action::Remove(state.saved(index)), normal),
+                Err(error(EditErrorKind::InvalidHandle, None))
+            );
+            assert_eq!(
+                state.model.expected(
+                    0,
+                    Request {
+                        handle: state.saved(index),
+                        selector: None,
+                        value: "\0"
+                    },
+                    normal
+                ),
+                Err(error(EditErrorKind::InvalidHandle, None))
+            );
+        }
+        assert_eq!(state.model.subtree(0), [0, 1, 2, 3, 4, 5, 9]);
+        let id = state.model.append(1, Kind::Pi, "p", "");
+        assert_eq!(id, 10);
+        assert_eq!(state.model.created, 1);
+        assert_eq!(state.model.nodes[id].target.as_deref(), Some("p"));
+        assert_eq!(state.model.remove(id), [id]);
+        assert_eq!(state.model.created, 1);
+        assert_eq!(state.model.append(1, Kind::Text, "", "x"), 11);
+        assert_eq!(state.model.created, 2);
+    }
+
+    #[test]
+    fn recovery_model_selects_existing_attributes_or_leaves_and_can_have_no_operand() {
+        let empty = empty(0);
+        assert!(empty.model.rescue(empty.owner, &empty.handles).is_none());
+        let attribute = tiny(true, 0);
+        let rescue = attribute
+            .model
+            .rescue(attribute.owner, &attribute.handles)
+            .unwrap();
+        assert_eq!(rescue.handle.node, 1);
+        assert!(rescue.selector.is_some());
+        assert_eq!(
+            attribute
+                .model
+                .expected(attribute.owner, rescue, structural_limits(0, 0)),
+            Ok(())
+        );
+        let mut text = tiny(false, 0);
+        let rescue = text.model.rescue(text.owner, &text.handles).unwrap();
+        assert_eq!(rescue.handle.node, 2);
+        assert!(rescue.selector.is_none());
+        assert_eq!(
+            text.model
+                .expected(text.owner, rescue, structural_limits(0, 0)),
+            Ok(())
+        );
+        text.model.remove(2);
+        assert!(text.model.rescue(text.owner, &text.handles).is_none());
+    }
 }

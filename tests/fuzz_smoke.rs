@@ -155,6 +155,125 @@ fn mutation_literal_quota_sequences_cover_reopened_and_encoded_trees() {
 }
 
 #[test]
+fn structural_operations_cover_live_stale_foreign_and_protected_handles() {
+    for encoding in 0..4 {
+        for family in 0..2 {
+            for variant in 0..16 {
+                let operations = [
+                    [8, 0, 1, 0, 0, 255, variant, 0],
+                    [9, 0, 7, 0, 0, 255, variant, 0],
+                    [10, 0, 0, 0, 0, 255, variant, 0],
+                    [11, 0, 0, 12, 0, 255, 1, 0],
+                    [11, 0, 1, variant, 0, 255, 1, 0],
+                    [12, 0, 0, 0, 0, 0, 0, 0],
+                    [12, 0, 1, 0, 0, 0, 0, 0],
+                    [12, 0, 6, 0, 0, 0, 0, 0],
+                    [12, 0, 6, 0, 0, 0, 0, 0],
+                    [0, 0, 7, 0, 0, 255, 12, 0],
+                    [1, 0, 6, 0, 0, 255, 12, 0],
+                    [8, 0, 6, 0, 0, 255, 12, 0],
+                    [2, 0, 7, 0, 0, 0, 0, 0],
+                    [8, 0, 0, 0, 0, 255, 12, 0],
+                    [9, 0, 5, 0, 0, 255, 12, 0],
+                    [15, 0, 1, variant, variant, 255, 12, 0],
+                    [13, 0, 12, 0, 0, 0, 0, 0],
+                    [12, 0, 22, 0, 0, 0, 0, 0], // Mandatory-created stale Comment.
+                    [5, 0, 0, 0, 0, 0, 0, 0],
+                    [8, 1, 1, 0, 0, 255, 12, 0],
+                    [14, 1, 0, 0, 0, 0, variant, 0],
+                    [4, 1, 0, 0, 0, 0, 0, 0],
+                    [3, 1, 0, 0, 0, 0, 0, 0],
+                ];
+                driver::exercise_mutation(&mutation_input(
+                    [family, encoding, 0, 0, variant * 8, variant, 1],
+                    &operations,
+                    b"payload <>&\r\n\t",
+                ));
+            }
+        }
+    }
+}
+
+#[test]
+fn structural_text_projection_and_independent_quota_profiles() {
+    for encoding in 0..4 {
+        for case in 0..8 {
+            for boundary in 0..3 {
+                driver::exercise_mutation(&mutation_input(
+                    [0, encoding, 0, 0, case * 8, boundary, 0],
+                    &[
+                        [12, 0, 3, 0, 0, 0, 0, 0],
+                        [12, 0, 4, 0, 0, 0, 0, 0],
+                        [12, 0, 5, 0, 0, 0, 0, 0],
+                        [12, 0, 6, 0, 0, 0, 0, 0],
+                        [12, 0, 21, 0, 0, 0, 0, 0], // Mandatory-created CDATA.
+                        [12, 0, 23, 0, 0, 0, 0, 0], // Mandatory-created PI.
+                        [8, 0, 1, 0, 0, 255, 1, 0], // Empty Text between Text nodes.
+                        [8, 0, 1, 0, 0, 255, 12, 0],
+                        [9, 0, 1, 0, 0, 255, 1, 0], // Empty CDATA stays distinct.
+                        [9, 0, 1, 0, 0, 255, 12, 0],
+                        [3, 0, 0, 0, 0, 0, 0, 0],
+                    ],
+                    b"",
+                ));
+            }
+        }
+        for maximum in [0, 4, 5, 6, 7] {
+            driver::exercise_mutation(&mutation_input(
+                [0, encoding, 2, 0, 0, maximum, 0],
+                &[
+                    [8, 0, 1, 0, 0, 255, 12, 0],
+                    [12, 0, 20, 0, 0, 0, 0, 0],
+                    [8, 0, 1, 0, 0, 255, 1, 0],
+                    [14, 0, 0, 0, 0, 0, 2, 0],
+                    [0, 0, 2, 0, 0, 255, 12, 0],
+                ],
+                b"",
+            ));
+        }
+    }
+}
+
+#[test]
+fn structural_pi_name_boundaries_and_each_input_length_are_independent() {
+    for target in [
+        "",
+        "1p",
+        "p:x",
+        "a b",
+        "é🙂!",
+        "xml",
+        "XmL",
+        "é\0",
+        "1\0",
+        "é🙂",
+        "xml-stylesheet",
+        "a\u{b7}",
+        "\u{300}",
+        "a\u{300}",
+        "\u{37d}",
+        "\u{37e}",
+        "\u{37f}",
+        "\u{effff}",
+        "\u{f0000}",
+    ] {
+        for encoding in 0..4 {
+            for maximum in [
+                target.len().saturating_sub(1),
+                target.len(),
+                target.len() + 1,
+            ] {
+                driver::exercise_mutation(&mutation_input(
+                    [0, encoding, 1, maximum as u8, 56, 0, 0],
+                    &[[11, 0, 1, 0, 0, 255, 1, 0]],
+                    target.as_bytes(),
+                ));
+            }
+        }
+    }
+}
+
+#[test]
 fn document_serialization_semantics_and_independent_quotas() {
     for body in [
         "<r/>",
