@@ -156,8 +156,9 @@ value edits within 3.0%. Drop ratios range from +6% to +30%, but the absolute
 extra destruction for eight documents is only about 0.2 to 1.0 us and those
 rows have roughly 9% to 24% relative MAD.
 
-With every element migrated, traversal, serialization, and value editing remain
-within 4.2%. Destruction now releases every side buffer. Reported per-document
+With every element migrated, no traversal, serialization, or value-edit
+regression exceeds 4.2%; sparse0 and mostly-empty traversal instead improve by
+11.0% and 15.0%. Destruction now releases every side buffer. Reported per-document
 medians include all buffer and outer-arena destruction: sparse0 2.03 us,
 sparse1 38.51 us, sparse2 44.68 us, mostly-empty 5.47 us, dense8 15.04 us,
 dense32 171.62 us, and dense128 14.28 us. This is per-document destruction cost,
@@ -189,9 +190,11 @@ before each release build. Representative commands:
 
 ```sh
 cargo build --release --offline --locked
-python3 /private/tmp/yaxml-attribute-ab-runner/run_ab_side.py 31 \
+uv run --no-project --python 3.12 python \
+  /private/tmp/yaxml-attribute-ab-runner/run_ab_side.py 31 \
   /private/tmp/yaxml-attribute-side-index-ab-raw-31.txt
-python3 /private/tmp/yaxml-attribute-ab-runner/analyze_ab_side.py \
+uv run --no-project --python 3.12 python \
+  /private/tmp/yaxml-attribute-ab-runner/analyze_ab_side.py \
   /private/tmp/yaxml-attribute-side-index-ab-raw-31.txt
 
 cd /private/tmp/yaxml-attribute-diagnostic
