@@ -1233,7 +1233,7 @@ impl Campaign {
             .filter(|path| path.file_name().is_some_and(|name| name != "lib.rs"))
             .cloned()
             .collect();
-        campaign::source_names(&sources)
+        campaign::source_names(&self.args.source_root.join("src"), &sources)
     }
 
     fn check_metadata_identities(&self) -> Result<(), Box<dyn Error>> {
@@ -1411,16 +1411,10 @@ fn production_sources(source_root: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>
     }
 
     let mut directories = vec![(source_directory, 0_usize)];
-    let mut directory_count = 0_usize;
+    let mut directory_count = 1_usize;
     let mut entry_count = 0_usize;
     let mut found = BTreeSet::new();
     while let Some((directory, depth)) = directories.pop() {
-        directory_count = directory_count
-            .checked_add(1)
-            .ok_or("production source directory count overflow")?;
-        if directory_count > MAX_PRODUCTION_SOURCE_DIRECTORIES {
-            return Err("production source directory enumeration exceeds its limit".into());
-        }
         for entry in fs::read_dir(directory)? {
             let entry = entry?;
             entry_count = entry_count
@@ -1437,6 +1431,12 @@ fn production_sources(source_root: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>
             if kind.is_dir() {
                 if depth >= MAX_PRODUCTION_SOURCE_DEPTH {
                     return Err("production source directory depth exceeds its limit".into());
+                }
+                directory_count = directory_count
+                    .checked_add(1)
+                    .ok_or("production source directory count overflow")?;
+                if directory_count > MAX_PRODUCTION_SOURCE_DIRECTORIES {
+                    return Err("production source directory enumeration exceeds its limit".into());
                 }
                 directories.push((path, depth + 1));
             } else if kind.is_file() && path.extension().is_some_and(|extension| extension == "rs")
@@ -1656,6 +1656,25 @@ mod tests {
             assert!(symlink.contains("symlink found in production source tree"));
             fs::remove_file(link).unwrap();
         }
+
+        for index in 0..MAX_PRODUCTION_SOURCE_DIRECTORIES - 1 {
+            fs::create_dir(root.join(format!("source/src/inventory-dir-{index:02}"))).unwrap();
+        }
+        let over_directory_limit = production_sources(&source_root).unwrap_err().to_string();
+        assert!(over_directory_limit.contains("directory enumeration exceeds its limit"));
+        for index in 0..MAX_PRODUCTION_SOURCE_DIRECTORIES - 1 {
+            fs::remove_dir(root.join(format!("source/src/inventory-dir-{index:02}"))).unwrap();
+        }
+
+        let mut deep = root.join("source/src/depth-0");
+        fs::create_dir(&deep).unwrap();
+        for index in 1..=MAX_PRODUCTION_SOURCE_DEPTH {
+            deep.push(format!("depth-{index}"));
+            fs::create_dir(&deep).unwrap();
+        }
+        let over_depth_limit = production_sources(&source_root).unwrap_err().to_string();
+        assert!(over_depth_limit.contains("directory depth exceeds its limit"));
+        fs::remove_dir_all(root.join("source/src/depth-0")).unwrap();
 
         for index in 0..MAX_PRODUCTION_SOURCE_ENTRIES {
             fs::write(

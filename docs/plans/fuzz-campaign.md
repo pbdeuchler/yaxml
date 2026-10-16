@@ -101,7 +101,10 @@ exact reviewed set of 15 regular source files: the existing 14 `src/*.rs`
 modules plus `src/owned/construction.rs`. Recursively enumerate `src` with
 fixed entry, directory and depth ceilings; reject symlinks, missing reviewed
 paths and unexpected Rust files at any visited depth. Preserve identities for
-all 15 files. The current coverage mapping expects rows for the 14 executable
+all 15 files. Enumerate at most 64 entries, eight directories and four nested
+directory levels, enforcing each limit as entries are discovered. Coverage row
+labels preserve each path relative to `src`, including `owned/construction.rs`.
+The current coverage mapping expects rows for the 14 executable
 modules; `src/lib.rs` is an explicit no-executable-mapping exception because it
 only declares/re-exports modules. Reject ambiguous report basenames, freeze the
 library file's identity too, and fail if any other source lacks a report row or

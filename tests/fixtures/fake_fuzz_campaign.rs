@@ -26,12 +26,12 @@ const EXPECTED_SOURCE_PATHS: [&str; 15] = [
 ];
 const EXPECTED_REPORT_NAMES: [&str; 14] = [
     "buffered.rs",
-    "construction.rs",
     "dom.rs",
     "encoding.rs",
     "error.rs",
     "escape.rs",
     "owned.rs",
+    "owned/construction.rs",
     "parser.rs",
     "push.rs",
     "reader.rs",

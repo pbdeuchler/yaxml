@@ -332,16 +332,31 @@ pub fn identity(bytes: &[u8]) -> (u64, usize) {
     (hash, bytes.len())
 }
 
-pub fn source_names(paths: &[impl AsRef<Path>]) -> Result<Vec<String>, CampaignError> {
+pub fn source_names(
+    source_directory: &Path,
+    paths: &[impl AsRef<Path>],
+) -> Result<Vec<String>, CampaignError> {
     let mut names = Vec::with_capacity(paths.len());
     for path in paths {
         let path = path.as_ref();
-        let name =
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .ok_or(CampaignError::Invalid(
-                    "production source filename is not UTF-8",
-                ))?;
+        let relative = path
+            .strip_prefix(source_directory)
+            .map_err(|_| CampaignError::Invalid("production source escaped its src directory"))?;
+        let name = relative.to_str().ok_or(CampaignError::Invalid(
+            "production source relative path is not UTF-8",
+        ))?;
+        if name.is_empty()
+            || relative.components().any(|component| {
+                matches!(
+                    component,
+                    std::path::Component::ParentDir | std::path::Component::CurDir
+                )
+            })
+        {
+            return Err(CampaignError::Invalid(
+                "production source relative path is invalid",
+            ));
+        }
         names.push(name.to_owned());
     }
     names.sort();
@@ -601,11 +616,16 @@ mod tests {
     }
 
     #[test]
-    fn source_rows_are_sorted_and_ambiguous_names_rejected() {
+    fn source_rows_preserve_sorted_relative_identity() {
         assert_eq!(
-            source_names(&["src/z.rs", "src/a.rs"]).unwrap(),
-            vec!["a.rs", "z.rs"]
+            source_names(
+                Path::new("src"),
+                &["src/z.rs", "src/owned/construction.rs", "src/a.rs"]
+            )
+            .unwrap(),
+            vec!["a.rs", "owned/construction.rs", "z.rs"]
         );
-        assert!(source_names(&["src/a.rs", "other/a.rs"]).is_err());
+        assert!(source_names(Path::new("src"), &["src/a.rs", "other/a.rs"]).is_err());
+        assert!(source_names(Path::new("src"), &["src/a.rs", "src/a.rs"]).is_err());
     }
 }
