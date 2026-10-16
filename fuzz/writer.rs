@@ -169,8 +169,22 @@ fn operations(input: &[u8]) {
                 standalone: if control & 32 == 0 { None } else { Some(false) },
             }),
         };
+        // Reparse alone is insufficient: early raw delimiters can turn part of
+        // a caller's value into other legal markup or text. These values must
+        // be rejected even if that altered document would still be well formed.
+        let forbidden_delimiter = match &event {
+            Event::Cdata(value) => value.contains("]]>"),
+            Event::Comment(value) => value.contains("--") || value.ends_with('-'),
+            Event::ProcessingInstruction { data, .. } => data.contains("?>"),
+            _ => false,
+        };
         let previous = writer.position();
-        if let Err(error) = writer.write_event(&event) {
+        let result = writer.write_event(&event);
+        assert!(
+            !forbidden_delimiter || result.is_err(),
+            "writer accepted a forbidden raw delimiter"
+        );
+        if let Err(error) = result {
             assert!(
                 matches!(error, WriteError::Xml(_)),
                 "Vec sink returned I/O error"
