@@ -338,3 +338,7 @@ impl<'a> Reader<'a> {
 #[cfg(test)]
 #[path = "reader/dtd.rs"]
 pub(crate) mod dtd;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_reader_spec.rs"]
+mod dtd_spec_tests;
