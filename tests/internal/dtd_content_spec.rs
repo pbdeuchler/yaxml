@@ -1022,7 +1022,10 @@ fn generated_text_work_boundary_charges_the_complete_token_before_callback() {
     let body_bytes = b"<r>&e;</r>";
     let mut cursor = 0;
     let mut callbacks = 0;
+    let mut steps = 0;
     loop {
+        steps += 1;
+        assert!(steps <= 64, "exact work boundary did not make progress");
         let step = exact.advance(&body_bytes[cursor..]).unwrap();
         cursor += step.consumed;
         if step.outcome == ContentOutcome::EventReady {
@@ -1055,7 +1058,10 @@ fn generated_text_work_boundary_charges_the_complete_token_before_callback() {
     let mut cursor = 0;
     let body = body_bytes;
     let mut callbacks = 0;
+    let mut steps = 0;
     let error = loop {
+        steps += 1;
+        assert!(steps <= 64, "short work boundary did not terminate");
         let result = if cursor < body.len() {
             short.advance(&body[cursor..])
         } else {

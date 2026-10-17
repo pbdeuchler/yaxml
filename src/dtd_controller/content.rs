@@ -1032,3 +1032,7 @@ fn tag_failure(
 
 #[path = "../../tests/internal/dtd_content_author.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../tests/internal/dtd_content_spec.rs"]
+mod spec_tests;
