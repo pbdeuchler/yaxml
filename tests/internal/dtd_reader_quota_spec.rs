@@ -185,6 +185,7 @@ struct Case {
     last: Option<SourceOrigin>,
 }
 fn verify(case: Case) {
+    let exact_shared_work = matches!(case.name, "declaration_work_exact" | "text_work_exact");
     for (ceiling, succeeds) in [(case.bounds.0, false), (case.bounds.1, true)] {
         let mut p = policy();
         (case.configure)(&mut p, ceiling);
@@ -229,6 +230,11 @@ fn verify(case: Case) {
                             );
                         }
                         previous = Some(now.controller);
+                        if exact_shared_work
+                            && matches!(event, ReaderEvent::Dtd(TakenDtdEvent::End))
+                        {
+                            assert_eq!(now.controller.work, 36, "{} DTD carry", case.name);
+                        }
                     }
                     if case.source == VALUE && matches!(event, ReaderEvent::Xml(Event::Empty(_))) {
                         let ReaderEvent::Xml(Event::Empty(element)) = event else {
@@ -256,6 +262,14 @@ fn verify(case: Case) {
                         );
                     }
                     let state = counters(&reader);
+                    if exact_shared_work {
+                        assert_eq!(
+                            state.unwrap().controller.work,
+                            48,
+                            "{} complete work",
+                            case.name
+                        );
+                    }
                     let origin = reader.event_origin();
                     assert!(reader.read_event().unwrap().is_none());
                     assert_eq!(counters(&reader), state);
@@ -309,6 +323,14 @@ fn verify(case: Case) {
                         case.name
                     );
                     let state = counters(&reader);
+                    if exact_shared_work {
+                        assert_eq!(
+                            state.unwrap().controller.work,
+                            44,
+                            "{} rejected work was debited",
+                            case.name
+                        );
+                    }
                     if case.source == HANDOFF {
                         assert_eq!(
                             state.unwrap().frames.unwrap(),
@@ -422,6 +444,29 @@ quota!(declaration_owned, PARAMETER, 9 => 10, |p,n| p.declarations.max_owned_byt
 quota!(declaration_work, TINY, 0 => 1000, |p,n| p.declarations.max_work=n,
     dtd(D::Limit(ControllerLimit::Work),0,None),0,None);
 
+quota!(unit_bytes, TINY, 11 => 12, |p,n| p.declarations.unit.max_unit_bytes=n,
+    dtd(D::Grammar(DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes)),11,input(0..12)),12,None);
+quota!(catalog_declarations, TINY, 0 => 1, |p,n| p.declarations.catalog.max_declarations=n,
+    dtd(D::Catalog(CatalogErrorKind::Limit(CatalogLimit::Declarations)),0,input(0..12)).value(Site::Declaration(0,0)),12,None);
+quota!(catalog_bindings, VALUE, 0 => 1, |p,n| p.declarations.catalog.max_bindings=n,
+    dtd(D::Catalog(CatalogErrorKind::Limit(CatalogLimit::Bindings)),13,input(13..29)).value(Site::Declaration(1,0)),29,last(0..13));
+quota!(catalog_references, VALUE, 0 => 1, |p,n| p.declarations.catalog.max_references=n,
+    content(C::Tag(crate::dtd_tag::DtdTagErrorKind::Catalog(CatalogErrorKind::Limit(CatalogLimit::References))),37,input(31..43)).value(Site::Input(37)),43,last(29..31));
+quota!(catalog_depth, VALUE, 0 => 1, |p,n| p.declarations.catalog.max_depth=n,
+    content(C::Tag(crate::dtd_tag::DtdTagErrorKind::Catalog(CatalogErrorKind::Limit(CatalogLimit::Depth))),37,input(31..43)).value(Site::Input(37)),43,last(29..31));
+quota!(frame_attempts, GENERATED, 0 => 1, |p,n| p.declarations.frames.max_reference_attempts=n,
+    content(C::Frame(FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts)),36,input(36..39)),39,last(33..36));
+quota!(declaration_physical, TINY, 11 => 16, |p,n| p.declarations.max_physical_bytes=n,
+    dtd(D::Limit(ControllerLimit::PhysicalBytes),11,None),11,None);
+quota!(body_physical, TINY, 15 => 16, |p,n| p.declarations.max_physical_bytes=n,
+    content(C::PhysicalBytes,15,None),15,last(11..12));
+quota!(catalog_work_exact, TINY, 11 => 12, |p,n| p.declarations.catalog.max_work=n,
+    dtd(D::Catalog(CatalogErrorKind::Limit(CatalogLimit::Work)),0,input(0..12)).value(Site::Declaration(0,0)),12,None);
+quota!(declaration_work_exact, TINY, 47 => 48, |p,n| p.declarations.max_work=n,
+    content(C::Work,12,None),16,last(11..12));
+quota!(text_work_exact, TINY, 47 => 48, |p,n| p.text.max_work=n,
+    content(C::Work,12,None),16,last(11..12));
+
 #[test]
 fn independent_scanner_header_keeps_its_physical_delimiter_before_publication() {
     use crate::dtd_scan::{DtdScanner, ScanKind, ScanMode};
@@ -432,6 +477,61 @@ fn independent_scanner_header_keeps_its_physical_delimiter_before_publication() 
     assert_eq!(raw, b"<!DOCTYPE r>");
     assert_eq!(range, 0..12);
     assert_eq!(scanner.position(), 12);
+}
+
+#[test]
+fn independent_content_work_rejection_has_an_anchor_before_tag_publication() {
+    use crate::dtd_controller::DtdController;
+    use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
+    use crate::tokenizer::Tokenizer;
+    for text_ceiling in [false, true] {
+        let mut p = policy();
+        if text_ceiling {
+            p.text.max_work = 47;
+        } else {
+            p.declarations.max_work = 47;
+        }
+        let mut parser = ParserState::new(
+            Limits {
+                max_token_bytes: 16,
+                ..Limits::default()
+            },
+            0,
+        );
+        let mut declarations =
+            DtdController::stable_utf8(TINY, 0, 0, p.declarations, false).unwrap();
+        for _ in 0..2 {
+            declarations
+                .advance_borrowed(parser.owned_budget())
+                .unwrap();
+            assert!(declarations.take_current().is_some());
+        }
+        assert!(declarations.is_complete());
+        assert_eq!(declarations.counters().work, 36);
+        let mut body = BorrowedContentController::stable_utf8(
+            declarations.into_body_state().unwrap(),
+            parser,
+            Tokenizer::new(16, 16),
+            TINY,
+            p.text,
+            p.local,
+        )
+        .unwrap();
+        assert_eq!(
+            body.advance_borrowed().unwrap().outcome,
+            ContentOutcome::EventReady
+        );
+        assert_eq!(body.counters().work, 44);
+        let error = body.take_event().unwrap_err();
+        assert_eq!(error.kind, C::Work);
+        assert_eq!(error.physical_offset, 12);
+        assert_eq!(error.origin, None);
+        assert_eq!(error.local_offset, None);
+        assert_eq!(error.value_location, None);
+        assert_eq!(body.position(), (16, 16));
+        assert_eq!(body.counters().work, 44);
+        assert_eq!(body.advance_borrowed().unwrap_err(), error);
+    }
 }
 
 #[test]
