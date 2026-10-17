@@ -201,3 +201,56 @@ fn reference_partitions_preserve_spelling_errors_work_and_release_position() {
     assert_eq!(s.current().unwrap().0, ReferenceKind::Predefined('&'));
     assert_eq!(s.current().unwrap().1, "&amp;");
 }
+
+#[test]
+fn checked_views_reuse_collection_allocation_and_keep_failure_buffers_private() {
+    fn allocation(scanner: &ReferenceScratch) -> (*const u8, usize) {
+        match &scanner.buffer {
+            ReferenceBuffer::Pending(bytes) => (bytes.as_ptr(), bytes.capacity()),
+            ReferenceBuffer::Ready { raw, .. } => (raw.as_ptr(), raw.capacity()),
+        }
+    }
+    let mut scanner = ReferenceScratch::new(10, limits());
+    scanner.advance("&π".as_bytes()).unwrap();
+    let collected = allocation(&scanner);
+    scanner.advance(b";suffix").unwrap();
+    assert_eq!(allocation(&scanner), collected);
+    let usage = scanner.usage();
+    for _ in 0..16 {
+        let view = scanner.validated().unwrap();
+        assert_eq!(view.raw(), "&π;");
+        assert_eq!(view.raw().as_ptr(), collected.0);
+        assert_eq!(view.range(), 10..14);
+        assert_eq!(scanner.current().unwrap().1.as_ptr(), collected.0);
+    }
+    assert_eq!(scanner.usage(), usage);
+    scanner.release();
+    assert_eq!(allocation(&scanner), collected);
+    assert!(scanner.validated().is_none());
+    scanner.restart(50).unwrap();
+    scanner.advance(b"&lt;").unwrap();
+    assert_eq!(allocation(&scanner), collected);
+    assert_eq!(
+        scanner.validated().unwrap().kind(),
+        ReferenceKind::Predefined('<')
+    );
+    assert_eq!(scanner.usage().classified, 8);
+
+    for (raw, kind) in [
+        (b"&\xc3;".as_slice(), ReferenceErrorKind::InvalidUtf8),
+        (b"&1;", ReferenceErrorKind::Syntax),
+    ] {
+        let mut scanner = ReferenceScratch::new(0, limits());
+        scanner.advance(&raw[..2]).unwrap();
+        let collected = allocation(&scanner);
+        let error = scanner.advance(&raw[2..]).unwrap_err();
+        assert_eq!(error.kind, kind);
+        assert_eq!(allocation(&scanner), collected);
+        assert!(matches!(scanner.buffer, ReferenceBuffer::Pending(_)));
+        assert!(scanner.validated().is_none());
+        assert!(scanner.current().is_none());
+        scanner.release();
+        assert_eq!(scanner.finish_step().unwrap_err(), error);
+        assert_eq!(scanner.usage().classified, raw.len());
+    }
+}

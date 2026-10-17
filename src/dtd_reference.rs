@@ -66,13 +66,17 @@ pub(crate) struct ReferenceError {
     pub(crate) offset: usize,
 }
 
+enum ReferenceBuffer {
+    Pending(Vec<u8>),
+    Ready { kind: ReferenceKind, raw: String },
+}
+
 pub(crate) struct ReferenceScratch {
-    bytes: Vec<u8>,
+    buffer: ReferenceBuffer,
     start: usize,
     position: usize,
     limits: ReferenceLimits,
     usage: ReferenceUsage,
-    ready: Option<ReferenceKind>,
     complete: bool,
     finalizing: bool,
     failure: Option<ReferenceError>,
@@ -80,12 +84,11 @@ pub(crate) struct ReferenceScratch {
 impl ReferenceScratch {
     pub(crate) fn new(start: usize, limits: ReferenceLimits) -> Self {
         Self {
-            bytes: Vec::new(),
+            buffer: ReferenceBuffer::Pending(Vec::new()),
             start,
             position: start,
             limits,
             usage: ReferenceUsage::default(),
-            ready: None,
             complete: false,
             finalizing: false,
             failure: None,
@@ -108,20 +111,31 @@ impl ReferenceScratch {
         if self.failure.is_some() {
             return None;
         }
-        self.ready.map(|kind| ValidatedReference {
-            kind,
-            raw: std::str::from_utf8(&self.bytes).expect("validated reference"),
-            start: self.start,
-        })
+        match &self.buffer {
+            ReferenceBuffer::Ready { kind, raw } => Some(ValidatedReference {
+                kind: *kind,
+                raw,
+                start: self.start,
+            }),
+            ReferenceBuffer::Pending(_) => None,
+        }
     }
     pub(crate) fn release(&mut self) {
-        if self.ready.take().is_some() {
-            self.bytes.clear();
-        }
+        self.buffer =
+            match std::mem::replace(&mut self.buffer, ReferenceBuffer::Pending(Vec::new())) {
+                ReferenceBuffer::Ready { raw, .. } => {
+                    let mut bytes = raw.into_bytes();
+                    bytes.clear();
+                    ReferenceBuffer::Pending(bytes)
+                }
+                pending => pending,
+            };
     }
     pub(crate) fn restart(&mut self, start: usize) -> Result<(), ReferenceError> {
         self.remember(|s| {
-            if !s.complete || s.ready.is_some() || !s.bytes.is_empty() {
+            if !s.complete
+                || !matches!(&s.buffer, ReferenceBuffer::Pending(bytes) if bytes.is_empty())
+            {
                 return Err(s.error(ReferenceErrorKind::InvalidState, s.position()));
             }
             s.start = start;
@@ -141,12 +155,11 @@ impl ReferenceScratch {
             }
             for (index, &byte) in input.iter().enumerate() {
                 s.append(byte)?;
-                if s.bytes.len() == 1 && byte != b'&' {
+                if s.buffer_len() == 1 && byte != b'&' {
                     return Err(s.error(ReferenceErrorKind::Syntax, s.start));
                 }
                 if byte == b';' {
-                    let kind = s.classify(true)?;
-                    s.ready = Some(kind);
+                    s.classify(true)?;
                     s.complete = true;
                     return Ok(index + 1);
                 }
@@ -166,8 +179,7 @@ impl ReferenceScratch {
     }
     fn append(&mut self, byte: u8) -> Result<(), ReferenceError> {
         let length = self
-            .bytes
-            .len()
+            .buffer_len()
             .checked_add(1)
             .ok_or_else(|| self.error(ReferenceErrorKind::PositionOverflow, self.position()))?;
         let end = self
@@ -197,28 +209,32 @@ impl ReferenceScratch {
                 self.position(),
             ));
         }
-        if length > self.bytes.capacity() {
-            let target = self
-                .bytes
+        let allocation = self.error(ReferenceErrorKind::Allocation, self.position());
+        let invalid = self.error(ReferenceErrorKind::InvalidState, self.position());
+        let ReferenceBuffer::Pending(bytes) = &mut self.buffer else {
+            return Err(invalid);
+        };
+        if length > bytes.capacity() {
+            let target = bytes
                 .capacity()
                 .saturating_mul(2)
                 .max(32)
                 .max(length)
                 .min(self.limits.max_bytes)
                 .min(self.limits.max_scratch_bytes);
-            self.bytes
-                .try_reserve_exact(target - self.bytes.len())
-                .map_err(|_| self.error(ReferenceErrorKind::Allocation, self.position()))?;
+            bytes
+                .try_reserve_exact(target - bytes.len())
+                .map_err(|_| allocation)?;
         }
         self.usage.work = work;
         self.usage.scanned += 1;
         self.usage.copied += 1;
-        self.bytes.push(byte);
+        bytes.push(byte);
         self.position = end;
         Ok(())
     }
     fn classify(&mut self, closed: bool) -> Result<ReferenceKind, ReferenceError> {
-        let length = self.bytes.len();
+        let length = self.buffer_len();
         self.usage.work = self
             .usage
             .work
@@ -228,12 +244,31 @@ impl ReferenceScratch {
                 self.error(ReferenceErrorKind::Limit(ReferenceLimit::Work), self.start)
             })?;
         self.usage.classified += length;
-        let raw = std::str::from_utf8(&self.bytes).map_err(|e| {
-            self.error(
-                ReferenceErrorKind::InvalidUtf8,
-                self.start + e.valid_up_to(),
-            )
-        })?;
+        let ReferenceBuffer::Pending(bytes) = &mut self.buffer else {
+            return Err(self.error(ReferenceErrorKind::InvalidState, self.start));
+        };
+        let raw = match String::from_utf8(std::mem::take(bytes)) {
+            Ok(raw) => raw,
+            Err(error) => {
+                let offset = self.start + error.utf8_error().valid_up_to();
+                self.buffer = ReferenceBuffer::Pending(error.into_bytes());
+                return Err(self.error(ReferenceErrorKind::InvalidUtf8, offset));
+            }
+        };
+        let result = self.classify_spelling(&raw, closed);
+        self.buffer = match result {
+            Ok(kind) if closed => ReferenceBuffer::Ready { kind, raw },
+            _ => ReferenceBuffer::Pending(raw.into_bytes()),
+        };
+        result
+    }
+    fn buffer_len(&self) -> usize {
+        match &self.buffer {
+            ReferenceBuffer::Pending(bytes) => bytes.len(),
+            ReferenceBuffer::Ready { raw, .. } => raw.len(),
+        }
+    }
+    fn classify_spelling(&self, raw: &str, closed: bool) -> Result<ReferenceKind, ReferenceError> {
         if let Some((offset, _)) = raw.char_indices().find(|(_, c)| !xml_char(*c)) {
             return Err(self.error(ReferenceErrorKind::InvalidCharacter, self.start + offset));
         }

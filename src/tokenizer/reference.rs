@@ -44,6 +44,9 @@ enum ReferenceStart {
 
 /// Preview source progress before handing the same bytes to reference scratch.
 /// Committing the returned value after scratch success needs no allocation.
+/// The coordinator must offer exactly the previewed bytes and commit only the
+/// accepted prefix. Range/encoding checks do not prove spelling or invocation
+/// identity; the coordinator owns both bindings.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ReferenceCursor {
     start: ReferenceStart,

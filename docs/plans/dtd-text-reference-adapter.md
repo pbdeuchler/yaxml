@@ -268,6 +268,18 @@ cursor value. `finish` requires the validated view's exact decoded range.
 Input extents retain a real TokenSpan; Local extents offer only a local range.
 Cursor overflow remains a distinct private PositionOverflow outcome.
 
+Preview has an explicit same-byte precondition: the coordinator offers exactly
+the previewed byte to ReferenceScratch, then commits the preview only after that
+byte succeeds. A preview of a whole slice cannot be committed if scratch stops
+at an earlier semicolon. Geometry alone does not prove that previewed bytes
+equal the validated spelling or belong to the active occurrence.
+
+ReferenceScratch keeps either pending Vec bytes or a ready String plus its
+classification. The charged final pass moves the Vec through String::from_utf8
+once and classifies that str. `validated`/`current` then borrow the checked str
+in constant time. Release returns the same allocation to the cleared Vec for
+restart; syntax/UTF-8 failures retain their buffer under the sticky error owner.
+
 LocalTokenizer exposes the same operations under its existing seal/sticky error
 owner. LocalUsage adds `reference_copied`: successful raw append bytes, separate
 from newly scanned bytes. Work is charged before the append/reservation attempt;
