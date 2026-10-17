@@ -82,6 +82,7 @@ pub(crate) enum ControllerErrorKind {
     Limit(ControllerLimit),
     PositionOverflow,
     InvalidUnitFamily,
+    InvalidState,
     Allocation,
 }
 
@@ -98,7 +99,17 @@ pub(crate) struct ControllerError {
 pub(crate) enum DtdEvent<'a> {
     Begin(DoctypeHeaderView<'a>),
     Item {
-        unit: &'a DtdUnit<'static>,
+        unit: &'a DtdUnit<'a>,
+        literals: LiteralSource,
+    },
+    End,
+}
+
+#[derive(Debug)]
+pub(crate) enum TakenDtdEvent<'a> {
+    Begin(DtdUnit<'a>),
+    Item {
+        unit: DtdUnit<'a>,
         literals: LiteralSource,
     },
     End,
@@ -116,19 +127,39 @@ enum Side {
     Replacement,
 }
 
-pub(crate) struct DtdController {
+#[derive(Clone, Copy)]
+enum PhysicalInput<'input> {
+    Streaming,
+    StableUtf8 {
+        source: &'input str,
+        source_start: usize,
+        source_end: usize,
+    },
+}
+
+pub(crate) struct DtdBodyState {
+    catalog: DtdCatalog,
+    frames: EntityFrames,
+    limits: ControllerLimits,
+    counters: ControllerCounters,
+    physical_position: usize,
+    doctype_range: Range<usize>,
+}
+
+pub(crate) struct DtdControllerCore<'input> {
     physical: DtdScanner,
     fragment: DtdScanner,
     catalog: DtdCatalog,
     frames: EntityFrames,
     active: Vec<EntityId>,
+    input: PhysicalInput<'input>,
     encoding: SourceEncoding,
     start: usize,
     position: usize,
     unit_start: usize,
     limits: ControllerLimits,
     counters: ControllerCounters,
-    unit: Option<DtdUnit<'static>>,
+    unit: Option<DtdUnit<'input>>,
     ready: Option<Ready>,
     origin: Option<FragmentOrigin>,
     held_end: Option<FragmentOrigin>,
@@ -138,12 +169,65 @@ pub(crate) struct DtdController {
     failure: Option<ControllerError>,
 }
 
-impl DtdController {
+pub(crate) type DtdController = DtdControllerCore<'static>;
+pub(crate) type BorrowedDtdController<'input> = DtdControllerCore<'input>;
+
+impl DtdControllerCore<'static> {
     pub(crate) fn new(
         encoding: SourceEncoding,
         physical_start: usize,
         limits: ControllerLimits,
         standalone: bool,
+    ) -> Self {
+        Self::with_input(
+            encoding,
+            physical_start,
+            limits,
+            standalone,
+            PhysicalInput::Streaming,
+        )
+    }
+
+    pub(crate) fn stable_utf8<'input>(
+        source: &'input str,
+        source_start: usize,
+        physical_start: usize,
+        limits: ControllerLimits,
+        standalone: bool,
+    ) -> Result<BorrowedDtdController<'input>, ControllerError> {
+        let source_end = source_start.checked_add(source.len()).ok_or_else(|| {
+            standalone_error(ControllerErrorKind::PositionOverflow, physical_start)
+        })?;
+        let relative = physical_start
+            .checked_sub(source_start)
+            .ok_or_else(|| standalone_error(ControllerErrorKind::InvalidState, physical_start))?;
+        if physical_start > source_end || !source.is_char_boundary(relative) {
+            return Err(standalone_error(
+                ControllerErrorKind::InvalidState,
+                physical_start,
+            ));
+        }
+        Ok(DtdControllerCore::with_input(
+            SourceEncoding::Utf8,
+            physical_start,
+            limits,
+            standalone,
+            PhysicalInput::StableUtf8 {
+                source,
+                source_start,
+                source_end,
+            },
+        ))
+    }
+}
+
+impl<'input> DtdControllerCore<'input> {
+    fn with_input(
+        encoding: SourceEncoding,
+        physical_start: usize,
+        limits: ControllerLimits,
+        standalone: bool,
+        input: PhysicalInput<'input>,
     ) -> Self {
         Self {
             physical: DtdScanner::new(ScanMode::Doctype, limits.scan),
@@ -151,6 +235,7 @@ impl DtdController {
             catalog: DtdCatalog::new(limits.catalog, standalone),
             frames: EntityFrames::new(limits.frames),
             active: Vec::new(),
+            input,
             encoding,
             start: physical_start,
             position: physical_start,
@@ -199,12 +284,31 @@ impl DtdController {
         Some((event, self.origin?))
     }
 
+    pub(crate) fn take_current(&mut self) -> Option<(TakenDtdEvent<'input>, FragmentOrigin)> {
+        let ready = self.ready.take()?;
+        let origin = self.origin.take()?;
+        let event = match ready {
+            Ready::Begin => TakenDtdEvent::Begin(self.unit.take()?),
+            Ready::Item(literals) => TakenDtdEvent::Item {
+                unit: self.unit.take()?,
+                literals,
+            },
+            Ready::End => TakenDtdEvent::End,
+        };
+        self.finish_release(ready);
+        Some((event, origin))
+    }
+
     pub(crate) fn release(&mut self) {
         let Some(ready) = self.ready.take() else {
             return;
         };
         self.unit = None;
         self.origin = None;
+        self.finish_release(ready);
+    }
+
+    fn finish_release(&mut self, ready: Ready) {
         if matches!(ready, Ready::Begin)
             && let Some(end) = self.held_end.take()
         {
@@ -221,14 +325,79 @@ impl DtdController {
         budget: &mut Budget,
     ) -> Result<usize, ControllerError> {
         self.remember(|controller| {
+            if !matches!(controller.input, PhysicalInput::Streaming) {
+                return Err(controller.simple_error(ControllerErrorKind::InvalidState));
+            }
             controller.drive(if controller.finalizing { &[] } else { input }, budget)
+        })
+    }
+
+    pub(crate) fn advance_borrowed(
+        &mut self,
+        budget: &mut Budget,
+    ) -> Result<usize, ControllerError> {
+        self.remember(|controller| {
+            let PhysicalInput::StableUtf8 {
+                source,
+                source_start,
+                source_end,
+            } = controller.input
+            else {
+                return Err(controller.simple_error(ControllerErrorKind::InvalidState));
+            };
+            if controller.finalizing {
+                return controller.drive(&[], budget);
+            }
+            let relative = controller
+                .position
+                .checked_sub(source_start)
+                .ok_or_else(|| controller.simple_error(ControllerErrorKind::InvalidState))?;
+            let remaining = source
+                .get(relative..)
+                .ok_or_else(|| controller.simple_error(ControllerErrorKind::InvalidState))?;
+            let consumed = controller.drive(remaining.as_bytes(), budget)?;
+            if consumed == 0
+                && controller.ready.is_none()
+                && !controller.complete
+                && controller.position == source_end
+            {
+                controller.finalizing = true;
+                controller.drive(&[], budget)?;
+            }
+            Ok(consumed)
         })
     }
 
     pub(crate) fn finish_step(&mut self, budget: &mut Budget) -> Result<(), ControllerError> {
         self.remember(|controller| {
+            if !matches!(controller.input, PhysicalInput::Streaming) {
+                return Err(controller.simple_error(ControllerErrorKind::InvalidState));
+            }
             controller.finalizing = true;
             controller.drive(&[], budget).map(|_| ())
+        })
+    }
+
+    pub(crate) fn into_body_state(self) -> Result<DtdBodyState, ControllerError> {
+        if self.failure.is_some()
+            || !self.complete
+            || self.ready.is_some()
+            || self.unit.is_some()
+            || self.origin.is_some()
+            || self.held_end.is_some()
+            || !self.active.is_empty()
+            || self.frames.depth() != 0
+        {
+            return Err(self.simple_error(ControllerErrorKind::InvalidState));
+        }
+        let doctype_range = self.start..self.position;
+        Ok(DtdBodyState {
+            catalog: self.catalog,
+            frames: self.frames,
+            limits: self.limits,
+            counters: self.counters,
+            physical_position: self.position,
+            doctype_range,
         })
     }
 
@@ -380,21 +549,32 @@ impl DtdController {
             self.origin = Some(origin);
             return Ok(());
         }
+        // Grammar is always checked before an input-mode-dependent raw copy.
         self.charge_work(raw_len, Some(origin))?;
-        let next_owned = self
-            .counters
-            .owned_bytes
-            .checked_add(raw_len)
-            .filter(|count| *count <= self.limits.max_owned_bytes)
-            .ok_or_else(|| {
-                self.error_for_origin(
-                    ControllerErrorKind::Limit(ControllerLimit::OwnedBytes),
+        let stable_raw = if matches!(side, Side::Physical) {
+            self.stable_physical_raw(origin)?
+        } else {
+            None
+        };
+        let unit = if let Some(raw) = stable_raw {
+            let unit = DtdUnit::parse(raw, self.limits.unit).map_err(|error| {
+                map_unit_error(
+                    self.encoding,
                     origin,
-                    None,
+                    raw,
+                    error.offset,
+                    ControllerErrorKind::Grammar(error.kind),
                 )
             })?;
-        self.charge_work(raw_len, Some(origin))?;
-        let unit = {
+            if !valid_unit(kind, side, self.started, &unit) {
+                return Err(self.error_for_origin(
+                    ControllerErrorKind::InvalidUnitFamily,
+                    origin,
+                    None,
+                ));
+            }
+            unit
+        } else {
             let raw = match side {
                 Side::Physical => self.physical.current(),
                 Side::Replacement => self.fragment.current(),
@@ -411,7 +591,38 @@ impl DtdController {
                     ControllerErrorKind::Grammar(error.kind),
                 )
             })?;
-            borrowed
+            if !valid_unit(kind, side, self.started, &borrowed) {
+                return Err(self.error_for_origin(
+                    ControllerErrorKind::InvalidUnitFamily,
+                    origin,
+                    None,
+                ));
+            }
+            let next_owned = self
+                .counters
+                .owned_bytes
+                .checked_add(raw_len)
+                .filter(|count| *count <= self.limits.max_owned_bytes)
+                .ok_or_else(|| {
+                    self.error_for_origin(
+                        ControllerErrorKind::Limit(ControllerLimit::OwnedBytes),
+                        origin,
+                        None,
+                    )
+                })?;
+            let next_work = self
+                .counters
+                .work
+                .checked_add(raw_len)
+                .filter(|work| *work <= self.limits.max_work)
+                .ok_or_else(|| {
+                    self.error_for_origin(
+                        ControllerErrorKind::Limit(ControllerLimit::Work),
+                        origin,
+                        None,
+                    )
+                })?;
+            let owned = borrowed
                 .try_into_owned(budget, origin.physical_context().start)
                 .map_err(|error| {
                     map_unit_error(
@@ -421,33 +632,12 @@ impl DtdController {
                         0,
                         ControllerErrorKind::Ownership(error.kind),
                     )
-                })?
+                })?;
+            self.counters.work = next_work;
+            self.counters.owned_bytes = next_owned;
+            owned
         };
-        self.counters.owned_bytes = next_owned;
         let header = matches!(unit.view(), DtdUnitView::Header(_));
-        let valid = match kind {
-            ScanKind::Header => matches!(side, Side::Physical) && !self.started && header,
-            ScanKind::Declaration => {
-                !header
-                    && matches!(
-                        unit.view(),
-                        DtdUnitView::Element(_)
-                            | DtdUnitView::AttributeList(_)
-                            | DtdUnitView::Entity(_)
-                            | DtdUnitView::Notation(_)
-                    )
-            }
-            ScanKind::Comment => matches!(unit.view(), DtdUnitView::Comment(_)),
-            ScanKind::Instruction => matches!(unit.view(), DtdUnitView::ProcessingInstruction(_)),
-            _ => false,
-        };
-        if !valid {
-            return Err(self.error_for_origin(
-                ControllerErrorKind::InvalidUnitFamily,
-                origin,
-                None,
-            ));
-        }
         self.commit_source(side, raw_len)?;
         self.release_scanner(side);
         let literals = if matches!(side, Side::Physical) {
@@ -709,6 +899,33 @@ impl DtdController {
         }
     }
 
+    fn stable_physical_raw(
+        &self,
+        origin: FragmentOrigin,
+    ) -> Result<Option<&'input str>, ControllerError> {
+        let PhysicalInput::StableUtf8 {
+            source,
+            source_start,
+            ..
+        } = self.input
+        else {
+            return Ok(None);
+        };
+        let range = origin.input_range().ok_or_else(|| {
+            self.error_for_origin(ControllerErrorKind::InvalidState, origin, None)
+        })?;
+        let start = range.start.checked_sub(source_start).ok_or_else(|| {
+            self.error_for_origin(ControllerErrorKind::InvalidState, origin, None)
+        })?;
+        let end = range.end.checked_sub(source_start).ok_or_else(|| {
+            self.error_for_origin(ControllerErrorKind::InvalidState, origin, None)
+        })?;
+        source
+            .get(start..end)
+            .map(Some)
+            .ok_or_else(|| self.error_for_origin(ControllerErrorKind::InvalidState, origin, None))
+    }
+
     fn scan_error(&self, side: Side, kind: ScanErrorKind, offset: usize) -> ControllerError {
         let (raw, range) = match side {
             Side::Physical => self.physical.pending(),
@@ -814,6 +1031,64 @@ impl DtdController {
             self.failure = Some(error);
         }
         result
+    }
+}
+
+impl DtdBodyState {
+    pub(crate) fn catalog(&self) -> &DtdCatalog {
+        &self.catalog
+    }
+
+    pub(crate) fn frames(&self) -> &EntityFrames {
+        &self.frames
+    }
+
+    pub(crate) fn limits(&self) -> ControllerLimits {
+        self.limits
+    }
+
+    pub(crate) fn counters(&self) -> ControllerCounters {
+        self.counters
+    }
+
+    pub(crate) fn physical_position(&self) -> usize {
+        self.physical_position
+    }
+
+    pub(crate) fn doctype_range(&self) -> Range<usize> {
+        self.doctype_range.clone()
+    }
+}
+
+fn valid_unit(kind: ScanKind, side: Side, started: bool, unit: &DtdUnit<'_>) -> bool {
+    let header = matches!(unit.view(), DtdUnitView::Header(_));
+    match kind {
+        ScanKind::Header => matches!(side, Side::Physical) && !started && header,
+        ScanKind::Declaration => {
+            !header
+                && matches!(
+                    unit.view(),
+                    DtdUnitView::Element(_)
+                        | DtdUnitView::AttributeList(_)
+                        | DtdUnitView::Entity(_)
+                        | DtdUnitView::Notation(_)
+                )
+        }
+        ScanKind::Comment => matches!(unit.view(), DtdUnitView::Comment(_)),
+        ScanKind::Instruction => {
+            matches!(unit.view(), DtdUnitView::ProcessingInstruction(_))
+        }
+        _ => false,
+    }
+}
+
+fn standalone_error(kind: ControllerErrorKind, physical_offset: usize) -> ControllerError {
+    ControllerError {
+        kind,
+        physical_offset,
+        origin: None,
+        local_offset: None,
+        value_location: None,
     }
 }
 
