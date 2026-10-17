@@ -1073,3 +1073,73 @@ fn fatal_errors_preserve_only_a_read_only_prefix_and_never_resume_catalog_mutati
     );
     assert_eq!(catalog.usage(), usage);
 }
+
+#[test]
+fn unavailable_duplicate_defaults_are_reported_without_overwriting_first_binding() {
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    declare(&mut catalog, "<!ENTITY e '&missing;'>").unwrap();
+    declare(&mut catalog, "<!ATTLIST r a CDATA 'first'>").unwrap();
+    let effect = declare(&mut catalog, "<!ATTLIST r a CDATA '&e;' b CDATA '&e;'>").unwrap();
+    assert_eq!(effect.bindings_added, 1);
+    assert_eq!(effect.unavailable_defaults, 2);
+    assert!(matches!(
+        effect.unavailable,
+        Some(Dependency {
+            kind: DependencyKind::MissingReadDeclaration,
+            location: ValueLocation::Replacement { offset: 0, .. },
+        })
+    ));
+    let mut attributes = catalog.attributes("r");
+    assert_eq!(
+        attributes.next().unwrap().default(),
+        DefaultValue::Value {
+            fixed: false,
+            value: "first"
+        }
+    );
+    assert!(matches!(
+        attributes.next().unwrap().default(),
+        DefaultValue::Unavailable { .. }
+    ));
+}
+
+#[test]
+fn unavailable_duplicate_entity_value_is_reported_and_keeps_the_barrier() {
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    declare(&mut catalog, "<!ENTITY e 'first'>").unwrap();
+    declare(&mut catalog, "<!ENTITY % p SYSTEM 'never-open'>").unwrap();
+    let unit = DtdUnit::parse("<!ENTITY e '%p;'>", DtdLimits::default()).unwrap();
+    let effect = catalog
+        .apply(
+            &unit,
+            DeclarationContext {
+                internal_subset: false,
+                literals: LiteralSource::Physical,
+            },
+        )
+        .unwrap();
+    assert_eq!(effect.bindings_added, 0);
+    assert_eq!(effect.unavailable_defaults, 0);
+    assert_eq!(
+        effect.unavailable,
+        Some(Dependency {
+            kind: DependencyKind::ExternalEntity,
+            location: ValueLocation::Declaration {
+                declaration: 2,
+                offset: 12
+            }
+        })
+    );
+    assert!(matches!(
+        catalog.lookup_general("e"),
+        EntityLookup::Internal {
+            replacement: "first",
+            ..
+        }
+    ));
+    assert!(
+        declare(&mut catalog, "<!ENTITY later 'ignored'>")
+            .unwrap()
+            .ignored_after_unread_parameter
+    );
+}

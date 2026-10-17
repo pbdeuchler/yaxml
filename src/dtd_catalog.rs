@@ -160,6 +160,7 @@ pub(crate) enum EntityLookup<'a> {
 pub(crate) struct DeclarationEffect {
     pub(crate) bindings_added: usize,
     pub(crate) unavailable_defaults: usize,
+    pub(crate) unavailable: Option<Dependency>,
     pub(crate) ignored_after_unread_parameter: bool,
 }
 
@@ -480,6 +481,9 @@ impl DtdCatalog {
                             ValueMode::Entity,
                             Some(declaration),
                         )?;
+                        if let NormalizedValue::Unavailable(dependency) = &result {
+                            effect.unavailable.get_or_insert(*dependency);
+                        }
                         if !parameter && let Some(character) = predefined(entity.name()) {
                             let valid = match &result {
                                 NormalizedValue::Value(value) => {
@@ -591,19 +595,20 @@ impl DtdCatalog {
                             StoredDefault::Value { fixed, value }
                         }
                     };
+                    if let StoredDefault::Value {
+                        value: NormalizedValue::Unavailable(dependency),
+                        ..
+                    } = &default
+                    {
+                        effect.unavailable_defaults += 1;
+                        effect.unavailable.get_or_insert(*dependency);
+                    }
                     let existing = self.element_index.get(list.element_name()).copied();
                     if existing.is_some_and(|index| {
                         self.elements[index].index.contains_key(definition.name())
                     }) {
                         continue;
                     }
-                    let unavailable = matches!(
-                        default,
-                        StoredDefault::Value {
-                            value: NormalizedValue::Unavailable(_),
-                            ..
-                        }
-                    );
                     self.add_binding(location)?;
                     let element_bytes = if existing.is_none() {
                         list.element_name().len()
@@ -658,7 +663,6 @@ impl DtdCatalog {
                     });
                     attributes.index.insert(key, index);
                     effect.bindings_added += 1;
-                    effect.unavailable_defaults += usize::from(unavailable);
                 }
             }
             _ => {}
