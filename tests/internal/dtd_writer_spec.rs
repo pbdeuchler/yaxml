@@ -930,13 +930,22 @@ fn finishing_dtd_document_retries_interrupt_and_poison_survives_flush_error_or_p
 
 #[test]
 fn default_name_and_duplicate_expanded_attribute_failures_retain_declaration_context() {
-    for (decl, q, ns, attributes, kind) in [
+    for (decl, q, ns, attributes, kind, name_offset) in [
         (
             "<!ATTLIST r a:b:c CDATA 'v'>",
             "r",
             None,
             vec![],
             ErrorKind::InvalidName,
+            15,
+        ),
+        (
+            "<!ATTLIST r é:x:y CDATA 'v'>",
+            "r",
+            None,
+            vec![],
+            ErrorKind::InvalidName,
+            16,
         ),
         (
             "<!ATTLIST r xmlns:a CDATA 'urn:x' xmlns:b CDATA 'urn:x' a:x CDATA 'first' b:x CDATA 'second'>",
@@ -944,6 +953,7 @@ fn default_name_and_duplicate_expanded_attribute_failures_retain_declaration_con
             None,
             vec![],
             ErrorKind::DuplicateAttribute,
+            0,
         ),
         (
             "<!ATTLIST r xmlns:p CDATA 'urn:x'>",
@@ -951,6 +961,7 @@ fn default_name_and_duplicate_expanded_attribute_failures_retain_declaration_con
             None,
             vec![attr("p:x", Some("wrong"), "v")],
             ErrorKind::Namespace,
+            0,
         ),
     ] {
         let mut w = Writer::new(Sink::default());
@@ -970,7 +981,7 @@ fn default_name_and_duplicate_expanded_attribute_failures_retain_declaration_con
                 typed.value_location,
                 Some(ValueLocation::Declaration {
                     declaration: 1,
-                    offset: 15
+                    offset: name_offset
                 })
             );
         }
