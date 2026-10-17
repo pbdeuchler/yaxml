@@ -36,7 +36,7 @@ Direct numeric TAB/LF/CR remains that character. [Sections 2.11 and 3.3.3](https
 The internal-subset profile forbids PE references anywhere inside markup
 declarations, including EntityValue. External declaration context is explicit;
 it permits EntityValue PE inclusion without claiming external-subset scanning
-support. An unread-PE barrier suppresses later ENTITY/ATTLIST effects unless
+support. An unread-PE barrier, including a PE not read within a permitted external\nEntityValue, suppresses later ENTITY/ATTLIST effects unless
 standalone=yes. Units are still grammar-validated before application, and the
 internal PE placement check still runs. [Sections 2.8 and 5.1](https://www.w3.org/TR/xml/#sec-prolog-dtd)
 
@@ -56,6 +56,11 @@ any supplied predefined declarations against section 4.6's required form.\nThis 
   insertion order and constant-time lookup simple without self-reference;
 - counters and a reusable bounded Vec of value-expansion frames;
 - external-subset and unread-PE dependency flags, plus sticky fatal failure.
+
+ExternalIdentifier is a separate semantic view of unquoted identifier contents,
+with physical EOL handling applied once. Public-ID whitespace normalization
+before matching, base URI resolution, escaping and retrieval are deferred;
+these IDs are never resolver-ready lexical quoted literals.
 
 No raw DTD units are retained here. The eventual ordered DOM catalog owns all
 lexical declarations, duplicates and comments/PIs separately. Entity records
@@ -89,7 +94,10 @@ Unavailable entity construction (e.g. an unread external PE in an external
 EntityValue) retains an unavailable first binding, not a promise to rebind it.
 
 Errors distinguish WF/lexical failures, cycles, quotas and allocation failure.
-Unavailable dependencies are separate outcomes. Locations identify current
+Unavailable dependencies are separate outcomes. Fatal failure is sticky: counters
+and already-published first bindings are not rolled back, but all subsequent
+mutating processing returns the same failure before changing state. Read-only
+queries may inspect that prefix; they do not establish parse success. Locations identify current
 operation input offsets or (EntityId, replacement-local offset); they do not
 claim physical document offsets or occurrence provenance. Each binding retains
 its declaration ordinal for a future origin adapter. Real occurrence provenance

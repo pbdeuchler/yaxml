@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::dtd::{
     AttributeTypeView, DefaultDeclarationView, DtdUnit, DtdUnitView, EntityDefinitionView,
-    ExternalIdView, ReferenceKind,
+    ReferenceKind,
 };
 use crate::escape::xml_char;
 use crate::name::validate_name;
@@ -111,6 +111,7 @@ pub(crate) struct CatalogError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DependencyKind {
     UnreadEntity,
+    MissingReadDeclaration,
     ExternalEntity,
 }
 
@@ -126,6 +127,14 @@ pub(crate) enum NormalizedValue {
     Unavailable(Dependency),
 }
 
+/// Unquoted identifier contents with literal EOL processing already applied.
+/// Public-ID whitespace matching normalization and URI resolution are deferred.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ExternalIdentifier<'a> {
+    pub(crate) public: Option<&'a str>,
+    pub(crate) system: Option<&'a str>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EntityLookup<'a> {
     Predefined(char),
@@ -135,11 +144,11 @@ pub(crate) enum EntityLookup<'a> {
     },
     ExternalUnavailable {
         id: EntityId,
-        identifier: ExternalIdView<'a>,
+        identifier: ExternalIdentifier<'a>,
     },
     Unparsed {
         id: EntityId,
-        identifier: ExternalIdView<'a>,
+        identifier: ExternalIdentifier<'a>,
         notation: &'a str,
     },
     Unavailable(Dependency),
@@ -272,8 +281,8 @@ struct ExternalEntity {
 }
 
 impl ExternalEntity {
-    fn identifier(&self) -> ExternalIdView<'_> {
-        ExternalIdView {
+    fn identifier(&self) -> ExternalIdentifier<'_> {
+        ExternalIdentifier {
             public: self.public.as_deref(),
             system: self.system.as_deref(),
         }
@@ -511,8 +520,12 @@ impl DtdCatalog {
                         let bytes = checked_sum(
                             &[
                                 entity.name().len(),
-                                identifier.public.map_or(0, str::len),
-                                identifier.system.map_or(0, str::len),
+                                identifier
+                                    .public
+                                    .map_or(0, |raw| identifier_length(raw, context.literals)),
+                                identifier
+                                    .system
+                                    .map_or(0, |raw| identifier_length(raw, context.literals)),
                                 notation.map_or(0, str::len),
                             ],
                             location,
@@ -520,8 +533,8 @@ impl DtdCatalog {
                         self.store_bytes(bytes, location)?;
                         self.add_binding(location)?;
                         let external = ExternalEntity {
-                            public: copy_optional(identifier.public, location)?,
-                            system: copy_optional(identifier.system, location)?,
+                            public: copy_identifier(identifier.public, context.literals, location)?,
+                            system: copy_identifier(identifier.system, context.literals, location)?,
                             notation: copy_optional(notation, location)?,
                         };
                         self.insert_entity(
@@ -755,6 +768,11 @@ impl DtdCatalog {
         };
         let result = processor.process();
         processor.frames.clear();
+        if matches!(mode, ValueMode::Entity)
+            && matches!(&result, Ok(NormalizedValue::Unavailable(_)))
+        {
+            self.unread_parameter = true;
+        }
         result
     }
 
@@ -883,7 +901,11 @@ impl ValueProcessor<'_> {
                         let Some(&id) = table.get(name) else {
                             if is_entity || self.may_be_unread || frame.entity.is_some() {
                                 return Ok(NormalizedValue::Unavailable(Dependency {
-                                    kind: DependencyKind::UnreadEntity,
+                                    kind: if self.may_be_unread {
+                                        DependencyKind::UnreadEntity
+                                    } else {
+                                        DependencyKind::MissingReadDeclaration
+                                    },
                                     location,
                                 }));
                             }
@@ -1136,6 +1158,46 @@ fn copy_string(raw: &str, location: ValueLocation) -> Result<String, CatalogErro
         .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
     value.push_str(raw);
     Ok(value)
+}
+
+/// The lexical unit validates the quote delimiters. No reference decoding occurs.
+fn identifier_length(quoted: &str, source: LiteralSource) -> usize {
+    let contents = &quoted.as_bytes()[1..quoted.len() - 1];
+    contents.len()
+        - if source == LiteralSource::Physical {
+            contents
+                .windows(2)
+                .filter(|bytes| *bytes == b"\r\n")
+                .count()
+        } else {
+            0
+        }
+}
+
+fn copy_identifier(
+    quoted: Option<&str>,
+    source: LiteralSource,
+    location: ValueLocation,
+) -> Result<Option<String>, CatalogError> {
+    let Some(quoted) = quoted else {
+        return Ok(None);
+    };
+    let mut output = String::new();
+    output
+        .try_reserve_exact(identifier_length(quoted, source))
+        .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+    let mut characters = quoted[1..quoted.len() - 1].chars().peekable();
+    while let Some(character) = characters.next() {
+        if source == LiteralSource::Physical && character == '\r' {
+            if characters.peek() == Some(&'\n') {
+                characters.next();
+            }
+            output.push('\n');
+        } else {
+            output.push(character);
+        }
+    }
+    Ok(Some(output))
 }
 
 fn copy_optional(
