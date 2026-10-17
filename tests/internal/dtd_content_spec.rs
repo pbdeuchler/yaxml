@@ -3,7 +3,10 @@ use crate::dtd::{DtdLimits, DtdUnit, LiteralSource};
 use crate::dtd_catalog::{DeclarationContext, DependencyKind};
 use crate::dtd_frames::FrameLimit;
 use crate::dtd_reference::ReferenceLimits;
+use crate::origin::{ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr};
 use crate::{Attribute, Element, Limit, Limits, Name};
+use std::borrow::Cow;
+use std::num::NonZeroU64;
 
 const DTD_WORK: usize = 64 * 1024 * 1024;
 const TOKEN: usize = 4096;
@@ -189,19 +192,21 @@ fn seen_origin(origin: SourceOrigin) -> SeenOrigin {
 struct Seen {
     event: SeenEvent,
     origin: SeenOrigin,
+    source_origin: SourceOrigin,
     active_invocation: Option<u64>,
 }
 
 fn emit(controller: &mut ContentController) -> Result<Seen, ContentError> {
     let mut captured = None;
     controller.emit(&mut |event, origin| {
-        captured = Some((seen_event(event), seen_origin(origin)));
+        captured = Some((seen_event(event), seen_origin(origin), origin));
         Ok(())
     })?;
-    let (event, origin) = captured.expect("semantic event callback");
+    let (event, origin, source_origin) = captured.expect("semantic event callback");
     Ok(Seen {
         event,
         origin,
+        source_origin,
         active_invocation: controller
             .active
             .last()
@@ -251,6 +256,20 @@ fn plain(qualified: &str) -> SeenName {
         local: qualified.to_owned(),
         namespace: None,
     }
+}
+
+fn replacement_origin(
+    declaration: usize,
+    invocation: u64,
+    local: std::ops::Range<usize>,
+    physical_reference: std::ops::Range<usize>,
+) -> SourceOrigin {
+    SourceOrigin::from_repr(OriginRepr::Replacement {
+        declaration: EntityDeclarationId::from_index(declaration),
+        invocation: EntityInvocationId(NonZeroU64::new(invocation).unwrap()),
+        local: ByteSpan::new(local).unwrap(),
+        physical_reference: ByteSpan::new(physical_reference).unwrap(),
+    })
 }
 
 #[test]
@@ -370,7 +389,7 @@ fn nested_and_repeated_entities_keep_distinct_invocations_and_exact_frame_costs(
         .iter()
         .filter_map(|item| {
             item.active_invocation
-                .map(|id| (id, &item.event, &item.origin))
+                .map(|id| (id, &item.event, &item.origin, item.source_origin))
         })
         .collect();
     assert_eq!(generated.len(), 6);
@@ -392,6 +411,17 @@ fn nested_and_repeated_entities_keep_distinct_invocations_and_exact_frame_costs(
     assert_eq!(generated[2].1, &SeenEvent::End(plain("n")));
     assert_eq!(generated[2].2.replacement, Some(6..10));
     assert_eq!(generated[3].2.physical, 60..63);
+    assert_eq!(
+        generated.iter().map(|item| item.3).collect::<Vec<_>>(),
+        [
+            replacement_origin(1, 1, 0..3, 57..60),
+            replacement_origin(0, 2, 0..1, 57..60),
+            replacement_origin(1, 1, 6..10, 57..60),
+            replacement_origin(1, 3, 0..3, 60..63),
+            replacement_origin(0, 4, 0..1, 60..63),
+            replacement_origin(1, 3, 6..10, 60..63),
+        ]
+    );
     assert_eq!(controller.frame_counters().reference_attempts, 4);
     assert_eq!(controller.frame_counters().work, 28);
     assert_eq!(controller.frame_counters().expanded_bytes, 22);
@@ -524,6 +554,78 @@ fn generated_defaults_and_namespaces_use_the_handoff_catalog_once() {
     assert_eq!(element.attributes[0].0, plain("a"));
     assert_eq!(element.attributes[0].1, "z");
     assert_eq!(element.attributes[1].0.qualified, "xmlns");
+}
+
+#[test]
+fn generated_callback_moves_owned_names_values_and_inherited_namespace() {
+    let (owned_name, owned_attributes, owned_text) = {
+        let dtd = String::from("<!DOCTYPE r [<!ATTLIST p:n a CDATA 'v'><!ENTITY e '<p:n/>x'>]>");
+        let body = String::from("<r xmlns:p='urn:u'>&e;</r>");
+        let mut controller = make(&dtd);
+        let mut cursor = 0;
+        let mut owned_name = None;
+        let mut owned_attributes = None;
+        let mut owned_text = None;
+        for _ in 0..128 {
+            let step = if cursor < body.len() {
+                controller.advance(&body.as_bytes()[cursor..]).unwrap()
+            } else {
+                controller.finish_step().unwrap()
+            };
+            cursor += step.consumed;
+            match step.outcome {
+                ContentOutcome::EventReady => controller
+                    .emit(&mut |event, origin| {
+                        if origin.replacement_range().is_some() {
+                            match event {
+                                Event::Empty(element) => {
+                                    owned_name = Some(element.name.try_into_static(0).unwrap());
+                                    owned_attributes = Some(
+                                        element
+                                            .attributes
+                                            .into_iter()
+                                            .map(|Attribute { name, value }| {
+                                                let name = name.try_into_static(0).unwrap();
+                                                let Cow::Owned(value) = value else {
+                                                    panic!("generated default must be owned")
+                                                };
+                                                (name, value)
+                                            })
+                                            .collect::<Vec<_>>(),
+                                    );
+                                }
+                                Event::Text(value) => {
+                                    let Cow::Owned(value) = value else {
+                                        panic!("generated text must be owned")
+                                    };
+                                    owned_text = Some(value);
+                                }
+                                _ => {}
+                            }
+                        }
+                        Ok(())
+                    })
+                    .unwrap(),
+                ContentOutcome::NeedPhysicalInput => assert!(cursor < body.len()),
+                ContentOutcome::Progress => {}
+                ContentOutcome::Complete => break,
+            }
+        }
+        (
+            owned_name.expect("generated Empty name"),
+            owned_attributes.expect("generated default attribute"),
+            owned_text.expect("generated Text"),
+        )
+    };
+    assert_eq!(owned_name.qualified(), "p:n");
+    assert_eq!(owned_name.prefix(), Some("p"));
+    assert_eq!(owned_name.local(), "n");
+    assert_eq!(owned_name.namespace(), Some("urn:u"));
+    assert_eq!(owned_attributes.len(), 1);
+    assert_eq!(owned_attributes[0].0.qualified(), "a");
+    assert_eq!(owned_attributes[0].0.namespace(), None);
+    assert_eq!(owned_attributes[0].1, "v");
+    assert_eq!(owned_text, "x");
 }
 
 #[test]
@@ -684,7 +786,8 @@ fn incomplete_replacement_units_fail_before_resuming_physical_input() {
 #[test]
 fn replacement_cannot_close_and_reopen_its_callers_element() {
     let dtd = "<!DOCTYPE r [<!ENTITY e '</r><r>'>]>";
-    let error = failed(run(make(dtd), "<r>&e;</r>"));
+    let mut controller = make(dtd);
+    let error = run_error(&mut controller, "<r>&e;</r>");
     assert_eq!(
         error.kind,
         ContentErrorKind::Frame(FrameErrorKind::ElementBoundaryCrossing)
@@ -692,6 +795,8 @@ fn replacement_cannot_close_and_reopen_its_callers_element() {
     assert_eq!(error.physical_offset, dtd.len() + 3);
     assert_eq!(error.local_offset, Some(0));
     assert_eq!(error.origin.unwrap().replacement_range(), Some(0..4));
+    assert_eq!(controller.parser.element_depth(), 1);
+    assert_eq!(controller.advance(b""), Err(error));
 }
 
 #[test]
@@ -758,6 +863,7 @@ fn dependency_metadata_does_not_mask_an_earlier_attempt_limit() {
     let mut limits = ControllerLimits::default();
     limits.frames.max_reference_attempts = 0;
     let (mut body, parser) = declarations("<!DOCTYPE r>", limits, Limits::default());
+    let catalog_work_before = body.catalog.usage().work;
     body.catalog
         .apply(
             &unit("<!DOCTYPE r SYSTEM 'unread'>"),
@@ -781,6 +887,11 @@ fn dependency_metadata_does_not_mask_an_earlier_attempt_limit() {
         effect.unavailable.unwrap().kind,
         DependencyKind::UnreadEntity
     );
+    body.counters.work = body
+        .counters
+        .work
+        .checked_add(body.catalog.usage().work - catalog_work_before)
+        .unwrap();
     let controller = ContentController::new(
         body,
         parser,
@@ -893,6 +1004,84 @@ fn global_work_exact_boundary_is_inherited_and_checked_before_publication() {
     .unwrap();
     let error = failed(run(one_short, "<r/>"));
     assert_eq!(error.kind, ContentErrorKind::Work);
+}
+
+#[test]
+fn generated_text_work_boundary_charges_the_complete_token_before_callback() {
+    const DTD: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]>";
+    let (body, parser) = declarations(DTD, ControllerLimits::default(), Limits::default());
+    let inherited = body.counters.work;
+    let mut exact = ContentController::new(
+        body,
+        parser,
+        Tokenizer::new(TOKEN, TOKEN),
+        text_limits(inherited + 23),
+        local_limits(),
+    )
+    .unwrap();
+    let body_bytes = b"<r>&e;</r>";
+    let mut cursor = 0;
+    let mut callbacks = 0;
+    loop {
+        let step = exact.advance(&body_bytes[cursor..]).unwrap();
+        cursor += step.consumed;
+        if step.outcome == ContentOutcome::EventReady {
+            let mut generated_text = false;
+            exact
+                .emit(&mut |event, origin| {
+                    callbacks += 1;
+                    generated_text = matches!(event, Event::Text(ref value) if value == "x")
+                        && origin.replacement_range() == Some(0..1);
+                    Ok(())
+                })
+                .unwrap();
+            if generated_text {
+                break;
+            }
+        }
+    }
+    assert_eq!(exact.usage().work, inherited + 23);
+    assert_eq!(callbacks, 2, "physical Start then generated Text");
+
+    let (body, parser) = declarations(DTD, ControllerLimits::default(), Limits::default());
+    let mut short = ContentController::new(
+        body,
+        parser,
+        Tokenizer::new(TOKEN, TOKEN),
+        text_limits(inherited + 22),
+        local_limits(),
+    )
+    .unwrap();
+    let mut cursor = 0;
+    let body = body_bytes;
+    let mut callbacks = 0;
+    let error = loop {
+        let result = if cursor < body.len() {
+            short.advance(&body[cursor..])
+        } else {
+            short.finish_step()
+        };
+        match result {
+            Err(error) => break error,
+            Ok(step) => {
+                cursor += step.consumed;
+                if step.outcome == ContentOutcome::EventReady {
+                    match short.emit(&mut |_, _| {
+                        callbacks += 1;
+                        Ok(())
+                    }) {
+                        Ok(()) => {}
+                        Err(error) => break error,
+                    }
+                }
+            }
+        }
+    };
+    assert_eq!(error.kind, ContentErrorKind::Work);
+    assert_eq!(callbacks, 1, "only physical Start is published");
+    assert_eq!(short.parser.element_depth(), 1);
+    assert_eq!(short.usage().work, inherited + 22);
+    assert_eq!(short.advance(b""), Err(error));
 }
 
 #[test]
@@ -1012,11 +1201,7 @@ fn generated_only_steps_do_not_consume_the_physical_suffix() {
             if event.origin.replacement.is_some() {
                 saw_generated = true;
                 assert_eq!(step.consumed, 0);
-                assert_eq!(
-                    cursor,
-                    dtd.len().checked_sub(dtd.len()).unwrap() + 6,
-                    "body cursor stops after &e;"
-                );
+                assert_eq!(cursor, 6, "body cursor stops after &e;");
             }
         }
         if saw_generated && controller.active.is_empty() {
