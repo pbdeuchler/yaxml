@@ -1061,3 +1061,7 @@ fn validate_input(shared: &mut TextShared, tokenizer: &Tokenizer) -> Result<(), 
 #[cfg(test)]
 #[path = "../../tests/internal/dtd_text_coordinator_author.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../tests/internal/dtd_text_coordinator_spec.rs"]
+mod spec_tests;
