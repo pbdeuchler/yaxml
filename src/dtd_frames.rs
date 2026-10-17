@@ -318,6 +318,10 @@ impl EntityFrames {
         }
     }
 
+    pub(crate) fn cap_work(&mut self, ceiling: usize) {
+        self.limits.max_work = self.limits.max_work.min(ceiling);
+    }
+
     pub(crate) fn depth(&self) -> usize {
         self.frames.len()
     }

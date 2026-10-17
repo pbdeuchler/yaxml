@@ -340,6 +340,10 @@ impl DtdCatalog {
         }
     }
 
+    pub(crate) fn cap_work(&mut self, ceiling: usize) {
+        self.limits.max_work = self.limits.max_work.min(ceiling);
+    }
+
     pub(crate) fn usage(&self) -> CatalogUsage {
         self.usage
     }

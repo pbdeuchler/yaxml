@@ -99,6 +99,32 @@ impl DtdScanner {
         }
     }
 
+    pub(crate) fn cap_work(&mut self, ceiling: usize) {
+        self.limits.max_work = self.limits.max_work.min(ceiling);
+    }
+
+    pub(crate) fn pending(&self) -> (&[u8], Range<usize>) {
+        (&self.buffer, self.start..self.position)
+    }
+
+    /// Reuse scratch only at a complete between-declaration boundary.
+    pub(crate) fn restart_fragment(&mut self) -> Result<(), ScanError> {
+        self.remember(|scanner| {
+            if scanner.mode != ScanMode::SubsetFragment
+                || scanner.ready.is_some()
+                || !scanner.buffer.is_empty()
+                || !matches!(scanner.state, State::Between)
+            {
+                return Err(scanner.error(ScanErrorKind::Syntax));
+            }
+            scanner.start = 0;
+            scanner.position = 0;
+            scanner.complete = false;
+            scanner.finalizing = false;
+            Ok(())
+        })
+    }
+
     pub(crate) fn position(&self) -> usize {
         self.position
     }
