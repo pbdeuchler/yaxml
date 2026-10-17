@@ -1,11 +1,12 @@
 # Private DTD controller and provenance review
 
-Private freeze: `f43f90b0b502fd1e913ee9128d116f9bd5ad8b67`.
+Initial private freeze: `f43f90b0b502fd1e913ee9128d116f9bd5ad8b67`.
 Source tree: `1d5896acfc99899c9be0c7e64d5fcd2a29ce3358`.
 Worktree: `/private/tmp/yaxml-dtd-integration`, branch
 `integrate/dtd-prototype`. Main retains its production source from `f2bd043`.
 This extends the [semantic/frame review](review-dtd-semantics.md); none of these
 private modules or representation changes is being activated on main.
+The subsequent borrowed-adapter freeze is recorded below.
 
 Verdict: suitable for the next private attribute/content integration stage.
 Public DTD acceptance remains blocked on the complete runtime path, source-complete
@@ -37,10 +38,56 @@ also now reports unavailable values before duplicate-binding suppression:
 discarding a duplicate cannot conceal a dependency failure from the controller.
 These changes have separate author and independent regressions.
 
-The private controller currently copies physical units as well as generated
-ones. The eventual Reader adapter must retain direct UTF-8 input borrows without
-reparsing declarations or borrowing its own scanner buffer. This lifetime and
-copy-accounting integration is still open; no zero-copy DTD claim follows here.
+At the initial freeze the controller copied physical and generated units. The
+next private adapter closes that ownership gap without enabling a public Reader
+path.
+
+## Borrowed adapter and body handoff
+
+Subsequent private freeze: `4c0543c418b11cab696e5d1e7e57d3271e7409f5`;
+source tree `2a911ccbe262e2f8f4c78e914e49795576cb7591`. The
+[borrowed adapter](plans/dtd-borrowed-adapter.md) stores its immutable UTF-8
+window and reads only that window. It rejects the streaming feed methods,
+outside-window offsets, scalar-interior starts and arithmetic overflow.
+Validated physical unit raw text borrows the exact input slice; generated units
+retain owned raw text. Grammar and unit-family checks precede conditional copy
+limits in both modes. Metadata is parsed once and moves with an owning event.
+This establishes private physical-unit borrowing, not public zero-copy parsing.
+
+Taking an event transfers its unit without cloning and performs the same release
+transition as lending delivery. Only a completed, released End permits body
+handoff. The handoff moves the same catalog, entity frames, occurrence nonce,
+limits and cumulative counters, and drops declaration scanners/scratch. Checked
+decoded and physical resume positions remain separate, including for UTF-16.
+A failed controller returns its original sticky error at handoff; a healthy
+premature handoff returns InvalidState. The raw-unit copy counter remains a
+stage-specific counter; later body retention must use the same parser Budget.
+
+Fresh root gates on this freeze passed 788 tests with nine ignored across 44
+ordinary groups, including 350 library tests, plus 13 doctests. Strict all-target
+Clippy, formatting and diff checks passed. The 62 controller groups also passed
+separately in both debug and release. Logs use
+`/private/tmp/yaxml-dtd-root-borrowed-{all-targets,doctests,clippy,fmt,diff,debug,release}.log`;
+root handles 34003 and 6233 are terminal with exit zero. The root verified all
+315 tracked private files against their Git blobs.
+
+The adapter adds eleven author and thirteen independent groups. Independent
+tests were written against source-only checkpoints without reading the author
+suite. Five independent runtime faults caught forced physical copies,
+reconstructed frames, reset counters, conflated resume coordinates and lost
+sticky errors; the source was restored after each. Evidence:
+`/private/tmp/yaxml-dtd-borrowed-spec-faults.tsv`. Author tests also detected
+three deliberate ownership, frame and validation-order faults. Existing
+fuzz-smoke tests remain part of ordinary verification; no new DTD fuzz coverage,
+XMLTS results or comparative performance claims follow from these gates.
+
+Start-tag/default preparation remains under review. That review has identified
+missing value-local diagnostic rebasing, rejected-tag namespace publication, quadratic
+pending lookups and a required insertion incorrectly placed inside debug_assert.
+The latter failed four independent release-mode groups and prompted a release
+regression gate;
+passing debug tests alone was insufficient. Neither this tag implementation nor
+its incomplete capacity-accounting review is included in the freeze above.
 
 ## Origins and parsed text
 
@@ -98,7 +145,7 @@ bytes and fresh-catalog round trips both have independent expected values.
 
 ## Verification
 
-Fresh root gates on this exact clean freeze passed 764 tests with nine ignored
+Fresh root gates on the initial f43f90b freeze passed 764 tests with nine ignored
 across 44 ordinary result groups, including 326 library tests, plus all 13
 doctests. Strict all-target Clippy, formatting and diff checks passed. The
 existing 64 fuzz-smoke tests and benchmark smoke binaries are included; they
@@ -130,7 +177,9 @@ files byte-for-byte against their Git blobs; the source manifest is
 `/private/tmp/yaxml-dtd-root-controller-source.tsv`.
 
 The next implementation stages are start-tag preparation/defaults before
-namespaces, GE content scheduling and lifetime-correct Reader/Stream adapters.
+namespaces, [GE content scheduling](plans/dtd-content-controller.md),
+lifetime-correct Reader/Stream adapters and the
+[Writer protocol](plans/dtd-writer-protocol.md).
 Public events, both DOM DTD catalogs and Writer must join that coherent path
 before acceptance changes. Existing main coverage and XMLTS measurements do not
 measure these private modules. Full libxml2 compatibility, 100% fuzz coverage,

@@ -107,8 +107,14 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   gates remain open.
   The later [private controller/provenance review](review-dtd-controller.md)
   joins incremental PE processing, shared occurrence provenance, parse-only Text
-  joins and phase-aware literal output. Public activation, attribute/content
-  integration and its full validation gates remain open.
+  joins and phase-aware literal output. Its subsequent private borrowed adapter
+  moves validated events without cloning and preserves the catalog, frame nonce,
+  counters and distinct decoded/physical body-resume positions. The combined
+  freeze passes 788 tests and 13 doctests; all 62 controller groups also pass in
+  release. [Content scheduling](plans/dtd-content-controller.md) and the
+  [Writer protocol](plans/dtd-writer-protocol.md) have reviewed outlines.
+  Public activation, attribute/content integration and its full validation
+  gates remain open.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
