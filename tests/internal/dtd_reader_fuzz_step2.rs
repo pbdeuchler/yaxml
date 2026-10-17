@@ -1347,6 +1347,14 @@ pub(super) fn observed_owned_before_move(
     event: &ReaderEvent<'_>,
     retained: &[OwnedExtraction],
 ) -> Vec<OwnedExtraction> {
+    sample_owned_with(event, retained, str::to_owned)
+}
+
+fn sample_owned_with(
+    event: &ReaderEvent<'_>,
+    retained: &[OwnedExtraction],
+    mut clone: impl FnMut(&str) -> String,
+) -> Vec<OwnedExtraction> {
     let mut count = retained.len();
     let mut used = retained
         .iter()
@@ -1360,7 +1368,7 @@ pub(super) fn observed_owned_before_move(
                 used += value.len();
                 Some(OwnedExtraction {
                     role: field.role,
-                    value: value.to_owned(),
+                    value: clone(value),
                 })
             }
             ObservedStorage::Owned(_) => None,
@@ -3466,6 +3474,35 @@ fn owned_retention_cap_is_literal_and_finite() {
 
 #[test]
 fn owned_sampling_admits_before_cloning_and_moves_identical_fields() {
+    let sample = |event: &ReaderEvent<'_>, retained: &[OwnedExtraction]| {
+        let mut cloned_objects = 0;
+        let mut cloned_bytes = 0;
+        let remaining_objects = 128 - retained.len();
+        let remaining_bytes = 16384
+            - retained
+                .iter()
+                .map(|value| value.value.len())
+                .sum::<usize>();
+        let sampled = sample_owned_with(event, retained, |value| {
+            assert!(
+                cloned_objects < remaining_objects,
+                "clone called past object admission"
+            );
+            assert!(
+                value.len() <= remaining_bytes - cloned_bytes,
+                "clone called before byte admission"
+            );
+            cloned_objects += 1;
+            cloned_bytes += value.len();
+            value.to_owned()
+        });
+        assert_eq!(cloned_objects, sampled.len());
+        assert_eq!(
+            cloned_bytes,
+            sampled.iter().map(|value| value.value.len()).sum::<usize>()
+        );
+        sampled
+    };
     for (size, accepted) in [
         (0, true),
         (MAX_RETAINED_OWNED, true),
@@ -3473,7 +3510,7 @@ fn owned_sampling_admits_before_cloning_and_moves_identical_fields() {
         (65536, false),
     ] {
         let event = ReaderEvent::Xml(Event::Comment(Cow::Owned("x".repeat(size))));
-        let sampled = observed_owned_before_move(&event, &[]);
+        let sampled = sample(&event, &[]);
         assert_eq!(sampled.len(), usize::from(accepted));
         assert_eq!(
             sampled.iter().map(|value| value.value.len()).sum::<usize>(),
@@ -3488,7 +3525,7 @@ fn owned_sampling_admits_before_cloning_and_moves_identical_fields() {
     let mut used = 0;
     for index in 0..=MAX_RETAINED_OBJECTS {
         let event = ReaderEvent::Xml(Event::Comment(Cow::Owned(String::new())));
-        let sampled = observed_owned_before_move(&event, &moved);
+        let sampled = sample(&event, &moved);
         assert_eq!(sampled.len(), usize::from(index < 128));
         collect_owned_bounded(event, &mut moved, &mut used);
     }
@@ -3506,7 +3543,7 @@ fn owned_sampling_admits_before_cloning_and_moves_identical_fields() {
             target: Cow::Owned(target.to_owned()),
             data: Cow::Owned(data.to_owned()),
         });
-        let sampled = observed_owned_before_move(&event, &moved);
+        let sampled = sample(&event, &moved);
         assert_eq!(sampled.len(), admitted);
         collect_owned_bounded(event, &mut moved, &mut used);
         assert_eq!(moved[1..], sampled);
@@ -3518,7 +3555,7 @@ fn owned_sampling_admits_before_cloning_and_moves_identical_fields() {
     assert!(
         matches!(&event, ReaderEvent::Xml(Event::Comment(Cow::Owned(value))) if value.len() == 65536)
     );
-    assert!(observed_owned_before_move(&event, &[]).is_empty());
+    assert!(sample(&event, &[]).is_empty());
     replay_arbitrary(source.as_bytes(), 2);
 }
 
