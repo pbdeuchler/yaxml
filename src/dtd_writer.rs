@@ -5,6 +5,26 @@ use crate::dtd_catalog::{
     CatalogErrorKind, CatalogLimit, CatalogLimits, DeclarationContext, DependencyKind, DtdCatalog,
     ValueLocation,
 };
+use crate::dtd_tag::{DtdTagError, DtdTagErrorKind, DtdTagLocation};
+use crate::{ErrorKind, WriteError};
+
+#[derive(Debug)]
+pub(crate) enum DtdEventWriteError {
+    Writer(WriteError),
+    Dtd(DtdWriteError),
+}
+
+impl From<WriteError> for DtdEventWriteError {
+    fn from(error: WriteError) -> Self {
+        Self::Writer(error)
+    }
+}
+
+impl From<DtdWriteError> for DtdEventWriteError {
+    fn from(error: DtdWriteError) -> Self {
+        Self::Dtd(error)
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DtdWriteLimits {
@@ -47,12 +67,16 @@ pub(crate) enum DtdWriteLimit {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DtdWriteErrorKind {
+    Parser(ErrorKind),
     Unit(DtdErrorKind),
     Catalog(CatalogErrorKind),
     Unavailable(DependencyKind),
     Limit(DtdWriteLimit),
     InvalidUnitFamily,
     InvalidSequence,
+    UnrepresentableIdentifier,
+    PositionOverflow,
+    Allocation,
 }
 
 /// Catalog locations can refer to an earlier declaration or replacement. The
@@ -77,6 +101,7 @@ pub(crate) struct DtdWriterState {
     limits: DtdWriteLimits,
     counters: DtdWriteCounters,
     phase: DtdWritePhase,
+    failure: Option<DtdWriteError>,
 }
 
 impl DtdWriterState {
@@ -122,6 +147,7 @@ impl DtdWriterState {
             phase: DtdWritePhase::Open {
                 has_internal_subset: header.has_internal_subset(),
             },
+            failure: None,
         };
         state.apply(unit, LiteralSource::Physical, output_offset)?;
         state.counters.encoded_bytes = encoded_bytes;
@@ -130,6 +156,23 @@ impl DtdWriterState {
     }
 
     pub(crate) fn item(
+        &mut self,
+        unit: &DtdUnit<'_>,
+        literals: LiteralSource,
+        encoded_bytes: usize,
+        output_offset: usize,
+    ) -> Result<(), DtdWriteError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        let result = self.item_inner(unit, literals, encoded_bytes, output_offset);
+        if let Err(error) = result {
+            self.failure = Some(error);
+        }
+        result
+    }
+
+    fn item_inner(
         &mut self,
         unit: &DtdUnit<'_>,
         literals: LiteralSource,
@@ -192,6 +235,21 @@ impl DtdWriterState {
         encoded_bytes: usize,
         output_offset: usize,
     ) -> Result<(), DtdWriteError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        let result = self.end_inner(encoded_bytes, output_offset);
+        if let Err(error) = result {
+            self.failure = Some(error);
+        }
+        result
+    }
+
+    fn end_inner(
+        &mut self,
+        encoded_bytes: usize,
+        output_offset: usize,
+    ) -> Result<(), DtdWriteError> {
         if !matches!(self.phase, DtdWritePhase::Open { .. }) {
             return Err(simple_error(
                 DtdWriteErrorKind::InvalidSequence,
@@ -226,12 +284,103 @@ impl DtdWriterState {
         matches!(self.phase, DtdWritePhase::Complete)
     }
 
-    pub(crate) fn catalog_mut(&mut self) -> Option<&mut DtdCatalog> {
-        self.is_complete().then_some(&mut self.catalog)
+    pub(crate) fn allows_items(&self) -> bool {
+        matches!(
+            self.phase,
+            DtdWritePhase::Open {
+                has_internal_subset: true
+            }
+        )
+    }
+
+    pub(crate) fn has_internal_subset(&self) -> Option<bool> {
+        match self.phase {
+            DtdWritePhase::Open {
+                has_internal_subset,
+            } => Some(has_internal_subset),
+            DtdWritePhase::Complete => None,
+        }
+    }
+
+    pub(crate) fn catalog(&self) -> Option<&DtdCatalog> {
+        (self.is_complete() && self.failure.is_none()).then_some(&self.catalog)
+    }
+
+    pub(crate) fn failure(&self) -> Option<DtdWriteError> {
+        self.failure
     }
 
     pub(crate) fn counters(&self) -> DtdWriteCounters {
         self.counters
+    }
+
+    pub(crate) fn check_body_ready(&mut self, output_offset: usize) -> Result<(), DtdWriteError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        if self.is_complete() {
+            return Ok(());
+        }
+        let error = simple_error(DtdWriteErrorKind::InvalidSequence, output_offset);
+        self.failure = Some(error);
+        Err(error)
+    }
+
+    pub(crate) fn process_body_tag<T, F>(
+        &mut self,
+        output_offset: usize,
+        operation: F,
+    ) -> Result<T, DtdWriteError>
+    where
+        F: FnOnce(&mut DtdCatalog) -> Result<T, DtdTagError>,
+    {
+        self.check_body_ready(output_offset)?;
+
+        let before = self.catalog.usage().work;
+        let remaining = match self.limits.max_work.checked_sub(self.counters.work) {
+            Some(remaining) => remaining,
+            None => {
+                let error =
+                    simple_error(DtdWriteErrorKind::Limit(DtdWriteLimit::Work), output_offset);
+                self.failure = Some(error);
+                return Err(error);
+            }
+        };
+        let Some(global_ceiling) = before.checked_add(remaining) else {
+            let error = simple_error(DtdWriteErrorKind::Limit(DtdWriteLimit::Work), output_offset);
+            self.failure = Some(error);
+            return Err(error);
+        };
+        self.catalog.cap_work(global_ceiling);
+        let result = operation(&mut self.catalog);
+        let catalog_work = self.catalog.usage().work - before;
+        let next_work = checked_count(
+            self.counters.work,
+            catalog_work,
+            self.limits.max_work,
+            DtdWriteLimit::Work,
+            output_offset,
+        );
+        let mapped = match (result, next_work) {
+            (_, Err(error)) => Err(error),
+            (Ok(value), Ok(work)) => {
+                self.counters.work = work;
+                Ok(value)
+            }
+            (Err(error), Ok(work)) => {
+                self.counters.work = work;
+                Err(map_tag_error(
+                    error,
+                    output_offset,
+                    global_ceiling,
+                    self.limits.catalog.max_work,
+                ))
+            }
+        };
+        if let Err(error) = mapped {
+            self.failure = Some(error);
+        }
+        mapped
     }
 
     fn charge_work(
@@ -342,6 +491,46 @@ fn unit_error(kind: DtdErrorKind, unit_offset: usize, output_offset: usize) -> D
         output_offset,
         unit_offset: Some(unit_offset),
         value_location: None,
+    }
+}
+
+fn map_tag_error(
+    error: DtdTagError,
+    event_offset: usize,
+    global_ceiling: usize,
+    native_work_ceiling: usize,
+) -> DtdWriteError {
+    let kind = match error.kind {
+        DtdTagErrorKind::Parser(kind) => DtdWriteErrorKind::Parser(kind),
+        DtdTagErrorKind::Catalog(CatalogErrorKind::Limit(CatalogLimit::Work))
+            if global_ceiling <= native_work_ceiling =>
+        {
+            DtdWriteErrorKind::Limit(DtdWriteLimit::Work)
+        }
+        DtdTagErrorKind::Catalog(kind) => DtdWriteErrorKind::Catalog(kind),
+        DtdTagErrorKind::Unavailable(kind) => DtdWriteErrorKind::Unavailable(kind),
+        DtdTagErrorKind::PositionOverflow => DtdWriteErrorKind::PositionOverflow,
+    };
+    let (output_offset, value_location) = match error.location {
+        DtdTagLocation::Input(offset) => (offset, None),
+        DtdTagLocation::Declaration {
+            declaration,
+            offset,
+        } => (
+            event_offset,
+            Some(ValueLocation::Declaration {
+                declaration,
+                offset,
+            }),
+        ),
+        DtdTagLocation::Value(ValueLocation::Input(offset)) => (offset, None),
+        DtdTagLocation::Value(location) => (event_offset, Some(location)),
+    };
+    DtdWriteError {
+        kind,
+        output_offset,
+        unit_offset: None,
+        value_location,
     }
 }
 

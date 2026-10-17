@@ -299,6 +299,23 @@ impl<'source> ParserState<'source> {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn check_doctype_start(&self, offset: usize) -> Result<(), Error> {
+        if self.encoding.requires_declaration() && !self.declaration_seen {
+            return Err(Error::new(ErrorKind::EncodingMismatch, offset));
+        }
+        if !matches!(self.phase, Phase::Prolog) {
+            return Err(Error::new(ErrorKind::Syntax, offset));
+        }
+        self.check_event_limit(offset)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn commit_checked_dtd_event(&mut self) {
+        debug_assert!(self.events < self.budget.limits.max_events);
+        self.events += 1;
+    }
+
     pub(crate) fn validate_finish(&self, offset: usize) -> Result<(), Error> {
         if self.encoding.requires_declaration() && !self.declaration_seen {
             return Err(Error::new(ErrorKind::EncodingMismatch, offset));

@@ -29,7 +29,7 @@ fn state_applies_one_catalog_from_begin_through_complete() {
         .unwrap();
     state.end(2, 50).unwrap();
     assert!(state.is_complete());
-    assert_eq!(state.catalog_mut().unwrap().attributes("r").count(), 1);
+    assert_eq!(state.catalog().unwrap().attributes("r").count(), 1);
     assert_eq!(
         state.counters(),
         DtdWriteCounters {
@@ -100,4 +100,34 @@ fn aggregate_work_is_distinct_from_native_catalog_work() {
             .kind,
         DtdWriteErrorKind::Catalog(CatalogErrorKind::Limit(CatalogLimit::Work))
     );
+}
+
+#[test]
+fn first_item_failure_is_sticky_and_blocks_completion_or_catalog_access() {
+    let header = unit("<!DOCTYPE r SYSTEM 'unread' [");
+    let unavailable = unit("<!ATTLIST r a CDATA '&missing;'>");
+    let mut state = DtdWriterState::begin(
+        &header,
+        header.raw().len(),
+        3,
+        false,
+        DtdWriteLimits::default(),
+    )
+    .unwrap();
+    let first = state
+        .item(
+            &unavailable,
+            LiteralSource::Physical,
+            unavailable.raw().len(),
+            17,
+        )
+        .unwrap_err();
+    assert_eq!(
+        first.kind,
+        DtdWriteErrorKind::Unavailable(DependencyKind::UnreadEntity)
+    );
+    assert_eq!(state.failure(), Some(first));
+    assert_eq!(state.end(2, 99), Err(first));
+    assert!(state.catalog().is_none());
+    assert!(!state.is_complete());
 }
