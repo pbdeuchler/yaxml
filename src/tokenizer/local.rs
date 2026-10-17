@@ -1,5 +1,7 @@
 //! A sealed replacement-local view of the existing XML tokenizer.
+use super::reference::{ContentStep, ContentStop, ReferenceCursor, ReferenceExtent};
 use super::{ReadySpan, Scan, TokenKind, Tokenizer};
+use crate::dtd_reference::ValidatedReference;
 use crate::escape::xml_char;
 use crate::{ErrorKind, Limit};
 use std::ops::Range;
@@ -14,6 +16,7 @@ pub(crate) struct LocalLimits {
 pub(crate) struct LocalUsage {
     pub(crate) scanned: usize,
     pub(crate) validated: usize,
+    pub(crate) reference_copied: usize,
     pub(crate) work: usize,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -85,24 +88,41 @@ impl LocalTokenizer {
         }
     }
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, LocalError> {
+        self.advance_mode::<false>(input).map(|step| step.consumed)
+    }
+    pub(crate) fn advance_content(&mut self, input: &[u8]) -> Result<ContentStep, LocalError> {
+        self.advance_mode::<true>(input)
+    }
+    fn advance_mode<const REFERENCES: bool>(
+        &mut self,
+        input: &[u8],
+    ) -> Result<ContentStep, LocalError> {
         self.remember(|s| {
             if s.finalizing && !input.is_empty() {
                 return Err(s.error(LocalErrorKind::Sealed, s.position()));
             }
             if s.inner.ready.is_some() || s.finalizing {
-                return Ok(0);
+                return Ok(ContentStep {
+                    consumed: 0,
+                    stop: if s.inner.ready.is_some() {
+                        ContentStop::TokenReady
+                    } else {
+                        ContentStop::Exhausted
+                    },
+                });
             }
             let remaining = s.limits.max_work.saturating_sub(s.usage.work);
             let positions = usize::MAX - s.position();
             let length = input.len().min(remaining).min(positions);
             let before = s.position();
-            let result = s.inner.advance(&input[..length]);
+            let result = s.inner.advance_inner::<REFERENCES>(&input[..length]);
             let consumed = s.position() - before;
             s.usage.scanned += consumed;
             s.usage.work += consumed;
-            result.map_err(|error| s.error(LocalErrorKind::Xml(error.kind), error.offset))?;
+            let (_, reference) =
+                result.map_err(|error| s.error(LocalErrorKind::Xml(error.kind), error.offset))?;
             s.validate_ready()?;
-            if length < input.len() && s.inner.ready.is_none() {
+            if length < input.len() && s.inner.ready.is_none() && !reference {
                 return Err(s.error(
                     if positions <= remaining && positions == length {
                         LocalErrorKind::PositionOverflow
@@ -112,8 +132,78 @@ impl LocalTokenizer {
                     s.position(),
                 ));
             }
-            Ok(consumed)
+            Ok(ContentStep {
+                consumed,
+                stop: if reference {
+                    ContentStop::ReferenceStart
+                } else if s.inner.ready.is_some() {
+                    ContentStop::TokenReady
+                } else {
+                    ContentStop::Exhausted
+                },
+            })
         })
+    }
+
+    pub(crate) fn reference_cursor(&mut self) -> Result<ReferenceCursor, LocalError> {
+        self.remember(|s| {
+            s.check_reference_lifecycle()?;
+            s.inner
+                .reference_cursor()
+                .map_err(|e| s.error(LocalErrorKind::Xml(e.kind), e.offset))
+        })
+    }
+    pub(crate) fn flush_text_before_reference(&mut self) -> Result<bool, LocalError> {
+        self.remember(|s| {
+            s.check_reference_lifecycle()?;
+            let ready = s
+                .inner
+                .flush_text_before_reference()
+                .map_err(|e| s.error(LocalErrorKind::Xml(e.kind), e.offset))?;
+            s.validate_ready()?;
+            Ok(ready)
+        })
+    }
+    pub(crate) fn append_character_reference(
+        &mut self,
+        reference: ValidatedReference<'_>,
+        extent: &ReferenceExtent,
+    ) -> Result<(), LocalError> {
+        self.remember(|s| {
+            s.check_reference_lifecycle()?;
+            let length = reference.raw().len();
+            let next = s
+                .usage
+                .work
+                .checked_add(length)
+                .filter(|n| *n <= s.limits.max_work)
+                .ok_or_else(|| s.error(LocalErrorKind::Work, s.position()))?;
+            s.usage.work = next;
+            s.inner
+                .append_character_reference(reference, extent)
+                .map_err(|e| s.error(LocalErrorKind::Xml(e.kind), e.offset))?;
+            s.usage.reference_copied += length;
+            Ok(())
+        })
+    }
+    pub(crate) fn skip_general_reference(
+        &mut self,
+        reference: ValidatedReference<'_>,
+        extent: &ReferenceExtent,
+    ) -> Result<(), LocalError> {
+        self.remember(|s| {
+            s.check_reference_lifecycle()?;
+            s.inner
+                .skip_general_reference(reference, extent)
+                .map_err(|e| s.error(LocalErrorKind::Xml(e.kind), e.offset))
+        })
+    }
+    fn check_reference_lifecycle(&self) -> Result<(), LocalError> {
+        if self.finalizing || self.complete {
+            Err(self.error(LocalErrorKind::Sealed, self.position()))
+        } else {
+            Ok(())
+        }
     }
     pub(crate) fn finish_step(&mut self) -> Result<(), LocalError> {
         self.remember(|s| {

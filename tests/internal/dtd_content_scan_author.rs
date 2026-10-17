@@ -33,6 +33,7 @@ fn local_tokens_have_exact_ranges_and_replay_markup_once() {
         LocalUsage {
             scanned: 6,
             validated: 6,
+            reference_copied: 0,
             work: 12
         }
     );

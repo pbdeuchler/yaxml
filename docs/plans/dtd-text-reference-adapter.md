@@ -257,3 +257,27 @@ zero-input drains; stable-window identity. Later integration pins same catalog/
 frame nonce/counters, generated ownership and pre-publication end guards. Full
 DTD acceptance still requires all parser/DOM/Writer surfaces and independent
 fuzz, conformance and performance evidence.
+
+## Narrow operation checkpoint
+
+The first implementation exposes the validated scratch view and the four
+tokenizer operations above, with a checked ReferenceCursor/ReferenceExtent.
+`checked_advance` previews physical/decoded limits and overflow before the same
+byte is offered to scratch; only successful scratch acceptance commits that
+cursor value. `finish` requires the validated view's exact decoded range.
+Input extents retain a real TokenSpan; Local extents offer only a local range.
+Cursor overflow remains a distinct private PositionOverflow outcome.
+
+LocalTokenizer exposes the same operations under its existing seal/sticky error
+owner. LocalUsage adds `reference_copied`: successful raw append bytes, separate
+from newly scanned bytes. Work is charged before the append/reservation attempt;
+a failed attempt can spend work without adding copied bytes. Ordinary physical
+Tokenizer keeps its existing external lifecycle owner; it does not acquire an
+EOF/DTD flag or source-invocation field in every parser instance.
+
+This checkpoint has no pending-reference coordinator. Its tokenizer checks
+mode, encoding, cursor and token geometry. The later coordinator must bind a
+pending extent to the active input/replacement invocation, own physical EOF and
+sticky failures, enforce prefix acknowledgement before skip, and pre-cap all
+component work. Matching numeric coordinates alone do not establish invocation
+identity. No direct helper claims to enforce that absent controller state.

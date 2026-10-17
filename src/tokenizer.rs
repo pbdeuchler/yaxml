@@ -1,4 +1,4 @@
-use memchr::{memchr, memchr3};
+use memchr::{memchr, memchr2, memchr3};
 
 use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::{Error, ErrorKind, Limit};
@@ -131,16 +131,27 @@ impl Tokenizer {
     /// Consume only through the next complete token. A text delimiter already
     /// counted in the positions is replayed from constant lookahead storage.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
+        self.advance_inner::<false>(input)
+            .map(|(consumed, _)| consumed)
+    }
+
+    fn advance_inner<const REFERENCES: bool>(
+        &mut self,
+        input: &[u8],
+    ) -> Result<(usize, bool), Error> {
         if self.ready.is_some() {
-            return Ok(0);
+            return Ok((0, false));
         }
         if let Some((offset, source_offset)) = self.lookahead.take() {
             self.consume(b'<', offset, source_offset)?;
         }
         let mut cursor = 0;
         while cursor < input.len() {
+            if REFERENCES && matches!(self.scan, Scan::Text) && input[cursor] == b'&' {
+                return Ok((cursor, true));
+            }
             if self.encoding == SourceEncoding::Utf8 {
-                let length = self.plain_run(&input[cursor..]);
+                let length = self.plain_run::<REFERENCES>(&input[cursor..]);
                 if length > 0 {
                     if self.buffer.is_empty() {
                         self.start = self.position;
@@ -187,13 +198,14 @@ impl Tokenizer {
                 break;
             }
         }
-        Ok(cursor)
+        Ok((cursor, false))
     }
 
     /// Skip bytes that cannot change the current delimiter state. Each scan
     /// resumes at the next chunk; no accumulated token prefix is rescanned.
-    fn plain_run(&self, input: &[u8]) -> usize {
+    fn plain_run<const REFERENCES: bool>(&self, input: &[u8]) -> usize {
         let boundary = match self.scan {
+            Scan::Text if REFERENCES => memchr2(b'<', b'&', input),
             Scan::Text => memchr(b'<', input),
             Scan::Tag { quote: Some(quote) } => memchr(quote, input),
             Scan::Tag { quote: None } => memchr3(b'\'', b'"', b'>', input),
@@ -425,3 +437,6 @@ mod tests;
 
 #[cfg(test)]
 pub(crate) mod local;
+
+#[cfg(test)]
+pub(crate) mod reference;

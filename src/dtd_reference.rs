@@ -22,6 +22,26 @@ pub(crate) enum ReferenceKind {
     Predefined(char),
     General,
 }
+
+/// A spelling whose complete reference grammar has already been checked.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ValidatedReference<'a> {
+    kind: ReferenceKind,
+    raw: &'a str,
+    start: usize,
+}
+
+impl<'a> ValidatedReference<'a> {
+    pub(crate) fn kind(self) -> ReferenceKind {
+        self.kind
+    }
+    pub(crate) fn raw(self) -> &'a str {
+        self.raw
+    }
+    pub(crate) fn range(self) -> Range<usize> {
+        self.start..self.start + self.raw.len()
+    }
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReferenceLimit {
     Bytes,
@@ -81,15 +101,17 @@ impl ReferenceScratch {
         self.usage
     }
     pub(crate) fn current(&self) -> Option<(ReferenceKind, &str, Range<usize>)> {
+        self.validated()
+            .map(|reference| (reference.kind(), reference.raw(), reference.range()))
+    }
+    pub(crate) fn validated(&self) -> Option<ValidatedReference<'_>> {
         if self.failure.is_some() {
             return None;
         }
-        self.ready.map(|kind| {
-            (
-                kind,
-                std::str::from_utf8(&self.bytes).expect("validated reference"),
-                self.start..self.position(),
-            )
+        self.ready.map(|kind| ValidatedReference {
+            kind,
+            raw: std::str::from_utf8(&self.bytes).expect("validated reference"),
+            start: self.start,
         })
     }
     pub(crate) fn release(&mut self) {
