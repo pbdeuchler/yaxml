@@ -147,54 +147,33 @@ struct ExternalMeta {
     system: Option<usize>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum ElementContentMeta {
-    Empty,
-    Any,
-    Mixed(Range<usize>),
-    Children(Range<usize>),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum EntityDefinitionMeta {
-    Internal { literal: usize },
-    External {
-        identifier: ExternalMeta,
-        notation: Option<usize>,
-    },
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DtdUnitKind {
-    Header {
-        root: usize,
-        external: Option<ExternalMeta>,
-        has_internal_subset: bool,
-    },
-    Element {
-        name: usize,
-        content: ElementContentMeta,
-    },
-    AttributeList {
-        element: usize,
-        definitions: usize,
-    },
-    Entity {
-        parameter: bool,
-        name: usize,
-        definition: EntityDefinitionMeta,
-    },
-    Notation {
-        name: usize,
-        identifier: ExternalMeta,
-    },
-    Comment {
-        content: usize,
-    },
-    ProcessingInstruction {
-        target: usize,
-        data: Option<usize>,
-    },
+    Header,
+    HeaderSubset,
+    HeaderSystem,
+    HeaderSystemSubset,
+    HeaderPublic,
+    HeaderPublicSubset,
+    ElementEmpty,
+    ElementAny,
+    ElementMixed,
+    ElementChildren,
+    AttributeList,
+    GeneralInternalEntity,
+    ParameterInternalEntity,
+    GeneralSystemEntity,
+    ParameterSystemEntity,
+    GeneralPublicEntity,
+    ParameterPublicEntity,
+    GeneralSystemNdataEntity,
+    GeneralPublicNdataEntity,
+    SystemNotation,
+    PublicNotation,
+    PublicSystemNotation,
+    Comment,
+    ProcessingInstruction,
+    ProcessingInstructionData,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -205,10 +184,7 @@ pub(crate) struct DtdUnit<'a> {
 }
 
 impl<'a> DtdUnit<'a> {
-    pub(crate) fn parse(
-        raw: impl Into<Cow<'a, str>>,
-        limits: DtdLimits,
-    ) -> Result<Self, DtdError> {
+    pub(crate) fn parse(raw: impl Into<Cow<'a, str>>, limits: DtdLimits) -> Result<Self, DtdError> {
         let raw = raw.into();
         if raw.len() > limits.max_unit_bytes {
             return Err(DtdError::new(
@@ -216,7 +192,10 @@ impl<'a> DtdUnit<'a> {
                 limits.max_unit_bytes,
             ));
         }
-        if let Some((offset, _)) = raw.char_indices().find(|(_, character)| !xml_char(*character)) {
+        if let Some((offset, _)) = raw
+            .char_indices()
+            .find(|(_, character)| !xml_char(*character))
+        {
             return Err(DtdError::new(DtdErrorKind::InvalidCharacter, offset));
         }
         let (kind, tokens) = Parser::new(&raw, limits).parse()?;
@@ -228,56 +207,83 @@ impl<'a> DtdUnit<'a> {
     }
 
     pub(crate) fn view(&self) -> DtdUnitView<'_> {
-        match &self.kind {
-            DtdUnitKind::Header {
-                root,
-                external,
-                has_internal_subset,
-            } => DtdUnitView::Header(DoctypeHeaderView {
-                unit: self,
-                root: *root,
-                external: *external,
-                has_internal_subset: *has_internal_subset,
-            }),
-            DtdUnitKind::Element { name, content } => {
-                DtdUnitView::Element(ElementDeclarationView {
+        match self.kind {
+            kind @ (DtdUnitKind::Header
+            | DtdUnitKind::HeaderSubset
+            | DtdUnitKind::HeaderSystem
+            | DtdUnitKind::HeaderSystemSubset
+            | DtdUnitKind::HeaderPublic
+            | DtdUnitKind::HeaderPublicSubset) => {
+                let (external, has_internal_subset) = match kind {
+                    DtdUnitKind::Header => (None, false),
+                    DtdUnitKind::HeaderSubset => (None, true),
+                    DtdUnitKind::HeaderSystem => (
+                        Some(ExternalMeta {
+                            public: None,
+                            system: Some(1),
+                        }),
+                        false,
+                    ),
+                    DtdUnitKind::HeaderSystemSubset => (
+                        Some(ExternalMeta {
+                            public: None,
+                            system: Some(1),
+                        }),
+                        true,
+                    ),
+                    DtdUnitKind::HeaderPublic => (
+                        Some(ExternalMeta {
+                            public: Some(1),
+                            system: Some(2),
+                        }),
+                        false,
+                    ),
+                    DtdUnitKind::HeaderPublicSubset => (
+                        Some(ExternalMeta {
+                            public: Some(1),
+                            system: Some(2),
+                        }),
+                        true,
+                    ),
+                    _ => unreachable!(),
+                };
+                DtdUnitView::Header(DoctypeHeaderView {
                     unit: self,
-                    name: *name,
-                    content,
+                    external,
+                    has_internal_subset,
                 })
             }
-            DtdUnitKind::AttributeList {
-                element,
-                definitions,
-            } => DtdUnitView::AttributeList(AttributeListView {
-                unit: self,
-                element: *element,
-                definitions: *definitions,
-            }),
-            DtdUnitKind::Entity {
-                parameter,
-                name,
-                definition,
-            } => DtdUnitView::Entity(EntityDeclarationView {
-                unit: self,
-                parameter: *parameter,
-                name: *name,
-                definition,
-            }),
-            DtdUnitKind::Notation { name, identifier } => {
-                DtdUnitView::Notation(NotationDeclarationView {
-                    unit: self,
-                    name: *name,
-                    identifier: *identifier,
-                })
+            kind @ (DtdUnitKind::ElementEmpty
+            | DtdUnitKind::ElementAny
+            | DtdUnitKind::ElementMixed
+            | DtdUnitKind::ElementChildren) => {
+                DtdUnitView::Element(ElementDeclarationView { unit: self, kind })
             }
-            DtdUnitKind::Comment { content } => {
-                DtdUnitView::Comment(self.token_text(*content))
+            DtdUnitKind::AttributeList => {
+                DtdUnitView::AttributeList(AttributeListView { unit: self })
             }
-            DtdUnitKind::ProcessingInstruction { target, data } => {
+            kind @ (DtdUnitKind::GeneralInternalEntity
+            | DtdUnitKind::ParameterInternalEntity
+            | DtdUnitKind::GeneralSystemEntity
+            | DtdUnitKind::ParameterSystemEntity
+            | DtdUnitKind::GeneralPublicEntity
+            | DtdUnitKind::ParameterPublicEntity
+            | DtdUnitKind::GeneralSystemNdataEntity
+            | DtdUnitKind::GeneralPublicNdataEntity) => {
+                DtdUnitView::Entity(EntityDeclarationView { unit: self, kind })
+            }
+            kind @ (DtdUnitKind::SystemNotation
+            | DtdUnitKind::PublicNotation
+            | DtdUnitKind::PublicSystemNotation) => {
+                DtdUnitView::Notation(NotationDeclarationView { unit: self, kind })
+            }
+            DtdUnitKind::Comment => DtdUnitView::Comment(self.token_text(0)),
+            kind
+            @ (DtdUnitKind::ProcessingInstruction | DtdUnitKind::ProcessingInstructionData) => {
                 DtdUnitView::ProcessingInstruction(ProcessingInstructionView {
-                    target: self.token_text(*target),
-                    data: data.map(|index| self.token_text(index)),
+                    target: self.token_text(0),
+                    data: (kind == DtdUnitKind::ProcessingInstructionData)
+                        .then(|| self.token_text(1)),
                 })
             }
         }
@@ -324,14 +330,13 @@ pub(crate) struct ExternalIdView<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DoctypeHeaderView<'a> {
     unit: &'a DtdUnit<'a>,
-    root: usize,
     external: Option<ExternalMeta>,
     has_internal_subset: bool,
 }
 
 impl<'a> DoctypeHeaderView<'a> {
     pub(crate) fn root_name(self) -> &'a str {
-        self.unit.token_text(self.root)
+        self.unit.token_text(0)
     }
 
     pub(crate) fn external_id(self) -> Option<ExternalIdView<'a>> {
@@ -363,29 +368,29 @@ pub(crate) enum ElementContentView<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ElementDeclarationView<'a> {
     unit: &'a DtdUnit<'a>,
-    name: usize,
-    content: &'a ElementContentMeta,
+    kind: DtdUnitKind,
 }
 
 impl<'a> ElementDeclarationView<'a> {
     pub(crate) fn name(self) -> &'a str {
-        self.unit.token_text(self.name)
+        self.unit.token_text(0)
     }
 
     pub(crate) fn content(self) -> ElementContentView<'a> {
-        match self.content {
-            ElementContentMeta::Empty => ElementContentView::Empty,
-            ElementContentMeta::Any => ElementContentView::Any,
-            ElementContentMeta::Mixed(range) => ElementContentView::Mixed(ModelTokens {
+        match self.kind {
+            DtdUnitKind::ElementEmpty => ElementContentView::Empty,
+            DtdUnitKind::ElementAny => ElementContentView::Any,
+            DtdUnitKind::ElementMixed => ElementContentView::Mixed(ModelTokens {
                 unit: self.unit,
-                next: range.start,
-                end: range.end,
+                next: 1,
+                end: self.unit.tokens.len(),
             }),
-            ElementContentMeta::Children(range) => ElementContentView::Children(ModelTokens {
+            DtdUnitKind::ElementChildren => ElementContentView::Children(ModelTokens {
                 unit: self.unit,
-                next: range.start,
-                end: range.end,
+                next: 1,
+                end: self.unit.tokens.len(),
             }),
+            _ => unreachable!("view created only for element kinds"),
         }
     }
 }
@@ -483,13 +488,11 @@ impl<'a> AttributeDefinitionView<'a> {
                 next: range.start,
                 end: range.end,
             }),
-            AttributeTypeMeta::Enumeration(range) => {
-                AttributeTypeView::Enumeration(ValueTokens {
-                    unit: self.unit,
-                    next: range.start,
-                    end: range.end,
-                })
-            }
+            AttributeTypeMeta::Enumeration(range) => AttributeTypeView::Enumeration(ValueTokens {
+                unit: self.unit,
+                next: range.start,
+                end: range.end,
+            }),
         }
     }
 
@@ -557,23 +560,25 @@ impl<'a> Iterator for AttributeDefinitions<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct AttributeListView<'a> {
     unit: &'a DtdUnit<'a>,
-    element: usize,
-    definitions: usize,
 }
 
 impl<'a> AttributeListView<'a> {
     pub(crate) fn element_name(self) -> &'a str {
-        self.unit.token_text(self.element)
+        self.unit.token_text(0)
     }
 
     pub(crate) fn definition_count(self) -> usize {
-        self.definitions
+        self.unit
+            .tokens
+            .iter()
+            .filter(|token| matches!(token.kind, TokenKind::AttributeDefinition(_)))
+            .count()
     }
 
     pub(crate) fn definitions(self) -> AttributeDefinitions<'a> {
         AttributeDefinitions {
             unit: self.unit,
-            next: self.element + 1,
+            next: 1,
         }
     }
 }
@@ -592,32 +597,67 @@ pub(crate) enum EntityDefinitionView<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct EntityDeclarationView<'a> {
     unit: &'a DtdUnit<'a>,
-    parameter: bool,
-    name: usize,
-    definition: &'a EntityDefinitionMeta,
+    kind: DtdUnitKind,
 }
 
 impl<'a> EntityDeclarationView<'a> {
     pub(crate) fn is_parameter(self) -> bool {
-        self.parameter
+        matches!(
+            self.kind,
+            DtdUnitKind::ParameterInternalEntity
+                | DtdUnitKind::ParameterSystemEntity
+                | DtdUnitKind::ParameterPublicEntity
+        )
     }
 
     pub(crate) fn name(self) -> &'a str {
-        self.unit.token_text(self.name)
+        self.unit.token_text(0)
     }
 
     pub(crate) fn definition(self) -> EntityDefinitionView<'a> {
-        match self.definition {
-            EntityDefinitionMeta::Internal { literal } => EntityDefinitionView::Internal {
-                quoted_literal: self.unit.token_text(*literal),
+        match self.kind {
+            DtdUnitKind::GeneralInternalEntity | DtdUnitKind::ParameterInternalEntity => {
+                EntityDefinitionView::Internal {
+                    quoted_literal: self.unit.token_text(self.unit.tokens.len() - 1),
+                }
+            }
+            DtdUnitKind::GeneralSystemEntity | DtdUnitKind::ParameterSystemEntity => {
+                EntityDefinitionView::External {
+                    identifier: ExternalMeta {
+                        public: None,
+                        system: Some(1),
+                    }
+                    .view(self.unit),
+                    notation: None,
+                }
+            }
+            DtdUnitKind::GeneralPublicEntity | DtdUnitKind::ParameterPublicEntity => {
+                EntityDefinitionView::External {
+                    identifier: ExternalMeta {
+                        public: Some(1),
+                        system: Some(2),
+                    }
+                    .view(self.unit),
+                    notation: None,
+                }
+            }
+            DtdUnitKind::GeneralSystemNdataEntity => EntityDefinitionView::External {
+                identifier: ExternalMeta {
+                    public: None,
+                    system: Some(1),
+                }
+                .view(self.unit),
+                notation: Some(self.unit.token_text(self.unit.tokens.len() - 1)),
             },
-            EntityDefinitionMeta::External {
-                identifier,
-                notation,
-            } => EntityDefinitionView::External {
-                identifier: identifier.view(self.unit),
-                notation: notation.map(|index| self.unit.token_text(index)),
+            DtdUnitKind::GeneralPublicNdataEntity => EntityDefinitionView::External {
+                identifier: ExternalMeta {
+                    public: Some(1),
+                    system: Some(2),
+                }
+                .view(self.unit),
+                notation: Some(self.unit.token_text(self.unit.tokens.len() - 1)),
             },
+            _ => unreachable!("view created only for entity kinds"),
         }
     }
 }
@@ -625,17 +665,31 @@ impl<'a> EntityDeclarationView<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct NotationDeclarationView<'a> {
     unit: &'a DtdUnit<'a>,
-    name: usize,
-    identifier: ExternalMeta,
+    kind: DtdUnitKind,
 }
 
 impl<'a> NotationDeclarationView<'a> {
     pub(crate) fn name(self) -> &'a str {
-        self.unit.token_text(self.name)
+        self.unit.token_text(0)
     }
 
     pub(crate) fn identifier(self) -> ExternalIdView<'a> {
-        self.identifier.view(self.unit)
+        match self.kind {
+            DtdUnitKind::SystemNotation => ExternalMeta {
+                public: None,
+                system: Some(1),
+            },
+            DtdUnitKind::PublicNotation => ExternalMeta {
+                public: Some(1),
+                system: None,
+            },
+            DtdUnitKind::PublicSystemNotation => ExternalMeta {
+                public: Some(1),
+                system: Some(2),
+            },
+            _ => unreachable!("view created only for notation kinds"),
+        }
+        .view(self.unit)
     }
 }
 
@@ -684,7 +738,10 @@ impl<'a> Parser<'a> {
         } else if self.raw.starts_with("<?") {
             self.processing_instruction()?
         } else {
-            return Err(self.error(DtdErrorKind::Syntax));
+            return Err(DtdError::new(
+                DtdErrorKind::Syntax,
+                dispatch_error_offset(self.raw),
+            ));
         };
         if self.position != self.raw.len() {
             return Err(self.error(DtdErrorKind::Syntax));
@@ -716,8 +773,20 @@ impl<'a> Parser<'a> {
     }
 
     fn consume(&mut self, expected: &str) -> Result<(), DtdError> {
-        if !self.remaining().starts_with(expected) {
-            return Err(self.error(DtdErrorKind::Syntax));
+        let remaining = self.remaining().as_bytes();
+        for (relative, expected) in expected.bytes().enumerate() {
+            match remaining.get(relative) {
+                Some(actual) if *actual == expected => {}
+                Some(_) => {
+                    return Err(DtdError::new(
+                        DtdErrorKind::Syntax,
+                        self.position + relative,
+                    ));
+                }
+                None => {
+                    return Err(DtdError::new(DtdErrorKind::Syntax, self.raw.len()));
+                }
+            }
         }
         self.position += expected.len();
         Ok(())
@@ -797,20 +866,19 @@ impl<'a> Parser<'a> {
     fn header(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!DOCTYPE")?;
         self.require_whitespace()?;
-        let root = self.name()?;
+        self.name()?;
         let had_whitespace = self.whitespace();
-        let external = if self.remaining().starts_with("SYSTEM")
-            || self.remaining().starts_with("PUBLIC")
-        {
-            if !had_whitespace {
-                return Err(self.error(DtdErrorKind::Syntax));
-            }
-            let external = self.external_identifier(false)?;
-            self.whitespace();
-            Some(external)
-        } else {
-            None
-        };
+        let external =
+            if self.remaining().starts_with("SYSTEM") || self.remaining().starts_with("PUBLIC") {
+                if !had_whitespace {
+                    return Err(self.error(DtdErrorKind::Syntax));
+                }
+                let external = self.external_identifier(false)?;
+                self.whitespace();
+                Some(external)
+            } else {
+                None
+            };
         let has_internal_subset = match self.byte() {
             Some(b'[') => {
                 self.position += 1;
@@ -822,10 +890,23 @@ impl<'a> Parser<'a> {
             }
             _ => return Err(self.error(DtdErrorKind::Syntax)),
         };
-        Ok(DtdUnitKind::Header {
-            root,
-            external,
-            has_internal_subset,
+        Ok(match (external, has_internal_subset) {
+            (None, false) => DtdUnitKind::Header,
+            (None, true) => DtdUnitKind::HeaderSubset,
+            (Some(ExternalMeta { public: None, .. }), false) => DtdUnitKind::HeaderSystem,
+            (Some(ExternalMeta { public: None, .. }), true) => DtdUnitKind::HeaderSystemSubset,
+            (
+                Some(ExternalMeta {
+                    public: Some(_), ..
+                }),
+                false,
+            ) => DtdUnitKind::HeaderPublic,
+            (
+                Some(ExternalMeta {
+                    public: Some(_), ..
+                }),
+                true,
+            ) => DtdUnitKind::HeaderPublicSubset,
         })
     }
 
@@ -965,8 +1046,13 @@ impl<'a> Parser<'a> {
             return Err(self.error(DtdErrorKind::InvalidReference));
         }
         self.position += 1;
-        self.name()
-            .map_err(|_| DtdError::new(DtdErrorKind::InvalidReference, self.position))?;
+        if let Err(error) = self.name() {
+            return Err(if error.kind == DtdErrorKind::InvalidName {
+                DtdError::new(DtdErrorKind::InvalidReference, error.offset)
+            } else {
+                error
+            });
+        }
         if self.byte() != Some(b';') {
             return Err(self.error(DtdErrorKind::InvalidReference));
         }
@@ -1021,22 +1107,20 @@ impl<'a> Parser<'a> {
     fn comment(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!--")?;
         let content_start = self.position;
-        loop {
-            let Some(relative) = self.remaining().find("--") else {
-                self.position = self.raw.len();
-                return Err(self.error(DtdErrorKind::Syntax));
-            };
-            self.position += relative;
-            if self.remaining().starts_with("-->") {
-                let content = self.push(
-                    TokenKind::Literal(LiteralKind::Comment),
-                    content_start..self.position,
-                )?;
-                self.position += 3;
-                return Ok(DtdUnitKind::Comment { content });
-            }
+        let Some(relative) = self.remaining().find("--") else {
+            self.position = self.raw.len();
             return Err(self.error(DtdErrorKind::Syntax));
+        };
+        self.position += relative;
+        if !self.remaining().starts_with("-->") {
+            return Err(DtdError::new(DtdErrorKind::Syntax, self.position + 1));
         }
+        self.push(
+            TokenKind::Literal(LiteralKind::Comment),
+            content_start..self.position,
+        )?;
+        self.position += 3;
+        Ok(DtdUnitKind::Comment)
     }
 
     fn processing_instruction(&mut self) -> Result<DtdUnitKind, DtdError> {
@@ -1053,8 +1137,8 @@ impl<'a> Parser<'a> {
                 self.tokens[target].range.start,
             ));
         }
-        let data = if self.remaining().starts_with("?>") {
-            None
+        let has_data = if self.remaining().starts_with("?>") {
+            false
         } else {
             self.require_whitespace()?;
             let start = self.position;
@@ -1063,13 +1147,18 @@ impl<'a> Parser<'a> {
                 return Err(self.error(DtdErrorKind::Syntax));
             };
             self.position += relative;
-            Some(self.push(
+            self.push(
                 TokenKind::Literal(LiteralKind::ProcessingInstructionData),
                 start..self.position,
-            )?)
+            )?;
+            true
         };
         self.consume("?>")?;
-        Ok(DtdUnitKind::ProcessingInstruction { target, data })
+        Ok(if has_data {
+            DtdUnitKind::ProcessingInstructionData
+        } else {
+            DtdUnitKind::ProcessingInstruction
+        })
     }
 }
 
@@ -1103,26 +1192,49 @@ fn pubid_char(character: char) -> bool {
     )
 }
 
+fn dispatch_error_offset(raw: &str) -> usize {
+    [
+        "<!DOCTYPE",
+        "<!ELEMENT",
+        "<!ATTLIST",
+        "<!ENTITY",
+        "<!NOTATION",
+        "<!--",
+        "<?",
+    ]
+    .into_iter()
+    .map(|candidate| {
+        raw.bytes()
+            .zip(candidate.bytes())
+            .take_while(|(actual, expected)| actual == expected)
+            .count()
+    })
+    .max()
+    .unwrap_or(0)
+}
+
 impl Parser<'_> {
     fn element(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!ELEMENT")?;
         self.require_whitespace()?;
-        let name = self.name()?;
+        self.name()?;
         self.require_whitespace()?;
-        let content = if self.keyword("EMPTY") {
-            ElementContentMeta::Empty
+        let kind = if self.keyword("EMPTY") {
+            DtdUnitKind::ElementEmpty
         } else if self.keyword("ANY") {
-            ElementContentMeta::Any
+            DtdUnitKind::ElementAny
         } else if self.mixed_ahead() {
-            ElementContentMeta::Mixed(self.mixed_model()?)
+            self.mixed_model()?;
+            DtdUnitKind::ElementMixed
         } else if self.byte() == Some(b'(') {
-            ElementContentMeta::Children(self.children_model()?)
+            self.children_model()?;
+            DtdUnitKind::ElementChildren
         } else {
             return Err(self.error(DtdErrorKind::Syntax));
         };
         self.whitespace();
         self.consume(">")?;
-        Ok(DtdUnitKind::Element { name, content })
+        Ok(kind)
     }
 
     fn mixed_ahead(&self) -> bool {
@@ -1144,10 +1256,7 @@ impl Parser<'_> {
         self.whitespace();
         let pcdata = self.position;
         self.consume("#PCDATA")?;
-        self.push(
-            TokenKind::Model(ModelSyntax::Pcdata),
-            pcdata..self.position,
-        )?;
+        self.push(TokenKind::Model(ModelSyntax::Pcdata), pcdata..self.position)?;
         self.whitespace();
         let mut names = 0_usize;
         while self.byte() == Some(b'|') {
@@ -1166,10 +1275,7 @@ impl Parser<'_> {
         }
         let close = self.position;
         self.consume(")")?;
-        self.push(
-            TokenKind::Model(ModelSyntax::Close),
-            close..self.position,
-        )?;
+        self.push(TokenKind::Model(ModelSyntax::Close), close..self.position)?;
         if names > 0 || self.byte() == Some(b'*') {
             let occurrence = self.position;
             self.consume("*")?;
@@ -1211,7 +1317,10 @@ impl Parser<'_> {
                         Connector::Sequence
                     };
                     let frame = stack.last_mut().expect("root group is active");
-                    if frame.connector.is_some_and(|existing| existing != connector) {
+                    if frame
+                        .connector
+                        .is_some_and(|existing| existing != connector)
+                    {
                         return Err(self.error(DtdErrorKind::Syntax));
                     }
                     frame.connector = Some(connector);
@@ -1233,10 +1342,7 @@ impl Parser<'_> {
                     stack.pop();
                     let offset = self.position;
                     self.position += 1;
-                    self.push(
-                        TokenKind::Model(ModelSyntax::Close),
-                        offset..self.position,
-                    )?;
+                    self.push(TokenKind::Model(ModelSyntax::Close), offset..self.position)?;
                     self.occurrence()?;
                     if let Some(parent) = stack.last_mut() {
                         parent.particles = parent
@@ -1261,10 +1367,7 @@ impl Parser<'_> {
             .map_err(|_| self.error(DtdErrorKind::Allocation))?;
         let offset = self.position;
         self.consume("(")?;
-        self.push(
-            TokenKind::Model(ModelSyntax::Open),
-            offset..self.position,
-        )?;
+        self.push(TokenKind::Model(ModelSyntax::Open), offset..self.position)?;
         stack.push(GroupFrame {
             connector: None,
             particles: 0,
@@ -1290,6 +1393,10 @@ impl Parser<'_> {
     }
 }
 
+#[cfg(test)]
+#[path = "../tests/internal/dtd_unit_author.rs"]
+mod tests;
+
 impl Parser<'_> {
     fn entity(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!ENTITY")?;
@@ -1301,11 +1408,14 @@ impl Parser<'_> {
         } else {
             false
         };
-        let name = self.name()?;
+        self.name()?;
         self.require_whitespace()?;
-        let definition = if matches!(self.byte(), Some(b'\'' | b'"')) {
-            EntityDefinitionMeta::Internal {
-                literal: self.entity_value()?,
+        let kind = if matches!(self.byte(), Some(b'\'' | b'"')) {
+            self.entity_value()?;
+            if parameter {
+                DtdUnitKind::ParameterInternalEntity
+            } else {
+                DtdUnitKind::GeneralInternalEntity
             }
         } else {
             let identifier = self.external_identifier(false)?;
@@ -1320,29 +1430,37 @@ impl Parser<'_> {
             } else {
                 None
             };
-            EntityDefinitionMeta::External {
-                identifier,
-                notation,
+            match (parameter, identifier.public.is_some(), notation.is_some()) {
+                (true, false, false) => DtdUnitKind::ParameterSystemEntity,
+                (true, true, false) => DtdUnitKind::ParameterPublicEntity,
+                (false, false, false) => DtdUnitKind::GeneralSystemEntity,
+                (false, true, false) => DtdUnitKind::GeneralPublicEntity,
+                (false, false, true) => DtdUnitKind::GeneralSystemNdataEntity,
+                (false, true, true) => DtdUnitKind::GeneralPublicNdataEntity,
+                (true, _, true) => unreachable!("parameter entities cannot have NDATA"),
             }
         };
         self.whitespace();
         self.consume(">")?;
-        Ok(DtdUnitKind::Entity {
-            parameter,
-            name,
-            definition,
-        })
+        Ok(kind)
     }
 
     fn notation(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!NOTATION")?;
         self.require_whitespace()?;
-        let name = self.name()?;
+        self.name()?;
         self.require_whitespace()?;
         let identifier = self.external_identifier(true)?;
         self.whitespace();
         self.consume(">")?;
-        Ok(DtdUnitKind::Notation { name, identifier })
+        Ok(
+            match (identifier.public.is_some(), identifier.system.is_some()) {
+                (false, true) => DtdUnitKind::SystemNotation,
+                (true, false) => DtdUnitKind::PublicNotation,
+                (true, true) => DtdUnitKind::PublicSystemNotation,
+                (false, false) => unreachable!("validated external identifier has a literal"),
+            },
+        )
     }
 }
 
@@ -1350,7 +1468,7 @@ impl Parser<'_> {
     fn attribute_list(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!ATTLIST")?;
         self.require_whitespace()?;
-        let element = self.name()?;
+        self.name()?;
         let mut definitions = 0_usize;
         loop {
             let had_whitespace = self.whitespace();
@@ -1362,9 +1480,7 @@ impl Parser<'_> {
                 return Err(self.error(DtdErrorKind::Syntax));
             }
             if definitions >= self.limits.max_attribute_definitions {
-                return Err(self.error(DtdErrorKind::LimitExceeded(
-                    DtdLimit::AttributeDefinitions,
-                )));
+                return Err(self.error(DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions)));
             }
             let definition_start = self.position;
             let name = self.name()?;
@@ -1384,10 +1500,7 @@ impl Parser<'_> {
                 definition_start..self.position,
             )?;
         }
-        Ok(DtdUnitKind::AttributeList {
-            element,
-            definitions,
-        })
+        Ok(DtdUnitKind::AttributeList)
     }
 
     fn attribute_type(&mut self) -> Result<AttributeTypeMeta, DtdError> {

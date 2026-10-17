@@ -12,9 +12,10 @@ source-frame work are ready.
 
 `DtdUnit` owns or borrows the exact unit text through one `Cow<str>`. A single
 fallibly grown `Vec<DtdToken>` stores validated UTF-8 ranges and flat structural
-markers. The unit kind stores only compact indexes and flags needed to select a
-typed borrowed view. Getters slice ranges already checked on construction; they
-do not rescan the raw declaration or allocate field strings.
+markers. The unit kind is a compact family tag; each validated family has fixed
+root, identifier, and terminal-token positions. Getters slice ranges already
+checked on construction; they do not rescan the raw declaration or allocate
+field strings.
 
 The parser accepts these complete unit forms:
 
@@ -80,8 +81,9 @@ flat-model order, and exact typed-view values. Rejection tables cover every
 grammar branch, malformed UTF-8-level characters, exact offsets, incomplete
 units, trailing input, and limit boundaries.
 
-Bounded deterministic property tests vary whitespace, Unicode names, quote
-choice, reference values, and model nesting. Their oracles check typed lexical
+Bounded tables vary whitespace, Unicode names, quote choice, and reference
+values. Deterministic property loops vary model nesting and every UTF-8-safe
+truncation of a representative declaration. Their oracles check typed lexical
 facts, borrowed ranges, stable raw text, and parse-result invariants rather than
 reimplementing the parser. Inputs and loop counts stay fixed and small.
 
