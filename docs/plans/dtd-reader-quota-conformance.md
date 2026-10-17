@@ -59,3 +59,23 @@ The original table is preserved above. Its first facade run was 21 passed and 5 
 - `independent_reference_limits_stop_at_the_first_unaccepted_source_byte` pins byte/scratch ceilings of two on `&e;` to accepted position two, and exhausted cumulative reference work to zero newly accepted bytes of the second reference. This agrees with the existing native monotone-work and reference-copy-before-skip specifications. Therefore the reference Bytes/Scratch facade high-water is **38**, and the two-inclusion native-work high-water is **36**; their physical anchors remain unchanged.
 
 The independent control log is `/private/tmp/yaxml-dtd-reader-quota-independent-controls.log`. No expected type, budget threshold, logical value, physical diagnostic anchor, replacement identity or sticky-error requirement was relaxed. These five corrections distinguish accepted primary high-water from bytes merely present in the caller's remaining input.
+
+## Second frozen supplement
+
+These rows are frozen separately after the corrected 26-row tranche, before executing the added facade cases. They reconcile the remaining seven configurable fields with the native limit inventory and strengthen exact work boundaries. The shared 47/48 and native catalog 11/12 thresholds were supplied independently by the architecture reconciliation, rather than measured from this facade.
+
+| Family | Fixture rejection / success | Frozen native cause | Anchor / high-water / latest range |
+| --- | --- | --- | --- |
+| Unit byte limit | T 11 / 12 | Dtd Grammar UnitBytes | 11 / 12 / none |
+| Catalog declarations | T 0 / 1 | Dtd Catalog Declarations | 0 / 12 / none |
+| Catalog bindings | V 0 / 1 | Dtd Catalog Bindings | 13 / 29 / 0..13 |
+| Catalog reference attempts | V 0 / 1 | Content Tag Catalog References | 37 / 43 / 29..31 |
+| Catalog active expansion depth | V 0 / 1 | Content Tag Catalog Depth | 37 / 43 / 29..31 |
+| Frame reference attempts | G 0 / 1 | Content Frame ReferenceAttempts | 36 / 39 / 33..36 |
+| Controller physical bytes during declarations | T 11 / 16 | Dtd PhysicalBytes | 11 / 11 / none |
+| Controller physical bytes during body | T 15 / 16 | Content PhysicalBytes | 15 / 15 / 11..12 |
+| Native catalog work exact | T 11 / 12 | Dtd Catalog Work | 0 / 12 / none |
+| Shared declaration work exact | T 47 / 48 | Content Work | 12 / 16 / 11..12 |
+| Shared Text work exact | T 47 / 48 | Content Work | 12 / 16 / 11..12 |
+
+No-subset rejected grammar/catalog header origins include the complete scanner unit `0..12`. Body tag failures retain `12..16`; a rejected ordinary value reference retains the attribute location `Input(37)` and root raw origin `31..43`. Shared work is 36 at completed DTD End, 44 after root scan/validation, and 48 only after accepted tag processing. A 47 ceiling must retain 44, rather than debit rejected work or reset the DTD spend. As in the first tranche, any discrepancy is retained as a red baseline and resolved independently.
