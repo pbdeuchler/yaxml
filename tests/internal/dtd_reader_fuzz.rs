@@ -18,6 +18,9 @@ const MAX_GENERATED: usize = 4 * 1024;
 const MAX_EVENTS: usize = 128;
 const MAX_DECLARATIONS: usize = 4;
 const MAX_BODY_OPERATIONS: usize = 8;
+const MAX_LOGICAL_EXPANSION: usize = 16 * 1024;
+const MAX_BASE_ENTITY_EXPANSION: usize = 1 + 255 * 8;
+const _: () = assert!(MAX_BODY_OPERATIONS * MAX_BASE_ENTITY_EXPANSION <= MAX_LOGICAL_EXPANSION);
 const TOKEN: usize = 4096;
 const WORK: usize = 64 * 1024 * 1024;
 
@@ -78,11 +81,65 @@ struct ExpectedOrigin {
 struct ExpectedEvent {
     kind: ExpectedKind,
     origin: ExpectedOrigin,
+    fields: Vec<ExpectedField>,
 }
 
 struct GeneratedCase {
     source: String,
     expected: Vec<ExpectedEvent>,
+    declarations: usize,
+    body_operations: usize,
+    logical_expansion: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FieldRole {
+    DtdRaw,
+    DeclarationVersion,
+    DeclarationEncoding,
+    ElementName,
+    AttributeName(usize),
+    AttributeValue(usize),
+    EndName,
+    Leaf,
+    PiTarget,
+    PiData,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ExpectedStorage {
+    Borrowed(Range<usize>),
+    Owned,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExpectedField {
+    role: FieldRole,
+    value: String,
+    storage: ExpectedStorage,
+}
+
+impl ExpectedEvent {
+    fn with_fields(mut self, fields: Vec<ExpectedField>) -> Self {
+        self.fields = fields;
+        self
+    }
+}
+
+fn borrowed_field(role: FieldRole, value: impl Into<String>, range: Range<usize>) -> ExpectedField {
+    ExpectedField {
+        role,
+        value: value.into(),
+        storage: ExpectedStorage::Borrowed(range),
+    }
+}
+
+fn owned_field(role: FieldRole, value: impl Into<String>) -> ExpectedField {
+    ExpectedField {
+        role,
+        value: value.into(),
+        storage: ExpectedStorage::Owned,
+    }
 }
 
 fn physical(kind: ExpectedKind, range: Range<usize>) -> ExpectedEvent {
@@ -93,6 +150,7 @@ fn physical(kind: ExpectedKind, range: Range<usize>) -> ExpectedEvent {
             replacement: None,
             physical: range,
         },
+        fields: Vec::new(),
     }
 }
 
@@ -108,6 +166,7 @@ fn replacement(
             replacement: Some(local),
             physical: physical_range,
         },
+        fields: Vec::new(),
     }
 }
 
@@ -116,6 +175,26 @@ fn push_physical(case: &mut GeneratedCase, raw: &str, kind: ExpectedKind) -> Ran
     case.source.push_str(raw);
     let range = start..case.source.len();
     case.expected.push(physical(kind, range.clone()));
+    range
+}
+
+fn push_physical_fields(
+    case: &mut GeneratedCase,
+    raw: &str,
+    kind: ExpectedKind,
+    fields: Vec<(FieldRole, String, Range<usize>)>,
+) -> Range<usize> {
+    let start = case.source.len();
+    case.source.push_str(raw);
+    let range = start..case.source.len();
+    let fields = fields
+        .into_iter()
+        .map(|(role, value, relative)| {
+            borrowed_field(role, value, start + relative.start..start + relative.end)
+        })
+        .collect();
+    case.expected
+        .push(physical(kind, range.clone()).with_fields(fields));
     range
 }
 
@@ -131,15 +210,28 @@ fn push_physical_text(case: &mut GeneratedCase, value: &str) {
                 replacement: None,
                 physical,
             },
+        fields,
     }) = case.expected.last_mut()
         && input.end == start
     {
         previous.push_str(value);
         input.end = end;
         physical.end = end;
+        let Some(ExpectedField {
+            role: FieldRole::Leaf,
+            value: field_value,
+            storage: ExpectedStorage::Borrowed(field_range),
+        }) = fields.first_mut()
+        else {
+            panic!("coalesced physical text must retain its exact field range");
+        };
+        field_value.push_str(value);
+        field_range.end = end;
     } else {
-        case.expected
-            .push(physical(ExpectedKind::Text(value.to_owned()), start..end));
+        case.expected.push(
+            physical(ExpectedKind::Text(value.to_owned()), start..end)
+                .with_fields(vec![borrowed_field(FieldRole::Leaf, value, start..end)]),
+        );
     }
 }
 
@@ -148,7 +240,48 @@ fn control(input: &[u8], at: usize) -> u8 {
 }
 
 fn generated_case(input: &[u8]) -> GeneratedCase {
-    let root = match control(input, 0) % 3 {
+    let case = match control(input, 0) % 4 {
+        0 => entity_case(input),
+        1 => namespace_default_case(),
+        2 => parameter_declaration_case(),
+        _ => declaration_misc_case(input),
+    };
+    assert!(case.source.len() <= MAX_GENERATED);
+    assert!(case.expected.len() <= MAX_EVENTS);
+    assert!(case.declarations <= MAX_DECLARATIONS);
+    assert!(case.body_operations <= MAX_BODY_OPERATIONS);
+    assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
+    case
+}
+
+fn empty_case() -> GeneratedCase {
+    GeneratedCase {
+        source: String::new(),
+        expected: Vec::new(),
+        declarations: 0,
+        body_operations: 0,
+        logical_expansion: 0,
+    }
+}
+
+fn push_no_subset(case: &mut GeneratedCase, root: &str) {
+    let raw = format!("<!DOCTYPE {root}>");
+    let start = case.source.len();
+    case.source.push_str(&raw);
+    let end = case.source.len();
+    case.expected.push(
+        physical(
+            ExpectedKind::DtdBegin(raw.clone(), RawSource::Borrowed),
+            start..end - 1,
+        )
+        .with_fields(vec![borrowed_field(FieldRole::DtdRaw, raw, start..end)]),
+    );
+    case.expected
+        .push(physical(ExpectedKind::DtdEnd, end - 1..end));
+}
+
+fn entity_case(input: &[u8]) -> GeneratedCase {
+    let root = match control(input, 8) % 3 {
         0 => "r",
         1 => "root",
         _ => "x",
@@ -156,59 +289,65 @@ fn generated_case(input: &[u8]) -> GeneratedCase {
     let declaration_count = usize::from(control(input, 1)) % (MAX_DECLARATIONS + 1);
     let body_count = usize::from(control(input, 2)) % (MAX_BODY_OPERATIONS + 1);
     let shape = control(input, 3) % 4;
-    let mut case = GeneratedCase {
-        source: String::new(),
-        expected: Vec::new(),
-    };
+    let mut case = empty_case();
+    case.declarations = declaration_count;
+    case.body_operations = body_count;
+    let mut expansion_lengths = Vec::new();
+    let mut entity_values = Vec::new();
 
     if declaration_count == 0 {
-        let raw = format!("<!DOCTYPE {root}>");
-        let start = case.source.len();
-        case.source.push_str(&raw);
-        case.expected.push(physical(
-            ExpectedKind::DtdBegin(raw.clone(), RawSource::Borrowed),
-            start..case.source.len() - 1,
-        ));
-        let end = case.source.len() - 1..case.source.len();
-        case.expected.push(physical(ExpectedKind::DtdEnd, end));
+        push_no_subset(&mut case, root);
     } else {
         let header = format!("<!DOCTYPE {root} [");
-        push_physical(
+        push_physical_fields(
             &mut case,
             &header,
             ExpectedKind::DtdBegin(header.clone(), RawSource::Borrowed),
+            vec![(FieldRole::DtdRaw, header.clone(), 0..header.len())],
         );
         for index in 0..declaration_count {
-            let letter = char::from(b'a' + control(input, 8 + index) % 26);
+            let letter = char::from(b'a' + control(input, 9 + index) % 26);
             let name = format!("e{index}{letter}");
-            let value = match (shape, index) {
-                (1, _) => String::new(),
-                (2, _) => format!("<n{index}/>t"),
-                (3, 0) => "A".to_owned(),
-                (3, _) => {
-                    let first = char::from(b'a' + control(input, 8) % 26);
-                    format!("&e0{first};B")
+            let (value, expanded) = match (shape, index) {
+                (0, 0) => {
+                    let length = 1 + usize::from(control(input, 13)) * 8;
+                    ("v".repeat(length), length)
                 }
-                _ => format!("V{index}"),
+                (1, _) => (String::new(), 0),
+                (2, _) => {
+                    let value = format!("<n{index}/>t");
+                    let expanded = value.len();
+                    (value, expanded)
+                }
+                (3, 0) => ("A".to_owned(), 1),
+                (3, _) => {
+                    let first = char::from(b'a' + control(input, 9) % 26);
+                    (format!("&e0{first};B"), expansion_lengths[0] + 1)
+                }
+                _ => (format!("V{index}"), 2),
             };
+            expansion_lengths.push(expanded);
+            entity_values.push(value.clone());
             let raw = format!("<!ENTITY {name} '{value}'>");
-            push_physical(
+            push_physical_fields(
                 &mut case,
                 &raw,
                 ExpectedKind::DtdItem(raw.clone(), LiteralSource::Physical, RawSource::Borrowed),
+                vec![(FieldRole::DtdRaw, raw.clone(), 0..raw.len())],
             );
         }
         push_physical(&mut case, "]>", ExpectedKind::DtdEnd);
     }
 
     let start_tag = format!("<{root}>");
-    push_physical(
+    push_physical_fields(
         &mut case,
         &start_tag,
         ExpectedKind::Start(root.to_owned(), None, Vec::new()),
+        vec![(FieldRole::ElementName, root.to_owned(), 1..1 + root.len())],
     );
     for operation in 0..body_count {
-        let choice = control(input, 16 + operation) % 4;
+        let choice = control(input, 16 + operation) % 6;
         match choice {
             0 => {
                 let value = char::from(b'a' + control(input, 32 + operation) % 26).to_string();
@@ -216,78 +355,319 @@ fn generated_case(input: &[u8]) -> GeneratedCase {
             }
             1 if declaration_count > 0 => {
                 let index = usize::from(control(input, 32 + operation)) % declaration_count;
-                let letter = char::from(b'a' + control(input, 8 + index) % 26);
+                let letter = char::from(b'a' + control(input, 9 + index) % 26);
                 let name = format!("e{index}{letter}");
                 let reference = format!("&{name};");
                 let start = case.source.len();
                 case.source.push_str(&reference);
                 let occurrence = start..case.source.len();
+                case.logical_expansion = case
+                    .logical_expansion
+                    .checked_add(expansion_lengths[index])
+                    .expect("bounded expansion sum");
                 match (shape, index) {
                     (1, _) => {}
                     (2, _) => {
-                        case.expected.push(replacement(
-                            ExpectedKind::Empty(format!("n{index}"), None, Vec::new()),
-                            0..format!("<n{index}/>").len(),
-                            occurrence.clone(),
-                        ));
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Empty(format!("n{index}"), None, Vec::new()),
+                                0..format!("<n{index}/>").len(),
+                                occurrence.clone(),
+                            )
+                            .with_fields(vec![owned_field(
+                                FieldRole::ElementName,
+                                format!("n{index}"),
+                            )]),
+                        );
                         let local = format!("<n{index}/>").len();
-                        case.expected.push(replacement(
-                            ExpectedKind::Text("t".to_owned()),
-                            local..local + 1,
-                            occurrence,
-                        ));
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Text("t".to_owned()),
+                                local..local + 1,
+                                occurrence,
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, "t")]),
+                        );
                     }
-                    (3, 0) => case.expected.push(replacement(
-                        ExpectedKind::Text("A".to_owned()),
-                        0..1,
-                        occurrence,
-                    )),
+                    (3, 0) => case.expected.push(
+                        replacement(ExpectedKind::Text("A".to_owned()), 0..1, occurrence)
+                            .with_fields(vec![owned_field(FieldRole::Leaf, "A")]),
+                    ),
                     (3, _) => {
-                        let first = char::from(b'a' + control(input, 8) % 26);
-                        case.expected.push(replacement(
-                            ExpectedKind::Text("A".to_owned()),
-                            0..1,
-                            occurrence.clone(),
-                        ));
-                        case.expected.push(replacement(
-                            ExpectedKind::Text("B".to_owned()),
-                            format!("&e0{first};").len()..format!("&e0{first};B").len(),
-                            occurrence,
-                        ));
+                        let first = char::from(b'a' + control(input, 9) % 26);
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Text("A".to_owned()),
+                                0..1,
+                                occurrence.clone(),
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, "A")]),
+                        );
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Text("B".to_owned()),
+                                format!("&e0{first};").len()..format!("&e0{first};B").len(),
+                                occurrence,
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, "B")]),
+                        );
                     }
-                    _ => case.expected.push(replacement(
-                        ExpectedKind::Text(format!("V{index}")),
-                        0..2,
-                        occurrence,
-                    )),
+                    _ => {
+                        let value = entity_values[index].clone();
+                        let length = value.len();
+                        case.expected.push(
+                            replacement(ExpectedKind::Text(value.clone()), 0..length, occurrence)
+                                .with_fields(vec![owned_field(FieldRole::Leaf, value)]),
+                        );
+                    }
                 }
             }
             2 => {
                 let raw = format!("<n{operation}/>");
-                push_physical(
+                let name = format!("n{operation}");
+                push_physical_fields(
                     &mut case,
                     &raw,
-                    ExpectedKind::Empty(format!("n{operation}"), None, Vec::new()),
+                    ExpectedKind::Empty(name.clone(), None, Vec::new()),
+                    vec![(FieldRole::ElementName, name.clone(), 1..1 + name.len())],
+                );
+            }
+            3 => {
+                let raw = format!("<!--c{operation}-->");
+                let value = format!("c{operation}");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Comment(value.clone()),
+                    vec![(FieldRole::Leaf, value, 4..raw.len() - 3)],
+                );
+            }
+            4 => {
+                let data = format!("d{operation}");
+                let raw = format!("<?q {data}?>");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Pi("q".to_owned(), data.clone()),
+                    vec![
+                        (FieldRole::PiTarget, "q".to_owned(), 2..3),
+                        (FieldRole::PiData, data, 4..raw.len() - 2),
+                    ],
                 );
             }
             _ => {
-                let raw = format!("<!--c{operation}-->");
-                push_physical(
+                let value = format!("k{operation}");
+                let raw = format!("<![CDATA[{value}]]>");
+                push_physical_fields(
                     &mut case,
                     &raw,
-                    ExpectedKind::Comment(format!("c{operation}")),
+                    ExpectedKind::Cdata(value.clone()),
+                    vec![(FieldRole::Leaf, value, 9..raw.len() - 3)],
                 );
             }
         }
     }
     let end_tag = format!("</{root}>");
-    push_physical(
+    push_physical_fields(
         &mut case,
         &end_tag,
         ExpectedKind::End(root.to_owned(), None),
+        vec![(FieldRole::EndName, root.to_owned(), 2..2 + root.len())],
     );
-    assert!(case.source.len() <= MAX_GENERATED);
-    assert!(case.expected.len() <= MAX_EVENTS);
+    case
+}
+
+fn namespace_default_case() -> GeneratedCase {
+    let mut case = empty_case();
+    case.declarations = 1;
+    case.body_operations = 1;
+    let header = "<!DOCTYPE p:r [";
+    push_physical_fields(
+        &mut case,
+        header,
+        ExpectedKind::DtdBegin(header.to_owned(), RawSource::Borrowed),
+        vec![(FieldRole::DtdRaw, header.to_owned(), 0..header.len())],
+    );
+    let attlist = "<!ATTLIST p:r xmlns:p CDATA 'urn:p' p:a CDATA 'v'>";
+    push_physical_fields(
+        &mut case,
+        attlist,
+        ExpectedKind::DtdItem(
+            attlist.to_owned(),
+            LiteralSource::Physical,
+            RawSource::Borrowed,
+        ),
+        vec![(FieldRole::DtdRaw, attlist.to_owned(), 0..attlist.len())],
+    );
+    push_physical(&mut case, "]>", ExpectedKind::DtdEnd);
+    let start = case.source.len();
+    let raw = "<p:r/>";
+    case.source.push_str(raw);
+    case.expected.push(
+        physical(
+            ExpectedKind::Empty(
+                "p:r".to_owned(),
+                Some("urn:p".to_owned()),
+                vec![
+                    ExpectedAttribute {
+                        name: "xmlns:p".to_owned(),
+                        namespace: Some("http://www.w3.org/2000/xmlns/".to_owned()),
+                        value: "urn:p".to_owned(),
+                    },
+                    ExpectedAttribute {
+                        name: "p:a".to_owned(),
+                        namespace: Some("urn:p".to_owned()),
+                        value: "v".to_owned(),
+                    },
+                ],
+            ),
+            start..case.source.len(),
+        )
+        .with_fields(vec![
+            borrowed_field(FieldRole::ElementName, "p:r", start + 1..start + 4),
+            owned_field(FieldRole::AttributeName(0), "xmlns:p"),
+            owned_field(FieldRole::AttributeValue(0), "urn:p"),
+            owned_field(FieldRole::AttributeName(1), "p:a"),
+            owned_field(FieldRole::AttributeValue(1), "v"),
+        ]),
+    );
+    case
+}
+
+fn parameter_declaration_case() -> GeneratedCase {
+    let mut case = empty_case();
+    case.declarations = 2;
+    case.body_operations = 1;
+    let header = "<!DOCTYPE r [";
+    push_physical_fields(
+        &mut case,
+        header,
+        ExpectedKind::DtdBegin(header.to_owned(), RawSource::Borrowed),
+        vec![(FieldRole::DtdRaw, header.to_owned(), 0..header.len())],
+    );
+    let parameter = "<!ENTITY % p \"<!ENTITY e 'x'>\">";
+    push_physical_fields(
+        &mut case,
+        parameter,
+        ExpectedKind::DtdItem(
+            parameter.to_owned(),
+            LiteralSource::Physical,
+            RawSource::Borrowed,
+        ),
+        vec![(FieldRole::DtdRaw, parameter.to_owned(), 0..parameter.len())],
+    );
+    let invocation_start = case.source.len();
+    case.source.push_str("%p;");
+    case.expected.push(
+        replacement(
+            ExpectedKind::DtdItem(
+                "<!ENTITY e 'x'>".to_owned(),
+                LiteralSource::Replacement,
+                RawSource::Owned,
+            ),
+            0..15,
+            invocation_start..invocation_start + 3,
+        )
+        .with_fields(vec![owned_field(FieldRole::DtdRaw, "<!ENTITY e 'x'>")]),
+    );
+    case.logical_expansion = 15;
+    push_physical(&mut case, "]>", ExpectedKind::DtdEnd);
+    let root_start = case.source.len();
+    push_physical_fields(
+        &mut case,
+        "<r>",
+        ExpectedKind::Start("r".to_owned(), None, vec![]),
+        vec![(FieldRole::ElementName, "r".to_owned(), 1..2)],
+    );
+    debug_assert_eq!(root_start + 3, case.source.len());
+    let reference_start = case.source.len();
+    case.source.push_str("&e;");
+    case.expected.push(
+        replacement(
+            ExpectedKind::Text("x".to_owned()),
+            0..1,
+            reference_start..reference_start + 3,
+        )
+        .with_fields(vec![owned_field(FieldRole::Leaf, "x")]),
+    );
+    case.logical_expansion += 1;
+    push_physical_fields(
+        &mut case,
+        "</r>",
+        ExpectedKind::End("r".to_owned(), None),
+        vec![(FieldRole::EndName, "r".to_owned(), 2..3)],
+    );
+    case
+}
+
+fn declaration_misc_case(input: &[u8]) -> GeneratedCase {
+    let mut case = empty_case();
+    let declaration = "<?xml version='1.0' encoding='UTF-8'?>";
+    push_physical_fields(
+        &mut case,
+        declaration,
+        ExpectedKind::Declaration("1.0".to_owned(), Some("UTF-8".to_owned()), None),
+        vec![
+            (FieldRole::DeclarationVersion, "1.0".to_owned(), 15..18),
+            (FieldRole::DeclarationEncoding, "UTF-8".to_owned(), 30..35),
+        ],
+    );
+    push_no_subset(&mut case, "r");
+    push_physical_fields(
+        &mut case,
+        "<r>",
+        ExpectedKind::Start("r".to_owned(), None, vec![]),
+        vec![(FieldRole::ElementName, "r".to_owned(), 1..2)],
+    );
+    let body_count = (usize::from(control(input, 2)) % (MAX_BODY_OPERATIONS - 1)) + 2;
+    case.body_operations = body_count;
+    for operation in 0..body_count {
+        match control(input, 16 + operation) % 4 {
+            0 => {
+                let data = format!("d{operation}");
+                let raw = format!("<?q {data}?>");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Pi("q".to_owned(), data.clone()),
+                    vec![
+                        (FieldRole::PiTarget, "q".to_owned(), 2..3),
+                        (FieldRole::PiData, data, 4..raw.len() - 2),
+                    ],
+                );
+            }
+            1 => {
+                let value = format!("k{operation}");
+                let raw = format!("<![CDATA[{value}]]>");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Cdata(value.clone()),
+                    vec![(FieldRole::Leaf, value, 9..raw.len() - 3)],
+                );
+            }
+            2 => {
+                let value = format!("c{operation}");
+                let raw = format!("<!--{value}-->");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Comment(value.clone()),
+                    vec![(FieldRole::Leaf, value, 4..raw.len() - 3)],
+                );
+            }
+            _ => {
+                let value = char::from(b'a' + control(input, 32 + operation) % 26).to_string();
+                push_physical_text(&mut case, &value);
+            }
+        }
+    }
+    push_physical_fields(
+        &mut case,
+        "</r>",
+        ExpectedKind::End("r".to_owned(), None),
+        vec![(FieldRole::EndName, "r".to_owned(), 2..3)],
+    );
     case
 }
 
@@ -351,51 +731,127 @@ fn address_range(source: &str) -> Range<usize> {
     source.as_ptr() as usize..source.as_ptr() as usize + source.len()
 }
 
+#[derive(Debug)]
+enum ObservedStorage<'a> {
+    Borrowed(&'a str),
+    Owned(&'a str),
+}
+
+#[derive(Debug)]
+struct ObservedField<'a> {
+    role: FieldRole,
+    storage: ObservedStorage<'a>,
+}
+
 #[expect(
     clippy::ptr_arg,
     reason = "the oracle must observe the Cow storage discriminant"
 )]
-fn check_cow_storage(
-    value: &Cow<'_, str>,
-    generated: bool,
-    source: &str,
-    occurrence: Option<&Range<usize>>,
-) -> Result<(), &'static str> {
-    match value {
-        Cow::Borrowed(value) => {
-            if generated {
-                return Err("generated value borrowed physical input");
+fn cow_field<'a>(role: FieldRole, value: &'a Cow<'_, str>) -> ObservedField<'a> {
+    ObservedField {
+        role,
+        storage: match value {
+            Cow::Borrowed(value) => ObservedStorage::Borrowed(value),
+            Cow::Owned(value) => ObservedStorage::Owned(value),
+        },
+    }
+}
+
+fn name_field<'a>(role: FieldRole, name: &'a Name<'_>) -> ObservedField<'a> {
+    cow_field(role, name.qualified_source())
+}
+
+fn observed_fields<'a>(event: &'a ReaderEvent<'_>) -> Vec<ObservedField<'a>> {
+    match event {
+        ReaderEvent::Dtd(TakenDtdEvent::Begin(unit))
+        | ReaderEvent::Dtd(TakenDtdEvent::Item { unit, .. }) => vec![ObservedField {
+            role: FieldRole::DtdRaw,
+            storage: match unit.raw_source() {
+                RawSource::Borrowed => ObservedStorage::Borrowed(unit.raw()),
+                RawSource::Owned => ObservedStorage::Owned(unit.raw()),
+            },
+        }],
+        ReaderEvent::Dtd(TakenDtdEvent::End) => Vec::new(),
+        ReaderEvent::Xml(Event::Declaration(declaration)) => {
+            let mut fields = vec![ObservedField {
+                role: FieldRole::DeclarationVersion,
+                storage: ObservedStorage::Borrowed(declaration.version),
+            }];
+            if let Some(encoding) = declaration.encoding {
+                fields.push(ObservedField {
+                    role: FieldRole::DeclarationEncoding,
+                    storage: ObservedStorage::Borrowed(encoding),
+                });
             }
-            if !value.is_empty() {
+            fields
+        }
+        ReaderEvent::Xml(Event::Start(element) | Event::Empty(element)) => {
+            let mut fields = vec![name_field(FieldRole::ElementName, &element.name)];
+            for (index, attribute) in element.attributes.iter().enumerate() {
+                fields.push(name_field(FieldRole::AttributeName(index), &attribute.name));
+                fields.push(cow_field(
+                    FieldRole::AttributeValue(index),
+                    &attribute.value,
+                ));
+            }
+            fields
+        }
+        ReaderEvent::Xml(Event::End(name)) => vec![name_field(FieldRole::EndName, name)],
+        ReaderEvent::Xml(Event::Text(value) | Event::Cdata(value) | Event::Comment(value)) => {
+            vec![cow_field(FieldRole::Leaf, value)]
+        }
+        ReaderEvent::Xml(Event::ProcessingInstruction { target, data }) => vec![
+            cow_field(FieldRole::PiTarget, target),
+            cow_field(FieldRole::PiData, data),
+        ],
+    }
+}
+
+fn check_expected_fields(
+    event: &ReaderEvent<'_>,
+    expected: &[ExpectedField],
+    source: &str,
+) -> Result<(), &'static str> {
+    let observed = observed_fields(event);
+    if observed.len() != expected.len() {
+        return Err("field count differs");
+    }
+    for (observed, expected) in observed.into_iter().zip(expected) {
+        if observed.role != expected.role {
+            return Err("field role differs");
+        }
+        match (&observed.storage, &expected.storage) {
+            (ObservedStorage::Borrowed(actual), ExpectedStorage::Borrowed(range)) => {
+                if range.end > source.len()
+                    || range.start > range.end
+                    || source.get(range.clone()) != Some(expected.value.as_str())
+                {
+                    return Err("expected borrowed field range is invalid");
+                }
                 let base = source.as_ptr() as usize;
-                let Some(offset) = (value.as_ptr() as usize).checked_sub(base) else {
-                    return Err("borrowed value precedes the input");
+                let Some(offset) = (actual.as_ptr() as usize).checked_sub(base) else {
+                    return Err("borrowed field precedes input");
                 };
-                let Some(end) = offset.checked_add(value.len()) else {
-                    return Err("borrowed value range overflowed");
+                let Some(end) = offset.checked_add(actual.len()) else {
+                    return Err("borrowed field range overflowed");
                 };
-                let occurrence = occurrence.ok_or("borrowed value lacks a physical occurrence")?;
-                if offset < occurrence.start || end > occurrence.end {
-                    return Err("borrowed value is outside its exact physical occurrence");
+                if *actual != expected.value || offset != range.start || end != range.end {
+                    return Err("borrowed field is not its exact expected occurrence");
                 }
             }
-        }
-        Cow::Owned(value) => {
-            if !value.is_empty() && address_range(source).contains(&(value.as_ptr() as usize)) {
-                return Err("owned value aliases the input");
+            (ObservedStorage::Owned(actual), ExpectedStorage::Owned) => {
+                if *actual != expected.value {
+                    return Err("owned field value differs");
+                }
+                if !actual.is_empty() && address_range(source).contains(&(actual.as_ptr() as usize))
+                {
+                    return Err("owned field aliases input");
+                }
             }
+            _ => return Err("field storage class differs"),
         }
     }
     Ok(())
-}
-
-fn check_name_storage(
-    name: &Name<'_>,
-    generated: bool,
-    source: &str,
-    occurrence: Option<&Range<usize>>,
-) -> Result<(), &'static str> {
-    check_cow_storage(name.qualified_source(), generated, source, occurrence)
 }
 
 fn check_event_storage(
@@ -405,49 +861,36 @@ fn check_event_storage(
 ) -> Result<(), &'static str> {
     let input_range = origin.input_range();
     let generated = input_range.is_none();
-    match event {
-        ReaderEvent::Dtd(TakenDtdEvent::Begin(unit))
-        | ReaderEvent::Dtd(TakenDtdEvent::Item { unit, .. }) => {
-            let expected = if generated {
-                RawSource::Owned
-            } else {
-                RawSource::Borrowed
-            };
-            check_raw_source(unit, expected, source, origin.input_range())?;
-        }
-        ReaderEvent::Dtd(TakenDtdEvent::End) => {}
-        ReaderEvent::Xml(Event::Declaration(declaration)) => {
-            check_cow_storage(
-                &Cow::Borrowed(declaration.version),
-                false,
-                source,
-                input_range.as_ref(),
-            )?;
-            if let Some(encoding) = declaration.encoding {
-                check_cow_storage(
-                    &Cow::Borrowed(encoding),
-                    false,
-                    source,
-                    input_range.as_ref(),
-                )?;
+    for field in observed_fields(event) {
+        match field.storage {
+            ObservedStorage::Borrowed(value) => {
+                if generated {
+                    return Err("generated field borrowed physical input");
+                }
+                let base = source.as_ptr() as usize;
+                let Some(offset) = (value.as_ptr() as usize).checked_sub(base) else {
+                    return Err("borrowed field precedes input");
+                };
+                let Some(end) = offset.checked_add(value.len()) else {
+                    return Err("borrowed field range overflowed");
+                };
+                if end > source.len() {
+                    return Err("borrowed field exceeds input");
+                }
+                if field.role != FieldRole::DtdRaw {
+                    let range = input_range
+                        .as_ref()
+                        .ok_or("physical field lacks input occurrence")?;
+                    if offset < range.start || end > range.end {
+                        return Err("borrowed field lies outside event occurrence");
+                    }
+                }
             }
-        }
-        ReaderEvent::Xml(Event::Start(element) | Event::Empty(element)) => {
-            check_name_storage(&element.name, generated, source, input_range.as_ref())?;
-            for attribute in &element.attributes {
-                check_name_storage(&attribute.name, generated, source, input_range.as_ref())?;
-                check_cow_storage(&attribute.value, generated, source, input_range.as_ref())?;
+            ObservedStorage::Owned(value) => {
+                if !value.is_empty() && address_range(source).contains(&(value.as_ptr() as usize)) {
+                    return Err("owned field aliases input");
+                }
             }
-        }
-        ReaderEvent::Xml(Event::End(name)) => {
-            check_name_storage(name, generated, source, input_range.as_ref())?;
-        }
-        ReaderEvent::Xml(Event::Text(value) | Event::Cdata(value) | Event::Comment(value)) => {
-            check_cow_storage(value, generated, source, input_range.as_ref())?;
-        }
-        ReaderEvent::Xml(Event::ProcessingInstruction { target, data }) => {
-            check_cow_storage(target, generated, source, input_range.as_ref())?;
-            check_cow_storage(data, generated, source, input_range.as_ref())?;
         }
     }
     Ok(())
@@ -566,13 +1009,18 @@ fn replay_arbitrary(input: &[u8]) {
 }
 
 fn run_generated(case: GeneratedCase) {
+    assert!(case.source.len() <= MAX_GENERATED);
+    assert!(case.expected.len() <= MAX_EVENTS);
+    assert!(case.declarations <= MAX_DECLARATIONS);
+    assert!(case.body_operations <= MAX_BODY_OPERATIONS);
+    assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
     let mut reader = DtdReader::new(case.source.as_bytes(), options()).unwrap();
     let mut held = Vec::new();
     for expected in &case.expected {
         let (event, origin) = reader.read_event().unwrap().expect("expected event");
         assert_eq!(observed_kind(&event), expected.kind);
         assert_eq!(observed_origin(origin), expected.origin);
-        check_event_storage(&event, origin, &case.source).unwrap();
+        check_expected_fields(&event, &expected.fields, &case.source).unwrap();
         held.push((event, origin));
     }
     assert!(reader.read_event().unwrap().is_none());
@@ -582,7 +1030,7 @@ fn run_generated(case: GeneratedCase) {
     for ((event, origin), expected) in held.iter().zip(&case.expected) {
         assert_eq!(observed_kind(event), expected.kind);
         assert_eq!(observed_origin(*origin), expected.origin);
-        check_event_storage(event, *origin, &case.source).unwrap();
+        check_expected_fields(event, &expected.fields, &case.source).unwrap();
     }
 }
 
@@ -616,13 +1064,19 @@ pub(crate) fn replay_stdin() {
     exercise(&bytes);
 }
 
+const LARGEST_NESTED_CONTROL: [u8; 64] = [
+    0, 4, 8, 3, 0, 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
 const CONTROL_CORPUS: &[&[u8]] = &[
     b"",
     b"\xff",
     &[0, 4, 8, 0, 0, 0, 0, 0],
     &[1, 4, 8, 1, 1, 1, 1, 1],
     &[2, 4, 8, 2, 2, 2, 2, 2],
-    &[0, 1, 8, 3, 3, 3, 3, 3],
+    &[3, 1, 8, 3, 3, 3, 3, 3],
+    &LARGEST_NESTED_CONTROL,
 ];
 
 const SEMANTIC_CORPUS: &[&[u8]] = &[
@@ -680,8 +1134,20 @@ fn generator_respects_all_frozen_caps() {
         let case = generated_case(seed);
         assert!(case.source.len() <= MAX_GENERATED);
         assert!(case.expected.len() <= MAX_EVENTS);
-        assert!(case.source.matches("<!ENTITY ").count() <= MAX_DECLARATIONS);
+        assert!(case.declarations <= MAX_DECLARATIONS);
+        assert!(case.body_operations <= MAX_BODY_OPERATIONS);
+        assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
     }
+
+    let mut expansion = [0_u8; 64];
+    expansion[1] = 1;
+    expansion[2] = 8;
+    expansion[3] = 0;
+    expansion[13] = u8::MAX;
+    expansion[16..24].fill(1);
+    let case = generated_case(&expansion);
+    assert_eq!(case.logical_expansion, 8 * (1 + usize::from(u8::MAX) * 8));
+    assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
 }
 
 #[test]
@@ -690,12 +1156,22 @@ fn nested_generator_uses_the_first_entity_name_and_exact_local_ranges() {
     controls[1] = 2;
     controls[2] = 1;
     controls[3] = 3;
-    controls[8] = 0;
-    controls[9] = 1;
+    controls[9] = 0;
+    controls[10] = 1;
     controls[16] = 1;
     controls[32] = 1;
     let case = generated_case(&controls);
     assert!(case.source.contains("<!ENTITY e1b '&e0a;B'>"));
+    run_generated(case);
+}
+
+#[test]
+fn largest_nested_control_selects_all_references_and_stays_bounded() {
+    let case = generated_case(&LARGEST_NESTED_CONTROL);
+    assert_eq!(case.declarations, MAX_DECLARATIONS);
+    assert_eq!(case.body_operations, MAX_BODY_OPERATIONS);
+    assert_eq!(case.source.matches("&e3d;").count(), MAX_BODY_OPERATIONS);
+    assert_eq!(case.logical_expansion, MAX_BODY_OPERATIONS * 2);
     run_generated(case);
 }
 
@@ -889,80 +1365,56 @@ fn raw_source_oracle_rejects_wrong_storage_class_and_occurrence() {
 }
 
 #[test]
+fn field_oracle_rejects_equal_values_from_wrong_occurrences_including_empty_values() {
+    let source = "<r a='' b='' a2='x' b2='x'/>";
+    let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+    let (event, _) = reader.read_event().unwrap().unwrap();
+    let expected = vec![
+        borrowed_field(FieldRole::ElementName, "r", 1..2),
+        borrowed_field(FieldRole::AttributeName(0), "a", 3..4),
+        borrowed_field(FieldRole::AttributeValue(0), "", 6..6),
+        borrowed_field(FieldRole::AttributeName(1), "b", 8..9),
+        borrowed_field(FieldRole::AttributeValue(1), "", 11..11),
+        borrowed_field(FieldRole::AttributeName(2), "a2", 13..15),
+        borrowed_field(FieldRole::AttributeValue(2), "x", 17..18),
+        borrowed_field(FieldRole::AttributeName(3), "b2", 20..22),
+        borrowed_field(FieldRole::AttributeValue(3), "x", 24..25),
+    ];
+    assert_eq!(check_expected_fields(&event, &expected, source), Ok(()));
+
+    let mut wrong_empty = expected.clone();
+    wrong_empty[2].storage = ExpectedStorage::Borrowed(11..11);
+    assert_eq!(
+        check_expected_fields(&event, &wrong_empty, source),
+        Err("borrowed field is not its exact expected occurrence")
+    );
+
+    let mut wrong_equal = expected;
+    wrong_equal[6].storage = ExpectedStorage::Borrowed(24..25);
+    assert_eq!(
+        check_expected_fields(&event, &wrong_equal, source),
+        Err("borrowed field is not its exact expected occurrence")
+    );
+}
+
+#[test]
 fn parameter_generated_declaration_has_independent_transcript_and_owned_raw() {
-    let source = "<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>";
-    run_generated(GeneratedCase {
-        source: source.to_owned(),
-        expected: vec![
-            physical(
-                ExpectedKind::DtdBegin("<!DOCTYPE r [".to_owned(), RawSource::Borrowed),
-                0..13,
-            ),
-            physical(
-                ExpectedKind::DtdItem(
-                    "<!ENTITY % p \"<!ENTITY e 'x'>\">".to_owned(),
-                    LiteralSource::Physical,
-                    RawSource::Borrowed,
-                ),
-                13..44,
-            ),
-            replacement(
-                ExpectedKind::DtdItem(
-                    "<!ENTITY e 'x'>".to_owned(),
-                    LiteralSource::Replacement,
-                    RawSource::Owned,
-                ),
-                0..15,
-                44..47,
-            ),
-            physical(ExpectedKind::DtdEnd, 47..49),
-            physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 49..52),
-            replacement(ExpectedKind::Text("x".to_owned()), 0..1, 52..55),
-            physical(ExpectedKind::End("r".to_owned(), None), 55..59),
-        ],
-    });
+    let case = generated_case(&[2]);
+    assert_eq!(
+        case.source,
+        "<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>"
+    );
+    assert_eq!(case.declarations, 2);
+    assert_eq!(case.logical_expansion, 16);
+    run_generated(case);
 }
 
 #[test]
 fn namespace_defaults_have_ordered_transcript_and_owned_generated_fields() {
     let source = "<!DOCTYPE p:r [<!ATTLIST p:r xmlns:p CDATA 'urn:p' p:a CDATA 'v'>]><p:r/>";
-    run_generated(GeneratedCase {
-        source: source.to_owned(),
-        expected: vec![
-            physical(
-                ExpectedKind::DtdBegin("<!DOCTYPE p:r [".to_owned(), RawSource::Borrowed),
-                0..15,
-            ),
-            physical(
-                ExpectedKind::DtdItem(
-                    "<!ATTLIST p:r xmlns:p CDATA 'urn:p' p:a CDATA 'v'>".to_owned(),
-                    LiteralSource::Physical,
-                    RawSource::Borrowed,
-                ),
-                15..65,
-            ),
-            physical(ExpectedKind::DtdEnd, 65..67),
-            physical(
-                ExpectedKind::Empty(
-                    "p:r".to_owned(),
-                    Some("urn:p".to_owned()),
-                    vec![
-                        ExpectedAttribute {
-                            name: "xmlns:p".to_owned(),
-                            namespace: Some("http://www.w3.org/2000/xmlns/".to_owned()),
-                            value: "urn:p".to_owned(),
-                        },
-                        ExpectedAttribute {
-                            name: "p:a".to_owned(),
-                            namespace: Some("urn:p".to_owned()),
-                            value: "v".to_owned(),
-                        },
-                    ],
-                ),
-                67..73,
-            ),
-        ],
-    });
+    let case = generated_case(&[1]);
+    assert_eq!(case.source, source);
+    run_generated(case);
 
     let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
     let element = loop {
@@ -980,6 +1432,33 @@ fn namespace_defaults_have_ordered_transcript_and_owned_generated_fields() {
         assert!(matches!(attribute.name.qualified_source(), Cow::Owned(_)));
         assert!(matches!(attribute.value, Cow::Owned(_)));
     }
+}
+
+#[test]
+fn declaration_pi_and_cdata_selector_has_an_independent_transcript() {
+    let mut controls = [0_u8; 18];
+    controls[0] = 3;
+    controls[16] = 0;
+    controls[17] = 1;
+    let case = generated_case(&controls);
+    assert_eq!(
+        case.source,
+        "<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE r><r><?q d0?><![CDATA[k1]]></r>"
+    );
+    assert!(matches!(
+        case.expected[0].kind,
+        ExpectedKind::Declaration(ref version, Some(ref encoding), None)
+            if version == "1.0" && encoding == "UTF-8"
+    ));
+    assert!(case.expected.iter().any(
+        |event| matches!(&event.kind, ExpectedKind::Pi(target, data) if target == "q" && data == "d0")
+    ));
+    assert!(
+        case.expected
+            .iter()
+            .any(|event| matches!(&event.kind, ExpectedKind::Cdata(value) if value == "k1"))
+    );
+    run_generated(case);
 }
 
 #[test]
