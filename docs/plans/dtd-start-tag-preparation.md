@@ -152,7 +152,15 @@ where possible. Replacement-token element and explicit-attribute names are
 promoted to owned `Name` buffers under the shared budget before the controller
 can release or mutate its scratch/catalog state. Catalog-normalized explicit
 values move their returned `String` into the prepared tag after one shared-budget
-charge. Defaults borrow catalog data only during preparation; their name and
+charge. Normalization receives a narrow cumulative capacity-request allowance
+equal to the parser's remaining owned-byte allowance. Each geometric growth
+adds its full target capacity before allocation; successful earlier requests
+are returned and charged even when a later growth or semantic check fails. The
+catalog's native `ValueBytes` ceiling remains an independent bound on logical
+value length. Exceeding the caller allowance reports parser `OwnedBytes`, while
+exceeding the native ceiling remains catalog `ValueBytes`. A caller-limit error
+does not poison the reusable catalog, though work and reference attempts remain
+charged. Defaults borrow catalog data only during preparation; their name and
 normalized value are copied once into owned event fields after charging the
 shared budget. No catalog borrow survives a normalization call. Namespace scope
 and a nonempty element frame may require separate owned copies because they
@@ -169,7 +177,9 @@ crate-private `element_depth()` accessor. The entity-frame pre-end guard must ru
 against that depth before `end_element` mutates stack or namespace state; this
 start-tag checkpoint does not duplicate the guard inside namespace publication.
 
-Attribute `Vec` and lexical/expanded duplicate sets reserve fallibly. Size sums,
+Attribute `Vec` and lexical/expanded duplicate sets reserve fallibly. The
+namespace overlay counts declarations before reserving, so ordinary attributes
+do not allocate empty prefix/URI transaction maps. Size sums,
 the next namespace identity and binding counters use checked arithmetic. Failed
 preparation may consume catalog work and shared budget attempts, but it publishes
 no namespace binding, element frame, attribute or event. Catalog failures are

@@ -13,6 +13,8 @@ mod dtd_controller;
 mod dtd_frames;
 #[cfg(test)]
 mod dtd_scan;
+#[cfg(test)]
+mod dtd_tag;
 mod encoding;
 mod error;
 mod escape;

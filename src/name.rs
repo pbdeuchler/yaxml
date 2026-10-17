@@ -95,6 +95,10 @@ impl<'a> Name<'a> {
         self.prefix_length
     }
 
+    pub(crate) fn qualified_source(&self) -> &Cow<'a, str> {
+        &self.qualified
+    }
+
     pub(crate) fn as_borrowed(&self) -> Name<'_> {
         Name::from_validated_parts(
             Cow::Borrowed(&self.qualified),

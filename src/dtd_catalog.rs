@@ -94,6 +94,7 @@ pub(crate) enum CatalogErrorKind {
     InvalidReference,
     InvalidCharacter,
     InvalidPredefinedDeclaration,
+    CallerValueBytes,
     Limit(CatalogLimit),
     Allocation,
 }
@@ -474,12 +475,14 @@ impl DtdCatalog {
                             .quoted_literal_offset()
                             .expect("internal entity literal has a token")
                             + 1;
+                        let mut ignored = 0;
                         let result = self.process_value(
                             &quoted_literal[1..quoted_literal.len() - 1],
                             offset,
                             context.literals,
                             ValueMode::Entity,
                             Some(declaration),
+                            ValueRequest::unbounded(&mut ignored),
                         )?;
                         if let NormalizedValue::Unavailable(dependency) = &result {
                             effect.unavailable.get_or_insert(*dependency);
@@ -583,6 +586,7 @@ impl DtdCatalog {
                                 .default_literal_offset()
                                 .expect("default literal has a token")
                                 + 1;
+                            let mut ignored = 0;
                             let value = self.process_value(
                                 &quoted_literal[1..quoted_literal.len() - 1],
                                 offset,
@@ -591,6 +595,7 @@ impl DtdCatalog {
                                     tokenized: kind != AttributeKind::Cdata,
                                 },
                                 Some(declaration),
+                                ValueRequest::unbounded(&mut ignored),
                             )?;
                             StoredDefault::Value { fixed, value }
                         }
@@ -726,25 +731,78 @@ impl DtdCatalog {
         source: LiteralSource,
     ) -> Result<NormalizedValue, CatalogError> {
         self.remember(|catalog| {
-            let tokenized = catalog
-                .element_index
-                .get(element)
-                .and_then(|index| {
-                    let attributes = &catalog.elements[*index];
-                    attributes
-                        .index
-                        .get(name)
-                        .map(|index| attributes.ordered[*index].kind != AttributeKind::Cdata)
-                })
-                .unwrap_or(false);
-            catalog.process_value(
+            let mut ignored = 0;
+            catalog.normalize_attribute_value_inner(
+                element,
+                name,
                 literal_content,
-                0,
                 source,
-                ValueMode::Attribute { tokenized },
                 None,
+                &mut ignored,
             )
         })
+    }
+
+    pub(crate) fn normalize_attribute_value_bounded(
+        &mut self,
+        element: &str,
+        name: &str,
+        literal_content: &str,
+        source: LiteralSource,
+        caller_value_bytes: usize,
+        requested_value_bytes: &mut usize,
+    ) -> Result<NormalizedValue, CatalogError> {
+        *requested_value_bytes = 0;
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        let result = self.normalize_attribute_value_inner(
+            element,
+            name,
+            literal_content,
+            source,
+            Some(caller_value_bytes),
+            requested_value_bytes,
+        );
+        if let Err(error) = result
+            && error.kind != CatalogErrorKind::CallerValueBytes
+        {
+            self.failure = Some(error);
+        }
+        result
+    }
+
+    fn normalize_attribute_value_inner(
+        &mut self,
+        element: &str,
+        name: &str,
+        literal_content: &str,
+        source: LiteralSource,
+        caller_value_bytes: Option<usize>,
+        requested_value_bytes: &mut usize,
+    ) -> Result<NormalizedValue, CatalogError> {
+        let tokenized = self
+            .element_index
+            .get(element)
+            .and_then(|index| {
+                let attributes = &self.elements[*index];
+                attributes
+                    .index
+                    .get(name)
+                    .map(|index| attributes.ordered[*index].kind != AttributeKind::Cdata)
+            })
+            .unwrap_or(false);
+        self.process_value(
+            literal_content,
+            0,
+            source,
+            ValueMode::Attribute { tokenized },
+            None,
+            ValueRequest {
+                ceiling: caller_value_bytes,
+                requested: requested_value_bytes,
+            },
+        )
     }
 
     fn process_value(
@@ -754,6 +812,7 @@ impl DtdCatalog {
         source: LiteralSource,
         mode: ValueMode,
         declaration: Option<usize>,
+        request: ValueRequest<'_>,
     ) -> Result<NormalizedValue, CatalogError> {
         let may_be_unread = self.may_be_unread();
         let mut processor = ValueProcessor {
@@ -762,6 +821,7 @@ impl DtdCatalog {
             entities: &self.entities,
             frames: &mut self.frames,
             limits: self.limits,
+            request,
             usage: &mut self.usage,
             may_be_unread,
             raw,
@@ -801,12 +861,27 @@ enum ValueMode {
     Attribute { tokenized: bool },
 }
 
+struct ValueRequest<'a> {
+    ceiling: Option<usize>,
+    requested: &'a mut usize,
+}
+
+impl<'a> ValueRequest<'a> {
+    fn unbounded(requested: &'a mut usize) -> Self {
+        Self {
+            ceiling: None,
+            requested,
+        }
+    }
+}
+
 struct ValueProcessor<'a> {
     general: &'a HashMap<String, EntityId>,
     parameter: &'a HashMap<String, EntityId>,
     entities: &'a [Entity],
     frames: &'a mut Vec<ValueFrame>,
     limits: CatalogLimits,
+    request: ValueRequest<'a>,
     usage: &'a mut CatalogUsage,
     may_be_unread: bool,
     raw: &'a str,
@@ -1015,11 +1090,25 @@ impl ValueProcessor<'_> {
                 return Ok(());
             }
             if *pending_space {
-                append(output, ' ', self.limits.max_value_bytes, location)?;
+                append(
+                    output,
+                    ' ',
+                    self.limits.max_value_bytes,
+                    self.request.ceiling,
+                    self.request.requested,
+                    location,
+                )?;
                 *pending_space = false;
             }
         }
-        append(output, character, self.limits.max_value_bytes, location)
+        append(
+            output,
+            character,
+            self.limits.max_value_bytes,
+            self.request.ceiling,
+            self.request.requested,
+            location,
+        )
     }
 }
 
@@ -1104,6 +1193,8 @@ fn append(
     output: &mut String,
     character: char,
     ceiling: usize,
+    caller_ceiling: Option<usize>,
+    requested: &mut usize,
     location: ValueLocation,
 ) -> Result<(), CatalogError> {
     let needed = output
@@ -1118,6 +1209,12 @@ fn append(
             .max(64)
             .max(needed)
             .min(ceiling);
+        if let Some(caller_ceiling) = caller_ceiling {
+            *requested = requested
+                .checked_add(target)
+                .filter(|total| *total <= caller_ceiling)
+                .ok_or_else(|| error(CatalogErrorKind::CallerValueBytes, location))?;
+        }
         output
             .try_reserve_exact(target - output.len())
             .map_err(|_| error(CatalogErrorKind::Allocation, location))?;

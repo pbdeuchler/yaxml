@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 use std::ops::Range;
 
 use memchr::memchr;
@@ -19,6 +20,10 @@ pub(crate) struct Budget {
 }
 
 impl Budget {
+    pub(crate) fn max_attributes(&self) -> usize {
+        self.limits.max_attributes
+    }
+
     pub(crate) fn remaining_owned(&self) -> usize {
         self.limits.max_owned_bytes - self.owned_bytes
     }
@@ -70,9 +75,131 @@ struct Binding<'source> {
     previous: Option<usize>,
 }
 
+struct PendingBinding<'source> {
+    prefix: Cow<'source, str>,
+    uri: Cow<'source, str>,
+    namespace: Option<NamespaceId>,
+    previous: Option<usize>,
+}
+
+#[derive(Clone, Copy)]
+struct PendingNamespace {
+    id: NamespaceId,
+    bindings: usize,
+    existing: bool,
+}
+
 struct Frame<'source> {
     qualified: Cow<'source, str>,
     bindings_start: usize,
+}
+
+#[derive(Debug)]
+pub(crate) struct RawAttribute<'event> {
+    pub(crate) qualified: &'event str,
+    pub(crate) prefix_length: Option<NonZeroUsize>,
+    pub(crate) literal: &'event str,
+    pub(crate) name_offset: usize,
+    pub(crate) value_offset: usize,
+    pub(crate) value_end: usize,
+}
+
+#[derive(Debug)]
+pub(crate) struct RawTag<'event> {
+    pub(crate) qualified: &'event str,
+    pub(crate) prefix_length: Option<NonZeroUsize>,
+    pub(crate) attributes: Vec<RawAttribute<'event>>,
+    pub(crate) empty: bool,
+    pub(crate) start: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AttributeProvenance {
+    Specified {
+        name_offset: usize,
+        value_offset: usize,
+    },
+    #[cfg(test)]
+    Defaulted { declaration: usize },
+}
+
+impl AttributeProvenance {
+    pub(crate) fn offset(self, _fallback: usize) -> usize {
+        match self {
+            Self::Specified { name_offset, .. } => name_offset,
+            #[cfg(test)]
+            Self::Defaulted { .. } => _fallback,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct PreparedAttribute<'event> {
+    pub(crate) name: Name<'event>,
+    pub(crate) value: Cow<'event, str>,
+    pub(crate) provenance: AttributeProvenance,
+}
+
+#[derive(Debug)]
+pub(crate) struct PreparedTag<'event> {
+    pub(crate) name: Name<'event>,
+    pub(crate) attributes: Vec<PreparedAttribute<'event>>,
+    pub(crate) empty: bool,
+    pub(crate) start: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PreparedTagErrorLocation {
+    Input(usize),
+    #[cfg(test)]
+    Declaration {
+        declaration: usize,
+        offset: usize,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PreparedTagError {
+    pub(crate) kind: ErrorKind,
+    pub(crate) location: PreparedTagErrorLocation,
+}
+
+impl PreparedTagError {
+    fn input(error: Error) -> Self {
+        Self {
+            kind: error.kind,
+            location: PreparedTagErrorLocation::Input(error.offset),
+        }
+    }
+
+    fn attribute(error: Error, provenance: AttributeProvenance) -> Self {
+        let location = match provenance {
+            AttributeProvenance::Specified { name_offset, .. } => {
+                PreparedTagErrorLocation::Input(name_offset)
+            }
+            #[cfg(test)]
+            AttributeProvenance::Defaulted { declaration } => {
+                PreparedTagErrorLocation::Declaration {
+                    declaration,
+                    offset: 0,
+                }
+            }
+        };
+        Self {
+            kind: error.kind,
+            location,
+        }
+    }
+
+    fn into_input_error(self) -> Error {
+        match self.location {
+            PreparedTagErrorLocation::Input(offset) => Error::new(self.kind, offset),
+            #[cfg(test)]
+            PreparedTagErrorLocation::Declaration { .. } => {
+                unreachable!("DTD-free preparation has no declaration provenance")
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -103,6 +230,10 @@ pub(crate) struct ParserState<'source> {
 impl<'source> ParserState<'source> {
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
         &mut self.budget
+    }
+
+    pub(crate) fn element_depth(&self) -> usize {
+        self.stack.len()
     }
 
     pub(crate) fn new(limits: Limits, initial_offset: usize) -> Self {
@@ -181,7 +312,7 @@ impl<'source> ParserState<'source> {
             TokenKind::Start if matches!(self.phase, Phase::Epilog) => {
                 Err(Error::new(ErrorKind::MultipleRoots, offset))
             }
-            TokenKind::Start if self.stack.len() >= self.budget.limits.max_depth => {
+            TokenKind::Start if self.element_depth() >= self.budget.limits.max_depth => {
                 Err(Error::new(ErrorKind::LimitExceeded(Limit::Depth), offset))
             }
             TokenKind::Cdata if !self.in_content() => {
@@ -328,6 +459,17 @@ impl<'source> ParserState<'source> {
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
+        let raw = self.collect_raw_tag(raw, start)?;
+        let prepared = self.prepare_physical_tag(raw)?;
+        self.publish_prepared_tag(prepared, retain)
+            .map_err(PreparedTagError::into_input_error)
+    }
+
+    pub(crate) fn collect_raw_tag<'event>(
+        &self,
+        raw: &'event str,
+        start: usize,
+    ) -> Result<RawTag<'event>, Error> {
         if raw.len() < 2 || !raw.starts_with('<') || !raw.ends_with('>') {
             return Err(Error::new(ErrorKind::Syntax, start));
         }
@@ -339,94 +481,364 @@ impl<'source> ParserState<'source> {
             offset: start + 1,
         };
         let qualified = scan.name()?;
-        qname(qualified, start + 1)?;
-        let bindings_start = self.bindings.len();
+        let (prefix, _) = qname(qualified, start + 1)?;
+        let prefix_length = prefix.and_then(|value| NonZeroUsize::new(value.len()));
         let mut attributes = Vec::new();
-        while let Some((name, value, offset, value_offset)) = scan.attribute()? {
-            if attributes.len() == self.budget.limits.max_attributes {
+        let mut names = HashSet::new();
+        while let Some(attribute) = scan.attribute()? {
+            let name = attribute.qualified;
+            let offset = attribute.name_offset;
+            if attributes.len() == self.budget.max_attributes() {
                 return Err(Error::new(
                     ErrorKind::LimitExceeded(Limit::Attributes),
                     offset,
                 ));
             }
-            let (prefix, local) = qname(name, offset)?;
-            let value = self.normalized(value, value_offset, true, true)?;
-            let declaration = if name == "xmlns" {
-                Some("")
-            } else if prefix == Some("xmlns") {
-                Some(local)
+            let (prefix, _) = qname(name, offset)?;
+            if names.len() == names.capacity() {
+                names
+                    .try_reserve(1)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+            }
+            if !names.insert(name) {
+                return Err(Error::new(ErrorKind::DuplicateAttribute, offset));
+            }
+            attributes
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+            attributes.push(RawAttribute {
+                qualified: name,
+                prefix_length: prefix.and_then(|value| NonZeroUsize::new(value.len())),
+                literal: attribute.literal,
+                name_offset: offset,
+                value_offset: attribute.value_offset,
+                value_end: attribute.value_end,
+            });
+        }
+        Ok(RawTag {
+            qualified,
+            prefix_length,
+            attributes,
+            empty,
+            start,
+        })
+    }
+
+    fn prepare_physical_tag<'event>(
+        &mut self,
+        raw: RawTag<'event>,
+    ) -> Result<PreparedTag<'event>, Error> {
+        let mut attributes = Vec::new();
+        attributes
+            .try_reserve(raw.attributes.len())
+            .map_err(|_| Error::new(ErrorKind::Allocation, raw.start))?;
+        for attribute in raw.attributes {
+            debug_assert_eq!(
+                attribute.value_end.checked_sub(attribute.value_offset),
+                Some(attribute.literal.len())
+            );
+            let value = self.normalized(attribute.literal, attribute.value_offset, true, true)?;
+            attributes.push(PreparedAttribute {
+                name: Name::from_validated_parts(
+                    Cow::Borrowed(attribute.qualified),
+                    attribute.prefix_length,
+                    None,
+                ),
+                value,
+                provenance: AttributeProvenance::Specified {
+                    name_offset: attribute.name_offset,
+                    value_offset: attribute.value_offset,
+                },
+            });
+        }
+        Ok(PreparedTag {
+            name: Name::from_validated_parts(Cow::Borrowed(raw.qualified), raw.prefix_length, None),
+            attributes,
+            empty: raw.empty,
+            start: raw.start,
+        })
+    }
+
+    pub(crate) fn publish_prepared_tag<'event, F>(
+        &mut self,
+        mut prepared: PreparedTag<'event>,
+        retain: &mut F,
+    ) -> Result<Event<'event>, PreparedTagError>
+    where
+        'source: 'event,
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        let bindings_start = self.bindings.len();
+        let mut next_namespace = self.next_namespace;
+        let mut pending = Vec::new();
+        let mut pending_prefixes: HashMap<Cow<'source, str>, usize> = HashMap::new();
+        let mut pending_namespaces: HashMap<Cow<'source, str>, PendingNamespace> = HashMap::new();
+        let namespace_declarations = prepared
+            .attributes
+            .iter()
+            .filter(|attribute| {
+                attribute.name.qualified() == "xmlns" || attribute.name.prefix() == Some("xmlns")
+            })
+            .count();
+        pending.try_reserve(namespace_declarations).map_err(|_| {
+            PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+        })?;
+        pending_prefixes
+            .try_reserve(namespace_declarations)
+            .map_err(|_| {
+                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+            })?;
+        pending_namespaces
+            .try_reserve(namespace_declarations)
+            .map_err(|_| {
+                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+            })?;
+        for attribute in &prepared.attributes {
+            let name = &attribute.name;
+            let declaration = if name.qualified() == "xmlns" {
+                Some(("", 0..0))
+            } else if name.prefix() == Some("xmlns") {
+                let local = name.local();
+                Some((
+                    local,
+                    name.qualified().len() - local.len()..name.qualified().len(),
+                ))
             } else {
                 None
             };
-            if let Some(bound_prefix) = declaration {
+            if let Some((bound_prefix, prefix_range)) = declaration {
                 if bound_prefix == "xmlns"
-                    || value == XMLNS
-                    || (bound_prefix == "xml" && value != XML)
-                    || (bound_prefix != "xml" && value == XML)
-                    || (!bound_prefix.is_empty() && value.is_empty())
+                    || attribute.value == XMLNS
+                    || (bound_prefix == "xml" && attribute.value != XML)
+                    || (bound_prefix != "xml" && attribute.value == XML)
+                    || (!bound_prefix.is_empty() && attribute.value.is_empty())
                 {
-                    return Err(Error::new(ErrorKind::Namespace, offset));
+                    return Err(PreparedTagError::attribute(
+                        Error::new(
+                            ErrorKind::Namespace,
+                            attribute.provenance.offset(prepared.start),
+                        ),
+                        attribute.provenance,
+                    ));
                 }
-                let namespace = self.intern_namespace(&value, offset, retain)?;
-                self.bindings
-                    .try_reserve(1)
-                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                let retained_prefix = retain(bound_prefix, offset, &mut self.budget)?;
-                let uri = self.retain_value(&value, offset, retain)?;
-                let previous = self.namespace_index.get(bound_prefix).copied();
-                if let Some(slot) = self.namespace_index.get_mut(bound_prefix) {
-                    *slot = self.bindings.len();
+                let offset = attribute.provenance.offset(prepared.start);
+                let namespace = if attribute.value.is_empty() {
+                    None
+                } else if attribute.value == XML {
+                    Some(NamespaceId::Xml)
+                } else if let Some(namespace) = pending_namespaces.get_mut(attribute.value.as_ref())
+                {
+                    namespace.bindings = namespace.bindings.checked_add(1).ok_or_else(|| {
+                        PreparedTagError::attribute(
+                            Error::new(ErrorKind::Allocation, offset),
+                            attribute.provenance,
+                        )
+                    })?;
+                    Some(namespace.id)
                 } else {
-                    self.namespace_index
-                        .try_reserve(1)
-                        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                    let key = retain(bound_prefix, offset, &mut self.budget)?;
-                    self.namespace_index.insert(key, self.bindings.len());
-                }
-                self.bindings.push(Binding {
-                    prefix: retained_prefix,
+                    let (id, bindings, existing) =
+                        if let Some(entry) = self.namespace_ids.get(attribute.value.as_ref()) {
+                            let bindings = entry.bindings.checked_add(1).ok_or_else(|| {
+                                PreparedTagError::attribute(
+                                    Error::new(ErrorKind::Allocation, offset),
+                                    attribute.provenance,
+                                )
+                            })?;
+                            (entry.id, bindings, true)
+                        } else {
+                            let id = NamespaceId::Declared(next_namespace);
+                            next_namespace = next_namespace.checked_add(1).ok_or_else(|| {
+                                PreparedTagError::attribute(
+                                    Error::new(ErrorKind::Allocation, offset),
+                                    attribute.provenance,
+                                )
+                            })?;
+                            (id, 1, false)
+                        };
+                    let key = self
+                        .retain_value(&attribute.value, offset, retain)
+                        .map_err(|error| {
+                            PreparedTagError::attribute(error, attribute.provenance)
+                        })?;
+                    pending_namespaces.insert(
+                        key,
+                        PendingNamespace {
+                            id,
+                            bindings,
+                            existing,
+                        },
+                    );
+                    Some(id)
+                };
+                let prefix_key = self
+                    .retain_name_range(
+                        name.qualified_source(),
+                        prefix_range.clone(),
+                        offset,
+                        retain,
+                    )
+                    .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
+                let prefix = self
+                    .retain_name_range(
+                        name.qualified_source(),
+                        prefix_range.clone(),
+                        offset,
+                        retain,
+                    )
+                    .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
+                let uri = self
+                    .retain_value(&attribute.value, offset, retain)
+                    .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
+                let previous = self.namespace_index.get(bound_prefix).copied();
+                let index = pending.len();
+                let prior = pending_prefixes.insert(prefix_key, index);
+                debug_assert!(prior.is_none());
+                pending.push(PendingBinding {
+                    prefix,
                     uri,
                     namespace,
                     previous,
                 });
             }
-            attributes
-                .try_reserve(1)
-                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-            attributes.push(Attribute {
-                name: Name::from_validated_parts(
-                    Cow::Borrowed(name),
-                    prefix.and_then(|prefix| std::num::NonZeroUsize::new(prefix.len())),
-                    None,
-                ),
-                value,
-            });
         }
-        let (name, _) = self.resolve_name(qualified, false, start + 1)?;
+
+        self.resolve_namespace_with_pending(
+            &mut prepared.name,
+            false,
+            prepared.start + 1,
+            &pending,
+            &pending_prefixes,
+        )
+        .map_err(PreparedTagError::input)?;
         let mut expanded = HashSet::new();
         expanded
-            .try_reserve(attributes.len())
-            .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-        for attribute in &mut attributes {
-            let namespace = self.resolve_namespace(&mut attribute.name, true, start)?;
+            .try_reserve(prepared.attributes.len())
+            .map_err(|_| {
+                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+            })?;
+        for attribute in &mut prepared.attributes {
+            let offset = attribute.provenance.offset(prepared.start);
+            let namespace = self
+                .resolve_namespace_with_pending(
+                    &mut attribute.name,
+                    true,
+                    offset,
+                    &pending,
+                    &pending_prefixes,
+                )
+                .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
             if !expanded.insert((attribute.name.local(), namespace)) {
-                return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+                return Err(PreparedTagError::attribute(
+                    Error::new(ErrorKind::DuplicateAttribute, offset),
+                    attribute.provenance,
+                ));
             }
         }
-        let element = Element { name, attributes };
-        if empty {
+        let qualified = if prepared.empty {
+            None
+        } else {
+            Some(
+                self.retain_value(prepared.name.qualified_source(), prepared.start + 1, retain)
+                    .map_err(PreparedTagError::input)?,
+            )
+        };
+        let mut attributes = Vec::new();
+        attributes
+            .try_reserve(prepared.attributes.len())
+            .map_err(|_| {
+                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+            })?;
+        for attribute in prepared.attributes {
+            attributes.push(Attribute {
+                name: attribute.name,
+                value: attribute.value,
+            });
+        }
+        let element = Element {
+            name: prepared.name,
+            attributes,
+        };
+        self.bindings.try_reserve(pending.len()).map_err(|_| {
+            PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+        })?;
+        self.namespace_index
+            .try_reserve(
+                pending
+                    .iter()
+                    .filter(|binding| binding.previous.is_none())
+                    .count(),
+            )
+            .map_err(|_| {
+                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+            })?;
+        self.namespace_ids
+            .try_reserve(
+                pending_namespaces
+                    .values()
+                    .filter(|namespace| !namespace.existing)
+                    .count(),
+            )
+            .map_err(|_| {
+                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+            })?;
+        if !prepared.empty {
+            self.stack.try_reserve(1).map_err(|_| {
+                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
+            })?;
+        }
+
+        self.next_namespace = next_namespace;
+        for (key, namespace) in pending_namespaces {
+            if namespace.existing {
+                self.namespace_ids
+                    .get_mut(key.as_ref())
+                    .expect("planned existing namespace")
+                    .bindings = namespace.bindings;
+            } else {
+                self.namespace_ids.insert(
+                    key,
+                    NamespaceEntry {
+                        id: namespace.id,
+                        bindings: namespace.bindings,
+                    },
+                );
+            }
+        }
+        for binding in pending {
+            let (prefix_key, _) = pending_prefixes
+                .remove_entry(binding.prefix.as_ref())
+                .expect("planned namespace prefix");
+            let index = self.bindings.len();
+            if let Some(previous) = binding.previous {
+                *self
+                    .namespace_index
+                    .get_mut(binding.prefix.as_ref())
+                    .expect("planned existing prefix") = index;
+                self.bindings.push(Binding {
+                    prefix: binding.prefix,
+                    uri: binding.uri,
+                    namespace: binding.namespace,
+                    previous: Some(previous),
+                });
+            } else {
+                self.namespace_index.insert(prefix_key, index);
+                self.bindings.push(Binding {
+                    prefix: binding.prefix,
+                    uri: binding.uri,
+                    namespace: binding.namespace,
+                    previous: None,
+                });
+            }
+        }
+        if prepared.empty {
             self.unwind_bindings(bindings_start);
             if self.stack.is_empty() {
                 self.phase = Phase::Epilog;
             }
             Ok(Event::Empty(element))
         } else {
-            self.stack
-                .try_reserve(1)
-                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-            let qualified = retain(qualified, start + 1, &mut self.budget)?;
             self.stack.push(Frame {
-                qualified,
+                qualified: qualified.expect("nonempty tag retains its qualified name"),
                 bindings_start,
             });
             self.phase = Phase::Content;
@@ -455,42 +867,22 @@ impl<'source> ParserState<'source> {
 
     #[allow(
         clippy::ptr_arg,
-        reason = "the interner preserves borrowed input and charges owned copies"
+        reason = "the Cow variant determines whether a token borrow can be retained"
     )]
-    fn intern_namespace<'event, F>(
+    fn retain_name_range<'event, F>(
         &mut self,
-        uri: &Cow<'event, str>,
+        value: &Cow<'event, str>,
+        range: Range<usize>,
         offset: usize,
         retain: &mut F,
-    ) -> Result<Option<NamespaceId>, Error>
+    ) -> Result<Cow<'source, str>, Error>
     where
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
-        if uri.is_empty() {
-            return Ok(None);
+        match value {
+            Cow::Borrowed(raw) => retain(&raw[range], offset, &mut self.budget),
+            Cow::Owned(value) => self.budget.copy(&value[range], offset),
         }
-        if uri == XML {
-            return Ok(Some(NamespaceId::Xml));
-        }
-        if let Some(entry) = self.namespace_ids.get_mut(uri.as_ref()) {
-            entry.bindings = entry
-                .bindings
-                .checked_add(1)
-                .ok_or(Error::new(ErrorKind::Allocation, offset))?;
-            return Ok(Some(entry.id));
-        }
-        self.namespace_ids
-            .try_reserve(1)
-            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-        let key = self.retain_value(uri, offset, retain)?;
-        let id = NamespaceId::Declared(self.next_namespace);
-        self.next_namespace = self
-            .next_namespace
-            .checked_add(1)
-            .ok_or(Error::new(ErrorKind::Allocation, offset))?;
-        self.namespace_ids
-            .insert(key, NamespaceEntry { id, bindings: 1 });
-        Ok(Some(id))
     }
 
     fn resolve_name<'event>(
@@ -544,6 +936,56 @@ impl<'source> ParserState<'source> {
                 _ if prefix.is_some() => return Err(Error::new(ErrorKind::Namespace, offset)),
                 _ => (None, None),
             },
+        };
+        name.set_namespace(namespace);
+        Ok(identity)
+    }
+
+    fn resolve_namespace_with_pending<'event>(
+        &mut self,
+        name: &mut Name<'event>,
+        attribute: bool,
+        offset: usize,
+        pending: &[PendingBinding<'source>],
+        pending_prefixes: &HashMap<Cow<'source, str>, usize>,
+    ) -> Result<Option<NamespaceId>, Error>
+    where
+        'source: 'event,
+    {
+        let prefix = name.prefix();
+        let qualified = name.qualified();
+        let selected = prefix.unwrap_or("");
+        let planned = pending_prefixes.get(selected).map(|index| &pending[*index]);
+        let (namespace, identity) = match prefix {
+            Some("xmlns") if attribute => (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns)),
+            Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
+            Some("xml") => (Some(Cow::Borrowed(XML)), Some(NamespaceId::Xml)),
+            None if attribute && qualified == "xmlns" => {
+                (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns))
+            }
+            None if attribute => (None, None),
+            _ => {
+                let binding = planned
+                    .map(|binding| (&binding.uri, binding.namespace))
+                    .or_else(|| {
+                        self.namespace_index.get(selected).map(|index| {
+                            let binding = &self.bindings[*index];
+                            (&binding.uri, binding.namespace)
+                        })
+                    });
+                match binding {
+                    Some((uri, identity)) if !uri.is_empty() => {
+                        if let Cow::Owned(uri) = uri {
+                            self.budget.charge_owned(uri.len(), offset)?;
+                        }
+                        (Some(copy_cow(uri, offset)?), identity)
+                    }
+                    _ if prefix.is_some() => {
+                        return Err(Error::new(ErrorKind::Namespace, offset));
+                    }
+                    _ => (None, None),
+                }
+            }
         };
         name.set_namespace(namespace);
         Ok(identity)
@@ -629,6 +1071,14 @@ struct TagScanner<'a> {
     offset: usize,
 }
 
+struct ScannedAttribute<'a> {
+    qualified: &'a str,
+    literal: &'a str,
+    name_offset: usize,
+    value_offset: usize,
+    value_end: usize,
+}
+
 impl<'a> TagScanner<'a> {
     fn skip_space(&mut self) -> bool {
         let start = self.cursor;
@@ -657,7 +1107,7 @@ impl<'a> TagScanner<'a> {
     }
 
     // Returns the name's source offset; values are still unnormalized input.
-    fn attribute(&mut self) -> Result<Option<(&'a str, &'a str, usize, usize)>, Error> {
+    fn attribute(&mut self) -> Result<Option<ScannedAttribute<'a>>, Error> {
         let spaced = self.skip_space();
         if self.cursor == self.raw.len() {
             return Ok(None);
@@ -690,13 +1140,15 @@ impl<'a> TagScanner<'a> {
         if let Some(i) = memchr(b'<', value.as_bytes()) {
             return Err(Error::new(ErrorKind::Syntax, self.offset + value_start + i));
         }
+        let value_end = self.offset + self.cursor;
         self.cursor += 1;
-        Ok(Some((
-            name,
-            value,
-            self.offset + start,
-            self.offset + value_start,
-        )))
+        Ok(Some(ScannedAttribute {
+            qualified: name,
+            literal: value,
+            name_offset: self.offset + start,
+            value_offset: self.offset + value_start,
+            value_end,
+        }))
     }
 }
 
@@ -713,10 +1165,13 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Optio
     };
     let mut count = 0;
     let mut encoding_offset = None;
-    while let Some((name, value, position, _)) = scan
+    while let Some(attribute) = scan
         .attribute()
         .map_err(|e| Error::new(ErrorKind::InvalidDeclaration, e.offset))?
     {
+        let name = attribute.qualified;
+        let value = attribute.literal;
+        let position = attribute.name_offset;
         match name {
             "version"
                 if count == 0
