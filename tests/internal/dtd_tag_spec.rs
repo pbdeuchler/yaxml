@@ -2,7 +2,8 @@
 use super::*;
 use crate::dtd::{DtdLimits, DtdUnit, LiteralSource};
 use crate::dtd_catalog::{
-    CatalogErrorKind, CatalogLimits, DeclarationContext, DependencyKind, DtdCatalog, ValueLocation,
+    CatalogErrorKind, CatalogLimit, CatalogLimits, DeclarationContext, DependencyKind, DtdCatalog,
+    NormalizedValue, ValueLocation,
 };
 use crate::dtd_tag::{DtdTagErrorKind, DtdTagLocation, prepare_dtd_tag};
 
@@ -245,8 +246,8 @@ fn applied_defaults_count_toward_attribute_limit_including_xmlns() {
 #[test]
 fn generated_name_and_value_copies_spend_same_cumulative_budget() {
     for (source, required) in [
-        (LiteralSource::Physical, 1),
-        (LiteralSource::Replacement, 3),
+        (LiteralSource::Physical, 64),
+        (LiteralSource::Replacement, 66),
     ] {
         for allowance in [required - 1, required] {
             let mut catalog = catalog(&[]);
@@ -281,6 +282,90 @@ fn generated_name_and_value_copies_spend_same_cumulative_budget() {
                     owned
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn normalization_capacity_requests_are_cumulative_and_checked_before_growth() {
+    // Initial 64, then full 128 and 256 requests, including released buffers.
+    // These are capacity budgets, not normalized value-length budgets.
+    for (characters, allowance, requested, success) in [
+        (1, 1024, 64, true),
+        (65, 192, 192, true),
+        (129, 448, 448, true),
+        (129, 447, 192, false),
+    ] {
+        let mut catalog = catalog(&[]);
+        let mut state = ParserState::new(
+            Limits {
+                max_owned_bytes: allowance,
+                ..Limits::default()
+            },
+            0,
+        );
+        let value = "x".repeat(characters);
+        let raw = format!("<r a='{value}'/>");
+        let result = prepare(&mut state, &mut catalog, &raw, 0, LiteralSource::Physical);
+        if success {
+            assert_eq!(values(&result.unwrap()), [("a", value.as_str())]);
+        } else {
+            assert_eq!(
+                result.err().unwrap().kind,
+                DtdTagErrorKind::Parser(ErrorKind::LimitExceeded(Limit::OwnedBytes))
+            );
+        }
+        assert_eq!(
+            state.owned_budget().remaining_owned(),
+            allowance - requested
+        );
+    }
+}
+
+#[test]
+fn native_value_and_caller_capacity_limits_keep_distinct_causes_and_stickiness() {
+    for caller_limit in [31, 64] {
+        let mut catalog = DtdCatalog::new(
+            CatalogLimits {
+                max_value_bytes: 32,
+                ..CatalogLimits::default()
+            },
+            false,
+        );
+        let mut state = ParserState::new(
+            Limits {
+                max_owned_bytes: caller_limit,
+                ..Limits::default()
+            },
+            0,
+        );
+        let raw = format!("<r a='{}'/>", "x".repeat(33));
+        let error = prepare(&mut state, &mut catalog, &raw, 0, LiteralSource::Physical)
+            .err()
+            .unwrap();
+        if caller_limit == 31 {
+            assert_eq!(
+                error.kind,
+                DtdTagErrorKind::Parser(ErrorKind::LimitExceeded(Limit::OwnedBytes))
+            );
+            assert_eq!(state.owned_budget().remaining_owned(), 31);
+            assert_eq!(
+                catalog.normalize_attribute_value("r", "a", "ok", LiteralSource::Physical),
+                Ok(NormalizedValue::Value("ok".into()))
+            );
+        } else {
+            assert_eq!(
+                error.kind,
+                DtdTagErrorKind::Catalog(CatalogErrorKind::Limit(CatalogLimit::ValueBytes))
+            );
+            assert_eq!(state.owned_budget().remaining_owned(), 32);
+            assert_eq!(
+                catalog
+                    .normalize_attribute_value("r", "a", "ok", LiteralSource::Physical)
+                    .unwrap_err()
+                    .kind,
+                CatalogErrorKind::Limit(CatalogLimit::ValueBytes)
+            );
         }
     }
 }
