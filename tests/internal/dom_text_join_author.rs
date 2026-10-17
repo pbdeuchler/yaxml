@@ -93,6 +93,126 @@ fn failed_borrowed_promotion_preserves_value_origin_and_topology() {
 }
 
 #[test]
+fn owned_text_uses_spare_capacity_without_spending_budget_or_moving() {
+    let mut initial = String::with_capacity(8);
+    initial.push('a');
+    let initial_pointer = initial.as_ptr();
+    let mut document = empty_document();
+    let mut state = state(0);
+    let text = document
+        .append_text(
+            NodeId(0),
+            Cow::Owned(initial),
+            SourceOrigin::input(2..3),
+            state.owned_budget(),
+        )
+        .unwrap()
+        .unwrap();
+    document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("b"),
+            SourceOrigin::input(3..4),
+            state.owned_budget(),
+        )
+        .unwrap();
+
+    let NodeKind::Text(Cow::Owned(value)) = &document.nodes[text.0].kind else {
+        panic!("text must retain owned storage")
+    };
+    assert_eq!(value, "ab");
+    assert_eq!(value.as_ptr(), initial_pointer);
+    assert_eq!(state.owned_budget().remaining_owned(), 0);
+    assert_eq!(document.nodes[text.0].origin.input_range(), Some(2..4));
+}
+
+#[test]
+fn failed_owned_text_growth_preserves_value_origin_and_topology() {
+    let mut initial = String::with_capacity(1);
+    initial.push('a');
+    let capacity = initial.capacity();
+    let mut document = empty_document();
+    let mut state = state(capacity);
+    let text = document
+        .append_text(
+            NodeId(0),
+            Cow::Owned(initial),
+            SourceOrigin::input(5..6),
+            state.owned_budget(),
+        )
+        .unwrap()
+        .unwrap();
+    let before_nodes = document.nodes.len();
+    let before_first = document.nodes[0].first_child;
+    let before_last = document.nodes[0].last_child;
+    let incoming = "b".repeat(capacity);
+    let error = document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed(&incoming),
+            SourceOrigin::input(20..20 + incoming.len()),
+            state.owned_budget(),
+        )
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        Error::new(ErrorKind::LimitExceeded(Limit::OwnedBytes), 20)
+    );
+    assert_eq!(state.owned_budget().remaining_owned(), capacity);
+    assert_eq!(document.nodes.len(), before_nodes);
+    assert_eq!(document.nodes[0].first_child, before_first);
+    assert_eq!(document.nodes[0].last_child, before_last);
+    assert_eq!(document.nodes[text.0].origin.input_range(), Some(5..6));
+    let NodeKind::Text(Cow::Owned(value)) = &document.nodes[text.0].kind else {
+        panic!("text must retain owned storage")
+    };
+    assert_eq!(value, "a");
+}
+
+#[test]
+fn many_small_text_fragments_have_linear_requested_capacity() {
+    const FRAGMENTS: usize = 96;
+    const LIMIT: usize = 1024;
+    let mut document = empty_document();
+    let mut state = state(LIMIT);
+    let text = document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("x"),
+            SourceOrigin::input(0..1),
+            state.owned_budget(),
+        )
+        .unwrap()
+        .unwrap();
+    for offset in 1..FRAGMENTS {
+        assert_eq!(
+            document
+                .append_text(
+                    NodeId(0),
+                    Cow::Borrowed("x"),
+                    SourceOrigin::input(offset..offset + 1),
+                    state.owned_budget(),
+                )
+                .unwrap(),
+            Some(text)
+        );
+    }
+
+    let NodeKind::Text(value) = &document.nodes[text.0].kind else {
+        panic!("text node changed kind")
+    };
+    assert_eq!(value, &"x".repeat(FRAGMENTS));
+    assert_eq!(document.nodes.len(), 2);
+    assert_eq!(
+        document.nodes[text.0].origin.input_range(),
+        Some(0..FRAGMENTS)
+    );
+    let spent = LIMIT - state.owned_budget().remaining_owned();
+    assert!(spent <= 4 * FRAGMENTS, "requested {spent} bytes");
+}
+
+#[test]
 fn empty_text_is_not_published_and_cannot_hide_a_source_gap() {
     let mut document = empty_document();
     let mut state = state(16);

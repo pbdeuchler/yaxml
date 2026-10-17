@@ -244,9 +244,6 @@ fn append_text_value<'input>(
     offset: usize,
     budget: &mut crate::parser::Budget,
 ) -> Result<(), Error> {
-    if incoming.is_empty() {
-        return Ok(());
-    }
     let needed = previous
         .len()
         .checked_add(incoming.len())
