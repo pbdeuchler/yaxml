@@ -597,7 +597,7 @@ fn syntax_and_lexical_failures_report_the_selected_production_offset() {
             DtdErrorKind::InvalidPublicIdentifier,
         ),
         ("<!DOCTYPE r [^]>", DtdErrorKind::Syntax),
-        ("^<!BOGUS r>", DtdErrorKind::Syntax),
+        ("<!^BOGUS r>", DtdErrorKind::Syntax),
         ("<!ELEMENT^r EMPTY>", DtdErrorKind::Syntax),
         ("<!ELEMENT rEMPTY^>", DtdErrorKind::Syntax),
         ("<!ELEMENT r ^empty>", DtdErrorKind::Syntax),
