@@ -13,7 +13,14 @@ use crate::dtd_reference::{
 use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::escape::xml_char;
 use crate::{Error, ErrorKind};
+#[cfg(test)]
+use std::cell::Cell;
 use std::ops::Range;
+
+#[cfg(test)]
+thread_local! {
+    static PANIC_ON_NEXT_RELEASE: Cell<bool> = const { Cell::new(false) };
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TextSourceId {
@@ -502,6 +509,11 @@ impl<'input> TextHandoff<'input> {
     }
 }
 impl<'input> TextCoordinator<'input> {
+    #[cfg(test)]
+    pub(crate) fn panic_on_next_release_for_test() {
+        PANIC_ON_NEXT_RELEASE.with(|armed| armed.set(true));
+    }
+
     pub(crate) fn new(
         shared: TextShared,
         mut source: TextSourceLease<'input>,
@@ -652,6 +664,10 @@ impl<'input> TextCoordinator<'input> {
     }
     pub(crate) fn release_token(&mut self) -> Result<(), TextError> {
         self.remember(|s| {
+            #[cfg(test)]
+            PANIC_ON_NEXT_RELEASE.with(|armed| {
+                assert!(!armed.replace(false), "injected token-release panic");
+            });
             let pending = s.pending.clone();
             match pending {
                 Pending::TokenReady => {

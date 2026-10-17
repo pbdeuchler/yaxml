@@ -922,3 +922,80 @@ fn declaration_standalone_controls_unread_external_subset_failures() {
         assert_eq!(reader.event_origin(), Some(begin_origin));
     }
 }
+
+#[test]
+fn stable_lazy_tokenized_trim_retains_only_the_charged_capacity() {
+    let mut input = String::from("<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]><r a='x");
+    input.push_str(&" ".repeat(256));
+    input.push_str("'/>");
+    let mut reader = DtdReader::with_limits(
+        input.as_bytes(),
+        Limits {
+            max_owned_bytes: 64,
+            ..Limits::default()
+        },
+        configured(),
+    )
+    .unwrap();
+    for expected in ["begin", "item", "end"] {
+        assert_eq!(label(&reader.read_event().unwrap().unwrap().0), expected);
+    }
+    let (ReaderEvent::Xml(Event::Empty(mut root)), _) = reader.read_event().unwrap().unwrap()
+    else {
+        panic!("empty root")
+    };
+    assert_eq!(root.attributes.len(), 1);
+    let Cow::Owned(value) = root.attributes.remove(0).value else {
+        panic!("tokenized trimming must materialize the stable value")
+    };
+    assert_eq!(value, "x");
+    assert!(
+        value.capacity() <= 64,
+        "capacity {} exceeds the charged request",
+        value.capacity()
+    );
+    assert!(reader.read_event().unwrap().is_none());
+}
+
+#[test]
+fn release_panic_poison_is_sticky_without_republication_or_progress() {
+    const INPUT: &[u8] = b"<!DOCTYPE r><r/>";
+    let mut reader = DtdReader::new(INPUT, configured()).unwrap();
+    assert_eq!(label(&reader.read_event().unwrap().unwrap().0), "begin");
+    assert_eq!(label(&reader.read_event().unwrap().unwrap().0), "end");
+    let prior_origin = reader.event_origin();
+
+    crate::tokenizer::text::TextCoordinator::panic_on_next_release_for_test();
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = reader.read_event();
+    }));
+    assert!(panic.is_err());
+    assert_eq!(reader.position(), INPUT.len());
+    assert_eq!(reader.event_origin(), prior_origin);
+    let Phase::Content(controller) = &reader.session[0] else {
+        panic!("body controller remains owned after unwind")
+    };
+    let work = controller.counters().work;
+
+    let expected = SessionError::Poisoned {
+        physical_offset: INPUT.len(),
+    };
+    for _ in 0..3 {
+        assert_eq!(reader.read_event().unwrap_err(), expected);
+        assert_eq!(reader.position(), INPUT.len());
+        assert_eq!(reader.event_origin(), prior_origin);
+        let Phase::Content(controller) = &reader.session[0] else {
+            panic!("poisoned controller remains in place")
+        };
+        assert_eq!(controller.counters().work, work);
+    }
+
+    let mut control = DtdReader::new(INPUT, configured()).unwrap();
+    assert_eq!(
+        (0..3)
+            .map(|_| label(&control.read_event().unwrap().unwrap().0))
+            .collect::<Vec<_>>(),
+        ["begin", "end", "=r"]
+    );
+    assert!(control.read_event().unwrap().is_none());
+}
