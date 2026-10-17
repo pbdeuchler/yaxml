@@ -6,6 +6,32 @@ use crate::dtd_controller::{BorrowedDtdController, DtdController, TakenDtdEvent}
 use crate::stream::dtd::{SessionError, SessionLimits};
 use crate::tokenizer::Tokenizer;
 
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TestHook {
+    AfterOrdinaryTake,
+    AfterDeclarationsPop,
+    PhaseReservation,
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_HOOK: std::cell::Cell<Option<TestHook>> = const { std::cell::Cell::new(None) };
+}
+
+/// Consume a hook before failing so unwinding cannot re-arm it.
+#[cfg(test)]
+fn take_test_hook(expected: TestHook) -> bool {
+    TEST_HOOK.with(|hook| {
+        if hook.get() == Some(expected) {
+            hook.set(None);
+            true
+        } else {
+            false
+        }
+    })
+}
+
 #[derive(Debug)]
 pub(crate) enum ReaderEvent<'input> {
     Xml(Event<'input>),
@@ -186,13 +212,24 @@ impl<'input> DtdReader<'input> {
         }
     }
     fn start_dtd(&mut self, start: usize) -> Result<(), SessionError> {
+        #[cfg(test)]
+        if take_test_hook(TestHook::PhaseReservation) {
+            return Err(SessionError::Allocation {
+                physical_offset: start,
+            });
+        }
         self.session
             .try_reserve_exact(1)
             .map_err(|_| SessionError::Allocation {
                 physical_offset: start,
             })?;
+        self.physical = self.position();
         let ordinary = self.ordinary.take().expect("checked ordinary owner");
-        self.physical = ordinary.position();
+        #[cfg(test)]
+        assert!(
+            !take_test_hook(TestHook::AfterOrdinaryTake),
+            "injected panic after ordinary take"
+        );
         let controller = DtdController::stable_utf8(
             self.source,
             0,
@@ -212,6 +249,11 @@ impl<'input> DtdReader<'input> {
         else {
             unreachable!("declaration handoff")
         };
+        #[cfg(test)]
+        assert!(
+            !take_test_hook(TestHook::AfterDeclarationsPop),
+            "injected panic after declarations pop"
+        );
         let body = controller.into_body_state()?;
         let tokenizer = Tokenizer::new(
             self.limits.max_token_bytes,

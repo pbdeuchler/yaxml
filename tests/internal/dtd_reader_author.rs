@@ -45,6 +45,178 @@ fn label(event: &ReaderEvent<'_>) -> String {
     }
 }
 
+// The marker prevents moving a TLS cleanup guard onto a different thread.
+struct HookScope(std::marker::PhantomData<std::rc::Rc<()>>);
+
+impl HookScope {
+    fn arm(hook: TestHook) -> Self {
+        TEST_HOOK.with(|slot| {
+            assert_eq!(slot.get(), None, "test hook already armed");
+            slot.set(Some(hook));
+        });
+        Self(std::marker::PhantomData)
+    }
+}
+
+impl Drop for HookScope {
+    fn drop(&mut self) {
+        TEST_HOOK.with(|slot| slot.set(None));
+    }
+}
+
+const PHASE_MOVE_INPUT: &[u8] = b"<!--p--> \n<!DOCTYPE r><r/>";
+
+fn read_comment(reader: &mut DtdReader<'_>) {
+    assert!(matches!(
+        reader.read_event().unwrap().unwrap().0,
+        ReaderEvent::Xml(Event::Comment(Cow::Borrowed("p")))
+    ));
+    assert_eq!(reader.position(), 8);
+    assert_eq!(reader.event_range(), Some(0..8));
+}
+
+#[test]
+fn phase_move_panics_keep_truthful_progress_and_poison_before_any_more_work() {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+
+    for (hook, position, range, message) in [
+        (
+            TestHook::AfterOrdinaryTake,
+            10,
+            0..8,
+            "injected panic after ordinary take",
+        ),
+        (
+            TestHook::AfterDeclarationsPop,
+            22,
+            21..22,
+            "injected panic after declarations pop",
+        ),
+    ] {
+        let mut reader = DtdReader::new(PHASE_MOVE_INPUT, configured()).unwrap();
+        read_comment(&mut reader);
+        if hook == TestHook::AfterDeclarationsPop {
+            for expected in ["begin", "end"] {
+                assert_eq!(label(&reader.read_event().unwrap().unwrap().0), expected);
+            }
+        }
+        let scope = HookScope::arm(hook);
+        let panic = catch_unwind(AssertUnwindSafe(|| reader.read_event())).unwrap_err();
+        let actual = panic
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied());
+        assert_eq!(actual, Some(message));
+        TEST_HOOK.with(|slot| assert_eq!(slot.get(), None));
+        drop(scope);
+        assert_eq!(reader.position(), position);
+        assert_eq!(
+            reader.event_origin(),
+            Some(SourceOrigin::input(range.clone()))
+        );
+        assert!(reader.ordinary.is_none());
+        assert!(reader.session.is_empty());
+        let capacity = reader.session.capacity();
+
+        // A terminal read must not attempt either phase transition again.
+        let _scope = HookScope::arm(TestHook::PhaseReservation);
+        for _ in 0..3 {
+            assert_eq!(
+                reader.read_event().unwrap_err(),
+                SessionError::Poisoned {
+                    physical_offset: position,
+                }
+            );
+            assert_eq!(reader.position(), position);
+            assert_eq!(reader.event_range(), Some(range.clone()));
+            assert_eq!(
+                reader.event_origin(),
+                Some(SourceOrigin::input(range.clone()))
+            );
+            assert!(reader.ordinary.is_none());
+            assert!(reader.session.is_empty());
+            assert_eq!(reader.session.capacity(), capacity);
+            TEST_HOOK.with(|slot| assert_eq!(slot.get(), Some(TestHook::PhaseReservation)));
+        }
+        assert_eq!(reader.into_inner(), PHASE_MOVE_INPUT);
+    }
+}
+
+#[test]
+fn phase_reservation_failure_is_atomic_sticky_and_preserves_prior_origin() {
+    let mut reader = DtdReader::new(PHASE_MOVE_INPUT, configured()).unwrap();
+    read_comment(&mut reader);
+    let remaining_owned = reader
+        .ordinary
+        .as_mut()
+        .unwrap()
+        .state
+        .owned_budget()
+        .remaining_owned();
+    let scope = HookScope::arm(TestHook::PhaseReservation);
+    let expected = SessionError::Allocation {
+        physical_offset: 10,
+    };
+    assert_eq!(reader.read_event().unwrap_err(), expected);
+    TEST_HOOK.with(|slot| assert_eq!(slot.get(), None));
+    drop(scope);
+
+    let _scope = HookScope::arm(TestHook::AfterOrdinaryTake);
+    for _ in 0..3 {
+        assert_eq!(reader.read_event().unwrap_err(), expected);
+        assert_eq!(reader.position(), 10);
+        assert_eq!(reader.event_origin(), Some(SourceOrigin::input(0..8)));
+        assert_eq!(reader.event_range(), Some(0..8));
+        assert!(reader.session.is_empty());
+        assert_eq!(reader.session.capacity(), 0);
+        let ordinary = reader
+            .ordinary
+            .as_mut()
+            .expect("reservation precedes ownership move");
+        assert_eq!(ordinary.position(), 10);
+        assert_eq!(ordinary.event_range(), Some(0..8));
+        assert_eq!(ordinary.state.element_depth(), 0);
+        assert_eq!(
+            ordinary.state.owned_budget().remaining_owned(),
+            remaining_owned
+        );
+        TEST_HOOK.with(|slot| assert_eq!(slot.get(), Some(TestHook::AfterOrdinaryTake)));
+    }
+    assert_eq!(reader.into_inner(), PHASE_MOVE_INPUT);
+}
+
+#[test]
+fn phase_move_hooks_are_thread_local_one_shot_and_scoped() {
+    fn complete_control() {
+        let mut reader = DtdReader::new(PHASE_MOVE_INPUT, configured()).unwrap();
+        read_comment(&mut reader);
+        for (expected, position) in [("begin", 22), ("end", 22), ("=r", 26)] {
+            assert_eq!(label(&reader.read_event().unwrap().unwrap().0), expected);
+            assert_eq!(reader.position(), position);
+        }
+        for _ in 0..2 {
+            assert!(reader.read_event().unwrap().is_none());
+        }
+    }
+
+    for hook in [
+        TestHook::AfterOrdinaryTake,
+        TestHook::AfterDeclarationsPop,
+        TestHook::PhaseReservation,
+    ] {
+        let scope = HookScope::arm(hook);
+        std::thread::spawn(complete_control).join().unwrap();
+        TEST_HOOK.with(|slot| assert_eq!(slot.get(), Some(hook)));
+        assert!(take_test_hook(hook));
+        assert!(!take_test_hook(hook));
+        complete_control();
+        drop(scope);
+        let scope = HookScope::arm(hook);
+        drop(scope);
+        complete_control();
+    }
+}
+
 #[test]
 fn stable_values_survive_advance_and_reader_drop_with_literal_high_water_positions() {
     let input = String::from("<!DOCTYPE r [<!ENTITY e '<n/>x'><!ENTITY z ''>]><r>a&e;b&z;c</r>");
