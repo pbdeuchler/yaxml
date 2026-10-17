@@ -265,7 +265,9 @@ impl DtdController {
                 .physical_bytes
                 .checked_add(cost)
                 .is_none_or(|count| count > self.limits.max_physical_bytes);
-            let remaining = self.limits.max_work - self.counters.work;
+            let global_remaining = self.limits.max_work - self.counters.work;
+            let scan_remaining = self.limits.scan.max_work - self.counters.scanned_bytes;
+            let remaining = global_remaining.min(scan_remaining);
             self.physical
                 .cap_work(self.physical.position().saturating_add(remaining));
             if physical_block {
@@ -283,7 +285,7 @@ impl DtdController {
             }
             if let Err(error) = result {
                 if error.kind == ScanErrorKind::Limit(crate::dtd_scan::ScanLimit::Work)
-                    && (physical_block || remaining == 0)
+                    && (physical_block || global_remaining == 0)
                 {
                     return Err(
                         self.simple_error(ControllerErrorKind::Limit(if physical_block {
@@ -332,7 +334,9 @@ impl DtdController {
             return Ok(());
         }
         let byte = replacement.as_bytes()[cursor];
-        let remaining = self.limits.max_work - self.counters.work;
+        let global_remaining = self.limits.max_work - self.counters.work;
+        let scan_remaining = self.limits.scan.max_work - self.counters.scanned_bytes;
+        let remaining = global_remaining.min(scan_remaining);
         self.fragment
             .cap_work(self.fragment.position().saturating_add(remaining));
         let before = self.fragment.position();
@@ -342,7 +346,7 @@ impl DtdController {
         self.counters.scanned_bytes += consumed;
         if let Err(error) = result {
             if error.kind == ScanErrorKind::Limit(crate::dtd_scan::ScanLimit::Work)
-                && remaining == 0
+                && global_remaining == 0
             {
                 return Err(self.simple_error(ControllerErrorKind::Limit(ControllerLimit::Work)));
             }
@@ -452,8 +456,8 @@ impl DtdController {
             LiteralSource::Replacement
         };
         let before = self.catalog.usage().work;
-        self.catalog
-            .cap_work(before.saturating_add(self.limits.max_work - self.counters.work));
+        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
+        self.catalog.cap_work(ceiling);
         let result = self.catalog.apply(
             &unit,
             DeclarationContext {
@@ -463,6 +467,14 @@ impl DtdController {
         );
         self.counters.work += self.catalog.usage().work - before;
         let effect = result.map_err(|error| {
+            let kind = if error.kind
+                == CatalogErrorKind::Limit(crate::dtd_catalog::CatalogLimit::Work)
+                && ceiling <= self.limits.catalog.max_work
+            {
+                ControllerErrorKind::Limit(ControllerLimit::Work)
+            } else {
+                ControllerErrorKind::Catalog(error.kind)
+            };
             let relative = match error.location {
                 ValueLocation::Declaration { offset, .. } | ValueLocation::Input(offset) => {
                     Some(offset)
@@ -470,15 +482,9 @@ impl DtdController {
                 ValueLocation::Replacement { .. } => None,
             };
             let mut mapped = if let Some(relative) = relative {
-                map_unit_error(
-                    self.encoding,
-                    origin,
-                    unit.raw(),
-                    relative,
-                    ControllerErrorKind::Catalog(error.kind),
-                )
+                map_unit_error(self.encoding, origin, unit.raw(), relative, kind)
             } else {
-                self.error_for_origin(ControllerErrorKind::Catalog(error.kind), origin, None)
+                self.error_for_origin(kind, origin, None)
             };
             mapped.value_location = Some(error.location);
             mapped
@@ -567,13 +573,20 @@ impl DtdController {
                 }
             }
         };
+        // Keep the ID stack ready before frames publish a child or move its parent.
+        // Failed lookups and depth failures never need another active slot.
+        if id.is_some() && self.active.len() < self.limits.frames.max_active_depth {
+            self.active.try_reserve(1).map_err(|_| {
+                self.error_for_origin(ControllerErrorKind::Allocation, origin, None)
+            })?;
+        }
         if unavailable.is_some() {
             self.catalog.note_unread_parameter();
         }
         self.release_scanner(side);
         let before = self.frames.counters().work;
-        self.frames
-            .cap_work(before.saturating_add(self.limits.max_work - self.counters.work));
+        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
+        self.frames.cap_work(ceiling);
         let result = match side {
             Side::Physical => self.frames.enter_physical(
                 EntityKind::Parameter,
@@ -606,14 +619,18 @@ impl DtdController {
                 ));
             }
             return Err(self.error_for_origin(
-                ControllerErrorKind::Frame(error.kind),
+                if error.kind == FrameErrorKind::LimitExceeded(crate::dtd_frames::FrameLimit::Work)
+                    && ceiling <= self.limits.frames.max_work
+                {
+                    ControllerErrorKind::Limit(ControllerLimit::Work)
+                } else {
+                    ControllerErrorKind::Frame(error.kind)
+                },
                 origin,
-                None,
+                origin.replacement_range().map(|range| range.start),
             ));
         }
-        self.active
-            .try_reserve(1)
-            .map_err(|_| self.error_for_origin(ControllerErrorKind::Allocation, origin, None))?;
+
         self.active.push(id.expect("successful internal PE"));
         Ok(())
     }
@@ -623,16 +640,31 @@ impl DtdController {
             return Ok(());
         }
         let id = *self.active.last().expect("active unit source");
+        let origin = self.pending_origin(Side::Replacement)?;
         let before = self.frames.counters().work;
-        self.frames
-            .cap_work(before.saturating_add(self.limits.max_work - self.counters.work));
+        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
+        self.frames.cap_work(ceiling);
         let result = self.frames.advance_current(
             EntityDeclarationId::from_index(id.index()),
             self.catalog.replacement(id).expect("replacement source"),
             bytes,
         );
         self.counters.work += self.frames.counters().work - before;
-        result.map(|_| ()).map_err(|error| self.frame_error(error))
+        result.map(|_| ()).map_err(|error| {
+            let kind = if error.kind
+                == FrameErrorKind::LimitExceeded(crate::dtd_frames::FrameLimit::Work)
+                && ceiling <= self.limits.frames.max_work
+            {
+                ControllerErrorKind::Limit(ControllerLimit::Work)
+            } else {
+                ControllerErrorKind::Frame(error.kind)
+            };
+            self.error_for_origin(
+                kind,
+                origin,
+                origin.replacement_range().map(|range| range.start),
+            )
+        })
     }
 
     fn release_scanner(&mut self, side: Side) {
@@ -743,7 +775,8 @@ impl DtdController {
             kind,
             physical_offset: origin.physical_context().start,
             origin: Some(origin),
-            local_offset,
+            local_offset: local_offset
+                .or_else(|| origin.replacement_range().map(|range| range.start)),
             value_location: None,
         }
     }

@@ -17,7 +17,7 @@ and the real physical start offset. The existing Decoder remains the transport
 owner; the controller never decodes another document or infers transport input
 from replacement output.
 
-Proposed interface:
+Implemented private interface:
 
 - `DtdController::new(encoding, physical_start, limits, standalone)`;
 - `advance(decoded_bytes, &mut Budget) -> Result<usize, ControllerError>` stops
@@ -32,7 +32,9 @@ Proposed interface:
   progress/coverage and deterministic controller accounting;
 - `catalog()` lends effective bindings for the later instance-tag controller.
 
-DtdEvent is Begin(DoctypeHeaderView), Item(&DtdUnit), or End. The event borrows
+DtdEvent is Begin(DoctypeHeaderView), Item { unit: &DtdUnit, literals: LiteralSource }, or End.
+Item preserves the literal phase explicitly; replacement-created CR cannot be
+blindly serialized as physical raw text without changing later normalization. The event borrows
 one controller-owned validated unit, never a catalog replacement borrow.
 Begin exposes a typed header view rather than pretending the full lexical
 header's raw string has the Begin origin. For a no-subset header, raw grammar
@@ -129,7 +131,10 @@ Global work counts scanner-consumed bytes, one raw-unit grammar pass, owned raw
 copy bytes, catalog work, and frame work. Narrow component cap_work(absolute
 ceiling) methods only decrease their existing work ceilings before each
 operation, so component work cannot overrun the global allowance before an
-allocation. Scanner work is capped similarly before feeding an allowed slice.
+allocation. Scanner work is capped similarly before feeding an allowed slice. The scanner
+work ceiling additionally limits cumulative scanned_bytes across both physical
+and replacement scanners, including every restart; restarting scratch never
+restores that allowance.
 Synchronize committed component work deltas even when an operation fails.
 Counter arithmetic is checked. Frame reference attempts include failed/empty
 lookups; depth is checked before frame growth. Partial replacement bytes remain
@@ -140,6 +145,8 @@ Owned-copy quota is checked before unit promotion. Grammar token/model/attribute
 ceilings remain checked by DtdUnit before metadata growth. Scanner byte and
 scratch ceilings are checked before raw append/reservation. Reference/frame
 limits are checked by EntityFrames before publishing a child or parent cursor.
+The mirrored active-ID stack reserves its bounded next slot before frame entry,
+so a metadata allocation failure cannot publish only one of the two stacks.
 No prefix is rescanned per byte/chunk. Actual allocation exhaustion remains
 unforced unless a concrete safe test mechanism becomes available.
 

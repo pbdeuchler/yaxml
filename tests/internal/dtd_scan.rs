@@ -622,3 +622,42 @@ fn deterministic_literal_model_is_independent_of_partition_and_unit_order() {
         }
     }
 }
+
+#[test]
+fn fragment_restart_reuses_only_released_complete_boundaries_and_preserves_work_cap() {
+    let mut scanner = DtdScanner::new(ScanMode::SubsetFragment, limits());
+    scanner.cap_work(8);
+    scanner.cap_work(usize::MAX);
+    assert_eq!(scanner.pending(), (&b""[..], 0..0));
+    assert_eq!(scanner.advance(b"<!--x-->"), Ok(8));
+    assert_eq!(scanner.pending(), (&b"<!--x-->"[..], 0..8));
+    scanner.release();
+    scanner.finish_step().unwrap();
+    assert!(scanner.is_complete());
+    scanner.restart_fragment().unwrap();
+    assert_eq!(scanner.position(), 0);
+    assert!(!scanner.is_complete());
+    assert_eq!(scanner.advance(b"<!--x-->"), Ok(8));
+    scanner.release();
+    scanner.restart_fragment().unwrap();
+    let error = scanner.advance(b"<!--xx-->").unwrap_err();
+    assert_eq!(error.kind, ScanErrorKind::Limit(ScanLimit::Work));
+    assert_eq!(scanner.position(), 8);
+    assert_eq!(scanner.restart_fragment(), Err(error));
+}
+
+#[test]
+fn fragment_restart_rejects_wrong_modes_ready_partial_and_final_whitespace_states() {
+    for (mode, input) in [
+        (ScanMode::Doctype, &b""[..]),
+        (ScanMode::SubsetFragment, &b"<!--x-->"[..]),
+        (ScanMode::SubsetFragment, &b"<!--"[..]),
+        (ScanMode::SubsetFragment, &b" "[..]),
+    ] {
+        let mut scanner = DtdScanner::new(mode, limits());
+        scanner.advance(input).unwrap();
+        let error = scanner.restart_fragment().unwrap_err();
+        assert_eq!(error.kind, ScanErrorKind::Syntax);
+        assert_eq!(scanner.advance(b"<!--x-->"), Err(error));
+    }
+}
