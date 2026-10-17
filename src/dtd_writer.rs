@@ -105,6 +105,39 @@ pub(crate) struct DtdWriterState {
 }
 
 impl DtdWriterState {
+    pub(crate) fn check_begin_counts(
+        limits: DtdWriteLimits,
+        output_offset: usize,
+    ) -> Result<(), DtdWriteError> {
+        check_count(1, limits.max_events, DtdWriteLimit::Events, output_offset)
+    }
+
+    pub(crate) fn check_event_count(&self, output_offset: usize) -> Result<(), DtdWriteError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        checked_count(
+            self.counters.events,
+            1,
+            self.limits.max_events,
+            DtdWriteLimit::Events,
+            output_offset,
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn check_item_counts(&self, output_offset: usize) -> Result<(), DtdWriteError> {
+        self.check_event_count(output_offset)?;
+        checked_count(
+            self.counters.items,
+            1,
+            self.limits.max_items,
+            DtdWriteLimit::Items,
+            output_offset,
+        )?;
+        Ok(())
+    }
+
     pub(crate) fn check_unit_bounds(
         unit: &DtdUnit<'_>,
         limits: DtdLimits,
@@ -128,7 +161,7 @@ impl DtdWriterState {
                 output_offset,
             ));
         };
-        check_count(1, limits.max_events, DtdWriteLimit::Events, output_offset)?;
+        Self::check_begin_counts(limits, output_offset)?;
         check_count(
             encoded_bytes,
             limits.max_encoded_bytes,

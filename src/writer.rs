@@ -487,6 +487,7 @@ impl<W: Write> Writer<W> {
                 self.state
                     .check_doctype_start(self.position)
                     .map_err(WriteError::Xml)?;
+                DtdWriterState::check_begin_counts(limits, self.position)?;
                 let DtdUnitView::Header(header) = unit.view() else {
                     return Err(dtd_write_error(
                         DtdWriteErrorKind::InvalidUnitFamily,
@@ -531,6 +532,10 @@ impl<W: Write> Writer<W> {
                         None,
                     ));
                 }
+                self.state
+                    .check_event_limit(self.position)
+                    .map_err(WriteError::Xml)?;
+                state.check_item_counts(self.position)?;
                 if matches!(unit.view(), DtdUnitView::Header(_)) {
                     return Err(dtd_write_error(
                         DtdWriteErrorKind::InvalidUnitFamily,
@@ -539,9 +544,6 @@ impl<W: Write> Writer<W> {
                     ));
                 }
                 DtdWriterState::check_unit_bounds(unit, state.unit_limits(), self.position)?;
-                self.state
-                    .check_event_limit(self.position)
-                    .map_err(WriteError::Xml)?;
                 self.reset_buffer();
                 self.encode_dtd_item(unit, *literals)?;
                 self.dtd[0].item(unit, *literals, self.buffer.text.len(), self.position)?;
@@ -561,6 +563,7 @@ impl<W: Write> Writer<W> {
                 self.state
                     .check_event_limit(self.position)
                     .map_err(WriteError::Xml)?;
+                self.dtd[0].check_event_count(self.position)?;
                 self.reset_buffer();
                 self.buffer
                     .push(if has_internal_subset { "]>" } else { ">" })

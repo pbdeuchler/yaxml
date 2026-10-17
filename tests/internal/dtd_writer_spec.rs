@@ -1032,3 +1032,78 @@ fn replacement_growth_and_late_identifier_errors_never_write_rejected_prefix() {
     assert_eq!(w.position(), 13);
     terminal(&mut w);
 }
+
+#[test]
+fn exhausted_dtd_counts_precede_encoding_and_preserve_the_prepared_buffer() {
+    let mut w = Writer::with_limits(
+        Sink::default(),
+        WriterLimits {
+            max_output_bytes: 0,
+            ..WriterLimits::default()
+        },
+    );
+    let error = dtd(w
+        .write_dtd_event_with_limits(
+            &begin("<!DOCTYPE r ["),
+            DtdWriteLimits {
+                max_events: 0,
+                ..DtdWriteLimits::default()
+            },
+        )
+        .unwrap_err());
+    assert_eq!(error.kind, DtdWriteErrorKind::Limit(DtdWriteLimit::Events));
+    assert!(w.buffer.text.is_empty());
+    assert!(w.dtd.is_empty());
+    assert_eq!(w.sink.calls, 0);
+    assert_eq!(w.position(), 0);
+    terminal(&mut w);
+
+    for limit in [DtdWriteLimit::Events, DtdWriteLimit::Items] {
+        let mut limits = DtdWriteLimits::default();
+        match limit {
+            DtdWriteLimit::Events => limits.max_events = 1,
+            _ => limits.max_items = 0,
+        }
+        let mut w = Writer::new(Sink::default());
+        w.write_dtd_event_with_limits(&begin("<!DOCTYPE r ["), limits)
+            .unwrap();
+        let buffer = w.buffer.text.clone();
+        let bytes = w.sink.bytes.clone();
+        let calls = w.sink.calls;
+        let counts = w.dtd[0].counters();
+        let error = dtd(w
+            .write_dtd_event(&item(
+                "<!ENTITY e SYSTEM 'late\ridentifier'>",
+                LiteralSource::Replacement,
+            ))
+            .unwrap_err());
+        assert_eq!(error.kind, DtdWriteErrorKind::Limit(limit));
+        assert_eq!(error.output_offset, 13);
+        assert_eq!(w.buffer.text, buffer);
+        assert_eq!(w.sink.bytes, bytes);
+        assert_eq!(w.sink.calls, calls);
+        assert_eq!(w.dtd[0].counters(), counts);
+        assert_eq!(w.position(), 13);
+        terminal(&mut w);
+    }
+
+    let mut w = Writer::new(Sink::default());
+    w.write_dtd_event_with_limits(
+        &begin("<!DOCTYPE r ["),
+        DtdWriteLimits {
+            max_events: 1,
+            ..DtdWriteLimits::default()
+        },
+    )
+    .unwrap();
+    let buffer = w.buffer.text.clone();
+    let calls = w.sink.calls;
+    let counts = w.dtd[0].counters();
+    let error = dtd(w.write_dtd_event(&TakenDtdEvent::End).unwrap_err());
+    assert_eq!(error.kind, DtdWriteErrorKind::Limit(DtdWriteLimit::Events));
+    assert_eq!(w.buffer.text, buffer);
+    assert_eq!(w.sink.calls, calls);
+    assert_eq!(w.dtd[0].counters(), counts);
+    assert_eq!(w.position(), 13);
+    terminal(&mut w);
+}
