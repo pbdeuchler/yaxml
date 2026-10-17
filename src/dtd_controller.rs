@@ -867,3 +867,7 @@ fn map_unit_error(
 #[cfg(test)]
 #[path = "../tests/internal/dtd_controller_author.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_controller_spec.rs"]
+mod spec_tests;
