@@ -360,6 +360,35 @@ The freeze report is `/private/tmp/yaxml-dtd-streaming-freeze.md` (SHA-256
 `de35ac9e58e1950ede08c4f33be7a3f2a8ff1b7148be6ef7b4f09edcdd3f6ce6`), and
 the final holistic report is `/private/tmp/yaxml-streaming-closure-6184e1d.md`.
 
+The UTF-16 transport-resume freeze is
+`5c66933fc382de2c04a6a6fd5140736aad0fe079`, source tree
+`4d85a83c2c34f1fdc18ab441f121d78f3e67c7e8`. It removes the private session's
+UTF-8-only handoff: DTD entry carries the real TokenSpan encoding, and body
+tokenization resumes with distinct decoded UTF-8 and physical transport cursors.
+The same Decoder retains byte, code-unit, surrogate and pending-scalar carry.
+UTF-16 scalar costs are charged once against physical quotas; already charged
+continuation bytes drain before the decoder callback resumes. The shared change
+also reports a UTF-8 partial-body quota at the first unaccepted byte.
+
+Twenty-five prior/author streaming groups and twelve blind groups pass in debug
+and release. The blind tests were frozen against the earlier rejection behavior:
+two controls passed and ten UTF-16 feature tests failed. Combined coverage spans
+six LE/BE BOM/declaration transports, every physical split, one-byte feeds,
+non-BMP PE/GE content, physical and replacement origins, malformed carry,
+independent quotas, cancellation, callback errors/Budget, panic poison and EOF.
+Seven production faults and four oracle mutations are caught. Holistic review
+reports PASS with zero findings; measured private layouts are unchanged.
+
+The combined private tree passes 1,009 tests with nine ignored across 44
+all-target groups, all 571 library tests in release, all 13 doctests, strict
+all-target Clippy, formatting and diff checks. All 347 tracked files match their
+Git blobs. Source manifest:
+`/private/tmp/yaxml-dtd-utf16-freeze-source.tsv` (SHA-256
+`2c31bd99ecc5ece72154cfca08b17423b5d7b17f3886dd4802c81d600b06ad6e`).
+The freeze report is `/private/tmp/yaxml-dtd-utf16-freeze.md` (SHA-256
+`3582391c2a2e226297adefd25c1671e17d1841fd912d20046b3d88484afd8d14`), and
+the holistic report is `/private/tmp/yaxml-utf16-holistic-3f1cb10.md`.
+
 No fresh fuzz-only coverage or XMLTS result is claimed for these private
 modules. Main's most recent public-source measurement remains 6,936/7,406
 regions and 910/964 instrumented branch outcomes. Reaching 100%, sustained

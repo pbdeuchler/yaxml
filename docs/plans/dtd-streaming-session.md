@@ -115,7 +115,7 @@ Inherited max_physical_bytes/counters cover DOCTYPE plus body primary bytes;
 pre-DTD prolog bytes remain in the frontend's independent whole-input transport
 accounting. Do not relabel that DTD-relative total as the whole input limit.
 
-## 4. Buffered lending and encoding resume are explicit follow-ups
+## 4. Buffered lending remains an explicit follow-up
 
 BufferedReader currently releases the previous token, drains advance([]), then
 fill_buf/consume only when needed; it commits position delta even on XML error
@@ -134,15 +134,14 @@ or clone an event to escape the callback. Generated events can return their owne
 payloads; the source/token stays paused until acknowledgement. Buffer delivery
 counts as acceptance, so any later General scheduling follows that delivery.
 
-First private callback integration may be UTF-8-only: reject UTF-16 DTD entry
-explicitly; unchanged ordinary Stream still supports DTD-free UTF-16. Full private
-streaming parity requires extending the checked input resume operation beyond
-resume_utf8: carry the actual SourceEncoding and distinct inherited decoded and
-physical cursors into a clean tokenizer, retain the SAME Decoder carry, and map
-physical TokenSpans through that encoding. BOM is not a resume offset. Prove this
-with real Decoder-fed UTF-16 LE/BE, BOM/no-BOM, non-BMP and all-split tests; never
-label UTF-8 slices as transported UTF-16 in a frontend parity claim. Preserve the
-UTF-16 scratch request bound min((raw_limit/2)*3, decoded_limit).
+The first private callback integration was UTF-8-only and rejected UTF-16 DTD
+entry explicitly. The second private checkpoint extends the checked input resume
+operation beyond `resume_utf8`: it carries the actual SourceEncoding and distinct
+inherited decoded and physical cursors into a clean tokenizer, retains the same
+Decoder carry, and maps physical TokenSpans through that encoding. BOM is not a
+resume offset. Real Decoder-fed UTF-16 LE/BE, BOM/no-BOM, non-BMP and all-split
+tests now cover this seam. The UTF-16 scratch request bound remains
+min((raw_limit/2)*3, decoded_limit).
 
 ## Reader difference and activation boundary
 
@@ -200,7 +199,43 @@ byte source verification pass. Evidence is recorded in
 `/private/tmp/yaxml-dtd-streaming-freeze.md`; the 345-file source manifest is
 `/private/tmp/yaxml-dtd-streaming-freeze-source.tsv`.
 
-This checkpoint deliberately leaves the lending publication seam, full UTF-16
-DTD resume, BufferedReader I/O integration, stable Reader borrowing, ordered DOM
-DTD storage, public error mapping and public activation for later slices. It adds
-no fresh fuzz-coverage, XMLTS or performance claim.
+This checkpoint deliberately leaves the lending publication seam,
+BufferedReader I/O integration, stable Reader borrowing, ordered DOM DTD
+storage, public error mapping and public activation for later slices. It adds no
+fresh fuzz-coverage, XMLTS or performance claim.
+
+## UTF-16 transport-resume checkpoint
+
+The next private checkpoint is frozen at integration commit
+`5c66933fc382de2c04a6a6fd5140736aad0fe079`, tree
+`4d85a83c2c34f1fdc18ab441f121d78f3e67c7e8`. It accepts UTF-16LE/BE DTD input
+with a BOM, including generic `UTF-16` declarations, and matching endian-specific
+declarations without a BOM. The same Decoder, ParserState, Budget, catalog,
+frames, nonce and event counter cross both handoffs. Code-unit, surrogate and
+pending-scalar carry remain in the Decoder.
+
+`TextSourceLease::resume` installs the inherited source encoding on a clean
+tokenizer with separate decoded UTF-8 and physical transport positions. Physical
+quota selection charges a complete UTF-16 scalar once and drains its already
+charged UTF-8 continuation bytes before returning NeedPhysicalInput. This also
+fixes UTF-8 partial-body quota diagnostics to identify the first unaccepted byte
+after an accepted token prefix.
+
+Twenty-five prior/author groups and twelve independently authored blind groups
+pass in debug and release. The blind suite was written against the earlier tree:
+two controls passed and ten UTF-16 tests failed at the old rejection gate. It
+covers six transports, every physical byte split and one-byte feeds, non-BMP
+PE/GE values, exact physical/local origins, malformed units and EOF, independent
+quotas, cancellation, callback identity, shared Budget and panic poisoning.
+Seven production faults and four oracle mutations fail their intended tests.
+Holistic review reports zero findings.
+
+The combined private tree passes 1,009 tests with nine ignored, 571 release
+library tests and 13 doctests. Strict all-target Clippy, formatting and a
+347-file byte audit pass. Evidence is recorded in
+`/private/tmp/yaxml-dtd-utf16-freeze.md`; the source manifest is
+`/private/tmp/yaxml-dtd-utf16-freeze-source.tsv`.
+
+This is still a private callback checkpoint. It does not activate Reader,
+BufferedReader, Push, either DOM, public DTD events or Writer round trips, and it
+adds no fresh fuzz-coverage, XMLTS or performance claim.

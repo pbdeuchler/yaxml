@@ -151,10 +151,14 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   keeps one event ceiling, ownership Budget and standalone value through the
   declaration/content handoff. Eighteen author and independent groups pass in
   debug and release; deliberate production-route allocation, standalone and
-  callback-panic faults are caught. The combined private freeze passes 990 tests
-  with nine ignored, 552 release library tests and 13 doctests. UTF-16 DTD
-  resume, Buffered lending, stable Reader publication, DOM storage and public
-  activation remain explicit follow-ups.
+  callback-panic faults are caught. The next private checkpoint carries actual
+  UTF-16LE/BE encoding and distinct decoded/physical cursors through the same
+  Decoder, declarations and generated body content. Its 37 combined streaming
+  groups cover six transports, every byte split, non-BMP entities, origins,
+  quotas and terminal failures. The combined private freeze passes 1,009 tests
+  with nine ignored, 571 release library tests and 13 doctests. Buffered lending,
+  stable Reader publication, DOM storage and public activation remain explicit
+  follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
