@@ -847,10 +847,10 @@ fn run_error(controller: &mut ContentController, body: &str) -> ContentError {
             Err(error) => return error,
             Ok(step) => {
                 cursor += step.consumed;
-                if step.outcome == ContentOutcome::EventReady {
-                    if let Err(error) = emit(controller) {
-                        return error;
-                    }
+                if step.outcome == ContentOutcome::EventReady
+                    && let Err(error) = emit(controller)
+                {
+                    return error;
                 }
             }
         }
@@ -898,14 +898,16 @@ fn global_work_exact_boundary_is_inherited_and_checked_before_publication() {
 #[test]
 fn generated_owned_budget_one_short_is_atomic_and_sticky() {
     let dtd = "<!DOCTYPE r [<!ENTITY e \"<p:n xmlns:p='u'/>\">]>";
-    let mut exact_limits = Limits::default();
     // Streaming DTD units retain every byte except the two-byte `]>`. The
     // generated tag then requests 3 bytes for `p:n`, 7 for `xmlns:p`, the
     // catalog's documented first 64-byte normalized-value block. Namespace
     // publication then retains the URI key, two prefix views, binding URI, and
     // event namespace URI (five one-byte copies). The preceding physical `<r>`
     // also retains its one-byte stack name in this scratch-lending slice.
-    exact_limits.max_owned_bytes = dtd.len() - 2 + 80;
+    let exact_limits = Limits {
+        max_owned_bytes: dtd.len() - 2 + 80,
+        ..Limits::default()
+    };
     let exact = run(
         make_with(dtd, ControllerLimits::default(), exact_limits, DTD_WORK),
         "<r>&e;</r>",
@@ -914,8 +916,10 @@ fn generated_owned_budget_one_short_is_atomic_and_sticky() {
         panic!("literal generated ownership total must fit: {error:?}");
     }
 
-    let mut short_limits = Limits::default();
-    short_limits.max_owned_bytes = dtd.len() - 2 + 79;
+    let short_limits = Limits {
+        max_owned_bytes: dtd.len() - 2 + 79,
+        ..Limits::default()
+    };
     let mut short = make_with(dtd, ControllerLimits::default(), short_limits, DTD_WORK);
     let error = run_error(&mut short, "<r>&e;</r>");
     assert_eq!(
@@ -959,9 +963,11 @@ fn controller_after_real_parser_preamble(limits: Limits) -> ContentController {
 
 #[test]
 fn handoff_keeps_the_same_parser_event_and_owned_budget_state() {
-    let mut exact = Limits::default();
-    exact.max_events = 4; // PI, Start r, generated Text x, End r.
-    exact.max_owned_bytes = 7; // Five prior + physical stack `r` + generated `x`.
+    let exact = Limits {
+        max_events: 4,      // PI, Start r, generated Text x, End r.
+        max_owned_bytes: 7, // Five prior + physical stack `r` + generated `x`.
+        ..Limits::default()
+    };
     let (seen, _) = run(controller_after_real_parser_preamble(exact), "<r>&e;</r>").unwrap();
     assert_eq!(seen.len(), 3);
     assert!(
