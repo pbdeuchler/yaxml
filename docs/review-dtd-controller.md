@@ -7,6 +7,8 @@ Worktree: `/private/tmp/yaxml-dtd-integration`, branch
 This extends the [semantic/frame review](review-dtd-semantics.md); none of these
 private modules or representation changes is being activated on main.
 The subsequent borrowed-adapter freeze is recorded below.
+The later [tag, content foundation and Writer review](review-dtd-tags-writer.md)
+records resolved tag-review findings and the next combined private freeze.
 
 Verdict: suitable for the next private attribute/content integration stage.
 Public DTD acceptance remains blocked on the complete runtime path, source-complete

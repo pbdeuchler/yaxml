@@ -115,6 +115,15 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   [Writer protocol](plans/dtd-writer-protocol.md) have reviewed outlines.
   Public activation, attribute/content integration and its full validation
   gates remain open.
+  The subsequent [tag and Writer review](review-dtd-tags-writer.md) records atomic
+  default/namespace preparation, local token/reference foundations and the
+  private Writer protocol: 885 ordinary tests, all 447 library tests in release
+  and 13 doctests pass. Review corrected capacity and diagnostic accounting and
+  a release-only publication defect. A measured staging regression led to
+  restoring the ordinary one-pass tag path; retained repeats support removal
+  of the large cost without establishing zero regression. Generated content
+  scheduling, public activation and fresh DTD fuzz/conformance evidence remain
+  open.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The

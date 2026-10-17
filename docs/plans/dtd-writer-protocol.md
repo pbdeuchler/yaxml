@@ -202,7 +202,10 @@ Before public activation, freeze a public nested limits shape rather than adding
 many unrelated flat WriterLimits fields.
 
 - `DtdUnit::check_limits` inspects already-validated metadata and raw length; it
-  does not reparse raw text.
+  does not reparse raw text. Perform O(1) byte/token checks first, compute the
+  bounded token-inspection cost, charge it to Writer-global DTD work, and only
+  then scan flat model/attribute metadata. A tighter model-depth limit cannot
+  introduce uncharged linear work.
 - encoded bytes are checked by TokenBuffer and cumulatively by the DTD byte
   ceiling with checked arithmetic;
 - DtdCatalog retains its declaration, binding, storage, value, expansion,
@@ -216,6 +219,20 @@ DTD event counters commit only after successful preparation. Failed work and
 catalog work need not be refunded because failure is terminal. No unchecked
 addition, allocator panic path, ambient I/O, retry with a fresh budget, or
 whole-subset output buffer is introduced.
+
+Keep native and aggregate work failures distinct. `DtdCatalog` retains its own
+configured `CatalogLimit::Work`; before each apply, temporarily cap it by the
+remaining Writer-global DTD work as the controller does. A native ceiling that
+is first remains a catalog failure, while an equal-or-tighter aggregate ceiling
+reports Writer DTD work. Do not relabel every catalog work failure as global.
+
+Catalog and unavailable errors can identify an earlier declaration or an
+entity-replacement location that has no truthful coordinate in the current
+output event. Retain that typed `ValueLocation` privately and anchor the Writer
+failure at the current prospective event start. Only map a unit-local location
+inside the current event when the encoder has an explicit raw-to-encoded prefix
+mapping. Never present an earlier declaration-local offset as a prospective
+output offset.
 
 ## Narrow source and test slice
 

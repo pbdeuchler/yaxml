@@ -1,5 +1,9 @@
 # Private general-entity content controller
 
+The concrete Text/reference boundary follow-up is specified in
+[dtd-text-reference-adapter.md](dtd-text-reference-adapter.md). The lexical
+foundation alone does not yet implement that composition.
+
 Plan-only base: `f43f90b`. No behavior code or public DTD acceptance is authorized
 by this note. Consume the borrowed-DTD adapter's reviewed `DtdBodyState` handoff;
 do not implement a parallel declaration engine or general parser framework.
@@ -210,6 +214,7 @@ by the same retained `limits.max_work`. Its accounting units are explicit:
 
 - count each newly accepted decoded source byte once in scanner work, whether
   physical or replacement; include reference scratch collection in that scan;
+- charge each raw reference append-copy before growing its scratch buffer;
 - charge one reference-spelling length before its final UTF-8/name/classification
   pass; incomplete fragments are never reclassified from the beginning per chunk;
 - charge copied reference bytes once before replaying numeric/predefined spelling
@@ -275,3 +280,58 @@ across subsequent calls; prior-PE-to-GE counter/nonce continuity; exact/one-shor
 source/scratch/work/copy/depth/attempt/expanded/event limits and atomic rejected
 End/start publication. Public activation still needs reviewed full API/DOM/Writer
 representation, complete fuzz/XMLTS/layout/performance gates and measured evidence.
+
+## First compiling lexical foundation (private staging)
+
+The first source checkpoint adds only the following components. It does not yet
+compose references with Text, look up entities, schedule frames, prepare tags,
+or wire a frontend/session container.
+
+- `tokenizer::local::LocalTokenizer` is a sealed wrapper over the existing
+  Tokenizer. Its ready span is `ReadySpan::Local(range)` rather than an Input
+  TokenSpan. Ordinary physical consumer signatures remain unchanged. The local
+  wrapper/variant/mode flag are test-only staging until activation; no blanket
+  dead-code suppression is used.
+- `LocalLimits` bounds token bytes, scratch bytes and aggregate work. `LocalUsage`
+  counts newly examined source bytes once, plus one complete-token validation
+  pass. Saved `<` replay advances no source counter. Release keeps transport-free
+  local position; EOF seals appends, partial source EOF fails, and restart requires
+  a released completed source while preserving aggregate usage. DOCTYPE and
+  invalid-markup sentinel prefixes are failures, never content events.
+- `dtd_reference::ReferenceScratch` retains one raw `&...;` and returns its exact
+  local range plus Numeric/Predefined/General classification. Numeric scalar
+  inspection does not replace its raw spelling or rescan output. It performs no
+  catalog lookup. Separate byte/scratch/work ceilings are checked before growth.
+  Usage records raw scan bytes, raw append-copy bytes and one final classification
+  length, so a successful reference of n bytes costs 3n work units.
+- `advance`, `current`, `release`, `finish_step`, `restart`, `position`, and
+  `usage` are the concrete scanner operations. Completed reference units leave
+  suffix bytes untouched; explicit EOF rejects later nonempty input. Failed
+  reference/local operations retain their first typed local error. At EOF,
+  known malformed Name/digit suffixes precede missing-semicolon UnexpectedEof;
+  partial UTF-8 is diagnosed once at final classification. Literal non-XML
+  characters return InvalidCharacter at their local byte; XML-character Name
+  grammar faults remain Syntax, and invalid numeric scalars use the ampersand
+  anchor. These checks share the one charged classification pass.
+
+The coordinator must still aggregate these deltas with the moved BodyState.
+Replaying numeric/predefined raw into a Text buffer is a distinct future copy
+operation, not newly consumed source. The first foundation has no replay helper
+or synthetic Progress variant before that real caller exists. Native Text/GE
+partition, complete source scheduling and callback ordering remain unimplemented.
+
+Measured with the same Rust1.95 aarch64-apple-darwin private cfg(test) layout
+probe before and after the typed local span: Tokenizer152/align8, Stream520/8,
+PushParser656/8, Reader392/8 in both builds. These are prototype unit-build
+measurements, not a claim about future activated production layout or speed.
+Retained logs: `/private/tmp/yaxml-dtd-content-layout-{base,candidate}.log`.
+No required state change or counter update occurs inside a debug assertion.
+
+Both foundation types expose monotone `cap_work(absolute_ceiling)`. The coordinator
+sets each to component usage plus the remaining global allowance BEFORE advance
+or finish; final classification inside advance and validation inside finish obey
+that cap. Raising a later cap cannot restore an allowance, and restart never
+resets usage. The coordinator retains original component limits to distinguish
+a native component ceiling from a global-induced exhaustion. Raw reference
+scratch append-copy is charged in ReferenceUsage; copying that raw spelling into
+Text later is a separate actual copy and must be charged separately.
