@@ -93,6 +93,15 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   run has no median slowdown above two percent. Real replacement provenance and
   DTD acceptance remain open; the [representation outline](plans/dtd-representation.md)
   preserves the broader internal-DTD/GE/defaults milestone.
+- [ ] Integrate the complete internal-DTD controller and semantics. Reviewed
+  private [lexical-unit](plans/dtd-lexical-unit.md) and
+  [incremental-scanner](plans/dtd-scanner.md) prototypes now pass 50 focused
+  groups and the combined 585-test/13-doctest suite. The
+  [prototype review](review-dtd-prototypes.md) records independent catalogs,
+  deliberate faults and the 56-byte unit layout. Their source remains on
+  `integrate/dtd-prototype`, outside main; binding/default semantics, entity
+  frames, real replacement/mixed provenance, DOM coalescing, public events and
+  serialization, fuzzing, conformance and performance gates remain open.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
