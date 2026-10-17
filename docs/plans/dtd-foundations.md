@@ -65,6 +65,9 @@ Contiguous original-input ranges must stay distinct from replacement offsets
 and reference origins. Both DOM builders need provenance-aware element closure;
 the owned builder currently assumes parsed end events always have source ranges.
 Physical stream position must count consumed document bytes, not expansion.
+The [entity text-boundary decision](entity-text-boundaries.md) records pinned
+DOM/Reader/SAX probes, bounded streaming fragmentation, parse-only DOM
+coalescing and exact versus mixed provenance requirements.
 
 Build an incremental DTD grammar with bounded declaration units rather than an
 unbounded whole-DOCTYPE scratch buffer. Retain structured first-binding entity
