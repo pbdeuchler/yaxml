@@ -140,6 +140,11 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   sticky overflow controls pass. Full GE scheduling, frame guards, catalog/
   counter handoff and origin publication are being joined in a subsequent
   private controller review before frontend activation.
+  The next [private streaming-session outline](plans/dtd-streaming-session.md)
+  uses the existing early DOCTYPE token boundary, moves the same Decoder/parser
+  into one optional session, and preserves the callback ownership Budget.
+  UTF-16 body resume, Buffered lending and stable Reader publication remain
+  explicit follow-ups; this outline does not activate those frontends.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
