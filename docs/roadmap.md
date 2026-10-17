@@ -163,9 +163,17 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   Callback delivery uses the same publication core and releases only on success.
   Twenty authored/blind lending groups pass, an E0499 probe proves a live physical
   loan blocks mutation, and all six required production mutations are caught.
-  The combined private freeze passes 1,031 tests with nine ignored, 593 release
-  library tests and 13 doctests. DTD-aware BufferedReader composition, stable
-  Reader publication, DOM storage and public activation remain explicit follow-ups.
+  The combined lending freeze passes 1,031 tests with nine ignored, 593 release
+  library tests and 13 doctests. The next reviewed private
+  [buffered composition](plans/dtd-buffered-lending.md) automatically
+  acknowledges the prior loan, commits exact `BufRead` progress before lending,
+  drains generated and held work before source I/O, and preserves exact terminal
+  I/O, panic, quota, and origin behavior. Its combined tree passes 1,062 tests
+  with nine ignored in debug and release, including 624 library tests and 31
+  authored/blind buffered groups. Six holistic and eight author mutations are
+  caught. A second E0499 probe proves the frontend's physical event loan blocks
+  another mutable read. Stable Reader publication, public DTD events/errors, DOM
+  storage and public activation remain explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The

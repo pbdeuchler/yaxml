@@ -40,3 +40,11 @@ generated and held DTD work before `fill_buf`, and never count prefetched bytes.
 Stable `Reader` publication remains a separate immutable-input design. Language
 bindings should copy event data during a callback or use generation-checked
 opaque views; Rust references are not an FFI contract.
+
+The private buffered frontend described above is now frozen at integration
+commit `992c177e8fd93650087e713f3ff99d13404c22fa`, tree
+`27095ff58d0d353450f35b5b251875c7164bd2f7`. It follows this automatic
+acknowledgement rule, preserves the same one-publication loan, and commits exact
+`BufRead` progress before returning. Its design and evidence are recorded in the
+[buffered lending plan](dtd-buffered-lending.md). Stable immutable-input Reader
+publication remains separate.

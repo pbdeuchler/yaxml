@@ -273,3 +273,28 @@ preserve the existing Interrupted, I/O-error and recovered-panic contracts.
 Stable `Reader`, public DTD event/error types, DOM storage, Writer round trips and
 public activation remain later gates. This checkpoint adds no fresh fuzz-coverage,
 XMLTS or performance claim.
+
+## Buffered lending checkpoint
+
+That adapter is frozen at integration commit
+`992c177e8fd93650087e713f3ff99d13404c22fa`, tree
+`27095ff58d0d353450f35b5b251875c7164bd2f7`. Its protocol is recorded in the
+[buffered lending plan](dtd-buffered-lending.md). It acknowledges the prior loan
+only when the caller starts the next mutable read, drains session-owned work
+before `fill_buf`, and commits checked physical progress before lending an event
+or returning a semantic error.
+
+Twelve author and 19 independent groups cover UTF-8/UTF-16 windows, generated and
+held events, exact positions/origins, EOF, quotas, I/O identity, interruptions,
+panic poison, early extraction, and malformed carry. A private compile probe
+produces E0499 across a second `read_event` while borrowed physical text remains
+live. Six required holistic mutations and eight author mutations fail and are
+restored. The exact tree passes 1,062 all-target tests with nine ignored in debug
+and release, 624 library tests in debug and release, 13 doctests, strict Clippy,
+formatting, and a 354-blob audit. Holistic review reports no findings.
+
+The private adapter is 1,224 bytes for `Cursor<Vec<u8>>` on aarch64 Rust 1.95,
+versus 584 bytes for the current public `BufferedReader`; this remains an
+activation and performance gate. Stable `Reader`, public DTD event/error types,
+DOM storage, Writer round trips, DTD fuzz/XMLTS evidence, and public activation
+remain later work.

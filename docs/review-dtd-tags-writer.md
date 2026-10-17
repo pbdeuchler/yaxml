@@ -430,3 +430,40 @@ DTD-aware BufferedReader composition with automatic acknowledgement and exact
 `BufRead` consumption. Stable Reader borrowing, public DTD event/error mapping,
 both DOMs, Writer round trips, fuzz/XMLTS coverage and performance evidence
 remain separate gates.
+
+## Private buffered lending checkpoint
+
+The DTD-aware buffered adapter is frozen at integration commit
+`992c177e8fd93650087e713f3ff99d13404c22fa`, tree
+`27095ff58d0d353450f35b5b251875c7164bd2f7`. It automatically acknowledges the
+previous event loan at the next mutable read, drains generated and held events
+before source I/O, and consumes only checked physical progress before lending or
+returning a semantic failure. It retries interruptions, returns the original
+non-interrupted I/O failure once, remains terminal after recovered source panics,
+and probes exact input ceilings without consuming an excess byte.
+
+Twelve author and 19 blind groups pass. The independent suite covers every small
+window and split, physical/generated ownership, DTD/default Unicode values,
+limits, lexical and decoder failure progress, EOF, early extraction, and source
+faults. Its negative compile probe produces E0499 when another read is attempted
+while borrowed physical text remains live. Six required holistic production
+mutations and eight author mutations are caught and restored. Holistic review
+reports no findings.
+
+The exact tree passes 1,062 all-target tests with nine ignored in debug and
+release, 624 library tests in both profiles, 13 doctests, strict Clippy,
+formatting, and a 354-blob audit. The adapter measures 1,224 bytes for
+`Cursor<Vec<u8>>`, compared with 584 bytes for the current public buffered
+reader, so public activation retains an explicit layout/performance gate.
+
+Freeze report: `/private/tmp/yaxml-dtd-buffered-freeze.md` (SHA-256
+`c3ca498762646f9fafd7a81a0d96c63da9df5bb939d759eb8dbe4847ffe09072`).
+Source manifest: `/private/tmp/yaxml-dtd-buffered-freeze-source.tsv` (SHA-256
+`ce4c2270cc3e3ed8dd01fe215b858a3b872cd97e07ce74d0639ad30f73bdad0f`).
+Holistic report: `/private/tmp/yaxml-dtd-buffered-holistic-cf48368.md`
+(SHA-256 `d607880b60442adc83dcfbcd5846744d6c1de5175b575ca38900a5d3eec40e1f`).
+
+This remains private and does not alter `Reader`, `BufferedReader`, `Push`, either
+DOM, public event/error types, or Writer. Stable Reader borrowing, public DTD API
+mapping, DOM storage, Writer round trips, DTD fuzz/XMLTS coverage, and performance
+evidence remain separate gates.
