@@ -376,6 +376,9 @@ fn drain_with_lifecycle(source: &[u8], lifecycle: u8) -> Result<(), SessionError
                     3 => {}
                     _ => unreachable!(),
                 }
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source_text).unwrap();
+                }
                 delivered += 1;
             }
             Ok(None) => {
@@ -648,6 +651,7 @@ struct QuotaFailure {
     diagnostic: QuotaDiagnostic,
     position: usize,
     last: Option<SourceOrigin>,
+    prefix: usize,
 }
 
 fn input_fragment(range: Range<usize>) -> Option<crate::origin::OriginRepr> {
@@ -1114,6 +1118,52 @@ fn expected_scalar_failure(axis: usize, mode: usize) -> QuotaFailure {
         diagnostic,
         position,
         last,
+        prefix: match axis {
+            0 | 1 => 0,
+            2 | 3 => {
+                if zero {
+                    0
+                } else {
+                    2
+                }
+            }
+            4 => 2,
+            5 => 3,
+            6 => {
+                if zero {
+                    0
+                } else {
+                    10
+                }
+            }
+            7 | 10 => {
+                if zero {
+                    2
+                } else {
+                    3
+                }
+            }
+            8 | 9 => {
+                if zero {
+                    0
+                } else {
+                    2
+                }
+            }
+            11..=15 | 18 | 23 => 0,
+            16 | 17 | 19 | 20 => 1,
+            21 | 22 | 24 | 30 | 34..=36 => 2,
+            25 => 3,
+            26..=29 | 31..=33 | 37 | 38 => 4,
+            39 => {
+                if zero {
+                    4
+                } else {
+                    5
+                }
+            }
+            _ => unreachable!(),
+        },
     }
 }
 
@@ -1139,6 +1189,7 @@ fn run_configured(
         return run_configured(source, limits, decode, profile, 0);
     }
     let mut reader = DtdReader::with_decode_limits(source, limits, decode, profile)?;
+    let source_text = std::str::from_utf8(source).unwrap();
     let mut retained = Vec::new();
     let mut transcript = Vec::new();
     let mut owned = Vec::new();
@@ -1151,6 +1202,9 @@ fn run_configured(
                     retained.push((event, origin));
                 } else if lifecycle & 3 == 2 {
                     collect_owned_bounded(event, &mut owned, &mut owned_bytes);
+                }
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source_text).unwrap();
                 }
             }
             Ok(None) => {
@@ -1251,6 +1305,10 @@ fn literal_transcript(source: &[u8]) -> Vec<String> {
         &["B", "D", "S:r", "M:x", "P:p:x", "C:x", "E:n[]", "X:r"]
     } else if source == PE_MODEL {
         &["B", "I", "I", "D", "E:r[]"]
+    } else if source == PE_BAD {
+        &["B", "I"]
+    } else if source == UNKNOWN || source == UNAVAILABLE {
+        &["B", "D"]
     } else if source == D {
         &["B", "I", "D", "E:r[a=v]"]
     } else if source == NS {
@@ -1281,6 +1339,7 @@ fn run_expected_failure(
     decode: DecodeLimits,
     profile: SessionLimits,
     expected: QuotaFailure,
+    lifecycle: u8,
 ) {
     let mut reader = match DtdReader::with_decode_limits(source, limits, decode, profile) {
         Ok(reader) => reader,
@@ -1291,15 +1350,51 @@ fn run_expected_failure(
             return;
         }
     };
+    let source_text = std::str::from_utf8(source).unwrap();
+    let mut transcript = Vec::new();
+    let mut retained = Vec::new();
+    let mut owned = Vec::new();
+    let mut owned_bytes = 0_usize;
     loop {
         match reader.read_event() {
-            Ok(Some(_)) => {}
+            Ok(Some((event, origin))) => {
+                transcript.push(event_signature(&event));
+                match lifecycle & 3 {
+                    1 => {
+                        if retained.len() < MAX_EVENTS
+                            && retained
+                                .iter()
+                                .map(|(held, _)| owned_event_bytes(held))
+                                .sum::<usize>()
+                                + owned_event_bytes(&event)
+                                <= MAX_RETAINED_OWNED
+                        {
+                            retained.push((event, origin));
+                        }
+                        for (held, held_origin) in &retained {
+                            check_event_storage(held, *held_origin, source_text).unwrap();
+                        }
+                    }
+                    2 => collect_owned_bounded(event, &mut owned, &mut owned_bytes),
+                    _ => {}
+                }
+            }
             Ok(None) => panic!("constrained quota unexpectedly completed"),
             Err(error) => {
                 assert_eq!(quota_diagnostic(error), expected.diagnostic);
                 assert_eq!(reader.position(), expected.position);
                 assert_eq!(reader.event_origin(), expected.last);
+                assert_eq!(
+                    transcript,
+                    literal_transcript(source)[..expected.prefix],
+                    "rejected transcript prefix"
+                );
                 assert_terminal_sticky(&mut reader, Err(error));
+                drop(reader);
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source_text).unwrap();
+                }
+                assert!(owned_bytes <= MAX_RETAINED_OWNED);
                 return;
             }
         }
@@ -1355,7 +1450,7 @@ fn exercise_scalar(axis: usize, mode: usize, lifecycle: u8) {
                 QuotaKind::Content(_) => TerminalClass::Content,
             }
         );
-        run_expected_failure(source, limits, decode, profile, expected);
+        run_expected_failure(source, limits, decode, profile, expected, lifecycle);
     }
 }
 
@@ -1490,7 +1585,7 @@ fn configure_bank(
         }
         7 => {
             *source = RP;
-            if mode % 2 == 0 {
+            if mode & 1 == 0 {
                 profile.declarations.max_owned_bytes = if mode == 0 { 15 } else { 16 };
             } else {
                 limits.max_owned_bytes = if mode == 1 { 15 } else { 16 };
@@ -1733,6 +1828,27 @@ fn expected_precedence_failure(axis: usize, mode: usize, bank: usize) -> QuotaFa
         diagnostic,
         position,
         last,
+        prefix: match axis {
+            40 | 44 => 0,
+            41..=43 => 4,
+            45 => {
+                if mode == 0 {
+                    0
+                } else {
+                    3
+                }
+            }
+            46 => 2,
+            47 => match bank {
+                0 | 1 => 0,
+                2 => 2,
+                3 => 4,
+                4..=6 => 2,
+                7 => 3,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        },
     }
 }
 
@@ -1773,6 +1889,7 @@ fn exercise_precedence(axis: usize, mode: usize, bank: usize, lifecycle: u8) {
             DecodeLimits::default(),
             profile,
             expected_precedence_failure(axis, mode, bank),
+            lifecycle,
         );
     }
 }
@@ -1825,4 +1942,159 @@ fn selector_zero_and_success_cells_are_distinguished() {
 fn owned_retention_cap_is_literal_and_finite() {
     assert_eq!(16 * 1024, MAX_LOGICAL_EXPANSION);
     drain_with_lifecycle(F, 2).unwrap();
+}
+
+#[test]
+fn full_origin_oracle_rejects_reused_declaration_and_invocation_ids() {
+    let physical = 33..36;
+    let expected = replacement(
+        ExpectedKind::Text("x".to_owned()),
+        1,
+        2,
+        0..1,
+        physical.clone(),
+    )
+    .origin;
+    let wrong_declaration = replacement(
+        ExpectedKind::Text("x".to_owned()),
+        0,
+        2,
+        0..1,
+        physical.clone(),
+    )
+    .origin
+    .full;
+    let wrong_invocation = replacement(ExpectedKind::Text("x".to_owned()), 1, 1, 0..1, physical)
+        .origin
+        .full;
+
+    assert_eq!(check_expected_origin(expected.full, &expected), Ok(()));
+    assert!(check_expected_origin(wrong_declaration, &expected).is_err());
+    assert!(check_expected_origin(wrong_invocation, &expected).is_err());
+}
+
+#[test]
+fn exact_diagnostic_oracle_rejects_every_envelope_mutation() {
+    let baseline = expected_scalar_failure(39, 1);
+    let variants = [
+        QuotaFailure {
+            diagnostic: QuotaDiagnostic {
+                kind: QuotaKind::Content(ContentErrorKind::Text(TextErrorKind::Work)),
+                ..baseline.diagnostic
+            },
+            ..baseline
+        },
+        QuotaFailure {
+            diagnostic: QuotaDiagnostic {
+                physical: baseline.diagnostic.physical + 1,
+                ..baseline.diagnostic
+            },
+            ..baseline
+        },
+        QuotaFailure {
+            diagnostic: QuotaDiagnostic {
+                origin: None,
+                ..baseline.diagnostic
+            },
+            ..baseline
+        },
+        QuotaFailure {
+            diagnostic: QuotaDiagnostic {
+                local: None,
+                ..baseline.diagnostic
+            },
+            ..baseline
+        },
+        QuotaFailure {
+            diagnostic: QuotaDiagnostic {
+                value: Some(ValueLocation::Input(0)),
+                ..baseline.diagnostic
+            },
+            ..baseline
+        },
+        QuotaFailure {
+            position: baseline.position + 1,
+            ..baseline
+        },
+        QuotaFailure {
+            last: None,
+            ..baseline
+        },
+        QuotaFailure {
+            prefix: baseline.prefix - 1,
+            ..baseline
+        },
+    ];
+    for variant in variants {
+        assert_ne!(variant, baseline);
+    }
+}
+
+#[test]
+fn literal_transcript_oracle_rejects_value_order_and_success_mutations() {
+    let expected = literal_transcript(D);
+    let mut wrong_value = expected.clone();
+    wrong_value[3] = "E:r[a=x]".to_owned();
+    assert_ne!(wrong_value, expected);
+
+    let mut wrong_order = expected.clone();
+    wrong_order.swap(1, 2);
+    assert_ne!(wrong_order, expected);
+
+    assert_ne!(
+        expected_truncation(4, 35, F.len()),
+        expected_truncation(4, F.len(), F.len())
+    );
+    assert_ne!(
+        expected_truncation(2, 16, UTF8_TEXT.len()),
+        expected_truncation(2, 17, UTF8_TEXT.len())
+    );
+}
+
+#[test]
+fn lifecycle_modes_retain_extract_and_early_stop_all_witnesses() {
+    for lifecycle in 0_u8..4 {
+        exercise_witness_bank(lifecycle);
+        let mut controls = [0_u8; 64];
+        controls[0] = lifecycle;
+        controls[1] = 4;
+        controls[2] = 8;
+        controls[3] = 3;
+        controls[7] = lifecycle | (2 << 2);
+        run_generated_lifecycle(generated_case(&controls), controls[7]);
+    }
+}
+
+#[test]
+fn equal_physical_tokens_keep_distinct_literal_pointers() {
+    let source = std::str::from_utf8(REPEATED).unwrap();
+    let mut reader = DtdReader::new(REPEATED, options()).unwrap();
+    let mut name_pointers = Vec::new();
+    let mut value_pointers = Vec::new();
+    let mut text_pointers = Vec::new();
+    while let Some((event, _)) = reader.read_event().unwrap() {
+        match event {
+            ReaderEvent::Xml(Event::Empty(element)) if element.name.qualified() == "n" => {
+                name_pointers.push(element.name.qualified_source().as_ptr());
+                value_pointers.push(element.attributes[0].value.as_ptr());
+            }
+            ReaderEvent::Xml(Event::Text(value)) if value == "x" => {
+                text_pointers.push(value.as_ptr());
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(name_pointers.len(), 2);
+    assert_eq!(value_pointers.len(), 2);
+    assert_eq!(text_pointers.len(), 2);
+    assert_ne!(name_pointers[0], name_pointers[1]);
+    assert_ne!(value_pointers[0], value_pointers[1]);
+    assert_ne!(text_pointers[0], text_pointers[1]);
+    for pointer in name_pointers
+        .into_iter()
+        .chain(value_pointers)
+        .chain(text_pointers)
+    {
+        assert!((source.as_ptr()..=source.as_ptr().wrapping_add(source.len())).contains(&pointer));
+    }
 }

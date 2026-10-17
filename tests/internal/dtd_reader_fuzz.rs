@@ -776,6 +776,17 @@ fn observed_origin(origin: SourceOrigin) -> ExpectedOrigin {
     }
 }
 
+fn check_expected_origin(
+    actual: SourceOrigin,
+    expected: &ExpectedOrigin,
+) -> Result<(), &'static str> {
+    if observed_origin(actual) == *expected {
+        Ok(())
+    } else {
+        Err("event origin differs, including declaration or invocation identity")
+    }
+}
+
 fn address_range(source: &str) -> Range<usize> {
     source.as_ptr() as usize..source.as_ptr() as usize + source.len()
 }
@@ -1106,7 +1117,7 @@ fn run_generated_lifecycle(case: GeneratedCase, lifecycle: u8) {
     for (index, expected) in case.expected.iter().enumerate() {
         let (event, origin) = reader.read_event().unwrap().expect("expected event");
         assert_eq!(observed_kind(&event), expected.kind);
-        assert_eq!(observed_origin(origin), expected.origin);
+        check_expected_origin(origin, &expected.origin).unwrap();
         check_expected_fields(&event, &expected.fields, &case.source).unwrap();
         match lifecycle & 3 {
             0 => {}
@@ -1114,7 +1125,7 @@ fn run_generated_lifecycle(case: GeneratedCase, lifecycle: u8) {
                 held.push((event, origin));
                 for ((held_event, held_origin), held_expected) in held.iter().zip(&case.expected) {
                     assert_eq!(observed_kind(held_event), held_expected.kind);
-                    assert_eq!(observed_origin(*held_origin), held_expected.origin);
+                    check_expected_origin(*held_origin, &held_expected.origin).unwrap();
                     check_expected_fields(held_event, &held_expected.fields, &case.source).unwrap();
                 }
             }
@@ -1145,7 +1156,7 @@ fn run_generated_lifecycle(case: GeneratedCase, lifecycle: u8) {
     );
     for ((event, origin), expected) in held.iter().zip(&case.expected) {
         assert_eq!(observed_kind(event), expected.kind);
-        assert_eq!(observed_origin(*origin), expected.origin);
+        check_expected_origin(*origin, &expected.origin).unwrap();
         check_expected_fields(event, &expected.fields, &case.source).unwrap();
     }
     if lifecycle & 3 == 2 {
