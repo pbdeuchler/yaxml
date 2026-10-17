@@ -185,18 +185,22 @@ impl<'input> Document<'input> {
         value: Cow<'input, str>,
         origin: SourceOrigin,
         budget: &mut crate::parser::Budget,
-    ) -> Result<NodeId, Error> {
-        let Some(last) = self.nodes[parent.0].last_child else {
-            return self.append(parent, NodeKind::Text(value), origin);
+    ) -> Result<Option<NodeId>, Error> {
+        let last = self.nodes[parent.0].last_child;
+        if value.is_empty() {
+            return Ok(last.filter(|id| matches!(self.nodes[id.0].kind, NodeKind::Text(_))));
+        }
+        let Some(last) = last else {
+            return self.append(parent, NodeKind::Text(value), origin).map(Some);
         };
         let record = &mut self.nodes[last.0];
         let NodeKind::Text(previous) = &mut record.kind else {
-            return self.append(parent, NodeKind::Text(value), origin);
+            return self.append(parent, NodeKind::Text(value), origin).map(Some);
         };
         let joined = record.origin.join_text(origin);
         append_text_value(previous, &value, origin.error_offset(), budget)?;
         record.origin = joined;
-        Ok(last)
+        Ok(Some(last))
     }
 
     /// Returns the synthetic document root, including surrounding comments and PIs.

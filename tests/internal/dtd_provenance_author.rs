@@ -1,3 +1,4 @@
+use std::mem::{align_of, size_of};
 use std::num::NonZeroU64;
 
 use super::*;
@@ -68,4 +69,77 @@ fn replacement_and_mixed_offsets_stay_in_physical_input() {
     assert_eq!(mixed.physical_context(), 2..17);
     assert_eq!(mixed.error_offset(), 2);
     assert_eq!(mixed.cancellation_offset(), 17);
+}
+
+#[test]
+fn input_text_join_requires_adjacency_but_element_closure_allows_a_body_gap() {
+    let opening = SourceOrigin::input(3..6);
+    assert_eq!(
+        opening.join_text(SourceOrigin::input(6..9)).input_range(),
+        Some(3..9)
+    );
+    for other in [0..2, 4..8, 7..9] {
+        let joined = opening.join_text(SourceOrigin::input(other.clone()));
+        assert_eq!(joined.input_range(), None);
+        assert_eq!(
+            joined.physical_context(),
+            other.start.min(3)..other.end.max(6)
+        );
+    }
+    assert_eq!(
+        opening
+            .close_element(SourceOrigin::input(20..24))
+            .unwrap()
+            .input_range(),
+        Some(3..24)
+    );
+    for other in [0..2, 4..8] {
+        assert_eq!(
+            opening.close_element(SourceOrigin::input(other.clone())),
+            Err(Error::new(ErrorKind::InvalidState, other.start))
+        );
+    }
+}
+
+#[test]
+fn mixed_origins_remain_mixed_and_extend_only_the_physical_cover() {
+    let first = SourceOrigin::input(2..5).join_text(SourceOrigin::input(8..9));
+    let second = first.join_text(SourceOrigin::input(12..14));
+    assert_eq!(first.input_range(), None);
+    assert_eq!(first.physical_context(), 2..9);
+    assert_eq!(second.input_range(), None);
+    assert_eq!(second.physical_context(), 2..14);
+    assert_eq!(
+        first.close_element(SourceOrigin::input(12..14)),
+        Err(Error::new(ErrorKind::InvalidState, 12))
+    );
+}
+
+#[test]
+fn provenance_layouts_are_recorded() {
+    println!(
+        "SourceOrigin={}/{} OriginRepr={}/{} Event={}/{} Record={}/{} Reader={}/{} PushParser={}/{}",
+        size_of::<SourceOrigin>(),
+        align_of::<SourceOrigin>(),
+        size_of::<OriginRepr>(),
+        align_of::<OriginRepr>(),
+        size_of::<crate::Event<'static>>(),
+        align_of::<crate::Event<'static>>(),
+        size_of::<crate::dom::Record<crate::NodeKind<'static>>>(),
+        align_of::<crate::dom::Record<crate::NodeKind<'static>>>(),
+        size_of::<crate::Reader<'static>>(),
+        align_of::<crate::Reader<'static>>(),
+        size_of::<crate::PushParser>(),
+        align_of::<crate::PushParser>(),
+    );
+}
+
+#[test]
+fn source_origin_is_copy_send_and_sync() {
+    fn copy<T: Copy>() {}
+    fn send<T: Send>() {}
+    fn sync<T: Sync>() {}
+    copy::<SourceOrigin>();
+    send::<SourceOrigin>();
+    sync::<SourceOrigin>();
 }

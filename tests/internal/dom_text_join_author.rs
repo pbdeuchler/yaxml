@@ -31,6 +31,7 @@ fn parsed_text_merges_without_a_second_node_or_link_change() {
             SourceOrigin::input(3..4),
             state.owned_budget(),
         )
+        .unwrap()
         .unwrap();
     let merged = document
         .append_text(
@@ -39,6 +40,7 @@ fn parsed_text_merges_without_a_second_node_or_link_change() {
             SourceOrigin::input(4..5),
             state.owned_budget(),
         )
+        .unwrap()
         .unwrap();
 
     assert_eq!(first, merged);
@@ -64,6 +66,7 @@ fn failed_borrowed_promotion_preserves_value_origin_and_topology() {
             SourceOrigin::input(8..9),
             state.owned_budget(),
         )
+        .unwrap()
         .unwrap();
     let before = document.nodes.len();
     let error = document
@@ -87,4 +90,154 @@ fn failed_borrowed_promotion_preserves_value_origin_and_topology() {
         panic!("text node changed kind")
     };
     assert_eq!(value, "a");
+}
+
+#[test]
+fn empty_text_is_not_published_and_cannot_hide_a_source_gap() {
+    let mut document = empty_document();
+    let mut state = state(16);
+    assert_eq!(
+        document
+            .append_text(
+                NodeId(0),
+                Cow::Borrowed(""),
+                SourceOrigin::input(0..3),
+                state.owned_budget(),
+            )
+            .unwrap(),
+        None
+    );
+    let text = document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("a"),
+            SourceOrigin::input(3..4),
+            state.owned_budget(),
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        document
+            .append_text(
+                NodeId(0),
+                Cow::Borrowed(""),
+                SourceOrigin::input(4..8),
+                state.owned_budget(),
+            )
+            .unwrap(),
+        Some(text)
+    );
+    document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("b"),
+            SourceOrigin::input(8..9),
+            state.owned_budget(),
+        )
+        .unwrap();
+
+    assert_eq!(document.nodes.len(), 2);
+    assert_eq!(document.nodes[text.0].origin.input_range(), None);
+    assert_eq!(document.nodes[text.0].origin.physical_context(), 3..9);
+    let NodeKind::Text(value) = &document.nodes[text.0].kind else {
+        panic!("text node changed kind")
+    };
+    assert_eq!(value, "ab");
+}
+
+#[test]
+fn non_text_nodes_are_parse_time_coalescing_boundaries() {
+    let mut document = empty_document();
+    let mut state = state(16);
+    document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("a"),
+            SourceOrigin::input(0..1),
+            state.owned_budget(),
+        )
+        .unwrap();
+    document
+        .append(
+            NodeId(0),
+            NodeKind::Cdata(Cow::Borrowed("c")),
+            SourceOrigin::input(1..13),
+        )
+        .unwrap();
+    document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("b"),
+            SourceOrigin::input(13..14),
+            state.owned_budget(),
+        )
+        .unwrap();
+    document
+        .append(
+            NodeId(0),
+            NodeKind::Comment(Cow::Borrowed("comment")),
+            SourceOrigin::input(14..28),
+        )
+        .unwrap();
+    document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("d"),
+            SourceOrigin::input(28..29),
+            state.owned_budget(),
+        )
+        .unwrap();
+    document
+        .append(
+            NodeId(0),
+            NodeKind::ProcessingInstruction {
+                target: Cow::Borrowed("p"),
+                data: Cow::Borrowed("data"),
+            },
+            SourceOrigin::input(29..39),
+        )
+        .unwrap();
+    document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("e"),
+            SourceOrigin::input(39..40),
+            state.owned_budget(),
+        )
+        .unwrap();
+    document
+        .append(
+            NodeId(0),
+            NodeKind::Element(Element {
+                name: Name::new(Cow::Borrowed("child"), None).unwrap(),
+                attributes: Vec::new(),
+            }),
+            SourceOrigin::input(40..48),
+        )
+        .unwrap();
+    document
+        .append_text(
+            NodeId(0),
+            Cow::Borrowed("f"),
+            SourceOrigin::input(48..49),
+            state.owned_budget(),
+        )
+        .unwrap();
+
+    assert_eq!(document.nodes.len(), 10);
+    assert!(matches!(document.nodes[1].kind, NodeKind::Text(_)));
+    assert!(matches!(document.nodes[2].kind, NodeKind::Cdata(_)));
+    assert!(matches!(document.nodes[3].kind, NodeKind::Text(_)));
+    assert!(matches!(document.nodes[4].kind, NodeKind::Comment(_)));
+    assert!(matches!(document.nodes[5].kind, NodeKind::Text(_)));
+    assert!(matches!(
+        document.nodes[6].kind,
+        NodeKind::ProcessingInstruction { .. }
+    ));
+    assert!(matches!(document.nodes[7].kind, NodeKind::Text(_)));
+    assert!(matches!(document.nodes[8].kind, NodeKind::Element(_)));
+    assert!(matches!(document.nodes[9].kind, NodeKind::Text(_)));
+    assert_eq!(document.nodes[1].next_sibling, Some(NodeId(2)));
+    assert_eq!(document.nodes[2].next_sibling, Some(NodeId(3)));
+    assert_eq!(document.nodes[8].next_sibling, Some(NodeId(9)));
 }

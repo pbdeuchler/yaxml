@@ -241,7 +241,13 @@ impl SourceOrigin {
     }
 
     pub(crate) fn input(range: Range<usize>) -> Self {
-        Self(OriginRepr::input(range).expect("input origin range is ordered"))
+        debug_assert!(range.start <= range.end);
+        Self(OriginRepr::Input {
+            span: ByteSpan {
+                start: range.start,
+                end: range.end,
+            },
+        })
     }
 
     #[cfg_attr(

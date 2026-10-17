@@ -387,30 +387,8 @@ impl Pool {
         if range.end != self.0.len() {
             return Err(Error::new(ErrorKind::InvalidState, offset));
         }
-        let needed = self.0.len().checked_add(value.len()).ok_or(Error::new(
-            ErrorKind::LimitExceeded(Limit::OwnedBytes),
-            offset,
-        ))?;
-        if needed > self.0.capacity() {
-            let target = self
-                .0
-                .capacity()
-                .saturating_mul(2)
-                .max(needed)
-                .min(budget.remaining_owned());
-            if target < needed {
-                return Err(Error::new(
-                    ErrorKind::LimitExceeded(Limit::OwnedBytes),
-                    offset,
-                ));
-            }
-            budget.charge_owned(target, offset)?;
-            self.0
-                .try_reserve_exact(target - self.0.len())
-                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-        }
-        self.0.push_str(value);
-        Ok(range.start..needed)
+        let added = self.store(value, offset, budget)?;
+        Ok(range.start..added.end)
     }
 
     fn name(
@@ -1157,7 +1135,7 @@ impl OwnedBuilder {
         let offset = origin.error_offset();
         let parent = self.parents.last().copied().unwrap_or(NodeId(0));
         if let Event::Text(value) = &event
-            && self.merge_text(parent, value, origin, budget)?
+            && (value.is_empty() || self.merge_text(parent, value, origin, budget)?)
         {
             return Ok(());
         }
