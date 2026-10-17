@@ -25,7 +25,8 @@ Doctype (header plus internal subset/closing delimiter) and SubsetFragment
 bracket or header permitted). advance(&[u8]) accepts arbitrary byte splits,
 consumes only through the next ready unit, and returns its consumed count.
 current() lends (kind, raw bytes, decoded-local range) until release().
-finish_step() seals further advance calls (zero consumption) at final EOF; callers drain ready units and repeat it.
+finish_step() seals further advance calls (zero consumption) at final EOF;
+callers drain ready units and repeat it.
 is_complete() permits handoff of the untouched suffix after a complete physical
 DOCTYPE or finished fragment. position() and work() are local counters only.
 
@@ -43,6 +44,13 @@ state across calls. An unquoted '>' ends a declaration, but a quoted '>' does
 not. Internal conditional-section prefixes are rejected as unsupported syntax
 in this internal-subset scanner. Declarations are candidate units: the separate
 unit constructor checks their complete production, references and XML chars.
+For an internal PE reference in DeclSep, XML 1.0
+[section 2.8](https://www.w3.org/TR/xml/#sec-prolog-dtd) requires replacement
+text to match extSubsetDecl (WFC: PE Between Declarations), so this fragment
+profile must finish between complete units. This does not generalize the
+validity constraint Proper Declaration/PE Nesting into a well-formedness rule
+for future external-PE references inside declarations.
+
 No accumulated prefix is rescanned per input byte or chunk. UTF-8 is checked
 once on unit completion (and once at incomplete final EOF), not per prefix;
 current lends bytes without rescanning them. The controller/unit constructor
@@ -61,7 +69,9 @@ No normalization is performed, including on replacement text or CR bytes.
 Private Copy errors carry kind and exact decoded-local offset. Syntax errors
 point at the offending byte; incomplete EOF points at position(); byte/scratch/
 work limits point at the first byte that cannot be consumed; allocation errors
-point at the growing unit's current position. Failure is sticky. At incomplete PE-reference EOF, a known invalid Name byte is reported before the missing semicolon; an otherwise valid Name remains UnexpectedEof. Ready units
+point at the growing unit's current position. Failure is sticky. At incomplete PE-reference EOF, a known invalid Name byte
+is reported before the missing semicolon; an otherwise valid Name remains
+UnexpectedEof. Ready units
 remain lent until release; repeated advance while ready consumes zero. A
 completed physical DOCTYPE leaves following XML bytes untouched. No physical
 source progress or Error.offset conversion is inferred from local counters.

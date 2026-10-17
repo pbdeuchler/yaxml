@@ -1,5 +1,7 @@
 use super::*;
 
+type CapturedUnit = (ScanKind, Vec<u8>, Range<usize>);
+
 fn limits() -> ScanLimits {
     ScanLimits {
         max_unit_bytes: 4096,
@@ -8,12 +10,17 @@ fn limits() -> ScanLimits {
     }
 }
 
-fn collect(
+fn collect(mode: ScanMode, input: &[u8], chunks: &[usize]) -> Result<Vec<CapturedUnit>, ScanError> {
+    collect_with_limits(mode, input, chunks, limits())
+}
+
+fn collect_with_limits(
     mode: ScanMode,
     input: &[u8],
     chunks: &[usize],
-) -> Result<Vec<(ScanKind, Vec<u8>, Range<usize>)>, ScanError> {
-    let mut scanner = DtdScanner::new(mode, limits());
+    ceilings: ScanLimits,
+) -> Result<Vec<CapturedUnit>, ScanError> {
+    let mut scanner = DtdScanner::new(mode, ceilings);
     let mut units = Vec::new();
     let mut position: usize = 0;
     for length in chunks.iter().copied().chain(std::iter::once(input.len())) {
@@ -238,7 +245,7 @@ fn doctype_requires_a_real_end_after_header_or_trailing_whitespace() {
 }
 
 #[test]
-fn structural_errors_have_exact_local_offsets_and_are_sticky() {
+fn structural_errors_have_exact_local_offsets() {
     let samples: &[(ScanMode, &[u8], usize)] = &[
         (ScanMode::Doctype, b"<!DoCTYPE r>", 3),
         (ScanMode::SubsetFragment, b"x", 0),
@@ -369,4 +376,249 @@ fn incomplete_parameter_reference_reports_known_name_errors_before_missing_semic
             offset: 2
         })
     );
+}
+
+#[test]
+fn each_resource_ceiling_fails_at_the_first_unconsumed_byte() {
+    let input = "%é;".as_bytes();
+    for ceiling in 0..=input.len() {
+        for kind in [
+            ScanLimit::UnitBytes,
+            ScanLimit::ScratchBytes,
+            ScanLimit::Work,
+        ] {
+            let mut ceilings = limits();
+            match kind {
+                ScanLimit::UnitBytes => ceilings.max_unit_bytes = ceiling,
+                ScanLimit::ScratchBytes => ceilings.max_scratch_bytes = ceiling,
+                ScanLimit::Work => ceilings.max_work = ceiling,
+            }
+            for split in 0..=input.len() {
+                let result =
+                    collect_with_limits(ScanMode::SubsetFragment, input, &[split], ceilings);
+                if ceiling == input.len() {
+                    assert_eq!(
+                        result.unwrap(),
+                        vec![(ScanKind::ParameterReference, input.to_vec(), 0..input.len())]
+                    );
+                } else {
+                    assert_eq!(
+                        result,
+                        Err(ScanError {
+                            kind: ScanErrorKind::Limit(kind),
+                            offset: ceiling
+                        }),
+                        "kind={kind:?} ceiling={ceiling} split={split}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn resource_error_precedence_and_failure_position_do_not_depend_on_chunking() {
+    for (ceilings, kind) in [
+        (
+            ScanLimits {
+                max_unit_bytes: 0,
+                max_scratch_bytes: 0,
+                max_work: 0,
+            },
+            ScanLimit::Work,
+        ),
+        (
+            ScanLimits {
+                max_unit_bytes: 0,
+                max_scratch_bytes: 0,
+                max_work: 1,
+            },
+            ScanLimit::UnitBytes,
+        ),
+        (
+            ScanLimits {
+                max_unit_bytes: 1,
+                max_scratch_bytes: 0,
+                max_work: 1,
+            },
+            ScanLimit::ScratchBytes,
+        ),
+    ] {
+        let mut scanner = DtdScanner::new(ScanMode::SubsetFragment, ceilings);
+        let error = ScanError {
+            kind: ScanErrorKind::Limit(kind),
+            offset: 0,
+        };
+        assert_eq!(scanner.advance(b"%a;"), Err(error));
+        assert_eq!(scanner.position(), 0);
+        scanner.release();
+        assert_eq!(scanner.advance(b""), Err(error));
+        assert_eq!(scanner.finish_step(), Err(error));
+    }
+}
+
+#[test]
+fn work_is_cumulative_across_releases_but_unit_and_scratch_bounds_are_not() {
+    let input = b"%a;%b;";
+    for work in 0..=input.len() {
+        let ceilings = ScanLimits {
+            max_unit_bytes: 3,
+            max_scratch_bytes: 3,
+            max_work: work,
+        };
+        for split in 0..=input.len() {
+            let result = collect_with_limits(ScanMode::SubsetFragment, input, &[split], ceilings);
+            if work == input.len() {
+                assert_eq!(
+                    result.unwrap(),
+                    vec![
+                        (ScanKind::ParameterReference, b"%a;".to_vec(), 0..3),
+                        (ScanKind::ParameterReference, b"%b;".to_vec(), 3..6),
+                    ]
+                );
+            } else {
+                assert_eq!(
+                    result,
+                    Err(ScanError {
+                        kind: ScanErrorKind::Limit(ScanLimit::Work),
+                        offset: work
+                    })
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn whitespace_and_quoted_units_obey_the_same_limits() {
+    for input in [b" \t\r\n".as_slice(), b"<!ENTITY e '>>>'>".as_slice()] {
+        let maximum = input.len() - 1;
+        for kind in [ScanLimit::UnitBytes, ScanLimit::ScratchBytes] {
+            let mut ceilings = limits();
+            match kind {
+                ScanLimit::UnitBytes => ceilings.max_unit_bytes = maximum,
+                ScanLimit::ScratchBytes => ceilings.max_scratch_bytes = maximum,
+                ScanLimit::Work => unreachable!(),
+            }
+            assert_eq!(
+                collect_with_limits(ScanMode::SubsetFragment, input, &[1; 32], ceilings),
+                Err(ScanError {
+                    kind: ScanErrorKind::Limit(kind),
+                    offset: maximum
+                })
+            );
+        }
+    }
+}
+
+#[test]
+fn many_small_units_reuse_bounded_scratch_without_retaining_the_subset() {
+    let unit = b"<!ENTITY e 'x'>";
+    let count = 4096;
+    let ceilings = ScanLimits {
+        max_unit_bytes: unit.len(),
+        max_scratch_bytes: unit.len(),
+        max_work: unit.len() * count,
+    };
+    let mut scanner = DtdScanner::new(ScanMode::SubsetFragment, ceilings);
+    let mut capacity = None;
+    for ordinal in 0..count {
+        for byte in unit {
+            assert_eq!(scanner.advance(std::slice::from_ref(byte)), Ok(1));
+        }
+        let start = ordinal * unit.len();
+        assert_eq!(
+            scanner.current(),
+            Some((
+                ScanKind::Declaration,
+                unit.as_slice(),
+                start..start + unit.len()
+            ))
+        );
+        let retained = scanner.buffer.capacity();
+        assert!(retained >= unit.len());
+        if let Some(previous) = capacity {
+            assert_eq!(retained, previous);
+        }
+        capacity = Some(retained);
+        scanner.release();
+        assert!(scanner.buffer.is_empty());
+        assert_eq!(scanner.position(), (ordinal + 1) * unit.len());
+        assert_eq!(scanner.work(), scanner.position());
+    }
+    scanner.finish_step().unwrap();
+    assert!(scanner.is_complete());
+}
+
+#[test]
+fn every_doctype_eof_prefix_reports_its_own_decoded_local_position() {
+    let input = "<!DOCTYPE é SYSTEM 'a[>b' [\r\n<!ENTITY e '🙂>x'>%é;<!--é--><?é?>] \t>";
+    for end in 0..input.len() {
+        let prefix = &input.as_bytes()[..end];
+        let expected = match std::str::from_utf8(prefix) {
+            Ok(_) => ScanError {
+                kind: ScanErrorKind::UnexpectedEof,
+                offset: end,
+            },
+            Err(error) => ScanError {
+                kind: ScanErrorKind::InvalidUtf8,
+                offset: error.valid_up_to(),
+            },
+        };
+        assert_eq!(
+            collect(ScanMode::Doctype, prefix, &[1; 100]),
+            Err(expected),
+            "end={end}"
+        );
+    }
+    assert!(collect(ScanMode::Doctype, input.as_bytes(), &[1; 100]).is_ok());
+}
+
+#[test]
+fn deterministic_literal_model_is_independent_of_partition_and_unit_order() {
+    let catalog = [
+        (ScanKind::Declaration, "<!ELEMENT é (a|b)*>"),
+        (ScanKind::Declaration, "<!ATTLIST é a CDATA '>>'>"),
+        (ScanKind::Declaration, "<!ENTITY e '<a/>🙂>'>"),
+        (ScanKind::Declaration, "<!NOTATION n SYSTEM 'a>b'>"),
+        (ScanKind::Comment, "<!-- \" > ] %a; -->"),
+        (ScanKind::Instruction, "<?é ' > ]'??>"),
+        (ScanKind::ParameterReference, "%ns:é;"),
+    ];
+    for seed in 0..24 {
+        let mut model = vec![(ScanKind::Header, "<!DOCTYPE é [")];
+        for step in 0..17 {
+            model.push(catalog[(seed * 13 + step * 7 + step * step) % catalog.len()]);
+            model.push((
+                ScanKind::Whitespace,
+                if step % 2 == 0 { "\r\n" } else { " \t" },
+            ));
+        }
+        model.push((ScanKind::End, "] >"));
+        let input: String = model.iter().map(|(_, raw)| *raw).collect();
+        let mut start = 0;
+        let expected: Vec<_> = model
+            .iter()
+            .map(|(kind, raw)| {
+                let range = start..start + raw.len();
+                start = range.end;
+                (*kind, raw.as_bytes().to_vec(), range)
+            })
+            .collect();
+        for width in [1, 2, 3, 7, 31, 512] {
+            let chunks = vec![width; input.len() / width + 1];
+            assert_eq!(
+                collect(ScanMode::Doctype, input.as_bytes(), &chunks).unwrap(),
+                expected,
+                "seed={seed} width={width}"
+            );
+        }
+        for split in 0..=input.len() {
+            assert_eq!(
+                collect(ScanMode::Doctype, input.as_bytes(), &[split]).unwrap(),
+                expected,
+                "seed={seed} split={split}"
+            );
+        }
+    }
 }
