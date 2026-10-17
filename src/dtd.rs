@@ -207,6 +207,33 @@ impl<'a> DtdUnit<'a> {
         &self.raw
     }
 
+    /// Retain a validated unit before mutating the catalog that supplied its text.
+    /// Existing owned text and token metadata move without copying. A borrowed
+    /// raw value spends the shared owned-string budget before allocation.
+    pub(crate) fn try_into_owned(
+        self,
+        budget: &mut crate::parser::Budget,
+        offset: usize,
+    ) -> Result<DtdUnit<'static>, crate::Error> {
+        let raw = match self.raw {
+            Cow::Owned(raw) => raw,
+            Cow::Borrowed(raw) => {
+                budget.charge_owned(raw.len(), offset)?;
+                let mut copied = String::new();
+                copied
+                    .try_reserve_exact(raw.len())
+                    .map_err(|_| crate::Error::new(crate::ErrorKind::Allocation, offset))?;
+                copied.push_str(raw);
+                copied
+            }
+        };
+        Ok(DtdUnit {
+            raw: Cow::Owned(raw),
+            tokens: self.tokens,
+            kind: self.kind,
+        })
+    }
+
     pub(crate) fn view(&self) -> DtdUnitView<'_> {
         match self.kind {
             kind @ (DtdUnitKind::Header
@@ -1436,6 +1463,10 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/internal/dtd_unit_spec.rs"]
 mod spec_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_unit_ownership.rs"]
+mod ownership_tests;
 
 impl Parser<'_> {
     fn entity(&mut self) -> Result<DtdUnitKind, DtdError> {
