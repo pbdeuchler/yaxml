@@ -1191,3 +1191,7 @@ mod spec_tests;
 #[cfg(test)]
 #[path = "../tests/internal/dtd_borrowed_author.rs"]
 mod borrowed_author_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_borrowed_spec.rs"]
+mod borrowed_spec_tests;
