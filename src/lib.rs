@@ -3,6 +3,8 @@
 
 mod buffered;
 mod dom;
+#[cfg(test)]
+mod dtd;
 mod encoding;
 mod error;
 mod escape;

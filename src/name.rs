@@ -124,16 +124,19 @@ pub(crate) fn validate_name(name: &str, offset: usize, colon: bool) -> Result<()
         return Err(Error::new(ErrorKind::InvalidName, offset));
     }
     for (i, c) in chars {
-        if !name_start(c, colon)
-            && !matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')
-        {
+        if !name_char(c, colon) {
             return Err(Error::new(ErrorKind::InvalidName, offset + i));
         }
     }
     Ok(())
 }
 
-fn name_start(c: char, colon: bool) -> bool {
+pub(crate) fn name_char(c: char, colon: bool) -> bool {
+    name_start(c, colon)
+        || matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')
+}
+
+pub(crate) fn name_start(c: char, colon: bool) -> bool {
     (colon && c == ':')
         || matches!(c, 'A'..='Z' | 'a'..='z' | '_'
         | '\u{c0}'..='\u{d6}' | '\u{d8}'..='\u{f6}' | '\u{f8}'..='\u{2ff}'
