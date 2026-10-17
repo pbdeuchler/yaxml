@@ -505,3 +505,6 @@ mod spec_tests;
 
 #[path = "../../tests/internal/dtd_stream_utf16_author.rs"]
 mod utf16_tests;
+
+#[path = "../../tests/internal/dtd_stream_utf16_spec.rs"]
+mod utf16_spec_tests;
