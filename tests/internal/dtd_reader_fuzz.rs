@@ -102,6 +102,7 @@ enum DtdSemantic {
     Header {
         root: String,
         subset: bool,
+        external: Option<(Option<String>, Option<String>)>,
     },
     AttributeList {
         element: String,
@@ -850,6 +851,12 @@ fn observed_dtd_semantic(event: &ReaderEvent<'_>) -> Option<DtdSemantic> {
         DtdUnitView::Header(header) => DtdSemantic::Header {
             root: header.root_name().to_owned(),
             subset: header.has_internal_subset(),
+            external: header.external_id().map(|external| {
+                (
+                    external.public.map(str::to_owned),
+                    external.system.map(str::to_owned),
+                )
+            }),
         },
         DtdUnitView::AttributeList(list) => {
             let definitions = list
@@ -906,6 +913,7 @@ fn check_expected_event(
     expected: &ExpectedEvent,
     source: &str,
 ) -> Result<(), &'static str> {
+    check_event_storage(event, origin, source)?;
     if observed_kind(event) != expected.kind {
         return Err("event kind or value differs");
     }
@@ -1133,13 +1141,8 @@ fn check_event_storage(
                         | FieldRole::AttributeNamespace(_)
                         | FieldRole::EndNamespace
                 );
-                if generated {
-                    if !namespace {
-                        return Err("generated field borrowed physical input");
-                    }
-                    if !address_range(source).contains(&(value.as_ptr() as usize)) {
-                        continue;
-                    }
+                if generated && !namespace {
+                    return Err("generated field borrowed physical input");
                 }
                 if matches!(
                     field.role,
@@ -1148,7 +1151,13 @@ fn check_event_storage(
                         | FieldRole::EndNamespace
                 ) && !address_range(source).contains(&(value.as_ptr() as usize))
                 {
-                    continue;
+                    if matches!(
+                        value,
+                        "http://www.w3.org/XML/1998/namespace" | "http://www.w3.org/2000/xmlns/"
+                    ) {
+                        continue;
+                    }
+                    return Err("borrowed namespace outside input is not an XML static URI");
                 }
                 let base = source.as_ptr() as usize;
                 let Some(offset) = (value.as_ptr() as usize).checked_sub(base) else {

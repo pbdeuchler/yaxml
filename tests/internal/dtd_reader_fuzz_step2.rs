@@ -49,8 +49,10 @@ pub(super) struct RoutingReceipt {
     pub(super) quota: Option<(u8, usize, usize, usize, u8)>,
     pub(super) configured_early_stop: usize,
     pub(super) failure_checkpoint: usize,
+    pub(super) failure_checkpoint_event: Option<(usize, SourceOrigin)>,
     pub(super) failure_completed: usize,
     pub(super) truncation_checkpoint: usize,
+    pub(super) truncation_checkpoint_event: Option<(usize, SourceOrigin)>,
     pub(super) truncation_completed: usize,
 }
 
@@ -61,8 +63,10 @@ thread_local! {
         quota: None,
         configured_early_stop: 0,
         failure_checkpoint: 0,
+        failure_checkpoint_event: None,
         failure_completed: 0,
         truncation_checkpoint: 0,
+        truncation_checkpoint_event: None,
         truncation_completed: 0,
     }) };
 }
@@ -498,6 +502,7 @@ fn header_event(
     .with_dtd(DtdSemantic::Header {
         root: "r".to_owned(),
         subset,
+        external: None,
     })
 }
 
@@ -969,7 +974,13 @@ fn quota_literal_expected(source: &[u8]) -> Option<Vec<ExpectedEvent>> {
             ]
         } else {
             vec![
-                header_event("<!DOCTYPE r SYSTEM 'x'>", 0..22, 0..23, false),
+                header_event("<!DOCTYPE r SYSTEM 'x'>", 0..22, 0..23, false).with_dtd(
+                    DtdSemantic::Header {
+                        root: "r".to_owned(),
+                        subset: false,
+                        external: Some((None, Some("'x'".to_owned()))),
+                    },
+                ),
                 physical(ExpectedKind::DtdEnd, 22..23),
             ]
         });
@@ -1359,7 +1370,7 @@ pub(super) fn observed_owned_before_move(
 }
 
 fn admit_owned(count: usize, used: usize, bytes: usize) -> bool {
-    count < MAX_RETAINED_OBJECTS && bytes <= MAX_RETAINED_OWNED.saturating_sub(used)
+    count < MAX_RETAINED_OBJECTS && used <= MAX_RETAINED_OWNED && bytes <= MAX_RETAINED_OWNED - used
 }
 
 pub(super) fn collect_owned_bounded(
@@ -1505,7 +1516,10 @@ fn check_truncation_prefix(
                                 assert_eq!(inner.len(), length);
                                 check_expected_event(&event, origin, expected_event, source_text)
                                     .unwrap();
-                                update_receipt(|receipt| receipt.truncation_checkpoint += 1);
+                                update_receipt(|receipt| {
+                                    receipt.truncation_checkpoint += 1;
+                                    receipt.truncation_checkpoint_event = Some((delivered, origin));
+                                });
                                 check_truncation_prefix(family, prefix, expected, 0);
                                 return;
                             }
@@ -2659,19 +2673,22 @@ fn run_expected_failure(
     let expected_events = canonical_expected(source);
     if lifecycle & 3 == 3 && expected.prefix > 0 {
         let checkpoint = usize::from(lifecycle >> 2).min(expected.prefix - 1);
-        for index in 0..=checkpoint {
+        for (index, expected_event) in expected_events.iter().enumerate().take(checkpoint + 1) {
             let (event, origin) = reader
                 .read_event()
                 .expect("failure early-stop checkpoint precedes rejection")
                 .expect("failure early-stop checkpoint exists");
-            check_expected_event(&event, origin, &expected_events[index], source_text).unwrap();
+            check_expected_event(&event, origin, expected_event, source_text).unwrap();
             if index == checkpoint {
                 let inner = reader.into_inner();
                 assert_eq!(inner.as_ptr(), source.as_ptr());
                 assert_eq!(inner.len(), source.len());
-                check_expected_event(&event, origin, &expected_events[index], source_text).unwrap();
+                check_expected_event(&event, origin, expected_event, source_text).unwrap();
                 update_receipt(|receipt| receipt.configured_early_stop += 1);
-                update_receipt(|receipt| receipt.failure_checkpoint += 1);
+                update_receipt(|receipt| {
+                    receipt.failure_checkpoint += 1;
+                    receipt.failure_checkpoint_event = Some((index, origin));
+                });
                 run_expected_failure(source, limits, decode, profile, expected, 0);
                 return;
             }
@@ -2705,8 +2722,14 @@ fn run_expected_failure(
                         {
                             retained.push((event, origin));
                         }
-                        for (held, held_origin) in &retained {
-                            check_event_storage(held, *held_origin, source_text).unwrap();
+                        for (index, (held, held_origin)) in retained.iter().enumerate() {
+                            check_expected_event(
+                                held,
+                                *held_origin,
+                                &expected_events[index],
+                                source_text,
+                            )
+                            .unwrap();
                         }
                     }
                     2 => {
@@ -2745,13 +2768,20 @@ fn run_expected_failure(
                     "rejected transcript prefix"
                 );
                 assert_terminal_sticky_with(&mut reader, Err(error), || {
-                    for (held, held_origin) in &retained {
-                        check_event_storage(held, *held_origin, source_text).unwrap();
+                    for (index, (held, held_origin)) in retained.iter().enumerate() {
+                        check_expected_event(
+                            held,
+                            *held_origin,
+                            &expected_events[index],
+                            source_text,
+                        )
+                        .unwrap();
                     }
                 });
                 drop(reader);
-                for (held, held_origin) in &retained {
-                    check_event_storage(held, *held_origin, source_text).unwrap();
+                for (index, (held, held_origin)) in retained.iter().enumerate() {
+                    check_expected_event(held, *held_origin, &expected_events[index], source_text)
+                        .unwrap();
                 }
                 assert!(owned_bytes <= MAX_RETAINED_OWNED);
                 assert_eq!(owned, expected_owned_values);
@@ -3270,13 +3300,12 @@ pub(super) fn exercise_quota(axis_selector: u8, mode_selector: u8, shape: u8, li
 #[test]
 fn truncation_selector_covers_every_point_and_alias() {
     for family in 0_u8..8 {
-        for point in 0..TRUNCATION_CUTS[usize::from(family)].len() {
-            for lifecycle in 0_u8..4 {
+        for (point, &cut) in TRUNCATION_CUTS[usize::from(family)].iter().enumerate() {
+            for lifecycle in [0_u8, 1, 2, 3, 7, 15, 255] {
                 reset_routing_receipt();
                 exercise_truncation(family | ((point as u8) << 3), lifecycle);
                 let receipt = routing_receipt();
                 assert_eq!(receipt.truncation_completed, 1);
-                let cut = TRUNCATION_CUTS[usize::from(family)][point];
                 let expected = expected_truncation(
                     usize::from(family),
                     cut,
@@ -3284,12 +3313,39 @@ fn truncation_selector_covers_every_point_and_alias() {
                 );
                 assert_eq!(
                     receipt.truncation_checkpoint,
-                    usize::from(lifecycle == 3 && expected.delivered > 0)
+                    usize::from(lifecycle & 3 == 3 && expected.delivered > 0)
+                );
+                assert_eq!(
+                    receipt.truncation_checkpoint_event,
+                    literal_checkpoint(
+                        lifecycle,
+                        expected.delivered,
+                        &canonical_expected(truncation_fixture(usize::from(family)))
+                    )
                 );
             }
         }
     }
     exercise_truncation(u8::MAX, u8::MAX);
+}
+
+fn literal_checkpoint(
+    lifecycle: u8,
+    count: usize,
+    events: &[ExpectedEvent],
+) -> Option<(usize, SourceOrigin)> {
+    if count == 0 {
+        return None;
+    }
+    let index = match lifecycle {
+        3 => 0,
+        7 => 1.min(count - 1),
+        15 => 3.min(count - 1),
+        255 => count - 1,
+        0..=2 => return None,
+        _ => panic!("checkpoint test needs a literal index for this lifecycle"),
+    };
+    Some((index, events[index].origin.full))
 }
 
 #[test]
@@ -3317,7 +3373,7 @@ fn every_selector_alias_decodes_inside_frozen_bounds() {
 fn rejecting_profiles_cross_retained_extracted_and_early_stop_lifecycles() {
     for axis in 0..40 {
         for mode in 0..2 {
-            for lifecycle in 0..4 {
+            for lifecycle in [0, 1, 2, 3, 7, 15, 255] {
                 reset_routing_receipt();
                 exercise_scalar(axis, mode, lifecycle);
                 let receipt = routing_receipt();
@@ -3327,7 +3383,17 @@ fn rejecting_profiles_cross_retained_extracted_and_early_stop_lifecycles() {
                 );
                 assert_eq!(
                     receipt.failure_checkpoint,
-                    usize::from(lifecycle == 3 && expected_scalar_failure(axis, mode).prefix > 0)
+                    usize::from(
+                        lifecycle & 3 == 3 && expected_scalar_failure(axis, mode).prefix > 0
+                    )
+                );
+                assert_eq!(
+                    receipt.failure_checkpoint_event,
+                    literal_checkpoint(
+                        lifecycle,
+                        expected_scalar_failure(axis, mode).prefix,
+                        &canonical_expected(scalar_fixture(axis).0)
+                    )
                 );
             }
         }
@@ -3336,7 +3402,7 @@ fn rejecting_profiles_cross_retained_extracted_and_early_stop_lifecycles() {
         let banks = if axis == 47 { 0..8 } else { 0..1 };
         for bank in banks {
             for mode in 0..4 {
-                for lifecycle in 0..4 {
+                for lifecycle in [0, 1, 2, 3, 7, 15, 255] {
                     reset_routing_receipt();
                     exercise_precedence(axis, mode, bank, lifecycle);
                     let succeeds = precedence_configuration(axis, mode, bank).3;
@@ -3346,9 +3412,21 @@ fn rejecting_profiles_cross_retained_extracted_and_early_stop_lifecycles() {
                         receipt.failure_checkpoint,
                         usize::from(
                             !succeeds
-                                && lifecycle == 3
+                                && lifecycle & 3 == 3
                                 && expected_precedence_failure(axis, mode, bank).prefix > 0
                         )
+                    );
+                    assert_eq!(
+                        receipt.failure_checkpoint_event,
+                        if succeeds {
+                            None
+                        } else {
+                            literal_checkpoint(
+                                lifecycle,
+                                expected_precedence_failure(axis, mode, bank).prefix,
+                                &canonical_expected(precedence_configuration(axis, mode, bank).0),
+                            )
+                        }
                     );
                 }
             }
@@ -3416,6 +3494,24 @@ fn owned_sampling_admits_before_cloning_and_moves_identical_fields() {
     }
     assert_eq!(moved.len(), 128);
     assert_eq!(used, 0);
+    for (remaining, target, data, admitted) in
+        [(1, "x", "y", 1), (1, "xx", "y", 1), (0, "", "x", 1)]
+    {
+        let mut moved = vec![OwnedExtraction {
+            role: FieldRole::Leaf,
+            value: "x".repeat(MAX_RETAINED_OWNED - remaining),
+        }];
+        let mut used = MAX_RETAINED_OWNED - remaining;
+        let event = ReaderEvent::Xml(Event::ProcessingInstruction {
+            target: Cow::Owned(target.to_owned()),
+            data: Cow::Owned(data.to_owned()),
+        });
+        let sampled = observed_owned_before_move(&event, &moved);
+        assert_eq!(sampled.len(), admitted);
+        collect_owned_bounded(event, &mut moved, &mut used);
+        assert_eq!(moved[1..], sampled);
+        assert!(used <= MAX_RETAINED_OWNED);
+    }
     let source = format!("<!--{}--><r/>", "\r".repeat(65536));
     let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
     let (event, _) = reader.read_event().unwrap().unwrap();
