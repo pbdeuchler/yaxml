@@ -6,6 +6,8 @@ use std::ops::Range;
 
 use memchr::memchr;
 
+#[cfg(test)]
+use crate::escape::normalize_replacement_required;
 use crate::escape::{copy_cow, needs_normalization, normalize_required};
 use crate::name::{qname, validate_name};
 use crate::tokenizer::TokenKind;
@@ -156,6 +158,62 @@ pub(crate) struct PreparedTag<'event> {
     pub(crate) attributes: Vec<PreparedAttribute<'event>>,
     pub(crate) empty: bool,
     pub(crate) start: usize,
+}
+
+#[cfg(test)]
+impl PreparedTag<'_> {
+    fn try_into_static(self) -> Result<PreparedTag<'static>, Error> {
+        let start = self.start;
+        let name = self.name.try_into_static(start + 1)?;
+        let mut attributes = Vec::new();
+        attributes
+            .try_reserve(self.attributes.len())
+            .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+        for attribute in self.attributes {
+            let offset = attribute.provenance.offset(start);
+            let name = attribute.name.try_into_static(offset)?;
+            let Cow::Owned(value) = attribute.value else {
+                return Err(Error::new(ErrorKind::InvalidState, offset));
+            };
+            attributes.push(PreparedAttribute {
+                name,
+                value: Cow::Owned(value),
+                provenance: attribute.provenance,
+            });
+        }
+        Ok(PreparedTag {
+            name,
+            attributes,
+            empty: self.empty,
+            start,
+        })
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum DtdLeafKind {
+    Text,
+    Cdata,
+    Comment,
+    ProcessingInstruction,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ReplacementError {
+    pub(crate) kind: ErrorKind,
+    pub(crate) local_offset: usize,
+}
+
+#[cfg(test)]
+impl From<Error> for ReplacementError {
+    fn from(error: Error) -> Self {
+        Self {
+            kind: error.kind,
+            local_offset: error.offset,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -613,6 +671,186 @@ impl<'source> ParserState<'source> {
     }
 
     #[cfg(test)]
+    pub(crate) fn process_dtd_start_owned(
+        &mut self,
+        raw: &str,
+        start: usize,
+        catalog: &mut crate::dtd_catalog::DtdCatalog,
+    ) -> Result<Event<'static>, crate::dtd_tag::DtdTagError> {
+        if raw.len() > self.token_limit {
+            return Err(Error::new(ErrorKind::LimitExceeded(self.token_limit_kind), start).into());
+        }
+        if self.encoding.requires_declaration() && !self.declaration_seen {
+            return Err(Error::new(ErrorKind::EncodingMismatch, start).into());
+        }
+        self.check_event_limit(start)?;
+        self.check_token_start(TokenKind::Start, start)?;
+        let raw = self.collect_raw_tag(raw, start)?;
+        let prepared = crate::dtd_tag::prepare_dtd_tag(
+            catalog,
+            &mut self.budget,
+            raw,
+            crate::dtd::LiteralSource::Replacement,
+        )?
+        .try_into_static()?;
+        let event = self.publish_prepared_tag_owned(prepared)?;
+        self.events += 1;
+        Ok(event)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn process_dtd_leaf_owned(
+        &mut self,
+        kind: DtdLeafKind,
+        raw: &str,
+        local_range: Range<usize>,
+    ) -> Result<Event<'static>, ReplacementError> {
+        self.process_dtd_leaf_owned_inner(kind, raw, local_range)
+            .map_err(ReplacementError::from)
+    }
+
+    #[cfg(test)]
+    fn process_dtd_leaf_owned_inner(
+        &mut self,
+        kind: DtdLeafKind,
+        raw: &str,
+        local_range: Range<usize>,
+    ) -> Result<Event<'static>, Error> {
+        let start = local_range.start;
+        if local_range.end.checked_sub(start) != Some(raw.len()) {
+            return Err(Error::new(ErrorKind::InvalidState, start));
+        }
+        if raw.len() > self.token_limit {
+            return Err(Error::new(
+                ErrorKind::LimitExceeded(self.token_limit_kind),
+                start,
+            ));
+        }
+        if self.encoding.requires_declaration() && !self.declaration_seen {
+            return Err(Error::new(ErrorKind::EncodingMismatch, start));
+        }
+        if matches!(kind, DtdLeafKind::Text) && !self.in_content() {
+            let offset = raw
+                .bytes()
+                .position(|byte| !space(byte))
+                .map_or(start, |relative| start + relative);
+            return Err(Error::new(ErrorKind::TextOutsideRoot, offset));
+        }
+        self.check_event_limit(start)?;
+        let token_kind = match kind {
+            DtdLeafKind::Text => TokenKind::Text,
+            DtdLeafKind::Cdata => TokenKind::Cdata,
+            DtdLeafKind::Comment => TokenKind::Comment,
+            DtdLeafKind::ProcessingInstruction => TokenKind::Instruction,
+        };
+        self.check_token_start(token_kind, start)?;
+        let event = match kind {
+            DtdLeafKind::Text => {
+                if let Some(relative) = raw.find("]]>") {
+                    return Err(Error::new(ErrorKind::Syntax, start + relative));
+                }
+                Event::Text(self.normalized_replacement_owned(raw, start)?)
+            }
+            DtdLeafKind::Comment => {
+                let body = delimited_body(raw, "<!--", "-->", start)?;
+                if body.contains("--") || body.ends_with('-') {
+                    return Err(Error::new(ErrorKind::Syntax, start));
+                }
+                Event::Comment(self.budget.copy(body, start + 4)?)
+            }
+            DtdLeafKind::Cdata => {
+                let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
+                Event::Cdata(self.budget.copy(body, start + 9)?)
+            }
+            DtdLeafKind::ProcessingInstruction => {
+                let body = delimited_body(raw, "<?", "?>", start)?;
+                let name_end = body.bytes().position(space).unwrap_or(body.len());
+                let target = &body[..name_end];
+                validate_name(target, start + 2, false)?;
+                if target.eq_ignore_ascii_case("xml") {
+                    return Err(Error::new(ErrorKind::InvalidDeclaration, start));
+                }
+                let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
+                let offset = start + raw.len() - 2 - data.len();
+                Event::ProcessingInstruction {
+                    target: self.budget.copy(target, start + 2)?,
+                    data: self.budget.copy(data, offset)?,
+                }
+            }
+        };
+        self.events += 1;
+        Ok(event)
+    }
+
+    #[cfg(test)]
+    fn normalized_replacement_owned(
+        &mut self,
+        raw: &str,
+        offset: usize,
+    ) -> Result<Cow<'static, str>, Error> {
+        if !raw.as_bytes().contains(&b'&') {
+            return self.budget.copy(raw, offset);
+        }
+        self.budget.charge_owned(raw.len(), offset)?;
+        normalize_replacement_required(raw, offset).map(Cow::Owned)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn process_dtd_end_owned(
+        &mut self,
+        raw: &str,
+        start: usize,
+    ) -> Result<Event<'static>, ReplacementError> {
+        self.process_dtd_end_owned_inner(raw, start)
+            .map_err(ReplacementError::from)
+    }
+
+    #[cfg(test)]
+    fn process_dtd_end_owned_inner(
+        &mut self,
+        raw: &str,
+        start: usize,
+    ) -> Result<Event<'static>, Error> {
+        if raw.len() > self.token_limit {
+            return Err(Error::new(
+                ErrorKind::LimitExceeded(self.token_limit_kind),
+                start,
+            ));
+        }
+        if self.encoding.requires_declaration() && !self.declaration_seen {
+            return Err(Error::new(ErrorKind::EncodingMismatch, start));
+        }
+        self.check_event_limit(start)?;
+        self.check_token_start(TokenKind::End, start)?;
+        let body = delimited_body(raw, "</", ">", start)?;
+        let mut scan = TagScanner {
+            raw: body,
+            cursor: 0,
+            offset: start + 2,
+        };
+        let qualified = scan.name()?;
+        scan.skip_space();
+        if scan.cursor != body.len() {
+            return Err(Error::new(ErrorKind::Syntax, start));
+        }
+        if self
+            .stack
+            .last()
+            .is_none_or(|frame| frame.qualified != qualified)
+        {
+            return Err(Error::new(ErrorKind::MismatchedEndTag, start));
+        }
+        let name = self.resolve_end_name_owned(qualified, start + 2)?;
+        let frame = self.stack.pop().expect("matched frame");
+        self.unwind_bindings(frame.bindings_start);
+        if self.stack.is_empty() {
+            self.phase = Phase::Epilog;
+        }
+        self.events += 1;
+        Ok(Event::End(name))
+    }
+
+    #[cfg(test)]
     pub(crate) fn collect_raw_tag<'event>(
         &self,
         raw: &'event str,
@@ -675,12 +913,41 @@ impl<'source> ParserState<'source> {
     #[cfg(test)]
     pub(crate) fn publish_prepared_tag<'event, F>(
         &mut self,
-        mut prepared: PreparedTag<'event>,
+        prepared: PreparedTag<'event>,
         retain: &mut F,
     ) -> Result<Event<'event>, PreparedTagError>
     where
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        self.publish_prepared_tag_with(prepared, retain, &mut |uri, offset, budget| match uri {
+            Cow::Borrowed(uri) => Ok(Cow::Borrowed(*uri)),
+            Cow::Owned(uri) => budget.copy(uri, offset),
+        })
+    }
+
+    #[cfg(test)]
+    fn publish_prepared_tag_owned(
+        &mut self,
+        prepared: PreparedTag<'static>,
+    ) -> Result<Event<'static>, PreparedTagError> {
+        self.publish_prepared_tag_with(
+            prepared,
+            &mut |_, offset, _| Err(Error::new(ErrorKind::InvalidState, offset)),
+            &mut |uri, offset, budget| budget.copy(uri, offset),
+        )
+    }
+
+    #[cfg(test)]
+    fn publish_prepared_tag_with<'event, F, N>(
+        &mut self,
+        mut prepared: PreparedTag<'event>,
+        retain: &mut F,
+        namespace_output: &mut N,
+    ) -> Result<Event<'event>, PreparedTagError>
+    where
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+        N: FnMut(&Cow<'source, str>, usize, &mut Budget) -> Result<Cow<'event, str>, Error>,
     {
         let bindings_start = self.bindings.len();
         let mut next_namespace = self.next_namespace;
@@ -817,6 +1084,7 @@ impl<'source> ParserState<'source> {
             prepared.start + 1,
             &pending,
             &pending_prefixes,
+            namespace_output,
         )
         .map_err(PreparedTagError::input)?;
         let mut expanded = HashSet::new();
@@ -834,6 +1102,7 @@ impl<'source> ParserState<'source> {
                     offset,
                     &pending,
                     &pending_prefixes,
+                    namespace_output,
                 )
                 .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
             if !expanded.insert((attribute.name.local(), namespace)) {
@@ -1054,6 +1323,32 @@ impl<'source> ParserState<'source> {
         Ok((name, identity))
     }
 
+    #[cfg(test)]
+    fn resolve_end_name_owned(
+        &mut self,
+        qualified: &str,
+        offset: usize,
+    ) -> Result<Name<'static>, Error> {
+        let (prefix, _) = qname(qualified, offset)?;
+        let prefix_length = prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
+        let namespace = match prefix {
+            Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
+            Some("xml") => Some(Cow::Borrowed(XML)),
+            _ => match self.namespace_index.get(prefix.unwrap_or("")).copied() {
+                Some(index) if !self.bindings[index].uri.is_empty() => {
+                    Some(self.budget.copy(&self.bindings[index].uri, offset)?)
+                }
+                _ if prefix.is_some() => return Err(Error::new(ErrorKind::Namespace, offset)),
+                _ => None,
+            },
+        };
+        Ok(Name::from_validated_parts(
+            self.budget.copy(qualified, offset)?,
+            prefix_length,
+            namespace,
+        ))
+    }
+
     fn resolve_namespace<'event>(
         &mut self,
         name: &mut Name<'event>,
@@ -1092,16 +1387,17 @@ impl<'source> ParserState<'source> {
     }
 
     #[cfg(test)]
-    fn resolve_namespace_with_pending<'event>(
+    fn resolve_namespace_with_pending<'event, N>(
         &mut self,
         name: &mut Name<'event>,
         attribute: bool,
         offset: usize,
         pending: &[PendingBinding<'source>],
         pending_prefixes: &HashMap<Cow<'source, str>, usize>,
+        namespace_output: &mut N,
     ) -> Result<Option<NamespaceId>, Error>
     where
-        'source: 'event,
+        N: FnMut(&Cow<'source, str>, usize, &mut Budget) -> Result<Cow<'event, str>, Error>,
     {
         let prefix = name.prefix();
         let qualified = name.qualified();
@@ -1125,12 +1421,10 @@ impl<'source> ParserState<'source> {
                         })
                     });
                 match binding {
-                    Some((uri, identity)) if !uri.is_empty() => {
-                        if let Cow::Owned(uri) = uri {
-                            self.budget.charge_owned(uri.len(), offset)?;
-                        }
-                        (Some(copy_cow(uri, offset)?), identity)
-                    }
+                    Some((uri, identity)) if !uri.is_empty() => (
+                        Some(namespace_output(uri, offset, &mut self.budget)?),
+                        identity,
+                    ),
                     _ if prefix.is_some() => {
                         return Err(Error::new(ErrorKind::Namespace, offset));
                     }

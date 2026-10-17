@@ -52,8 +52,12 @@ element_depth() -> usize
 ```
 
 `process_dtd_leaf_owned` accepts only replacement input. It performs the same
-grammar, phase, token, event, and XML-character checks as the corresponding
-physical leaf, then copies only its final fields through the shared Budget.
+grammar, phase, token, and event checks as the corresponding physical leaf,
+then copies only its final fields through the shared Budget. Generated Text,
+including empty or whitespace-only Text, rejects every non-content phase before
+spending that budget or an event. As with `process_token`, the caller must first
+pass bytes through the UTF-8/XML-character validation owned and work-charged by
+LocalTokenizer; ParserState does not add an uncharged duplicate character scan.
 The event counter changes after all checks and copies succeed.
 
 `ReplacementError { kind, local_offset }` is a small private diagnostic, not a
@@ -85,7 +89,7 @@ prepared token to replay against another parser or an ABA-equivalent stack.
 Use a narrow phase-aware normalization entry beneath ParserState:
 
 ```text
-normalize_leaf(raw, offset, attribute=false, references, source)
+normalize_replacement_text(raw, offset)
 ```
 
 Physical delegates to today's normalization. Replacement omits only literal

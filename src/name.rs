@@ -100,6 +100,25 @@ impl<'a> Name<'a> {
         &self.qualified
     }
 
+    #[cfg(test)]
+    pub(crate) fn try_into_static(self, offset: usize) -> Result<Name<'static>, Error> {
+        let Cow::Owned(qualified) = self.qualified else {
+            return Err(Error::new(ErrorKind::InvalidState, offset));
+        };
+        let namespace = match self.namespace {
+            Some(Cow::Owned(namespace)) => Some(Cow::Owned(namespace)),
+            Some(Cow::Borrowed(_)) => {
+                return Err(Error::new(ErrorKind::InvalidState, offset));
+            }
+            None => None,
+        };
+        Ok(Name::from_validated_parts(
+            Cow::Owned(qualified),
+            self.prefix_length,
+            namespace,
+        ))
+    }
+
     pub(crate) fn as_borrowed(&self) -> Name<'_> {
         Name::from_validated_parts(
             Cow::Borrowed(&self.qualified),

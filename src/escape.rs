@@ -26,6 +26,21 @@ pub(crate) fn normalize_required(
     attribute: bool,
     references: bool,
 ) -> Result<String, Error> {
+    normalize(raw, offset, attribute, references, true)
+}
+
+#[cfg(test)]
+pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
+    normalize(raw, offset, false, true, false)
+}
+
+fn normalize(
+    raw: &str,
+    offset: usize,
+    attribute: bool,
+    references: bool,
+    physical_eol: bool,
+) -> Result<String, Error> {
     let mut out = String::new();
     out.try_reserve(raw.len())
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
@@ -74,7 +89,7 @@ pub(crate) fn normalize_required(
                     chars.next();
                 }
             }
-            '\r' => {
+            '\r' if physical_eol => {
                 if chars.peek().is_some_and(|(_, c)| *c == '\n') {
                     chars.next();
                 }
