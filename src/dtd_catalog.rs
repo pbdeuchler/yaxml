@@ -9,6 +9,8 @@ use crate::dtd::{
 use crate::escape::xml_char;
 use crate::name::validate_name;
 
+pub(crate) use crate::dtd::LiteralSource;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct EntityId(usize);
 
@@ -16,12 +18,6 @@ impl EntityId {
     pub(crate) fn index(self) -> usize {
         self.0
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum LiteralSource {
-    Physical,
-    Replacement,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -5,6 +5,12 @@ use crate::escape::xml_char;
 use crate::name::{name_char, name_start};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LiteralSource {
+    Physical,
+    Replacement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DtdLimits {
     pub(crate) max_unit_bytes: usize,
     pub(crate) max_tokens: usize,
@@ -207,6 +213,20 @@ impl<'a> DtdUnit<'a> {
         &self.raw
     }
 
+    /// Encode a complete unit for physical input without repeating EOL handling
+    /// on already-constructed literals. The caller bounds and buffers output.
+    pub(crate) fn physical_fragments(&self, source: LiteralSource) -> PhysicalFragments<'_> {
+        PhysicalFragments {
+            raw: &self.raw,
+            tokens: self.tokens.iter(),
+            source,
+            literal: None,
+            cursor: 0,
+            pending: None,
+            done: false,
+        }
+    }
+
     /// Retain a validated unit before mutating the catalog that supplied its text.
     /// Existing owned text and token metadata move without copying. A borrowed
     /// raw value spends the shared owned-string budget before allocation.
@@ -338,6 +358,83 @@ impl<'a> DtdUnit<'a> {
         &self.raw[self.tokens[index].range.clone()]
     }
 }
+
+/// A replacement-origin identifier containing CR has no equivalent literal
+/// physical spelling: character references are not interpreted in identifiers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct UnrepresentableIdentifier {
+    pub(crate) offset: usize,
+}
+
+pub(crate) struct PhysicalFragments<'a> {
+    raw: &'a str,
+    tokens: std::slice::Iter<'a, DtdToken>,
+    source: LiteralSource,
+    literal: Option<(LiteralKind, Range<usize>)>,
+    cursor: usize,
+    pending: Option<Result<&'static str, UnrepresentableIdentifier>>,
+    done: bool,
+}
+
+impl<'a> Iterator for PhysicalFragments<'a> {
+    type Item = Result<&'a str, UnrepresentableIdentifier>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+        if let Some(pending) = self.pending.take() {
+            self.done = pending.is_err();
+            return Some(pending);
+        }
+        if self.source == LiteralSource::Physical {
+            self.done = true;
+            return Some(Ok(self.raw));
+        }
+        loop {
+            if let Some((kind, range)) = &mut self.literal {
+                if let Some(relative) = memchr::memchr(b'\r', &self.raw.as_bytes()[range.clone()]) {
+                    let offset = range.start + relative;
+                    range.start = offset + 1;
+                    let encoded = match kind {
+                        LiteralKind::EntityValue => Ok("&#13;"),
+                        LiteralKind::AttributeValue => Ok(" "),
+                        LiteralKind::PublicIdentifier | LiteralKind::SystemIdentifier => {
+                            Err(UnrepresentableIdentifier { offset })
+                        }
+                        _ => unreachable!("only phase-sensitive literals are selected"),
+                    };
+                    let prefix = &self.raw[self.cursor..offset];
+                    self.cursor = offset + 1;
+                    if prefix.is_empty() {
+                        self.done = encoded.is_err();
+                        return Some(encoded);
+                    }
+                    self.pending = Some(encoded);
+                    return Some(Ok(prefix));
+                }
+                self.literal = None;
+            }
+            let next = self.tokens.find_map(|token| match token.kind {
+                TokenKind::Literal(
+                    kind @ (LiteralKind::EntityValue
+                    | LiteralKind::AttributeValue
+                    | LiteralKind::PublicIdentifier
+                    | LiteralKind::SystemIdentifier),
+                ) => Some((kind, token.range.clone())),
+                _ => None,
+            });
+            if let Some(next) = next {
+                self.literal = Some(next);
+            } else {
+                self.done = true;
+                return (self.cursor < self.raw.len()).then(|| Ok(&self.raw[self.cursor..]));
+            }
+        }
+    }
+}
+
+impl std::iter::FusedIterator for PhysicalFragments<'_> {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DtdUnitView<'unit> {
@@ -1467,6 +1564,10 @@ mod spec_tests;
 #[cfg(test)]
 #[path = "../tests/internal/dtd_unit_ownership.rs"]
 mod ownership_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_output_author.rs"]
+mod output_tests;
 
 impl Parser<'_> {
     fn entity(&mut self) -> Result<DtdUnitKind, DtdError> {
