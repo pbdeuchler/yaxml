@@ -787,3 +787,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/internal/dtd_writer_integration_author.rs"]
 mod dtd_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_writer_spec.rs"]
+mod dtd_spec_tests;
