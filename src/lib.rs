@@ -5,6 +5,8 @@ mod buffered;
 mod dom;
 #[cfg(test)]
 mod dtd;
+#[cfg(test)]
+mod dtd_scan;
 mod encoding;
 mod error;
 mod escape;
