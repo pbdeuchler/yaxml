@@ -119,6 +119,67 @@ fn no_subset_end_is_returned_before_body_and_failure_is_sticky() {
 }
 
 #[test]
+fn held_end_precedes_fallible_body_construction_and_preserves_its_origin() {
+    use crate::dtd_controller::content::{ContentError, ContentErrorKind};
+    use crate::tokenizer::text::TextErrorKind;
+
+    // The shortest complete DOCTYPE/root document needs no catalog entry or
+    // generated content. Its body scratch slots require exactly 16 + 16 + 1.
+    const INPUT: &[u8] = b"<!DOCTYPE r><r/>";
+    for scratch_bytes in [32, 33] {
+        let mut options = configured();
+        options.text.scratch = TextScratchLimits {
+            input_token_bytes: 16,
+            replacement_token_bytes: 16,
+            max_bytes: scratch_bytes,
+        };
+        options.text.reference.max_bytes = 1;
+        options.text.reference.max_scratch_bytes = 1;
+        options.local.max_token_bytes = 16;
+        options.local.max_scratch_bytes = 16;
+        let mut reader = DtdReader::with_limits(
+            INPUT,
+            Limits {
+                max_token_bytes: 16,
+                ..Limits::default()
+            },
+            options,
+        )
+        .unwrap();
+        for (expected, range) in [("begin", 0..11), ("end", 11..12)] {
+            let (event, origin) = reader.read_event().unwrap().unwrap();
+            assert_eq!(label(&event), expected);
+            assert_eq!(origin, SourceOrigin::input(range.clone()));
+            assert_eq!(reader.position(), 12);
+            assert_eq!(reader.event_origin(), Some(origin));
+            assert_eq!(reader.event_range(), Some(range));
+        }
+        if scratch_bytes == 32 {
+            let expected = SessionError::Content(ContentError {
+                kind: ContentErrorKind::Text(TextErrorKind::Scratch),
+                physical_offset: 12,
+                origin: None,
+                local_offset: None,
+                value_location: None,
+            });
+            for _ in 0..3 {
+                assert_eq!(reader.read_event().unwrap_err(), expected);
+                assert_eq!(reader.position(), 12);
+                assert_eq!(reader.event_origin(), Some(SourceOrigin::input(11..12)));
+                assert_eq!(reader.event_range(), Some(11..12));
+            }
+        } else {
+            let (event, origin) = reader.read_event().unwrap().unwrap();
+            assert_eq!(label(&event), "=r");
+            assert_eq!(origin, SourceOrigin::input(12..16));
+            assert_eq!(reader.position(), 16);
+            assert!(reader.read_event().unwrap().is_none());
+        }
+        assert_eq!(reader.into_inner(), INPUT);
+    }
+}
+
+#[test]
 fn constructors_and_ordinary_error_positions_match_the_existing_reader() {
     for input in [
         b"\xff\xfe<\0".as_slice(),
