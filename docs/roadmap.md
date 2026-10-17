@@ -189,11 +189,15 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   production faults. The first [private fuzz-driver review](review-dtd-reader-fuzz.md)
   adds bounded direct replay, four structured families, exact occurrence and
   provenance oracles, retained-lifetime checks and an ignored stdin entry. The
-  combined private tree passes 780 library tests in debug and release plus 13
-  doctests. Selector-driven truncation and quota/precedence axes, the campaign
-  protocol, measured coverage and performance gates remain open. Public DTD
-  events/errors, UTF-16 ownership, DOM storage and activation also remain
-  explicit follow-ups.
+  subsequent [boundary-matrix review](review-dtd-reader-fuzz-step2.md) adds
+  canonical witnesses, literal truncation points, all 48 quota and precedence
+  axes, lifecycle receipts, typed retained-event checks and pre-clone evidence
+  caps. Two independent reviews detect every requested route, lifecycle,
+  storage, origin, accounting, snapshot and QName regression. The integrated
+  tree passes 1,240 tests with ten ignored in debug and release all-target runs,
+  plus 13 doctests. The versioned libtest/Cargo campaign protocol, measured
+  coverage and performance gates remain open. Public DTD events/errors, UTF-16
+  ownership, DOM storage and activation also remain explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
