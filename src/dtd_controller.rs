@@ -142,6 +142,7 @@ pub(crate) struct DtdBodyState {
     frames: EntityFrames,
     limits: ControllerLimits,
     counters: ControllerCounters,
+    decoded_position: usize,
     physical_position: usize,
     doctype_range: Range<usize>,
 }
@@ -155,6 +156,7 @@ pub(crate) struct DtdControllerCore<'input> {
     input: PhysicalInput<'input>,
     encoding: SourceEncoding,
     start: usize,
+    decoded_start: usize,
     position: usize,
     unit_start: usize,
     limits: ControllerLimits,
@@ -179,9 +181,20 @@ impl DtdControllerCore<'static> {
         limits: ControllerLimits,
         standalone: bool,
     ) -> Self {
+        Self::new_at(encoding, physical_start, physical_start, limits, standalone)
+    }
+
+    pub(crate) fn new_at(
+        encoding: SourceEncoding,
+        physical_start: usize,
+        decoded_start: usize,
+        limits: ControllerLimits,
+        standalone: bool,
+    ) -> Self {
         Self::with_input(
             encoding,
             physical_start,
+            decoded_start,
             limits,
             standalone,
             PhysicalInput::Streaming,
@@ -210,6 +223,7 @@ impl DtdControllerCore<'static> {
         Ok(DtdControllerCore::with_input(
             SourceEncoding::Utf8,
             physical_start,
+            physical_start,
             limits,
             standalone,
             PhysicalInput::StableUtf8 {
@@ -225,6 +239,7 @@ impl<'input> DtdControllerCore<'input> {
     fn with_input(
         encoding: SourceEncoding,
         physical_start: usize,
+        decoded_start: usize,
         limits: ControllerLimits,
         standalone: bool,
         input: PhysicalInput<'input>,
@@ -238,6 +253,7 @@ impl<'input> DtdControllerCore<'input> {
             input,
             encoding,
             start: physical_start,
+            decoded_start,
             position: physical_start,
             unit_start: physical_start,
             limits,
@@ -285,12 +301,19 @@ impl<'input> DtdControllerCore<'input> {
     }
 
     pub(crate) fn take_current(&mut self) -> Option<(TakenDtdEvent<'input>, FragmentOrigin)> {
-        let ready = self.ready.take()?;
-        let origin = self.origin.take()?;
+        let ready = self.ready?;
+        let _origin = self.origin.expect("ready DTD event has an origin");
+        if matches!(ready, Ready::Begin | Ready::Item(_)) {
+            self.unit.as_ref().expect("ready DTD unit is retained");
+        } else {
+            assert!(self.unit.is_none(), "DTD End does not retain a unit");
+        }
+        let ready = self.ready.take().expect("checked ready DTD event");
+        let origin = self.origin.take().expect("checked ready DTD origin");
         let event = match ready {
-            Ready::Begin => TakenDtdEvent::Begin(self.unit.take()?),
+            Ready::Begin => TakenDtdEvent::Begin(self.unit.take().expect("checked retained unit")),
             Ready::Item(literals) => TakenDtdEvent::Item {
-                unit: self.unit.take()?,
+                unit: self.unit.take().expect("checked retained unit"),
                 literals,
             },
             Ready::End => TakenDtdEvent::End,
@@ -356,8 +379,7 @@ impl<'input> DtdControllerCore<'input> {
                 .get(relative..)
                 .ok_or_else(|| controller.simple_error(ControllerErrorKind::InvalidState))?;
             let consumed = controller.drive(remaining.as_bytes(), budget)?;
-            if consumed == 0
-                && controller.ready.is_none()
+            if controller.ready.is_none()
                 && !controller.complete
                 && controller.position == source_end
             {
@@ -379,8 +401,10 @@ impl<'input> DtdControllerCore<'input> {
     }
 
     pub(crate) fn into_body_state(self) -> Result<DtdBodyState, ControllerError> {
-        if self.failure.is_some()
-            || !self.complete
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        if !self.complete
             || self.ready.is_some()
             || self.unit.is_some()
             || self.origin.is_some()
@@ -391,11 +415,16 @@ impl<'input> DtdControllerCore<'input> {
             return Err(self.simple_error(ControllerErrorKind::InvalidState));
         }
         let doctype_range = self.start..self.position;
+        let decoded_position = self
+            .decoded_start
+            .checked_add(self.physical.position())
+            .ok_or_else(|| self.simple_error(ControllerErrorKind::PositionOverflow))?;
         Ok(DtdBodyState {
             catalog: self.catalog,
             frames: self.frames,
             limits: self.limits,
             counters: self.counters,
+            decoded_position,
             physical_position: self.position,
             doctype_range,
         })
@@ -1043,6 +1072,10 @@ impl DtdBodyState {
         &self.frames
     }
 
+    pub(crate) fn frames_mut(&mut self) -> &mut EntityFrames {
+        &mut self.frames
+    }
+
     pub(crate) fn limits(&self) -> ControllerLimits {
         self.limits
     }
@@ -1053,6 +1086,14 @@ impl DtdBodyState {
 
     pub(crate) fn physical_position(&self) -> usize {
         self.physical_position
+    }
+
+    pub(crate) fn decoded_position(&self) -> usize {
+        self.decoded_position
+    }
+
+    pub(crate) fn resume_position(&self) -> (usize, usize) {
+        (self.decoded_position, self.physical_position)
     }
 
     pub(crate) fn doctype_range(&self) -> Range<usize> {
@@ -1146,3 +1187,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/internal/dtd_controller_spec.rs"]
 mod spec_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_borrowed_author.rs"]
+mod borrowed_author_tests;

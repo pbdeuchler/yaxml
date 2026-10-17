@@ -56,7 +56,10 @@ After End has been taken or released and the controller is complete,
 `into_body_state()` consumes the controller. It moves the same `DtdCatalog` and
 the same `EntityFrames` object, preserving catalog state, frame nonce and frame
 counters. It also moves controller limits, counters, physical position and the
-DOCTYPE range needed by the later body controller. Physical and fragment
+DOCTYPE range needed by the later body controller. A separately retained
+decoded start is checked and combined with the physical scanner's decoded-byte
+progress before that scanner is dropped; the body state exposes the decoded and
+physical resume cursor pair rather than deriving one from the other. Physical and fragment
 scanners, current-unit scratch, active DTD expansion state and the stable input
 window are dropped. Calling the handoff before complete End returns typed
 `InvalidState`.
@@ -64,6 +67,11 @@ window are dropped. Calling the handoff before complete End returns typed
 No catalog clone, frame reconstruction, nonce reset or counter refund is
 allowed. A later body controller must continue using the moved frame object for
 general-entity occurrences.
+
+If processing already failed, handoff returns that stored sticky error exactly;
+it does not replace the useful grammar, limit or provenance diagnostic with
+`InvalidState`. A healthy controller that has not released End returns
+`InvalidState`.
 
 ## Verification slices
 
