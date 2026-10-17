@@ -1,5 +1,8 @@
 use super::*;
+use crate::dtd_catalog::{CatalogErrorKind, DependencyKind};
+use crate::dtd_controller::ControllerErrorKind;
 use crate::dtd_controller::ControllerLimits;
+use crate::dtd_frames::{FrameErrorKind, FrameLimit};
 use crate::dtd_reference::ReferenceLimits;
 use crate::tokenizer::local::LocalLimits;
 use crate::tokenizer::text::{TextLimits, TextScratchLimits};
@@ -661,5 +664,200 @@ fn changed_value_owned_quota_failure_keeps_the_prior_reader_origin_and_exact_anc
             assert!(matches!(&element.attributes[0].value, Cow::Owned(value) if value == "v "));
             assert!(reader.read_event().unwrap().is_none());
         }
+    }
+}
+
+#[test]
+fn pe_then_ge_reference_budget_is_not_reset_at_handoff() {
+    let input = b"<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>";
+    let mut options = configured();
+    options.declarations.frames.max_reference_attempts = 1;
+    let mut reader = DtdReader::new(input, options).unwrap();
+
+    for expected in ["begin", "item", "item", "end", "+r"] {
+        assert_eq!(label(&reader.read_event().unwrap().unwrap().0), expected);
+    }
+    let Phase::Content(controller) = &reader.session[0] else {
+        panic!("DTD handoff must retain the entity frame ledger")
+    };
+    assert_eq!(controller.frame_counters().reference_attempts, 1);
+
+    let previous = reader.event_origin();
+    let error = reader.read_event().unwrap_err();
+    assert!(matches!(
+        error,
+        SessionError::Content(crate::dtd_controller::content::ContentError {
+            kind: crate::dtd_controller::content::ContentErrorKind::Frame(
+                FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts)
+            ),
+            ..
+        })
+    ));
+    assert_eq!(
+        error.physical_offset(),
+        input.windows(3).position(|w| w == b"&e;").unwrap()
+    );
+    assert_eq!(reader.event_origin(), previous);
+    assert_eq!(reader.read_event().unwrap_err(), error);
+}
+
+#[test]
+fn repeated_nested_entity_occurrences_have_distinct_origins() {
+    let input = b"<!DOCTYPE r [<!ENTITY i 'x'><!ENTITY o '&i;&i;'>]><r>&o;</r>";
+    let mut reader = DtdReader::new(input, configured()).unwrap();
+    let mut origins = Vec::new();
+    while let Some((event, origin)) = reader.read_event().unwrap() {
+        if matches!(&event, ReaderEvent::Xml(Event::Text(text)) if text == "x") {
+            origins.push(origin);
+        }
+    }
+    assert_eq!(origins.len(), 2);
+    assert_eq!(origins[0].input_range(), None);
+    assert_eq!(origins[1].input_range(), None);
+    assert_eq!(origins[0].replacement_range(), Some(0..1));
+    assert_eq!(origins[1].replacement_range(), Some(0..1));
+    assert_eq!(origins[0].physical_context(), origins[1].physical_context());
+    assert_ne!(origins[0], origins[1]);
+}
+
+#[test]
+fn pre_dtd_declaration_misc_event_and_owned_budgets_survive_handoff() {
+    const INPUT: &[u8] = b"<?xml version='1.0'?><?p a\r\n?><!DOCTYPE r><r>&amp;</r>";
+
+    let mut event_limited = DtdReader::with_limits(
+        INPUT,
+        Limits {
+            max_events: 6,
+            ..Limits::default()
+        },
+        configured(),
+    )
+    .unwrap();
+    assert!(matches!(
+        event_limited.read_event().unwrap().unwrap().0,
+        ReaderEvent::Xml(Event::Declaration(_))
+    ));
+    let (ReaderEvent::Xml(Event::ProcessingInstruction { target, data }), _) =
+        event_limited.read_event().unwrap().unwrap()
+    else {
+        panic!("pre-DTD Misc event")
+    };
+    assert_eq!((target.as_ref(), data.as_ref()), ("p", "a\n"));
+    assert!(matches!(data, Cow::Owned(_)));
+    for expected in ["begin", "end", "+r", "T&"] {
+        assert_eq!(
+            label(&event_limited.read_event().unwrap().unwrap().0),
+            expected
+        );
+    }
+    let previous = event_limited.event_origin();
+    let error = event_limited.read_event().unwrap_err();
+    assert!(matches!(
+        error,
+        SessionError::Content(crate::dtd_controller::content::ContentError {
+            kind: crate::dtd_controller::content::ContentErrorKind::Parser(
+                ErrorKind::LimitExceeded(Limit::Events)
+            ),
+            ..
+        })
+    ));
+    assert_eq!(
+        error.physical_offset(),
+        INPUT.windows(4).position(|w| w == b"</r>").unwrap()
+    );
+    assert_eq!(event_limited.position(), INPUT.len());
+    assert_eq!(event_limited.event_origin(), previous);
+    assert_eq!(event_limited.read_event().unwrap_err(), error);
+
+    for (ceiling, succeeds) in [(7, false), (8, true)] {
+        let mut reader = DtdReader::with_limits(
+            INPUT,
+            Limits {
+                max_owned_bytes: ceiling,
+                ..Limits::default()
+            },
+            configured(),
+        )
+        .unwrap();
+        for _ in 0..5 {
+            reader.read_event().unwrap().unwrap();
+        }
+        if succeeds {
+            let (ReaderEvent::Xml(Event::Text(Cow::Owned(text))), _) =
+                reader.read_event().unwrap().unwrap()
+            else {
+                panic!("reference normalization owns the logical text")
+            };
+            assert_eq!(text, "&");
+            assert!(reader.read_event().unwrap().is_some());
+            assert!(reader.read_event().unwrap().is_none());
+        } else {
+            let previous = reader.event_origin();
+            let error = reader.read_event().unwrap_err();
+            assert!(matches!(
+                error,
+                SessionError::Content(crate::dtd_controller::content::ContentError {
+                    kind: crate::dtd_controller::content::ContentErrorKind::Parser(
+                        ErrorKind::LimitExceeded(Limit::OwnedBytes)
+                    ),
+                    ..
+                })
+            ));
+            assert_eq!(reader.event_origin(), previous);
+            assert_eq!(reader.read_event().unwrap_err(), error);
+        }
+    }
+}
+
+#[test]
+fn declaration_standalone_controls_unread_external_subset_failures() {
+    for (declaration, expected_kind, expected_error_delta) in [
+        (
+            "<?xml version='1.0'?>",
+            ControllerErrorKind::ValueUnavailable(DependencyKind::UnreadEntity),
+            0,
+        ),
+        (
+            "<?xml version='1.0' standalone='yes'?>",
+            ControllerErrorKind::Catalog(CatalogErrorKind::EntityDeclared),
+            21,
+        ),
+    ] {
+        let input = format!(
+            "{declaration}<!DOCTYPE r SYSTEM 'external.dtd' [<!ATTLIST r x CDATA '&unknown;'>]><r/>"
+        );
+        let begin = declaration.len()..declaration.len() + 35;
+        let item = begin.end..begin.end + 32;
+        let mut reader = DtdReader::new(input.as_bytes(), configured()).unwrap();
+
+        let (ReaderEvent::Xml(Event::Declaration(actual)), declaration_origin) =
+            reader.read_event().unwrap().unwrap()
+        else {
+            panic!("XML declaration")
+        };
+        assert_eq!(
+            actual.standalone,
+            declaration.contains("standalone='yes'").then_some(true)
+        );
+        assert_eq!(declaration_origin.input_range(), Some(0..declaration.len()));
+        let (ReaderEvent::Dtd(TakenDtdEvent::Begin(_)), begin_origin) =
+            reader.read_event().unwrap().unwrap()
+        else {
+            panic!("DTD Begin")
+        };
+        assert_eq!(begin_origin.input_range(), Some(begin.clone()));
+
+        let error = reader.read_event().unwrap_err();
+        let SessionError::Dtd(dtd_error) = error else {
+            panic!("standalone policy must remain a typed DTD failure")
+        };
+        assert_eq!(dtd_error.kind, expected_kind);
+        assert_eq!(dtd_error.physical_offset, item.start + expected_error_delta);
+        assert_eq!(dtd_error.origin.unwrap().input_range(), Some(item.clone()));
+        assert_eq!(reader.position(), item.end);
+        assert_eq!(reader.event_origin(), Some(begin_origin));
+        assert_eq!(reader.read_event().unwrap_err(), error);
+        assert_eq!(reader.position(), item.end);
+        assert_eq!(reader.event_origin(), Some(begin_origin));
     }
 }
