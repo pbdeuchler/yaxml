@@ -79,7 +79,7 @@ fn run(
                     .active
                     .last()
                     .map(|active| active.invocation.get());
-                controller.emit(&mut |event, origin| {
+                controller.emit(&mut |event, origin, _| {
                     rows.push((label(event), origin, invocation));
                     Ok(())
                 })?;
@@ -145,7 +145,7 @@ fn generated_defaults_and_replacement_leaf_phases_use_owned_values() {
         controller.advance(b"<r>&e;</r>").unwrap().outcome,
         ContentOutcome::EventReady
     );
-    controller.emit(&mut |_, _| Ok(())).unwrap();
+    controller.emit(&mut |_, _, _| Ok(())).unwrap();
     assert_eq!(
         controller.advance(b"&e;</r>").unwrap().outcome,
         ContentOutcome::Progress
@@ -155,7 +155,7 @@ fn generated_defaults_and_replacement_leaf_phases_use_owned_values() {
         ContentOutcome::EventReady
     );
     controller
-        .emit(&mut |event, origin| {
+        .emit(&mut |event, origin, _| {
             assert!(origin.input_range().is_none());
             assert!(matches!(event, Event::Text(Cow::Owned(_))));
             Ok(())
@@ -170,19 +170,16 @@ fn prefix_cancellation_prevents_lookup_entry_and_suffix_consumption() {
     let initial = controller.frame_counters();
     let first = controller.advance(b"<r>pre&missing;post</r>").unwrap();
     assert_eq!(first.consumed, 3);
-    controller.emit(&mut |_, _| Ok(())).unwrap();
+    controller.emit(&mut |_, _, _| Ok(())).unwrap();
     let prefix = controller.advance(b"pre&missing;post</r>").unwrap();
     assert_eq!(prefix.consumed, "pre&missing;".len());
     let failure = controller
-        .emit(&mut |event, _| {
+        .emit(&mut |event, _, _| {
             assert_eq!(label(event), "Tpre");
-            Err(Error::new(ErrorKind::InvalidState, 999))
+            Err(Error::new(ErrorKind::Aborted, dtd.len() + 6))
         })
         .unwrap_err();
-    assert_eq!(
-        failure.kind,
-        ContentErrorKind::Callback(ErrorKind::InvalidState)
-    );
+    assert_eq!(failure.kind, ContentErrorKind::Callback(ErrorKind::Aborted));
     assert_eq!(failure.physical_offset, dtd.len() + 6);
     assert_eq!(controller.frame_counters(), initial);
     assert_eq!(controller.advance(b"post</r>").unwrap_err(), failure);
@@ -413,11 +410,11 @@ fn callback_unwind_poison_prevents_republication_and_entity_lookup() {
     let mut controller = make("<!DOCTYPE r [<!ENTITY e 'text'>]>");
     let step = controller.advance(b"<r>prefix&e;</r>").unwrap();
     assert_eq!(step.consumed, 3);
-    controller.emit(&mut |_, _| Ok(())).unwrap();
+    controller.emit(&mut |_, _, _| Ok(())).unwrap();
     controller.advance(b"prefix&e;</r>").unwrap();
     let attempts = controller.frame_counters().reference_attempts;
     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        controller.emit(&mut |_, _| panic!("callback stopped"))
+        controller.emit(&mut |_, _, _| panic!("callback stopped"))
     }));
     assert!(outcome.is_err());
     let failure = controller.advance(b"</r>").unwrap_err();
@@ -425,7 +422,7 @@ fn callback_unwind_poison_prevents_republication_and_entity_lookup() {
     assert_eq!(controller.finish_step().unwrap_err(), failure);
     assert_eq!(
         controller
-            .emit(&mut |_, _| panic!("must not republish"))
+            .emit(&mut |_, _, _| panic!("must not republish"))
             .unwrap_err(),
         failure
     );
@@ -438,7 +435,7 @@ fn unicode_source_scan_may_pause_inside_scalar_before_work_exhaustion() {
     let dtd = "<!DOCTYPE r [<!ENTITY e 'é'>]>";
     let mut probe = make(dtd);
     assert_eq!(probe.advance(b"<r>&e;</r>").unwrap().consumed, 3);
-    probe.emit(&mut |_, _| Ok(())).unwrap();
+    probe.emit(&mut |_, _, _| Ok(())).unwrap();
     assert_eq!(
         probe.advance(b"&e;</r>").unwrap().outcome,
         ContentOutcome::Progress

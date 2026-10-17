@@ -198,7 +198,7 @@ struct Seen {
 
 fn emit(controller: &mut ContentController) -> Result<Seen, ContentError> {
     let mut captured = None;
-    controller.emit(&mut |event, origin| {
+    controller.emit(&mut |event, origin, _| {
         captured = Some((seen_event(event), seen_origin(origin), origin));
         Ok(())
     })?;
@@ -363,7 +363,7 @@ fn terminal_prefix_callback_error_precedes_lookup_and_suffix() {
     let before = controller.frame_counters();
     let expected = Error::new(ErrorKind::InvalidState, 777);
     let error = controller
-        .emit(&mut |event, origin| {
+        .emit(&mut |event, origin, _| {
             assert_eq!(seen_event(event), SeenEvent::Text("a".into()));
             assert_eq!(seen_origin(origin).input, Some(33..34));
             Err(expected)
@@ -373,12 +373,13 @@ fn terminal_prefix_callback_error_precedes_lookup_and_suffix() {
         error.kind,
         ContentErrorKind::Callback(ErrorKind::InvalidState)
     );
-    assert_eq!(error.physical_offset, 34);
+    assert_eq!(error.physical_offset, expected.offset);
+    assert_eq!(error.local_offset, None);
     assert_eq!(controller.frame_counters(), before);
     assert_eq!(before.reference_attempts, 0);
     assert_eq!(controller.position(), (37, 37));
     assert_eq!(controller.advance(b"b</r>"), Err(error));
-    assert_eq!(controller.emit(&mut |_, _| Ok(())), Err(error));
+    assert_eq!(controller.emit(&mut |_, _, _| Ok(())), Err(error));
 }
 
 #[test]
@@ -575,7 +576,7 @@ fn generated_callback_moves_owned_names_values_and_inherited_namespace() {
             cursor += step.consumed;
             match step.outcome {
                 ContentOutcome::EventReady => controller
-                    .emit(&mut |event, origin| {
+                    .emit(&mut |event, origin, _| {
                         if origin.replacement_range().is_some() {
                             match event {
                                 Event::Empty(element) => {
@@ -1031,7 +1032,7 @@ fn generated_text_work_boundary_charges_the_complete_token_before_callback() {
         if step.outcome == ContentOutcome::EventReady {
             let mut generated_text = false;
             exact
-                .emit(&mut |event, origin| {
+                .emit(&mut |event, origin, _| {
                     callbacks += 1;
                     generated_text = matches!(event, Event::Text(ref value) if value == "x")
                         && origin.replacement_range() == Some(0..1);
@@ -1072,7 +1073,7 @@ fn generated_text_work_boundary_charges_the_complete_token_before_callback() {
             Ok(step) => {
                 cursor += step.consumed;
                 if step.outcome == ContentOutcome::EventReady {
-                    match short.emit(&mut |_, _| {
+                    match short.emit(&mut |_, _, _| {
                         callbacks += 1;
                         Ok(())
                     }) {

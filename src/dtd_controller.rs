@@ -16,7 +16,7 @@ use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::parser::Budget;
 use crate::{Error, ErrorKind};
 
-mod content;
+pub(crate) mod content;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ControllerLimits {

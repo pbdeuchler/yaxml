@@ -194,7 +194,7 @@ impl ContentController {
     /// Cancellation is sticky and leaves a General reference unscheduled.
     pub(crate) fn emit(
         &mut self,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin) -> Result<(), Error>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), ContentError> {
         if let Some(error) = self.failure {
             return Err(error);
@@ -591,7 +591,7 @@ impl ContentController {
 
     fn publish(
         &mut self,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin) -> Result<(), Error>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), ContentError> {
         if !self.ready {
             return Err(self.simple(ContentErrorKind::InvalidState));
@@ -789,15 +789,22 @@ impl ContentController {
                 (Ok(event), Ok(())) => Ok(event),
             };
             event.and_then(|event| match event {
-                Some(event) => {
-                    emit(event, SourceOrigin::from_repr(origin)).map_err(|error| ContentError {
-                        kind: ContentErrorKind::Callback(error.kind),
-                        physical_offset: origin.cancellation_offset(),
-                        origin: Some(origin),
-                        local_offset: origin.replacement_range().map(|range| range.end),
-                        value_location: None,
-                    })
-                }
+                Some(event) => emit(
+                    event,
+                    SourceOrigin::from_repr(origin),
+                    self.parser.owned_budget(),
+                )
+                .map_err(|error| ContentError {
+                    kind: ContentErrorKind::Callback(error.kind),
+                    physical_offset: error.offset,
+                    origin: Some(origin),
+                    local_offset: if error.kind == ErrorKind::Aborted {
+                        origin.replacement_range().map(|range| range.end)
+                    } else {
+                        None
+                    },
+                    value_location: None,
+                }),
                 None => Ok(()),
             })
         };
