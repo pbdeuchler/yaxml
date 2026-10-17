@@ -155,9 +155,67 @@ references once and require Text-prefix release before general-reference skip.
 Root review caught an uncharged repeated UTF-8 scan in the validated-reference
 getter. Pending bytes now transition into a checked String once during charged
 classification; getters borrow it in constant time and release reuses the same
-allocation. Six new author groups and the existing independent foundations pass
-in debug and release. Independent boundary testing and the actual source-bound
-coordinator remain in progress; this is not a completed content controller.
+allocation. Six new author groups, the existing independent foundations and
+eight new independent boundary groups pass in debug and release. The latter
+use actual Decoder output at every source split for UTF-16LE/BE, including
+supplementary preceding Text and Unicode general names; exact physical/decoded
+ceilings, saved delimiters, local sealing and four runtime faults are covered.
+The independent artifact is `4130958`; its report is
+`/private/tmp/yaxml-dtd-text-reference-spec-report.md`. The source-bound
+coordinator remains in progress; this is not a completed content controller.
+
+## Owned generated body events
+
+The [generated event preparation outline](plans/dtd-parser-event-preparation.md)
+now has private leaf, Start and End operations returning `Event<'static>`.
+Fields are constructed owned at their real preparation boundary; no general
+Event-to-owned conversion or asserted lifetime is introduced. Physical event
+borrowing retains its existing wrapper. Generated namespace output selects a
+second monomorphized copy callback inside the same publication transaction,
+including inherited URIs borrowed from short-lived physical input.
+
+Replacement Text preserves literal CR/CRLF and processes numeric/predefined
+spellings once, without rescanning decoded ampersands. CDATA, comments and PI
+data preserve replacement CR. XML-target PIs are rejected. Root review caught
+generated Text being accepted in Prolog/Epilog; the corrected body-only path
+rejects even empty and whitespace-only values before spending events or copy
+budget. UTF-8/XML-character validation remains the work-charged LocalTokenizer
+obligation, matching the physical parser's documented precondition.
+
+Generated End copies its qualified name and namespace before popping the exact
+current frame or unwinding scope. It has no prepared token which could be
+replayed against an ABA-equivalent stack. The future controller must still run
+the EntityFrames boundary guard before this call. Error offsets are byte
+positions within the active replacement source, including the token's start
+once; they never enter a physical UTF-16 mapper.
+
+Six new author parser groups and eleven root independent groups cover final
+values after source destruction, exact/one-short copy quotas, Unicode errors,
+defaults, inherited and pending namespaces, mismatch recovery and End failure
+after namespace copying but before qualified-name copying. Final review found
+that the first tests exercised only generated Empty tags. Two added independent
+groups now prove nonempty Start retention after raw/catalog destruction, later
+child resolution, owned End and scope unwind. The exact 29-byte case succeeds;
+one byte short rejects the final three-byte frame-name copy, keeps 26 bytes
+spent, and leaves depth, events and pending namespace membership unchanged.
+
+All eleven independent groups pass debug/release and strict checks. Root's
+pre-correction phase test failed at runtime; three later deliberate EOL,
+namespace-budget and premature-pop faults were caught and restored. Independent
+holistic review of final source `d85de448` and tests `f490653` passes with no
+remaining findings. Reports/logs include
+`/private/tmp/yaxml-generated-body-event-review.md`,
+`/private/tmp/yaxml-dtd-owned-leaf-root-nonempty-{debug,release,clippy}.log`,
+`/private/tmp/yaxml-dtd-owned-leaf-root-before-phase.log` and
+`/private/tmp/yaxml-dtd-owned-leaf-root-faults.tsv`.
+
+The next source-lease coordinator remains outside this freeze. Its initial
+review found a missing aggregate scratch ceiling; the correction must include
+the paused physical tokenizer as well as active local/reference buffers.
+Stable-input lexing still copies tokens into scratch, and borrowed stable-window
+publication is not implemented. Full GE scheduling, frame guards, catalog
+borrows, global counters and origin publication must now be joined before any
+frontend activation.
 
 ## Combined freeze and remaining gates
 
@@ -186,6 +244,17 @@ tracked files match their Git blobs and the worktree is clean. Root handle
 `72621` is terminal with exit zero; logs use
 `/private/tmp/yaxml-dtd-root-count-final-{all-targets,release,doctests,clippy,fmt,diff}.log`
 and the source manifest is `/private/tmp/yaxml-dtd-root-count-final-source.tsv`.
+
+The owned-event follow-up freeze is `cf6654c4cd4dfeb15ae7bf90222bda6f5e254997`,
+source tree `3342eb81c9b5613feb98defe2c94dd8a74a32c07`. It passes 917 tests with
+nine ignored across 44 ordinary groups, all 479 library tests in release, all
+13 doctests, strict all-target Clippy, formatting and diff checks. All 335
+tracked files match their Git blobs; the worktree is clean. Root handle
+`63437` is terminal with exit zero. Logs use
+`/private/tmp/yaxml-dtd-root-owned-events-{library,all-targets,release,doctests,clippy,fmt,diff}.log`;
+the earlier library-only log contains 477 tests, before the two nonempty-Start
+controls were added. The final all-targets/release logs contain all 479. Source
+manifest: `/private/tmp/yaxml-dtd-root-owned-events-source.tsv`.
 
 No fresh fuzz-only coverage or XMLTS result is claimed for these private
 modules. Main's most recent public-source measurement remains 6,936/7,406

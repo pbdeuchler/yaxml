@@ -117,7 +117,8 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   gates remain open.
   The subsequent [tag and Writer review](review-dtd-tags-writer.md) records atomic
   default/namespace preparation, local token/reference foundations and the
-  private Writer protocol: the follow-up passes 892 ordinary tests, all 454 library tests in release
+  private Writer protocol: the later follow-up passes 917 ordinary tests, all
+  479 library tests in release
   and 13 doctests pass. Review corrected capacity and diagnostic accounting and
   a release-only publication defect. A measured staging regression led to
   restoring the ordinary one-pass tag path; retained repeats support removal
@@ -126,8 +127,15 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   open.
   Final Writer review also corrected known event/item quota checks occurring
   after encoding; an independent regression and three runtime faults verify the
-  preflight order. Narrow Text/reference operations compile privately, with
-  source-bound coordination and independent boundary testing still in progress.
+  preflight order. Eight independent Text/reference boundary groups pass,
+  including actual UTF-16 decoding and exact physical spans. The private
+  [generated-event preparation path](plans/dtd-parser-event-preparation.md)
+  now owns replacement leaf/Start/End fields, preserves replacement EOL phase
+  and copies End names before scope unwind. Eleven independent groups include
+  nonempty generated Start retention and one-short copy failure atomicity.
+  Source-bound coordination remains held for its aggregate scratch bound;
+  full GE scheduling, frame guards, catalog/counter handoff and origin
+  publication must be joined before frontend activation.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
