@@ -48,3 +48,7 @@ pub use writer::{Writer, WriterLimits};
 
 #[cfg(test)]
 mod dtd_reference;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_content_foundations_spec.rs"]
+mod dtd_content_foundations_spec;
