@@ -190,6 +190,13 @@ pub(crate) struct DtdUnit<'a> {
     kind: DtdUnitKind,
 }
 
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RawSource {
+    Borrowed,
+    Owned,
+}
+
 impl<'a> DtdUnit<'a> {
     pub(crate) fn parse(raw: impl Into<Cow<'a, str>>, limits: DtdLimits) -> Result<Self, DtdError> {
         let raw = raw.into();
@@ -211,6 +218,14 @@ impl<'a> DtdUnit<'a> {
 
     pub(crate) fn raw(&self) -> &str {
         &self.raw
+    }
+
+    #[cfg(test)]
+    pub(crate) fn raw_source(&self) -> RawSource {
+        match self.raw {
+            Cow::Borrowed(_) => RawSource::Borrowed,
+            Cow::Owned(_) => RawSource::Owned,
+        }
     }
 
     /// Check constant-time limits and return the bounded work required to

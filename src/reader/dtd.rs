@@ -1,10 +1,13 @@
 //! Stable UTF-8 DTD events borrow only the constructor's immutable input.
 use super::*;
 use crate::DecodeLimits;
+use crate::dtd_controller::ControllerCounters;
 use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
 use crate::dtd_controller::{BorrowedDtdController, DtdController, TakenDtdEvent};
+use crate::dtd_frames::FrameCounters;
 use crate::stream::dtd::{SessionError, SessionLimits};
 use crate::tokenizer::Tokenizer;
+use crate::tokenizer::text::TextUsage;
 
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,6 +56,35 @@ enum Phase<'input> {
 enum Failure {
     Error(SessionError),
     Poisoned,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FuzzPhase {
+    Ordinary,
+    Declarations,
+    Content,
+    Vacant,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FuzzFailure {
+    Error,
+    Poisoned,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FuzzSnapshot {
+    pub(crate) phase: FuzzPhase,
+    pub(crate) failure: Option<FuzzFailure>,
+    pub(crate) physical_position: usize,
+    pub(crate) last_origin: Option<SourceOrigin>,
+    pub(crate) finished: bool,
+    pub(crate) controller: Option<ControllerCounters>,
+    pub(crate) frames: Option<FrameCounters>,
+    pub(crate) text: Option<TextUsage>,
 }
 
 pub(crate) struct DtdReader<'input> {
@@ -120,6 +152,42 @@ impl<'input> DtdReader<'input> {
     }
     pub(crate) fn into_inner(self) -> &'input [u8] {
         self.source.as_bytes()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fuzz_snapshot(&self) -> FuzzSnapshot {
+        let (phase, controller, frames, text) = if self.ordinary.is_some() {
+            (FuzzPhase::Ordinary, None, None, None)
+        } else {
+            match self.session.first() {
+                Some(Phase::Declarations { controller, .. }) => (
+                    FuzzPhase::Declarations,
+                    Some(controller.counters()),
+                    None,
+                    None,
+                ),
+                Some(Phase::Content(controller)) => (
+                    FuzzPhase::Content,
+                    Some(controller.counters()),
+                    Some(controller.frame_counters()),
+                    Some(controller.usage()),
+                ),
+                None => (FuzzPhase::Vacant, None, None, None),
+            }
+        };
+        FuzzSnapshot {
+            phase,
+            failure: self.failure.map(|failure| match failure {
+                Failure::Error(_) => FuzzFailure::Error,
+                Failure::Poisoned => FuzzFailure::Poisoned,
+            }),
+            physical_position: self.position(),
+            last_origin: self.origin,
+            finished: self.finished,
+            controller,
+            frames,
+            text,
+        }
     }
 
     pub(crate) fn read_event(
