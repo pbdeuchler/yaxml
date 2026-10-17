@@ -50,3 +50,12 @@ Body raw/decoded slots are 16 bytes and local slots initially 16. Reference slot
 The plan's baseline may expose inaccurate inherited location assumptions or a production defect. Any discrepancy must be retained as red evidence and resolved from an independent lower-layer contract or an explicit policy decision; it must not be silently changed to match a facade observation.
 
 Additional cumulative controls: H performs one PE and one GE invocation, preserving two reference attempts and 18 native frame work units; V spends two expansion bytes constructing the entity before two more bytes expanding its attribute use; R must not reset reference work between its two inclusions. Monotonic aggregate counters and exact sticky snapshots supplement these literal discriminators.
+
+## Explicit errata after the frozen baseline
+
+The original table is preserved above. Its first facade run was 21 passed and 5 failed; the raw log is `/private/tmp/yaxml-dtd-reader-quota-baseline.log`. All native error kinds and physical anchors agreed. Two independently authored lower-component controls were then run before changing expectations; both passed, without any production edit:
+
+- `independent_scanner_header_keeps_its_physical_delimiter_before_publication` pins the scanner's rejected no-subset header unit to `0..12`, including `>`. Only successful facade publication separates Begin `0..11` and held End `11..12`. Therefore unit-token and catalog-work **error** origins are `0..12`, rather than the successful Begin span used initially.
+- `independent_reference_limits_stop_at_the_first_unaccepted_source_byte` pins byte/scratch ceilings of two on `&e;` to accepted position two, and exhausted cumulative reference work to zero newly accepted bytes of the second reference. This agrees with the existing native monotone-work and reference-copy-before-skip specifications. Therefore the reference Bytes/Scratch facade high-water is **38**, and the two-inclusion native-work high-water is **36**; their physical anchors remain unchanged.
+
+The independent control log is `/private/tmp/yaxml-dtd-reader-quota-independent-controls.log`. No expected type, budget threshold, logical value, physical diagnostic anchor, replacement identity or sticky-error requirement was relaxed. These five corrections distinguish accepted primary high-water from bytes merely present in the caller's remaining input.

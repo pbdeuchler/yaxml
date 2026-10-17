@@ -7,6 +7,9 @@ use crate::dtd_reference::ReferenceLimits;
 use crate::tokenizer::local::LocalLimits;
 use crate::tokenizer::text::{TextLimits, TextScratchLimits};
 
+#[path = "dtd_reader_quota_spec.rs"]
+mod quota_spec;
+
 fn configured() -> SessionLimits {
     SessionLimits {
         declarations: ControllerLimits::default(),
