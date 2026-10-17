@@ -105,6 +105,16 @@ pub(crate) struct DtdWriterState {
 }
 
 impl DtdWriterState {
+    pub(crate) fn check_unit_bounds(
+        unit: &DtdUnit<'_>,
+        limits: DtdLimits,
+        output_offset: usize,
+    ) -> Result<(), DtdWriteError> {
+        unit.limit_inspection_work(limits)
+            .map(|_| ())
+            .map_err(|error| unit_error(error.kind, error.offset, output_offset))
+    }
+
     pub(crate) fn begin(
         unit: &DtdUnit<'_>,
         encoded_bytes: usize,
@@ -312,6 +322,10 @@ impl DtdWriterState {
 
     pub(crate) fn counters(&self) -> DtdWriteCounters {
         self.counters
+    }
+
+    pub(crate) fn unit_limits(&self) -> DtdLimits {
+        self.limits.unit
     }
 
     pub(crate) fn check_body_ready(&mut self, output_offset: usize) -> Result<(), DtdWriteError> {

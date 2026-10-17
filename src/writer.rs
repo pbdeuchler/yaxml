@@ -171,6 +171,14 @@ impl<W: Write> Writer<W> {
     }
 
     pub(crate) fn write_event_inner(&mut self, event: &Event<'_>) -> Result<(), WriteError> {
+        #[cfg(test)]
+        if matches!(event, Event::Start(_) | Event::Empty(_))
+            && self.dtd.first().is_some_and(DtdWriterState::is_complete)
+        {
+            return self
+                .write_dtd_body_event_inner(event)
+                .map_err(dtd_event_as_write_error);
+        }
         self.prepare(event).map_err(WriteError::Xml)?;
         self.write_buffer()
     }
@@ -417,18 +425,9 @@ impl<W: Write> Writer<W> {
     }
 
     #[cfg(test)]
-    pub(crate) fn write_dtd_body_event(
-        &mut self,
-        event: &Event<'_>,
-    ) -> Result<(), DtdEventWriteError> {
-        if !matches!(self.status, Status::Fresh | Status::Active) {
-            self.status = Status::Failed;
-            return Err(self.invalid_state().into());
-        }
-        self.status = Status::Failed;
+    fn write_dtd_body_event_inner(&mut self, event: &Event<'_>) -> Result<(), DtdEventWriteError> {
         self.prepare_dtd_body_event(event)?;
         self.write_buffer()?;
-        self.status = Status::Active;
         Ok(())
     }
 
@@ -495,6 +494,7 @@ impl<W: Write> Writer<W> {
                         None,
                     ));
                 };
+                DtdWriterState::check_unit_bounds(unit, limits.unit, self.position)?;
                 self.reset_buffer();
                 let raw = if header.has_internal_subset() {
                     unit.raw()
@@ -538,6 +538,7 @@ impl<W: Write> Writer<W> {
                         None,
                     ));
                 }
+                DtdWriterState::check_unit_bounds(unit, state.unit_limits(), self.position)?;
                 self.state
                     .check_event_limit(self.position)
                     .map_err(WriteError::Xml)?;
@@ -620,6 +621,30 @@ fn dtd_write_error(
 }
 
 #[cfg(test)]
+fn dtd_event_as_write_error(error: DtdEventWriteError) -> WriteError {
+    match error {
+        DtdEventWriteError::Writer(error) => error,
+        DtdEventWriteError::Dtd(error) => {
+            let kind = match error.kind {
+                DtdWriteErrorKind::Parser(kind) => kind,
+                DtdWriteErrorKind::Catalog(crate::dtd_catalog::CatalogErrorKind::Allocation)
+                | DtdWriteErrorKind::Allocation
+                | DtdWriteErrorKind::PositionOverflow => ErrorKind::Allocation,
+                DtdWriteErrorKind::Catalog(
+                    crate::dtd_catalog::CatalogErrorKind::InvalidCharacter,
+                ) => ErrorKind::InvalidCharacter,
+                DtdWriteErrorKind::Catalog(
+                    crate::dtd_catalog::CatalogErrorKind::InvalidReference,
+                ) => ErrorKind::InvalidReference,
+                DtdWriteErrorKind::Unavailable(_) => ErrorKind::UnknownEntity,
+                _ => ErrorKind::Syntax,
+            };
+            WriteError::Xml(Error::new(kind, error.output_offset))
+        }
+    }
+}
+
+#[cfg(test)]
 fn check_dtd_body_event(
     supplied: &Event<'_>,
     parsed: &Event<'_>,
@@ -637,7 +662,7 @@ fn check_dtd_body_event(
     for (supplied, parsed) in supplied.attributes.iter().zip(&parsed.attributes) {
         check_name(&supplied.name, &parsed.name, offset)?;
         if supplied.value != parsed.value {
-            return Err(Error::new(ErrorKind::InvalidReference, offset));
+            return Err(Error::new(ErrorKind::Syntax, offset));
         }
     }
     Ok(())
