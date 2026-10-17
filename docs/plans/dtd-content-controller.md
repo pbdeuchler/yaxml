@@ -367,9 +367,9 @@ not activate Reader, Stream, Push, either DOM, or public DTD acceptance.
 
    Charges are checked, cumulative and sticky; offsets retain TextError's
    physical-Input/local-Replacement meaning. Before catalog/frame operations,
-   check the sticky-first remaining allowance so a failed ledger cannot
-   authorize another component call;
-   lower their absolute work cap to their current usage plus this remaining
+   request the remaining allowance; a failed ledger returns its prior error
+   without authorizing a component call. Otherwise lower the component's
+   absolute work cap to its current usage plus this remaining
    allowance, then synchronize committed deltas on both success and failure.
    Preserve native-versus-global failure attribution using the retained original
    limits, and preserve the first failure. Charge complete-token raw length
