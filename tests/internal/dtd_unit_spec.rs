@@ -1,0 +1,1038 @@
+use super::*;
+use std::borrow::Cow;
+
+fn parse(raw: &str) -> DtdUnit<'_> {
+    DtdUnit::parse(raw, DtdLimits::default()).expect(raw)
+}
+
+fn marked(marked: &str) -> (String, usize) {
+    let offset = marked.find('^').expect("fixture has an error marker");
+    assert_eq!(marked[offset + 1..].find('^'), None, "one error marker");
+    let mut raw = marked.to_owned();
+    raw.remove(offset);
+    (raw, offset)
+}
+
+fn rejects(marked_raw: &str, kind: DtdErrorKind) {
+    let (raw, offset) = marked(marked_raw);
+    let expected = DtdError { kind, offset };
+    assert_eq!(
+        DtdUnit::parse(&raw, DtdLimits::default()),
+        Err(expected),
+        "{raw:?}"
+    );
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum FlatModel {
+    Open,
+    Close,
+    Pcdata,
+    Name(String),
+    Connector(Connector),
+    Occurrence(Occurrence),
+}
+
+fn name(value: &str) -> FlatModel {
+    FlatModel::Name(value.to_owned())
+}
+
+fn model(raw: &str) -> Vec<FlatModel> {
+    let unit = parse(raw);
+    let DtdUnitView::Element(element) = unit.view() else {
+        panic!("expected ELEMENT view for {raw}");
+    };
+    match element.content() {
+        ElementContentView::Mixed(tokens) | ElementContentView::Children(tokens) => tokens
+            .map(|token| match token {
+                ModelTokenView::Open => FlatModel::Open,
+                ModelTokenView::Close => FlatModel::Close,
+                ModelTokenView::Pcdata => FlatModel::Pcdata,
+                ModelTokenView::Name(value) => FlatModel::Name(value.to_owned()),
+                ModelTokenView::Connector(value) => FlatModel::Connector(value),
+                ModelTokenView::Occurrence(value) => FlatModel::Occurrence(value),
+            })
+            .collect(),
+        content => panic!("expected model tokens, got {content:?}"),
+    }
+}
+
+#[test]
+fn doctype_headers_preserve_names_identifiers_and_terminal_form() {
+    struct Case<'a> {
+        raw: &'a str,
+        root: &'a str,
+        public: Option<&'a str>,
+        system: Option<&'a str>,
+        subset: bool,
+    }
+    let cases = [
+        Case {
+            raw: "<!DOCTYPE r>",
+            root: "r",
+            public: None,
+            system: None,
+            subset: false,
+        },
+        Case {
+            raw: "<!DOCTYPE π:名 [",
+            root: "π:名",
+            public: None,
+            system: None,
+            subset: true,
+        },
+        Case {
+            raw: "<!DOCTYPE r SYSTEM 'a&%<>.dtd'>",
+            root: "r",
+            public: None,
+            system: Some("'a&%<>.dtd'"),
+            subset: false,
+        },
+        Case {
+            raw: "<!DOCTYPE r PUBLIC '-//A B//EN' \"a.dtd\" [",
+            root: "r",
+            public: Some("'-//A B//EN'"),
+            system: Some("\"a.dtd\""),
+            subset: true,
+        },
+        Case {
+            raw: "<!DOCTYPE a:b:c>",
+            root: "a:b:c",
+            public: None,
+            system: None,
+            subset: false,
+        },
+        Case {
+            raw: "<!DOCTYPE \u{10000}>",
+            root: "\u{10000}",
+            public: None,
+            system: None,
+            subset: false,
+        },
+    ];
+
+    for case in cases {
+        let unit = parse(case.raw);
+        assert_eq!(unit.raw(), case.raw);
+        let DtdUnitView::Header(header) = unit.view() else {
+            panic!("expected DOCTYPE header for {}", case.raw);
+        };
+        assert_eq!(header.root_name(), case.root);
+        assert_eq!(header.has_internal_subset(), case.subset);
+        assert_eq!(
+            header.external_id(),
+            (case.public.is_some() || case.system.is_some()).then_some(ExternalIdView {
+                public: case.public,
+                system: case.system,
+            })
+        );
+    }
+}
+
+#[test]
+fn element_declarations_expose_exact_flat_models() {
+    for (raw, expected) in [
+        (
+            "<!ELEMENT r (#PCDATA)>",
+            vec![FlatModel::Open, FlatModel::Pcdata, FlatModel::Close],
+        ),
+        (
+            "<!ELEMENT r (#PCDATA|a|π:名)*>",
+            vec![
+                FlatModel::Open,
+                FlatModel::Pcdata,
+                FlatModel::Connector(Connector::Choice),
+                name("a"),
+                FlatModel::Connector(Connector::Choice),
+                name("π:名"),
+                FlatModel::Close,
+                FlatModel::Occurrence(Occurrence::ZeroOrMore),
+            ],
+        ),
+        (
+            "<!ELEMENT r (a,b?,(c|d+)*)+>",
+            vec![
+                FlatModel::Open,
+                name("a"),
+                FlatModel::Connector(Connector::Sequence),
+                name("b"),
+                FlatModel::Occurrence(Occurrence::Optional),
+                FlatModel::Connector(Connector::Sequence),
+                FlatModel::Open,
+                name("c"),
+                FlatModel::Connector(Connector::Choice),
+                name("d"),
+                FlatModel::Occurrence(Occurrence::OneOrMore),
+                FlatModel::Close,
+                FlatModel::Occurrence(Occurrence::ZeroOrMore),
+                FlatModel::Close,
+                FlatModel::Occurrence(Occurrence::OneOrMore),
+            ],
+        ),
+        (
+            "<!ELEMENT r ( a | ( b , c )* )?>",
+            vec![
+                FlatModel::Open,
+                name("a"),
+                FlatModel::Connector(Connector::Choice),
+                FlatModel::Open,
+                name("b"),
+                FlatModel::Connector(Connector::Sequence),
+                name("c"),
+                FlatModel::Close,
+                FlatModel::Occurrence(Occurrence::ZeroOrMore),
+                FlatModel::Close,
+                FlatModel::Occurrence(Occurrence::Optional),
+            ],
+        ),
+    ] {
+        assert_eq!(model(raw), expected, "{raw}");
+    }
+
+    for (raw, expected) in [
+        ("<!ELEMENT r EMPTY>", ElementContentView::Empty),
+        ("<!ELEMENT r ANY >", ElementContentView::Any),
+    ] {
+        let unit = parse(raw);
+        let DtdUnitView::Element(element) = unit.view() else {
+            panic!("expected ELEMENT view");
+        };
+        assert_eq!(element.name(), "r");
+        assert_eq!(element.content(), expected);
+    }
+}
+
+#[test]
+fn grammatical_but_nonvalid_models_remain_lexical_successes() {
+    let duplicate_children = model("<!ELEMENT r (a|a)>");
+    assert_eq!(
+        duplicate_children,
+        [
+            FlatModel::Open,
+            name("a"),
+            FlatModel::Connector(Connector::Choice),
+            name("a"),
+            FlatModel::Close,
+        ]
+    );
+    let duplicate_mixed = model("<!ELEMENT r (#PCDATA|a|a)*>");
+    assert_eq!(
+        duplicate_mixed
+            .iter()
+            .filter(|token| **token == name("a"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        model("<!ELEMENT r (#PCDATA)*>"),
+        [
+            FlatModel::Open,
+            FlatModel::Pcdata,
+            FlatModel::Close,
+            FlatModel::Occurrence(Occurrence::ZeroOrMore),
+        ]
+    );
+    let unit = parse("<!ELEMENT a:b:c EMPTY>");
+    let DtdUnitView::Element(element) = unit.view() else {
+        panic!("expected ELEMENT view");
+    };
+    assert_eq!(element.name(), "a:b:c");
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum ExpectedAttributeType<'a> {
+    Cdata,
+    Id,
+    IdRef,
+    IdRefs,
+    Entity,
+    Entities,
+    NmToken,
+    NmTokens,
+    Notation(&'a [&'a str]),
+    Enumeration(&'a [&'a str]),
+}
+
+fn assert_attribute_type(actual: AttributeTypeView<'_>, expected: &ExpectedAttributeType<'_>) {
+    match (actual, expected) {
+        (AttributeTypeView::Cdata, ExpectedAttributeType::Cdata)
+        | (AttributeTypeView::Id, ExpectedAttributeType::Id)
+        | (AttributeTypeView::IdRef, ExpectedAttributeType::IdRef)
+        | (AttributeTypeView::IdRefs, ExpectedAttributeType::IdRefs)
+        | (AttributeTypeView::Entity, ExpectedAttributeType::Entity)
+        | (AttributeTypeView::Entities, ExpectedAttributeType::Entities)
+        | (AttributeTypeView::NmToken, ExpectedAttributeType::NmToken)
+        | (AttributeTypeView::NmTokens, ExpectedAttributeType::NmTokens) => {}
+        (AttributeTypeView::Notation(values), ExpectedAttributeType::Notation(expected))
+        | (AttributeTypeView::Enumeration(values), ExpectedAttributeType::Enumeration(expected)) => {
+            assert_eq!(values.collect::<Vec<_>>(), *expected)
+        }
+        (actual, expected) => panic!("type mismatch: {actual:?} != {expected:?}"),
+    }
+}
+
+#[test]
+fn attlist_exposes_every_type_default_and_original_spelling() {
+    let raw = concat!(
+        "<!ATTLIST r ",
+        "a CDATA #REQUIRED ",
+        "b ID #IMPLIED ",
+        "c IDREF 'x' ",
+        "d IDREFS \"x y\" ",
+        "e ENTITY #IMPLIED ",
+        "f ENTITIES #REQUIRED ",
+        "g NMTOKEN '1:x' ",
+        "h NMTOKENS '1 :x a.b' ",
+        "i NOTATION (gif|π:名) #IMPLIED ",
+        "j (1|:x|a:b|-.|a|a) 'outside' ",
+        "k CDATA #FIXED \"x&amp;&#65;&#x41;\">"
+    );
+    let expected = [
+        (
+            "a",
+            ExpectedAttributeType::Cdata,
+            DefaultDeclarationView::Required,
+        ),
+        (
+            "b",
+            ExpectedAttributeType::Id,
+            DefaultDeclarationView::Implied,
+        ),
+        (
+            "c",
+            ExpectedAttributeType::IdRef,
+            DefaultDeclarationView::Value {
+                fixed: false,
+                quoted_literal: "'x'",
+            },
+        ),
+        (
+            "d",
+            ExpectedAttributeType::IdRefs,
+            DefaultDeclarationView::Value {
+                fixed: false,
+                quoted_literal: "\"x y\"",
+            },
+        ),
+        (
+            "e",
+            ExpectedAttributeType::Entity,
+            DefaultDeclarationView::Implied,
+        ),
+        (
+            "f",
+            ExpectedAttributeType::Entities,
+            DefaultDeclarationView::Required,
+        ),
+        (
+            "g",
+            ExpectedAttributeType::NmToken,
+            DefaultDeclarationView::Value {
+                fixed: false,
+                quoted_literal: "'1:x'",
+            },
+        ),
+        (
+            "h",
+            ExpectedAttributeType::NmTokens,
+            DefaultDeclarationView::Value {
+                fixed: false,
+                quoted_literal: "'1 :x a.b'",
+            },
+        ),
+        (
+            "i",
+            ExpectedAttributeType::Notation(&["gif", "π:名"]),
+            DefaultDeclarationView::Implied,
+        ),
+        (
+            "j",
+            ExpectedAttributeType::Enumeration(&["1", ":x", "a:b", "-.", "a", "a"]),
+            DefaultDeclarationView::Value {
+                fixed: false,
+                quoted_literal: "'outside'",
+            },
+        ),
+        (
+            "k",
+            ExpectedAttributeType::Cdata,
+            DefaultDeclarationView::Value {
+                fixed: true,
+                quoted_literal: "\"x&amp;&#65;&#x41;\"",
+            },
+        ),
+    ];
+
+    let unit = parse(raw);
+    let DtdUnitView::AttributeList(list) = unit.view() else {
+        panic!("expected ATTLIST view");
+    };
+    assert_eq!(list.element_name(), "r");
+    assert_eq!(list.definition_count(), expected.len());
+    let actual = list.definitions().collect::<Vec<_>>();
+    assert_eq!(actual.len(), expected.len());
+    for (definition, (name, attribute_type, default)) in actual.into_iter().zip(expected) {
+        assert_eq!(definition.name(), name);
+        assert_attribute_type(definition.attribute_type(), &attribute_type);
+        assert_eq!(definition.default(), default);
+    }
+    assert_eq!(
+        unit.references().collect::<Vec<_>>(),
+        [
+            ReferenceView {
+                kind: ReferenceKind::General,
+                spelling: "&amp;",
+            },
+            ReferenceView {
+                kind: ReferenceKind::DecimalCharacter,
+                spelling: "&#65;",
+            },
+            ReferenceView {
+                kind: ReferenceKind::HexadecimalCharacter,
+                spelling: "&#x41;",
+            },
+        ]
+    );
+}
+
+#[test]
+fn empty_duplicate_and_percent_attlists_stay_lexical() {
+    let unit = parse("<!ATTLIST r>");
+    let DtdUnitView::AttributeList(list) = unit.view() else {
+        panic!("expected ATTLIST view");
+    };
+    assert_eq!(list.definition_count(), 0);
+    assert_eq!(list.definitions().count(), 0);
+
+    let unit = parse("<!ATTLIST r a CDATA '%p;' a CDATA 'y' id1 ID 'x' id2 ID #REQUIRED>");
+    let DtdUnitView::AttributeList(list) = unit.view() else {
+        panic!("expected ATTLIST view");
+    };
+    let definitions = list.definitions().collect::<Vec<_>>();
+    assert_eq!(definitions.len(), 4);
+    assert_eq!(definitions[0].name(), "a");
+    assert_eq!(
+        definitions[0].default(),
+        DefaultDeclarationView::Value {
+            fixed: false,
+            quoted_literal: "'%p;'",
+        }
+    );
+    assert_eq!(definitions[1].name(), "a");
+    assert!(unit.references().next().is_none());
+}
+
+#[test]
+fn entities_preserve_definition_kind_literals_and_reference_spelling() {
+    struct Case<'a> {
+        raw: &'a str,
+        parameter: bool,
+        name: &'a str,
+        definition: EntityDefinitionView<'a>,
+        references: &'a [(ReferenceKind, &'a str)],
+    }
+    let cases = [
+        Case {
+            raw: "<!ENTITY e \"plain < > ' text\">",
+            parameter: false,
+            name: "e",
+            definition: EntityDefinitionView::Internal {
+                quoted_literal: "\"plain < > ' text\"",
+            },
+            references: &[],
+        },
+        Case {
+            raw: "<!ENTITY e \"&amp;&#65;&#x41;%p;\">",
+            parameter: false,
+            name: "e",
+            definition: EntityDefinitionView::Internal {
+                quoted_literal: "\"&amp;&#65;&#x41;%p;\"",
+            },
+            references: &[
+                (ReferenceKind::General, "&amp;"),
+                (ReferenceKind::DecimalCharacter, "&#65;"),
+                (ReferenceKind::HexadecimalCharacter, "&#x41;"),
+                (ReferenceKind::Parameter, "%p;"),
+            ],
+        },
+        Case {
+            raw: "<!ENTITY % p \"value\">",
+            parameter: true,
+            name: "p",
+            definition: EntityDefinitionView::Internal {
+                quoted_literal: "\"value\"",
+            },
+            references: &[],
+        },
+        Case {
+            raw: "<!ENTITY e SYSTEM 'a&%<>.ent'>",
+            parameter: false,
+            name: "e",
+            definition: EntityDefinitionView::External {
+                identifier: ExternalIdView {
+                    public: None,
+                    system: Some("'a&%<>.ent'"),
+                },
+                notation: None,
+            },
+            references: &[],
+        },
+        Case {
+            raw: "<!ENTITY image SYSTEM 'a.gif' NDATA gif>",
+            parameter: false,
+            name: "image",
+            definition: EntityDefinitionView::External {
+                identifier: ExternalIdView {
+                    public: None,
+                    system: Some("'a.gif'"),
+                },
+                notation: Some("gif"),
+            },
+            references: &[],
+        },
+        Case {
+            raw: "<!ENTITY % p PUBLIC '-//A//EN' 'p.ent'>",
+            parameter: true,
+            name: "p",
+            definition: EntityDefinitionView::External {
+                identifier: ExternalIdView {
+                    public: Some("'-//A//EN'"),
+                    system: Some("'p.ent'"),
+                },
+                notation: None,
+            },
+            references: &[],
+        },
+    ];
+
+    for case in cases {
+        let expected_references = case
+            .references
+            .iter()
+            .map(|(kind, spelling)| ReferenceView {
+                kind: *kind,
+                spelling,
+            })
+            .collect::<Vec<_>>();
+        let unit = parse(case.raw);
+        let DtdUnitView::Entity(entity) = unit.view() else {
+            panic!("expected ENTITY view for {}", case.raw);
+        };
+        assert_eq!(entity.is_parameter(), case.parameter);
+        assert_eq!(entity.name(), case.name);
+        assert_eq!(entity.definition(), case.definition);
+        assert_eq!(unit.references().collect::<Vec<_>>(), expected_references);
+    }
+}
+
+#[test]
+fn notations_comments_and_processing_instructions_preserve_lexical_data() {
+    for (raw, name, public, system) in [
+        (
+            "<!NOTATION gif SYSTEM 'image/gif'>",
+            "gif",
+            None,
+            Some("'image/gif'"),
+        ),
+        (
+            "<!NOTATION n PUBLIC '-//A B//EN' 'n.sys'>",
+            "n",
+            Some("'-//A B//EN'"),
+            Some("'n.sys'"),
+        ),
+        (
+            "<!NOTATION n PUBLIC '-//A B//EN'>",
+            "n",
+            Some("'-//A B//EN'"),
+            None,
+        ),
+        ("<!NOTATION n PUBLIC ''>", "n", Some("''"), None),
+    ] {
+        let unit = parse(raw);
+        let DtdUnitView::Notation(notation) = unit.view() else {
+            panic!("expected NOTATION view");
+        };
+        assert_eq!(notation.name(), name);
+        assert_eq!(notation.identifier(), ExternalIdView { public, system });
+    }
+
+    for (raw, body) in [
+        ("<!---->", ""),
+        (
+            "<!-- declarations for <r> & %p; -->",
+            " declarations for <r> & %p; ",
+        ),
+    ] {
+        let unit = parse(raw);
+        assert_eq!(unit.view(), DtdUnitView::Comment(body));
+        assert!(unit.references().next().is_none());
+    }
+
+    for (raw, target, data) in [
+        ("<?build?>", "build", None),
+        ("<?build ?>", "build", Some("")),
+        ("<?build a&b %p; <x>?>", "build", Some("a&b %p; <x>")),
+        ("<?π:名 中?>", "π:名", Some("中")),
+    ] {
+        let unit = parse(raw);
+        assert_eq!(
+            unit.view(),
+            DtdUnitView::ProcessingInstruction(ProcessingInstructionView { target, data })
+        );
+        assert!(unit.references().next().is_none());
+    }
+}
+
+#[test]
+fn syntax_and_lexical_failures_report_the_selected_production_offset() {
+    let cases = [
+        ("<!DOCTYPE^r>", DtdErrorKind::Syntax),
+        ("<!DOCTYPE ^1r>", DtdErrorKind::InvalidName),
+        ("<!DOCTYPE r PUBLIC 'p'^>", DtdErrorKind::Syntax),
+        ("<!DOCTYPE r SYSTEM^'s'>", DtdErrorKind::Syntax),
+        ("<!DOCTYPE r SYSTEM 's'>^x", DtdErrorKind::Syntax),
+        ("<!DOCTYPE r SYSTEM 's^", DtdErrorKind::Syntax),
+        (
+            "<!DOCTYPE r PUBLIC 'bad^[pub' 's'>",
+            DtdErrorKind::InvalidPublicIdentifier,
+        ),
+        ("<!DOCTYPE r [^]>", DtdErrorKind::Syntax),
+        ("^<!BOGUS r>", DtdErrorKind::Syntax),
+        ("<!ELEMENT^r EMPTY>", DtdErrorKind::Syntax),
+        ("<!ELEMENT rEMPTY^>", DtdErrorKind::Syntax),
+        ("<!ELEMENT r ^empty>", DtdErrorKind::Syntax),
+        ("<!ELEMENT r (^)>", DtdErrorKind::InvalidName),
+        ("<!ELEMENT r (a|^)>", DtdErrorKind::InvalidName),
+        ("<!ELEMENT r (a,b^|c)>", DtdErrorKind::Syntax),
+        ("<!ELEMENT r (#PCDATA|a)^>", DtdErrorKind::Syntax),
+        ("<!ELEMENT r (#PCDATA)^?>", DtdErrorKind::Syntax),
+        ("<!ELEMENT r (a ^?)>", DtdErrorKind::Syntax),
+        ("<!ELEMENT r (a)*^*>", DtdErrorKind::Syntax),
+        ("<!ELEMENT r (a,(b|c)^", DtdErrorKind::Syntax),
+        ("<!ELEMENT r ANY ^x>", DtdErrorKind::Syntax),
+        ("<!ATTLIST^r>", DtdErrorKind::Syntax),
+        ("<!ATTLIST r aCDATA ^#IMPLIED>", DtdErrorKind::Syntax),
+        ("<!ATTLIST r a ^UNKNOWN #IMPLIED>", DtdErrorKind::Syntax),
+        (
+            "<!ATTLIST r a NOTATION (^) #IMPLIED>",
+            DtdErrorKind::InvalidName,
+        ),
+        (
+            "<!ATTLIST r a NOTATION (^1|x) #IMPLIED>",
+            DtdErrorKind::InvalidName,
+        ),
+        ("<!ATTLIST r a (^) #IMPLIED>", DtdErrorKind::InvalidNmtoken),
+        (
+            "<!ATTLIST r a (x|^) #IMPLIED>",
+            DtdErrorKind::InvalidNmtoken,
+        ),
+        ("<!ATTLIST r a CDATA #FIXED^'x'>", DtdErrorKind::Syntax),
+        ("<!ATTLIST r a CDATA \"a^<b\">", DtdErrorKind::Syntax),
+        (
+            "<!ATTLIST r a CDATA \"&bad^\">",
+            DtdErrorKind::InvalidReference,
+        ),
+        (
+            "<!ATTLIST r a CDATA \"^&#x110000;\">",
+            DtdErrorKind::InvalidReference,
+        ),
+        ("<!ATTLIST r a CDATA #IMPLIED x^>", DtdErrorKind::Syntax),
+        ("<!ENTITY^e 'v'>", DtdErrorKind::Syntax),
+        ("<!ENTITY %^p 'v'>", DtdErrorKind::Syntax),
+        ("<!ENTITY % p^'v'>", DtdErrorKind::Syntax),
+        ("<!ENTITY e \"&^;\">", DtdErrorKind::InvalidReference),
+        ("<!ENTITY e \"%^;\">", DtdErrorKind::InvalidReference),
+        ("<!ENTITY e \"&#^;\">", DtdErrorKind::InvalidReference),
+        ("<!ENTITY e \"&#x^;\">", DtdErrorKind::InvalidReference),
+        ("<!ENTITY e \"^&#0;\">", DtdErrorKind::InvalidReference),
+        ("<!ENTITY e \"unterminated>^", DtdErrorKind::Syntax),
+        ("<!ENTITY e PUBLIC 'p'^>", DtdErrorKind::Syntax),
+        ("<!ENTITY % p SYSTEM 's' ^NDATA n>", DtdErrorKind::Syntax),
+        ("<!ENTITY e 'v' ^NDATA n>", DtdErrorKind::Syntax),
+        ("<!ENTITY e SYSTEM 's' NDATA ^>", DtdErrorKind::InvalidName),
+        ("<!ENTITY e SYSTEM^'s'>", DtdErrorKind::Syntax),
+        (
+            "<!ENTITY e PUBLIC 'bad^[pub' 's'>",
+            DtdErrorKind::InvalidPublicIdentifier,
+        ),
+        ("<!NOTATION n^>", DtdErrorKind::Syntax),
+        ("<!NOTATION n PUBLIC^'p'>", DtdErrorKind::Syntax),
+        ("<!NOTATION n SYSTEM 's' ^x>", DtdErrorKind::Syntax),
+        ("<!-- a-^-b -->", DtdErrorKind::Syntax),
+        ("<!-- a -^-->", DtdErrorKind::Syntax),
+        ("<!-- a^", DtdErrorKind::Syntax),
+        ("<?^xml data?>", DtdErrorKind::ReservedPiTarget),
+        ("<?^XmL?>", DtdErrorKind::ReservedPiTarget),
+        ("<?^1x?>", DtdErrorKind::InvalidName),
+        ("<?p data?>^x", DtdErrorKind::Syntax),
+        ("<?p data?>^ more?>", DtdErrorKind::Syntax),
+        (
+            "<!DOCTYPE r SYSTEM 'a^#b'>",
+            DtdErrorKind::SystemIdentifierFragment,
+        ),
+    ];
+    let mut mismatches = Vec::new();
+    for (marked_raw, kind) in cases {
+        let (raw, offset) = marked(marked_raw);
+        let expected = Err(DtdError { kind, offset });
+        let actual = DtdUnit::parse(&raw, DtdLimits::default());
+        if actual != expected {
+            mismatches.push(format!("{raw:?}: actual {actual:?}, expected {expected:?}"));
+        }
+    }
+    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
+}
+
+#[test]
+fn invalid_xml_characters_are_rejected_in_every_lexical_context() {
+    let cases = [
+        ("<!ELEMENT r a\u{b}b>", "\u{b}"),
+        ("<!ENTITY e \"a\u{0}b\">", "\u{0}"),
+        ("<!ATTLIST r a CDATA 'a\u{b}b'>", "\u{b}"),
+        ("<!NOTATION n SYSTEM 'a\u{fffe}b'>", "\u{fffe}"),
+        ("<!NOTATION n PUBLIC 'a\u{b}b'>", "\u{b}"),
+        ("<!-- a\u{b}b -->", "\u{b}"),
+        ("<?p a\u{b}b?>", "\u{b}"),
+    ];
+    for (raw, invalid) in cases {
+        let offset = raw.find(invalid).expect("invalid scalar is in fixture");
+        let expected = DtdError {
+            kind: DtdErrorKind::InvalidCharacter,
+            offset,
+        };
+        assert_eq!(
+            DtdUnit::parse(raw, DtdLimits::default()),
+            Err(expected),
+            "{raw:?}"
+        );
+    }
+
+    let combining = parse("<!ATTLIST r a (\u{301}|x) #IMPLIED>");
+    let DtdUnitView::AttributeList(list) = combining.view() else {
+        panic!("expected ATTLIST view");
+    };
+    let definition = list.definitions().next().expect("one definition");
+    let AttributeTypeView::Enumeration(values) = definition.attribute_type() else {
+        panic!("expected enumeration");
+    };
+    assert_eq!(values.collect::<Vec<_>>(), ["\u{301}", "x"]);
+    rejects("<!ELEMENT ^\u{301}x EMPTY>", DtdErrorKind::InvalidName);
+}
+
+#[test]
+fn public_literals_and_character_references_use_their_distinct_grammars() {
+    let public_body = " AZaz09-'()+,./:=?;!*#@$_%\r\n";
+    let notation_raw = format!("<!NOTATION n PUBLIC \"{public_body}\">");
+    let notation = parse(&notation_raw);
+    let DtdUnitView::Notation(view) = notation.view() else {
+        panic!("expected NOTATION view");
+    };
+    let quoted_public = format!("\"{public_body}\"");
+    assert_eq!(
+        view.identifier(),
+        ExternalIdView {
+            public: Some(&quoted_public),
+            system: None,
+        }
+    );
+
+    for invalid in ['[', ']', '&', '<', 'π'] {
+        let raw = format!("<!NOTATION n PUBLIC \"a{invalid}b\">");
+        let offset = raw.rfind(invalid).unwrap();
+        assert_eq!(
+            DtdUnit::parse(raw, DtdLimits::default()),
+            Err(DtdError {
+                kind: DtdErrorKind::InvalidPublicIdentifier,
+                offset,
+            })
+        );
+    }
+
+    let entity_raw = "<!ENTITY e \"&#9;&#13;&#x20;&#x10FFFF;\">";
+    let entity = parse(entity_raw);
+    assert_eq!(
+        entity.references().collect::<Vec<_>>(),
+        [
+            ReferenceView {
+                kind: ReferenceKind::DecimalCharacter,
+                spelling: "&#9;",
+            },
+            ReferenceView {
+                kind: ReferenceKind::DecimalCharacter,
+                spelling: "&#13;",
+            },
+            ReferenceView {
+                kind: ReferenceKind::HexadecimalCharacter,
+                spelling: "&#x20;",
+            },
+            ReferenceView {
+                kind: ReferenceKind::HexadecimalCharacter,
+                spelling: "&#x10FFFF;",
+            },
+        ]
+    );
+    for reference in ["&#0;", "&#xD800;", "&#xFFFE;", "&#x110000;"] {
+        let raw = format!("<!ENTITY e \"{reference}\">");
+        let offset = raw.find('&').unwrap();
+        assert_eq!(
+            DtdUnit::parse(raw, DtdLimits::default()),
+            Err(DtdError {
+                kind: DtdErrorKind::InvalidReference,
+                offset,
+            })
+        );
+    }
+}
+
+#[test]
+fn every_incomplete_unit_prefix_fails_and_trailing_input_is_rejected() {
+    let complete = [
+        "<!DOCTYPE π:名 PUBLIC '-//A//EN' \"a.dtd\" [",
+        "<!ELEMENT r (a,b?,(c|d+)*)+>",
+        "<!ATTLIST r a CDATA #FIXED \"x&amp;&#65;&#x41;\">",
+        "<!ENTITY e \"&amp;&#65;&#x41;%p;\">",
+        "<!NOTATION n PUBLIC '-//A B//EN' 'n.sys'>",
+        "<!-- declarations -->",
+        "<?build data?>",
+    ];
+    for raw in complete {
+        parse(raw);
+        for end in raw.char_indices().map(|(index, _)| index) {
+            let prefix = &raw[..end];
+            assert!(
+                DtdUnit::parse(prefix, DtdLimits::default()).is_err(),
+                "proper prefix unexpectedly completed: {prefix:?}"
+            );
+        }
+        let suffixed = format!("{raw}x");
+        let expected = DtdError {
+            kind: DtdErrorKind::Syntax,
+            offset: raw.len(),
+        };
+        assert_eq!(
+            DtdUnit::parse(suffixed, DtdLimits::default()),
+            Err(expected)
+        );
+    }
+}
+
+fn nested_model(depth: usize) -> String {
+    format!("<!ELEMENT r {}a{}>", "(".repeat(depth), ")".repeat(depth))
+}
+
+#[test]
+fn independent_limits_have_exact_boundaries_and_recover() {
+    let raw = "<!ELEMENT r (a,b?,(c|d+)*)+>";
+    let exact = DtdLimits {
+        max_unit_bytes: raw.len(),
+        ..DtdLimits::default()
+    };
+    assert_eq!(DtdUnit::parse(raw, exact).unwrap().raw(), raw);
+    let short = DtdLimits {
+        max_unit_bytes: raw.len() - 1,
+        ..DtdLimits::default()
+    };
+    assert_eq!(
+        DtdUnit::parse(raw, short),
+        Err(DtdError {
+            kind: DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes),
+            offset: raw.len() - 1,
+        })
+    );
+
+    // One declaration Name plus fifteen observable flat-model tokens.
+    let exact_tokens = DtdLimits {
+        max_tokens: 16,
+        ..DtdLimits::default()
+    };
+    DtdUnit::parse(raw, exact_tokens).unwrap();
+    let short_tokens = DtdLimits {
+        max_tokens: 15,
+        ..DtdLimits::default()
+    };
+    let outer_occurrence = raw.rfind('+').unwrap();
+    assert_eq!(
+        DtdUnit::parse(raw, short_tokens),
+        Err(DtdError {
+            kind: DtdErrorKind::LimitExceeded(DtdLimit::Tokens),
+            offset: outer_occurrence,
+        })
+    );
+
+    let depth_three = nested_model(3);
+    DtdUnit::parse(
+        depth_three.as_str(),
+        DtdLimits {
+            max_model_depth: 3,
+            ..DtdLimits::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        DtdUnit::parse(
+            depth_three.as_str(),
+            DtdLimits {
+                max_model_depth: 2,
+                ..DtdLimits::default()
+            },
+        ),
+        Err(DtdError {
+            kind: DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth),
+            offset: "<!ELEMENT r ((".len(),
+        })
+    );
+
+    let attributes = "<!ATTLIST r a CDATA #IMPLIED b ID #REQUIRED c NMTOKEN 'x' d (x|y) 'x'>";
+    DtdUnit::parse(
+        attributes,
+        DtdLimits {
+            max_attribute_definitions: 4,
+            ..DtdLimits::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        DtdUnit::parse(
+            attributes,
+            DtdLimits {
+                max_attribute_definitions: 3,
+                ..DtdLimits::default()
+            },
+        ),
+        Err(DtdError {
+            kind: DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions),
+            offset: attributes.find("d (x|y)").unwrap(),
+        })
+    );
+
+    // A failed parse has no persistent state: each restored independent limit succeeds.
+    assert_eq!(DtdUnit::parse(raw, exact).unwrap().raw(), raw);
+    assert_eq!(
+        DtdUnit::parse(attributes, DtdLimits::default())
+            .unwrap()
+            .raw(),
+        attributes
+    );
+}
+
+#[test]
+fn borrowed_and_owned_inputs_have_identical_views_and_owned_storage_moves() {
+    let raw = "<!ENTITY e \"&amp;&#65;%p;\">";
+    let borrowed = DtdUnit::parse(Cow::Borrowed(raw), DtdLimits::default()).unwrap();
+    assert!(matches!(borrowed.raw, Cow::Borrowed(_)));
+    let borrowed_view = borrowed.view();
+    let borrowed_references = borrowed.references().collect::<Vec<_>>();
+
+    let owned_input = raw.to_owned();
+    let owned_pointer = owned_input.as_ptr();
+    let owned = DtdUnit::parse(Cow::Owned(owned_input), DtdLimits::default()).unwrap();
+    assert!(matches!(owned.raw, Cow::Owned(_)));
+    assert_eq!(owned.raw().as_ptr(), owned_pointer);
+    assert_eq!(owned.raw(), raw);
+    assert_eq!(owned.view(), borrowed_view);
+    assert_eq!(owned.references().collect::<Vec<_>>(), borrowed_references);
+}
+
+#[test]
+fn bounded_whitespace_name_quote_and_depth_properties_keep_literal_oracles() {
+    for whitespace in [" ", "\t", "\n", "\r"] {
+        let header =
+            format!("<!DOCTYPE{whitespace}r{whitespace}SYSTEM{whitespace}'s'{whitespace}>");
+        let unit = parse(&header);
+        let DtdUnitView::Header(header) = unit.view() else {
+            panic!("expected header view");
+        };
+        assert_eq!(header.root_name(), "r");
+        assert_eq!(header.external_id().unwrap().system, Some("'s'"));
+
+        let element = format!("<!ELEMENT{whitespace}r{whitespace}(a{whitespace}|{whitespace}b)>");
+        assert_eq!(
+            model(&element),
+            [
+                FlatModel::Open,
+                name("a"),
+                FlatModel::Connector(Connector::Choice),
+                name("b"),
+                FlatModel::Close,
+            ]
+        );
+        let entity = format!("<!ENTITY{whitespace}%{whitespace}p{whitespace}'v'>");
+        let unit = parse(&entity);
+        let DtdUnitView::Entity(entity) = unit.view() else {
+            panic!("expected ENTITY view");
+        };
+        assert!(entity.is_parameter());
+        assert_eq!(entity.name(), "p");
+
+        let attlist = format!(
+            "<!ATTLIST{whitespace}r{whitespace}a{whitespace}CDATA{whitespace}#IMPLIED{whitespace}>"
+        );
+        let unit = parse(&attlist);
+        let DtdUnitView::AttributeList(list) = unit.view() else {
+            panic!("expected ATTLIST view");
+        };
+        assert_eq!(list.definition_count(), 1);
+
+        let notation =
+            format!("<!NOTATION{whitespace}n{whitespace}PUBLIC{whitespace}'p'{whitespace}>");
+        let unit = parse(&notation);
+        let DtdUnitView::Notation(notation) = unit.view() else {
+            panic!("expected NOTATION view");
+        };
+        assert_eq!(notation.identifier().public, Some("'p'"));
+    }
+
+    for name in ["a", "_", ":", "π", "名", "a:b:c", "\u{10000}"] {
+        let raw = format!("<!ELEMENT {name} EMPTY>");
+        let unit = parse(&raw);
+        let DtdUnitView::Element(element) = unit.view() else {
+            panic!("expected ELEMENT view");
+        };
+        assert_eq!(element.name(), name);
+    }
+    for non_name_start in ["0", "-", ".", "\u{301}"] {
+        let raw = format!("<!ELEMENT {non_name_start}x EMPTY>");
+        assert_eq!(
+            DtdUnit::parse(raw, DtdLimits::default()).unwrap_err().kind,
+            DtdErrorKind::InvalidName
+        );
+    }
+
+    for (quote, opposite) in [('\'', '"'), ('"', '\'')] {
+        let raw = format!("<!ENTITY e {quote}a{opposite}&amp;%p;{quote}>");
+        let unit = parse(&raw);
+        let DtdUnitView::Entity(entity) = unit.view() else {
+            panic!("expected ENTITY view");
+        };
+        let expected_literal = format!("{quote}a{opposite}&amp;%p;{quote}");
+        assert_eq!(
+            entity.definition(),
+            EntityDefinitionView::Internal {
+                quoted_literal: &expected_literal,
+            }
+        );
+    }
+
+    for depth in 1..=8 {
+        let raw = nested_model(depth);
+        let tokens = model(&raw);
+        assert_eq!(
+            tokens
+                .iter()
+                .filter(|token| **token == FlatModel::Open)
+                .count(),
+            depth
+        );
+        assert_eq!(
+            tokens
+                .iter()
+                .filter(|token| **token == FlatModel::Close)
+                .count(),
+            depth
+        );
+        assert_eq!(
+            tokens.iter().filter(|token| **token == name("a")).count(),
+            1
+        );
+    }
+}
