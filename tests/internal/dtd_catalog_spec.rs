@@ -350,6 +350,7 @@ fn internal_parameter_reference_is_semantic_but_raw_markup_use_is_lexical() {
         Ok(DeclarationEffect {
             bindings_added: 1,
             unavailable_defaults: 0,
+            unavailable: None,
             ignored_after_unread_parameter: false,
         })
     );
