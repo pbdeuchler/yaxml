@@ -502,3 +502,6 @@ fn phase_decode(
 
 #[path = "../../tests/internal/dtd_stream_author.rs"]
 mod tests;
+
+#[path = "../../tests/internal/dtd_stream_spec.rs"]
+mod spec_tests;
