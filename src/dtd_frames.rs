@@ -1,27 +1,9 @@
 use std::num::NonZeroU64;
 use std::ops::Range;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(crate) struct EntityDeclarationId(usize);
-
-impl EntityDeclarationId {
-    pub(crate) fn from_index(index: usize) -> Self {
-        Self(index)
-    }
-
-    pub(crate) fn index(self) -> usize {
-        self.0
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(crate) struct EntityInvocationId(NonZeroU64);
-
-impl EntityInvocationId {
-    pub(crate) fn get(self) -> u64 {
-        self.0.get()
-    }
-}
+pub(crate) use crate::origin::{
+    ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr as FragmentOrigin,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EntityKind {
@@ -52,128 +34,6 @@ impl FrameBoundary {
             Self::AttributeValue => ReferenceContext::AttributeValue,
             Self::EntityValue => ReferenceContext::EntityValue,
             Self::DtdSubset => ReferenceContext::DtdSubset,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ByteSpan {
-    start: usize,
-    end: usize,
-}
-
-impl ByteSpan {
-    pub(crate) fn new(range: Range<usize>) -> Option<Self> {
-        (range.start <= range.end).then_some(Self {
-            start: range.start,
-            end: range.end,
-        })
-    }
-
-    pub(crate) fn range(self) -> Range<usize> {
-        self.start..self.end
-    }
-
-    fn cover(self, other: Self) -> Self {
-        Self {
-            start: self.start.min(other.start),
-            end: self.end.max(other.end),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum FragmentOrigin {
-    Input {
-        span: ByteSpan,
-    },
-    Replacement {
-        declaration: EntityDeclarationId,
-        invocation: EntityInvocationId,
-        local: ByteSpan,
-        physical_reference: ByteSpan,
-    },
-    Mixed {
-        physical_context: ByteSpan,
-    },
-}
-
-impl FragmentOrigin {
-    pub(crate) fn input(span: Range<usize>) -> Option<Self> {
-        ByteSpan::new(span).map(|span| Self::Input { span })
-    }
-
-    pub(crate) fn input_range(self) -> Option<Range<usize>> {
-        match self {
-            Self::Input { span } => Some(span.range()),
-            Self::Replacement { .. } | Self::Mixed { .. } => None,
-        }
-    }
-
-    pub(crate) fn replacement_range(self) -> Option<Range<usize>> {
-        match self {
-            Self::Replacement { local, .. } => Some(local.range()),
-            Self::Input { .. } | Self::Mixed { .. } => None,
-        }
-    }
-
-    pub(crate) fn physical_context(self) -> Range<usize> {
-        self.physical_span().range()
-    }
-
-    pub(crate) fn join(self, next: Self) -> Self {
-        match (self, next) {
-            (Self::Input { span: left }, Self::Input { span: right })
-                if left.end == right.start =>
-            {
-                Self::Input {
-                    span: ByteSpan {
-                        start: left.start,
-                        end: right.end,
-                    },
-                }
-            }
-            (
-                Self::Replacement {
-                    declaration: left_declaration,
-                    invocation: left_invocation,
-                    local: left,
-                    physical_reference: left_physical,
-                },
-                Self::Replacement {
-                    declaration: right_declaration,
-                    invocation: right_invocation,
-                    local: right,
-                    physical_reference: right_physical,
-                },
-            ) if left_declaration == right_declaration
-                && left_invocation == right_invocation
-                && left_physical == right_physical
-                && left.end == right.start =>
-            {
-                Self::Replacement {
-                    declaration: left_declaration,
-                    invocation: left_invocation,
-                    local: ByteSpan {
-                        start: left.start,
-                        end: right.end,
-                    },
-                    physical_reference: left_physical,
-                }
-            }
-            (left, right) => Self::Mixed {
-                physical_context: left.physical_span().cover(right.physical_span()),
-            },
-        }
-    }
-
-    fn physical_span(self) -> ByteSpan {
-        match self {
-            Self::Input { span } => span,
-            Self::Replacement {
-                physical_reference, ..
-            } => physical_reference,
-            Self::Mixed { physical_context } => physical_context,
         }
     }
 }
