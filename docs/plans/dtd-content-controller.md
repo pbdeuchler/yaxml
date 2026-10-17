@@ -73,6 +73,15 @@ Proposed narrow content methods (private, final spelling subject to API review):
   for Stream's existing lending/callback policies;
 - `physical_position`, with no source-progress inference from event origins.
 
+Advancing drains pending references/frame returns without physical input until
+one semantic token or NeedPhysicalInput. Reader/Push/Buffered must drain this
+zero-input work before returning for more bytes or calling the source. In
+particular, Push's current `while !remaining.is_empty()` loop cannot remain the
+DTD-aware driver: a GE at the final byte of a feed must still expand during that
+feed. Use an explicit progress/need-input result or one drain call after each
+release; do not infer progress solely from consumed physical bytes. Empty feeds
+remain no-ops once the previous call has drained all available work.
+
 These methods reuse concrete leaf/tag preparation and frame operations; they do
 not introduce a generic Processor/Source/Resolver trait hierarchy. Stream/Reader
 keep their existing first-error/EOF/panic poison owners. An internal controller
@@ -194,6 +203,12 @@ and apply it before allocations rather than checking a spent delta afterwards.
 Physical errors map through real TokenSpan/SourceEncoding, flooring UTF-16 scalar
 boundaries. Replacement errors retain local UTF-8 offset, declaration/invocation
 and real outer-reference context; never remap local offsets as UTF-16 input.
+Retain a typed private content failure (semantic kind, physical anchor, exact
+origin/local offset) in the session. Existing public Error is Copy plus one offset;
+a boundary adapter can return the truthful physical anchor while the private
+context remains retained. This is not a completed public replacement-diagnostic
+API: exposing that context is an explicit activation review, never a local
+offset disguised as a physical Error offset.
 Unavailable external/unparsed/unread/missing dependencies remain explicit
 non-success with no resource I/O or silent omission.
 
