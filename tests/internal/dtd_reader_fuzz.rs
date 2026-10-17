@@ -94,6 +94,11 @@ struct ExpectedEvent {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DtdSemantic {
+    Element {
+        name: String,
+        children: Vec<String>,
+    },
+    Comment(String),
     Header {
         root: String,
         subset: bool,
@@ -832,6 +837,16 @@ fn observed_dtd_semantic(event: &ReaderEvent<'_>) -> Option<DtdSemantic> {
         _ => return None,
     };
     Some(match unit.view() {
+        DtdUnitView::Element(element) => DtdSemantic::Element {
+            name: element.name().to_owned(),
+            children: match element.content() {
+                crate::dtd::ElementContentView::Children(tokens) => {
+                    tokens.map(|token| format!("{token:?}")).collect()
+                }
+                other => vec![format!("{other:?}")],
+            },
+        },
+        DtdUnitView::Comment(value) => DtdSemantic::Comment(value.to_owned()),
         DtdUnitView::Header(header) => DtdSemantic::Header {
             root: header.root_name().to_owned(),
             subset: header.has_internal_subset(),
@@ -1085,22 +1100,46 @@ fn check_event_storage(
     origin: SourceOrigin,
     source: &str,
 ) -> Result<(), &'static str> {
+    let check_name = |name: &Name<'_>| {
+        let (prefix, local) = name
+            .qualified()
+            .split_once(':')
+            .map_or((None, name.qualified()), |(prefix, local)| {
+                (Some(prefix), local)
+            });
+        if name.prefix() != prefix || name.local() != local {
+            return Err("QName local or prefix differs from literal split");
+        }
+        Ok(())
+    };
+    match event {
+        ReaderEvent::Xml(Event::Start(element) | Event::Empty(element)) => {
+            check_name(&element.name)?;
+            for attribute in &element.attributes {
+                check_name(&attribute.name)?;
+            }
+        }
+        ReaderEvent::Xml(Event::End(name)) => check_name(name)?,
+        _ => {}
+    }
     let input_range = origin.input_range();
     let generated = input_range.is_none();
     for field in observed_fields(event) {
         match field.storage {
             ObservedStorage::Borrowed(value) => {
+                let namespace = matches!(
+                    field.role,
+                    FieldRole::ElementNamespace
+                        | FieldRole::AttributeNamespace(_)
+                        | FieldRole::EndNamespace
+                );
                 if generated {
-                    if matches!(
-                        field.role,
-                        FieldRole::ElementNamespace
-                            | FieldRole::AttributeNamespace(_)
-                            | FieldRole::EndNamespace
-                    ) && !address_range(source).contains(&(value.as_ptr() as usize))
-                    {
+                    if !namespace {
+                        return Err("generated field borrowed physical input");
+                    }
+                    if !address_range(source).contains(&(value.as_ptr() as usize)) {
                         continue;
                     }
-                    return Err("generated field borrowed physical input");
                 }
                 if matches!(
                     field.role,
@@ -1121,7 +1160,7 @@ fn check_event_storage(
                 if end > source.len() {
                     return Err("borrowed field exceeds input");
                 }
-                if field.role != FieldRole::DtdRaw {
+                if field.role != FieldRole::DtdRaw && !namespace {
                     let range = input_range
                         .as_ref()
                         .ok_or("physical field lacks input occurrence")?;
@@ -1269,7 +1308,8 @@ fn replay_arbitrary(input: &[u8], lifecycle: u8) {
                         }
                     }
                     2 => {
-                        for value in step2::observed_owned_before_move(&event) {
+                        for value in step2::observed_owned_before_move(&event, &expected_extracted)
+                        {
                             if expected_extracted.len() < step2::MAX_RETAINED_OBJECTS
                                 && expected_extracted
                                     .iter()
@@ -1533,6 +1573,63 @@ fn exercise_routes_real_header_bytes_to_every_step2_probe() {
     assert_eq!(receipt.truncation, Some((201, 1, 12, 15)));
     assert_eq!(receipt.quota, Some((255, 15, 2, 5, 15)));
     assert!(receipt.configured_early_stop >= 2);
+}
+
+#[test]
+fn inherited_namespace_borrows_use_the_declaration_occurrence() {
+    for source in [
+        "<r xmlns:p='urn:p'><p:n/></r>",
+        "<r xmlns='urn:r'><n a='v'/></r>",
+        "<r xml:lang='en'><n xml:space='preserve'/></r>",
+    ] {
+        for lifecycle in 0..4 {
+            replay_arbitrary(source.as_bytes(), lifecycle);
+        }
+    }
+}
+
+#[test]
+fn every_real_selector_byte_and_short_header_has_literal_routing() {
+    // The independent decoder has literal periods; it does not call routing helpers.
+    const CUTS: [&[usize]; 8] = [
+        &[16, 0],
+        &[11, 12, 15, 16],
+        &[15, 16, 17, 21],
+        &[15, 16, 17, 18, 19, 23],
+        &[33, 34, 35, 36, 40],
+        &[13, 25, 26, 27, 28, 29, 30, 40],
+        &[22, 23, 29, 30, 42, 43, 47, 51],
+        &[16, 17, 18, 19, 20, 24],
+    ];
+    let check = |input: &[u8]| {
+        let byte = |index| input.get(index).copied().unwrap_or(0);
+        step2::reset_routing_receipt();
+        exercise(input);
+        let receipt = step2::routing_receipt();
+        let selector = byte(4);
+        let family = usize::from(selector) % 8;
+        let cut = CUTS[family][(usize::from(selector) / 8) % CUTS[family].len()];
+        assert_eq!(receipt.witness_lifecycle, Some(byte(7)));
+        assert_eq!(receipt.truncation, Some((selector, family, cut, byte(7))));
+        assert_eq!(
+            receipt.quota,
+            Some((
+                byte(5),
+                usize::from(byte(5)) % 48,
+                usize::from(byte(6)) % 4,
+                usize::from(byte(3)) % 8,
+                byte(7)
+            ))
+        );
+    };
+    for byte in 0..=u8::MAX {
+        check(&[0, 0, 0, byte, byte, byte, byte, byte]);
+        check(&[0, 0, 0, byte, 0, 0, byte, 3]);
+    }
+    let header = [1, 2, 3, 255, 201, 255, 254, 15];
+    for end in 0..header.len() {
+        check(&header[..end]);
+    }
 }
 
 #[test]
