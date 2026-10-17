@@ -1,0 +1,215 @@
+# Private general-entity content controller
+
+Plan-only base: `f43f90b`. No behavior code or public DTD acceptance is authorized
+by this note. Consume the borrowed-DTD adapter's reviewed `DtdBodyState` handoff;
+do not implement a parallel declaration engine or general parser framework.
+
+## Existing constraints
+
+`Reader::read_event` returns `Event<'input>`, not a loan tied to `&mut Reader`
+(`src/reader.rs:175`). Both DOMs rely on that useful contract. `Stream::parse`
+currently lends from one tokenizer and copies only persistent parser structure
+(`src/stream.rs:114`). `ParserState::process_token` returns names/leaf strings
+borrowing raw token text; its retention callback concerns stack/namespace data,
+not event ownership (`src/parser.rs:207`). Its normalizer always applies physical
+EOL processing (`src/parser.rs:273`). A generated token therefore cannot simply
+pass through the Reader path or the physical normalizer.
+
+Tokenizer Text currently ends only at `<`; it consumes that delimiter as saved
+lookahead (`src/tokenizer.rs:90`). Recognizing GEs only after reading a whole Text
+token would already consume physical `post` in `pre&e;post`. The new controller
+must stop physical input at the reference before scheduling replacement input.
+`EntityFrames::check_before_end_element` must run before `end_element` pops a
+frame/unwinds namespaces (`src/dtd_frames.rs:327`, `src/parser.rs:585`). Checking
+only final depth allows a replacement to close/reopen its caller incorrectly.
+
+## Concrete ownership and entry points
+
+Keep ordinary DTD-free Reader/Stream paths. Add one lazily allocated, fallibly
+reserved slot for the optional DTD session: a `Vec<DtdSession<'input>>` whose
+length is zero or one. This uses stable `try_reserve_exact(1)` rather than an
+unverified fallible Box API. No catalog, frame stack, replacement tokenizer or
+reference scratch is stored inline in every ordinary ParserState. This means
+zero/one *session-container* allocation, not a claim that DTD maps/scratch need
+only one allocation. Record actual layouts before activation.
+
+```text
+DtdSession<'input> = Declarations(DtdController<'input>)
+                   | Content(ContentController<'input>)
+
+ContentController<'input> {
+    body: DtdBodyState,             // SAME catalog, frames, nonce, counters/limits
+    physical_source: sealed stable UTF8 window | streaming,
+    physical: Tokenizer,
+    replacement: Tokenizer,
+    reference: ReferenceScratch,    // at most one bounded pending reference
+    active: Vec<EntityId>,         // active GEs only, no occurrence history
+    pending/ready/error state,
+}
+```
+
+The adapter owns `take_current` and `into_body_state`. Only successful taken End
+permits handoff. Drop DTD unit/scanner buffers; move the existing catalog,
+EntityFrames, limits and counters without recreating them. Reader supplies its
+same immutable UTF-8 input window to the sealed body constructor; Stream uses
+streaming mode. An owned-mode `advance(bytes)` cannot be used to inject bytes
+into the stable-window Reader mode. Reader's `advance_borrowed` reads its own
+window. This follows the adapter proposal rather than adding a retention trait.
+
+The handoff/resume also needs an explicit cursor pair `(decoded, physical)`.
+DTD physical scanner position supplies decoded bytes consumed since DOCTYPE
+start; add the saved decoded start with checked arithmetic before dropping it.
+A physical byte offset is not a UTF-16 decoded offset. Existing Decoder remains
+in Stream, preserving transport carry and BOM/declaration state.
+
+Proposed narrow content methods (private, final spelling subject to API review):
+
+- `borrowing_utf8(body, stable_window, cursor)` / `streaming(body, cursor, encoding)`;
+- `advance_borrowed(&mut Budget)` / `advance(decoded_bytes, &mut Budget) -> usize`;
+- `finish_step(&mut Budget)`, `has_token`, `is_non_event`, `release`;
+- `read_event(&mut ParserState<'input>) -> Option<(Event<'input>, SourceOrigin)>`
+  for Reader, with physical stable borrowing and generated owned fields;
+- `event(&mut ParserState<'static>) -> (Event<'_>, SourceOrigin)` and `emit`
+  for Stream's existing lending/callback policies;
+- `physical_position`, with no source-progress inference from event origins.
+
+These methods reuse concrete leaf/tag preparation and frame operations; they do
+not introduce a generic Processor/Source/Resolver trait hierarchy. Stream/Reader
+keep their existing first-error/EOF/panic poison owners. An internal controller
+failure records the same typed cause for subsequent operations.
+
+## Named references and lexical units
+
+Use the existing markup tokenizer. Add narrow internal operations to flush a
+nonempty Text at a named-reference boundary, resume at a checked cursor, and
+skip a validated reference spelling after releasing the prefix. Do not fake
+bytes, normalize a reference during classification, or concatenate expansion.
+A bounded `ReferenceScratch` is owned by the optional session, not every ordinary
+tokenizer. It collects one `&...;` incrementally with checked source lengths.
+
+At Text state, search for `<` or `&`; markup states keep the tokenizer's existing
+quote/comment/CDATA/PI handling. Drain existing `<` lookahead before deciding the
+state. A numeric or predefined spelling is appended back into the containing
+Text token; its decoded *output* is never scanned again. A non-predefined named
+spelling becomes a pending GE reference. If preceding Text exists, deliver and
+release it BEFORE catalog lookup, frame entry, attempt charging or child-source
+publication. Cancellation or callback panic there leaves no entity inclusion
+side effects. Read-only bounded reference classification/lookahead may already
+have consumed its physical spelling, but no body suffix is consumed.
+
+Scratch is bounded separately from the Text prefix: each reference and each
+Text/markup unit obey their source/decoded byte ceilings; combined pending
+scratch is at most one token plus one reference, with checked capacity/work
+limits. Never reject two individually permitted units merely because their
+combined temporary prefix/reference length exceeds one token ceiling. This
+extra bounded buffer is the deliberate cost of preserving numeric/predefined
+Text boundaries without rescanning prefixes or reading the suffix.
+
+Physical `position()` may include this reference lookahead, just as Stream
+already includes `<` lookahead. Prefix Text has its exact pre-reference origin;
+its cancellation endpoint remains that origin's end. Generated events cancel
+at the real outer reference end. Transport progress, callback cancellation and
+replacement-local diagnostics remain separate.
+
+Replacement tokenization uses an explicit local-source mode, not a fake physical
+TokenSpan. Recommend a private exhaustive location discriminator:
+`TokenLocation::Input(TokenSpan)` or `Replacement(local_range)`. Existing
+physical consumers map Input as today; the content controller combines the
+local range with its current declaration/invocation/outer-reference metadata.
+This is a concrete extension of Tokenizer for its two actual source types,
+not a new generic lexer. Keep extra replacement/reference payload out of the
+ordinary persistent parser state and measure any Tokenizer layout change.
+
+Only Text recognizes GE references. Tags keep complete lexical attribute values
+for the DTD tag preparer. Comments, CDATA and PI data never expand references.
+DOCTYPE/XML declaration/other forbidden markup in a replacement is a typed
+content failure; it never re-enters the DTD engine. A physical GE outside the
+root's content is rejected before inclusion, including an empty GE.
+
+## Iterative scheduling and semantic publication
+
+Keep the primary tokenizer paused while active replacement frames run. One
+replacement tokenizer is reset only at a complete token/source boundary.
+Source cursors include consumed lexical lookahead separately from the frame's
+committed cursor: a Text token ending before saved `<` commits only its own
+range; the next markup token includes the replayed delimiter exactly once.
+For references, commit prefix Text first, then `enter_nested` commits the parent
+reference spelling atomically. Reserve the mirrored active-ID slot before frame
+entry. At return, restart from the parent's committed local cursor without
+resetting document work/attempt/expansion counters.
+
+Every source must end between complete lexical units. A partial tag, reference,
+comment, CDATA or PI cannot finish in the caller. Flush final source-local Text,
+deliver/release it, then require `finish_current(Content { element_depth })` to
+match the entry depth before resuming the parent. Empty replacements emit no
+empty Text but still spend attempt/work budgets and preserve the input gap.
+
+Before each End reaches ParserState, call `check_before_end_element(depth)`.
+Prepare/validate event fields and reserve ownership before namespace/element
+publication. Charge/commit replacement source bytes before semantic publication,
+so a frame byte/work failure cannot pop a parser frame or emit an event. Fatal
+preparation may leave spent work/source progress but publishes no rejected
+semantic event; there is no whole-document transaction/rollback framework.
+
+Start tags use the other agent's `RawTag -> PreparedTag -> publish_prepared_tag`
+seam with explicit LiteralSource and token-local offsets. DTD defaults and
+explicit values are normalized once before namespace resolution. Add only the
+corresponding narrow prepared-End/leaf operations needed for owned generated
+payloads. ParserState's element-depth getter is supplied by that refactor.
+
+Reader-generated start/end Names, attribute Names/values, PI target/data and
+Text/CDATA/comment data must be owned before their token/catalog borrow ends.
+Move already owned values; copy borrowed values fallibly under the shared Budget.
+PreparedTag already owns/promotes the relevant name fields. Prepare an owned
+End name before its namespace unwind. Construct each supported content event
+from these owned payloads; do NOT add a general Event-to-static converter or
+pretend Declaration's borrowed fields are static. Generated XML declarations
+are rejected before leaf preparation. Physical Reader events continue borrowing
+stable source; Stream events may lend current scratch. No borrowed catalog value
+survives a mutable normalization operation or event return.
+
+LiteralSource::Replacement disables physical CR/CRLF normalization in content
+Text/CDATA/comment/PI; replacement construction already handled literal EOL once.
+Numeric/predefined outputs append as final data. Numeric `<` created during
+EntityValue construction becomes replacement markup; direct content `&#60;`
+and `&lt;` remain Text data. Attribute normalization follows the separate catalog
+rules, including literal whitespace replacement. Keep the documented numeric-CR
+libxml divergence explicit. Never check normalized/concatenated output for raw
+CharData `]]>`; validate each actual source spelling in its lexical context.
+
+## Limits, errors and staged integration
+
+Move every DTD/body counter without resetting it. Frame attempt/work/expanded
+ceilings cover prior PE use and later GE use together. Charge incremental lexer,
+reference classification/copy and semantic/catalog work before their bounded
+allocations; scanner restarts cannot restore allowances. Global input/decoded,
+unit, event, parser depth and shared owned-capacity limits remain in force.
+The existing DTD `owned_bytes` specifically counts retained raw-unit copies;
+retain that accounting honestly. Body event/scope/default ownership spends the
+SAME cumulative parser Budget, never a fresh one. Do not silently relabel the
+DTD-only raw-copy counter as total allocator memory. If activation requires a
+separate total DTD+body copy ceiling, root must explicitly select its semantics
+and apply it before allocations rather than checking a spent delta afterwards.
+
+Physical errors map through real TokenSpan/SourceEncoding, flooring UTF-16 scalar
+boundaries. Replacement errors retain local UTF-8 offset, declaration/invocation
+and real outer-reference context; never remap local offsets as UTF-16 input.
+Unavailable external/unparsed/unread/missing dependencies remain explicit
+non-success with no resource I/O or silent omission.
+
+Implementation after review: (1) finish adapter/tag seams; (2) add bounded reference
+and local-tokenizer foundations privately; (3) GE scheduling/owned content leaf
+preparation; (4) wire Reader/Stream behind private activation; (5) integrate all
+public DTD events/defaults/DOM/serialization surfaces together. No partial public
+DOCTYPE acceptance follows merely from completing the content controller.
+
+Independent literal tests must cover prefix-callback abort before lookup/entry;
+numeric/predefined same-run/no-rescan pairs; all GE entry/exit boundaries,
+empty-reference Mixed DOM gaps, nested/repeated invocation identity, actual
+UTF-8/UTF-16 split schedules and untouched suffix/cancellation endpoints;
+partial lexical sources; close/reopen attacks and missing closure; EOL phase
+pairs in all leaf kinds; generated namespaces/defaults; Reader events retained
+across subsequent calls; prior-PE-to-GE counter/nonce continuity; exact/one-short
+source/scratch/work/copy/depth/attempt/expanded/event limits and atomic rejected
+End/start publication. Public activation still needs reviewed full API/DOM/Writer
+representation, complete fuzz/XMLTS/layout/performance gates and measured evidence.
