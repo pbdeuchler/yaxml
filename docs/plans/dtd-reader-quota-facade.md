@@ -340,6 +340,64 @@ This is a bounded facade mapping suite, not another grammar implementation,
 configuration API, allocator-exhaustion simulator, XMLTS run, benchmark or claim
 of complete fuzz coverage.
 
+## Reconciliation with the independent 26-row matrix
+
+The independently authored matrix in `dtd-reader-quota-conformance.md` and
+`tests/internal/dtd_reader_quota_spec.rs` was read after this inventory was
+committed. Its 26 rows exercise **24 distinct Session fields**: frame Work and
+reference Work each have a second cumulative row. The five documented baseline
+errata agree with the lower-layer contracts: rejected no-subset header origins
+include the real delimiter; reference append failures exclude an unaccepted
+byte, and exhausted reference work can reject before accepting a new spelling.
+No corrected matrix row is impossible or requires a production change.
+
+Eight Session fields are absent from that matrix:
+
+| Absent field | Existing accepted facade evidence | Required action for this slice |
+| --- | --- | --- |
+| declarations.unit.max_unit_bytes | None | Add TINY 11/12; low is D Grammar(UnitBytes), physical error 11, position 12, origin 0..12, no prior event. |
+| declarations.catalog.max_declarations | None | Add Header + e='x', 1/2; low fails the ENTITY at declaration ordinal 1, raw offset 0. |
+| declarations.catalog.max_bindings | None | Add same document, 0/1; keep storage/value budgets generous. |
+| declarations.catalog.max_references | Direct catalog test only | Add `<!DOCTYPE r><r a='&amp;'/>`, 0/1; body Tag Catalog References, value input offset 18, position 26, prior End 11..12. |
+| declarations.catalog.max_depth | None | Add explicit `&e;` with e='x', 0/1; distinguish catalog value depth from GE scheduling depth. |
+| declarations.frames.max_reference_attempts | Zero limit and PE-then-GE limit=1 reject; no exact H=2 complete success | Add existing H fixture at 1/2. Low fails physical GE entry with reference origin 52..55, physical error 52/high-water 55, prior root 49..52. |
+| declarations.frames.max_expanded_bytes | Already exact through Reader at 3/4/5 for non-BMP replacement | Keep existing accepted test; no duplicate field row needed. Nested-empty spelling is a useful separate semantic control. |
+| declarations.max_physical_bytes | Already exact full-document TINY 15/16/17, plus within-scalar progress | Add DTD-phase failure at 11 with existing complete-document success at 16. A cap of 12 permits Begin/End only and then rejects body; it cannot be a complete-document success control. |
+
+Thus **seven absent Session fields need added/completed rows**; the eighth
+already has exact facade coverage. The physical field needs its missing
+DTD-side error branch rather than another full-document boundary table.
+
+Three existing matrix Work rows also need exact companions:
+
+- Native catalog Work: TINY **11/12**, preserving Catalog Work versus global
+  Controller Work. Its existing 0/generous row is a valid shape control.
+- Shared declaration Work: TINY **47/48**, retaining the existing early
+  0/generous DTD Work case; one shared cap governs DTD and body.
+- Text Work: TINY **47/48**, retaining 0/generous body-construction Text Work.
+  A cap of 36 only admits construction, not the full body. Keep a larger Text
+  cap with declaration cap 47 as a no-reopening control.
+
+The eight non-Session fields are not all new gaps:
+
+| Field | Existing exact facade coverage | Required complement |
+| --- | --- | --- |
+| Limits.max_input_bytes | 15/16/17 complete-input table | BOM-inclusive 18/19 plus constructor precedence with invalid Session settings. |
+| DecodeLimits.max_decoded_bytes | 15/16/17 complete-input table | Same BOM document at 15/16 to distinguish exclusion of the BOM. |
+| Limits.max_token_bytes | DOCTYPE prefix 8/9/10 | Ten-byte body tag at 9/10, raw ceiling winning over larger decoded ceiling. |
+| DecodeLimits.max_decoded_token_bytes | DOCTYPE prefix 8/9/10 | Same body tag with decoded ceiling 9/10 and larger raw ceiling. |
+| Limits.max_depth | Empty root 0/1/2 | Generated Empty child at current root depth 1: limit 1 rejects, 2 accepts. |
+| Limits.max_attributes | One specified + one default, 1/2/3 | Retain; no duplicate quota row required. |
+| Limits.max_events | 10/11/12 plus pre-DTD event continuity | Retain; no duplicate quota row required. |
+| Limits.max_owned_bytes | Text 4/5/6, stable attribute 63/64, zero borrowed fields, pre-DTD PI spend | Add generated raw promotion under the same Parser Budget at 15/16, with controller raw-owned allowance generous. Distinguish D Ownership(OwnedBytes) from D Limit(OwnedBytes). |
+
+Scratch overflow/reference-min, native-vs-global Work competitors and
+replacement-local diagnostic rows in Q2–Q8 complete dimensions beyond simply
+setting every scalar once. A one-above slot control must enlarge the unrelated
+aggregate sum too; otherwise it tests total Scratch instead of the slot.
+Configuration requirements are not new allocation sites or new front-end
+APIs. Tests alone still suffice.
+
 ## Public activation decisions remain deferred
 
 - Public Event vs separate document-event envelope, by-value DTD units/views,
