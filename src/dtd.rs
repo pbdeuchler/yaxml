@@ -1569,6 +1569,10 @@ mod ownership_tests;
 #[path = "../tests/internal/dtd_output_author.rs"]
 mod output_tests;
 
+#[cfg(test)]
+#[path = "../tests/internal/dtd_output_spec.rs"]
+mod output_spec_tests;
+
 impl Parser<'_> {
     fn entity(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!ENTITY")?;
