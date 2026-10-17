@@ -557,23 +557,20 @@ fn finish_success_incomplete_dtd_and_post_finish_feed_are_sticky() {
 }
 
 #[test]
-fn utf16_dtd_is_rejected_at_doctype_start_without_dtd_publication() {
+fn utf16_dtd_has_the_same_events_with_physical_transport_ranges() {
+    let (expected, _) = drive_parts(F3.as_bytes(), &[], Limits::default()).unwrap();
     for little in [true, false] {
         let bytes = utf16(F3, little);
-        let mut session = new_session(Limits::default());
-        let mut callbacks = 0;
-        let error = session
-            .advance(&bytes, &mut |_, _, _| {
-                callbacks += 1;
-                Ok(())
-            })
-            .unwrap_err();
+        let (actual, session) = drive_parts(&bytes, &[1, 19, 25], Limits::default()).unwrap();
+        assert_eq!(semantic(&actual), semantic(&expected));
         assert_eq!(
-            error,
-            SessionError::Xml(Error::new(ErrorKind::UnsupportedEncoding, 2))
+            actual
+                .iter()
+                .map(|e| e.origin.input_range())
+                .collect::<Vec<_>>(),
+            [Some(2..24), Some(24..26), Some(26..34)]
         );
-        assert_eq!(callbacks, 0);
-        assert_eq!(session.advance(b"", &mut |_, _, _| Ok(())), Err(error));
+        assert_eq!(session.position(), bytes.len());
     }
 }
 

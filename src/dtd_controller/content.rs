@@ -80,7 +80,7 @@ pub(crate) struct ContentController {
 }
 
 impl ContentController {
-    /// Only the reviewed UTF-8 owned-tokenizer resume is supported in this slice.
+    /// Resume the same decoded source with its original transport encoding.
     pub(crate) fn new(
         body: DtdBodyState,
         parser: ParserState<'static>,
@@ -95,16 +95,17 @@ impl ContentController {
             local_offset: None,
             value_location: None,
         };
-        if body.encoding != SourceEncoding::Utf8 {
-            return Err(invalid());
-        }
-        let input =
-            TextSourceLease::resume_utf8(tokenizer, body.decoded_position, body.physical_position)
-                .map_err(|error| ContentError {
-                    kind: ContentErrorKind::Text(error.kind),
-                    physical_offset: error.offset,
-                    ..invalid()
-                })?;
+        let input = TextSourceLease::resume(
+            tokenizer,
+            body.encoding,
+            body.decoded_position,
+            body.physical_position,
+        )
+        .map_err(|error| ContentError {
+            kind: ContentErrorKind::Text(error.kind),
+            physical_offset: error.offset,
+            ..invalid()
+        })?;
         if input.input_encoding() != Some(body.encoding)
             || input.input_position() != Some(body.resume_position())
             || body.frames.depth() != 0
@@ -268,16 +269,16 @@ impl ContentController {
                     .limits
                     .max_physical_bytes
                     .saturating_sub(self.body.counters.physical_bytes);
-                if !self.finalizing && !input[consumed..].is_empty() && remaining == 0 {
+                let available = &input[consumed..];
+                let length = physical_input_prefix(self.body.encoding, available, remaining);
+                if !self.finalizing && !available.is_empty() && length == 0 {
                     return Err(self.simple(ContentErrorKind::PhysicalBytes));
                 }
                 let coordinator = self.coordinator.as_mut().expect("active coordinator");
                 if self.finalizing {
                     coordinator.finish_step()
                 } else {
-                    coordinator.advance(
-                        &input[consumed..input.len().min(consumed.saturating_add(remaining))],
-                    )
+                    coordinator.advance(&available[..length])
                 }
             };
             // Include accepted work even when scanning fails; never replay it.
@@ -324,6 +325,14 @@ impl ContentController {
                     });
                 }
                 TextOutcome::NeedInput if !self.active.is_empty() => continue,
+                TextOutcome::NeedInput if consumed < input.len() && !self.finalizing => {
+                    // A transport quota can split one decoder scalar's UTF-8
+                    // representation. Drain its zero-width continuations before
+                    // reporting that the supplied decoded window was exhausted.
+                    if step.consumed == 0 {
+                        return Err(self.simple(ContentErrorKind::InvalidState));
+                    }
+                }
                 TextOutcome::NeedInput => {
                     return Ok(ContentStep {
                         consumed,
@@ -1035,6 +1044,27 @@ fn tag_failure(
         },
         value_location,
     }
+}
+
+/// Bound transport charges before scanning decoded bytes. UTF-16 continuations
+/// have zero charge: their lead already accounted for the complete scalar.
+fn physical_input_prefix(encoding: SourceEncoding, input: &[u8], remaining: usize) -> usize {
+    if encoding == SourceEncoding::Utf8 {
+        return input.len().min(remaining);
+    }
+    // Each decoded byte costs at most four transport bytes. Limit the scan near
+    // exhaustion to avoid repeatedly traversing a suffix across reference stops.
+    if remaining >= 4 {
+        return input.len().min(remaining / 4);
+    }
+    let mut spent = 0;
+    for (index, byte) in input.iter().take(4).enumerate() {
+        spent += encoding.source_length(std::slice::from_ref(byte));
+        if spent > remaining {
+            return index;
+        }
+    }
+    input.len().min(4)
 }
 
 #[path = "../../tests/internal/dtd_content_author.rs"]

@@ -6,7 +6,7 @@ use crate::dtd_reference::ReferenceLimits;
 use crate::dtd_scan::ScanErrorKind;
 use crate::tokenizer::text::TextScratchLimits;
 
-fn options() -> SessionLimits {
+pub(super) fn options() -> SessionLimits {
     SessionLimits {
         declarations: ControllerLimits::default(),
         text: TextLimits {
@@ -29,7 +29,7 @@ fn options() -> SessionLimits {
         },
     }
 }
-fn driver(limits: Limits) -> StreamingSession {
+pub(super) fn driver(limits: Limits) -> StreamingSession {
     StreamingSession::new(
         limits,
         DecodeLimits {
@@ -39,13 +39,13 @@ fn driver(limits: Limits) -> StreamingSession {
         options(),
     )
 }
-fn limits() -> Limits {
+pub(super) fn limits() -> Limits {
     Limits {
         max_token_bytes: 4096,
         ..Limits::default()
     }
 }
-fn name(event: LocatedEvent<'_>) -> String {
+pub(super) fn name(event: LocatedEvent<'_>) -> String {
     match event {
         LocatedEvent::Xml(event) => match event {
             Event::Declaration(declaration) => format!("xml:{:?}", declaration.standalone),
@@ -320,7 +320,7 @@ fn same_budget_sink_failure_and_cancellation_keep_distinct_physical_anchors() {
 }
 
 #[test]
-fn real_utf16_ordinary_documents_work_but_dtd_entry_is_explicitly_unavailable() {
+fn real_utf16_ordinary_and_dtd_documents_work() {
     for little in [false, true] {
         fn encoded(raw: &str, little: bool) -> Vec<u8> {
             let mut bytes = if little {
@@ -365,22 +365,23 @@ fn real_utf16_ordinary_documents_work_but_dtd_entry_is_explicitly_unavailable() 
         assert_eq!(rows[1].1.input_range(), Some(8..12));
         let bytes = encoded("<!DOCTYPE r><r/>", little);
         let mut stream = driver(limits());
-        let failure = stream
-            .advance(&bytes, &mut |_, _, _| {
-                panic!("no DTD event before encoding rejection")
+        let mut rows = Vec::new();
+        stream
+            .advance(&bytes, &mut |event, origin, _| {
+                rows.push((name(event), origin.input_range().unwrap()));
+                Ok(())
             })
-            .unwrap_err();
+            .unwrap();
+        stream.finish(&mut |_, _, _| Ok(())).unwrap();
         assert_eq!(
-            failure,
-            SessionError::Xml(Error::new(ErrorKind::UnsupportedEncoding, 2))
+            rows,
+            [
+                ("dtd:r".into(), 2..24),
+                ("dtd:end".into(), 24..26),
+                ("=r".into(), 26..34)
+            ]
         );
-        assert_eq!(stream.position(), 20);
-        assert_eq!(
-            stream
-                .finish(&mut |_, _, _| panic!("terminal"))
-                .unwrap_err(),
-            failure
-        );
+        assert_eq!(stream.position(), bytes.len());
     }
 }
 
@@ -571,4 +572,46 @@ fn declaration_standalone_controls_unread_external_subset_failures() {
             failure
         );
     }
+}
+
+#[test]
+fn utf8_partial_body_quota_reports_the_first_unaccepted_byte_and_stays_terminal() {
+    use crate::dtd_controller::content::ContentErrorKind;
+
+    let mut config = options();
+    config.declarations.max_physical_bytes = 15;
+    let mut session = StreamingSession::new(
+        limits(),
+        DecodeLimits {
+            max_decoded_bytes: 4096,
+            max_decoded_token_bytes: 4096,
+        },
+        config,
+    );
+    let mut delivered = Vec::new();
+    let error = session
+        .advance(b"<!DOCTYPE r><r/>", &mut |event, _, _| {
+            delivered.push(name(event));
+            Ok(())
+        })
+        .unwrap_err();
+    assert_eq!(delivered, ["dtd:r", "dtd:end"]);
+    assert!(matches!(
+        error,
+        SessionError::Content(ContentError {
+            kind: ContentErrorKind::PhysicalBytes,
+            physical_offset: 15,
+            ..
+        })
+    ));
+    assert_eq!(session.dtd_counters().unwrap().physical_bytes, 15);
+    assert_eq!(
+        session.advance(b">", &mut |_, _, _| panic!("terminal quota")),
+        Err(error)
+    );
+    assert_eq!(
+        session.finish(&mut |_, _, _| panic!("terminal quota")),
+        Err(error)
+    );
+    assert_eq!(session.dtd_counters().unwrap().physical_bytes, 15);
 }

@@ -294,7 +294,7 @@ fn exact_global_work_and_native_frame_limits_precede_publication() {
 }
 
 #[test]
-fn constructor_rejects_non_utf8_used_tokenizers_and_inadequate_scratch() {
+fn constructor_resumes_encoding_and_rejects_used_tokenizers_and_inadequate_scratch() {
     fn body(encoding: SourceEncoding) -> DtdBodyState {
         let mut dtd = DtdController::new(encoding, 0, ControllerLimits::default(), false);
         let mut state = ParserState::new(Limits::default(), 0);
@@ -344,7 +344,9 @@ fn constructor_rejects_non_utf8_used_tokenizers_and_inadequate_scratch() {
         inherited_max - inherited_spent
     );
     assert_eq!(controller.counters().work, inherited_spent);
-    let non_utf8 = ContentController::new(
+    // Constructor-only decoded-stream control; real transport and Decoder carry
+    // are exercised by the UTF-16 streaming-session fixtures.
+    let utf16 = ContentController::new(
         body(SourceEncoding::Utf16 {
             little_endian: true,
             bom: true,
@@ -354,9 +356,8 @@ fn constructor_rejects_non_utf8_used_tokenizers_and_inadequate_scratch() {
         limits,
         local,
     )
-    .err()
     .unwrap();
-    assert_eq!(non_utf8.kind, ContentErrorKind::InvalidState);
+    assert_eq!(utf16.position(), (12, 24));
     let mut used = Tokenizer::new(128, 128);
     used.advance(b"<r/>").unwrap();
     used.release();

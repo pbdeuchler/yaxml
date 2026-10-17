@@ -4,7 +4,6 @@ use crate::dtd_controller::content::{ContentController, ContentError, ContentOut
 use crate::dtd_controller::{
     ControllerCounters, ControllerError, ControllerLimits, DtdController, DtdEvent,
 };
-use crate::encoding::SourceEncoding;
 use crate::tokenizer::local::LocalLimits;
 use crate::tokenizer::text::TextLimits;
 
@@ -277,9 +276,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
             return Err(Error::new(ErrorKind::InvalidState, span.source.start).into());
         }
         ordinary.state.check_doctype_start(span.source.start)?;
-        if span.encoding != SourceEncoding::Utf8 {
-            return Err(Error::new(ErrorKind::UnsupportedEncoding, span.source.start).into());
-        }
+        let encoding = span.encoding;
         let physical_start = span.source.start;
         let decoded_start = span.decoded.start;
         if !self.reservation.reserve_one(&mut self.session) {
@@ -295,7 +292,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
             ..
         } = self.ordinary.take().expect("checked ordinary owner");
         let mut controller = DtdController::new_at(
-            SourceEncoding::Utf8,
+            encoding,
             physical_start,
             decoded_start,
             self.options.declarations,
@@ -505,3 +502,6 @@ mod tests;
 
 #[path = "../../tests/internal/dtd_stream_spec.rs"]
 mod spec_tests;
+
+#[path = "../../tests/internal/dtd_stream_utf16_author.rs"]
+mod utf16_tests;

@@ -196,11 +196,33 @@ impl<'input> TextSourceLease<'input> {
         }
     }
     pub(crate) fn resume_utf8(
-        mut tokenizer: Tokenizer,
+        tokenizer: Tokenizer,
         decoded_position: usize,
         physical_position: usize,
     ) -> Result<Self, TextError> {
-        let valid = decoded_position == physical_position
+        Self::resume(
+            tokenizer,
+            SourceEncoding::Utf8,
+            decoded_position,
+            physical_position,
+        )
+    }
+    /// Resume decoded input from the same decoder at a complete token boundary.
+    /// UTF-16 coordinates count decoded UTF-8 bytes and original transport bytes
+    /// independently; configuring the encoding must not replay its BOM.
+    pub(crate) fn resume(
+        mut tokenizer: Tokenizer,
+        encoding: SourceEncoding,
+        decoded_position: usize,
+        physical_position: usize,
+    ) -> Result<Self, TextError> {
+        let coordinates = match encoding {
+            SourceEncoding::Utf8 => decoded_position == physical_position,
+            SourceEncoding::Utf16 { bom, .. } => {
+                physical_position.is_multiple_of(2) && (!bom || physical_position >= 2)
+            }
+        };
+        let valid = coordinates
             && tokenizer.encoding == SourceEncoding::Utf8
             && tokenizer.buffer.is_empty()
             && tokenizer.position == 0
@@ -215,6 +237,7 @@ impl<'input> TextSourceLease<'input> {
                 offset: physical_position,
             });
         }
+        tokenizer.encoding = encoding;
         tokenizer.start = decoded_position;
         tokenizer.position = decoded_position;
         tokenizer.source_start = physical_position;
