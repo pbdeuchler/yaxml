@@ -28,7 +28,7 @@ Keep these invariants:
   ParserState mutation; only then may ParserState unwind the element scope.
 - ParserState shares its existing namespace tables and owned-byte Budget with
   the controller. Controller/global work remains outside ParserState.
-- Replacement errors retain token-local byte offsets. The controller combines
+- Replacement errors retain replacement-source byte offsets. The controller combines
   them with the real invocation/origin; it never maps them as physical UTF-16.
 
 ## Exact private API sketch
@@ -64,6 +64,10 @@ The event counter changes after all checks and copies succeed.
 new public error model. It prevents a generated UTF-8-local offset from entering
 the physical TokenSpan mapper. `DtdTagError` already carries the equivalent
 Input-versus-declaration/value distinction for generated Start tags.
+`local_offset` includes `local_range.start` exactly once: it is a byte position
+within the active replacement source, not an offset relative to the token.
+For example, a two-byte Unicode scalar before an error in a token starting at
+40 reports 42. The controller supplies the occurrence identity separately.
 
 `process_dtd_start_owned` uses `LiteralSource::Replacement`. After the shared
 collector/preparer, a small checked ownership rebind moves already-owned names
