@@ -117,7 +117,21 @@ fn invalid_unused_dtd_names_are_deferred_until_a_default_is_applied() {
             kind: DtdTagErrorKind::Parser(ErrorKind::InvalidName),
             location: DtdTagLocation::Declaration {
                 declaration: 0,
-                offset: 3
+                offset: 15
+            }
+        }
+    );
+
+    let mut unicode = DtdCatalog::new(CatalogLimits::default(), false);
+    declare(&mut unicode, "<!ATTLIST 根 π:a:b CDATA 'v'>");
+    let mut state = ParserState::new(Limits::default(), 0);
+    assert_eq!(
+        prepare(&mut state, &mut unicode, "<根/>", LiteralSource::Physical).unwrap_err(),
+        DtdTagError {
+            kind: DtdTagErrorKind::Parser(ErrorKind::InvalidName),
+            location: DtdTagLocation::Declaration {
+                declaration: 0,
+                offset: 18
             }
         }
     );

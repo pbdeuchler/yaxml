@@ -243,6 +243,7 @@ impl StoredDefault {
 #[derive(Debug)]
 struct Attribute {
     name: String,
+    name_offset: usize,
     kind: AttributeKind,
     default: StoredDefault,
     declaration: usize,
@@ -254,6 +255,9 @@ pub(crate) struct AttributeBinding<'a>(&'a Attribute);
 impl<'a> AttributeBinding<'a> {
     pub(crate) fn name(self) -> &'a str {
         &self.0.name
+    }
+    pub(crate) fn name_offset(self) -> usize {
+        self.0.name_offset
     }
     pub(crate) fn kind(self) -> AttributeKind {
         self.0.kind
@@ -662,6 +666,7 @@ impl DtdCatalog {
                     let index = attributes.ordered.len();
                     attributes.ordered.push(Attribute {
                         name,
+                        name_offset: definition.name_offset(),
                         kind,
                         default,
                         declaration: self.usage.declarations - 1,

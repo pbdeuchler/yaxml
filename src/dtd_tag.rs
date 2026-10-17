@@ -155,7 +155,8 @@ pub(crate) fn prepare_dtd_tag<'event>(
                 });
             }
         };
-        let (prefix, _) = qname(binding.name(), 0).map_err(|error| DtdTagError {
+        let name_offset = binding.name_offset();
+        let (prefix, _) = qname(binding.name(), name_offset).map_err(|error| DtdTagError {
             kind: DtdTagErrorKind::Parser(error.kind),
             location: DtdTagLocation::Declaration {
                 declaration: binding.declaration(),

@@ -4,6 +4,7 @@ use std::io;
 use super::*;
 use crate::Attribute;
 use crate::dtd::DtdLimits;
+use crate::dtd_catalog::ValueLocation;
 use crate::dtd_writer::DtdWriteLimit;
 
 fn unit(raw: &'static str) -> DtdUnit<'static> {
@@ -239,6 +240,37 @@ fn tokenized_value_mismatch_reports_syntax_after_dtd_normalization() {
         DtdWriteErrorKind::Parser(ErrorKind::Syntax)
     );
     assert_eq!(writer.position, start);
+}
+
+#[test]
+fn applied_unicode_default_qname_keeps_its_raw_declaration_offset() {
+    let mut writer = Writer::new(Vec::new());
+    write_subset(&mut writer, "<!ATTLIST 根 π:a:b CDATA 'v'>");
+    let start = writer.position;
+    let event = Event::Empty(Element {
+        name: Name::new("根", None).unwrap(),
+        attributes: Vec::new(),
+    });
+    assert!(matches!(
+        writer.write_event(&event),
+        Err(WriteError::Xml(Error {
+            kind: ErrorKind::InvalidName,
+            offset,
+        })) if offset == start
+    ));
+    let error = writer.dtd[0].failure().unwrap();
+    assert_eq!(
+        error.kind,
+        DtdWriteErrorKind::Parser(ErrorKind::InvalidName)
+    );
+    assert_eq!(error.output_offset, start);
+    assert_eq!(
+        error.value_location,
+        Some(ValueLocation::Declaration {
+            declaration: 1,
+            offset: 18,
+        })
+    );
 }
 
 #[test]
