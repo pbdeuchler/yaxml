@@ -330,9 +330,39 @@ Git blobs and the worktree is clean. Source manifest:
 The review supplement is
 `/private/tmp/yaxml-content-holistic-review-supplement.md`.
 
+The private streaming-session freeze is
+`7a650f846666692ac293dbab3d58761b3f8f3d7c`, source tree
+`968dd68daebf5fdb5e27f8b7ab61a9e4dd3b6dd3`. It retains ordinary `Stream`
+until the real `DOCTYPE` boundary, fallibly reserves one out-of-line DTD slot,
+then moves the same Decoder, parser, event count, ownership Budget, standalone
+value, catalog and frame state through declarations and generated body content.
+DTD/XML events share the event ceiling and callback Budget. Physical transport,
+generated progress, event origin and replacement-local coordinates remain
+distinct. DTD-free UTF-16 stays on the ordinary path; this first DTD path rejects
+UTF-16 explicitly at the `DOCTYPE` start.
+
+Eight author and ten independently authored groups pass in debug and release.
+The first holistic closure found that the allocation test called a helper rather
+than the production route; replacing the real reservation still passed. The
+corrected design stores a private, statically dispatched zero-sized reservation
+policy, and the failure test now reaches it through normal `advance`. The former
+survivor, standalone capture and ordinary/DTD/generated callback-panic mutations
+all fail. The corrected holistic verdict is PASS with no findings. Production
+and rejecting-policy session layouts both remain 1056 bytes, alignment 8.
+
+The combined private tree passes 990 tests with nine ignored across 44
+all-target groups, all 552 library tests in release, all 13 doctests, strict
+all-target Clippy, formatting and diff checks. All 345 tracked files match their
+Git blobs. Source manifest:
+`/private/tmp/yaxml-dtd-streaming-freeze-source.tsv` (SHA-256
+`0c72e7c72371c7928da8515e0360a042988f085851b574bdd3a2a04aa429f958`).
+The freeze report is `/private/tmp/yaxml-dtd-streaming-freeze.md` (SHA-256
+`de35ac9e58e1950ede08c4f33be7a3f2a8ff1b7148be6ef7b4f09edcdd3f6ce6`), and
+the final holistic report is `/private/tmp/yaxml-streaming-closure-6184e1d.md`.
+
 No fresh fuzz-only coverage or XMLTS result is claimed for these private
 modules. Main's most recent public-source measurement remains 6,936/7,406
 regions and 910/964 instrumented branch outcomes. Reaching 100%, sustained
-hostile-input campaigns, allocation-failure injection, generated content
-public DTD integration, matched libxml2 performance, allocator
+hostile-input campaigns, broader allocation-failure injection, generated
+content public DTD integration, matched libxml2 performance, allocator
 support and language bindings remain open.

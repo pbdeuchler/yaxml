@@ -145,11 +145,16 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   Nine author groups and 21 independent groups pass in debug and release; the
   independent suite catches removed complete-token work accounting. This is a
   reviewed private composition checkpoint, not frontend activation.
-  The next [private streaming-session outline](plans/dtd-streaming-session.md)
-  uses the existing early DOCTYPE token boundary, moves the same Decoder/parser
-  into one optional session, and preserves the callback ownership Budget.
-  UTF-16 body resume, Buffered lending and stable Reader publication remain
-  explicit follow-ups; this outline does not activate those frontends.
+  That [private streaming-session outline](plans/dtd-streaming-session.md) now
+  has a reviewed callback implementation on `integrate/dtd-prototype`. It moves
+  the same Decoder/parser into one fallibly reserved, out-of-line session and
+  keeps one event ceiling, ownership Budget and standalone value through the
+  declaration/content handoff. Eighteen author and independent groups pass in
+  debug and release; deliberate production-route allocation, standalone and
+  callback-panic faults are caught. The combined private freeze passes 990 tests
+  with nine ignored, 552 release library tests and 13 doctests. UTF-16 DTD
+  resume, Buffered lending, stable Reader publication, DOM storage and public
+  activation remain explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The

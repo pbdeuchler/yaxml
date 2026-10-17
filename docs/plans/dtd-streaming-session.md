@@ -165,3 +165,42 @@ private failure-context mapping, measured layouts/performance and complete
 fuzz/conformance gates. Private end-to-end controls should first pin existing
 preamble/event/Budget continuity, Begin/End cancellation, no suffix reads during
 GE work, EOF ordering, buffered I/O poison, exact source consumption and quotas.
+
+## First private callback checkpoint
+
+The first implementation checkpoint is frozen at private integration commit
+`7a650f846666692ac293dbab3d58761b3f8f3d7c`, tree
+`968dd68daebf5fdb5e27f8b7ab61a9e4dd3b6dd3`. It implements the UTF-8 callback
+slice described above without changing a public frontend or accepting public DTD
+input. The driver keeps ordinary `Stream` intact until its actual DTD token,
+fallibly reserves a length-zero/one session, and then moves the same Decoder,
+ParserState, event counter, Budget, standalone value, catalog, frames and nonce.
+Empty and nested generated work drains without consuming a physical suffix.
+Cancellation, typed phase failures, allocation failure, callback unwind and
+post-finish input are sticky.
+
+The allocation boundary uses a private generic zero-sized policy. Normal
+construction supplies `try_reserve_exact`; an injected rejecting policy is
+driven through the same `advance -> start_dtd` route. Both specializations are
+1056 bytes with alignment 8. This shape is a narrow failure-injection seam for
+the current concrete `Vec` slot, not the allocator API design promised for the
+public library.
+
+Eight author groups and ten blind specification groups pass in debug and
+release. They cover every UTF-8 byte split, DTD-free real UTF-16 parity, explicit
+UTF-16 DTD rejection, event order and origins, shared quotas/Budget, standalone,
+generated progress, EOF, callback errors and panic poisoning. The first holistic
+pass caught a test-wiring defect because a helper was tested directly; after the
+normal-route correction, reservation-bypass, standalone and all three poison
+mutations fail. The final verdict is PASS with zero findings.
+
+The combined private branch passes 990 tests with nine ignored, 552 release
+library tests and 13 doctests. Strict all-target Clippy, formatting and byte-for-
+byte source verification pass. Evidence is recorded in
+`/private/tmp/yaxml-dtd-streaming-freeze.md`; the 345-file source manifest is
+`/private/tmp/yaxml-dtd-streaming-freeze-source.tsv`.
+
+This checkpoint deliberately leaves the lending publication seam, full UTF-16
+DTD resume, BufferedReader I/O integration, stable Reader borrowing, ordered DOM
+DTD storage, public error mapping and public activation for later slices. It adds
+no fresh fuzz-coverage, XMLTS or performance claim.
