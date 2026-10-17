@@ -1,5 +1,7 @@
 use super::*;
+use crate::Event;
 use crate::tokenizer::local::{LocalLimits, LocalTokenizer};
+use std::borrow::Cow;
 use std::num::NonZeroU64;
 
 fn limits(max_work: usize) -> TextLimits {
@@ -87,6 +89,75 @@ fn utf8_input_resume_requires_a_fresh_tokenizer_and_equal_source_positions() {
 }
 
 #[test]
+fn input_position_overflow_is_typed_sticky_and_keeps_zero_width_utf16_bytes() {
+    let mut exact = TextCoordinator::new(
+        TextShared::new(limits(100), 0).unwrap(),
+        TextSourceLease::resume_utf8(Tokenizer::new(11, 100), usize::MAX - 1, usize::MAX - 1)
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(exact.advance(b"x").unwrap().consumed, 1);
+    assert_eq!(exact.input_position(), Some((usize::MAX, usize::MAX)));
+    let exact_usage = exact.usage();
+    let overflow = exact.advance(b"y").unwrap_err();
+    assert_eq!(overflow.kind, TextErrorKind::PositionOverflow);
+    assert_eq!(overflow.source, TextSourceId::Input);
+    assert_eq!(overflow.offset, usize::MAX);
+    assert_eq!(exact.usage(), exact_usage);
+    assert_eq!(exact.advance(b"").unwrap_err(), overflow);
+
+    let mut partial = TextCoordinator::new(
+        TextShared::new(limits(100), 0).unwrap(),
+        TextSourceLease::resume_utf8(Tokenizer::new(11, 100), usize::MAX - 1, usize::MAX - 1)
+            .unwrap(),
+    )
+    .unwrap();
+    let error = partial.advance(b"xy").unwrap_err();
+    assert_eq!(error.kind, TextErrorKind::PositionOverflow);
+    assert_eq!(partial.input_position(), Some((usize::MAX, usize::MAX)));
+    assert_eq!(partial.usage().source_scanned, 1);
+
+    let utf16 = SourceEncoding::Utf16 {
+        little_endian: true,
+        bom: true,
+    };
+    let mut exact_tokenizer = Tokenizer::new(7, 100);
+    exact_tokenizer.encoding = utf16;
+    exact_tokenizer.position = 20;
+    exact_tokenizer.start = 20;
+    exact_tokenizer.source_position = usize::MAX - 2;
+    exact_tokenizer.source_start = usize::MAX - 2;
+    let mut exact = TextCoordinator::new(
+        TextShared::new(limits(100), 0).unwrap(),
+        TextSourceLease::streaming(exact_tokenizer),
+    )
+    .unwrap();
+    assert_eq!(exact.advance(b"x").unwrap().consumed, 1);
+    assert_eq!(exact.input_position(), Some((21, usize::MAX)));
+    assert_eq!(
+        exact.advance(b"y").unwrap_err().kind,
+        TextErrorKind::PositionOverflow
+    );
+
+    let mut continuation = Tokenizer::new(7, 100);
+    continuation.encoding = utf16;
+    continuation.buffer.push(0xc2);
+    continuation.start = 20;
+    continuation.position = 21;
+    continuation.source_start = usize::MAX - 2;
+    continuation.source_position = usize::MAX;
+    let mut continuation = TextCoordinator::new(
+        TextShared::new(limits(100), 0).unwrap(),
+        TextSourceLease::streaming(continuation),
+    )
+    .unwrap();
+    assert_eq!(continuation.advance(&[0xa2]).unwrap().consumed, 1);
+    assert_eq!(continuation.input_position(), Some((22, usize::MAX)));
+    continuation.finish_step().unwrap();
+    assert_eq!(continuation.current().unwrap().raw, "¢".as_bytes());
+}
+
+#[test]
 fn standalone_ledger_accepts_exact_work_and_rejects_excess_or_overflow() {
     for (initial, amount, maximum, accepted) in [
         (4, 6, 10, true),
@@ -156,6 +227,25 @@ fn coordinator_forwarding_preserves_native_failure_precedence() {
         failure
     );
     assert_eq!(coordinator.usage(), before);
+}
+
+#[test]
+fn borrowed_event_can_stay_live_while_the_disjoint_work_ledger_is_charged() {
+    let mut coordinator = TextCoordinator::new(
+        TextShared::new(limits(100), 0).unwrap(),
+        TextSourceLease::streaming(Tokenizer::new(11, 100)),
+    )
+    .unwrap();
+    coordinator.advance(b"text<r/>").unwrap();
+    let before = coordinator.usage().work;
+    let (token, shared) = coordinator.current_with_work().unwrap();
+    let raw = std::str::from_utf8(token.raw).unwrap();
+    let event = Event::Text(Cow::Borrowed(raw));
+    shared
+        .charge_external_work(4, TextSourceId::Input, 0)
+        .unwrap();
+    assert_eq!(event, Event::Text(Cow::Borrowed("text")));
+    assert_eq!(shared.usage().work, before + 4);
 }
 
 #[test]

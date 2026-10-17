@@ -27,6 +27,7 @@ pub(crate) enum TextErrorKind {
     Reference(ReferenceErrorKind),
     Cursor(ReferenceCursorErrorKind),
     Work,
+    PositionOverflow,
     Scratch,
     ScratchOverflow,
     InvalidState,
@@ -299,6 +300,29 @@ impl<'input> TextSourceLease<'input> {
             LeaseKind::Local { .. } => None,
         }
     }
+    fn current(&self) -> Option<TextToken<'_>> {
+        match &self.kind {
+            LeaseKind::Input { tokenizer, .. } => {
+                tokenizer.current().map(|(kind, raw, span)| TextToken {
+                    kind,
+                    raw,
+                    location: TextLocation::Input(span),
+                })
+            }
+            LeaseKind::Local {
+                tokenizer,
+                invocation,
+                ..
+            } => tokenizer.current().map(|(kind, raw, range)| TextToken {
+                kind,
+                raw,
+                location: TextLocation::Local {
+                    invocation: *invocation,
+                    range,
+                },
+            }),
+        }
+    }
     pub(crate) fn switch_local_at_boundary(
         &mut self,
         invocation: EntityInvocationId,
@@ -433,27 +457,16 @@ impl<'input> TextCoordinator<'input> {
         {
             return None;
         }
-        match &self.source.kind {
-            LeaseKind::Input { tokenizer, .. } => {
-                tokenizer.current().map(|(kind, raw, span)| TextToken {
-                    kind,
-                    raw,
-                    location: TextLocation::Input(span),
-                })
-            }
-            LeaseKind::Local {
-                tokenizer,
-                invocation,
-                ..
-            } => tokenizer.current().map(|(kind, raw, range)| TextToken {
-                kind,
-                raw,
-                location: TextLocation::Local {
-                    invocation: *invocation,
-                    range,
-                },
-            }),
+        self.source.current()
+    }
+    pub(crate) fn current_with_work(&mut self) -> Option<(TextToken<'_>, &mut TextShared)> {
+        if self.shared.failure.is_some()
+            || !matches!(self.pending, Pending::TokenReady | Pending::PrefixReady(_))
+        {
+            return None;
         }
+        let token = self.source.current()?;
+        Some((token, &mut self.shared))
     }
     pub(crate) fn general(
         &self,
@@ -729,7 +742,9 @@ impl<'input> TextCoordinator<'input> {
             } => {
                 let before = tokenizer.position;
                 let length = input.len().min(remaining);
-                let result = tokenizer.advance_content(&input[..length]);
+                let safe = checked_input_prefix(tokenizer, &input[..length]);
+                let position_blocked = safe < length;
+                let result = tokenizer.advance_content(&input[..safe]);
                 let scanned = tokenizer.position - before;
                 self.shared.usage.source_scanned += scanned;
                 charge(&mut self.shared, source, *physical, scanned)?;
@@ -740,6 +755,13 @@ impl<'input> TextCoordinator<'input> {
                     source,
                     offset: e.offset,
                 })?;
+                if position_blocked && step.stop == ContentStop::Exhausted {
+                    return Err(TextError {
+                        kind: TextErrorKind::PositionOverflow,
+                        source,
+                        offset: *physical,
+                    });
+                }
                 if step.stop == ContentStop::TokenReady {
                     validate_input(&mut self.shared, tokenizer)?;
                 }
@@ -1046,6 +1068,30 @@ impl<'input> TextCoordinator<'input> {
         }
         result
     }
+}
+fn checked_input_prefix(tokenizer: &Tokenizer, input: &[u8]) -> usize {
+    let decoded_headroom = usize::MAX - tokenizer.position;
+    let physical_headroom = usize::MAX - tokenizer.source_position;
+    if tokenizer.encoding == SourceEncoding::Utf8 {
+        return input.len().min(decoded_headroom).min(physical_headroom);
+    }
+    if input.len() <= decoded_headroom && input.len() <= physical_headroom / 4 {
+        return input.len();
+    }
+    let mut decoded = tokenizer.position;
+    let mut physical = tokenizer.source_position;
+    for (index, byte) in input.iter().copied().enumerate() {
+        let Some(next_decoded) = decoded.checked_add(1) else {
+            return index;
+        };
+        let Some(next_physical) = physical.checked_add(tokenizer.encoding.source_length(&[byte]))
+        else {
+            return index;
+        };
+        decoded = next_decoded;
+        physical = next_physical;
+    }
+    input.len()
 }
 fn charge(
     shared: &mut TextShared,
