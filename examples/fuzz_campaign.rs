@@ -5,6 +5,9 @@
 mod campaign;
 #[path = "support/process.rs"]
 mod process;
+#[cfg(test)]
+#[path = "support/fuzz_campaign_protocol.rs"]
+mod protocol;
 
 use campaign::{CampaignError, Counts, Limits, MutationRecord, Prng, Summary};
 use process::ProcessLimits;
