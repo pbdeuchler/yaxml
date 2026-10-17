@@ -1,5 +1,9 @@
 # Private general-entity content controller
 
+The concrete Text/reference boundary follow-up is specified in
+[dtd-text-reference-adapter.md](dtd-text-reference-adapter.md). The lexical
+foundation alone does not yet implement that composition.
+
 Plan-only base: `f43f90b`. No behavior code or public DTD acceptance is authorized
 by this note. Consume the borrowed-DTD adapter's reviewed `DtdBodyState` handoff;
 do not implement a parallel declaration engine or general parser framework.
