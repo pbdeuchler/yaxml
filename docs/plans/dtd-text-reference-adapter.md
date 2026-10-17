@@ -193,9 +193,25 @@ contiguous in stable input, so Reader can borrow that original slice.
 
 General scratch has independent decoded-byte/scratch ceilings and an Input
 physical-spelling ceiling. A retained prefix does not contribute to these:
-prefix Text and General spelling are different units. Constructor checks bound
-the sum of their maximum scratch capacities without overflow. Actual reserves
-are fallible; retained semantic outputs spend the shared parser Budget.
+prefix Text and General spelling are different units. The shared scratch policy
+reserves fixed Input-token and replacement-token slots plus the effective
+reference cap. Checked addition rejects overflow or a sum above the total before
+constructing shared state. Both token slots stay reserved when Input is paused
+and Local is active; switching sources cannot erase a retained primary buffer.
+
+These are configured maximum capacity-request reservations, not an RSS or
+whole-controller memory measurement. Source binding also checks its currently
+retained Vec capacity against its slot, since configure does not shrink buffers.
+The token requirement is the greater of retained capacity and its actual growth
+cap: UTF-8 min(raw, decoded), UTF-16 min(saturating(raw/2*3), decoded). Reference
+requests use min(reference bytes, reference scratch bytes). Allocation rounding
+can exceed a requested target; catalogs, frame metadata and semantic outputs
+have their separate ceilings. Every reserve remains fallible.
+
+`TextCoordinator::new` is fallible and checks source fit through a read-only
+shared-ledger operation before changing lease permission. A mismatch or prior
+sticky failure cannot spend work, create reference scratch, or reset a lease's
+boundary state. Retained semantic outputs spend the shared parser Budget.
 
 For Numeric/Predefined, prefix and spelling become one Text token. Check combined
 physical TokenBytes, decoded-token bytes and token scratch capacity **before**
@@ -293,3 +309,59 @@ pending extent to the active input/replacement invocation, own physical EOF and
 sticky failures, enforce prefix acknowledgement before skip, and pre-cap all
 component work. Matching numeric coordinates alone do not establish invocation
 identity. No direct helper claims to enforce that absent controller state.
+
+## First concrete coordinator checkpoint
+
+The coordinator owns an active `TextSourceLease` by value. A lease contains the
+actual physical Tokenizer or LocalTokenizer; it is never re-supplied to later
+drive/release calls. Stable input also retains its immutable UTF-8 window borrow,
+while streaming input and local replacement have separate feed methods. A
+replacement feed must present the same existing invocation ID. Replacement bytes
+still come from that ID's catalog lookup under the later controller's short
+borrow; no long catalog borrow is retained across mutable normalization.
+
+This replaces the earlier tentative borrowing-source sketch. A persistent Reader
+cannot store a coordinator borrowing its own tokenizer fields. Moving the lease
+avoids that self-reference and prevents accepting a different tokenizer merely
+because its coordinates match.
+
+A new stable lease rejects a tokenizer with buffered bytes; it cannot attach
+foreign scratch to the immutable window. A new local lease requires a fresh
+LocalTokenizer. Reusing a worked replacement tokenizer requires the explicit
+handoff boundary switch, preserving its counters/caps. Stable EOF also rejects
+an unread window suffix instead of silently completing a truncated source.
+
+`TextShared` owns one reference scratch allocation, native reference policy, the
+global work total and its first failure. The same value moves with a consuming
+`acknowledge_general` or `take_complete` handoff. The former is available only
+after prefix acknowledgement and GeneralReady; it does not perform inclusion.
+Its returned lease is at a clean boundary and can remain paused while a child
+uses the shared state. The future controller keeps only its primary lease
+paused. Nested replacement parents remain frame IDs/cursors, not a stack of
+tokenizer buffers.
+
+`switch_local_at_boundary` consumes that handoff permission to change the active
+invocation/cursor on the SAME LocalTokenizer. Its narrow internal reset requires
+empty Text, no ready token or saved delimiter; it preserves all usage and caps.
+This allows a parent paused after a General spelling without marking it EOF.
+The frame owner must still enforce entry depth, current replacement membership,
+parent cursor commit and return guards before switching occurrences.
+
+The first implementation returns raw token bytes with Input TokenSpan or Local
+range/invocation, not a new borrowed-str proof. Its current/getter paths do not
+repeat validation. Source readiness and pending reference collection charge
+their bounded validation/classification work before publication. Semantic
+grammar/owned-event preparation remains the later controller's separate pass.
+No lookup, entity-frame mutation, ParserState call, or public acceptance occurs
+inside this coordinator.
+
+Stable mode still drives ordinary Tokenizer and copies every physical token
+into its scratch buffer. The immutable window seals identity and permits later
+borrowed publication; that publication does not exist here. `current` lends
+scratch bytes, and a future Reader publication must select the sealed same
+window and verified range. This is not zero-copy lexing. The prototype does
+not preserve Reader's direct-string scanning cost on a future DTD-aware path.
+Normal scan/append work and reference scratch/append copies remain real costs.
+The ordinary DTD-free Reader implementation is untouched, but activation must
+measure this DTD-path copy/performance debt. No second scanner is introduced to
+hide it before those measurements.

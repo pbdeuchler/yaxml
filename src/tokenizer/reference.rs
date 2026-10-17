@@ -65,6 +65,32 @@ impl ReferenceCursor {
     pub(crate) fn decoded_position(self) -> usize {
         self.decoded_end
     }
+    pub(crate) fn input_position(self) -> Option<usize> {
+        match self.start {
+            ReferenceStart::Input { .. } => Some(self.source_end),
+            ReferenceStart::Local(_) => None,
+        }
+    }
+    pub(crate) fn map_offset(self, raw: &[u8], offset: usize) -> usize {
+        match self.start {
+            ReferenceStart::Local(_)
+            | ReferenceStart::Input {
+                encoding: SourceEncoding::Utf8,
+                ..
+            } => offset,
+            ReferenceStart::Input {
+                decoded,
+                source,
+                encoding,
+            } => {
+                let mut relative = offset.saturating_sub(decoded).min(raw.len());
+                while relative < raw.len() && relative != 0 && raw[relative] & 0xc0 == 0x80 {
+                    relative -= 1;
+                }
+                source + encoding.source_length(&raw[..relative])
+            }
+        }
+    }
 
     pub(crate) fn checked_advance(self, bytes: &[u8]) -> Result<Self, ReferenceCursorError> {
         let (decoded_start, source_start, encoding) = match self.start {

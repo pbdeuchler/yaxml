@@ -74,6 +74,16 @@ impl Tokenizer {
         self.source_position
     }
 
+    #[cfg(test)]
+    pub(crate) fn scratch_capacity_requirement(&self) -> usize {
+        let configured = match self.encoding {
+            SourceEncoding::Utf8 => self.limit,
+            SourceEncoding::Utf16 { .. } => (self.limit / 2).saturating_mul(3),
+        }
+        .min(self.decoded_limit);
+        configured.max(self.buffer.capacity())
+    }
+
     pub(crate) fn configure(&mut self, encoding: SourceEncoding, bom: usize) {
         self.encoding = encoding;
         self.source_start = bom;
@@ -440,3 +450,6 @@ pub(crate) mod local;
 
 #[cfg(test)]
 pub(crate) mod reference;
+
+#[cfg(test)]
+pub(crate) mod text;

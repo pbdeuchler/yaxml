@@ -103,6 +103,12 @@ impl ReferenceScratch {
     pub(crate) fn usage(&self) -> ReferenceUsage {
         self.usage
     }
+    pub(crate) fn collected_bytes(&self) -> &[u8] {
+        match &self.buffer {
+            ReferenceBuffer::Pending(bytes) => bytes,
+            ReferenceBuffer::Ready { raw, .. } => raw.as_bytes(),
+        }
+    }
     pub(crate) fn current(&self) -> Option<(ReferenceKind, &str, Range<usize>)> {
         self.validated()
             .map(|reference| (reference.kind(), reference.raw(), reference.range()))

@@ -68,6 +68,20 @@ impl LocalTokenizer {
     pub(crate) fn usage(&self) -> LocalUsage {
         self.usage
     }
+    pub(crate) fn work_ceiling(&self) -> usize {
+        self.limits.max_work
+    }
+    pub(crate) fn scratch_capacity_requirement(&self) -> usize {
+        self.inner.scratch_capacity_requirement()
+    }
+    pub(crate) fn is_fresh_source(&self) -> bool {
+        self.failure.is_none()
+            && self.usage.work == 0
+            && !self.finalizing
+            && !self.complete
+            && self.clean_boundary()
+            && self.inner.ready.is_none()
+    }
     pub(crate) fn is_complete(&self) -> bool {
         self.complete
     }
@@ -219,6 +233,21 @@ impl LocalTokenizer {
     pub(crate) fn restart(&mut self, start: usize) -> Result<(), LocalError> {
         self.remember(|s| {
             if !s.complete || !s.clean_boundary() || s.inner.ready.is_some() {
+                return Err(s.error(LocalErrorKind::InvalidState, s.position()));
+            }
+            s.inner.start = start;
+            s.inner.position = start;
+            s.finalizing = false;
+            s.complete = false;
+            s.validated_ready = false;
+            Ok(())
+        })
+    }
+    /// The owning text lease calls this only after an acknowledged General
+    /// boundary or completed source. Pausing a parent is not EOF.
+    pub(crate) fn switch_source_boundary(&mut self, start: usize) -> Result<(), LocalError> {
+        self.remember(|s| {
+            if !s.clean_boundary() || s.inner.ready.is_some() {
                 return Err(s.error(LocalErrorKind::InvalidState, s.position()));
             }
             s.inner.start = start;
