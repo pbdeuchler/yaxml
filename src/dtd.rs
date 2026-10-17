@@ -228,6 +228,11 @@ impl<'a> DtdUnit<'a> {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn into_fuzz_raw(self) -> Cow<'a, str> {
+        self.raw
+    }
+
     /// Check constant-time limits and return the bounded work required to
     /// inspect flat metadata under a possibly tighter consumer policy. The
     /// caller must charge this work before calling `check_inspected_limits`.

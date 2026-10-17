@@ -13,6 +13,7 @@ use crate::dtd_scan::{ScanErrorKind, ScanLimit};
 use crate::dtd_tag::DtdTagErrorKind;
 use crate::tokenizer::local::LocalErrorKind;
 use crate::tokenizer::text::TextErrorKind;
+use std::cell::Cell;
 
 const T: &[u8] = b"<!DOCTYPE r><r/>";
 const B: &[u8] = b"\xef\xbb\xbf<!DOCTYPE r><r/>";
@@ -26,6 +27,7 @@ const D: &[u8] = b"<!DOCTYPE r [<!ATTLIST r a CDATA 'v'>]><r/>";
 const NS: &[u8] = b"<!DOCTYPE r [<!ATTLIST r xmlns CDATA 'urn:d' a CDATA 'v'>]><r/>";
 const H: &[u8] = b"<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>";
 const EMPTY: &[u8] = b"<!DOCTYPE r [<!ENTITY e '&z;'><!ENTITY z ''>]><r>&e;</r>";
+const VISIBLE_EMPTY: &[u8] = b"<!DOCTYPE r [<!ENTITY e 'x'><!ENTITY z ''>]><r>&e;&z;&e;</r>";
 const REPEATED: &[u8] = "<!DOCTYPE r><r><n a='é'/>x<n a='é'/>x</r>".as_bytes();
 const RP: &[u8] = b"<!DOCTYPE r [<!ENTITY % p '<!--x-->'>%p;%p;]><r/>";
 const E: &[u8] = b"<!DOCTYPE r><r a='v'/>";
@@ -38,6 +40,40 @@ const PE_MODEL: &[u8] = b"<!DOCTYPE r [<!ENTITY % p '<!ELEMENT r (a)>'>%p;]><r/>
 const UNKNOWN: &[u8] = b"<!DOCTYPE r><r a='v&z;'/>";
 const UNAVAILABLE: &[u8] = b"<!DOCTYPE r SYSTEM 'x'><r a='v&z;'/>";
 pub(super) const MAX_RETAINED_OWNED: usize = 16 * 1024;
+pub(super) const MAX_RETAINED_OBJECTS: usize = 128;
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct RoutingReceipt {
+    pub(super) witness_lifecycle: Option<u8>,
+    pub(super) truncation: Option<(u8, usize, usize, u8)>,
+    pub(super) quota: Option<(u8, usize, usize, usize, u8)>,
+    pub(super) configured_early_stop: usize,
+}
+
+thread_local! {
+    static ROUTING_RECEIPT: Cell<RoutingReceipt> = const { Cell::new(RoutingReceipt {
+        witness_lifecycle: None,
+        truncation: None,
+        quota: None,
+        configured_early_stop: 0,
+    }) };
+}
+
+pub(super) fn reset_routing_receipt() {
+    ROUTING_RECEIPT.set(RoutingReceipt::default());
+}
+
+pub(super) fn routing_receipt() -> RoutingReceipt {
+    ROUTING_RECEIPT.get()
+}
+
+fn update_receipt(update: impl FnOnce(&mut RoutingReceipt)) {
+    ROUTING_RECEIPT.set({
+        let mut receipt = ROUTING_RECEIPT.get();
+        update(&mut receipt);
+        receipt
+    });
+}
 
 const UTF8_TEXT: &[u8] = "<!DOCTYPE r><r>é</r>".as_bytes();
 const EMOJI_TEXT: &[u8] = "<!DOCTYPE r><r>🙂</r>".as_bytes();
@@ -77,9 +113,42 @@ enum TruncationCause {
 struct TruncationExpected {
     class: TerminalClass,
     cause: Option<TruncationCause>,
+    diagnostic: Option<QuotaDiagnostic>,
+    delivered: usize,
     error_offset: usize,
     position: usize,
     last: Option<SourceOrigin>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct TruncationObservation {
+    class: TerminalClass,
+    diagnostic: Option<QuotaDiagnostic>,
+    delivered: usize,
+    position: usize,
+    last: Option<SourceOrigin>,
+}
+
+fn check_truncation_observation(
+    actual: TruncationObservation,
+    expected: TruncationExpected,
+) -> Result<(), &'static str> {
+    if actual.class != expected.class {
+        return Err("truncation terminal class");
+    }
+    if actual.diagnostic != expected.diagnostic {
+        return Err("truncation diagnostic");
+    }
+    if actual.delivered != expected.delivered {
+        return Err("truncation delivered prefix");
+    }
+    if actual.position != expected.position {
+        return Err("truncation terminal position");
+    }
+    if actual.last != expected.last {
+        return Err("truncation last origin");
+    }
+    Ok(())
 }
 
 fn input_origin(range: Range<usize>) -> Option<SourceOrigin> {
@@ -115,20 +184,41 @@ fn truncation_fixture(family: usize) -> &'static [u8] {
     }
 }
 
+fn truncation_selection(selector: u8) -> (usize, usize, usize) {
+    let family = usize::from(selector & 7);
+    let cuts = TRUNCATION_CUTS[family];
+    let point = usize::from(selector >> 3) % cuts.len();
+    (family, point, cuts[point])
+}
+
+fn quota_selection(axis: u8, mode: u8, shape: u8) -> (usize, usize, usize) {
+    (
+        usize::from(axis % 48),
+        usize::from(mode & 3),
+        usize::from(shape % 8),
+    )
+}
+
 fn expected_truncation(family: usize, cut: usize, full: usize) -> TruncationExpected {
     if cut == full {
         return TruncationExpected {
             class: TerminalClass::Complete,
             cause: None,
+            diagnostic: None,
+            delivered: canonical_expected(truncation_fixture(family)).len(),
             error_offset: full,
             position: full,
-            last: None,
+            last: canonical_expected(truncation_fixture(family))
+                .last()
+                .map(|event| event.origin.full),
         };
     }
     if matches!((family, cut), (2, 16) | (3, 16..=18)) {
         return TruncationExpected {
             class: TerminalClass::ConstructorXml,
             cause: None,
+            diagnostic: None,
+            delivered: 0,
             error_offset: 15,
             position: 15,
             last: None,
@@ -286,9 +376,69 @@ fn expected_truncation(family: usize, cut: usize, full: usize) -> TruncationExpe
         ),
         _ => unreachable!(),
     };
+    let diagnostic = Some(match (class, cause) {
+        (TerminalClass::Xml, TruncationCause::MissingRoot) => {
+            qdiag(QuotaKind::Xml(ErrorKind::MissingRoot), error_offset)
+        }
+        (TerminalClass::Dtd, TruncationCause::ScanEof) => {
+            let origin = match (family, cut) {
+                (1, 11) => input_fragment(0..11),
+                (5, 25..=27) => input_fragment(13..cut),
+                (5, 29) => input_fragment(28..29),
+                _ => None,
+            };
+            qdiag(
+                QuotaKind::Dtd(ControllerErrorKind::Scan(ScanErrorKind::UnexpectedEof)),
+                error_offset,
+            )
+            .origin(origin)
+        }
+        (TerminalClass::Content, TruncationCause::MissingRoot) => qdiag(
+            QuotaKind::Content(ContentErrorKind::Parser(ErrorKind::MissingRoot)),
+            error_offset,
+        ),
+        (TerminalClass::Content, TruncationCause::ParserEof) => qdiag(
+            QuotaKind::Content(ContentErrorKind::Parser(ErrorKind::UnexpectedEof)),
+            error_offset,
+        ),
+        (TerminalClass::Content, TruncationCause::TextEof) => qdiag(
+            QuotaKind::Content(ContentErrorKind::Text(TextErrorKind::Xml(
+                ErrorKind::UnexpectedEof,
+            ))),
+            error_offset,
+        ),
+        (TerminalClass::Content, TruncationCause::ReferenceEof) => qdiag(
+            QuotaKind::Content(ContentErrorKind::Text(TextErrorKind::Reference(
+                ReferenceErrorKind::UnexpectedEof,
+            ))),
+            error_offset,
+        ),
+        _ => unreachable!(),
+    });
+    let delivered = match (family, cut) {
+        (0, 0) | (1, 11) => 0,
+        (1, 12 | 15) => 2,
+        (2 | 3, 15) => 3,
+        (2, 17) | (3, 19) => 4,
+        (4, 33..=35) => 4,
+        (4, 36) => 5,
+        (5, 13 | 25..=27) => 1,
+        (5, 28 | 29) => 2,
+        (5, 30) => 3,
+        (6, 22) => 3,
+        (6, 23 | 29) => 4,
+        (6, 30 | 42) => 5,
+        (6, 43) => 6,
+        (6, 47) => 7,
+        (7, 16..=19) => 3,
+        (7, 20) => 4,
+        _ => unreachable!(),
+    };
     TruncationExpected {
         class,
         cause: Some(cause),
+        diagnostic,
+        delivered,
         error_offset,
         position,
         last,
@@ -326,6 +476,404 @@ fn truncation_cause(error: SessionError) -> TruncationCause {
     }
 }
 
+fn header_event(
+    raw: &str,
+    origin: Range<usize>,
+    field: Range<usize>,
+    subset: bool,
+) -> ExpectedEvent {
+    physical(
+        ExpectedKind::DtdBegin(raw.to_owned(), RawSource::Borrowed),
+        origin,
+    )
+    .with_fields(vec![borrowed_field(FieldRole::DtdRaw, raw, field)])
+    .with_dtd(DtdSemantic::Header {
+        root: "r".to_owned(),
+        subset,
+    })
+}
+
+fn entity_semantic(parameter: bool, name: &str, quoted: &str) -> DtdSemantic {
+    DtdSemantic::Entity {
+        parameter,
+        name: name.to_owned(),
+        quoted: quoted.to_owned(),
+        quoted_offset: Some(if parameter { 13 } else { 11 }),
+        references: quoted
+            .contains("&z;")
+            .then(|| "&z;".to_owned())
+            .into_iter()
+            .collect(),
+    }
+}
+
+fn canonical_expected(source: &[u8]) -> Vec<ExpectedEvent> {
+    if source == T
+        || source == UTF8_TEXT
+        || source == EMOJI_TEXT
+        || source == CHAR_REF
+        || source == LEAVES
+        || source == REPEATED
+    {
+        let mut events = vec![
+            header_event("<!DOCTYPE r>", 0..11, 0..12, false),
+            physical(ExpectedKind::DtdEnd, 11..12),
+        ];
+        if source == T {
+            events.push(
+                physical(ExpectedKind::Empty("r".to_owned(), None, vec![]), 12..16)
+                    .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 13..14)]),
+            );
+        } else if source == UTF8_TEXT {
+            events.extend([
+                physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 12..15)
+                    .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 13..14)]),
+                physical(ExpectedKind::Text("é".to_owned()), 15..17)
+                    .with_fields(vec![borrowed_field(FieldRole::Leaf, "é", 15..17)]),
+                physical(ExpectedKind::End("r".to_owned(), None), 17..21)
+                    .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 19..20)]),
+            ]);
+        } else if source == EMOJI_TEXT {
+            events.extend([
+                physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 12..15)
+                    .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 13..14)]),
+                physical(ExpectedKind::Text("🙂".to_owned()), 15..19)
+                    .with_fields(vec![borrowed_field(FieldRole::Leaf, "🙂", 15..19)]),
+                physical(ExpectedKind::End("r".to_owned(), None), 19..23)
+                    .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 21..22)]),
+            ]);
+        } else if source == CHAR_REF {
+            events.extend([
+                physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 12..15)
+                    .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 13..14)]),
+                physical(ExpectedKind::Text("A".to_owned()), 15..20)
+                    .with_fields(vec![owned_field(FieldRole::Leaf, "A")]),
+                physical(ExpectedKind::End("r".to_owned(), None), 20..24)
+                    .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 22..23)]),
+            ]);
+        } else if source == LEAVES {
+            events.extend([
+                physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 12..15)
+                    .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 13..14)]),
+                physical(ExpectedKind::Comment("x".to_owned()), 15..23)
+                    .with_fields(vec![borrowed_field(FieldRole::Leaf, "x", 19..20)]),
+                physical(ExpectedKind::Pi("p".to_owned(), "x".to_owned()), 23..30).with_fields(
+                    vec![
+                        borrowed_field(FieldRole::PiTarget, "p", 25..26),
+                        borrowed_field(FieldRole::PiData, "x", 27..28),
+                    ],
+                ),
+                physical(ExpectedKind::Cdata("x".to_owned()), 30..43)
+                    .with_fields(vec![borrowed_field(FieldRole::Leaf, "x", 39..40)]),
+                physical(ExpectedKind::Empty("n".to_owned(), None, vec![]), 43..47)
+                    .with_fields(vec![borrowed_field(FieldRole::ElementName, "n", 44..45)]),
+                physical(ExpectedKind::End("r".to_owned(), None), 47..51)
+                    .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 49..50)]),
+            ]);
+        } else {
+            events.extend([
+                physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 12..15)
+                    .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 13..14)]),
+                physical(
+                    ExpectedKind::Empty(
+                        "n".to_owned(),
+                        None,
+                        vec![ExpectedAttribute {
+                            name: "a".to_owned(),
+                            namespace: None,
+                            value: "é".to_owned(),
+                        }],
+                    ),
+                    15..26,
+                )
+                .with_fields(vec![
+                    borrowed_field(FieldRole::ElementName, "n", 16..17),
+                    borrowed_field(FieldRole::AttributeName(0), "a", 18..19),
+                    borrowed_field(FieldRole::AttributeValue(0), "é", 21..23),
+                ]),
+                physical(ExpectedKind::Text("x".to_owned()), 26..27)
+                    .with_fields(vec![borrowed_field(FieldRole::Leaf, "x", 26..27)]),
+                physical(
+                    ExpectedKind::Empty(
+                        "n".to_owned(),
+                        None,
+                        vec![ExpectedAttribute {
+                            name: "a".to_owned(),
+                            namespace: None,
+                            value: "é".to_owned(),
+                        }],
+                    ),
+                    27..38,
+                )
+                .with_fields(vec![
+                    borrowed_field(FieldRole::ElementName, "n", 28..29),
+                    borrowed_field(FieldRole::AttributeName(0), "a", 30..31),
+                    borrowed_field(FieldRole::AttributeValue(0), "é", 33..35),
+                ]),
+                physical(ExpectedKind::Text("x".to_owned()), 38..39)
+                    .with_fields(vec![borrowed_field(FieldRole::Leaf, "x", 38..39)]),
+                physical(ExpectedKind::End("r".to_owned(), None), 39..43)
+                    .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 41..42)]),
+            ]);
+        }
+        return events;
+    }
+
+    let mut events = vec![header_event("<!DOCTYPE r [", 0..13, 0..13, true)];
+    if source == F {
+        events.extend([
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ENTITY e 'x'>".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                13..28,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ENTITY e 'x'>",
+                13..28,
+            )])
+            .with_dtd(entity_semantic(false, "e", "'x'")),
+            physical(ExpectedKind::DtdEnd, 28..30),
+            physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 30..33)
+                .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 31..32)]),
+            replacement(ExpectedKind::Text("x".to_owned()), 0, 1, 0..1, 33..36)
+                .with_fields(vec![owned_field(FieldRole::Leaf, "x")]),
+            physical(ExpectedKind::End("r".to_owned(), None), 36..40)
+                .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 38..39)]),
+        ]);
+    } else if source == D {
+        events.extend([
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ATTLIST r a CDATA 'v'>".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                13..37,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ATTLIST r a CDATA 'v'>",
+                13..37,
+            )])
+            .with_dtd(DtdSemantic::AttributeList {
+                element: "r".to_owned(),
+                definitions: vec![ExpectedAttributeDefinition {
+                    name: "a".to_owned(),
+                    name_offset: 12,
+                    default: "'v'".to_owned(),
+                    default_offset: Some(20),
+                }],
+            }),
+            physical(ExpectedKind::DtdEnd, 37..39),
+            physical(
+                ExpectedKind::Empty(
+                    "r".to_owned(),
+                    None,
+                    vec![ExpectedAttribute {
+                        name: "a".to_owned(),
+                        namespace: None,
+                        value: "v".to_owned(),
+                    }],
+                ),
+                39..43,
+            )
+            .with_fields(vec![
+                borrowed_field(FieldRole::ElementName, "r", 40..41),
+                owned_field(FieldRole::AttributeName(0), "a"),
+                owned_field(FieldRole::AttributeValue(0), "v"),
+            ]),
+        ]);
+    } else if source == NS {
+        events.extend([
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ATTLIST r xmlns CDATA 'urn:d' a CDATA 'v'>".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                13..57,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ATTLIST r xmlns CDATA 'urn:d' a CDATA 'v'>",
+                13..57,
+            )])
+            .with_dtd(DtdSemantic::AttributeList {
+                element: "r".to_owned(),
+                definitions: vec![
+                    ExpectedAttributeDefinition {
+                        name: "xmlns".to_owned(),
+                        name_offset: 12,
+                        default: "'urn:d'".to_owned(),
+                        default_offset: Some(24),
+                    },
+                    ExpectedAttributeDefinition {
+                        name: "a".to_owned(),
+                        name_offset: 32,
+                        default: "'v'".to_owned(),
+                        default_offset: Some(40),
+                    },
+                ],
+            }),
+            physical(ExpectedKind::DtdEnd, 57..59),
+            physical(
+                ExpectedKind::Empty(
+                    "r".to_owned(),
+                    Some("urn:d".to_owned()),
+                    vec![
+                        ExpectedAttribute {
+                            name: "xmlns".to_owned(),
+                            namespace: Some("http://www.w3.org/2000/xmlns/".to_owned()),
+                            value: "urn:d".to_owned(),
+                        },
+                        ExpectedAttribute {
+                            name: "a".to_owned(),
+                            namespace: None,
+                            value: "v".to_owned(),
+                        },
+                    ],
+                ),
+                59..63,
+            )
+            .with_fields(vec![
+                borrowed_field(FieldRole::ElementName, "r", 60..61),
+                owned_field(FieldRole::ElementNamespace, "urn:d"),
+                owned_field(FieldRole::AttributeName(0), "xmlns"),
+                static_field(
+                    FieldRole::AttributeNamespace(0),
+                    "http://www.w3.org/2000/xmlns/",
+                ),
+                owned_field(FieldRole::AttributeValue(0), "urn:d"),
+                owned_field(FieldRole::AttributeName(1), "a"),
+                owned_field(FieldRole::AttributeValue(1), "v"),
+            ]),
+        ]);
+    } else if source == H {
+        events.extend([
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ENTITY % p \"<!ENTITY e 'x'>\">".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                13..44,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ENTITY % p \"<!ENTITY e 'x'>\">",
+                13..44,
+            )])
+            .with_dtd(entity_semantic(true, "p", "\"<!ENTITY e 'x'>\"")),
+            replacement(
+                ExpectedKind::DtdItem(
+                    "<!ENTITY e 'x'>".to_owned(),
+                    LiteralSource::Replacement,
+                    RawSource::Owned,
+                ),
+                0,
+                1,
+                0..15,
+                44..47,
+            )
+            .with_fields(vec![owned_field(FieldRole::DtdRaw, "<!ENTITY e 'x'>")])
+            .with_dtd(entity_semantic(false, "e", "'x'")),
+            physical(ExpectedKind::DtdEnd, 47..49),
+            physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 49..52)
+                .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 50..51)]),
+            replacement(ExpectedKind::Text("x".to_owned()), 1, 2, 0..1, 52..55)
+                .with_fields(vec![owned_field(FieldRole::Leaf, "x")]),
+            physical(ExpectedKind::End("r".to_owned(), None), 55..59)
+                .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 57..58)]),
+        ]);
+    } else if source == EMPTY {
+        events.extend([
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ENTITY e '&z;'>".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                13..30,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ENTITY e '&z;'>",
+                13..30,
+            )])
+            .with_dtd(entity_semantic(false, "e", "'&z;'")),
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ENTITY z ''>".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                30..44,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ENTITY z ''>",
+                30..44,
+            )])
+            .with_dtd(entity_semantic(false, "z", "''")),
+            physical(ExpectedKind::DtdEnd, 44..46),
+            physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 46..49)
+                .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 47..48)]),
+            physical(ExpectedKind::End("r".to_owned(), None), 52..56)
+                .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 54..55)]),
+        ]);
+    } else if source == VISIBLE_EMPTY {
+        events.extend([
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ENTITY e 'x'>".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                13..28,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ENTITY e 'x'>",
+                13..28,
+            )])
+            .with_dtd(entity_semantic(false, "e", "'x'")),
+            physical(
+                ExpectedKind::DtdItem(
+                    "<!ENTITY z ''>".to_owned(),
+                    LiteralSource::Physical,
+                    RawSource::Borrowed,
+                ),
+                28..42,
+            )
+            .with_fields(vec![borrowed_field(
+                FieldRole::DtdRaw,
+                "<!ENTITY z ''>",
+                28..42,
+            )])
+            .with_dtd(entity_semantic(false, "z", "''")),
+            physical(ExpectedKind::DtdEnd, 42..44),
+            physical(ExpectedKind::Start("r".to_owned(), None, vec![]), 44..47)
+                .with_fields(vec![borrowed_field(FieldRole::ElementName, "r", 45..46)]),
+            replacement(ExpectedKind::Text("x".to_owned()), 0, 1, 0..1, 47..50)
+                .with_fields(vec![owned_field(FieldRole::Leaf, "x")]),
+            replacement(ExpectedKind::Text("x".to_owned()), 0, 3, 0..1, 53..56)
+                .with_fields(vec![owned_field(FieldRole::Leaf, "x")]),
+            physical(ExpectedKind::End("r".to_owned(), None), 56..60)
+                .with_fields(vec![borrowed_field(FieldRole::EndName, "r", 58..59)]),
+        ]);
+    } else {
+        panic!(
+            "missing exact canonical oracle for {}",
+            String::from_utf8_lossy(source)
+        );
+    }
+    events
+}
+
 fn terminal_class(error: SessionError) -> TerminalClass {
     match error {
         SessionError::Xml(_) => TerminalClass::Xml,
@@ -340,26 +888,44 @@ fn terminal_class(error: SessionError) -> TerminalClass {
 fn drain_with_lifecycle(source: &[u8], lifecycle: u8) -> Result<(), SessionError> {
     let mut reader = DtdReader::new(source, options())?;
     let source_text = std::str::from_utf8(source).expect("reader accepted UTF-8 source");
+    let expected = canonical_expected(source);
     let mut retained = Vec::new();
+    let mut retained_bytes = 0_usize;
     let mut owned = Vec::new();
+    let mut expected_owned_values = Vec::new();
     let mut owned_bytes = 0_usize;
-    let mut transcript = Vec::new();
-    let stop = usize::from(lifecycle >> 2);
+    let stop = usize::from(lifecycle >> 2).min(expected.len().saturating_sub(1));
     let mut delivered = 0_usize;
     loop {
         match reader.read_event() {
             Ok(Some((event, origin))) => {
-                transcript.push(event_signature(&event));
+                let expected_event = &expected[delivered];
+                check_expected_event(&event, origin, expected_event, source_text).unwrap();
                 validate_origin(origin, source.len());
-                check_event_storage(&event, origin, source_text).unwrap();
                 match lifecycle & 3 {
                     0 => {}
                     1 => {
-                        if retained.len() < MAX_EVENTS {
+                        let bytes = owned_event_bytes(&event);
+                        if retained.len() < MAX_RETAINED_OBJECTS
+                            && retained_bytes + bytes <= MAX_RETAINED_OWNED
+                        {
+                            retained_bytes += bytes;
                             retained.push((event, origin));
                         }
                     }
                     2 => {
+                        for value in expected_owned(expected_event) {
+                            if expected_owned_values.len() < MAX_RETAINED_OBJECTS
+                                && expected_owned_values
+                                    .iter()
+                                    .map(|value: &OwnedExtraction| value.value.len())
+                                    .sum::<usize>()
+                                    + value.value.len()
+                                    <= MAX_RETAINED_OWNED
+                            {
+                                expected_owned_values.push(value);
+                            }
+                        }
                         collect_owned_bounded(event, &mut owned, &mut owned_bytes);
                     }
                     3 if delivered == stop => {
@@ -368,28 +934,43 @@ fn drain_with_lifecycle(source: &[u8], lifecycle: u8) -> Result<(), SessionError
                         let inner = reader.into_inner();
                         assert_eq!(inner.as_ptr(), pointer);
                         assert_eq!(inner.len(), length);
-                        let mut fresh = DtdReader::new(source, options()).unwrap();
-                        while fresh.read_event()?.is_some() {}
-                        assert_terminal_sticky(&mut fresh, Ok(()));
+                        check_expected_event(&event, origin, expected_event, source_text).unwrap();
+                        drain_with_lifecycle(source, 0)?;
                         return Ok(());
                     }
                     3 => {}
                     _ => unreachable!(),
                 }
-                for (held, held_origin) in &retained {
-                    check_event_storage(held, *held_origin, source_text).unwrap();
+                for (index, (held, held_origin)) in retained.iter().enumerate() {
+                    check_expected_event(held, *held_origin, &expected[index], source_text)
+                        .unwrap();
                 }
                 delivered += 1;
             }
             Ok(None) => {
-                assert_eq!(transcript, literal_transcript(source));
-                assert_terminal_sticky(&mut reader, Ok(()));
+                assert_eq!(delivered, expected.len());
+                assert_eq!(reader.position(), source.len());
+                assert_eq!(
+                    reader.event_origin(),
+                    expected.last().map(|event| event.origin.full)
+                );
+                assert_terminal_sticky_with(&mut reader, Ok(()), || {
+                    for (index, (event, origin)) in retained.iter().enumerate() {
+                        check_expected_event(event, *origin, &expected[index], source_text)
+                            .unwrap();
+                    }
+                });
                 drop(reader);
-                for (event, origin) in &retained {
-                    check_event_storage(event, *origin, source_text).unwrap();
+                for (index, (event, origin)) in retained.iter().enumerate() {
+                    check_expected_event(event, *origin, &expected[index], source_text).unwrap();
                 }
                 assert!(owned_bytes <= MAX_RETAINED_OWNED);
-                assert_eq!(owned.iter().map(String::len).sum::<usize>(), owned_bytes);
+                assert!(owned.len() <= MAX_RETAINED_OBJECTS);
+                assert_eq!(
+                    owned.iter().map(|value| value.value.len()).sum::<usize>(),
+                    owned_bytes
+                );
+                assert_eq!(owned, expected_owned_values);
                 return Ok(());
             }
             Err(error) => {
@@ -408,48 +989,134 @@ fn drain_with_lifecycle(source: &[u8], lifecycle: u8) -> Result<(), SessionError
 pub(super) fn owned_event_bytes(event: &ReaderEvent<'_>) -> usize {
     observed_fields(event)
         .into_iter()
-        .map(|field| match field.storage {
-            ObservedStorage::Owned(value) => value.len(),
-            ObservedStorage::Borrowed(_) => 0,
+        .map(|field| match (field.role, field.storage) {
+            (
+                FieldRole::ElementNamespace
+                | FieldRole::AttributeNamespace(_)
+                | FieldRole::EndNamespace,
+                ObservedStorage::Owned(value) | ObservedStorage::Borrowed(value),
+            ) => value.len(),
+            (_, ObservedStorage::Owned(value)) => value.len(),
+            (_, ObservedStorage::Borrowed(_)) => 0,
         })
         .sum()
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub(super) struct OwnedExtraction {
+    pub(super) role: FieldRole,
+    pub(super) value: String,
+}
+
+pub(super) fn expected_owned(event: &ExpectedEvent) -> Vec<OwnedExtraction> {
+    event
+        .fields
+        .iter()
+        .filter(|field| matches!(field.storage, ExpectedStorage::Owned))
+        .map(|field| OwnedExtraction {
+            role: field.role.clone(),
+            value: field.value.clone(),
+        })
+        .collect()
+}
+
+pub(super) fn observed_owned_before_move(event: &ReaderEvent<'_>) -> Vec<OwnedExtraction> {
+    observed_fields(event)
+        .into_iter()
+        .filter_map(|field| match field.storage {
+            ObservedStorage::Owned(value) => Some(OwnedExtraction {
+                role: field.role,
+                value: value.to_owned(),
+            }),
+            ObservedStorage::Borrowed(_) => None,
+        })
+        .collect()
+}
+
 pub(super) fn collect_owned_bounded(
     event: ReaderEvent<'_>,
-    values: &mut Vec<String>,
+    values: &mut Vec<OwnedExtraction>,
     used: &mut usize,
 ) {
-    let mut push = |value: String| {
-        if *used + value.len() <= MAX_RETAINED_OWNED {
+    let mut push = |role: FieldRole, value: String| {
+        if values.len() < MAX_RETAINED_OBJECTS && *used + value.len() <= MAX_RETAINED_OWNED {
             *used += value.len();
-            values.push(value);
+            values.push(OwnedExtraction { role, value });
         }
     };
     match event {
+        ReaderEvent::Dtd(TakenDtdEvent::Begin(unit))
+        | ReaderEvent::Dtd(TakenDtdEvent::Item { unit, .. }) => {
+            if let Cow::Owned(raw) = unit.into_fuzz_raw() {
+                push(FieldRole::DtdRaw, raw);
+            }
+        }
+        ReaderEvent::Dtd(TakenDtdEvent::End) => {}
         ReaderEvent::Xml(Event::Start(element) | Event::Empty(element)) => {
-            for attribute in element.attributes {
-                if let Cow::Owned(value) = attribute.value {
-                    push(value);
+            let (qualified, namespace) = element.name.into_fuzz_parts();
+            if let Cow::Owned(value) = qualified {
+                push(FieldRole::ElementName, value);
+            }
+            if let Some(Cow::Owned(value)) = namespace {
+                push(FieldRole::ElementNamespace, value);
+            }
+            for (index, attribute) in element.attributes.into_iter().enumerate() {
+                let (qualified, namespace) = attribute.name.into_fuzz_parts();
+                if let Cow::Owned(value) = qualified {
+                    push(FieldRole::AttributeName(index), value);
                 }
+                if let Some(Cow::Owned(value)) = namespace {
+                    push(FieldRole::AttributeNamespace(index), value);
+                }
+                if let Cow::Owned(value) = attribute.value {
+                    push(FieldRole::AttributeValue(index), value);
+                }
+            }
+        }
+        ReaderEvent::Xml(Event::End(name)) => {
+            let (qualified, namespace) = name.into_fuzz_parts();
+            if let Cow::Owned(value) = qualified {
+                push(FieldRole::EndName, value);
+            }
+            if let Some(Cow::Owned(value)) = namespace {
+                push(FieldRole::EndNamespace, value);
             }
         }
         ReaderEvent::Xml(Event::Text(Cow::Owned(value)))
         | ReaderEvent::Xml(Event::Cdata(Cow::Owned(value)))
-        | ReaderEvent::Xml(Event::Comment(Cow::Owned(value))) => push(value),
+        | ReaderEvent::Xml(Event::Comment(Cow::Owned(value))) => push(FieldRole::Leaf, value),
+        ReaderEvent::Xml(Event::ProcessingInstruction { target, data }) => {
+            if let Cow::Owned(value) = target {
+                push(FieldRole::PiTarget, value);
+            }
+            if let Cow::Owned(value) = data {
+                push(FieldRole::PiData, value);
+            }
+        }
         _ => {}
     }
 }
 
 pub(super) fn exercise_truncation(selector: u8, lifecycle: u8) {
-    let family = usize::from(selector & 7);
-    let cuts = TRUNCATION_CUTS[family];
-    let cut = cuts[usize::from(selector >> 3) % cuts.len()];
+    let (family, _, cut) = truncation_selection(selector);
     let fixture = truncation_fixture(family);
+    update_receipt(|receipt| {
+        receipt.truncation = Some((selector, family, cut, lifecycle));
+    });
 
     drain_with_lifecycle(fixture, lifecycle).expect("full truncation control");
     let expected = expected_truncation(family, cut, fixture.len());
     let prefix = &fixture[..cut];
+    check_truncation_prefix(family, prefix, expected, lifecycle);
+}
+
+fn check_truncation_prefix(
+    family: usize,
+    prefix: &[u8],
+    expected: TruncationExpected,
+    lifecycle: u8,
+) {
+    let expected_events = canonical_expected(truncation_fixture(family));
     match DtdReader::new(prefix, options()) {
         Err(SessionError::Xml(error)) => {
             assert_eq!(expected.class, TerminalClass::ConstructorXml);
@@ -460,35 +1127,156 @@ pub(super) fn exercise_truncation(selector: u8, lifecycle: u8) {
         }
         Err(other) => panic!("unexpected constructor result: {other:?}"),
         Ok(mut reader) => {
-            let actual = loop {
+            let source_text = std::str::from_utf8(prefix).unwrap();
+            let mut delivered = 0_usize;
+            let mut retained = Vec::new();
+            let mut retained_bytes = 0_usize;
+            let mut owned = Vec::new();
+            let mut expected_owned_values = Vec::new();
+            let mut owned_bytes = 0_usize;
+            let checkpoint = usize::from(lifecycle >> 2).min(expected.delivered.saturating_sub(1));
+            loop {
                 match reader.read_event() {
-                    Ok(Some(_)) => {}
+                    Ok(Some((event, origin))) => {
+                        assert!(delivered < expected.delivered, "unexpected extra event");
+                        let expected_event = &expected_events[delivered];
+                        check_expected_event(&event, origin, expected_event, source_text).unwrap();
+                        match lifecycle & 3 {
+                            0 => {}
+                            1 => {
+                                let bytes = owned_event_bytes(&event);
+                                if retained.len() < MAX_RETAINED_OBJECTS
+                                    && retained_bytes + bytes <= MAX_RETAINED_OWNED
+                                {
+                                    retained_bytes += bytes;
+                                    retained.push((event, origin));
+                                }
+                            }
+                            2 => {
+                                for value in expected_owned(expected_event) {
+                                    if expected_owned_values.len() < MAX_RETAINED_OBJECTS
+                                        && expected_owned_values
+                                            .iter()
+                                            .map(|value: &OwnedExtraction| value.value.len())
+                                            .sum::<usize>()
+                                            + value.value.len()
+                                            <= MAX_RETAINED_OWNED
+                                    {
+                                        expected_owned_values.push(value);
+                                    }
+                                }
+                                collect_owned_bounded(event, &mut owned, &mut owned_bytes);
+                            }
+                            3 if delivered == checkpoint => {
+                                let pointer = prefix.as_ptr();
+                                let length = prefix.len();
+                                let inner = reader.into_inner();
+                                assert_eq!(inner.as_ptr(), pointer);
+                                assert_eq!(inner.len(), length);
+                                check_expected_event(&event, origin, expected_event, source_text)
+                                    .unwrap();
+                                check_truncation_prefix(family, prefix, expected, 0);
+                                return;
+                            }
+                            3 => {}
+                            _ => unreachable!(),
+                        }
+                        for (index, (held, held_origin)) in retained.iter().enumerate() {
+                            check_expected_event(
+                                held,
+                                *held_origin,
+                                &expected_events[index],
+                                source_text,
+                            )
+                            .unwrap();
+                        }
+                        delivered += 1;
+                    }
                     Ok(None) => {
-                        assert_terminal_sticky(&mut reader, Ok(()));
-                        break (TerminalClass::Complete, None);
+                        check_truncation_observation(
+                            TruncationObservation {
+                                class: TerminalClass::Complete,
+                                diagnostic: None,
+                                delivered,
+                                position: reader.position(),
+                                last: reader.event_origin(),
+                            },
+                            expected,
+                        )
+                        .unwrap();
+                        assert_terminal_sticky_with(&mut reader, Ok(()), || {
+                            for (index, (held, held_origin)) in retained.iter().enumerate() {
+                                check_expected_event(
+                                    held,
+                                    *held_origin,
+                                    &expected_events[index],
+                                    source_text,
+                                )
+                                .unwrap();
+                            }
+                        });
+                        drop(reader);
+                        for (index, (held, held_origin)) in retained.iter().enumerate() {
+                            check_expected_event(
+                                held,
+                                *held_origin,
+                                &expected_events[index],
+                                source_text,
+                            )
+                            .unwrap();
+                        }
+                        assert_eq!(owned, expected_owned_values);
+                        assert!(owned_bytes <= MAX_RETAINED_OWNED);
+                        return;
                     }
                     Err(error) => {
                         let class = terminal_class(error);
                         assert_eq!(truncation_cause(error), expected.cause.unwrap());
-                        assert_eq!(error.physical_offset(), expected.error_offset);
-                        assert_eq!(reader.position(), expected.position);
-                        assert_eq!(reader.event_origin(), expected.last);
-                        assert_terminal_sticky(&mut reader, Err(error));
-                        break (class, Some(error));
+                        check_truncation_observation(
+                            TruncationObservation {
+                                class,
+                                diagnostic: Some(quota_diagnostic(error)),
+                                delivered,
+                                position: reader.position(),
+                                last: reader.event_origin(),
+                            },
+                            expected,
+                        )
+                        .unwrap();
+                        assert_terminal_sticky_with(&mut reader, Err(error), || {
+                            for (index, (held, held_origin)) in retained.iter().enumerate() {
+                                check_expected_event(
+                                    held,
+                                    *held_origin,
+                                    &expected_events[index],
+                                    source_text,
+                                )
+                                .unwrap();
+                            }
+                        });
+                        drop(reader);
+                        for (index, (held, held_origin)) in retained.iter().enumerate() {
+                            check_expected_event(
+                                held,
+                                *held_origin,
+                                &expected_events[index],
+                                source_text,
+                            )
+                            .unwrap();
+                        }
+                        assert_eq!(owned, expected_owned_values);
+                        assert!(owned_bytes <= MAX_RETAINED_OWNED);
+                        return;
                     }
                 }
-            };
-            assert_eq!(
-                actual.0, expected.class,
-                "truncation family {family} cut {cut}"
-            );
-            assert_eq!(actual.1.is_some(), expected.cause.is_some());
+            }
         }
     }
 }
 
 pub(super) fn exercise_witness_bank(lifecycle: u8) {
-    for fixture in [T, F, D, NS, H, EMPTY, LEAVES, REPEATED] {
+    update_receipt(|receipt| receipt.witness_lifecycle = Some(lifecycle));
+    for fixture in [T, F, D, NS, H, EMPTY, LEAVES, REPEATED, VISIBLE_EMPTY] {
         drain_with_lifecycle(fixture, lifecycle).expect("canonical semantic witness");
     }
 }
@@ -652,6 +1440,34 @@ struct QuotaFailure {
     position: usize,
     last: Option<SourceOrigin>,
     prefix: usize,
+}
+
+fn check_quota_failure(actual: QuotaFailure, expected: QuotaFailure) -> Result<(), &'static str> {
+    if actual.diagnostic.kind != expected.diagnostic.kind {
+        return Err("quota kind");
+    }
+    if actual.diagnostic.physical != expected.diagnostic.physical {
+        return Err("quota physical anchor");
+    }
+    if actual.diagnostic.origin != expected.diagnostic.origin {
+        return Err("quota origin");
+    }
+    if actual.diagnostic.local != expected.diagnostic.local {
+        return Err("quota local offset");
+    }
+    if actual.diagnostic.value != expected.diagnostic.value {
+        return Err("quota value location");
+    }
+    if actual.position != expected.position {
+        return Err("quota accepted position");
+    }
+    if actual.last != expected.last {
+        return Err("quota last event origin");
+    }
+    if actual.prefix != expected.prefix {
+        return Err("quota delivered prefix length");
+    }
+    Ok(())
 }
 
 fn input_fragment(range: Range<usize>) -> Option<crate::origin::OriginRepr> {
@@ -1176,31 +1992,69 @@ fn run_configured(
 ) -> Result<(), SessionError> {
     if lifecycle & 3 == 3 {
         let mut early = DtdReader::with_decode_limits(source, limits, decode, profile)?;
-        let checkpoint = usize::from(lifecycle >> 2);
-        for index in 0..=checkpoint {
+        let expected = literal_transcript(source);
+        let checkpoint = usize::from(lifecycle >> 2).min(expected.len().saturating_sub(1));
+        for (index, expected_signature) in expected.iter().enumerate().take(checkpoint + 1) {
             match early.read_event()? {
-                Some(_) if index < checkpoint => {}
-                Some(_) | None => break,
+                Some((event, origin)) if index < checkpoint => {
+                    assert_eq!(&event_signature(&event), expected_signature);
+                    check_event_storage(&event, origin, std::str::from_utf8(source).unwrap())
+                        .unwrap();
+                }
+                Some((event, origin)) => {
+                    assert_eq!(&event_signature(&event), expected_signature);
+                    check_event_storage(&event, origin, std::str::from_utf8(source).unwrap())
+                        .unwrap();
+                    let inner = early.into_inner();
+                    assert_eq!(inner.as_ptr(), source.as_ptr());
+                    assert_eq!(inner.len(), source.len());
+                    assert_eq!(&event_signature(&event), expected_signature);
+                    check_event_storage(&event, origin, std::str::from_utf8(source).unwrap())
+                        .unwrap();
+                    update_receipt(|receipt| {
+                        receipt.configured_early_stop += 1;
+                    });
+                    return run_configured(source, limits, decode, profile, 0);
+                }
+                None => break,
             }
         }
-        let inner = early.into_inner();
-        assert_eq!(inner.as_ptr(), source.as_ptr());
-        assert_eq!(inner.len(), source.len());
-        return run_configured(source, limits, decode, profile, 0);
+        panic!("configured early-stop checkpoint was not delivered");
     }
     let mut reader = DtdReader::with_decode_limits(source, limits, decode, profile)?;
     let source_text = std::str::from_utf8(source).unwrap();
     let mut retained = Vec::new();
     let mut transcript = Vec::new();
     let mut owned = Vec::new();
+    let mut expected_owned_values = Vec::new();
     let mut owned_bytes = 0_usize;
     loop {
         match reader.read_event() {
             Ok(Some((event, origin))) => {
                 transcript.push(event_signature(&event));
-                if lifecycle & 3 == 1 && retained.len() < MAX_EVENTS {
+                if lifecycle & 3 == 1
+                    && retained.len() < MAX_RETAINED_OBJECTS
+                    && retained
+                        .iter()
+                        .map(|(held, _)| owned_event_bytes(held))
+                        .sum::<usize>()
+                        + owned_event_bytes(&event)
+                        <= MAX_RETAINED_OWNED
+                {
                     retained.push((event, origin));
                 } else if lifecycle & 3 == 2 {
+                    for value in observed_owned_before_move(&event) {
+                        if expected_owned_values.len() < MAX_RETAINED_OBJECTS
+                            && expected_owned_values
+                                .iter()
+                                .map(|value: &OwnedExtraction| value.value.len())
+                                .sum::<usize>()
+                                + value.value.len()
+                                <= MAX_RETAINED_OWNED
+                        {
+                            expected_owned_values.push(value);
+                        }
+                    }
                     collect_owned_bounded(event, &mut owned, &mut owned_bytes);
                 }
                 for (held, held_origin) in &retained {
@@ -1209,16 +2063,36 @@ fn run_configured(
             }
             Ok(None) => {
                 assert_eq!(transcript, literal_transcript(source));
-                assert_terminal_sticky(&mut reader, Ok(()));
+                assert_eq!(reader.position(), source.len());
+                assert_eq!(reader.event_origin(), Some(literal_last_origin(source)));
+                assert_terminal_sticky_with(&mut reader, Ok(()), || {
+                    for (held, held_origin) in &retained {
+                        check_event_storage(held, *held_origin, source_text).unwrap();
+                    }
+                });
                 drop(reader);
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source_text).unwrap();
+                }
                 assert!(retained.len() <= MAX_EVENTS);
                 assert!(owned_bytes <= MAX_RETAINED_OWNED);
-                assert_eq!(owned.iter().map(String::len).sum::<usize>(), owned_bytes);
+                assert_eq!(
+                    owned.iter().map(|value| value.value.len()).sum::<usize>(),
+                    owned_bytes
+                );
+                assert_eq!(owned, expected_owned_values);
                 return Ok(());
             }
             Err(error) => {
-                assert_terminal_sticky(&mut reader, Err(error));
+                assert_terminal_sticky_with(&mut reader, Err(error), || {
+                    for (held, held_origin) in &retained {
+                        check_event_storage(held, *held_origin, source_text).unwrap();
+                    }
+                });
                 drop(reader);
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source_text).unwrap();
+                }
                 assert!(retained.len() <= MAX_EVENTS);
                 return Err(error);
             }
@@ -1333,6 +2207,61 @@ fn literal_transcript(source: &[u8]) -> Vec<String> {
     labels.iter().map(|label| (*label).to_owned()).collect()
 }
 
+fn literal_last_origin(source: &[u8]) -> SourceOrigin {
+    let range = if source == B {
+        15..19
+    } else if source == U {
+        12..25
+    } else if source == M {
+        31..35
+    } else if source == A {
+        44..48
+    } else if source == V {
+        31..43
+    } else if source == F {
+        36..40
+    } else if source == G {
+        39..43
+    } else if source == RP {
+        45..49
+    } else if source == E {
+        12..22
+    } else if source == AMP {
+        12..26
+    } else if source == RL {
+        42..46
+    } else if source == DOC {
+        60..64
+    } else if source == S {
+        57..61
+    } else if source == UTF8_TEXT {
+        17..21
+    } else if source == EMOJI_TEXT {
+        19..23
+    } else if source == CHAR_REF {
+        20..24
+    } else if source == LEAVES {
+        47..51
+    } else if source == PE_MODEL {
+        source.len() - 4..source.len()
+    } else if source == D {
+        39..43
+    } else if source == NS {
+        59..63
+    } else if source == H {
+        55..59
+    } else if source == EMPTY {
+        52..56
+    } else if source == REPEATED {
+        39..43
+    } else if source == T {
+        12..16
+    } else {
+        panic!("missing literal final origin")
+    };
+    SourceOrigin::input(range)
+}
+
 fn run_expected_failure(
     source: &'static [u8],
     limits: Limits,
@@ -1351,9 +2280,31 @@ fn run_expected_failure(
         }
     };
     let source_text = std::str::from_utf8(source).unwrap();
+    if lifecycle & 3 == 3 && expected.prefix > 0 {
+        let checkpoint = usize::from(lifecycle >> 2).min(expected.prefix - 1);
+        for index in 0..=checkpoint {
+            let (event, origin) = reader
+                .read_event()
+                .expect("failure early-stop checkpoint precedes rejection")
+                .expect("failure early-stop checkpoint exists");
+            assert_eq!(event_signature(&event), literal_transcript(source)[index]);
+            check_event_storage(&event, origin, source_text).unwrap();
+            if index == checkpoint {
+                let inner = reader.into_inner();
+                assert_eq!(inner.as_ptr(), source.as_ptr());
+                assert_eq!(inner.len(), source.len());
+                assert_eq!(event_signature(&event), literal_transcript(source)[index]);
+                check_event_storage(&event, origin, source_text).unwrap();
+                update_receipt(|receipt| receipt.configured_early_stop += 1);
+                run_expected_failure(source, limits, decode, profile, expected, 0);
+                return;
+            }
+        }
+    }
     let mut transcript = Vec::new();
     let mut retained = Vec::new();
     let mut owned = Vec::new();
+    let mut expected_owned_values = Vec::new();
     let mut owned_bytes = 0_usize;
     loop {
         match reader.read_event() {
@@ -1375,26 +2326,52 @@ fn run_expected_failure(
                             check_event_storage(held, *held_origin, source_text).unwrap();
                         }
                     }
-                    2 => collect_owned_bounded(event, &mut owned, &mut owned_bytes),
+                    2 => {
+                        for value in observed_owned_before_move(&event) {
+                            if expected_owned_values.len() < MAX_RETAINED_OBJECTS
+                                && expected_owned_values
+                                    .iter()
+                                    .map(|value: &OwnedExtraction| value.value.len())
+                                    .sum::<usize>()
+                                    + value.value.len()
+                                    <= MAX_RETAINED_OWNED
+                            {
+                                expected_owned_values.push(value);
+                            }
+                        }
+                        collect_owned_bounded(event, &mut owned, &mut owned_bytes);
+                    }
                     _ => {}
                 }
             }
             Ok(None) => panic!("constrained quota unexpectedly completed"),
             Err(error) => {
-                assert_eq!(quota_diagnostic(error), expected.diagnostic);
-                assert_eq!(reader.position(), expected.position);
-                assert_eq!(reader.event_origin(), expected.last);
+                check_quota_failure(
+                    QuotaFailure {
+                        diagnostic: quota_diagnostic(error),
+                        position: reader.position(),
+                        last: reader.event_origin(),
+                        prefix: transcript.len(),
+                    },
+                    expected,
+                )
+                .unwrap();
                 assert_eq!(
                     transcript,
                     literal_transcript(source)[..expected.prefix],
                     "rejected transcript prefix"
                 );
-                assert_terminal_sticky(&mut reader, Err(error));
+                assert_terminal_sticky_with(&mut reader, Err(error), || {
+                    for (held, held_origin) in &retained {
+                        check_event_storage(held, *held_origin, source_text).unwrap();
+                    }
+                });
                 drop(reader);
                 for (held, held_origin) in &retained {
                     check_event_storage(held, *held_origin, source_text).unwrap();
                 }
                 assert!(owned_bytes <= MAX_RETAINED_OWNED);
+                assert_eq!(owned, expected_owned_values);
                 return;
             }
         }
@@ -1895,12 +2872,14 @@ fn exercise_precedence(axis: usize, mode: usize, bank: usize, lifecycle: u8) {
 }
 
 pub(super) fn exercise_quota(axis_selector: u8, mode_selector: u8, shape: u8, lifecycle: u8) {
-    let axis = usize::from(axis_selector % 48);
-    let mode = usize::from(mode_selector & 3);
+    let (axis, mode, bank) = quota_selection(axis_selector, mode_selector, shape);
+    update_receipt(|receipt| {
+        receipt.quota = Some((axis_selector, axis, mode, bank, lifecycle));
+    });
     if axis < 40 {
         exercise_scalar(axis, mode, lifecycle);
     } else {
-        exercise_precedence(axis, mode, usize::from(shape % 8), lifecycle);
+        exercise_precedence(axis, mode, bank, lifecycle);
     }
 }
 
@@ -1908,10 +2887,49 @@ pub(super) fn exercise_quota(axis_selector: u8, mode_selector: u8, shape: u8, li
 fn truncation_selector_covers_every_point_and_alias() {
     for family in 0_u8..8 {
         for point in 0..TRUNCATION_CUTS[usize::from(family)].len() {
-            exercise_truncation(family | ((point as u8) << 3), point as u8);
+            for lifecycle in 0_u8..4 {
+                exercise_truncation(family | ((point as u8) << 3), lifecycle);
+            }
         }
     }
     exercise_truncation(u8::MAX, u8::MAX);
+}
+
+#[test]
+fn every_selector_alias_decodes_inside_frozen_bounds() {
+    for byte in 0_u8..=u8::MAX {
+        let (family, point, cut) = truncation_selection(byte);
+        assert!(family < TRUNCATION_CUTS.len());
+        assert!(point < TRUNCATION_CUTS[family].len());
+        assert_eq!(cut, TRUNCATION_CUTS[family][point]);
+
+        let (axis, mode, bank) = quota_selection(byte, byte, byte);
+        assert!(axis < 48);
+        assert!(mode < 4);
+        assert!(bank < 8);
+        assert!(usize::from(byte >> 2) <= 63);
+    }
+}
+
+#[test]
+fn rejecting_profiles_cross_retained_extracted_and_early_stop_lifecycles() {
+    for axis in 0..40 {
+        for mode in 0..2 {
+            for lifecycle in 0..4 {
+                exercise_scalar(axis, mode, lifecycle);
+            }
+        }
+    }
+    for axis in 40..48 {
+        let banks = if axis == 47 { 0..8 } else { 0..1 };
+        for bank in banks {
+            for mode in 0..4 {
+                for lifecycle in 0..4 {
+                    exercise_precedence(axis, mode, bank, lifecycle);
+                }
+            }
+        }
+    }
 }
 
 #[test]
@@ -1945,6 +2963,77 @@ fn owned_retention_cap_is_literal_and_finite() {
 }
 
 #[test]
+fn retained_namespace_accounting_bounds_eighty_large_generated_names() {
+    let uri = "u".repeat(1024);
+    let source = format!(
+        "<!DOCTYPE p:r [<!ENTITY e '<p:n/>'>]><p:r xmlns:p='{uri}'>{}</p:r>",
+        "&e;".repeat(80)
+    );
+    let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+    let mut retained = Vec::new();
+    let mut retained_bytes = 0_usize;
+    let mut generated = 0_usize;
+    while let Some((event, origin)) = reader.read_event().unwrap() {
+        if matches!(&event, ReaderEvent::Xml(Event::Empty(element)) if element.name.qualified() == "p:n")
+        {
+            generated += 1;
+            let bytes = owned_event_bytes(&event);
+            assert_eq!(bytes, uri.len() + "p:n".len());
+            if retained.len() < MAX_RETAINED_OBJECTS && retained_bytes + bytes <= MAX_RETAINED_OWNED
+            {
+                retained_bytes += bytes;
+                retained.push((event, origin));
+            }
+        }
+    }
+    assert_eq!(generated, 80);
+    assert_eq!(retained.len(), MAX_RETAINED_OWNED / (uri.len() + 3));
+    assert!(retained_bytes <= MAX_RETAINED_OWNED);
+    assert!(retained_bytes + uri.len() + 3 > MAX_RETAINED_OWNED);
+    let names = retained
+        .into_iter()
+        .map(|(event, _)| match event {
+            ReaderEvent::Xml(Event::Empty(element)) => element.name.try_into_static(0).unwrap(),
+            _ => unreachable!(),
+        })
+        .collect::<Vec<_>>();
+    drop(reader);
+    drop(source);
+    assert!(
+        names
+            .iter()
+            .all(|name| name.qualified() == "p:n" && name.namespace() == Some(uri.as_str()))
+    );
+}
+
+#[test]
+fn extraction_moves_normalized_pi_and_generated_dtd_raw_before_source_drop() {
+    let source = String::from_utf8(S.to_vec()).unwrap();
+    let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+    let mut extracted = Vec::new();
+    let mut bytes = 0_usize;
+    while let Some((event, _)) = reader.read_event().unwrap() {
+        collect_owned_bounded(event, &mut extracted, &mut bytes);
+    }
+    drop(reader);
+    drop(source);
+    assert_eq!(
+        extracted,
+        [
+            OwnedExtraction {
+                role: FieldRole::PiData,
+                value: "a\n".to_owned(),
+            },
+            OwnedExtraction {
+                role: FieldRole::DtdRaw,
+                value: "<!--a\rb-->".to_owned(),
+            },
+        ]
+    );
+    assert_eq!(bytes, "a\n".len() + "<!--a\rb-->".len());
+}
+
+#[test]
 fn full_origin_oracle_rejects_reused_declaration_and_invocation_ids() {
     let physical = 33..36;
     let expected = replacement(
@@ -1971,6 +3060,98 @@ fn full_origin_oracle_rejects_reused_declaration_and_invocation_ids() {
     assert_eq!(check_expected_origin(expected.full, &expected), Ok(()));
     assert!(check_expected_origin(wrong_declaration, &expected).is_err());
     assert!(check_expected_origin(wrong_invocation, &expected).is_err());
+}
+
+#[test]
+fn canonical_dtd_view_oracle_rejects_same_raw_semantic_mutations() {
+    let source = std::str::from_utf8(F).unwrap();
+    let expected = canonical_expected(F);
+    let mut reader = DtdReader::new(F, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (entity, origin) = reader.read_event().unwrap().unwrap();
+    check_expected_event(&entity, origin, &expected[1], source).unwrap();
+    for wrong in [
+        entity_semantic(true, "e", "'x'"),
+        entity_semantic(false, "z", "'x'"),
+        entity_semantic(false, "e", "'y'"),
+    ] {
+        let mut mutated = expected[1].clone();
+        mutated.dtd = Some(wrong);
+        assert!(check_expected_event(&entity, origin, &mutated, source).is_err());
+    }
+    let mut wrong_offset = expected[1].clone();
+    if let Some(DtdSemantic::Entity { quoted_offset, .. }) = &mut wrong_offset.dtd {
+        *quoted_offset = Some(10);
+    }
+    assert!(check_expected_event(&entity, origin, &wrong_offset, source).is_err());
+
+    let source = std::str::from_utf8(D).unwrap();
+    let expected = canonical_expected(D);
+    let mut reader = DtdReader::new(D, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (attlist, origin) = reader.read_event().unwrap().unwrap();
+    check_expected_event(&attlist, origin, &expected[1], source).unwrap();
+    for definitions in [
+        Vec::new(),
+        vec![ExpectedAttributeDefinition {
+            name: "z".to_owned(),
+            name_offset: 12,
+            default: "'v'".to_owned(),
+            default_offset: Some(20),
+        }],
+        vec![ExpectedAttributeDefinition {
+            name: "a".to_owned(),
+            name_offset: 12,
+            default: "'x'".to_owned(),
+            default_offset: Some(20),
+        }],
+    ] {
+        let mut mutated = expected[1].clone();
+        mutated.dtd = Some(DtdSemantic::AttributeList {
+            element: "r".to_owned(),
+            definitions,
+        });
+        assert!(check_expected_event(&attlist, origin, &mutated, source).is_err());
+    }
+    let mut wrong_offset = expected[1].clone();
+    if let Some(DtdSemantic::AttributeList { definitions, .. }) = &mut wrong_offset.dtd {
+        definitions[0].name_offset = 13;
+    }
+    assert!(check_expected_event(&attlist, origin, &wrong_offset, source).is_err());
+
+    let source = std::str::from_utf8(EMPTY).unwrap();
+    let expected = canonical_expected(EMPTY);
+    let mut reader = DtdReader::new(EMPTY, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (entity, origin) = reader.read_event().unwrap().unwrap();
+    check_expected_event(&entity, origin, &expected[1], source).unwrap();
+    let mut missing_reference = expected[1].clone();
+    missing_reference.dtd = Some(DtdSemantic::Entity {
+        parameter: false,
+        name: "e".to_owned(),
+        quoted: "'&z;'".to_owned(),
+        quoted_offset: Some(11),
+        references: Vec::new(),
+    });
+    assert!(check_expected_event(&entity, origin, &missing_reference, source).is_err());
+}
+
+#[test]
+fn empty_invocation_advances_the_next_visible_occurrence_id() {
+    let source = std::str::from_utf8(VISIBLE_EMPTY).unwrap();
+    let expected = canonical_expected(VISIBLE_EMPTY);
+    let mut reader = DtdReader::new(VISIBLE_EMPTY, options()).unwrap();
+    for (index, expected_event) in expected.iter().enumerate() {
+        let (event, origin) = reader.read_event().unwrap().unwrap();
+        check_expected_event(&event, origin, expected_event, source).unwrap();
+        if index == 6 {
+            let mut skipped_empty = expected_event.clone();
+            skipped_empty.origin =
+                replacement(ExpectedKind::Text("x".to_owned()), 0, 2, 0..1, 53..56).origin;
+            assert!(check_expected_event(&event, origin, &skipped_empty, source).is_err());
+        }
+    }
+    assert!(reader.read_event().unwrap().is_none());
 }
 
 #[test]
@@ -2025,29 +3206,63 @@ fn exact_diagnostic_oracle_rejects_every_envelope_mutation() {
             ..baseline
         },
     ];
+    assert_eq!(check_quota_failure(baseline, baseline), Ok(()));
     for variant in variants {
-        assert_ne!(variant, baseline);
+        assert!(check_quota_failure(variant, baseline).is_err());
     }
 }
 
 #[test]
 fn literal_transcript_oracle_rejects_value_order_and_success_mutations() {
-    let expected = literal_transcript(D);
-    let mut wrong_value = expected.clone();
-    wrong_value[3] = "E:r[a=x]".to_owned();
-    assert_ne!(wrong_value, expected);
-
-    let mut wrong_order = expected.clone();
-    wrong_order.swap(1, 2);
-    assert_ne!(wrong_order, expected);
-
-    assert_ne!(
-        expected_truncation(4, 35, F.len()),
-        expected_truncation(4, F.len(), F.len())
+    let expected = canonical_expected(D);
+    let source = std::str::from_utf8(D).unwrap();
+    let mut reader = DtdReader::new(D, options()).unwrap();
+    for expected_event in &expected[..3] {
+        let (event, origin) = reader.read_event().unwrap().unwrap();
+        check_expected_event(&event, origin, expected_event, source).unwrap();
+    }
+    let (event, origin) = reader.read_event().unwrap().unwrap();
+    check_expected_event(&event, origin, &expected[3], source).unwrap();
+    let mut wrong_value = expected[3].clone();
+    wrong_value.kind = ExpectedKind::Empty(
+        "r".to_owned(),
+        None,
+        vec![ExpectedAttribute {
+            name: "a".to_owned(),
+            namespace: None,
+            value: "x".to_owned(),
+        }],
     );
-    assert_ne!(
-        expected_truncation(2, 16, UTF8_TEXT.len()),
-        expected_truncation(2, 17, UTF8_TEXT.len())
+    assert!(check_expected_event(&event, origin, &wrong_value, source).is_err());
+
+    let failure = expected_truncation(4, 35, F.len());
+    let actual = TruncationObservation {
+        class: failure.class,
+        diagnostic: failure.diagnostic,
+        delivered: failure.delivered,
+        position: failure.position,
+        last: failure.last,
+    };
+    assert_eq!(check_truncation_observation(actual, failure), Ok(()));
+    assert!(
+        check_truncation_observation(
+            TruncationObservation {
+                diagnostic: None,
+                ..actual
+            },
+            failure,
+        )
+        .is_err()
+    );
+    assert!(
+        check_truncation_observation(
+            TruncationObservation {
+                class: TerminalClass::Complete,
+                ..actual
+            },
+            failure,
+        )
+        .is_err()
     );
 }
 
@@ -2069,32 +3284,26 @@ fn lifecycle_modes_retain_extract_and_early_stop_all_witnesses() {
 fn equal_physical_tokens_keep_distinct_literal_pointers() {
     let source = std::str::from_utf8(REPEATED).unwrap();
     let mut reader = DtdReader::new(REPEATED, options()).unwrap();
-    let mut name_pointers = Vec::new();
-    let mut value_pointers = Vec::new();
-    let mut text_pointers = Vec::new();
-    while let Some((event, _)) = reader.read_event().unwrap() {
-        match event {
-            ReaderEvent::Xml(Event::Empty(element)) if element.name.qualified() == "n" => {
-                name_pointers.push(element.name.qualified_source().as_ptr());
-                value_pointers.push(element.attributes[0].value.as_ptr());
-            }
-            ReaderEvent::Xml(Event::Text(value)) if value == "x" => {
-                text_pointers.push(value.as_ptr());
-            }
-            _ => {}
-        }
+    let expected = canonical_expected(REPEATED);
+    let mut actual = Vec::new();
+    for expected_event in &expected {
+        let (event, origin) = reader.read_event().unwrap().unwrap();
+        check_expected_event(&event, origin, expected_event, source).unwrap();
+        actual.push((event, origin));
     }
-    assert_eq!(name_pointers.len(), 2);
-    assert_eq!(value_pointers.len(), 2);
-    assert_eq!(text_pointers.len(), 2);
-    assert_ne!(name_pointers[0], name_pointers[1]);
-    assert_ne!(value_pointers[0], value_pointers[1]);
-    assert_ne!(text_pointers[0], text_pointers[1]);
-    for pointer in name_pointers
-        .into_iter()
-        .chain(value_pointers)
-        .chain(text_pointers)
-    {
-        assert!((source.as_ptr()..=source.as_ptr().wrapping_add(source.len())).contains(&pointer));
+    assert!(reader.read_event().unwrap().is_none());
+    drop(reader);
+    for ((event, origin), expected_event) in actual.iter().zip(&expected) {
+        check_expected_event(event, *origin, expected_event, source).unwrap();
     }
+
+    let mut wrong_first = expected[3].clone();
+    wrong_first.fields[0].storage = ExpectedStorage::Borrowed(28..29);
+    assert!(check_expected_event(&actual[3].0, actual[3].1, &wrong_first, source).is_err());
+    let mut wrong_value = expected[3].clone();
+    wrong_value.fields[2].storage = ExpectedStorage::Borrowed(33..35);
+    assert!(check_expected_event(&actual[3].0, actual[3].1, &wrong_value, source).is_err());
+    let mut wrong_text = expected[4].clone();
+    wrong_text.fields[0].storage = ExpectedStorage::Borrowed(38..39);
+    assert!(check_expected_event(&actual[4].0, actual[4].1, &wrong_text, source).is_err());
 }

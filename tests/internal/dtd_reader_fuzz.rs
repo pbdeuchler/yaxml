@@ -2,7 +2,10 @@
 
 use super::dtd::{DtdReader, FuzzFailure, FuzzPhase, FuzzSnapshot, ReaderEvent};
 use super::*;
-use crate::dtd::{DtdUnit, LiteralSource, RawSource};
+use crate::dtd::{
+    AttributeTypeView, DefaultDeclarationView, DtdUnit, DtdUnitView, EntityDefinitionView,
+    LiteralSource, RawSource,
+};
 use crate::dtd_controller::{ControllerCounters, ControllerLimits, TakenDtdEvent};
 use crate::dtd_frames::FrameCounters;
 use crate::dtd_reference::ReferenceLimits;
@@ -86,6 +89,35 @@ struct ExpectedEvent {
     kind: ExpectedKind,
     origin: ExpectedOrigin,
     fields: Vec<ExpectedField>,
+    dtd: Option<DtdSemantic>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum DtdSemantic {
+    Header {
+        root: String,
+        subset: bool,
+    },
+    AttributeList {
+        element: String,
+        definitions: Vec<ExpectedAttributeDefinition>,
+    },
+    Entity {
+        parameter: bool,
+        name: String,
+        quoted: String,
+        quoted_offset: Option<usize>,
+        references: Vec<String>,
+    },
+    Other(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExpectedAttributeDefinition {
+    name: String,
+    name_offset: usize,
+    default: String,
+    default_offset: Option<usize>,
 }
 
 struct GeneratedCase {
@@ -102,9 +134,12 @@ enum FieldRole {
     DeclarationVersion,
     DeclarationEncoding,
     ElementName,
+    ElementNamespace,
     AttributeName(usize),
+    AttributeNamespace(usize),
     AttributeValue(usize),
     EndName,
+    EndNamespace,
     Leaf,
     PiTarget,
     PiData,
@@ -113,6 +148,7 @@ enum FieldRole {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum ExpectedStorage {
     Borrowed(Range<usize>),
+    Static,
     Owned,
 }
 
@@ -126,6 +162,11 @@ struct ExpectedField {
 impl ExpectedEvent {
     fn with_fields(mut self, fields: Vec<ExpectedField>) -> Self {
         self.fields = fields;
+        self
+    }
+
+    fn with_dtd(mut self, dtd: DtdSemantic) -> Self {
+        self.dtd = Some(dtd);
         self
     }
 }
@@ -146,6 +187,14 @@ fn owned_field(role: FieldRole, value: impl Into<String>) -> ExpectedField {
     }
 }
 
+fn static_field(role: FieldRole, value: impl Into<String>) -> ExpectedField {
+    ExpectedField {
+        role,
+        value: value.into(),
+        storage: ExpectedStorage::Static,
+    }
+}
+
 fn physical(kind: ExpectedKind, range: Range<usize>) -> ExpectedEvent {
     ExpectedEvent {
         kind,
@@ -156,6 +205,7 @@ fn physical(kind: ExpectedKind, range: Range<usize>) -> ExpectedEvent {
             physical: range,
         },
         fields: Vec::new(),
+        dtd: None,
     }
 }
 
@@ -184,6 +234,7 @@ fn replacement(
             physical: physical_range,
         },
         fields: Vec::new(),
+        dtd: None,
     }
 }
 
@@ -229,6 +280,7 @@ fn push_physical_text(case: &mut GeneratedCase, value: &str) {
                 full,
             },
         fields,
+        ..
     }) = case.expected.last_mut()
         && input.end == start
     {
@@ -569,9 +621,15 @@ fn namespace_default_case() -> GeneratedCase {
         )
         .with_fields(vec![
             borrowed_field(FieldRole::ElementName, "p:r", start + 1..start + 4),
+            owned_field(FieldRole::ElementNamespace, "urn:p"),
             owned_field(FieldRole::AttributeName(0), "xmlns:p"),
+            static_field(
+                FieldRole::AttributeNamespace(0),
+                "http://www.w3.org/2000/xmlns/",
+            ),
             owned_field(FieldRole::AttributeValue(0), "urn:p"),
             owned_field(FieldRole::AttributeName(1), "p:a"),
+            owned_field(FieldRole::AttributeNamespace(1), "urn:p"),
             owned_field(FieldRole::AttributeValue(1), "v"),
         ]),
     );
@@ -767,6 +825,85 @@ fn observed_attributes(attributes: &[Attribute<'_>]) -> Vec<ExpectedAttribute> {
         .collect()
 }
 
+fn observed_dtd_semantic(event: &ReaderEvent<'_>) -> Option<DtdSemantic> {
+    let unit = match event {
+        ReaderEvent::Dtd(TakenDtdEvent::Begin(unit))
+        | ReaderEvent::Dtd(TakenDtdEvent::Item { unit, .. }) => unit,
+        _ => return None,
+    };
+    Some(match unit.view() {
+        DtdUnitView::Header(header) => DtdSemantic::Header {
+            root: header.root_name().to_owned(),
+            subset: header.has_internal_subset(),
+        },
+        DtdUnitView::AttributeList(list) => {
+            let definitions = list
+                .definitions()
+                .map(|definition| {
+                    let default = match definition.default() {
+                        DefaultDeclarationView::Required => "#REQUIRED".to_owned(),
+                        DefaultDeclarationView::Implied => "#IMPLIED".to_owned(),
+                        DefaultDeclarationView::Value {
+                            fixed,
+                            quoted_literal,
+                        } => format!("{}{}", if fixed { "#FIXED " } else { "" }, quoted_literal),
+                    };
+                    let name = match definition.attribute_type() {
+                        AttributeTypeView::Cdata => definition.name().to_owned(),
+                        other => format!("{}:{other:?}", definition.name()),
+                    };
+                    ExpectedAttributeDefinition {
+                        name,
+                        name_offset: definition.name_offset(),
+                        default,
+                        default_offset: definition.default_literal_offset(),
+                    }
+                })
+                .collect();
+            DtdSemantic::AttributeList {
+                element: list.element_name().to_owned(),
+                definitions,
+            }
+        }
+        DtdUnitView::Entity(entity) => {
+            let quoted = match entity.definition() {
+                EntityDefinitionView::Internal { quoted_literal } => quoted_literal.to_owned(),
+                other => format!("{other:?}"),
+            };
+            DtdSemantic::Entity {
+                parameter: entity.is_parameter(),
+                name: entity.name().to_owned(),
+                quoted,
+                quoted_offset: entity.quoted_literal_offset(),
+                references: unit
+                    .references()
+                    .map(|reference| reference.spelling.to_owned())
+                    .collect(),
+            }
+        }
+        other => DtdSemantic::Other(format!("{other:?}")),
+    })
+}
+
+fn check_expected_event(
+    event: &ReaderEvent<'_>,
+    origin: SourceOrigin,
+    expected: &ExpectedEvent,
+    source: &str,
+) -> Result<(), &'static str> {
+    if observed_kind(event) != expected.kind {
+        return Err("event kind or value differs");
+    }
+    check_expected_origin(origin, &expected.origin)?;
+    check_expected_fields(event, &expected.fields, source)?;
+    if let Some(dtd) = &expected.dtd
+        && observed_dtd_semantic(event).as_ref() != Some(dtd)
+    {
+        return Err("DTD semantic view differs");
+    }
+    Ok(())
+}
+
 fn observed_origin(origin: SourceOrigin) -> ExpectedOrigin {
     ExpectedOrigin {
         full: origin,
@@ -821,6 +958,18 @@ fn name_field<'a>(role: FieldRole, name: &'a Name<'_>) -> ObservedField<'a> {
     cow_field(role, name.qualified_source())
 }
 
+fn name_fields<'a>(
+    name_role: FieldRole,
+    namespace_role: FieldRole,
+    name: &'a Name<'_>,
+) -> Vec<ObservedField<'a>> {
+    let mut fields = vec![name_field(name_role, name)];
+    if let Some(namespace) = name.namespace_source() {
+        fields.push(cow_field(namespace_role, namespace));
+    }
+    fields
+}
+
 fn observed_fields<'a>(event: &'a ReaderEvent<'_>) -> Vec<ObservedField<'a>> {
     match event {
         ReaderEvent::Dtd(TakenDtdEvent::Begin(unit))
@@ -846,9 +995,17 @@ fn observed_fields<'a>(event: &'a ReaderEvent<'_>) -> Vec<ObservedField<'a>> {
             fields
         }
         ReaderEvent::Xml(Event::Start(element) | Event::Empty(element)) => {
-            let mut fields = vec![name_field(FieldRole::ElementName, &element.name)];
+            let mut fields = name_fields(
+                FieldRole::ElementName,
+                FieldRole::ElementNamespace,
+                &element.name,
+            );
             for (index, attribute) in element.attributes.iter().enumerate() {
-                fields.push(name_field(FieldRole::AttributeName(index), &attribute.name));
+                fields.extend(name_fields(
+                    FieldRole::AttributeName(index),
+                    FieldRole::AttributeNamespace(index),
+                    &attribute.name,
+                ));
                 fields.push(cow_field(
                     FieldRole::AttributeValue(index),
                     &attribute.value,
@@ -856,7 +1013,9 @@ fn observed_fields<'a>(event: &'a ReaderEvent<'_>) -> Vec<ObservedField<'a>> {
             }
             fields
         }
-        ReaderEvent::Xml(Event::End(name)) => vec![name_field(FieldRole::EndName, name)],
+        ReaderEvent::Xml(Event::End(name)) => {
+            name_fields(FieldRole::EndName, FieldRole::EndNamespace, name)
+        }
         ReaderEvent::Xml(Event::Text(value) | Event::Cdata(value) | Event::Comment(value)) => {
             vec![cow_field(FieldRole::Leaf, value)]
         }
@@ -908,6 +1067,13 @@ fn check_expected_fields(
                     return Err("owned field aliases input");
                 }
             }
+            (ObservedStorage::Borrowed(actual), ExpectedStorage::Static) => {
+                if *actual != expected.value
+                    || address_range(source).contains(&(actual.as_ptr() as usize))
+                {
+                    return Err("static field value or storage differs");
+                }
+            }
             _ => return Err("field storage class differs"),
         }
     }
@@ -925,7 +1091,25 @@ fn check_event_storage(
         match field.storage {
             ObservedStorage::Borrowed(value) => {
                 if generated {
+                    if matches!(
+                        field.role,
+                        FieldRole::ElementNamespace
+                            | FieldRole::AttributeNamespace(_)
+                            | FieldRole::EndNamespace
+                    ) && !address_range(source).contains(&(value.as_ptr() as usize))
+                    {
+                        continue;
+                    }
                     return Err("generated field borrowed physical input");
+                }
+                if matches!(
+                    field.role,
+                    FieldRole::ElementNamespace
+                        | FieldRole::AttributeNamespace(_)
+                        | FieldRole::EndNamespace
+                ) && !address_range(source).contains(&(value.as_ptr() as usize))
+                {
+                    continue;
                 }
                 let base = source.as_ptr() as usize;
                 let Some(offset) = (value.as_ptr() as usize).checked_sub(base) else {
@@ -1032,13 +1216,23 @@ fn validate_origin(origin: SourceOrigin, source_len: usize) {
 }
 
 fn assert_terminal_sticky(reader: &mut DtdReader<'_>, terminal: Result<(), SessionError>) {
+    assert_terminal_sticky_with(reader, terminal, || {});
+}
+
+fn assert_terminal_sticky_with(
+    reader: &mut DtdReader<'_>,
+    terminal: Result<(), SessionError>,
+    mut observe: impl FnMut(),
+) {
     let snapshot = reader.fuzz_snapshot();
+    observe();
     for _ in 0..3 {
         match terminal {
             Ok(()) => assert!(reader.read_event().unwrap().is_none()),
             Err(expected) => assert_eq!(reader.read_event().unwrap_err(), expected),
         }
         check_snapshot(snapshot, reader.fuzz_snapshot()).unwrap();
+        observe();
     }
 }
 
@@ -1050,6 +1244,7 @@ fn replay_arbitrary(input: &[u8], lifecycle: u8) {
     let mut retained = Vec::new();
     let mut retained_owned = 0_usize;
     let mut extracted = Vec::new();
+    let mut expected_extracted: Vec<step2::OwnedExtraction> = Vec::new();
     let mut delivered = 0_usize;
     loop {
         match reader.read_event() {
@@ -1073,11 +1268,26 @@ fn replay_arbitrary(input: &[u8], lifecycle: u8) {
                             check_event_storage(held, *held_origin, source).unwrap();
                         }
                     }
-                    2 => step2::collect_owned_bounded(event, &mut extracted, &mut retained_owned),
+                    2 => {
+                        for value in step2::observed_owned_before_move(&event) {
+                            if expected_extracted.len() < step2::MAX_RETAINED_OBJECTS
+                                && expected_extracted
+                                    .iter()
+                                    .map(|value| value.value.len())
+                                    .sum::<usize>()
+                                    + value.value.len()
+                                    <= step2::MAX_RETAINED_OWNED
+                            {
+                                expected_extracted.push(value);
+                            }
+                        }
+                        step2::collect_owned_bounded(event, &mut extracted, &mut retained_owned);
+                    }
                     3 if delivered == usize::from(lifecycle >> 2) => {
                         let inner = reader.into_inner();
                         assert_eq!(inner.as_ptr(), input.as_ptr());
                         assert_eq!(inner.len(), input.len());
+                        check_event_storage(&event, origin, source).unwrap();
                         replay_arbitrary(input, 0);
                         return;
                     }
@@ -1087,12 +1297,30 @@ fn replay_arbitrary(input: &[u8], lifecycle: u8) {
                 delivered += 1;
             }
             Ok(None) => {
-                assert_terminal_sticky(&mut reader, Ok(()));
+                assert_terminal_sticky_with(&mut reader, Ok(()), || {
+                    for (held, held_origin) in &retained {
+                        check_event_storage(held, *held_origin, source).unwrap();
+                    }
+                });
+                drop(reader);
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source).unwrap();
+                }
+                assert_eq!(extracted, expected_extracted);
                 return;
             }
             Err(error) => {
                 assert_eq!(reader.fuzz_snapshot().failure, Some(FuzzFailure::Error));
-                assert_terminal_sticky(&mut reader, Err(error));
+                assert_terminal_sticky_with(&mut reader, Err(error), || {
+                    for (held, held_origin) in &retained {
+                        check_event_storage(held, *held_origin, source).unwrap();
+                    }
+                });
+                drop(reader);
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source).unwrap();
+                }
+                assert_eq!(extracted, expected_extracted);
                 return;
             }
         }
@@ -1111,31 +1339,51 @@ fn run_generated_lifecycle(case: GeneratedCase, lifecycle: u8) {
     assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
     let mut reader = DtdReader::new(case.source.as_bytes(), options()).unwrap();
     let mut held = Vec::new();
+    let mut held_bytes = 0_usize;
     let mut extracted = Vec::new();
+    let mut expected_extracted: Vec<step2::OwnedExtraction> = Vec::new();
     let mut extracted_bytes = 0_usize;
     let checkpoint = usize::from(lifecycle >> 2).min(case.expected.len().saturating_sub(1));
     for (index, expected) in case.expected.iter().enumerate() {
         let (event, origin) = reader.read_event().unwrap().expect("expected event");
-        assert_eq!(observed_kind(&event), expected.kind);
-        check_expected_origin(origin, &expected.origin).unwrap();
-        check_expected_fields(&event, &expected.fields, &case.source).unwrap();
+        check_expected_event(&event, origin, expected, &case.source).unwrap();
         match lifecycle & 3 {
             0 => {}
             1 => {
-                held.push((event, origin));
+                let bytes = step2::owned_event_bytes(&event);
+                if held.len() < step2::MAX_RETAINED_OBJECTS
+                    && held_bytes + bytes <= step2::MAX_RETAINED_OWNED
+                {
+                    held_bytes += bytes;
+                    held.push((event, origin));
+                }
                 for ((held_event, held_origin), held_expected) in held.iter().zip(&case.expected) {
-                    assert_eq!(observed_kind(held_event), held_expected.kind);
-                    check_expected_origin(*held_origin, &held_expected.origin).unwrap();
-                    check_expected_fields(held_event, &held_expected.fields, &case.source).unwrap();
+                    check_expected_event(held_event, *held_origin, held_expected, &case.source)
+                        .unwrap();
                 }
             }
-            2 => step2::collect_owned_bounded(event, &mut extracted, &mut extracted_bytes),
+            2 => {
+                for value in step2::expected_owned(expected) {
+                    if expected_extracted.len() < step2::MAX_RETAINED_OBJECTS
+                        && expected_extracted
+                            .iter()
+                            .map(|value| value.value.len())
+                            .sum::<usize>()
+                            + value.value.len()
+                            <= step2::MAX_RETAINED_OWNED
+                    {
+                        expected_extracted.push(value);
+                    }
+                }
+                step2::collect_owned_bounded(event, &mut extracted, &mut extracted_bytes);
+            }
             3 if index == checkpoint => {
                 let pointer = case.source.as_ptr();
                 let length = case.source.len();
                 let inner = reader.into_inner();
                 assert_eq!(inner.as_ptr(), pointer);
                 assert_eq!(inner.len(), length);
+                check_expected_event(&event, origin, expected, &case.source).unwrap();
                 run_generated_lifecycle(case, 0);
                 return;
             }
@@ -1144,27 +1392,30 @@ fn run_generated_lifecycle(case: GeneratedCase, lifecycle: u8) {
         }
     }
     assert!(reader.read_event().unwrap().is_none());
-    assert_terminal_sticky(&mut reader, Ok(()));
-    drop(reader);
-    assert_eq!(
-        held.len(),
-        if lifecycle & 3 == 1 {
-            case.expected.len()
-        } else {
-            0
+    assert_terminal_sticky_with(&mut reader, Ok(()), || {
+        for ((event, origin), expected) in held.iter().zip(&case.expected) {
+            check_expected_event(event, *origin, expected, &case.source).unwrap();
         }
-    );
+    });
+    drop(reader);
+    assert!(held.len() <= step2::MAX_RETAINED_OBJECTS);
+    assert!(held_bytes <= step2::MAX_RETAINED_OWNED);
+    if lifecycle & 3 != 1 {
+        assert!(held.is_empty());
+    }
     for ((event, origin), expected) in held.iter().zip(&case.expected) {
-        assert_eq!(observed_kind(event), expected.kind);
-        check_expected_origin(*origin, &expected.origin).unwrap();
-        check_expected_fields(event, &expected.fields, &case.source).unwrap();
+        check_expected_event(event, *origin, expected, &case.source).unwrap();
     }
     if lifecycle & 3 == 2 {
         drop(case.source);
+        assert_eq!(extracted, expected_extracted);
     }
     assert!(extracted_bytes <= step2::MAX_RETAINED_OWNED);
     assert_eq!(
-        extracted.iter().map(String::len).sum::<usize>(),
+        extracted
+            .iter()
+            .map(|value| value.value.len())
+            .sum::<usize>(),
         extracted_bytes
     );
 }
@@ -1270,6 +1521,18 @@ fn fixed_replacement_insertion_and_deletion_smoke_is_bounded() {
             exercise(&deleted);
         }
     }
+}
+
+#[test]
+fn exercise_routes_real_header_bytes_to_every_step2_probe() {
+    let input = [0_u8, 0, 0, 253, 201, 255, 254, 15];
+    step2::reset_routing_receipt();
+    exercise(&input);
+    let receipt = step2::routing_receipt();
+    assert_eq!(receipt.witness_lifecycle, Some(15));
+    assert_eq!(receipt.truncation, Some((201, 1, 12, 15)));
+    assert_eq!(receipt.quota, Some((255, 15, 2, 5, 15)));
+    assert!(receipt.configured_early_stop >= 2);
 }
 
 #[test]
@@ -1443,7 +1706,7 @@ fn snapshot_oracle_observes_every_field() {
             validated: 15,
         }),
     };
-    let variants = vec![
+    let mut variants = vec![
         FuzzSnapshot {
             phase: FuzzPhase::Ordinary,
             ..baseline
@@ -1477,6 +1740,87 @@ fn snapshot_oracle_observes_every_field() {
             ..baseline
         },
     ];
+    for controller in [
+        ControllerCounters {
+            work: 2,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            scanned_bytes: 3,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            owned_bytes: 4,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            physical_bytes: 5,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            reference_attempts: 6,
+            ..baseline.controller.unwrap()
+        },
+    ] {
+        variants.push(FuzzSnapshot {
+            controller: Some(controller),
+            ..baseline
+        });
+    }
+    for frames in [
+        FrameCounters {
+            reference_attempts: 7,
+            ..baseline.frames.unwrap()
+        },
+        FrameCounters {
+            work: 8,
+            ..baseline.frames.unwrap()
+        },
+        FrameCounters {
+            expanded_bytes: 9,
+            ..baseline.frames.unwrap()
+        },
+    ] {
+        variants.push(FuzzSnapshot {
+            frames: Some(frames),
+            ..baseline
+        });
+    }
+    for text in [
+        TextUsage {
+            work: 10,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            source_scanned: 11,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            reference_scanned: 12,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            reference_copied: 13,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            reference_classified: 14,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            appended_reference_copied: 15,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            validated: 16,
+            ..baseline.text.unwrap()
+        },
+    ] {
+        variants.push(FuzzSnapshot {
+            text: Some(text),
+            ..baseline
+        });
+    }
     for variant in variants {
         assert!(check_snapshot(baseline, variant).is_err());
     }
@@ -1796,4 +2140,233 @@ fn snapshot_tracks_phase_handoff_origin_terminal_state_and_all_counters() {
             }),
         }
     );
+}
+
+#[test]
+fn snapshots_pin_promotions_pe_handoff_numeric_copy_and_terminal_flags() {
+    let rp = b"<!DOCTYPE r [<!ENTITY % p '<!--x-->'>%p;%p;]><r/>";
+    let mut reader = DtdReader::new(rp, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, first) = reader.read_event().unwrap().unwrap();
+    let first_snapshot = FuzzSnapshot {
+        phase: FuzzPhase::Declarations,
+        failure: None,
+        physical_position: 40,
+        last_origin: Some(first),
+        finished: false,
+        controller: Some(ControllerCounters {
+            work: 163,
+            scanned_bytes: 48,
+            owned_bytes: 8,
+            physical_bytes: 40,
+            reference_attempts: 1,
+        }),
+        frames: None,
+        text: None,
+    };
+    assert_eq!(reader.fuzz_snapshot(), first_snapshot);
+    let (_, second) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Declarations,
+            failure: None,
+            physical_position: 43,
+            last_origin: Some(second),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 207,
+                scanned_bytes: 59,
+                owned_bytes: 16,
+                physical_bytes: 43,
+                reference_attempts: 2,
+            }),
+            frames: None,
+            text: None,
+        }
+    );
+    reader.read_event().unwrap().unwrap();
+    let (_, root) = reader.read_event().unwrap().unwrap();
+    let rp_root = FuzzSnapshot {
+        phase: FuzzPhase::Content,
+        failure: None,
+        physical_position: 49,
+        last_origin: Some(root),
+        finished: false,
+        controller: Some(ControllerCounters {
+            work: 221,
+            scanned_bytes: 65,
+            owned_bytes: 16,
+            physical_bytes: 49,
+            reference_attempts: 2,
+        }),
+        frames: Some(FrameCounters {
+            reference_attempts: 2,
+            work: 18,
+            expanded_bytes: 16,
+        }),
+        text: Some(TextUsage {
+            work: 221,
+            source_scanned: 4,
+            reference_scanned: 0,
+            reference_copied: 0,
+            reference_classified: 0,
+            appended_reference_copied: 0,
+            validated: 4,
+        }),
+    };
+    assert_eq!(reader.fuzz_snapshot(), rp_root);
+    assert!(reader.read_event().unwrap().is_none());
+    let rp_eof = FuzzSnapshot {
+        finished: true,
+        ..rp_root
+    };
+    assert_eq!(reader.fuzz_snapshot(), rp_eof);
+
+    let zeroed_promotion = FuzzSnapshot {
+        controller: Some(ControllerCounters {
+            owned_bytes: 0,
+            ..rp_eof.controller.unwrap()
+        }),
+        ..rp_eof
+    };
+    assert_eq!(
+        check_snapshot(rp_eof, zeroed_promotion),
+        Err("controller counters")
+    );
+
+    let h = b"<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>";
+    let mut reader = DtdReader::new(h, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, generated) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Declarations,
+            failure: None,
+            physical_position: 47,
+            last_origin: Some(generated),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 227,
+                scanned_bytes: 62,
+                owned_bytes: 15,
+                physical_bytes: 47,
+                reference_attempts: 1,
+            }),
+            frames: None,
+            text: None,
+        }
+    );
+    reader.read_event().unwrap().unwrap();
+    let (_, start) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Content,
+            failure: None,
+            physical_position: 52,
+            last_origin: Some(start),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 238,
+                scanned_bytes: 67,
+                owned_bytes: 15,
+                physical_bytes: 52,
+                reference_attempts: 1,
+            }),
+            frames: Some(FrameCounters {
+                reference_attempts: 1,
+                work: 16,
+                expanded_bytes: 15,
+            }),
+            text: Some(TextUsage {
+                work: 238,
+                source_scanned: 3,
+                reference_scanned: 0,
+                reference_copied: 0,
+                reference_classified: 0,
+                appended_reference_copied: 0,
+                validated: 3,
+            }),
+        }
+    );
+
+    let numeric = b"<!DOCTYPE r><r>&#65;</r>";
+    let mut reader = DtdReader::new(numeric, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, text) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Content,
+            failure: None,
+            physical_position: 21,
+            last_origin: Some(text),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 76,
+                scanned_bytes: 21,
+                owned_bytes: 0,
+                physical_bytes: 21,
+                reference_attempts: 0,
+            }),
+            frames: Some(FrameCounters::default()),
+            text: Some(TextUsage {
+                work: 76,
+                source_scanned: 4,
+                reference_scanned: 5,
+                reference_copied: 5,
+                reference_classified: 5,
+                appended_reference_copied: 5,
+                validated: 8,
+            }),
+        }
+    );
+}
+
+#[test]
+fn promotion_rejection_snapshot_keeps_prior_spend_and_sticky_failure_state() {
+    let source = b"<!DOCTYPE r [<!ENTITY % p '<!--x-->'>%p;%p;]><r/>";
+    let mut profile = options();
+    profile.declarations.max_owned_bytes = 15;
+    let mut reader = DtdReader::new(source, profile).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, first) = reader.read_event().unwrap().unwrap();
+    let error = reader.read_event().unwrap_err();
+    assert!(matches!(
+        error,
+        SessionError::Dtd(crate::dtd_controller::ControllerError {
+            kind: crate::dtd_controller::ControllerErrorKind::Limit(
+                crate::dtd_controller::ControllerLimit::OwnedBytes
+            ),
+            physical_offset: 40,
+            local_offset: Some(0),
+            value_location: None,
+            ..
+        })
+    ));
+    let expected = FuzzSnapshot {
+        phase: FuzzPhase::Declarations,
+        failure: Some(FuzzFailure::Error),
+        physical_position: 43,
+        last_origin: Some(first),
+        finished: false,
+        controller: Some(ControllerCounters {
+            work: 183,
+            scanned_bytes: 59,
+            owned_bytes: 8,
+            physical_bytes: 43,
+            reference_attempts: 2,
+        }),
+        frames: None,
+        text: None,
+    };
+    assert_eq!(reader.fuzz_snapshot(), expected);
+    assert_terminal_sticky(&mut reader, Err(error));
 }
