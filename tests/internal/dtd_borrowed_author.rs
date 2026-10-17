@@ -108,6 +108,36 @@ fn each_input_mode_rejects_the_other_modes_driver() {
 }
 
 #[test]
+fn borrowed_current_lends_the_stored_source_without_promotion() {
+    let source = "xx<!DOCTYPE r><r/>";
+    let mut state = state(0);
+    let mut controller = DtdController::stable_utf8(
+        source,
+        40,
+        42,
+        ControllerLimits {
+            max_owned_bytes: 0,
+            ..ControllerLimits::default()
+        },
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        controller.advance_borrowed(state.owned_budget()).unwrap(),
+        "<!DOCTYPE r>".len()
+    );
+    let (event, origin) = controller.current().unwrap();
+    let DtdEvent::Begin(header) = event else {
+        panic!("expected borrowed Begin")
+    };
+    assert_eq!(header.root_name(), "r");
+    assert_eq!(origin.input_range(), Some(42..53));
+    let expected_name = &source[source.find(" r").unwrap() + 1..source.find(" r").unwrap() + 2];
+    assert_eq!(header.root_name().as_ptr(), expected_name.as_ptr());
+    controller.release();
+}
+
+#[test]
 fn stable_physical_units_borrow_exact_source_slices_and_leave_the_body() {
     let source = "π<!DOCTYPE 根 [<!--é--><?p v?><!ELEMENT 根 EMPTY>]><根/>";
     let source_start = 100;
@@ -210,6 +240,25 @@ fn grammar_and_family_errors_precede_conditional_copy_limits_in_both_modes() {
             ControllerErrorKind::Grammar(DtdErrorKind::InvalidName)
         );
         assert_eq!(error.physical_offset, 10);
+    }
+
+    let mut zero_shared = state(0);
+    let mut borrowed =
+        DtdController::stable_utf8("<!DOCTYPE >", 0, 0, ControllerLimits::default(), false)
+            .unwrap();
+    let borrowed = borrowed
+        .advance_borrowed(zero_shared.owned_budget())
+        .unwrap_err();
+    let mut streaming =
+        DtdController::new(SourceEncoding::Utf8, 0, ControllerLimits::default(), false);
+    let streaming = streaming
+        .advance(b"<!DOCTYPE >", zero_shared.owned_budget())
+        .unwrap_err();
+    for error in [borrowed, streaming] {
+        assert_eq!(
+            error.kind,
+            ControllerErrorKind::Grammar(DtdErrorKind::InvalidName)
+        );
     }
 
     let nested = "<!DOCTYPE r [<!ENTITY % p \"<!DOCTYPE x>\">%p;]><r/>";
