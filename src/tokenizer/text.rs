@@ -102,6 +102,31 @@ impl TextShared {
     pub(crate) fn usage(&self) -> TextUsage {
         self.usage
     }
+    pub(crate) fn remaining_work(&self) -> Result<usize, TextError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        Ok(self
+            .limits
+            .max_work
+            .checked_sub(self.usage.work)
+            .expect("accepted Text work stays within its limit"))
+    }
+    pub(crate) fn charge_external_work(
+        &mut self,
+        delta: usize,
+        source: TextSourceId,
+        offset: usize,
+    ) -> Result<(), TextError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        let result = charge(self, source, offset, delta);
+        if let Err(error) = result {
+            self.failure = Some(error);
+        }
+        result
+    }
     pub(crate) fn check_source(&self, source: &TextSourceLease<'_>) -> Result<(), TextError> {
         if let Some(error) = self.failure {
             return Err(error);
@@ -168,6 +193,32 @@ impl<'input> TextSourceLease<'input> {
             finalizing: false,
             boundary: false,
         }
+    }
+    pub(crate) fn resume_utf8(
+        mut tokenizer: Tokenizer,
+        decoded_position: usize,
+        physical_position: usize,
+    ) -> Result<Self, TextError> {
+        let valid = decoded_position == physical_position
+            && tokenizer.encoding == SourceEncoding::Utf8
+            && tokenizer.buffer.is_empty()
+            && tokenizer.position == 0
+            && tokenizer.source_position == 0
+            && tokenizer.start == 0
+            && tokenizer.source_start == 0
+            && tokenizer.reference_cursor().is_ok();
+        if !valid {
+            return Err(TextError {
+                kind: TextErrorKind::InvalidState,
+                source: TextSourceId::Input,
+                offset: physical_position,
+            });
+        }
+        tokenizer.start = decoded_position;
+        tokenizer.position = decoded_position;
+        tokenizer.source_start = physical_position;
+        tokenizer.source_position = physical_position;
+        Ok(Self::streaming(tokenizer))
     }
     pub(crate) fn stable_utf8(
         tokenizer: Tokenizer,
@@ -240,6 +291,12 @@ impl<'input> TextSourceLease<'input> {
                 decoded, physical, ..
             } => Some((decoded, physical)),
             _ => None,
+        }
+    }
+    pub(crate) fn input_encoding(&self) -> Option<SourceEncoding> {
+        match &self.kind {
+            LeaseKind::Input { tokenizer, .. } => Some(tokenizer.encoding),
+            LeaseKind::Local { .. } => None,
         }
     }
     pub(crate) fn switch_local_at_boundary(
@@ -355,6 +412,17 @@ impl<'input> TextCoordinator<'input> {
     }
     pub(crate) fn usage(&self) -> TextUsage {
         self.shared.usage
+    }
+    pub(crate) fn remaining_work(&self) -> Result<usize, TextError> {
+        self.shared.remaining_work()
+    }
+    pub(crate) fn charge_external_work(
+        &mut self,
+        delta: usize,
+        source: TextSourceId,
+        offset: usize,
+    ) -> Result<(), TextError> {
+        self.shared.charge_external_work(delta, source, offset)
     }
     pub(crate) fn input_position(&self) -> Option<(usize, usize)> {
         self.source.input_position()
@@ -1065,3 +1133,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../../tests/internal/dtd_text_coordinator_spec.rs"]
 mod spec_tests;
+
+#[cfg(test)]
+#[path = "../../tests/internal/dtd_text_work_ledger.rs"]
+mod work_ledger_tests;
