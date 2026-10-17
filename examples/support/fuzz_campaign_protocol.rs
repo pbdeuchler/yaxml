@@ -188,17 +188,13 @@ fn protocol_lines<'a>(
         .iter()
         .enumerate()
         .filter_map(|(index, line)| {
-            (line.starts_with("test ") && !line.starts_with("test result:")).then_some(index)
+            (line.starts_with("test ") && !is_summary_line_candidate(line)).then_some(index)
         })
         .collect();
     let summary_positions: Vec<_> = lines
         .iter()
         .enumerate()
-        .filter_map(|(index, line)| {
-            line.trim_start_matches([' ', '\t'])
-                .starts_with("test result:")
-                .then_some(index)
-        })
+        .filter_map(|(index, line)| is_summary_line_candidate(line).then_some(index))
         .collect();
     if running_positions.len() > 1 || test_positions.len() > 1 || summary_positions.len() > 1 {
         return Err(ProtocolError::Shape(ShapeReason::DuplicateLine));
@@ -248,6 +244,13 @@ fn protocol_lines<'a>(
         }));
     }
     Ok((lines[running], lines[test], lines[summary]))
+}
+
+fn is_summary_line_candidate(line: &str) -> bool {
+    let mut compact = line.bytes().filter(|byte| !matches!(byte, b' ' | b'\t'));
+    b"testresult:"
+        .iter()
+        .all(|expected| compact.next() == Some(*expected))
 }
 
 fn check_running_line(line: &str) -> Result<(), ProtocolError> {
@@ -604,6 +607,10 @@ mod tests {
         }
         let cases = [
             Case { name: "leading_summary_space", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\n test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+            Case { name: "double_space_between_summary_words", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest  result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+            Case { name: "tab_between_summary_words", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest\tresult: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+            Case { name: "space_inside_summary_token", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest res ult: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+            Case { name: "space_before_summary_colon", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result : ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
             Case { name: "double_space_after_status", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result: ok.  1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
             Case { name: "double_space_inside_fixed_count", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result: ok. 1  passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
             Case { name: "trailing_summary_space", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s \n\n" },
