@@ -594,6 +594,37 @@ fn independent_limits_have_exact_boundaries_and_atomic_failures() {
 }
 
 #[test]
+fn exact_limits_allow_one_empty_and_one_byte_replacement() {
+    let limits = FrameLimits {
+        max_active_depth: 1,
+        max_reference_attempts: 1,
+        max_work: 2,
+        max_expanded_bytes: 1,
+    };
+    let boundary = FrameBoundary::Content { element_depth: 0 };
+    let id = EntityDeclarationId::from_index(1);
+    let mut frames = EntityFrames::new(limits);
+    frames
+        .enter_physical(
+            EntityKind::General,
+            internal(EntityKind::General, 1, "x"),
+            0..3,
+            boundary,
+        )
+        .unwrap();
+    frames.advance_current(id, "x", 1).unwrap();
+    frames.finish_current(boundary).unwrap();
+    assert_eq!(
+        frames.counters(),
+        FrameCounters {
+            reference_attempts: 1,
+            work: 2,
+            expanded_bytes: 1,
+        }
+    );
+}
+
+#[test]
 fn checked_counter_and_invocation_overflow_are_explicit() {
     let limits = FrameLimits {
         max_active_depth: usize::MAX,
@@ -669,6 +700,20 @@ fn checked_counter_and_invocation_overflow_are_explicit() {
         FrameErrorKind::InvocationIdsExhausted
     );
     assert_eq!(frames.depth(), 0);
+
+    let mut frames = EntityFrames::new(limits);
+    frames.next_invocation = NonZeroU64::new(u64::MAX);
+    let last = frames
+        .enter_physical(
+            EntityKind::General,
+            internal(EntityKind::General, 1, ""),
+            90..93,
+            boundary,
+        )
+        .unwrap();
+    assert_eq!(last.get(), u64::MAX);
+    frames.finish_current(boundary).unwrap();
+    assert_eq!(frames.next_invocation, None);
 }
 
 #[test]
@@ -762,4 +807,99 @@ fn a_deep_stack_releases_iteratively_in_reverse_order() {
         );
     }
     assert_eq!(frames.depth(), 0);
+}
+
+#[test]
+fn indirect_cycles_keep_the_current_frame_and_physical_context() {
+    let boundary = FrameBoundary::Content { element_depth: 1 };
+    let replacement = "&x;";
+    let mut frames = unlimited();
+    frames
+        .enter_physical(
+            EntityKind::General,
+            internal(EntityKind::General, 1, replacement),
+            200..203,
+            boundary,
+        )
+        .unwrap();
+    frames
+        .enter_nested(
+            EntityKind::General,
+            internal(EntityKind::General, 2, replacement),
+            EntityDeclarationId::from_index(1),
+            replacement,
+            0..3,
+            boundary,
+        )
+        .unwrap();
+    assert_eq!(
+        frames
+            .enter_nested(
+                EntityKind::General,
+                internal(EntityKind::General, 1, replacement),
+                EntityDeclarationId::from_index(2),
+                replacement,
+                0..3,
+                boundary,
+            )
+            .unwrap_err(),
+        FrameError {
+            kind: FrameErrorKind::Cycle,
+            physical_offset: 200,
+        }
+    );
+    assert_eq!(frames.depth(), 2);
+    assert_eq!(
+        frames
+            .current(EntityDeclarationId::from_index(2), replacement)
+            .unwrap()
+            .local_start,
+        0
+    );
+}
+
+#[test]
+fn bounded_sequential_sequences_match_literal_ranges_and_totals() {
+    let boundary = FrameBoundary::AttributeValue;
+    let mut frames = unlimited();
+    let mut expected_bytes = 0_usize;
+    for case in 0..16 {
+        let replacement = "x".repeat(case % 5);
+        let id = EntityDeclarationId::from_index(case);
+        let invocation = frames
+            .enter_physical(
+                EntityKind::General,
+                internal(EntityKind::General, case, &replacement),
+                case * 4..case * 4 + 3,
+                boundary,
+            )
+            .unwrap();
+        assert_eq!(invocation.get(), u64::try_from(case + 1).unwrap());
+        let mut cursor = 0;
+        let mut joined: Option<FragmentOrigin> = None;
+        while cursor < replacement.len() {
+            let bytes = (replacement.len() - cursor).min(2);
+            let origin = frames.advance_current(id, &replacement, bytes).unwrap();
+            assert_eq!(origin.replacement_range(), Some(cursor..cursor + bytes));
+            joined = Some(match joined {
+                None => origin,
+                Some(previous) => previous.join(origin),
+            });
+            cursor += bytes;
+        }
+        if let Some(origin) = joined {
+            assert_eq!(origin.replacement_range(), Some(0..replacement.len()));
+        }
+        frames.finish_current(boundary).unwrap();
+        expected_bytes += replacement.len();
+    }
+    assert_eq!(frames.depth(), 0);
+    assert_eq!(
+        frames.counters(),
+        FrameCounters {
+            reference_attempts: 16,
+            work: 16 + expected_bytes,
+            expanded_bytes: expected_bytes,
+        }
+    );
 }
