@@ -309,6 +309,135 @@ fn default_normalization_uses_only_already_read_declarations() {
 }
 
 #[test]
+fn discarded_duplicate_attribute_still_reports_its_unavailable_default() {
+    let mut catalog = loose();
+    apply(&mut catalog, "<!ENTITY indirect '&missing;'>");
+    apply(&mut catalog, "<!ATTLIST r x CDATA 'first'>");
+
+    let dependency = Dependency {
+        kind: DependencyKind::MissingReadDeclaration,
+        location: ValueLocation::Replacement {
+            entity: EntityId(0),
+            offset: 0,
+        },
+    };
+    let expected = DeclarationEffect {
+        bindings_added: 0,
+        unavailable_defaults: 1,
+        unavailable: Some(dependency),
+        ignored_after_unread_parameter: false,
+    };
+    let effect = catalog
+        .apply(&unit("<!ATTLIST r x CDATA '&indirect;'>"), INTERNAL)
+        .unwrap();
+
+    assert_eq!(effect, expected);
+    let attributes: Vec<_> = catalog.attributes("r").collect();
+    assert_eq!(attributes.len(), 1);
+    assert_eq!(attributes[0].name(), "x");
+    assert_eq!(
+        attributes[0].default(),
+        DefaultValue::Value {
+            fixed: false,
+            value: "first",
+        }
+    );
+}
+
+#[test]
+fn discarded_duplicate_entity_reports_unread_replacement_and_sets_barrier() {
+    let mut catalog = loose();
+    apply(&mut catalog, "<!ENTITY % unread SYSTEM 'external.ent'>");
+    apply(&mut catalog, "<!ENTITY % p 'first'>");
+
+    let dependency = Dependency {
+        kind: DependencyKind::ExternalEntity,
+        location: ValueLocation::Declaration {
+            declaration: 2,
+            offset: 14,
+        },
+    };
+    let expected = DeclarationEffect {
+        bindings_added: 0,
+        unavailable_defaults: 0,
+        unavailable: Some(dependency),
+        ignored_after_unread_parameter: false,
+    };
+    let effect = catalog
+        .apply(&unit("<!ENTITY % p '%unread;'>"), EXTERNAL)
+        .unwrap();
+
+    assert_eq!(effect, expected);
+    let EntityLookup::Internal { replacement, .. } = catalog.lookup_parameter("p") else {
+        panic!("first parameter binding must remain effective")
+    };
+    assert_eq!(replacement, "first");
+    assert!(
+        catalog
+            .apply(&unit("<!ENTITY later 'ignored'>"), INTERNAL)
+            .unwrap()
+            .ignored_after_unread_parameter
+    );
+    assert_eq!(catalog.lookup_general("later"), EntityLookup::UnreadEntity);
+}
+
+#[test]
+fn multiple_unavailable_defaults_report_first_dependency_in_lexical_order() {
+    let mut catalog = loose();
+    apply(&mut catalog, "<!ENTITY a '&missingA;'>");
+    apply(&mut catalog, "<!ENTITY b '&missingB;'>");
+
+    let first = Dependency {
+        kind: DependencyKind::MissingReadDeclaration,
+        location: ValueLocation::Replacement {
+            entity: EntityId(0),
+            offset: 0,
+        },
+    };
+    let second = Dependency {
+        kind: DependencyKind::MissingReadDeclaration,
+        location: ValueLocation::Replacement {
+            entity: EntityId(1),
+            offset: 0,
+        },
+    };
+    let expected = DeclarationEffect {
+        bindings_added: 2,
+        unavailable_defaults: 2,
+        unavailable: Some(first),
+        ignored_after_unread_parameter: false,
+    };
+    let effect = catalog
+        .apply(&unit("<!ATTLIST r x CDATA '&a;' y CDATA '&b;'>"), INTERNAL)
+        .unwrap();
+
+    assert_eq!(effect, expected);
+    let defaults: Vec<_> = catalog
+        .attributes("r")
+        .map(|binding| (binding.name(), binding.default()))
+        .collect();
+    assert_eq!(
+        defaults,
+        [
+            (
+                "x",
+                DefaultValue::Unavailable {
+                    fixed: false,
+                    dependency: first,
+                },
+            ),
+            (
+                "y",
+                DefaultValue::Unavailable {
+                    fixed: false,
+                    dependency: second,
+                },
+            ),
+        ]
+    );
+}
+
+#[test]
 fn direct_missing_default_is_typed_at_the_reference_and_sticky() {
     let (raw, offset) = marked("<!ATTLIST r x CDATA '^&missing;'>");
     let expected = CatalogError {
