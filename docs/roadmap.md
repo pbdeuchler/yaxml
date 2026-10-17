@@ -102,9 +102,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   `integrate/dtd-prototype`, outside main. Reviewed private
   [binding/default semantics and entity frames](review-dtd-semantics.md) now
   extend that foundation to 129 focused groups and 664 tests/13 doctests.
-  The controller, runtime replacement/mixed provenance, DOM coalescing, public
-  events and serialization, fuzzing, conformance and performance gates remain
-  open.
+  Public integration of the controller, replacement/mixed provenance, DOM
+  coalescing, events and serialization, plus fuzzing, conformance and performance
+  gates remain open.
+  The later [private controller/provenance review](review-dtd-controller.md)
+  joins incremental PE processing, shared occurrence provenance, parse-only Text
+  joins and phase-aware literal output. Public activation, attribute/content
+  integration and its full validation gates remain open.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The

@@ -6,6 +6,8 @@ Worktree: `/private/tmp/yaxml-dtd-integration`, branch
 `integrate/dtd-prototype`. Main still has the production source of `f2bd043`;
 these modules remain private and test-only. This review extends the
 [grammar/scanner review](review-dtd-prototypes.md), without enabling DTD parsing.
+The later [controller/provenance review](review-dtd-controller.md) records the
+subsequent private implementation and duplicate-dependency observability fix.
 
 ## Implemented boundaries
 
