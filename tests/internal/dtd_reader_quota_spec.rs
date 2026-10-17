@@ -20,6 +20,13 @@ const REFERENCES: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;&e;</r>";
 const NESTED: &str = "<!DOCTYPE r [<!ENTITY a '&b;'><!ENTITY b 'B'>]><r>&a;</r>";
 const PARAMETER: &str = "<!DOCTYPE r [<!ENTITY % p '<!--a&#13;b-->'>%p;]><r/>";
 const HANDOFF: &str = "<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>";
+const BODY_UNICODE: &str = "<!DOCTYPE r><r a='éé'/>";
+const DEPTH: &str = "<!DOCTYPE r [<!ENTITY e '<n><m/></n>'>]><r>&e;</r>";
+const LOCAL_NAMED: &str = "<!DOCTYPE r [<!ENTITY e '&#38;inner;'><!ENTITY inner 'I'>]><r>&e;</r>";
+const LOCAL_NUMERIC: &str = "<!DOCTYPE r [<!ENTITY e '&#38;#65;'>]><r>&e;</r>";
+const GENERAL_TEXT: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>1234567890123456&e;</r>";
+const NUMERIC_TEXT: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>1234567890123456&#65;</r>";
+const SHARED: &str = "<?p a\r\n?><!DOCTYPE r [<!ENTITY % p '<!--a&#13;b-->'>%p;]><r/>";
 
 fn policy() -> SessionLimits {
     let mut p = configured();
@@ -165,13 +172,27 @@ fn counters(reader: &DtdReader<'_>) -> Option<Counters> {
 
 fn golden(source: &str) -> &'static [&'static str] {
     match source {
-        TINY => &["begin", "end", "=r"],
+        TINY | BODY_UNICODE => &["begin", "end", "=r"],
         MODEL | ATTRS | VALUE => &["begin", "item", "end", "=r"],
         GENERATED => &["begin", "item", "end", "+r", "=n", "-r"],
         REFERENCES => &["begin", "item", "end", "+r", "Tx", "Tx", "-r"],
         NESTED => &["begin", "item", "item", "end", "+r", "TB", "-r"],
         PARAMETER => &["begin", "item", "item", "end", "=r"],
         HANDOFF => &["begin", "item", "item", "end", "+r", "Tx", "-r"],
+        DEPTH => &["begin", "item", "end", "+r", "+n", "=m", "-n", "-r"],
+        LOCAL_NAMED => &["begin", "item", "item", "end", "+r", "TI", "-r"],
+        LOCAL_NUMERIC => &["begin", "item", "end", "+r", "TA", "-r"],
+        GENERAL_TEXT => &[
+            "begin",
+            "item",
+            "end",
+            "+r",
+            "T1234567890123456",
+            "Tx",
+            "-r",
+        ],
+        NUMERIC_TEXT => &["begin", "item", "end", "+r", "T1234567890123456A", "-r"],
+        SHARED => &["pi", "begin", "item", "item", "end", "=r"],
         _ => panic!("unknown literal fixture"),
     }
 }
@@ -180,6 +201,8 @@ struct Case {
     source: &'static str,
     bounds: (usize, usize),
     configure: fn(&mut SessionLimits, usize),
+    public: fn(&mut Limits, &mut DecodeLimits, usize),
+    prefix: Option<usize>,
     error: Diagnostic,
     position: usize,
     last: Option<SourceOrigin>,
@@ -189,15 +212,14 @@ fn verify(case: Case) {
     for (ceiling, succeeds) in [(case.bounds.0, false), (case.bounds.1, true)] {
         let mut p = policy();
         (case.configure)(&mut p, ceiling);
-        let mut reader = DtdReader::with_limits(
-            case.source.as_bytes(),
-            Limits {
-                max_token_bytes: 16,
-                ..Limits::default()
-            },
-            p,
-        )
-        .unwrap();
+        let mut limits = Limits {
+            max_token_bytes: 16,
+            ..Limits::default()
+        };
+        let mut decode = DecodeLimits::default();
+        (case.public)(&mut limits, &mut decode, ceiling);
+        let mut reader =
+            DtdReader::with_decode_limits(case.source.as_bytes(), limits, decode, p).unwrap();
         let mut labels = Vec::new();
         let mut previous = None::<ControllerCounters>;
         let mut terminated = false;
@@ -205,7 +227,15 @@ fn verify(case: Case) {
             match reader.read_event() {
                 Ok(Some((event, origin))) => {
                     assert_eq!(reader.event_origin(), Some(origin), "{}", case.name);
-                    labels.push(label(&event));
+                    if let ReaderEvent::Xml(Event::ProcessingInstruction { target, data }) = &event
+                    {
+                        assert_eq!(*target, "p");
+                        assert_eq!(data, "a\n");
+                        assert!(matches!(data, std::borrow::Cow::Owned(_)));
+                        labels.push("pi".to_owned());
+                    } else {
+                        labels.push(label(&event));
+                    }
                     if let Some(now) = counters(&reader) {
                         if let Some(before) = previous {
                             assert!(
@@ -237,10 +267,24 @@ fn verify(case: Case) {
                         }
                     }
                     if case.source == VALUE && matches!(event, ReaderEvent::Xml(Event::Empty(_))) {
-                        let ReaderEvent::Xml(Event::Empty(element)) = event else {
+                        let ReaderEvent::Xml(Event::Empty(element)) = &event else {
                             unreachable!()
                         };
                         assert_eq!(element.attributes[0].value, "é");
+                    }
+                    if case.source == BODY_UNICODE
+                        && let ReaderEvent::Xml(Event::Empty(element)) = &event
+                    {
+                        assert_eq!(element.attributes[0].value, "éé");
+                    }
+                    if case.source == SHARED && labels.len() == 4 {
+                        let Phase::Declarations { controller, parser } =
+                            reader.session.first_mut().unwrap()
+                        else {
+                            panic!("generated Item phase")
+                        };
+                        assert_eq!(controller.counters().owned_bytes, 10);
+                        assert_eq!(parser.owned_budget().remaining_owned(), 0);
                     }
                 }
                 Ok(None) => {
@@ -295,7 +339,7 @@ fn verify(case: Case) {
                         reader.event_range(),
                         case.last.and_then(SourceOrigin::input_range)
                     );
-                    let prefix = match case.source {
+                    let prefix = case.prefix.unwrap_or_else(|| match case.source {
                         TINY => {
                             if case.last.is_none() {
                                 0
@@ -315,7 +359,7 @@ fn verify(case: Case) {
                         REFERENCES | NESTED | HANDOFF => 5,
                         PARAMETER => 2,
                         _ => unreachable!(),
-                    };
+                    });
                     assert_eq!(
                         labels,
                         &golden(case.source)[..prefix],
@@ -323,6 +367,21 @@ fn verify(case: Case) {
                         case.name
                     );
                     let state = counters(&reader);
+                    if case.name == "scanner_work_generated" {
+                        assert_eq!(state.unwrap().controller.scanned_bytes, 52);
+                    }
+                    if case.name == "scanner_work_after_generated" {
+                        assert_eq!(state.unwrap().controller.scanned_bytes, 57);
+                    }
+                    if case.source == SHARED {
+                        let Phase::Declarations { controller, parser } =
+                            reader.session.first_mut().unwrap()
+                        else {
+                            panic!("rejected generated Item phase")
+                        };
+                        assert_eq!(controller.counters().owned_bytes, 0);
+                        assert_eq!(parser.owned_budget().remaining_owned(), 9);
+                    }
                     if exact_shared_work {
                         assert_eq!(
                             state.unwrap().controller.work,
@@ -331,12 +390,22 @@ fn verify(case: Case) {
                             case.name
                         );
                     }
-                    if case.source == HANDOFF {
+                    if case.name == "frame_work_handoff" {
                         assert_eq!(
                             state.unwrap().frames.unwrap(),
                             FrameCounters {
                                 reference_attempts: 2,
                                 work: 17,
+                                expanded_bytes: 15,
+                            }
+                        );
+                    }
+                    if case.name == "frame_attempts_handoff" {
+                        assert_eq!(
+                            state.unwrap().frames.unwrap(),
+                            FrameCounters {
+                                reference_attempts: 1,
+                                work: 16,
                                 expanded_bytes: 15,
                             }
                         );
@@ -382,6 +451,8 @@ macro_rules! quota {
                 source: $source,
                 bounds: ($low, $high),
                 configure: $configure,
+                public: |_, _, _| {},
+                prefix: None,
                 error: $error,
                 position: $position,
                 last: $last,
@@ -467,6 +538,221 @@ quota!(declaration_work_exact, TINY, 47 => 48, |p,n| p.declarations.max_work=n,
 quota!(text_work_exact, TINY, 47 => 48, |p,n| p.text.max_work=n,
     content(C::Work,12,None),16,last(11..12));
 
+// The 16-byte body/local token profiles are intentionally independent of the
+// larger declaration scanner units.
+macro_rules! interaction {
+    ($name:ident, $source:expr, $low:expr => $high:expr, $private:expr, $public:expr,
+     $error:expr, $position:expr, $last:expr, $prefix:expr) => {
+        #[test]
+        fn $name() {
+            verify(Case {
+                name: stringify!($name),
+                source: $source,
+                bounds: ($low, $high),
+                configure: $private,
+                public: $public,
+                prefix: Some($prefix),
+                error: $error,
+                position: $position,
+                last: $last,
+            });
+        }
+    };
+}
+
+interaction!(body_raw_token, BODY_UNICODE, 12 => 13, |_,_| {},
+    |l,_,n| l.max_token_bytes=n,
+    content(C::Text(T::Xml(ErrorKind::LimitExceeded(Limit::TokenBytes))),12,None),25,last(11..12),2);
+interaction!(body_decoded_token, BODY_UNICODE, 12 => 13, |_,_| {},
+    |_,d,n| d.max_decoded_token_bytes=n,
+    content(C::Text(T::Xml(ErrorKind::LimitExceeded(Limit::DecodedTokenBytes))),12,None),25,last(11..12),2);
+interaction!(body_token_tie, BODY_UNICODE, 12 => 13, |_,_| {},
+    |l,d,n| {l.max_token_bytes=n; d.max_decoded_token_bytes=n;},
+    content(C::Text(T::Xml(ErrorKind::LimitExceeded(Limit::TokenBytes))),12,None),25,last(11..12),2);
+interaction!(generated_parser_depth, DEPTH, 2 => 3, |_,_| {},
+    |l,_,n| l.max_depth=n,
+    content(C::Tag(crate::dtd_tag::DtdTagErrorKind::Parser(ErrorKind::LimitExceeded(Limit::Depth))),43,replacement(0,1,3..7,43..46)).local(3),46,
+    replacement(0,1,0..3,43..46).map(SourceOrigin::from_repr),5);
+interaction!(scanner_work_generated, PARAMETER, 52 => 58,
+    |p,n| p.declarations.scan.max_work=n, |_,_,_| {},
+    dtd(D::Scan(ScanErrorKind::Limit(ScanLimit::Work)),43,replacement(0,1,0..6,43..46)).local(6),46,last(13..43),2);
+interaction!(scanner_work_after_generated, PARAMETER, 57 => 58,
+    |p,n| p.declarations.scan.max_work=n, |_,_,_| {},
+    dtd(D::Scan(ScanErrorKind::Limit(ScanLimit::Work)),47,input(46..47)),47,
+    replacement(0,1,0..10,43..46).map(SourceOrigin::from_repr),3);
+interaction!(local_named_reference, LOCAL_NAMED, 6 => 7,
+    |p,n| p.text.reference.max_bytes=n, |_,_,_| {},
+    content(C::Text(T::Reference(ReferenceErrorKind::Limit(ReferenceLimit::Bytes))),62,replacement(0,1,6..6,62..65)).local(6),65,last(59..62),5);
+interaction!(local_numeric_reference, LOCAL_NUMERIC, 4 => 5,
+    |p,n| p.text.reference.max_bytes=n, |_,_,_| {},
+    content(C::Text(T::Reference(ReferenceErrorKind::Limit(ReferenceLimit::Bytes))),41,replacement(0,1,4..4,41..44)).local(4),44,last(38..41),4);
+interaction!(numeric_reference_keeps_text_token, NUMERIC_TEXT, 16 => 21,
+    |p,_| {p.text.scratch.input_token_bytes=21; p.text.scratch.max_bytes=53;},
+    |l,_,n| l.max_token_bytes=n,
+    content(C::Text(T::Xml(ErrorKind::LimitExceeded(Limit::TokenBytes))),33,None),54,last(30..33),4);
+interaction!(reference_min_bytes, TINY, 34 => 35,
+    |p,n| {p.text.reference.max_bytes=7; p.text.reference.max_scratch_bytes=3; p.text.scratch.max_bytes=n;}, |_,_,_| {},
+    content(C::Text(T::Scratch),12,None),12,last(11..12),2);
+interaction!(reference_min_scratch, TINY, 34 => 35,
+    |p,n| {p.text.reference.max_bytes=3; p.text.reference.max_scratch_bytes=7; p.text.scratch.max_bytes=n;}, |_,_,_| {},
+    content(C::Text(T::Scratch),12,None),12,last(11..12),2);
+interaction!(scratch_input_overflow, TINY, usize::MAX => 16,
+    |p,n| {p.text.scratch.input_token_bytes=n; p.text.scratch.max_bytes=usize::MAX;}, |_,_,_| {},
+    content(C::Text(T::ScratchOverflow),12,None),12,last(11..12),2);
+interaction!(scratch_replacement_overflow, TINY, usize::MAX => 16,
+    |p,n| {p.text.scratch.replacement_token_bytes=n; p.text.scratch.max_bytes=usize::MAX;}, |_,_,_| {},
+    content(C::Text(T::ScratchOverflow),12,None),12,last(11..12),2);
+interaction!(scratch_reference_overflow, TINY, usize::MAX => 16,
+    |p,n| {p.text.reference.max_bytes=n; p.text.reference.max_scratch_bytes=n; p.text.scratch.max_bytes=usize::MAX;}, |_,_,_| {},
+    content(C::Text(T::ScratchOverflow),12,None),12,last(11..12),2);
+interaction!(text_work_precedes_overflow, TINY, 0 => 64*1024*1024,
+    |p,n| {p.text.max_work=n; if n==0 {p.text.scratch.input_token_bytes=usize::MAX;}}, |_,_,_| {},
+    content(C::Text(T::Work),12,None),12,last(11..12),2);
+interaction!(catalog_global_tie, TINY, 35 => 48,
+    |p,n| {p.declarations.max_work=n; p.declarations.catalog.max_work=if n==35 {11} else {12};}, |_,_,_| {},
+    dtd(D::Limit(ControllerLimit::Work),0,input(0..12)).value(Site::Declaration(0,0)),12,None,0);
+interaction!(catalog_native_collision, TINY, 11 => 12,
+    |p,n| {p.declarations.catalog.max_work=n; p.declarations.max_work=if n==11 {36} else {48};}, |_,_,_| {},
+    dtd(D::Catalog(CatalogErrorKind::Limit(CatalogLimit::Work)),0,input(0..12)).value(Site::Declaration(0,0)),12,None,0);
+interaction!(shared_parser_promotion, SHARED, 12 => 13, |_,_| {},
+    |l,_,n| l.max_owned_bytes=n,
+    dtd(D::Ownership(ErrorKind::LimitExceeded(Limit::OwnedBytes)),52,replacement(0,1,0..10,52..55)).local(0),55,last(22..52),3);
+interaction!(catalog_declarations_cumulative, VALUE, 1 => 2,
+    |p,n| p.declarations.catalog.max_declarations=n, |_,_,_| {},
+    dtd(D::Catalog(CatalogErrorKind::Limit(CatalogLimit::Declarations)),13,input(13..29)).value(Site::Declaration(1,0)),29,last(0..13),1);
+interaction!(frame_attempts_handoff, HANDOFF, 1 => 2,
+    |p,n| p.declarations.frames.max_reference_attempts=n, |_,_,_| {},
+    content(C::Frame(FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts)),52,input(52..55)),55,last(49..52),5);
+
+#[test]
+fn general_reference_splits_a_full_physical_text_token() {
+    let mut reader = DtdReader::with_decode_limits(
+        GENERAL_TEXT.as_bytes(),
+        Limits {
+            max_token_bytes: 16,
+            ..Limits::default()
+        },
+        DecodeLimits {
+            max_decoded_token_bytes: 16,
+            ..DecodeLimits::default()
+        },
+        policy(),
+    )
+    .unwrap();
+    let mut labels = Vec::new();
+    let mut text = Vec::new();
+    while let Some((event, origin)) = reader.read_event().unwrap() {
+        if let ReaderEvent::Xml(Event::Text(value)) = &event {
+            text.push((value.to_string(), origin));
+        }
+        labels.push(label(&event));
+    }
+    assert_eq!(labels, golden(GENERAL_TEXT));
+    assert_eq!(
+        text,
+        vec![
+            ("1234567890123456".to_owned(), SourceOrigin::input(33..49)),
+            (
+                "x".to_owned(),
+                SourceOrigin::from_repr(replacement(0, 1, 0..1, 49..52).unwrap())
+            )
+        ]
+    );
+    assert_eq!(reader.position(), 56);
+    assert!(reader.read_event().unwrap().is_none());
+}
+
+#[test]
+fn bom_constructor_bytes_precede_lazy_session_validation() {
+    const BOM: &[u8] = b"\xef\xbb\xbf<!DOCTYPE r><r/>";
+    for bad_session in [false, true] {
+        for (raw, decoded, expected) in [
+            (18, 15, Some(Limit::InputBytes)),
+            (19, 15, Some(Limit::DecodedBytes)),
+            (19, 16, None),
+        ] {
+            let mut p = policy();
+            if bad_session {
+                p.declarations.scan.max_work = 0;
+            }
+            let result = DtdReader::with_decode_limits(
+                BOM,
+                Limits {
+                    max_input_bytes: raw,
+                    max_token_bytes: 16,
+                    ..Limits::default()
+                },
+                DecodeLimits {
+                    max_decoded_bytes: decoded,
+                    ..DecodeLimits::default()
+                },
+                p,
+            );
+            if let Some(limit) = expected {
+                assert!(
+                    matches!(result,Err(SessionError::Xml(e)) if e.kind==ErrorKind::LimitExceeded(limit) && e.offset==0)
+                );
+                continue;
+            }
+            let mut reader = result.unwrap();
+            assert_eq!(reader.position(), 3);
+            if bad_session {
+                let error = reader.read_event().unwrap_err();
+                assert_eq!(
+                    Diagnostic::from_error(error),
+                    dtd(D::Scan(ScanErrorKind::Limit(ScanLimit::Work)), 3, None)
+                );
+                assert_eq!(reader.position(), 3);
+                assert_eq!(reader.event_origin(), None);
+                for _ in 0..3 {
+                    assert_eq!(reader.read_event().unwrap_err(), error);
+                }
+            } else {
+                let mut observed = Vec::new();
+                while let Some((event, origin)) = reader.read_event().unwrap() {
+                    observed.push((label(&event), origin));
+                }
+                assert_eq!(
+                    observed,
+                    vec![
+                        ("begin".to_owned(), SourceOrigin::input(3..14)),
+                        ("end".to_owned(), SourceOrigin::input(14..15)),
+                        ("=r".to_owned(), SourceOrigin::input(15..19))
+                    ]
+                );
+                assert_eq!(reader.position(), 19);
+                assert!(reader.read_event().unwrap().is_none());
+            }
+            assert_eq!(reader.into_inner(), BOM);
+        }
+    }
+}
+
+#[test]
+fn independent_stable_text_token_limit_retains_the_complete_scanned_tag() {
+    use crate::tokenizer::Tokenizer;
+    use crate::tokenizer::text::{TextCoordinator, TextShared, TextSourceLease};
+    for decoded in [false, true] {
+        let tokenizer =
+            Tokenizer::new(if decoded { 16 } else { 12 }, if decoded { 12 } else { 16 });
+        let source = TextSourceLease::resume_stable_utf8(tokenizer, BODY_UNICODE, 12, 12).unwrap();
+        let mut text =
+            TextCoordinator::new(TextShared::new(policy().text, 0).unwrap(), source).unwrap();
+        let error = text.advance_borrowed().unwrap_err();
+        assert_eq!(
+            error.kind,
+            T::Xml(ErrorKind::LimitExceeded(if decoded {
+                Limit::DecodedTokenBytes
+            } else {
+                Limit::TokenBytes
+            }))
+        );
+        assert_eq!(error.offset, 12);
+        assert_eq!(text.input_position(), Some((25, 25)));
+        assert_eq!(text.advance_borrowed().unwrap_err(), error);
+    }
+}
+
 #[test]
 fn independent_scanner_header_keeps_its_physical_delimiter_before_publication() {
     use crate::dtd_scan::{DtdScanner, ScanKind, ScanMode};
@@ -477,6 +763,15 @@ fn independent_scanner_header_keeps_its_physical_delimiter_before_publication() 
     assert_eq!(raw, b"<!DOCTYPE r>");
     assert_eq!(range, 0..12);
     assert_eq!(scanner.position(), 12);
+
+    let mut limits = policy().declarations.scan;
+    limits.max_work = 0;
+    let mut scanner = DtdScanner::new(ScanMode::Doctype, limits);
+    let error = scanner.advance(TINY.as_bytes()).unwrap_err();
+    assert_eq!(error.kind, ScanErrorKind::Limit(ScanLimit::Work));
+    assert_eq!(error.offset, 0);
+    assert_eq!(scanner.position(), 0);
+    assert!(scanner.current().is_none());
 }
 
 #[test]
