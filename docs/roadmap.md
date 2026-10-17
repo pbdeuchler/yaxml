@@ -155,10 +155,17 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   UTF-16LE/BE encoding and distinct decoded/physical cursors through the same
   Decoder, declarations and generated body content. Its 37 combined streaming
   groups cover six transports, every byte split, non-BMP entities, origins,
-  quotas and terminal failures. The combined private freeze passes 1,009 tests
-  with nine ignored, 571 release library tests and 13 doctests. Buffered lending,
-  stable Reader publication, DOM storage and public activation remain explicit
-  follow-ups.
+  quotas and terminal failures. The subsequent private
+  [lending protocol](plans/dtd-lending-publication.md) separates lexical
+  preparation, one-shot semantic publication and acknowledgement across ordinary
+  XML, DTD declarations and generated body content. Physical loans retain source
+  storage; entity scheduling and DTD End handoff occur only after acknowledgement.
+  Callback delivery uses the same publication core and releases only on success.
+  Twenty authored/blind lending groups pass, an E0499 probe proves a live physical
+  loan blocks mutation, and all six required production mutations are caught.
+  The combined private freeze passes 1,031 tests with nine ignored, 593 release
+  library tests and 13 doctests. DTD-aware BufferedReader composition, stable
+  Reader publication, DOM storage and public activation remain explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The

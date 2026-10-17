@@ -239,3 +239,37 @@ library tests and 13 doctests. Strict all-target Clippy, formatting and a
 This is still a private callback checkpoint. It does not activate Reader,
 BufferedReader, Push, either DOM, public DTD events or Writer round trips, and it
 adds no fresh fuzz-coverage, XMLTS or performance claim.
+
+## Lending-publication checkpoint
+
+The next private checkpoint is frozen at integration commit
+`627c65cd921400b498402c91f8a68a0d49c63e9d`, tree
+`445f8aee5890a88c16bd46ffe917061ee571587b`. It implements the session-wide
+protocol in [the lending plan](dtd-lending-publication.md): `prepare` and
+`finish_step` park one event, `lend` commits its semantics exactly once while
+retaining source storage, and `acknowledge` releases the token or DTD unit.
+Ordinary XML, DTD Begin/Item/End and DTD-aware content share this protocol.
+Callbacks wrap the same publication and acknowledge only on success.
+
+Twenty authored and blind lending groups cover UTF-8/UTF-16 splits, physical and
+generated payload ownership, held DTD End, EOF-discovered text, exact origins,
+normalization and event ceilings, lifecycle misuse, callback errors and unwind
+poisoning. A private compile probe produces E0499 when borrowed physical text is
+kept across another mutable session call. Holistic review initially found that
+an early-ack callback mutation survived because terminal failure hid the release;
+direct session/content retention assertions now kill that mutation. All six
+required production mutations fail and the final review reports zero findings.
+
+The combined private tree passes 1,031 tests with nine ignored, all 593 library
+tests in debug and release, and 13 doctests. Strict all-target Clippy, formatting
+and a 350-file byte audit pass. Evidence is recorded in
+`/private/tmp/yaxml-dtd-lending-freeze.md`; the source manifest is
+`/private/tmp/yaxml-dtd-lending-freeze-source.tsv`.
+
+The next coherent slice is a private DTD-aware `BufferedReader` adapter. It must
+acknowledge automatically at the start of the next mutable read, commit consumed
+`BufRead` bytes before lending, drain generated/held work before source I/O, and
+preserve the existing Interrupted, I/O-error and recovered-panic contracts.
+Stable `Reader`, public DTD event/error types, DOM storage, Writer round trips and
+public activation remain later gates. This checkpoint adds no fresh fuzz-coverage,
+XMLTS or performance claim.

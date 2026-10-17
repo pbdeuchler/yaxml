@@ -395,3 +395,38 @@ regions and 910/964 instrumented branch outcomes. Reaching 100%, sustained
 hostile-input campaigns, broader allocation-failure injection, generated
 content public DTD integration, matched libxml2 performance, allocator
 support and language bindings remain open.
+
+The private lending-publication freeze is
+`627c65cd921400b498402c91f8a68a0d49c63e9d`, source tree
+`445f8aee5890a88c16bd46ffe917061ee571587b`. It adds one session-wide
+Idle/Ready/Lent protocol spanning ordinary XML, DTD declarations and DTD-aware
+body events. Semantic publication happens once at `lend`; the source token, DTD
+unit or generated prefix remains parked until explicit private acknowledgement.
+Callback delivery uses the same preparation and acknowledges only after success.
+EOF-discovered events use the same lifecycle. The stored session and content
+layouts remain 1056 and 2240 bytes; transient lending carriers are 160 bytes.
+
+Eight author groups, twelve independently authored groups and two callback
+retention groups pass. The blind suite covers every UTF-8/UTF-16 split and a
+private compile probe proves a live borrowed physical event prevents the next
+mutable call with E0499. Holistic review found one Important evidence gap: a
+deliberately broken callback path could acknowledge before returning its sticky
+error without failing tests. Direct Delivery, raw-buffer and pointer-retention
+assertions now kill that exact mutation for callback errors and panics over
+physical and generated prefixes. The final verdict is PASS with no findings.
+
+The combined private tree passes 1,031 tests with nine ignored, all 593 library
+tests in debug and release, all 13 doctests, strict all-target Clippy, formatting
+and diff checks. All 350 tracked blobs match the accepted Git tree. Source
+manifest: `/private/tmp/yaxml-dtd-lending-freeze-source.tsv` (SHA-256
+`f660467858db9926fed2644400feda7279cb9e8b116bdab3878cbc7c71eea9ee`).
+Freeze report: `/private/tmp/yaxml-dtd-lending-freeze.md` (SHA-256
+`38c8d51ccb14893e32a2007f0acf495177f4417511473c59a4709c227dbc1234`).
+Holistic report: `/private/tmp/yaxml-dtd-lending-holistic-df90955.md`
+(SHA-256 `97d2210bf8bef10c87134579a535dfe10f3733ea6283930c026332abe07bb195`).
+
+This remains private and does not change a public frontend. The next slice is
+DTD-aware BufferedReader composition with automatic acknowledgement and exact
+`BufRead` consumption. Stable Reader borrowing, public DTD event/error mapping,
+both DOMs, Writer round trips, fuzz/XMLTS coverage and performance evidence
+remain separate gates.
