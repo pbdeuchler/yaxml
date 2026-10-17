@@ -46,7 +46,7 @@ pub(crate) enum ContentOutcome {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ContentStep {
-    /// Newly accepted physical UTF-8 bytes; replacement-only transitions use zero.
+    /// Newly accepted decoded input bytes; replacement-only transitions use zero.
     pub(crate) consumed: usize,
     pub(crate) outcome: ContentOutcome,
 }
@@ -65,6 +65,21 @@ enum LocalBuffer {
     Released(TextSourceLease<'static>),
 }
 
+/// A one-shot value outside the controller; its event borrows paused source storage.
+pub(crate) struct LentContent<'event> {
+    pub(crate) event: Option<Event<'event>>,
+    pub(crate) origin: FragmentOrigin,
+    pub(crate) budget: &'event mut Budget,
+    failure: &'event mut Option<ContentError>,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Delivery {
+    Scanning,
+    Ready,
+    Lent,
+}
+
 pub(crate) struct ContentController {
     body: DtdBodyState,
     parser: ParserState<'static>,
@@ -72,7 +87,7 @@ pub(crate) struct ContentController {
     paused_input: Option<TextSourceLease<'static>>,
     local: Option<LocalBuffer>,
     active: Vec<Active>,
-    ready: bool,
+    delivery: Delivery,
     finalizing: bool,
     complete: bool,
     failure: Option<ContentError>,
@@ -145,7 +160,7 @@ impl ContentController {
             paused_input: None,
             local: Some(LocalBuffer::Fresh(local)),
             active: Vec::new(),
-            ready: false,
+            delivery: Delivery::Scanning,
             finalizing: false,
             complete: false,
             failure: None,
@@ -186,30 +201,75 @@ impl ContentController {
 
     pub(crate) fn finish_step(&mut self) -> Result<ContentStep, ContentError> {
         self.remember(|s| {
+            if s.delivery == Delivery::Lent {
+                return Err(s.simple(ContentErrorKind::InvalidState));
+            }
             s.finalizing = true;
             s.drive(&[])
         })
     }
 
-    /// Parser publication and callback acknowledgement happen once, together.
-    /// Cancellation is sticky and leaves a General reference unscheduled.
+    /// Publish once while retaining the complete source token until acknowledgment.
+    pub(crate) fn lend(&mut self) -> Result<(Option<Event<'_>>, SourceOrigin), ContentError> {
+        let publication = self.lend_with_budget()?;
+        Ok((
+            publication.event,
+            SourceOrigin::from_repr(publication.origin),
+        ))
+    }
+
+    pub(crate) fn is_non_event(&self) -> bool {
+        self.coordinator
+            .as_ref()
+            .and_then(TextCoordinator::current)
+            .is_some_and(|token| self.parser.is_non_event(token.kind, token.raw))
+    }
+
+    pub(crate) fn acknowledge(&mut self) -> Result<(), ContentError> {
+        self.remember(|s| {
+            if s.delivery != Delivery::Lent {
+                return Err(s.simple(ContentErrorKind::InvalidState));
+            }
+            s.coordinator
+                .as_mut()
+                .expect("lent coordinator")
+                .release_token()
+                .map_err(|error| s.text_error(error))?;
+            s.delivery = Delivery::Scanning;
+            Ok(())
+        })
+    }
+
+    /// Callback and lending consumers share preparation and source release.
     pub(crate) fn emit(
         &mut self,
         emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), ContentError> {
-        if let Some(error) = self.failure {
+        let poisoned = self.simple(ContentErrorKind::Poisoned);
+        let LentContent {
+            event,
+            origin,
+            budget,
+            failure,
+        } = self.lend_with_budget()?;
+        *failure = Some(poisoned);
+        let result = match event {
+            Some(event) => emit(event, SourceOrigin::from_repr(origin), budget),
+            None => Ok(()),
+        };
+        let error = result.err().map(|error| callback_failure(error, origin));
+        *failure = error;
+        if let Some(error) = error {
             return Err(error);
         }
-        // A callback may unwind after parser publication. Leave the controller
-        // terminal in that case; never offer the same token to the parser again.
-        self.failure = Some(self.simple(ContentErrorKind::Poisoned));
-        let result = self.publish(emit);
-        self.failure = result.as_ref().err().copied();
-        result
+        self.acknowledge()
     }
 
     fn drive(&mut self, input: &[u8]) -> Result<ContentStep, ContentError> {
-        if self.ready {
+        if self.delivery == Delivery::Lent {
+            return Err(self.simple(ContentErrorKind::InvalidState));
+        }
+        if self.delivery == Delivery::Ready {
             return Ok(ContentStep {
                 consumed: 0,
                 outcome: ContentOutcome::EventReady,
@@ -311,7 +371,7 @@ impl ContentController {
             }
             match step.outcome {
                 TextOutcome::TokenReady => {
-                    self.ready = true;
+                    self.delivery = Delivery::Ready;
                     return Ok(ContentStep {
                         consumed,
                         outcome: ContentOutcome::EventReady,
@@ -598,11 +658,10 @@ impl ContentController {
         Ok(())
     }
 
-    fn publish(
+    fn prepare_publication(
         &mut self,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
-    ) -> Result<(), ContentError> {
-        if !self.ready {
+    ) -> Result<(TokenKind, FragmentOrigin, usize, usize, usize), ContentError> {
+        if self.delivery != Delivery::Ready {
             return Err(self.simple(ContentErrorKind::InvalidState));
         }
         let (kind, length, origin, offset) = {
@@ -686,156 +745,160 @@ impl ContentController {
         let catalog_before = self.body.catalog.usage().work;
         let catalog_ceiling = catalog_before.saturating_add(self.remaining()?);
         self.body.catalog.cap_work(catalog_ceiling);
-        // The callback is run before releasing the prefix. Raw/token borrows end
-        // here before another drive, catalog lookup, or frame entry is possible.
-        let result = {
-            let (token, work) = self
-                .coordinator
-                .as_mut()
-                .expect("ready coordinator")
-                .current_with_work()
-                .expect("ready token");
-            let raw = if kind == TokenKind::InvalidMarkup {
-                ""
-            } else {
-                std::str::from_utf8(token.raw)
-                    .map_err(|_| local_parser_failure(ErrorKind::InvalidUtf8, offset, origin))?
-            };
-            let event = match token.location {
-                TextLocation::Input(span) => {
-                    if kind == TokenKind::Start {
-                        self.parser
-                            .process_dtd_start(
-                                raw,
-                                offset,
-                                &mut self.body.catalog,
-                                LiteralSource::Physical,
-                                &mut |value, offset, budget| budget.copy(value, offset),
-                            )
-                            .map(Some)
-                            .map_err(|error| tag_failure(error, origin, Some((span, raw))))
-                    } else {
-                        self.parser
-                            .process_token(
-                                kind,
-                                raw,
-                                span.decoded.clone(),
-                                |value, offset, budget| budget.copy(value, offset),
-                            )
-                            .map_err(|error| {
-                                let error = span.map_error(raw, error);
-                                ContentError {
-                                    kind: ContentErrorKind::Parser(error.kind),
-                                    physical_offset: error.offset,
-                                    origin: Some(origin),
-                                    local_offset: None,
-                                    value_location: None,
-                                }
-                            })
-                    }
-                }
-                TextLocation::Local { range, .. } => {
-                    let result = match kind {
-                        TokenKind::Start => self
-                            .parser
-                            .process_dtd_start_owned(raw, offset, &mut self.body.catalog)
-                            .map_err(|error| tag_failure(error, origin, None)),
-                        TokenKind::End => {
-                            self.parser
-                                .process_dtd_end_owned(raw, offset)
-                                .map_err(|error| {
-                                    local_parser_failure(error.kind, error.local_offset, origin)
-                                })
-                        }
-                        TokenKind::Text
-                        | TokenKind::Cdata
-                        | TokenKind::Comment
-                        | TokenKind::Instruction => {
-                            let leaf = match kind {
-                                TokenKind::Text => DtdLeafKind::Text,
-                                TokenKind::Cdata => DtdLeafKind::Cdata,
-                                TokenKind::Comment => DtdLeafKind::Comment,
-                                _ => DtdLeafKind::ProcessingInstruction,
-                            };
-                            self.parser
-                                .process_dtd_leaf_owned(leaf, raw, range)
-                                .map_err(|error| {
-                                    local_parser_failure(error.kind, error.local_offset, origin)
-                                })
-                        }
-                        TokenKind::Dtd | TokenKind::InvalidMarkup => {
-                            Err(local_parser_failure(ErrorKind::Syntax, offset, origin))
-                        }
-                    };
-                    result.map(Some)
-                }
-            };
-            let delta = self.body.catalog.usage().work - catalog_before;
-            let source = match origin {
-                FragmentOrigin::Replacement { invocation, .. } => {
-                    TextSourceId::Replacement(invocation)
-                }
-                _ => TextSourceId::Input,
-            };
-            let charged = work.charge_external_work(
-                delta,
-                source,
-                if source == TextSourceId::Input {
-                    origin.error_offset()
-                } else {
-                    offset
-                },
-            );
-            let event = match (event, charged) {
-                (Err(error), _) => Err(error),
-                (_, Err(error)) => Err(ContentError {
-                    kind: ContentErrorKind::Text(error.kind),
-                    physical_offset: origin.error_offset(),
-                    origin: Some(origin),
-                    local_offset: origin.replacement_range().map(|_| error.offset),
-                    value_location: None,
-                }),
-                (Ok(event), Ok(())) => Ok(event),
-            };
-            event.and_then(|event| match event {
-                Some(event) => emit(
-                    event,
-                    SourceOrigin::from_repr(origin),
-                    self.parser.owned_budget(),
-                )
-                .map_err(|error| ContentError {
-                    kind: ContentErrorKind::Callback(error.kind),
-                    physical_offset: error.offset,
-                    origin: Some(origin),
-                    local_offset: if error.kind == ErrorKind::Aborted {
-                        origin.replacement_range().map(|range| range.end)
-                    } else {
-                        None
-                    },
-                    value_location: None,
-                }),
-                None => Ok(()),
-            })
-        };
-        self.sync_usage();
-        if let Err(mut error) = result {
-            if error.kind
-                == ContentErrorKind::Tag(DtdTagErrorKind::Catalog(CatalogErrorKind::Limit(
-                    CatalogLimit::Work,
-                )))
-                && catalog_ceiling <= self.body.limits.catalog.max_work
-            {
-                error.kind = ContentErrorKind::Work;
-            }
+        Ok((kind, origin, offset, catalog_before, catalog_ceiling))
+    }
+
+    pub(crate) fn lend_with_budget(&mut self) -> Result<LentContent<'_>, ContentError> {
+        if let Some(error) = self.failure {
             return Err(error);
         }
-        self.coordinator
+        self.failure = Some(self.simple(ContentErrorKind::Poisoned));
+        let (kind, origin, offset, catalog_before, catalog_ceiling) =
+            match self.prepare_publication() {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    self.failure = Some(error);
+                    return Err(error);
+                }
+            };
+        self.delivery = Delivery::Lent;
+        let (token, work) = self
+            .coordinator
             .as_mut()
             .expect("ready coordinator")
-            .release_token()
-            .map_err(|error| self.text_error(error))?;
-        self.ready = false;
-        Ok(())
+            .current_with_work()
+            .expect("ready token");
+        let raw = if kind == TokenKind::InvalidMarkup {
+            ""
+        } else {
+            match std::str::from_utf8(token.raw) {
+                Ok(raw) => raw,
+                Err(_) => {
+                    let error = local_parser_failure(ErrorKind::InvalidUtf8, offset, origin);
+                    self.failure = Some(error);
+                    return Err(error);
+                }
+            }
+        };
+        let event = match token.location {
+            TextLocation::Input(span) => {
+                if kind == TokenKind::Start {
+                    self.parser
+                        .process_dtd_start(
+                            raw,
+                            offset,
+                            &mut self.body.catalog,
+                            LiteralSource::Physical,
+                            &mut |value, offset, budget| budget.copy(value, offset),
+                        )
+                        .map(Some)
+                        .map_err(|error| tag_failure(error, origin, Some((span, raw))))
+                } else {
+                    self.parser
+                        .process_token(kind, raw, span.decoded.clone(), |value, offset, budget| {
+                            budget.copy(value, offset)
+                        })
+                        .map_err(|error| {
+                            let error = span.map_error(raw, error);
+                            ContentError {
+                                kind: ContentErrorKind::Parser(error.kind),
+                                physical_offset: error.offset,
+                                origin: Some(origin),
+                                local_offset: None,
+                                value_location: None,
+                            }
+                        })
+                }
+            }
+            TextLocation::Local { range, .. } => {
+                let result = match kind {
+                    TokenKind::Start => self
+                        .parser
+                        .process_dtd_start_owned(raw, offset, &mut self.body.catalog)
+                        .map_err(|error| tag_failure(error, origin, None)),
+                    TokenKind::End => {
+                        self.parser
+                            .process_dtd_end_owned(raw, offset)
+                            .map_err(|error| {
+                                local_parser_failure(error.kind, error.local_offset, origin)
+                            })
+                    }
+                    TokenKind::Text
+                    | TokenKind::Cdata
+                    | TokenKind::Comment
+                    | TokenKind::Instruction => {
+                        let leaf = match kind {
+                            TokenKind::Text => DtdLeafKind::Text,
+                            TokenKind::Cdata => DtdLeafKind::Cdata,
+                            TokenKind::Comment => DtdLeafKind::Comment,
+                            _ => DtdLeafKind::ProcessingInstruction,
+                        };
+                        self.parser
+                            .process_dtd_leaf_owned(leaf, raw, range)
+                            .map_err(|error| {
+                                local_parser_failure(error.kind, error.local_offset, origin)
+                            })
+                    }
+                    TokenKind::Dtd | TokenKind::InvalidMarkup => {
+                        Err(local_parser_failure(ErrorKind::Syntax, offset, origin))
+                    }
+                };
+                result.map(Some)
+            }
+        };
+        let delta = self.body.catalog.usage().work - catalog_before;
+        let source = match origin {
+            FragmentOrigin::Replacement { invocation, .. } => TextSourceId::Replacement(invocation),
+            _ => TextSourceId::Input,
+        };
+        let charged = work.charge_external_work(
+            delta,
+            source,
+            if source == TextSourceId::Input {
+                origin.error_offset()
+            } else {
+                offset
+            },
+        );
+        let result = match (event, charged) {
+            (Err(error), _) => Err(error),
+            (_, Err(error)) => Err(ContentError {
+                kind: ContentErrorKind::Text(error.kind),
+                physical_offset: origin.error_offset(),
+                origin: Some(origin),
+                local_offset: origin.replacement_range().map(|_| error.offset),
+                value_location: None,
+            }),
+            (Ok(event), Ok(())) => Ok(event),
+        };
+        let usage = work.usage();
+        self.body.counters.work = usage.work;
+        self.body.counters.scanned_bytes += (usage.source_scanned - self.text_usage.source_scanned)
+            + (usage.reference_scanned - self.text_usage.reference_scanned);
+        self.text_usage = usage;
+        match result {
+            Ok(event) => {
+                self.failure = None;
+                Ok(LentContent {
+                    event,
+                    origin,
+                    budget: self.parser.owned_budget(),
+                    failure: &mut self.failure,
+                })
+            }
+            Err(mut error) => {
+                if error.kind
+                    == ContentErrorKind::Tag(DtdTagErrorKind::Catalog(CatalogErrorKind::Limit(
+                        CatalogLimit::Work,
+                    )))
+                    && catalog_ceiling <= self.body.limits.catalog.max_work
+                {
+                    error.kind = ContentErrorKind::Work;
+                }
+                self.failure = Some(error);
+                Err(error)
+            }
+        }
     }
 
     fn remaining(&self) -> Result<usize, ContentError> {
@@ -990,6 +1053,20 @@ impl ContentController {
             self.failure = Some(error);
         }
         result
+    }
+}
+
+pub(crate) fn callback_failure(error: Error, origin: FragmentOrigin) -> ContentError {
+    ContentError {
+        kind: ContentErrorKind::Callback(error.kind),
+        physical_offset: error.offset,
+        origin: Some(origin),
+        local_offset: if error.kind == ErrorKind::Aborted {
+            origin.replacement_range().map(|range| range.end)
+        } else {
+            None
+        },
+        value_location: None,
     }
 }
 

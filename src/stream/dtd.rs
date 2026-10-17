@@ -4,6 +4,7 @@ use crate::dtd_controller::content::{ContentController, ContentError, ContentOut
 use crate::dtd_controller::{
     ControllerCounters, ControllerError, ControllerLimits, DtdController, DtdEvent,
 };
+use crate::dtd_frames::FragmentOrigin;
 use crate::tokenizer::local::LocalLimits;
 use crate::tokenizer::text::TextLimits;
 
@@ -91,8 +92,26 @@ impl SessionSlotReservation for TryReserveSessionSlot {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum SessionOutcome {
+    Ready,
+    NeedInput,
+    Complete,
+}
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct SessionStep {
+    /// Newly accepted transport bytes; replay and generated sources count zero.
+    pub(crate) consumed: usize,
+    pub(crate) outcome: SessionOutcome,
+}
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Delivery {
+    Idle,
+    Ready,
+    Lent,
+}
 enum Drain {
+    Ready,
     NeedInput,
     Complete,
 }
@@ -118,6 +137,7 @@ pub(crate) struct StreamingSession<R = TryReserveSessionSlot> {
     finalizing: bool,
     finished: bool,
     failure: Option<Failure>,
+    delivery: Delivery,
 }
 
 impl StreamingSession {
@@ -146,6 +166,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
             finalizing: false,
             finished: false,
             failure: None,
+            delivery: Delivery::Idle,
         }
     }
     pub(crate) fn position(&self) -> usize {
@@ -167,6 +188,76 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
             Phase::Content(controller) => Some(controller.counters()),
         }
     }
+    /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
+    pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {
+        self.remember(|s| {
+            if s.finished || (s.finalizing && (!input.is_empty() || s.delivery != Delivery::Ready))
+            {
+                return Err(Error::new(ErrorKind::InvalidState, s.position()).into());
+            }
+            s.prepare_inner(input)
+        })
+    }
+    /// Seal physical EOF while allowing a parked Ready token to be lent once.
+    pub(crate) fn finish_step(&mut self) -> Result<SessionStep, SessionError> {
+        self.remember(|s| {
+            if s.delivery == Delivery::Lent {
+                return Err(Error::new(ErrorKind::InvalidState, s.position()).into());
+            }
+            s.finalizing = true;
+            s.prepare_inner(&[])
+        })
+    }
+    /// Publish once and lend source storage until the returned borrow ends.
+    pub(crate) fn lend(&mut self) -> Result<(LocatedEvent<'_>, SourceOrigin), SessionError> {
+        if let Some(error) = self.stored_failure() {
+            return Err(error);
+        }
+        if self.delivery != Delivery::Ready {
+            let error = Error::new(ErrorKind::InvalidState, self.position()).into();
+            self.failure = Some(Failure::Error(error));
+            return Err(error);
+        }
+        self.failure = Some(Failure::Poisoned);
+        match lend_current(
+            &mut self.ordinary,
+            &mut self.session,
+            &mut self.standalone,
+            &mut self.origin,
+        ) {
+            Ok(publication) => {
+                self.delivery = Delivery::Lent;
+                self.failure = None;
+                Ok((
+                    publication.event,
+                    SourceOrigin::from_repr(publication.origin),
+                ))
+            }
+            Err(error) => {
+                self.failure = Some(Failure::Error(error));
+                Err(error)
+            }
+        }
+    }
+    /// Confirm delivery and release the paused source; no entity is entered here.
+    pub(crate) fn acknowledge(&mut self) -> Result<(), SessionError> {
+        self.remember(Self::acknowledge_inner)
+    }
+    fn acknowledge_inner(&mut self) -> Result<(), SessionError> {
+        if self.delivery != Delivery::Lent {
+            return Err(Error::new(ErrorKind::InvalidState, self.position()).into());
+        }
+        if let Some(ordinary) = &mut self.ordinary {
+            ordinary.release();
+        } else {
+            match self.session[0].phase.as_mut().expect("lent phase") {
+                Phase::Declarations { controller, .. } => controller.release(),
+                Phase::Content(controller) => controller.acknowledge()?,
+            }
+        }
+        self.delivery = Delivery::Idle;
+        Ok(())
+    }
     pub(crate) fn advance(
         &mut self,
         input: &[u8],
@@ -187,6 +278,9 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
             if s.finished {
                 return Ok(());
             }
+            if s.delivery == Delivery::Lent {
+                return Err(Error::new(ErrorKind::InvalidState, s.position()).into());
+            }
             s.finalizing = true;
             s.drive(&[], emit).map(|_| ())
         })
@@ -196,6 +290,56 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
         input: &[u8],
         emit: &mut impl FnMut(LocatedEvent<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<usize, SessionError> {
+        let mut consumed = 0;
+        loop {
+            let step = self.prepare_inner(&input[consumed..])?;
+            consumed += step.consumed;
+            match step.outcome {
+                SessionOutcome::Ready => {
+                    let publication = lend_current(
+                        &mut self.ordinary,
+                        &mut self.session,
+                        &mut self.standalone,
+                        &mut self.origin,
+                    )?;
+                    self.delivery = Delivery::Lent;
+                    emit(
+                        publication.event,
+                        SourceOrigin::from_repr(publication.origin),
+                        publication.budget,
+                    )
+                    .map_err(|error| {
+                        if publication.content {
+                            SessionError::Content(crate::dtd_controller::content::callback_failure(
+                                error,
+                                publication.origin,
+                            ))
+                        } else {
+                            SessionError::Xml(error)
+                        }
+                    })?;
+                    self.acknowledge_inner()?;
+                }
+                SessionOutcome::NeedInput | SessionOutcome::Complete => return Ok(consumed),
+            }
+        }
+    }
+    fn prepare_inner(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {
+        if self.delivery == Delivery::Lent {
+            return Err(Error::new(ErrorKind::InvalidState, self.position()).into());
+        }
+        if self.delivery == Delivery::Ready {
+            return Ok(SessionStep {
+                consumed: 0,
+                outcome: SessionOutcome::Ready,
+            });
+        }
+        if self.finished {
+            return Ok(SessionStep {
+                consumed: 0,
+                outcome: SessionOutcome::Complete,
+            });
+        }
         let mut consumed = 0;
         loop {
             if let Some(ordinary) = &mut self.ordinary {
@@ -208,17 +352,16 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
                         self.start_dtd()?;
                         continue;
                     }
-                    let standalone = &mut self.standalone;
-                    let origin = &mut self.origin;
-                    ordinary.emit(&mut |event, source, budget| {
-                        if let Event::Declaration(declaration) = &event {
-                            *standalone = declaration.standalone == Some(true);
-                        }
-                        *origin = Some(source);
-                        emit(LocatedEvent::Xml(event), source, budget)
-                    })?;
-                    ordinary.release();
-                    continue;
+                    if ordinary.is_non_event() {
+                        ordinary.emit(&mut |_, _, _| unreachable!("classified non-event"))?;
+                        ordinary.release();
+                        continue;
+                    }
+                    self.delivery = Delivery::Ready;
+                    return Ok(SessionStep {
+                        consumed,
+                        outcome: SessionOutcome::Ready,
+                    });
                 }
                 if self.finalizing {
                     if ordinary.finish_step()? {
@@ -226,26 +369,38 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
                     }
                     ordinary.validate_finish()?;
                     self.finished = true;
-                    return Ok(consumed);
+                    return Ok(SessionStep {
+                        consumed,
+                        outcome: SessionOutcome::Complete,
+                    });
                 }
-                let accepted = ordinary.advance(&input[consumed..])?;
-                consumed += accepted;
+                consumed += ordinary.advance(&input[consumed..])?;
                 if ordinary.has_token() {
                     continue;
                 }
                 if consumed == input.len() {
-                    return Ok(consumed);
+                    return Ok(SessionStep {
+                        consumed,
+                        outcome: SessionOutcome::NeedInput,
+                    });
                 }
-                if accepted == 0 {
-                    return Err(Error::new(ErrorKind::InvalidState, ordinary.position()).into());
-                }
+                return Err(Error::new(ErrorKind::InvalidState, ordinary.position()).into());
             } else {
-                let options = self.options;
                 let session = self.session.first_mut().expect("one active DTD session");
-                match session.drain(self.limits, self.decode, options, &mut self.origin, emit)? {
+                match session.drain(self.limits, self.decode, self.options)? {
+                    Drain::Ready => {
+                        self.delivery = Delivery::Ready;
+                        return Ok(SessionStep {
+                            consumed,
+                            outcome: SessionOutcome::Ready,
+                        });
+                    }
                     Drain::Complete => {
                         self.finished = true;
-                        return Ok(consumed);
+                        return Ok(SessionStep {
+                            consumed,
+                            outcome: SessionOutcome::Complete,
+                        });
                     }
                     Drain::NeedInput => {}
                 }
@@ -257,15 +412,15 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
                 consumed += progress.consumed;
                 if !progress.suspended {
                     if consumed == input.len() {
-                        return Ok(consumed);
+                        return Ok(SessionStep {
+                            consumed,
+                            outcome: SessionOutcome::NeedInput,
+                        });
                     }
                     if progress.consumed == 0 {
                         return Err(Error::new(ErrorKind::InvalidState, session.position()).into());
                     }
                 }
-                // Suspension may have accepted the final transport byte, or
-                // no new byte at all. Drain the held event/generated transition
-                // before asking Decoder for any further physical input.
             }
         }
     }
@@ -317,18 +472,22 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
         result?;
         Ok(())
     }
+    fn stored_failure(&mut self) -> Option<SessionError> {
+        let failure = self.failure?;
+        let error = match failure {
+            Failure::Error(error) => error,
+            Failure::Poisoned => SessionError::Poisoned {
+                physical_offset: self.position(),
+            },
+        };
+        self.failure = Some(Failure::Error(error));
+        Some(error)
+    }
     fn remember<T>(
         &mut self,
         run: impl FnOnce(&mut Self) -> Result<T, SessionError>,
     ) -> Result<T, SessionError> {
-        if let Some(failure) = self.failure {
-            let error = match failure {
-                Failure::Error(error) => error,
-                Failure::Poisoned => SessionError::Poisoned {
-                    physical_offset: self.position(),
-                },
-            };
-            self.failure = Some(Failure::Error(error));
+        if let Some(error) = self.stored_failure() {
             return Err(error);
         }
         // An unwind can follow transport progress. Resolve its diagnostic site
@@ -353,20 +512,12 @@ impl DtdSession {
         limits: Limits,
         decode: DecodeLimits,
         options: SessionLimits,
-        origin: &mut Option<SourceOrigin>,
-        emit: &mut impl FnMut(LocatedEvent<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<Drain, SessionError> {
         loop {
             match self.phase.as_mut().expect("owned semantic phase") {
                 Phase::Declarations { controller, parser } => {
-                    if let Some((event, source)) = controller.current() {
-                        parser.check_event_limit(source.error_offset())?;
-                        parser.commit_checked_dtd_event();
-                        let source = SourceOrigin::from_repr(source);
-                        *origin = Some(source);
-                        emit(LocatedEvent::Dtd(event), source, parser.owned_budget())?;
-                        controller.release();
-                        continue;
+                    if controller.current().is_some() {
+                        return Ok(Drain::Ready);
                     }
                     if controller.is_complete() {
                         self.physical = self.position();
@@ -410,10 +561,12 @@ impl DtdSession {
                     };
                     match step.outcome {
                         ContentOutcome::EventReady => {
-                            controller.emit(&mut |event, source, budget| {
-                                *origin = Some(source);
-                                emit(LocatedEvent::Xml(event), source, budget)
-                            })?
+                            if controller.is_non_event() {
+                                controller
+                                    .emit(&mut |_, _, _| unreachable!("classified non-event"))?;
+                                continue;
+                            }
+                            return Ok(Drain::Ready);
                         }
                         ContentOutcome::Progress => {}
                         ContentOutcome::NeedPhysicalInput => {
@@ -461,6 +614,65 @@ impl DtdSession {
         Ok(())
     }
 }
+struct LentSession<'event> {
+    event: LocatedEvent<'event>,
+    origin: FragmentOrigin,
+    budget: &'event mut Budget,
+    content: bool,
+}
+fn lend_current<'event>(
+    ordinary: &'event mut Option<Stream>,
+    session: &'event mut [DtdSession],
+    standalone: &mut bool,
+    last_origin: &mut Option<SourceOrigin>,
+) -> Result<LentSession<'event>, SessionError> {
+    let (event, origin, budget, content) = if let Some(ordinary) = ordinary {
+        let at = ordinary.position();
+        let (event, origin) = super::parse(&ordinary.tokenizer, &mut ordinary.state)?
+            .ok_or_else(|| Error::new(ErrorKind::InvalidState, at))?;
+        if let Event::Declaration(declaration) = &event {
+            *standalone = declaration.standalone == Some(true);
+        }
+        (
+            LocatedEvent::Xml(event),
+            FragmentOrigin::input(origin.input_range().expect("ordinary physical token"))
+                .expect("ordered token span"),
+            ordinary.state.owned_budget(),
+            false,
+        )
+    } else {
+        match session[0].phase.as_mut().expect("ready phase") {
+            Phase::Declarations { controller, parser } => {
+                let (event, origin) = controller.current().expect("ready DTD event");
+                parser.check_event_limit(origin.error_offset())?;
+                parser.commit_checked_dtd_event();
+                (
+                    LocatedEvent::Dtd(event),
+                    origin,
+                    parser.owned_budget(),
+                    false,
+                )
+            }
+            Phase::Content(controller) => {
+                let publication = controller.lend_with_budget()?;
+                let origin = publication.origin;
+                let budget = publication.budget;
+                let event = publication
+                    .event
+                    .expect("non-events were drained before readiness");
+                (LocatedEvent::Xml(event), origin, budget, true)
+            }
+        }
+    };
+    *last_origin = Some(SourceOrigin::from_repr(origin));
+    Ok(LentSession {
+        event,
+        origin,
+        budget,
+        content,
+    })
+}
+
 fn phase_decode(
     phase: &mut Phase,
     decoded: Decoded<'_>,
@@ -508,3 +720,9 @@ mod utf16_tests;
 
 #[path = "../../tests/internal/dtd_stream_utf16_spec.rs"]
 mod utf16_spec_tests;
+
+#[path = "../../tests/internal/dtd_lending_author.rs"]
+mod lending_tests;
+
+#[path = "../../tests/internal/dtd_lending_spec.rs"]
+mod lending_spec_tests;

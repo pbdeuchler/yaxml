@@ -556,3 +556,115 @@ fn unavailable_lookup_does_not_hide_an_earlier_frame_quota_failure() {
         assert_eq!(controller.finish_step().unwrap_err(), failure);
     }
 }
+
+#[test]
+fn direct_lending_keeps_the_raw_source_until_acknowledgment() {
+    let mut controller = make("<!DOCTYPE r [<!ENTITY e 'x'>]>");
+    let first = controller.advance(b"<r>pre&e;post</r>").unwrap();
+    assert_eq!(first.outcome, ContentOutcome::EventReady);
+    let (event, _) = controller.lend().unwrap();
+    assert_eq!(label(event.unwrap()), "+r");
+    controller.acknowledge().unwrap();
+    let step = controller
+        .advance(&b"<r>pre&e;post</r>"[first.consumed..])
+        .unwrap();
+    assert_eq!(step.outcome, ContentOutcome::EventReady);
+    let raw_pointer = controller
+        .coordinator
+        .as_ref()
+        .unwrap()
+        .current()
+        .unwrap()
+        .raw
+        .as_ptr();
+    let (event, origin) = controller.lend().unwrap();
+    assert!(
+        matches!(event, Some(Event::Text(Cow::Borrowed(text))) if text == "pre" && text.as_ptr() == raw_pointer)
+    );
+    assert!(origin.input_range().is_some());
+    assert_eq!(controller.frame_counters().reference_attempts, 0);
+    controller.acknowledge().unwrap();
+    assert_eq!(controller.frame_counters().reference_attempts, 0);
+    assert_eq!(
+        controller.advance(&[]).unwrap().outcome,
+        ContentOutcome::Progress
+    );
+    assert_eq!(controller.frame_counters().reference_attempts, 1);
+    assert_eq!(
+        controller.advance(&[]).unwrap().outcome,
+        ContentOutcome::EventReady
+    );
+    let (event, origin) = controller.lend().unwrap();
+    assert!(matches!(event, Some(Event::Text(Cow::Owned(value))) if value == "x"));
+    assert_eq!(origin.replacement_range(), Some(0..1));
+    controller.acknowledge().unwrap();
+}
+
+#[test]
+fn failed_or_panicking_emit_retains_the_exact_lent_prefix_storage() {
+    for generated in [false, true] {
+        for panics in [false, true] {
+            let mut controller =
+                make("<!DOCTYPE r [<!ENTITY e 'pre&later;'><!ENTITY later 'tail'>]>");
+            controller.advance(b"<r>").unwrap();
+            controller.emit(&mut |_, _, _| Ok(())).unwrap();
+            if generated {
+                assert_eq!(
+                    controller.advance(b"&e;after</r>").unwrap().outcome,
+                    ContentOutcome::Progress
+                );
+                assert_eq!(
+                    controller.advance(&[]).unwrap().outcome,
+                    ContentOutcome::EventReady
+                );
+            } else {
+                assert_eq!(
+                    controller.advance(b"pre&later;after</r>").unwrap().outcome,
+                    ContentOutcome::EventReady
+                );
+            }
+            let pointer = controller
+                .coordinator
+                .as_ref()
+                .unwrap()
+                .current()
+                .unwrap()
+                .raw
+                .as_ptr();
+            let mut target_origin = None;
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                controller.emit(&mut |event, origin, _| {
+                    assert!(matches!(event, Event::Text(ref value) if value == "pre"));
+                    target_origin = Some(origin);
+                    if panics {
+                        panic!("prefix callback stopped");
+                    }
+                    Err(Error::new(ErrorKind::Aborted, origin.cancellation_offset()))
+                })
+            }));
+            let origin = target_origin.expect("prefix delivered");
+            if panics {
+                assert!(result.is_err());
+            } else {
+                let error = result.unwrap().unwrap_err();
+                assert_eq!(error.kind, ContentErrorKind::Callback(ErrorKind::Aborted));
+                assert_eq!(error.physical_offset, origin.cancellation_offset());
+            }
+            assert!(matches!(controller.delivery, Delivery::Lent));
+            let coordinator = controller.coordinator.as_ref().unwrap();
+            let token = coordinator
+                .current()
+                .expect("unacknowledged prefix retained");
+            assert_eq!(token.raw, b"pre");
+            assert_eq!(token.raw.as_ptr(), pointer);
+            assert!(coordinator.general().is_none());
+            assert_eq!(
+                controller.frame_counters().reference_attempts,
+                usize::from(generated)
+            );
+            let error = controller.finish_step().unwrap_err();
+            assert_eq!(controller.acknowledge(), Err(error));
+            assert!(matches!(controller.delivery, Delivery::Lent));
+        }
+    }
+}
