@@ -291,3 +291,67 @@ fn generated_end_mismatch_leaves_shadowed_namespace_and_frame_identity_intact() 
     assert_eq!(state.events, 4);
     state.validate_finish(0).unwrap();
 }
+
+#[test]
+fn generated_defaults_and_pending_namespaces_survive_all_source_storage() {
+    use crate::dtd::{DtdLimits, DtdUnit, LiteralSource};
+    use crate::dtd_catalog::DeclarationContext;
+
+    let event: Event<'static> = {
+        let mut state = body(Limits::default());
+        let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+        let declaration = String::from(
+            "<!ATTLIST p:c xmlns:p CDATA 'urn' p:a CDATA 'default' words NMTOKENS '  x   y  '>",
+        );
+        catalog
+            .apply(
+                &DtdUnit::parse(&declaration, DtdLimits::default()).unwrap(),
+                DeclarationContext {
+                    internal_subset: true,
+                    literals: LiteralSource::Physical,
+                },
+            )
+            .unwrap();
+        drop(declaration);
+        let raw = String::from("<p:c p:a='explicit'/>");
+        let event = state
+            .process_dtd_start_owned(&raw, 0, &mut catalog)
+            .unwrap();
+        assert_eq!(state.element_depth(), 1);
+        assert_eq!(state.events, 2);
+        let error = state
+            .process_dtd_start_owned("<p:d/>", 0, &mut catalog)
+            .unwrap_err();
+        assert_eq!(
+            error.kind,
+            crate::dtd_tag::DtdTagErrorKind::Parser(ErrorKind::Namespace)
+        );
+        assert_eq!(state.element_depth(), 1);
+        assert_eq!(state.events, 2);
+        event
+    };
+    let Event::Empty(element) = event else {
+        panic!("expected empty");
+    };
+    assert_eq!(element.name.qualified(), "p:c");
+    assert_eq!(element.name.namespace(), Some("urn"));
+    let attributes = element
+        .attributes
+        .iter()
+        .map(|attribute| {
+            (
+                attribute.name.qualified(),
+                attribute.name.namespace(),
+                attribute.value.as_ref(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        attributes,
+        [
+            ("p:a", Some("urn"), "explicit"),
+            ("xmlns:p", Some("http://www.w3.org/2000/xmlns/"), "urn"),
+            ("words", None, "x y"),
+        ]
+    );
+}
