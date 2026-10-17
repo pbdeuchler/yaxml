@@ -355,3 +355,109 @@ fn generated_defaults_and_pending_namespaces_survive_all_source_storage() {
         ]
     );
 }
+
+fn namespace_defaults() -> DtdCatalog {
+    use crate::dtd::{DtdLimits, DtdUnit, LiteralSource};
+    use crate::dtd_catalog::DeclarationContext;
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    catalog
+        .apply(
+            &DtdUnit::parse(
+                "<!ATTLIST p:c xmlns:p CDATA 'urn' a CDATA 'v'>",
+                DtdLimits::default(),
+            )
+            .unwrap(),
+            DeclarationContext {
+                internal_subset: true,
+                literals: LiteralSource::Physical,
+            },
+        )
+        .unwrap();
+    catalog
+}
+
+#[test]
+fn nonempty_generated_start_retains_default_scope_after_raw_and_catalog_drop() {
+    let (parent, child, end): (Event<'static>, Event<'static>, Event<'static>) = {
+        let mut state = body(Limits::default());
+        let raw = String::from("<p:c>");
+        let mut catalog = namespace_defaults();
+        let parent = state
+            .process_dtd_start_owned(&raw, 0, &mut catalog)
+            .unwrap();
+        drop(raw);
+        drop(catalog);
+        assert_eq!(state.element_depth(), 2);
+        assert_eq!(state.events, 2);
+        let child = state
+            .process_dtd_start_owned(
+                "<p:x/>",
+                0,
+                &mut DtdCatalog::new(CatalogLimits::default(), false),
+            )
+            .unwrap();
+        assert_eq!(state.element_depth(), 2);
+        let end = state.process_dtd_end_owned("</p:c>", 0).unwrap();
+        assert_eq!(state.element_depth(), 1);
+        assert_eq!(
+            state.resolve_name("p:x", false, 0).err().unwrap().kind,
+            ErrorKind::Namespace
+        );
+        state.process_dtd_end_owned("</r>", 0).unwrap();
+        assert_eq!(state.events, 5);
+        state.validate_finish(0).unwrap();
+        (parent, child, end)
+    };
+    let Event::Start(parent) = parent else {
+        panic!("expected nonempty Start");
+    };
+    assert_eq!(parent.name.qualified(), "p:c");
+    assert_eq!(parent.name.namespace(), Some("urn"));
+    assert_eq!(parent.attributes.len(), 2);
+    assert_eq!(parent.attributes[0].name.qualified(), "xmlns:p");
+    assert_eq!(parent.attributes[0].value, "urn");
+    assert_eq!(parent.attributes[1].name.qualified(), "a");
+    assert_eq!(parent.attributes[1].value, "v");
+    assert!(
+        matches!(child, Event::Empty(element) if element.name.qualified() == "p:x" && element.name.namespace() == Some("urn"))
+    );
+    assert!(
+        matches!(end, Event::End(name) if name.qualified() == "p:c" && name.namespace() == Some("urn"))
+    );
+}
+
+#[test]
+fn nonempty_generated_start_frame_copy_ceiling_keeps_pending_scope_unpublished() {
+    // Event names/values, interner/scope strings and the frame QName total 29.
+    // The final three bytes retain p:c in the open-element frame.
+    for short in [false, true] {
+        let mut state = body(Limits {
+            max_owned_bytes: 29 - usize::from(short),
+            ..Limits::default()
+        });
+        let mut catalog = namespace_defaults();
+        let result = state.process_dtd_start_owned("<p:c>", 10, &mut catalog);
+        if short {
+            let error = result.unwrap_err();
+            assert_eq!(
+                error.kind,
+                crate::dtd_tag::DtdTagErrorKind::Parser(ErrorKind::LimitExceeded(
+                    Limit::OwnedBytes
+                ))
+            );
+            assert_eq!(error.location, crate::dtd_tag::DtdTagLocation::Input(11));
+            assert_eq!(state.budget.owned_bytes, 26);
+            assert_eq!(state.element_depth(), 1);
+            assert_eq!(state.events, 1);
+            assert_eq!(
+                state.resolve_name("p:x", false, 0).err().unwrap().kind,
+                ErrorKind::Namespace
+            );
+        } else {
+            assert!(matches!(result.unwrap(), Event::Start(_)));
+            assert_eq!(state.budget.owned_bytes, 29);
+            assert_eq!(state.element_depth(), 2);
+            assert_eq!(state.events, 2);
+        }
+    }
+}
