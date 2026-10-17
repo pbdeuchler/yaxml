@@ -116,6 +116,7 @@ fn local_tokens_preserve_every_content_kind_range_and_literal_bytes_at_all_split
         assert_eq!(
             usage,
             LocalUsage {
+                reference_copied: 0,
                 scanned: input.len(),
                 validated: input.len(),
                 work: input.len() * 2,
@@ -186,6 +187,7 @@ fn local_finish_release_and_restart_preserve_aggregate_work_and_monotone_caps() 
     assert_eq!(
         scanner.usage(),
         LocalUsage {
+            reference_copied: 0,
             scanned: 2,
             validated: 1,
             work: 3
