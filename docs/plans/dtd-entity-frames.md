@@ -46,12 +46,20 @@ after every child-frame check and reservation succeeds.
 
 Each frame snapshots a `FrameBoundary`: content plus current element depth, an
 attribute literal, entity-value construction, or between-declaration DTD
-state. A frame can finish only after consuming its complete replacement and
-returning to the same boundary; content must also return to the entry element
-depth. This enforces the parsed-entity requirement that tags, comments, PIs,
-character references, and entity references do not begin in one entity and end
-in another. The future controller remains responsible for parsing the bytes and
-reporting its actual boundary state.
+state. Before accepting an end tag from replacement text, the controller must
+call the frame guard; it rejects a close when current depth is at or below the
+active content frame's entry depth. This prevents `</outer><b>` from closing a
+caller element and later restoring the same numeric depth. A frame can finish
+only after consuming its complete replacement and returning to the same
+boundary; content must also return to the entry element depth.
+
+The core cannot prove lexical state from byte counts alone. The future
+controller must parse each token wholly within its source, call the end-tag
+guard before publication or source-origin closure, and report its actual state
+at frame completion. Attribute/entity-literal rules and the DTD fragment scanner
+provide the corresponding complete-source checks for their contexts. These
+controller checks together enforce the parsed-entity nesting requirement; the
+frame stack alone does not claim to validate arbitrary replacement bytes.
 
 ## Provenance without a history arena
 
@@ -109,4 +117,3 @@ buffered pull, and both DOM builders. The same change must add replacement and
 Mixed `SourceOrigin`, provenance-aware element closure, source-homogeneous text
 events, and parse-only DOM text coalescing. Until then, the module remains
 test-only and supports no DTD compatibility or acceptance claim.
-
