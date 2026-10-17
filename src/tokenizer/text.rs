@@ -244,6 +244,27 @@ impl<'input> TextSourceLease<'input> {
         tokenizer.source_position = physical_position;
         Ok(Self::streaming(tokenizer))
     }
+    pub(crate) fn resume_stable_utf8(
+        tokenizer: Tokenizer,
+        input: &'input str,
+        decoded_position: usize,
+        physical_position: usize,
+    ) -> Result<Self, TextError> {
+        let source = Self::resume_utf8(tokenizer, decoded_position, physical_position)?;
+        let LeaseKind::Input { tokenizer, .. } = source.kind else {
+            unreachable!("resumed input")
+        };
+        Self::stable_utf8(tokenizer, input, 0)
+    }
+    pub(crate) fn is_stable_input(&self) -> bool {
+        matches!(
+            self.kind,
+            LeaseKind::Input {
+                mode: InputMode::Stable { .. },
+                ..
+            }
+        )
+    }
     pub(crate) fn stable_utf8(
         tokenizer: Tokenizer,
         input: &'input str,
@@ -322,6 +343,42 @@ impl<'input> TextSourceLease<'input> {
             LeaseKind::Input { tokenizer, .. } => Some(tokenizer.encoding),
             LeaseKind::Local { .. } => None,
         }
+    }
+    fn stable_remaining(&self) -> Option<&'input [u8]> {
+        let LeaseKind::Input {
+            mode:
+                InputMode::Stable {
+                    input,
+                    decoded_start,
+                },
+            decoded,
+            ..
+        } = &self.kind
+        else {
+            return None;
+        };
+        input.as_bytes().get(decoded.checked_sub(*decoded_start)?..)
+    }
+    fn stable_current(&self) -> Option<(TokenKind, &'input str, TokenSpan)> {
+        let LeaseKind::Input {
+            tokenizer,
+            mode:
+                InputMode::Stable {
+                    input,
+                    decoded_start,
+                },
+            ..
+        } = &self.kind
+        else {
+            return None;
+        };
+        let (kind, _, span) = tokenizer.current()?;
+        if span.encoding != SourceEncoding::Utf8 || span.source != span.decoded {
+            return None;
+        }
+        let start = span.decoded.start.checked_sub(*decoded_start)?;
+        let end = span.decoded.end.checked_sub(*decoded_start)?;
+        Some((kind, input.get(start..end)?, span.clone()))
     }
     fn current(&self) -> Option<TextToken<'_>> {
         match &self.kind {
@@ -482,6 +539,19 @@ impl<'input> TextCoordinator<'input> {
         }
         self.source.current()
     }
+    pub(crate) fn is_stable_input(&self) -> bool {
+        self.source.is_stable_input()
+    }
+    pub(crate) fn stable_remaining(&self) -> Option<&'input [u8]> {
+        if self.shared.failure.is_some() {
+            return None;
+        }
+        self.source.stable_remaining()
+    }
+    pub(crate) fn stable_current(&self) -> Option<(TokenKind, &'input str, TokenSpan)> {
+        self.current()?;
+        self.source.stable_current()
+    }
     pub(crate) fn current_with_work(&mut self) -> Option<(TextToken<'_>, &mut TextShared)> {
         if self.shared.failure.is_some()
             || !matches!(self.pending, Pending::TokenReady | Pending::PrefixReady(_))
@@ -533,6 +603,12 @@ impl<'input> TextCoordinator<'input> {
         })
     }
     pub(crate) fn advance_borrowed(&mut self) -> Result<TextStep, TextError> {
+        self.advance_borrowed_bounded(usize::MAX)
+    }
+    pub(crate) fn advance_borrowed_bounded(
+        &mut self,
+        maximum: usize,
+    ) -> Result<TextStep, TextError> {
         self.remember(|s| {
             let LeaseKind::Input {
                 mode:
@@ -551,7 +627,8 @@ impl<'input> TextCoordinator<'input> {
                 .checked_sub(start)
                 .filter(|at| *at <= input.len())
                 .ok_or_else(|| s.error(TextErrorKind::InvalidState))?;
-            s.drive(&input.as_bytes()[relative..])
+            let available = &input.as_bytes()[relative..];
+            s.drive(&available[..available.len().min(maximum)])
         })
     }
     pub(crate) fn finish_step(&mut self) -> Result<TextStep, TextError> {
