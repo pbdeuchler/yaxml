@@ -679,3 +679,173 @@ fn many_unique_prefixes_and_uri_aliases_resolve_from_pending_indexes() {
         assert_eq!(attribute.name.namespace(), Some(namespace.as_str()));
     }
 }
+
+#[test]
+fn ordinary_start_tags_keep_the_shipped_one_pass_error_order() {
+    let raw = "<r a='ok' a='&missing;'/>";
+    let mut state = ParserState::new(Limits::default(), 0);
+    let error = state
+        .process_token(TokenKind::Start, raw, 0..raw.len(), |value, _, _| {
+            Ok(Cow::Borrowed(value))
+        })
+        .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::UnknownEntity);
+    assert_eq!(error.offset, 13);
+
+    let state = ParserState::new(Limits::default(), 0);
+    let error = state.collect_raw_tag(raw, 0).unwrap_err();
+    assert_eq!(error.kind, ErrorKind::DuplicateAttribute);
+    assert_eq!(error.offset, 10);
+}
+
+#[test]
+fn dtd_start_orchestration_applies_defaults_and_commits_one_event() {
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    declare(
+        &mut catalog,
+        "<!ATTLIST p:r xmlns:p CDATA 'urn:dtd' a CDATA 'v'>",
+    );
+    let mut state = ParserState::new(
+        Limits {
+            max_events: 1,
+            ..Limits::default()
+        },
+        0,
+    );
+    let raw = "<p:r/>";
+    let Event::Empty(element) = state
+        .process_dtd_start(
+            raw,
+            0,
+            &mut catalog,
+            LiteralSource::Physical,
+            &mut |value, _, _| Ok(Cow::Borrowed(value)),
+        )
+        .unwrap()
+    else {
+        panic!("empty element")
+    };
+    assert_eq!(element.name.namespace(), Some("urn:dtd"));
+    assert_eq!(element.attributes.len(), 2);
+    assert_eq!(element.attributes[0].name.qualified(), "xmlns:p");
+    assert_eq!(element.attributes[1].name.qualified(), "a");
+    assert_eq!(element.attributes[1].value, "v");
+
+    assert_eq!(
+        state
+            .process_dtd_start(
+                "<r/>",
+                raw.len(),
+                &mut catalog,
+                LiteralSource::Physical,
+                &mut |value, _, _| Ok(Cow::Borrowed(value)),
+            )
+            .unwrap_err()
+            .kind,
+        DtdTagErrorKind::Parser(ErrorKind::LimitExceeded(Limit::Events))
+    );
+}
+
+#[test]
+fn failed_dtd_start_does_not_commit_event_or_namespace_state() {
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut state = ParserState::new(
+        Limits {
+            max_events: 1,
+            ..Limits::default()
+        },
+        0,
+    );
+    assert_eq!(
+        state
+            .process_dtd_start(
+                "<p:r/>",
+                0,
+                &mut catalog,
+                LiteralSource::Physical,
+                &mut |value, _, _| Ok(Cow::Borrowed(value)),
+            )
+            .unwrap_err()
+            .kind,
+        DtdTagErrorKind::Parser(ErrorKind::Namespace)
+    );
+
+    let Event::Empty(element) = state
+        .process_dtd_start(
+            "<r/>",
+            6,
+            &mut catalog,
+            LiteralSource::Physical,
+            &mut |value, _, _| Ok(Cow::Borrowed(value)),
+        )
+        .unwrap()
+    else {
+        panic!("empty element")
+    };
+    assert_eq!(element.name.qualified(), "r");
+}
+
+#[test]
+fn dtd_start_checks_token_encoding_event_and_depth_before_collection() {
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    for (limits, expected) in [
+        (
+            Limits {
+                max_token_bytes: 3,
+                ..Limits::default()
+            },
+            ErrorKind::LimitExceeded(Limit::TokenBytes),
+        ),
+        (
+            Limits {
+                max_events: 0,
+                ..Limits::default()
+            },
+            ErrorKind::LimitExceeded(Limit::Events),
+        ),
+        (
+            Limits {
+                max_depth: 0,
+                ..Limits::default()
+            },
+            ErrorKind::LimitExceeded(Limit::Depth),
+        ),
+    ] {
+        let mut state = ParserState::new(limits, 0);
+        let error = state
+            .process_dtd_start(
+                "<r/>",
+                0,
+                &mut catalog,
+                LiteralSource::Physical,
+                &mut |value, _, _| Ok(Cow::Borrowed(value)),
+            )
+            .unwrap_err();
+        assert_eq!(error.kind, DtdTagErrorKind::Parser(expected));
+        assert_eq!(error.location, DtdTagLocation::Input(0));
+    }
+
+    let mut state = ParserState::new(Limits::default(), 0);
+    state.set_encoding(
+        crate::encoding::SourceEncoding::Utf16 {
+            little_endian: true,
+            bom: false,
+        },
+        0,
+        Limits::default().max_token_bytes,
+    );
+    let error = state
+        .process_dtd_start(
+            "<r/>",
+            0,
+            &mut catalog,
+            LiteralSource::Physical,
+            &mut |value, _, _| Ok(Cow::Borrowed(value)),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.kind,
+        DtdTagErrorKind::Parser(ErrorKind::EncodingMismatch)
+    );
+    assert_eq!(error.location, DtdTagLocation::Input(0));
+}

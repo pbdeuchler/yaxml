@@ -95,6 +95,7 @@ impl<'a> Name<'a> {
         self.prefix_length
     }
 
+    #[cfg(test)]
     pub(crate) fn qualified_source(&self) -> &Cow<'a, str> {
         &self.qualified
     }
