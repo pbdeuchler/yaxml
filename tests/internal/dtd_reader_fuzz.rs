@@ -13,6 +13,9 @@ use std::io::{self, Read, Write};
 use std::ops::Range;
 use std::process::{Command, Stdio};
 
+#[path = "dtd_reader_fuzz_step2.rs"]
+mod step2;
+
 const MAX_INPUT: usize = 1024 * 1024;
 const MAX_GENERATED: usize = 4 * 1024;
 const MAX_EVENTS: usize = 128;
@@ -72,6 +75,7 @@ struct ExpectedAttribute {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ExpectedOrigin {
+    full: SourceOrigin,
     input: Option<Range<usize>>,
     replacement: Option<Range<usize>>,
     physical: Range<usize>,
@@ -146,6 +150,7 @@ fn physical(kind: ExpectedKind, range: Range<usize>) -> ExpectedEvent {
     ExpectedEvent {
         kind,
         origin: ExpectedOrigin {
+            full: SourceOrigin::input(range.clone()),
             input: Some(range.clone()),
             replacement: None,
             physical: range,
@@ -156,12 +161,24 @@ fn physical(kind: ExpectedKind, range: Range<usize>) -> ExpectedEvent {
 
 fn replacement(
     kind: ExpectedKind,
+    declaration: usize,
+    invocation: u64,
     local: Range<usize>,
     physical_range: Range<usize>,
 ) -> ExpectedEvent {
+    use crate::origin::{ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr};
+    use std::num::NonZeroU64;
+
+    let full = SourceOrigin::from_repr(OriginRepr::Replacement {
+        declaration: EntityDeclarationId::from_index(declaration),
+        invocation: EntityInvocationId(NonZeroU64::new(invocation).unwrap()),
+        local: ByteSpan::new(local.clone()).unwrap(),
+        physical_reference: ByteSpan::new(physical_range.clone()).unwrap(),
+    });
     ExpectedEvent {
         kind,
         origin: ExpectedOrigin {
+            full,
             input: None,
             replacement: Some(local),
             physical: physical_range,
@@ -209,6 +226,7 @@ fn push_physical_text(case: &mut GeneratedCase, value: &str) {
                 input: Some(input),
                 replacement: None,
                 physical,
+                full,
             },
         fields,
     }) = case.expected.last_mut()
@@ -217,6 +235,7 @@ fn push_physical_text(case: &mut GeneratedCase, value: &str) {
         previous.push_str(value);
         input.end = end;
         physical.end = end;
+        *full = SourceOrigin::input(input.clone());
         let Some(ExpectedField {
             role: FieldRole::Leaf,
             value: field_value,
@@ -346,6 +365,7 @@ fn entity_case(input: &[u8]) -> GeneratedCase {
         ExpectedKind::Start(root.to_owned(), None, Vec::new()),
         vec![(FieldRole::ElementName, root.to_owned(), 1..1 + root.len())],
     );
+    let mut next_invocation = 1_u64;
     for operation in 0..body_count {
         let choice = control(input, 16 + operation) % 6;
         match choice {
@@ -361,6 +381,8 @@ fn entity_case(input: &[u8]) -> GeneratedCase {
                 let start = case.source.len();
                 case.source.push_str(&reference);
                 let occurrence = start..case.source.len();
+                let outer_invocation = next_invocation;
+                next_invocation += 1;
                 case.logical_expansion = case
                     .logical_expansion
                     .checked_add(expansion_lengths[index])
@@ -371,6 +393,8 @@ fn entity_case(input: &[u8]) -> GeneratedCase {
                         case.expected.push(
                             replacement(
                                 ExpectedKind::Empty(format!("n{index}"), None, Vec::new()),
+                                index,
+                                outer_invocation,
                                 0..format!("<n{index}/>").len(),
                                 occurrence.clone(),
                             )
@@ -383,6 +407,8 @@ fn entity_case(input: &[u8]) -> GeneratedCase {
                         case.expected.push(
                             replacement(
                                 ExpectedKind::Text("t".to_owned()),
+                                index,
+                                outer_invocation,
                                 local..local + 1,
                                 occurrence,
                             )
@@ -390,14 +416,24 @@ fn entity_case(input: &[u8]) -> GeneratedCase {
                         );
                     }
                     (3, 0) => case.expected.push(
-                        replacement(ExpectedKind::Text("A".to_owned()), 0..1, occurrence)
-                            .with_fields(vec![owned_field(FieldRole::Leaf, "A")]),
+                        replacement(
+                            ExpectedKind::Text("A".to_owned()),
+                            0,
+                            outer_invocation,
+                            0..1,
+                            occurrence,
+                        )
+                        .with_fields(vec![owned_field(FieldRole::Leaf, "A")]),
                     ),
                     (3, _) => {
                         let first = char::from(b'a' + control(input, 9) % 26);
+                        let inner_invocation = next_invocation;
+                        next_invocation += 1;
                         case.expected.push(
                             replacement(
                                 ExpectedKind::Text("A".to_owned()),
+                                0,
+                                inner_invocation,
                                 0..1,
                                 occurrence.clone(),
                             )
@@ -406,6 +442,8 @@ fn entity_case(input: &[u8]) -> GeneratedCase {
                         case.expected.push(
                             replacement(
                                 ExpectedKind::Text("B".to_owned()),
+                                index,
+                                outer_invocation,
                                 format!("&e0{first};").len()..format!("&e0{first};B").len(),
                                 occurrence,
                             )
@@ -416,8 +454,14 @@ fn entity_case(input: &[u8]) -> GeneratedCase {
                         let value = entity_values[index].clone();
                         let length = value.len();
                         case.expected.push(
-                            replacement(ExpectedKind::Text(value.clone()), 0..length, occurrence)
-                                .with_fields(vec![owned_field(FieldRole::Leaf, value)]),
+                            replacement(
+                                ExpectedKind::Text(value.clone()),
+                                index,
+                                outer_invocation,
+                                0..length,
+                                occurrence,
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, value)]),
                         );
                     }
                 }
@@ -565,6 +609,8 @@ fn parameter_declaration_case() -> GeneratedCase {
                 LiteralSource::Replacement,
                 RawSource::Owned,
             ),
+            0,
+            1,
             0..15,
             invocation_start..invocation_start + 3,
         )
@@ -585,6 +631,8 @@ fn parameter_declaration_case() -> GeneratedCase {
     case.expected.push(
         replacement(
             ExpectedKind::Text("x".to_owned()),
+            1,
+            2,
             0..1,
             reference_start..reference_start + 3,
         )
@@ -721,6 +769,7 @@ fn observed_attributes(attributes: &[Attribute<'_>]) -> Vec<ExpectedAttribute> {
 
 fn observed_origin(origin: SourceOrigin) -> ExpectedOrigin {
     ExpectedOrigin {
+        full: origin,
         input: origin.input_range(),
         replacement: origin.replacement_range(),
         physical: origin.physical_context(),
@@ -982,10 +1031,15 @@ fn assert_terminal_sticky(reader: &mut DtdReader<'_>, terminal: Result<(), Sessi
     }
 }
 
-fn replay_arbitrary(input: &[u8]) {
+fn replay_arbitrary(input: &[u8], lifecycle: u8) {
     let Some(mut reader) = DtdReader::new(input, options()).ok() else {
         return;
     };
+    let source = std::str::from_utf8(input).unwrap();
+    let mut retained = Vec::new();
+    let mut retained_owned = 0_usize;
+    let mut extracted = Vec::new();
+    let mut delivered = 0_usize;
     loop {
         match reader.read_event() {
             Ok(Some((event, origin))) => {
@@ -993,7 +1047,33 @@ fn replay_arbitrary(input: &[u8]) {
                 assert_eq!(reader.event_origin(), Some(origin));
                 assert_eq!(reader.event_range(), origin.input_range());
                 assert!(reader.position() <= input.len());
-                check_event_storage(&event, origin, std::str::from_utf8(input).unwrap()).unwrap();
+                check_event_storage(&event, origin, source).unwrap();
+                match lifecycle & 3 {
+                    0 => {}
+                    1 => {
+                        let event_owned = step2::owned_event_bytes(&event);
+                        if retained.len() < MAX_EVENTS
+                            && retained_owned + event_owned <= step2::MAX_RETAINED_OWNED
+                        {
+                            retained_owned += event_owned;
+                            retained.push((event, origin));
+                        }
+                        for (held, held_origin) in &retained {
+                            check_event_storage(held, *held_origin, source).unwrap();
+                        }
+                    }
+                    2 => step2::collect_owned_bounded(event, &mut extracted, &mut retained_owned),
+                    3 if delivered == usize::from(lifecycle >> 2) => {
+                        let inner = reader.into_inner();
+                        assert_eq!(inner.as_ptr(), input.as_ptr());
+                        assert_eq!(inner.len(), input.len());
+                        replay_arbitrary(input, 0);
+                        return;
+                    }
+                    3 => {}
+                    _ => unreachable!(),
+                }
+                delivered += 1;
             }
             Ok(None) => {
                 assert_terminal_sticky(&mut reader, Ok(()));
@@ -1009,6 +1089,10 @@ fn replay_arbitrary(input: &[u8]) {
 }
 
 fn run_generated(case: GeneratedCase) {
+    run_generated_lifecycle(case, 1);
+}
+
+fn run_generated_lifecycle(case: GeneratedCase, lifecycle: u8) {
     assert!(case.source.len() <= MAX_GENERATED);
     assert!(case.expected.len() <= MAX_EVENTS);
     assert!(case.declarations <= MAX_DECLARATIONS);
@@ -1016,29 +1100,78 @@ fn run_generated(case: GeneratedCase) {
     assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
     let mut reader = DtdReader::new(case.source.as_bytes(), options()).unwrap();
     let mut held = Vec::new();
-    for expected in &case.expected {
+    let mut extracted = Vec::new();
+    let mut extracted_bytes = 0_usize;
+    let checkpoint = usize::from(lifecycle >> 2).min(case.expected.len().saturating_sub(1));
+    for (index, expected) in case.expected.iter().enumerate() {
         let (event, origin) = reader.read_event().unwrap().expect("expected event");
         assert_eq!(observed_kind(&event), expected.kind);
         assert_eq!(observed_origin(origin), expected.origin);
         check_expected_fields(&event, &expected.fields, &case.source).unwrap();
-        held.push((event, origin));
+        match lifecycle & 3 {
+            0 => {}
+            1 => {
+                held.push((event, origin));
+                for ((held_event, held_origin), held_expected) in held.iter().zip(&case.expected) {
+                    assert_eq!(observed_kind(held_event), held_expected.kind);
+                    assert_eq!(observed_origin(*held_origin), held_expected.origin);
+                    check_expected_fields(held_event, &held_expected.fields, &case.source).unwrap();
+                }
+            }
+            2 => step2::collect_owned_bounded(event, &mut extracted, &mut extracted_bytes),
+            3 if index == checkpoint => {
+                let pointer = case.source.as_ptr();
+                let length = case.source.len();
+                let inner = reader.into_inner();
+                assert_eq!(inner.as_ptr(), pointer);
+                assert_eq!(inner.len(), length);
+                run_generated_lifecycle(case, 0);
+                return;
+            }
+            3 => {}
+            _ => unreachable!(),
+        }
     }
     assert!(reader.read_event().unwrap().is_none());
     assert_terminal_sticky(&mut reader, Ok(()));
     drop(reader);
-    assert_eq!(held.len(), case.expected.len());
+    assert_eq!(
+        held.len(),
+        if lifecycle & 3 == 1 {
+            case.expected.len()
+        } else {
+            0
+        }
+    );
     for ((event, origin), expected) in held.iter().zip(&case.expected) {
         assert_eq!(observed_kind(event), expected.kind);
         assert_eq!(observed_origin(*origin), expected.origin);
         check_expected_fields(event, &expected.fields, &case.source).unwrap();
     }
+    if lifecycle & 3 == 2 {
+        drop(case.source);
+    }
+    assert!(extracted_bytes <= step2::MAX_RETAINED_OWNED);
+    assert_eq!(
+        extracted.iter().map(String::len).sum::<usize>(),
+        extracted_bytes
+    );
 }
 
 /// Exercise the private reader with bounded direct and independently generated input.
 pub(crate) fn exercise(input: &[u8]) {
     let input = &input[..input.len().min(MAX_INPUT)];
-    replay_arbitrary(input);
-    run_generated(generated_case(&input[..input.len().min(64)]));
+    let controls = &input[..input.len().min(64)];
+    replay_arbitrary(input, control(controls, 7));
+    run_generated_lifecycle(generated_case(controls), control(controls, 7));
+    step2::exercise_witness_bank(control(controls, 7));
+    step2::exercise_truncation(control(controls, 4), control(controls, 7));
+    step2::exercise_quota(
+        control(controls, 5),
+        control(controls, 6),
+        control(controls, 3),
+        control(controls, 7),
+    );
 }
 
 fn read_bounded(mut input: impl Read) -> io::Result<Vec<u8>> {
