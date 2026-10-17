@@ -99,9 +99,12 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   groups and the combined 585-test/13-doctest suite. The
   [prototype review](review-dtd-prototypes.md) records independent catalogs,
   deliberate faults and the 56-byte unit layout. Their source remains on
-  `integrate/dtd-prototype`, outside main; binding/default semantics, entity
-  frames, real replacement/mixed provenance, DOM coalescing, public events and
-  serialization, fuzzing, conformance and performance gates remain open.
+  `integrate/dtd-prototype`, outside main. Reviewed private
+  [binding/default semantics and entity frames](review-dtd-semantics.md) now
+  extend that foundation to 129 focused groups and 664 tests/13 doctests.
+  The controller, runtime replacement/mixed provenance, DOM coalescing, public
+  events and serialization, fuzzing, conformance and performance gates remain
+  open.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
