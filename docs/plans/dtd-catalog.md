@@ -43,7 +43,7 @@ internal PE placement check still runs. [Sections 2.8 and 5.1](https://www.w3.or
 Do not enforce ID uniqueness, required/fixed instance constraints, default
 membership/type validity, undeclared notations, or other validity-only rules.
 Recognize the five predefined entities independently of declarations; check
-any supplied predefined declarations against section 4.6's required form.
+any supplied predefined declarations against section 4.6's required form.\nThis strict private diagnostic is a documented compatibility difference from\npinned libxml2 2.15.4, which warns for invalid amp/lt declarations while keeping\nbuilt-in uses fixed; it is not labeled a well-formedness or validity constraint.
 
 ## Concrete state and API
 
@@ -75,7 +75,7 @@ Proposed methods:
 - `note_unread_parameter()` applies the barrier when a controller declines a PE;
 - `usage()` exposes deterministic logical counters for quota verification.
 
-`DeclarationContext` distinguishes internal-subset vs external declarations and
+`DeclarationContext.internal_subset` selects internal-subset lexical restrictions\n(including declarations from internal PEs), not standalone external-markup\nprovenance. The latter accounting remains an activation prerequisite. Context\nalso distinguishes
 `LiteralSource::{Physical, Replacement}`. The physical case takes decoded text
 whose literal EOL bytes have not yet been normalized; the replacement case is
 already constructed text. A header with an external ID records an unread
@@ -95,8 +95,9 @@ claim physical document offsets or occurrence provenance. Each binding retains
 its declaration ordinal for a future origin adapter. Real occurrence provenance
 and physical error anchoring remain prerequisites for activation.
 
-Add exact quoted-literal offsets to the existing EntityDefinitionView::Internal
-and DefaultDeclarationView::Value, and an offset to ReferenceView. These are
+Add exact O(1) quoted-literal offset getters to EntityDeclarationView and
+AttributeDefinitionView, plus DtdUnit::reference_positions(). Existing view
+values stay unchanged. These are
 validated unit-relative token positions, not pointer-derived guesses or a new
 source framework. The stored DtdUnit representation stays unchanged.
 
@@ -108,7 +109,7 @@ borrows are short-lived and no borrow survives catalog mutation. All frames
 are popped before apply/normalization returns. A stack scan detects active-ID
 cycles; charge its comparisons to work, so configured depth cannot hide work.
 No recursive Rust calls, expanded document, or expanded intermediate entity
-copies. Numeric/predefined output is appended directly and never reparsed.
+copies. Numeric output is appended directly and never reparsed in either mode. Predefined decoding is exclusive to attribute processing: EntityValue retains all GE spellings, including predefined names.
 
 Independent limits cover processed declaration attempts, effective bindings,
 retained string bytes, one constructed/normalized value's bytes, cumulative

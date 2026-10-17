@@ -6,6 +6,8 @@ mod dom;
 #[cfg(test)]
 mod dtd;
 #[cfg(test)]
+mod dtd_catalog;
+#[cfg(test)]
 mod dtd_frames;
 #[cfg(test)]
 mod dtd_scan;

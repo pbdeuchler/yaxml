@@ -291,11 +291,18 @@ impl<'a> DtdUnit<'a> {
     }
 
     pub(crate) fn references(&self) -> impl Iterator<Item = ReferenceView<'_>> {
+        self.reference_positions().map(|(_, reference)| reference)
+    }
+
+    pub(crate) fn reference_positions(&self) -> impl Iterator<Item = (usize, ReferenceView<'_>)> {
         self.tokens.iter().filter_map(|token| match token.kind {
-            TokenKind::Reference(kind) => Some(ReferenceView {
-                kind,
-                spelling: &self.raw[token.range.clone()],
-            }),
+            TokenKind::Reference(kind) => Some((
+                token.range.start,
+                ReferenceView {
+                    kind,
+                    spelling: &self.raw[token.range.clone()],
+                },
+            )),
             _ => None,
         })
     }
@@ -497,6 +504,13 @@ impl<'a> AttributeDefinitionView<'a> {
         }
     }
 
+    pub(crate) fn default_literal_offset(self) -> Option<usize> {
+        match self.meta.default {
+            DefaultMeta::Value { literal, .. } => Some(self.unit.tokens[literal].range.start),
+            DefaultMeta::Required | DefaultMeta::Implied => None,
+        }
+    }
+
     pub(crate) fn default(self) -> DefaultDeclarationView<'a> {
         match self.meta.default {
             DefaultMeta::Required => DefaultDeclarationView::Required,
@@ -612,6 +626,15 @@ impl<'a> EntityDeclarationView<'a> {
 
     pub(crate) fn name(self) -> &'a str {
         self.unit.token_text(0)
+    }
+
+    pub(crate) fn quoted_literal_offset(self) -> Option<usize> {
+        match self.kind {
+            DtdUnitKind::GeneralInternalEntity | DtdUnitKind::ParameterInternalEntity => {
+                Some(self.unit.tokens.last()?.range.start)
+            }
+            _ => None,
+        }
     }
 
     pub(crate) fn definition(self) -> EntityDefinitionView<'a> {
