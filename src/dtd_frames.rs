@@ -703,3 +703,11 @@ fn checked_add_counter(
 #[cfg(test)]
 #[path = "../tests/internal/dtd_frames_author.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_frames_spec.rs"]
+mod spec_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_entity_pipeline_spec.rs"]
+mod pipeline_tests;
