@@ -29,7 +29,9 @@ Keep ordinary DTD-free Reader/Stream paths. Add one lazily allocated, fallibly
 reserved slot for the optional DTD session: a `Vec<DtdSession<'input>>` whose
 length is zero or one. This uses stable `try_reserve_exact(1)` rather than an
 unverified fallible Box API. No catalog, frame stack, replacement tokenizer or
-reference scratch is stored inline in every ordinary ParserState. This means
+reference scratch is stored inline in every ordinary ParserState. The session
+container itself is deferred until frontend activation; the first private
+foundation tests concrete scanner/controller values directly. This means
 zero/one *session-container* allocation, not a claim that DTD maps/scratch need
 only one allocation. Record actual layouts before activation.
 
@@ -65,13 +67,28 @@ in Stream, preserving transport carry and BOM/declaration state.
 Proposed narrow content methods (private, final spelling subject to API review):
 
 - `borrowing_utf8(body, stable_window, cursor)` / `streaming(body, cursor, encoding)`;
-- `advance_borrowed(&mut Budget)` / `advance(decoded_bytes, &mut Budget) -> usize`;
+- `advance_borrowed(&mut Budget)` / `advance(decoded_bytes, &mut Budget) -> Advance`;
 - `finish_step(&mut Budget)`, `has_token`, `is_non_event`, `release`;
 - `read_event(&mut ParserState<'input>) -> Option<(Event<'input>, SourceOrigin)>`
   for Reader, with physical stable borrowing and generated owned fields;
 - `event(&mut ParserState<'static>) -> (Event<'_>, SourceOrigin)` and `emit`
   for Stream's existing lending/callback policies;
 - `physical_position`, with no source-progress inference from event origins.
+
+`Advance` is a concrete result `{ consumed: usize, outcome: DriveOutcome }`, with
+`DriveOutcome = EventReady | NeedPhysicalInput | Progress`. `consumed` is only
+new physical decoded bytes accepted by this call, including bounded lookahead;
+it is zero for generated-only steps. EventReady means one complete source token
+can be parsed/delivered. NeedPhysicalInput means no queued reference, frame
+return, or replacement byte can make further progress without new primary input.
+Progress means one internal transition occurred without a token: for example,
+entering an empty GE or popping a finished frame. A zero-byte Progress must
+spend a reference/work attempt or decrease pending/frame state; unchanged state
+must return NeedPhysicalInput, never Progress. The coordinator loops Progress,
+handles EventReady then release, and requests bytes only on NeedPhysicalInput.
+A GE at the end of a physical chunk is drained before returning from that feed.
+The later facade may loop internally to collapse Progress; the private source
+foundation keeps the distinction observable for independent termination tests.
 
 Advancing drains pending references/frame returns without physical input until
 one semantic token or NeedPhysicalInput. Reader/Push/Buffered must drain this
@@ -187,6 +204,36 @@ libxml divergence explicit. Never check normalized/concatenated output for raw
 CharData `]]>`; validate each actual source spelling in its lexical context.
 
 ## Limits, errors and staged integration
+
+The one global work total begins with `DtdBodyState.counters.work` and is capped
+by the same retained `limits.max_work`. Its accounting units are explicit:
+
+- count each newly accepted decoded source byte once in scanner work, whether
+  physical or replacement; include reference scratch collection in that scan;
+- charge one reference-spelling length before its final UTF-8/name/classification
+  pass; incomplete fragments are never reclassified from the beginning per chunk;
+- charge copied reference bytes once before replaying numeric/predefined spelling
+  into the Text buffer; that replay is a copy, NOT newly scanned input;
+- charge a complete token's raw length once before semantic grammar/leaf processing;
+- add committed catalog and frame work deltas, including deltas on failure.
+
+Saved `<` replay, a pending GE spelling's already-counted physical bytes, and
+returning to a parent cursor are not new scanned bytes. Tokenizer positions may
+advance during a replay/skip, but the coordinator's newly-consumed source count
+must not. Resetting a fragment tokenizer does not reset global scan/work totals.
+Field retention/default/namespace allocations remain bounded by the SAME shared
+parser Budget; this work counter is named bounded processing passes, not an
+instruction counter or total allocator-memory measurement.
+
+Before each bounded scan/classification/copy/grammar operation, check/charge its
+known length against remaining global work. Before a catalog/frame call, cap its
+absolute component work ceiling to `usage.work + remaining_global` (checked or
+saturating only as an explicit upper cap), then synchronize its committed delta
+after success or failure. Existing component caps only decrease. No operation
+may overrun global work and have its spent delta checked only afterwards.
+A pop-only Progress can cost zero work because active state strictly decreases;
+an empty entry still incurs the frame attempt charge. Tests must cover the
+empty-entry/pop cycle at exact attempt/work ceilings and forbid zero-state loops.
 
 Move every DTD/body counter without resetting it. Frame attempt/work/expanded
 ceilings cover prior PE use and later GE use together. Charge incremental lexer,
