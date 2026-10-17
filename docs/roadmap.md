@@ -172,8 +172,20 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   with nine ignored in debug and release, including 624 library tests and 31
   authored/blind buffered groups. Six holistic and eight author mutations are
   caught. A second E0499 probe proves the frontend's physical event loan blocks
-  another mutable read. Stable Reader publication, public DTD events/errors, DOM
-  storage and public activation remain explicit follow-ups.
+  another mutable read. The subsequent private
+  [stable-input Reader](plans/dtd-stable-reader.md) removes the acknowledgement
+  loan from an immutable UTF-8 slice while preserving exact physical borrows,
+  generated ownership, one parser/catalog/frame state and truthful high-water
+  positions. Its [conformance plan](plans/dtd-stable-reader-conformance.md) and
+  [review](review-dtd-stable-reader.md) cover retained lifetimes, repeated equal
+  source occurrences, standalone and counter continuity, held-End handoff,
+  allocation/unwind atomicity and single-pass lazy attribute normalization.
+  The final private tree passes 670 library tests in debug and release and 13
+  doctests. Forty-one runtime mutations are killed and four invalid lifetime
+  constructions are rejected by the compiler; holistic review has no open
+  findings. Public DTD events/errors, UTF-16 ownership, DOM storage, complete
+  quota-facade coverage, DTD fuzz/coverage and performance gates, and public
+  activation remain explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The

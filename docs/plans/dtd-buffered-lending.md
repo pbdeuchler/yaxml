@@ -39,4 +39,6 @@ only at the I/O boundary. They cover bounded buffers and UTF-16, DTD and general
 entity drain ordering, consume-before-publication/error, exact input limits,
 error identity, panic poison, EOF, extraction/drop, and deliberate production
 faults. No public activation or conformance, fuzz, or performance claim belongs
-to this slice.
+to this slice. The next reviewed checkpoint is the private
+[stable-input Reader](dtd-stable-reader.md), which returns input-lifetime events
+without retaining a loan on reader state.
