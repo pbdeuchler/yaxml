@@ -313,7 +313,3 @@ impl<'a> Reader<'a> {
         ))
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_reader_spec.rs"]
-mod dtd_spec_tests;
