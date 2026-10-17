@@ -183,9 +183,17 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   The final private tree passes 670 library tests in debug and release and 13
   doctests. Forty-one runtime mutations are killed and four invalid lifetime
   constructions are rejected by the compiler; holistic review has no open
-  findings. Public DTD events/errors, UTF-16 ownership, DOM storage, complete
-  quota-facade coverage, DTD fuzz/coverage and performance gates, and public
-  activation remain explicit follow-ups.
+  findings. The subsequent private
+  [quota-facade review](review-dtd-reader-quota.md) maps all 40 applicable
+  settings through the Reader boundary with 94 focused groups and 15 killed
+  production faults. The first [private fuzz-driver review](review-dtd-reader-fuzz.md)
+  adds bounded direct replay, four structured families, exact occurrence and
+  provenance oracles, retained-lifetime checks and an ignored stdin entry. The
+  combined private tree passes 780 library tests in debug and release plus 13
+  doctests. Selector-driven truncation and quota/precedence axes, the campaign
+  protocol, measured coverage and performance gates remain open. Public DTD
+  events/errors, UTF-16 ownership, DOM storage and activation also remain
+  explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
