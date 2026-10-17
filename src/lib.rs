@@ -54,3 +54,7 @@ mod dtd_reference;
 #[cfg(test)]
 #[path = "../tests/internal/dtd_content_foundations_spec.rs"]
 mod dtd_content_foundations_spec;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_text_reference_spec.rs"]
+mod dtd_text_reference_spec;
