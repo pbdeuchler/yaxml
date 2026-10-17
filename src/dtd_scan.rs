@@ -359,3 +359,6 @@ impl DtdScanner {
 
 #[path = "../tests/internal/dtd_scan.rs"]
 mod tests;
+
+#[path = "../tests/internal/dtd_pipeline_spec.rs"]
+mod pipeline_spec;
