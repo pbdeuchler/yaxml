@@ -137,9 +137,14 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   scratch reservation and nine independent debug/release groups. The same work
   ledger admits external catalog/frame deltas before publication. Independent
   review found and corrected a resumed-position arithmetic panic; exact typed,
-  sticky overflow controls pass. Full GE scheduling, frame guards, catalog/
-  counter handoff and origin publication are being joined in a subsequent
-  private controller review before frontend activation.
+  sticky overflow controls pass. The subsequent private content controller now
+  moves that same ledger, catalog, frame stack, parser and ownership Budget
+  through physical and nested generated content. It drains empty and nested
+  entities finitely, preserves exact replacement origins, checks frame guards
+  before generated End publication and keeps callback cancellation terminal.
+  Nine author groups and 21 independent groups pass in debug and release; the
+  independent suite catches removed complete-token work accounting. This is a
+  reviewed private composition checkpoint, not frontend activation.
   The next [private streaming-session outline](plans/dtd-streaming-session.md)
   uses the existing early DOCTYPE token boundary, moves the same Decoder/parser
   into one optional session, and preserves the callback ownership Budget.

@@ -307,9 +307,32 @@ tracked files match their Git blobs and the worktree is clean. Root handle
 `/private/tmp/yaxml-dtd-root-text-ledger-{all-targets,release,doctests,clippy,fmt,diff}.log`;
 source manifest: `/private/tmp/yaxml-dtd-root-text-ledger-source.tsv`.
 
+The content-composition freeze is
+`6a5cfd28fe39abd33177436372e87b4219aa4e94`, source tree
+`dee62d2d726e39ceb67910f20805dbb4f295f0df`. It adds one private
+`ContentController` that consumes the existing body state and parser, shares the
+same work ledger and ownership Budget, and reuses one local tokenizer while the
+physical source is paused. The corrected checkpoint preserves native frame
+failures ahead of unavailable-dependency metadata. Its nine author groups and
+21 independently authored groups cover nested and empty entities, exact work,
+frame and ownership boundaries, source origins, generated-event ownership,
+parser-scope guards, callback cancellation and sticky failures. A holistic
+review mutation that removed complete-token charging changed the literal work
+total from 138 to 134 and was caught by the independent boundary test; the
+final scoped verdict is PASS with no findings.
+
+The combined private tree passes 972 tests with nine ignored across 44
+all-target groups, all 534 library tests in release, all 13 doctests, strict
+all-target Clippy, formatting and diff checks. All 342 tracked files match their
+Git blobs and the worktree is clean. Source manifest:
+`/private/tmp/yaxml-dtd-content-freeze-source.tsv` (SHA-256
+`331d7437ce7c394b6cb756cab1f8143ac78738bec550143e9025be597cb2578c`).
+The review supplement is
+`/private/tmp/yaxml-content-holistic-review-supplement.md`.
+
 No fresh fuzz-only coverage or XMLTS result is claimed for these private
 modules. Main's most recent public-source measurement remains 6,936/7,406
 regions and 910/964 instrumented branch outcomes. Reaching 100%, sustained
 hostile-input campaigns, allocation-failure injection, generated content
-scheduling, public DTD integration, matched libxml2 performance, allocator
+public DTD integration, matched libxml2 performance, allocator
 support and language bindings remain open.

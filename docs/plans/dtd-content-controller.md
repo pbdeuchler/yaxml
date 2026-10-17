@@ -424,3 +424,35 @@ replaying the prefix. The owned generated-event slice may defer these two
 frontend seams explicitly; it cannot claim Reader/Stream parity or a preserved
 DTD-aware Reader fast path. Public activation and its full validation gates stay
 open.
+
+## First complete private composition checkpoint
+
+The reviewed private checkpoint is
+`6a5cfd28fe39abd33177436372e87b4219aa4e94`, source tree
+`dee62d2d726e39ceb67910f20805dbb4f295f0df`. It implements the four steps
+above without changing a public frontend. `ContentController` owns the handed
+off `DtdBodyState` and the same `ParserState`; one `TextShared` ledger moves
+between the paused physical lease and a reused local lease. Catalog and frame
+work is admitted through that ledger before publication, generated End events
+run the frame boundary guard before parser scope mutation, and all generated
+event fields that escape source storage are owned through the parser's existing
+Budget.
+
+The initial implementation exposed a real precedence defect: dependency
+metadata for an unread entity could replace an earlier native frame-attempt or
+frame-work failure. The corrected implementation maps dependency metadata only
+when the frame result is precisely `Lookup(Unread)`. Literal independent cases
+now pin native attempt, native frame-work and global-work precedence separately.
+The same suite fixes complete-token work totals instead of deriving them from
+the implementation; deleting the physical/generated semantic charge fails with
+134 units where 138 are required.
+
+Nine author groups and 21 independently authored groups pass in debug and
+release. The full private tree passes 972 tests with nine ignored, 534 release
+library tests and 13 doctests, plus strict Clippy, formatting and diff checks.
+The private debug layout on Rust 1.95/aarch64 is 2,240 bytes for
+`ContentController`, 712 bytes for `DtdBodyState` and 40 bytes for one active
+entity record. These are staging measurements, not stable layout commitments.
+The callback-only controller still precedes the concrete frontend session; its
+reviewed error contract is refined at that next seam so the caller's physical
+error offset and the replacement-local cancellation endpoint remain distinct.
