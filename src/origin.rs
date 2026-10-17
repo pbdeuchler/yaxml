@@ -303,3 +303,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/internal/dtd_provenance_author.rs"]
 mod provenance_author_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_provenance_spec.rs"]
+mod provenance_spec_tests;

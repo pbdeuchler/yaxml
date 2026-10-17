@@ -369,6 +369,7 @@ fn spec_merge_quota_failure_preserves_cow_capacity_topology_and_origin() {
     let value = String::from("ab");
     let pointer = value.as_ptr();
     let capacity = value.capacity();
+    let incoming = "c".repeat(capacity);
     doc.append_text(
         NodeId(1),
         Cow::Owned(value),
@@ -380,8 +381,8 @@ fn spec_merge_quota_failure_preserves_cow_capacity_topology_and_origin() {
     assert_eq!(
         doc.append_text(
             NodeId(1),
-            Cow::Borrowed("c"),
-            generated(7, 0..1),
+            Cow::Borrowed(&incoming),
+            generated(7, 0..incoming.len()),
             state.owned_budget()
         ),
         Err(Error::new(

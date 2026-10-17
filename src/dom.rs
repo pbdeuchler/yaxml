@@ -428,3 +428,7 @@ impl<'document, 'input> Node<'document, 'input> {
 #[cfg(test)]
 #[path = "../tests/internal/dom_text_join_author.rs"]
 mod text_join_author_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dom_text_join_spec.rs"]
+mod text_join_spec_tests;

@@ -1464,6 +1464,10 @@ impl<'document> OwnedNode<'document> {
 #[path = "../tests/internal/owned_text_join_author.rs"]
 mod text_join_author_tests;
 
+#[cfg(test)]
+#[path = "../tests/internal/owned_text_join_spec.rs"]
+mod text_join_spec_tests;
+
 enum Descendants<'document> {
     Contiguous {
         document: &'document OwnedDocument,
