@@ -27,6 +27,16 @@ const LOCAL_NUMERIC: &str = "<!DOCTYPE r [<!ENTITY e '&#38;#65;'>]><r>&e;</r>";
 const GENERAL_TEXT: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>1234567890123456&e;</r>";
 const NUMERIC_TEXT: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>1234567890123456&#65;</r>";
 const SHARED: &str = "<?p a\r\n?><!DOCTYPE r [<!ENTITY % p '<!--a&#13;b-->'>%p;]><r/>";
+const REPEATED_PE: &str = "<!DOCTYPE r [<!ENTITY % p '<!--x-->'>%p;%p;]><r/>";
+const PE_MODEL: &str = "<!DOCTYPE r [<!ENTITY % p '<!ELEMENT r (a)>'>%p;]><r/>";
+const PE_BAD: &str = "<!DOCTYPE r [<!ENTITY % p '<!ELEMENT r>'>%p;]><r/>";
+const EMPTY_NESTED: &str = "<!DOCTYPE r [<!ENTITY e '&z;'><!ENTITY z ''>]><r>&e;</r>";
+const READ_DEFAULT: &str = "<!DOCTYPE r [<!ATTLIST r a CDATA 'v'>]><r/>";
+const TOKENIZED: &str = "<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]><r a=' v  '/>";
+const INDIRECT: &str = "<!DOCTYPE r [<!ENTITY e '&z;'><!ENTITY z 'xx'>]><r a='&e;'/>";
+const REPEATED_LOCAL: &str = "<!DOCTYPE r [<!ENTITY e '<n/>'>]><r>&e;&e;</r>";
+const EXPLICIT: &str = "<!DOCTYPE r><r a='v'/>";
+const ONE_GE: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;</r>";
 
 fn policy() -> SessionLimits {
     let mut p = configured();
@@ -193,6 +203,14 @@ fn golden(source: &str) -> &'static [&'static str] {
         ],
         NUMERIC_TEXT => &["begin", "item", "end", "+r", "T1234567890123456A", "-r"],
         SHARED => &["pi", "begin", "item", "item", "end", "=r"],
+        REPEATED_PE => &["begin", "item", "item", "item", "end", "=r"],
+        PE_MODEL => &["begin", "item", "item", "end", "=r"],
+        EMPTY_NESTED => &["begin", "item", "item", "end", "+r", "-r"],
+        READ_DEFAULT | TOKENIZED => &["begin", "item", "end", "=r"],
+        INDIRECT => &["begin", "item", "item", "end", "=r"],
+        REPEATED_LOCAL => &["begin", "item", "end", "+r", "=n", "=n", "-r"],
+        EXPLICIT => &["begin", "end", "=r"],
+        ONE_GE => &["begin", "item", "end", "+r", "Tx", "-r"],
         _ => panic!("unknown literal fixture"),
     }
 }
@@ -221,6 +239,7 @@ fn verify(case: Case) {
         let mut reader =
             DtdReader::with_decode_limits(case.source.as_bytes(), limits, decode, p).unwrap();
         let mut labels = Vec::new();
+        let mut retained = Vec::new();
         let mut previous = None::<ControllerCounters>;
         let mut terminated = false;
         for _ in 0..32 {
@@ -286,6 +305,30 @@ fn verify(case: Case) {
                         assert_eq!(controller.counters().owned_bytes, 10);
                         assert_eq!(parser.owned_budget().remaining_owned(), 0);
                     }
+                    if matches!(case.source, READ_DEFAULT | TOKENIZED | INDIRECT | EXPLICIT)
+                        && let ReaderEvent::Xml(Event::Empty(element)) = &event
+                    {
+                        assert_eq!(element.attributes.len(), 1);
+                        assert_eq!(
+                            element.attributes[0].value,
+                            if case.source == INDIRECT { "xx" } else { "v" }
+                        );
+                    }
+                    if case.source == REPEATED_PE && labels.len() == 4 {
+                        let Phase::Declarations { controller, parser } =
+                            reader.session.first_mut().unwrap()
+                        else {
+                            panic!("repeated Item phase")
+                        };
+                        assert_eq!(controller.counters().owned_bytes, 16);
+                        assert_eq!(
+                            parser.owned_budget().remaining_owned(),
+                            limits.max_owned_bytes - 16
+                        );
+                    }
+                    if case.name.ends_with("_retained") {
+                        retained.push(event);
+                    }
                 }
                 Ok(None) => {
                     assert!(
@@ -302,6 +345,16 @@ fn verify(case: Case) {
                                 reference_attempts: 2,
                                 work: 18,
                                 expanded_bytes: 16,
+                            }
+                        );
+                    }
+                    if case.source == EMPTY_NESTED {
+                        assert_eq!(
+                            counters(&reader).unwrap().frames.unwrap(),
+                            FrameCounters {
+                                reference_attempts: 2,
+                                work: 6,
+                                expanded_bytes: 3
                             }
                         );
                     }
@@ -382,6 +435,28 @@ fn verify(case: Case) {
                         assert_eq!(controller.counters().owned_bytes, 0);
                         assert_eq!(parser.owned_budget().remaining_owned(), 9);
                     }
+                    if case.source == REPEATED_PE && case.name.contains("promotion") {
+                        let Phase::Declarations { controller, parser } =
+                            reader.session.first_mut().unwrap()
+                        else {
+                            panic!("repeated failed Item phase")
+                        };
+                        assert_eq!(controller.counters().owned_bytes, 8);
+                        assert_eq!(
+                            parser.owned_budget().remaining_owned(),
+                            limits.max_owned_bytes - 8
+                        );
+                    }
+                    if case.source == EMPTY_NESTED {
+                        assert_eq!(
+                            state.unwrap().frames.unwrap(),
+                            FrameCounters {
+                                reference_attempts: 1,
+                                work: 1,
+                                expanded_bytes: 0
+                            }
+                        );
+                    }
                     if exact_shared_work {
                         assert_eq!(
                             state.unwrap().controller.work,
@@ -438,6 +513,9 @@ fn verify(case: Case) {
             }
         }
         assert!(terminated, "{} failed to terminate", case.name);
+        if case.name.ends_with("_retained") {
+            assert_eq!(retained.len(), labels.len());
+        }
         assert_eq!(reader.into_inner(), case.source.as_bytes());
     }
 }
@@ -879,3 +957,6 @@ fn independent_reference_limits_stop_at_the_first_unaccepted_source_byte() {
     assert_eq!(error.offset, 3);
     assert_eq!(text.input_position(), Some((3, 3)));
 }
+
+#[path = "dtd_reader_quota_final.rs"]
+mod final_spec;
