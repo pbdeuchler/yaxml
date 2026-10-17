@@ -194,7 +194,11 @@ fn protocol_lines<'a>(
     let summary_positions: Vec<_> = lines
         .iter()
         .enumerate()
-        .filter_map(|(index, line)| line.starts_with("test result:").then_some(index))
+        .filter_map(|(index, line)| {
+            line.trim_start_matches([' ', '\t'])
+                .starts_with("test result:")
+                .then_some(index)
+        })
         .collect();
     if running_positions.len() > 1 || test_positions.len() > 1 || summary_positions.len() > 1 {
         return Err(ProtocolError::Shape(ShapeReason::DuplicateLine));
@@ -283,9 +287,7 @@ fn check_test_line(line: &str) -> Result<(), ProtocolError> {
 }
 
 fn parse_summary_line(line: &str) -> Result<LibtestSuccess, ProtocolError> {
-    if line.contains('\t') {
-        return Err(ProtocolError::Whitespace);
-    }
+    check_summary_whitespace(line)?;
     let Some(body) = line.strip_prefix("test result: ") else {
         return Err(ProtocolError::Whitespace);
     };
@@ -322,6 +324,32 @@ fn parse_summary_line(line: &str) -> Result<LibtestSuccess, ProtocolError> {
         elapsed_whole_seconds,
         elapsed_fraction_digits: elapsed_fraction_digits.map(str::to_owned),
     })
+}
+
+fn check_summary_whitespace(line: &str) -> Result<(), ProtocolError> {
+    if line.contains('\t') {
+        return Err(ProtocolError::Whitespace);
+    }
+
+    const COMPACT_PREFIX: &str = "testresult:ok.1passed;0failed;0ignored;0measured;";
+    const COMPACT_MIDDLE: &str = "filteredout;finishedin";
+    let compact: String = line.chars().filter(|character| *character != ' ').collect();
+    let Some(body) = compact.strip_prefix(COMPACT_PREFIX) else {
+        return Ok(());
+    };
+    let Some((filtered, elapsed)) = body.split_once(COMPACT_MIDDLE) else {
+        return Ok(());
+    };
+    let Some(elapsed) = elapsed.strip_suffix('s') else {
+        return Ok(());
+    };
+    let canonical = format!(
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {filtered} filtered out; finished in {elapsed}s"
+    );
+    if line != canonical {
+        return Err(ProtocolError::Whitespace);
+    }
+    Ok(())
 }
 
 fn parse_elapsed(text: &str) -> Result<(u32, Option<&str>), ElapsedDecimalReason> {
@@ -562,6 +590,30 @@ mod tests {
             assert_eq!(
                 parse_libtest_exact_v1_stdout(case.stdout),
                 Err(case.expected),
+                "{}",
+                case.name
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_summary_whitespace_by_category() {
+        struct Case {
+            name: &'static str,
+            stdout: &'static [u8],
+        }
+        let cases = [
+            Case { name: "leading_summary_space", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\n test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+            Case { name: "double_space_after_status", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result: ok.  1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+            Case { name: "double_space_inside_fixed_count", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result: ok. 1  passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+            Case { name: "trailing_summary_space", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.23s \n\n" },
+            Case { name: "summary_tab", stdout: b"\nrunning 1 test\ntest reader::dtd_fuzz_tests::replay_stdin ... ok\n\ntest result: ok. 1 passed; 0 failed;\t0 ignored; 0 measured; 7 filtered out; finished in 1.23s\n\n" },
+        ];
+
+        for case in cases {
+            assert_eq!(
+                parse_libtest_exact_v1_stdout(case.stdout),
+                Err(ProtocolError::Whitespace),
                 "{}",
                 case.name
             );
