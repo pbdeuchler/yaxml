@@ -321,6 +321,26 @@ fn empty_and_generated_entities_make_finite_progress_without_transport_replay() 
 
 #[test]
 fn dtd_events_share_the_parser_event_ceiling() {
+    for (ceiling, callbacks, offset) in [(0, 0, 0), (1, 1, 11)] {
+        let limits = Limits {
+            max_events: ceiling,
+            ..Limits::default()
+        };
+        let mut session = new_session(limits);
+        let mut seen = 0;
+        let error = session
+            .advance(F3.as_bytes(), &mut |_, _, _| {
+                seen += 1;
+                Ok(())
+            })
+            .unwrap_err();
+        assert_eq!(seen, callbacks);
+        assert_eq!(
+            error,
+            SessionError::Xml(Error::new(ErrorKind::LimitExceeded(Limit::Events), offset))
+        );
+    }
+
     let exact = Limits {
         max_events: 8,
         ..Limits::default()
