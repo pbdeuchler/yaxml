@@ -45,3 +45,6 @@ pub use owned::{
 pub use push::PushParser;
 pub use reader::{Attribute, Declaration, Element, Event, Limits, Reader};
 pub use writer::{Writer, WriterLimits};
+
+#[cfg(test)]
+mod dtd_reference;

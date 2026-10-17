@@ -26,6 +26,13 @@ enum Scan {
     Instruction { question: bool },
 }
 
+#[derive(Clone, Debug)]
+enum ReadySpan {
+    Input(TokenSpan),
+    #[cfg(test)]
+    Local(std::ops::Range<usize>),
+}
+
 /// Keeps one bounded decoded token. The scan
 /// state advances with each byte, including across one-byte input chunks.
 pub(crate) struct Tokenizer {
@@ -36,9 +43,11 @@ pub(crate) struct Tokenizer {
     source_start: usize,
     source_position: usize,
     encoding: SourceEncoding,
+    #[cfg(test)]
+    local: bool,
     limit: usize,
     decoded_limit: usize,
-    ready: Option<(TokenKind, TokenSpan)>,
+    ready: Option<(TokenKind, ReadySpan)>,
     lookahead: Option<(usize, usize)>,
 }
 
@@ -52,6 +61,8 @@ impl Tokenizer {
             source_start: 0,
             source_position: 0,
             encoding: SourceEncoding::Utf8,
+            #[cfg(test)]
+            local: false,
             limit,
             decoded_limit,
             ready: None,
@@ -76,9 +87,38 @@ impl Tokenizer {
     }
 
     pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], &TokenSpan)> {
-        self.ready
-            .as_ref()
-            .map(|(kind, span)| (*kind, self.buffer.as_slice(), span))
+        match self.ready.as_ref()? {
+            (kind, ReadySpan::Input(span)) => Some((*kind, self.buffer.as_slice(), span)),
+            #[cfg(test)]
+            (_, ReadySpan::Local(_)) => None,
+        }
+    }
+
+    fn local_mode(&self) -> bool {
+        #[cfg(test)]
+        {
+            self.local
+        }
+        #[cfg(not(test))]
+        {
+            false
+        }
+    }
+
+    fn raw_length(&self) -> usize {
+        if self.local_mode() {
+            self.position - self.start
+        } else {
+            self.source_position - self.source_start
+        }
+    }
+
+    fn diagnostic_start(&self) -> usize {
+        if self.local_mode() {
+            self.start
+        } else {
+            self.source_start
+        }
     }
 
     pub(crate) fn release(&mut self) {
@@ -106,26 +146,30 @@ impl Tokenizer {
                         self.start = self.position;
                         self.source_start = self.source_position;
                     }
-                    let available_raw = self.limit - (self.source_position - self.source_start);
+                    let available_raw = self.limit - self.raw_length();
                     let available_decoded = self.decoded_limit - self.buffer.len();
                     let available = available_raw.min(available_decoded);
                     if length > available {
                         // Consume through the first offending byte, as the
                         // scalar path does, without allocating a rejected run.
                         self.position += available + 1;
-                        self.source_position += available + 1;
+                        if !self.local_mode() {
+                            self.source_position += available + 1;
+                        }
                         return Err(Error::new(
                             ErrorKind::LimitExceeded(if available_raw <= available_decoded {
                                 Limit::TokenBytes
                             } else {
                                 Limit::DecodedTokenBytes
                             }),
-                            self.source_start,
+                            self.diagnostic_start(),
                         ));
                     }
                     self.append_slice(&input[cursor..cursor + length])?;
                     self.position += length;
-                    self.source_position += length;
+                    if !self.local_mode() {
+                        self.source_position += length;
+                    }
                     cursor += length;
                     continue;
                 }
@@ -135,7 +179,9 @@ impl Tokenizer {
             let offset = self.position;
             let source_offset = self.source_position;
             self.position += 1;
-            self.source_position += self.encoding.source_length(std::slice::from_ref(&byte));
+            if !self.local_mode() {
+                self.source_position += self.encoding.source_length(std::slice::from_ref(&byte));
+            }
             self.consume(byte, offset, source_offset)?;
             if self.ready.is_some() {
                 break;
@@ -174,7 +220,10 @@ impl Tokenizer {
                 self.mark(TokenKind::InvalidMarkup, self.position);
                 Ok(())
             }
-            _ => Err(Error::new(ErrorKind::UnexpectedEof, self.source_start)),
+            _ => Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                self.diagnostic_start(),
+            )),
         }
     }
 
@@ -191,7 +240,7 @@ impl Tokenizer {
         else {
             return Err(Error::new(
                 ErrorKind::LimitExceeded(Limit::DecodedTokenBytes),
-                self.source_start,
+                self.diagnostic_start(),
             ));
         };
         // Explicit geometric growth caps requested scratch capacity at the
@@ -212,7 +261,7 @@ impl Tokenizer {
                 .min(self.decoded_limit);
             self.buffer
                 .try_reserve_exact(target - self.buffer.len())
-                .map_err(|_| Error::new(ErrorKind::Allocation, self.source_start))?;
+                .map_err(|_| Error::new(ErrorKind::Allocation, self.diagnostic_start()))?;
         }
         self.buffer.extend_from_slice(bytes);
         Ok(())
@@ -228,10 +277,10 @@ impl Tokenizer {
             self.start = offset;
             self.source_start = source_offset;
         }
-        if self.source_position - self.source_start > self.limit {
+        if self.raw_length() > self.limit {
             return Err(Error::new(
                 ErrorKind::LimitExceeded(Limit::TokenBytes),
-                self.source_start,
+                self.diagnostic_start(),
             ));
         }
         self.append(byte)?;
@@ -324,13 +373,18 @@ impl Tokenizer {
     }
 
     fn mark_at(&mut self, kind: TokenKind, end: usize, source_end: usize) {
+        #[cfg(test)]
+        if self.local {
+            self.ready = Some((kind, ReadySpan::Local(self.start..end)));
+            return;
+        }
         self.ready = Some((
             kind,
-            TokenSpan {
+            ReadySpan::Input(TokenSpan {
                 decoded: self.start..end,
                 source: self.source_start..source_end,
                 encoding: self.encoding,
-            },
+            }),
         ));
     }
 
@@ -368,3 +422,6 @@ impl Tokenizer {
 #[cfg(test)]
 #[path = "../tests/internal/tokenizer.rs"]
 mod tests;
+
+#[cfg(test)]
+pub(crate) mod local;
