@@ -45,6 +45,93 @@ fn label(event: &ReaderEvent<'_>) -> String {
     }
 }
 
+#[test]
+fn repeated_physical_body_tokens_retain_their_exact_source_occurrences() {
+    #[expect(
+        clippy::ptr_arg,
+        reason = "the ownership variant is part of this assertion"
+    )]
+    fn borrowed_at(value: &Cow<'_, str>, expected: &str, source: &str, offset: usize) {
+        let Cow::Borrowed(value) = value else {
+            panic!("unchanged physical payload must borrow the input")
+        };
+        assert_eq!(*value, expected);
+        assert_eq!(
+            value.as_ptr(),
+            source[offset..].as_ptr(),
+            "payload {expected:?} must borrow the occurrence at byte {offset}"
+        );
+    }
+
+    let source = String::from("<!DOCTYPE r [<!--x--><!--x-->]><r><n a='v'/>same<n a='v'/>same</r>");
+    let held = {
+        let mut reader = DtdReader::new(source.as_bytes(), configured()).unwrap();
+        let mut held = Vec::new();
+        while let Some(event) = reader.read_event().unwrap() {
+            held.push(event);
+        }
+        assert!(reader.read_event().unwrap().is_none());
+        assert_eq!(reader.position(), 66);
+        assert_eq!(reader.event_range(), Some(62..66));
+        held
+    }; // Every returned payload is inspected after later reads and reader drop.
+
+    let expected = [
+        ("begin", 0..13, "<!DOCTYPE r ["),
+        ("item", 13..21, "<!--x-->"),
+        ("item", 21..29, "<!--x-->"),
+        ("end", 29..31, "]>"),
+        ("+r", 31..34, "<r>"),
+        ("=n", 34..44, "<n a='v'/>"),
+        ("Tsame", 44..48, "same"),
+        ("=n", 48..58, "<n a='v'/>"),
+        ("Tsame", 58..62, "same"),
+        ("-r", 62..66, "</r>"),
+    ];
+    assert_eq!(held.len(), expected.len());
+    for ((event, origin), (expected_label, range, raw)) in held.iter().zip(expected) {
+        assert_eq!(label(event), expected_label);
+        assert_eq!(*origin, SourceOrigin::input(range.clone()));
+        // XML events expose their complete physical raw token through this span;
+        // unlike DTD units they do not carry an additional raw-string field.
+        assert_eq!(&source[origin.input_range().unwrap()], raw);
+        match event {
+            ReaderEvent::Dtd(TakenDtdEvent::Begin(unit) | TakenDtdEvent::Item { unit, .. }) => {
+                assert_eq!(unit.raw(), raw);
+                assert_eq!(unit.raw().as_ptr(), source[range.start..].as_ptr());
+            }
+            ReaderEvent::Xml(Event::Start(element)) => {
+                borrowed_at(element.name.qualified_source(), "r", &source, 32);
+                assert!(element.attributes.is_empty());
+            }
+            ReaderEvent::Xml(Event::Empty(element)) => {
+                let (name, attribute, value) = match range.start {
+                    34 => (35, 37, 40),
+                    48 => (49, 51, 54),
+                    _ => panic!("unexpected sibling occurrence"),
+                };
+                borrowed_at(element.name.qualified_source(), "n", &source, name);
+                assert_eq!(element.attributes.len(), 1);
+                borrowed_at(
+                    element.attributes[0].name.qualified_source(),
+                    "a",
+                    &source,
+                    attribute,
+                );
+                borrowed_at(&element.attributes[0].value, "v", &source, value);
+            }
+            ReaderEvent::Xml(Event::Text(text)) => {
+                borrowed_at(text, "same", &source, range.start);
+            }
+            ReaderEvent::Xml(Event::End(name)) => {
+                borrowed_at(name.qualified_source(), "r", &source, 64);
+            }
+            ReaderEvent::Dtd(TakenDtdEvent::End) => {}
+            _ => panic!("unexpected event"),
+        }
+    }
+}
+
 // The marker prevents moving a TLS cleanup guard onto a different thread.
 struct HookScope(std::marker::PhantomData<std::rc::Rc<()>>);
 
@@ -116,6 +203,12 @@ fn phase_move_panics_keep_truthful_progress_and_poison_before_any_more_work() {
         );
         assert!(reader.ordinary.is_none());
         assert!(reader.session.is_empty());
+        if hook == TestHook::AfterOrdinaryTake {
+            assert!(
+                reader.session.capacity() >= 1,
+                "reserve the phase slot before taking ordinary ownership"
+            );
+        }
         let capacity = reader.session.capacity();
 
         // A terminal read must not attempt either phase transition again.
