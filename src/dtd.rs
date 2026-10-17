@@ -213,6 +213,62 @@ impl<'a> DtdUnit<'a> {
         &self.raw
     }
 
+    /// Check constant-time limits and return the bounded work required to
+    /// inspect flat metadata under a possibly tighter consumer policy. The
+    /// caller must charge this work before calling `check_inspected_limits`.
+    pub(crate) fn limit_inspection_work(&self, limits: DtdLimits) -> Result<usize, DtdError> {
+        if self.raw.len() > limits.max_unit_bytes {
+            return Err(DtdError::new(
+                DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes),
+                limits.max_unit_bytes,
+            ));
+        }
+        if self.tokens.len() > limits.max_tokens {
+            return Err(DtdError::new(
+                DtdErrorKind::LimitExceeded(DtdLimit::Tokens),
+                self.tokens[limits.max_tokens].range.start,
+            ));
+        }
+        Ok(self.tokens.len())
+    }
+
+    /// Inspect already-validated flat metadata after the caller has charged
+    /// `limit_inspection_work`. This never reparses raw declaration text.
+    pub(crate) fn check_inspected_limits(&self, limits: DtdLimits) -> Result<(), DtdError> {
+        let mut model_depth = 0_usize;
+        let mut definitions = 0_usize;
+        for token in &self.tokens {
+            match &token.kind {
+                TokenKind::Model(ModelSyntax::Open) => {
+                    if model_depth >= limits.max_model_depth {
+                        return Err(DtdError::new(
+                            DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth),
+                            token.range.start,
+                        ));
+                    }
+                    model_depth += 1;
+                }
+                TokenKind::Model(ModelSyntax::Close) => {
+                    model_depth = model_depth
+                        .checked_sub(1)
+                        .expect("validated model closes an open group");
+                }
+                TokenKind::AttributeDefinition(_) => {
+                    if definitions >= limits.max_attribute_definitions {
+                        return Err(DtdError::new(
+                            DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions),
+                            token.range.start,
+                        ));
+                    }
+                    definitions += 1;
+                }
+                _ => {}
+            }
+        }
+        debug_assert_eq!(model_depth, 0, "validated model groups are balanced");
+        Ok(())
+    }
+
     /// Encode a complete unit for physical input without repeating EOL handling
     /// on already-constructed literals. The caller bounds and buffers output.
     pub(crate) fn physical_fragments(&self, source: LiteralSource) -> PhysicalFragments<'_> {
