@@ -205,3 +205,13 @@ even unchanged physical CDATA. Full unchanged-attribute borrowing requires a
 reviewed borrow-aware catalog/tag seam; no fast bypass or zero-copy attribute
 claim is made by this checkpoint. Broad mutation/independent/performance gates
 remain outstanding.
+
+The next reviewed correction adds an explicit stable-physical value policy to
+the shared tag/catalog normalizer. Its single validation pass matches emitted
+bytes against physical input, borrowing only an exact final match. Changed
+output materializes its matched prefix once; defaults/generated values and all
+existing owned callers keep their owned policy. Comparison/prefix-copy work is
+charged before the operation; unchanged values request no string capacity.
+The new policy defers allocation until materialization is necessary, as reviewed;
+existing owned callers retain their prior allocation/error precedence. Stable
+take-event release now succeeds before its poison marker is cleared.

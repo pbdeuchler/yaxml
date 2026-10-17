@@ -296,18 +296,20 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     pub(crate) fn acknowledge(&mut self) -> Result<(), ContentError> {
-        self.remember(|s| {
-            if s.delivery != Delivery::Lent {
-                return Err(s.simple(ContentErrorKind::InvalidState));
-            }
-            s.coordinator
-                .as_mut()
-                .expect("lent coordinator")
-                .release_token()
-                .map_err(|error| s.text_error(error))?;
-            s.delivery = Delivery::Scanning;
-            Ok(())
-        })
+        self.remember(Self::acknowledge_inner)
+    }
+
+    fn acknowledge_inner(&mut self) -> Result<(), ContentError> {
+        if self.delivery != Delivery::Lent {
+            return Err(self.simple(ContentErrorKind::InvalidState));
+        }
+        self.coordinator
+            .as_mut()
+            .expect("lent coordinator")
+            .release_token()
+            .map_err(|error| self.text_error(error))?;
+        self.delivery = Delivery::Scanning;
+        Ok(())
     }
 
     /// Callback and lending consumers share preparation and source release.
@@ -874,6 +876,7 @@ impl<'input> ContentControllerCore<'input> {
                 offset,
                 location: token.location,
                 origin,
+                stable_physical: false,
             },
             &mut |value, offset, budget| budget.copy(value, offset),
         );
@@ -946,6 +949,7 @@ impl<'input> ContentControllerCore<'input> {
                         offset,
                         location: TextLocation::Input(&span),
                         origin,
+                        stable_physical: true,
                     },
                     &mut |value, _, _| Ok(std::borrow::Cow::Borrowed(value)),
                 )
@@ -980,8 +984,8 @@ impl<'input> ContentControllerCore<'input> {
             );
             s.sync_usage();
             let event = result?;
+            s.acknowledge_inner()?;
             s.failure = None;
-            s.acknowledge()?;
             Ok((event, SourceOrigin::from_repr(origin)))
         })
     }
@@ -1147,6 +1151,7 @@ struct RawPublication<'raw, 'span> {
     offset: usize,
     location: TextLocation<'span>,
     origin: FragmentOrigin,
+    stable_physical: bool,
 }
 fn publish_raw<'source, 'raw>(
     parser: &mut ParserState<'source>,
@@ -1167,12 +1172,17 @@ where
         offset,
         location,
         origin,
+        stable_physical,
     } = publication;
     match location {
         TextLocation::Input(span) => {
             if kind == TokenKind::Start {
-                parser
-                    .process_dtd_start(raw, offset, catalog, LiteralSource::Physical, retain)
+                let result = if stable_physical {
+                    parser.process_stable_dtd_start(raw, offset, catalog, retain)
+                } else {
+                    parser.process_dtd_start(raw, offset, catalog, LiteralSource::Physical, retain)
+                };
+                result
                     .map(Some)
                     .map_err(|error| tag_failure(error, origin, Some((span, raw))))
             } else {

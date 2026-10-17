@@ -655,6 +655,45 @@ impl<'source> ParserState<'source> {
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
+        self.process_dtd_start_policy(raw, start, catalog, source, false, retain)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn process_stable_dtd_start<'event, F>(
+        &mut self,
+        raw: &'event str,
+        start: usize,
+        catalog: &mut crate::dtd_catalog::DtdCatalog,
+        retain: &mut F,
+    ) -> Result<Event<'event>, crate::dtd_tag::DtdTagError>
+    where
+        'source: 'event,
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        self.process_dtd_start_policy(
+            raw,
+            start,
+            catalog,
+            crate::dtd::LiteralSource::Physical,
+            true,
+            retain,
+        )
+    }
+
+    #[cfg(test)]
+    fn process_dtd_start_policy<'event, F>(
+        &mut self,
+        raw: &'event str,
+        start: usize,
+        catalog: &mut crate::dtd_catalog::DtdCatalog,
+        source: crate::dtd::LiteralSource,
+        borrow_physical: bool,
+        retain: &mut F,
+    ) -> Result<Event<'event>, crate::dtd_tag::DtdTagError>
+    where
+        'source: 'event,
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
         if raw.len() > self.token_limit {
             return Err(Error::new(ErrorKind::LimitExceeded(self.token_limit_kind), start).into());
         }
@@ -664,7 +703,11 @@ impl<'source> ParserState<'source> {
         self.check_event_limit(start)?;
         self.check_token_start(TokenKind::Start, start)?;
         let raw = self.collect_raw_tag(raw, start)?;
-        let prepared = crate::dtd_tag::prepare_dtd_tag(catalog, &mut self.budget, raw, source)?;
+        let prepared = if borrow_physical {
+            crate::dtd_tag::prepare_stable_dtd_tag(catalog, &mut self.budget, raw)?
+        } else {
+            crate::dtd_tag::prepare_dtd_tag(catalog, &mut self.budget, raw, source)?
+        };
         let event = self.publish_prepared_tag(prepared, retain)?;
         self.events += 1;
         Ok(event)

@@ -235,3 +235,431 @@ fn shared_event_and_copy_counters_continue_through_taken_dtd_end() {
     assert_eq!(reader.position(), 16);
     assert_eq!(reader.event_origin(), origin);
 }
+
+fn apply_declaration(catalog: &mut crate::dtd_catalog::DtdCatalog, raw: &str) {
+    let unit = crate::dtd::DtdUnit::parse(raw, crate::dtd::DtdLimits::default()).unwrap();
+    catalog
+        .apply(
+            &unit,
+            crate::dtd_catalog::DeclarationContext {
+                internal_subset: true,
+                literals: crate::dtd::LiteralSource::Physical,
+            },
+        )
+        .unwrap();
+}
+
+#[test]
+fn stable_explicit_values_borrow_input_while_defaults_and_generated_values_own() {
+    let input = String::from(
+        "<!DOCTYPE r [<!ENTITY e \"<n a='v'/>\"><!ATTLIST r b CDATA 'd'>]><r a='v'>&e;</r>",
+    );
+    let mut reader = DtdReader::new(input.as_bytes(), configured()).unwrap();
+    let mut held = Vec::new();
+    while let Some((event, _)) = reader.read_event().unwrap() {
+        held.push(event);
+    }
+    drop(reader);
+    let root = held
+        .iter()
+        .find_map(|e| match e {
+            ReaderEvent::Xml(Event::Start(e)) => Some(e),
+            _ => None,
+        })
+        .unwrap();
+    let specified = root
+        .attributes
+        .iter()
+        .find(|a| a.name.qualified() == "a")
+        .unwrap();
+    let Cow::Borrowed(value) = specified.value else {
+        panic!("physical unchanged value was copied")
+    };
+    assert_eq!(
+        value.as_ptr(),
+        input[input.rfind("a='v'").unwrap() + 3..].as_ptr()
+    );
+    assert!(
+        matches!(&root.attributes.iter().find(|a| a.name.qualified() == "b").unwrap().value, Cow::Owned(value) if value == "d")
+    );
+    let generated = held
+        .iter()
+        .find_map(|e| match e {
+            ReaderEvent::Xml(Event::Empty(e)) => Some(e),
+            _ => None,
+        })
+        .unwrap();
+    assert!(matches!(&generated.attributes[0].value, Cow::Owned(value) if value == "v"));
+
+    let mut reader = DtdReader::with_limits(
+        b"<!DOCTYPE r><r a='v'/>",
+        Limits {
+            max_owned_bytes: 0,
+            ..Limits::default()
+        },
+        configured(),
+    )
+    .unwrap();
+    assert!(reader.read_event().unwrap().is_some());
+    assert!(reader.read_event().unwrap().is_some());
+    assert!(
+        matches!(reader.read_event().unwrap().unwrap().0, ReaderEvent::Xml(Event::Empty(e)) if matches!(e.attributes[0].value, Cow::Borrowed("v")))
+    );
+    assert!(reader.read_event().unwrap().is_none());
+}
+
+#[test]
+fn catalog_owned_policy_keeps_its_literal_requests_and_counters() {
+    use crate::dtd_catalog::{CatalogLimits, DtdCatalog, LiteralSource, NormalizedValue};
+    for (raw, expected, work, expanded, references, requested) in [
+        ("", "", 0, 0, 0, 0),
+        ("v", "v", 1, 1, 0, 64),
+        ("π", "π", 2, 2, 0, 64),
+        ("a\tb", "a b", 3, 3, 0, 64),
+        ("&amp;", "&", 5, 1, 1, 64),
+    ] {
+        let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+        let mut bytes = 999;
+        assert_eq!(
+            catalog
+                .normalize_attribute_value_bounded(
+                    "r",
+                    "a",
+                    raw,
+                    LiteralSource::Physical,
+                    64,
+                    &mut bytes
+                )
+                .unwrap(),
+            NormalizedValue::Value(expected.into())
+        );
+        assert_eq!(bytes, requested);
+        assert_eq!(catalog.usage().work, work);
+        assert_eq!(catalog.usage().expanded_bytes, expanded);
+        assert_eq!(catalog.usage().references, references);
+    }
+}
+
+#[test]
+fn lazy_catalog_proves_identity_in_one_pass_including_declared_types_and_references() {
+    use crate::dtd_catalog::{CatalogLimits, DtdCatalog, NormalizedAttribute};
+    for raw in [
+        "",
+        "v",
+        "π",
+        "a b",
+        "ninety byte unchanged value that crosses the old sixty four byte initial capacity floor with zero copies",
+    ] {
+        let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+        let mut requested = 999;
+        let value = catalog
+            .normalize_attribute_borrowed_bounded("r", "a", raw, 0, &mut requested)
+            .unwrap();
+        let NormalizedAttribute::Value(Cow::Borrowed(value)) = value else {
+            panic!("unchanged input copied")
+        };
+        assert_eq!(value.as_ptr(), raw.as_ptr());
+        assert_eq!(requested, 0);
+        assert_eq!(catalog.usage().work, raw.len() * 2);
+        assert_eq!(catalog.usage().expanded_bytes, raw.len());
+    }
+    for (raw, expected, borrowed) in [
+        ("a b", "a b", true),
+        (" a b", "a b", false),
+        ("a b ", "a b", false),
+        ("a  b", "a b", false),
+        ("  ", "", false),
+    ] {
+        let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+        apply_declaration(&mut catalog, "<!ATTLIST r a NMTOKENS #IMPLIED>");
+        let mut requested = 0;
+        let NormalizedAttribute::Value(value) = catalog
+            .normalize_attribute_borrowed_bounded("r", "a", raw, 64, &mut requested)
+            .unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(value, expected);
+        assert_eq!(matches!(value, Cow::Borrowed(_)), borrowed);
+        assert_eq!(
+            requested,
+            if borrowed || expected.is_empty() {
+                0
+            } else {
+                64
+            }
+        );
+    }
+    for (raw, expected) in [
+        ("&#65;", "A"),
+        ("AT&amp;T;", "AT&T;"),
+        ("v\t", "v "),
+        ("π\r\nx", "π x"),
+    ] {
+        let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+        let mut requested = 0;
+        assert_eq!(
+            catalog
+                .normalize_attribute_borrowed_bounded("r", "a", raw, 64, &mut requested)
+                .unwrap(),
+            NormalizedAttribute::Value(Cow::Owned(expected.into()))
+        );
+        assert_eq!(requested, 64);
+    }
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    apply_declaration(&mut catalog, "<!ENTITY e 'AT&amp;T;'>");
+    let mut requested = 0;
+    assert_eq!(
+        catalog
+            .normalize_attribute_borrowed_bounded("r", "a", "&e;", 64, &mut requested)
+            .unwrap(),
+        NormalizedAttribute::Value(Cow::Owned("AT&T;".into()))
+    );
+}
+
+#[test]
+fn lazy_catalog_native_and_caller_quota_edges_are_checked_before_publication() {
+    use crate::dtd_catalog::{
+        CatalogErrorKind as K, CatalogLimit as L, CatalogLimits, DtdCatalog, NormalizedAttribute,
+        ValueLocation,
+    };
+    for (raw, limits, caller, expected, work) in [
+        (
+            "v",
+            CatalogLimits {
+                max_value_bytes: 0,
+                ..CatalogLimits::default()
+            },
+            0,
+            Some(K::Limit(L::ValueBytes)),
+            1,
+        ),
+        (
+            "v",
+            CatalogLimits {
+                max_value_bytes: 1,
+                max_work: 2,
+                max_expanded_bytes: 1,
+                ..CatalogLimits::default()
+            },
+            0,
+            None,
+            2,
+        ),
+        (
+            "v",
+            CatalogLimits {
+                max_work: 1,
+                ..CatalogLimits::default()
+            },
+            0,
+            Some(K::Limit(L::Work)),
+            1,
+        ),
+        (
+            "v",
+            CatalogLimits {
+                max_expanded_bytes: 0,
+                ..CatalogLimits::default()
+            },
+            0,
+            Some(K::Limit(L::ExpandedBytes)),
+            1,
+        ),
+        (
+            "v\t",
+            CatalogLimits {
+                max_work: 4,
+                ..CatalogLimits::default()
+            },
+            64,
+            Some(K::Limit(L::Work)),
+            4,
+        ),
+        (
+            "v\t",
+            CatalogLimits {
+                max_work: 5,
+                max_value_bytes: 2,
+                max_expanded_bytes: 2,
+                ..CatalogLimits::default()
+            },
+            2,
+            None,
+            5,
+        ),
+        (
+            "v\t",
+            CatalogLimits {
+                max_value_bytes: 2,
+                ..CatalogLimits::default()
+            },
+            1,
+            Some(K::CallerValueBytes),
+            5,
+        ),
+        (
+            "v\t",
+            CatalogLimits::default(),
+            63,
+            Some(K::CallerValueBytes),
+            5,
+        ),
+        ("v\t", CatalogLimits::default(), 64, None, 5),
+    ] {
+        let mut catalog = DtdCatalog::new(limits, false);
+        let mut requested = 0;
+        let result =
+            catalog.normalize_attribute_borrowed_bounded("r", "a", raw, caller, &mut requested);
+        if let Some(kind) = expected {
+            let error = result.unwrap_err();
+            assert_eq!(error.kind, kind);
+            assert_eq!(error.location, ValueLocation::Input(0));
+            if kind != K::CallerValueBytes {
+                assert_eq!(
+                    catalog
+                        .normalize_attribute_borrowed_bounded("r", "a", "ok", 64, &mut requested)
+                        .unwrap_err(),
+                    error
+                );
+            }
+        } else {
+            let NormalizedAttribute::Value(value) = result.unwrap() else {
+                panic!()
+            };
+            assert_eq!(value, if raw == "v" { "v" } else { "v " });
+            assert_eq!(requested, if raw == "v" { 0 } else { caller.min(64) });
+        }
+        assert_eq!(catalog.usage().work, work);
+    }
+}
+
+#[test]
+fn lazy_catalog_unavailable_and_error_forms_never_skip_reference_validation() {
+    use crate::dtd_catalog::{
+        CatalogErrorKind, CatalogLimits, Dependency, DependencyKind, DtdCatalog,
+        NormalizedAttribute, ValueLocation,
+    };
+    for (raw, kind, offset) in [
+        ("v&missing;", CatalogErrorKind::EntityDeclared, 1),
+        ("v<", CatalogErrorKind::LessThanInAttribute, 1),
+        ("&#0;", CatalogErrorKind::InvalidReference, 0),
+        ("\0", CatalogErrorKind::InvalidCharacter, 0),
+        ("v&bad", CatalogErrorKind::InvalidReference, 1),
+    ] {
+        let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+        let mut requested = 0;
+        let error = catalog
+            .normalize_attribute_borrowed_bounded("r", "a", raw, 0, &mut requested)
+            .unwrap_err();
+        assert_eq!(error.kind, kind);
+        assert_eq!(error.location, ValueLocation::Input(offset));
+        assert_eq!(requested, 0);
+    }
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    catalog.note_unread_parameter();
+    let mut requested = 999;
+    assert_eq!(
+        catalog
+            .normalize_attribute_borrowed_bounded("r", "a", "v&missing;", 0, &mut requested)
+            .unwrap(),
+        NormalizedAttribute::Unavailable(Dependency {
+            kind: DependencyKind::UnreadEntity,
+            location: ValueLocation::Input(1)
+        })
+    );
+    assert_eq!(requested, 0);
+}
+
+#[test]
+fn normalized_identity_still_expands_and_charges_each_reference() {
+    use crate::dtd_catalog::{
+        CatalogErrorKind, CatalogLimit, CatalogLimits, DtdCatalog, EntityLookup,
+        NormalizedAttribute, ValueLocation,
+    };
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    // Construction leaves "&#38;e;"; inclusion produces literal "&e;", without rescan.
+    apply_declaration(&mut catalog, "<!ENTITY e '&#38;#38;e;'>");
+    let before = catalog.usage();
+    let raw = String::from("&e;");
+    let mut requested = 999;
+    let NormalizedAttribute::Value(Cow::Borrowed(value)) = catalog
+        .normalize_attribute_borrowed_bounded("r", "a", &raw, 0, &mut requested)
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(value.as_ptr(), raw.as_ptr());
+    assert_eq!(catalog.usage().references - before.references, 2);
+    assert_eq!(requested, 0);
+
+    let mut catalog = DtdCatalog::new(
+        CatalogLimits {
+            max_references: 2,
+            ..CatalogLimits::default()
+        },
+        false,
+    );
+    apply_declaration(&mut catalog, "<!ENTITY e '&#38;#38;e;'>");
+    let EntityLookup::Internal { id, .. } = catalog.lookup_general("e") else {
+        panic!()
+    };
+    let error = catalog
+        .normalize_attribute_borrowed_bounded("r", "a", "&e;", 0, &mut requested)
+        .unwrap_err();
+    assert_eq!(
+        error.kind,
+        CatalogErrorKind::Limit(CatalogLimit::References)
+    );
+    assert_eq!(
+        error.location,
+        ValueLocation::Replacement {
+            entity: id,
+            offset: 0
+        }
+    );
+    assert_eq!(requested, 0);
+}
+
+#[test]
+fn changed_value_owned_quota_failure_keeps_the_prior_reader_origin_and_exact_anchor() {
+    for owned in [63, 64] {
+        let mut reader = DtdReader::with_limits(
+            b"<!DOCTYPE r><r a='v\t'/>",
+            Limits {
+                max_owned_bytes: owned,
+                ..Limits::default()
+            },
+            configured(),
+        )
+        .unwrap();
+        assert_eq!(label(&reader.read_event().unwrap().unwrap().0), "begin");
+        assert_eq!(label(&reader.read_event().unwrap().unwrap().0), "end");
+        let last = reader.event_origin();
+        if owned == 63 {
+            let error = reader.read_event().unwrap_err();
+            assert!(matches!(
+                error,
+                SessionError::Content(crate::dtd_controller::content::ContentError {
+                    kind: crate::dtd_controller::content::ContentErrorKind::Tag(
+                        crate::dtd_tag::DtdTagErrorKind::Parser(ErrorKind::LimitExceeded(
+                            crate::Limit::OwnedBytes
+                        ))
+                    ),
+                    physical_offset: 18,
+                    ..
+                })
+            ));
+            assert_eq!(reader.position(), 23);
+            assert_eq!(reader.event_origin(), last);
+            assert_eq!(reader.read_event().unwrap_err(), error);
+        } else {
+            let ReaderEvent::Xml(Event::Empty(element)) = reader.read_event().unwrap().unwrap().0
+            else {
+                panic!()
+            };
+            assert!(matches!(&element.attributes[0].value, Cow::Owned(value) if value == "v "));
+            assert!(reader.read_event().unwrap().is_none());
+        }
+    }
+}

@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use crate::dtd_catalog::{
     CatalogError, CatalogErrorKind, DefaultValue, DependencyKind, DtdCatalog, LiteralSource,
-    NormalizedValue, ValueLocation,
+    NormalizedAttribute, NormalizedValue, ValueLocation,
 };
 use crate::name::qname;
 use crate::parser::{
@@ -69,6 +69,24 @@ pub(crate) fn prepare_dtd_tag<'event>(
     raw: RawTag<'event>,
     source: LiteralSource,
 ) -> Result<PreparedTag<'event>, DtdTagError> {
+    prepare_tag(catalog, budget, raw, source, false)
+}
+
+pub(crate) fn prepare_stable_dtd_tag<'event>(
+    catalog: &mut DtdCatalog,
+    budget: &mut Budget,
+    raw: RawTag<'event>,
+) -> Result<PreparedTag<'event>, DtdTagError> {
+    prepare_tag(catalog, budget, raw, LiteralSource::Physical, true)
+}
+
+fn prepare_tag<'event>(
+    catalog: &mut DtdCatalog,
+    budget: &mut Budget,
+    raw: RawTag<'event>,
+    source: LiteralSource,
+    borrow_physical: bool,
+) -> Result<PreparedTag<'event>, DtdTagError> {
     let mut explicit = HashSet::new();
     explicit
         .try_reserve(raw.attributes.len())
@@ -108,22 +126,39 @@ pub(crate) fn prepare_dtd_tag<'event>(
         .map_err(|_| input_error(ErrorKind::Allocation, raw.start))?;
     for (attribute, name) in raw.attributes.into_iter().zip(names) {
         let mut requested_value_bytes = 0;
-        let normalized = catalog.normalize_attribute_value_bounded(
-            raw.qualified,
-            attribute.qualified,
-            attribute.literal,
-            source,
-            budget.remaining_owned(),
-            &mut requested_value_bytes,
-        );
+        let normalized = if borrow_physical {
+            catalog.normalize_attribute_borrowed_bounded(
+                raw.qualified,
+                attribute.qualified,
+                attribute.literal,
+                budget.remaining_owned(),
+                &mut requested_value_bytes,
+            )
+        } else {
+            catalog
+                .normalize_attribute_value_bounded(
+                    raw.qualified,
+                    attribute.qualified,
+                    attribute.literal,
+                    source,
+                    budget.remaining_owned(),
+                    &mut requested_value_bytes,
+                )
+                .map(|value| match value {
+                    NormalizedValue::Value(value) => NormalizedAttribute::Value(Cow::Owned(value)),
+                    NormalizedValue::Unavailable(dependency) => {
+                        NormalizedAttribute::Unavailable(dependency)
+                    }
+                })
+        };
         budget
             .charge_owned(requested_value_bytes, attribute.value_offset)
             .map_err(DtdTagError::from)?;
         let value = match normalized
             .map_err(|error| rebase_catalog_error(error, attribute.value_offset))?
         {
-            NormalizedValue::Value(value) => Cow::Owned(value),
-            NormalizedValue::Unavailable(dependency) => {
+            NormalizedAttribute::Value(value) => value,
+            NormalizedAttribute::Unavailable(dependency) => {
                 let location = rebase_value_location(dependency.location, attribute.value_offset)?;
                 return Err(DtdTagError {
                     kind: DtdTagErrorKind::Unavailable(dependency.kind),

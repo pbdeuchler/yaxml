@@ -1,6 +1,6 @@
 //! Private effective DTD bindings and value processing. No document acceptance.
 
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::dtd::{
     AttributeTypeView, DefaultDeclarationView, DtdUnit, DtdUnitView, EntityDefinitionView,
@@ -121,6 +121,12 @@ pub(crate) struct Dependency {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum NormalizedValue {
     Value(String),
+    Unavailable(Dependency),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum NormalizedAttribute<'raw> {
+    Value(Cow<'raw, str>),
     Unavailable(Dependency),
 }
 
@@ -786,17 +792,7 @@ impl DtdCatalog {
         caller_value_bytes: Option<usize>,
         requested_value_bytes: &mut usize,
     ) -> Result<NormalizedValue, CatalogError> {
-        let tokenized = self
-            .element_index
-            .get(element)
-            .and_then(|index| {
-                let attributes = &self.elements[*index];
-                attributes
-                    .index
-                    .get(name)
-                    .map(|index| attributes.ordered[*index].kind != AttributeKind::Cdata)
-            })
-            .unwrap_or(false);
+        let tokenized = self.tokenized_attribute(element, name);
         self.process_value(
             literal_content,
             0,
@@ -806,8 +802,56 @@ impl DtdCatalog {
             ValueRequest {
                 ceiling: caller_value_bytes,
                 requested: requested_value_bytes,
+                borrow_physical: false,
             },
         )
+    }
+
+    fn tokenized_attribute(&self, element: &str, name: &str) -> bool {
+        self.element_index
+            .get(element)
+            .and_then(|index| {
+                let attributes = &self.elements[*index];
+                attributes
+                    .index
+                    .get(name)
+                    .map(|index| attributes.ordered[*index].kind != AttributeKind::Cdata)
+            })
+            .unwrap_or(false)
+    }
+
+    /// Only the caller's physical literal can back the returned borrow.
+    pub(crate) fn normalize_attribute_borrowed_bounded<'raw>(
+        &mut self,
+        element: &str,
+        name: &str,
+        literal_content: &'raw str,
+        caller_value_bytes: usize,
+        requested_value_bytes: &mut usize,
+    ) -> Result<NormalizedAttribute<'raw>, CatalogError> {
+        *requested_value_bytes = 0;
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        let tokenized = self.tokenized_attribute(element, name);
+        let result = self.process_value_cow(
+            literal_content,
+            0,
+            LiteralSource::Physical,
+            ValueMode::Attribute { tokenized },
+            None,
+            ValueRequest {
+                ceiling: Some(caller_value_bytes),
+                requested: requested_value_bytes,
+                borrow_physical: true,
+            },
+        );
+        if let Err(error) = result
+            && error.kind != CatalogErrorKind::CallerValueBytes
+        {
+            self.failure = Some(error);
+        }
+        result
     }
 
     fn process_value(
@@ -819,6 +863,26 @@ impl DtdCatalog {
         declaration: Option<usize>,
         request: ValueRequest<'_>,
     ) -> Result<NormalizedValue, CatalogError> {
+        match self.process_value_cow(raw, offset, source, mode, declaration, request)? {
+            NormalizedAttribute::Value(Cow::Owned(value)) => Ok(NormalizedValue::Value(value)),
+            NormalizedAttribute::Unavailable(dependency) => {
+                Ok(NormalizedValue::Unavailable(dependency))
+            }
+            NormalizedAttribute::Value(Cow::Borrowed(_)) => {
+                unreachable!("owned value policy cannot borrow")
+            }
+        }
+    }
+
+    fn process_value_cow<'raw>(
+        &mut self,
+        raw: &'raw str,
+        offset: usize,
+        source: LiteralSource,
+        mode: ValueMode,
+        declaration: Option<usize>,
+        request: ValueRequest<'_>,
+    ) -> Result<NormalizedAttribute<'raw>, CatalogError> {
         let may_be_unread = self.may_be_unread();
         let mut processor = ValueProcessor {
             general: &self.general,
@@ -838,7 +902,7 @@ impl DtdCatalog {
         let result = processor.process();
         processor.frames.clear();
         if matches!(mode, ValueMode::Entity)
-            && matches!(&result, Ok(NormalizedValue::Unavailable(_)))
+            && matches!(&result, Ok(NormalizedAttribute::Unavailable(_)))
         {
             self.unread_parameter = true;
         }
@@ -869,6 +933,7 @@ enum ValueMode {
 struct ValueRequest<'a> {
     ceiling: Option<usize>,
     requested: &'a mut usize,
+    borrow_physical: bool,
 }
 
 impl<'a> ValueRequest<'a> {
@@ -876,11 +941,12 @@ impl<'a> ValueRequest<'a> {
         Self {
             ceiling: None,
             requested,
+            borrow_physical: false,
         }
     }
 }
 
-struct ValueProcessor<'a> {
+struct ValueProcessor<'a, 'raw> {
     general: &'a HashMap<String, EntityId>,
     parameter: &'a HashMap<String, EntityId>,
     entities: &'a [Entity],
@@ -889,14 +955,14 @@ struct ValueProcessor<'a> {
     request: ValueRequest<'a>,
     usage: &'a mut CatalogUsage,
     may_be_unread: bool,
-    raw: &'a str,
+    raw: &'raw str,
     offset: usize,
     declaration: Option<usize>,
     source: LiteralSource,
     mode: ValueMode,
 }
 
-impl ValueProcessor<'_> {
+impl<'raw> ValueProcessor<'_, 'raw> {
     fn input_location(&self, offset: usize) -> ValueLocation {
         match self.declaration {
             Some(declaration) => ValueLocation::Declaration {
@@ -907,7 +973,7 @@ impl ValueProcessor<'_> {
         }
     }
 
-    fn process(&mut self) -> Result<NormalizedValue, CatalogError> {
+    fn process(&mut self) -> Result<NormalizedAttribute<'raw>, CatalogError> {
         let root = self.input_location(self.offset);
         increment(
             &mut self.usage.work,
@@ -923,7 +989,14 @@ impl ValueProcessor<'_> {
             entity: None,
             cursor: 0,
         });
-        let mut output = String::new();
+        let mut output = if self.request.borrow_physical {
+            ValueOutput::Matching {
+                raw: self.raw,
+                matched: 0,
+            }
+        } else {
+            ValueOutput::Owned(String::new())
+        };
         let mut pending_space = false;
         while let Some(frame) = self.frames.last().copied() {
             let text = match frame.entity {
@@ -984,7 +1057,7 @@ impl ValueProcessor<'_> {
                         };
                         let Some(&id) = table.get(name) else {
                             if is_entity || self.may_be_unread || frame.entity.is_some() {
-                                return Ok(NormalizedValue::Unavailable(Dependency {
+                                return Ok(NormalizedAttribute::Unavailable(Dependency {
                                     kind: if self.may_be_unread {
                                         DependencyKind::UnreadEntity
                                     } else {
@@ -997,7 +1070,7 @@ impl ValueProcessor<'_> {
                         };
                         match &self.entities[id.0].body {
                             EntityBody::Unavailable(dependency) => {
-                                return Ok(NormalizedValue::Unavailable(*dependency));
+                                return Ok(NormalizedAttribute::Unavailable(*dependency));
                             }
                             EntityBody::External(external) => {
                                 if !is_entity {
@@ -1010,7 +1083,7 @@ impl ValueProcessor<'_> {
                                         location,
                                     ));
                                 }
-                                return Ok(NormalizedValue::Unavailable(Dependency {
+                                return Ok(NormalizedAttribute::Unavailable(Dependency {
                                     kind: DependencyKind::ExternalEntity,
                                     location,
                                 }));
@@ -1072,12 +1145,18 @@ impl ValueProcessor<'_> {
             self.frames.last_mut().expect("active value frame").cursor += consumed;
             self.emit(&mut output, &mut pending_space, character, location)?;
         }
-        Ok(NormalizedValue::Value(output))
+        if matches!(&output, ValueOutput::Matching { raw, matched } if *matched != raw.len()) {
+            self.materialize(&mut output, root)?;
+        }
+        Ok(NormalizedAttribute::Value(match output {
+            ValueOutput::Owned(value) => Cow::Owned(value),
+            ValueOutput::Matching { raw, .. } => Cow::Borrowed(raw),
+        }))
     }
 
     fn emit(
         &mut self,
-        output: &mut String,
+        output: &mut ValueOutput<'raw>,
         pending_space: &mut bool,
         character: char,
         location: ValueLocation,
@@ -1091,21 +1170,49 @@ impl ValueProcessor<'_> {
         )?;
         if matches!(self.mode, ValueMode::Attribute { tokenized: true }) {
             if character == ' ' {
-                *pending_space = !output.is_empty();
+                *pending_space = output.len() != 0;
                 return Ok(());
             }
             if *pending_space {
-                append(
-                    output,
-                    ' ',
-                    self.limits.max_value_bytes,
-                    self.request.ceiling,
-                    self.request.requested,
-                    location,
-                )?;
+                self.append_output(output, ' ', location)?;
                 *pending_space = false;
             }
         }
+        self.append_output(output, character, location)
+    }
+
+    fn append_output(
+        &mut self,
+        output: &mut ValueOutput<'raw>,
+        character: char,
+        location: ValueLocation,
+    ) -> Result<(), CatalogError> {
+        if let ValueOutput::Matching { raw, matched } = output {
+            let needed = matched
+                .checked_add(character.len_utf8())
+                .filter(|length| *length <= self.limits.max_value_bytes)
+                .ok_or_else(|| {
+                    error(CatalogErrorKind::Limit(CatalogLimit::ValueBytes), location)
+                })?;
+            increment(
+                &mut self.usage.work,
+                character.len_utf8(),
+                self.limits.max_work,
+                CatalogLimit::Work,
+                location,
+            )?;
+            let mut encoded = [0; 4];
+            if raw.as_bytes().get(*matched..needed)
+                == Some(character.encode_utf8(&mut encoded).as_bytes())
+            {
+                *matched = needed;
+                return Ok(());
+            }
+            self.materialize(output, self.input_location(self.offset))?;
+        }
+        let ValueOutput::Owned(output) = output else {
+            unreachable!("materialized output")
+        };
         append(
             output,
             character,
@@ -1114,6 +1221,54 @@ impl ValueProcessor<'_> {
             self.request.requested,
             location,
         )
+    }
+
+    fn materialize(
+        &mut self,
+        output: &mut ValueOutput<'raw>,
+        location: ValueLocation,
+    ) -> Result<(), CatalogError> {
+        let ValueOutput::Matching { raw, matched } = output else {
+            return Ok(());
+        };
+        increment(
+            &mut self.usage.work,
+            *matched,
+            self.limits.max_work,
+            CatalogLimit::Work,
+            location,
+        )?;
+        let mut owned = String::new();
+        if *matched != 0 {
+            let target = (*matched).max(64).min(self.limits.max_value_bytes);
+            if let Some(ceiling) = self.request.ceiling {
+                *self.request.requested = self
+                    .request
+                    .requested
+                    .checked_add(target)
+                    .filter(|total| *total <= ceiling)
+                    .ok_or_else(|| error(CatalogErrorKind::CallerValueBytes, location))?;
+            }
+            owned
+                .try_reserve_exact(target)
+                .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+            owned.push_str(&raw[..*matched]);
+        }
+        *output = ValueOutput::Owned(owned);
+        Ok(())
+    }
+}
+
+enum ValueOutput<'raw> {
+    Owned(String),
+    Matching { raw: &'raw str, matched: usize },
+}
+impl ValueOutput<'_> {
+    fn len(&self) -> usize {
+        match self {
+            Self::Owned(value) => value.len(),
+            Self::Matching { matched, .. } => *matched,
+        }
     }
 }
 
