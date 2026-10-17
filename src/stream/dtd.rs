@@ -726,3 +726,9 @@ mod lending_tests;
 
 #[path = "../../tests/internal/dtd_lending_spec.rs"]
 mod lending_spec_tests;
+
+#[path = "dtd_buffered.rs"]
+pub(crate) mod buffered;
+
+#[path = "../../tests/internal/dtd_buffered_spec.rs"]
+mod buffered_spec_tests;
