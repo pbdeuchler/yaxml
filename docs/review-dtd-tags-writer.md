@@ -217,6 +217,48 @@ publication is not implemented. Full GE scheduling, frame guards, catalog
 borrows, global counters and origin publication must now be joined before any
 frontend activation.
 
+## Source coordination and work-ledger follow-up
+
+The corrected coordinator now reserves the configured Input and Local token
+slots plus effective reference scratch together. The paused Input allocation
+remains reserved while replacement input runs. Adoption checks retained capacity
+and configured growth requests before consuming handoff permission; checked sum
+overflow and short scratch quotas remain distinct. This is a requested-capacity
+policy, not a bound on allocator rounding, RSS or the entire DTD session.
+
+Nine independent groups cover actual UTF-16 decoding at every physical split,
+supplementary prefixes, raw character-reference replay, prefix acknowledgement,
+foreign stable feeds, unread EOF, invocation identity, native/global work and
+scratch formulas. A retained-capacity case actually grows and releases UTF-16
+tokenizer scratch before reconfiguring UTF-8. It does not manufacture a Vec with
+the desired capacity. Debug/release and strict checks pass; three deliberate
+prefix, UTF-16-width and scratch-formula faults were caught and restored.
+Evidence: `/private/tmp/yaxml-dtd-text-coordinator-spec-report.md`.
+
+The shared ledger now admits external catalog/frame work through sticky-first
+remaining allowance and checked charges. A disjoint token/ledger borrow permits
+charging before a callback while its physical event borrows token scratch. The
+same ledger moves through source handoffs without restoring allowance. The
+UTF-8 resume constructor requires a pristine tokenizer and explicit cursor pair;
+the body owner must independently establish the retained encoding.
+
+Root's independent near-`usize::MAX` resume test exposed a real arithmetic panic
+on a following plain byte. The final bridge checks accepted Input prefixes
+before tokenizer advancement and returns typed sticky `PositionOverflow` while
+preserving accepted-prefix accounting. UTF-16 continuation bytes with zero
+physical width remain valid. The independent regression requires unchanged
+cursors/work at exhaustion and identical failure from advance, finish and
+remaining allowance. All eight bridge groups in its separate review worktree
+pass debug/release and strict checks. Author faults also detect dropped debit,
+sticky-error bypass and removal of the position guard.
+Evidence: `/private/tmp/yaxml-text-work-ledger-report.md` and
+`/private/tmp/yaxml-text-resume-overflow-root-review.md`.
+
+The complete body-controller composition is a subsequent private slice under
+review. Stable-window borrowed publication and general UTF-16 body resume remain
+absent. Stable-mode lexing still copies physical tokens to scratch; no DTD-aware
+Reader performance claim follows from these tests.
+
 ## Combined freeze and remaining gates
 
 Initial freeze `a1c4bcbd116abd0dddabf9689f7e9890e49aae4c`, source tree
@@ -255,6 +297,15 @@ tracked files match their Git blobs; the worktree is clean. Root handle
 the earlier library-only log contains 477 tests, before the two nonempty-Start
 controls were added. The final all-targets/release logs contain all 479. Source
 manifest: `/private/tmp/yaxml-dtd-root-owned-events-source.tsv`.
+
+The coordinator/ledger freeze is `7d66aa502201cdb8e6745bc6c97399a56c7d1bd5`,
+source tree `12ca5cbaa43f685284bda205f274879d6b7aeee0`. It passes 942 tests with
+nine ignored across 44 ordinary groups, all 504 library tests in release, all
+13 doctests, strict all-target Clippy, formatting and diff checks. All 339
+tracked files match their Git blobs and the worktree is clean. Root handle
+`23795` is terminal with exit zero. Logs use
+`/private/tmp/yaxml-dtd-root-text-ledger-{all-targets,release,doctests,clippy,fmt,diff}.log`;
+source manifest: `/private/tmp/yaxml-dtd-root-text-ledger-source.tsv`.
 
 No fresh fuzz-only coverage or XMLTS result is claimed for these private
 modules. Main's most recent public-source measurement remains 6,936/7,406

@@ -335,3 +335,92 @@ resets usage. The coordinator retains original component limits to distinguish
 a native component ceiling from a global-induced exhaustion. Raw reference
 scratch append-copy is charged in ReferenceUsage; copying that raw spelling into
 Text later is a separate actual copy and must be charged separately.
+
+## Next private integration slice (reviewed root `29c0631`)
+
+The Text/reference coordinator now exists. The following four steps replace the
+older prospective method sketches as the next implementation boundary. They do
+not activate Reader, Stream, Push, either DOM, or public DTD acceptance.
+
+1. **Consume the existing body state.** Implement `ContentController` beside
+   `DtdBodyState` in `dtd_controller.rs`, consuming that value directly. Keep its
+   same catalog, frames, invocation nonce, counters, limits, DOCTYPE range and
+   checked `(decoded, physical)` resume pair. No catalog clone, new frame stack,
+   independent mutable getters, or session container is needed. Construct
+   `TextShared` once with the inherited global work total and the fixed Input,
+   Local and reference scratch reservations; move it through every coordinator
+   handoff. Keep the caller's same `ParserState` and ownership Budget.
+
+2. **Bridge work into that ledger before composing engines.** Add these narrow
+   private methods to `TextShared`, with forwarding methods on `TextCoordinator`
+   for use while it owns the shared state:
+
+   ```rust
+   fn remaining_work(&self) -> Result<usize, TextError>;
+   fn charge_external_work(
+       &mut self,
+       delta: usize,
+       source: TextSourceId,
+       offset: usize,
+   ) -> Result<(), TextError>;
+   ```
+
+   Charges are checked, cumulative and sticky; offsets retain TextError's
+   physical-Input/local-Replacement meaning. Before catalog/frame operations,
+   request the remaining allowance; a failed ledger returns its prior error
+   without authorizing a component call. Otherwise lower the component's
+   absolute work cap to its current usage plus this remaining
+   allowance, then synchronize committed deltas on both success and failure.
+   Preserve native-versus-global failure attribution using the retained original
+   limits, and preserve the first failure. Charge complete-token raw length
+   before parser semantic preparation. Never reconstruct TextShared to add work:
+   that would lose its scratch allocation, reservation, and failure state. Frame
+   attempts remain authoritative; copy them into the retained counters after
+   attempts. Keep `owned_bytes` as raw-DTD-copy accounting and use the unchanged
+   parser Budget for event/default/scope ownership.
+
+3. **Schedule exact sources with short catalog borrows.** After the preceding
+   Text event is accepted and released, `general()` exposes the classified
+   reference. Copy the lookup ID/outcome and length, end the catalog borrow,
+   reserve controller metadata, pre-cap and enter the frame, then consume
+   `acknowledge_general()` to move the same shared ledger and lease. Keep the
+   primary Input lease paused while reusing one Local lease at acknowledged
+   boundaries. Reacquire catalog replacement bytes only for the current drive or
+   frame operation; match its frame invocation to the Local lease before use.
+   Ordinary local token ranges must start at `CurrentSource.local_start`, end at
+   a catalog UTF-8 boundary, and advance the frame before parser publication.
+   Commit only the delivered prefix: `enter_nested` itself consumes and charges
+   the retained reference range at the parent cursor. Never advance the frame
+   by tokenizer lookahead or the total drive consumption. At exact replacement
+   EOF, finish and drain its coordinator, check invocation and entry element
+   depth with `finish_current`, then restore the parent or physical source.
+   Primary chunk exhaustion becomes NeedPhysicalInput only after generated work
+   drains; it is never local EOF. Empty entry/pop uses
+   the existing finite Progress contract and produces no empty Text.
+
+4. **Publish through the existing typed parser/origin paths.** Before every
+   replacement End, run `check_before_end_element(parser.element_depth())`, then
+   call the atomic `process_dtd_end_owned`; use `process_dtd_start_owned` and
+   `process_dtd_leaf_owned` for the other generated tokens. Keep their explicit
+   replacement phase, shared Budget, and exact `FragmentOrigin`; wrap it with
+   `SourceOrigin::from_repr` for delivery. One sticky private ContentError must
+   retain Text source/offset, frame outer-reference context, tag ValueLocation,
+   and ReplacementError local offset. Source/work failure precedes semantic
+   publication. The first cohesive private slice owns generated events;
+   physical token actions remain scratch-lent and are consumed immediately by
+   the same ParserState through `process_token` or `process_dtd_start` with
+   Physical phase. It is not an all-events-static conversion, and generated
+   declarations remain forbidden.
+
+Stable Reader publication remains unimplemented: `current()` lends tokenizer
+scratch, and stable mode still copies physical tokens for lexing. A later
+stable-only operation must map the exact TokenSpan decoded range into the same
+sealed immutable window before using the existing parser normalizer. Numeric
+and predefined references currently append their **raw spelling**, so they do
+not require a transformed-token flag; normalization determines logical Text
+ownership. Streaming frontend resume also needs a checked tokenizer/lease entry
+at both inherited decoded and physical cursors, especially for UTF-16, without
+replaying the prefix. The owned generated-event slice may defer these two
+frontend seams explicitly; it cannot claim Reader/Stream parity or a preserved
+DTD-aware Reader fast path. Public activation and its full validation gates stay
+open.
