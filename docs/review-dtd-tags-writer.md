@@ -132,9 +132,36 @@ zero/oversized writes, sink errors/panics and flush behavior. Author and
 independent suites each caught five deliberate runtime faults. Root reviewed
 the source and literal oracles before combining them with the fast path.
 
+## Follow-up review corrections
+
+Final independent Writer review found an Important validation-order issue in
+the initially green checkpoint: Begin and Item could encode a full bounded
+token before checking known exhausted private event/item counts. A later
+encoding error could therefore precede the earlier quota failure. No sink
+publication escaped and outer failure poisoning remained correct.
+
+The correction adds constant-time Begin/Item/End count preflights before buffer
+reset or encoding, retaining the core's commit-time checks. A twenty-first
+independent Writer group first failed against the old source, then passed the
+correction. Removing each of the three preflights separately causes a runtime
+failure; all source was restored. Buffer contents, sink calls, position and
+counters remain unchanged on these rejections. Retained evidence uses
+`/private/tmp/yaxml-dtd-root-writer-count-preflight-{red,green}.log` and
+`/private/tmp/yaxml-dtd-root-writer-count-faults.tsv`.
+
+The next narrow Text/reference operations also now compile privately. They stop
+Text before ampersands, use checked physical/local extents, append raw character
+references once and require Text-prefix release before general-reference skip.
+Root review caught an uncharged repeated UTF-8 scan in the validated-reference
+getter. Pending bytes now transition into a checked String once during charged
+classification; getters borrow it in constant time and release reuses the same
+allocation. Six new author groups and the existing independent foundations pass
+in debug and release. Independent boundary testing and the actual source-bound
+coordinator remain in progress; this is not a completed content controller.
+
 ## Combined freeze and remaining gates
 
-Freeze `a1c4bcbd116abd0dddabf9689f7e9890e49aae4c`, source tree
+Initial freeze `a1c4bcbd116abd0dddabf9689f7e9890e49aae4c`, source tree
 `5f82832ef1305f072c65b0c2cad6a318abbf82bd`, passes 885 tests with nine ignored
 across 44 ordinary groups, including all 447 library tests. All 447 library
 tests also pass in release, as do all 13 doctests. Strict all-target Clippy,
@@ -150,6 +177,15 @@ recorded in `/private/tmp/yaxml-dtd-tag-root-final-faults.tsv`. These are retain
 local artifacts, not CI-hosted or remotely published evidence. Toolchain is
 Rust/Cargo 1.95, LLVM 22.1.2, aarch64-apple-darwin, with locked memchr 2.8.3 as the
 sole dependency and unsafe code forbidden.
+
+The corrective follow-up freeze is `759aad03a8cb36f9d22e7fdbeeeb35ffa76200cf`,
+source tree `9114ceea69408bd628124dde9d0fc8bb02d2a1a3`. It passes 892 tests with
+nine ignored across 44 ordinary groups, all 454 library tests in release, all
+13 doctests, strict all-target Clippy, formatting and diff checks. All 332
+tracked files match their Git blobs and the worktree is clean. Root handle
+`72621` is terminal with exit zero; logs use
+`/private/tmp/yaxml-dtd-root-count-final-{all-targets,release,doctests,clippy,fmt,diff}.log`
+and the source manifest is `/private/tmp/yaxml-dtd-root-count-final-source.tsv`.
 
 No fresh fuzz-only coverage or XMLTS result is claimed for these private
 modules. Main's most recent public-source measurement remains 6,936/7,406
