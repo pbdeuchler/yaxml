@@ -1210,3 +1210,7 @@ fn copy_optional(
 #[cfg(test)]
 #[path = "../tests/internal/dtd_catalog_author.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_catalog_spec.rs"]
+mod spec_tests;
