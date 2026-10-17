@@ -85,3 +85,29 @@ The supplement's first run was 37 passed, 2 failed, retained at `/private/tmp/ya
 The existing blind group `reader::dtd_spec_tests::non_bmp_replacement_work_counts_utf8_bytes_instead_of_scalars` already supplies the frame-expanded-byte 3/4/5 boundary; this supplement does not duplicate it. Together with that existing group, the new matrix covers every scalar field in `ControllerLimits`, its scanner/unit/catalog/frame components, `TextLimits`/reference/aggregate scratch, and `LocalLimits`.
 
 Final negative-control check: temporarily substituting each row's success ceiling for its rejection ceiling made all 37 quota tests fail at their rejection oracle while the three independent component controls remained green. This was a test-only fixture mutation, not a production-guard mutation or a claim of complete mutation coverage. The original setter was restored byte-for-byte. The red log is `/private/tmp/yaxml-dtd-reader-quota-raised-controls-red.log`.
+
+## Third frozen supplement: interactions and parser complements
+
+Frozen before executing the cases below. The following literal fixtures supplement T/V/P/H: U is `<!DOCTYPE r><r a='éé'/>` (25 UTF-8 bytes); D is `<!DOCTYPE r [<!ENTITY e '<n><m/></n>'>]><r>&e;</r>` (50); L is `<!DOCTYPE r [<!ENTITY e '&#38;inner;'><!ENTITY inner 'I'>]><r>&e;</r>` (69); N5 is `<!DOCTYPE r [<!ENTITY e '&#38;#65;'>]><r>&e;</r>` (48); S prepends `<?p a\r\n?>` (literal CR/LF, nine bytes) to P (61). G16/N16 use the entity declaration from R with body `1234567890123456&e;` / `1234567890123456&#65;` (56/58).
+
+| Complement | Rejection / complete success | Frozen diagnostic and location |
+| --- | --- | --- |
+| BOM raw/decoded constructors | BOM+T: raw18/19, decoded15/16 | InputBytes at0 wins when both fail; otherwise DecodedBytes at0. Exact19/16 accepts; into_inner preserves BOM. Both constructor errors precede bad Session scan-work0; exact constructor then lazy scan-work0 fails at3, no delivered origin. |
+| Physical raw vs decoded body token | U raw12/13 and decoded12/13 separately; tie12/12 | Content Text Xml TokenBytes / DecodedTokenBytes; raw wins tie; anchor12, high-water24, latest End11..12, no error origin. |
+| Generated parser depth | D depth2/3 | Content Tag Parser Depth at43, generated m local3..7, primary43..46; high-water46, latest generated n local0..3. |
+| Scanner work across PE | P work52/58 | Dtd Scan Work at43, generated-local6, partial origin local0..6 with primary43..46; high-water46, latest physical declaration13..43. |
+| Scanner work after generated unit | P work57/58 | Dtd Scan Work at47, origin input46..47; high-water47, latest generated comment local0..10/primary43..46. |
+| Local named reference | L native reference bytes6/7 | Content Text Reference Bytes at62, generated-local6, zero-width local6..6/primary62..65; high-water65, latest root59..62. |
+| Local numeric reference | N5 native reference bytes4/5 | Same Bytes cause at41, generated-local4, zero-width local4..4/primary41..44; high-water44, latest root38..41. |
+| General versus numeric text token | G16 raw/decoded16 accepts two Text events (16-byte prefix, x); N16 raw16/21 rejects/accepts | N16 TokenBytes at33, high-water54, no error origin, latest root30..33; exact21 emits one Text ending A. General inclusion must not combine the preceding Text quota with the replacement. |
+| Effective reference scratch minimum | T reference byte/scratch7/3 and3/7, aggregate34/35 | Content Text Scratch at12, high-water12, latest End11..12; reserve minimum3, not maximum7. |
+| Checked aggregate scratch | T input slot, replacement slot, or both reference limits usize::MAX versus16; aggregate usize::MAX | Content Text ScratchOverflow at12, high-water12, latest End11..12, no allocation attempt or panic. |
+| Native/global catalog collision | T native11 with aggregate35 versus36 | Dtd aggregate Work wins equal remaining11, at0 with whole header0..12/value Declaration(0,0); high-water12. Raising aggregate36 leaves native Catalog Work. Both generous native12/global36 accept. |
+| Global-work/scratch collision | T Text work0 with input slot usize::MAX versus normal work/slot16 | Work precedes ScratchOverflow after End at12, latest End11..12. |
+| Shared parser normalization/promotion | S Parser owned12/13 | Prior PI logical data a+LF costs3; generated DTD comment promotion costs10. Dtd Ownership OwnedBytes at52, generated local0..10/primary52..55, local0; high-water55, latest physical declaration22..52. Prior spend must survive handoff; failed promotion does not debit parser/native ownership. |
+| Cumulative catalog declarations | V declarations1/2 | Header already spends one. Dtd Catalog Declarations at13/origin13..29/value Declaration(1,0); high-water29, latest Begin0..13. |
+| PE→GE reference attempts | H attempts1/2 | Content Frame ReferenceAttempts at52/input52..55, high-water55, latest root49..52. Failed second attempt leaves attempts1/work16/expanded15; complete control has2/18/16. |
+
+The native/global tie rule follows the accepted lower controller's explicit aggregate-cap attribution (`ceiling <= native`), not a new facade measurement. Tests retain exact typed errors and sticky counters. Any location disagreement remains a red baseline and requires independent lower-level evidence before correction.
+
+Already-covered complements are cited rather than duplicated: `attribute_depth_input_and_decoded_ceilings_are_inclusive` pins final explicit+default attributes and ordinary parser depth; `exact_borrowed_owned_and_event_budgets_do_not_inherit_streaming_copy_costs` pins combined DTD/generated event counts and normalized body ownership; `pre_dtd_declaration_misc_event_and_owned_budgets_survive_handoff` pins XML declaration/PI event continuity and PI+body shared ownership. Existing exact catalog expansion and frame-work handoff rows provide Q3/Q4 cumulative complements; the new declaration/attempt rows discriminate reset at the specific PE→GE seam.
