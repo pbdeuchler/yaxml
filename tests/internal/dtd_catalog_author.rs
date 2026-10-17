@@ -26,6 +26,8 @@ fn initial_replacement_and_default_phases_are_distinct() {
     assert_eq!(catalog.replacement(id), Some(replacement));
     assert_eq!(id.index(), 0);
     assert_eq!(catalog.declaration(id), Some(0));
+    assert_eq!(catalog.declaration(EntityId(usize::MAX)), None);
+    assert_eq!(catalog.replacement(EntityId(usize::MAX)), None);
     declare(&mut catalog, "<!ENTITY e 'ignored'>").unwrap();
     assert!(matches!(
         catalog.lookup_parameter("e"),
@@ -803,8 +805,10 @@ fn declaration_binding_and_retained_payload_ceilings_have_exact_boundaries() {
             }
         }
     }
-    let mut limits = CatalogLimits::default();
-    limits.max_storage_bytes = 4;
+    let limits = CatalogLimits {
+        max_storage_bytes: 4,
+        ..CatalogLimits::default()
+    };
     let mut catalog = DtdCatalog::new(limits, false);
     declare(&mut catalog, "<!ATTLIST r a CDATA 'x'>").unwrap();
     assert_eq!(catalog.usage().storage_bytes, 4); // r + indexed a + ordered a + x.
@@ -816,8 +820,10 @@ fn declaration_binding_and_retained_payload_ceilings_have_exact_boundaries() {
             .kind,
         CatalogErrorKind::Limit(CatalogLimit::StorageBytes)
     );
-    let mut limits = CatalogLimits::default();
-    limits.max_storage_bytes = 2;
+    let limits = CatalogLimits {
+        max_storage_bytes: 2,
+        ..CatalogLimits::default()
+    };
     let mut catalog = DtdCatalog::new(limits, false);
     declare(&mut catalog, entity).unwrap();
     declare(&mut catalog, "<!ENTITY e 'duplicate payload'>").unwrap();
@@ -827,8 +833,10 @@ fn declaration_binding_and_retained_payload_ceilings_have_exact_boundaries() {
 #[test]
 fn value_and_expansion_limits_count_utf8_bytes_and_pre_collapse_output() {
     for allowed in [1, 2] {
-        let mut limits = CatalogLimits::default();
-        limits.max_value_bytes = allowed;
+        let limits = CatalogLimits {
+            max_value_bytes: allowed,
+            ..CatalogLimits::default()
+        };
         let mut catalog = DtdCatalog::new(limits, false);
         let result = declare(&mut catalog, "<!ENTITY e 'é'>");
         if allowed == 2 {
@@ -841,8 +849,10 @@ fn value_and_expansion_limits_count_utf8_bytes_and_pre_collapse_output() {
         }
     }
     for allowed in [3, 4] {
-        let mut limits = CatalogLimits::default();
-        limits.max_expanded_bytes = allowed;
+        let limits = CatalogLimits {
+            max_expanded_bytes: allowed,
+            ..CatalogLimits::default()
+        };
         let mut catalog = DtdCatalog::new(limits, false);
         declare(&mut catalog, "<!ENTITY e 'é'>").unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;", LiteralSource::Physical);
@@ -855,9 +865,11 @@ fn value_and_expansion_limits_count_utf8_bytes_and_pre_collapse_output() {
             );
         }
     }
-    let mut limits = CatalogLimits::default();
-    limits.max_value_bytes = 0;
-    limits.max_expanded_bytes = 2;
+    let limits = CatalogLimits {
+        max_value_bytes: 0,
+        max_expanded_bytes: 2,
+        ..CatalogLimits::default()
+    };
     let mut catalog = DtdCatalog::new(limits, false);
     declare(&mut catalog, "<!ATTLIST r a NMTOKENS #IMPLIED>").unwrap();
     assert_eq!(value(&mut catalog, "  "), "");
@@ -874,10 +886,12 @@ fn value_and_expansion_limits_count_utf8_bytes_and_pre_collapse_output() {
 #[test]
 fn empty_entities_consume_reference_and_depth_budgets_without_output() {
     for allowed in 0..=2 {
-        let mut limits = CatalogLimits::default();
-        limits.max_references = allowed;
-        limits.max_value_bytes = 0;
-        limits.max_expanded_bytes = 0;
+        let limits = CatalogLimits {
+            max_references: allowed,
+            max_value_bytes: 0,
+            max_expanded_bytes: 0,
+            ..CatalogLimits::default()
+        };
         let mut catalog = DtdCatalog::new(limits, false);
         declare(&mut catalog, "<!ENTITY e ''>").unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;&e;", LiteralSource::Physical);
@@ -894,8 +908,10 @@ fn empty_entities_consume_reference_and_depth_budgets_without_output() {
         assert_eq!(catalog.usage().expanded_bytes, 0);
     }
     for allowed in [0, 1] {
-        let mut limits = CatalogLimits::default();
-        limits.max_depth = allowed;
+        let limits = CatalogLimits {
+            max_depth: allowed,
+            ..CatalogLimits::default()
+        };
         let mut catalog = DtdCatalog::new(limits, false);
         declare(&mut catalog, "<!ENTITY e ''>").unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;", LiteralSource::Physical);
@@ -913,8 +929,10 @@ fn empty_entities_consume_reference_and_depth_budgets_without_output() {
 #[test]
 fn work_charges_entered_text_and_cycle_comparisons_before_consuming_replacements() {
     for allowed in [2, 3] {
-        let mut limits = CatalogLimits::default();
-        limits.max_work = allowed;
+        let limits = CatalogLimits {
+            max_work: allowed,
+            ..CatalogLimits::default()
+        };
         let mut catalog = DtdCatalog::new(limits, false);
         let result = catalog.normalize_attribute_value("r", "a", "abc", LiteralSource::Physical);
         if allowed == 3 {
@@ -932,8 +950,10 @@ fn work_charges_entered_text_and_cycle_comparisons_before_consuming_replacements
     }
     let unit = "<!ENTITY e ''>";
     for allowed in [unit.len() + 3, unit.len() + 4] {
-        let mut limits = CatalogLimits::default();
-        limits.max_work = allowed;
+        let limits = CatalogLimits {
+            max_work: allowed,
+            ..CatalogLimits::default()
+        };
         let mut catalog = DtdCatalog::new(limits, false);
         declare(&mut catalog, unit).unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;", LiteralSource::Physical);
@@ -951,8 +971,10 @@ fn work_charges_entered_text_and_cycle_comparisons_before_consuming_replacements
 
 #[test]
 fn deep_general_entity_expansion_uses_frames_and_preserves_unicode_names_and_values() {
-    let mut limits = CatalogLimits::default();
-    limits.max_depth = 1024;
+    let limits = CatalogLimits {
+        max_depth: 1024,
+        ..CatalogLimits::default()
+    };
     let mut catalog = DtdCatalog::new(limits, false);
     for index in 0..1023 {
         declare(
@@ -970,8 +992,10 @@ fn deep_general_entity_expansion_uses_frames_and_preserves_unicode_names_and_val
             .kind,
         CatalogErrorKind::Limit(CatalogLimit::Depth)
     );
-    let mut limits = CatalogLimits::default();
-    limits.max_depth = 1025;
+    let limits = CatalogLimits {
+        max_depth: 1025,
+        ..CatalogLimits::default()
+    };
     let mut catalog = DtdCatalog::new(limits, false);
     for index in 0..1023 {
         declare(
@@ -1027,8 +1051,10 @@ fn exact_unit_offsets_are_exposed_without_changing_lexical_views() {
 
 #[test]
 fn fatal_errors_preserve_only_a_read_only_prefix_and_never_resume_catalog_mutation() {
-    let mut limits = CatalogLimits::default();
-    limits.max_bindings = 1;
+    let limits = CatalogLimits {
+        max_bindings: 1,
+        ..CatalogLimits::default()
+    };
     let mut catalog = DtdCatalog::new(limits, false);
     let error = declare(&mut catalog, "<!ATTLIST r a CDATA 'v' b CDATA 'w'>").unwrap_err();
     assert_eq!(error.kind, CatalogErrorKind::Limit(CatalogLimit::Bindings));

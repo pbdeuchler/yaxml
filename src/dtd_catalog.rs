@@ -942,7 +942,7 @@ impl ValueProcessor<'_> {
                                 if self.frames.iter().any(|frame| frame.entity == Some(id)) {
                                     return Err(error(CatalogErrorKind::Recursion, location));
                                 }
-                                if self.frames.len() - 1 >= self.limits.max_depth {
+                                if self.frames.len() > self.limits.max_depth {
                                     return Err(error(
                                         CatalogErrorKind::Limit(CatalogLimit::Depth),
                                         location,
