@@ -128,6 +128,7 @@ struct AttributeDefinitionMeta {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum TokenKind {
     Name,
+    AttributeListName { definitions: usize },
     NmToken,
     Literal(LiteralKind),
     Reference(ReferenceKind),
@@ -568,11 +569,10 @@ impl<'a> AttributeListView<'a> {
     }
 
     pub(crate) fn definition_count(self) -> usize {
-        self.unit
-            .tokens
-            .iter()
-            .filter(|token| matches!(token.kind, TokenKind::AttributeDefinition(_)))
-            .count()
+        let TokenKind::AttributeListName { definitions } = self.unit.tokens[0].kind else {
+            unreachable!("validated ATTLIST starts with its element-name token")
+        };
+        definitions
     }
 
     pub(crate) fn definitions(self) -> AttributeDefinitions<'a> {
@@ -815,6 +815,13 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn expected_one_of(&self, expected: &[&str]) -> DtdError {
+        DtdError::new(
+            DtdErrorKind::Syntax,
+            self.position + longest_common_prefix(self.remaining(), expected),
+        )
+    }
+
     fn keyword(&mut self, keyword: &str) -> bool {
         if !self.remaining().starts_with(keyword) {
             return false;
@@ -868,17 +875,16 @@ impl<'a> Parser<'a> {
         self.require_whitespace()?;
         self.name()?;
         let had_whitespace = self.whitespace();
-        let external =
-            if self.remaining().starts_with("SYSTEM") || self.remaining().starts_with("PUBLIC") {
-                if !had_whitespace {
-                    return Err(self.error(DtdErrorKind::Syntax));
-                }
-                let external = self.external_identifier(false)?;
-                self.whitespace();
-                Some(external)
-            } else {
-                None
-            };
+        let external = if !matches!(self.byte(), Some(b'[' | b'>')) {
+            if !had_whitespace {
+                return Err(self.error(DtdErrorKind::Syntax));
+            }
+            let external = self.external_identifier(false)?;
+            self.whitespace();
+            Some(external)
+        } else {
+            None
+        };
         let has_internal_subset = match self.byte() {
             Some(b'[') => {
                 self.position += 1;
@@ -947,7 +953,7 @@ impl<'a> Parser<'a> {
                 Err(self.error(DtdErrorKind::Syntax))
             }
         } else {
-            Err(self.error(DtdErrorKind::Syntax))
+            Err(self.expected_one_of(&["SYSTEM", "PUBLIC"]))
         }
     }
 
@@ -1193,24 +1199,31 @@ fn pubid_char(character: char) -> bool {
 }
 
 fn dispatch_error_offset(raw: &str) -> usize {
-    [
-        "<!DOCTYPE",
-        "<!ELEMENT",
-        "<!ATTLIST",
-        "<!ENTITY",
-        "<!NOTATION",
-        "<!--",
-        "<?",
-    ]
-    .into_iter()
-    .map(|candidate| {
-        raw.bytes()
-            .zip(candidate.bytes())
-            .take_while(|(actual, expected)| actual == expected)
-            .count()
-    })
-    .max()
-    .unwrap_or(0)
+    longest_common_prefix(
+        raw,
+        &[
+            "<!DOCTYPE",
+            "<!ELEMENT",
+            "<!ATTLIST",
+            "<!ENTITY",
+            "<!NOTATION",
+            "<!--",
+            "<?",
+        ],
+    )
+}
+
+fn longest_common_prefix(raw: &str, expected: &[&str]) -> usize {
+    expected
+        .iter()
+        .map(|candidate| {
+            raw.bytes()
+                .zip(candidate.bytes())
+                .take_while(|(actual, expected)| actual == expected)
+                .count()
+        })
+        .max()
+        .unwrap_or(0)
 }
 
 impl Parser<'_> {
@@ -1230,7 +1243,7 @@ impl Parser<'_> {
             self.children_model()?;
             DtdUnitKind::ElementChildren
         } else {
-            return Err(self.error(DtdErrorKind::Syntax));
+            return Err(self.expected_one_of(&["EMPTY", "ANY", "("]));
         };
         self.whitespace();
         self.consume(">")?;
@@ -1397,6 +1410,10 @@ impl Parser<'_> {
 #[path = "../tests/internal/dtd_unit_author.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "../tests/internal/dtd_unit_spec.rs"]
+mod spec_tests;
+
 impl Parser<'_> {
     fn entity(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!ENTITY")?;
@@ -1420,10 +1437,7 @@ impl Parser<'_> {
         } else {
             let identifier = self.external_identifier(false)?;
             let had_whitespace = self.whitespace();
-            let notation = if !parameter && self.remaining().starts_with("NDATA") {
-                if !had_whitespace {
-                    return Err(self.error(DtdErrorKind::Syntax));
-                }
+            let notation = if !parameter && (had_whitespace && self.byte() != Some(b'>')) {
                 self.consume("NDATA")?;
                 self.require_whitespace()?;
                 Some(self.name()?)
@@ -1468,7 +1482,7 @@ impl Parser<'_> {
     fn attribute_list(&mut self) -> Result<DtdUnitKind, DtdError> {
         self.consume("<!ATTLIST")?;
         self.require_whitespace()?;
-        self.name()?;
+        let element = self.name()?;
         let mut definitions = 0_usize;
         loop {
             let had_whitespace = self.whitespace();
@@ -1500,6 +1514,7 @@ impl Parser<'_> {
                 definition_start..self.position,
             )?;
         }
+        self.tokens[element].kind = TokenKind::AttributeListName { definitions };
         Ok(DtdUnitKind::AttributeList)
     }
 
@@ -1526,7 +1541,10 @@ impl Parser<'_> {
         } else if self.byte() == Some(b'(') {
             Ok(AttributeTypeMeta::Enumeration(self.value_list(false)?))
         } else {
-            Err(self.error(DtdErrorKind::Syntax))
+            Err(self.expected_one_of(&[
+                "CDATA", "IDREFS", "IDREF", "ID", "ENTITIES", "ENTITY", "NMTOKENS", "NMTOKEN",
+                "NOTATION", "(",
+            ]))
         }
     }
 
@@ -1567,12 +1585,14 @@ impl Parser<'_> {
                 fixed: true,
                 literal,
             })
-        } else {
+        } else if matches!(self.byte(), Some(b'\'' | b'"')) {
             let literal = self.attribute_value()?;
             Ok(DefaultMeta::Value {
                 fixed: false,
                 literal,
             })
+        } else {
+            Err(self.expected_one_of(&["#REQUIRED", "#IMPLIED", "#FIXED", "'", "\""]))
         }
     }
 }

@@ -475,6 +475,21 @@ fn rejects_first_invalid_byte_for_headers_and_element_models() {
             "{raw}"
         );
     }
+
+    for (raw, offset) in [
+        ("<!DOCTYPE r SYSTE>", "<!DOCTYPE r SYSTE".len()),
+        ("<!ELEMENT r EMPT>", "<!ELEMENT r EMPT".len()),
+        ("<!ELEMENT r ANYthing>", "<!ELEMENT r ANY".len()),
+    ] {
+        assert_eq!(
+            DtdUnit::parse(raw, DtdLimits::default()).unwrap_err(),
+            DtdError {
+                kind: DtdErrorKind::Syntax,
+                offset,
+            },
+            "{raw}"
+        );
+    }
 }
 
 #[test]
@@ -542,6 +557,27 @@ fn rejects_first_invalid_byte_for_attlists_entities_and_misc() {
                 kind: DtdErrorKind::Syntax,
                 offset: raw.len(),
             }
+        );
+    }
+    for (raw, offset) in [
+        ("<!ATTLIST r a CDAT>", "<!ATTLIST r a CDAT".len()),
+        (
+            "<!ATTLIST r a CDATA #REQUI>",
+            "<!ATTLIST r a CDATA #REQUI".len(),
+        ),
+        (
+            "<!ENTITY e SYSTEM 's' NDAT>",
+            "<!ENTITY e SYSTEM 's' NDAT".len(),
+        ),
+        ("<!NOTATION n PUBLI>", "<!NOTATION n PUBLI".len()),
+    ] {
+        assert_eq!(
+            DtdUnit::parse(raw, DtdLimits::default()).unwrap_err(),
+            DtdError {
+                kind: DtdErrorKind::Syntax,
+                offset,
+            },
+            "{raw}"
         );
     }
 }
