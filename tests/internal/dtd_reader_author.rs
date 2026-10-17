@@ -1171,3 +1171,61 @@ fn release_panic_poison_is_sticky_without_republication_or_progress() {
     );
     assert!(control.read_event().unwrap().is_none());
 }
+
+#[test]
+fn content_take_event_release_unwind_is_itself_sticky_and_atomic() {
+    use crate::dtd_controller::content::ContentErrorKind;
+
+    const INPUT: &[u8] = b"<!DOCTYPE r><r/>";
+    let mut reader = DtdReader::new(INPUT, configured()).unwrap();
+    assert_eq!(label(&reader.read_event().unwrap().unwrap().0), "begin");
+    assert_eq!(label(&reader.read_event().unwrap().unwrap().0), "end");
+    reader.start_content().unwrap();
+    let Phase::Content(controller) = &mut reader.session[0] else {
+        panic!("content controller")
+    };
+    assert_eq!(
+        controller.advance_borrowed().unwrap().outcome,
+        ContentOutcome::EventReady
+    );
+
+    crate::tokenizer::text::TextCoordinator::panic_on_next_release_for_test();
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = controller.take_event();
+    }));
+    assert!(panic.is_err());
+    assert_eq!(controller.position(), (INPUT.len(), INPUT.len()));
+    let counters = controller.counters();
+    let usage = controller.usage();
+    let error = controller.take_event().unwrap_err();
+    assert_eq!(error.kind, ContentErrorKind::Poisoned);
+    assert_eq!(error.physical_offset, INPUT.len());
+    assert_eq!(error.origin, None);
+    assert_eq!(error.local_offset, None);
+    assert_eq!(error.value_location, None);
+    for _ in 0..2 {
+        assert_eq!(controller.take_event().unwrap_err(), error);
+        assert_eq!(controller.advance_borrowed().unwrap_err(), error);
+        assert_eq!(controller.position(), (INPUT.len(), INPUT.len()));
+        assert_eq!(controller.counters(), counters);
+        assert_eq!(controller.usage(), usage);
+    }
+
+    let mut control = DtdReader::new(INPUT, configured()).unwrap();
+    assert_eq!(label(&control.read_event().unwrap().unwrap().0), "begin");
+    assert_eq!(label(&control.read_event().unwrap().unwrap().0), "end");
+    control.start_content().unwrap();
+    let Phase::Content(controller) = &mut control.session[0] else {
+        panic!("content control")
+    };
+    assert_eq!(
+        controller.advance_borrowed().unwrap().outcome,
+        ContentOutcome::EventReady
+    );
+    let (Some(Event::Empty(root)), origin) = controller.take_event().unwrap() else {
+        panic!("empty root")
+    };
+    assert_eq!(root.name.qualified(), "r");
+    assert_eq!(origin.input_range(), Some(12..16));
+    assert_eq!(controller.position(), (INPUT.len(), INPUT.len()));
+}
