@@ -16,6 +16,8 @@ use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::parser::Budget;
 use crate::{Error, ErrorKind};
 
+mod content;
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ControllerLimits {
     pub(crate) scan: ScanLimits,
@@ -145,6 +147,7 @@ pub(crate) struct DtdBodyState {
     decoded_position: usize,
     physical_position: usize,
     doctype_range: Range<usize>,
+    encoding: SourceEncoding,
 }
 
 pub(crate) struct DtdControllerCore<'input> {
@@ -427,6 +430,7 @@ impl<'input> DtdControllerCore<'input> {
             decoded_position,
             physical_position: self.position,
             doctype_range,
+            encoding: self.encoding,
         })
     }
 
