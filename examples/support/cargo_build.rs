@@ -388,6 +388,30 @@ impl PreparedCargoTarget {
         self.build_stderr.view()
     }
 
+    pub(crate) fn manifest(&self) -> FrozenFileView<'_> {
+        self.manifest.view()
+    }
+
+    pub(crate) fn lockfile(&self) -> FrozenFileView<'_> {
+        self.lockfile.view()
+    }
+
+    pub(crate) fn cargo(&self) -> FrozenFileView<'_> {
+        self.cargo.view()
+    }
+
+    pub(crate) fn rustc(&self) -> FrozenFileView<'_> {
+        self.rustc.view()
+    }
+
+    pub(crate) fn llvm_profdata(&self) -> FrozenFileView<'_> {
+        self.llvm_profdata.view()
+    }
+
+    pub(crate) fn llvm_cov(&self) -> FrozenFileView<'_> {
+        self.llvm_cov.view()
+    }
+
     pub(crate) fn reviewed_sources(
         &self,
     ) -> impl ExactSizeIterator<Item = FrozenFileView<'_>> + '_ {
@@ -599,6 +623,8 @@ impl Drop for OwnedPreparationDirectory {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PreparationCheckpoint {
+    BeforeFirstGate,
+    AfterBuild,
     BeforeArtifactSelection,
     AfterArtifactSelection,
     AfterResolution,
@@ -874,7 +900,8 @@ fn prepare_in_owned(
 ) -> Result<PreparedCargoTarget, PreparationFailure> {
     let started = Instant::now();
     let environment = preparation_environment(&preflight)?;
-    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
+    test_checkpoint(PreparationCheckpoint::BeforeFirstGate, owned, preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     let profdata = run_stage(
         owned,
         request,
@@ -1037,7 +1064,8 @@ fn prepare_in_owned(
     }
     validate_build_stream_lengths(build.stdout.len(), build.stderr.len())?;
     accept_last(&mut owned.receipts);
-    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
+    test_checkpoint(PreparationCheckpoint::AfterBuild, owned, preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     let jsonl_path = owned.path.join("build.stdout");
     let stderr_path = owned.path.join("build.stderr");
     let build_receipt = owned
@@ -1550,15 +1578,41 @@ fn recheck_preflight(
     preflight: &Preflight,
     check: SelectedArtifactCheck,
 ) -> Result<(), PreparationFailure> {
-    recheck_roots(&preflight.roots)?;
+    if check == SelectedArtifactCheck::Metadata {
+        recheck_roots(&preflight.roots)?;
+        for (file, subject) in [
+            (&preflight.manifest, EvidenceSubject::Manifest),
+            (&preflight.lockfile, EvidenceSubject::Lockfile),
+        ] {
+            recheck_frozen(file, subject, check)?;
+        }
+        for source in &preflight.sources {
+            recheck_frozen(source, EvidenceSubject::Source, check)?;
+        }
+        for (file, subject) in [
+            (&preflight.cargo, EvidenceSubject::Cargo),
+            (&preflight.rustc, EvidenceSubject::Rustc),
+            (&preflight.llvm_profdata, EvidenceSubject::LlvmProfdata),
+            (&preflight.llvm_cov, EvidenceSubject::LlvmCov),
+        ] {
+            recheck_tool(file, subject, check)?;
+        }
+        return Ok(());
+    }
+
+    let mut primary = None;
+    aggregate_check(&mut primary, recheck_roots(&preflight.roots));
     for (file, subject) in [
         (&preflight.manifest, EvidenceSubject::Manifest),
         (&preflight.lockfile, EvidenceSubject::Lockfile),
     ] {
-        recheck_frozen(file, subject, check)?;
+        aggregate_check(&mut primary, recheck_frozen(file, subject, check));
     }
     for source in &preflight.sources {
-        recheck_frozen(source, EvidenceSubject::Source, check)?;
+        aggregate_check(
+            &mut primary,
+            recheck_frozen(source, EvidenceSubject::Source, check),
+        );
     }
     for (file, subject) in [
         (&preflight.cargo, EvidenceSubject::Cargo),
@@ -1566,9 +1620,9 @@ fn recheck_preflight(
         (&preflight.llvm_profdata, EvidenceSubject::LlvmProfdata),
         (&preflight.llvm_cov, EvidenceSubject::LlvmCov),
     ] {
-        recheck_tool(file, subject, check)?;
+        aggregate_check(&mut primary, recheck_tool(file, subject, check));
     }
-    Ok(())
+    primary.map_or(Ok(()), Err)
 }
 
 fn recheck_roots(roots: &CanonicalArtifactRoots) -> Result<(), PreparationFailure> {
@@ -1802,8 +1856,13 @@ fn recheck_frozen_metadata(
             identity_changed(subject)
         }
     })?;
-    let canonical =
-        fs::canonicalize(&frozen.supplied_path).map_err(|_| identity_changed(subject))?;
+    let canonical = fs::canonicalize(&frozen.supplied_path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            identity_changed(subject)
+        } else {
+            evidence_io(PreparationStage::Preflight, error)
+        }
+    })?;
     let stamp = file_stamp(&frozen.supplied_path)
         .map_err(|error| evidence_io(PreparationStage::Preflight, error))?;
     if canonical != frozen.canonical_path || stamp != frozen.stamp {
@@ -1816,8 +1875,13 @@ fn recheck_tool_metadata(
     frozen: &FrozenFile,
     subject: EvidenceSubject,
 ) -> Result<(), PreparationFailure> {
-    let canonical =
-        fs::canonicalize(&frozen.supplied_path).map_err(|_| identity_changed(subject))?;
+    let canonical = fs::canonicalize(&frozen.supplied_path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            identity_changed(subject)
+        } else {
+            evidence_io(PreparationStage::Preflight, error)
+        }
+    })?;
     if canonical != frozen.canonical_path {
         return Err(identity_changed(subject));
     }
@@ -2610,6 +2674,15 @@ fn escape(path: &Path) -> String {
             prepared.build_stderr().identity,
             prepared.build_stderr.identity
         );
+        assert_eq!(prepared.manifest().identity, prepared.manifest.identity);
+        assert_eq!(prepared.lockfile().identity, prepared.lockfile.identity);
+        assert_eq!(prepared.cargo().identity, prepared.cargo.identity);
+        assert_eq!(prepared.rustc().identity, prepared.rustc.identity);
+        assert_eq!(
+            prepared.llvm_profdata().identity,
+            prepared.llvm_profdata.identity
+        );
+        assert_eq!(prepared.llvm_cov().identity, prepared.llvm_cov.identity);
         let source_view = prepared.reviewed_sources().next().unwrap();
         assert_eq!(source_view.identity, prepared.sources[0].identity);
         assert_eq!(
@@ -2883,6 +2956,21 @@ fn escape(path: &Path) -> String {
             assert_eq!(prepared.cargo.supplied_path, alias);
             assert_eq!(prepared.cargo.canonical_path, alias_fixture.cargo);
             assert_eq!(prepared.receipts[2].program, prepared.cargo.supplied_path);
+            let audit = fs::read_to_string(alias_fixture.source.join(".invocations")).unwrap();
+            assert_eq!(
+                audit
+                    .lines()
+                    .filter(|line| line.starts_with("cargo-proxy-alias|"))
+                    .count(),
+                3
+            );
+            assert_eq!(
+                audit
+                    .lines()
+                    .filter(|line| line.starts_with("cargo-ok|"))
+                    .count(),
+                0
+            );
             fs::remove_file(&prepared.cargo.supplied_path).unwrap();
             symlink(&alias_fixture.rustc, &prepared.cargo.supplied_path).unwrap();
             let error = prepared
@@ -3331,6 +3419,115 @@ fn escape(path: &Path) -> String {
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
         assert!(error.receipts.is_empty());
+
+        let contains = Fixture::new("cargo-ok", "rustc-ok");
+        let mut request = contains.request();
+        request.target_dir = &contains.root;
+        let error = prepare_cargo_target(&request).unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
+        assert!(error.receipts.is_empty());
+    }
+
+    #[test]
+    fn full_identity_gates_precede_first_process_and_json_selection() {
+        let first = Fixture::new("cargo-ok", "rustc-ok");
+        let error = with_checkpoint_hook(
+            |checkpoint, _, preflight| {
+                if checkpoint == PreparationCheckpoint::BeforeFirstGate {
+                    let source = &preflight.sources[0];
+                    let mut bytes = fs::read(&source.supplied_path).unwrap();
+                    bytes[0] = b'P';
+                    rewrite_preserving_stamp(&source.supplied_path, &bytes);
+                }
+            },
+            || prepare_cargo_target(&first.request()).unwrap_err(),
+        );
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+        );
+        assert!(error.receipts.is_empty());
+        assert!(!first.source.join(".invocations").exists());
+
+        let post_build = Fixture::new("cargo-bad-json", "rustc-ok");
+        let error = with_checkpoint_hook(
+            |checkpoint, _, preflight| {
+                if checkpoint == PreparationCheckpoint::AfterBuild {
+                    let source = &preflight.sources[0];
+                    let mut bytes = fs::read(&source.supplied_path).unwrap();
+                    bytes[0] = b'P';
+                    rewrite_preserving_stamp(&source.supplied_path, &bytes);
+                }
+            },
+            || prepare_cargo_target(&post_build.request()).unwrap_err(),
+        );
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+        );
+        assert_eq!(error.receipts.len(), 6);
+        assert!(error.receipts.last().unwrap().accepted);
+    }
+
+    #[test]
+    fn content_recheck_aggregates_every_frozen_input_failure() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let prepared = prepare_cargo_target(&fixture.request()).unwrap();
+        for frozen in [&prepared.manifest, &prepared.lockfile, &prepared.llvm_cov] {
+            let mut bytes = fs::read(&frozen.supplied_path).unwrap();
+            bytes[0] ^= 1;
+            rewrite_preserving_stamp(&frozen.supplied_path, &bytes);
+        }
+        let error = prepared
+            .recheck(SelectedArtifactCheck::Content)
+            .unwrap_err();
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Manifest)
+        );
+        assert!(error.secondary.iter().any(|diagnostic| {
+            diagnostic.kind()
+                == &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Lockfile)
+        }));
+        assert!(error.secondary.iter().any(|diagnostic| {
+            diagnostic.kind()
+                == &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::LlvmCov)
+        }));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn metadata_canonicalize_preserves_permission_denied_source() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let restricted = fixture.root.join("restricted-tool-parent");
+        fs::create_dir(&restricted).unwrap();
+        let canonical = restricted.join("cov-restricted");
+        fs::copy(&fixture.cov, &canonical).unwrap();
+        let alias = fixture.root.join("cov-proxy");
+        symlink(&canonical, &alias).unwrap();
+        let mut request = fixture.request();
+        request.llvm_cov = &alias;
+        let prepared = prepare_cargo_target(&request).unwrap();
+        fs::set_permissions(&restricted, fs::Permissions::from_mode(0o600)).unwrap();
+        let result = prepared.recheck(SelectedArtifactCheck::Metadata);
+        fs::set_permissions(&restricted, fs::Permissions::from_mode(0o700)).unwrap();
+        let error = result.unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::EvidenceIo(io::ErrorKind::PermissionDenied)
+        );
+        assert_eq!(
+            std::error::Error::source(&error)
+                .and_then(|source| source.downcast_ref::<io::Error>())
+                .map(io::Error::kind),
+            Some(io::ErrorKind::PermissionDenied)
+        );
     }
 
     #[cfg(unix)]
