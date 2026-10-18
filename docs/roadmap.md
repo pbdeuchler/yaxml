@@ -197,10 +197,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   tree passes 1,240 tests with ten ignored in debug and release all-target runs,
   plus 13 doctests. The next [protocol-parser review](review-dtd-reader-fuzz-protocol.md)
   freezes the bounded `libtest-exact-v1` grammar, structured diagnostics and
-  pinned real-libtest output with two independent PASS verdicts. Cargo artifact
-  selection, process/profile integration, measured coverage and performance
-  gates remain open. Public DTD events/errors, UTF-16 ownership, DOM storage and
-  activation also remain explicit follow-ups.
+  pinned real-libtest output with two independent PASS verdicts. The subsequent
+  [Cargo selector review](review-dtd-reader-fuzz-artifact-selector.md) adds a
+  bounded full JSONL parser and exact current-package library-test selection,
+  including linear raw-Unicode handling. Filesystem containment,
+  process/profile integration, measured coverage and performance gates remain
+  open. Public DTD events/errors, UTF-16 ownership, DOM storage and activation
+  also remain explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
