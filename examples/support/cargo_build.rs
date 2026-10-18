@@ -18,7 +18,7 @@ use crate::file_identity::{
 use crate::process::{self, ProcessLimits, ProcessOutput};
 use crate::source_inventory::{InventoryError, SourceInventory};
 use std::ffi::OsStr;
-use std::fs::{self, DirBuilder, File, OpenOptions};
+use std::fs::{self, DirBuilder, File, Metadata, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitStatus;
@@ -79,11 +79,18 @@ pub(crate) struct CargoBootstrapRequest<'a> {
 #[derive(Debug)]
 pub(crate) struct CargoPreparationBootstrap {
     roots: CanonicalArtifactRoots,
-    output_dir: PathBuf,
+    output: FrozenOutput,
     manifest: FrozenFile,
     lockfile: FrozenFile,
     compiler_version_label: String,
     limits: CargoPreparationLimits,
+}
+
+#[derive(Debug)]
+struct FrozenOutput {
+    path: PathBuf,
+    parent: PathBuf,
+    parent_key: DirectoryKey,
 }
 
 #[derive(Debug)]
@@ -375,7 +382,11 @@ pub(crate) struct PreparedCargoTarget {
     rustc_host: String,
     profile: CargoProfile,
     preparation_elapsed: Duration,
+    output_root: PathBuf,
+    output_root_key: DirectoryKey,
     evidence_dir: PathBuf,
+    evidence_dir_key: DirectoryKey,
+    owner_marker: FrozenFile,
     jsonl: FrozenFile,
     build_stderr: FrozenFile,
     receipts: Vec<CommandReceipt>,
@@ -730,7 +741,9 @@ pub(crate) fn prepare_cargo_target(
 ) -> Result<PreparedCargoTarget, CargoPreparationError> {
     let mut preflight =
         preflight(request).map_err(|failure| failure.into_error(None, None, Vec::new()))?;
-    let mut owned = OwnedPreparationDirectory::new(&preflight.output_dir)
+    recheck_fresh_output(&preflight.output)
+        .map_err(|failure| failure.into_error(None, None, Vec::new()))?;
+    let mut owned = OwnedPreparationDirectory::new(&preflight.output.path)
         .map_err(|failure| failure.into_error(None, None, Vec::new()))?;
     match prepare_in_owned(&mut preflight, &mut owned) {
         Ok(prepared) => Ok(prepared),
@@ -773,7 +786,8 @@ pub(crate) fn prepare_cargo_target(
 
 struct Preflight {
     roots: CanonicalArtifactRoots,
-    output_dir: PathBuf,
+    output: FrozenOutput,
+    output_published: bool,
     manifest: FrozenFile,
     lockfile: FrozenFile,
     source_inventory: Option<SourceInventory>,
@@ -798,7 +812,7 @@ impl Preflight {
 fn begin_cargo_preparation_inner(
     request: &CargoBootstrapRequest<'_>,
 ) -> Result<CargoPreparationBootstrap, PreparationFailure> {
-    validate_fresh_output(request.output_dir)?;
+    let output = freeze_fresh_output(request.output_dir)?;
     validate_limits(request.compiler_version_label, request.limits)?;
     validate_root_length(
         request.source_root,
@@ -838,7 +852,7 @@ fn begin_cargo_preparation_inner(
     }
     Ok(CargoPreparationBootstrap {
         roots,
-        output_dir: request.output_dir.to_path_buf(),
+        output,
         manifest,
         lockfile,
         compiler_version_label: request.compiler_version_label.to_owned(),
@@ -873,7 +887,8 @@ fn preflight(request: CargoPreparationRequest<'_>) -> Result<Preflight, Preparat
     let configuration_locations = configuration_locations(&bootstrap.roots.canonical_source_root)?;
     Ok(Preflight {
         roots: bootstrap.roots,
-        output_dir: bootstrap.output_dir,
+        output: bootstrap.output,
+        output_published: false,
         manifest: bootstrap.manifest,
         lockfile: bootstrap.lockfile,
         source_inventory: Some(source_inventory),
@@ -929,7 +944,7 @@ fn validate_root_length(
     Ok(())
 }
 
-fn validate_fresh_output(output: &Path) -> Result<(), PreparationFailure> {
+fn freeze_fresh_output(output: &Path) -> Result<FrozenOutput, PreparationFailure> {
     validate_lexical(output)?;
     match fs::symlink_metadata(output) {
         Ok(_) => {
@@ -956,6 +971,33 @@ fn validate_fresh_output(output: &Path) -> Result<(), PreparationFailure> {
             PreparationStage::Preflight,
             CargoPreparationErrorKind::Configuration,
         ));
+    }
+    let metadata = fs::symlink_metadata(parent)
+        .map_err(|error| evidence_io(PreparationStage::Preflight, error))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(configuration_failure());
+    }
+    Ok(FrozenOutput {
+        path: output.to_path_buf(),
+        parent: parent.to_path_buf(),
+        parent_key: directory_key(&metadata),
+    })
+}
+
+fn recheck_fresh_output(output: &FrozenOutput) -> Result<(), PreparationFailure> {
+    match fs::symlink_metadata(&output.path) {
+        Ok(_) => return Err(configuration_failure()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(evidence_io(PreparationStage::Preflight, error)),
+    }
+    walk_nonsymlink_directory(&output.parent).map_err(|_| configuration_failure())?;
+    let metadata = fs::symlink_metadata(&output.parent).map_err(|_| configuration_failure())?;
+    if metadata.file_type().is_symlink()
+        || !metadata.is_dir()
+        || fs::canonicalize(&output.parent).ok().as_ref() != Some(&output.parent)
+        || directory_key(&metadata) != output.parent_key
+    {
+        return Err(configuration_failure());
     }
     Ok(())
 }
@@ -985,6 +1027,28 @@ fn walk_nonsymlink_directory(path: &Path) -> Result<(), PreparationFailure> {
     }
     Ok(())
 }
+
+#[cfg(unix)]
+type DirectoryKey = (u64, u64);
+#[cfg(windows)]
+type DirectoryKey = (Option<u32>, Option<u64>);
+#[cfg(not(any(unix, windows)))]
+type DirectoryKey = ();
+
+#[cfg(unix)]
+fn directory_key(metadata: &Metadata) -> DirectoryKey {
+    use std::os::unix::fs::MetadataExt;
+    (metadata.dev(), metadata.ino())
+}
+
+#[cfg(windows)]
+fn directory_key(metadata: &Metadata) -> DirectoryKey {
+    use std::os::windows::fs::MetadataExt;
+    (metadata.volume_serial_number(), metadata.file_index())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn directory_key(_: &Metadata) -> DirectoryKey {}
 
 fn prepare_in_owned(
     preflight: &mut Preflight,
@@ -1231,13 +1295,17 @@ fn prepare_in_owned(
     recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
 
     test_checkpoint(PreparationCheckpoint::BeforePublication, owned, preflight)?;
+    recheck_fresh_output(&preflight.output)?;
     owned.verify_owner()?;
-    fs::create_dir(&preflight.output_dir)
+    fs::create_dir(&preflight.output.path)
         .map_err(|error| evidence_io(PreparationStage::Publish, error))?;
-    let published = preflight.output_dir.join("build");
+    let published = preflight.output.path.join("build");
     fs::rename(&owned.path, &published)
         .map_err(|error| evidence_io(PreparationStage::Publish, error))?;
     owned.record_relocation(&published);
+    preflight.output_published = true;
+    let output_root_key = freeze_owned_directory(&preflight.output.path)?;
+    let evidence_dir_key = freeze_owned_directory(&published)?;
     let mut jsonl = jsonl;
     jsonl.supplied_path = published.join("build.stdout");
     jsonl.canonical_path = jsonl.supplied_path.clone();
@@ -1259,6 +1327,8 @@ fn prepare_in_owned(
         );
     }
     test_checkpoint(PreparationCheckpoint::AfterRelocation, owned, preflight)?;
+    recheck_owned_directory(&preflight.output.path, output_root_key)?;
+    recheck_owned_directory(&published, evidence_dir_key)?;
     recheck_receipts(&owned.receipts, SelectedArtifactCheck::Content)?;
     recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     owned.verify_owner()?;
@@ -1298,7 +1368,11 @@ fn prepare_in_owned(
         rustc_host: host,
         profile: preflight.profile,
         preparation_elapsed: started.elapsed(),
+        output_root: preflight.output.path.clone(),
+        output_root_key,
         evidence_dir: published,
+        evidence_dir_key,
+        owner_marker: owned.owner_marker.clone(),
         jsonl,
         build_stderr,
         receipts: std::mem::take(&mut owned.receipts),
@@ -1683,6 +1757,9 @@ fn recheck_preflight(
 ) -> Result<(), PreparationFailure> {
     if check == SelectedArtifactCheck::Metadata {
         recheck_roots(&preflight.roots)?;
+        if !preflight.output_published {
+            recheck_fresh_output(&preflight.output)?;
+        }
         for (file, subject) in [
             (&preflight.manifest, EvidenceSubject::Manifest),
             (&preflight.lockfile, EvidenceSubject::Lockfile),
@@ -1706,6 +1783,9 @@ fn recheck_preflight(
 
     let mut primary = None;
     aggregate_check(&mut primary, recheck_roots(&preflight.roots));
+    if !preflight.output_published {
+        aggregate_check(&mut primary, recheck_fresh_output(&preflight.output));
+    }
     for (file, subject) in [
         (&preflight.manifest, EvidenceSubject::Manifest),
         (&preflight.lockfile, EvidenceSubject::Lockfile),
@@ -1732,6 +1812,7 @@ fn recheck_preflight(
 
 fn recheck_bootstrap(bootstrap: &CargoPreparationBootstrap) -> Result<(), PreparationFailure> {
     recheck_roots(&bootstrap.roots)?;
+    recheck_fresh_output(&bootstrap.output)?;
     recheck_frozen_file(&bootstrap.manifest, EvidenceSubject::Manifest)?;
     recheck_frozen_file(&bootstrap.lockfile, EvidenceSubject::Lockfile)
 }
@@ -1849,6 +1930,7 @@ fn recheck_prepared(
 ) -> Result<(), PreparationFailure> {
     let mut primary = None;
     aggregate_check(&mut primary, recheck_roots(&prepared.roots));
+    aggregate_check(&mut primary, recheck_prepared_output(prepared));
     for (file, subject) in [
         (&prepared.manifest, EvidenceSubject::Manifest),
         (&prepared.lockfile, EvidenceSubject::Lockfile),
@@ -1883,6 +1965,44 @@ fn recheck_prepared(
         }),
     );
     primary.map_or(Ok(()), Err)
+}
+
+fn recheck_prepared_output(prepared: &PreparedCargoTarget) -> Result<(), PreparationFailure> {
+    recheck_owned_directory(&prepared.output_root, prepared.output_root_key)?;
+    if prepared.evidence_dir.parent() != Some(prepared.output_root.as_path()) {
+        return Err(identity_changed(EvidenceSubject::OwnerMarker));
+    }
+    recheck_owned_directory(&prepared.evidence_dir, prepared.evidence_dir_key)?;
+    recheck_frozen_file(&prepared.owner_marker, EvidenceSubject::OwnerMarker)
+}
+
+fn freeze_owned_directory(path: &Path) -> Result<DirectoryKey, PreparationFailure> {
+    let metadata =
+        fs::symlink_metadata(path).map_err(|_| identity_changed(EvidenceSubject::OwnerMarker))?;
+    if metadata.file_type().is_symlink()
+        || !metadata.is_dir()
+        || fs::canonicalize(path).ok().as_deref() != Some(path)
+    {
+        return Err(identity_changed(EvidenceSubject::OwnerMarker));
+    }
+    Ok(directory_key(&metadata))
+}
+
+fn recheck_owned_directory(
+    path: &Path,
+    expected_key: DirectoryKey,
+) -> Result<(), PreparationFailure> {
+    walk_nonsymlink_directory(path).map_err(|_| identity_changed(EvidenceSubject::OwnerMarker))?;
+    let metadata =
+        fs::symlink_metadata(path).map_err(|_| identity_changed(EvidenceSubject::OwnerMarker))?;
+    if metadata.file_type().is_symlink()
+        || !metadata.is_dir()
+        || fs::canonicalize(path).ok().as_deref() != Some(path)
+        || directory_key(&metadata) != expected_key
+    {
+        return Err(identity_changed(EvidenceSubject::OwnerMarker));
+    }
+    Ok(())
 }
 
 fn aggregate_check(
@@ -2270,6 +2390,13 @@ fn identity_changed(subject: EvidenceSubject) -> PreparationFailure {
     )
 }
 
+fn configuration_failure() -> PreparationFailure {
+    PreparationFailure::new(
+        PreparationStage::Preflight,
+        CargoPreparationErrorKind::Configuration,
+    )
+}
+
 fn evidence_io(stage: PreparationStage, error: io::Error) -> PreparationFailure {
     let kind = error.kind();
     let mut failure = PreparationFailure::new(stage, CargoPreparationErrorKind::EvidenceIo(kind));
@@ -2469,6 +2596,53 @@ mod tests {
             assert!(metadata.is_dir() && !metadata.file_type().is_symlink());
             fs::remove_dir_all(&self.root).unwrap();
         }
+    }
+
+    fn request_with_inventory<'a>(
+        fixture: &'a Fixture,
+        bootstrap: CargoPreparationBootstrap,
+        source_inventory: SourceInventory,
+    ) -> CargoPreparationRequest<'a> {
+        CargoPreparationRequest {
+            bootstrap,
+            source_inventory,
+            cargo: &fixture.cargo,
+            rustc: &fixture.rustc,
+            llvm_profdata: &fixture.profdata,
+            llvm_cov: &fixture.cov,
+            profile: CargoProfile::Debug,
+        }
+    }
+
+    fn preparation_scratch_count(root: &Path) -> usize {
+        let Ok(metadata) = fs::symlink_metadata(root) else {
+            return 0;
+        };
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return 0;
+        }
+        fs::read_dir(root)
+            .unwrap()
+            .map(|entry| entry.unwrap())
+            .map(|entry| {
+                usize::from(
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .contains("cargo-preparation"),
+                ) + preparation_scratch_count(&entry.path())
+            })
+            .sum()
+    }
+
+    fn assert_preparation_never_started(fixture: &Fixture, error: &CargoPreparationError) {
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
+        assert_eq!(error.evidence_dir, None);
+        assert_eq!(error.attempt, None);
+        assert!(error.receipts.is_empty());
+        assert!(!fixture.source.join(".invocations").exists());
+        assert_eq!(preparation_scratch_count(&fixture.root), 0);
     }
 
     fn fixture_library() -> &'static str {
@@ -3207,6 +3381,188 @@ fn escape(path: &Path) -> String {
     }
 
     #[test]
+    fn bootstrap_handoff_rejects_output_file_insertion_before_scratch() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&fixture.bootstrap_request()).unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        fs::write(&fixture.output, b"occupied after capture\n").unwrap();
+
+        let reached_scratch = std::rc::Rc::new(std::cell::Cell::new(false));
+        let observed = reached_scratch.clone();
+        let error = with_checkpoint_hook(
+            move |checkpoint, _, _| {
+                if checkpoint == PreparationCheckpoint::BeforeFirstGate {
+                    observed.set(true);
+                }
+            },
+            || {
+                prepare_cargo_target(request_with_inventory(&fixture, bootstrap, inventory))
+                    .unwrap_err()
+            },
+        );
+        assert!(!reached_scratch.get());
+        assert_preparation_never_started(&fixture, &error);
+    }
+
+    #[test]
+    fn bootstrap_handoff_rejects_output_directory_insertion_before_scratch() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&fixture.bootstrap_request()).unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        fs::create_dir(&fixture.output).unwrap();
+
+        let error = prepare_cargo_target(request_with_inventory(&fixture, bootstrap, inventory))
+            .unwrap_err();
+        assert_preparation_never_started(&fixture, &error);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bootstrap_handoff_rejects_output_symlink_insertion_before_scratch() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&fixture.bootstrap_request()).unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        symlink(&fixture.target, &fixture.output).unwrap();
+
+        let error = prepare_cargo_target(request_with_inventory(&fixture, bootstrap, inventory))
+            .unwrap_err();
+        assert_preparation_never_started(&fixture, &error);
+    }
+
+    #[test]
+    fn bootstrap_handoff_rejects_output_parent_rename_before_scratch() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let output_parent = fixture.root.join("publication");
+        let output = output_parent.join("output");
+        fs::create_dir(&output_parent).unwrap();
+        let bootstrap = begin_cargo_preparation(&CargoBootstrapRequest {
+            output_dir: &output,
+            ..fixture.bootstrap_request()
+        })
+        .unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        fs::rename(
+            &output_parent,
+            fixture.root.join("publication-renamed-original"),
+        )
+        .unwrap();
+
+        let error = prepare_cargo_target(request_with_inventory(&fixture, bootstrap, inventory))
+            .unwrap_err();
+        assert_preparation_never_started(&fixture, &error);
+    }
+
+    #[test]
+    fn bootstrap_handoff_rejects_output_parent_substitution_before_scratch() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let output_parent = fixture.root.join("publication");
+        let output = output_parent.join("output");
+        fs::create_dir(&output_parent).unwrap();
+        let bootstrap = begin_cargo_preparation(&CargoBootstrapRequest {
+            output_dir: &output,
+            ..fixture.bootstrap_request()
+        })
+        .unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        fs::rename(
+            &output_parent,
+            fixture.root.join("publication-substituted-original"),
+        )
+        .unwrap();
+        fs::create_dir(&output_parent).unwrap();
+
+        let error = prepare_cargo_target(request_with_inventory(&fixture, bootstrap, inventory))
+            .unwrap_err();
+        assert_preparation_never_started(&fixture, &error);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bootstrap_handoff_rejects_output_parent_symlink_before_scratch() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let output_parent = fixture.root.join("publication");
+        let output = output_parent.join("output");
+        fs::create_dir(&output_parent).unwrap();
+        let bootstrap = begin_cargo_preparation(&CargoBootstrapRequest {
+            output_dir: &output,
+            ..fixture.bootstrap_request()
+        })
+        .unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        let parked = fixture.root.join("publication-symlink-original");
+        fs::rename(&output_parent, &parked).unwrap();
+        symlink(&parked, &output_parent).unwrap();
+
+        let error = prepare_cargo_target(request_with_inventory(&fixture, bootstrap, inventory))
+            .unwrap_err();
+        assert_preparation_never_started(&fixture, &error);
+    }
+
+    #[test]
+    fn bootstrap_output_drift_precedes_simultaneous_inventory_drift() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&fixture.bootstrap_request()).unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        fs::create_dir(&fixture.output).unwrap();
+        fs::write(
+            fixture.source.join("src/dtd.rs"),
+            b"// simultaneous inventory drift\n",
+        )
+        .unwrap();
+
+        let error = prepare_cargo_target(request_with_inventory(&fixture, bootstrap, inventory))
+            .unwrap_err();
+        assert_preparation_never_started(&fixture, &error);
+        assert_eq!(error.inventory_error(), None);
+        assert!(error.secondary.is_empty());
+    }
+
+    #[test]
+    fn prepared_rechecks_adopt_the_published_output_and_owner_marker() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let prepared = prepare_cargo_target(fixture.request()).unwrap();
+        assert!(fixture.output.is_dir());
+        prepared.recheck(SelectedArtifactCheck::Metadata).unwrap();
+        prepared.recheck(SelectedArtifactCheck::Content).unwrap();
+
+        fs::write(
+            prepared.evidence_dir().join(".owner"),
+            b"substituted owner marker\n",
+        )
+        .unwrap();
+        let error = prepared
+            .recheck(SelectedArtifactCheck::Metadata)
+            .unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::OwnerMarker)
+        );
+    }
+
+    #[test]
+    fn prepared_recheck_rejects_published_output_root_substitution() {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let prepared = prepare_cargo_target(fixture.request()).unwrap();
+        let parked = fixture.root.join("published-output-original");
+        fs::rename(&fixture.output, &parked).unwrap();
+        fs::create_dir(&fixture.output).unwrap();
+
+        let error = prepared
+            .recheck(SelectedArtifactCheck::Content)
+            .unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::OwnerMarker)
+        );
+    }
+
+    #[test]
     fn every_command_has_immediate_pre_and_post_inventory_gates() {
         let stages = [
             PreparationStage::LlvmProfdataVersion,
@@ -3379,11 +3735,8 @@ fn escape(path: &Path) -> String {
 
         let publish_fixture = Fixture::new("cargo-publish-block", "rustc-ok");
         let error = prepare_cargo_target(publish_fixture.request()).unwrap_err();
-        assert_eq!(error.stage, PreparationStage::Publish);
-        assert_eq!(
-            error.kind,
-            CargoPreparationErrorKind::EvidenceIo(io::ErrorKind::AlreadyExists)
-        );
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
         assert!(error.capture_complete && error.retention_complete);
         assert_eq!(error.receipts.len(), 6);
         let scratch = error.evidence_dir.unwrap();
@@ -4044,7 +4397,8 @@ fn escape(path: &Path) -> String {
             },
             || prepare_cargo_target(publication.request()).unwrap_err(),
         );
-        assert_eq!(error.stage, PreparationStage::Publish);
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
         assert!(error.secondary.iter().any(|diagnostic| matches!(
             diagnostic.kind(),
             CargoPreparationErrorKind::Artifact(ArtifactError::Path {
