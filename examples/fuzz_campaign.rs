@@ -6,6 +6,9 @@ mod campaign;
 #[cfg(test)]
 #[path = "support/cargo_artifact.rs"]
 mod cargo_artifact;
+#[cfg(test)]
+#[path = "support/cargo_build.rs"]
+mod cargo_build;
 #[path = "support/file_identity.rs"]
 mod file_identity;
 #[path = "support/process.rs"]
