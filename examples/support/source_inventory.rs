@@ -138,7 +138,7 @@ pub(crate) struct FrozenSource {
     file_key: FileKey,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct SourceInventory {
     source_root: PathBuf,
     src_root: PathBuf,
@@ -308,6 +308,37 @@ impl SourceInventory {
 
     pub(crate) fn sources(&self) -> &[FrozenSource] {
         &self.sources
+    }
+
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "used by the staged Cargo preparation integration")
+    )]
+    pub(crate) fn source_root(&self) -> &Path {
+        &self.source_root
+    }
+
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "used by the staged Cargo preparation integration")
+    )]
+    pub(crate) fn src_root(&self) -> &Path {
+        &self.src_root
+    }
+
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "used by the staged Cargo preparation integration")
+    )]
+    pub(crate) fn require_roots(
+        &self,
+        source_root: &Path,
+        src_root: &Path,
+    ) -> Result<(), InventoryError> {
+        if self.source_root != source_root || self.src_root != src_root {
+            return Err(err("source inventory root handoff mismatch"));
+        }
+        Ok(())
     }
 
     pub(crate) fn profile_paths(&self, profile: SourceProfile) -> Vec<PathBuf> {
@@ -590,6 +621,22 @@ impl InventoryError {
             reason,
             path: Some(path.into()),
         }
+    }
+
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "used by structured Cargo preparation diagnostics")
+    )]
+    pub(crate) fn reason(&self) -> &'static str {
+        self.reason
+    }
+
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "used by structured Cargo preparation diagnostics")
+    )]
+    pub(crate) fn path(&self) -> Option<&str> {
+        self.path.as_deref()
     }
 }
 

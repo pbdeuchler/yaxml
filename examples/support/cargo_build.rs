@@ -16,7 +16,7 @@ use crate::file_identity::{
     file_stamp,
 };
 use crate::process::{self, ProcessLimits, ProcessOutput};
-use std::collections::BTreeSet;
+use crate::source_inventory::{InventoryError, SourceInventory};
 use std::ffi::OsStr;
 use std::fs::{self, DirBuilder, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -68,18 +68,33 @@ impl Default for CargoPreparationLimits {
 }
 
 #[derive(Debug)]
-pub(crate) struct CargoPreparationRequest<'a> {
+pub(crate) struct CargoBootstrapRequest<'a> {
     pub(crate) source_root: &'a Path,
     pub(crate) target_dir: &'a Path,
     pub(crate) output_dir: &'a Path,
+    pub(crate) compiler_version_label: &'a str,
+    pub(crate) limits: CargoPreparationLimits,
+}
+
+#[derive(Debug)]
+pub(crate) struct CargoPreparationBootstrap {
+    roots: CanonicalArtifactRoots,
+    output_dir: PathBuf,
+    manifest: FrozenFile,
+    lockfile: FrozenFile,
+    compiler_version_label: String,
+    limits: CargoPreparationLimits,
+}
+
+#[derive(Debug)]
+pub(crate) struct CargoPreparationRequest<'a> {
+    pub(crate) bootstrap: CargoPreparationBootstrap,
+    pub(crate) source_inventory: SourceInventory,
     pub(crate) cargo: &'a Path,
     pub(crate) rustc: &'a Path,
     pub(crate) llvm_profdata: &'a Path,
     pub(crate) llvm_cov: &'a Path,
-    pub(crate) compiler_version_label: &'a str,
-    pub(crate) reviewed_sources: &'a [PathBuf],
     pub(crate) profile: CargoProfile,
-    pub(crate) limits: CargoPreparationLimits,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -100,7 +115,7 @@ pub(crate) enum PreparationStage {
 pub(crate) enum EvidenceSubject {
     Manifest,
     Lockfile,
-    Source,
+    SourceInventory,
     Cargo,
     Rustc,
     LlvmProfdata,
@@ -134,6 +149,7 @@ pub(crate) enum CargoPreparationErrorKind {
     ProcessIo(io::ErrorKind),
     ProcessExit,
     Stderr,
+    SourceInventory(InventoryError),
     ToolMetadata(ToolMetadataField),
     PkgidShape,
     PkgidEncoding,
@@ -156,12 +172,14 @@ pub(crate) struct CargoPreparationError {
     pub(crate) secondary: Vec<CargoPreparationDiagnostic>,
     pub(crate) attempt: Option<CommandAttempt>,
     pub(crate) receipts: Vec<CommandReceipt>,
+    pub(crate) inventory_error: Option<InventoryError>,
     io_error: Option<Arc<io::Error>>,
 }
 
 #[derive(Debug)]
 pub(crate) struct CargoPreparationDiagnostic {
     kind: CargoPreparationErrorKind,
+    inventory_error: Option<InventoryError>,
     io_error: Option<Arc<io::Error>>,
 }
 
@@ -173,10 +191,21 @@ impl CargoPreparationDiagnostic {
     pub(crate) fn io_error(&self) -> Option<&io::Error> {
         self.io_error.as_deref()
     }
+
+    pub(crate) fn inventory_error(&self) -> Option<&InventoryError> {
+        self.inventory_error.as_ref()
+    }
 }
 
 impl std::fmt::Display for CargoPreparationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let CargoPreparationErrorKind::SourceInventory(error) = &self.kind {
+            write!(formatter, "preflight/source_inventory: {}", error.reason())?;
+            if let Some(path) = error.path() {
+                write!(formatter, ": {path}")?;
+            }
+            return Ok(());
+        }
         write!(
             formatter,
             "Cargo preparation {:?}: {:?}",
@@ -190,6 +219,15 @@ impl std::error::Error for CargoPreparationError {
         self.io_error
             .as_deref()
             .map(|error| error as &(dyn std::error::Error + 'static))
+    }
+}
+
+impl CargoPreparationError {
+    pub(crate) fn inventory_error(&self) -> Option<&InventoryError> {
+        match &self.kind {
+            CargoPreparationErrorKind::SourceInventory(error) => Some(error),
+            _ => self.inventory_error.as_ref(),
+        }
     }
 }
 
@@ -328,7 +366,7 @@ pub(crate) struct PreparedCargoTarget {
     roots: CanonicalArtifactRoots,
     manifest: FrozenFile,
     lockfile: FrozenFile,
-    sources: Vec<FrozenFile>,
+    source_inventory: SourceInventory,
     cargo: FrozenFile,
     rustc: FrozenFile,
     llvm_profdata: FrozenFile,
@@ -412,10 +450,8 @@ impl PreparedCargoTarget {
         self.llvm_cov.view()
     }
 
-    pub(crate) fn reviewed_sources(
-        &self,
-    ) -> impl ExactSizeIterator<Item = FrozenFileView<'_>> + '_ {
-        self.sources.iter().map(FrozenFile::view)
+    pub(crate) fn source_inventory(&self) -> &SourceInventory {
+        &self.source_inventory
     }
 
     pub(crate) fn recheck(
@@ -435,6 +471,7 @@ struct PreparationFailure {
     capture_complete: bool,
     retention_complete: bool,
     secondary: Vec<CargoPreparationDiagnostic>,
+    inventory_error: Option<InventoryError>,
     io_error: Option<Arc<io::Error>>,
 }
 
@@ -446,6 +483,7 @@ impl PreparationFailure {
             capture_complete: true,
             retention_complete: true,
             secondary: Vec::new(),
+            inventory_error: None,
             io_error: None,
         }
     }
@@ -457,6 +495,7 @@ impl PreparationFailure {
     ) -> Self {
         self.secondary.push(CargoPreparationDiagnostic {
             kind,
+            inventory_error: None,
             io_error: io_error.map(Arc::new),
         });
         self
@@ -478,6 +517,7 @@ impl PreparationFailure {
             secondary: self.secondary,
             attempt,
             receipts,
+            inventory_error: self.inventory_error,
             io_error: self.io_error,
         }
     }
@@ -574,6 +614,7 @@ impl OwnedPreparationDirectory {
             capture_complete,
             retention_complete,
             secondary: intrinsic_secondary,
+            inventory_error,
             io_error,
         } = failure;
         CargoPreparationError {
@@ -586,6 +627,7 @@ impl OwnedPreparationDirectory {
             secondary: intrinsic_secondary,
             attempt: self.last_attempt.clone(),
             receipts: self.receipts.clone(),
+            inventory_error,
             io_error,
         }
     }
@@ -624,6 +666,8 @@ impl Drop for OwnedPreparationDirectory {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PreparationCheckpoint {
     BeforeFirstGate,
+    BeforeCommand(PreparationStage),
+    AfterCommand(PreparationStage),
     AfterBuild,
     BeforeArtifactSelection,
     AfterArtifactSelection,
@@ -662,14 +706,33 @@ fn test_checkpoint(
     Ok(())
 }
 
+pub(crate) fn begin_cargo_preparation(
+    request: &CargoBootstrapRequest<'_>,
+) -> Result<CargoPreparationBootstrap, CargoPreparationError> {
+    begin_cargo_preparation_inner(request)
+        .map_err(|failure| failure.into_error(None, None, Vec::new()))
+}
+
+pub(crate) fn capture_preparation_inventory(
+    bootstrap: &CargoPreparationBootstrap,
+) -> Result<SourceInventory, CargoPreparationError> {
+    SourceInventory::capture(&bootstrap.roots.canonical_source_root).map_err(|error| {
+        PreparationFailure::new(
+            PreparationStage::Preflight,
+            CargoPreparationErrorKind::SourceInventory(error),
+        )
+        .into_error(None, None, Vec::new())
+    })
+}
+
 pub(crate) fn prepare_cargo_target(
-    request: &CargoPreparationRequest<'_>,
+    request: CargoPreparationRequest<'_>,
 ) -> Result<PreparedCargoTarget, CargoPreparationError> {
-    let preflight =
+    let mut preflight =
         preflight(request).map_err(|failure| failure.into_error(None, None, Vec::new()))?;
-    let mut owned = OwnedPreparationDirectory::new(request.output_dir)
+    let mut owned = OwnedPreparationDirectory::new(&preflight.output_dir)
         .map_err(|failure| failure.into_error(None, None, Vec::new()))?;
-    match prepare_in_owned(request, &preflight, &mut owned) {
+    match prepare_in_owned(&mut preflight, &mut owned) {
         Ok(prepared) => Ok(prepared),
         Err(failure) => {
             let mut aggregate = Some(failure);
@@ -710,19 +773,33 @@ pub(crate) fn prepare_cargo_target(
 
 struct Preflight {
     roots: CanonicalArtifactRoots,
+    output_dir: PathBuf,
     manifest: FrozenFile,
     lockfile: FrozenFile,
-    sources: Vec<FrozenFile>,
+    source_inventory: Option<SourceInventory>,
     cargo: FrozenFile,
     rustc: FrozenFile,
     llvm_profdata: FrozenFile,
     llvm_cov: FrozenFile,
+    compiler_version_label: String,
+    profile: CargoProfile,
+    limits: CargoPreparationLimits,
     configuration_locations: Vec<(String, Option<PathBuf>)>,
 }
 
-fn preflight(request: &CargoPreparationRequest<'_>) -> Result<Preflight, PreparationFailure> {
+impl Preflight {
+    fn source_inventory(&self) -> &SourceInventory {
+        self.source_inventory
+            .as_ref()
+            .expect("source inventory transfers only after the final gate")
+    }
+}
+
+fn begin_cargo_preparation_inner(
+    request: &CargoBootstrapRequest<'_>,
+) -> Result<CargoPreparationBootstrap, PreparationFailure> {
     validate_fresh_output(request.output_dir)?;
-    validate_limits(request)?;
+    validate_limits(request.compiler_version_label, request.limits)?;
     validate_root_length(
         request.source_root,
         crate::cargo_artifact::ArtifactPathField::SourceRoot,
@@ -759,53 +836,69 @@ fn preflight(request: &CargoPreparationRequest<'_>) -> Result<Preflight, Prepara
             CargoPreparationErrorKind::Configuration,
         ));
     }
-    if request.reviewed_sources.is_empty() || request.reviewed_sources.len() > 64 {
-        return Err(PreparationFailure::new(
-            PreparationStage::Preflight,
-            CargoPreparationErrorKind::Configuration,
-        ));
-    }
-    let mut sources = Vec::with_capacity(request.reviewed_sources.len());
-    let mut unique_sources = BTreeSet::new();
-    for source in request.reviewed_sources {
-        if !source.starts_with(&roots.canonical_source_root) {
-            return Err(PreparationFailure::new(
-                PreparationStage::Preflight,
-                CargoPreparationErrorKind::Configuration,
-            ));
-        }
-        let frozen = freeze_strict_file(source, EvidenceSubject::Source)?;
-        if !unique_sources.insert(frozen.canonical_path.clone()) {
-            return Err(PreparationFailure::new(
-                PreparationStage::Preflight,
-                CargoPreparationErrorKind::Configuration,
-            ));
-        }
-        sources.push(frozen);
-    }
-    let configuration_locations = configuration_locations(&roots.canonical_source_root)?;
-    Ok(Preflight {
+    Ok(CargoPreparationBootstrap {
         roots,
+        output_dir: request.output_dir.to_path_buf(),
         manifest,
         lockfile,
-        sources,
-        cargo: freeze_tool_file(request.cargo, EvidenceSubject::Cargo)?,
-        rustc: freeze_tool_file(request.rustc, EvidenceSubject::Rustc)?,
-        llvm_profdata: freeze_tool_file(request.llvm_profdata, EvidenceSubject::LlvmProfdata)?,
-        llvm_cov: freeze_tool_file(request.llvm_cov, EvidenceSubject::LlvmCov)?,
+        compiler_version_label: request.compiler_version_label.to_owned(),
+        limits: request.limits,
+    })
+}
+
+fn preflight(request: CargoPreparationRequest<'_>) -> Result<Preflight, PreparationFailure> {
+    let CargoPreparationRequest {
+        bootstrap,
+        source_inventory,
+        cargo,
+        rustc,
+        llvm_profdata,
+        llvm_cov,
+        profile,
+    } = request;
+    source_inventory
+        .require_roots(
+            &bootstrap.roots.canonical_source_root,
+            bootstrap
+                .roots
+                .canonical_src_path
+                .parent()
+                .expect("src/lib.rs has a parent"),
+        )
+        .map_err(initial_inventory_failure)?;
+    recheck_bootstrap(&bootstrap)?;
+    source_inventory
+        .recheck()
+        .map_err(initial_inventory_failure)?;
+    let configuration_locations = configuration_locations(&bootstrap.roots.canonical_source_root)?;
+    Ok(Preflight {
+        roots: bootstrap.roots,
+        output_dir: bootstrap.output_dir,
+        manifest: bootstrap.manifest,
+        lockfile: bootstrap.lockfile,
+        source_inventory: Some(source_inventory),
+        cargo: freeze_tool_file(cargo, EvidenceSubject::Cargo)?,
+        rustc: freeze_tool_file(rustc, EvidenceSubject::Rustc)?,
+        llvm_profdata: freeze_tool_file(llvm_profdata, EvidenceSubject::LlvmProfdata)?,
+        llvm_cov: freeze_tool_file(llvm_cov, EvidenceSubject::LlvmCov)?,
+        compiler_version_label: bootstrap.compiler_version_label,
+        profile,
+        limits: bootstrap.limits,
         configuration_locations,
     })
 }
 
-fn validate_limits(request: &CargoPreparationRequest<'_>) -> Result<(), PreparationFailure> {
-    if request.limits.timeout.is_zero()
-        || request.limits.timeout > Duration::from_secs(MAX_PREPARATION_SECONDS)
-        || request.limits.max_build_output_bytes == 0
-        || request.limits.max_build_output_bytes > MAX_BUILD_OUTPUT_BYTES
-        || request.compiler_version_label.is_empty()
-        || request.compiler_version_label.len() > 4096
-        || request
-            .compiler_version_label
+fn validate_limits(
+    compiler_version_label: &str,
+    limits: CargoPreparationLimits,
+) -> Result<(), PreparationFailure> {
+    if limits.timeout.is_zero()
+        || limits.timeout > Duration::from_secs(MAX_PREPARATION_SECONDS)
+        || limits.max_build_output_bytes == 0
+        || limits.max_build_output_bytes > MAX_BUILD_OUTPUT_BYTES
+        || compiler_version_label.is_empty()
+        || compiler_version_label.len() > 4096
+        || compiler_version_label
             .bytes()
             .any(|byte| byte.is_ascii_control())
     {
@@ -894,8 +987,7 @@ fn walk_nonsymlink_directory(path: &Path) -> Result<(), PreparationFailure> {
 }
 
 fn prepare_in_owned(
-    request: &CargoPreparationRequest<'_>,
-    preflight: &Preflight,
+    preflight: &mut Preflight,
     owned: &mut OwnedPreparationDirectory,
 ) -> Result<PreparedCargoTarget, PreparationFailure> {
     let started = Instant::now();
@@ -904,7 +996,7 @@ fn prepare_in_owned(
     recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     let profdata = run_stage(
         owned,
-        request,
+        preflight,
         &preflight.llvm_profdata,
         EvidenceSubject::LlvmProfdata,
         &["--version"],
@@ -917,18 +1009,18 @@ fn prepare_in_owned(
         started,
     )?;
     require_success_without_stderr(PreparationStage::LlvmProfdataVersion, &profdata)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     require_matching_llvm(
         PreparationStage::LlvmProfdataVersion,
         &profdata.stdout,
         "LLVM version ",
-        request.compiler_version_label,
+        &preflight.compiler_version_label,
     )?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let cov = run_stage(
         owned,
-        request,
+        preflight,
         &preflight.llvm_cov,
         EvidenceSubject::LlvmCov,
         &["--version"],
@@ -941,18 +1033,18 @@ fn prepare_in_owned(
         started,
     )?;
     require_success_without_stderr(PreparationStage::LlvmCovVersion, &cov)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     require_matching_llvm(
         PreparationStage::LlvmCovVersion,
         &cov.stdout,
         "LLVM version ",
-        request.compiler_version_label,
+        &preflight.compiler_version_label,
     )?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let cargo_version = run_stage(
         owned,
-        request,
+        preflight,
         &preflight.cargo,
         EvidenceSubject::Cargo,
         &["-vV"],
@@ -965,12 +1057,12 @@ fn prepare_in_owned(
         started,
     )?;
     require_success_without_stderr(PreparationStage::CargoVersion, &cargo_version)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let rustc_version = run_stage(
         owned,
-        request,
+        preflight,
         &preflight.rustc,
         EvidenceSubject::Rustc,
         &["-vV"],
@@ -983,16 +1075,16 @@ fn prepare_in_owned(
         started,
     )?;
     require_success_without_stderr(PreparationStage::RustcVersion, &rustc_version)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     let host = parse_rustc_host(&rustc_version.stdout)?;
     require_matching_llvm(
         PreparationStage::RustcVersion,
         &rustc_version.stdout,
         "LLVM version: ",
-        request.compiler_version_label,
+        &preflight.compiler_version_label,
     )?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let manifest = path_text(&preflight.manifest.supplied_path)?;
     let pkgid_args = [
         "pkgid",
@@ -1005,7 +1097,7 @@ fn prepare_in_owned(
     ];
     let pkgid = run_stage(
         owned,
-        request,
+        preflight,
         &preflight.cargo,
         EvidenceSubject::Cargo,
         &pkgid_args,
@@ -1018,10 +1110,10 @@ fn prepare_in_owned(
         started,
     )?;
     require_success_without_stderr(PreparationStage::Pkgid, &pkgid)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     let package_id = parse_pkgid(&pkgid.stdout)?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let target = path_text(&preflight.roots.canonical_target_dir)?;
     let mut build_args = vec![
         "test",
@@ -1039,18 +1131,18 @@ fn prepare_in_owned(
         "--color",
         "never",
     ];
-    if request.profile == CargoProfile::Release {
+    if preflight.profile == CargoProfile::Release {
         build_args.push("--release");
     }
     let build = run_stage(
         owned,
-        request,
+        preflight,
         &preflight.cargo,
         EvidenceSubject::Cargo,
         &build_args,
         PreparationStage::Build,
-        request.limits.max_build_output_bytes,
-        request.limits.timeout,
+        preflight.limits.max_build_output_bytes,
+        preflight.limits.timeout,
         &environment,
         &preflight.configuration_locations,
         &preflight.roots.canonical_source_root,
@@ -1140,9 +1232,9 @@ fn prepare_in_owned(
 
     test_checkpoint(PreparationCheckpoint::BeforePublication, owned, preflight)?;
     owned.verify_owner()?;
-    fs::create_dir(request.output_dir)
+    fs::create_dir(&preflight.output_dir)
         .map_err(|error| evidence_io(PreparationStage::Publish, error))?;
-    let published = request.output_dir.join("build");
+    let published = preflight.output_dir.join("build");
     fs::rename(&owned.path, &published)
         .map_err(|error| evidence_io(PreparationStage::Publish, error))?;
     owned.record_relocation(&published);
@@ -1194,14 +1286,17 @@ fn prepare_in_owned(
         roots: preflight.roots.clone(),
         manifest: preflight.manifest.clone(),
         lockfile: preflight.lockfile.clone(),
-        sources: preflight.sources.clone(),
+        source_inventory: preflight
+            .source_inventory
+            .take()
+            .expect("validated source inventory is transferred exactly once"),
         cargo: preflight.cargo.clone(),
         rustc: preflight.rustc.clone(),
         llvm_profdata: preflight.llvm_profdata.clone(),
         llvm_cov: preflight.llvm_cov.clone(),
         package_id,
         rustc_host: host,
-        profile: request.profile,
+        profile: preflight.profile,
         preparation_elapsed: started.elapsed(),
         evidence_dir: published,
         jsonl,
@@ -1212,7 +1307,7 @@ fn prepare_in_owned(
 
 fn run_stage(
     owned: &mut OwnedPreparationDirectory,
-    request: &CargoPreparationRequest<'_>,
+    preflight: &Preflight,
     tool: &FrozenFile,
     tool_subject: EvidenceSubject,
     args: &[&str],
@@ -1224,7 +1319,13 @@ fn run_stage(
     canonical_cwd: &Path,
     started: Instant,
 ) -> Result<ProcessOutput, PreparationFailure> {
-    let remaining = request
+    test_checkpoint(
+        PreparationCheckpoint::BeforeCommand(stage),
+        owned,
+        preflight,
+    )?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
+    let remaining = preflight
         .limits
         .timeout
         .checked_sub(started.elapsed())
@@ -1282,9 +1383,11 @@ fn run_stage(
             capture_complete: false,
             retention_complete: false,
             secondary: Vec::new(),
+            inventory_error: None,
             io_error: Some(Arc::new(error)),
         }
     })?;
+    test_checkpoint(PreparationCheckpoint::AfterCommand(stage), owned, preflight)?;
 
     let prefix = stage_name(stage);
     let stdout_path = owned.path.join(format!("{prefix}.stdout"));
@@ -1586,9 +1689,10 @@ fn recheck_preflight(
         ] {
             recheck_frozen(file, subject, check)?;
         }
-        for source in &preflight.sources {
-            recheck_frozen(source, EvidenceSubject::Source, check)?;
-        }
+        preflight
+            .source_inventory()
+            .recheck()
+            .map_err(inventory_drift_failure)?;
         for (file, subject) in [
             (&preflight.cargo, EvidenceSubject::Cargo),
             (&preflight.rustc, EvidenceSubject::Rustc),
@@ -1608,12 +1712,13 @@ fn recheck_preflight(
     ] {
         aggregate_check(&mut primary, recheck_frozen(file, subject, check));
     }
-    for source in &preflight.sources {
-        aggregate_check(
-            &mut primary,
-            recheck_frozen(source, EvidenceSubject::Source, check),
-        );
-    }
+    aggregate_check(
+        &mut primary,
+        preflight
+            .source_inventory()
+            .recheck()
+            .map_err(inventory_drift_failure),
+    );
     for (file, subject) in [
         (&preflight.cargo, EvidenceSubject::Cargo),
         (&preflight.rustc, EvidenceSubject::Rustc),
@@ -1623,6 +1728,28 @@ fn recheck_preflight(
         aggregate_check(&mut primary, recheck_tool(file, subject, check));
     }
     primary.map_or(Ok(()), Err)
+}
+
+fn recheck_bootstrap(bootstrap: &CargoPreparationBootstrap) -> Result<(), PreparationFailure> {
+    recheck_roots(&bootstrap.roots)?;
+    recheck_frozen_file(&bootstrap.manifest, EvidenceSubject::Manifest)?;
+    recheck_frozen_file(&bootstrap.lockfile, EvidenceSubject::Lockfile)
+}
+
+fn initial_inventory_failure(error: InventoryError) -> PreparationFailure {
+    PreparationFailure::new(
+        PreparationStage::Preflight,
+        CargoPreparationErrorKind::SourceInventory(error),
+    )
+}
+
+fn inventory_drift_failure(error: InventoryError) -> PreparationFailure {
+    let mut failure = PreparationFailure::new(
+        PreparationStage::Preflight,
+        CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory),
+    );
+    failure.inventory_error = Some(error);
+    failure
 }
 
 fn recheck_roots(roots: &CanonicalArtifactRoots) -> Result<(), PreparationFailure> {
@@ -1720,19 +1847,29 @@ fn recheck_prepared(
     prepared: &PreparedCargoTarget,
     check: SelectedArtifactCheck,
 ) -> Result<(), PreparationFailure> {
-    let preflight = Preflight {
-        roots: prepared.roots.clone(),
-        manifest: prepared.manifest.clone(),
-        lockfile: prepared.lockfile.clone(),
-        sources: prepared.sources.clone(),
-        cargo: prepared.cargo.clone(),
-        rustc: prepared.rustc.clone(),
-        llvm_profdata: prepared.llvm_profdata.clone(),
-        llvm_cov: prepared.llvm_cov.clone(),
-        configuration_locations: Vec::new(),
-    };
     let mut primary = None;
-    aggregate_check(&mut primary, recheck_preflight(&preflight, check));
+    aggregate_check(&mut primary, recheck_roots(&prepared.roots));
+    for (file, subject) in [
+        (&prepared.manifest, EvidenceSubject::Manifest),
+        (&prepared.lockfile, EvidenceSubject::Lockfile),
+    ] {
+        aggregate_check(&mut primary, recheck_frozen(file, subject, check));
+    }
+    aggregate_check(
+        &mut primary,
+        prepared
+            .source_inventory
+            .recheck()
+            .map_err(inventory_drift_failure),
+    );
+    for (file, subject) in [
+        (&prepared.cargo, EvidenceSubject::Cargo),
+        (&prepared.rustc, EvidenceSubject::Rustc),
+        (&prepared.llvm_profdata, EvidenceSubject::LlvmProfdata),
+        (&prepared.llvm_cov, EvidenceSubject::LlvmCov),
+    ] {
+        aggregate_check(&mut primary, recheck_tool(file, subject, check));
+    }
     for receipt in &prepared.receipts {
         aggregate_check(&mut primary, recheck_receipt(receipt, check));
     }
@@ -1758,6 +1895,7 @@ fn aggregate_check(
     if let Some(primary) = primary {
         primary.secondary.push(CargoPreparationDiagnostic {
             kind: failure.kind,
+            inventory_error: failure.inventory_error,
             io_error: failure.io_error,
         });
         primary.secondary.append(&mut failure.secondary);
@@ -2105,7 +2243,7 @@ fn metadata_failure(subject: EvidenceSubject) -> PreparationFailure {
     let field = match subject {
         EvidenceSubject::Manifest => ToolMetadataField::Manifest,
         EvidenceSubject::Lockfile => ToolMetadataField::Lockfile,
-        EvidenceSubject::Source => ToolMetadataField::Source,
+        EvidenceSubject::SourceInventory => ToolMetadataField::Source,
         EvidenceSubject::Cargo => ToolMetadataField::Cargo,
         EvidenceSubject::Rustc => ToolMetadataField::Rustc,
         EvidenceSubject::LlvmProfdata => ToolMetadataField::LlvmProfdata,
@@ -2146,6 +2284,7 @@ fn retention_io(stage: PreparationStage, error: io::Error) -> PreparationFailure
         capture_complete: true,
         retention_complete: false,
         secondary: Vec::new(),
+        inventory_error: None,
         io_error: Some(Arc::new(error)),
     }
 }
@@ -2242,7 +2381,6 @@ mod tests {
         rustc: PathBuf,
         profdata: PathBuf,
         cov: PathBuf,
-        sources: Vec<PathBuf>,
     }
 
     impl Fixture {
@@ -2285,7 +2423,6 @@ mod tests {
             let rustc = install(rustc_mode);
             let profdata = install("profdata-ok");
             let cov = install("cov-ok");
-            let sources = vec![source.join("src/lib.rs")];
             Self {
                 root,
                 source,
@@ -2295,26 +2432,33 @@ mod tests {
                 rustc,
                 profdata,
                 cov,
-                sources,
             }
         }
 
-        fn request(&self) -> CargoPreparationRequest<'_> {
-            CargoPreparationRequest {
+        fn bootstrap_request(&self) -> CargoBootstrapRequest<'_> {
+            CargoBootstrapRequest {
                 source_root: &self.source,
                 target_dir: &self.target,
                 output_dir: &self.output,
-                cargo: &self.cargo,
-                rustc: &self.rustc,
-                llvm_profdata: &self.profdata,
-                llvm_cov: &self.cov,
                 compiler_version_label: "rustc fixture LLVM version: 22.1.6",
-                reviewed_sources: &self.sources,
-                profile: CargoProfile::Debug,
                 limits: CargoPreparationLimits {
                     timeout: Duration::from_secs(5),
                     max_build_output_bytes: MAX_BUILD_OUTPUT_BYTES,
                 },
+            }
+        }
+
+        fn request(&self) -> CargoPreparationRequest<'_> {
+            let bootstrap = begin_cargo_preparation(&self.bootstrap_request()).unwrap();
+            let source_inventory = capture_preparation_inventory(&bootstrap).unwrap();
+            CargoPreparationRequest {
+                bootstrap,
+                source_inventory,
+                cargo: &self.cargo,
+                rustc: &self.rustc,
+                llvm_profdata: &self.profdata,
+                llvm_cov: &self.cov,
+                profile: CargoProfile::Debug,
             }
         }
     }
@@ -2349,6 +2493,40 @@ mod tests {
     }
 
     fn write_package(source: &Path, library: &str) {
+        const TEST_MASTER: [&str; 32] = [
+            "src/buffered.rs",
+            "src/dom.rs",
+            "src/dtd.rs",
+            "src/dtd_catalog.rs",
+            "src/dtd_controller.rs",
+            "src/dtd_controller/content.rs",
+            "src/dtd_frames.rs",
+            "src/dtd_reference.rs",
+            "src/dtd_scan.rs",
+            "src/dtd_tag.rs",
+            "src/dtd_writer.rs",
+            "src/encoding.rs",
+            "src/error.rs",
+            "src/escape.rs",
+            "src/lib.rs",
+            "src/name.rs",
+            "src/origin.rs",
+            "src/owned.rs",
+            "src/owned/construction.rs",
+            "src/parser.rs",
+            "src/push.rs",
+            "src/reader.rs",
+            "src/reader/dtd.rs",
+            "src/serialize.rs",
+            "src/stream.rs",
+            "src/stream/dtd.rs",
+            "src/stream/dtd_buffered.rs",
+            "src/tokenizer.rs",
+            "src/tokenizer/local.rs",
+            "src/tokenizer/reference.rs",
+            "src/tokenizer/text.rs",
+            "src/writer.rs",
+        ];
         fs::write(
             source.join("Cargo.toml"),
             "[package]\nname = \"yaxml\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[workspace]\n",
@@ -2359,7 +2537,19 @@ mod tests {
             "# This file is automatically @generated by Cargo.\n# It is not intended for manual editing.\nversion = 4\n\n[[package]]\nname = \"yaxml\"\nversion = \"0.1.0\"\n",
         )
         .unwrap();
-        fs::write(source.join("src/lib.rs"), library).unwrap();
+        for relative in TEST_MASTER {
+            let path = source.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(
+                &path,
+                if relative == "src/lib.rs" {
+                    library.as_bytes()
+                } else {
+                    b"// independent fixture source\n"
+                },
+            )
+            .unwrap();
+        }
     }
 
     struct CheckpointHookReset;
@@ -2478,6 +2668,7 @@ fn main() {
             "cargo-pkgid-no-lf" => print!("path+file:///opaque%20source#yaxml@7.3.1"),
             "cargo-pkgid-nonutf8" => std::io::stdout().write_all(&[0xff, b'\n']).unwrap(),
             "cargo-pkgid-stderr" => { println!("path+file:///opaque%20source#yaxml@7.3.1"); eprintln!("diagnostic"); },
+            "cargo-pkgid-stderr-mutate" => { fs::write(cwd.join("src/lib.rs"), b"changed during pkgid\n").unwrap(); println!("path+file:///opaque%20source#yaxml@7.3.1"); eprintln!("diagnostic"); },
             _ => println!("path+file:///opaque%20source#yaxml@7.3.1"),
         }
         return;
@@ -2485,6 +2676,7 @@ fn main() {
     if args.first().map(String::as_str) != Some("test") { process::exit(91); }
     match mode.as_str() {
         "cargo-timeout" => thread::sleep(Duration::from_secs(2)),
+        "cargo-timeout-mutate" => { fs::write(cwd.join("src/lib.rs"), b"changed before timeout\n").unwrap(); thread::sleep(Duration::from_secs(2)); },
         "cargo-output" => { print!("{}", "x".repeat(200_000)); return; },
         "cargo-stdout-exact" => { padded_json(&cwd, &args, 8 * 1024 * 1024); return; },
         "cargo-stdout-limit" => { padded_json(&cwd, &args, 8 * 1024 * 1024 + 1); return; },
@@ -2655,7 +2847,7 @@ fn escape(path: &Path) -> String {
     #[test]
     fn prepares_one_artifact_with_exact_commands_and_owned_receipts() {
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
-        let prepared = prepare_cargo_target(&fixture.request()).unwrap();
+        let prepared = prepare_cargo_target(fixture.request()).unwrap();
         assert_eq!(prepared.package_id(), prepared.package_id);
         assert_eq!(prepared.rustc_host(), prepared.rustc_host);
         assert_eq!(prepared.evidence_dir(), prepared.evidence_dir);
@@ -2683,8 +2875,7 @@ fn escape(path: &Path) -> String {
             prepared.llvm_profdata.identity
         );
         assert_eq!(prepared.llvm_cov().identity, prepared.llvm_cov.identity);
-        let source_view = prepared.reviewed_sources().next().unwrap();
-        assert_eq!(source_view.identity, prepared.sources[0].identity);
+        assert_eq!(prepared.source_inventory().sources().len(), 32);
         assert_eq!(
             prepared.package_id,
             "path+file:///opaque%20source#yaxml@7.3.1"
@@ -2854,8 +3045,13 @@ fn escape(path: &Path) -> String {
         prepared.recheck(SelectedArtifactCheck::Content).unwrap();
         assert_eq!(prepared.selected, selected);
         assert_eq!(prepared.expected, expected);
-        assert!(prepared.preparation_elapsed <= fixture.request().limits.timeout);
+        assert!(prepared.preparation_elapsed <= Duration::from_secs(5));
         assert_eq!(prepared.roots.canonical_source_root, fixture.source);
+        assert_eq!(prepared.source_inventory().source_root(), fixture.source);
+        assert_eq!(
+            prepared.source_inventory().src_root(),
+            fixture.source.join("src")
+        );
         let audit = fs::read_to_string(fixture.source.join(".invocations")).unwrap();
         assert_eq!(audit.lines().count(), 6);
         assert!(audit.lines().all(|line| line.ends_with("|0")));
@@ -2865,7 +3061,7 @@ fn escape(path: &Path) -> String {
     fn preflight_rejects_manifest_metadata_before_process_or_scratch() {
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
         fs::remove_file(fixture.source.join("Cargo.toml")).unwrap();
-        let error = prepare_cargo_target(&fixture.request()).unwrap_err();
+        let error = begin_cargo_preparation(&fixture.bootstrap_request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
@@ -2890,8 +3086,8 @@ fn escape(path: &Path) -> String {
 
         let deadline_fixture = Fixture::new("cargo-ok", "rustc-ok");
         let mut request = deadline_fixture.request();
-        request.limits.timeout = Duration::from_nanos(1);
-        let error = prepare_cargo_target(&request).unwrap_err();
+        request.bootstrap.limits.timeout = Duration::from_nanos(1);
+        let error = prepare_cargo_target(request).unwrap_err();
         assert_eq!(error.stage, PreparationStage::LlvmProfdataVersion);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessTimeout);
         assert_eq!(error.evidence_dir, None);
@@ -2911,11 +3107,158 @@ fn escape(path: &Path) -> String {
     }
 
     #[test]
+    fn inventory_capture_and_handoff_are_structured_and_never_rebased() {
+        let capture = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&capture.bootstrap_request()).unwrap();
+        fs::remove_file(capture.source.join("src/dtd.rs")).unwrap();
+        let error = capture_preparation_inventory(&bootstrap).unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert!(matches!(
+            error.kind,
+            CargoPreparationErrorKind::SourceInventory(_)
+        ));
+        let inventory_error = error.inventory_error().unwrap();
+        assert_eq!(inventory_error.reason(), "missing reviewed source");
+        assert_eq!(inventory_error.path(), Some("src/dtd.rs"));
+        assert_eq!(
+            error.to_string(),
+            "preflight/source_inventory: missing reviewed source: src/dtd.rs"
+        );
+        assert!(!capture.output.exists());
+        assert!(!capture.source.join(".invocations").exists());
+
+        let handoff = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&handoff.bootstrap_request()).unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        let path = handoff.source.join("src/dtd.rs");
+        fs::write(&path, b"// changed after the sole capture\n").unwrap();
+        let error = prepare_cargo_target(CargoPreparationRequest {
+            bootstrap,
+            source_inventory: inventory,
+            cargo: &handoff.cargo,
+            rustc: &handoff.rustc,
+            llvm_profdata: &handoff.profdata,
+            llvm_cov: &handoff.cov,
+            profile: CargoProfile::Debug,
+        })
+        .unwrap_err();
+        assert!(matches!(
+            error.kind,
+            CargoPreparationErrorKind::SourceInventory(_)
+        ));
+        assert_eq!(
+            error.inventory_error().unwrap().reason(),
+            "source identity changed"
+        );
+        assert_eq!(error.inventory_error().unwrap().path(), Some("src/dtd.rs"));
+        assert!(!handoff.output.exists());
+        assert!(!handoff.source.join(".invocations").exists());
+
+        let manifest_handoff = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&manifest_handoff.bootstrap_request()).unwrap();
+        let inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        fs::write(
+            manifest_handoff.source.join("Cargo.lock"),
+            b"changed after bootstrap\n",
+        )
+        .unwrap();
+        let error = prepare_cargo_target(CargoPreparationRequest {
+            bootstrap,
+            source_inventory: inventory,
+            cargo: &manifest_handoff.cargo,
+            rustc: &manifest_handoff.rustc,
+            llvm_profdata: &manifest_handoff.profdata,
+            llvm_cov: &manifest_handoff.cov,
+            profile: CargoProfile::Debug,
+        })
+        .unwrap_err();
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Lockfile)
+        );
+        assert!(!manifest_handoff.output.exists());
+        assert!(!manifest_handoff.source.join(".invocations").exists());
+
+        let roots = Fixture::new("cargo-ok", "rustc-ok");
+        let unrelated = Fixture::new("cargo-ok", "rustc-ok");
+        let bootstrap = begin_cargo_preparation(&roots.bootstrap_request()).unwrap();
+        let unrelated_bootstrap = begin_cargo_preparation(&unrelated.bootstrap_request()).unwrap();
+        let unrelated_inventory = capture_preparation_inventory(&unrelated_bootstrap).unwrap();
+        let error = prepare_cargo_target(CargoPreparationRequest {
+            bootstrap,
+            source_inventory: unrelated_inventory,
+            cargo: &roots.cargo,
+            rustc: &roots.rustc,
+            llvm_profdata: &roots.profdata,
+            llvm_cov: &roots.cov,
+            profile: CargoProfile::Debug,
+        })
+        .unwrap_err();
+        assert!(matches!(
+            error.kind,
+            CargoPreparationErrorKind::SourceInventory(_)
+        ));
+        assert_eq!(
+            error.inventory_error().unwrap().reason(),
+            "source inventory root handoff mismatch"
+        );
+        assert!(!roots.output.exists());
+        assert!(!roots.source.join(".invocations").exists());
+    }
+
+    #[test]
+    fn every_command_has_immediate_pre_and_post_inventory_gates() {
+        let stages = [
+            PreparationStage::LlvmProfdataVersion,
+            PreparationStage::LlvmCovVersion,
+            PreparationStage::CargoVersion,
+            PreparationStage::RustcVersion,
+            PreparationStage::Pkgid,
+            PreparationStage::Build,
+        ];
+        for (index, stage) in stages.into_iter().enumerate() {
+            for after in [false, true] {
+                let fixture = Fixture::new("cargo-ok", "rustc-ok");
+                let error = with_checkpoint_hook(
+                    move |checkpoint, _, preflight| {
+                        let selected = if after {
+                            PreparationCheckpoint::AfterCommand(stage)
+                        } else {
+                            PreparationCheckpoint::BeforeCommand(stage)
+                        };
+                        if checkpoint == selected {
+                            let path = &preflight.source_inventory().sources()[0].canonical;
+                            fs::write(path, b"// command-boundary mutation\n").unwrap();
+                        }
+                    },
+                    || prepare_cargo_target(fixture.request()).unwrap_err(),
+                );
+                assert_eq!(
+                    error.kind,
+                    CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory),
+                    "{stage:?} after={after}"
+                );
+                assert_eq!(
+                    error.inventory_error().unwrap().reason(),
+                    "source identity changed"
+                );
+                assert_eq!(
+                    fs::read_to_string(fixture.source.join(".invocations"))
+                        .map(|audit| audit.lines().count())
+                        .unwrap_or(0),
+                    index + usize::from(after),
+                    "{stage:?} after={after}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn preflight_rejects_tool_types_and_lexical_output_without_launching() {
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
         let mut request = fixture.request();
         request.cargo = &fixture.target;
-        let error = prepare_cargo_target(&request).unwrap_err();
+        let error = prepare_cargo_target(request).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
@@ -2925,9 +3268,11 @@ fn escape(path: &Path) -> String {
         assert!(!fixture.source.join(".invocations").exists());
 
         let relative_output = PathBuf::from("relative-output");
-        let mut request = fixture.request();
-        request.output_dir = &relative_output;
-        let error = prepare_cargo_target(&request).unwrap_err();
+        let error = begin_cargo_preparation(&CargoBootstrapRequest {
+            output_dir: &relative_output,
+            ..fixture.bootstrap_request()
+        })
+        .unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
         assert_eq!(error.evidence_dir, None);
@@ -2936,7 +3281,7 @@ fn escape(path: &Path) -> String {
         #[cfg(unix)]
         {
             std::os::unix::fs::symlink("missing-output-target", &fixture.output).unwrap();
-            let error = prepare_cargo_target(&fixture.request()).unwrap_err();
+            let error = begin_cargo_preparation(&fixture.bootstrap_request()).unwrap_err();
             assert_eq!(error.stage, PreparationStage::Preflight);
             assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
             assert_eq!(error.evidence_dir, None);
@@ -2952,7 +3297,7 @@ fn escape(path: &Path) -> String {
             symlink(&alias_fixture.cargo, &alias).unwrap();
             let mut request = alias_fixture.request();
             request.cargo = &alias;
-            let prepared = prepare_cargo_target(&request).unwrap();
+            let prepared = prepare_cargo_target(request).unwrap();
             assert_eq!(prepared.cargo.supplied_path, alias);
             assert_eq!(prepared.cargo.canonical_path, alias_fixture.cargo);
             assert_eq!(prepared.receipts[2].program, prepared.cargo.supplied_path);
@@ -2987,7 +3332,7 @@ fn escape(path: &Path) -> String {
     #[test]
     fn receipt_and_publication_failures_preserve_only_owned_evidence() {
         let receipt_fixture = Fixture::new("cargo-receipt-collision", "rustc-ok");
-        let error = prepare_cargo_target(&receipt_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(receipt_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::CargoVersion);
         assert_eq!(
             error.kind,
@@ -3013,7 +3358,7 @@ fn escape(path: &Path) -> String {
         assert!(receipt_fixture.target.is_dir());
 
         let combined_fixture = Fixture::new("cargo-nonzero-receipt-collision", "rustc-ok");
-        let error = prepare_cargo_target(&combined_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(combined_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::CargoVersion);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessExit);
         assert_eq!(
@@ -3033,7 +3378,7 @@ fn escape(path: &Path) -> String {
         assert!(!failed_receipt.accepted);
 
         let publish_fixture = Fixture::new("cargo-publish-block", "rustc-ok");
-        let error = prepare_cargo_target(&publish_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(publish_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Publish);
         assert_eq!(
             error.kind,
@@ -3083,7 +3428,7 @@ fn escape(path: &Path) -> String {
             ),
         ] {
             let fixture = Fixture::new(mode, "rustc-ok");
-            let error = prepare_cargo_target(&fixture.request()).unwrap_err();
+            let error = prepare_cargo_target(fixture.request()).unwrap_err();
             assert_eq!(error.stage, expected_stage, "{mode}");
             assert_eq!(error.kind, expected_kind, "{mode}");
             assert_eq!(error.capture_complete, complete, "{mode}");
@@ -3111,8 +3456,8 @@ fn escape(path: &Path) -> String {
 
         let timeout_fixture = Fixture::new("cargo-timeout", "rustc-ok");
         let mut request = timeout_fixture.request();
-        request.limits.timeout = Duration::from_secs(1);
-        let error = prepare_cargo_target(&request).unwrap_err();
+        request.bootstrap.limits.timeout = Duration::from_secs(1);
+        let error = prepare_cargo_target(request).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessTimeout);
         assert!(!error.capture_complete);
@@ -3126,8 +3471,8 @@ fn escape(path: &Path) -> String {
 
         let output_fixture = Fixture::new("cargo-output", "rustc-ok");
         let mut request = output_fixture.request();
-        request.limits.max_build_output_bytes = 1024;
-        let error = prepare_cargo_target(&request).unwrap_err();
+        request.bootstrap.limits.max_build_output_bytes = 1024;
+        let error = prepare_cargo_target(request).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessOutputLimit);
         assert!(!error.capture_complete);
@@ -3140,7 +3485,7 @@ fn escape(path: &Path) -> String {
         assert_eq!(error.receipts.len(), 5);
 
         let stream_fixture = Fixture::new("cargo-stderr-limit", "rustc-ok");
-        let error = prepare_cargo_target(&stream_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(stream_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::StderrLimit);
         assert!(error.capture_complete);
@@ -3155,7 +3500,7 @@ fn escape(path: &Path) -> String {
         );
 
         let nonzero_stream_fixture = Fixture::new("cargo-nonzero-stderr-limit", "rustc-ok");
-        let error = prepare_cargo_target(&nonzero_stream_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(nonzero_stream_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessExit);
         assert!(error.capture_complete && error.retention_complete);
@@ -3167,7 +3512,7 @@ fn escape(path: &Path) -> String {
         assert!(!build.accepted);
 
         let stdout_exact_fixture = Fixture::new("cargo-stdout-exact", "rustc-ok");
-        let prepared = prepare_cargo_target(&stdout_exact_fixture.request()).unwrap();
+        let prepared = prepare_cargo_target(stdout_exact_fixture.request()).unwrap();
         let build = prepared.receipts.last().unwrap();
         assert_eq!(build.stdout_len, MAX_BUILD_STDOUT_BYTES);
         assert_eq!(
@@ -3177,7 +3522,7 @@ fn escape(path: &Path) -> String {
         assert!(build.capture_complete && build.retention_complete && build.accepted);
 
         let stdout_limit_fixture = Fixture::new("cargo-stdout-limit", "rustc-ok");
-        let error = prepare_cargo_target(&stdout_limit_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(stdout_limit_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::StdoutLimit);
         assert!(error.capture_complete && error.retention_complete);
@@ -3191,7 +3536,7 @@ fn escape(path: &Path) -> String {
         assert!(!build.accepted);
 
         let combined_exact_fixture = Fixture::new("cargo-combined-exact", "rustc-ok");
-        let prepared = prepare_cargo_target(&combined_exact_fixture.request()).unwrap();
+        let prepared = prepare_cargo_target(combined_exact_fixture.request()).unwrap();
         let build = prepared.receipts.last().unwrap();
         assert_eq!(build.stdout_len, MAX_BUILD_STDOUT_BYTES);
         assert_eq!(build.stderr_len, MAX_BUILD_STDERR_BYTES);
@@ -3202,7 +3547,7 @@ fn escape(path: &Path) -> String {
         assert!(build.capture_complete && build.retention_complete && build.accepted);
 
         let combined_limit_fixture = Fixture::new("cargo-combined-limit", "rustc-ok");
-        let error = prepare_cargo_target(&combined_limit_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(combined_limit_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessOutputLimit);
         assert!(!error.capture_complete);
@@ -3216,20 +3561,44 @@ fn escape(path: &Path) -> String {
     #[test]
     fn primary_process_failure_retains_secondary_input_drift() {
         let fixture = Fixture::new("cargo-nonzero-mutate", "rustc-ok");
-        let error = prepare_cargo_target(&fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessExit);
         assert_eq!(
             error.secondary[0].kind(),
-            &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+            &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
+        );
+        assert_eq!(
+            error.secondary[0].inventory_error().unwrap().reason(),
+            "source identity changed"
+        );
+
+        let stderr_fixture = Fixture::new("cargo-pkgid-stderr-mutate", "rustc-ok");
+        let error = prepare_cargo_target(stderr_fixture.request()).unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Pkgid);
+        assert_eq!(error.kind, CargoPreparationErrorKind::Stderr);
+        assert_eq!(
+            error.secondary[0].kind(),
+            &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
+        );
+
+        let timeout_fixture = Fixture::new("cargo-timeout-mutate", "rustc-ok");
+        let mut request = timeout_fixture.request();
+        request.bootstrap.limits.timeout = Duration::from_secs(1);
+        let error = prepare_cargo_target(request).unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Build);
+        assert_eq!(error.kind, CargoPreparationErrorKind::ProcessTimeout);
+        assert_eq!(
+            error.secondary[0].kind(),
+            &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
         );
 
         let between_fixture = Fixture::new("cargo-version-mutate", "rustc-ok");
-        let error = prepare_cargo_target(&between_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(between_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
-            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
         );
         assert_eq!(error.receipts.len(), 3);
         assert_eq!(
@@ -3241,11 +3610,11 @@ fn escape(path: &Path) -> String {
         );
 
         let json_fixture = Fixture::new("cargo-bad-json-mutate", "rustc-ok");
-        let error = prepare_cargo_target(&json_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(json_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
-            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
         );
         assert_eq!(error.receipts.len(), 6);
         assert!(error.receipts.last().unwrap().accepted);
@@ -3255,8 +3624,8 @@ fn escape(path: &Path) -> String {
     fn host_schema_build_status_and_permitted_build_stderr_are_ordered() {
         let llvm_fixture = Fixture::new("cargo-ok", "rustc-ok");
         let mut request = llvm_fixture.request();
-        request.compiler_version_label = "rustc fixture LLVM version: 22.1.7";
-        let error = prepare_cargo_target(&request).unwrap_err();
+        request.bootstrap.compiler_version_label = "rustc fixture LLVM version: 22.1.7".to_owned();
+        let error = prepare_cargo_target(request).unwrap_err();
         assert_eq!(error.stage, PreparationStage::LlvmProfdataVersion);
         assert_eq!(
             error.kind,
@@ -3266,7 +3635,7 @@ fn escape(path: &Path) -> String {
         assert!(!error.receipts[0].accepted);
 
         let host_fixture = Fixture::new("cargo-ok", "rustc-bad-host");
-        let error = prepare_cargo_target(&host_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(host_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::RustcVersion);
         assert_eq!(
             error.kind,
@@ -3274,7 +3643,7 @@ fn escape(path: &Path) -> String {
         );
 
         let false_fixture = Fixture::new("cargo-false", "rustc-ok");
-        let error = prepare_cargo_target(&false_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(false_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Jsonl);
         assert_eq!(
             error.kind,
@@ -3284,7 +3653,7 @@ fn escape(path: &Path) -> String {
         );
 
         let stderr_fixture = Fixture::new("cargo-build-stderr", "rustc-ok");
-        let prepared = prepare_cargo_target(&stderr_fixture.request()).unwrap();
+        let prepared = prepare_cargo_target(stderr_fixture.request()).unwrap();
         assert!(prepared.build_stderr.stamp.len > 0);
         assert!(prepared.receipts.last().unwrap().stderr_len > 0);
     }
@@ -3292,7 +3661,7 @@ fn escape(path: &Path) -> String {
     #[test]
     fn jsonl_rechecks_reject_equal_stamp_unequal_content_and_path_substitution() {
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
-        let prepared = prepare_cargo_target(&fixture.request()).unwrap();
+        let prepared = prepare_cargo_target(fixture.request()).unwrap();
         let original = fs::read(&prepared.jsonl.supplied_path).unwrap();
         let mut changed = original.clone();
         let index = changed.iter().position(|byte| *byte == b'y').unwrap();
@@ -3404,9 +3773,11 @@ fn escape(path: &Path) -> String {
 
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
         fs::remove_file(fixture.source.join("Cargo.toml")).unwrap();
-        let mut request = fixture.request();
-        request.target_dir = &fixture.source;
-        let error = prepare_cargo_target(&request).unwrap_err();
+        let error = begin_cargo_preparation(&CargoBootstrapRequest {
+            target_dir: &fixture.source,
+            ..fixture.bootstrap_request()
+        })
+        .unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
@@ -3415,15 +3786,21 @@ fn escape(path: &Path) -> String {
         assert!(error.receipts.is_empty());
 
         write_package(&fixture.source, fixture_library());
-        let error = prepare_cargo_target(&request).unwrap_err();
+        let error = begin_cargo_preparation(&CargoBootstrapRequest {
+            target_dir: &fixture.source,
+            ..fixture.bootstrap_request()
+        })
+        .unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
         assert!(error.receipts.is_empty());
 
         let contains = Fixture::new("cargo-ok", "rustc-ok");
-        let mut request = contains.request();
-        request.target_dir = &contains.root;
-        let error = prepare_cargo_target(&request).unwrap_err();
+        let error = begin_cargo_preparation(&CargoBootstrapRequest {
+            target_dir: &contains.root,
+            ..contains.bootstrap_request()
+        })
+        .unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
         assert!(error.receipts.is_empty());
@@ -3435,18 +3812,18 @@ fn escape(path: &Path) -> String {
         let error = with_checkpoint_hook(
             |checkpoint, _, preflight| {
                 if checkpoint == PreparationCheckpoint::BeforeFirstGate {
-                    let source = &preflight.sources[0];
-                    let mut bytes = fs::read(&source.supplied_path).unwrap();
+                    let source = &preflight.source_inventory().sources()[0];
+                    let mut bytes = fs::read(&source.canonical).unwrap();
                     bytes[0] = b'P';
-                    rewrite_preserving_stamp(&source.supplied_path, &bytes);
+                    rewrite_preserving_stamp(&source.canonical, &bytes);
                 }
             },
-            || prepare_cargo_target(&first.request()).unwrap_err(),
+            || prepare_cargo_target(first.request()).unwrap_err(),
         );
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
-            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
         );
         assert!(error.receipts.is_empty());
         assert!(!first.source.join(".invocations").exists());
@@ -3455,18 +3832,18 @@ fn escape(path: &Path) -> String {
         let error = with_checkpoint_hook(
             |checkpoint, _, preflight| {
                 if checkpoint == PreparationCheckpoint::AfterBuild {
-                    let source = &preflight.sources[0];
-                    let mut bytes = fs::read(&source.supplied_path).unwrap();
+                    let source = &preflight.source_inventory().sources()[0];
+                    let mut bytes = fs::read(&source.canonical).unwrap();
                     bytes[0] = b'P';
-                    rewrite_preserving_stamp(&source.supplied_path, &bytes);
+                    rewrite_preserving_stamp(&source.canonical, &bytes);
                 }
             },
-            || prepare_cargo_target(&post_build.request()).unwrap_err(),
+            || prepare_cargo_target(post_build.request()).unwrap_err(),
         );
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
-            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
         );
         assert_eq!(error.receipts.len(), 6);
         assert!(error.receipts.last().unwrap().accepted);
@@ -3475,7 +3852,7 @@ fn escape(path: &Path) -> String {
     #[test]
     fn content_recheck_aggregates_every_frozen_input_failure() {
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
-        let prepared = prepare_cargo_target(&fixture.request()).unwrap();
+        let prepared = prepare_cargo_target(fixture.request()).unwrap();
         for frozen in [&prepared.manifest, &prepared.lockfile, &prepared.llvm_cov] {
             let mut bytes = fs::read(&frozen.supplied_path).unwrap();
             bytes[0] ^= 1;
@@ -3512,7 +3889,7 @@ fn escape(path: &Path) -> String {
         symlink(&canonical, &alias).unwrap();
         let mut request = fixture.request();
         request.llvm_cov = &alias;
-        let prepared = prepare_cargo_target(&request).unwrap();
+        let prepared = prepare_cargo_target(request).unwrap();
         fs::set_permissions(&restricted, fs::Permissions::from_mode(0o600)).unwrap();
         let result = prepared.recheck(SelectedArtifactCheck::Metadata);
         fs::set_permissions(&restricted, fs::Permissions::from_mode(0o700)).unwrap();
@@ -3536,7 +3913,7 @@ fn escape(path: &Path) -> String {
         use std::os::unix::fs::PermissionsExt;
 
         let fixture = Fixture::new("cargo-target-swap", "rustc-ok");
-        let error = prepare_cargo_target(&fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(error.receipts.len(), 3);
         assert_eq!(
@@ -3549,7 +3926,7 @@ fn escape(path: &Path) -> String {
 
         let io_fixture = Fixture::new("cargo-ok", "rustc-ok");
         fs::set_permissions(&io_fixture.profdata, fs::Permissions::from_mode(0o600)).unwrap();
-        let error = prepare_cargo_target(&io_fixture.request()).unwrap_err();
+        let error = prepare_cargo_target(io_fixture.request()).unwrap_err();
         assert_eq!(
             error.kind,
             CargoPreparationErrorKind::ProcessIo(io::ErrorKind::PermissionDenied)
@@ -3602,7 +3979,7 @@ fn escape(path: &Path) -> String {
                     _ => {}
                 }
             },
-            || prepare_cargo_target(&fixture.request()).unwrap(),
+            || prepare_cargo_target(fixture.request()).unwrap(),
         );
         assert!(
             prepared
@@ -3627,7 +4004,7 @@ fn escape(path: &Path) -> String {
                     symlink(&parked, &jsonl).unwrap();
                 }
             },
-            || prepare_cargo_target(&post_read.request()).unwrap_err(),
+            || prepare_cargo_target(post_read.request()).unwrap_err(),
         );
         assert_eq!(
             error.kind,
@@ -3645,7 +4022,7 @@ fn escape(path: &Path) -> String {
                     rewrite_preserving_stamp(&executable, b"fixture executablE");
                 }
             },
-            || prepare_cargo_target(&initial_selected.request()).unwrap_err(),
+            || prepare_cargo_target(initial_selected.request()).unwrap_err(),
         );
         assert!(matches!(
             error.kind,
@@ -3665,7 +4042,7 @@ fn escape(path: &Path) -> String {
                     fs::create_dir(owned.path.parent().unwrap().join("output")).unwrap();
                 }
             },
-            || prepare_cargo_target(&publication.request()).unwrap_err(),
+            || prepare_cargo_target(publication.request()).unwrap_err(),
         );
         assert_eq!(error.stage, PreparationStage::Publish);
         assert!(error.secondary.iter().any(|diagnostic| matches!(
@@ -3687,7 +4064,7 @@ fn escape(path: &Path) -> String {
                     rewrite_preserving_stamp(&path, &bytes);
                 }
             },
-            || prepare_cargo_target(&final_jsonl.request()).unwrap_err(),
+            || prepare_cargo_target(final_jsonl.request()).unwrap_err(),
         );
         assert_eq!(
             error.kind,
@@ -3695,7 +4072,7 @@ fn escape(path: &Path) -> String {
         );
 
         let final_walk = Fixture::new("cargo-ok", "rustc-ok");
-        let prepared = prepare_cargo_target(&final_walk.request()).unwrap();
+        let prepared = prepare_cargo_target(final_walk.request()).unwrap();
         let changed = std::cell::Cell::new(false);
         let error = with_jsonl_checkpoint_hook(
             move |frozen| {
@@ -3724,24 +4101,23 @@ fn escape(path: &Path) -> String {
                     rewrite_preserving_stamp(&selected.canonical_executable, b"fixture executablE");
                 }
             },
-            || prepare_cargo_target(&final_selected.request()).unwrap_err(),
+            || prepare_cargo_target(final_selected.request()).unwrap_err(),
         );
         assert_eq!(error.stage, PreparationStage::Resolve);
 
         let source = Fixture::new("cargo-ok", "rustc-ok");
-        let prepared = prepare_cargo_target(&source.request()).unwrap();
-        assert_eq!(prepared.reviewed_sources().len(), 1);
+        let prepared = prepare_cargo_target(source.request()).unwrap();
+        assert_eq!(prepared.source_inventory().sources().len(), 32);
         let path = source.source.join("src/lib.rs");
         let mut bytes = fs::read(&path).unwrap();
         bytes[0] = b'P';
         rewrite_preserving_stamp(&path, &bytes);
-        prepared.recheck(SelectedArtifactCheck::Metadata).unwrap();
         let error = prepared
-            .recheck(SelectedArtifactCheck::Content)
+            .recheck(SelectedArtifactCheck::Metadata)
             .unwrap_err();
         assert_eq!(
             error.kind,
-            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
         );
     }
 
@@ -3756,20 +4132,26 @@ fn escape(path: &Path) -> String {
 
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
         write_package(&fixture.source, actual_fixture_library());
-        let request = CargoPreparationRequest {
+        let label = format!("pinned nightly LLVM version: {llvm}");
+        let bootstrap = begin_cargo_preparation(&CargoBootstrapRequest {
             source_root: &fixture.source,
             target_dir: &fixture.target,
             output_dir: &fixture.output,
+            compiler_version_label: &label,
+            limits: CargoPreparationLimits::default(),
+        })
+        .unwrap();
+        let source_inventory = capture_preparation_inventory(&bootstrap).unwrap();
+        let request = CargoPreparationRequest {
+            bootstrap,
+            source_inventory,
             cargo: &cargo,
             rustc: &rustc,
             llvm_profdata: &profdata,
             llvm_cov: &cov,
-            compiler_version_label: &format!("pinned nightly LLVM version: {llvm}"),
-            reviewed_sources: &fixture.sources,
             profile: CargoProfile::Debug,
-            limits: CargoPreparationLimits::default(),
         };
-        let prepared = prepare_cargo_target(&request).unwrap();
+        let prepared = prepare_cargo_target(request).unwrap();
         assert_eq!(prepared.selected.target.name, "yaxml");
         assert_eq!(
             prepared.selected.target.src_path,
@@ -3873,7 +4255,7 @@ fn escape(path: &Path) -> String {
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
         let mut request = fixture.request();
         request.profile = CargoProfile::Release;
-        let prepared = prepare_cargo_target(&request).unwrap();
+        let prepared = prepare_cargo_target(request).unwrap();
         assert_eq!(prepared.profile, CargoProfile::Release);
         assert_eq!(
             prepared.receipts.last().unwrap().argv.last().unwrap(),
