@@ -152,6 +152,8 @@ struct JsonParser<'a> {
     line: usize,
     offset: usize,
     nodes: usize,
+    #[cfg(test)]
+    raw_utf8_validation_bytes: usize,
 }
 
 impl<'a> JsonParser<'a> {
@@ -168,10 +170,12 @@ impl<'a> JsonParser<'a> {
             line,
             offset: 0,
             nodes: 0,
+            #[cfg(test)]
+            raw_utf8_validation_bytes: 0,
         })
     }
 
-    fn parse_root(mut self) -> Result<BTreeMap<String, JsonValue>, ArtifactError> {
+    fn parse_root(&mut self) -> Result<BTreeMap<String, JsonValue>, ArtifactError> {
         self.whitespace();
         let value = self.value(1)?;
         self.whitespace();
@@ -358,17 +362,47 @@ impl<'a> JsonParser<'a> {
                     Self::push_char(&mut result, char::from(byte), limit, limit_kind, self)?;
                 }
                 _ => {
-                    let tail = std::str::from_utf8(&self.input[self.offset..])
-                        .map_err(|_| self.error(JsonErrorKind::InvalidUtf8))?;
-                    let character = tail
-                        .chars()
-                        .next()
-                        .ok_or_else(|| self.error(JsonErrorKind::UnexpectedEnd))?;
-                    self.offset += character.len_utf8();
+                    let (character, width) = self.raw_utf8_scalar()?;
+                    self.offset += width;
                     Self::push_char(&mut result, character, limit, limit_kind, self)?;
                 }
             }
         }
+    }
+
+    fn raw_utf8_scalar(&mut self) -> Result<(char, usize), ArtifactError> {
+        let width = match self.peek() {
+            Some(0xc2..=0xdf) => 2,
+            Some(0xe0..=0xef) => 3,
+            Some(0xf0..=0xf4) => 4,
+            Some(_) => return Err(self.error(JsonErrorKind::InvalidUtf8)),
+            None => return Err(self.error(JsonErrorKind::UnexpectedEnd)),
+        };
+        let end = self
+            .offset
+            .checked_add(width)
+            .ok_or_else(|| self.error(JsonErrorKind::InvalidUtf8))?;
+        let scalar_bytes = self
+            .input
+            .get(self.offset..end)
+            .ok_or_else(|| self.error(JsonErrorKind::InvalidUtf8))?;
+        #[cfg(test)]
+        {
+            self.raw_utf8_validation_bytes = self
+                .raw_utf8_validation_bytes
+                .checked_add(scalar_bytes.len())
+                .ok_or_else(|| self.error(JsonErrorKind::InvalidUtf8))?;
+        }
+        let scalar = std::str::from_utf8(scalar_bytes)
+            .map_err(|_| self.error(JsonErrorKind::InvalidUtf8))?;
+        let mut characters = scalar.chars();
+        let character = characters
+            .next()
+            .ok_or_else(|| self.error(JsonErrorKind::InvalidUtf8))?;
+        if characters.next().is_some() || character.len_utf8() != width {
+            return Err(self.error(JsonErrorKind::InvalidUtf8));
+        }
+        Ok((character, width))
     }
 
     fn push_char(
@@ -1226,7 +1260,7 @@ mod tests {
     fn parses_complete_json_grammar_for_unknown_fields() {
         let records = [
             " { \"reason\" : \"future\", \"null\":null, \"bools\":[true,false], \"object\":{\"x\":\"y\"} } ",
-            "{\"reason\":\"future\",\"strings\":[\"raw café\",\"\\u263a\",\"\\uD83D\\uDE00\",\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"]}",
+            "{\"reason\":\"future\",\"strings\":[\"raw café漢\",\"\\u263a\",\"\\uD83D\\uDE00\",\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"]}",
             "{\"reason\":\"future\",\"numbers\":[0,-0,1,-42,1.25,1e2,1E+2,-1.5e-2]}",
         ];
         for (index, record) in records.into_iter().enumerate() {
@@ -1241,6 +1275,20 @@ mod tests {
         let crlf =
             b"{\"reason\":\"future\"}\r\n{\"reason\":\"build-finished\",\"success\":true}\r\n";
         assert_eq!(select(crlf), Err(ArtifactError::NoMatchingArtifact));
+    }
+
+    #[test]
+    fn large_raw_unicode_field_has_linear_scalar_validation_work() {
+        const ITERATIONS: usize = 8;
+        let raw = "é𝄞".repeat(4_096);
+        let record = format!("{{\"reason\":\"future\",\"payload\":\"{raw}\"}}");
+
+        for _ in 0..ITERATIONS {
+            let mut parser = JsonParser::new(record.as_bytes(), 1).unwrap();
+            let object = parser.parse_root().unwrap();
+            assert_eq!(object.get("payload"), Some(&JsonValue::String(raw.clone())));
+            assert_eq!(parser.raw_utf8_validation_bytes, raw.len());
+        }
     }
 
     #[test]
