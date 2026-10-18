@@ -755,11 +755,12 @@ where
 
     checkpoint(SelectedArtifactCheckpoint::BeforeOpen, &reported_path);
     let mut executable = File::open(&reported_path).map_err(|error| {
-        if error.kind() == io::ErrorKind::NotFound {
-            changed_since_selection()
-        } else {
-            path_io(ArtifactPathField::Executable, error)
-        }
+        classify_error_after_initial_check(
+            path_io(ArtifactPathField::Executable, error),
+            selected,
+            &reported_path,
+            &roots.canonical_target_dir,
+        )
     })?;
     checkpoint(SelectedArtifactCheckpoint::AfterOpen, &reported_path);
     let metadata = executable
@@ -817,6 +818,33 @@ where
     Ok(())
 }
 
+fn classify_error_after_initial_check(
+    error: ArtifactError,
+    selected: &SelectedArtifact,
+    reported_path: &Path,
+    target_dir: &Path,
+) -> ArtifactError {
+    if matches!(
+        error,
+        ArtifactError::Path {
+            kind: ArtifactPathError::Io(io::ErrorKind::NotFound),
+            ..
+        }
+    ) {
+        return changed_since_selection();
+    }
+    if matches!(
+        recheck_selected_path_after_capture(selected, reported_path, target_dir),
+        Err(ArtifactError::Path {
+            kind: ArtifactPathError::ChangedSinceSelection,
+            ..
+        })
+    ) {
+        return changed_since_selection();
+    }
+    error
+}
+
 fn recheck_selected_path_initial(
     selected: &SelectedArtifact,
     reported_path: &Path,
@@ -832,8 +860,10 @@ fn recheck_selected_path_initial(
     }
     walk_executable(reported_path, target_dir)?;
     checkpoint(SelectedArtifactCheckpoint::AfterInitialWalk, reported_path);
-    let canonical = canonical_path(reported_path, ArtifactPathField::Executable)
-        .map_err(change_since_selection_after_walk)?;
+    let canonical =
+        canonical_path(reported_path, ArtifactPathField::Executable).map_err(|error| {
+            classify_error_after_initial_check(error, selected, reported_path, target_dir)
+        })?;
     if !path_starts_with(&canonical, target_dir) {
         return Err(changed_since_selection());
     }
@@ -3235,6 +3265,94 @@ mod tests {
                 PathErrorKind::ChangedSinceSelection,
             ))
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn content_recheck_normalizes_an_after_walk_self_symlink_to_temporal_drift() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("selected-after-walk-self-symlink");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let frozen = selected.clone();
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                |_, _| panic!("canonical drift must reject before hashing"),
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterInitialWalk {
+                        fs::remove_file(path).unwrap();
+                        symlink(path.file_name().unwrap(), path).unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+        assert_eq!(selected, frozen);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn content_recheck_normalizes_a_pre_open_self_symlink_to_temporal_drift() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("selected-pre-open-self-symlink");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let frozen = selected.clone();
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                |_, _| panic!("a failed open must reject before hashing"),
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::BeforeOpen {
+                        fs::remove_file(path).unwrap();
+                        symlink(path.file_name().unwrap(), path).unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+        assert_eq!(selected, frozen);
+    }
+
+    #[test]
+    fn open_error_reinspection_preserves_a_genuine_error_for_a_stable_path() {
+        use std::io::{Error, ErrorKind};
+
+        let fixture = ResolverFixture::new("selected-stable-open-error");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let frozen = selected.clone();
+        let frozen_expected = fixture.expected.clone();
+        assert_eq!(
+            classify_error_after_initial_check(
+                path_io(
+                    PathSubject::Executable,
+                    Error::new(ErrorKind::PermissionDenied, "fixture denied"),
+                ),
+                &selected,
+                &executable,
+                &fixture.target,
+            ),
+            expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Io(ErrorKind::PermissionDenied),
+            )
+        );
+        assert_eq!(selected, frozen);
+        assert_eq!(fixture.expected, frozen_expected);
     }
 
     #[test]
