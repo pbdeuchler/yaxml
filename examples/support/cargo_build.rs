@@ -19,9 +19,10 @@ use crate::process::{self, ProcessLimits, ProcessOutput};
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::fs::{self, DirBuilder, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitStatus;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -110,6 +111,21 @@ pub(crate) enum EvidenceSubject {
     OwnerMarker,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ToolMetadataField {
+    Manifest,
+    Lockfile,
+    Source,
+    Cargo,
+    Rustc,
+    LlvmProfdata,
+    LlvmCov,
+    CommandOutput,
+    OwnerMarker,
+    RustcHost,
+    LlvmVersion,
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum CargoPreparationErrorKind {
     Configuration,
@@ -118,9 +134,7 @@ pub(crate) enum CargoPreparationErrorKind {
     ProcessIo(io::ErrorKind),
     ProcessExit,
     Stderr,
-    ToolMetadata(EvidenceSubject),
-    ToolVersion,
-    HostShape,
+    ToolMetadata(ToolMetadataField),
     PkgidShape,
     PkgidEncoding,
     PkgidLimit,
@@ -131,7 +145,7 @@ pub(crate) enum CargoPreparationErrorKind {
     Artifact(ArtifactError),
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct CargoPreparationError {
     pub(crate) stage: PreparationStage,
     pub(crate) kind: CargoPreparationErrorKind,
@@ -139,23 +153,78 @@ pub(crate) struct CargoPreparationError {
     pub(crate) capture_complete: bool,
     pub(crate) retention_complete: bool,
     pub(crate) accepted: bool,
-    pub(crate) secondary: Vec<CargoPreparationErrorKind>,
+    pub(crate) secondary: Vec<CargoPreparationDiagnostic>,
     pub(crate) attempt: Option<CommandAttempt>,
     pub(crate) receipts: Vec<CommandReceipt>,
+    io_error: Option<Arc<io::Error>>,
+}
+
+#[derive(Debug)]
+pub(crate) struct CargoPreparationDiagnostic {
+    kind: CargoPreparationErrorKind,
+    io_error: Option<Arc<io::Error>>,
+}
+
+impl CargoPreparationDiagnostic {
+    pub(crate) fn kind(&self) -> &CargoPreparationErrorKind {
+        &self.kind
+    }
+
+    pub(crate) fn io_error(&self) -> Option<&io::Error> {
+        self.io_error.as_deref()
+    }
+}
+
+impl std::fmt::Display for CargoPreparationError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "Cargo preparation {:?}: {:?}",
+            self.stage, self.kind
+        )
+    }
+}
+
+impl std::error::Error for CargoPreparationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.io_error
+            .as_deref()
+            .map(|error| error as &(dyn std::error::Error + 'static))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct FrozenFile {
-    pub(crate) supplied_path: PathBuf,
-    pub(crate) canonical_path: PathBuf,
-    pub(crate) stamp: FileStamp,
+    supplied_path: PathBuf,
+    canonical_path: PathBuf,
+    stamp: FileStamp,
+    identity: ContentIdentity,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FrozenFileView<'a> {
+    pub(crate) supplied_path: &'a Path,
+    pub(crate) canonical_path: &'a Path,
+    pub(crate) stamp: &'a FileStamp,
     pub(crate) identity: ContentIdentity,
+}
+
+impl FrozenFile {
+    pub(crate) fn view(&self) -> FrozenFileView<'_> {
+        FrozenFileView {
+            supplied_path: &self.supplied_path,
+            canonical_path: &self.canonical_path,
+            stamp: &self.stamp,
+            identity: self.identity,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CommandAttempt {
     pub(crate) stage: PreparationStage,
     pub(crate) program: PathBuf,
+    pub(crate) canonical_program: PathBuf,
     pub(crate) argv: Vec<String>,
     pub(crate) cwd: PathBuf,
     pub(crate) environment: Vec<(String, String)>,
@@ -168,83 +237,169 @@ pub(crate) struct CommandAttempt {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CommandReceipt {
+    stage: PreparationStage,
+    program: PathBuf,
+    canonical_program: PathBuf,
+    argv: Vec<String>,
+    cwd: PathBuf,
+    environment: Vec<(String, String)>,
+    removed_environment: Vec<&'static str>,
+    configuration_locations: Vec<(String, Option<PathBuf>)>,
+    timeout: Duration,
+    max_output_bytes: usize,
+    elapsed: Duration,
+    status: ExitStatus,
+    stdout_path: PathBuf,
+    stderr_path: PathBuf,
+    stdout_len: usize,
+    stderr_len: usize,
+    stdout_identity: ContentIdentity,
+    stderr_identity: ContentIdentity,
+    stdout_stamp: Option<FileStamp>,
+    stderr_stamp: Option<FileStamp>,
+    capture_complete: bool,
+    retention_complete: bool,
+    accepted: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CommandReceiptView<'a> {
     pub(crate) stage: PreparationStage,
-    pub(crate) program: PathBuf,
-    pub(crate) argv: Vec<String>,
-    pub(crate) cwd: PathBuf,
-    pub(crate) environment: Vec<(String, String)>,
-    pub(crate) removed_environment: Vec<&'static str>,
-    pub(crate) configuration_locations: Vec<(String, Option<PathBuf>)>,
+    pub(crate) program: &'a Path,
+    pub(crate) canonical_program: &'a Path,
+    pub(crate) argv: &'a [String],
+    pub(crate) cwd: &'a Path,
+    pub(crate) environment: &'a [(String, String)],
+    pub(crate) removed_environment: &'a [&'static str],
+    pub(crate) configuration_locations: &'a [(String, Option<PathBuf>)],
     pub(crate) timeout: Duration,
     pub(crate) max_output_bytes: usize,
     pub(crate) elapsed: Duration,
-    pub(crate) status: ExitStatus,
-    pub(crate) stdout_path: PathBuf,
-    pub(crate) stderr_path: PathBuf,
+    pub(crate) status: &'a ExitStatus,
     pub(crate) stdout_len: usize,
     pub(crate) stderr_len: usize,
-    pub(crate) stdout_identity: ContentIdentity,
-    pub(crate) stderr_identity: ContentIdentity,
-    pub(crate) stdout_stamp: Option<FileStamp>,
-    pub(crate) stderr_stamp: Option<FileStamp>,
+    pub(crate) stdout: Option<FrozenFileView<'a>>,
+    pub(crate) stderr: Option<FrozenFileView<'a>>,
     pub(crate) capture_complete: bool,
     pub(crate) retention_complete: bool,
     pub(crate) accepted: bool,
 }
 
+impl CommandReceipt {
+    pub(crate) fn view(&self) -> CommandReceiptView<'_> {
+        CommandReceiptView {
+            stage: self.stage,
+            program: &self.program,
+            canonical_program: &self.canonical_program,
+            argv: &self.argv,
+            cwd: &self.cwd,
+            environment: &self.environment,
+            removed_environment: &self.removed_environment,
+            configuration_locations: &self.configuration_locations,
+            timeout: self.timeout,
+            max_output_bytes: self.max_output_bytes,
+            elapsed: self.elapsed,
+            status: &self.status,
+            stdout_len: self.stdout_len,
+            stderr_len: self.stderr_len,
+            stdout: self.stdout_stamp.as_ref().map(|stamp| FrozenFileView {
+                supplied_path: &self.stdout_path,
+                canonical_path: &self.stdout_path,
+                stamp,
+                identity: self.stdout_identity,
+            }),
+            stderr: self.stderr_stamp.as_ref().map(|stamp| FrozenFileView {
+                supplied_path: &self.stderr_path,
+                canonical_path: &self.stderr_path,
+                stamp,
+                identity: self.stderr_identity,
+            }),
+            capture_complete: self.capture_complete,
+            retention_complete: self.retention_complete,
+            accepted: self.accepted,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct PreparedCargoTarget {
-    pub(crate) selected: SelectedArtifact,
-    pub(crate) expected: ExpectedArtifact,
-    pub(crate) roots: CanonicalArtifactRoots,
-    pub(crate) manifest: FrozenFile,
-    pub(crate) lockfile: FrozenFile,
-    pub(crate) sources: Vec<FrozenFile>,
-    pub(crate) cargo: FrozenFile,
-    pub(crate) rustc: FrozenFile,
-    pub(crate) llvm_profdata: FrozenFile,
-    pub(crate) llvm_cov: FrozenFile,
-    pub(crate) package_id: String,
-    pub(crate) rustc_host: String,
-    pub(crate) profile: CargoProfile,
-    pub(crate) preparation_elapsed: Duration,
-    pub(crate) evidence_dir: PathBuf,
-    pub(crate) jsonl: FrozenFile,
-    pub(crate) build_stderr: FrozenFile,
-    pub(crate) receipts: Vec<CommandReceipt>,
+    selected: SelectedArtifact,
+    expected: ExpectedArtifact,
+    roots: CanonicalArtifactRoots,
+    manifest: FrozenFile,
+    lockfile: FrozenFile,
+    sources: Vec<FrozenFile>,
+    cargo: FrozenFile,
+    rustc: FrozenFile,
+    llvm_profdata: FrozenFile,
+    llvm_cov: FrozenFile,
+    package_id: String,
+    rustc_host: String,
+    profile: CargoProfile,
+    preparation_elapsed: Duration,
+    evidence_dir: PathBuf,
+    jsonl: FrozenFile,
+    build_stderr: FrozenFile,
+    receipts: Vec<CommandReceipt>,
 }
 
 impl PreparedCargoTarget {
+    pub(crate) fn selected(&self) -> &SelectedArtifact {
+        &self.selected
+    }
+
+    pub(crate) fn expected(&self) -> &ExpectedArtifact {
+        &self.expected
+    }
+
+    pub(crate) fn evidence_dir(&self) -> &Path {
+        &self.evidence_dir
+    }
+
+    pub(crate) fn package_id(&self) -> &str {
+        &self.package_id
+    }
+
+    pub(crate) fn rustc_host(&self) -> &str {
+        &self.rustc_host
+    }
+
+    pub(crate) fn receipts(&self) -> &[CommandReceipt] {
+        &self.receipts
+    }
+
+    pub(crate) fn roots(&self) -> &CanonicalArtifactRoots {
+        &self.roots
+    }
+
+    pub(crate) fn profile(&self) -> CargoProfile {
+        self.profile
+    }
+
+    pub(crate) fn preparation_elapsed(&self) -> Duration {
+        self.preparation_elapsed
+    }
+
+    pub(crate) fn jsonl(&self) -> FrozenFileView<'_> {
+        self.jsonl.view()
+    }
+
+    pub(crate) fn build_stderr(&self) -> FrozenFileView<'_> {
+        self.build_stderr.view()
+    }
+
+    pub(crate) fn reviewed_sources(
+        &self,
+    ) -> impl ExactSizeIterator<Item = FrozenFileView<'_>> + '_ {
+        self.sources.iter().map(FrozenFile::view)
+    }
+
     pub(crate) fn recheck(
         &self,
         check: SelectedArtifactCheck,
     ) -> Result<(), CargoPreparationError> {
-        recheck_all_inputs(self)?;
-        for receipt in &self.receipts {
-            recheck_receipt(receipt).map_err(|failure| CargoPreparationError {
-                stage: failure.stage,
-                kind: failure.kind,
-                evidence_dir: Some(self.evidence_dir.clone()),
-                capture_complete: failure.capture_complete,
-                retention_complete: failure.retention_complete,
-                accepted: false,
-                secondary: Vec::new(),
-                attempt: None,
-                receipts: Vec::new(),
-            })?;
-        }
-        recheck_selected_artifact(&self.selected, &self.expected, check).map_err(|error| {
-            CargoPreparationError {
-                stage: PreparationStage::Resolve,
-                kind: CargoPreparationErrorKind::Artifact(error),
-                evidence_dir: Some(self.evidence_dir.clone()),
-                capture_complete: true,
-                retention_complete: true,
-                accepted: false,
-                secondary: Vec::new(),
-                attempt: None,
-                receipts: Vec::new(),
-            }
+        recheck_prepared(self, check).map_err(|failure| {
+            failure.into_error(Some(self.evidence_dir.clone()), None, Vec::new())
         })
     }
 }
@@ -255,7 +410,8 @@ struct PreparationFailure {
     kind: CargoPreparationErrorKind,
     capture_complete: bool,
     retention_complete: bool,
-    secondary: Vec<CargoPreparationErrorKind>,
+    secondary: Vec<CargoPreparationDiagnostic>,
+    io_error: Option<Arc<io::Error>>,
 }
 
 impl PreparationFailure {
@@ -266,12 +422,40 @@ impl PreparationFailure {
             capture_complete: true,
             retention_complete: true,
             secondary: Vec::new(),
+            io_error: None,
         }
     }
 
-    fn with_secondary(mut self, kind: CargoPreparationErrorKind) -> Self {
-        self.secondary.push(kind);
+    fn with_secondary(
+        mut self,
+        kind: CargoPreparationErrorKind,
+        io_error: Option<io::Error>,
+    ) -> Self {
+        self.secondary.push(CargoPreparationDiagnostic {
+            kind,
+            io_error: io_error.map(Arc::new),
+        });
         self
+    }
+
+    fn into_error(
+        self,
+        evidence_dir: Option<PathBuf>,
+        attempt: Option<CommandAttempt>,
+        receipts: Vec<CommandReceipt>,
+    ) -> CargoPreparationError {
+        CargoPreparationError {
+            stage: self.stage,
+            kind: self.kind,
+            evidence_dir,
+            capture_complete: self.capture_complete,
+            retention_complete: self.retention_complete,
+            accepted: false,
+            secondary: self.secondary,
+            attempt,
+            receipts,
+            io_error: self.io_error,
+        }
     }
 }
 
@@ -282,6 +466,7 @@ struct OwnedPreparationDirectory {
     transferred: bool,
     receipts: Vec<CommandReceipt>,
     last_attempt: Option<CommandAttempt>,
+    selection: Option<(SelectedArtifact, ExpectedArtifact)>,
 }
 
 impl OwnedPreparationDirectory {
@@ -340,6 +525,7 @@ impl OwnedPreparationDirectory {
                         transferred: false,
                         receipts: Vec::new(),
                         last_attempt: None,
+                        selection: None,
                     });
                 }
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
@@ -357,19 +543,15 @@ impl OwnedPreparationDirectory {
         ))
     }
 
-    fn failure(
-        &self,
-        failure: PreparationFailure,
-        mut secondary: Vec<CargoPreparationErrorKind>,
-    ) -> CargoPreparationError {
+    fn failure(&self, failure: PreparationFailure) -> CargoPreparationError {
         let PreparationFailure {
             stage,
             kind,
             capture_complete,
             retention_complete,
             secondary: intrinsic_secondary,
+            io_error,
         } = failure;
-        secondary.splice(0..0, intrinsic_secondary);
         CargoPreparationError {
             stage,
             kind,
@@ -377,9 +559,10 @@ impl OwnedPreparationDirectory {
             capture_complete,
             retention_complete,
             accepted: false,
-            secondary,
+            secondary: intrinsic_secondary,
             attempt: self.last_attempt.clone(),
             receipts: self.receipts.clone(),
+            io_error,
         }
     }
 
@@ -414,50 +597,87 @@ impl Drop for OwnedPreparationDirectory {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PreparationCheckpoint {
+    BeforeArtifactSelection,
+    AfterArtifactSelection,
+    AfterResolution,
+    BeforePublication,
+    AfterRelocation,
+}
+
+thread_local! {
+    static PREPARATION_CHECKPOINT_HOOK: std::cell::RefCell<
+        Option<Box<dyn FnMut(PreparationCheckpoint, &OwnedPreparationDirectory, &Preflight)>>
+    > = std::cell::RefCell::new(None);
+    static JSONL_CHECKPOINT_HOOK: std::cell::RefCell<
+        Option<Box<dyn FnMut(&FrozenFile)>>
+    > = std::cell::RefCell::new(None);
+}
+
+fn jsonl_post_read_checkpoint(frozen: &FrozenFile) {
+    JSONL_CHECKPOINT_HOOK.with(|hook| {
+        if let Some(hook) = hook.borrow_mut().as_mut() {
+            hook(frozen);
+        }
+    });
+}
+
+fn test_checkpoint(
+    checkpoint: PreparationCheckpoint,
+    owned: &OwnedPreparationDirectory,
+    preflight: &Preflight,
+) -> Result<(), PreparationFailure> {
+    PREPARATION_CHECKPOINT_HOOK.with(|hook| {
+        if let Some(hook) = hook.borrow_mut().as_mut() {
+            hook(checkpoint, owned, preflight);
+        }
+    });
+    Ok(())
+}
+
 pub(crate) fn prepare_cargo_target(
     request: &CargoPreparationRequest<'_>,
 ) -> Result<PreparedCargoTarget, CargoPreparationError> {
-    let preflight = preflight(request).map_err(|failure| CargoPreparationError {
-        stage: failure.stage,
-        kind: failure.kind,
-        evidence_dir: None,
-        capture_complete: failure.capture_complete,
-        retention_complete: failure.retention_complete,
-        accepted: false,
-        secondary: Vec::new(),
-        attempt: None,
-        receipts: Vec::new(),
-    })?;
-    let mut owned = OwnedPreparationDirectory::new(request.output_dir).map_err(|failure| {
-        CargoPreparationError {
-            stage: failure.stage,
-            kind: failure.kind,
-            evidence_dir: None,
-            capture_complete: failure.capture_complete,
-            retention_complete: failure.retention_complete,
-            accepted: false,
-            secondary: Vec::new(),
-            attempt: None,
-            receipts: Vec::new(),
-        }
-    })?;
+    let preflight =
+        preflight(request).map_err(|failure| failure.into_error(None, None, Vec::new()))?;
+    let mut owned = OwnedPreparationDirectory::new(request.output_dir)
+        .map_err(|failure| failure.into_error(None, None, Vec::new()))?;
     match prepare_in_owned(request, &preflight, &mut owned) {
         Ok(prepared) => Ok(prepared),
         Err(failure) => {
-            let mut secondary = Vec::new();
+            let mut aggregate = Some(failure);
             if owned.process_attempted {
-                if let Err(error) = recheck_preflight(&preflight) {
-                    secondary.push(error.kind);
-                }
+                aggregate_check(
+                    &mut aggregate,
+                    recheck_preflight(&preflight, SelectedArtifactCheck::Content),
+                );
                 for receipt in &owned.receipts {
-                    if receipt.retention_complete
-                        && let Err(error) = recheck_receipt(receipt)
-                    {
-                        secondary.push(error.kind);
+                    if receipt.retention_complete {
+                        aggregate_check(
+                            &mut aggregate,
+                            recheck_receipt(receipt, SelectedArtifactCheck::Content),
+                        );
                     }
                 }
+                if let Some((selected, expected)) = &owned.selection {
+                    aggregate_check(
+                        &mut aggregate,
+                        recheck_selected_artifact(
+                            selected,
+                            expected,
+                            SelectedArtifactCheck::Content,
+                        )
+                        .map_err(|error| {
+                            PreparationFailure::new(
+                                PreparationStage::Resolve,
+                                CargoPreparationErrorKind::Artifact(error),
+                            )
+                        }),
+                    );
+                }
             }
-            Err(owned.failure(failure, secondary))
+            Err(owned.failure(aggregate.expect("the primary preparation failure is retained")))
         }
     }
 }
@@ -471,11 +691,20 @@ struct Preflight {
     rustc: FrozenFile,
     llvm_profdata: FrozenFile,
     llvm_cov: FrozenFile,
+    configuration_locations: Vec<(String, Option<PathBuf>)>,
 }
 
 fn preflight(request: &CargoPreparationRequest<'_>) -> Result<Preflight, PreparationFailure> {
-    validate_limits(request)?;
     validate_fresh_output(request.output_dir)?;
+    validate_limits(request)?;
+    validate_root_length(
+        request.source_root,
+        crate::cargo_artifact::ArtifactPathField::SourceRoot,
+    )?;
+    validate_root_length(
+        request.target_dir,
+        crate::cargo_artifact::ArtifactPathField::TargetDir,
+    )?;
     let roots =
         establish_artifact_roots(request.source_root, request.target_dir).map_err(|error| {
             PreparationFailure::new(
@@ -483,6 +712,14 @@ fn preflight(request: &CargoPreparationRequest<'_>) -> Result<Preflight, Prepara
                 CargoPreparationErrorKind::Artifact(error),
             )
         })?;
+    let manifest = freeze_strict_file(
+        &roots.canonical_source_root.join("Cargo.toml"),
+        EvidenceSubject::Manifest,
+    )?;
+    let lockfile = freeze_strict_file(
+        &roots.canonical_source_root.join("Cargo.lock"),
+        EvidenceSubject::Lockfile,
+    )?;
     if roots
         .canonical_source_root
         .starts_with(&roots.canonical_target_dir)
@@ -496,14 +733,6 @@ fn preflight(request: &CargoPreparationRequest<'_>) -> Result<Preflight, Prepara
             CargoPreparationErrorKind::Configuration,
         ));
     }
-    let manifest = freeze_strict_file(
-        &roots.canonical_source_root.join("Cargo.toml"),
-        EvidenceSubject::Manifest,
-    )?;
-    let lockfile = freeze_strict_file(
-        &roots.canonical_source_root.join("Cargo.lock"),
-        EvidenceSubject::Lockfile,
-    )?;
     if request.reviewed_sources.is_empty() || request.reviewed_sources.len() > 64 {
         return Err(PreparationFailure::new(
             PreparationStage::Preflight,
@@ -528,6 +757,7 @@ fn preflight(request: &CargoPreparationRequest<'_>) -> Result<Preflight, Prepara
         }
         sources.push(frozen);
     }
+    let configuration_locations = configuration_locations(&roots.canonical_source_root)?;
     Ok(Preflight {
         roots,
         manifest,
@@ -537,6 +767,7 @@ fn preflight(request: &CargoPreparationRequest<'_>) -> Result<Preflight, Prepara
         rustc: freeze_tool_file(request.rustc, EvidenceSubject::Rustc)?,
         llvm_profdata: freeze_tool_file(request.llvm_profdata, EvidenceSubject::LlvmProfdata)?,
         llvm_cov: freeze_tool_file(request.llvm_cov, EvidenceSubject::LlvmCov)?,
+        configuration_locations,
     })
 }
 
@@ -555,6 +786,25 @@ fn validate_limits(request: &CargoPreparationRequest<'_>) -> Result<(), Preparat
         return Err(PreparationFailure::new(
             PreparationStage::Preflight,
             CargoPreparationErrorKind::Configuration,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_root_length(
+    path: &Path,
+    field: crate::cargo_artifact::ArtifactPathField,
+) -> Result<(), PreparationFailure> {
+    if path
+        .to_str()
+        .is_some_and(|text| text.len() > MAX_PATH_BYTES)
+    {
+        return Err(PreparationFailure::new(
+            PreparationStage::Preflight,
+            CargoPreparationErrorKind::Artifact(ArtifactError::Path {
+                field,
+                kind: crate::cargo_artifact::ArtifactPathError::LengthOverflow,
+            }),
         ));
     }
     Ok(())
@@ -624,15 +874,19 @@ fn prepare_in_owned(
 ) -> Result<PreparedCargoTarget, PreparationFailure> {
     let started = Instant::now();
     let environment = preparation_environment(&preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let profdata = run_stage(
         owned,
         request,
-        &preflight.llvm_profdata.supplied_path,
+        &preflight.llvm_profdata,
+        EvidenceSubject::LlvmProfdata,
         &["--version"],
         PreparationStage::LlvmProfdataVersion,
         MAX_VERSION_OUTPUT_BYTES,
         Duration::from_secs(5),
         &environment,
+        &preflight.configuration_locations,
+        &preflight.roots.canonical_source_root,
         started,
     )?;
     require_success_without_stderr(PreparationStage::LlvmProfdataVersion, &profdata)?;
@@ -644,16 +898,19 @@ fn prepare_in_owned(
     )?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(&preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let cov = run_stage(
         owned,
         request,
-        &preflight.llvm_cov.supplied_path,
+        &preflight.llvm_cov,
+        EvidenceSubject::LlvmCov,
         &["--version"],
         PreparationStage::LlvmCovVersion,
         MAX_VERSION_OUTPUT_BYTES,
         Duration::from_secs(5),
         &environment,
+        &preflight.configuration_locations,
+        &preflight.roots.canonical_source_root,
         started,
     )?;
     require_success_without_stderr(PreparationStage::LlvmCovVersion, &cov)?;
@@ -665,31 +922,37 @@ fn prepare_in_owned(
     )?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(&preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let cargo_version = run_stage(
         owned,
         request,
-        &preflight.cargo.supplied_path,
+        &preflight.cargo,
+        EvidenceSubject::Cargo,
         &["-vV"],
         PreparationStage::CargoVersion,
         MAX_VERSION_OUTPUT_BYTES,
         Duration::from_secs(5),
         &environment,
+        &preflight.configuration_locations,
+        &preflight.roots.canonical_source_root,
         started,
     )?;
     require_success_without_stderr(PreparationStage::CargoVersion, &cargo_version)?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(&preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let rustc_version = run_stage(
         owned,
         request,
-        &preflight.rustc.supplied_path,
+        &preflight.rustc,
+        EvidenceSubject::Rustc,
         &["-vV"],
         PreparationStage::RustcVersion,
         MAX_VERSION_OUTPUT_BYTES,
         Duration::from_secs(5),
         &environment,
+        &preflight.configuration_locations,
+        &preflight.roots.canonical_source_root,
         started,
     )?;
     require_success_without_stderr(PreparationStage::RustcVersion, &rustc_version)?;
@@ -702,7 +965,7 @@ fn prepare_in_owned(
     )?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(&preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let manifest = path_text(&preflight.manifest.supplied_path)?;
     let pkgid_args = [
         "pkgid",
@@ -716,19 +979,22 @@ fn prepare_in_owned(
     let pkgid = run_stage(
         owned,
         request,
-        &preflight.cargo.supplied_path,
+        &preflight.cargo,
+        EvidenceSubject::Cargo,
         &pkgid_args,
         PreparationStage::Pkgid,
         MAX_PKGID_OUTPUT_BYTES,
         Duration::from_secs(10),
         &environment,
+        &preflight.configuration_locations,
+        &preflight.roots.canonical_source_root,
         started,
     )?;
     require_success_without_stderr(PreparationStage::Pkgid, &pkgid)?;
     let package_id = parse_pkgid(&pkgid.stdout)?;
     accept_last(&mut owned.receipts);
 
-    recheck_preflight(&preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let target = path_text(&preflight.roots.canonical_target_dir)?;
     let mut build_args = vec![
         "test",
@@ -752,12 +1018,15 @@ fn prepare_in_owned(
     let build = run_stage(
         owned,
         request,
-        &preflight.cargo.supplied_path,
+        &preflight.cargo,
+        EvidenceSubject::Cargo,
         &build_args,
         PreparationStage::Build,
         request.limits.max_build_output_bytes,
         request.limits.timeout,
         &environment,
+        &preflight.configuration_locations,
+        &preflight.roots.canonical_source_root,
         started,
     )?;
     if !build.status.success() {
@@ -768,14 +1037,29 @@ fn prepare_in_owned(
     }
     validate_build_stream_lengths(build.stdout.len(), build.stderr.len())?;
     accept_last(&mut owned.receipts);
-    drop(build);
-
-    recheck_preflight(&preflight)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Metadata)?;
     let jsonl_path = owned.path.join("build.stdout");
     let stderr_path = owned.path.join("build.stderr");
-    let jsonl = freeze_strict_file(&jsonl_path, EvidenceSubject::Jsonl)?;
-    let build_stderr = freeze_strict_file(&stderr_path, EvidenceSubject::BuildStderr)?;
+    let build_receipt = owned
+        .receipts
+        .last()
+        .expect("accepted build has a retained receipt");
+    let jsonl = frozen_receipt_file(
+        &jsonl_path,
+        build_receipt.stdout_stamp.as_ref(),
+        build_receipt.stdout_identity,
+    )?;
+    let build_stderr = frozen_receipt_file(
+        &stderr_path,
+        build_receipt.stderr_stamp.as_ref(),
+        build_receipt.stderr_identity,
+    )?;
     recheck_jsonl_inner(&jsonl)?;
+    if crate::file_identity::content_identity(&build.stdout) != jsonl.identity
+        || crate::file_identity::content_identity(&build.stderr) != build_stderr.identity
+    {
+        return Err(identity_changed(EvidenceSubject::Jsonl));
+    }
 
     let expected = ExpectedArtifact {
         package_id: package_id.clone(),
@@ -789,14 +1073,22 @@ fn prepare_in_owned(
         canonical_src_path: preflight.roots.canonical_src_path.clone(),
         canonical_target_dir: preflight.roots.canonical_target_dir.clone(),
     };
-    let retained = read_bounded(&jsonl_path, MAX_BUILD_STDOUT_BYTES)?;
-    let record = select_artifact_record(&retained, CargoBuildStatus::Success, &expected).map_err(
-        |error| {
+    test_checkpoint(
+        PreparationCheckpoint::BeforeArtifactSelection,
+        owned,
+        preflight,
+    )?;
+    let record = select_artifact_record(&build.stdout, CargoBuildStatus::Success, &expected)
+        .map_err(|error| {
             PreparationFailure::new(
                 PreparationStage::Jsonl,
                 CargoPreparationErrorKind::Artifact(error),
             )
-        },
+        })?;
+    test_checkpoint(
+        PreparationCheckpoint::AfterArtifactSelection,
+        owned,
+        preflight,
     )?;
     recheck_jsonl_inner(&jsonl)?;
     let selected = resolve_selected_artifact(record, &expected).map_err(|error| {
@@ -805,6 +1097,7 @@ fn prepare_in_owned(
             CargoPreparationErrorKind::Artifact(error),
         )
     })?;
+    test_checkpoint(PreparationCheckpoint::AfterResolution, owned, preflight)?;
     recheck_selected_artifact(&selected, &expected, SelectedArtifactCheck::Content).map_err(
         |error| {
             PreparationFailure::new(
@@ -813,9 +1106,11 @@ fn prepare_in_owned(
             )
         },
     )?;
-    recheck_receipts(&owned.receipts)?;
-    recheck_preflight(&preflight)?;
+    owned.selection = Some((selected, expected));
+    recheck_receipts(&owned.receipts, SelectedArtifactCheck::Content)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
 
+    test_checkpoint(PreparationCheckpoint::BeforePublication, owned, preflight)?;
     owned.verify_owner()?;
     fs::create_dir(request.output_dir)
         .map_err(|error| evidence_io(PreparationStage::Publish, error))?;
@@ -843,8 +1138,26 @@ fn prepare_in_owned(
                 .expect("receipt path has a file name"),
         );
     }
-    recheck_receipts(&owned.receipts)?;
+    test_checkpoint(PreparationCheckpoint::AfterRelocation, owned, preflight)?;
+    recheck_receipts(&owned.receipts, SelectedArtifactCheck::Content)?;
+    recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     owned.verify_owner()?;
+    let (selected, expected) = owned
+        .selection
+        .as_ref()
+        .expect("resolved selection is retained by the evidence owner");
+    recheck_selected_artifact(selected, expected, SelectedArtifactCheck::Content).map_err(
+        |error| {
+            PreparationFailure::new(
+                PreparationStage::Resolve,
+                CargoPreparationErrorKind::Artifact(error),
+            )
+        },
+    )?;
+    let (selected, expected) = owned
+        .selection
+        .take()
+        .expect("validated selection is transferred exactly once");
     owned.transferred = true;
 
     Ok(PreparedCargoTarget {
@@ -872,12 +1185,15 @@ fn prepare_in_owned(
 fn run_stage(
     owned: &mut OwnedPreparationDirectory,
     request: &CargoPreparationRequest<'_>,
-    program: &Path,
+    tool: &FrozenFile,
+    tool_subject: EvidenceSubject,
     args: &[&str],
     stage: PreparationStage,
     max_output_bytes: usize,
     stage_timeout: Duration,
     environment: &[(String, String)],
+    configuration_locations: &[(String, Option<PathBuf>)],
+    canonical_cwd: &Path,
     started: Instant,
 ) -> Result<ProcessOutput, PreparationFailure> {
     let remaining = request
@@ -887,15 +1203,21 @@ fn run_stage(
         .filter(|remaining| !remaining.is_zero())
         .ok_or_else(|| PreparationFailure::new(stage, CargoPreparationErrorKind::ProcessTimeout))?;
     let timeout = remaining.min(stage_timeout);
+    let canonical_program = fs::canonicalize(&tool.supplied_path)
+        .map_err(|error| evidence_io(PreparationStage::Preflight, error))?;
+    if canonical_program != tool.canonical_path {
+        return Err(identity_changed(tool_subject));
+    }
     owned.process_attempted = true;
     let attempt = CommandAttempt {
         stage,
-        program: program.to_path_buf(),
+        program: tool.supplied_path.clone(),
+        canonical_program: tool.canonical_path.clone(),
         argv: args.iter().map(|arg| (*arg).to_owned()).collect(),
-        cwd: request.source_root.to_path_buf(),
+        cwd: canonical_cwd.to_path_buf(),
         environment: environment.to_vec(),
         removed_environment: REMOVED_ENVIRONMENT.to_vec(),
-        configuration_locations: configuration_locations(request.source_root),
+        configuration_locations: configuration_locations.to_vec(),
         timeout,
         max_output_bytes,
         elapsed: None,
@@ -903,7 +1225,7 @@ fn run_stage(
     owned.last_attempt = Some(attempt.clone());
     let command_started = Instant::now();
     let result = process::run_with_environment(
-        program,
+        &tool.supplied_path,
         args,
         b"",
         ProcessLimits {
@@ -912,7 +1234,7 @@ fn run_stage(
         },
         environment,
         &REMOVED_ENVIRONMENT,
-        Some(request.source_root),
+        Some(canonical_cwd),
     );
     let elapsed = command_started.elapsed();
     owned
@@ -932,6 +1254,7 @@ fn run_stage(
             capture_complete: false,
             retention_complete: false,
             secondary: Vec::new(),
+            io_error: Some(Arc::new(error)),
         }
     })?;
 
@@ -939,17 +1262,28 @@ fn run_stage(
     let stdout_path = owned.path.join(format!("{prefix}.stdout"));
     let stderr_path = owned.path.join(format!("{prefix}.stderr"));
     let persistence = (|| -> io::Result<(FileStamp, FileStamp)> {
-        write_new(&stdout_path, &output.stdout)?;
-        write_new(&stderr_path, &output.stderr)?;
-        Ok((file_stamp(&stdout_path)?, file_stamp(&stderr_path)?))
+        let (stdout_stamp, stdout_identity) = persist_new(&stdout_path, &output.stdout)?;
+        if stdout_identity != crate::file_identity::content_identity(&output.stdout) {
+            return Err(io::Error::other(
+                "persisted stdout differs from process capture",
+            ));
+        }
+        let (stderr_stamp, stderr_identity) = persist_new(&stderr_path, &output.stderr)?;
+        if stderr_identity != crate::file_identity::content_identity(&output.stderr) {
+            return Err(io::Error::other(
+                "persisted stderr differs from process capture",
+            ));
+        }
+        Ok((stdout_stamp, stderr_stamp))
     })();
     let (stdout_stamp, stderr_stamp, retention_complete, persistence_error) = match persistence {
         Ok((stdout_stamp, stderr_stamp)) => (Some(stdout_stamp), Some(stderr_stamp), true, None),
-        Err(error) => (None, None, false, Some(error.kind())),
+        Err(error) => (None, None, false, Some(error)),
     };
     owned.receipts.push(CommandReceipt {
         stage: attempt.stage,
         program: attempt.program,
+        canonical_program: attempt.canonical_program,
         argv: attempt.argv,
         cwd: attempt.cwd,
         environment: attempt.environment,
@@ -971,13 +1305,14 @@ fn run_stage(
         retention_complete,
         accepted: false,
     });
-    if let Some(kind) = persistence_error {
+    if let Some(error) = persistence_error {
+        let kind = error.kind();
         let evidence = CargoPreparationErrorKind::EvidenceIo(kind);
         if output.status.success() {
-            return Err(retention_io(stage, io::Error::from(kind)));
+            return Err(retention_io(stage, error));
         }
         let mut failure = PreparationFailure::new(stage, CargoPreparationErrorKind::ProcessExit)
-            .with_secondary(evidence);
+            .with_secondary(evidence, Some(error));
         failure.retention_complete = false;
         return Err(failure);
     }
@@ -1016,8 +1351,10 @@ fn preparation_environment(
     ])
 }
 
-fn configuration_locations(source_root: &Path) -> Vec<(String, Option<PathBuf>)> {
-    vec![
+fn configuration_locations(
+    source_root: &Path,
+) -> Result<Vec<(String, Option<PathBuf>)>, PreparationFailure> {
+    let locations = vec![
         ("source .cargo".to_owned(), Some(source_root.join(".cargo"))),
         (
             "CARGO_HOME".to_owned(),
@@ -1031,7 +1368,30 @@ fn configuration_locations(source_root: &Path) -> Vec<(String, Option<PathBuf>)>
             "HOME/.cargo".to_owned(),
             std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cargo")),
         ),
-    ]
+    ];
+    for (_, path) in &locations {
+        if let Some(path) = path
+            && ambient_path_bytes(path) > MAX_PATH_BYTES
+        {
+            return Err(PreparationFailure::new(
+                PreparationStage::Preflight,
+                CargoPreparationErrorKind::Configuration,
+            ));
+        }
+    }
+    Ok(locations)
+}
+
+#[cfg(unix)]
+fn ambient_path_bytes(path: &Path) -> usize {
+    use std::os::unix::ffi::OsStrExt;
+    path.as_os_str().as_bytes().len()
+}
+
+#[cfg(windows)]
+fn ambient_path_bytes(path: &Path) -> usize {
+    use std::os::windows::ffi::OsStrExt;
+    path.as_os_str().encode_wide().count().saturating_mul(2)
 }
 
 fn require_success_without_stderr(
@@ -1119,26 +1479,32 @@ fn parse_rustc_host(stdout: &[u8]) -> Result<String, PreparationFailure> {
     let text = std::str::from_utf8(stdout).map_err(|_| {
         PreparationFailure::new(
             PreparationStage::RustcVersion,
-            CargoPreparationErrorKind::HostShape,
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::RustcHost),
         )
     })?;
-    let hosts: Vec<_> = text
+    let candidates: Vec<_> = text
         .lines()
-        .filter_map(|line| line.strip_prefix("host: "))
+        .filter(|line| line.starts_with("host"))
         .collect();
-    if hosts.len() != 1
-        || hosts[0].is_empty()
-        || hosts[0].len() > MAX_HOST_BYTES
-        || !hosts[0]
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    let host = if candidates.len() == 1 {
+        candidates[0].strip_prefix("host: ")
+    } else {
+        None
+    };
+    if host.is_none()
+        || host.is_some_and(str::is_empty)
+        || host.is_some_and(|host| host.len() > MAX_HOST_BYTES)
+        || !host.is_some_and(|host| {
+            host.bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        })
     {
         return Err(PreparationFailure::new(
             PreparationStage::RustcVersion,
-            CargoPreparationErrorKind::HostShape,
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::RustcHost),
         ));
     }
-    Ok(hosts[0].to_owned())
+    Ok(host.expect("validated host field").to_owned())
 }
 
 fn require_matching_llvm(
@@ -1154,7 +1520,7 @@ fn require_matching_llvm(
     if expected.is_none() || actual != expected {
         return Err(PreparationFailure::new(
             stage,
-            CargoPreparationErrorKind::ToolVersion,
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::LlvmVersion),
         ));
     }
     Ok(())
@@ -1180,15 +1546,19 @@ fn exact_version_after(text: &str, marker: &str) -> Option<String> {
     .then_some(version)
 }
 
-fn recheck_preflight(preflight: &Preflight) -> Result<(), PreparationFailure> {
+fn recheck_preflight(
+    preflight: &Preflight,
+    check: SelectedArtifactCheck,
+) -> Result<(), PreparationFailure> {
+    recheck_roots(&preflight.roots)?;
     for (file, subject) in [
         (&preflight.manifest, EvidenceSubject::Manifest),
         (&preflight.lockfile, EvidenceSubject::Lockfile),
     ] {
-        recheck_frozen_file(file, subject)?;
+        recheck_frozen(file, subject, check)?;
     }
     for source in &preflight.sources {
-        recheck_frozen_file(source, EvidenceSubject::Source)?;
+        recheck_frozen(source, EvidenceSubject::Source, check)?;
     }
     for (file, subject) in [
         (&preflight.cargo, EvidenceSubject::Cargo),
@@ -1196,12 +1566,47 @@ fn recheck_preflight(preflight: &Preflight) -> Result<(), PreparationFailure> {
         (&preflight.llvm_profdata, EvidenceSubject::LlvmProfdata),
         (&preflight.llvm_cov, EvidenceSubject::LlvmCov),
     ] {
-        recheck_frozen_tool(file, subject)?;
+        recheck_tool(file, subject, check)?;
     }
     Ok(())
 }
 
-fn recheck_receipt(receipt: &CommandReceipt) -> Result<(), PreparationFailure> {
+fn recheck_roots(roots: &CanonicalArtifactRoots) -> Result<(), PreparationFailure> {
+    let observed =
+        establish_artifact_roots(&roots.canonical_source_root, &roots.canonical_target_dir)
+            .map_err(|error| {
+                PreparationFailure::new(
+                    PreparationStage::Preflight,
+                    CargoPreparationErrorKind::Artifact(error),
+                )
+            })?;
+    if observed.canonical_source_root != roots.canonical_source_root
+        || observed.canonical_src_path != roots.canonical_src_path
+    {
+        return Err(PreparationFailure::new(
+            PreparationStage::Preflight,
+            CargoPreparationErrorKind::Artifact(ArtifactError::Path {
+                field: crate::cargo_artifact::ArtifactPathField::SourceRoot,
+                kind: crate::cargo_artifact::ArtifactPathError::CanonicalMismatch,
+            }),
+        ));
+    }
+    if observed.canonical_target_dir != roots.canonical_target_dir {
+        return Err(PreparationFailure::new(
+            PreparationStage::Preflight,
+            CargoPreparationErrorKind::Artifact(ArtifactError::Path {
+                field: crate::cargo_artifact::ArtifactPathField::TargetDir,
+                kind: crate::cargo_artifact::ArtifactPathError::CanonicalMismatch,
+            }),
+        ));
+    }
+    Ok(())
+}
+
+fn recheck_receipt(
+    receipt: &CommandReceipt,
+    check: SelectedArtifactCheck,
+) -> Result<(), PreparationFailure> {
     for (path, stamp, identity, subject) in [
         (
             &receipt.stdout_path,
@@ -1238,6 +1643,8 @@ fn recheck_receipt(receipt: &CommandReceipt) -> Result<(), PreparationFailure> {
         };
         if subject == EvidenceSubject::Jsonl {
             recheck_jsonl_inner(&frozen)?;
+        } else if check == SelectedArtifactCheck::Metadata {
+            recheck_frozen_metadata(&frozen, subject)?;
         } else {
             recheck_frozen_file(&frozen, subject)?;
         }
@@ -1245,64 +1652,64 @@ fn recheck_receipt(receipt: &CommandReceipt) -> Result<(), PreparationFailure> {
     Ok(())
 }
 
-fn recheck_receipts(receipts: &[CommandReceipt]) -> Result<(), PreparationFailure> {
+fn recheck_receipts(
+    receipts: &[CommandReceipt],
+    check: SelectedArtifactCheck,
+) -> Result<(), PreparationFailure> {
     for receipt in receipts {
-        recheck_receipt(receipt)?;
+        recheck_receipt(receipt, check)?;
     }
     Ok(())
 }
 
-fn recheck_all_inputs(prepared: &PreparedCargoTarget) -> Result<(), CargoPreparationError> {
-    for (file, subject) in [
-        (&prepared.manifest, EvidenceSubject::Manifest),
-        (&prepared.lockfile, EvidenceSubject::Lockfile),
-    ] {
-        recheck_frozen_file(file, subject).map_err(|failure| CargoPreparationError {
-            stage: failure.stage,
+fn recheck_prepared(
+    prepared: &PreparedCargoTarget,
+    check: SelectedArtifactCheck,
+) -> Result<(), PreparationFailure> {
+    let preflight = Preflight {
+        roots: prepared.roots.clone(),
+        manifest: prepared.manifest.clone(),
+        lockfile: prepared.lockfile.clone(),
+        sources: prepared.sources.clone(),
+        cargo: prepared.cargo.clone(),
+        rustc: prepared.rustc.clone(),
+        llvm_profdata: prepared.llvm_profdata.clone(),
+        llvm_cov: prepared.llvm_cov.clone(),
+        configuration_locations: Vec::new(),
+    };
+    let mut primary = None;
+    aggregate_check(&mut primary, recheck_preflight(&preflight, check));
+    for receipt in &prepared.receipts {
+        aggregate_check(&mut primary, recheck_receipt(receipt, check));
+    }
+    aggregate_check(
+        &mut primary,
+        recheck_selected_artifact(&prepared.selected, &prepared.expected, check).map_err(|error| {
+            PreparationFailure::new(
+                PreparationStage::Resolve,
+                CargoPreparationErrorKind::Artifact(error),
+            )
+        }),
+    );
+    primary.map_or(Ok(()), Err)
+}
+
+fn aggregate_check(
+    primary: &mut Option<PreparationFailure>,
+    result: Result<(), PreparationFailure>,
+) {
+    let Err(mut failure) = result else {
+        return;
+    };
+    if let Some(primary) = primary {
+        primary.secondary.push(CargoPreparationDiagnostic {
             kind: failure.kind,
-            evidence_dir: Some(prepared.evidence_dir.clone()),
-            capture_complete: failure.capture_complete,
-            retention_complete: failure.retention_complete,
-            accepted: false,
-            secondary: Vec::new(),
-            attempt: None,
-            receipts: Vec::new(),
-        })?;
+            io_error: failure.io_error,
+        });
+        primary.secondary.append(&mut failure.secondary);
+    } else {
+        *primary = Some(failure);
     }
-    for source in &prepared.sources {
-        recheck_frozen_file(source, EvidenceSubject::Source).map_err(|failure| {
-            CargoPreparationError {
-                stage: failure.stage,
-                kind: failure.kind,
-                evidence_dir: Some(prepared.evidence_dir.clone()),
-                capture_complete: failure.capture_complete,
-                retention_complete: failure.retention_complete,
-                accepted: false,
-                secondary: Vec::new(),
-                attempt: None,
-                receipts: Vec::new(),
-            }
-        })?;
-    }
-    for (file, subject) in [
-        (&prepared.cargo, EvidenceSubject::Cargo),
-        (&prepared.rustc, EvidenceSubject::Rustc),
-        (&prepared.llvm_profdata, EvidenceSubject::LlvmProfdata),
-        (&prepared.llvm_cov, EvidenceSubject::LlvmCov),
-    ] {
-        recheck_frozen_tool(file, subject).map_err(|failure| CargoPreparationError {
-            stage: failure.stage,
-            kind: failure.kind,
-            evidence_dir: Some(prepared.evidence_dir.clone()),
-            capture_complete: failure.capture_complete,
-            retention_complete: failure.retention_complete,
-            accepted: false,
-            secondary: Vec::new(),
-            attempt: None,
-            receipts: Vec::new(),
-        })?;
-    }
-    Ok(())
 }
 
 fn freeze_strict_file(
@@ -1340,6 +1747,93 @@ fn freeze_tool_file(
             .map_err(|error| evidence_io(PreparationStage::Preflight, error))?,
         canonical_path,
     })
+}
+
+fn frozen_receipt_file(
+    path: &Path,
+    stamp: Option<&FileStamp>,
+    identity: ContentIdentity,
+) -> Result<FrozenFile, PreparationFailure> {
+    let stamp = stamp.cloned().ok_or_else(|| {
+        PreparationFailure::new(
+            PreparationStage::Jsonl,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Jsonl),
+        )
+    })?;
+    validate_lexical(path)?;
+    Ok(FrozenFile {
+        supplied_path: path.to_path_buf(),
+        canonical_path: path.to_path_buf(),
+        stamp,
+        identity,
+    })
+}
+
+fn recheck_frozen(
+    frozen: &FrozenFile,
+    subject: EvidenceSubject,
+    check: SelectedArtifactCheck,
+) -> Result<(), PreparationFailure> {
+    match check {
+        SelectedArtifactCheck::Metadata => recheck_frozen_metadata(frozen, subject),
+        SelectedArtifactCheck::Content => recheck_frozen_file(frozen, subject),
+    }
+}
+
+fn recheck_tool(
+    frozen: &FrozenFile,
+    subject: EvidenceSubject,
+    check: SelectedArtifactCheck,
+) -> Result<(), PreparationFailure> {
+    match check {
+        SelectedArtifactCheck::Metadata => recheck_tool_metadata(frozen, subject),
+        SelectedArtifactCheck::Content => recheck_frozen_tool(frozen, subject),
+    }
+}
+
+fn recheck_frozen_metadata(
+    frozen: &FrozenFile,
+    subject: EvidenceSubject,
+) -> Result<(), PreparationFailure> {
+    walk_nonsymlink_file(&frozen.supplied_path, subject).map_err(|failure| {
+        if matches!(failure.kind, CargoPreparationErrorKind::EvidenceIo(_)) {
+            failure
+        } else {
+            identity_changed(subject)
+        }
+    })?;
+    let canonical =
+        fs::canonicalize(&frozen.supplied_path).map_err(|_| identity_changed(subject))?;
+    let stamp = file_stamp(&frozen.supplied_path)
+        .map_err(|error| evidence_io(PreparationStage::Preflight, error))?;
+    if canonical != frozen.canonical_path || stamp != frozen.stamp {
+        return Err(identity_changed(subject));
+    }
+    Ok(())
+}
+
+fn recheck_tool_metadata(
+    frozen: &FrozenFile,
+    subject: EvidenceSubject,
+) -> Result<(), PreparationFailure> {
+    let canonical =
+        fs::canonicalize(&frozen.supplied_path).map_err(|_| identity_changed(subject))?;
+    if canonical != frozen.canonical_path {
+        return Err(identity_changed(subject));
+    }
+    walk_nonsymlink_file(&canonical, subject).map_err(|failure| {
+        if matches!(failure.kind, CargoPreparationErrorKind::EvidenceIo(_)) {
+            failure
+        } else {
+            identity_changed(subject)
+        }
+    })?;
+    if file_stamp(&canonical).map_err(|error| evidence_io(PreparationStage::Preflight, error))?
+        != frozen.stamp
+    {
+        return Err(identity_changed(subject));
+    }
+    Ok(())
 }
 
 fn recheck_frozen_file(
@@ -1449,7 +1943,14 @@ fn recheck_jsonl_inner(frozen: &FrozenFile) -> Result<(), PreparationFailure> {
     if handle_post != frozen.stamp || identity != frozen.identity {
         return Err(identity_changed(EvidenceSubject::Jsonl));
     }
-    walk_nonsymlink_file(&frozen.supplied_path, EvidenceSubject::Jsonl)?;
+    jsonl_post_read_checkpoint(frozen);
+    walk_nonsymlink_file(&frozen.supplied_path, EvidenceSubject::Jsonl).map_err(|failure| {
+        if matches!(failure.kind, CargoPreparationErrorKind::EvidenceIo(_)) {
+            failure
+        } else {
+            identity_changed(EvidenceSubject::Jsonl)
+        }
+    })?;
     let post = file_stamp(&frozen.supplied_path)
         .map_err(|error| evidence_io(PreparationStage::Jsonl, error))?;
     let post_canonical = fs::canonicalize(&frozen.supplied_path)
@@ -1537,9 +2038,22 @@ fn path_text(path: &Path) -> Result<&str, PreparationFailure> {
 }
 
 fn metadata_failure(subject: EvidenceSubject) -> PreparationFailure {
+    let field = match subject {
+        EvidenceSubject::Manifest => ToolMetadataField::Manifest,
+        EvidenceSubject::Lockfile => ToolMetadataField::Lockfile,
+        EvidenceSubject::Source => ToolMetadataField::Source,
+        EvidenceSubject::Cargo => ToolMetadataField::Cargo,
+        EvidenceSubject::Rustc => ToolMetadataField::Rustc,
+        EvidenceSubject::LlvmProfdata => ToolMetadataField::LlvmProfdata,
+        EvidenceSubject::LlvmCov => ToolMetadataField::LlvmCov,
+        EvidenceSubject::OwnerMarker => ToolMetadataField::OwnerMarker,
+        EvidenceSubject::Jsonl | EvidenceSubject::BuildStderr | EvidenceSubject::CommandOutput => {
+            ToolMetadataField::CommandOutput
+        }
+    };
     PreparationFailure::new(
         PreparationStage::Preflight,
-        CargoPreparationErrorKind::ToolMetadata(subject),
+        CargoPreparationErrorKind::ToolMetadata(field),
     )
 }
 
@@ -1555,7 +2069,10 @@ fn identity_changed(subject: EvidenceSubject) -> PreparationFailure {
 }
 
 fn evidence_io(stage: PreparationStage, error: io::Error) -> PreparationFailure {
-    PreparationFailure::new(stage, CargoPreparationErrorKind::EvidenceIo(error.kind()))
+    let kind = error.kind();
+    let mut failure = PreparationFailure::new(stage, CargoPreparationErrorKind::EvidenceIo(kind));
+    failure.io_error = Some(Arc::new(error));
+    failure
 }
 
 fn retention_io(stage: PreparationStage, error: io::Error) -> PreparationFailure {
@@ -1565,6 +2082,7 @@ fn retention_io(stage: PreparationStage, error: io::Error) -> PreparationFailure
         capture_complete: true,
         retention_complete: false,
         secondary: Vec::new(),
+        io_error: Some(Arc::new(error)),
     }
 }
 
@@ -1572,6 +2090,30 @@ fn write_new(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
     file.write_all(bytes)?;
     file.sync_all()
+}
+
+fn persist_new(path: &Path, bytes: &[u8]) -> io::Result<(FileStamp, ContentIdentity)> {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    let before = FileStamp::from_metadata(&file.metadata()?)?;
+    file.seek(SeekFrom::Start(0))?;
+    let identity =
+        file_identity_from_file_bounded(&mut file, bytes.len()).map_err(|error| match error {
+            FileIdentityError::Io(error) => error,
+            FileIdentityError::LengthOverflow => io::Error::other("persisted file grew"),
+        })?;
+    let after = FileStamp::from_metadata(&file.metadata()?)?;
+    if before != after || before.len != bytes.len() as u64 {
+        return Err(io::Error::other(
+            "persisted file changed during verification",
+        ));
+    }
+    Ok((after, identity))
 }
 
 fn read_bounded(path: &Path, maximum: usize) -> Result<Vec<u8>, PreparationFailure> {
@@ -1756,6 +2298,54 @@ mod tests {
         fs::write(source.join("src/lib.rs"), library).unwrap();
     }
 
+    struct CheckpointHookReset;
+
+    impl Drop for CheckpointHookReset {
+        fn drop(&mut self) {
+            PREPARATION_CHECKPOINT_HOOK.with(|hook| *hook.borrow_mut() = None);
+            JSONL_CHECKPOINT_HOOK.with(|hook| *hook.borrow_mut() = None);
+        }
+    }
+
+    fn with_jsonl_checkpoint_hook<T>(
+        hook: impl FnMut(&FrozenFile) + 'static,
+        action: impl FnOnce() -> T,
+    ) -> T {
+        JSONL_CHECKPOINT_HOOK.with(|slot| {
+            assert!(slot.borrow().is_none());
+            *slot.borrow_mut() = Some(Box::new(hook));
+        });
+        let reset = CheckpointHookReset;
+        let result = action();
+        drop(reset);
+        result
+    }
+
+    fn with_checkpoint_hook<T>(
+        hook: impl FnMut(PreparationCheckpoint, &OwnedPreparationDirectory, &Preflight) + 'static,
+        action: impl FnOnce() -> T,
+    ) -> T {
+        PREPARATION_CHECKPOINT_HOOK.with(|slot| {
+            assert!(slot.borrow().is_none());
+            *slot.borrow_mut() = Some(Box::new(hook));
+        });
+        let reset = CheckpointHookReset;
+        let result = action();
+        drop(reset);
+        result
+    }
+
+    fn rewrite_preserving_stamp(path: &Path, bytes: &[u8]) {
+        let stamp = file_stamp(path).unwrap();
+        fs::write(path, bytes).unwrap();
+        File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(stamp.modified))
+            .unwrap();
+    }
+
     fn fake_command_source() -> &'static str {
         r#"use std::env;
 use std::fs::{self, OpenOptions};
@@ -1808,6 +2398,14 @@ fn main() {
         println!("cargo fixture");
         if mode == "cargo-nonzero-receipt-collision" { process::exit(7); }
         if mode == "cargo-version-mutate" { fs::write(cwd.join("src/lib.rs"), b"changed after cargo version\n").unwrap(); }
+        #[cfg(unix)]
+        if mode == "cargo-target-swap" {
+            use std::os::unix::fs::symlink;
+            let target = PathBuf::from(env::var_os("CARGO_TARGET_DIR").unwrap());
+            let parked = target.with_extension("parked");
+            fs::rename(&target, &parked).unwrap();
+            symlink(&parked, &target).unwrap();
+        }
         return;
     }
     if args.first().map(String::as_str) == Some("pkgid") {
@@ -1952,7 +2550,7 @@ fn escape(path: &Path) -> String {
             parse_rustc_host(oversized_host.as_bytes())
                 .unwrap_err()
                 .kind,
-            CargoPreparationErrorKind::HostShape
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::RustcHost)
         );
         for bytes in [
             &b"rustc\n"[..],
@@ -1961,10 +2559,13 @@ fn escape(path: &Path) -> String {
             &b"host: bad/host\n"[..],
             &b"host: nonascii-\xc3\xa9\n"[..],
             &b"host: \n"[..],
+            &b"host: valid\nhost:bad\n"[..],
+            &b"host: valid\nhost:\tbad\n"[..],
+            &b"host : invalid\n"[..],
         ] {
             assert_eq!(
                 parse_rustc_host(bytes).unwrap_err().kind,
-                CargoPreparationErrorKind::HostShape
+                CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::RustcHost)
             );
         }
         assert!(
@@ -1991,6 +2592,26 @@ fn escape(path: &Path) -> String {
     fn prepares_one_artifact_with_exact_commands_and_owned_receipts() {
         let fixture = Fixture::new("cargo-ok", "rustc-ok");
         let prepared = prepare_cargo_target(&fixture.request()).unwrap();
+        assert_eq!(prepared.package_id(), prepared.package_id);
+        assert_eq!(prepared.rustc_host(), prepared.rustc_host);
+        assert_eq!(prepared.evidence_dir(), prepared.evidence_dir);
+        assert_eq!(prepared.receipts(), prepared.receipts);
+        assert_eq!(prepared.selected(), &prepared.selected);
+        assert_eq!(prepared.expected(), &prepared.expected);
+        assert_eq!(prepared.roots(), &prepared.roots);
+        assert_eq!(prepared.profile(), CargoProfile::Debug);
+        assert!(prepared.preparation_elapsed() <= Duration::from_secs(5));
+        let jsonl_view = prepared.jsonl();
+        assert_eq!(jsonl_view.supplied_path, prepared.jsonl.supplied_path);
+        assert_eq!(jsonl_view.canonical_path, prepared.jsonl.canonical_path);
+        assert_eq!(jsonl_view.stamp, &prepared.jsonl.stamp);
+        assert_eq!(jsonl_view.identity, prepared.jsonl.identity);
+        assert_eq!(
+            prepared.build_stderr().identity,
+            prepared.build_stderr.identity
+        );
+        let source_view = prepared.reviewed_sources().next().unwrap();
+        assert_eq!(source_view.identity, prepared.sources[0].identity);
         assert_eq!(
             prepared.package_id,
             "path+file:///opaque%20source#yaxml@7.3.1"
@@ -2032,6 +2653,36 @@ fn escape(path: &Path) -> String {
         assert!(prepared.receipts.iter().all(|receipt| {
             receipt.capture_complete && receipt.retention_complete && receipt.accepted
         }));
+        let receipt_view = prepared.receipts()[0].view();
+        assert_eq!(receipt_view.stage, PreparationStage::LlvmProfdataVersion);
+        assert_eq!(receipt_view.program, prepared.receipts[0].program);
+        assert_eq!(
+            receipt_view.canonical_program,
+            prepared.receipts[0].canonical_program
+        );
+        assert_eq!(receipt_view.argv, prepared.receipts[0].argv);
+        assert_eq!(receipt_view.cwd, prepared.receipts[0].cwd);
+        assert_eq!(receipt_view.environment, prepared.receipts[0].environment);
+        assert_eq!(
+            receipt_view.removed_environment,
+            prepared.receipts[0].removed_environment
+        );
+        assert_eq!(
+            receipt_view.configuration_locations,
+            prepared.receipts[0].configuration_locations
+        );
+        assert_eq!(receipt_view.timeout, prepared.receipts[0].timeout);
+        assert_eq!(
+            receipt_view.max_output_bytes,
+            prepared.receipts[0].max_output_bytes
+        );
+        assert_eq!(receipt_view.elapsed, prepared.receipts[0].elapsed);
+        assert_eq!(receipt_view.status, &prepared.receipts[0].status);
+        assert_eq!(receipt_view.stdout_len, prepared.receipts[0].stdout_len);
+        assert_eq!(receipt_view.stderr_len, prepared.receipts[0].stderr_len);
+        assert!(receipt_view.stdout.is_some() && receipt_view.stderr.is_some());
+        assert!(receipt_view.capture_complete && receipt_view.retention_complete);
+        assert!(receipt_view.accepted);
         assert_eq!(
             prepared
                 .receipts
@@ -2145,7 +2796,7 @@ fn escape(path: &Path) -> String {
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
-            CargoPreparationErrorKind::ToolMetadata(EvidenceSubject::Manifest)
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::Manifest)
         );
         assert_eq!(error.evidence_dir, None);
         assert_eq!(error.attempt, None);
@@ -2195,7 +2846,7 @@ fn escape(path: &Path) -> String {
         assert_eq!(error.stage, PreparationStage::Preflight);
         assert_eq!(
             error.kind,
-            CargoPreparationErrorKind::ToolMetadata(EvidenceSubject::Cargo)
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::Cargo)
         );
         assert_eq!(error.evidence_dir, None);
         assert!(!fixture.source.join(".invocations").exists());
@@ -2278,10 +2929,12 @@ fn escape(path: &Path) -> String {
         assert_eq!(error.stage, PreparationStage::CargoVersion);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessExit);
         assert_eq!(
-            error.secondary,
-            [CargoPreparationErrorKind::EvidenceIo(
-                io::ErrorKind::AlreadyExists
-            )]
+            error.secondary[0].kind(),
+            &CargoPreparationErrorKind::EvidenceIo(io::ErrorKind::AlreadyExists)
+        );
+        assert_eq!(
+            error.secondary[0].io_error().unwrap().kind(),
+            io::ErrorKind::AlreadyExists
         );
         assert!(error.capture_complete);
         assert!(!error.retention_complete);
@@ -2479,10 +3132,8 @@ fn escape(path: &Path) -> String {
         assert_eq!(error.stage, PreparationStage::Build);
         assert_eq!(error.kind, CargoPreparationErrorKind::ProcessExit);
         assert_eq!(
-            error.secondary,
-            vec![CargoPreparationErrorKind::IdentityChanged(
-                EvidenceSubject::Source
-            )]
+            error.secondary[0].kind(),
+            &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
         );
 
         let between_fixture = Fixture::new("cargo-version-mutate", "rustc-ok");
@@ -2519,14 +3170,20 @@ fn escape(path: &Path) -> String {
         request.compiler_version_label = "rustc fixture LLVM version: 22.1.7";
         let error = prepare_cargo_target(&request).unwrap_err();
         assert_eq!(error.stage, PreparationStage::LlvmProfdataVersion);
-        assert_eq!(error.kind, CargoPreparationErrorKind::ToolVersion);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::LlvmVersion)
+        );
         assert_eq!(error.receipts.len(), 1);
         assert!(!error.receipts[0].accepted);
 
         let host_fixture = Fixture::new("cargo-ok", "rustc-bad-host");
         let error = prepare_cargo_target(&host_fixture.request()).unwrap_err();
         assert_eq!(error.stage, PreparationStage::RustcVersion);
-        assert_eq!(error.kind, CargoPreparationErrorKind::HostShape);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::RustcHost)
+        );
 
         let false_fixture = Fixture::new("cargo-false", "rustc-ok");
         let error = prepare_cargo_target(&false_fixture.request()).unwrap_err();
@@ -2639,6 +3296,256 @@ fn escape(path: &Path) -> String {
                 CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Jsonl)
             ));
         }
+    }
+
+    #[test]
+    fn preflight_root_bounds_and_overlap_precedence_are_frozen() {
+        let exact = PathBuf::from(format!("/{}", "a".repeat(MAX_PATH_BYTES - 1)));
+        validate_root_length(&exact, crate::cargo_artifact::ArtifactPathField::SourceRoot).unwrap();
+        let over = PathBuf::from(format!("/{}", "a".repeat(MAX_PATH_BYTES)));
+        let error =
+            validate_root_length(&over, crate::cargo_artifact::ArtifactPathField::SourceRoot)
+                .unwrap_err();
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::Artifact(ArtifactError::Path {
+                field: crate::cargo_artifact::ArtifactPathField::SourceRoot,
+                kind: crate::cargo_artifact::ArtifactPathError::LengthOverflow,
+            })
+        );
+
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        fs::remove_file(fixture.source.join("Cargo.toml")).unwrap();
+        let mut request = fixture.request();
+        request.target_dir = &fixture.source;
+        let error = prepare_cargo_target(&request).unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::ToolMetadata(ToolMetadataField::Manifest)
+        );
+        assert!(error.receipts.is_empty());
+
+        write_package(&fixture.source, fixture_library());
+        let error = prepare_cargo_target(&request).unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(error.kind, CargoPreparationErrorKind::Configuration);
+        assert!(error.receipts.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_root_drift_and_first_attempt_io_preserve_evidence() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let fixture = Fixture::new("cargo-target-swap", "rustc-ok");
+        let error = prepare_cargo_target(&fixture.request()).unwrap_err();
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(error.receipts.len(), 3);
+        assert_eq!(
+            fs::read_to_string(fixture.source.join(".invocations"))
+                .unwrap()
+                .lines()
+                .count(),
+            3
+        );
+
+        let io_fixture = Fixture::new("cargo-ok", "rustc-ok");
+        fs::set_permissions(&io_fixture.profdata, fs::Permissions::from_mode(0o600)).unwrap();
+        let error = prepare_cargo_target(&io_fixture.request()).unwrap_err();
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::ProcessIo(io::ErrorKind::PermissionDenied)
+        );
+        assert!(std::error::Error::source(&error).is_some());
+        assert!(
+            error
+                .evidence_dir
+                .as_ref()
+                .is_some_and(|path| path.is_dir())
+        );
+        assert!(error.receipts.is_empty());
+    }
+
+    #[test]
+    fn selection_uses_captured_stdout_during_restored_path_swap() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let parked = Rc::new(RefCell::new(None::<PathBuf>));
+        let parked_for_hook = Rc::clone(&parked);
+        let prepared = with_checkpoint_hook(
+            move |checkpoint, owned, preflight| {
+                let jsonl = owned.path.join("build.stdout");
+                match checkpoint {
+                    PreparationCheckpoint::BeforeArtifactSelection => {
+                        let saved = owned.path.join("build.stdout.original");
+                        fs::rename(&jsonl, &saved).unwrap();
+                        let bytes = fs::read(&saved).unwrap();
+                        let altered = String::from_utf8(bytes)
+                            .unwrap()
+                            .replace("opaque-harness-481", "opaque-harness-482");
+                        fs::write(&jsonl, altered).unwrap();
+                        let original = preflight
+                            .roots
+                            .canonical_target_dir
+                            .join("fixture-host/debug/deps/opaque-harness-481");
+                        let alternate = preflight
+                            .roots
+                            .canonical_target_dir
+                            .join("fixture-host/debug/deps/opaque-harness-482");
+                        fs::copy(original, alternate).unwrap();
+                        *parked_for_hook.borrow_mut() = Some(saved);
+                    }
+                    PreparationCheckpoint::AfterArtifactSelection => {
+                        fs::remove_file(&jsonl).unwrap();
+                        fs::rename(parked_for_hook.borrow_mut().take().unwrap(), &jsonl).unwrap();
+                    }
+                    _ => {}
+                }
+            },
+            || prepare_cargo_target(&fixture.request()).unwrap(),
+        );
+        assert!(
+            prepared
+                .selected()
+                .reported_executable
+                .ends_with("opaque-harness-481")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn lifecycle_handoffs_detect_selected_jsonl_and_source_faults() {
+        use std::os::unix::fs::symlink;
+
+        let post_read = Fixture::new("cargo-ok", "rustc-ok");
+        let error = with_checkpoint_hook(
+            |checkpoint, owned, _| {
+                if checkpoint == PreparationCheckpoint::AfterArtifactSelection {
+                    let jsonl = owned.path.join("build.stdout");
+                    let parked = owned.path.join("parked-build.stdout");
+                    fs::rename(&jsonl, &parked).unwrap();
+                    symlink(&parked, &jsonl).unwrap();
+                }
+            },
+            || prepare_cargo_target(&post_read.request()).unwrap_err(),
+        );
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Jsonl)
+        );
+
+        let initial_selected = Fixture::new("cargo-ok", "rustc-ok");
+        let error = with_checkpoint_hook(
+            |checkpoint, _, preflight| {
+                if checkpoint == PreparationCheckpoint::AfterResolution {
+                    let executable = preflight
+                        .roots
+                        .canonical_target_dir
+                        .join("fixture-host/debug/deps/opaque-harness-481");
+                    rewrite_preserving_stamp(&executable, b"fixture executablE");
+                }
+            },
+            || prepare_cargo_target(&initial_selected.request()).unwrap_err(),
+        );
+        assert!(matches!(
+            error.kind,
+            CargoPreparationErrorKind::Artifact(ArtifactError::Path {
+                field: crate::cargo_artifact::ArtifactPathField::Executable,
+                kind: crate::cargo_artifact::ArtifactPathError::ContentIdentityMismatch,
+            })
+        ));
+        assert!(!initial_selected.output.exists());
+
+        let publication = Fixture::new("cargo-ok", "rustc-ok");
+        let error = with_checkpoint_hook(
+            |checkpoint, owned, _| {
+                if checkpoint == PreparationCheckpoint::BeforePublication {
+                    let selected = &owned.selection.as_ref().unwrap().0;
+                    rewrite_preserving_stamp(&selected.canonical_executable, b"fixture executablE");
+                    fs::create_dir(owned.path.parent().unwrap().join("output")).unwrap();
+                }
+            },
+            || prepare_cargo_target(&publication.request()).unwrap_err(),
+        );
+        assert_eq!(error.stage, PreparationStage::Publish);
+        assert!(error.secondary.iter().any(|diagnostic| matches!(
+            diagnostic.kind(),
+            CargoPreparationErrorKind::Artifact(ArtifactError::Path {
+                field: crate::cargo_artifact::ArtifactPathField::Executable,
+                kind: crate::cargo_artifact::ArtifactPathError::ContentIdentityMismatch,
+            })
+        )));
+
+        let final_jsonl = Fixture::new("cargo-ok", "rustc-ok");
+        let error = with_checkpoint_hook(
+            |checkpoint, owned, _| {
+                if checkpoint == PreparationCheckpoint::AfterRelocation {
+                    let path = owned.path.join("build.stdout");
+                    let mut bytes = fs::read(&path).unwrap();
+                    let index = bytes.iter().position(|byte| *byte == b'd').unwrap();
+                    bytes[index] = b'e';
+                    rewrite_preserving_stamp(&path, &bytes);
+                }
+            },
+            || prepare_cargo_target(&final_jsonl.request()).unwrap_err(),
+        );
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Jsonl)
+        );
+
+        let final_walk = Fixture::new("cargo-ok", "rustc-ok");
+        let prepared = prepare_cargo_target(&final_walk.request()).unwrap();
+        let changed = std::cell::Cell::new(false);
+        let error = with_jsonl_checkpoint_hook(
+            move |frozen| {
+                if !changed.replace(true) {
+                    let parked = frozen.supplied_path.with_extension("post-read-original");
+                    fs::rename(&frozen.supplied_path, &parked).unwrap();
+                    symlink(&parked, &frozen.supplied_path).unwrap();
+                }
+            },
+            || {
+                prepared
+                    .recheck(SelectedArtifactCheck::Content)
+                    .unwrap_err()
+            },
+        );
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Jsonl)
+        );
+
+        let final_selected = Fixture::new("cargo-ok", "rustc-ok");
+        let error = with_checkpoint_hook(
+            |checkpoint, owned, _| {
+                if checkpoint == PreparationCheckpoint::AfterRelocation {
+                    let selected = &owned.selection.as_ref().unwrap().0;
+                    rewrite_preserving_stamp(&selected.canonical_executable, b"fixture executablE");
+                }
+            },
+            || prepare_cargo_target(&final_selected.request()).unwrap_err(),
+        );
+        assert_eq!(error.stage, PreparationStage::Resolve);
+
+        let source = Fixture::new("cargo-ok", "rustc-ok");
+        let prepared = prepare_cargo_target(&source.request()).unwrap();
+        assert_eq!(prepared.reviewed_sources().len(), 1);
+        let path = source.source.join("src/lib.rs");
+        let mut bytes = fs::read(&path).unwrap();
+        bytes[0] = b'P';
+        rewrite_preserving_stamp(&path, &bytes);
+        prepared.recheck(SelectedArtifactCheck::Metadata).unwrap();
+        let error = prepared
+            .recheck(SelectedArtifactCheck::Content)
+            .unwrap_err();
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::Source)
+        );
     }
 
     #[test]
