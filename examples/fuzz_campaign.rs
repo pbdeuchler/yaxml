@@ -1889,7 +1889,8 @@ mod tests {
         assert!(campaign::matching_intersection(&master, &stable));
         assert!(!campaign::matching_intersection(&master, &changed));
 
-        let wrong = install_mode(&helper, &root, "cov_stable_profile");
+        let wrong = root.join("cov_stable_profile");
+        assert!(wrong.is_file(), "stable-profile fixture was not installed");
         let output = std::process::Command::new(wrong)
             .arg("report")
             .arg("--color=0")
@@ -1903,8 +1904,10 @@ mod tests {
             .output()
             .unwrap();
         assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
-            String::from_utf8_lossy(&output.stderr).contains("StableReaderV1 21-file source set")
+            stderr.contains("StableReaderV1 21-file source set"),
+            "unexpected fake coverage diagnostic: {stderr}"
         );
         fs::remove_dir_all(root).unwrap();
     }
