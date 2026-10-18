@@ -3,6 +3,9 @@
 
 #[path = "support/fuzz_campaign.rs"]
 mod campaign;
+#[cfg(test)]
+#[path = "support/cargo_artifact.rs"]
+mod cargo_artifact;
 #[path = "support/process.rs"]
 mod process;
 #[cfg(test)]
