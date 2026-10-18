@@ -16,11 +16,19 @@ mod process;
 #[cfg(test)]
 #[path = "support/fuzz_campaign_protocol.rs"]
 mod protocol;
+#[path = "support/source_inventory.rs"]
+mod source_inventory;
 
-use campaign::{CampaignError, Counts, Limits, MutationRecord, Prng, Summary};
+use campaign::{CampaignError, Limits, MutationRecord, Prng, Summary};
 use file_identity::{FileStamp, file_identity, file_stamp};
 use process::ProcessLimits;
-use std::collections::BTreeSet;
+#[cfg(test)]
+use source_inventory::{
+    MASTER_SOURCE_PATHS as PRODUCTION_SOURCE_PATHS, MAX_DEPTH as MAX_PRODUCTION_SOURCE_DEPTH,
+    MAX_DIRECTORIES as MAX_PRODUCTION_SOURCE_DIRECTORIES,
+    MAX_ENTRIES as MAX_PRODUCTION_SOURCE_ENTRIES,
+};
+use source_inventory::{SourceInventory, SourceProfile};
 use std::error::Error;
 use std::ffi::OsString;
 use std::fs::{self, DirBuilder, File, OpenOptions};
@@ -29,27 +37,6 @@ use std::path::{Path, PathBuf};
 #[cfg(test)]
 use std::time::SystemTime;
 use std::time::{Duration, Instant};
-
-const PRODUCTION_SOURCE_PATHS: [&str; 15] = [
-    "src/buffered.rs",
-    "src/dom.rs",
-    "src/encoding.rs",
-    "src/error.rs",
-    "src/escape.rs",
-    "src/lib.rs",
-    "src/owned.rs",
-    "src/owned/construction.rs",
-    "src/parser.rs",
-    "src/push.rs",
-    "src/reader.rs",
-    "src/serialize.rs",
-    "src/stream.rs",
-    "src/tokenizer.rs",
-    "src/writer.rs",
-];
-const MAX_PRODUCTION_SOURCE_ENTRIES: usize = 64;
-const MAX_PRODUCTION_SOURCE_DIRECTORIES: usize = 8;
-const MAX_PRODUCTION_SOURCE_DEPTH: usize = 4;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FailureKind {
@@ -212,9 +199,7 @@ struct Retained {
 struct Campaign {
     args: Args,
     root: PathBuf,
-    source_paths: Vec<PathBuf>,
-    source_identities: Vec<(PathBuf, (u64, usize))>,
-    source_stamps: Vec<(PathBuf, FileStamp)>,
+    source_inventory: SourceInventory,
     target_id: (u64, usize),
     target_stamp: FileStamp,
     profdata_id: (u64, usize),
@@ -222,7 +207,7 @@ struct Campaign {
     cov_id: (u64, usize),
     cov_stamp: FileStamp,
     tool_versions: Vec<String>,
-    denominator: Option<Counts>,
+    denominator: Option<Summary>,
     last_summary: Option<Summary>,
     observed_summary: Option<Summary>,
     retained: Vec<Retained>,
@@ -251,15 +236,7 @@ impl Campaign {
         }
         let seeds_root = fs::canonicalize(&args.seeds)?;
         require_utf8_path(&seeds_root)?;
-        let source_paths = production_sources(&source_root)?;
-        let source_identities = source_paths
-            .iter()
-            .map(|path| Ok((path.clone(), file_identity(path)?)))
-            .collect::<Result<_, Box<dyn Error>>>()?;
-        let source_stamps = source_paths
-            .iter()
-            .map(|path| Ok((path.clone(), file_stamp(path)?)))
-            .collect::<Result<_, Box<dyn Error>>>()?;
+        let source_inventory = SourceInventory::capture(&source_root)?;
         let target = fs::canonicalize(&args.target)?;
         let profdata = fs::canonicalize(&args.profdata)?;
         let cov = fs::canonicalize(&args.cov)?;
@@ -334,9 +311,7 @@ impl Campaign {
                 ..args
             },
             root,
-            source_paths,
-            source_identities,
-            source_stamps,
+            source_inventory,
             target_id,
             target_stamp,
             profdata_id,
@@ -745,6 +720,9 @@ impl Campaign {
                 Some(report),
             ));
         }
+        if let Err(error) = self.source_inventory.recheck() {
+            return Err((FailureKind::Infrastructure, error.to_string(), Some(report)));
+        }
         let source_names = self
             .coverage_source_names()
             .map_err(|error| (FailureKind::Infrastructure, error.to_string(), None))?;
@@ -764,8 +742,19 @@ impl Campaign {
                 return Err((FailureKind::Infrastructure, error.to_string(), Some(report)));
             }
         };
-        if let Some(old) = self.denominator
-            && !summary.counts.denominators_match(old)
+        let mapped_keys: Vec<_> = summary
+            .sources
+            .iter()
+            .map(|source| source.key.clone())
+            .collect();
+        if let Err(error) = self
+            .source_inventory
+            .validate_keys(SourceProfile::PublicReplayV2, &mapped_keys)
+        {
+            return Err((FailureKind::Infrastructure, error.to_string(), Some(report)));
+        }
+        if let Some(old) = &self.denominator
+            && !summary.denominators_match(old)
         {
             return Err((
                 FailureKind::Infrastructure,
@@ -773,9 +762,9 @@ impl Campaign {
                 Some(report),
             ));
         }
-        let previous = self.last_summary.as_ref().map(|old| old.counts);
+        let previous = self.last_summary.as_ref();
         if let Some(old) = previous {
-            if !summary.counts.covered_never_decreases(old) {
+            if !summary.covered_never_decreases(old) {
                 self.observed_summary = Some(summary.clone());
                 return Err((
                     FailureKind::Infrastructure,
@@ -784,14 +773,14 @@ impl Campaign {
                 ));
             }
         } else {
-            self.denominator = Some(summary.counts);
+            self.denominator = Some(summary.clone());
         }
         if index == 0 {
             self.first_seed_no_coverage = summary.counts.regions_covered == 0
                 && summary.counts.functions_covered == 0
                 && summary.counts.branches_covered == 0;
         }
-        let novelty = previous.is_none_or(|old| summary.counts.has_novelty_over(old));
+        let novelty = previous.is_none_or(|old| summary.counts.has_novelty_over(old.counts));
         if index == 0 || novelty {
             let retained_bytes = self
                 .retained
@@ -1231,17 +1220,14 @@ impl Campaign {
     }
 
     fn coverage_sources(&self) -> Vec<PathBuf> {
-        self.source_paths.clone()
+        self.source_inventory
+            .profile_paths(SourceProfile::PublicReplayV2)
     }
 
     fn coverage_source_names(&self) -> Result<Vec<String>, CampaignError> {
-        let sources: Vec<_> = self
-            .source_paths
-            .iter()
-            .filter(|path| path.file_name().is_some_and(|name| name != "lib.rs"))
-            .cloned()
-            .collect();
-        campaign::source_names(&self.args.source_root.join("src"), &sources)
+        Ok(self
+            .source_inventory
+            .expected_keys(SourceProfile::PublicReplayV2))
     }
 
     fn check_metadata_identities(&self) -> Result<(), Box<dyn Error>> {
@@ -1251,11 +1237,7 @@ impl Campaign {
         {
             return Err("target or coverage tool metadata changed".into());
         }
-        for (path, expected) in &self.source_stamps {
-            if file_stamp(path)? != *expected {
-                return Err(format!("source metadata changed: {}", path.display()).into());
-            }
-        }
+        self.source_inventory.recheck()?;
         Ok(())
     }
 
@@ -1266,17 +1248,13 @@ impl Campaign {
         {
             return Err("target or LLVM tool identity changed during campaign".into());
         }
-        for (path, expected) in &self.source_identities {
-            if file_identity(path)? != *expected {
-                return Err(format!("source identity changed: {}", path.display()).into());
-            }
-        }
+        self.source_inventory.recheck()?;
         Ok(())
     }
 
     fn write_report(&self, failure: Option<(&str, &str)>) -> Result<(), Box<dyn Error>> {
         let mut text = format!(
-            "revision={}\nsource_root={}\nbuild_flags={}\ncompiler_version_label={}\ntarget_args=stdin, no arguments\nmerge_options=-sparse\nreport_options=--color=0 --instr-profile --sources exact reviewed 15-file src manifest, including src/owned/construction.rs; report expects 14 rows because lib.rs has no executable mapping\nprofile_format=LLVM raw plus indexed profdata\nidentity_hash=FNV-1a 64-bit plus length; non-cryptographic accidental-change check only\nprofile_storage_max_files=4 (previous successful raw, current raw, cumulative profile, pending merge)\nprofile_storage_max_bytes={}\nprng_seed={}\nlimits={:?}\ntermination={}\ntarget={}\ntarget_identity_fnv64_len={:016x}:{}\nllvm_profdata={}\nllvm_profdata_identity_fnv64_len={:016x}:{}\nllvm_cov={}\nllvm_cov_identity_fnv64_len={:016x}:{}\ntool_versions={:?}\ncases_attempted={}\nseed_cases_attempted={}\nmutation_cases_attempted={}\nfirst_seed_no_coverage={}\nretained={}\nduplicates={}\nnovel={}\nelapsed_seconds={}\n",
+            "revision={}\nsource_root={}\nbuild_flags={}\ncompiler_version_label={}\ntarget_args=stdin, no arguments\nmerge_options=-sparse\nreport_options=--color=0 --instr-profile --sources exact reviewed PublicReplayV2 17-file manifest; report expects the provisional 16 SrcRelativeV1 rows because exact src/lib.rs has no executable mapping\nsource_inventory=exact reviewed 32-file master\nprofile_format=LLVM raw plus indexed profdata\nidentity_hash=FNV-1a 64-bit plus length; non-cryptographic accidental-change check only\nprofile_storage_max_files=4 (previous successful raw, current raw, cumulative profile, pending merge)\nprofile_storage_max_bytes={}\nprng_seed={}\nlimits={:?}\ntermination={}\ntarget={}\ntarget_identity_fnv64_len={:016x}:{}\nllvm_profdata={}\nllvm_profdata_identity_fnv64_len={:016x}:{}\nllvm_cov={}\nllvm_cov_identity_fnv64_len={:016x}:{}\ntool_versions={:?}\ncases_attempted={}\nseed_cases_attempted={}\nmutation_cases_attempted={}\nfirst_seed_no_coverage={}\nretained={}\nduplicates={}\nnovel={}\nelapsed_seconds={}\n",
             self.args.revision,
             escape_field(path_text(&self.args.source_root)),
             escape_field(&self.args.build_flags),
@@ -1308,12 +1286,12 @@ impl Campaign {
             self.novel,
             self.started.elapsed().as_secs()
         );
-        for (path, identity) in &self.source_identities {
+        for source in self.source_inventory.sources() {
             text.push_str(&format!(
                 "source={} fnv64_len={:016x}:{}\n",
-                escape_field(path_text(path)),
-                identity.0,
-                identity.1
+                escape_field(path_text(&source.canonical)),
+                source.identity.0,
+                source.identity.1
             ));
         }
         if let Some(summary) = &self.last_summary {
@@ -1411,76 +1389,13 @@ impl Drop for Candidate {
     }
 }
 
+#[cfg(test)]
 fn production_sources(source_root: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
-    let source_directory = source_root.join("src");
-    let metadata = fs::symlink_metadata(&source_directory)?;
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err("production source path must be a real directory".into());
-    }
-
-    let mut directories = vec![(source_directory, 0_usize)];
-    let mut directory_count = 1_usize;
-    let mut entry_count = 0_usize;
-    let mut found = BTreeSet::new();
-    while let Some((directory, depth)) = directories.pop() {
-        for entry in fs::read_dir(directory)? {
-            let entry = entry?;
-            entry_count = entry_count
-                .checked_add(1)
-                .ok_or("production source entry count overflow")?;
-            if entry_count > MAX_PRODUCTION_SOURCE_ENTRIES {
-                return Err("production source entry enumeration exceeds its limit".into());
-            }
-            let kind = entry.file_type()?;
-            if kind.is_symlink() {
-                return Err("symlink found in production source tree".into());
-            }
-            let path = entry.path();
-            if kind.is_dir() {
-                if depth >= MAX_PRODUCTION_SOURCE_DEPTH {
-                    return Err("production source directory depth exceeds its limit".into());
-                }
-                directory_count = directory_count
-                    .checked_add(1)
-                    .ok_or("production source directory count overflow")?;
-                if directory_count > MAX_PRODUCTION_SOURCE_DIRECTORIES {
-                    return Err("production source directory enumeration exceeds its limit".into());
-                }
-                directories.push((path, depth + 1));
-            } else if kind.is_file() && path.extension().is_some_and(|extension| extension == "rs")
-            {
-                let relative = path
-                    .strip_prefix(source_root)
-                    .map_err(|_| "production source escaped its source root")?
-                    .to_path_buf();
-                require_utf8_path(&relative)?;
-                if !found.insert(relative) {
-                    return Err("duplicate production source path".into());
-                }
-            }
-        }
-    }
-
-    let expected: BTreeSet<_> = PRODUCTION_SOURCE_PATHS.iter().map(PathBuf::from).collect();
-    if found != expected {
-        return Err("production source inventory differs from the reviewed 15-file mapping".into());
-    }
-    PRODUCTION_SOURCE_PATHS
+    Ok(SourceInventory::capture(source_root)?
+        .sources()
         .iter()
-        .map(|relative| {
-            let expected_path = source_root.join(relative);
-            let metadata = fs::symlink_metadata(&expected_path)?;
-            if metadata.file_type().is_symlink() || !metadata.is_file() {
-                return Err("reviewed production source path is not a regular file".into());
-            }
-            let path = fs::canonicalize(&expected_path)?;
-            if path != expected_path {
-                return Err("reviewed production source path is not canonical".into());
-            }
-            require_utf8_path(&path)?;
-            Ok(path)
-        })
-        .collect()
+        .map(|source| source.canonical.clone())
+        .collect())
 }
 
 fn version(program: &Path) -> Result<String, Box<dyn Error>> {
@@ -1558,6 +1473,26 @@ fn write_new(path: &Path, bytes: &[u8]) -> io::Result<()> {
 mod tests {
     use super::*;
 
+    const TEST_PUBLIC_SOURCE_PATHS: [&str; 17] = [
+        "src/buffered.rs",
+        "src/dom.rs",
+        "src/encoding.rs",
+        "src/error.rs",
+        "src/escape.rs",
+        "src/lib.rs",
+        "src/name.rs",
+        "src/origin.rs",
+        "src/owned.rs",
+        "src/owned/construction.rs",
+        "src/parser.rs",
+        "src/push.rs",
+        "src/reader.rs",
+        "src/serialize.rs",
+        "src/stream.rs",
+        "src/tokenizer.rs",
+        "src/writer.rs",
+    ];
+
     fn required_args() -> Vec<OsString> {
         [
             "--target",
@@ -1618,13 +1553,13 @@ mod tests {
         let construction = root.join("source/src/owned/construction.rs");
         fs::remove_file(&construction).unwrap();
         let missing = production_sources(&source_root).unwrap_err().to_string();
-        assert!(missing.contains("reviewed 15-file mapping"));
+        assert!(missing.contains("missing reviewed source"));
         fs::write(&construction, b"// restored fixture source\n").unwrap();
 
         let extra = root.join("source/src/owned/extra.rs");
         fs::write(&extra, b"// unexpected nested Rust source\n").unwrap();
         let unexpected = production_sources(&source_root).unwrap_err().to_string();
-        assert!(unexpected.contains("reviewed 15-file mapping"));
+        assert!(unexpected.contains("unexpected Rust source"));
         fs::remove_file(extra).unwrap();
 
         #[cfg(unix)]
@@ -1632,16 +1567,17 @@ mod tests {
             let link = root.join("source/src/nested-link");
             std::os::unix::fs::symlink(root.join("source/src/owned"), &link).unwrap();
             let symlink = production_sources(&source_root).unwrap_err().to_string();
-            assert!(symlink.contains("symlink found in production source tree"));
+            assert!(symlink.contains("symlink in source tree"));
             fs::remove_file(link).unwrap();
         }
 
-        for index in 0..MAX_PRODUCTION_SOURCE_DIRECTORIES - 1 {
+        let current_directories = 6_usize;
+        for index in 0..=MAX_PRODUCTION_SOURCE_DIRECTORIES - current_directories {
             fs::create_dir(root.join(format!("source/src/inventory-dir-{index:02}"))).unwrap();
         }
         let over_directory_limit = production_sources(&source_root).unwrap_err().to_string();
-        assert!(over_directory_limit.contains("directory enumeration exceeds its limit"));
-        for index in 0..MAX_PRODUCTION_SOURCE_DIRECTORIES - 1 {
+        assert!(over_directory_limit.contains("directory enumeration exceeds 8"));
+        for index in 0..=MAX_PRODUCTION_SOURCE_DIRECTORIES - current_directories {
             fs::remove_dir(root.join(format!("source/src/inventory-dir-{index:02}"))).unwrap();
         }
 
@@ -1652,7 +1588,7 @@ mod tests {
             fs::create_dir(&deep).unwrap();
         }
         let over_depth_limit = production_sources(&source_root).unwrap_err().to_string();
-        assert!(over_depth_limit.contains("directory depth exceeds its limit"));
+        assert!(over_depth_limit.contains("directory enumeration exceeds 8"));
         fs::remove_dir_all(root.join("source/src/depth-0")).unwrap();
 
         for index in 0..MAX_PRODUCTION_SOURCE_ENTRIES {
@@ -1663,7 +1599,7 @@ mod tests {
             .unwrap();
         }
         let over_limit = production_sources(&source_root).unwrap_err().to_string();
-        assert!(over_limit.contains("entry enumeration exceeds its limit"));
+        assert!(over_limit.contains("entry enumeration exceeds 64"));
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1767,7 +1703,7 @@ mod tests {
     }
 
     fn fixture_source_paths(root: &Path) -> Vec<PathBuf> {
-        PRODUCTION_SOURCE_PATHS
+        TEST_PUBLIC_SOURCE_PATHS
             .iter()
             .map(|relative| root.join("source").join(relative))
             .collect()
@@ -1813,6 +1749,43 @@ mod tests {
         let path = root.join(name);
         fs::copy(helper, &path).unwrap();
         path
+    }
+
+    fn run_profile_fixture(
+        helper: &Path,
+        root: &Path,
+        inventory: &SourceInventory,
+        mode: &str,
+        profile: SourceProfile,
+    ) -> Summary {
+        let cov = install_mode(helper, root, mode);
+        let indexed = root.join(format!("{mode}.profdata"));
+        fs::write(&indexed, b"fixture profile").unwrap();
+        let mut command = std::process::Command::new(cov);
+        command
+            .arg("report")
+            .arg("--color=0")
+            .arg(format!("--instr-profile={}", path_text(&indexed)))
+            .arg(helper)
+            .arg("--sources")
+            .args(inventory.profile_paths(profile));
+        let output = command.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{mode}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let expected = inventory.expected_keys(profile);
+        let summary =
+            campaign::parse_summary(std::str::from_utf8(&output.stdout).unwrap(), &expected)
+                .unwrap();
+        let keys = summary
+            .sources
+            .iter()
+            .map(|source| source.key.clone())
+            .collect::<Vec<_>>();
+        inventory.validate_keys(profile, &keys).unwrap();
+        summary
     }
 
     fn cli_command(
@@ -1879,6 +1852,61 @@ mod tests {
         )
         .output()
         .unwrap()
+    }
+
+    #[test]
+    fn independent_fake_profiles_freeze_master_stable_and_overlap_rows() {
+        let root = fixture_root();
+        let (helper, _) = compile_fake_programs(&root);
+        let source_root = fs::canonicalize(root.join("source")).unwrap();
+        let inventory = SourceInventory::capture(&source_root).unwrap();
+
+        let master = run_profile_fixture(
+            &helper,
+            &root,
+            &inventory,
+            "cov_master_profile",
+            SourceProfile::MasterLibtestMapV1,
+        );
+        let stable = run_profile_fixture(
+            &helper,
+            &root,
+            &inventory,
+            "cov_stable_profile",
+            SourceProfile::StableReaderV1,
+        );
+        assert_eq!(master.sources.len(), 31);
+        assert_eq!(stable.sources.len(), 21);
+        assert!(campaign::matching_intersection(&master, &stable));
+
+        let changed = run_profile_fixture(
+            &helper,
+            &root,
+            &inventory,
+            "cov_stable_profile_changed",
+            SourceProfile::StableReaderV1,
+        );
+        assert!(campaign::matching_intersection(&master, &stable));
+        assert!(!campaign::matching_intersection(&master, &changed));
+
+        let wrong = install_mode(&helper, &root, "cov_stable_profile");
+        let output = std::process::Command::new(wrong)
+            .arg("report")
+            .arg("--color=0")
+            .arg(format!(
+                "--instr-profile={}",
+                path_text(&root.join("cov_stable_profile.profdata"))
+            ))
+            .arg(&helper)
+            .arg("--sources")
+            .args(inventory.profile_paths(SourceProfile::PublicReplayV2))
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("StableReaderV1 21-file source set")
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -2060,7 +2088,7 @@ mod tests {
         assert!(!missing_nested.status.success());
         assert!(
             String::from_utf8_lossy(&missing_nested.stderr)
-                .contains("exact 15-file production source set")
+                .contains("PublicReplayV2 17-file source set")
         );
         let mut duplicate_source = std::process::Command::new(&cov);
         let mut duplicated_paths = fixture_source_paths(&root);
@@ -2079,7 +2107,7 @@ mod tests {
         assert!(!duplicate_source.status.success());
         assert!(
             String::from_utf8_lossy(&duplicate_source.stderr)
-                .contains("exact 15-file production source set")
+                .contains("PublicReplayV2 17-file source set")
         );
         let mut invalid_color = std::process::Command::new(&cov);
         invalid_color
@@ -2114,8 +2142,7 @@ mod tests {
         );
         assert!(!source_count_limit.status.success());
         assert!(
-            String::from_utf8_lossy(&source_count_limit.stderr)
-                .contains("production source inventory differs from the reviewed 15-file mapping")
+            String::from_utf8_lossy(&source_count_limit.stderr).contains("unexpected Rust source")
         );
         fs::remove_file(root.join("source/src/owned/extra.rs")).unwrap();
 
@@ -2324,6 +2351,7 @@ mod tests {
         for (mode, name) in [
             ("cov_malformed", "malformed-report"),
             ("cov_drift", "denominator-drift"),
+            ("cov_per_file_drift", "per-file-denominator-drift"),
         ] {
             let failing_cov = install_mode(&helper, &root, mode);
             let output = run_cli(
@@ -2333,7 +2361,11 @@ mod tests {
                 &failing_cov,
                 &root,
                 name,
-                if mode == "cov_drift" { 100 } else { 1 },
+                if matches!(mode, "cov_drift" | "cov_per_file_drift") {
+                    100
+                } else {
+                    1
+                },
                 &[],
             );
             assert!(!output.status.success(), "{mode}");
@@ -2341,7 +2373,7 @@ mod tests {
             assert!(failure_root.join("failures/first-failure.input").exists());
             assert!(failure_root.join("failures/first-failure.profraw").exists());
             assert!(!failure_root.join("profiles/pending.profdata").exists());
-            if mode == "cov_drift" {
+            if matches!(mode, "cov_drift" | "cov_per_file_drift") {
                 let classification =
                     fs::read_to_string(failure_root.join("failures/classification.txt")).unwrap();
                 assert!(

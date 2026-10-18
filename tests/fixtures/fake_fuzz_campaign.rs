@@ -7,13 +7,16 @@ use std::process;
 use std::thread;
 use std::time::Duration;
 
-const EXPECTED_SOURCE_PATHS: [&str; 15] = [
+// Independent reviewed fixture literals: do not import production constants.
+const PUBLIC_SOURCE_PATHS: [&str; 17] = [
     "src/buffered.rs",
     "src/dom.rs",
     "src/encoding.rs",
     "src/error.rs",
     "src/escape.rs",
     "src/lib.rs",
+    "src/name.rs",
+    "src/origin.rs",
     "src/owned.rs",
     "src/owned/construction.rs",
     "src/parser.rs",
@@ -24,12 +27,14 @@ const EXPECTED_SOURCE_PATHS: [&str; 15] = [
     "src/tokenizer.rs",
     "src/writer.rs",
 ];
-const EXPECTED_REPORT_NAMES: [&str; 14] = [
+const PUBLIC_REPORT_NAMES: [&str; 16] = [
     "buffered.rs",
     "dom.rs",
     "encoding.rs",
     "error.rs",
     "escape.rs",
+    "name.rs",
+    "origin.rs",
     "owned.rs",
     "owned/construction.rs",
     "parser.rs",
@@ -38,6 +43,120 @@ const EXPECTED_REPORT_NAMES: [&str; 14] = [
     "serialize.rs",
     "stream.rs",
     "tokenizer.rs",
+    "writer.rs",
+];
+
+const STABLE_SOURCE_PATHS: [&str; 21] = [
+    "src/dtd.rs",
+    "src/dtd_catalog.rs",
+    "src/dtd_controller.rs",
+    "src/dtd_controller/content.rs",
+    "src/dtd_frames.rs",
+    "src/dtd_reference.rs",
+    "src/dtd_scan.rs",
+    "src/dtd_tag.rs",
+    "src/encoding.rs",
+    "src/error.rs",
+    "src/escape.rs",
+    "src/name.rs",
+    "src/origin.rs",
+    "src/parser.rs",
+    "src/reader.rs",
+    "src/reader/dtd.rs",
+    "src/stream/dtd.rs",
+    "src/tokenizer.rs",
+    "src/tokenizer/local.rs",
+    "src/tokenizer/reference.rs",
+    "src/tokenizer/text.rs",
+];
+const STABLE_REPORT_NAMES: [&str; 21] = [
+    "dtd.rs",
+    "dtd_catalog.rs",
+    "dtd_controller.rs",
+    "dtd_controller/content.rs",
+    "dtd_frames.rs",
+    "dtd_reference.rs",
+    "dtd_scan.rs",
+    "dtd_tag.rs",
+    "encoding.rs",
+    "error.rs",
+    "escape.rs",
+    "name.rs",
+    "origin.rs",
+    "parser.rs",
+    "reader.rs",
+    "reader/dtd.rs",
+    "stream/dtd.rs",
+    "tokenizer.rs",
+    "tokenizer/local.rs",
+    "tokenizer/reference.rs",
+    "tokenizer/text.rs",
+];
+const MASTER_SOURCE_PATHS: [&str; 32] = [
+    "src/buffered.rs",
+    "src/dom.rs",
+    "src/dtd.rs",
+    "src/dtd_catalog.rs",
+    "src/dtd_controller.rs",
+    "src/dtd_controller/content.rs",
+    "src/dtd_frames.rs",
+    "src/dtd_reference.rs",
+    "src/dtd_scan.rs",
+    "src/dtd_tag.rs",
+    "src/dtd_writer.rs",
+    "src/encoding.rs",
+    "src/error.rs",
+    "src/escape.rs",
+    "src/lib.rs",
+    "src/name.rs",
+    "src/origin.rs",
+    "src/owned.rs",
+    "src/owned/construction.rs",
+    "src/parser.rs",
+    "src/push.rs",
+    "src/reader.rs",
+    "src/reader/dtd.rs",
+    "src/serialize.rs",
+    "src/stream.rs",
+    "src/stream/dtd.rs",
+    "src/stream/dtd_buffered.rs",
+    "src/tokenizer.rs",
+    "src/tokenizer/local.rs",
+    "src/tokenizer/reference.rs",
+    "src/tokenizer/text.rs",
+    "src/writer.rs",
+];
+const MASTER_REPORT_NAMES: [&str; 31] = [
+    "buffered.rs",
+    "dom.rs",
+    "dtd.rs",
+    "dtd_catalog.rs",
+    "dtd_controller.rs",
+    "dtd_controller/content.rs",
+    "dtd_frames.rs",
+    "dtd_reference.rs",
+    "dtd_scan.rs",
+    "dtd_tag.rs",
+    "dtd_writer.rs",
+    "encoding.rs",
+    "error.rs",
+    "escape.rs",
+    "name.rs",
+    "origin.rs",
+    "owned.rs",
+    "owned/construction.rs",
+    "parser.rs",
+    "push.rs",
+    "reader.rs",
+    "reader/dtd.rs",
+    "serialize.rs",
+    "stream.rs",
+    "stream/dtd.rs",
+    "stream/dtd_buffered.rs",
+    "tokenizer.rs",
+    "tokenizer/local.rs",
+    "tokenizer/reference.rs",
+    "tokenizer/text.rs",
     "writer.rs",
 ];
 
@@ -152,8 +271,27 @@ fn cov(mode: &str) {
         eprintln!("expected LLVM boolean color option --color=0");
         process::exit(93);
     }
-    if !has_exact_source_list() {
-        eprintln!("expected the exact 15-file production source set after --sources");
+    let (source_paths, report_names, source_error): (&[&str], &[&str], &str) = match mode {
+        "cov_stable_profile" | "cov_stable_profile_changed" => {
+            (
+                &STABLE_SOURCE_PATHS,
+                &STABLE_REPORT_NAMES,
+                "expected the exact StableReaderV1 21-file source set after --sources",
+            )
+        }
+        "cov_master_profile" => (
+            &MASTER_SOURCE_PATHS,
+            &MASTER_REPORT_NAMES,
+            "expected the exact MasterLibtestMapV1 32-file source set after --sources",
+        ),
+        _ => (
+            &PUBLIC_SOURCE_PATHS,
+            &PUBLIC_REPORT_NAMES,
+            "expected the exact PublicReplayV2 17-file source set after --sources",
+        ),
+    };
+    if !has_exact_source_list(source_paths) {
+        eprintln!("{source_error}");
         process::exit(92);
     }
     if mode.starts_with("cov_change_source") {
@@ -219,10 +357,17 @@ fn cov(mode: &str) {
         fs::create_dir(cumulative).unwrap();
     }
     let drift = mode == "cov_drift" && novel;
-    report(novel, drift);
+    let per_file_drift = mode == "cov_per_file_drift" && novel;
+    report(
+        report_names,
+        novel,
+        drift,
+        per_file_drift,
+        mode == "cov_stable_profile_changed",
+    );
 }
 
-fn has_exact_source_list() -> bool {
+fn has_exact_source_list(expected_paths: &[&str]) -> bool {
     let arguments: Vec<_> = env::args_os().skip(1).collect();
     let Some(sources_index) = arguments
         .iter()
@@ -231,7 +376,7 @@ fn has_exact_source_list() -> bool {
         return false;
     };
     let sources = &arguments[sources_index + 1..];
-    if sources.len() != EXPECTED_SOURCE_PATHS.len()
+    if sources.len() != expected_paths.len()
         || !sources.iter().all(|source| {
             let path = Path::new(source);
             path.is_absolute() && path.is_file()
@@ -246,21 +391,22 @@ fn has_exact_source_list() -> bool {
     else {
         return false;
     };
-    let Some(source_root) = paths
-        .iter()
-        .find(|path| path.ends_with("src/lib.rs"))
-        .and_then(|path| path.parent())
-        .and_then(Path::parent)
-    else {
+    let Some(first_relative) = expected_paths.first() else {
         return false;
     };
+    let mut source_root = paths[0].clone();
+    for _ in Path::new(first_relative).components() {
+        if !source_root.pop() {
+            return false;
+        }
+    }
     let relative: BTreeSet<_> = paths
         .iter()
-        .filter_map(|path| path.strip_prefix(source_root).ok())
+        .filter_map(|path| path.strip_prefix(&source_root).ok())
         .map(Path::to_path_buf)
         .collect();
-    let expected: BTreeSet<_> = EXPECTED_SOURCE_PATHS.iter().map(PathBuf::from).collect();
-    paths.iter().collect::<BTreeSet<_>>().len() == EXPECTED_SOURCE_PATHS.len()
+    let expected: BTreeSet<_> = expected_paths.iter().map(PathBuf::from).collect();
+    paths.iter().collect::<BTreeSet<_>>().len() == expected_paths.len()
         && relative.len() == paths.len()
         && relative == expected
 }
@@ -285,7 +431,13 @@ fn append_to_executable() {
         .expect("append identity mutation");
 }
 
-fn report(novel: bool, drift: bool) {
+fn report(
+    names: &[&str],
+    novel: bool,
+    drift: bool,
+    per_file_drift: bool,
+    cross_report_drift: bool,
+) {
     println!(
         "Filename Regions Missed Regions Cover Functions Missed Functions Executed Lines Missed Lines Cover Branches Missed Branches Cover"
     );
@@ -293,14 +445,24 @@ fn report(novel: bool, drift: bool) {
         "-------------------------------------------------------------------------------------------------------------"
     );
     let mut totals = [0_u64; 8];
-    for (index, name) in EXPECTED_REPORT_NAMES.iter().enumerate() {
-        let region_total = if drift { 2 } else { 1 };
+    for (index, name) in names.iter().enumerate() {
+        let total = if drift
+            || (per_file_drift && index == 0)
+            || (cross_report_drift && *name == "reader/dtd.rs")
+        {
+            2
+        } else if per_file_drift && index == 1 {
+            0
+        } else {
+            1
+        };
+        let region_total = total;
         let region_covered = u64::from(index == 0 && novel);
-        let function_total = 1;
+        let function_total = total;
         let function_covered = u64::from(index == 0 && novel);
-        let line_total = 1;
+        let line_total = total;
         let line_covered = u64::from(index == 0 && novel);
-        let branch_total = 1;
+        let branch_total = total;
         let branch_covered = u64::from(index == 0 && novel);
         totals[0] += region_total;
         totals[1] += region_total - region_covered;

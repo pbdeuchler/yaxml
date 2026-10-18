@@ -84,7 +84,6 @@ pub(crate) fn file_identity_from_file(
     identity_from_reader(file, None)
 }
 
-#[cfg(test)]
 pub(crate) fn file_identity_from_file_bounded(
     file: &mut File,
     frozen_length: usize,
@@ -92,7 +91,6 @@ pub(crate) fn file_identity_from_file_bounded(
     content_identity_from_reader_bounded(file, frozen_length)
 }
 
-#[cfg(test)]
 pub(crate) fn content_identity_from_reader_bounded(
     reader: &mut impl Read,
     frozen_length: usize,
@@ -117,9 +115,11 @@ fn identity_from_reader(
         if available == 0 {
             return Ok(identity.finish());
         }
-        let read = reader
-            .read(&mut buffer[..available])
-            .map_err(FileIdentityError::Io)?;
+        let read = match reader.read(&mut buffer[..available]) {
+            Ok(read) => read,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(FileIdentityError::Io(error)),
+        };
         if read == 0 {
             return Ok(identity.finish());
         }
@@ -218,6 +218,26 @@ mod tests {
             error,
             FileIdentityError::Io(error) if error.kind() == ErrorKind::PermissionDenied
         ));
+    }
+
+    #[test]
+    fn bounded_reader_retries_interrupted_reads_without_spending_the_bound() {
+        struct InterruptedOnce(bool);
+
+        impl Read for InterruptedOnce {
+            fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+                if !self.0 {
+                    self.0 = true;
+                    return Err(Error::new(ErrorKind::Interrupted, "fixture interrupt"));
+                }
+                buffer[0] = b'x';
+                Ok(1)
+            }
+        }
+
+        let identity =
+            content_identity_from_reader_bounded(&mut InterruptedOnce(false), 0).unwrap();
+        assert_eq!(identity, content_identity(b"x"));
     }
 
     #[test]
