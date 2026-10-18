@@ -382,6 +382,8 @@ pub(crate) struct PreparedCargoTarget {
     rustc_host: String,
     profile: CargoProfile,
     preparation_elapsed: Duration,
+    output_parent: PathBuf,
+    output_parent_key: DirectoryKey,
     output_root: PathBuf,
     output_root_key: DirectoryKey,
     evidence_dir: PathBuf,
@@ -536,6 +538,7 @@ impl PreparationFailure {
 
 struct OwnedPreparationDirectory {
     path: PathBuf,
+    directory_key: DirectoryKey,
     owner_marker: FrozenFile,
     process_attempted: bool,
     transferred: bool,
@@ -577,6 +580,7 @@ impl OwnedPreparationDirectory {
             }
             match builder.create(&path) {
                 Ok(()) => {
+                    let directory_key = freeze_owned_directory(&path)?;
                     let marker_path = path.join(".owner");
                     let token = format!("{}:{timestamp}:{serial}\n", std::process::id());
                     if let Err(error) = write_new(&marker_path, token.as_bytes()) {
@@ -595,6 +599,7 @@ impl OwnedPreparationDirectory {
                         };
                     return Ok(Self {
                         path,
+                        directory_key,
                         owner_marker,
                         process_attempted: false,
                         transferred: false,
@@ -644,12 +649,7 @@ impl OwnedPreparationDirectory {
     }
 
     fn verify_owner(&self) -> Result<(), PreparationFailure> {
-        if fs::canonicalize(&self.path)
-            .map(|canonical| canonical != self.path)
-            .unwrap_or(true)
-        {
-            return Err(identity_changed(EvidenceSubject::OwnerMarker));
-        }
+        recheck_owned_directory(&self.path, self.directory_key)?;
         recheck_frozen_file(&self.owner_marker, EvidenceSubject::OwnerMarker)
     }
 
@@ -657,6 +657,45 @@ impl OwnedPreparationDirectory {
         self.path = published.to_path_buf();
         self.owner_marker.supplied_path = published.join(".owner");
         self.owner_marker.canonical_path = self.owner_marker.supplied_path.clone();
+    }
+}
+
+struct OwnedPublishedRoot {
+    path: PathBuf,
+    parent: PathBuf,
+    parent_key: DirectoryKey,
+    directory_key: DirectoryKey,
+    transferred: bool,
+}
+
+impl OwnedPublishedRoot {
+    fn capture(output: &FrozenOutput) -> Result<Self, PreparationFailure> {
+        recheck_published_output_parent(&output.parent, output.parent_key)?;
+        let directory_key = freeze_owned_directory(&output.path)?;
+        recheck_published_output_parent(&output.parent, output.parent_key)?;
+        recheck_owned_directory(&output.path, directory_key)?;
+        Ok(Self {
+            path: output.path.clone(),
+            parent: output.parent.clone(),
+            parent_key: output.parent_key,
+            directory_key,
+            transferred: false,
+        })
+    }
+
+    fn recheck(&self) -> Result<(), PreparationFailure> {
+        recheck_published_output_parent(&self.parent, self.parent_key)?;
+        recheck_owned_directory(&self.path, self.directory_key)?;
+        recheck_published_output_parent(&self.parent, self.parent_key)
+    }
+}
+
+impl Drop for OwnedPublishedRoot {
+    fn drop(&mut self) {
+        if self.transferred || self.recheck().is_err() {
+            return;
+        }
+        let _ = fs::remove_dir(&self.path);
     }
 }
 
@@ -684,6 +723,8 @@ enum PreparationCheckpoint {
     AfterArtifactSelection,
     AfterResolution,
     BeforePublication,
+    AfterOutputRootCreation,
+    AfterBuildChildRename,
     AfterRelocation,
 }
 
@@ -990,12 +1031,19 @@ fn recheck_fresh_output(output: &FrozenOutput) -> Result<(), PreparationFailure>
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => return Err(evidence_io(PreparationStage::Preflight, error)),
     }
-    walk_nonsymlink_directory(&output.parent).map_err(|_| configuration_failure())?;
-    let metadata = fs::symlink_metadata(&output.parent).map_err(|_| configuration_failure())?;
+    recheck_output_parent(&output.parent, output.parent_key)
+}
+
+fn recheck_output_parent(
+    parent: &Path,
+    expected_key: DirectoryKey,
+) -> Result<(), PreparationFailure> {
+    walk_nonsymlink_directory(parent).map_err(|_| configuration_failure())?;
+    let metadata = fs::symlink_metadata(parent).map_err(|_| configuration_failure())?;
     if metadata.file_type().is_symlink()
         || !metadata.is_dir()
-        || fs::canonicalize(&output.parent).ok().as_ref() != Some(&output.parent)
-        || directory_key(&metadata) != output.parent_key
+        || fs::canonicalize(parent).ok().as_deref() != Some(parent)
+        || directory_key(&metadata) != expected_key
     {
         return Err(configuration_failure());
     }
@@ -1299,13 +1347,31 @@ fn prepare_in_owned(
     owned.verify_owner()?;
     fs::create_dir(&preflight.output.path)
         .map_err(|error| evidence_io(PreparationStage::Publish, error))?;
+    let mut published_root = OwnedPublishedRoot::capture(&preflight.output)?;
+    preflight.output_published = true;
+    test_checkpoint(
+        PreparationCheckpoint::AfterOutputRootCreation,
+        owned,
+        preflight,
+    )?;
     let published = preflight.output.path.join("build");
+    require_absent_owned_child(&published_root, &published)?;
+    owned.verify_owner()?;
+    published_root.recheck()?;
     fs::rename(&owned.path, &published)
         .map_err(|error| evidence_io(PreparationStage::Publish, error))?;
     owned.record_relocation(&published);
-    preflight.output_published = true;
-    let output_root_key = freeze_owned_directory(&preflight.output.path)?;
-    let evidence_dir_key = freeze_owned_directory(&published)?;
+    test_checkpoint(
+        PreparationCheckpoint::AfterBuildChildRename,
+        owned,
+        preflight,
+    )?;
+    published_root.recheck()?;
+    if owned.path.parent() != Some(published_root.path.as_path()) {
+        return Err(identity_changed(EvidenceSubject::OwnerMarker));
+    }
+    owned.verify_owner()?;
+    published_root.recheck()?;
     let mut jsonl = jsonl;
     jsonl.supplied_path = published.join("build.stdout");
     jsonl.canonical_path = jsonl.supplied_path.clone();
@@ -1327,8 +1393,9 @@ fn prepare_in_owned(
         );
     }
     test_checkpoint(PreparationCheckpoint::AfterRelocation, owned, preflight)?;
-    recheck_owned_directory(&preflight.output.path, output_root_key)?;
-    recheck_owned_directory(&published, evidence_dir_key)?;
+    published_root.recheck()?;
+    owned.verify_owner()?;
+    published_root.recheck()?;
     recheck_receipts(&owned.receipts, SelectedArtifactCheck::Content)?;
     recheck_preflight(preflight, SelectedArtifactCheck::Content)?;
     owned.verify_owner()?;
@@ -1348,6 +1415,7 @@ fn prepare_in_owned(
         .selection
         .take()
         .expect("validated selection is transferred exactly once");
+    published_root.transferred = true;
     owned.transferred = true;
 
     Ok(PreparedCargoTarget {
@@ -1368,10 +1436,12 @@ fn prepare_in_owned(
         rustc_host: host,
         profile: preflight.profile,
         preparation_elapsed: started.elapsed(),
-        output_root: preflight.output.path.clone(),
-        output_root_key,
+        output_parent: published_root.parent.clone(),
+        output_parent_key: published_root.parent_key,
+        output_root: published_root.path.clone(),
+        output_root_key: published_root.directory_key,
         evidence_dir: published,
-        evidence_dir_key,
+        evidence_dir_key: owned.directory_key,
         owner_marker: owned.owner_marker.clone(),
         jsonl,
         build_stderr,
@@ -1968,12 +2038,22 @@ fn recheck_prepared(
 }
 
 fn recheck_prepared_output(prepared: &PreparedCargoTarget) -> Result<(), PreparationFailure> {
+    recheck_published_output_parent(&prepared.output_parent, prepared.output_parent_key)?;
     recheck_owned_directory(&prepared.output_root, prepared.output_root_key)?;
     if prepared.evidence_dir.parent() != Some(prepared.output_root.as_path()) {
         return Err(identity_changed(EvidenceSubject::OwnerMarker));
     }
     recheck_owned_directory(&prepared.evidence_dir, prepared.evidence_dir_key)?;
-    recheck_frozen_file(&prepared.owner_marker, EvidenceSubject::OwnerMarker)
+    recheck_frozen_file(&prepared.owner_marker, EvidenceSubject::OwnerMarker)?;
+    recheck_published_output_parent(&prepared.output_parent, prepared.output_parent_key)
+}
+
+fn recheck_published_output_parent(
+    parent: &Path,
+    expected_key: DirectoryKey,
+) -> Result<(), PreparationFailure> {
+    recheck_output_parent(parent, expected_key)
+        .map_err(|_| identity_changed(EvidenceSubject::OwnerMarker))
 }
 
 fn freeze_owned_directory(path: &Path) -> Result<DirectoryKey, PreparationFailure> {
@@ -2003,6 +2083,22 @@ fn recheck_owned_directory(
         return Err(identity_changed(EvidenceSubject::OwnerMarker));
     }
     Ok(())
+}
+
+fn require_absent_owned_child(
+    root: &OwnedPublishedRoot,
+    child: &Path,
+) -> Result<(), PreparationFailure> {
+    if child.parent() != Some(root.path.as_path()) {
+        return Err(identity_changed(EvidenceSubject::OwnerMarker));
+    }
+    root.recheck()?;
+    match fs::symlink_metadata(child) {
+        Ok(_) => return Err(identity_changed(EvidenceSubject::OwnerMarker)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(_) => return Err(identity_changed(EvidenceSubject::OwnerMarker)),
+    }
+    root.recheck()
 }
 
 fn aggregate_check(
@@ -2643,6 +2739,57 @@ mod tests {
         assert!(error.receipts.is_empty());
         assert!(!fixture.source.join(".invocations").exists());
         assert_eq!(preparation_scratch_count(&fixture.root), 0);
+    }
+
+    #[derive(Clone, Copy, Eq, PartialEq)]
+    enum PublicationReplacement {
+        Directory,
+        File,
+        #[cfg(unix)]
+        Symlink,
+    }
+
+    fn replace_publication_path(path: &Path, parked: &Path, replacement: PublicationReplacement) {
+        fs::rename(path, parked).unwrap();
+        match replacement {
+            PublicationReplacement::Directory => fs::create_dir(path).unwrap(),
+            PublicationReplacement::File => fs::write(path, b"unowned replacement\n").unwrap(),
+            #[cfg(unix)]
+            PublicationReplacement::Symlink => std::os::unix::fs::symlink(parked, path).unwrap(),
+        }
+    }
+
+    fn copy_flat_directory_preserving_stamps(source: &Path, destination: &Path) {
+        for entry in fs::read_dir(source).unwrap() {
+            let entry = entry.unwrap();
+            let source_path = entry.path();
+            assert!(entry.file_type().unwrap().is_file());
+            let destination_path = destination.join(entry.file_name());
+            let stamp = file_stamp(&source_path).unwrap();
+            fs::copy(&source_path, &destination_path).unwrap();
+            File::options()
+                .write(true)
+                .open(destination_path)
+                .unwrap()
+                .set_times(std::fs::FileTimes::new().set_modified(stamp.modified))
+                .unwrap();
+        }
+    }
+
+    fn assert_publication_identity_failure(fixture: &Fixture, error: &CargoPreparationError) {
+        assert_eq!(error.stage, PreparationStage::Preflight);
+        assert_eq!(
+            error.kind,
+            CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::OwnerMarker)
+        );
+        assert_eq!(error.receipts.len(), 6);
+        assert_eq!(
+            fs::read_to_string(fixture.source.join(".invocations"))
+                .unwrap()
+                .lines()
+                .count(),
+            6
+        );
     }
 
     fn fixture_library() -> &'static str {
@@ -3519,6 +3666,119 @@ fn escape(path: &Path) -> String {
         assert_preparation_never_started(&fixture, &error);
         assert_eq!(error.inventory_error(), None);
         assert!(error.secondary.is_empty());
+    }
+
+    fn publication_root_substitution_case(
+        replacement: PublicationReplacement,
+        with_source_drift: bool,
+    ) {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let output = fixture.output.clone();
+        let parked = fixture.root.join("created-output-original");
+        let source = fixture.source.join("src/dtd.rs");
+        let output_for_hook = output.clone();
+        let parked_for_hook = parked.clone();
+        let error = with_checkpoint_hook(
+            move |checkpoint, _, _| {
+                if checkpoint == PreparationCheckpoint::AfterOutputRootCreation {
+                    replace_publication_path(&output_for_hook, &parked_for_hook, replacement);
+                    if with_source_drift {
+                        fs::write(&source, b"// simultaneous source drift\n").unwrap();
+                    }
+                }
+            },
+            || prepare_cargo_target(fixture.request()).unwrap_err(),
+        );
+
+        assert_publication_identity_failure(&fixture, &error);
+        let scratch = error.evidence_dir.as_ref().unwrap();
+        assert!(scratch.is_dir());
+        assert!(scratch.join("build.stdout").is_file());
+        assert!(fs::symlink_metadata(&output).is_ok());
+        assert!(parked.is_dir());
+        assert!(!output.join("build").exists());
+        if with_source_drift {
+            assert!(error.secondary.iter().any(|diagnostic| {
+                diagnostic.kind()
+                    == &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
+                    && diagnostic
+                        .inventory_error()
+                        .is_some_and(|error| error.reason() == "source identity changed")
+            }));
+        }
+    }
+
+    #[test]
+    fn publication_rejects_created_output_root_directory_substitution_before_child_rename() {
+        publication_root_substitution_case(PublicationReplacement::Directory, false);
+    }
+
+    #[test]
+    fn publication_rejects_created_output_root_nonregular_substitution_before_child_rename() {
+        publication_root_substitution_case(PublicationReplacement::File, true);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn publication_rejects_created_output_root_symlink_substitution_before_child_rename() {
+        publication_root_substitution_case(PublicationReplacement::Symlink, false);
+    }
+
+    fn publication_child_substitution_case(
+        replacement: PublicationReplacement,
+        with_source_drift: bool,
+    ) {
+        let fixture = Fixture::new("cargo-ok", "rustc-ok");
+        let published = fixture.output.join("build");
+        let parked = fixture.output.join("build-original");
+        let source = fixture.source.join("src/dtd.rs");
+        let parked_for_hook = parked.clone();
+        let error = with_checkpoint_hook(
+            move |checkpoint, owned, _| {
+                if checkpoint == PreparationCheckpoint::AfterBuildChildRename {
+                    replace_publication_path(&owned.path, &parked_for_hook, replacement);
+                    if replacement == PublicationReplacement::Directory {
+                        copy_flat_directory_preserving_stamps(&parked_for_hook, &owned.path);
+                    }
+                    if with_source_drift {
+                        fs::write(&source, b"// simultaneous source drift\n").unwrap();
+                    }
+                }
+            },
+            || prepare_cargo_target(fixture.request()).unwrap_err(),
+        );
+
+        assert_publication_identity_failure(&fixture, &error);
+        assert!(fixture.output.is_dir());
+        assert!(fs::symlink_metadata(&published).is_ok());
+        assert!(parked.is_dir());
+        assert!(parked.join(".owner").is_file());
+        assert!(parked.join("build.stdout").is_file());
+        if with_source_drift {
+            assert!(error.secondary.iter().any(|diagnostic| {
+                diagnostic.kind()
+                    == &CargoPreparationErrorKind::IdentityChanged(EvidenceSubject::SourceInventory)
+                    && diagnostic
+                        .inventory_error()
+                        .is_some_and(|error| error.reason() == "source identity changed")
+            }));
+        }
+    }
+
+    #[test]
+    fn publication_rejects_build_child_directory_substitution_before_transfer() {
+        publication_child_substitution_case(PublicationReplacement::Directory, false);
+    }
+
+    #[test]
+    fn publication_rejects_build_child_nonregular_substitution_before_transfer() {
+        publication_child_substitution_case(PublicationReplacement::File, true);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn publication_rejects_build_child_symlink_substitution_before_transfer() {
+        publication_child_substitution_case(PublicationReplacement::Symlink, false);
     }
 
     #[test]
