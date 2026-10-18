@@ -2352,6 +2352,7 @@ mod tests {
             ("cov_malformed", "malformed-report"),
             ("cov_drift", "denominator-drift"),
             ("cov_per_file_drift", "per-file-denominator-drift"),
+            ("cov_per_file_covered_offset", "per-file-covered-decrease"),
         ] {
             let failing_cov = install_mode(&helper, &root, mode);
             let output = run_cli(
@@ -2361,7 +2362,10 @@ mod tests {
                 &failing_cov,
                 &root,
                 name,
-                if matches!(mode, "cov_drift" | "cov_per_file_drift") {
+                if matches!(
+                    mode,
+                    "cov_drift" | "cov_per_file_drift" | "cov_per_file_covered_offset"
+                ) {
                     100
                 } else {
                     1
@@ -2381,6 +2385,28 @@ mod tests {
                     "{classification}"
                 );
                 assert!(failure_root.join("profiles/cumulative.profdata").exists());
+            } else if mode == "cov_per_file_covered_offset" {
+                let classification =
+                    fs::read_to_string(failure_root.join("failures/classification.txt")).unwrap();
+                assert!(
+                    classification.contains("cumulative covered count decreased"),
+                    "{classification}"
+                );
+                assert_eq!(
+                    fs::read(failure_root.join("profiles/cumulative.profdata")).unwrap(),
+                    b"low high"
+                );
+                assert_eq!(
+                    fs::read_to_string(failure_root.join("cases.tsv"))
+                        .unwrap()
+                        .lines()
+                        .count(),
+                    2
+                );
+                assert_eq!(
+                    fs::read_dir(failure_root.join("corpus")).unwrap().count(),
+                    2
+                );
             } else {
                 assert!(!failure_root.join("profiles/cumulative.profdata").exists());
             }
@@ -2607,6 +2633,30 @@ mod tests {
             clean_classification.contains("source identity changed"),
             "{clean_classification}"
         );
+        let clean_root = identity_root.join("identity-clean");
+        assert!(
+            fs::read_to_string(clean_root.join("failures/stdout.log"))
+                .unwrap()
+                .starts_with("Filename Regions Missed Regions Cover")
+        );
+        assert!(!clean_root.join("profiles/pending.profdata").exists());
+        assert!(!clean_root.join("profiles/cumulative.profdata").exists());
+        assert!(
+            fs::read_dir(clean_root.join("profiles"))
+                .unwrap()
+                .all(|entry| {
+                    entry
+                        .unwrap()
+                        .file_name()
+                        .to_str()
+                        .is_some_and(|name| !name.starts_with("case-"))
+                })
+        );
+        assert_eq!(fs::read_dir(clean_root.join("corpus")).unwrap().count(), 0);
+        assert!(
+            fs::read(clean_root.join("cases.tsv"))
+                .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
+        );
         let changed_failure_cov =
             install_mode(&identity_helper, &identity_root, "cov_change_source_fail");
         let changed_failure = run_cli(
@@ -2624,8 +2674,25 @@ mod tests {
             fs::read_to_string(identity_root.join("identity-failure/failures/classification.txt"))
                 .unwrap();
         assert!(
-            failure_classification.contains("source identity changed"),
+            failure_classification
+                .starts_with("infrastructure\nllvm-cov report failed or emitted diagnostics"),
             "{failure_classification}"
+        );
+        assert!(
+            failure_classification
+                .contains("end-of-run identity verification failed: source identity changed"),
+            "{failure_classification}"
+        );
+        let failure_root = identity_root.join("identity-failure");
+        assert!(!failure_root.join("profiles/pending.profdata").exists());
+        assert!(!failure_root.join("profiles/cumulative.profdata").exists());
+        assert_eq!(
+            fs::read_dir(failure_root.join("corpus")).unwrap().count(),
+            0
+        );
+        assert!(
+            fs::read(failure_root.join("cases.tsv"))
+                .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
         );
         fs::remove_dir_all(identity_root).unwrap();
     }

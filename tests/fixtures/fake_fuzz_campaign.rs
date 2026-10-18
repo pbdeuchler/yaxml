@@ -305,8 +305,8 @@ fn cov(mode: &str) {
         return;
     }
     if mode == "cov_change_source_fail" {
-        println!("unexpected report schema");
-        return;
+        eprintln!("controlled report failure after source drift");
+        process::exit(6);
     }
     if mode == "cov_malformed" {
         println!("unexpected report schema");
@@ -337,8 +337,8 @@ fn cov(mode: &str) {
             fs::create_dir(root.join("failures/first-failure.input")).unwrap();
         }
     }
-    let profile = fs::read(profile).unwrap();
-    let novel = profile.windows(4).any(|window| window == b"high");
+    let profile_bytes = fs::read(&profile).unwrap();
+    let novel = profile_bytes.windows(4).any(|window| window == b"high");
     if mode == "cov_cumulative_commit_fail" && novel {
         let profile_path = env::args()
             .find_map(|argument| argument.strip_prefix("--instr-profile=").map(str::to_owned))
@@ -358,11 +358,28 @@ fn cov(mode: &str) {
     }
     let drift = mode == "cov_drift" && novel;
     let per_file_drift = mode == "cov_per_file_drift" && novel;
+    let covered_offset = if mode == "cov_per_file_covered_offset" {
+        let root = Path::new(&profile)
+            .parent()
+            .and_then(Path::parent)
+            .expect("output root");
+        let counter_path = root.join("covered-offset-cov-count");
+        let count = fs::read_to_string(&counter_path)
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(0)
+            + 1;
+        fs::write(counter_path, count.to_string()).unwrap();
+        novel && count >= 3
+    } else {
+        false
+    };
     report(
         report_names,
         novel,
         drift,
         per_file_drift,
+        covered_offset,
         mode == "cov_stable_profile_changed",
     );
 }
@@ -436,6 +453,7 @@ fn report(
     novel: bool,
     drift: bool,
     per_file_drift: bool,
+    covered_offset: bool,
     cross_report_drift: bool,
 ) {
     println!(
@@ -457,13 +475,14 @@ fn report(
             1
         };
         let region_total = total;
-        let region_covered = u64::from(index == 0 && novel);
+        let covered_index = usize::from(covered_offset);
+        let region_covered = u64::from(index == covered_index && novel);
         let function_total = total;
-        let function_covered = u64::from(index == 0 && novel);
+        let function_covered = u64::from(index == covered_index && novel);
         let line_total = total;
-        let line_covered = u64::from(index == 0 && novel);
+        let line_covered = u64::from(index == covered_index && novel);
         let branch_total = total;
-        let branch_covered = u64::from(index == 0 && novel);
+        let branch_covered = u64::from(index == covered_index && novel);
         totals[0] += region_total;
         totals[1] += region_total - region_covered;
         totals[2] += function_total;
