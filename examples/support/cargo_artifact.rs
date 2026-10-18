@@ -6,10 +6,14 @@
 //! pre-launch check and the operating system's open is an unavoidable race without a portable
 //! execute-by-open-file API. Retained external SHA-256 evidence complements, but cannot remove,
 //! that path-launch limitation.
+//! A metadata-only lifecycle check deliberately cannot detect a same-length replacement whose
+//! modification time equals the frozen stamp. Content checks remain bounded to the frozen length
+//! plus one growth byte and compare the opened handle with the original noncryptographic identity.
 #![forbid(unsafe_code)]
 
 use crate::file_identity::{
-    ContentIdentity, FileIdentityError, FileStamp, content_identity, file_identity_from_file,
+    ContentIdentity, FileIdentityError, FileStamp, content_identity,
+    content_identity_from_reader_bounded, file_identity_from_file, file_identity_from_file_bounded,
 };
 use std::collections::BTreeMap;
 use std::fs::{self, File, Metadata};
@@ -89,6 +93,12 @@ pub(crate) struct SelectedArtifact {
     pub executable_stamp: FileStamp,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum SelectedArtifactCheck {
+    Metadata,
+    Content,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CanonicalArtifactRoots {
     pub canonical_source_root: PathBuf,
@@ -119,6 +129,8 @@ pub(crate) enum ArtifactPathError {
     OutsideTargetDir,
     CanonicalMismatch,
     ChangedDuringResolution,
+    ChangedSinceSelection,
+    ContentIdentityMismatch,
     LengthOverflow,
     Io(io::ErrorKind),
 }
@@ -692,6 +704,179 @@ pub(crate) fn resolve_selected_artifact(
     resolve_selected_artifact_with(record, expected, |_| {}, |_| {}, |_| {}, |_| {}, |_| {})
 }
 
+pub(crate) fn recheck_selected_artifact(
+    selected: &SelectedArtifact,
+    expected: &ExpectedArtifact,
+    check: SelectedArtifactCheck,
+) -> Result<(), ArtifactError> {
+    recheck_selected_artifact_with(
+        selected,
+        expected,
+        check,
+        file_identity_from_file_bounded,
+        |_, _| {},
+    )
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SelectedArtifactCheckpoint {
+    AfterInitialWalk,
+    AfterCanonical,
+    BeforeOpen,
+    AfterOpen,
+    AfterPreReadMetadata,
+    AfterHash,
+    AfterPostReadMetadata,
+}
+
+fn recheck_selected_artifact_with<Hash, Checkpoint>(
+    selected: &SelectedArtifact,
+    expected: &ExpectedArtifact,
+    check: SelectedArtifactCheck,
+    hash: Hash,
+    mut checkpoint: Checkpoint,
+) -> Result<(), ArtifactError>
+where
+    Hash: FnOnce(&mut File, usize) -> Result<ContentIdentity, FileIdentityError>,
+    Checkpoint: FnMut(SelectedArtifactCheckpoint, &Path),
+{
+    let roots = revalidate_expected_roots(expected)?;
+    let reported_path = PathBuf::from(&selected.reported_executable);
+    recheck_selected_path_initial(
+        selected,
+        &reported_path,
+        &roots.canonical_target_dir,
+        &mut checkpoint,
+    )?;
+
+    if check == SelectedArtifactCheck::Metadata {
+        return Ok(());
+    }
+
+    checkpoint(SelectedArtifactCheckpoint::BeforeOpen, &reported_path);
+    let mut executable = File::open(&reported_path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            changed_since_selection()
+        } else {
+            path_io(ArtifactPathField::Executable, error)
+        }
+    })?;
+    checkpoint(SelectedArtifactCheckpoint::AfterOpen, &reported_path);
+    let metadata = executable
+        .metadata()
+        .map_err(|error| path_io(ArtifactPathField::Executable, error))?;
+    if !metadata.is_file() {
+        return Err(changed_since_selection());
+    }
+    let handle_stamp = FileStamp::from_metadata(&metadata)
+        .map_err(|error| path_io(ArtifactPathField::Executable, error))?;
+    if handle_stamp != selected.executable_stamp {
+        return Err(changed_since_selection());
+    }
+
+    checkpoint(
+        SelectedArtifactCheckpoint::AfterPreReadMetadata,
+        &reported_path,
+    );
+    let identity = hash(&mut executable, selected.executable_identity.1);
+    checkpoint(SelectedArtifactCheckpoint::AfterHash, &reported_path);
+    let identity = identity.map_err(|error| match error {
+        FileIdentityError::Io(error) => path_io(ArtifactPathField::Executable, error),
+        FileIdentityError::LengthOverflow => path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::LengthOverflow,
+        ),
+    })?;
+
+    let post_read_metadata = executable
+        .metadata()
+        .map_err(|error| path_io(ArtifactPathField::Executable, error))?;
+    if !post_read_metadata.is_file() {
+        return Err(changed_since_selection());
+    }
+    let post_read_stamp = FileStamp::from_metadata(&post_read_metadata)
+        .map_err(|error| path_io(ArtifactPathField::Executable, error))?;
+    if post_read_stamp != selected.executable_stamp || post_read_stamp != handle_stamp {
+        return Err(changed_since_selection());
+    }
+
+    checkpoint(
+        SelectedArtifactCheckpoint::AfterPostReadMetadata,
+        &reported_path,
+    );
+    recheck_selected_path_after_capture(selected, &reported_path, &roots.canonical_target_dir)?;
+    if identity.1 != selected.executable_identity.1 {
+        return Err(changed_since_selection());
+    }
+    if identity != selected.executable_identity {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::ContentIdentityMismatch,
+        ));
+    }
+    Ok(())
+}
+
+fn recheck_selected_path_initial(
+    selected: &SelectedArtifact,
+    reported_path: &Path,
+    target_dir: &Path,
+    checkpoint: &mut impl FnMut(SelectedArtifactCheckpoint, &Path),
+) -> Result<(), ArtifactError> {
+    validate_lexical_path(reported_path, ArtifactPathField::Executable)?;
+    if !path_starts_with(reported_path, target_dir) || reported_path == target_dir {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::OutsideTargetDir,
+        ));
+    }
+    walk_executable(reported_path, target_dir)?;
+    checkpoint(SelectedArtifactCheckpoint::AfterInitialWalk, reported_path);
+    let canonical = canonical_path(reported_path, ArtifactPathField::Executable)
+        .map_err(change_since_selection_after_walk)?;
+    if !path_starts_with(&canonical, target_dir) {
+        return Err(changed_since_selection());
+    }
+    if canonical != reported_path {
+        return Err(changed_since_selection());
+    }
+    if canonical != selected.canonical_executable {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::CanonicalMismatch,
+        ));
+    }
+    checkpoint(SelectedArtifactCheckpoint::AfterCanonical, reported_path);
+    let stamp = stamp_path(reported_path, ArtifactPathField::Executable)
+        .map_err(change_since_selection_after_walk)?;
+    if stamp != selected.executable_stamp {
+        return Err(changed_since_selection());
+    }
+    Ok(())
+}
+
+fn recheck_selected_path_after_capture(
+    selected: &SelectedArtifact,
+    reported_path: &Path,
+    target_dir: &Path,
+) -> Result<(), ArtifactError> {
+    walk_executable(reported_path, target_dir).map_err(change_since_selection_after_walk)?;
+    let canonical = canonical_path(reported_path, ArtifactPathField::Executable)
+        .map_err(change_since_selection_after_walk)?;
+    if canonical != reported_path
+        || canonical != selected.canonical_executable
+        || !path_starts_with(&canonical, target_dir)
+    {
+        return Err(changed_since_selection());
+    }
+    let stamp = stamp_path(reported_path, ArtifactPathField::Executable)
+        .map_err(change_since_selection_after_walk)?;
+    if stamp != selected.executable_stamp {
+        return Err(changed_since_selection());
+    }
+    Ok(())
+}
+
 fn resolve_selected_artifact_with<AfterWalk, AfterCanonical, AfterOpen, AfterHash, AfterCapture>(
     record: ArtifactRecord,
     expected: &ExpectedArtifact,
@@ -1120,6 +1305,27 @@ fn changed(field: ArtifactPathField) -> ArtifactError {
     path_error(field, ArtifactPathError::ChangedDuringResolution)
 }
 
+fn changed_since_selection() -> ArtifactError {
+    path_error(
+        ArtifactPathField::Executable,
+        ArtifactPathError::ChangedSinceSelection,
+    )
+}
+
+fn change_since_selection_after_walk(error: ArtifactError) -> ArtifactError {
+    match error {
+        ArtifactError::Path {
+            field,
+            kind: ArtifactPathError::Io(kind),
+        } => ArtifactError::Path {
+            field,
+            kind: ArtifactPathError::Io(kind),
+        },
+        ArtifactError::Path { .. } => changed_since_selection(),
+        other => other,
+    }
+}
+
 fn change_after_walk(error: ArtifactError) -> ArtifactError {
     match error {
         ArtifactError::Path {
@@ -1488,6 +1694,58 @@ mod tests {
         ArtifactError::Path { field, kind }
     }
 
+    fn select_fixture_executable(
+        fixture: &ResolverFixture,
+        executable: &Path,
+        bytes: &[u8],
+    ) -> SelectedArtifact {
+        if let Some(parent) = executable.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(executable, bytes).unwrap();
+        resolve_selected_artifact(fixture.record(executable), &fixture.expected).unwrap()
+    }
+
+    fn rewrite_with_frozen_stamp(path: &Path, bytes: &[u8], stamp: &FileStamp) {
+        use std::fs::{FileTimes, OpenOptions};
+        use std::io::Write;
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .unwrap();
+        file.write_all(bytes).unwrap();
+        file.set_times(FileTimes::new().set_modified(stamp.modified))
+            .unwrap();
+        drop(file);
+        assert_eq!(
+            stamp_path(path, ArtifactPathField::Executable).unwrap(),
+            *stamp
+        );
+    }
+
+    fn assert_recheck_both(
+        selected: &SelectedArtifact,
+        expected: &ExpectedArtifact,
+        result: Result<(), ArtifactError>,
+    ) {
+        let frozen_selected = selected.clone();
+        let frozen_expected = expected.clone();
+        for check in [
+            SelectedArtifactCheck::Metadata,
+            SelectedArtifactCheck::Content,
+        ] {
+            assert_eq!(
+                recheck_selected_artifact(selected, expected, check),
+                result,
+                "unexpected result for {check:?}"
+            );
+            assert_eq!(selected, &frozen_selected);
+            assert_eq!(expected, &frozen_expected);
+        }
+    }
+
     #[cfg(windows)]
     fn windows_symlink_created(result: io::Result<()>, fixture: &str) -> bool {
         match result {
@@ -1699,6 +1957,26 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn selected_recheck_rejects_unix_socket_as_initial_nonregular_file() {
+        use std::os::unix::net::UnixListener;
+
+        let fixture = ResolverFixture::new_for_unix_socket();
+        let socket = fixture.target.join("socket");
+        let selected = select_fixture_executable(&fixture, &socket, b"a");
+        fs::remove_file(&socket).unwrap();
+        let _listener = UnixListener::bind(&socket).unwrap();
+        assert_recheck_both(
+            &selected,
+            &fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::NotRegularFile,
+            )),
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn rejects_final_and_intermediate_executable_symlinks_before_canonicalizing() {
         use std::os::unix::fs::symlink;
 
@@ -1814,6 +2092,60 @@ mod tests {
                 PathSubject::Executable,
                 PathErrorKind::Symlink
             ))
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn selected_recheck_rejects_windows_final_file_symlink() {
+        use std::os::windows::fs::symlink_file;
+
+        let fixture = ResolverFixture::new("selected-windows-final-symlink");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let real = fixture.target.join("real");
+        fs::write(&real, b"a").unwrap();
+        fs::remove_file(&executable).unwrap();
+        if !windows_symlink_created(
+            symlink_file(&real, &executable),
+            "selected final file symlink fixture",
+        ) {
+            return;
+        }
+        assert_recheck_both(
+            &selected,
+            &fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink,
+            )),
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn selected_recheck_rejects_windows_intermediate_directory_symlink() {
+        use std::os::windows::fs::symlink_dir;
+
+        let fixture = ResolverFixture::new("selected-windows-intermediate-symlink");
+        let directory = fixture.target.join("directory");
+        let parked = fixture.target.join("parked");
+        let executable = directory.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        fs::rename(&directory, &parked).unwrap();
+        if !windows_symlink_created(
+            symlink_dir(&parked, &directory),
+            "selected intermediate directory symlink fixture",
+        ) {
+            return;
+        }
+        assert_recheck_both(
+            &selected,
+            &fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink,
+            )),
         );
     }
 
@@ -2126,6 +2458,1183 @@ mod tests {
         fs::write(&direct, b"direct").unwrap();
         assert_eq!(file_identity(&direct).unwrap(), content_identity(b"direct"));
         assert_eq!(file_stamp(&direct).unwrap().len, 6);
+    }
+
+    #[test]
+    fn rechecks_unchanged_artifacts_in_both_modes_without_mutating_selection() {
+        for (label, bytes, identity) in [
+            ("empty", &b""[..], (0xcbf29ce484222325, 0)),
+            ("a", &b"a"[..], (0xaf63dc4c8601ec8c, 1)),
+        ] {
+            let fixture = ResolverFixture::new(&format!("selected-recheck-success-{label}"));
+            let executable = fixture.target.join("deps/é 😀/test-bin");
+            let selected = select_fixture_executable(&fixture, &executable, bytes);
+            assert_eq!(selected.executable_identity, identity);
+
+            assert_eq!(
+                recheck_selected_artifact_with(
+                    &selected,
+                    &fixture.expected,
+                    SelectedArtifactCheck::Metadata,
+                    |_, _| panic!("metadata checks must not hash executable content"),
+                    |phase, _| {
+                        assert!(matches!(
+                            phase,
+                            SelectedArtifactCheckpoint::AfterInitialWalk
+                                | SelectedArtifactCheckpoint::AfterCanonical
+                        ));
+                    },
+                ),
+                Ok(())
+            );
+            assert_recheck_both(&selected, &fixture.expected, Ok(()));
+            assert_recheck_both(&selected, &fixture.expected, Ok(()));
+        }
+    }
+
+    #[test]
+    fn content_recheck_uses_one_opened_handle_and_one_shared_hash_handoff() {
+        use std::cell::Cell;
+
+        let fixture = ResolverFixture::new("selected-content-receipts");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let opens = Cell::new(0usize);
+        let hashes = Cell::new(0usize);
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                |file, frozen_length| {
+                    hashes.set(hashes.get() + 1);
+                    file_identity_from_file_bounded(file, frozen_length)
+                },
+                |phase, _| {
+                    if phase == SelectedArtifactCheckpoint::AfterOpen {
+                        opens.set(opens.get() + 1);
+                    }
+                },
+            ),
+            Ok(())
+        );
+        assert_eq!(opens.get(), 1);
+        assert_eq!(hashes.get(), 1);
+    }
+
+    #[test]
+    fn metadata_skips_equal_stamp_bytes_but_content_uses_the_frozen_identity() {
+        let fixture = ResolverFixture::new("selected-equal-stamp-content");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let frozen = selected.clone();
+        let frozen_expected = fixture.expected.clone();
+        rewrite_with_frozen_stamp(&executable, b"b", &selected.executable_stamp);
+
+        assert_eq!(
+            recheck_selected_artifact(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Metadata
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            recheck_selected_artifact(&selected, &fixture.expected, SelectedArtifactCheck::Content),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ContentIdentityMismatch
+            ))
+        );
+        assert_eq!(
+            recheck_selected_artifact(&selected, &fixture.expected, SelectedArtifactCheck::Content),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ContentIdentityMismatch
+            ))
+        );
+        rewrite_with_frozen_stamp(&executable, b"a", &selected.executable_stamp);
+        assert_eq!(
+            recheck_selected_artifact(&selected, &fixture.expected, SelectedArtifactCheck::Content),
+            Ok(())
+        );
+        assert_eq!(selected, frozen);
+        assert_eq!(fixture.expected, frozen_expected);
+    }
+
+    #[test]
+    fn selected_recheck_rejects_distinct_mtime_and_length_before_content_reads() {
+        use std::fs::{FileTimes, OpenOptions};
+        use std::time::{Duration, UNIX_EPOCH};
+
+        let stamp_fixture = ResolverFixture::new("selected-distinct-mtime");
+        let stamp_executable = stamp_fixture.target.join("test");
+        let stamp_selected = select_fixture_executable(&stamp_fixture, &stamp_executable, b"a");
+        let changed_time = if stamp_selected.executable_stamp.modified == UNIX_EPOCH {
+            UNIX_EPOCH + Duration::from_secs(1)
+        } else {
+            UNIX_EPOCH
+        };
+        OpenOptions::new()
+            .write(true)
+            .open(&stamp_executable)
+            .unwrap()
+            .set_times(FileTimes::new().set_modified(changed_time))
+            .unwrap();
+        assert_ne!(
+            stamp_path(&stamp_executable, PathSubject::Executable).unwrap(),
+            stamp_selected.executable_stamp
+        );
+        assert_recheck_both(
+            &stamp_selected,
+            &stamp_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            )),
+        );
+
+        for (label, original, changed) in [
+            ("growth", &b"a"[..], &b"ab"[..]),
+            ("truncation", &b"a"[..], &b""[..]),
+        ] {
+            let fixture = ResolverFixture::new(&format!("selected-length-{label}"));
+            let executable = fixture.target.join("test");
+            let selected = select_fixture_executable(&fixture, &executable, original);
+            fs::write(&executable, changed).unwrap();
+            assert_recheck_both(
+                &selected,
+                &fixture.expected,
+                Err(expected_path_error(
+                    PathSubject::Executable,
+                    PathErrorKind::ChangedSinceSelection,
+                )),
+            );
+        }
+    }
+
+    #[test]
+    fn selected_recheck_preserves_missing_and_stamp_change_categories() {
+        let missing_fixture = ResolverFixture::new("selected-missing");
+        let missing_executable = missing_fixture.target.join("test");
+        let missing_selected =
+            select_fixture_executable(&missing_fixture, &missing_executable, b"before");
+        let missing_frozen = missing_selected.clone();
+        fs::remove_file(&missing_executable).unwrap();
+        assert_recheck_both(
+            &missing_selected,
+            &missing_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Missing,
+            )),
+        );
+        assert_eq!(missing_selected, missing_frozen);
+
+        let changed_fixture = ResolverFixture::new("selected-stamp-change");
+        let changed_executable = changed_fixture.target.join("test");
+        let changed_selected =
+            select_fixture_executable(&changed_fixture, &changed_executable, b"before");
+        fs::write(&changed_executable, b"longer than before").unwrap();
+        assert_eq!(
+            recheck_selected_artifact(
+                &changed_selected,
+                &changed_fixture.expected,
+                SelectedArtifactCheck::Metadata
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection
+            ))
+        );
+    }
+
+    #[test]
+    fn selected_recheck_preserves_initial_type_component_and_containment_errors() {
+        let directory_fixture = ResolverFixture::new("selected-final-directory");
+        let directory_executable = directory_fixture.target.join("test");
+        let directory_selected =
+            select_fixture_executable(&directory_fixture, &directory_executable, b"a");
+        fs::remove_file(&directory_executable).unwrap();
+        fs::create_dir(&directory_executable).unwrap();
+        assert_recheck_both(
+            &directory_selected,
+            &directory_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::NotRegularFile,
+            )),
+        );
+
+        for (label, remove_directory, expected_kind) in [
+            ("wrong-type", false, PathErrorKind::NotDirectory),
+            ("missing", true, PathErrorKind::Missing),
+        ] {
+            let fixture = ResolverFixture::new(&format!("selected-intermediate-{label}"));
+            let directory = fixture.target.join("directory");
+            let executable = directory.join("test");
+            let selected = select_fixture_executable(&fixture, &executable, b"a");
+            fs::remove_file(&executable).unwrap();
+            fs::remove_dir(&directory).unwrap();
+            if !remove_directory {
+                fs::write(&directory, b"not a directory").unwrap();
+            }
+            assert_recheck_both(
+                &selected,
+                &fixture.expected,
+                Err(expected_path_error(PathSubject::Executable, expected_kind)),
+            );
+        }
+
+        let containment_fixture = ResolverFixture::new("selected-containment");
+        let containment_executable = containment_fixture.target.join("test");
+        let selected =
+            select_fixture_executable(&containment_fixture, &containment_executable, b"a");
+        for reported in [
+            containment_fixture.target.clone(),
+            containment_fixture.root.join("outside/missing"),
+            containment_fixture.root.join("target output-other/missing"),
+        ] {
+            let mut malformed = selected.clone();
+            malformed.reported_executable = reported.to_str().unwrap().to_owned();
+            assert_recheck_both(
+                &malformed,
+                &containment_fixture.expected,
+                Err(expected_path_error(
+                    PathSubject::Executable,
+                    PathErrorKind::OutsideTargetDir,
+                )),
+            );
+        }
+    }
+
+    #[test]
+    fn selected_recheck_preserves_lexical_and_frozen_canonical_errors() {
+        let fixture = ResolverFixture::new("selected-lexical-matrix");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let lexical = [
+            ("".to_owned(), PathErrorKind::Empty),
+            ("../outside".to_owned(), PathErrorKind::NotAbsolute),
+            (
+                format!("{}/./test", fixture.target.display()),
+                PathErrorKind::DotComponent,
+            ),
+            (
+                format!("{}/../outside", fixture.target.display()),
+                PathErrorKind::DotComponent,
+            ),
+            (
+                format!("{}/bad\npath", fixture.target.display()),
+                PathErrorKind::ControlCharacter,
+            ),
+        ];
+        for (reported, kind) in lexical {
+            let mut malformed = selected.clone();
+            malformed.reported_executable = reported;
+            assert_recheck_both(
+                &malformed,
+                &fixture.expected,
+                Err(expected_path_error(PathSubject::Executable, kind)),
+            );
+        }
+
+        let mut wrong_canonical = selected.clone();
+        wrong_canonical.canonical_executable = fixture.target.join("another file");
+        assert_recheck_both(
+            &wrong_canonical,
+            &fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::CanonicalMismatch,
+            )),
+        );
+    }
+
+    #[test]
+    fn selected_recheck_accepts_hard_links_inside_the_target() {
+        let fixture = ResolverFixture::new("selected-hard-link");
+        let original = fixture.target.join("original");
+        let executable = fixture.target.join("hard link");
+        fs::write(&original, b"a").unwrap();
+        fs::hard_link(&original, &executable).unwrap();
+        let selected =
+            resolve_selected_artifact(fixture.record(&executable), &fixture.expected).unwrap();
+        assert_recheck_both(&selected, &fixture.expected, Ok(()));
+    }
+
+    #[test]
+    fn selected_recheck_revalidates_source_and_target_roots_before_executable_work() {
+        for (label, mutation, field, kind) in [
+            (
+                "source-root-missing",
+                0u8,
+                PathSubject::SourceRoot,
+                PathErrorKind::Missing,
+            ),
+            (
+                "source-dir-missing",
+                1,
+                PathSubject::SourceDir,
+                PathErrorKind::Missing,
+            ),
+            (
+                "source-file-missing",
+                2,
+                PathSubject::SourceFile,
+                PathErrorKind::Missing,
+            ),
+            (
+                "source-dir-file",
+                3,
+                PathSubject::SourceDir,
+                PathErrorKind::NotDirectory,
+            ),
+            (
+                "source-file-directory",
+                4,
+                PathSubject::SourceFile,
+                PathErrorKind::NotRegularFile,
+            ),
+            (
+                "target-missing",
+                5,
+                PathSubject::TargetDir,
+                PathErrorKind::Missing,
+            ),
+            (
+                "target-file",
+                6,
+                PathSubject::TargetDir,
+                PathErrorKind::NotDirectory,
+            ),
+        ] {
+            let fixture = ResolverFixture::new(label);
+            let executable = fixture.target.join("test");
+            let selected = select_fixture_executable(&fixture, &executable, b"a");
+            match mutation {
+                0 => {
+                    fs::remove_file(&fixture.source).unwrap();
+                    fs::remove_dir(fixture.source.parent().unwrap()).unwrap();
+                    fs::remove_dir(&fixture.source_root).unwrap();
+                }
+                1 => {
+                    fs::remove_file(&fixture.source).unwrap();
+                    fs::remove_dir(fixture.source.parent().unwrap()).unwrap();
+                }
+                2 => fs::remove_file(&fixture.source).unwrap(),
+                3 => {
+                    fs::remove_file(&fixture.source).unwrap();
+                    let source_dir = fixture.source.parent().unwrap();
+                    fs::remove_dir(source_dir).unwrap();
+                    fs::write(source_dir, b"file").unwrap();
+                }
+                4 => {
+                    fs::remove_file(&fixture.source).unwrap();
+                    fs::create_dir(&fixture.source).unwrap();
+                }
+                5 => {
+                    fs::remove_file(&executable).unwrap();
+                    fs::remove_dir(&fixture.target).unwrap();
+                }
+                6 => {
+                    fs::remove_file(&executable).unwrap();
+                    fs::remove_dir(&fixture.target).unwrap();
+                    fs::write(&fixture.target, b"file").unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert_recheck_both(
+                &selected,
+                &fixture.expected,
+                Err(expected_path_error(field, kind)),
+            );
+        }
+
+        let shape_fixture = ResolverFixture::new("selected-source-shape");
+        let executable = shape_fixture.target.join("test");
+        let selected = select_fixture_executable(&shape_fixture, &executable, b"a");
+        let mut wrong_file = shape_fixture.expected.clone();
+        wrong_file.canonical_src_path = shape_fixture.source_root.join("src/other.rs");
+        assert_recheck_both(
+            &selected,
+            &wrong_file,
+            Err(expected_path_error(
+                PathSubject::SourceFile,
+                PathErrorKind::CanonicalMismatch,
+            )),
+        );
+        let mut wrong_dir = shape_fixture.expected.clone();
+        wrong_dir.canonical_src_path = shape_fixture.source_root.join("other/lib.rs");
+        assert_recheck_both(
+            &selected,
+            &wrong_dir,
+            Err(expected_path_error(
+                PathSubject::SourceDir,
+                PathErrorKind::CanonicalMismatch,
+            )),
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn selected_recheck_preserves_initial_root_symlink_categories() {
+        use std::os::unix::fs::symlink;
+
+        let source_fixture = ResolverFixture::new("selected-source-link");
+        let source_executable = source_fixture.target.join("test");
+        let source_selected = select_fixture_executable(&source_fixture, &source_executable, b"a");
+        let real_source = source_fixture.root.join("real lib.rs");
+        fs::write(&real_source, b"source").unwrap();
+        fs::remove_file(&source_fixture.source).unwrap();
+        symlink(&real_source, &source_fixture.source).unwrap();
+        assert_recheck_both(
+            &source_selected,
+            &source_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::SourceFile,
+                PathErrorKind::Symlink,
+            )),
+        );
+
+        let target_fixture = ResolverFixture::new("selected-target-link");
+        let target_executable = target_fixture.target.join("test");
+        let target_selected = select_fixture_executable(&target_fixture, &target_executable, b"a");
+        let parked_target = target_fixture.root.join("parked target");
+        fs::rename(&target_fixture.target, &parked_target).unwrap();
+        symlink(&parked_target, &target_fixture.target).unwrap();
+        assert_recheck_both(
+            &target_selected,
+            &target_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::Symlink,
+            )),
+        );
+
+        let ancestor_fixture = ResolverFixture::new("selected-target-ancestor-link");
+        let ancestor_executable = ancestor_fixture.target.join("test");
+        let ancestor_selected =
+            select_fixture_executable(&ancestor_fixture, &ancestor_executable, b"a");
+        let real_parent = ancestor_fixture.root.join("real parent");
+        fs::create_dir_all(real_parent.join("target")).unwrap();
+        let parent_link = ancestor_fixture.root.join("parent link");
+        symlink(&real_parent, &parent_link).unwrap();
+        let mut ancestor_expected = ancestor_fixture.expected.clone();
+        ancestor_expected.canonical_target_dir = parent_link.join("target");
+        assert_recheck_both(
+            &ancestor_selected,
+            &ancestor_expected,
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::Symlink,
+            )),
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn selected_recheck_rejects_non_utf8_expected_root_before_executable_work() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let fixture = ResolverFixture::new("selected-non-utf8-root");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let mut expected = fixture.expected.clone();
+        expected.canonical_target_dir = fixture
+            .root
+            .join(OsString::from_vec(vec![b'b', b'a', b'd', 0xff]));
+        assert_recheck_both(
+            &selected,
+            &expected,
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::NonUtf8,
+            )),
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn metadata_recheck_walk_rejects_final_and_intermediate_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let final_fixture = ResolverFixture::new("selected-final-symlink");
+        let final_executable = final_fixture.target.join("test");
+        let final_selected =
+            select_fixture_executable(&final_fixture, &final_executable, b"before");
+        fs::remove_file(&final_executable).unwrap();
+        symlink(final_executable.file_name().unwrap(), &final_executable).unwrap();
+        assert_recheck_both(
+            &final_selected,
+            &final_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink,
+            )),
+        );
+
+        let intermediate_fixture = ResolverFixture::new("selected-intermediate-symlink");
+        let directory = intermediate_fixture.target.join("directory");
+        let parked = intermediate_fixture.target.join("parked");
+        let intermediate_executable = directory.join("test");
+        let intermediate_selected =
+            select_fixture_executable(&intermediate_fixture, &intermediate_executable, b"before");
+        fs::rename(&directory, &parked).unwrap();
+        symlink(&parked, &directory).unwrap();
+        assert_recheck_both(
+            &intermediate_selected,
+            &intermediate_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink,
+            )),
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn selected_recheck_rejects_initial_symlink_targets_without_following_them() {
+        use std::os::unix::fs::symlink;
+
+        for label in ["inside", "outside", "dangling"] {
+            let fixture = ResolverFixture::new(&format!("selected-final-link-{label}"));
+            let executable = fixture.target.join("test");
+            let selected = select_fixture_executable(&fixture, &executable, b"a");
+            let target = match label {
+                "inside" => {
+                    let target = fixture.target.join("inside target");
+                    fs::write(&target, b"a").unwrap();
+                    target
+                }
+                "outside" => {
+                    let target = fixture.root.join("outside target");
+                    fs::write(&target, b"a").unwrap();
+                    target
+                }
+                "dangling" => fixture.root.join("missing target"),
+                _ => unreachable!(),
+            };
+            fs::remove_file(&executable).unwrap();
+            symlink(target, &executable).unwrap();
+            assert_recheck_both(
+                &selected,
+                &fixture.expected,
+                Err(expected_path_error(
+                    PathSubject::Executable,
+                    PathErrorKind::Symlink,
+                )),
+            );
+        }
+
+        for label in ["inside", "outside"] {
+            let fixture = ResolverFixture::new(&format!("selected-parent-link-{label}"));
+            let directory = fixture.target.join("directory");
+            let executable = directory.join("missing leaf");
+            fs::create_dir(&directory).unwrap();
+            fs::write(&executable, b"a").unwrap();
+            let selected =
+                resolve_selected_artifact(fixture.record(&executable), &fixture.expected).unwrap();
+            fs::remove_file(&executable).unwrap();
+            fs::remove_dir(&directory).unwrap();
+            let target = if label == "inside" {
+                let target = fixture.target.join("parked directory");
+                fs::create_dir(&target).unwrap();
+                target
+            } else {
+                let target = fixture.root.join("outside directory");
+                fs::create_dir(&target).unwrap();
+                target
+            };
+            symlink(target, &directory).unwrap();
+            assert_recheck_both(
+                &selected,
+                &fixture.expected,
+                Err(expected_path_error(
+                    PathSubject::Executable,
+                    PathErrorKind::Symlink,
+                )),
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn selected_recheck_detects_root_and_frozen_canonical_drift() {
+        use std::os::unix::fs::symlink;
+
+        let root_fixture = ResolverFixture::new("selected-root-drift");
+        let root_executable = root_fixture.target.join("test");
+        let root_selected = select_fixture_executable(&root_fixture, &root_executable, b"before");
+        let parked_target = root_fixture.root.join("parked target");
+        fs::rename(&root_fixture.target, &parked_target).unwrap();
+        symlink(&parked_target, &root_fixture.target).unwrap();
+        assert_eq!(
+            recheck_selected_artifact(
+                &root_selected,
+                &root_fixture.expected,
+                SelectedArtifactCheck::Metadata
+            ),
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::Symlink
+            ))
+        );
+
+        let canonical_fixture = ResolverFixture::new("selected-canonical-drift");
+        let canonical_executable = canonical_fixture.target.join("test");
+        let mut canonical_selected =
+            select_fixture_executable(&canonical_fixture, &canonical_executable, b"before");
+        canonical_selected.canonical_executable = canonical_fixture.target.join("other");
+        assert_eq!(
+            recheck_selected_artifact(
+                &canonical_selected,
+                &canonical_fixture.expected,
+                SelectedArtifactCheck::Metadata
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::CanonicalMismatch
+            ))
+        );
+    }
+
+    #[test]
+    fn content_recheck_detects_growth_after_open() {
+        use std::cell::Cell;
+        use std::io::{Read, Write};
+        use std::rc::Rc;
+
+        struct CountingReader<'a> {
+            file: &'a mut File,
+            bytes: Rc<Cell<usize>>,
+        }
+
+        impl Read for CountingReader<'_> {
+            fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+                let read = self.file.read(buffer)?;
+                self.bytes.set(self.bytes.get() + read);
+                Ok(read)
+            }
+        }
+
+        let fixture = ResolverFixture::new("selected-growth-during-read");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"before");
+        let frozen = selected.clone();
+        let bytes_read = Rc::new(Cell::new(0));
+        let observed_bytes = Rc::clone(&bytes_read);
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                move |file, frozen_length| {
+                    content_identity_from_reader_bounded(
+                        &mut CountingReader {
+                            file,
+                            bytes: observed_bytes,
+                        },
+                        frozen_length,
+                    )
+                },
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterPreReadMetadata {
+                        fs::OpenOptions::new()
+                            .append(true)
+                            .open(path)
+                            .unwrap()
+                            .write_all(b"+")
+                            .unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection
+            ))
+        );
+        assert_eq!(bytes_read.get(), selected.executable_identity.1 + 1);
+        assert_eq!(selected, frozen);
+    }
+
+    #[test]
+    fn content_recheck_detects_truncation_after_pre_read_metadata() {
+        let fixture = ResolverFixture::new("selected-truncation-during-read");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                file_identity_from_file_bounded,
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterPreReadMetadata {
+                        fs::OpenOptions::new()
+                            .write(true)
+                            .open(path)
+                            .unwrap()
+                            .set_len(0)
+                            .unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+    }
+
+    #[test]
+    fn content_recheck_rejects_handle_substitution_before_any_hash_read() {
+        let fixture = ResolverFixture::new("selected-pre-open-substitution");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let frozen = selected.clone();
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                |_, _| panic!("handle stamp mismatch must reject before hashing"),
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::BeforeOpen {
+                        fs::remove_file(path).unwrap();
+                        fs::write(path, b"replacement").unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+        assert_eq!(selected, frozen);
+
+        let missing_fixture = ResolverFixture::new("selected-pre-open-missing");
+        let missing_executable = missing_fixture.target.join("test");
+        let missing_selected =
+            select_fixture_executable(&missing_fixture, &missing_executable, b"a");
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &missing_selected,
+                &missing_fixture.expected,
+                SelectedArtifactCheck::Content,
+                |_, _| panic!("post-walk disappearance must reject before hashing"),
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::BeforeOpen {
+                        fs::remove_file(path).unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+    }
+
+    #[test]
+    fn content_recheck_preserves_shared_reader_io_errors_before_later_drift() {
+        use std::io::{Error, ErrorKind, Read};
+
+        struct Denied;
+        impl Read for Denied {
+            fn read(&mut self, _buffer: &mut [u8]) -> io::Result<usize> {
+                Err(Error::new(ErrorKind::PermissionDenied, "fixture denied"))
+            }
+        }
+
+        let fixture = ResolverFixture::new("selected-read-error");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let hash = |_: &mut File, frozen_length| {
+            content_identity_from_reader_bounded(&mut Denied, frozen_length)
+        };
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                hash,
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterHash {
+                        fs::remove_file(path).unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Io(ErrorKind::PermissionDenied),
+            ))
+        );
+    }
+
+    #[test]
+    fn content_recheck_normalizes_post_capture_final_type_and_path_drift() {
+        for (label, mutation) in [("missing", 0u8), ("directory", 1), ("append", 2)] {
+            let fixture = ResolverFixture::new(&format!("selected-post-{label}"));
+            let executable = fixture.target.join("test");
+            let selected = select_fixture_executable(&fixture, &executable, b"a");
+            assert_eq!(
+                recheck_selected_artifact_with(
+                    &selected,
+                    &fixture.expected,
+                    SelectedArtifactCheck::Content,
+                    file_identity_from_file_bounded,
+                    |phase, path| {
+                        if phase == SelectedArtifactCheckpoint::AfterPostReadMetadata {
+                            match mutation {
+                                0 => fs::remove_file(path).unwrap(),
+                                1 => {
+                                    fs::remove_file(path).unwrap();
+                                    fs::create_dir(path).unwrap();
+                                }
+                                2 => {
+                                    use std::io::Write;
+                                    fs::OpenOptions::new()
+                                        .append(true)
+                                        .open(path)
+                                        .unwrap()
+                                        .write_all(b"+")
+                                        .unwrap();
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                    },
+                ),
+                Err(expected_path_error(
+                    PathSubject::Executable,
+                    PathErrorKind::ChangedSinceSelection,
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn post_capture_drift_precedes_a_stable_length_content_mismatch() {
+        use std::io::Write;
+
+        let fixture = ResolverFixture::new("selected-post-drift-precedence");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        rewrite_with_frozen_stamp(&executable, b"b", &selected.executable_stamp);
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                file_identity_from_file_bounded,
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterPostReadMetadata {
+                        fs::OpenOptions::new()
+                            .append(true)
+                            .open(path)
+                            .unwrap()
+                            .write_all(b"+")
+                            .unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn temporal_changes_after_the_initial_walk_use_changed_since_selection() {
+        use std::os::unix::fs::symlink;
+
+        for checkpoint in [
+            SelectedArtifactCheckpoint::AfterInitialWalk,
+            SelectedArtifactCheckpoint::AfterCanonical,
+        ] {
+            let fixture = ResolverFixture::new(&format!("selected-temporal-{checkpoint:?}"));
+            let executable = fixture.target.join("test");
+            let selected = select_fixture_executable(&fixture, &executable, b"a");
+            let replacement = fixture.target.join("replacement");
+            fs::write(&replacement, b"a").unwrap();
+            assert_eq!(
+                recheck_selected_artifact_with(
+                    &selected,
+                    &fixture.expected,
+                    SelectedArtifactCheck::Metadata,
+                    |_, _| panic!("metadata recheck must not hash"),
+                    |phase, path| {
+                        if phase == checkpoint {
+                            fs::remove_file(path).unwrap();
+                            symlink(&replacement, path).unwrap();
+                        }
+                    },
+                ),
+                Err(expected_path_error(
+                    PathSubject::Executable,
+                    PathErrorKind::ChangedSinceSelection,
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn rejected_rechecks_are_stateless_and_original_selection_recovers() {
+        let fixture = ResolverFixture::new("selected-recovery");
+        let executable = fixture.target.join("test");
+        let selected = select_fixture_executable(&fixture, &executable, b"a");
+        let frozen = selected.clone();
+        fs::remove_file(&executable).unwrap();
+        assert_recheck_both(
+            &selected,
+            &fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Missing,
+            )),
+        );
+        fs::write(&executable, b"a").unwrap();
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&executable)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(selected.executable_stamp.modified))
+            .unwrap();
+        assert_eq!(
+            stamp_path(&executable, PathSubject::Executable).unwrap(),
+            selected.executable_stamp
+        );
+        assert_recheck_both(&selected, &fixture.expected, Ok(()));
+        assert_eq!(selected, frozen);
+    }
+
+    #[test]
+    fn selected_recheck_error_precedence_keeps_roots_paths_and_stamps_first() {
+        let root_fixture = ResolverFixture::new("selected-precedence-root");
+        let root_executable = root_fixture.target.join("test");
+        let mut root_selected = select_fixture_executable(&root_fixture, &root_executable, b"a");
+        fs::remove_file(&root_fixture.source).unwrap();
+        root_selected.reported_executable = "../outside".to_owned();
+        assert_recheck_both(
+            &root_selected,
+            &root_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::SourceFile,
+                PathErrorKind::Missing,
+            )),
+        );
+
+        let root_order_fixture = ResolverFixture::new("selected-precedence-root-order");
+        let root_order_executable = root_order_fixture.target.join("test");
+        let root_order_selected =
+            select_fixture_executable(&root_order_fixture, &root_order_executable, b"a");
+        fs::remove_file(&root_order_fixture.source).unwrap();
+        fs::remove_dir(root_order_fixture.source.parent().unwrap()).unwrap();
+        fs::remove_file(&root_order_executable).unwrap();
+        fs::remove_dir(&root_order_fixture.target).unwrap();
+        assert_recheck_both(
+            &root_order_selected,
+            &root_order_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::SourceDir,
+                PathErrorKind::Missing,
+            )),
+        );
+
+        let target_order_fixture = ResolverFixture::new("selected-precedence-target-order");
+        let target_order_executable = target_order_fixture.target.join("test");
+        let mut target_order_selected =
+            select_fixture_executable(&target_order_fixture, &target_order_executable, b"a");
+        fs::remove_file(&target_order_executable).unwrap();
+        fs::remove_dir(&target_order_fixture.target).unwrap();
+        target_order_selected.reported_executable = "../bad".to_owned();
+        assert_recheck_both(
+            &target_order_selected,
+            &target_order_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::Missing,
+            )),
+        );
+
+        let canonical_fixture = ResolverFixture::new("selected-precedence-canonical");
+        let canonical_executable = canonical_fixture.target.join("test");
+        let mut canonical_selected =
+            select_fixture_executable(&canonical_fixture, &canonical_executable, b"a");
+        canonical_selected.canonical_executable = canonical_fixture.target.join("other");
+        fs::write(&canonical_executable, b"longer").unwrap();
+        assert_recheck_both(
+            &canonical_selected,
+            &canonical_fixture.expected,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::CanonicalMismatch,
+            )),
+        );
+
+        let stamp_fixture = ResolverFixture::new("selected-precedence-stamp");
+        let stamp_executable = stamp_fixture.target.join("test");
+        let stamp_selected = select_fixture_executable(&stamp_fixture, &stamp_executable, b"a");
+        fs::write(&stamp_executable, b"changed length").unwrap();
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &stamp_selected,
+                &stamp_fixture.expected,
+                SelectedArtifactCheck::Content,
+                |_, _| panic!("changed stamp must reject before content"),
+                |_, _| {},
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+
+        let content_stamp_fixture = ResolverFixture::new("selected-precedence-content-stamp");
+        let content_stamp_executable = content_stamp_fixture.target.join("test");
+        let content_stamp_selected =
+            select_fixture_executable(&content_stamp_fixture, &content_stamp_executable, b"a");
+        fs::write(&content_stamp_executable, b"b").unwrap();
+        let changed_time = std::time::UNIX_EPOCH;
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&content_stamp_executable)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(changed_time))
+            .unwrap();
+        assert_ne!(
+            stamp_path(&content_stamp_executable, PathSubject::Executable).unwrap(),
+            content_stamp_selected.executable_stamp
+        );
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &content_stamp_selected,
+                &content_stamp_fixture.expected,
+                SelectedArtifactCheck::Content,
+                |_, _| panic!("changed stamp wins before unequal content"),
+                |_, _| {},
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn content_recheck_normalizes_post_capture_symlink_drift() {
+        use std::os::unix::fs::symlink;
+
+        let final_fixture = ResolverFixture::new("selected-post-final-link");
+        let final_executable = final_fixture.target.join("test");
+        let final_selected = select_fixture_executable(&final_fixture, &final_executable, b"a");
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &final_selected,
+                &final_fixture.expected,
+                SelectedArtifactCheck::Content,
+                file_identity_from_file_bounded,
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterPostReadMetadata {
+                        fs::remove_file(path).unwrap();
+                        symlink(path.file_name().unwrap(), path).unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+
+        let intermediate_fixture = ResolverFixture::new("selected-post-parent-link");
+        let directory = intermediate_fixture.target.join("directory");
+        let parked = intermediate_fixture.target.join("parked");
+        let intermediate_executable = directory.join("test");
+        let intermediate_selected =
+            select_fixture_executable(&intermediate_fixture, &intermediate_executable, b"a");
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &intermediate_selected,
+                &intermediate_fixture.expected,
+                SelectedArtifactCheck::Content,
+                file_identity_from_file_bounded,
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterPostReadMetadata {
+                        let parent = path.parent().unwrap();
+                        fs::rename(parent, &parked).unwrap();
+                        symlink(&parked, parent).unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection,
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn content_recheck_detects_handle_path_substitution() {
+        let fixture = ResolverFixture::new("selected-handle-path-change");
+        let executable = fixture.target.join("test");
+        let parked = fixture.target.join("parked");
+        let selected = select_fixture_executable(&fixture, &executable, b"before");
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                file_identity_from_file_bounded,
+                |phase, path| {
+                    if phase == SelectedArtifactCheckpoint::AfterPreReadMetadata {
+                        fs::rename(path, &parked).unwrap();
+                        fs::write(path, b"replacement").unwrap();
+                    }
+                },
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedSinceSelection
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn content_recheck_hashes_the_opened_handle_during_a_restored_path_swap() {
+        let fixture = ResolverFixture::new("selected-same-handle");
+        let executable = fixture.target.join("test");
+        let parked = fixture.target.join("parked");
+        let selected = select_fixture_executable(&fixture, &executable, b"before");
+        let parked_for_open = parked.clone();
+        let parked_for_hash = parked.clone();
+        assert_eq!(
+            recheck_selected_artifact_with(
+                &selected,
+                &fixture.expected,
+                SelectedArtifactCheck::Content,
+                file_identity_from_file_bounded,
+                move |phase, path| match phase {
+                    SelectedArtifactCheckpoint::AfterPreReadMetadata => {
+                        fs::rename(path, &parked_for_open).unwrap();
+                        fs::write(path, b"change").unwrap();
+                    }
+                    SelectedArtifactCheckpoint::AfterHash => {
+                        fs::remove_file(path).unwrap();
+                        fs::rename(&parked_for_hash, path).unwrap();
+                    }
+                    _ => {}
+                },
+            ),
+            Ok(())
+        );
     }
 
     #[cfg(unix)]
