@@ -2167,6 +2167,34 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn second_walk_classifies_a_post_capture_symlink_loop_as_changed() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("identity-symlink-loop");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"before").unwrap();
+
+        let result = resolve_selected_artifact_with(
+            fixture.record(&executable),
+            &fixture.expected,
+            |_| {},
+            |_| {},
+            |path| {
+                fs::remove_file(path).unwrap();
+                symlink(path.file_name().unwrap(), path).unwrap();
+            },
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedDuringResolution
+            ))
+        );
+    }
+
     #[test]
     fn selects_one_exact_artifact_and_preserves_spaces() {
         let input = stream(&[ARTIFACT, &FINISHED[..FINISHED.len() - 1]]);
