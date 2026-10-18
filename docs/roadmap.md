@@ -203,10 +203,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   including linear raw-Unicode handling. The following
   [artifact-resolver review](review-dtd-reader-fuzz-artifact-resolver.md) adds
   lexical and component-wise filesystem containment, same-handle identity and
-  post-capture revalidation while preserving direct-target behavior. Cargo
-  process/profile integration, measured coverage and performance gates remain
-  open. Public DTD events/errors, UTF-16 ownership, DOM storage and activation
-  also remain explicit follow-ups.
+  post-capture revalidation while preserving direct-target behavior. The
+  [artifact-lifecycle review](review-dtd-reader-fuzz-artifact-lifecycle.md)
+  adds immutable metadata/content rechecks, bounded same-handle hashing and
+  temporal drift classification for later campaign gates. Cargo process/profile
+  integration, measured coverage and performance gates remain open. Public DTD
+  events/errors, UTF-16 ownership, DOM storage and activation also remain
+  explicit follow-ups.
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
