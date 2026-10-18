@@ -10,7 +10,6 @@
 
 use crate::file_identity::{
     ContentIdentity, FileIdentityError, FileStamp, content_identity, file_identity_from_file,
-    file_stamp,
 };
 use std::collections::BTreeMap;
 use std::fs::{self, File, Metadata};
@@ -690,17 +689,21 @@ pub(crate) fn resolve_selected_artifact(
     record: ArtifactRecord,
     expected: &ExpectedArtifact,
 ) -> Result<SelectedArtifact, ArtifactError> {
-    resolve_selected_artifact_with(record, expected, |_| {}, |_| {}, |_| {})
+    resolve_selected_artifact_with(record, expected, |_| {}, |_| {}, |_| {}, |_| {}, |_| {})
 }
 
-fn resolve_selected_artifact_with<AfterOpen, AfterHash, AfterCapture>(
+fn resolve_selected_artifact_with<AfterWalk, AfterCanonical, AfterOpen, AfterHash, AfterCapture>(
     record: ArtifactRecord,
     expected: &ExpectedArtifact,
+    after_initial_walk: AfterWalk,
+    after_canonical: AfterCanonical,
     after_open: AfterOpen,
     after_hash: AfterHash,
     after_capture: AfterCapture,
 ) -> Result<SelectedArtifact, ArtifactError>
 where
+    AfterWalk: FnOnce(&Path),
+    AfterCanonical: FnOnce(&Path),
     AfterOpen: FnOnce(&Path),
     AfterHash: FnOnce(&Path),
     AfterCapture: FnOnce(&Path),
@@ -729,6 +732,8 @@ where
     }
 
     walk_executable(&reported_path, &roots.canonical_target_dir)?;
+    after_initial_walk(&reported_path);
+
     let canonical_executable = canonical_path(&reported_path, ArtifactPathField::Executable)?;
     if !path_starts_with(&canonical_executable, &roots.canonical_target_dir) {
         return Err(path_error(
@@ -736,7 +741,16 @@ where
             ArtifactPathError::OutsideTargetDir,
         ));
     }
-    let path_stamp = stamp_path(&reported_path, ArtifactPathField::Executable)?;
+    if canonical_executable != reported_path {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::CanonicalMismatch,
+        ));
+    }
+    after_canonical(&reported_path);
+
+    let path_stamp =
+        stamp_path(&reported_path, ArtifactPathField::Executable).map_err(change_after_walk)?;
     let mut executable = File::open(&reported_path).map_err(|error| {
         if error.kind() == io::ErrorKind::NotFound {
             changed(ArtifactPathField::Executable)
@@ -755,13 +769,6 @@ where
     if executable_stamp != path_stamp {
         return Err(changed(ArtifactPathField::Executable));
     }
-    if canonical_executable != reported_path {
-        return Err(path_error(
-            ArtifactPathField::Executable,
-            ArtifactPathError::CanonicalMismatch,
-        ));
-    }
-
     after_open(&reported_path);
 
     let executable_identity =
@@ -1085,13 +1092,20 @@ fn canonical_path(path: &Path, field: ArtifactPathField) -> Result<PathBuf, Arti
 }
 
 fn stamp_path(path: &Path, field: ArtifactPathField) -> Result<FileStamp, ArtifactError> {
-    file_stamp(path).map_err(|error| {
+    let metadata = fs::symlink_metadata(path).map_err(|error| {
         if error.kind() == io::ErrorKind::NotFound {
             path_error(field, ArtifactPathError::Missing)
         } else {
             path_io(field, error)
         }
-    })
+    })?;
+    if metadata.file_type().is_symlink() {
+        return Err(path_error(field, ArtifactPathError::Symlink));
+    }
+    if !metadata.is_file() {
+        return Err(path_error(field, ArtifactPathError::NotRegularFile));
+    }
+    FileStamp::from_metadata(&metadata).map_err(|error| path_io(field, error))
 }
 
 fn path_error(field: ArtifactPathField, kind: ArtifactPathError) -> ArtifactError {
@@ -1372,13 +1386,27 @@ mod tests {
 
     impl ResolverFixture {
         fn new(label: &str) -> Self {
+            Self::new_in(&std::env::temp_dir(), label, true)
+        }
+
+        #[cfg(unix)]
+        fn new_for_unix_socket() -> Self {
+            Self::new_in(Path::new("/tmp"), "socket", false)
+        }
+
+        fn new_in(base: &Path, label: &str, decorated: bool) -> Self {
             let requested_root = (0..8)
                 .find_map(|_| {
                     let serial = NEXT_TEMP_ROOT.fetch_add(1, Ordering::Relaxed);
-                    let candidate = std::env::temp_dir().join(format!(
-                        "yaxml-artifact-resolver-{}-{serial}-{label} fixture space-é-😀",
-                        std::process::id()
-                    ));
+                    let name = if decorated {
+                        format!(
+                            "yaxml-artifact-resolver-{}-{serial}-{label} fixture space-é-😀",
+                            std::process::id()
+                        )
+                    } else {
+                        format!("yaxml-artifact-resolver-{}-{serial}", std::process::id())
+                    };
+                    let candidate = base.join(name);
                     match fs::create_dir(&candidate) {
                         Ok(()) => Some(candidate),
                         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => None,
@@ -1458,6 +1486,21 @@ mod tests {
 
     fn expected_path_error(field: ArtifactPathField, kind: ArtifactPathError) -> ArtifactError {
         ArtifactError::Path { field, kind }
+    }
+
+    #[cfg(windows)]
+    fn windows_symlink_created(result: io::Result<()>, fixture: &str) -> bool {
+        match result {
+            Ok(()) => true,
+            Err(error)
+                if error.kind() == io::ErrorKind::PermissionDenied
+                    || error.raw_os_error() == Some(1314) =>
+            {
+                eprintln!("skipping {fixture}: Windows symlink privilege is unavailable");
+                false
+            }
+            Err(error) => panic!("failed to create {fixture}: {error}"),
+        }
     }
 
     #[test]
@@ -1639,6 +1682,23 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn rejects_unix_domain_socket_as_final_executable() {
+        use std::os::unix::net::UnixListener;
+
+        let fixture = ResolverFixture::new_for_unix_socket();
+        let socket = fixture.target.join("socket");
+        let _listener = UnixListener::bind(&socket).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(socket), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::NotRegularFile
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn rejects_final_and_intermediate_executable_symlinks_before_canonicalizing() {
         use std::os::unix::fs::symlink;
 
@@ -1702,6 +1762,52 @@ mod tests {
         fs::write(real_dir.join("test"), b"test").unwrap();
         let link_dir = fixture.target.join("link-dir");
         symlink(&real_dir, &link_dir).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(link_dir.join("test")), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rejects_windows_final_file_symlink() {
+        use std::os::windows::fs::symlink_file;
+
+        let fixture = ResolverFixture::new("windows-final-symlink");
+        let real = fixture.target.join("real");
+        let link = fixture.target.join("link");
+        fs::write(&real, b"test").unwrap();
+        if !windows_symlink_created(symlink_file(&real, &link), "final file symlink fixture") {
+            return;
+        }
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(link), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rejects_windows_intermediate_directory_symlink() {
+        use std::os::windows::fs::symlink_dir;
+
+        let fixture = ResolverFixture::new("windows-intermediate-symlink");
+        let real_dir = fixture.target.join("real-dir");
+        fs::create_dir(&real_dir).unwrap();
+        fs::write(real_dir.join("test"), b"test").unwrap();
+        let link_dir = fixture.target.join("link-dir");
+        if !windows_symlink_created(
+            symlink_dir(&real_dir, &link_dir),
+            "intermediate directory symlink fixture",
+        ) {
+            return;
+        }
         assert_eq!(
             resolve_selected_artifact(fixture.record(link_dir.join("test")), &fixture.expected),
             Err(expected_path_error(
@@ -2022,6 +2128,98 @@ mod tests {
         assert_eq!(file_stamp(&direct).unwrap().len, 6);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn canonical_mismatch_precedes_stamp_and_open_after_the_initial_walk() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("canonical-mismatch-precedence");
+        let executable = fixture.target.join("test");
+        let replacement_directory = fixture.target.join("replacement directory");
+        fs::write(&executable, b"before").unwrap();
+        fs::create_dir(&replacement_directory).unwrap();
+
+        let result = resolve_selected_artifact_with(
+            fixture.record(&executable),
+            &fixture.expected,
+            |path| {
+                fs::remove_file(path).unwrap();
+                symlink(&replacement_directory, path).unwrap();
+            },
+            |_| {},
+            |_| {},
+            |_| {},
+            |_| {},
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::CanonicalMismatch
+            ))
+        );
+    }
+
+    #[test]
+    fn disappearance_after_initial_canonical_check_is_changed_during_resolution() {
+        let fixture = ResolverFixture::new("post-canonical-disappearance");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"before").unwrap();
+
+        let result = resolve_selected_artifact_with(
+            fixture.record(&executable),
+            &fixture.expected,
+            |_| {},
+            |path| fs::remove_file(path).unwrap(),
+            |_| {},
+            |_| {},
+            |_| {},
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedDuringResolution
+            ))
+        );
+    }
+
+    #[test]
+    fn type_change_after_initial_canonical_check_is_changed_during_resolution() {
+        let fixture = ResolverFixture::new("post-canonical-type-change");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"before").unwrap();
+
+        let result = resolve_selected_artifact_with(
+            fixture.record(&executable),
+            &fixture.expected,
+            |_| {},
+            |path| {
+                fs::remove_file(path).unwrap();
+                fs::create_dir(path).unwrap();
+            },
+            |_| {},
+            |_| {},
+            |_| {},
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedDuringResolution
+            ))
+        );
+    }
+
+    #[test]
+    fn post_walk_change_mapping_preserves_genuine_io_errors() {
+        let error = expected_path_error(
+            PathSubject::Executable,
+            PathErrorKind::Io(io::ErrorKind::PermissionDenied),
+        );
+        assert_eq!(change_after_walk(error.clone()), error);
+    }
+
     #[test]
     fn detects_post_capture_content_change() {
         let fixture = ResolverFixture::new("identity-change");
@@ -2032,6 +2230,8 @@ mod tests {
         let result = resolve_selected_artifact_with(
             record,
             &fixture.expected,
+            |_| {},
+            |_| {},
             |_| {},
             |_| {},
             |path| fs::write(path, b"a different length after hashing").unwrap(),
@@ -2057,6 +2257,8 @@ mod tests {
         let result = resolve_selected_artifact_with(
             record,
             &fixture.expected,
+            |_| {},
+            |_| {},
             |_| {},
             |path| {
                 fs::OpenOptions::new()
@@ -2090,6 +2292,8 @@ mod tests {
         let selected = resolve_selected_artifact_with(
             fixture.record(&executable),
             &fixture.expected,
+            |_| {},
+            |_| {},
             move |path| {
                 fs::rename(path, parked_for_open).unwrap();
                 fs::write(path, b"change").unwrap();
@@ -2119,6 +2323,8 @@ mod tests {
         let result = resolve_selected_artifact_with(
             record,
             &fixture.expected,
+            |_| {},
+            |_| {},
             |_| {},
             |_| {},
             |path| {
@@ -2152,6 +2358,8 @@ mod tests {
             &fixture.expected,
             |_| {},
             |_| {},
+            |_| {},
+            |_| {},
             |path| {
                 let parent = path.parent().unwrap();
                 fs::rename(parent, &parked).unwrap();
@@ -2179,6 +2387,8 @@ mod tests {
         let result = resolve_selected_artifact_with(
             fixture.record(&executable),
             &fixture.expected,
+            |_| {},
+            |_| {},
             |_| {},
             |_| {},
             |path| {
