@@ -200,7 +200,10 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   pinned real-libtest output with two independent PASS verdicts. The subsequent
   [Cargo selector review](review-dtd-reader-fuzz-artifact-selector.md) adds a
   bounded full JSONL parser and exact current-package library-test selection,
-  including linear raw-Unicode handling. Filesystem containment,
+  including linear raw-Unicode handling. The following
+  [artifact-resolver review](review-dtd-reader-fuzz-artifact-resolver.md) adds
+  lexical and component-wise filesystem containment, same-handle identity and
+  post-capture revalidation while preserving direct-target behavior. Cargo
   process/profile integration, measured coverage and performance gates remain
   open. Public DTD events/errors, UTF-16 ownership, DOM storage and activation
   also remain explicit follow-ups.
