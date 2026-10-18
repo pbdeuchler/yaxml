@@ -8,6 +8,12 @@ use std::time::SystemTime;
 
 pub(crate) type ContentIdentity = (u64, usize);
 
+#[derive(Debug)]
+pub(crate) enum FileIdentityError {
+    Io(io::Error),
+    LengthOverflow,
+}
+
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 
@@ -39,11 +45,11 @@ impl FnvIdentity {
         }
     }
 
-    fn update(&mut self, bytes: &[u8]) -> io::Result<()> {
+    fn update(&mut self, bytes: &[u8]) -> Result<(), FileIdentityError> {
         self.length = self
             .length
             .checked_add(bytes.len())
-            .ok_or_else(|| io::Error::other("file length overflow"))?;
+            .ok_or(FileIdentityError::LengthOverflow)?;
         for byte in bytes {
             self.hash ^= u64::from(*byte);
             self.hash = self.hash.wrapping_mul(FNV_PRIME);
@@ -66,14 +72,19 @@ pub(crate) fn content_identity(bytes: &[u8]) -> ContentIdentity {
 
 pub(crate) fn file_identity(path: &Path) -> io::Result<ContentIdentity> {
     let mut file = File::open(path)?;
-    file_identity_from_file(&mut file)
+    file_identity_from_file(&mut file).map_err(|error| match error {
+        FileIdentityError::Io(error) => error,
+        FileIdentityError::LengthOverflow => io::Error::other("file length overflow"),
+    })
 }
 
-pub(crate) fn file_identity_from_file(file: &mut File) -> io::Result<ContentIdentity> {
+pub(crate) fn file_identity_from_file(
+    file: &mut File,
+) -> Result<ContentIdentity, FileIdentityError> {
     let mut identity = FnvIdentity::new();
     let mut buffer = [0u8; 64 * 1024];
     loop {
-        let read = file.read(&mut buffer)?;
+        let read = file.read(&mut buffer).map_err(FileIdentityError::Io)?;
         if read == 0 {
             return Ok(identity.finish());
         }

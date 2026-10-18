@@ -1,8 +1,21 @@
-//! Bounded Cargo JSON-message parsing and pure library-test artifact selection.
+//! Bounded Cargo JSON-message parsing and library-test artifact selection.
+//!
+//! Resolution rejects lexical aliases and every observable symlink before opening the selected
+//! executable, then rechecks its path and metadata after hashing the opened file. Portable
+//! `std::process::Command` still launches by path: replacement and restoration between a later
+//! pre-launch check and the operating system's open is an unavoidable race without a portable
+//! execute-by-open-file API. Retained external SHA-256 evidence complements, but cannot remove,
+//! that path-launch limitation.
 #![forbid(unsafe_code)]
 
+use crate::file_identity::{
+    ContentIdentity, FileIdentityError, FileStamp, content_identity, file_identity_from_file,
+    file_stamp,
+};
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::fs::{self, File, Metadata};
+use std::io;
+use std::path::{Component, Path, PathBuf};
 
 pub(crate) const MAX_CARGO_JSONL_BYTES: usize = 8 * 1024 * 1024;
 pub(crate) const MAX_CARGO_JSON_LINE_BYTES: usize = 1024 * 1024;
@@ -61,7 +74,54 @@ pub(crate) struct ArtifactRecord {
     target: CargoTargetMetadata,
     profile_test: bool,
     executable: String,
-    record_identity: (u64, usize),
+    record_identity: ContentIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SelectedArtifact {
+    pub package_id: String,
+    pub target: CargoTargetMetadata,
+    pub profile_test: bool,
+    pub reported_executable: String,
+    pub canonical_executable: PathBuf,
+    pub artifact_line: usize,
+    pub artifact_record_identity: ContentIdentity,
+    pub executable_identity: ContentIdentity,
+    pub executable_stamp: FileStamp,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CanonicalArtifactRoots {
+    pub canonical_source_root: PathBuf,
+    pub canonical_src_path: PathBuf,
+    pub canonical_target_dir: PathBuf,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ArtifactPathField {
+    SourceRoot,
+    SourceDir,
+    SourceFile,
+    TargetDir,
+    Executable,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ArtifactPathError {
+    Empty,
+    NonUtf8,
+    ControlCharacter,
+    NotAbsolute,
+    DotComponent,
+    Missing,
+    Symlink,
+    NotDirectory,
+    NotRegularFile,
+    OutsideTargetDir,
+    CanonicalMismatch,
+    ChangedDuringResolution,
+    LengthOverflow,
+    Io(io::ErrorKind),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -134,6 +194,10 @@ pub(crate) enum ArtifactError {
     MultipleMatchingArtifacts {
         first_line: usize,
         second_line: usize,
+    },
+    Path {
+        field: ArtifactPathField,
+        kind: ArtifactPathError,
     },
 }
 
@@ -622,6 +686,440 @@ pub(crate) fn select_artifact_record(
     selected.ok_or(ArtifactError::NoMatchingArtifact)
 }
 
+pub(crate) fn resolve_selected_artifact(
+    record: ArtifactRecord,
+    expected: &ExpectedArtifact,
+) -> Result<SelectedArtifact, ArtifactError> {
+    resolve_selected_artifact_with(record, expected, |_| {}, |_| {}, |_| {})
+}
+
+fn resolve_selected_artifact_with<AfterOpen, AfterHash, AfterCapture>(
+    record: ArtifactRecord,
+    expected: &ExpectedArtifact,
+    after_open: AfterOpen,
+    after_hash: AfterHash,
+    after_capture: AfterCapture,
+) -> Result<SelectedArtifact, ArtifactError>
+where
+    AfterOpen: FnOnce(&Path),
+    AfterHash: FnOnce(&Path),
+    AfterCapture: FnOnce(&Path),
+{
+    let roots = revalidate_expected_roots(expected)?;
+    let expected_source = roots
+        .canonical_src_path
+        .to_str()
+        .ok_or_else(|| path_error(ArtifactPathField::SourceFile, ArtifactPathError::NonUtf8))?;
+    if record.target.src_path != expected_source {
+        return Err(ArtifactError::TargetMetadata {
+            line: record.line,
+            field: "target.src_path",
+        });
+    }
+
+    let reported_path = PathBuf::from(&record.executable);
+    validate_lexical_path(&reported_path, ArtifactPathField::Executable)?;
+    if !path_starts_with(&reported_path, &roots.canonical_target_dir)
+        || reported_path == roots.canonical_target_dir
+    {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::OutsideTargetDir,
+        ));
+    }
+
+    walk_executable(&reported_path, &roots.canonical_target_dir)?;
+    let canonical_executable = canonical_path(&reported_path, ArtifactPathField::Executable)?;
+    if !path_starts_with(&canonical_executable, &roots.canonical_target_dir) {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::OutsideTargetDir,
+        ));
+    }
+    let path_stamp = stamp_path(&reported_path, ArtifactPathField::Executable)?;
+    let mut executable = File::open(&reported_path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            changed(ArtifactPathField::Executable)
+        } else {
+            path_io(ArtifactPathField::Executable, error)
+        }
+    })?;
+    let metadata = executable
+        .metadata()
+        .map_err(|error| path_io(ArtifactPathField::Executable, error))?;
+    if !metadata.is_file() {
+        return Err(changed(ArtifactPathField::Executable));
+    }
+    let executable_stamp = FileStamp::from_metadata(&metadata)
+        .map_err(|error| path_io(ArtifactPathField::Executable, error))?;
+    if executable_stamp != path_stamp {
+        return Err(changed(ArtifactPathField::Executable));
+    }
+    if canonical_executable != reported_path {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::CanonicalMismatch,
+        ));
+    }
+
+    after_open(&reported_path);
+
+    let executable_identity =
+        file_identity_from_file(&mut executable).map_err(|error| match error {
+            FileIdentityError::Io(error) => path_io(ArtifactPathField::Executable, error),
+            FileIdentityError::LengthOverflow => path_error(
+                ArtifactPathField::Executable,
+                ArtifactPathError::LengthOverflow,
+            ),
+        })?;
+    let identity_length = u64::try_from(executable_identity.1).map_err(|_| {
+        path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::LengthOverflow,
+        )
+    })?;
+    if identity_length != executable_stamp.len {
+        return Err(changed(ArtifactPathField::Executable));
+    }
+
+    after_hash(&reported_path);
+
+    let post_read_stamp = FileStamp::from_metadata(
+        &executable
+            .metadata()
+            .map_err(|error| path_io(ArtifactPathField::Executable, error))?,
+    )
+    .map_err(|error| path_io(ArtifactPathField::Executable, error))?;
+    if post_read_stamp != executable_stamp {
+        return Err(changed(ArtifactPathField::Executable));
+    }
+
+    after_capture(&reported_path);
+
+    walk_executable(&reported_path, &roots.canonical_target_dir).map_err(change_after_walk)?;
+    let repeated_canonical =
+        canonical_path(&reported_path, ArtifactPathField::Executable).map_err(change_after_walk)?;
+    if repeated_canonical != canonical_executable
+        || repeated_canonical != reported_path
+        || !path_starts_with(&repeated_canonical, &roots.canonical_target_dir)
+    {
+        return Err(changed(ArtifactPathField::Executable));
+    }
+    let repeated_stamp =
+        stamp_path(&reported_path, ArtifactPathField::Executable).map_err(change_after_walk)?;
+    if repeated_stamp != path_stamp || repeated_stamp != executable_stamp {
+        return Err(changed(ArtifactPathField::Executable));
+    }
+
+    Ok(SelectedArtifact {
+        package_id: record.package_id,
+        target: record.target,
+        profile_test: record.profile_test,
+        reported_executable: record.executable,
+        canonical_executable,
+        artifact_line: record.line,
+        artifact_record_identity: record.record_identity,
+        executable_identity,
+        executable_stamp,
+    })
+}
+
+pub(crate) fn establish_artifact_roots(
+    source_root: &Path,
+    target_dir: &Path,
+) -> Result<CanonicalArtifactRoots, ArtifactError> {
+    let canonical_source_root = validate_trusted_path(
+        source_root,
+        ArtifactPathField::SourceRoot,
+        RequiredPathType::Directory,
+    )?;
+    let source_dir = canonical_source_root.join("src");
+    validate_trusted_path(
+        &source_dir,
+        ArtifactPathField::SourceDir,
+        RequiredPathType::Directory,
+    )?;
+    let source_file = source_dir.join("lib.rs");
+    let canonical_src_path = validate_trusted_path(
+        &source_file,
+        ArtifactPathField::SourceFile,
+        RequiredPathType::RegularFile,
+    )?;
+    let canonical_target_dir = validate_trusted_path(
+        target_dir,
+        ArtifactPathField::TargetDir,
+        RequiredPathType::Directory,
+    )?;
+    Ok(CanonicalArtifactRoots {
+        canonical_source_root,
+        canonical_src_path,
+        canonical_target_dir,
+    })
+}
+
+fn revalidate_expected_roots(
+    expected: &ExpectedArtifact,
+) -> Result<CanonicalArtifactRoots, ArtifactError> {
+    if expected.canonical_src_path.file_name() != Some(std::ffi::OsStr::new("lib.rs")) {
+        return Err(path_error(
+            ArtifactPathField::SourceFile,
+            ArtifactPathError::CanonicalMismatch,
+        ));
+    }
+    let source_dir = expected.canonical_src_path.parent().ok_or_else(|| {
+        path_error(
+            ArtifactPathField::SourceDir,
+            ArtifactPathError::CanonicalMismatch,
+        )
+    })?;
+    if source_dir.file_name() != Some(std::ffi::OsStr::new("src")) {
+        return Err(path_error(
+            ArtifactPathField::SourceDir,
+            ArtifactPathError::CanonicalMismatch,
+        ));
+    }
+    let source_root = source_dir.parent().ok_or_else(|| {
+        path_error(
+            ArtifactPathField::SourceRoot,
+            ArtifactPathError::CanonicalMismatch,
+        )
+    })?;
+    let roots = establish_artifact_roots(source_root, &expected.canonical_target_dir)?;
+    if roots.canonical_src_path != expected.canonical_src_path {
+        return Err(path_error(
+            ArtifactPathField::SourceFile,
+            ArtifactPathError::CanonicalMismatch,
+        ));
+    }
+    Ok(roots)
+}
+
+fn validate_lexical_path(path: &Path, field: ArtifactPathField) -> Result<(), ArtifactError> {
+    if path.as_os_str().is_empty() {
+        return Err(path_error(field, ArtifactPathError::Empty));
+    }
+    let text = path
+        .to_str()
+        .ok_or_else(|| path_error(field, ArtifactPathError::NonUtf8))?;
+    if text.bytes().any(|byte| byte < 0x20 || byte == 0x7f) {
+        return Err(path_error(field, ArtifactPathError::ControlCharacter));
+    }
+    if !path.is_absolute() {
+        return Err(path_error(field, ArtifactPathError::NotAbsolute));
+    }
+    if lexical_component(text, ".")
+        || lexical_component(text, "..")
+        || path
+            .components()
+            .any(|component| matches!(component, Component::CurDir | Component::ParentDir))
+    {
+        return Err(path_error(field, ArtifactPathError::DotComponent));
+    }
+    Ok(())
+}
+
+fn lexical_component(path: &str, component: &str) -> bool {
+    #[cfg(windows)]
+    {
+        path.split(['/', '\\']).any(|part| part == component)
+    }
+    #[cfg(not(windows))]
+    {
+        path.split('/').any(|part| part == component)
+    }
+}
+
+fn path_starts_with(path: &Path, root: &Path) -> bool {
+    path.starts_with(root)
+}
+
+#[derive(Clone, Copy)]
+enum RequiredPathType {
+    Directory,
+    RegularFile,
+}
+
+fn validate_trusted_path(
+    path: &Path,
+    field: ArtifactPathField,
+    required: RequiredPathType,
+) -> Result<PathBuf, ArtifactError> {
+    validate_lexical_path(path, field)?;
+    walk_absolute_path(path, field, required)?;
+    let canonical = canonical_path(path, field)?;
+    validate_lexical_path(&canonical, field)?;
+    if canonical != path {
+        return Err(path_error(field, ArtifactPathError::CanonicalMismatch));
+    }
+    Ok(canonical)
+}
+
+fn walk_absolute_path(
+    path: &Path,
+    field: ArtifactPathField,
+    required: RequiredPathType,
+) -> Result<(), ArtifactError> {
+    let normal_components = path
+        .components()
+        .filter(|component| matches!(component, Component::Normal(_)))
+        .count();
+    let mut seen_normal = 0usize;
+    let mut current = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => current.push(prefix.as_os_str()),
+            Component::RootDir => current.push(component.as_os_str()),
+            Component::Normal(name) => {
+                seen_normal += 1;
+                current.push(name);
+                let metadata = link_metadata(&current, field)?;
+                if metadata.file_type().is_symlink() {
+                    return Err(path_error(field, ArtifactPathError::Symlink));
+                }
+                let final_component = seen_normal == normal_components;
+                if !final_component && !metadata.is_dir() {
+                    return Err(path_error(field, ArtifactPathError::NotDirectory));
+                }
+                if final_component {
+                    match required {
+                        RequiredPathType::Directory if !metadata.is_dir() => {
+                            return Err(path_error(field, ArtifactPathError::NotDirectory));
+                        }
+                        RequiredPathType::RegularFile if !metadata.is_file() => {
+                            return Err(path_error(field, ArtifactPathError::NotRegularFile));
+                        }
+                        RequiredPathType::Directory | RequiredPathType::RegularFile => {}
+                    }
+                }
+            }
+            Component::CurDir | Component::ParentDir => {
+                return Err(path_error(field, ArtifactPathError::DotComponent));
+            }
+        }
+    }
+    if normal_components == 0 {
+        let metadata = link_metadata(path, field)?;
+        let correct_type = match required {
+            RequiredPathType::Directory => metadata.is_dir(),
+            RequiredPathType::RegularFile => metadata.is_file(),
+        };
+        if !correct_type {
+            return Err(path_error(
+                field,
+                match required {
+                    RequiredPathType::Directory => ArtifactPathError::NotDirectory,
+                    RequiredPathType::RegularFile => ArtifactPathError::NotRegularFile,
+                },
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn walk_executable(path: &Path, target_dir: &Path) -> Result<(), ArtifactError> {
+    let relative = path.strip_prefix(target_dir).map_err(|_| {
+        path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::OutsideTargetDir,
+        )
+    })?;
+    if relative.as_os_str().is_empty() {
+        return Err(path_error(
+            ArtifactPathField::Executable,
+            ArtifactPathError::OutsideTargetDir,
+        ));
+    }
+
+    let mut current = target_dir.to_path_buf();
+    let mut components = relative.components().peekable();
+    while let Some(component) = components.next() {
+        let Component::Normal(component) = component else {
+            return Err(path_error(
+                ArtifactPathField::Executable,
+                ArtifactPathError::CanonicalMismatch,
+            ));
+        };
+        current.push(component);
+        let metadata = link_metadata(&current, ArtifactPathField::Executable)?;
+        if metadata.file_type().is_symlink() {
+            return Err(path_error(
+                ArtifactPathField::Executable,
+                ArtifactPathError::Symlink,
+            ));
+        }
+        if components.peek().is_some() {
+            if !metadata.is_dir() {
+                return Err(path_error(
+                    ArtifactPathField::Executable,
+                    ArtifactPathError::NotDirectory,
+                ));
+            }
+        } else if !metadata.is_file() {
+            return Err(path_error(
+                ArtifactPathField::Executable,
+                ArtifactPathError::NotRegularFile,
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn link_metadata(path: &Path, field: ArtifactPathField) -> Result<Metadata, ArtifactError> {
+    fs::symlink_metadata(path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            path_error(field, ArtifactPathError::Missing)
+        } else {
+            path_io(field, error)
+        }
+    })
+}
+
+fn canonical_path(path: &Path, field: ArtifactPathField) -> Result<PathBuf, ArtifactError> {
+    fs::canonicalize(path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            path_error(field, ArtifactPathError::Missing)
+        } else {
+            path_io(field, error)
+        }
+    })
+}
+
+fn stamp_path(path: &Path, field: ArtifactPathField) -> Result<FileStamp, ArtifactError> {
+    file_stamp(path).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            path_error(field, ArtifactPathError::Missing)
+        } else {
+            path_io(field, error)
+        }
+    })
+}
+
+fn path_error(field: ArtifactPathField, kind: ArtifactPathError) -> ArtifactError {
+    ArtifactError::Path { field, kind }
+}
+
+fn path_io(field: ArtifactPathField, error: io::Error) -> ArtifactError {
+    path_error(field, ArtifactPathError::Io(error.kind()))
+}
+
+fn changed(field: ArtifactPathField) -> ArtifactError {
+    path_error(field, ArtifactPathError::ChangedDuringResolution)
+}
+
+fn change_after_walk(error: ArtifactError) -> ArtifactError {
+    match error {
+        ArtifactError::Path {
+            field,
+            kind: ArtifactPathError::Io(kind),
+        } => ArtifactError::Path {
+            field,
+            kind: ArtifactPathError::Io(kind),
+        },
+        ArtifactError::Path { field, .. } => changed(field),
+        other => other,
+    }
+}
+
 fn artifact_from_object(
     object: &BTreeMap<String, JsonValue>,
     line_bytes: &[u8],
@@ -724,7 +1222,7 @@ fn artifact_from_object(
         target: metadata,
         profile_test,
         executable,
-        record_identity: identity(line_bytes),
+        record_identity: content_identity(line_bytes),
     }))
 }
 
@@ -814,18 +1312,13 @@ fn bounded_identity(
     Ok(value.to_owned())
 }
 
-fn identity(bytes: &[u8]) -> (u64, usize) {
-    let mut hash = 0xcbf29ce484222325u64;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    (hash, bytes.len())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::{ArtifactPathError as PathErrorKind, ArtifactPathField as PathSubject};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_TEMP_ROOT: AtomicU64 = AtomicU64::new(0);
 
     const PACKAGE: &str = "path+file:///fixture/source#yaxml@0.1.0";
     const SOURCE: &str = "/fixture/source/src/lib.rs";
@@ -869,6 +1362,811 @@ mod tests {
         select_artifact_record(jsonl, CargoBuildStatus::Success, &expected())
     }
 
+    struct ResolverFixture {
+        root: PathBuf,
+        source_root: PathBuf,
+        source: PathBuf,
+        target: PathBuf,
+        expected: ExpectedArtifact,
+    }
+
+    impl ResolverFixture {
+        fn new(label: &str) -> Self {
+            let requested_root = (0..8)
+                .find_map(|_| {
+                    let serial = NEXT_TEMP_ROOT.fetch_add(1, Ordering::Relaxed);
+                    let candidate = std::env::temp_dir().join(format!(
+                        "yaxml-artifact-resolver-{}-{serial}-{label} fixture space-é-😀",
+                        std::process::id()
+                    ));
+                    match fs::create_dir(&candidate) {
+                        Ok(()) => Some(candidate),
+                        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => None,
+                        Err(error) => panic!("failed to create resolver fixture: {error}"),
+                    }
+                })
+                .expect("resolver fixture names remained occupied");
+            let root = fs::canonicalize(&requested_root).unwrap();
+            let source_root = root.join("source tree");
+            let source_dir = source_root.join("src");
+            let source = source_dir.join("lib.rs");
+            let target = root.join("target output");
+            fs::create_dir_all(&source_dir).unwrap();
+            fs::create_dir(&target).unwrap();
+            fs::write(&source, b"pub fn fixture() {}\n").unwrap();
+
+            let expected = ExpectedArtifact {
+                package_id: PACKAGE.to_owned(),
+                target_name: "yaxml".to_owned(),
+                target_kind: vec!["lib".to_owned()],
+                crate_types: vec!["lib".to_owned()],
+                edition: "2024".to_owned(),
+                doc: true,
+                doctest: true,
+                test: true,
+                canonical_src_path: source.clone(),
+                canonical_target_dir: target.clone(),
+            };
+            Self {
+                root,
+                source_root,
+                source,
+                target,
+                expected,
+            }
+        }
+
+        fn record(&self, executable: impl AsRef<Path>) -> ArtifactRecord {
+            ArtifactRecord {
+                line: 7,
+                package_id: self.expected.package_id.clone(),
+                target: CargoTargetMetadata {
+                    kind: self.expected.target_kind.clone(),
+                    crate_types: self.expected.crate_types.clone(),
+                    name: self.expected.target_name.clone(),
+                    src_path: self.source.to_str().unwrap().to_owned(),
+                    edition: self.expected.edition.clone(),
+                    doc: self.expected.doc,
+                    doctest: self.expected.doctest,
+                    test: self.expected.test,
+                },
+                profile_test: true,
+                executable: executable.as_ref().to_str().unwrap().to_owned(),
+                record_identity: (0x1234, 91),
+            }
+        }
+    }
+
+    impl Drop for ResolverFixture {
+        fn drop(&mut self) {
+            assert!(
+                self.root.file_name().is_some_and(|name| name
+                    .to_string_lossy()
+                    .starts_with("yaxml-artifact-resolver-")),
+                "refusing to remove an unexpected test root"
+            );
+            match fs::symlink_metadata(&self.root) {
+                Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+                    fs::remove_dir_all(&self.root).unwrap();
+                }
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Ok(_) => panic!("refusing to remove a replaced resolver fixture root"),
+                Err(error) => panic!("failed to inspect resolver fixture: {error}"),
+            }
+        }
+    }
+
+    fn expected_path_error(field: ArtifactPathField, kind: ArtifactPathError) -> ArtifactError {
+        ArtifactError::Path { field, kind }
+    }
+
+    #[test]
+    fn resolves_regular_unicode_artifact_and_freezes_identity() {
+        let fixture = ResolverFixture::new("unicode-success");
+        let roots = establish_artifact_roots(&fixture.source_root, &fixture.target).unwrap();
+        assert_eq!(roots.canonical_source_root, fixture.source_root);
+        assert_eq!(roots.canonical_src_path, fixture.source);
+        assert_eq!(roots.canonical_target_dir, fixture.target);
+        let executable = fixture
+            .target
+            .join("debug output")
+            .join("café 😀")
+            .join("an arbitrary library test");
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        let bytes = b"fixture executable bytes";
+        fs::write(&executable, bytes).unwrap();
+
+        let selected =
+            resolve_selected_artifact(fixture.record(&executable), &fixture.expected).unwrap();
+
+        assert_eq!(selected.package_id, PACKAGE);
+        assert_eq!(selected.target.src_path, fixture.source.to_str().unwrap());
+        assert!(selected.profile_test);
+        assert_eq!(selected.reported_executable, executable.to_str().unwrap());
+        assert_eq!(selected.canonical_executable, executable);
+        assert_eq!(selected.artifact_line, 7);
+        assert_eq!(selected.artifact_record_identity, (0x1234, 91));
+        assert_eq!(selected.executable_identity, content_identity(bytes));
+        assert_eq!(selected.executable_stamp.len, bytes.len() as u64);
+
+        // This freezes path and content evidence at resolution time. A later portable Command
+        // launch still opens by path, so replacement-and-restoration around launch is racy.
+    }
+
+    #[test]
+    fn accepts_a_hard_link_inside_the_target_root() {
+        let fixture = ResolverFixture::new("hard-link");
+        let original = fixture.root.join("original executable");
+        let executable = fixture.target.join("hard-linked test");
+        fs::write(&original, b"same inode bytes").unwrap();
+        fs::hard_link(&original, &executable).unwrap();
+
+        let selected =
+            resolve_selected_artifact(fixture.record(&executable), &fixture.expected).unwrap();
+        assert_eq!(selected.canonical_executable, executable);
+        assert_eq!(
+            selected.executable_identity,
+            content_identity(b"same inode bytes")
+        );
+    }
+
+    #[test]
+    fn rejects_executable_lexical_policy_violations_before_lookup() {
+        let fixture = ResolverFixture::new("executable-lexical");
+        let sibling = fixture
+            .target
+            .parent()
+            .unwrap()
+            .join("target output-sibling")
+            .join("test");
+        let outside = fixture.root.join("outside").join("test");
+        let dot = format!("{}/./test", fixture.target.display());
+        let dotdot = format!("{}/nested/../test", fixture.target.display());
+        let control = format!("{}/bad\nname", fixture.target.display());
+
+        for (path, kind) in [
+            (String::new(), PathErrorKind::Empty),
+            ("relative/test".to_owned(), PathErrorKind::NotAbsolute),
+            (dot, PathErrorKind::DotComponent),
+            (dotdot, PathErrorKind::DotComponent),
+            (control, PathErrorKind::ControlCharacter),
+            (
+                outside.to_str().unwrap().to_owned(),
+                PathErrorKind::OutsideTargetDir,
+            ),
+            (
+                sibling.to_str().unwrap().to_owned(),
+                PathErrorKind::OutsideTargetDir,
+            ),
+            (
+                fixture.target.to_str().unwrap().to_owned(),
+                PathErrorKind::OutsideTargetDir,
+            ),
+        ] {
+            assert_eq!(
+                resolve_selected_artifact(fixture.record(Path::new(&path)), &fixture.expected),
+                Err(expected_path_error(PathSubject::Executable, kind)),
+                "path {path:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_sibling_string_prefix() {
+        let fixture = ResolverFixture::new("sibling-prefix");
+        let executable = fixture
+            .target
+            .parent()
+            .unwrap()
+            .join("target output-sibling/test");
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"outside").unwrap();
+        assert!(!path_starts_with(&executable, &fixture.target));
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(executable), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::OutsideTargetDir
+            ))
+        );
+    }
+
+    #[test]
+    fn rejects_target_root_as_executable() {
+        let fixture = ResolverFixture::new("target-as-executable");
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&fixture.target), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::OutsideTargetDir
+            ))
+        );
+    }
+
+    #[test]
+    fn rejects_lexical_dot_components_before_lookup() {
+        let fixture = ResolverFixture::new("dot-components");
+        for path in [
+            format!("{}/./missing", fixture.target.display()),
+            format!("{}/inside/../missing", fixture.target.display()),
+            format!("{}/../outside/missing", fixture.target.display()),
+        ] {
+            assert_eq!(
+                resolve_selected_artifact(fixture.record(Path::new(&path)), &fixture.expected),
+                Err(expected_path_error(
+                    PathSubject::Executable,
+                    PathErrorKind::DotComponent
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_missing_directory_and_nondirectory_executables() {
+        let fixture = ResolverFixture::new("executable-types");
+        let missing = fixture.target.join("missing");
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&missing), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Missing
+            ))
+        );
+
+        let directory = fixture.target.join("directory");
+        fs::create_dir(&directory).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&directory), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::NotRegularFile
+            ))
+        );
+
+        let regular_intermediate = fixture.target.join("regular intermediate");
+        fs::write(&regular_intermediate, b"file").unwrap();
+        assert_eq!(
+            resolve_selected_artifact(
+                fixture.record(regular_intermediate.join("child")),
+                &fixture.expected
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::NotDirectory
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_final_and_intermediate_executable_symlinks_before_canonicalizing() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("executable-symlinks");
+        let real_directory = fixture.target.join("real directory");
+        let real_executable = real_directory.join("real test");
+        fs::create_dir(&real_directory).unwrap();
+        fs::write(&real_executable, b"test").unwrap();
+
+        let final_link = fixture.target.join("final link");
+        symlink(&real_executable, &final_link).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&final_link), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink
+            ))
+        );
+
+        let directory_link = fixture.target.join("directory link");
+        symlink(&real_directory, &directory_link).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(
+                fixture.record(directory_link.join("real test")),
+                &fixture.expected
+            ),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_final_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("final-symlink");
+        let real = fixture.target.join("real");
+        let link = fixture.target.join("link");
+        fs::write(&real, b"test").unwrap();
+        symlink(&real, &link).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(link), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_intermediate_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("intermediate-symlink");
+        let real_dir = fixture.target.join("real-dir");
+        fs::create_dir(&real_dir).unwrap();
+        fs::write(real_dir.join("test"), b"test").unwrap();
+        let link_dir = fixture.target.join("link-dir");
+        symlink(&real_dir, &link_dir).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(link_dir.join("test")), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[test]
+    fn validates_the_trusted_target_directory() {
+        let fixture = ResolverFixture::new("target-root-policy");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"test").unwrap();
+
+        for (path, kind) in [
+            (PathBuf::from("relative-target"), PathErrorKind::NotAbsolute),
+            (
+                PathBuf::from(format!("{}/./", fixture.target.display())),
+                PathErrorKind::DotComponent,
+            ),
+            (fixture.root.join("missing-target"), PathErrorKind::Missing),
+            (fixture.source.clone(), PathErrorKind::NotDirectory),
+        ] {
+            let mut expected = fixture.expected.clone();
+            expected.canonical_target_dir = path;
+            assert_eq!(
+                resolve_selected_artifact(fixture.record(&executable), &expected),
+                Err(expected_path_error(PathSubject::TargetDir, kind))
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_or_aliased_trusted_target_directories() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("target-root-symlink");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"test").unwrap();
+
+        let target_link = fixture.root.join("target link");
+        symlink(&fixture.target, &target_link).unwrap();
+        let mut expected = fixture.expected.clone();
+        expected.canonical_target_dir = target_link;
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&executable), &expected),
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::Symlink
+            ))
+        );
+
+        let real_parent = fixture.root.join("real parent");
+        let aliased_target = real_parent.join("nested target");
+        fs::create_dir_all(&aliased_target).unwrap();
+        let parent_link = fixture.root.join("parent link");
+        symlink(&real_parent, &parent_link).unwrap();
+        let mut expected = fixture.expected.clone();
+        expected.canonical_target_dir = parent_link.join("nested target");
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&executable), &expected),
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[test]
+    fn validates_the_trusted_source_and_requires_exact_recorded_path() {
+        let fixture = ResolverFixture::new("source-policy");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"test").unwrap();
+
+        let mut record = fixture.record(&executable);
+        record.target.src_path = fixture
+            .root
+            .join("other/src/lib.rs")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(
+            resolve_selected_artifact(record, &fixture.expected),
+            Err(ArtifactError::TargetMetadata {
+                line: 7,
+                field: "target.src_path"
+            })
+        );
+
+        let mut record = fixture.record(&executable);
+        record.target.src_path = "relative/src/lib.rs".to_owned();
+        assert_eq!(
+            resolve_selected_artifact(record, &fixture.expected),
+            Err(ArtifactError::TargetMetadata {
+                line: 7,
+                field: "target.src_path"
+            })
+        );
+
+        let missing_root = fixture.root.join("missing-source-root");
+        fs::create_dir_all(missing_root.join("src")).unwrap();
+        let directory_root = fixture.root.join("directory-source-root");
+        fs::create_dir_all(directory_root.join("src/lib.rs")).unwrap();
+        for (source, kind) in [
+            (missing_root.join("src/lib.rs"), PathErrorKind::Missing),
+            (
+                directory_root.join("src/lib.rs"),
+                PathErrorKind::NotRegularFile,
+            ),
+        ] {
+            let mut expected = fixture.expected.clone();
+            expected.canonical_src_path = source;
+            assert_eq!(
+                resolve_selected_artifact(fixture.record(&executable), &expected),
+                Err(expected_path_error(PathSubject::SourceFile, kind))
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_or_aliased_trusted_sources() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("source-symlink");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"test").unwrap();
+
+        let link_root = fixture.root.join("linked source root");
+        fs::create_dir_all(link_root.join("src")).unwrap();
+        let source_link = link_root.join("src/lib.rs");
+        symlink(&fixture.source, &source_link).unwrap();
+        let mut expected = fixture.expected.clone();
+        expected.canonical_src_path = source_link;
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&executable), &expected),
+            Err(expected_path_error(
+                PathSubject::SourceFile,
+                PathErrorKind::Symlink
+            ))
+        );
+
+        let real_parent = fixture.root.join("other source");
+        fs::create_dir_all(real_parent.join("src")).unwrap();
+        fs::write(real_parent.join("src/lib.rs"), b"source").unwrap();
+        let parent_link = fixture.root.join("source parent link");
+        symlink(&real_parent, &parent_link).unwrap();
+        let mut expected = fixture.expected.clone();
+        expected.canonical_src_path = parent_link.join("src/lib.rs");
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&executable), &expected),
+            Err(expected_path_error(
+                PathSubject::SourceRoot,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_exact_source_replacement_and_recorded_source_alias() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("source-replacement");
+        let executable = fixture.target.join("test");
+        let replacement = fixture.root.join("replacement.rs");
+        fs::write(&executable, b"test").unwrap();
+        fs::write(&replacement, b"replacement").unwrap();
+
+        let alias = fixture.root.join("source alias.rs");
+        symlink(&fixture.source, &alias).unwrap();
+        let mut aliased_record = fixture.record(&executable);
+        aliased_record.target.src_path = alias.to_str().unwrap().to_owned();
+        assert_eq!(
+            resolve_selected_artifact(aliased_record, &fixture.expected),
+            Err(ArtifactError::TargetMetadata {
+                line: 7,
+                field: "target.src_path"
+            })
+        );
+
+        fs::remove_file(&fixture.source).unwrap();
+        symlink(&replacement, &fixture.source).unwrap();
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&executable), &fixture.expected),
+            Err(expected_path_error(
+                PathSubject::SourceFile,
+                PathErrorKind::Symlink
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_non_utf8_trusted_paths() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let fixture = ResolverFixture::new("non-utf8");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"test").unwrap();
+        let non_utf8 = OsString::from_vec(vec![b'b', b'a', b'd', 0xff]);
+
+        let mut target_expected = fixture.expected.clone();
+        target_expected.canonical_target_dir = fixture.target.join(&non_utf8);
+        assert_eq!(
+            resolve_selected_artifact(fixture.record(&executable), &target_expected),
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::NonUtf8
+            ))
+        );
+
+        assert_eq!(
+            establish_artifact_roots(&fixture.root.join(non_utf8), &fixture.target),
+            Err(expected_path_error(
+                PathSubject::SourceRoot,
+                PathErrorKind::NonUtf8
+            ))
+        );
+    }
+
+    #[test]
+    fn counts_path_bounds_in_decoded_utf8_bytes() {
+        let exact = format!("/{}a", "é".repeat((MAX_PATH_FIELD_BYTES - 2) / 2));
+        assert_eq!(exact.len(), MAX_PATH_FIELD_BYTES);
+        assert_eq!(
+            validate_lexical_path(Path::new(&exact), PathSubject::Executable),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn configured_root_lexical_errors_precede_filesystem_lookup() {
+        let fixture = ResolverFixture::new("root-lexical-precedence");
+        for (source_root, kind) in [
+            (PathBuf::from("relative-source"), PathErrorKind::NotAbsolute),
+            (
+                PathBuf::from(format!("{}/./missing", fixture.root.display())),
+                PathErrorKind::DotComponent,
+            ),
+            (
+                PathBuf::from(format!("{}/bad\nmissing", fixture.root.display())),
+                PathErrorKind::ControlCharacter,
+            ),
+        ] {
+            assert_eq!(
+                establish_artifact_roots(&source_root, &fixture.target),
+                Err(expected_path_error(PathSubject::SourceRoot, kind))
+            );
+        }
+
+        let bad_target = PathBuf::from(format!("{}/bad\ttarget", fixture.root.display()));
+        assert_eq!(
+            establish_artifact_roots(&fixture.source_root, &bad_target),
+            Err(expected_path_error(
+                PathSubject::TargetDir,
+                PathErrorKind::ControlCharacter
+            ))
+        );
+    }
+
+    #[test]
+    fn validates_source_root_and_derived_source_directory_in_order() {
+        let fixture = ResolverFixture::new("source-root-order");
+        let missing_root = fixture.root.join("missing-root");
+        assert_eq!(
+            establish_artifact_roots(&missing_root, &fixture.target),
+            Err(expected_path_error(
+                PathSubject::SourceRoot,
+                PathErrorKind::Missing
+            ))
+        );
+
+        let file_root = fixture.root.join("file-root");
+        fs::write(&file_root, b"file").unwrap();
+        assert_eq!(
+            establish_artifact_roots(&file_root, &fixture.target),
+            Err(expected_path_error(
+                PathSubject::SourceRoot,
+                PathErrorKind::NotDirectory
+            ))
+        );
+
+        let no_src_root = fixture.root.join("no-src-root");
+        fs::create_dir(&no_src_root).unwrap();
+        assert_eq!(
+            establish_artifact_roots(&no_src_root, &fixture.target),
+            Err(expected_path_error(
+                PathSubject::SourceDir,
+                PathErrorKind::Missing
+            ))
+        );
+    }
+
+    #[test]
+    fn shared_identity_primitives_match_existing_fixtures() {
+        use crate::file_identity::file_identity;
+
+        let fixture = ResolverFixture::new("shared-identity");
+        let executable = fixture.target.join("test");
+        let bytes = b"one shared fnv implementation";
+        fs::write(&executable, bytes).unwrap();
+        assert_eq!(file_identity(&executable).unwrap(), content_identity(bytes));
+        assert_eq!(crate::campaign::identity(bytes), content_identity(bytes));
+    }
+
+    #[test]
+    fn direct_target_behavior_is_unchanged() {
+        use crate::file_identity::{file_identity, file_stamp};
+
+        let fixture = ResolverFixture::new("direct-target-compatibility");
+        let direct = fixture.root.join("direct target");
+        fs::write(&direct, b"direct").unwrap();
+        assert_eq!(file_identity(&direct).unwrap(), content_identity(b"direct"));
+        assert_eq!(file_stamp(&direct).unwrap().len, 6);
+    }
+
+    #[test]
+    fn detects_post_capture_content_change() {
+        let fixture = ResolverFixture::new("identity-change");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"before").unwrap();
+        let record = fixture.record(&executable);
+
+        let result = resolve_selected_artifact_with(
+            record,
+            &fixture.expected,
+            |_| {},
+            |_| {},
+            |path| fs::write(path, b"a different length after hashing").unwrap(),
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedDuringResolution
+            ))
+        );
+    }
+
+    #[test]
+    fn detects_append_during_capture() {
+        use std::io::Write;
+
+        let fixture = ResolverFixture::new("append-during-capture");
+        let executable = fixture.target.join("test");
+        fs::write(&executable, b"before").unwrap();
+        let record = fixture.record(&executable);
+
+        let result = resolve_selected_artifact_with(
+            record,
+            &fixture.expected,
+            |_| {},
+            |path| {
+                fs::OpenOptions::new()
+                    .append(true)
+                    .open(path)
+                    .unwrap()
+                    .write_all(b" appended")
+                    .unwrap();
+            },
+            |_| {},
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedDuringResolution
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn hashes_the_inspected_handle_during_path_swap() {
+        let fixture = ResolverFixture::new("inspected-handle");
+        let executable = fixture.target.join("test");
+        let parked = fixture.target.join("parked");
+        fs::write(&executable, b"before").unwrap();
+        let parked_for_open = parked.clone();
+        let parked_for_hash = parked.clone();
+
+        let selected = resolve_selected_artifact_with(
+            fixture.record(&executable),
+            &fixture.expected,
+            move |path| {
+                fs::rename(path, parked_for_open).unwrap();
+                fs::write(path, b"change").unwrap();
+            },
+            move |path| {
+                fs::remove_file(path).unwrap();
+                fs::rename(parked_for_hash, path).unwrap();
+            },
+            |_| {},
+        )
+        .unwrap();
+        assert_eq!(selected.executable_identity, content_identity(b"before"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn detects_post_capture_symlink_replacement() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("identity-symlink-change");
+        let executable = fixture.target.join("test");
+        let replacement = fixture.root.join("replacement");
+        fs::write(&executable, b"before").unwrap();
+        fs::write(&replacement, b"replacement").unwrap();
+        let record = fixture.record(&executable);
+
+        let result = resolve_selected_artifact_with(
+            record,
+            &fixture.expected,
+            |_| {},
+            |_| {},
+            |path| {
+                fs::remove_file(path).unwrap();
+                symlink(&replacement, path).unwrap();
+            },
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedDuringResolution
+            ))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn detects_post_capture_intermediate_symlink_replacement() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = ResolverFixture::new("identity-intermediate-change");
+        let directory = fixture.target.join("directory");
+        let parked = fixture.target.join("parked directory");
+        let executable = directory.join("test");
+        fs::create_dir(&directory).unwrap();
+        fs::write(&executable, b"before").unwrap();
+
+        let result = resolve_selected_artifact_with(
+            fixture.record(&executable),
+            &fixture.expected,
+            |_| {},
+            |_| {},
+            |path| {
+                let parent = path.parent().unwrap();
+                fs::rename(parent, &parked).unwrap();
+                symlink(&parked, parent).unwrap();
+            },
+        );
+        assert_eq!(
+            result,
+            Err(expected_path_error(
+                PathSubject::Executable,
+                PathErrorKind::ChangedDuringResolution
+            ))
+        );
+    }
+
     #[test]
     fn selects_one_exact_artifact_and_preserves_spaces() {
         let input = stream(&[ARTIFACT, &FINISHED[..FINISHED.len() - 1]]);
@@ -879,7 +2177,10 @@ mod tests {
         assert_eq!(record.target.src_path, SOURCE);
         assert!(record.profile_test);
         assert_eq!(record.executable, EXECUTABLE);
-        assert_eq!(record.record_identity, identity(ARTIFACT.as_bytes()));
+        assert_eq!(
+            record.record_identity,
+            content_identity(ARTIFACT.as_bytes())
+        );
     }
 
     #[test]
