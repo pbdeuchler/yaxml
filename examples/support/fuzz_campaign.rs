@@ -1,6 +1,7 @@
 //! Pure campaign policy and coverage-summary logic.
 #![forbid(unsafe_code)]
 
+use crate::file_identity::content_identity;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::path::Path;
@@ -324,12 +325,7 @@ impl std::error::Error for CampaignError {}
 
 /// Stable accidental-corruption identity; this is not a cryptographic hash.
 pub fn identity(bytes: &[u8]) -> (u64, usize) {
-    let mut hash = 0xcbf29ce484222325u64;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    (hash, bytes.len())
+    content_identity(bytes)
 }
 
 pub fn source_names(

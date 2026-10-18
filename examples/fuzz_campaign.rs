@@ -6,6 +6,8 @@ mod campaign;
 #[cfg(test)]
 #[path = "support/cargo_artifact.rs"]
 mod cargo_artifact;
+#[path = "support/file_identity.rs"]
+mod file_identity;
 #[path = "support/process.rs"]
 mod process;
 #[cfg(test)]
@@ -13,6 +15,7 @@ mod process;
 mod protocol;
 
 use campaign::{CampaignError, Counts, Limits, MutationRecord, Prng, Summary};
+use file_identity::{FileStamp, file_identity, file_stamp};
 use process::ProcessLimits;
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -20,7 +23,9 @@ use std::ffi::OsString;
 use std::fs::{self, DirBuilder, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant, SystemTime};
+#[cfg(test)]
+use std::time::SystemTime;
+use std::time::{Duration, Instant};
 
 const PRODUCTION_SOURCE_PATHS: [&str; 15] = [
     "src/buffered.rs",
@@ -190,12 +195,6 @@ struct Seed {
     source: PathBuf,
     name: String,
     bytes: Vec<u8>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct FileStamp {
-    len: u64,
-    modified: SystemTime,
 }
 
 #[derive(Clone)]
@@ -1508,35 +1507,6 @@ fn llvm_version(output: &str, marker: &str) -> Option<String> {
             !component.is_empty() && component.bytes().all(|b| b.is_ascii_digit())
         }))
     .then_some(version)
-}
-
-fn file_identity(path: &Path) -> io::Result<(u64, usize)> {
-    let mut file = File::open(path)?;
-    let mut hash = 0xcbf29ce484222325u64;
-    let mut length = 0usize;
-    let mut buffer = [0u8; 64 * 1024];
-    loop {
-        let read = file.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        length = length
-            .checked_add(read)
-            .ok_or_else(|| io::Error::other("file length overflow"))?;
-        for byte in &buffer[..read] {
-            hash ^= u64::from(*byte);
-            hash = hash.wrapping_mul(0x100000001b3);
-        }
-    }
-    Ok((hash, length))
-}
-
-fn file_stamp(path: &Path) -> io::Result<FileStamp> {
-    let metadata = fs::metadata(path)?;
-    Ok(FileStamp {
-        len: metadata.len(),
-        modified: metadata.modified()?,
-    })
 }
 
 fn file_len_or_zero(path: &Path) -> io::Result<u64> {
