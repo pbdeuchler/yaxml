@@ -11,13 +11,17 @@
 //! YAXML_XSD_HELPER=target/xsd-helper YAXML_XSD_CASES=5000 \
 //!   cargo test --release --test xsd_random -- --ignored --nocapture
 //! ```
+//!
+//! With `YAXML_XSD_STREAM` set, libxml2 validates with
+//! `xmlSchemaValidateStream`; yaxml's stream validation always equals its
+//! tree validation here.
 
 use std::fmt::Write as _;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
 use yaxml::OwnedDocument;
-use yaxml::xsd::Schema;
+use yaxml::xsd::{self, Schema};
 
 /// xorshift64*.
 struct Rng(u64);
@@ -261,6 +265,11 @@ fn instance(rng: &mut Rng) -> String {
     out
 }
 
+fn project<Id>(diagnostics: &[xsd::Diagnostic<Id>]) -> Vec<(xsd::Code, Option<usize>, String)> {
+    let project = |d: &xsd::Diagnostic<Id>| (d.code, d.offset, d.message.clone());
+    diagnostics.iter().map(project).collect()
+}
+
 fn ours(schema: &str, instance: &str) -> String {
     match Schema::parse(schema.as_bytes(), "schema.xsd") {
         Err(error) => {
@@ -274,8 +283,10 @@ fn ours(schema: &str, instance: &str) -> String {
         }
         Ok(schema) => {
             let document = OwnedDocument::parse(instance).unwrap();
-            let codes: Vec<String> = schema
-                .validate(&document)
+            let diagnostics = schema.validate(&document);
+            let streamed = schema.validate_stream(instance.as_bytes(), Default::default());
+            assert_eq!(project(&diagnostics), project(&streamed.unwrap()));
+            let codes: Vec<String> = diagnostics
                 .iter()
                 .filter(|d| !d.code.is_warning())
                 .map(|d| (d.code as u16).to_string())
@@ -306,6 +317,8 @@ fn random_schemas_agree_with_libxml2() {
         .map(|_| (schema(&mut rng), instance(&mut rng)))
         .collect();
     let mut child = Command::new(helper)
+        // libxml2's stream validation agrees too: no IDs or ENTITY values here.
+        .args(std::env::var_os("YAXML_XSD_STREAM").map(|_| "stream"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
