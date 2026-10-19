@@ -1136,3 +1136,7 @@ impl<A: Allocator> OwnedDocument<A> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/internal/owned_edit.rs"]
+mod tests;

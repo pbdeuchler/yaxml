@@ -80,7 +80,8 @@ fn attribute_lookups_follow_get_prop_and_get_ns_prop() {
         "<r xmlns:p='urn:p' a='1' p:a='2' p:b='3'/>"
     );
     // (name, namespace selector, expected): `None` selector is xmlGetProp.
-    let cases: &[(&str, Option<Option<&str>>, Option<&str>)] = &[
+    type Case<'a> = (&'a str, Option<Option<&'a str>>, Option<&'a str>);
+    let cases: &[Case<'_>] = &[
         ("a", None, Some("1")),
         ("b", None, Some("3")),
         ("a", Some(None), Some("1")),
@@ -172,7 +173,8 @@ fn base_lang_and_space_inherit_with_libxml2_rules() {
         "<u xml:base='/abs/' xml:space='default'>x</u></r>"
     );
     // (index, base, lang, space)
-    let cases: &[(usize, Option<&str>, Option<&str>, Option<bool>)] = &[
+    type Case<'a> = (usize, Option<&'a str>, Option<&'a str>, Option<bool>);
+    let cases: &[Case<'_>] = &[
         (0, None, None, None),
         (2, Some("http://h/a/"), Some("en"), Some(true)),
         (3, Some("http://h/a/b/"), Some("en"), Some(true)),
@@ -953,7 +955,6 @@ fn merged_text_removes_the_moved_node() {
     let t = editor.append_text(r, "x").unwrap();
     let b = at(editor.document(), "/r/b");
     editor.insert_before(b, t).unwrap();
-    drop(editor);
     let error = document
         .edit(limits)
         .unwrap()
