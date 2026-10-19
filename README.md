@@ -4,7 +4,7 @@ A safe Rust XML processor pursuing libxml2 behavior, with `memchr` as its only
 dependency. This is an early implementation, not a libxml2 drop-in replacement.
 
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
-in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comments,
+in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
 value edits, leaf insertion and permanent subtree removal. DTDs and other
 encodings return structured errors.
@@ -12,7 +12,8 @@ encodings return structured errors.
 allocating: containers yield descendant Text/CDATA, and leaves yield their
 own payload. Callers can collect the chunks or stream them to a sink.
 `Reader` and `Document` borrow complete UTF-8 input.
-`OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE.
+`OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE,
+and decode a declared US-ASCII, ISO-8859-1..16 or windows-1252 document.
 `PushParser` consumes arbitrary byte chunks; `read_from` drives it from a
 caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain

@@ -17,7 +17,7 @@ callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 even
 writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
 rooted document creation, fresh element/leaf insertion, permanent subtree removal, an explicit `Read`
 adapter, and [XPath 1.0](xpath.md) evaluation over both DOMs. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
-also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
+also supports [UTF-16 and declared US-ASCII, ISO-8859-x and windows-1252](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
 full upstream reader/SAX/save option surfaces remain open.
 
@@ -57,6 +57,10 @@ can warn and continue. Namespace URI syntax is not validated: an exploratory
 accepts. That observation applies to both UTF-8 and UTF-16; it is not a pinned
 2.15.4 result. Encoding corpus fixtures use ASCII namespace URIs to isolate
 decoding, and this URI-validation gap remains part of the compatibility burndown.
+Single-byte decoding follows libxml2 built without iconv/ICU but with
+`LIBXML_ISO8859X_ENABLED`; the pinned oracle build disables ISO8859X, so it
+reports ISO-8859-2..16 as unsupported while yaxml decodes them. A UTF-8 BOM
+with a single-byte label is rejected where libxml2 warns and continues as UTF-8.
 
 ## Prioritized feature map
 

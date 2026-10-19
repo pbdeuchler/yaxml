@@ -236,7 +236,7 @@ fn encoded(source: &str, encoding: SourceEncoding) -> Vec<u8> {
         }))
         .flatten()
         .collect(),
-        SourceEncoding::Utf16 { bom: false, .. } => {
+        SourceEncoding::Utf16 { bom: false, .. } | SourceEncoding::Byte(_) => {
             panic!("transport fixture requires an unambiguous BOM")
         }
     }

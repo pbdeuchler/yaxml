@@ -18,6 +18,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/utf16le-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16be-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
+    include_bytes!("../fuzz/corpus/charset-alias.xml"),
+    include_bytes!("../fuzz/corpus/charset-unmapped.xml"),
     include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
     include_bytes!("../fuzz/corpus/serialize.xml"),
     include_bytes!("../fuzz/corpus/mutation-operations.bin"),
