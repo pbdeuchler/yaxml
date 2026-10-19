@@ -94,14 +94,15 @@ YAXML_LIBXML2_SOURCE=/path/to/libxml2-2.15.4 \
   cargo test --test html_oracle -- --nocapture
 ```
 
-The test compares the `xmllint --debug` tree and the serialization of 310
+The test compares the `xmllint --debug` tree, the serialization and the
+number of reported errors for 310
 snippets in `tests/support/html_corpus.rs` (structure, auto-close, end tags,
 references, raw text, comments, DOCTYPE, attributes, encodings, whitespace and
 html5lib-style tokenizer inputs) plus, with the source tree, libxml2's
 `test/HTML` documents and the data-state inputs of `test/html-tokenizer`:
 7043 inputs in five modes (default, `--format`, `--push`, `--noblanks`,
-`--nodefdtd`). At last run every input matched in every mode. The number of
-reported errors is compared too and printed, but not required to match.
+`--nodefdtd`). At last run all 7043 inputs matched in every mode, error
+counts included.
 
 ## Known differences
 

@@ -88,7 +88,7 @@ impl Tree {
                 name,
                 attributes,
                 end,
-            } => return self.start_tag(&name, &attributes, end),
+            } => return self.start_tag(&name, attributes, end),
             Token::EndTag(name) => self.end_tag(&name),
             Token::Comment(text) => self.comment(&text),
             Token::Doctype { doctype, first } => {
@@ -151,25 +151,6 @@ impl Tree {
             self.halt();
             return Ok(());
         }
-        // xmlSAX2HtmlAttribute: a valueless boolean attribute gets its name.
-        let defaulted: Vec<Attribute>;
-        let attributes = if attributes
-            .iter()
-            .any(|(name, value)| value.is_none() && tables::boolean_attribute(name))
-        {
-            defaulted = attributes
-                .iter()
-                .map(|(name, value)| {
-                    let value = value
-                        .clone()
-                        .or_else(|| tables::boolean_attribute(name).then(|| name.clone()));
-                    (name.clone(), value)
-                })
-                .collect();
-            &defaulted
-        } else {
-            attributes
-        };
         let parent = self.node();
         let id = self
             .builder
@@ -323,7 +304,7 @@ impl Tree {
     fn start_tag(
         &mut self,
         name: &str,
-        attributes: &[Attribute],
+        mut attributes: Vec<Attribute>,
         end: TagEnd,
     ) -> Result<Reaction, Error> {
         self.auto_close(name);
@@ -344,7 +325,13 @@ impl Tree {
             return Ok(self.reaction(Reaction::Continue));
         }
         if misplaced == 0 {
-            self.push(name, attributes)?;
+            // xmlSAX2HtmlAttribute: a valueless boolean attribute gets its name.
+            for (attribute, value) in &mut attributes {
+                if value.is_none() && tables::boolean_attribute(attribute) {
+                    *value = Some(attribute.clone());
+                }
+            }
+            self.push(name, &attributes)?;
         }
         // htmlParseElementInternal acts on the current element, which is the
         // previous one when the tag was discarded.

@@ -188,12 +188,11 @@ fn matches_xmllint() {
     let verbose = std::env::var_os("YAXML_HTML_VERBOSE").is_some();
     let mut failures = Vec::new();
     for mode in MODES {
-        let (mut matched, mut errors) = (0, 0);
+        let mut matched = 0;
         for (name, input) in &cases {
             let ours = ours(input, mode);
             let theirs = theirs(&program, input, mode);
-            errors += usize::from(ours.errors == theirs.errors);
-            if ours.tree == theirs.tree && ours.output == theirs.output {
+            if ours == theirs {
                 matched += 1;
                 continue;
             }
@@ -207,6 +206,9 @@ fn matches_xmllint() {
                 if ours.tree != theirs.tree {
                     eprintln!("ours tree:\n{}xmllint tree:\n{}", ours.tree, theirs.tree);
                 }
+                if ours.errors != theirs.errors {
+                    eprintln!("errors: ours {}, xmllint {}", ours.errors, theirs.errors);
+                }
                 if ours.output != theirs.output {
                     eprintln!(
                         "ours:    {:?}\nxmllint: {:?}",
@@ -217,7 +219,7 @@ fn matches_xmllint() {
             }
         }
         eprintln!(
-            "{}: {matched}/{} match xmllint; error counts agree on {errors}",
+            "{}: {matched}/{} match xmllint (tree, output, error count)",
             mode.name,
             cases.len()
         );
