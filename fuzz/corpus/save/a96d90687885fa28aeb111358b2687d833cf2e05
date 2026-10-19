@@ -1,6 +1,0 @@
-<!-- Deflcd Aues. -->
-<!DOCTYPE foo [
-<!ELEMENT foo EMPTY>
-<!ATTLIST foo a (one|two|three) "fouk">
-]>
-<[oo a="one"/>

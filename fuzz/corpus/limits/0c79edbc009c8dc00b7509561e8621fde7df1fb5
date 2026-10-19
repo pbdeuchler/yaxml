@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLIST e3 l:space (default|preserve) 'preserve'>
+<TLIST e3 i

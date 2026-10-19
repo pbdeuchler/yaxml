@@ -1,0 +1,4 @@
+<?xmler ndalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|s)*,d?,(e,f)+)>
+<!EMENTT r )

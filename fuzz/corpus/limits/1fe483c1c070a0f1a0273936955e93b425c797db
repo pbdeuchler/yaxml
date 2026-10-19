@@ -1,17 +1,0 @@
-<?x	m.																ar 0x<?xm<?xml version="1.0"?>
-<!DOCTYPE a:outer [
-
-<!ELEMENT a:outer (a:inner)>
-<!ATTLIST a:outer xmlns:a CDATA #FIXED 'urn:namespace'>
-
-<!ELEMENT a:inne'>
-<!ATTLIST a:inner attr C]>
-
-<a:outer pmlns:a="urn:r />
-</a:outerIST a:inner attr CDATA>
- " #FIXED 'yes'>
-]>
-
-<a:outer pmlns:a
-="urn:r />
-</a:outer>

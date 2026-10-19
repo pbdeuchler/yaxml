@@ -1,0 +1,5 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA 1"><p:c xmlns:p="uIATTL!ST r c CDAVAid='w'>&ls

@@ -2,10 +2,16 @@
 //! an XML document: bits 0-1 pick the mode, bit 2 keeps comments, bit 3
 //! selects a node-set with the expression chosen by bits 4-6, and bit 7 adds
 //! an InclusiveNamespaces prefix list.
+//!
+//! `c14n::write` must produce the same bytes, and a sink that fails after
+//! an input-derived byte count must surface an I/O error after writing a
+//! prefix. A document that is not XML is parsed as HTML and canonicalized.
+
+use std::io::{self, Write};
 
 use yaxml::c14n::{self, Mode, Options};
 use yaxml::xpath::{Context, Tree, XPath};
-use yaxml::{Document, OwnedDocument};
+use yaxml::{Document, OwnedDocument, html};
 
 const EXPRESSIONS: [&str; 8] = [
     "(//. | //@* | //namespace::*)[ancestor-or-self::*[2]]",
@@ -19,6 +25,64 @@ const EXPRESSIONS: [&str; 8] = [
 ];
 
 const PREFIXES: [&str; 3] = ["#default", "p", "xml"];
+
+/// Accepts `room` bytes, then fails every write.
+struct Failing {
+    written: Vec<u8>,
+    room: usize,
+}
+
+impl Write for Failing {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let length = bytes.len().min(self.room - self.written.len());
+        if length == 0 && !bytes.is_empty() {
+            return Err(io::Error::other("fuzz sink full"));
+        }
+        self.written.extend_from_slice(&bytes[..length]);
+        Ok(length)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Every error displays, and only I/O errors have a source.
+fn check_error(error: &c14n::Error) {
+    assert!(!error.to_string().is_empty());
+    assert_eq!(
+        std::error::Error::source(error).is_some(),
+        matches!(error, c14n::Error::Io(_))
+    );
+}
+
+/// `write` agrees with `to_string`, through a sink that may fail.
+fn written<T: Tree>(
+    tree: &T,
+    options: &Options<'_, T::Id>,
+    expected: &Result<String, c14n::Error>,
+    room: usize,
+) {
+    let mut sink = Failing {
+        written: Vec::new(),
+        room,
+    };
+    let result = c14n::write(tree, options, &mut sink);
+    match (expected, result) {
+        (Ok(expected), Ok(())) => assert_eq!(sink.written, expected.as_bytes()),
+        (Ok(expected), Err(c14n::Error::Io(_))) => {
+            assert!(expected.len() > room && expected.as_bytes().starts_with(&sink.written))
+        }
+        (Err(expected), Err(error)) => {
+            check_error(&error);
+            // The sink can fail before the canonicalization error.
+            if !matches!(error, c14n::Error::Io(_)) {
+                assert_eq!(expected.to_string(), error.to_string());
+            }
+        }
+        (expected, result) => panic!("write {result:?} differs from to_string {expected:?}"),
+    }
+}
 
 fn canonical<T: Tree>(tree: &T, root: T::Id, selector: u8) -> Option<Result<String, c14n::Error>> {
     let mode =
@@ -39,7 +103,13 @@ fn canonical<T: Tree>(tree: &T, root: T::Id, selector: u8) -> Option<Result<Stri
         inclusive_prefixes: if selector & 128 != 0 { &PREFIXES } else { &[] },
         ..Options::new(mode)
     };
-    Some(c14n::to_string(tree, &options))
+    let result = c14n::to_string(tree, &options);
+    if let Err(error) = &result {
+        check_error(error);
+    }
+    let room = usize::from(selector).wrapping_mul(97) % 12_000;
+    written(tree, &options, &result, room);
+    Some(result)
 }
 
 pub fn exercise(input: &[u8]) {
@@ -47,6 +117,10 @@ pub fn exercise(input: &[u8]) {
         return;
     };
     let Ok(owned) = OwnedDocument::parse_bytes(xml) else {
+        if let Ok(parsed) = html::parse(xml, html::Options::new(html::NOERROR)) {
+            let document = &parsed.document;
+            canonical(document, document.root().id(), selector);
+        }
         return;
     };
     let Some(result) = canonical(&owned, owned.root().id(), selector) else {

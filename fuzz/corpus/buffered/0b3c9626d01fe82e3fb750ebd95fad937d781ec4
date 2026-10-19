@@ -1,0 +1,12 @@
+<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE root SYSTEM "ibm68n06.dtd"
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+]>
+<root att="&aaa;">entity dexternally but standaloot (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+]>
+<root att="&aaa;"Âš‘‹–‹†ædext*ernally but staone is yes</root>

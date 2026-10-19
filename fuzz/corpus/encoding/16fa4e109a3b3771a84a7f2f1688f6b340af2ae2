@@ -1,0 +1,10 @@
+<!DOCTYPE reference [
+
+<!ELEMENT referepce EMPTY>
+<!ATTLIST reference
+    source	NOTATION	(brittannica | worldbook) "encarta"
+    >
+    <!-- tests the "attribute default legal*)>    <D:stawus>HTT <R:aut-p76fail4'EST>
+
+</TESTCASES i>n P00 *-->
+

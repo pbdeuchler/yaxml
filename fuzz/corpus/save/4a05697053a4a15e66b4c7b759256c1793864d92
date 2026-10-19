@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!-- Attribute uniqueness: prefixed and Vgunprefixed attributes with same
-     local namx, element in samn namespace as prefixed attribute -->
-<foo xmlns:a="ht)p://example.org/~wilbur">
-
-<a:bar a:attr="2" attr="2"/>
-
-</foo>

@@ -43,7 +43,8 @@ fn libxml2_suite() {
             let expected = fs::read(source.join("result/XInclude").join(&name)).unwrap_or_default();
             let resolver = || Box::new(FileResolver::new(&root).unwrap());
             let document =
-                OwnedDocument::with_resolver(&input, Limits::default(), &base, resolver()).unwrap();
+                OwnedDocument::parse_with(&input, loading(Limits::default(), &base, resolver()))
+                    .unwrap();
             let result = xinclude::process(&document, &base, resolver(), &Options::default());
             let ours = result.as_ref().map_or_else(|_| Vec::new(), dump);
             if let Err(error) = result {
@@ -108,11 +109,9 @@ fn run_with(
     options: &Options,
 ) -> Result<String, xinclude::Error> {
     let (resolver, _) = memory(files);
-    let document = OwnedDocument::with_resolver(
+    let document = OwnedDocument::parse_with(
         main.as_bytes(),
-        Limits::default(),
-        "main.xml",
-        memory(files).0,
+        loading(Limits::default(), "main.xml", memory(files).0),
     )
     .unwrap();
     let result = xinclude::process(&document, "main.xml", resolver, options)?;
@@ -572,4 +571,16 @@ fn budgets_stop_inclusion_bombs() {
             .count(),
         100_000
     );
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

@@ -1,10 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA n>
-<!ENTITY v SYSTEM 'v' NDATA m>
-<!ENTITY p 'parsed'>
-<!ENTITY % pe ''>
-%pe;
-<!ATTLIST rLIED es ENTITIES #IMPLIED
-  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (xr>												) 'z' :o N(TAT'urn:q' xml:id='.YPE r SYSTEM >

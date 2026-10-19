@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN" "http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd">
-<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
-<public public																																																															Id=S//IO-"AS//DTD DocBook XMLoesheet.xml"/>
-<rewriteSystem systemIdStartString="http://www.oasis-open.org/<?xml version=" uriStartString="http://www.oasis-open.org/"
-                catdocab

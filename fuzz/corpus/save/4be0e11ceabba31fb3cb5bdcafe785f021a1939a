@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<?Pi?><!ELEMENT doc EMPTY>
-<?Pi?><!--comment-->
-<!ATTLIST doc atT CDATA #IMPLIED>
-<?Pi?><!--comment-->
-<!ENTITY % ent "">
-<?Pi?><!--commencomment-->
-]>
-<doc/>T

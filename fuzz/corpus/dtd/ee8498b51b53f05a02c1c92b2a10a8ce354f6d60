@@ -1,0 +1,1 @@
+;<!DOCTYPE r [<!ENTITY a SYSTEM 'd/0'>]><r>&a;</r>

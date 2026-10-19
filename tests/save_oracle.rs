@@ -130,7 +130,7 @@ fn parse(input: &[u8], path: &Path, root: &Path) -> Option<OwnedDocument> {
     let base = path.strip_prefix(root).ok()?.to_string_lossy().into_owned();
     let resolver = Box::new(FileResolver::new(root).ok()?);
     let remote = input.windows(7).any(|window| window == b"http://");
-    match OwnedDocument::with_resolver(input, Limits::default(), &base, resolver) {
+    match OwnedDocument::parse_with(input, loading(Limits::default(), &base, resolver)) {
         // `--nonet` leaves remote DTDs unread.
         Err(error) if remote && error.kind == ErrorKind::ExternalResource => {
             OwnedDocument::parse_bytes(input).ok()
@@ -370,4 +370,16 @@ fn kept_references_match_xmllint_default() {
         "default parse: {matched}/{compared} identical to xmllint ({references} keep references)"
     );
     assert!(compared > 0 && matched > 0);
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

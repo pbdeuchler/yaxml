@@ -62,6 +62,16 @@ pub fn exercise(input: &[u8]) {
     ) else {
         return;
     };
+    let separate = match dtd {
+        Some(text) => Dtd::parse(text).ok(),
+        None => borrowed.dtd().cloned(),
+    };
+    compare(&borrowed, &owned, separate.as_ref());
+}
+
+/// Validates both DOMs of one document by its own DTD and by `separate`:
+/// identical projected diagnostics, determinism and `is_valid` bookkeeping.
+pub(super) fn compare(borrowed: &Document<'_>, owned: &OwnedDocument, separate: Option<&Dtd>) {
     let ranks: HashMap<_, _> = borrowed
         .nodes()
         .enumerate()
@@ -90,14 +100,11 @@ pub fn exercise(input: &[u8]) {
         "both DOMs report the same diagnostics"
     );
 
-    let separate = match dtd {
-        Some(text) => Dtd::parse(text).ok(),
-        None => borrowed.dtd().cloned(),
-    };
     if let Some(dtd) = separate {
-        let diagnostics = valid::validate(&borrowed, &dtd);
+        assert!(dtd.name().is_none_or(|name| !name.is_empty()));
+        let diagnostics = valid::validate(borrowed, dtd);
         check(&diagnostics, offset);
-        let owned_diagnostics = valid::validate(&owned, &dtd);
+        let owned_diagnostics = valid::validate(owned, dtd);
         check(&owned_diagnostics, owned_offset);
         assert_eq!(
             project(diagnostics, &ranks),

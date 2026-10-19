@@ -1,9 +1,0 @@
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summary (RSS) 0.91 o- must be "0.91"> --><!ELEMENT channel (title | description | link 
-| language | item+ | rating? | image? | textinput? | copyright? | 
-pubD? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
-skipHours? | skipDays?)*>
-<!ELEMENT title (#PCDATA)
-<!-- capital I, acu>

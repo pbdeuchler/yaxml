@@ -1,6 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|c)*,dCDATA)>
-<!ELEMENT e (a|a)>
-<!ELEMENT f ((a?,bH)*,c)>
-<!ELEME

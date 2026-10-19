@@ -26,19 +26,19 @@ fn run(surface: &str, input: &[u8], limits: Limits) -> Result<usize, Error> {
     let base = "doc.xml";
     match surface {
         "reader" => {
-            let mut reader = Reader::with_limits(input, limits)?.with_resolver(base, resolver());
+            let mut reader = Reader::with_options(input, loading(limits, base, resolver()))?;
             let mut events = 0;
             while reader.read_event()?.is_some() {
                 events += 1;
             }
             Ok(events)
         }
-        "document" => Document::with_resolver(input, limits, base, resolver())
+        "document" => Document::parse_with(input, loading(limits, base, resolver()))
             .map(|document| document.nodes().len()),
-        "owned" => OwnedDocument::with_resolver(input, limits, base, resolver())
+        "owned" => OwnedDocument::parse_with(input, loading(limits, base, resolver()))
             .map(|document| document.nodes().len()),
         "push" => {
-            let mut parser = PushParser::with_limits(limits).with_resolver(base, resolver());
+            let mut parser = PushParser::with_options(loading(limits, base, resolver())).unwrap();
             let mut events = 0;
             let mut count = |_: yaxml::Event<'_>, _| {
                 events += 1;
@@ -53,7 +53,7 @@ fn run(surface: &str, input: &[u8], limits: Limits) -> Result<usize, Error> {
         _ => {
             let source = BufReader::with_capacity(5, Cursor::new(input));
             let mut reader =
-                BufferedReader::with_limits(source, limits).with_resolver(base, resolver());
+                BufferedReader::with_options(source, loading(limits, base, resolver())).unwrap();
             let mut events = 0;
             loop {
                 match reader.read_event() {
@@ -260,4 +260,16 @@ fn amplification_scales_with_consumed_input_above_the_floor() {
         kind(&input(1), limits(0)),
         Some(ErrorKind::LimitExceeded(Limit::EntityExpansion))
     );
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

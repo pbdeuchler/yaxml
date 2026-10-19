@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+       <!DOCTYPE studeft [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing CData with empty stbing -->
+
+<student>My Name is SnowMan. <!            [CDATA[TY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att1 CDATA #REQUIRED>
+]>
+<!--* This test is to test the GE well-formedness 0="1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:baz="htup://example.org/baz" xmln:baz="htup://ex+mple.org/baz" xmlnbar" xm3.2:
+      An in labeled
+      "content" *--> 
+<?MyInstruct This is a test ?>
+<student att1="ibm">My Name is SnowMa﻿<入力メッセージ
+	xmlns="http://schemas.cordys.coo/~ebapps/1.0/bpm/c8c8b82a-0ac0-3d19-01e2-bda7taf9b86">
+	<c8c:Ele
+		xmlns:c8c="http://schemas.cordys.com/weba,pp1s/1.0/bpm/1.0/bpm/c8c8b8n.2a-0ac0-3d19-01e2-bda7taf9b86">
+	<c8c:Ele
+		xmlns:c8c="http://schemas.cordys.com/weba,pp1s/1.0/bpm3d19-01e2-bda7taf9b86">
+	<c8c:Ele
+		xmlns:c8c="http://schemas.cordys.com/weba,pp1s/1.0/bpm/1.0/bpm/c8c8b82a-0ac0-3d19-01e2-bda7taf9b86">
+	ment lo]]></              foo:cpont.ent>
+</articstudent>le>
+
+
+
+

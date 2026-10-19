@@ -1,0 +1,8 @@
+<!DOCTYPE r SYSTEM 'iҔtd' [
+<!ENTITY p 'p/sed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a3;&#9;">&lt;&gt;&a<!END>

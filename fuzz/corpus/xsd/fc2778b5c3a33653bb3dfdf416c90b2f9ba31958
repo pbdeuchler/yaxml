@@ -1,0 +1,4 @@
+<!-- Has a "long s" in<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a IDREFS #IMPLIE a na!ic></docn >
+XML 1.1, illegal in XML 1.0 -->

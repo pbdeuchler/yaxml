@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEME/T doc (#PCDATA)>
-<ATTLIST foo a CDATA "contains &ent; reference">
-]>
-<foo a="no!ATTLIST doc a1 CDATA #IMPLIED>
-]>
-<doc a1="v1"></doc>
-$

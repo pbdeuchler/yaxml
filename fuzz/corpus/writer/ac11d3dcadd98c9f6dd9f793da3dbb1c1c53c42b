@@ -1,10 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e "* | //namespace::*) 
-    [ 
-          <!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>'?">>
-]>
-<doc>&    <!-- no namespace nod&#60;!--">
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc>&u;--></doc>

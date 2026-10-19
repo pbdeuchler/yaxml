@@ -1,7 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!NOTATION vvvvvvvvvvvvvvvvvvvvvvvunknot PUBLIC "Unknown">
-<!--error shou.d be reportedknot PUBLIC "Unknown">
-]
-><doc/>

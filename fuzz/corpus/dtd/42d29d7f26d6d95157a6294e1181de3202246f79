@@ -1,0 +1,13 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need:a="namespaced"><p:n xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirt} bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><rmn xls="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="name'><r>&urn:q">C<![C""/><?empty?><!-a- comp,ete comment l-he problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbagew to trigger the problem</p>
+   <p> WEof garbage now to trigger the trigger the problem</p>
+   <ent>&test1;</ent>
+</doc>
+

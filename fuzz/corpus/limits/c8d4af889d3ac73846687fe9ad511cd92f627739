@@ -1,13 +1,0 @@
-<?xm. vepsio>
-<!DOCTYPE stu- BadName n="1.sioUTF-8"?>
-<!DOCTYPE root [
-  <!ATTLIST foo xml:lang CDATA "eng">
-  <!ATTLIST foo bar CDATA "&lt;&gt;&quot;">
-]>
-<root>
-  <foo xml:lang="ger"n="1.0" encoding="UTF-8"?>
-<!DOCTYPE root [
-  <!ATTLIST foo stu- BadName containing char ment---comment--<?< pi?>
-<!DOTYEPC dco
-[
-student>

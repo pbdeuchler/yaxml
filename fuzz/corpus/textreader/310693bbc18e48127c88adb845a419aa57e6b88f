@@ -1,0 +1,11 @@
+>
+<!DOCTYPE  somedoc [
+  <!ENTITY a   "someth,<!DOCTYPing">
+  <!ENTITY b   "&a;">
+]>
+
+<somedoc>
+
+<somebeacon someattribute="&b;"/>
+
+&nE doc SYSTEM "dtds/pe-vdoc>

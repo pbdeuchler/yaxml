@@ -930,8 +930,11 @@ fn catalog_resolver_maps_requests_for_parsers() {
     ]);
     let resolver = CatalogResolver::new(catalog, inner);
     let input = b"<!DOCTYPE r PUBLIC '-//E//DTD R//EN' 'http://e/r.dtd'><r>&u;&o;</r>";
-    let document =
-        Document::with_resolver(input, Default::default(), "doc.xml", Box::new(resolver)).unwrap();
+    let document = Document::parse_with(
+        input,
+        loading(Default::default(), "doc.xml", Box::new(resolver)),
+    )
+    .unwrap();
     assert_eq!(
         document.root_element().text_chunks().collect::<String>(),
         "mapped+plain"
@@ -945,4 +948,16 @@ fn catalog_resolver_maps_requests_for_parsers() {
             (ResourceKind::GeneralEntity, "http://e/other.ent".to_owned()),
         ]
     );
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

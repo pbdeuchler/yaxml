@@ -1,0 +1,45 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+&  <defs>
+    <symbol id="Trian    <use href="#Triangle1"/>
+    <use href="#Triangle2"/>
+    ar0 ANY>
+<!ELEMENT LegalNameChar·<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//Interncharacters in URIs by the parser, and can't be
+     reasonably testedrs in URIs by the parser, and can'Grocery Coasonably testedrs in URIs by the parser, and can't be
+     reasonably tested ionsortium//Edible//Yucky//EN">
+<!NOTATION candy
+    PUBLIC "-//!I Grocery Consortium//Edible//Healthy//EN">
+<!NOTATibutes" VC BLIC r, and can't be
+     reasonably tested ionsortiumype=""/>
+
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 Ar⿯/>
+	<LegalNameChar、/>
+	<LegalNameChar。/>
+	<LegalNameChar퟾/>
+	<LegalNameChar퟿/>
+	<LegalNameChar豈/>
+	<LegalNameChar更/>
+	<LegalNameChar�/>
+	<LegalNameChar-/>
+	<LegalNameChar./>
+	<LegalNameCharA/>
+	<LegalNameCharz/>
+	<LegalNameChar0/>
+	<LegalNameChar·/>
+	<LegalNameChar̀/>
+	<LegalNameChaŕ/>
+	<LegalNameCharͮ/>
+	<LegalNameCharͯ/>
+	<LegalNameChar‿/>
+	<LegalNameChar⁀/>
+</LegalNameChar>

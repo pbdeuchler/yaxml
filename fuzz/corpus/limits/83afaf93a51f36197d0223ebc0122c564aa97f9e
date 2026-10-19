@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root ANY>
-  <!--* test all possible Mixed content type decl *-->
-  <!ELEMENT a (#PCDATeA)* ></root>
-<!--* a valid test: tests P51 *-->

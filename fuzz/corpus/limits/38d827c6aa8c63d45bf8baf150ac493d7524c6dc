@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE a:outer [
-
-<!ELEMENT a:outer (a:inner)>
-<!ATTLIST a:outer xmlns:a CDATA #FIXED 'u2rn:namespaAe'>
-
-<!ELEMENT a:innes EMPTY>
-<!ATTLIST a:inner xmlns1:a CDATA #FIXED 'urn:namespace'r>

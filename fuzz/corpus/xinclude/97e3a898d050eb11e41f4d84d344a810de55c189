@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+
+]>
+<r i='a'>>>>>>>>>>>>>>>>>>\>>>>or˙˙˙˙˙˙˙˙˙˙˙˙˙˙î˙˙˙˙ċ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙ext fversion='1.0' encoding='ISO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENity test: plain repetition
+</TEST>
+<TEST RECOMMENDATION="NS0.0" SECTIONS="1" URI="010.xml" ID="rmt-ns10-010" TYPE="not-wf">
+Namespace equality test: use of character reference
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URI="011.xmlxml" Iĵ¾"rmt-ns10-015" TYPE="not-wf">
+Bad QName syntax: colon at start
+</TEST>
+-<TEST RECOMMENDATION="NS1.0" SECTIONS="2" URI="016.xml" ID="rmt-ns10-016" TYPE="not-wf">
+Bad QName syntax: xmlns:
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="-" URI=">
+      <e2 xmlns="">
+         <e1 codndalone="no"?><!--before--><?p?><r xmlns:p="urFn;p" xmlns:q="urn:unused" a="q:T&#9;&#1ÍÄŬÁĜÁÁ¸x&#13;<p:c/>.0" ena="q:T˙˙˙˙&˙

@@ -1,9 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student first CDATA #REQUIRED
-			  last  CDATA #IMPLIED>
-]>
-
-<!-- testing chardata with a string of sample legal char except '<' and '&'e_starts_with_digit EMPTY>
-]>"]]>" -->
-<student first="Snow" last="Man">This is a test</student>

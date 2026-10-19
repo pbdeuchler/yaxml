@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-<!ENTITY bomboom8 SYSTEM "8bomboom.xml">
-]>
-<root>&bommake_small "<!ELEMENT!ENTmITY % make_leopard_element 
-   %make_attlist;
-   

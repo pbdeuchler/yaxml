@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-<!ENTITY int "&#x42;">
-<!ELEMENT root (a)>
-<!ELEMENT a EMPTY>
-]>
-<!-- Invalid because NEL and LSEP are n1ot allowed as whitespace. -->
-<root>&int;    <a/>
-</root>
-

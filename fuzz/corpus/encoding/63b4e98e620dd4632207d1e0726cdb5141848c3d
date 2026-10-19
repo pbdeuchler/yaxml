@@ -1,10 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e1 "&e2;" e1 "&e2;">	
-<!eNTITY e4 "&e3;"?
-<!ITY e1 "&e2;">	
-<>	
-<!eNTITY e4 "&e3;"?
-<!ITY e1 "&e2;">	
-<!eNTITY e4 "&e3;">ENTITYLEMENT x (#PCDATA)>
-    <!Edoc>
-

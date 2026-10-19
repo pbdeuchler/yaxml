@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-    <!ELEMENT root EMPTY>
-
-    <!-- illegal public ID c "../valid/dtdtest.dtd">
-<root>
-    <once-orisn&apos;t allowed" "ignored">
-]>
-
-<root/>

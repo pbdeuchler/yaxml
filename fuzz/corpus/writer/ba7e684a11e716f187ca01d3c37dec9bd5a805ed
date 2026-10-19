@@ -1,8 +1,0 @@
-<do666666666ÿÿÿ666666666>&lt;!ATTLIST doc a66CDATA &quot;v1&quod;&#10;<!DOCTYPE doc
-[
-<!ELEMENT doc <d/(#PCDATA)>
-<!ENTITY ent "replacement text">
-]>
-<doc>
-&ent
-</dococ>>

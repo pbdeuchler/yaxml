@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST stdAuTTLIST student
-		first CDATA #REQUIRED
-		middle CDATA #IMPLIED
-		last CDATA #IMPLIED > 
-	<!ENTITY myfirst "Snow">an. </student>

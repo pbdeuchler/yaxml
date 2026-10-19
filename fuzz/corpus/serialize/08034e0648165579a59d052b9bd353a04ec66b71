@@ -1,57 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root SYSTEM "ibm50i01.dtd" [
-  <!ELEMENT root (a,b)>
-]>
-<root><a/><b>
-   <c></c >
-   content of b e!lement
-</b></root>
-<!--alid test: tests VC:Pro//www.ietf.org/standards/dav/" xmlns:R="http://www.foo.bar/boxschema/">
-  <D:response>
-    <D:href>http://www.foo.bar/container/</D:href>
-    <D:prop>
-      <R:bigbox/>
-      <R:author/>
-    </D:prop>
-    <D:status>HTTP 1.1:response>
-  <D:response>
-    <D:href>http://www
- *<?xml version="1.0"?>
-<!DOCTYPE root SYSTEM "ibm50i01.dtd" [
-  <!ELEMENT root (a,b)>
-]>
-<root><a/><b>
-   <c></c >
-   content of b e!lement
-</b></root>ti
-<!--* a invalid test: tests VC:Pro//www.ietf.org/standards/dav/" xmlns:R="http://www.foo.bar/boxschema/">
-  <D:response>
-    <D:href>http://www.foo.bar/container/</D:href>
-    <D:prop>
-  =    <R:bigbox/>
-      <R:author/>
-    </D:prop>
- <!--* a invalid test: tests VC:Pro//www.ietf.org/standards/dav/" xmlns:R="http://www.foo.bar/boxschema/">
-  <D:response>
-    <D:href>http://www.?oo.bar/container/</D:href>
-    <D:prop>
-  =    <R:bigbox/>
-      <R:author/>
-    </D:prop>
-    <D:status>HTTP 1.1:response>
-  <D:response>
-    <D:href>http://www.foo.bar/cong
- in P00 *-->tainer/index.html</D:href>
-    <D:prop>
-per 
-Group/PE Nestingversion="1.0"?>
-%!DOCT><a/><b>
-   <c></c >
-   content of b e!lement
-</b></root>
-<!--* a invalid test: tests VC:Pro//www.ietf.org/standards/dav/" xmlns:R="http://www.foo.bar/boxschema/">
-  <D:response>
-    <D:href>http://www.foo.bar/container/</D:href>
-    <D:prop>
-  =    <R:bigbox/>
-      <R:aut>

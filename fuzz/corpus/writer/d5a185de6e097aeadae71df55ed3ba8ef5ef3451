@@ -1,11 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE studgnt [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST studunt first CDATA #REQUIRED
-			  last  CDATA #IMPLIED>
-]>
-IED>
-]>
-
-<!-- testinwith white space -->
-<student first="Epic

@@ -1,5 +1,0 @@
-<!DOCTYPE 								X																																																							doc [
-<!ELEMENT doc (#PCD+ATA)>
-<!ATTLIST doc a NMTOKENS# #iMPLIED>
-]>
-<doc a="&#31;x&#32;&#32;y&#32;"></doc>

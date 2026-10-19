@@ -1,5 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
-<!ELEMENT h ANY>
-<!ENTITY u SYSTEM 'u' NDATA n>
-<!ENTITY v SYSTEM 'v' NDATA 
-!<m>ENTITY p !NOTATION n S

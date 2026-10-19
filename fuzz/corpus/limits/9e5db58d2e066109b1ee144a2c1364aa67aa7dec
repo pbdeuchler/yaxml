@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+<!NOTATION bar SYSTEM 'file:/dev/tty'>
+<!NOTATION foo PUBLIC 'A//po' 'flile:/dev/null'>
+<!NOTATION nfoo PUBLIC 'A//po' 'flile:/dev/null'>
+<!NOTATION nonce SYSTEM 'file:/dev/null'>
+]>
+troot>&#09;    <child>&#10;    Tge whitespaonce SYSTEM 'file:/dev/null'>
+]>
+troot>&#09;    <child>&#10;    Tge whitespace beE doc ![
+<ELE&#10;</root>

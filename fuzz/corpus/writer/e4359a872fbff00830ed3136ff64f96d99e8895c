@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-<!ATTLIST root entatt1 ENTITY #REQUIRED >
-
-<!--* Test PublicID in P82 case: test P82 and P83 -->

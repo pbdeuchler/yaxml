@@ -104,10 +104,6 @@ impl StreamingSession {
     pub(crate) fn event_origin(&self) -> Option<SourceOrigin> {
         self.origin
     }
-    /// Adds `DTDLOAD | DTDATTR | NOENT`, as the `with_resolver` conveniences do.
-    pub(crate) fn enable_loading(&mut self) {
-        self.options.flags = self.options.flags.loading();
-    }
     pub(crate) fn set_resolver(&mut self, base: &str, resolver: Box<dyn crate::Resolver>) {
         let loader = crate::resolve::Loader::new(base, resolver, &self.limits);
         self.loader = Some(loader.with_flags(self.options.flags));

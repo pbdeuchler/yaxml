@@ -1,0 +1,14 @@
+<!-- CDATA sections may occur in Mixed content. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (#PCDATA|foo)*>
+]>
+<foo>a OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO<![CDATA[cdata ENT foo (#PCDATA|foo)*>
+]>
+<foo>a OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO<![CDATA[cdata sectioncontent. -->
+<!<!DOCTYPE doc]CYSTEM "dt"/>技技技技技技技技技技c>
+    <ch>idxettl</child>
+銬Oent</foosectioncontent. -->
+<!<!DOCTYPE doc]CYSTEM "dt"/>技技技技技技技技技技c>
+    <ch>idxettl</child>
+銬Oent</foo</doc>
+>

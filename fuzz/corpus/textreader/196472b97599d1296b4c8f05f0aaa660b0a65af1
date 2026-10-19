@@ -1,0 +1,10 @@
+–<?xml version='1.0'?>
+<!DOCTYPE test [
+<!ELEMENT test (#PCDATA) >
+<!ENTITY % xx '&#37;zzc;'>
+<!ENTITY % zz 'Ã¡ 147</Ulice"/vswap/run/result.eml">
+  >' >
+%xx;
+]>
+<teednavka.dtd">
+<objed>

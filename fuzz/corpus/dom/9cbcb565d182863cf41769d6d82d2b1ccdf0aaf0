@@ -1,5 +1,0 @@
-<!DOCTYPE root [
-<!NOTlATION UTF-8 SYSTEM ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''UTF-8'>
-<!NOTATION gif SYSTEM 'gif'>
-]>
-<root>&#10;  <a aattr1="a1">eml Eent type a </a>&#10;  <b battr1="anyvalue" battr2="good" battr3="b1"> Element type b </b>&#10;  <c c_reent/j>&#10;</root>

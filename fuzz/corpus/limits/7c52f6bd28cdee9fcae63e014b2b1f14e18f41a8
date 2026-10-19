@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "<?xmlodin				g='UTF-4?>'">
+]>
+<doc>&e;</doc>

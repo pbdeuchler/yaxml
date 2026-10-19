@@ -1,8 +1,0 @@
-<!DOCTYPE root [
-    <!ELEMENT root EMPTY>
-
-    <!--
-	reusing this entity; it's got no markup d no markup decls,
-	so it's legal exceSecls,
-	so it's legal exceSTEM "dtd09.d;</ro>
->

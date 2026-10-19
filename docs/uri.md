@@ -29,7 +29,8 @@ path, and requires byte-identical results: 0 mismatches at last run.
   after a scheme is `empty_authority`, but `///x` as a relative reference is not.
 - An empty userinfo (`http://@/`) is unescaped with length 0, i.e. as the whole
   remaining string.
-- Hosts are saved without escaping; `query` is saved as written.
+- Hosts are saved without escaping (a bracketed host such as `[é]` keeps any
+  byte, so raw output is not always ASCII); `query` is saved as written.
 - A reference without a scheme against a base without `://` is a filesystem
   path (unescaped, normalized, fragment kept verbatim).
 

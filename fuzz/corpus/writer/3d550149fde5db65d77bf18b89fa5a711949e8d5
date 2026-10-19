@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-   <!ELEMENT student (#PCDATA)   >
-<!EYuIN TTnref SYSTEM ''>
-]>
-
-<!-- testing systemliteral with nothing between the single quotes --y Name is SnowMan. </student>

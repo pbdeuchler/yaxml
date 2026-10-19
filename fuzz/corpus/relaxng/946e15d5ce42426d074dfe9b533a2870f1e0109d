@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'rsed'>
+<!ENTITY % pe ''>
+%pe;
+
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!˙÷˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙' t='1 2' -

@@ -1,8 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT romt (#PCDATA)>
-]>
-<root>
-Test all valid new Charater refe
-&#xE615;&#xFEF0;&#xFFFD;
-&#x10000;&#x5FEDC;&#x10FFFF;
--->

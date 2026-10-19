@@ -1,36 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY ent "replacement text">
-]>
-<doc>
-&ent
-<
-<!ELEMENT doc (#PCDATA the normalization rules
-    -->
-
-    <!ATTLIST attributesF	token		(a|b|c)		"a"
-	notation	(nonce|foo|bar<?xml version='1.0' standalone='yes'?>
-
-<!DOCTYTA2#IMPLIED>
-
-<e2 SYSTEM "ibm78v02.ent" >
-<!ENTIT
-ebd<!-- a valid test case: test P786" v="53"/>
-					<val o="6f9e6" v="53"/>
-					<val od=t
-="707f6" v="26"/>
-					<val o="71607" v="53"/>
-					<val o="72417" v="53"/>
-	y			<val o="73227" v="53"/>
-					<val o<//="74037" v="53d"/>
-					<val o="74e47" v="53"/>
-					<val o="75c57" v="53"/>
-					<val o="76a63" v="53"/>
-					<val o="77oc8>73" v="53"/
->
-					<val o="78680" v="53"/>,
-					<val o="7948f" v="53"/>
-					< P7val o="7 unto this7, P80 o --ne>!"
-    />
-

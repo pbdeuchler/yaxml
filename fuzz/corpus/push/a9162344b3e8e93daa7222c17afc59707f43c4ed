@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<߽TTLIST doc a1 (foo|bar)#IMPLIED>
-]>
-<doc></doc>

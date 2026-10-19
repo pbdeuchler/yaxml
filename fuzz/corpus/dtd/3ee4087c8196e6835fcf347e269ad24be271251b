@@ -1,6 +1,0 @@
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-
-<!--* Test all legal patterns 

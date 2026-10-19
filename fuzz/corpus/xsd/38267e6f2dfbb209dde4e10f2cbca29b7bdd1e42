@@ -1,0 +1,10 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!--*  reference *-->
+<!ENTITY aaa "&bbb;">
+<!ENTITY bbb "&aaa;">
+]>
+<root>&aaa;<
+

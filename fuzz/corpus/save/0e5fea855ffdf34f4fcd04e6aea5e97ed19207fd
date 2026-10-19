@@ -1,7 +1,0 @@
-<!DOCTYPE root 
-[
-<!ELEMENT root EMPTY>
-<!ATTLIST rED>
-<!ENTITY aaa "wrong charater reference: &#002f;">
-]>
-<root/>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, pÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿg
+  metadata about websites, and enaLars Mariut be "0.91"> --><!ELEMENT channel (title | description | link 
+| lanyguage | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| language | item+ | ratiÿÿÿvvvvvvvipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT description (á¯CDATA)>
+<!ELEMENT link (#PCDATA)>
+<!ELEMENT image (title | url | link | DATA)>
+<!ELEMEA)>
+<&#162;">
+<!-- cent sigitle>PP</title>
+</channel>
+</rss>

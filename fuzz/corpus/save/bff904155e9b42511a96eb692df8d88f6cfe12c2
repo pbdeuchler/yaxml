@@ -1,4 +1,0 @@
-<!DOCTYPE c
-[<!ELEMENT doc EMPTY>
-<!ATTLIST doc att IDS #IMPLIED>
-/>

@@ -1,5 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!NOTATION one SYSTEM "filen/awk">
-<!ATTLIST foo bar NOTATION (one|one) #IMPLIED>
-]>oo bar>

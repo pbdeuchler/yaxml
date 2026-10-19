@@ -1,8 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ATTLIST r i ID #IMPLIED es ENTITIES #IMPLIED
-  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (8|y|x) 'z' o NOTATION (n|o) #IMPLIED
-  c CDATA #FIXED 'c' q CDATA #REQUIRED c CDATA 'again'>
-]>
-<r i='a'' e='p' es='u ;<r i='a' q=''/></r>

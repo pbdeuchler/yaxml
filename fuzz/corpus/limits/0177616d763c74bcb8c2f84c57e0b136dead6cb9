@@ -1,0 +1,5 @@
+<!DOCTYPE loc
+[
+<!ELEMENT doc (a|b|c|d|e|f|gD)
+>>]*>
+<doc/>

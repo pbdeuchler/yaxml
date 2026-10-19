@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc ANY>
+]>
+<doc>This is a vali ANY>
+]>
+<doc>This is a valid document !</doc> !</doc>
+

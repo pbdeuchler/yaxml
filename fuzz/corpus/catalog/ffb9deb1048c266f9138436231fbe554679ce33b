@@ -1,0 +1,15 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (title | description | link 
+| language | item+ | ratopyri | link 
+| language | item+ | ratihWng? | image? | textinput? | copyright? | 
+pbuc1Date? | tlasBuildDate? | docs? | managingEnk 
+| language | item+ | ratopyri | link 
+| language | item+ | ratihWng? | image? | textinput? | copyright? | 
+pbuc0Date? | tlasBuildDate? | docs? | mpubDaMe? | nastBte? | docs? | managingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

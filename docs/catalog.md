@@ -12,7 +12,7 @@ use yaxml::FileResolver;
 let files = FileResolver::new("catalogs")?;
 let catalog = Catalog::load("catalog.xml", Limits::default(), Box::new(files.clone()))?;
 let resolver = CatalogResolver::new(catalog, Box::new(files));
-// Pass `Box::new(resolver)` to any `with_resolver` constructor.
+// Pass `Box::new(resolver)` to `ParseOptions::with_resolver`.
 ```
 
 - `Catalog::parse(bytes, limits, url, resolver)` / `Catalog::load(url, limits,

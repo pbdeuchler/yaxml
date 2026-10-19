@@ -1,5 +1,0 @@
-<!DOCTYPE doPTY>
-	<!ATTLIST norm attr NMTOKEN6S #IMPLIorm attr = 'foo	 	bar	'/>
-	<norm attr = ' foo &#x10;bar'/>
-</	 	bar	'/>
-	<no

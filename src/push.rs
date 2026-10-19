@@ -1,6 +1,6 @@
 use std::ops::{ControlFlow, Range};
 
-use crate::options::{CONVENIENCE, Flags};
+use crate::options::Flags;
 use crate::parser::Budget;
 use crate::stream::dtd::StreamingSession;
 use crate::{
@@ -46,7 +46,7 @@ impl PushParser {
 
     /// Parses UTF-8 or UTF-16 with independent source and decoded ceilings.
     pub fn with_decode_limits(limits: Limits, decode_limits: DecodeLimits) -> Self {
-        let options = ParseOptions::new(CONVENIENCE).with_limits(limits);
+        let options = ParseOptions::default().with_limits(limits);
         Self::with_options(options.with_decode_limits(decode_limits))
             .expect("convenience flags are supported")
     }
@@ -77,15 +77,6 @@ impl PushParser {
             failure: None,
             finished: false,
         }
-    }
-
-    /// Loads the external subset and external parsed entities through
-    /// `resolver`, adding `DTDLOAD | DTDATTR | NOENT` to the options; `base` is the
-    /// document's URI or path for relative system IDs.
-    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn crate::Resolver>) -> Self {
-        self.session.enable_loading();
-        self.session.set_resolver(base, resolver);
-        self
     }
 
     pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {

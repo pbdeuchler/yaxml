@@ -1,12 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc att (0|35a|A|-a<?xml ver|:a|a:|.|_a) #IMPLIED><!Dsion='1.0' encoding='UTF-8'?>
-<ÖOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY rsnode/><Önodeqb "]">
-]>
-<doc/><Önode/>&
-]>
-<doc/>rsqb;</dok>
->

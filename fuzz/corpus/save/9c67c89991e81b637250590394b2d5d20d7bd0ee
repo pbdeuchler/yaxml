@@ -1,6 +1,0 @@
-<?xml version="1.04"?>
-<!DOCTYPE root [
-  <!ELEMENT root (PCDATA|B)* >
-  <!ELEMENT b (#PCDATA) >
-  <!ATTLIST b attr2 (abc|def) "abc">
-  <!ATTLIS3 CDATA #FP41 -->

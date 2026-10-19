@@ -1,0 +1,13 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-c14n11spec2-102
+fixup is performed.
+-->
+<!DOCTYPE doc [
+  <!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+  <!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf0C66-౦_0C6F-౯_0c6೦ng/else">
+   d="E3" xml:base="foo"/>
+        </e2>
+     </e1>
+</doc>

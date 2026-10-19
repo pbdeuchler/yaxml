@@ -1,0 +1,24 @@
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!--
+	NMTOKENn eeds normalization
+    -->
+]>
+
+<attributes
+    token =	"b"
+    nmtoken =	" this-gets-normallegal character ranges plus
+     discrete legal characters for production 02 of the 
+     XML1.1 specifiDOCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e a1 CDATA #IMPLIED a2 CDATA #IMPLIED a3 CDATA #IMPLIED>
+]>
+<doc>
+<e a1="v1" a2="v2" a3="v3"/>
+<e a1="w1" a2="v2"/>
+<e a1="v1" a2="w2" a3="v3"/>
+</doc>cation. -->
+<?NAME_09-	_0A-
+_0D-
+_20- _D7FF-퟿_6c0f-氏_E000-_FFFD-�_effe-_010000-𐀀_10FFFF-􏿿_08ffff-򏿿 This is a PI target  "
+    />

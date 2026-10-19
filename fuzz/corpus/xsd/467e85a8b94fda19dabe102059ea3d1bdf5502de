@@ -1,0 +1,4 @@
+<!DOCTYPE x [
+<!ELEMENT x (test*)>
+<!ELEMENT test EMPTY
+    x><tt.ex>

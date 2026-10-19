@@ -1,0 +1,8 @@
+Z<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http:/14n-20010315">
+  <!ENTITY xpath "http://www.w3.org/TR/1999/REC-xpath-19991116">
+  <!ENTITY xslt "http://www.w3.org/TR/1999/REC-xslt-19991116">
+  <!ATTLIST Notaries Id ID #IMPLIED>
+]>
+<Object Id="object-1" MimeType="text/plain">I am the text.</Object>

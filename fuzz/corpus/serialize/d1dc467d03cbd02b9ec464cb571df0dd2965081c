@@ -1,9 +1,0 @@
-<?xml version='1.0' standalone='yes'?>
-
-<!DOCTYPE attributes SYSTEM "../valids/tda.d" [
-    <!ENTITY internal " number99">
-]>
-
-  * <!-- <?xsync with ../valid/not-sa02.xml -->
-
-    ml<

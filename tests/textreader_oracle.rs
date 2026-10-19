@@ -163,7 +163,11 @@ fn cases_match_the_reader_helper() {
         assert!(output.status.success(), "helper failed on {case:?}");
         let oracle = String::from_utf8(output.stdout).unwrap();
         let base = path.to_str().unwrap();
-        let ours = describe(TextReader::new(case.as_bytes()).with_base_uri(base));
+        let options = yaxml::ParseOptions {
+            base: Some(base.to_owned()),
+            ..Default::default()
+        };
+        let ours = describe(TextReader::with_options(case.as_bytes(), options).unwrap());
         if !agree(&oracle, &ours) {
             mismatches.push(format!("{case:?}\n--- libxml2\n{oracle}--- yaxml\n{ours}"));
         }

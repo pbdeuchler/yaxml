@@ -1,0 +1,15 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-c14n11spec2-102
+
+Check that correct xml:base fixup is performed.
+-->
+<!DOCTYPE doc [
+  <!ATTLIST h2 xml:space (default|preserve) 'preserve'>
+  <!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="httpCE6-೦_0Cttp://www.w3.org" xml:base="something/else">
+     <e1>d="abc" xml:base="bar/">
+           <e1 id="E3" xml:base="foo"/>
+        </e2>
+     </e1>
+</doc>

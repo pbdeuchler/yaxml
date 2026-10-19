@@ -1,20 +1,0 @@
-<?xml version="1.0"?>
-<xsd:schema xmlns:xsd="http://www.w3.org/200/FOO" 
-	xmlns:foo="http://FOO"
-	>
-	
-	<element name="foo">
-		<complexType>
-			<sequence>
-				<element name="bar.A" type="foo:type.A" />
-				<element name="bar.B" type="foo:type.B" />
-				<element name="bar.C" type="foo:type.C" />
-			</sequence>
-		</complexType>    
-	="barmplexType>    
-
-	<complexType name="type.B">
-		<complexContent>
-			<restriction base="foo:base.type.B">				  	  			
-				<anyAttribute namespace="##any" processContents="skip" /Occurs="0">
- oc><a/><b/><a/></doc>

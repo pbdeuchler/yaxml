@@ -1,0 +1,1 @@
+j<r xmlns:a='http://a/' xml:base='http://h/a/b/..'><s xml:base='c/.' xml:lang='x' xml:space='preserve'><t xml:base='..'><u xml:base='d' xmlns='http://d/'><v xml:base='%zz:[bad'/><w/></u></t></s><!--c--><?p d?></r>

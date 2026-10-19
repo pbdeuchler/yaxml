@@ -1,9 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc ANY>
-<!ELEMENT a (doc)>
-<!ELEMENT b ((a,b))>
-<!ELEMENT d (doc*)>
-<!ELEMENT e (doc+)>
-<!ELEMENT f (dd1oc?)>
-<!ELEMENMMMM((!,b)*)>

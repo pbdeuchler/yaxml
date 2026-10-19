@@ -1,5 +1,0 @@
-<?xml version="1.1" encoding="iso-8859-1"?>
-<!-- Convains a DEL, le1.0, illegal in XML 1.1 -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-]>sion="1./foo>

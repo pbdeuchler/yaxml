@@ -1,0 +1,1 @@
+/descendant::* | /descendant-or-self::node() | //b/parent::* |İĞĞ/child::text() | //a/att:Ë

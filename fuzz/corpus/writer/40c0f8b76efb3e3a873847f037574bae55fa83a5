@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersand (&#38;#38;) may be esnumerically (&#38;#38;#38;-->
+<!---->
+<doc/>c val (v0 | v p;amp;).</p>" >
+]>
+<test>&example;</test>

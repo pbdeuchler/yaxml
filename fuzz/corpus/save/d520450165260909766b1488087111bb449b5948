@@ -1,1 +1,0 @@
-<test>&#10;<id1 UniqueName="AC456"></id1>&#10;<id2 UName="BC567"></id2>&#10;<idrefs reference="AC456 #567"></idrefs>REFS.&#10;In an attribute decl, values of type IDREFS does not match the name production&#10;</test>

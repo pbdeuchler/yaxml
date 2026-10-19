@@ -1,9 +1,0 @@
-<!-- Has Ÿâ"long s" in a name, legal in XML 1<?xml version="1.0" encoding="UTF-8"?>
-<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:1.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTypes:1.0:0.70" xmlns="urn:oasis:namec:ts:ubl:Invoice:1.0:0.70">
-   <cat:ReferencedOrder>
-      <cat:SellersOrderID schemeID="pvalue->ReferencedOrder.SellersOrderID.schemeID" schemeAgencyID="pvalucedOrder.SellersOrderID.schemeAgencyID" schemeVersionID="pvalue->Refe.1, illegal in XML rencedOrder.SellersOrderID.schemeVersionID" scheme																																																					Ig																																																																						IgencySchemeID="pvalue->ReferenceeOrder.SellersOrderID.schemeAgencySchemeID" schemeAgencySchemeAgencyID="pvalue->Referenced2.0Order.SellersOrderID.schemeAgencySchemeAgencyID" schemeDataURI="pvalue->ReferencedOrder.SellersOrderID.schemeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderID.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue->ReferencedOrder.SellersOrderID.UIDRef" UIDRefs="pvalue-&gt;ReferencedOrder.SellersOrderID.UIDRefs -->
-<eggÅ0" language="pvalu¿/>
-
-e->ReferencedOrder.SellersOrderID.language">pvalue-&gt;Ralue-&gt;ReferencedOrder.SellersOrderID</cat:SellersOrderID>
-   </cat:ReferencedOrder>
-</Invoice>

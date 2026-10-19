@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc><![CDATA[<fc (#PCDATA)>
+]>
+<oo>]]></doc>

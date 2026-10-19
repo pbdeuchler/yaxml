@@ -1,5 +1,0 @@
-<!-- Default valu references to external entities. -->
-<!DOCTYPE foo [
-<!ENTITY CDATA "contains +ent; reference">
-]>
-<foo a="not defaulted"/>

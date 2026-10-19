@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]><!-- Has a Byzanti illegal in XML 1.0 -->
-<𝀲/>

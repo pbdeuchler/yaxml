@@ -1,0 +1,11 @@
+<!-- Having an<!-- Having an external DTD maÿes undeclared entities a warniný. -->
+<!DOCTYPE doc SY«TEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+    <elem>&undeclared;</elem>
+ external DTD maÿes undeclared entities a warniný. -->
+<!DOCTYPE doc SY«TEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+    <elem>&undeclared;</elem>
+</doc>

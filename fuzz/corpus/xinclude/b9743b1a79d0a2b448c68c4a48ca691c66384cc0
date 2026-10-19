@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+
+]>
+<r i='a'>>>>>>>>>>>>>>>>>>\>>>>or˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙"0.0" encodndalone="no"?><!--before--><?p?><r xmlns:p="urFn:p" xmlns:q="urn:unused" a="q:T&#9;&#13;">x&#13;<p:c/>.0" ena="q:T&#9;&#13;">x&#13;<?xdl version="1.0" encodndalone="no"?><!--before->>>>>>>>>>>>>{>>>>>>>>>>>>>>on="2.0" en<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w6.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns=doc xmlns:foo="http://www.bar.org" xml:base="http://www.exampl~e.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w6.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="httr://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www1w3.org" a:foo="bar">
+               <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+           </e8>
+       </e7>
+   </e6>
+</doc>
+"" c=oding="8>>>>>/////////////////////r i='a'>>>//////////////////////////
+<r i='a'>>>˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙İ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙e-->="><!--inside--><?t rNOTATION˙˙˙˙˙˙˙M s:p="u;Fn:" yencoding="uTf-8" stan˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙÷˙˙˙˙˙˙˙˙˙˙˙for˙˙êêêêêêêêêêêê˙˙˙˙˙˙˙˙˙˙˙˙˙˙///////////
+<r i='a'>>>"http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+  test="../baz" xmlns:a="httr://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www1w3.org" a:foo="bar">
+               <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+           </e8>
+            <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.%or?xmloivnre s="1   <e8 xmlns="" xmlns:aüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü="http://www1w3.org" a:foo="bar">
+               <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+           </e8>
+            <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.%or?xmloivnre s="1       </e7>
+   </e6>
+<.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/bAz" xmlns:mple.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    p://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/#foo"exam.poelrg/foo" xml:lan#IMPLIE
+D>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org3;">'>>>x&#13;<p:c/>.0" ena="q:T˙˙˙˙&˙

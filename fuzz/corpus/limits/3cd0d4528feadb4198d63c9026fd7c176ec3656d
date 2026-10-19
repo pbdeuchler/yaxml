@@ -1,1 +1,0 @@
-<root>&#10;    <mixed1>&lt;allowed&gt;</mixed1>&#10;&#10;    <mixed2>also</mixed2>&#10;    <mixed2>&lt;% illegal otherwise %&gt;</mixed2>&#10;&#10;    <mialso</mixed2>&#   <mixed3>moreover <empty></empty> </mixed3>&#10;    <mixed3>moreover <empty></empty> </mixed3>&#10;    <mixed3><empty></empty> </mixed3>&#10;    <mixed3><empty></empty> too</mixed3>&#10;&#10;</root>

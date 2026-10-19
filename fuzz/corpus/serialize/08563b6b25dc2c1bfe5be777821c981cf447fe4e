@@ -1,71 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	(fruit | vegetable)	#REQUIRED
-    >
-<!NOTATION fruit
-    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
-<!NOTATION vegetable
-    PUBLIC "-//Internatiocery 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Consortium/+Edible//Yucky//EN">
-<!NOTATION candy
-    PUBLIC "-//International Grocery Consortium//@dible//Yummy//EN">
-
-    <!-- tests the 'must match one of the names incl xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.orgn' part of the "Notation Attributes" VC -->
-]>
-<root type="candy"/>
-

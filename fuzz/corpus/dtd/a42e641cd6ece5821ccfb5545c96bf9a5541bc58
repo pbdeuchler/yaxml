@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root (
-<!--* Missing white space after 'ATTLIST' *-->
-<!ATTLISTa attr1 ID #REQUIRED >
-]>
-<root>Any content</root>

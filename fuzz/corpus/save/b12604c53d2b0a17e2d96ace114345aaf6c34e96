@@ -1,13 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	(fruit | vegetable)	#REQUIRED
-    >
-<!NOTATION fruit
-    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
-<!NOTATION vegetab PUBLIC "-//Internatiocery Con/Yummy//EN">
-
-    <!-- tests the 'must match one of the names incl xmlns="http://wibutes" VC -->
-]>
-<root type="candy"/>
-

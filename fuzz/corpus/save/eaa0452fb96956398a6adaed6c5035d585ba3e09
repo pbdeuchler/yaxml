@@ -1,17 +1,0 @@
-<?xml version='1.0' standalone='yes'?>
-
-<!DOCTYPE attributes [
-    <!ELEMENT attributes EMPTY>
-
-    <!--
-	1.9 gives validity constraintation.
-
-	3.3.3 describes the normalization rules
-    -->
-
-    <!ATTLIST attributes
-	to                             NMTOKENS #IMPLIED                                      >
-<!ELEMENT doc (#PCDATA)>      
-                            
-]>
-<doc a1=" 1  	2 	"><     <!DO    CTYPE 

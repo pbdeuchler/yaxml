@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST 
-<root>&epe1;&epe2;&ecase: test P78,  test P78, P77, P80 -->

@@ -1,11 +1,15 @@
 //! RELAX NG schemas and instances. A testcase is NUL-separated: the schema
 //! (`d/main.rng`), the instance, then files served as `d/0`..`d/9` to
 //! `include` and `externalRef`. A schema piece that is not markup is wrapped
-//! as the content of `<element name="r">`.
+//! as the content of `<element name="r">`. The resolver fails with an I/O
+//! error for `d/err`. A rebuild under small limits derived from the schema
+//! bytes either fails or validates exactly as the full build, unless its
+//! validation runs out of work; `Schema::from_tree` over the borrowed DOM
+//! reports the same build errors as `Schema::parse`.
 
 use std::sync::{Arc, Mutex};
 
-use yaxml::relaxng::{Code, Diagnostic, Limits, Schema};
+use yaxml::relaxng::{Code, Diagnostic, Limits, Schema, SchemaCode, SchemaErrors};
 use yaxml::{Document, OwnedDocument, Request, Resolver};
 
 const NAMES: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -23,12 +27,30 @@ fn limits(max_work: usize) -> Limits {
     limits
 }
 
+/// Small load, byte, depth and work ceilings chosen by the schema bytes.
+fn tight(schema: &[u8]) -> Limits {
+    let hash = schema.iter().fold(0u32, |hash, &byte| {
+        hash.wrapping_mul(31).wrapping_add(byte.into())
+    });
+    let mut limits = Limits {
+        max_work: 1 + (hash & 1023) as usize * 8,
+        max_include_depth: (hash >> 10 & 3) as usize,
+        ..Limits::default()
+    };
+    limits.xml.max_external_loads = (hash >> 12 & 3) as usize;
+    limits.xml.max_external_bytes = (hash >> 14 & 511) as usize;
+    limits
+}
+
 fn resolver(resources: &[&[u8]], log: &Arc<Mutex<usize>>) -> Box<dyn Resolver> {
     let resources: Vec<Vec<u8>> = resources.iter().map(|piece| piece.to_vec()).collect();
     let log = log.clone();
     Box::new(move |request: Request<'_>| {
         *log.lock().unwrap() += 1;
         let name = request.uri.strip_prefix("d/").unwrap_or("");
+        if name == "err" {
+            return Err(std::io::Error::other("fuzz resolver failure"));
+        }
         Ok((NAMES.iter().position(|candidate| *candidate == name))
             .and_then(|index| resources.get(index).cloned()))
     })
@@ -41,19 +63,29 @@ fn summary<I>(diagnostics: &[Diagnostic<I>]) -> Vec<(Code, Option<usize>, String
         .collect()
 }
 
-fn parse(schema: &[u8], resources: &[&[u8]], max_work: usize) -> Option<Schema> {
+fn build(schema: &[u8], resources: &[&[u8]], limits: &Limits) -> Result<Schema, SchemaErrors> {
     let log = Arc::new(Mutex::new(0));
-    let parsed = Schema::parse(
-        schema,
-        "d/main.rng",
-        resolver(resources, &log),
-        &limits(max_work),
+    let parsed = Schema::parse(schema, "d/main.rng", resolver(resources, &log), limits);
+    assert!(
+        *log.lock().unwrap() <= limits.xml.max_external_loads,
+        "load budget ignored"
     );
-    assert!(*log.lock().unwrap() <= MAX_LOADS, "load budget ignored");
     if let Err(errors) = &parsed {
         assert!(!errors.0.is_empty() && !errors.to_string().is_empty());
     }
-    parsed.ok()
+    parsed
+}
+
+fn parse(schema: &[u8], resources: &[&[u8]], max_work: usize) -> Option<Schema> {
+    build(schema, resources, &limits(max_work)).ok()
+}
+
+/// Error codes, or None for a schema.
+fn codes(result: &Result<Schema, SchemaErrors>) -> Option<Vec<SchemaCode>> {
+    result
+        .as_ref()
+        .err()
+        .map(|errors| errors.0.iter().map(|error| error.code).collect())
 }
 
 pub fn exercise(input: &[u8]) {
@@ -74,7 +106,21 @@ pub fn exercise(input: &[u8]) {
             &wrapped
         }
     };
-    let Some(compiled) = parse(schema, &resources, MAX_WORK) else {
+    let full = build(schema, &resources, &limits(MAX_WORK));
+    // Schema::parse reads schema documents with entities substituted.
+    let legacy = yaxml::ParseOptions::new(yaxml::options::LEGACY).with_limits(limits(MAX_WORK).xml);
+    if let Ok(tree) = Document::parse_with(schema, legacy) {
+        let log = Arc::new(Mutex::new(0));
+        let built = Schema::from_tree(
+            &tree,
+            "d/main.rng",
+            resolver(&resources, &log),
+            &limits(MAX_WORK),
+        );
+        assert_eq!(codes(&built), codes(&full), "from_tree differs from parse");
+    }
+    let small = build(schema, &resources, &tight(schema));
+    let Ok(compiled) = full else {
         return;
     };
     // Building is deterministic.
@@ -103,6 +149,12 @@ pub fn exercise(input: &[u8]) {
             diagnostic.offset,
             node.and_then(|n| n.range()).map(|r| r.start)
         );
+    }
+    if let Ok(small) = &small {
+        let diagnostics = summary(&small.validate(&document));
+        if diagnostics.iter().all(|(code, ..)| *code != Code::Internal) {
+            assert_eq!(found, diagnostics, "small limits changed the verdict");
+        }
     }
     let internal = found
         .iter()

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TESTSUITE SYSTEM "../testcases.dtd" [
+
+    <!ENTITY eduni-errata2e	SYSTEM "errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "e">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENTITY eduni>
+] >
+<TESTSUITE PROFILE="W3C Conformance Test Suite, EdinES xml:base="namespaces/1.0/">
+    &eduni-ns10;
+</TESTCASES>
+<TESTCASES xml:base="nam "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-n10s.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY`eduni-errata3e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENTITY edunase="namesTEM "namespaces/errata-1e/eES xml:base="n+mespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

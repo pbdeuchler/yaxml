@@ -19,7 +19,9 @@
 //! };
 //! let resolver = CatalogResolver::new(catalog, Box::new(dtd));
 //! let input = b"<!DOCTYPE r PUBLIC '-//EX//DTD R//EN' 'http://example.com/r.dtd'><r>&e;</r>";
-//! let document = yaxml::Document::with_resolver(input, Default::default(), "doc.xml", Box::new(resolver))?;
+//! use yaxml::options::{DTDLOAD, NOENT};
+//! let options = yaxml::ParseOptions::new(DTDLOAD | NOENT).with_resolver("doc.xml", Box::new(resolver));
+//! let document = yaxml::Document::parse_with(input, options)?;
 //! assert_eq!(document.root_element().text_chunks().collect::<String>(), "mapped");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -757,7 +759,7 @@ fn sgml_literal(text: &[u8]) -> Option<(String, &[u8])> {
         Some(quote) => rest.strip_prefix(&[quote])?,
         None => rest.first().is_some_and(blank).then_some(rest)?,
     };
-    Some((String::from_utf8(value.to_vec()).ok()?, rest))
+    Some((value.iter().copied().map(char::from).collect(), rest))
 }
 
 /// `xmlParseSGMLCatalog`, loading `CATALOG` entries as `xmlExpandCatalog`

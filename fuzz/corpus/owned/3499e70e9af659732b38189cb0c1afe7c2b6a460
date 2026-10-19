@@ -1,8 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!NOTATION unk"nop.ent" NDATA unknot>
-<!ENTITY g
-  >
-]>
-<doc/>

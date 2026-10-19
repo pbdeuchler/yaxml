@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY lt     "&#x26;̜݇;"> 
-<!ENTITY gt     "&#x26;#x3E;޹ 
-<!6;"> 
-]>
-<doc/>
-<!DOCTYPE foo [
-<!ENTITY f "some internal data">
-<!ENTITY e "foo>

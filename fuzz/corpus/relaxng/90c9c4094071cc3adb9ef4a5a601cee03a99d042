@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
-]>
-<doc>
-   <ent>&test1;</ent>
-   <p> WE need lot of garbage now to trigger the proattribute longer than th98;&#13;&#9;" p:a="namespaced"><p:n xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><rmn xls="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than th10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer thanomment longer than thirty bytes: 中-->tail&#13;é🙂</r><!--after-0"?><!--bef$ore--><?pi datt longer thanomment longer tEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than th98;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p*n><![CDATA[]]><empty xmlns=""/><?ecomplete commen version="1.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" pent>
-</doc>
-

@@ -215,10 +215,10 @@ Nothing outside the input is read unless the caller passes a `Resolver`
 (any `FnMut(Request) -> io::Result<Option<Vec<u8>>> + Send` closure, or the
 root-confined `FileResolver`) in `ParseOptions`; the flags decide what loads
 (`DTDLOAD` the external subset, `NOENT` or `DTDVALID` external entities,
-never with `NO_XXE`). The `with_resolver` conveniences on every parser and DOM
-load both, like libxml2's `XML_PARSE_DTDLOAD | XML_PARSE_NOENT |
-XML_PARSE_DTDATTR` with a custom resource loader; budgets are
-`Limits::max_external_loads` and `max_external_bytes`. DTD `ID` attributes
+never with `NO_XXE`): `ParseOptions::new(DTDLOAD | NOENT).with_resolver(base,
+resolver)` loads both, like libxml2's `XML_PARSE_DTDLOAD | XML_PARSE_NOENT`
+with a custom resource loader. A resolver without loading flags is never
+consulted. Budgets are `Limits::max_external_loads` and `max_external_bytes`. DTD `ID` attributes
 and `xml:id` back `element_by_id` and XPath `id()`.
 
 ```rust
@@ -227,7 +227,9 @@ let resolver = move |request: yaxml::Request<'_>| {
     Ok((request.uri == "dtd/r.dtd").then(|| dtd.as_bytes().to_vec()))
 };
 let input = b"<!DOCTYPE r SYSTEM 'r.dtd'><r id='a'>&e;</r>";
-let document = yaxml::Document::with_resolver(input, Default::default(), "dtd/doc.xml", Box::new(resolver))?;
+use yaxml::options::{DTDLOAD, NOENT};
+let options = yaxml::ParseOptions::new(DTDLOAD | NOENT).with_resolver("dtd/doc.xml", Box::new(resolver));
+let document = yaxml::Document::parse_with(input, options)?;
 assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(), "loaded");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
@@ -400,7 +402,8 @@ let inner = |request: yaxml::Request<'_>| {
 };
 let resolver = CatalogResolver::new(catalog, Box::new(inner));
 let input = b"<!DOCTYPE r SYSTEM 'http://example.com/r.dtd'><r>&e;</r>";
-let document = yaxml::Document::with_resolver(input, Default::default(), "d.xml", Box::new(resolver))?;
+let options = yaxml::ParseOptions::new(yaxml::options::DTDLOAD | yaxml::options::NOENT);
+let document = yaxml::Document::parse_with(input, options.with_resolver("d.xml", Box::new(resolver)))?;
 assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```

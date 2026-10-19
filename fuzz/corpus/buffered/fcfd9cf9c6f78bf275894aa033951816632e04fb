@@ -1,0 +1,27 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter
+]>
+<elem>
+CharData&#16;
+<!--comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather l (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="ces are enoug,h to make undeclared entities into mere validity errors rather l (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dent first="Eric"> &#rData
+</elem>
+]]>
+<?pi?>&ent;&quot;
+CharData
+</elem>

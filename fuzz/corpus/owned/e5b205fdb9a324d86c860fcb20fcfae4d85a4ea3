@@ -1,0 +1,5 @@
+<!-- Dt valueor of the enumerated values. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a (one|two|three) "four">
+]>

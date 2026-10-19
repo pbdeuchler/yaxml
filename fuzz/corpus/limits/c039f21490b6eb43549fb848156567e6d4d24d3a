@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+    <!ATTLIST root
+	id2	ID	"x23"
+	>
+]‘

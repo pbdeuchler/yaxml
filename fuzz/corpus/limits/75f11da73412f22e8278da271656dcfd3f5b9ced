@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:spAce (default|psererve) 'preserve'>
+<!A

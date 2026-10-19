@@ -1,4 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!NOTATION one SYSTEM "file:/c/,usr/bin/awk">
-<!ATTLISfoo/>

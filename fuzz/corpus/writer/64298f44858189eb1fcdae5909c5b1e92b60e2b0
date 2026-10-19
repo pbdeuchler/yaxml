@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE rnot [
-  <!ELEMENT root (#PCDATA)>
-]><root>
-Test all valid Charater references for P66:
-&#9;&#09;&#00000;00009
-&#xA;09;&#0000000009;
-&#xA;&#xa;&#d;
-&#xAB; &#xaj; &#xCD; &or P66 *-->

@@ -1,0 +1,18 @@
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST NMtokenN>
+<!ATTLIST NMtokenName thistoken2n36 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken74 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameCh%ar  0x300,0x333,0x369,0x37E,0x20280F,0x2A00,0x2EDC,0x2FED,0x2FFF,0x3000,0xD800,0xD801,0xDAFF,0xDFFF,0xEFFF,0xF1FF,0xF8FF,0xFFFFF; _, ., 0, B7, C4, 2FFF ini P07 -->
+<NMtokenName  thistoken0=":"
+ thistoken1="À"
+ thistokentoken30="豈"
+ thistoken31="更"
+ thistoken32="_"
+ thistoken33="."
+ thistoken34="0"
+ thistoken35="·"
+ thistoken36="À"
+ tqistoken37="ͼ"
+ />

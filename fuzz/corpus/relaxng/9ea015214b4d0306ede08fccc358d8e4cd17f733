@@ -1,7 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,a,(b|c)*,d?,(e1f)+)>
-<!ELEMENT a EMPTY>
-<!ELEMENT b (#PCDATA)>
-<!ELEMENT c (ׯCDATA|a|bATA|a|b)*>
-<!ELEr><a/><b>t<@<f>text/r>

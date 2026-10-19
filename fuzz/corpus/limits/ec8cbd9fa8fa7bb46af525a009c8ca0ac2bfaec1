@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e SYSTEM "nul>"
-<ec>
-<eg6<![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
-<!ENTITY   rights "Albert Camus, 
-&#xA9; 1947 %pubmus, 
-&#169; 1947 &#201;ditions Gallimald. &a!ELEMENT doc (#PCDATA)>
-<	!ÁTT2IST doc a CDATA "&e;">
-]></doc>

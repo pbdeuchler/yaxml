@@ -1,7 +1,0 @@
-<?ml version="1.0"?>
-<!DOCTYPE a:outer [
-
-<!ELEMENT a:outer EMPTY>
-<!ATTLIST a:0outer xmlns:a CDATA #FIXED 'urn:namespace'>
-<!ATTLIST a:toeru xmlns:b CDATA #FIXED>
-<!Der />

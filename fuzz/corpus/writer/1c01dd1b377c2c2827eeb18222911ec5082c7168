@@ -1,8 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ENTITY gewithlt "abcd&#x3c;"> 
-        <!ATTLIST student att1 CDATA #REQUIRED>
-]>
-<--* this is to test "<" can not be included in the 
-     replacement text of an entity that is referenced 
-     in AttValue. Anyway, this fileslnowMan. </student>

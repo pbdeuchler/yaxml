@@ -1,0 +1,55 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo b̀·1z="attrValue"
+ 	attŕ̀:·0="attrVaalue"
+ 	、。퟾attr="attrVadue"
+ 	;&#xa;&#9; '/> <!-- PBM<!DOCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e
+a000 (0) '0' a001 (0) '0' a002 (0) '0' a003 (0) '0' a004 (0) '0' a005 (0) '0'
+a006 (0) '0' a007 (0) '0' a008 (0) '0' a009 (0) '0' a010 (0) '0' a011 (0) '0'
+a012 (0) '0' a013 (0) '0' a014 (0) '0' a015 (0) '0' a016 (0) '0' a017 (0) '0'
+a018 (0) '0' a019 (0) '0' a020 (0) '0' a021 (0) '0' a022 (0) '0' a023 (0) '0'
+a024 (0) '0' a025 (0) '0' a026 (0) '0' a027 (0) '0' a028 (0) '0' a029 (0) '0'
+a030 (0) '0' a031 (0) '0' a032 (0) '0' a033 (0) '0' a034 (0) '0' a035 (0) '0'
+a036 (0) '0' a037 (0) '0' a038 (0) '0'  sera039 (0) '0' a040 (0) '0' a041 (0) '0'
+a042 (0) '0' a043 (0) '0' a044 (0) '0' a045 (0) '0' a046 (0) '0' a047 (0) '0'
+a048 (0) '0' a049 (0) '0' a050 (0) '0' a051 (0) '0' a052 (0) '0' a053 (0) '0'
+a054 (0) '0' a055 (0) '0' a056 (0) '0' a057 (0) '0' a058 (0) '0' a059 (0) '0'
+a060 (0) '0' a061 (0) '0' a062 (0) '0' a063 (0) '0' a064 (0) '0' a065 (0) '0'
+a066 (0) '0' a067 (0) '0' a068 (0) '0' a069 (0) '0' a070 (0) '0' a071 (0) '0'
+a072 (0) '0' a073 (0) '0' a074 (0) '0' a075 (0) '0' a076 (0) '0':opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.1"
+    xmlns:presentation="urn:oasis:names:0"
+>
+<define name="office-process-content">
+ment v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.1"
+    xmlns:presentation="urn:oasis:names:0"
+>IED>
+<!ATTLIST LegalName42 attr420 IDREF #IMPLIED>
+<!ELEMENT LegalName43 ANY>
+<!ATTLIST LegalName43 attr43 ID #IMPL

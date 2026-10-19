@@ -58,22 +58,26 @@ fn run(
     let mut writer = Writer::new(Vec::new());
     let result = match surface {
         "reader" => (|| {
-            let mut reader = Reader::with_limits(bytes, limits)?.with_resolver(base, resolver);
+            let mut reader = Reader::with_options(bytes, loading(limits, base, resolver))?;
             while let Some(event) = reader.read_event()? {
                 writer.write_event(&event).unwrap();
             }
             Ok(written(writer))
         })(),
-        "document" => Document::with_resolver(bytes, limits, base, resolver).map(|document| {
-            writer.write_document(&document).unwrap();
-            written(writer)
-        }),
-        "owned" => OwnedDocument::with_resolver(bytes, limits, base, resolver).map(|document| {
-            writer.write_owned_document(&document).unwrap();
-            written(writer)
-        }),
+        "document" => {
+            Document::parse_with(bytes, loading(limits, base, resolver)).map(|document| {
+                writer.write_document(&document).unwrap();
+                written(writer)
+            })
+        }
+        "owned" => {
+            OwnedDocument::parse_with(bytes, loading(limits, base, resolver)).map(|document| {
+                writer.write_owned_document(&document).unwrap();
+                written(writer)
+            })
+        }
         "push" => {
-            let mut parser = PushParser::with_limits(limits).with_resolver(base, resolver);
+            let mut parser = PushParser::with_options(loading(limits, base, resolver)).unwrap();
             let mut emit = |event: Event<'_>, _| {
                 writer.write_event(&event).unwrap();
                 ControlFlow::Continue(())
@@ -87,7 +91,7 @@ fn run(
         _ => {
             let input = BufReader::with_capacity(5, Cursor::new(bytes));
             let mut reader =
-                BufferedReader::with_limits(input, limits).with_resolver(base, resolver);
+                BufferedReader::with_options(input, loading(limits, base, resolver)).unwrap();
             loop {
                 match reader.read_event() {
                     Ok(Some((event, _))) => writer.write_event(&event).unwrap(),
@@ -418,8 +422,11 @@ fn without_a_resolver_nothing_is_loaded() {
         "[]"
     );
     let log = Log::default();
-    let document =
-        Document::with_resolver(b"<r>&amp;</r>", Limits::default(), "", memory(&[], &log)).unwrap();
+    let document = Document::parse_with(
+        b"<r>&amp;</r>",
+        loading(Limits::default(), "", memory(&[], &log)),
+    )
+    .unwrap();
     assert_eq!(
         document.root_element().text_chunks().collect::<String>(),
         "&"
@@ -493,8 +500,11 @@ fn file_resolver_stays_inside_its_root() {
     assert!(FileResolver::new(root.join("absent")).is_err());
     // Through the parser an escape is a fatal resource error.
     let input = b"<!DOCTYPE r [<!ENTITY e SYSTEM '../outside.ent'>]><r>&e;</r>";
-    let error = Document::with_resolver(input, Limits::default(), "doc.xml", Box::new(resolver))
-        .unwrap_err();
+    let error = Document::parse_with(
+        input,
+        loading(Limits::default(), "doc.xml", Box::new(resolver)),
+    )
+    .unwrap_err();
     assert_eq!(error.kind, ErrorKind::ExternalResource);
 }
 
@@ -514,9 +524,10 @@ fn dtd_ids_drive_element_lookup_and_xpath_id_on_both_doms() {
     let files = [("s.dtd", "<!ATTLIST g k ID #IMPLIED>")];
     let bytes = input.as_bytes();
     let borrowed =
-        Document::with_resolver(bytes, Limits::default(), "", memory(&files, &log)).unwrap();
+        Document::parse_with(bytes, loading(Limits::default(), "", memory(&files, &log))).unwrap();
     let owned =
-        OwnedDocument::with_resolver(bytes, Limits::default(), "", memory(&files, &log)).unwrap();
+        OwnedDocument::parse_with(bytes, loading(Limits::default(), "", memory(&files, &log)))
+            .unwrap();
     for (value, position) in [
         ("a", Some(0)),
         ("b", Some(1)),
@@ -608,7 +619,7 @@ fn oracle_xmllint_loads_the_same_external_resources() {
         });
         let resolver = Box::new(FileResolver::new(&root).unwrap());
         let bytes = input.as_bytes();
-        let ours = Document::with_resolver(bytes, Limits::default(), "case.xml", resolver)
+        let ours = Document::parse_with(bytes, loading(Limits::default(), "case.xml", resolver))
             .ok()
             .map(|document| {
                 let mut writer = Writer::new(Vec::new());
@@ -648,3 +659,15 @@ const ORACLE_CASES: &[&str] = &[
     "<!DOCTYPE r [<!ENTITY e SYSTEM 'sub/n.ent'>]><r a='&e;'/>",
     "<!DOCTYPE r SYSTEM 's.dtd'><r>&e;</r>",
 ];
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
+}

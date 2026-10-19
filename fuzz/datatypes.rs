@@ -1,6 +1,8 @@
 //! Built-in datatypes on structured bytes: a type byte (bit 7 selects a
 //! document context), a second type byte and a facet byte, then up to three
-//! NUL-separated texts: a value, a second value and a facet value.
+//! NUL-separated texts: a value, a second value and a facet value. A facet
+//! byte of 0xf0 or more names an unknown facet; values also parse under a
+//! context that relies on the trait's default notation and entity answers.
 
 use yaxml::schema_types::{Comparison, Context, Facet, Type, normalize};
 
@@ -35,6 +37,15 @@ impl Context for Fixed {
     }
 }
 
+/// Binds only `p`; notations and unparsed entities use the trait defaults.
+struct Bare;
+
+impl Context for Bare {
+    fn namespace(&self, prefix: &str) -> Option<&str> {
+        (prefix == "p").then_some("urn:p")
+    }
+}
+
 /// Whether libxml2's ordering of this primitive is a total order.
 fn ordered(ty: Type) -> bool {
     matches!(
@@ -61,6 +72,10 @@ pub(super) fn exercise(input: &[u8]) {
     let (x, y, facet_value) = (next(), next(), next());
     let normalized = normalize(x, xt.whitespace());
     let parsed = xt.parse(x, context);
+    if let Err(error) = xt.parse(x, Some(&Bare)) {
+        assert!(!error.to_string().is_empty());
+    }
+    assert_eq!(Type::from_name(xt.name()), Some(xt));
     // Normalizing again changes neither the text nor the verdict.
     assert_eq!(normalize(&normalized, xt.whitespace()), normalized);
     assert_eq!(
@@ -116,7 +131,10 @@ pub(super) fn exercise(input: &[u8]) {
             "{xt:?} {x:?} vs {yt:?} {y:?}"
         );
     }
-    let name = FACETS[usize::from(*facet) % FACETS.len()];
+    let name = match *facet {
+        0xf0.. => "bogus",
+        facet => FACETS[usize::from(facet) % FACETS.len()],
+    };
     match Facet::new(name, facet_value, xt, context) {
         Ok(Facet::Enumeration(allowed)) => {
             let same = Facet::Enumeration(xv.clone());

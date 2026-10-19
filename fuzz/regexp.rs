@@ -1,5 +1,6 @@
 //! XML Schema regular expressions on arbitrary text: the first line is the
-//! pattern, each further line a value.
+//! pattern, each further line a value. A small budget derived from the
+//! pattern either reports `TooComplex` or compiles the same language.
 
 use yaxml::regexp::{Error, Regex};
 
@@ -39,6 +40,18 @@ pub(super) fn exercise(input: &[u8]) {
             return;
         }
     };
+    assert_eq!(regex.as_str(), pattern);
+    assert!(format!("{regex:?}").starts_with("Regex"));
+    let small = pattern.bytes().fold(0usize, |hash, byte| {
+        hash.wrapping_mul(31).wrapping_add(byte.into())
+    }) % 2048;
+    let tight = match Regex::with_budget(pattern, small) {
+        Ok(tight) => Some(tight),
+        Err(error) => {
+            assert_eq!(error, Error::TooComplex);
+            None
+        }
+    };
     // More budget never changes the result; a fresh cache agrees with a warm one.
     let roomy = Regex::with_budget(pattern, 2 * BUDGET).expect("a larger budget compiles");
     let star = Regex::with_budget(&format!("({pattern})*"), 4 * BUDGET);
@@ -46,6 +59,9 @@ pub(super) fn exercise(input: &[u8]) {
         let matched = regex.is_match(value);
         assert_eq!(regex.is_match(value), matched, "{pattern:?} {value:?}");
         assert_eq!(roomy.is_match(value), matched, "{pattern:?} {value:?}");
+        if let Some(tight) = &tight {
+            assert_eq!(tight.is_match(value), matched, "{pattern:?} {value:?}");
+        }
         assert!(
             !matched || value.chars().all(xml_char),
             "{pattern:?} {value:?}"

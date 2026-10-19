@@ -1,15 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!ELEMENT a (#PCDATA|dc)*>
-<!ELEMENT b (
-#PCDATA
-|
-doc|
-
-a
-|
-b
-)*>c (#Pt ?>
-]>
-<an

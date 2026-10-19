@@ -68,7 +68,9 @@ impl Read for Source<'_> {
 impl BufRead for Source<'_> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         self.operation();
-        if std::mem::take(&mut self.interrupted) {
+        // Interrupt the first call and every fifth after it, so retries reach
+        // both the token and the declaration-session read loops.
+        if self.interrupted && self.calls % 5 == 1 {
             return Err(io::Error::from(io::ErrorKind::Interrupted));
         }
         if self.failure == Some(self.position) {

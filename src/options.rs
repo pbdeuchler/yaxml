@@ -92,9 +92,6 @@ pub const SKIP_IDS: u32 = 1 << 27;
 /// `NOENT | DTDATTR`: the substituting behavior yaxml had before options.
 pub const LEGACY: u32 = NOENT | DTDATTR;
 
-/// The flags of the constructors that take no options.
-pub(crate) const CONVENIENCE: u32 = 0;
-
 /// Flags with no implementation on any surface.
 const NEVER: u32 = RECOVER | OLD10 | OLDSAX | UNZIP | CATALOG_PI;
 /// Flags only a tree can implement.
@@ -207,12 +204,6 @@ impl Flags {
 
     fn has(self, flag: u32) -> bool {
         self.0 & flag != 0
-    }
-
-    /// The flags plus `DTDLOAD | DTDATTR | NOENT`: the complete DTD processing
-    /// of the `with_resolver` conveniences.
-    pub(crate) fn loading(self) -> Self {
-        Self(self.0 | DTDLOAD | DTDATTR | NOENT)
     }
 
     /// Entity references are replaced, so no entity boundaries are reported.

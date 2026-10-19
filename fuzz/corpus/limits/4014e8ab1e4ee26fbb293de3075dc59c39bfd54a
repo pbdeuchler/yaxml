@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE doc [
-    <!ATTLIST elem xmlns CDATA #FIXED ''>
-    <!ATTLIST elem xmlns:a CDATA #FIXED 'urn:a2="1.0"?>
-<!DOCTYPE doc [
-    <!ATTLIST elem xmlns CD</doc>

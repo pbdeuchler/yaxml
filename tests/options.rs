@@ -430,9 +430,10 @@ fn loading_follows_dtdload_noent_and_no_xxe() {
     assert_eq!(saved(DTDLOAD | NOENT), "<r>[loaded]</r>");
     assert_eq!(saved(DTDVALID | DTDATTR), "<r a=\"d\">[&x;]</r>");
     assert_eq!(saved(DTDLOAD | NOENT | NO_XXE), "<r>[]</r>");
-    // The convenience loads everything, as before options existed.
+    // Complete DTD processing loads everything.
     let document =
-        OwnedDocument::with_resolver(input, Default::default(), "doc.xml", resolver()).unwrap();
+        OwnedDocument::parse_with(input, loading(Default::default(), "doc.xml", resolver()))
+            .unwrap();
     let text = document.root_element().text_chunks().collect::<String>();
     assert_eq!(text, "[loaded]");
 }
@@ -601,4 +602,16 @@ fn schema_validators_see_through_references() {
             "{input}"
         );
     }
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

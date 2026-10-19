@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-<!ELEMENT root ANY>
-<!ATTLIST root at:tr1 CDATA #IMPLIED>
-<!ATTLIST root attr3 CDATA #IMPLIED>
-<!ENTITY aExt=+!DO/>

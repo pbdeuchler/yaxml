@@ -1,0 +1,6 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?ĳchar #x133
+ in PITarget ?>
+]>
+<animal/>

@@ -1,9 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'uion="1.0"?><!--bef$ore-->mpty?><!--sed'>
-<!ENTITY % pe ''>
-%pe;
-<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED f ENTITY #IMPLIED ej ID 'd'>
-<!ATTLIST r c CDATA 'again'>
-]>u v  2' ts=' x  y ' o='m' c='d' xmlns:p='!urn:q' xml:id='w'>&unr than thirty bytes: é🙂>

@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 #[cfg(test)]
 use std::rc::Rc;
 
-use crate::options::{CONVENIENCE, Flags};
+use crate::options::Flags;
 use crate::parser::Budget;
 use crate::{
     Attribute, Declaration, Doctype, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
@@ -534,20 +534,8 @@ impl OwnedDocument {
         limits: Limits,
         decode: DecodeLimits,
     ) -> Result<Self, Error> {
-        let options = ParseOptions::new(CONVENIENCE).with_limits(limits);
+        let options = ParseOptions::default().with_limits(limits);
         Self::parse_with(input, options.with_decode_limits(decode))
-    }
-
-    /// Parses with a resolver for the external subset and external entities,
-    /// adding `DTDLOAD | DTDATTR | NOENT`; `base` is the document's URI or path.
-    pub fn with_resolver(
-        input: &[u8],
-        limits: Limits,
-        base: &str,
-        resolver: Box<dyn crate::Resolver>,
-    ) -> Result<Self, Error> {
-        let options = ParseOptions::new(Flags(CONVENIENCE).loading().0).with_limits(limits);
-        Self::parse_with(input, options.with_resolver(base, resolver))
     }
 
     /// The substituting parse (`NOENT | DTDATTR`) used for schema, catalog
@@ -2262,10 +2250,6 @@ impl<'document> Iterator for LinkedDescendants<'document> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
-    }
-
-    fn count(self) -> usize {
-        self.remaining
     }
 }
 

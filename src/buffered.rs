@@ -1,6 +1,5 @@
 use std::io::{self, BufRead};
 
-use crate::options::CONVENIENCE;
 use crate::stream::dtd::{SessionOutcome, SessionStep, StreamingSession};
 use crate::tokenizer::TokenKind;
 use crate::{
@@ -69,7 +68,7 @@ impl<R: BufRead> BufferedReader<R> {
     }
 
     pub fn with_decode_limits(input: R, limits: Limits, decode_limits: DecodeLimits) -> Self {
-        let options = ParseOptions::new(CONVENIENCE).with_limits(limits);
+        let options = ParseOptions::default().with_limits(limits);
         Self::with_options(input, options.with_decode_limits(decode_limits))
             .expect("convenience flags are supported")
     }
@@ -91,15 +90,6 @@ impl<R: BufRead> BufferedReader<R> {
             pending: false,
             status: Status::Active,
         })
-    }
-
-    /// Loads the external subset and external parsed entities through
-    /// `resolver`, adding `DTDLOAD | DTDATTR | NOENT` to the options; `base` is the
-    /// document's URI or path for relative system IDs.
-    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn crate::Resolver>) -> Self {
-        self.session.enable_loading();
-        self.session.set_resolver(base, resolver);
-        self
     }
 
     /// Original bytes consumed, including encoding carry and text lookahead.

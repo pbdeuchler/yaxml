@@ -1,0 +1,16 @@
+><!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA | a | b)*>
+<!ELEMENT a (#PCDATA)>
+<!ELEMENT b (#PCDATA)>
+]>
+<doc><a>This</a> is aF￻,' fo>
+rm 
+  <norm atttr=' &lt; '/>
+  <norm attr
+ =' foo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm /b> document</doc>

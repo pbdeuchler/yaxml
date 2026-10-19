@@ -1,6 +1,0 @@
-<!DOCTYPE root 
-[
-<!ELEMENT root ((PCDATA)>
-<!ATTLIST root att CÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿDATA #IMPLIED>
-]>
-<root>undefined entitiy &aaa; </root>

@@ -1,4 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST rootS    type	NOTATION	(fruit    2TY>
-rootS  !NOTATION c

@@ -1,8 +1,0 @@
-<!DOCTYPE animal [
-<!ELEMENT animal ANY>
-<?຋?an illegal char #x1e8b
- iY>
-<?຋?an illegal char #x1e8b
- i>
-<!ENTITY da "&#xD;&#xA;"x>
-"&#xD;&#xA;"x>

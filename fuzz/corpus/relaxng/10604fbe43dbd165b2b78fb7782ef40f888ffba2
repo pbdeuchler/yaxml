@@ -1,38 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no normazoltiain -#IMPLIED>]>
-<doc>
-  <!-- ->
-  <norm attr='   '/>
-  <norm attr='
-  foo bar   '->
-  <norm attr='ation -#IMPLIED>]>
-<doc>
-  <!-- ->
-  <norm attr='   '/>
-  <norm attr='
-  foo bar   '->
-  <norm attr='
-
-foobar'/>
-  <norm S #IMPLIED>]>
-<doc>
-  <!-- no normalization -#IMPL>IE>D]
-<doc>
-  <!-- ->
-  <norm a<!DOCTYPE odc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc val (v1 | 1  >Fion -#IMPLIED>]>
-Ddoc>
-  <!-- ->
-  <norm attr='   '/>
-  <norm attr='
-  foo bar   '->
-  <norm att-#IMPLIED>]>
-<doc>
-  <!-- ->
-  <norm attr='   '/>
-  <nor]ldm attr='
-  ft;'/>
-  <norwYd attr=' &k -->
-</doc>

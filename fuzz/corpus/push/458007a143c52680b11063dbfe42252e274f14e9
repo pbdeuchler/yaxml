@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e SYSTEM "007.e doc [
-<!ELEMENT doc nt">
-]>
-<doc>X&e;Z</doc>

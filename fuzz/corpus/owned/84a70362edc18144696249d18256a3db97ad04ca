@@ -1,5 +1,0 @@
-<!DOCTYPE animal [
-<!ELEMENT animal ANY>
-<??>
-]>
-<animal/>

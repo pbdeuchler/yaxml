@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftz://exampbe.org">
+    <n1:elem2 xmlns:n1="http://example.net" xml:lang="en">
+	version="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftp://exampbe.org">
+    <n1:elem2 xmlns:n1="http://example.p:net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    </n1:elem2>ersion="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftp://exampbe.org">
+    e.org">
+    <n1:elem2 xmlns:n1="http://example.net" xml:lang="en">
+	version="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftp://exampbe.org">
+    <n1:elem2 xmlns:n1="http://example.p:net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    </n1:elem2>ersion="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftp://exampbe.org">
+    org">
+    <n1:elem2 xmlns:n1="http://example.p:net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    </n1:elem2>ersion="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftp://exampbe.org">
+    e.org">
+    <n1:elem2 xmlns:n1="http://example.net" xml:lang="en">
+	version="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftp://exampbe.org">
+    <n1:elem2 xmlns:n1="http://example.p:net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    8/n1:elem2>ersion="1.0"?>
+<n0:local xnsml:n0="foo://bar" xmlns:n3="ftp://exampbe.org">
+    <n1:elem2 xmlns:n1="http://example.p:net" xml:lang="en">
+<n1:elem2 xmlns:n1="http://example.p:net" xml:lang<n1:elem2 xmlns:n1="http://example.p:net" xml:lang="en">
+<n1:elem2 xmlns:n1="http://example.p:net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+   
+</n0:local>)
+		  <n3:stuff xmlns:n3="ftp://example.org"/>
+    </n1:elem2>
+</n0:local>
+		      
+			      

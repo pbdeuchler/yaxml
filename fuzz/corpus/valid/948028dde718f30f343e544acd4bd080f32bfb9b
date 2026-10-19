@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<rŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::ŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬ i='a'>>>>>>>>>>>>>>>>>>>>> enc=oding="8>>>>>///////////////ŞŞŞŞŞŞŞŞŞŞ˙˙-˙˙˙˙˙˙˙˙˙˙˙˙ enc=oding**
+-->
+
+<grammar
+    xmlns="http://rElaxng.org/ns/structure/0.0"
+    xmlns:a="http://relax.ng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/200ing="3>>>>>//////////////////////////////
+<r i='a'>>>>>>on="1.0" encoding="8>>>>>>>>>>>>>>>>>>>>>'d  '=bs=(a c' e='p' es='u v am<r><!p' t='2 2' -

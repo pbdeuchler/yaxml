@@ -1,0 +1,8 @@
+î<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>obar
+
+&amp;'/>
+ Ž<tst xmln
+</doc>

@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!ENTITY e "&#60;?i?>">]><r>&e;</r>

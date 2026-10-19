@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE test [
-<!ENTITY example "<p>An amand (&#38;#38;numerically (&#38;#38;#38;) or with a general entity
-  (&amp;amp;).</p>" >
-]>
-<test>&example;</test>

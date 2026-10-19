@@ -1,0 +1,16 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+Chariphttp://www.ietf.ottp://www.w3.org"
+       xmln=s"http://www.uvic.ca".ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org">
+               <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+    ]>
+<?pi?>&ent;&quot;
+CharData
+</elem>atdribute type.&#10;<
+/tes
+t>

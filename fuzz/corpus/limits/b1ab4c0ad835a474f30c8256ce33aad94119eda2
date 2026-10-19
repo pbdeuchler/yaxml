@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- te@sting invalid comment ?>
+<!DOCTYPE student [
+	 -->
+<!- student

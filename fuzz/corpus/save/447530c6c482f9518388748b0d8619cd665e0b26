@@ -1,6 +1,0 @@
-<!DOCTYPE animal SYSTEM "ibm32v04.dtd">
-<animal>This is a 
-      <a/>  
-
-yellow tiger</animal>
-<!-- Tests VC: Stann mixed content -->

@@ -1,0 +1,7 @@
+<!DOCTYPE EXAMPLE SYSTEM "ex/ample.dtd" [
+<!ENTITY xml "Extensible Markup Language">
+]>
+<EXAMPLE prop0="a&amp;b" pro:2="&xml;">
+  ibutes.
+</EXAMPLE>
+

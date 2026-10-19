@@ -1,0 +1,7 @@
+<!DOCTYPE voot [
+    <!ELEMENT root EMPTY>
+
+    <!--
+	reusing this entity; it's got no markup decls,
+	so it's legal except for a m  -->
+    <!ENTITYty;</root>

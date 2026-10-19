@@ -1,8 +1,0 @@
-<!DOCTYPE doc
-[
-<!--NOTE doesn't ether t or a seq-->
-<!ELEMENT a (doc?)>
-<!ELEMENT b (doc,a)>
-<!ELEMENT c (
-doc
-:<doc/>

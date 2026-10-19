@@ -1,0 +1,6 @@
+><!-- co -->
+<!DOCTYPE doc [
+<!ELEMENT doc ANY>
+]>
+<!-- comme~nt after the DTD -->
+<doc/~>

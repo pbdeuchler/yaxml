@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc>&#x20;</d>
-<doc>&#x20;</doc>

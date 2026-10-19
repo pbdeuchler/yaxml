@@ -1,7 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root ANY>
-<!ATTLIST root at=t1 CDATA #IMPLIED>
-<!ATT´¶ST root att2 CDATA #I;PLIED>
-]>
-<root att1="value1"att2="value2"/>
-    <!--$ whitespace required between attributes -->

@@ -1,8 +1,9 @@
 //! Pattern compile, DOM match and streaming. A testcase is a flags byte (low
 //! three bits), a pattern, and optionally a NUL byte and the XML document to
-//! match against.
+//! match against. A recompilation under small input-derived limits
+//! either fails on a limit or streams until its depth limit.
 
-use yaxml::pattern::{Limits, Pattern, StreamMatcher};
+use yaxml::pattern::{ErrorKind, Limit, Limits, Pattern, StreamMatcher};
 use yaxml::xpath::Node;
 use yaxml::{Document, Node as Dom, NodeKind, OwnedDocument, OwnedNodeKind};
 
@@ -59,10 +60,34 @@ fn stream_walk(
         }
         stream.pop();
     }
-    for child in elements(node) {
-        stream_walk(document, pattern, child, stream, exact);
+    for child in node.children() {
+        if matches!(child.kind(), NodeKind::Element(_)) {
+            stream_walk(document, pattern, child, stream, exact);
+        } else if stream.wants_any_node() {
+            stream.push_other().expect("depth");
+            stream.pop();
+        }
     }
     stream.pop();
+}
+
+/// Streams the first-child chain under small limits: only the depth limit,
+/// and only beyond `max_depth` open elements, may stop it. (Like libxml2,
+/// an XPath-mode `.` alternative tracks no depth, so it never stops.)
+fn deep_walk(stream: &mut StreamMatcher<'_>, node: Element<'_>, depth: usize, max_depth: usize) {
+    let name = node.name().expect("element");
+    match stream.push(name.local(), name.namespace()) {
+        Ok(_) => {
+            if let Some(child) = elements(node).next() {
+                deep_walk(stream, child, depth + 1, max_depth);
+            }
+            stream.pop();
+        }
+        Err(error) => {
+            assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::Depth));
+            assert!(depth > max_depth && !error.to_string().is_empty());
+        }
+    }
 }
 
 pub fn exercise(input: &[u8]) {
@@ -75,9 +100,26 @@ pub fn exercise(input: &[u8]) {
         None => (rest, DOCUMENT.as_bytes()),
     };
     let source = String::from_utf8_lossy(source);
-    let Ok(pattern) = Pattern::compile_with_limits(&source, NAMESPACES, flags, LIMITS) else {
-        return;
+    let hash = rest.iter().fold(0u32, |hash, &byte| {
+        hash.wrapping_mul(31).wrapping_add(byte.into())
+    });
+    let small = Limits {
+        max_bytes: source.len().saturating_sub((hash & 1) as usize),
+        max_steps: 1 + (hash >> 1 & 3) as usize,
+        max_depth: 1 + (hash >> 3 & 3) as usize,
     };
+    let tight = Pattern::compile_with_limits(&source, NAMESPACES, flags, small);
+    let pattern = match Pattern::compile_with_limits(&source, NAMESPACES, flags, LIMITS) {
+        Ok(pattern) => pattern,
+        Err(error) => {
+            assert!(!error.to_string().is_empty());
+            return;
+        }
+    };
+    assert!(Pattern::compile(&source, NAMESPACES, flags).is_ok());
+    if let Err(error) = &tight {
+        assert!(matches!(error.kind, ErrorKind::LimitExceeded(_)), "{error}");
+    }
     let (Ok(borrowed), Ok(owned)) = (Document::parse_bytes(xml), OwnedDocument::parse_bytes(xml))
     else {
         return;
@@ -93,7 +135,17 @@ pub fn exercise(input: &[u8]) {
         .map(|n| pattern.matches(&owned, n.id()))
         .collect();
     assert_eq!(left, right, "DOM disagreement for {source:?}");
+    let (element, owned_element) = (borrowed.root_element().id(), owned.root_element().id());
+    assert_eq!(
+        pattern.matches(&borrowed, Node::Namespace(element, 0)),
+        pattern.matches(&owned, Node::Namespace(owned_element, 0))
+    );
+    if let Some(mut stream) = tight.as_ref().ok().and_then(Pattern::stream) {
+        stream.reset();
+        deep_walk(&mut stream, borrowed.root_element(), 1, small.max_depth);
+    }
     if let Some(mut stream) = pattern.stream() {
+        stream.reset();
         // IDC and XPath modes anchor at the first pushed node, not anywhere.
         stream_walk(
             &borrowed,

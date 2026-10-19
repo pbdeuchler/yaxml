@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+J  Rich Si "1.91"> --><!ELEMENT channel (title | description | link 
+| lanyguage | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| language | item+ | ratiÿÿÿÿÿÿÿXng? | image? | textinpup? | copyright? | 
+pubDate? | lastBuIldDate? | docs? | mWnae | url | link | width? | height? | description?)*>
+<!ELEMENT urlitem (title | link | description)*>
+<!ELEMENT<r xmlns='urn:r<?xml versi'

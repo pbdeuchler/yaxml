@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY EndAttr "2>
-">]'7 
-<doc>
-<element attribute='a-&EndAttr;>
-</doc>

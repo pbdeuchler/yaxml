@@ -1,9 +1,0 @@
-<!--Inability to resoled as an error-->
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!NOTATION not1 PUBLIC "a b
-cdefghijklmnopqrstuvwx,yzABCDEFGHIJKLMNOPQRSTUVWXYZ">
-<!NOTATION not1 PUBLIC '0123456789$()+,./:=?;!*#@$_%'>
-<!NOTATION not3 PUBLIC "0123456789-()+,.'/:=?;!*#@$_%">
-]>789$()+,./:=am?;!*#

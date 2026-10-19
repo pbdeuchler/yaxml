@@ -228,6 +228,31 @@ fn append_expected(
     spec: ElementSpec<'_>,
     expected: &ModelElement,
 ) {
+    // Below its namespace-work need, the append fails atomically at any
+    // lookup or comparison; at or above it, it builds the same element.
+    for max_namespace_work in [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89] {
+        let mut editor = document
+            .edit(EditLimits {
+                max_namespace_work,
+                ..EditLimits::default()
+            })
+            .unwrap();
+        match editor.append_element(parent, spec) {
+            Ok(child) => {
+                assert_element(editor.document(), child, expected);
+                editor.remove_subtree(child).unwrap();
+            }
+            Err(error) => assert_error(
+                error,
+                global(EditErrorKind::LimitExceeded(EditLimit::NamespaceWork)),
+            ),
+        }
+        assert_eq!(
+            &snapshot(editor.document()),
+            before,
+            "probe changed the tree"
+        );
+    }
     let child = document
         .edit(EditLimits::default())
         .unwrap()
@@ -506,57 +531,48 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 name: spec_name("a", Some("urn:p"), PrefixPolicy::Automatic),
                 value: "v",
             })];
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, None, exact(None)),
-                        items: &items,
-                    },
-                )
-                .expect("automatic attribute should reuse an inherited matching prefix");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, None, exact(None)),
+                    items: &items,
+                },
+                &expected,
+            );
         }
         5 => {
             let expected = ModelElement {
                 name: ModelName::new(None, &local, Some("urn:default")),
                 attributes: Vec::new(),
             };
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, Some("urn:default"), PrefixPolicy::Automatic),
-                        items: &[],
-                    },
-                )
-                .expect("automatic element should reuse inherited default binding");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, Some("urn:default"), PrefixPolicy::Automatic),
+                    items: &[],
+                },
+                &expected,
+            );
         }
         6 => {
             let expected = ModelElement {
                 name: ModelName::new(None, &local, None),
                 attributes: vec![declaration(None, "")],
             };
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, None, PrefixPolicy::Automatic),
-                        items: &[],
-                    },
-                )
-                .expect("no-namespace element should undeclare inherited default");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, None, PrefixPolicy::Automatic),
+                    items: &[],
+                },
+                &expected,
+            );
         }
         7 => {
             let expected = ModelElement {
@@ -567,19 +583,16 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 prefix: None,
                 uri: "urn:local-default",
             })];
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, Some("urn:old"), PrefixPolicy::Automatic),
-                        items: &items,
-                    },
-                )
-                .expect("automatic element should use inherited non-default matching prefix");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, Some("urn:old"), PrefixPolicy::Automatic),
+                    items: &items,
+                },
+                &expected,
+            );
         }
         8 => {
             let expected = ModelElement {
@@ -601,19 +614,16 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     value: "b",
                 }),
             ];
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, None, exact(None)),
-                        items: &items,
-                    },
-                )
-                .expect("generated prefix should skip inherited ns1 and reserve exact ns1");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, None, exact(None)),
+                    items: &items,
+                },
+                &expected,
+            );
         }
         9 => {
             let expected = ModelElement {
@@ -640,19 +650,16 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     value: "2",
                 }),
             ];
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, None, exact(None)),
-                        items: &items,
-                    },
-                )
-                .expect("automatic prefix must not be retargeted by a later Exact intent");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, None, exact(None)),
+                    items: &items,
+                },
+                &expected,
+            );
         }
         10 => {
             // The root binds p to old; the nearer element shadows p with new,
@@ -666,19 +673,16 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                 name: ModelName::new(None, &local, None),
                 attributes: vec![attribute(Some("q"), "picked", Some("urn:old"), "yes")],
             };
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, None, exact(None)),
-                        items: &items,
-                    },
-                )
-                .expect("shadowed p must resolve through inherited q");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, None, exact(None)),
+                    items: &items,
+                },
+                &expected,
+            );
         }
         14 => {
             let expected = ModelElement {
@@ -699,19 +703,16 @@ fn append_case(input: &[u8], selector: u8, mode: u8) {
                     value: "x",
                 }),
             ];
-            let child = document
-                .edit(EditLimits::default())
-                .unwrap()
-                .append_element(
-                    parent,
-                    ElementSpec {
-                        name: spec_name(&local, None, exact(None)),
-                        items: &items,
-                    },
-                )
-                .expect("automatic prefix should reuse the matching local declaration");
-            check_created(&document, child, &expected);
-            assert_existing_nodes_preserved(&document, &before, parent, child);
+            append_expected(
+                &mut document,
+                &before,
+                parent,
+                ElementSpec {
+                    name: spec_name(&local, None, exact(None)),
+                    items: &items,
+                },
+                &expected,
+            );
         }
         15 => {
             let expected = located(EditErrorKind::Namespace, attribute_location(1, None, None));

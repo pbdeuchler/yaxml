@@ -1,3 +1,0 @@
-<!DOCTYPE odc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc val (v1 | 1  >F

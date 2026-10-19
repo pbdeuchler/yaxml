@@ -3,15 +3,24 @@
 //! document.
 
 use yaxml::html::{self, Options, Parsed, PushParser};
-use yaxml::{Error, ErrorKind, Limit, Limits, OwnedDocument, OwnedNodeKind, Writer, c14n};
+use yaxml::{
+    EditLimits, Error, ErrorKind, Limit, Limits, OwnedDocument, OwnedNodeKind, Writer, c14n,
+};
 
-const FLAGS: [u32; 6] = [
+const FLAGS: [u32; 7] = [
     html::NOBLANKS,
     html::NOIMPLIED,
     html::NODEFDTD,
     html::HUGE,
     html::IGNORE_ENC,
     html::NOERROR,
+    // Accepted flags without effect.
+    html::RECOVER
+        | html::NOWARNING
+        | html::PEDANTIC
+        | html::NONET
+        | html::COMPACT
+        | html::BIG_LINES,
 ];
 
 fn options(seed: u64) -> Options {
@@ -26,7 +35,13 @@ fn options(seed: u64) -> Options {
         limits.max_depth = 1 + (seed >> 10 & 7) as usize;
         limits.max_token_bytes = 1 + (seed >> 13 & 63) as usize;
         limits.max_attributes = 1 + (seed >> 19 & 3) as usize;
-        limits.max_events = 4 + (seed >> 21 & 63) as usize;
+        limits.max_events = (seed >> 21 & 63) as usize;
+        if seed >> 37 & 3 == 0 {
+            limits.max_owned_bytes = (seed >> 39 & 1023) as usize;
+        }
+        if seed >> 27 & 3 == 0 {
+            limits.max_input_bytes = (seed >> 29 & 255) as usize;
+        }
     }
     Options { flags, limits }
 }
@@ -127,11 +142,59 @@ fn xml_output(document: &OwnedDocument) {
     }
 }
 
+/// Nodes the parser never builds (PIs, text in raw-text elements, quotes in
+/// values) serialize, and the output reparses.
+fn edited(input: &[u8], options: Options) {
+    let mut document = html::parse(input, options).expect("reparse").document;
+    let elements: Vec<_> = (document.nodes())
+        .filter(|node| node.kind() == OwnedNodeKind::Element)
+        .take(8)
+        .map(|node| {
+            let first = node.attributes().next().map(|attribute| {
+                let name = attribute.name;
+                (name.namespace().map(str::to_owned), name.local().to_owned())
+            });
+            (node.id(), first)
+        })
+        .collect();
+    let mut editor = document.edit(EditLimits::default()).expect("fresh editor");
+    for (index, (element, first)) in elements.into_iter().enumerate() {
+        let _ = editor.append_text(element, "a<&>\"'\u{e9}\u{4e00} ");
+        let _ = editor.append_processing_instruction(element, "pi", ["", "d"][index % 2]);
+        let _ = editor.append_comment(element, "c");
+        if let Some((namespace, local)) = &first {
+            let _ =
+                editor.set_attribute_value(element, namespace.as_deref(), local, " \u{e9}\"'&<x y");
+        }
+    }
+    for format in [false, true] {
+        let saved = html::save(&document, format).expect("parsed encodings serialize");
+        if let Err(error) = html::parse(&saved, Options::new(options.flags & html::HUGE)) {
+            allowed(error);
+        }
+    }
+    assert!(html::to_html(&document).is_ok());
+    xml_output(&document);
+}
+
 pub(super) fn exercise(input: &[u8]) {
     let seed = input.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, &byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
     });
     let options = options(seed);
+    if seed >> 40 & 63 == 0 {
+        // libxml2's HTML5 mode is rejected up front.
+        let html5 = Options::new(options.flags | html::HTML5);
+        let unsupported = Err(ErrorKind::UnsupportedOption);
+        assert_eq!(
+            html::parse(input, html5).map(drop).map_err(|e| e.kind),
+            unsupported
+        );
+        assert_eq!(
+            PushParser::new(html5).map(drop).map_err(|e| e.kind),
+            unsupported
+        );
+    }
     let whole = html::parse(input, options);
     let mut parser = PushParser::new(options).unwrap();
     let mut rest = input;
@@ -141,6 +204,10 @@ pub(super) fn exercise(input: &[u8]) {
         schedule = schedule.rotate_right(5);
         let (chunk, tail) = rest.split_at(size.min(rest.len()));
         if let Err(error) = parser.feed(chunk) {
+            // Failures are terminal.
+            let state = Err(ErrorKind::InvalidState);
+            assert_eq!(parser.feed(b"").map_err(|e| e.kind), state);
+            assert_eq!(parser.finish().map(drop).map_err(|e| e.kind), state);
             break Err(error);
         }
         rest = tail;
@@ -165,11 +232,16 @@ pub(super) fn exercise(input: &[u8]) {
             if let Err(error) = html::parse(&saved, Options::new(options.flags & html::HUGE)) {
                 allowed(error);
             }
+            if seed >> 46 & 3 == 0 {
+                edited(input, options);
+            }
         }
         (Err(whole), Err(pushed)) => {
             allowed(*whole);
             allowed(*pushed);
-            assert_eq!(whole.kind, pushed.kind);
+            // Pull counts all input up front; push may fail first on a chunk.
+            let input = ErrorKind::LimitExceeded(Limit::InputBytes);
+            assert!(whole.kind == pushed.kind || whole.kind == input);
         }
         _ => panic!(
             "pull {:?} and push {:?} disagree",

@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE catal>
-<catalog xmlns="urn:oasis:namesxmlns:xml:catalog">
-<public publicId="-//OASIS//DTD DocBook XML V4.1.EN" uri="http://www.oas2/docbookx.dtd"/>
-<public publicId="-//OASIS/s-open.org/d.dtd">
-<cataloc xmlns="urn:oasis:names:tcta:entity:xmlns:xml:catalog">
-<pu

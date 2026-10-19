@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKEN🙂DA<!E&#xd;c>
+

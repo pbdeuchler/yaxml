@@ -1,0 +1,3 @@
+><!DOCTYPE do>&de
+c<ntDOCPE doc SYSTEM "dtds/pe-test.dtd">
+<doc>&ent;<;</doc>

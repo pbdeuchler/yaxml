@@ -1,17 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT root (a,b)>
-  <!ELEMENT a EMPTY>
-  <!ELEMENT b  ANY>
-  <!ELEMENT d ANY>
-  <!ELEMENT e ANY>
-  <!ELEMENT f ANY>
-  <!--* test all possible children,cp,choice,seq patterns in P47,P48,P49,P50 *-->
-  <!ELEMENT child0 (a)>
-  <!ELEMENT child1 (a|b|c)>
-  <!ELEMENT child2ild3 (a+|b)? >
-  <!ELEMENT child4 (a, (b|c)+, (a|b|c), (a|b), b)+>  
-]>
-<root><a/><b>
-   <c></c >
-   content of b elemt: tests P57,P48,P49,P50*>--
-

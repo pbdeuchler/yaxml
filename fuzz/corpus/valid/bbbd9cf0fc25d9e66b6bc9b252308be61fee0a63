@@ -1,7 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA n>
-<!ENTITY v SYSTEM 'v' NDATA m>
-<!ENTITY p 'parsed'>
-<!ENTITY %        0  ENTIns:p='urq' xml:id=>m="u&n</r>

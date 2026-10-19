@@ -1,7 +1,0 @@
-<!DOCTYPE r [
-%pe;
-<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
-  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED   c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:q' j ID 'd'>
-<!ATTLIST r c CDATA 'aga12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&augh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;">
-]da;"/>
-<tst a="&#xd;&#xdamp' t='0L2' ts=' x  y '></r>

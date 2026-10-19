@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
-]>
-<doc>
-   <ent>&test1;</ent>
-   <p> WE need lot #f garbage now to trigger the prob<studsetirn ft="FullNam e Snow and &quot;Man Snow and Snow mymd	Ii	#IMPLIED
-	idref	IDREF	#IMED
-	idrefs	GDREFS	#IMPno anRddle0000000000017431013069692658573;." last="Man SlNam e Sngw and &quot;Man Snow and Snow mymiddle;.&quot; Man Snow ddle;d Snow mymid+le;OOOOOOOOOOOOOOOOOOOOOOOOO.">My farstroblem</p>t of garbage now t98/02E/

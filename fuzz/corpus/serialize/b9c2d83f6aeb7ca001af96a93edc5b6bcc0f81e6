@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	(fruit | vegetable)	#REQUIRED
-    >
-<!NOTATION fruit
-    PUBLIC "-//International Grocery Consortium//EdiblCTIONS="nsortium//EdiblCTIONS="NE13" URI="NE13a.xml" ID="rmt-ns-e1.0-13a"NE13" URI="NE13a.xml" ID="rmt-ns-e1.0-13a" TYPE="not-wf">
-The xmaw.w3.orgn' part of the "Notat="candy"/>
-

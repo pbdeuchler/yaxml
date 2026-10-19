@@ -1,0 +1,30 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one one normalizehe entity ref their identifiers.
+
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	>
+    <!ENTITY innteral "inter[nater[nal&number;">
+ <!--
+	This one one normalized one.
+    
+        Similarly the entity ref their identifiers.
+
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)ED
+	>
+    <!ENTITY innteral "inter[nintenumber "20">
+]>
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" three?>

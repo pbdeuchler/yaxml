@@ -507,17 +507,11 @@ impl Fix {
             {
                 continue;
             }
-            if global.kind == GlobalKind::Notation {
-                if !self.notations.insert(global.name) {
-                    self.duplicate(global.loc, "notation", global.name);
-                }
-                continue;
-            }
-            if self
-                .table
-                .insert((global.kind, global.name), global.id)
-                .is_some()
-            {
+            let fresh = match global.kind {
+                GlobalKind::Notation => self.notations.insert(global.name),
+                kind => self.table.insert((kind, global.name), global.id).is_none(),
+            };
+            if !fresh {
                 let what = match global.kind {
                     GlobalKind::Type => "type definition",
                     GlobalKind::Element => "element declaration",
@@ -1827,13 +1821,10 @@ impl Fix {
                         );
                         self.report(loc, Code::DerivationOkRestriction2_1_2, message);
                     } else if let Some(fixed) = self.use_value(base).filter(|v| v.fixed) {
-                        let own = self
-                            .use_value(base)
-                            .filter(|_| false)
-                            .or_else(|| self.use_value(use_));
-                        let _ = own;
+                        // libxml2 2.15.4 reads the base's constraint twice here,
+                        // so it never reports 2.1.3; compare the restriction's.
                         let ok = self
-                            .use_value(base)
+                            .use_value(use_)
                             .is_some_and(|v| v.fixed && v.lexical == fixed.lexical);
                         if !ok {
                             let message = format!(
@@ -1876,7 +1867,7 @@ impl Fix {
                 }
                 Some(base) => {
                     let (own_w, base_w) = (&self.wildcards[own], &self.wildcards[base]);
-                    if base_w.ns != NsConstraint::Any && !ns_subset(&own_w.ns, &base_w.ns) {
+                    if !ns_subset(&own_w.ns, &base_w.ns) {
                         let message = "The attribute wildcard is not a valid subset of the wildcard in the base.";
                         self.report(loc, Code::DerivationOkRestriction4_2, message.into());
                     } else if !base_is_any && own_w.process < base_w.process {

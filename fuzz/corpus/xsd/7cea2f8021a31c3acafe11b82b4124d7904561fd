@@ -1,0 +1,10 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ELEMENT aoc (TA|doc)*>
+<!ELEMENT b (
+#PCDATA
+|
+do            A)*>
+]>
+<doc/>

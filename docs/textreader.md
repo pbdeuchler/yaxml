@@ -7,8 +7,8 @@ single-byte encodings from `&[u8]` or any `BufRead` in bounded memory.
 
 | libxml2 | `TextReader` |
 | --- | --- |
-| `xmlReaderForMemory`, `xmlReaderForIO` (with `options`) | `with_options` ([`ParseOptions`](compatibility.md#option-compatibility)), `new`, `with_limits`, `with_decode_limits`, `with_base_uri` |
-| `xmlTextReaderSetResourceLoader` | `with_resolver(base, resolver)` |
+| `xmlReaderForMemory`, `xmlReaderForIO` (with `options` and `URL`) | `with_options` ([`ParseOptions`](compatibility.md#option-compatibility), whose `base` is the URL), `new`, `with_limits`, `with_decode_limits` |
+| `xmlTextReaderSetResourceLoader` | `ParseOptions::with_resolver(base, resolver)` |
 | `Read`, `Next`, `ReadState` | `read`, `next`, `read_state` |
 | `NodeType`, `Depth`, `IsEmptyElement`, `HasValue`, `HasAttributes`, `AttributeCount` | same names, snake case |
 | `ConstName`, `ConstLocalName`, `ConstPrefix`, `ConstNamespaceUri`, `ConstValue`, `ConstXmlLang` | `name`, `local_name`, `prefix`, `namespace_uri`, `value`, `xml_lang` (borrowed `&str`) |
@@ -71,8 +71,7 @@ XML errors are sticky. An I/O error is returned once; later reads return
 
 Parser properties report the options: `LoadDtd` is true when a resolver was
 supplied and the flags load the external subset, `DefaultAttributes` is
-`DTDATTR`, `SubstituteEntities` is `NOENT` and `Validate` is false.
-`with_resolver` adds `NOENT | DTDLOAD | DTDATTR`. Setting a property to
+`DTDATTR`, `SubstituteEntities` is `NOENT` and `Validate` is false. Setting a property to
 another value returns `ErrorKind::UnsupportedOption`.
 
 ## Differential results

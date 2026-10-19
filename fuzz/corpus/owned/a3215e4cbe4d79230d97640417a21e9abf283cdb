@@ -1,0 +1,9 @@
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!--
+	TOKEN neon
+    -->
+]>
+
+<attributes
+    token =	" c "
+    />

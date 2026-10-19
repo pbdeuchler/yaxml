@@ -1,9 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|c)*,d?,(e.f))*>
-<!ELEMENT d ANY>
-<!ELEMENT e (a|aA)>
-<!ELEMENT f ((a?,b?)*,c)>
-<!ELEMENT g (zzA|TCDAa|a)*>
-<!ELEMENT g EMPTY>
-]/b><c>d/></><r>

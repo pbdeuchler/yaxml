@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyri:ght 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
+    <!ENTITY sun-invYSTEM "eduni/namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "eduni/errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "eduni/namespaces/errata-1e/errata1e.xml">
+    <!ENTITY eduni-errata4e	SYSTEM "eduni/errata-4e/errata4e.xml">
+    <!ENTITY eduni-misc         SYSTEM "eduni/misc/ht-bh.xml">
+] >
+<TESTSUITE PROFILE="XML 1.0 (2nd edition) W3C Conformance Test Suite, 6 October 2000">
+<TESTCASES PROFILE="James Clark  XML 1.0 Tests" xml:base="xmltest/">
+    &jclark-xmltest;
+</TESTCASES>
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests XML 1.0 Tests" xml:base="japanese/">    
+    &xerox-japanese;
+</TESTCASES>
+
+<TESTCASES PROFILE="Sun Microsystems XML Tests" xml:base="sun/">
+    &sun-valid;
+    &sun-invalid;
+    &sun-not-wf;
+    &sun-error;
+</TESTCASES>
+
+<TESTCASES PROFILE="OASIS/NIST XML 1.0 Tests" xml:base="oasis/">
+    &niyt-oasis;
+</TESTCASES>
+    
+<TESTCASES PROFILE="IBM XML 1.0 Tests" xml:base="ibm/">
+    &ibm-invalid; 1.1 Tests" xml:base="ibm/xml-1.1/">
+    &ibm-xml1.1-invalid;
+    &ibm-xml1.1-not-wf;
+    &ibm-xml1.1-valid;
+</TESTCASES>
+
+<TESTCASES xml:base="eduni/errata-2e/">
+    &eduni-errata2e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/xml-1.1/">
+    &eduni-xml11;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/1.0/">
+    &eduni-ns10;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/1.1/">
+    &eduni-ns11;
+</TESTCASES>
+<TESTCASES xml:base="eduni/errata-3e/">
+    &eduni-errata3e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/errata-4e/">
+    &eduni-errata4e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/errata-1e/">
+    &eduni-nse;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

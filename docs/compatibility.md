@@ -43,8 +43,7 @@ default and `#FIXED` attributes (with `DTDATTR`), and tokenized
 attribute-type normalization.
 
 External resources load only through a caller `Resolver` in `ParseOptions`
-(or `with_resolver`, which adds `NOENT | DTDLOAD | DTDATTR`), and only what
-the flags request: the external subset after the internal subset with
+(`ParseOptions::with_resolver`), and only what the flags request: the external subset after the internal subset with
 `DTDLOAD`, `DTDATTR` or `DTDVALID`, external parameter entities where
 referenced with those or `NOENT`, and external parsed general entities on
 first reference in content with `NOENT` or `DTDVALID`; `NO_XXE` loads
@@ -184,8 +183,8 @@ with libxml2's values), `limits`, `decode_limits`, `base` and `resolver`.
 `Reader::with_options`, `PushParser::with_options`,
 `BufferedReader::with_options`, `TextReader::with_options`,
 `Document::parse_with` and `OwnedDocument::parse_with` take it; the older
-constructors are conveniences with no flags, and their `with_resolver`
-variants add `NOENT | DTDLOAD | DTDATTR`. Unknown bits and every flag a
+constructors (`new`, `parse`, `with_limits`, ...) are conveniences for the
+default options, and there is no other resolver entry point. Unknown bits and every flag a
 surface lacks fail with `ErrorKind::UnsupportedOption` before parsing; a flag
 is accepted without code only where libxml2 2.15.4 gives it no observable
 effect on results. `tests/options.rs` covers each row; the `dom`, `owned` and

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSTELEd propùsed.
+ = 
+  Rl - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| lanygieaug|  tem+ | rating? | image? | textinput? | cop| copyright? | 
+pubDate? | lastBu| link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDan?)*>
+<!ELEMENT url (#PCDATA)>
+<!EL>

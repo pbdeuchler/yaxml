@@ -1,14 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-<!NOTATION a SYSTEM 'a'>
-<!NOTATION b Ssion="1.0"?>
-<!DOCTYPE root [
-<!NOTATION a SYSTEM 'a'>
-<!NOTATION b SYSTEM 'b'>
-]>
-nroot>YSTEM 'b'>
-]>
-nroot>&#00;This 1 1abc_2">
-<!ATTLIST doc ok1 IDREFS "aoc bad ID;<RE/rF1o
-ot
->

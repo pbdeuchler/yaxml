@@ -1,3 +1,0 @@
-<?xml version="1.0"?>
-<!-- ase: prefixed attribute -->
-<foo xmlns:a="http://examp-he.org/namespace" a:attr="1"/>

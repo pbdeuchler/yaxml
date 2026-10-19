@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (ԯCDATA)>
-]>x00000000#A
-&;x0d;
-&#xAB; &#xab; &#xC000; &#x10FFFF;
-</root>
-<!--* a va	lid test for P66 *-->

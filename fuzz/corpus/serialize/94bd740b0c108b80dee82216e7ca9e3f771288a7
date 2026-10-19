@@ -1,0 +1,8 @@
+<!-- DefaulsssNTITIES attributes must match Names. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a ENTITIES "35">
+<!ENTITY ent SYSTEM "foo" NDATA not>
+<!NOTATION not SYSTEM "not">
+]>
+<foo a="ent"/>

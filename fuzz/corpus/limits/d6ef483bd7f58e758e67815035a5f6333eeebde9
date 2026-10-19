@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE foo [
-<!ELEMEN#T foo ANY>
-<!ENTITY % e SYST>
-%e;
-]>
-<fooÿ>

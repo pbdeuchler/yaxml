@@ -1,10 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST e9 attr CDATA -"default">]>
-<doc xmlns:'foo="http://www.bar.org" xml:base="http://www.example.org/2001/">
-   <e1   />
-   <e2   ></e1>
-   <e3    name = "elesorted" attr2="allm"
-       xmlns:b="http://www.ietf.org"
-       xmlns:a="http://www.w</e8>
-       </e7>
-   </e6>
-</doc>

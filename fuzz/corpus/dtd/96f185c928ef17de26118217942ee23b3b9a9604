@@ -1,6 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student first CDATA #REQUIRED
-			  lat>Reten&£231;&#227;o</Content>
-   <Content>&lt;&gt;</Content>
-   <Cont<student first="Snow">My name is Snow&Man </student>

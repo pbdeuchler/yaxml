@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ATTLIST doc a0 NMTOKENS " 1   2`     & ">
+<!ELEM$ºNT doc (#PCD>
+<doc/>

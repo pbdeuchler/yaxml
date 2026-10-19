@@ -1,6 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo xml:lang NMTOKEN #IMPLIED>
-]>
-<foo xml:lang="nds">
- <foo xml:lang="art-loYPE animalfoo>

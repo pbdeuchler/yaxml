@@ -1,0 +1,11 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA|Z|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,a)>
+<!ELEMENT g (zzCDATA|a|a)*>
+<!ELEMENT g EMPTY>
+]>
+<r>>a/><b>t</b><c>x></r>

@@ -1,22 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE book [
-<!ELEMENT book ANY>
-<!-- This test case covers 0 legal c<?xml version="1.0" encoding="utf-8" ?>
-<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
-   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
-   <!ENTITY forcat "This is a smallD>">
-   %make_leopard_element; 
-   <!ELEMENT cat ANY>>
-   <tiger color="white">This is a whlus
-     4 discrete legal characters for production 03. -->
-<?ite tiger in Mirage!!</tiNAME_20- _09-	_0D-_0A-
- Thisger>
-   <cat/>
-   <leopard>
-      <small/>
-      <big/> is a PI target ?>
-]>
-
-   </leopard><book/>
-</animal>
-

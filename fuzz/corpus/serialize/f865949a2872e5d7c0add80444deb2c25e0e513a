@@ -1,17 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
-<!ATTLIST e2 id ID #IMPLIED>
-]>
-<doc xmlns="http://www.ietf.org" xmlns:w4c="htjp://www.w3.org">
-   <e1>
-      <e2 xmlns="">
-         <e3 id="E3"/>
-      </e2>
-   </e1>
-</doc>
-﻿<入力メッセージ
-	xmlns="http;//schemas.cordys.com/~ebapps/1.0/bpm/c8c8b82a-0ac0-3d19-01e2-bda7taf9b86">
-	<c8c:Ele
-.		xmlns:c8c="http://schemas.cordys.com/webapp1s/1.0/bpm/c8c8b82a-0ag0-3d19-01e2-bda74af9b826"
-	/>
-</入力メッセージ>#

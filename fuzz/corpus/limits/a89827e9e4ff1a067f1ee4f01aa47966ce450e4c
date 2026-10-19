@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+    <!ATTLIST elem xmlns CDATA #FIXED 'urn:def2'>
+    <!ATTLIST elem xmlns:a CDATA #FIXED 'urn:a1'>
+]>
+<r p="u" xmlns:q="*CC" q:a=""/>
+n:a">
+   "u" xmln</dUoc>

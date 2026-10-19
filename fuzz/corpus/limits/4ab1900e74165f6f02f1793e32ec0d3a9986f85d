@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!NOTATION >
-<!EL,MENT doc (#PCDATA)>
-<!ATTLIST doc a ENTITY "e">
-]>
-<doc></doe>

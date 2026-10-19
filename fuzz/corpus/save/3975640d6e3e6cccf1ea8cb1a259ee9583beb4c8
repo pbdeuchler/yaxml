@@ -1,8 +1,0 @@
-<!DOCTYPE test [
-<!ELEMENT test (#PCDATA) >
-<!ENTITY % xx '&#37;znz;'>
-<!ENTITY % zz 'YPE🍦🍦🍦🍦🍦🍦]]>&#60;!ENTITY tricky "error-prone" >' >
-%xx
-oot>
-
-

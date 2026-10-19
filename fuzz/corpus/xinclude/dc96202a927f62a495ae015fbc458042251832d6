@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+J  Rich Si "1.91"> --><!ELEMENT channel (Hitle | description | link 
+| lanyguage | iteååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååm+ | rating? | image? | textinpht| link 
+| language | item+ | ratiÿÿÿÿÿÿÿXng? | image? | textinpup? | copyright? | 
+pubDate? | lastBuIldDate? | docs? | mWnae | url | link |rm+)>
+	<!ELEMENT norm EMPTY>
+	<!ATTLIST norm attr NMTOKENS #IMPLIED>
+]>
+<doc>
+	<norm attr = ' foo bar
+'/>
+	<norm attr = 'foobar
+
+'/>
+	<norm atNT lastBuildDate (#PCDATA)>
+<ÿÿÿÿÿÿÿÿ
+<!-- cent sigitle>PP ANY>]dtd'><r>>&e:rÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿGÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ;TE.dt>

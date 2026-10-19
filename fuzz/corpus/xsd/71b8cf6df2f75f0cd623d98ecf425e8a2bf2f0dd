@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding   <xs:complexType>
-      <xs:sequence>
-        <xs:choice ding="ISO-8859-1" ?>
-<!-- 3.2.3 : 3 
-    type and either <simpleTttp://www.w3.org/2001/XMLSchema" targetNamespace="http://foo" xmlns:foo="http://foo">
-	
-	<element name="foo" type="foo:someType">
-		<cosrv in HP OpenView Network Node Ma

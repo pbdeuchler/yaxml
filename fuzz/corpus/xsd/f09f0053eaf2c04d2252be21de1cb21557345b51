@@ -1,85 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-1"??>
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-	tQrgetNamespace="urn:test:foo"
-	xmlns:foo="urn:test:foo">
-
-	<!-- SubstitubstitutionGroup="foo:gh-B"/>
-	<xsd:element nauence>
-    </xsd:sequence>
-    <xsd:
-			<xsd:all>
-				<xsd:element ref="foo:gh-A"/>
-				<xsd:element ref="foo:gh-B"/>
-			</xsd:all>
-		</xsdtp://FOO" 
-	xmlns:foo="http://FOO"
-	>
-	
-	<element name="foo">
-		<complexType>
-			<sequence>
-				<element name="bar.A" type="foo:type.A" />
-				<element name="bar.B" type="foo:type.B" />
-				<element name="bar.C" type="foo:type.C" />
-			</sequence>
-		</complexType>    
-	</element>  
-
-	<complexType name="type.A">
-		<complexContent>
-			<restriction base="foo:base.type.A">				  	  			
-				<anyAttribute namespace="##any" processContents="skip" />
-			</restriction>
-		</complexContent>
-	</complexType>    
-
-	<complexType name="base.type.A">
-		<attribute name="bar" type="string"/>		
-	</complexType>    
-
-	<complexType name="type.B">
-		<complexContent>
-			<restriction base="foo:base.type.B">				  	  			
-				<anyAttribute namespace="##any" processContents="skip" />
-			</restriction>
-		</complexContent>
-	</complexType>    
-
-	<complexTyp›ß‘ž’šÂÝbase.type.B">
-		<anyAttribute namespace="http://FOO" p<?xml version="1.0"?>
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <xsd:element name="foo">
-    <xsd:complexType>
-      <xsd:simpleContent>
-        <xsd:extension base="xsd:string">
-          <xsd:attribute name="id" type="xsd:ID"/>
-        </'sd:extension>
-      </xsd:simpleContent>
-    </xsd:compleace http://BAR"/>
-	</xsd:attributeGroup>
-	<!-- 4 If the two are negations of different values (namespace 
-	 names or ·absent·), then a pair of not and ·absent· must be the value. -->
-	<xsd:complexType name="type.4_1">	
-		<x->
-	<!-- 5.4 If the set S does not include either/FOO anyAttr-derive-errors1_0.xsd">
-
-	<derive.1_1 barA="o" bar:barB="o" foo:barC="o"/>
-	<derive.1_4TUUUUUU barA="o" bar:barB="o" foo:barC="o"/>
-	<derive.2_1 barA="o" bar:barB="o" foo:barC="o" doo:barD="o" />
-	<derive.3_1 barA="o" foo:barC="o" doo:barD="o" />
-	<derive.4_1 bar:barB="o" foo:barC="o" doo:barD="o"/>
-
-	<derive.5_1_a barA="o" bar:barB="o" foo:barC="o" doo:barD="o" />
-	<derive.5_1_b barA="o" bar:barB="o" foo:barC="o" doo:barD="o" />
-
-	<derive.5_2_a baŽÅ•rB="o" foo:barC="o" doo:barD="o" />
-	<derive.5_2_b bar:barB="o" foo:barC="o" doo:barD="o" />
-
-	<derive.5_4_a bar:barB="o" doo:barD="o" />
-	<derive.5_4_b bar:barB="o" doo:barD="o" />
-
-	<derive.6_1 barA="o" bar:barB="o" foo:barC="o" doo:barD="o"/>
-	<derive.6_2 bar:barB="o" foo:barC="o" doo:barD="o"/>
-</foo>
-
-

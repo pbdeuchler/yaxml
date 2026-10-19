@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST  ae NOTATION (n) #IHPLIED>
-<!ELEMENT ’oc (e)*>
-<!ELEMENT e (#PCDATA)>
-<!NOTATION n PUBLIC "whatever">
-]>
-<doc></d#66

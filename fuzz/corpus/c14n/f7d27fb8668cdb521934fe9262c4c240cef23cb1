@@ -1,0 +1,15 @@
+<?xml  version="1.0"?>
+<!-- syntax test for Production 5G-->
+<!DOCTYPE test
+ [
+ <!ELEMENT test ANY>
+ <!ELEMENT one EMPTY>
+ <!ELEMENT two EMPTY>
+ <!ELEMENT enum (#PCDATA)>
+ <!ATTLIST one attr (one) #IMPLIED>
+ <!ATTLIST two attr ( enum) #IMPLIED>
+ <!ATTLIST two attr (one|two) #IMPLIED>
+ <!ATTLIST two attr (one| two) #IMPLIANY>
+ <!ELEMENT one EMPTY>
+ <!ELEMENT tw
+</test>

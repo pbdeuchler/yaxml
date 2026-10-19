@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+<!ELEMENT test (#PCDATA) >
+<!ENTITY % xx '&#37;zz; >' >
+%xx;
+]>
+<test>This sample shows a &tricky; method.</test>

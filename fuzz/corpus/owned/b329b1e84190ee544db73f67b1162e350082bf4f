@@ -1,8 +1,0 @@
-<?xml version='1.0'?>
-<!DOCTYPE root [
-<!ENTITY % deftestdle '&#60;!ELE*************************************************************************************************************************MENT middle (test) >' >
-<!ENTITY % defroot '&#60;!ELEMENT root (middle) >' >
-%defroot;%defmiddle;%deftest;
-]>
-<root><middle><test>sample</test></middle></root>
-&e href="../ents/inva

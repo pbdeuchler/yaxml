@@ -50,6 +50,7 @@ fn roundtrip(input: &[u8]) {
     let output = writer.into_inner();
     assert_eq!(position, output.len());
     assert!(output.len() <= ceiling);
+    limited(input, &output);
     let limits = yaxml::Limits {
         max_input_bytes: ceiling,
         max_token_bytes: ceiling,
@@ -66,6 +67,56 @@ fn roundtrip(input: &[u8]) {
         .feed(&output, |_, _| ControlFlow::Continue(()))
         .unwrap();
     streaming.finish(|_, _| ControlFlow::Continue(())).unwrap();
+}
+
+/// Replays the events under one input-selected ceiling, often below what the
+/// complete output needs: the writer either produces the same bytes or fails
+/// on a limit, after which it is terminal.
+fn limited(input: &[u8], expected: &[u8]) {
+    let control = super::selector(input);
+    let fraction = |total: usize| total * usize::from(control >> 3) / 32;
+    let generous = WriterLimits::default();
+    let limits = match control & 7 {
+        0 => WriterLimits {
+            max_output_bytes: fraction(expected.len()),
+            ..generous
+        },
+        1 => WriterLimits {
+            max_token_bytes: fraction(expected.len()),
+            ..generous
+        },
+        2 => WriterLimits {
+            max_depth: usize::from(control >> 3) & 7,
+            ..generous
+        },
+        3 => WriterLimits {
+            max_attributes: usize::from(control >> 3) & 3,
+            ..generous
+        },
+        4 => WriterLimits {
+            max_events: usize::from(control >> 3),
+            ..generous
+        },
+        5 => WriterLimits {
+            max_owned_bytes: fraction(4 * expected.len()),
+            ..generous
+        },
+        _ => return,
+    };
+    let limit_error = |error: &WriteError| matches!(error, WriteError::Xml(error) if matches!(error.kind, ErrorKind::LimitExceeded(_)));
+    let mut writer = Writer::with_limits(Vec::new(), limits);
+    let mut reader = Reader::new(input).unwrap();
+    while let Some(event) = reader.read_event().unwrap() {
+        if let Err(error) = writer.write_event(&event) {
+            assert!(limit_error(&error), "limited writer failed with {error}");
+            assert_terminal(&mut writer);
+            return;
+        }
+    }
+    match writer.finish() {
+        Ok(()) => assert_eq!(writer.into_inner(), expected),
+        Err(error) => assert!(limit_error(&error), "limited finish failed with {error}"),
+    }
 }
 
 /// Events with adjacent Text coalesced and entity boundaries dropped: entity

@@ -1,9 +1,0 @@
-<!DOCTYPE root SYSTEM "../valid/sa.dtd">
-    
-<root><![CDATA[
-    ]]><child>
-    The whitespace before and after this element keeps
-    this from being standalone.  (CDATA is just another
-    way to represent text...)
-    </child><![CDATA[
-]]></root>

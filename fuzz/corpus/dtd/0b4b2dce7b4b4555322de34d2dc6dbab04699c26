@@ -1,4 +1,0 @@
-<!DOCTYPE p [
-<!ELEMENT p (#PCDATA)>
-]>
-<p>Fa&#xFF000000F6;i,</p>          <!-- 3Ïß–‹ß–‘teger overflow -->

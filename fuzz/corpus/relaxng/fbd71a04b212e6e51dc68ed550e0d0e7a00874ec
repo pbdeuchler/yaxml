@@ -1,9 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (a|refs)*>
-<!ELEMENT a EMPTY>
-<!ELEMENT refs EMPTY>
-<!ATTLIST refs refs IDREFS #REQUIRED>
-<!ATTLIST a id ID #REQUIRED>
-]da id="A3"/>fs="A1"/>
-</d

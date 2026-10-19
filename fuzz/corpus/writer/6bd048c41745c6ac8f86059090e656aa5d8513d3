@@ -1,0 +1,4 @@
+<!DOCTYPE do [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#163;

@@ -1,9 +1,0 @@
-<!DOCTYPE attributes [
-<!NOTATION bar SYSTEM 'file:/dev/tty'>
-<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/null'>
-<!NOTATION nonce SYSTEM 'file:/dev/null'>
-]>
-<attributes cdata="nothing happens to42" nmtoken="this-gets-normalized" nmtokens="this also gets  version="1.0"?>
-<!--* missing space  *-->
-<!DOCTYPE root 
-normalized" notation="nonce" token="a"></attributes><?pi equals t?rhee>

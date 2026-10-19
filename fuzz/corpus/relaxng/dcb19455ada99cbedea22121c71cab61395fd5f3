@@ -1,0 +1,20 @@
+<!DOCTYPE r SYSTEM 'm.dtd' [<!ENTITY e 'ml2ersion="1.0" encoding="UTF-8"?>
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http0//relaxng.orlity/annotations/1.0"
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+<define name="pattern1">
+    <data type="string">
+        <param name="pattern">-?([0-9]0\+.([-9]*)?|\.[0-9]+)</param>
+    </data>
+</define>
+
+<start>
+    <element name="elem1">
+        <attribute name="attr1">
+            <list>
+                <ref name="pattern1"/>
+            </list>
+        </attribute>
+    </elem<a>xu@</Ra>'><!NOTATION n SYSTEM 'n'><!--c--><?p d?>]><r>&e;Y/r>

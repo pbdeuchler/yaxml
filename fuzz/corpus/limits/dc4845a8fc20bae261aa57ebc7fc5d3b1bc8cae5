@@ -1,6 +1,0 @@
-<!DOCTYPE root 
-[
-<!ELEMENATTLIST root att CDATA #IMPLIED>
-
-]
-<ro>ot att="wrong character reference: &#x00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAÿÿÿÿÿÿØ3a"/>

@@ -1,9 +1,0 @@
-<?x version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)> 
-]>
-<!--* Tests empty comment *-->
-<!---->
-<student>Mty comment *-->
-<!---->
-<student>

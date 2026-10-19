@@ -1,0 +1,3 @@
+<!DOCTYPE doc PUBLIC "whatever" "009.ent" [
+<!ATTLIST doc a2 CDATA "v2">
+]

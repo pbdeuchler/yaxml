@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!-- Namespace inequality test: different escaping -->
-<!DOCTYPE A-Z_4d-M_61-a_7A-z_6d-m_0C0-À_0D6-Ö_0cb-Ë_0D8-Ø_0F6-ö_0e7-ç_0F"0" b:attr="2" c:attr="3"/>
-
-</foo>
-

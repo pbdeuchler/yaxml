@@ -1,0 +1,12 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (
+#PCDATA
+|
+doc
+|
+a
+|
+(
+)*>
+<!ELEMENT c (#PCDATAoc/>

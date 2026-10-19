@@ -1,5 +1,0 @@
-<!DOCTYPE animal [
-   <!ELEMENT animal EMPTY>
-]>
-<!-- This a valid test file for production [28] --> 
-<animal/>

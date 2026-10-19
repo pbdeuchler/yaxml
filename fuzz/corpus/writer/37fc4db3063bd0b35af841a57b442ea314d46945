@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE billion [
-  <!ELEMENT billion (#PCDATA	>
-  <!ENTITY % p0 SYSTEM "p0.ent">
-  <!ENTITY % p [
-<!IELEMENT root (#PCDATA)>
-<!--* Wrong keyword:<billion/>

@@ -1,4 +1,0 @@
-<!DOCTYPE oc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY % e1 "">
-<!ENTITY % oc>

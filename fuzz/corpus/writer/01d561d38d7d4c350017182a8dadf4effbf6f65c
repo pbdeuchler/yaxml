@@ -1,0 +1,41 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalNa6 ANY>
+<!ATTLIST LegalName16 attr16 CDATA #IMPLIED>
+<!ELEMENT LegalName17 ANY>
+<!ATTLIST LegalName17 attr17 CDATA #IMPLIED>
+<!ELEMENT LegalName18 ANY>
+<!ATTLIST LegalName18 attr18 CDATA #IMPLIED>
+<!ELEMENT LegalName19 ANY>
+<!ATTLIST LegalName19 attr19 CDATA #IMPLIED>
+<!ENTITY Name豈 "Test"><!ATTLIST LegalName11 attr11 CDATA #IMPLIED>
+<!ELEMENT LegalName12 ANY>
+<!ATTLIST LegalName12 attr12 CDATA #IMPLIED>
+<!ELEMENT LegalName13 ANY>
+<!ATTLIST LegalName13 attr13 CDATA #IMPLIED>
+<!ELEMENT LegalName14 ANY>
+<!ATTLIST LegalName14 attr14 CDATA #IMPLIED>
+<!ELEMENT LegalName15 ANY>
+<!ATTLIST LegalName15 attr15 CDATA #IMPLIED>
+<!ELEMENT LegalName16 ANY>
+<!ATTLIST LegalName16 attr16 CDATA #IMPLIED>
+<!ELEMENT LegalName17 ANY>
+<!ATTLIST LegalName17 attr17 CDATA #IMPLIED>
+<!ELEMENT LegalName18 ANY>
+<!ATTLIST LegalName18 attr18 CDATA #IMPLIED>
+<!ELEMENT LegalName19 ANY>
+<!ATTLIST Lega>
+<!ENTITY Nameͮ "Test">
+<!ENTITY Nameͯ "Test">
+<!ENTITY Name‿ "Test">
+]>
+<!-- Legal Names containing one to four characters in order from the list below  used in Attr delcs and attributes.  x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, 0x0370, 0x0371, 0x037C, 0x037D, 0x037F, 0x0380, 0x1FFE, 0x1FFF, 0x200C, 0x200D, 0x2070, 0x2071, 0x218E, 0x218F, 0x2C00, 0x2C01, 0x2FEE, 0x2FEF, 0x3001, 0x3002, 0xD7FE, 0xD7FF, 0xF900, 0xF901, 0xFFFD, 0x002D, 0x002E, 0x0041, 0x007A, 0x0030, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040 -->
+<LegalName>
+<LegalName0 attr0="Name:"	/>
+<LegalName1 attr1="NameÀ"	/>
+<LegalName2 attr2="NameÁ"	/>
+<LegalName3 attr3="Name˾"	/>
+<LegalName4 attr4="NameÂ"	/>
+<L43 attr43="Name‿"	/>
+</LegalName>

@@ -852,6 +852,25 @@ fn serialized(state: &State) -> Vec<u8> {
         },
     );
     writer.write_owned_document(&state.document).unwrap();
+    // Structural edits leave slots out of document order; XPath must still
+    // return every node in document order.
+    let document = &state.document;
+    let selected = yaxml::xpath::XPath::compile("//node()")
+        .unwrap()
+        .select_nodes(
+            document,
+            document.root().id(),
+            &yaxml::xpath::Context::new(),
+        )
+        .unwrap();
+    assert!(
+        selected.into_iter().eq(document
+            .nodes()
+            .skip(1)
+            .filter(|node| node.kind() != OwnedNodeKind::DocumentType)
+            .map(|node| yaxml::xpath::Node::Tree(node.id()))),
+        "XPath order differs from the edited tree"
+    );
     let position = writer.position();
     writer.finish().unwrap();
     let output = writer.into_inner();

@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE test [
-<!ENTITY example "<p>An ampersand (&#09;#38;) may be escaped
- numericall(&#38;#38;#38;) or with a general entityamp;amp;).</p>" >
-]>
-<test>&example;</test>

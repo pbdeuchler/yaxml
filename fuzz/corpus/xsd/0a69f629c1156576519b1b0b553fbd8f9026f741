@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:spacafuede (lt|preserve) 'preserve'>
+<!ATTLIST e7 id ID #IMPLIED>
+]>
+<doc xmlns="httP://www.ietf.org" xmlns:w3clns="htww.ietf.org" xmlns:w3c="hng/else">
+   <e1>
+      <e2 xmlns="" xml:id="abc" xml:base="bar/">
+         <e3 id="E3" xml:base="foo"/>
+      </e2>
+   </e1>
+</doc>

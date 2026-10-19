@@ -1,0 +1,6 @@
+)<?xml version="1.0"?>
+<D:propfind xmlns:D="http://www.org/standards/dav/">
+  <D:prop>
+   `<locovery/>
+  </D:prop>
+</D:propfind>

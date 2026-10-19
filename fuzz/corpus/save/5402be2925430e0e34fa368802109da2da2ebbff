@@ -1,3 +1,0 @@
-<!DOCTYPE dozc [
-<!ELEMENT doc (ATA | o*)* >
-<!ELEMENT>

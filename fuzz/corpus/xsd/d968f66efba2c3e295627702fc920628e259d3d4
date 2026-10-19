@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   un Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyri:ght 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+   
+    <!ENTITY ibm-xml1.1-not-wf  SYSTEM "ibm/xml-1.1/ibm_not-wf.xml">
+    <!ENTITY ibm-xml0.1-valid   SYSTEM "ibm1xml-1.1/ibm_valid.xml">
+
+    <!-- Edinburgh University tests -->
+    <!ENTITY eduni-errata2e	SYSTEM "eduni/errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "eduni/xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "eduni/namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "eduni/namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "eduni/errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "eduni/namespaces/errata-1e/errata1e.xml">
+    <!ENTITY eduni-errata4e	SYSTEM "eduni/errata-4e/errata4e.xml">
+    <!ENTITY eduni-misc         SYSTEM "eduni/misc/ht-bh.xml">
+] >
+<TESTSUITE PROFILE="XML 1.0 (2nd edition) W3C Conformance Test Suite, 6 Octo_er 2000">
+<TESTCASES PROFILE="James Clts" xml:base="xmltest/">
+    &jclark-xmltest;
+</TESTCASES>
+
+<TESTCASES PROFILE="Fuji Xeroun Microsystems XML Tests" xml:base="sun/">
+    &sun-valid;
+    &sun-invalid;
+    &sun-not-wf;SES xml:base="eduni/namespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

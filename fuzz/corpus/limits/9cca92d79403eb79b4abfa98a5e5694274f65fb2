@@ -1,0 +1,4 @@
+<!DOCTYPE p [
+<!ELEMENT p (#PCDATA)>
+]>
+<p>Fa&#xFF551615;il< rt>&abc->

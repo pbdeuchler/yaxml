@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!'LEMENT doc (#PCDATA)>
-<!ATTLIST doc a CDATA #FIXED "v">
-]>
-<doc></doc>

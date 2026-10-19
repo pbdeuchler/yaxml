@@ -1,4 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no normalization -->OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='5oo&#43;&#x;# 9;&a'/> <!-- PBM serializing back -->
-</doc>

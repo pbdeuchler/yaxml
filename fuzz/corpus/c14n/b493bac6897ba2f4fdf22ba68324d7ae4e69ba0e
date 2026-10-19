@@ -1,9 +1,0 @@
-<?xml version="1.0" standalone="yes" ?>
-<!DOCTYPE animal SYSTEM "ibm32n09.dtd" [
-   <!ELEMENT animal (#PCDATA)>
-]>
-<!-- This is test violates WFC: Entity Declared in P68
- Themal (#PCDATA)>
-]>
-<!-- This is test violates WFC: Entity Declared in P68
- The standa standalone document declaration has the value "yes"mal>

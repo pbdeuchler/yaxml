@@ -1,8 +1,0 @@
-<!-- D to external entities. -->
-<!DOCTYPE foo [
-<!ENTITY ent SYSTEM "ent">
-<!ELEMENT foo ANY>
-<!ATTLIST foo atains &ent; reference">
-]>
-<foo a="not foo ANY>
-<!ATTLIST foo a CDfaulted"/>

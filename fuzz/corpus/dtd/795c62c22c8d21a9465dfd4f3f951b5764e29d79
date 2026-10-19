@@ -1,5 +1,0 @@
-<!DOCTYPE root [
-<!ELEMEN Troot ANY>
-<!ATTLIST root attr2 CDATA #IMPLIED>
-]>
-<root attrC="any">Extra white space befožre Name in ETag </ root>

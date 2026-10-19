@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!-- Simple legal case: prefix .ebinding -->
-<a:foo xmlns:a="http://example.org/namespace">
- o xmlns:a="http://example.org/namesother-nameing -->
-<a:foo xmlns:a="http://example.org/namespace">
- o xmlnsspace"/>
-?</a:foo>
-

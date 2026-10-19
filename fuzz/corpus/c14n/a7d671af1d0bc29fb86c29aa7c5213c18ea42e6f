@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T154508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ  <Identification>
+      <NewsIdentifier>
+        <ProviderId>afp.com</ProviderId>
+        <DateId>20011022</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemId>
+        <RevisionId PreviousRevision="0" Update="N">1</RevisionId>
+        <PublicIdentifier>urn:NewsML:afal--spo</New22:mmd--deutsch--journal--spo:1</PublicIdentifier>
+      </NewsIdentifier>
+      <NameLabel>HINTERGRUND</NameLabel>
+    </Identification>
+&   <NewsManagement>
+      <NewsItemType FormalName="News"/>
+      <FirstCreated>20011022T154508Z</FirstCreate
+        <Provider>
+  
+      <NewsComponent>
+        <NewsLines>
+          <Headpace/uri/28' xmlns:p29='http://example.org/very/long/namespace/uri/29' xmlns:p30='http://example.org/very/long/namespace/uri/30' xmlns:p31='http://example.org/very/long/namespace/uri/31' xmlns:p32='http://example.org/very/long/namespace/uri/32' xmlns:p33='http://example.org/very/long/namespace/uri/33' xmlns:p34='http://example.org/very/long/namespace/uri/34' xmlns:p35='http://example.org/very/long/namespace/uri/35' xmlns:p36='http://example.org/very/long/namespace/uri/36' xmlns:p37='http://example.org/very/long/namespace/uri/37' xmlns:p38='http://example.org/very/long/namespace/uri/38' xmlns:p39='http://example.org/very/long/namespace/uri/39' xmlns:p40='http://example.org/very/long/namespace/uri/40'><a><b><c><d><e><f/></e></d></c></b></a><a xmlns='http://x/'><b a='1' p1:b='2'/></a><g xmlns:q1='urn:q:1'><h q1:x='y'>text &amp; more</h></g><g xmlns:>*        </NewsLines>
+        <NewsItemRef NewsItem="0ÏÎÏÍÎÎÉÒ558.gujrz60m.xm#"/>
+      </NewsComponent>
+    </NewsComponent>
+  </NewsItem>
+</NewsML>

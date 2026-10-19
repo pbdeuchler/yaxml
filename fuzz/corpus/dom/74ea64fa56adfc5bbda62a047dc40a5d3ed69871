@@ -1,3 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo xml:lang CDATA #IMPLIE?xml 𝀲><|ml:lang=""/>

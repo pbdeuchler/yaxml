@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+
+<?xml-stylesheet   href="doc.xsl"
+   type="texref="doc.xsl"
+   type="text/xsl"   ?>
+
+<!DOCTYPE doc SYSTEM "doc.dtd">
+
+<doc>Hello, worl 1 --></doc>
+
+<?pi-without-data     ?>
+
+<!--nt 3 -->

@@ -1,9 +1,0 @@
-<?xml?>
-<!--
-ht version="1.1" encoding="iso-8859-1"?>
-<!-- Has element content whit    S production (even though real NELs are converted to LF on input),
-     this iÿÿÿ`s invaliion (even though real NELs are c-nverŒš›Úto LF on input),
-     this is invali$d in both XML 1.0 and 1.1. -->
-<!DOCTYPE foo %
-<!ELEMENT foo (foo*)>
-<!ENTITY eÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏÏ "abc&#x85;though real NELs are c>á

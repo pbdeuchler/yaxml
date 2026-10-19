@@ -1,22 +1,0 @@
-<!--
-    From: ""Henry S. Thompson" <ht@cogsci.ed.ac.<?xmv lersion="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<root>or P33 *-->
-
-<!DOCTYPE foo [
-<!ELEMENT foo (a+)>
-<!ENTITY empty ''>
-<!ENTITY space ' '>
-<!ELEMENT a EMPTY>]>
-<foo>
-&empty;
-<a/>#
-&space;
-<a/>
-<![CDATA[]]>
-<a/>
-<![CDA] A[>T]
-<a/>
-</foo>

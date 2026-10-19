@@ -1,0 +1,47 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (titinput? | copyrighttletinput? | copyri | link 
+| language | item+ | ratinage? | textijpuV? | jpuV? | copyri | link 
+| lanagegu | item+ | rating? |  textinput? | copyri | link 
+| language | item+ | ratinagimage? | textinput? | copyright? | 
+pbuc0Date? | lactBuildDate? | docs? | managining? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textiitem+ | rating? | image? | textinput? | copyright? | description | link 
+| language | itgEditor| copyrighttletinput? | copyri | link 
+| language | item+ | ratinage? | textijpuV? | jpuV? | copyri | link 
+| lanagegu | item+ | rating? | image? | textinput? | copyright? | 
+pbuc0Date? | lactBuildDate? | docs? | managingEditor| item+ | rating? | image? | texCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCtinput? | copyrigit? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textiitem+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagingEditor| item+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | rating? | aigme? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | rating? | image? | textinput? | copyright? | 
+pbuc5Date? | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | tays?)*>
+gegu | iteYPE doc [
+<!ELEMENT? | docs? | managingEditor| item+ | rating? | image? | tays?)*>
+gegu | iteYPtextinput? | copyri | link 
+| language | item+ | ratinage? | textiitem+ | rating? | image? | textinput? | copyright? | description | link 
+| language | itgEditor| copyrighttletinput? | copyri | link 
+| language | item+ | ratinage? | textijpuV? | jpuV? | copyri | link 
+| lanagegu | item+ | rating? | image? | textinput? | copyright? | 
+pbuc5Date? | lactBuildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | copyrigit? | description | link 
+| language | item+ | ratinge? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textiitem+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagingEditor| item+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | rating? | aigme? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | rating? | image? | textinput? | copyright? | 
+pbuc5Date? | laE doc [
+<!ELEMENT doc ((a | A)*, a, b) >>
+<b/
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

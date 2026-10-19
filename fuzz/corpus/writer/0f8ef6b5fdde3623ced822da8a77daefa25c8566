@@ -1,51 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-prop-2
-">
-an implausibly-versioned document
-</TEST>
-
-<TEST VERSION="1.1" RECOMMENDa
-<D-
-<!TCPD-0><-!--ATION="XML1.1" SE<?]xml version="1.1"?>
-<!-- Has the first ch XML~0.1,
-     illegal in both XML z1.0 <!DOCTYPE doc [
-    <!ENTITY % z    </ietf:e11>
-   D-
-<!TCPD-0><-!--ATION="XML1.1" SE<?]xml version="1.1"?>
-<!-- Has the first ch XML 0.1,
-     illegal in both XML z1.0 <!DOCTYPE doc [
-    <!ENTITY % z    </ietf:e11>
-      <ietf:e12 at="2">
-        <ietf:e121 xml:base=
-<!--
-http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-prop-2
-">
-an implausibly-versioned document
-</TEST>
-
-<TEST VERSION=NDa
-<D-
-<!TCPD-0><-!--ATION="XML1.1" SE<?]xml version="1.1"?>
-<!-- Has the first ch XML~0.1,
-     illegal in both XML z1.0 <!DOCTYPE doc [
-    <!ENTITY % z    </ietf:e11>
-   D-
-<!TCPD-0><-!--ATION="XML1.1" SE<?]xml version="1.1"?>
-<!-- Has the first ch XML 0.1,
-     illegal in both XML z1.0 <!DOCTYPE doc [
-    <!ENTITY % z    </ietf:e11>
-      <ietf:e12 at="2">
-        <ietf:e121 xml:base=
-<!--
-http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-prop-2
-">
-an implausibly-versioned documen"1.1" RECOMMENDa
-<D-
-<!TCPD-0><-!--ATIOST VERSION="1.1" RECOMMENDATION="XMlausibly-versioned document
-</TEST>
-
-<TEST VER="3"/>
-    <ьetf:e3>
-</ietf:c14n11XmlBaseDoc0>SION="1.1" RECOMMENDATION="XML
-1.1" SE<?]xml versi

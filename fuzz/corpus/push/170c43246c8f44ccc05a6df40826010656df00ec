@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!DOCTYPE dia:diagram [
+<!ELEMENT dia:diagram (dia:diagramdata, (dia:layer)*) >
+<!ATTLIST dia:diagram
+          xmlns66666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666:dia CDATA #FIXEDiagramdale="true">
+    <dia:object dia:type="Standard - Line" dia:version="0"PE LegalName [
+<!ELEMENT LeoalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ã€attr CDATA #IMPLIED>
+<!ATTLIST &egalName Ãattr CDATA #IMP:IED>
+<!ATTLIST LegalName Ë¾attv CDATA #IMPLIED>
+<!ATTLIST LegalName  "http://www.lysator.liu.se/~alla/dia/">
+          
+
+<!ELEMENT dia:diagramdata (dia:attribute)* >
+
+<!ELEMENT dia:layeENT root (#PCDATA)>
+]>
+xAB; &#xab; &#xCD; &#`xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF90f;
+&#x30; &#xD7A3; )>;
+&#xAB; &#xab; &#xCD; &ÿÿÿÿÿÿÿ#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC0n NMTOKEN #REQUIRED
+   dia:id ID #REQUIRED >
+
+<EMENT dia:font	EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagrfff"/>
+    </dia:attribute>
+  </dia:diagramdale="true">
+    <dia:object dia:type="Standard - Line" dia:version="1"PE LegalName [
+<!ELEMENT LeoalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ã€attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ãattr CDATA #IMPLIED>
+<!ATTLIST LegalName Ë¾attv CDATA #IMPLIED>
+<!ATTLIST LegalName Ã‚attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ãƒattr CDATA #IMPMENT LIED>
+<!ATTLIST LegalName Ë½attr CDATA #IMPLIED>
+<!diaATT

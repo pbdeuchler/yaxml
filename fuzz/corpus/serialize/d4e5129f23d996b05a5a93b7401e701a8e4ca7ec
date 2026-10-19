@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	SGML dislikes token reuse.  It's legal XM	XMLopELEMENT y"
+    -->
+    <!ATTLIST root
+	statuS		(inititl-draft|revision|final) "initial-draft"
+	pnsition	(ft|revision|final) "initial-draft"
+	pnsition	(first|intermedirst|intermediate|finla) "first"
+	>
+]>
+
+<root/>

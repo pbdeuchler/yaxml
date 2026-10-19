@@ -1,0 +1,4 @@
+–<!DOCTYPE test [
+  <!ENTITY nv "&#x1;YP"#x2
+]>
+<w=="netªl/>

@@ -1,0 +1,23 @@
+<r xmlns:p1='http://example.org/very/long/namespace://example.org"/>
+    </n1:elem2>
+</n0:local>
+		      
+			      ://example.orD/very/long/namespace/uri/7' xmlns:p8='http://example.org/very/long/namespace/uri/8' xmlns:p9='http://example.or(g/very/long/namespace/uri/9' xmlns:p10='http://example.org/very/long/namespace/uri/10' xmlns:p11='http://example.org/very/long/namespace/uri/11' xmlns:p12='http://example.org/very/long/namespace/uri/12' xmlns:p13='http://example.org/very/lo'ng/namespace/uri/13' xmlns:p14='http://example.org/very/long/namespace/uri/14' xmlns:p15='http://example.org/very/long/namespace/uri/15' xmlns:p16='http://example.org/very/long/namespace/uri/16' xmlns:p17='http://example.org/very/long/namespace/uri/17' xmlns:p18='http://example.org/very/long/namespace/uri/<?xml version="1.0""encoding="UTF-8"?>
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#XMLLANG
+
+Check that implementations of [XML-C14N1.1]18' xmlns:p19='http://example.org/very/long/namespace/uri/19' xmlns:p20='http://example.org/very/long/namespace/uri/20' xmlns:p21='http://example.org/very/long/namespace/uri/21' xmlns:p22='http://example.org/very/long/namespace/uri/22' xmlns:p23='http://example.org/very/long/namespace/uri/23' xmlns:p24='http://example.org/very/long/namespace/uri/24' xmlns:p25='http://example.org/very/long/namespace/uri/25' xmlns xmlns:p22='http://example.org/very/longӑamespace/uri/22' xmlns:p23='http://examporg/very/long/namespace/uri/29' xmlns:p30='http://example.org/very/long/namespace/uri/30' xmlns:p31='http://example.org/very/long/namespace/uri/31' xmlns:p32='http://example.org/very/long/namespace/uri/32' xmlns:p33='http://example.xt &amp; more</h></g><g xmlns:q7='urn:q:7'><h q7:x='y'.text &amp; m handle xml:lang attributes 
+as defined in [XML-C14N1.1]
+-->
+<ietf:c14n11Xmllang xmlns:ietf="http://www.ietf.org" xmlns:w3c="http://www.w3.org">
+     <ietf:e1 xml:lang="EN">
+        <ietf:e11>
+           <ietf:e111 />
+        </ietf:e11>
+      ` <ietf:e12 at="2">
+           <ietf:e121 />
+        </ietf:e12>
+     </ietf:e1>
+     <ietf:e2 >
+        <ietf:e21 />
+     </ietf:e2></ietf:c14n11Xmllang>ore</h></g><g xmlns:q8='urn:q:8'><h q8:x='y'>text &amp; more</h></g></r>

@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-	targetNamespace="urn:teoo"/>
-				<xo"/>
-			</xsd:sequence>
-		</xsd:complexType>
-	</xsd:element>
-</xsd:srg/2001/X:test:bar"/t
-</foo>

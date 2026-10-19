@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE root [
-  <!ATTLIST foo xml:lang CDATA "enggt;&quot;">
-]>
-<root>
-  <foo¹ xml:l\ng="ger">Ja</foo>
-</root>

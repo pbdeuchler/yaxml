@@ -1,8 +1,0 @@
-<!DOCTYPE doc SYSTEM "N" [
-  <!ENTITY a "&b;">
-  <!ATY a "&b;">
-  <!ATTLIST x y CDATA "&a;">
-  <!ENTITY b "&a;">
-]OCTYPE doc SYSTEY a "&b;">
-  <!ATTLIST >
-<doc attr="&a;"/>

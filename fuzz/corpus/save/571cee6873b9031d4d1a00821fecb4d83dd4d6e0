@@ -1,9 +1,0 @@
-<!DOCTYPE doc
-[
-]>
-<doc>
-<A att="abc"/><A2 att="abc def . :"/><A att="
-abc
-def
-"/>
-</doc>

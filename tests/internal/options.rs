@@ -70,7 +70,6 @@ fn loading_follows_libxml2() {
         assert_eq!(flags.loads(GeneralEntity), general, "{flags:?}");
         assert!(flags.loads(XInclude));
     }
-    assert_eq!(Flags(0).loading(), Flags(LEGACY | DTDLOAD));
 }
 
 #[test]

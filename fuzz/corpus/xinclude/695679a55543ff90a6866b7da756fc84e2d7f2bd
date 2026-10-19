@@ -1,0 +1,4 @@
+<doc xmlns:xi="http://www.w3.org/2003/XInclude"
+  xmlns:dom="http:/two">
+<xi:include href="../../ents/base-inc.xml" xpointer="xpointer(//elem)"/>
+</doc>

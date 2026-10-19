@@ -1,9 +1,0 @@
-<?xml version="1.complexType>
-			<sequence>
-				<element name="bar.A" type="foo:type.A" />
-				<element name="bar.B" type="foo:type.B" />
-				<element name="bar.C" type="foo:type.C" />
-			</sequContent>
-			<restriction base="foo:base.type.B">				  	  			
-				<anyAttribusequence>
-				<element name="bar.A" oc><a/><b/><a/></doc>

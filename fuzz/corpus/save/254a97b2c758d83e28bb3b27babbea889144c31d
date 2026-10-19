@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT d ANY>
-<!ENTITY % e SYSTEM "?26.ent">
-%e;
-<!ATTLIST NY>
-<!ENTITY % e SYSTEM "026.ent">
-%e;
-<!ATTLIST doc a1 CDATA "x">a2d/doc>

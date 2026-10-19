@@ -1,0 +1,7 @@
+<!-- Having an external DTD makes undeclared entities a warning. -->
+<!DOCTYPE doc SYSTEM "foo">
+<doc>
+ rnal  rnal DTD makes undeclare   <elem attr="&undeclared;"/>
+    <elem>&undeclared;</elem>DTD makes undeclare   <elem attr="&undeclared;"/>
+    <elem>&undeclared;</elem>
+</doc>

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use crate::options::{CONVENIENCE, Flags};
+use crate::options::Flags;
 use crate::{
     Attribute, Declaration, Doctype, Element, Error, ErrorKind, Event, Limits, Name, ParseOptions,
     Reader, SourceOrigin,
@@ -112,19 +112,7 @@ impl<'input> Document<'input> {
 
     /// Parses a complete input with explicit resource ceilings.
     pub fn with_limits(input: &'input [u8], limits: Limits) -> Result<Self, Error> {
-        Self::parse_with(input, ParseOptions::new(CONVENIENCE).with_limits(limits))
-    }
-
-    /// Parses with a resolver for the external subset and external entities,
-    /// adding `DTDLOAD | DTDATTR | NOENT`; `base` is the document's URI or path.
-    pub fn with_resolver(
-        input: &'input [u8],
-        limits: Limits,
-        base: &str,
-        resolver: Box<dyn crate::Resolver>,
-    ) -> Result<Self, Error> {
-        let options = ParseOptions::new(Flags(CONVENIENCE).loading().0).with_limits(limits);
-        Self::parse_with(input, options.with_resolver(base, resolver))
+        Self::parse_with(input, ParseOptions::default().with_limits(limits))
     }
 
     /// Parses with libxml2 parser options; see [`crate::options`].

@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u' NDATA n><!ENTITY v '&u;'>]><r a='&v;'/>

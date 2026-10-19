@@ -1,3 +1,0 @@
-<!DOCTYPE student [
-   <!ELEMENT student (#PCDATA)>
-   <!ENTITY unref SYSTEM)dent>

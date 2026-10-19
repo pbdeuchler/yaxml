@@ -4,16 +4,14 @@ use std::io::{BufReader, Cursor};
 use std::ops::ControlFlow;
 use std::path::Path;
 
+use yaxml::options::{DTDLOAD, LEGACY};
 use yaxml::{
-    BufferedReader, DecodeLimits, Document, Error, FileResolver, Limits, OwnedDocument, PushParser,
-    ReadError, Reader, Resolver,
+    BufferedReader, Document, Error, FileResolver, Limits, OwnedDocument, ParseOptions, PushParser,
+    ReadError, Reader,
 };
 
 pub const SURFACES: [&str; 5] = ["reader", "document", "owned", "push", "buffered"];
 pub const MAX_CASE_BYTES: usize = 1 << 20;
-
-/// A document base and the resolver serving it.
-type Resolution<'a> = Option<(&'a str, Box<dyn Resolver>)>;
 
 fn limits() -> Limits {
     Limits {
@@ -38,44 +36,37 @@ pub fn observe(
             input.len()
         ));
     }
-    let resolver = || -> Result<Resolution<'_>, String> {
-        context
-            .map(|(root, path)| {
-                let resolver = FileResolver::new(root).map_err(|error| error.to_string())?;
-                Ok((path, Box::new(resolver) as Box<dyn Resolver>))
-            })
-            .transpose()
+    // With a corpus root, entities and the external subset load as libxml2's
+    // `NOENT | DTDLOAD | DTDATTR` load them.
+    let options = || -> Result<ParseOptions, String> {
+        let options = ParseOptions::default().with_limits(limits());
+        let Some((root, path)) = context else {
+            return Ok(options);
+        };
+        let resolver = FileResolver::new(root).map_err(|error| error.to_string())?;
+        let options = ParseOptions {
+            flags: LEGACY | DTDLOAD,
+            ..options
+        };
+        Ok(options.with_resolver(path, Box::new(resolver)))
     };
 
     match surface {
         "reader" => {
-            let resolver = resolver()?;
+            let options = options()?;
             let result = (|| {
-                let mut reader = Reader::with_limits(input, limits())?;
-                if let Some((base, resolver)) = resolver {
-                    reader = reader.with_resolver(base, resolver);
-                }
+                let mut reader = Reader::with_options(input, options)?;
                 while reader.read_event()?.is_some() {}
                 Ok(())
             })();
             Ok(result)
         }
-        "document" => Ok(match resolver()? {
-            Some((base, resolver)) => Document::with_resolver(input, limits(), base, resolver),
-            None => Document::with_limits(input, limits()),
-        }
-        .map(drop)),
-        "owned" => Ok(match resolver()? {
-            Some((base, resolver)) => OwnedDocument::with_resolver(input, limits(), base, resolver),
-            None => OwnedDocument::with_decode_limits(input, limits(), DecodeLimits::default()),
-        }
-        .map(drop)),
+        "document" => Ok(Document::parse_with(input, options()?).map(drop)),
+        "owned" => Ok(OwnedDocument::parse_with(input, options()?).map(drop)),
         "push" => {
             const CHUNKS: [usize; 3] = [1, 7, 4096];
-            let mut parser = PushParser::with_decode_limits(limits(), DecodeLimits::default());
-            if let Some((base, resolver)) = resolver()? {
-                parser = parser.with_resolver(base, resolver);
-            }
+            let mut parser =
+                PushParser::with_options(options()?).map_err(|error| error.to_string())?;
             let mut cursor = 0;
             let mut next_chunk = 0;
             let result = (|| {
@@ -92,11 +83,8 @@ pub fn observe(
         }
         "buffered" => {
             let input = BufReader::with_capacity(17, Cursor::new(input));
-            let mut reader =
-                BufferedReader::with_decode_limits(input, limits(), DecodeLimits::default());
-            if let Some((base, resolver)) = resolver()? {
-                reader = reader.with_resolver(base, resolver);
-            }
+            let mut reader = BufferedReader::with_options(input, options()?)
+                .map_err(|error| error.to_string())?;
             loop {
                 match reader.read_event() {
                     Ok(Some(_)) => {}

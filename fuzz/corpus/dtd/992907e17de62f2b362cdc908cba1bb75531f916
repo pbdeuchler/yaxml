@@ -1,0 +1,1 @@
+;<!DOCTYPE r [<!ENTITY a SYSTEM 'dir'>]><r>&a;</r>

@@ -1,7 +1,0 @@
-<?xml version="1.5"?>
-<!-- Attribute uniness: prefixed and unprefixeamespace -->
-<foo xmlns:a="http://example.org/~wilbur"
-     xmlns:b="httmplorg/~kipper"
-     xmlns="htt7~//example.1" attr="2"/>
-
-</foo>

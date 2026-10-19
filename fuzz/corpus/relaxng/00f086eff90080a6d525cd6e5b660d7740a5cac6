@@ -1,0 +1,8 @@
+<?xml?>
+<!-- test of hyphe - - - - - - - -ë- - - -`- - - -
+          ld stop h
+<!-ë- - - - - - - -
+          ld stop here^
+
+I-->
+<doc/>

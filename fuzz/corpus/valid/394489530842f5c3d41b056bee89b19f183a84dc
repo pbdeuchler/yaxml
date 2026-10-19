@@ -1,9 +1,0 @@
-<?xml version="1.0"?><!--before--><?pi data?><r xmlns="MPLIED s IDREFS #IMPLIEDe ENTITY!#IMPLIED es ENTITIES #D es ENTITIES #IMPLIED
-  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLLIED k (x|y|x) 'z' o NOTATION (n|o) #IMPLIED
-  c CDATA #FIXED 'c' q CDATA #REQUIRED xmnls:p CDATA #FIXIMPLIED
-  t NMTOKEN #IMPLIED ts Npe '														'>
-%pe;
-<!AT<r i='a' j ID 'd'>
-<!ATTLIST r c 1DATA 'again'>
-]>
-<r i='a' f='b' s='a c' e='p' es=s=' x  y ' o[;" p:a=e-#13;é🙂</r>1!--after-->

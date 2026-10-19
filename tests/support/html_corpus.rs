@@ -323,4 +323,6 @@ pub const CASES: &[&[u8]] = &[
     b"<p><br></p><div><br></div>",
     b"<dl><dt>a</dt><dd>b</dd></dl>",
     b"<body><!--a--><!--b--><div>x</div></body>",
+    // The prescan accepts a UTF-16 label; the document saves as UTF-16.
+    b"<body>\xe9 http-equiv content charset=utf-16</body>",
 ];

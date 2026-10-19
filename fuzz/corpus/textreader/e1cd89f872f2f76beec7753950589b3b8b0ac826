@@ -1,0 +1,8 @@
+Ž<?xml version='1.0' standalone='yes'?>
+<!DOCTYPE attributes [
+
+<!ATTLIST attributes
+   nmtokenX   NMTOKEN    #IMPLIED
+   nmtokens   NMTOKENS   #IMPLIED>
+<!ENTITY ent " entity&recursive; ">
+<!/>

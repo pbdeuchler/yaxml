@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='http://relaxng.org/ns/structure/1.0">
+<start>
+  <element name="foo">
+    <oneOrMore>
+      <choice>
+        <group>
+          <choice>
+            <attribute name="bap"/>
+            <attribute name="baz"/>
+          </choice>
+          <choice>
+            <attribute name="bar"/>
+            <attribute name="baz"/>
+          </choice>
+        </group>
+        <attribute name="bar"/>
+      </choice>
+    </oneOrMoreb' s='a c' e='p' es='u vmp' o='}h' #=d;<r i= ENTITY r c CDATA '='u˙: v am<r><!p' t='2 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy2' -

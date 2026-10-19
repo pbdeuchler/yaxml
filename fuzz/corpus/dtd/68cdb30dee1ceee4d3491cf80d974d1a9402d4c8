@@ -1,8 +1,0 @@
-<!DOCTYPE root [
-<!ENTITY foo 'abc'>
-<!ENTITY bar 'def'>
-]>
-<root attribute="&foo;">
-   <element>&bar;<root [
-<!ENTITY foo 'ab/eleMment>
-</root>

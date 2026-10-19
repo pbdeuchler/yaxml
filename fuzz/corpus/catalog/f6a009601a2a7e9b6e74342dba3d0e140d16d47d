@@ -1,0 +1,9 @@
+<!DOCTYPE catalog
+  PUBLIC "-//OASIS//DTD EntN"
+         "http://www.oasis-open.org/committees/entity/relacatalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog"
+         prefer="public">
+
+<!-- Circumvent r:lative URI in spec.xsl oto.dtd"/>
+</catalog>
+

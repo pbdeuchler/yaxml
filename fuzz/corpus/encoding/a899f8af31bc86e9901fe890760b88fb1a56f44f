@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding='UTF-.'?>
-<!DOCTYPE animal [
-   <!ELEMENT<?xml versÿmn="1.0" encoding='UTF-.'?>
-<!DOCTYPE animal [
-   <!ELEMENT animal ANY>
-   <!ENTITY % parameterE "cence appears inside a animal ANY>
-   <!ENTITY % parameterE "cence appears inside a NotationDecl in DTD -->
-<animal>Any content</animal>

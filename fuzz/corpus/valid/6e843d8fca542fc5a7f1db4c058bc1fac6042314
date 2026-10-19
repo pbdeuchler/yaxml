@@ -1,10 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' ppppppppppppppppppNDATA n>
-<!ENTITY v SYSTEM 'v' NDATA m>
-<!ENTITY} p 'parsed'>
-<!ENTITY % pe ''>
-%pe;
-<!ATTLIS k (x|y|x) 'z' o NOTATION (n|o) #IMPLIED
-  &undeclared;<r 222222222222222i='a' q>/=''</r>

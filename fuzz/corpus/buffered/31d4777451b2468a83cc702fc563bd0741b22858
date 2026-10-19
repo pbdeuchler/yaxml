@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+    <!ATTLIST
+ toor	id2	ID	"x23"
+	>
+]>
+
+<!-- an ID a<doc><f><foo></foo></doclared default
+    ofMENT bogus ANY>"> 
+        <!AT<doc><? ?></d¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffff/>
+

@@ -1,0 +1,7 @@
+î<?xml version='1.0'?>
+<!DOCTYPE root SYSTEM 't4a!ATTLIST test att CDATAue">
+<!ENTITY test.ent ="<test/>">
+]>
+<x>
+ d'>
+<root>&abc;

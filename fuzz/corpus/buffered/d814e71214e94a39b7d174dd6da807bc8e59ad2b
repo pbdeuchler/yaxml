@@ -1,8 +1,0 @@
-<?xml version="1."?>
-<!-- ]Attributspace and element in default namespace -->
-<foo xmlns:a="http://example.org/~wilbur"
-     xmlns="http://example.org/~wilbur">
-
-<\ar a:atta="ht atßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßtr="2"/>
-
-</foo>

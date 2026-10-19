@@ -1,0 +1,11 @@
+<doc xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
+<e b:ci="" c:fh="" d:ab="" aq="" c:eAw="" bw="" aj="" a:ey="" c:eh="" bq="" b:fc="" et="" a="" cr="" d:fe="" dr="" c:ay="" bu="" c:ch="" d:bl="" d:bc="" bu="" d:bv="" di="" b:aw="" dy="" a:da="" ab="" ef="" bd="" er="" b:fe="" dc="" d:cx="" d:ce="" d:fe="" dr="" c:ay="" bu="" c:ch="" d:bl="" d:bc="" bu="" d:bv="" di="" b:aw="" dy="" a:da="" ab="" ef="" bd="" er="" b:fe="" dc="" d:cx="" d:ce="" b:fg="" d:dw="" d:cy="" aee=""/>" xmlns="http://relaxng.org/ns/structure/0.0">
+  <zeroO/0.0">
+  <zeroOrMore>
+    <element name="card">
+     "" b:eroup*, nanori="" b:fg="" d:dw="" d:cy="" aee=""/>" xmlns="http://relaxng.org/ns/structure/0.0">
+  <zeroO/0.0">
+  <zeroOrMore>
+    <element name="card">
+     "" b:eroup*, nanori*)>
+	<!-u="" d:cj="-"

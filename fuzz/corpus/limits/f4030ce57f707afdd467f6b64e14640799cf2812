@@ -1,0 +1,3 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:basFe="http://www"/>
+					<val o="1fc016" v="126c>

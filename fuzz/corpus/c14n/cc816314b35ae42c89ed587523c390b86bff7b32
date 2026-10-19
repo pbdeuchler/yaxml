@@ -1,17 +1,0 @@
-8<doc>
-   <clean>   </clean>
-   <dirty>   A   B   </dirty>
-   <mixed>
-      A
-      <clean>   </clean>
-      B
-      <dirty>    B
-      <dirty>   A   B   </dirty>
-      C
-   </mixA   B  //W3C//DTD SVG April 1999//EN" 
-  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
-<svg width="4in" height="3in">
-  <desc>Linear gradient example </dirty>
-      C
-   </mixed>
-</doc>

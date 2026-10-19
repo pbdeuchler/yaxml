@@ -1,7 +1,0 @@
-<!DOCTYPE test [
-<!NOTATION gif PUBLIC 't [
-<!NOTATION gif PUBLIC 'gif'>
-]>
-<test>&#10;<landscape sun="image"></landscape>&#10;values of type ENTITY match the Name production and the ENTITY value&#10;matches the name of an unparsed entity gif'>
-]>
-<test>&#10;ion and the ENTITY value&#10;matches the name of an unparsed entity declared in the DTD.&#10;</test>

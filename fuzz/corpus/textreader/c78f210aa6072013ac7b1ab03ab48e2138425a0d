@@ -1,0 +1,10 @@
+Ž<!DOCTYPE doc [<!ATTLIST norIED>]>
+<doc>
+  <!-- no normalizati'/>
+  <norm attr=' foo bar
+'/>
+  '/>on -->
+ obar&amp;'/>
+  <normId attr='&amp;foo ba '/>
+  <!--ng back -->
+</doc>

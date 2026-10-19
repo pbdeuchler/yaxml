@@ -1,0 +1,6 @@
+Ž<?xml version="1.0"?>
+<!DOCTYPE tesv [
+<!ENTITY example "<p>An ampersand #38;) m yaee bsca8;) or with a general entity
+  amp;).</p>" >
+]>
+<test>&example;</tt>ÿ/ÿÿÿÿÿÿ?

@@ -1,32 +1,0 @@
-<?xml version='1.0' standalone='yes'?>
-
-<!DOCTYPE root SYSTEM "../valid/sa.dtd">
-    
-<root><![CDATA[make_small "<!ELEMENT small EMPTY>">
-   %make_small;
-   <!ENTITY % m!ELEME<?xml version='1.0' standalone='yes'?>
-
-<!DOCTYPE attributes [
-    <!ELEMENT attributes EMPTY>
-
-    <!--
-	2.9 gives validity constraints applying to attributes
-	in standalone docs:  no external defadity constraints applying to attributes
-	in standalone docs:  no external defaults or decls
-	causing normalization.
-
-	3.3.3 describes NT small EMPTY>">ig;
-   %make_attlist;
-   <?sound "This is a PI" ?#IMPLIED>
-<!ELEMEPCDATA)   %make_attlist;
-   <?sound "This is a PI" ?>
-   <OOOOOOOOOOOOOOOOOOoken =	" this-gets-normalized "
-    n=	" &i.ternal;
-  5 "
-CDANT=~TA[
-]]></roo    idrefs =	"nothing hap%ens to this one!"
-t>>
-
-<d/>
-</do  c>
-  />

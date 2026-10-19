@@ -1,7 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (A*)>
-<!ELEMENT Ac (A*)>
-<!ELEMENT A EMPTY>
-<ENS #IMPL #IM/>
-NT A >

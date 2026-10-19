@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	(RED
-    e	NOTATION	(fruit | vegetable)	#REQUIRED
-    >
-<!NOTery Consortium//Edible//Hea!NOTea!NOTATION vegetable
-    PUBLIC "-//Intern]ational Grocery Consortium//Edible//Yue names incENz ronacyd"/>
-

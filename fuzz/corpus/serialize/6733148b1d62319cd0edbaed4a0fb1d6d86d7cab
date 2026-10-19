@@ -1,15 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc att (0|35a|A|-a|:aoc
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc att (0|35a|A|-a|:a|a:|.|_a) #IMPLIED>
-]><!D|a:|.|_a) #IMPLIED>
-]><!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc att (0|35a|A|-
-a|:a|a:|.|<do_a) #IMPLIED>
-c/>]>
-<doc/>

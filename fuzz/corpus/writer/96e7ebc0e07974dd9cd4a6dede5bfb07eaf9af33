@@ -1,0 +1,13 @@
+<!DOCTYPE collection [
+
+<!ELEMENT collection ANY>
+
+<!ELEMENT identifier EMPTY>
+<!ATTLIST identifier
+    value	IDREFS	"i-am-not-a-number 42"
+    >
+    <!-- tests the "attribute default legal" vc -->
+
+<!ELEMENT identified EMPTY>
+<!ATTLIST idefied
+    id		ID	#REQU

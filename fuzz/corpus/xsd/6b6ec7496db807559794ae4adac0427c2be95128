@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</b>">
+]>
+<!--* content: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty elemhe above line -->
+   <c></c> 
+   CharData: ion?>
+<!-- Comment content -->    &inContent;
+    Charater reference: &#x82;="NameÃ"	/>
+<LegalName6 attr6="Name˽"	/>
+<LegalName7 attr7="Name˿"	/>
+<LegalName8 attr8="NameͰ"	/>
+<LegalName9 attr9="Nameͱ"	/>
+<LegalName10 attr10="Nameͼ"	/>
+<LegalName11 attr11="Nameͽ"	/>
+<LegalName12 attr12="NameͿ"	/>
+<LegalName13 attr13="Name΀"	/>
+<LegalName14 attr14="Name῾"	/>
+<LegalName15 attr15head>HEAD</head><body>nothing</body>,/html> ]]>
+   </c>
+</b>
+</root>
+<!--* test P43 *-->

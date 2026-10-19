@@ -1,9 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA|aENMENT root EMPTY>
-<!A<root>La Éditions Gallimard. All rights reserved<IST d>
-]><doc><c/><
- >
-<!ATTLIST d>
-]>
-<doc><c/><c att2="test"/></doc>

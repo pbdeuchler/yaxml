@@ -1,8 +1,0 @@
-<?xml  version="1.0"?>
-<!-- validiy constraint check for Production 55(positive Test)-->
-<!DOCTYPE tokenizer
- [
- <!ELEMENT tokenizer ANY 
-><!ELEMENT b EMPTY>
- <!ATTLIST b attr ID #REQUIRED>
- <!ATTLIST tokenizer U>

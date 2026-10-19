@@ -1,12 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student
-		first CDATA #REQUIRED
-		middl5 CDATA #IMPLIED
-rst CDATA #IMPLIED
-		last CDATA
-
-rst CDATA > IED
-		last CDATA #RE>
-

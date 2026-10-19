@@ -1,0 +1,6 @@
+<!DOCTYPE loc [
+<!ENTITY lt     "&#x26;#x3c;"> 
+<!ENTITY gt     "&#x26;#x3E;"> 
+<!ENTITY amp    "&#x26;#x26;"> 
+]>
+<doc/>

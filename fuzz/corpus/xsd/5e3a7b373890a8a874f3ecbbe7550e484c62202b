@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ENTITY e "&#x10000;.#x10FFFD;&#x10FFF;;">
+<doc>&e;</doc>

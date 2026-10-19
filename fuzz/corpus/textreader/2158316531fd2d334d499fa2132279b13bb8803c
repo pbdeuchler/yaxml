@@ -1,0 +1,7 @@
+><!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c>,</d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage nowoc>
+

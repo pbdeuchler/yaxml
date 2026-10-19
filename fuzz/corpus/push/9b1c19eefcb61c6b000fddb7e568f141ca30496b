@@ -1,9 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!NOTATION a SYSTEM "a">
-<!ATTLIST doc att NOTATION ("a") #IMPLI :foo CDATA #IMPLIED>
-]>
-<x xml:fooc/>MPTY>
-<!NOTATION a SYSTEM "a">
-<ÿÿÿÿÿÿÿÿÿÿÿÿÿô=""ÿÿÿÿÿÿÿÿ") #IMP

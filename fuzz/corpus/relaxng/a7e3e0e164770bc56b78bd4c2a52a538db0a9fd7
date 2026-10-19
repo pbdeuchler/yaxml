@@ -1,5 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' >
-<!ENTITY v SYSTEM 'v' 					NDAT=lared;<r i='a' q=''/></r>

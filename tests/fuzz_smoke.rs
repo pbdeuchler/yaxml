@@ -428,18 +428,29 @@ fn replay_corpus_and_every_truncation() {
 
 #[test]
 fn mutate_each_seed_byte() {
-    for seed in SEEDS {
-        for offset in 0..seed.len() {
-            for byte in [0, 0xff, b'<', b'>', b'&', b';', b'\'', b'"', b':', b'\r'] {
-                let mut mutated = seed.to_vec();
-                mutated[offset] = byte;
-                driver::exercise(&mutated);
-            }
-            let mut deleted = seed.to_vec();
-            deleted.remove(offset);
-            driver::exercise(&deleted);
+    // Every (seed, offset) pair is independent: stripe them over the cores.
+    let cases: Vec<(&[u8], usize)> = SEEDS
+        .iter()
+        .flat_map(|seed| (0..seed.len()).map(move |offset| (*seed, offset)))
+        .collect();
+    let threads = std::thread::available_parallelism().map_or(1, usize::from);
+    std::thread::scope(|scope| {
+        for thread in 0..threads {
+            let cases = &cases;
+            scope.spawn(move || {
+                for &(seed, offset) in cases.iter().skip(thread).step_by(threads) {
+                    for byte in [0, 0xff, b'<', b'>', b'&', b';', b'\'', b'"', b':', b'\r'] {
+                        let mut mutated = seed.to_vec();
+                        mutated[offset] = byte;
+                        driver::exercise(&mutated);
+                    }
+                    let mut deleted = seed.to_vec();
+                    deleted.remove(offset);
+                    driver::exercise(&deleted);
+                }
+            });
         }
-    }
+    });
 }
 
 #[test]

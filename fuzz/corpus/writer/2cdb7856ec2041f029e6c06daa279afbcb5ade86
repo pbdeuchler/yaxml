@@ -1,8 +1,0 @@
-<!DOCTYPE 
-oc[d
-<!ELEMENT doc ANY>
-<!ELEMENT a EMPTY>
-<!E.LEMENT b (#PCDATA)*>
-<!ELEMENT c (a&b)>
-]>
-<doc/>

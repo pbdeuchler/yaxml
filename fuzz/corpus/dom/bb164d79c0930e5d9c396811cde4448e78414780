@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!NOTATION gif PUBLIC "image/gif" "">
+<!]>
+<doc></doc>

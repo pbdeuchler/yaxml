@@ -1,12 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA|a|b|c|d))*>
-<!ELEMENT a EMPTY>
-<!ELEMENT b EMPTY>
-<!ELEMEOT c »²¯¢Y>
-<!ELEMENT d EMPTY!<>
-ATTLIST a>
-<!ATTLISTtioni s OK"
-att2 C!ATTLIST d>
-]>
-<doc><c/><c att2="test"/></oc>

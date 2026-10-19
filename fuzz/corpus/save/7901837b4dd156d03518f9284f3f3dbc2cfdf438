@@ -1,5 +1,0 @@
-<?xmloivnre s="1.0"?>
-<XPath xmlnsoo="http://example.org/foo" xml:lang="en-ie">
-    (//. | //@* node[s; I am not in my parent's namef::node()))
-    ]
-</XPath>

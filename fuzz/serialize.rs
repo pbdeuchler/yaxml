@@ -90,6 +90,7 @@ fn exercise(tree: Tree<'_, '_>, expected: &Document<'_>, input: &[u8]) {
         .then(|| Document::parse_with(input, ParseOptions::new(NOENT)).unwrap());
     tree_equal(substituted.as_ref().unwrap_or(expected), &reparsed);
     misuse(tree);
+    limited(tree, &output, super::selector(input));
     if output.len() <= 4096 {
         let control = input.get(input.len() / 2).copied().unwrap_or(0);
         scheduled(tree, &output, limits, control);
@@ -104,6 +105,51 @@ fn exercise(tree: Tree<'_, '_>, expected: &Document<'_>, input: &[u8]) {
         // bytes cannot reach every control value through mutation.
         for control in [0, 1, 2, 3, 4, 5, 6, 7, 124, 252] {
             scheduled(tree, &output, limits, control);
+        }
+    }
+}
+
+/// One input-selected ceiling, often below what the output needs: the same
+/// bytes or a limit failure that leaves the writer terminal.
+fn limited(tree: Tree<'_, '_>, expected: &[u8], control: u8) {
+    let scale = usize::from(control >> 3);
+    let generous = WriterLimits::default();
+    let limits = match control & 7 {
+        0 => WriterLimits {
+            max_output_bytes: expected.len() * scale / 32,
+            ..generous
+        },
+        1 => WriterLimits {
+            max_token_bytes: expected.len() * scale / 32,
+            ..generous
+        },
+        2 => WriterLimits {
+            max_depth: scale & 7,
+            ..generous
+        },
+        3 => WriterLimits {
+            max_attributes: scale & 3,
+            ..generous
+        },
+        4 => WriterLimits {
+            max_events: scale,
+            ..generous
+        },
+        5 => WriterLimits {
+            max_owned_bytes: expected.len() * scale / 8,
+            ..generous
+        },
+        _ => return,
+    };
+    let mut writer = Writer::with_limits(Vec::new(), limits);
+    match tree.write(&mut writer) {
+        Ok(()) => assert_eq!(writer.into_inner(), expected),
+        Err(error) => {
+            assert!(
+                matches!(error, WriteError::Xml(error) if matches!(error.kind, ErrorKind::LimitExceeded(_))),
+                "limited serializer failed with {error}"
+            );
+            terminal(tree, &mut writer);
         }
     }
 }

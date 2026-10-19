@@ -1,0 +1,11 @@
+×<?xml version="1.0"?>
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b ']>'>
+    <!--> ]> -->
+]    >
+<?pi p1?>
+<!--> c1 --->
+<d a=">" b='>'>
+÷÷÷÷÷÷t&a;text
+<![CDAT a=">" b='>'->

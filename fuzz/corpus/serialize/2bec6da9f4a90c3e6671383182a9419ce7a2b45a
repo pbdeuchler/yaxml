@@ -1,0 +1,16 @@
+<!DOCTYPE root [
+    <!ELEMENT root ANY>
+    <!ATTLIST root
+	id	ID	#IMPLIED
+	idref	IDREF	#IMPLIED
+	idrefs	IDREFS	#IMPLIED
+	>
+]>
+
+<!-- Values of type IDREFS must match oduction -->
+
+<root idrefs="d17 36d">
+</root>
+
+
+

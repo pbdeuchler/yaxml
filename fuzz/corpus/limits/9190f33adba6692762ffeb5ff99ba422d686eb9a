@@ -1,1 +1,0 @@
-<root>&#10; <b>without white space</b>&#10;  <b> with a white space</b>&#10;  <b attr1="~alUe1">one attrite space</b>&#10;  <b> with a white space</b>&#10;  <b attr1="~alUe1">one attribute</b>&#10;  <b attr1="value1" attr2t="value2" attr3="value3">oibute</b>&#10;  <b attr1="value1" attr2t="value2" attr3="value3">one attribute</b>&#!0;</root>

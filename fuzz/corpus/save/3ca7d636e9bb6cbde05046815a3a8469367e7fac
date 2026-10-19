@@ -1,5 +1,0 @@
-<!DOCTYPE c0doc
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc att CDATA #FIXED>
-]>

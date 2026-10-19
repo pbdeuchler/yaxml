@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-  <!ENTITY e SYSTEM "rec_ext.er"
->t]>
-<doc>&;e&& <doct.ent

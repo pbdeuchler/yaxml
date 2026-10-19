@@ -1,0 +1,13 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+  <!DOCTYPEIMPLIED>
+<!ATTLIST LegalName Áatt!ATTLIST LegalName Áattr CDATA #
+IMPLIED>
+<!ATTLIST Legals no 
+'>
+ 
+
+   %u;
+]>
+<moc/>
+

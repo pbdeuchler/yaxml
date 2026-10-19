@@ -1,0 +1,23 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one one normhe entity ref their identifiers.
+
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	>
+    <!ENTITY innteral "inter[nal&number;">
+    <!ENTITY number "29">
+]>
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	"this-gets-normal;">
+    appens to this one!"
+    />
+
+<?pi equals three?>

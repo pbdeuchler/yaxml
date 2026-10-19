@@ -1,6 +1,0 @@
-<!DOCTYPE attributes [
-<!NOTATION bar SYSTEM 'file:/dev/tty'>
-<!NOTATI*N foo PUBLIC '-//public id//foo' 'file:/dev/null'>
-<!NOTATION nonce SYSTEM 'file:/dev/null'>
-]>
-<attributes cdata="nokhing happens to s also gets normalized" notation="nonce" token="a"><=attributzes>
