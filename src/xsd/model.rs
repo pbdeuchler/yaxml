@@ -471,12 +471,15 @@ impl Model {
                 }
                 let matched = matched.ok_or(StepError::Unexpected)?;
                 *configs = next;
-                Ok(graph
-                    .shadowed
-                    .iter()
-                    .rev()
-                    .find(|(hidden, _)| *hidden == matched)
-                    .map_or(matched, |&(_, shown)| shown))
+                // Follow the chain of hidden particles to the one kept.
+                let shown = std::iter::successors(Some(matched), |hidden| {
+                    graph
+                        .shadowed
+                        .iter()
+                        .find(|(h, _)| h == hidden)
+                        .map(|&(_, shown)| shown)
+                });
+                Ok(shown.take(graph.shadowed.len() + 1).last().expect("first"))
             }
             (Model::All(all), Run::All(seen)) => {
                 let (index, leaf) = all

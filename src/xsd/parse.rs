@@ -1117,7 +1117,11 @@ impl Parser {
         let loaded = match self.drafts.buckets.iter().find(|b| b.location == uri) {
             Some(bucket) => Some(bucket.doc),
             None => match self.fetch(&uri) {
-                Ok(Some(bytes)) => self.load_document(&uri, &bytes, Some((cx, node))),
+                // load_document reported why the document is unusable.
+                Ok(Some(bytes)) => match self.load_document(&uri, &bytes, Some((cx, node))) {
+                    Some(doc) => Some(doc),
+                    None => return,
+                },
                 _ => None,
             },
         };

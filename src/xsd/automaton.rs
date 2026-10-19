@@ -6,6 +6,9 @@
 //! so the result can differ from Unique Particle Attribution proper. The
 //! construction order is libxml2's because the check depends on it.
 
+use std::collections::{HashMap, HashSet};
+
+use super::components::Sym;
 use super::model::{Atom, Kind, Matched, Node};
 
 #[derive(Clone, Copy, Debug)]
@@ -37,6 +40,8 @@ enum Mark {
 struct State {
     kind: Type,
     trans: Vec<Trans>,
+    /// The live (non-negative target) transitions, for duplicate checks.
+    live: HashSet<(Option<usize>, i64, i64, i64)>,
     trans_to: Vec<usize>,
     mark: Mark,
     markd: bool,
@@ -76,6 +81,7 @@ impl Automaton {
         self.states.push(Some(State {
             kind: Type::Transition,
             trans: Vec::new(),
+            live: HashSet::new(),
             trans_to: Vec::new(),
             mark: Mark::Normal,
             markd: false,
@@ -96,11 +102,7 @@ impl Automaton {
         self.charge(1)?;
         let to_i = to as i64;
         let state = self.state_mut(from);
-        if state
-            .trans
-            .iter()
-            .any(|t| t.atom == atom && t.to == to_i && t.counter == counter && t.count == count)
-        {
+        if !state.live.insert((atom, to_i, counter, count)) {
             return Ok(());
         }
         state.trans.push(Trans {
@@ -111,6 +113,14 @@ impl Automaton {
         });
         self.state_mut(to).trans_to.push(from);
         Ok(())
+    }
+
+    /// Removes transition `i` of `state` by giving it a negative target.
+    fn drop_trans(&mut self, state: usize, i: usize, to: i64) {
+        let state = self.state_mut(state);
+        let t = state.trans[i];
+        state.live.remove(&(t.atom, t.to, t.counter, t.count));
+        state.trans[i].to = to;
     }
 
     fn target(&mut self, to: Option<usize>) -> Result<usize, TooComplex> {
@@ -430,10 +440,11 @@ impl Automaton {
             let newto = t.to as usize;
             for from in state.trans_to.clone() {
                 let count = self.state(from).trans.len();
+                self.charge(count)?;
                 for j in 0..count {
                     let tj = self.state(from).trans[j];
                     if tj.to == id as i64 {
-                        self.state_mut(from).trans[j].to = -1;
+                        self.drop_trans(from, j, -1);
                         self.add(from, tj.atom, newto, tj.counter, tj.count)?;
                     }
                 }
@@ -450,22 +461,38 @@ impl Automaton {
         Ok(())
     }
 
-    fn reduce(&mut self, from: usize, to: usize, counter: i64) -> Result<(), TooComplex> {
+    /// Marks `to` visited for `xmlFAReduceEpsilonTransitions`; whether it
+    /// is to be explored.
+    fn visit(&mut self, from: usize, to: usize) -> Result<bool, TooComplex> {
         let Some(target) = &self.states[to] else {
-            return Ok(());
+            return Ok(false);
         };
         if matches!(target.mark, Mark::Start | Mark::Visited) {
-            return Ok(());
+            return Ok(false);
         }
         self.charge(1)?;
         self.state_mut(to).mark = Mark::Visited;
         if self.state(to).kind == Type::Final {
             self.state_mut(from).kind = Type::Final;
         }
-        let mut i = 0;
-        while i < self.state(to).trans.len() {
-            let t = self.state(to).trans[i];
-            i += 1;
+        Ok(true)
+    }
+
+    /// `xmlFAReduceEpsilonTransitions`: copies to `from` what the epsilon
+    /// closure through `to` reaches, depth first in libxml2's order, with an
+    /// explicit stack of (state, next transition, counter).
+    fn reduce(&mut self, from: usize, to: usize, counter: i64) -> Result<(), TooComplex> {
+        let mut stack = Vec::new();
+        if self.visit(from, to)? {
+            stack.push((to, 0, counter));
+        }
+        while let Some(top) = stack.last_mut() {
+            let (state, i, counter) = *top;
+            let Some(&t) = self.state(state).trans.get(i) else {
+                stack.pop();
+                continue;
+            };
+            top.1 += 1;
             if t.to < 0 {
                 continue;
             }
@@ -473,7 +500,11 @@ impl Automaton {
             match t.atom {
                 None if t.to == from as i64 => {}
                 None if t.count >= 0 => self.add(from, None, t.to as usize, -1, t.count)?,
-                None => self.reduce(from, t.to as usize, tcounter)?,
+                None => {
+                    if self.visit(from, t.to as usize)? {
+                        stack.push((t.to as usize, 0, tcounter));
+                    }
+                }
                 Some(atom) => self.add(from, Some(atom), t.to as usize, tcounter, -1)?,
             }
         }
@@ -515,10 +546,10 @@ impl Automaton {
                 let t = self.state(id).trans[i];
                 if t.atom.is_none() && t.to >= 0 {
                     if t.to == id as i64 {
-                        self.state_mut(id).trans[i].to = -1;
+                        self.drop_trans(id, i, -1);
                     } else if t.count < 0 {
                         has_epsilon = true;
-                        self.state_mut(id).trans[i].to = -2;
+                        self.drop_trans(id, i, -2);
                         self.state_mut(id).mark = Mark::Start;
                         self.reduce(id, t.to as usize, t.counter)?;
                         self.finish_reduce(t.to as usize);
@@ -590,6 +621,7 @@ impl Automaton {
         }
         let mut deterministic = true;
         let count = s.trans.len();
+        self.budget = self.budget.saturating_sub(count + 1);
         for i in 0..count {
             let t = self.state(state).trans[i];
             if t.to < 0 || t.to == from {
@@ -631,83 +663,99 @@ impl Automaton {
         }
     }
 
-    /// Drops equal duplicate transitions, keeping the later one and
-    /// recording which particle it hides, then compares the rest.
-    fn deterministic(&mut self, shadowed: &mut Vec<(Matched, Matched)>) -> bool {
+    /// `xmlFAComputesDeterminism`. Equal duplicate transitions are dropped
+    /// first, the later one kept, recording which particle it hides. Then
+    /// every pair of transitions leaving a state is compared; the verdict
+    /// does not depend on the pair order, so only pairs that can conflict
+    /// are visited: two plain names conflict only when equal, while a
+    /// wildcard or negated atom, or an epsilon, meets every transition.
+    fn deterministic(
+        &mut self,
+        shadowed: &mut Vec<(Matched, Matched)>,
+    ) -> Result<bool, TooComplex> {
+        type Key = (Option<Sym>, Option<Option<Sym>>);
+        let key = |atom: &Atom| (atom.local, atom.ns);
         for id in 0..self.states.len() {
-            let Some(state) = &self.states[id] else {
+            let Some(count) = self.states[id].as_ref().map(|s| s.trans.len()) else {
                 continue;
             };
-            if state.trans.len() < 2 {
-                continue;
-            }
-            for i in 0..state.trans.len() {
-                let t1 = self.state(id).trans[i];
-                let Some(a1) = t1.atom else { continue };
-                if t1.to < 0 {
+            self.charge(count)?;
+            let mut last: HashMap<(Key, i64, i64, i64), usize> = HashMap::new();
+            for i in 0..count {
+                let t = self.state(id).trans[i];
+                let Some(atom) = t.atom else { continue };
+                if t.to < 0 {
                     continue;
                 }
-                for j in 0..i {
-                    let t2 = self.state(id).trans[j];
-                    if t2.to < 0 {
-                        continue;
-                    }
-                    if let Some(a2) = t2.atom
-                        && t1.to == t2.to
-                        && self.equal(a1, a2)
-                        && t1.counter == t2.counter
-                        && t1.count == t2.count
-                    {
-                        self.state_mut(id).trans[j].to = -1;
-                        let pair = (self.atoms[a2].origin, self.atoms[a1].origin);
-                        if pair.0 != pair.1 && !shadowed.contains(&pair) {
-                            shadowed.push(pair);
-                        }
+                if let Some(j) = last.insert((key(&self.atoms[atom]), t.to, t.counter, t.count), i)
+                {
+                    let hidden = self.state(id).trans[j].atom.expect("atom");
+                    self.state_mut(id).trans[j].to = -1;
+                    let pair = (self.atoms[hidden].origin, self.atoms[atom].origin);
+                    if pair.0 != pair.1 && !shadowed.contains(&pair) {
+                        shadowed.push(pair);
                     }
                 }
             }
         }
-        let mut deterministic = true;
         for id in 0..self.states.len() {
             let Some(state) = &self.states[id] else {
                 continue;
             };
-            if state.trans.len() < 2 {
-                continue;
-            }
-            for i in 0..state.trans.len() {
-                let t1 = self.state(id).trans[i];
-                let Some(a1) = t1.atom else { continue };
-                if t1.to < 0 {
+            let live: Vec<(usize, Trans)> = state
+                .trans
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(_, t)| t.to >= 0)
+                .collect();
+            let mut named: HashMap<Key, Vec<Trans>> = HashMap::new();
+            let mut wild = Vec::new();
+            for (k, &(_, t)) in live.iter().enumerate() {
+                let Some(atom) = t.atom.map(|a| self.atoms[a]) else {
                     continue;
+                };
+                match !atom.negated && atom.local.is_some() && atom.ns != Some(None) {
+                    true => named.entry(key(&atom)).or_default().push(t),
+                    false => wild.push(k),
                 }
-                for j in 0..i {
-                    let t2 = self.state(id).trans[j];
-                    if t2.to < 0 {
-                        continue;
+            }
+            let pairs =
+                wild.len() * live.len() + named.values().map(|v| v.len().pow(2)).sum::<usize>();
+            self.charge(pairs)?;
+            let clash = |this: &Self, t1: &Trans, t2: &Trans| {
+                let (a1, a2) = (t1.atom.expect("atom"), t2.atom.expect("atom"));
+                this.compare(a1, a2)
+                    && (t1.to != t2.to || t1.counter == t2.counter || !this.equal(a1, a2))
+            };
+            for &w in &wild {
+                let tw = &live[w].1;
+                if live
+                    .iter()
+                    .enumerate()
+                    .any(|(k, (_, t))| k != w && t.atom.is_some() && clash(self, tw, t))
+                {
+                    return Ok(false);
+                }
+            }
+            for bucket in named.values() {
+                for (k, t1) in bucket.iter().enumerate() {
+                    if bucket[..k].iter().any(|t2| clash(self, t1, t2)) {
+                        return Ok(false);
                     }
-                    match t2.atom {
-                        Some(a2) => {
-                            if self.compare(a1, a2)
-                                && (t1.to != t2.to
-                                    || t1.counter == t2.counter
-                                    || !self.equal(a1, a2))
-                            {
-                                deterministic = false;
-                            }
-                        }
-                        None => {
-                            let ok = self.recurse(t2.to as usize, id as i64, t1.to, a1);
-                            self.finish_recurse(t2.to as usize);
-                            if !ok {
-                                deterministic = false;
-                            }
-                        }
+                }
+            }
+            for (j, t2) in live.iter().filter(|(_, t)| t.atom.is_none()) {
+                for (_, t1) in live.iter().filter(|(i, t)| i > j && t.atom.is_some()) {
+                    let ok = self.recurse(t2.to as usize, id as i64, t1.to, t1.atom.expect("atom"));
+                    self.finish_recurse(t2.to as usize);
+                    if !ok {
+                        return Ok(false);
                     }
                 }
             }
         }
-        deterministic
+        Ok(true)
     }
 }
 
@@ -731,15 +779,11 @@ pub(crate) fn deterministic(
     let last = automaton.current;
     automaton.state_mut(last).kind = Type::Final;
     automaton.eliminate_epsilons()?;
-    let work = automaton
-        .states
-        .iter()
-        .flatten()
-        .map(|s| s.trans.len().pow(2))
-        .sum();
-    automaton.charge(work)?;
     let mut shadowed = Vec::new();
-    let result = automaton.deterministic(&mut shadowed);
+    let result = automaton.deterministic(&mut shadowed)?;
+    if automaton.budget == 0 {
+        return Err(TooComplex);
+    }
     *budget = automaton.budget;
     Ok((result, shadowed))
 }

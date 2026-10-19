@@ -22,6 +22,52 @@ use super::parse::Table;
 
 const XS: &str = super::parse::XS;
 
+/// Which of the nodes `0..n` lie on a cycle of `edges`: Tarjan's strongly
+/// connected components, iteratively, in linear time.
+fn on_cycle(n: usize, edges: impl Fn(usize) -> Vec<usize>) -> Vec<bool> {
+    let (mut index, mut low) = (vec![usize::MAX; n], vec![0; n]);
+    let (mut on_stack, mut cyclic) = (vec![false; n], vec![false; n]);
+    let (mut stack, mut next) = (Vec::new(), 0);
+    for root in 0..n {
+        if index[root] != usize::MAX {
+            continue;
+        }
+        let mut calls = vec![(root, edges(root), 0)];
+        (index[root], low[root], next) = (next, next, next + 1);
+        stack.push(root);
+        on_stack[root] = true;
+        while let Some((v, succ, i)) = calls.last_mut() {
+            let v = *v;
+            if let Some(&w) = succ.get(*i) {
+                *i += 1;
+                cyclic[v] |= w == v;
+                if index[w] == usize::MAX {
+                    (index[w], low[w], next) = (next, next, next + 1);
+                    stack.push(w);
+                    on_stack[w] = true;
+                    calls.push((w, edges(w), 0));
+                } else if on_stack[w] {
+                    low[v] = low[v].min(index[w]);
+                }
+                continue;
+            }
+            calls.pop();
+            if let Some((parent, ..)) = calls.last() {
+                low[*parent] = low[*parent].min(low[v]);
+            }
+            if low[v] == index[v] {
+                let at = stack.iter().rposition(|&w| w == v).expect("on stack");
+                let component = stack.split_off(at);
+                for &w in &component {
+                    on_stack[w] = false;
+                    cyclic[w] |= component.len() > 1;
+                }
+            }
+        }
+    }
+    cyclic
+}
+
 /// The built-in types: `anyType`, then every [`Type`].
 fn builtins(names: &mut Names) -> Vec<TypeDef> {
     let xs = names.intern(XS);
@@ -557,7 +603,8 @@ impl Fix {
             }
         }
         for g in 0..self.d.groups.len() {
-            if let Some((compositor, mut particles, loc)) = self.d.groups[g].model.take() {
+            // Cloned, not taken: a self-reference must still see the model.
+            if let Some((compositor, mut particles, loc)) = self.d.groups[g].model.clone() {
                 for particle in &mut particles {
                     self.resolve_particle(particle);
                 }
@@ -765,46 +812,47 @@ impl Fix {
 
     // ---- circularity -----------------------------------------------------
 
+    /// Reports the first circular type, model group or attribute group
+    /// definition, as libxml2 stops at the first.
     fn circularity(&mut self) {
-        for index in 0..self.d.types.len() {
-            let id = Drafts::type_id(index);
-            let mut seen = HashSet::new();
-            let mut t = self.bases[id];
-            while let Some(ty) = t {
-                if ty == id {
-                    let loc = self.d.types[index].loc;
-                    self.report(
-                        loc,
-                        Code::StPropsCorrect2,
-                        "The definition is circular.".into(),
-                    );
-                    return;
-                }
-                if is_builtin(ty) || !seen.insert(ty) {
-                    break;
-                }
-                t = self.bases[ty];
-            }
+        let types = on_cycle(self.d.types.len(), |index| {
+            let base = self.bases[Drafts::type_id(index)];
+            base.filter(|&b| !is_builtin(b))
+                .map(|b| b - Drafts::FIRST_TYPE)
+                .into_iter()
+                .collect()
+        });
+        if let Some(index) = types.iter().position(|&c| c) {
+            let loc = self.d.types[index].loc;
+            return self.report(
+                loc,
+                Code::StPropsCorrect2,
+                "The definition is circular.".into(),
+            );
         }
-        for g in 0..self.d.groups.len() {
-            if self.group_reaches(g, g) {
-                let message = format!(
-                    "Circular reference to the model group definition '{}' defined.",
-                    self.format(self.d.groups[g].name)
-                );
-                let loc = self.d.groups[g].loc;
-                return self.report(loc, Code::MgPropsCorrect2, message);
-            }
+        let groups = on_cycle(self.d.groups.len(), |g| self.group_edges(g));
+        if let Some(g) = groups.iter().position(|&c| c) {
+            let message = format!(
+                "Circular reference to the model group definition '{}' defined.",
+                self.format(self.d.groups[g].name)
+            );
+            let loc = self.d.groups[g].loc;
+            return self.report(loc, Code::MgPropsCorrect2, message);
         }
-        for g in 0..self.d.attr_groups.len() {
-            if self.attr_group_reaches(g, g) {
-                let message = format!(
-                    "Circular reference to the attribute group '{}' defined.",
-                    self.format(self.d.attr_groups[g].name)
-                );
-                let loc = self.d.attr_groups[g].loc;
-                return self.report(loc, Code::SrcAttributeGroup3, message);
-            }
+        let attr_groups = on_cycle(self.d.attr_groups.len(), |g| {
+            let items = &self.d.attr_groups[g].attrs;
+            items
+                .iter()
+                .filter_map(|item| self.attr_group_target(item))
+                .collect()
+        });
+        if let Some(g) = attr_groups.iter().position(|&c| c) {
+            let message = format!(
+                "Circular reference to the attribute group '{}' defined.",
+                self.format(self.d.attr_groups[g].name)
+            );
+            let loc = self.d.attr_groups[g].loc;
+            self.report(loc, Code::SrcAttributeGroup3, message);
         }
     }
 
@@ -872,25 +920,22 @@ impl Fix {
         }
     }
 
-    fn group_reaches(&self, from: GroupId, target: GroupId) -> bool {
-        let mut seen = HashSet::new();
-        let mut stack: Vec<&Particle> = match &self.d.groups[from].model {
+    /// The model group definitions `g` refers to directly, through nested
+    /// local groups.
+    fn group_edges(&self, g: GroupId) -> Vec<GroupId> {
+        let mut out = Vec::new();
+        let mut stack: Vec<&Particle> = match &self.d.groups[g].model {
             Some((_, particles, _)) => particles.iter().collect(),
             None => Vec::new(),
         };
         while let Some(particle) = stack.pop() {
             match &particle.term {
-                Term::GroupDef(g) if *g == target => return true,
-                Term::GroupDef(g) if seen.insert(*g) => {
-                    if let Some((_, particles, _)) = &self.d.groups[*g].model {
-                        stack.extend(particles);
-                    }
-                }
+                Term::GroupDef(h) => out.push(*h),
                 Term::Group(_, children) => stack.extend(children),
                 _ => {}
             }
         }
-        false
+        out
     }
 
     fn attr_group_target(&self, item: &AttrItem) -> Option<usize> {
@@ -899,21 +944,6 @@ impl Fix {
             AttrItem::RedefinedGroup(r) => self.redefined[*r],
             _ => None,
         }
-    }
-
-    fn attr_group_reaches(&self, from: usize, target: usize) -> bool {
-        let mut seen = HashSet::new();
-        let mut stack = vec![from];
-        while let Some(g) = stack.pop() {
-            for item in &self.d.attr_groups[g].attrs {
-                match self.attr_group_target(item) {
-                    Some(next) if next == target => return true,
-                    Some(next) if seen.insert(next) => stack.push(next),
-                    _ => {}
-                }
-            }
-        }
-        false
     }
 
     // ---- attribute groups and wildcards ----------------------------------
