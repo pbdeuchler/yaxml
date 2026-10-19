@@ -41,7 +41,7 @@ fn concurrent_identity_assignment_is_unique() {
 fn construction_finishes_xml_before_assigning_identity() {
     let counter = AtomicUsize::new(0);
     assert_eq!(
-        OwnedBuilder::new(0, Global)
+        OwnedBuilder::new(0, 0, Global)
             .unwrap()
             .finish_with_counter(0, &counter)
             .unwrap_err(),
@@ -52,7 +52,7 @@ fn construction_finishes_xml_before_assigning_identity() {
     for last in [0, usize::MAX] {
         let counter = AtomicUsize::new(last);
         let mut reader = Reader::new(b"<r/>").unwrap();
-        let mut builder = OwnedBuilder::new(4, Global).unwrap();
+        let mut builder = OwnedBuilder::new(4, 0, Global).unwrap();
         let event = reader.read_event().unwrap().unwrap();
         builder
             .consume(
@@ -600,7 +600,7 @@ fn linked_mode_walks_deep_and_wide_trees_without_recursion() {
 #[test]
 fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     use std::ops::ControlFlow;
-    let mut builder = OwnedBuilder::new(10, Global).unwrap();
+    let mut builder = OwnedBuilder::new(10, 0, Global).unwrap();
     let mut reader = reader(1);
     assert_eq!(
         builder.consume(
@@ -683,7 +683,7 @@ fn utf8_owned_fast_path_applies_decoded_limits_without_retention_charges() {
 fn closing_requires_existing_provenance_and_forward_token_order() {
     for source in [None, Some(SourceOrigin::input(4..7))] {
         let mut input = Reader::new(b"<r></r>").unwrap();
-        let mut builder = OwnedBuilder::new(7, Global).unwrap();
+        let mut builder = OwnedBuilder::new(7, 0, Global).unwrap();
         let start = input.read_event().unwrap().unwrap();
         builder
             .consume(start, input.event_origin().unwrap(), input.owned_budget())
@@ -698,5 +698,36 @@ fn closing_requires_existing_provenance_and_forward_token_order() {
         assert_eq!(builder.nodes[id.0].source, source);
         assert_eq!(builder.nodes[id.0].subtree_size, 1);
         assert_eq!(builder.parents, vec![id]);
+    }
+}
+
+#[test]
+fn node_reservation_follows_markup_not_length() {
+    let text = format!("<r>{}</r>", "text ".repeat(100_000));
+    let flat = format!("<r>{}</r>", "<i a='v'>t</i>".repeat(10_000));
+    let late = format!("<r>{}{}</r>", "t".repeat(20_000), "<i/>".repeat(10_000));
+    // (input, expected_nodes, nodes in the parsed document)
+    let table: &[(&str, usize, usize)] = &[
+        ("", 0, 0),
+        ("<r/>", 3, 2),
+        ("<r>t</r>", 5, 3),
+        (&text, 91, 3),
+        (&flat, 4096, 20_002),
+        // A text prefix underestimates; the vector grows as usual.
+        (&late, 10, 10_003),
+    ];
+    for &(input, expected, nodes) in table {
+        assert_eq!(
+            expected_nodes(input.as_bytes()),
+            expected,
+            "{}",
+            &input[..input.len().min(20)]
+        );
+        if nodes == 0 {
+            continue;
+        }
+        let document = OwnedDocument::parse(input).unwrap();
+        assert_eq!(document.nodes.len(), nodes);
+        assert!(document.nodes.capacity() <= (1 + expected).max(nodes) * 2);
     }
 }

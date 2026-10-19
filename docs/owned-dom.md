@@ -162,9 +162,12 @@ These allocations stay on the global heap for every `A`:
 | Consumer output and working sets: XPath node sets, C14N and `Writer` buffers, validator state | each consumer |
 | The caller's input and resolver-loaded resources | the caller and the `Resolver` |
 
-On `benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
+Parsing reserves two node records (200 bytes each) per `<` in the first 16 KB,
+scaled to the input and capped at 4,096; the vector then grows as usual. On
+`benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
 retained document bytes (node + attribute + pool capacity) for markup-heavy
-input and 62% for one 500 KB text node.
+input; one 500 KB text node reserves 92 records (18 KB), where an estimate
+from input length reserved 4,097 (800 KB, 62% of retained bytes).
 
 ## Editing existing values
 

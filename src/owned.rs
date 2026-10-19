@@ -654,7 +654,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                 None
             }
         };
-        let mut builder = OwnedBuilder::new(input.len(), allocator)?;
+        let mut builder = OwnedBuilder::new(input.len(), expected_nodes(input), allocator)?;
         let document = if crate::encoding::needs_decoding(input) {
             let mut parser = PushParser::configured(limits, decode, flags, options);
             let end = parser
@@ -1400,6 +1400,18 @@ fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), Edit
     Ok(())
 }
 
+/// Nodes to reserve before parsing `input`: two per `<` (a tag and the text
+/// after it) in a sampled prefix, scaled to the input and capped. Markup-heavy
+/// input skips early regrowth; text-heavy input reserves only what it needs.
+fn expected_nodes(input: &[u8]) -> usize {
+    const SAMPLE: usize = 16 * 1024;
+    const CAP: usize = 4096;
+    let sample = &input[..input.len().min(SAMPLE)];
+    let tags = memchr::memchr_iter(b'<', sample).count();
+    let scaled = (2 * tags + 1).saturating_mul(input.len()) / sample.len().max(1);
+    scaled.min(CAP)
+}
+
 /// Concrete shared sink: all strings are copied using the parser's budget.
 struct OwnedBuilder<A: Allocator = Global> {
     nodes: allocator::Vec<OwnedRecord, A>,
@@ -1413,12 +1425,11 @@ struct OwnedBuilder<A: Allocator = Global> {
 }
 
 impl<A: Allocator + Clone> OwnedBuilder<A> {
-    fn new(source_length: usize, allocator: A) -> Result<Self, Error> {
-        // About one node per eight source bytes, capped: small documents
-        // skip repeated regrowth without over-reserving large ones.
+    /// A builder with room for the root and `expected` more nodes.
+    fn new(source_length: usize, expected: usize, allocator: A) -> Result<Self, Error> {
         let mut nodes = allocator::Vec::new_in(allocator.clone());
         nodes
-            .try_reserve(1 + (source_length / 8).min(4096))
+            .try_reserve(1 + expected)
             .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
         nodes.push(OwnedRecord::root(source_length));
         Ok(Self {
@@ -1717,7 +1728,7 @@ impl TreeBuilder {
             .map(|declaration| store_declaration(&mut pool, declaration, 0, &mut budget))
             .transpose()?;
         Ok(Self {
-            nodes: OwnedBuilder::new(0, Global)?.nodes,
+            nodes: OwnedBuilder::new(0, 0, Global)?.nodes,
             attributes: allocator::Vec::new_in(Global),
             pool,
             root_element: NodeId(0),
@@ -1854,7 +1865,7 @@ pub(crate) struct HtmlBuilder {
 
 impl HtmlBuilder {
     pub(crate) fn new(source_length: usize, limits: Limits) -> Result<Self, Error> {
-        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length, Global)?;
+        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length, 0, Global)?;
         Ok(Self {
             nodes,
             attributes: allocator::Vec::new_in(Global),
