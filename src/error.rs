@@ -29,6 +29,8 @@ pub enum Limit {
 pub enum ErrorKind {
     InvalidUtf8,
     InvalidUtf16,
+    /// A byte has no mapping in the declared single-byte encoding.
+    UnmappedByte,
     InvalidCharacter,
     UnexpectedEof,
     Syntax,

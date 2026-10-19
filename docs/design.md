@@ -235,7 +235,10 @@ minimal allocator-aware `Vec`/`Box` APIs. Other functionality remains under
 [`allocator_ext` #163177](https://github.com/rust-lang/rust/issues/163177).
 The [original tracking issue](https://github.com/rust-lang/rust/issues/32838)
 records expected delivery in Rust 1.100, conditional on the release process.
-Installed older compilers do not verify that release's behavior.
+Installed older compilers do not verify that release's behavior. A probe on
+`rustc 1.100.0-beta.7 (2026-10-17)` compiles `Vec::new_in`, `try_reserve`
+and `Box::new_in` with a generic `A: Allocator` under `forbid(unsafe_code)`.
+Design the allocator API against 1.100 and gate it by MSRV until 1.100 is stable.
 
 Use safe collection APIs with an allocator supplied by the application or the
 standard library. `Allocator` remains an unsafe trait; yaxml cannot implement
@@ -322,7 +325,8 @@ streaming interfaces. Bounded rooted creation and fresh element append retain
 contiguous attributes, and a finite feedback-guided campaign is available.
 The next work includes broader construction fuzz coverage, sustained campaigns,
 existing-element attribute membership, broader comparative performance evidence and
-allocator support on the target compiler. DTDs, remaining encodings, XPath,
+allocator support on the target compiler. XPath 1.0 is implemented over both DOMs
+(see [the XPath contract](xpath.md)). DTDs, remaining encodings,
 HTML compatibility, validation, canonicalization, inclusion and adapters each
 need their own feature burndown and verification criteria. Recovery is an
 explicit compatibility project with a versioned oracle, not a shortcut around

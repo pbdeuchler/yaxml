@@ -75,6 +75,7 @@ impl Tokenizer {
         let configured = match self.encoding {
             SourceEncoding::Utf8 => self.limit,
             SourceEncoding::Utf16 { .. } => (self.limit / 2).saturating_mul(3),
+            SourceEncoding::Byte(_) => self.limit.saturating_mul(3),
         }
         .min(self.decoded_limit);
         configured.max(self.buffer.capacity())
@@ -90,6 +91,11 @@ impl Tokenizer {
             0
         };
         self.start = self.position;
+    }
+
+    /// Continues current coordinates in a declaration-selected encoding.
+    pub(crate) fn switch(&mut self, encoding: SourceEncoding) {
+        self.encoding = encoding;
     }
 
     pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], &TokenSpan)> {
@@ -148,8 +154,16 @@ impl Tokenizer {
             if REFERENCES && matches!(self.scan, Scan::Text) && input[cursor] == b'&' {
                 return Ok((cursor, true));
             }
-            if self.encoding == SourceEncoding::Utf8 {
-                let length = self.plain_run::<REFERENCES>(&input[cursor..]);
+            if matches!(
+                self.encoding,
+                SourceEncoding::Utf8 | SourceEncoding::Byte(_)
+            ) {
+                let mut length = self.plain_run::<REFERENCES>(&input[cursor..]);
+                if matches!(self.encoding, SourceEncoding::Byte(_)) {
+                    // Only ASCII keeps byte-charset source and decoded offsets in step.
+                    let run = &input[cursor..cursor + length];
+                    length = run.iter().position(|b| !b.is_ascii()).unwrap_or(length);
+                }
                 if length > 0 {
                     if self.buffer.is_empty() {
                         self.start = self.position;
@@ -267,6 +281,8 @@ impl Tokenizer {
                     // A UTF-16 code unit produces at most three UTF-8 bytes;
                     // surrogate pairs produce fewer bytes per source byte.
                     SourceEncoding::Utf16 { .. } => (self.limit / 2).saturating_mul(3),
+                    // A byte-charset byte produces at most three UTF-8 bytes.
+                    SourceEncoding::Byte(_) => self.limit.saturating_mul(3),
                 })
                 .min(self.decoded_limit);
             self.buffer

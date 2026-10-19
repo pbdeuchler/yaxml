@@ -1,23 +1,39 @@
 # Input encoding contract
 
-`PushParser` and the byte constructors of `OwnedDocument` detect UTF-8,
-UTF-16LE and UTF-16BE. `Reader` and the borrowing `Document` remain UTF-8-only.
-Stored strings and event values always use UTF-8. The writer emits UTF-8 only.
+`PushParser`, `BufferedReader` and the byte constructors of `OwnedDocument`
+detect UTF-8, UTF-16LE and UTF-16BE, and follow a BOM-less declaration naming
+one of libxml2 2.15.4's built-in single-byte encodings: US-ASCII, ISO-8859-1
+through ISO-8859-16 (no 12) and windows-1252. `Reader` and the borrowing
+`Document` remain UTF-8-only. Stored strings and event values always use UTF-8.
+The writer emits UTF-8 only.
 
 UTF-16 BOMs select byte order; a following XML declaration is optional. Without
 a BOM, only the four-byte signatures for `<?` select UTF-16, and the leading
 declaration must name the matching `UTF-16LE` or `UTF-16BE`. Generic `UTF-16`
 requires a BOM. Four UTF-32 BOM forms and four UTF-32 `<` signatures are checked
-first and return `UnsupportedEncoding`. No encoding is inferred from an arbitrary
+first, then the EBCDIC `<?xm` signature; all return `UnsupportedEncoding`, as
+libxml2 has no built-in decoder for them. No encoding is inferred from an arbitrary
 sequence of zero bytes. An additional decoded U+FEFF is content, not a second BOM.
 
-Registered labels are compared without ASCII case sensitivity. A detected
-UTF-16 source can declare `UTF-16` with a BOM or its matching endian label.
-Conflicting supported labels return `EncodingMismatch`; unknown labels return
-`UnsupportedEncoding`. Malformed declaration grammar returns `InvalidDeclaration`
-before label agreement. Existing UTF-8-context non-UTF-8 declarations retain
-their `UnsupportedEncoding` classification. Unhyphenated `UTF8`/`UTF16` aliases
-are not accepted. Declaration views preserve the original spelling.
+Labels resolve through libxml2's `xmlEncTable` aliases (`latin1`, `l2`, `utf8`,
+`csUnicode`, ...), compared without ASCII case sensitivity and without trimming.
+Its quirk mapping `iso8859-10`, `-13`, `-14` and `-15` to ISO-8859-1 is preserved.
+Labels libxml2 decodes only through iconv/ICU (Shift_JIS, EUC-JP, ISO-2022-JP,
+UCS-2, UCS-4, IBM037, HTML) and unknown labels return `UnsupportedEncoding`.
+A detected UTF-16 source can declare generic UTF-16 with a BOM or its matching
+endian label. Conflicting supported labels return `EncodingMismatch`. Malformed
+declaration grammar returns `InvalidDeclaration` before label agreement. In a
+UTF-8 context (a UTF-8 BOM or the borrowing reader), any non-UTF-8 label returns
+`UnsupportedEncoding`. Declaration views preserve the original spelling.
+
+A single-byte encoding applies to the bytes after the ASCII declaration, which
+was forwarded as UTF-8. Bytes below 0x80 are forwarded in bulk; others map
+through tables generated from libxml2's `codegen/charset.inc` by
+`tooling/gen_charsets.py`. A byte libxml2 leaves unmapped (every high byte in
+US-ASCII) returns `UnmappedByte` at that byte. `tests/fixtures/charsets.tsv`,
+recorded from an ISO8859X-enabled xmllint by `tooling/charset_oracle.py`,
+independently checks every table. There is no caller encoding override and no
+pluggable converter (`xmlCtxtSetCharEncConvImpl`).
 
 This follows the [XML encoding agreement rules](https://www.w3.org/TR/2008/REC-xml-20081126/#charencoding)
 and [autodetection signatures](https://www.w3.org/TR/2008/REC-xml-20081126/#sec-guessing).
@@ -57,6 +73,6 @@ The decoder uses constant carry and never retains a complete decoded source or
 a document-wide offset map. The tokenizer retains one bounded UTF-8 token; the
 owned tree copies logical values into its existing pool under the shared string
 budget. `Writer::write_owned_document` accepts such a tree, emits UTF-8, and
-rewrites a present declaration encoding to `UTF-8`. UTF-16 output and other
-input encodings remain open work. Event-by-event callers remain responsible for
+rewrites a present declaration encoding to `UTF-8`. Non-UTF-8 output and
+iconv-only input encodings remain open work. Event-by-event callers remain responsible for
 supplying a declaration compatible with UTF-8 output.

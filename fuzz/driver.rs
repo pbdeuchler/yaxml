@@ -36,6 +36,11 @@ mod construction;
 #[path = "names.rs"]
 mod names;
 
+#[path = "uri.rs"]
+mod uri;
+#[path = "xpath.rs"]
+mod xpath;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -46,22 +51,73 @@ pub struct Outcome {
     pub events: usize,
 }
 
-/// Exercise byte-input APIs and caller-created writer and mutation operations.
+/// Exercise every input surface. Each family is also a separate
+/// coverage-guided target in `fuzz_targets/`.
 pub fn exercise(input: &[u8]) -> Outcome {
     assert!(
         input.len() <= MAX_INPUT_BYTES,
         "fuzz testcase exceeds the driver budget"
     );
-    if input.first().is_some_and(|byte| byte & 7 == b'<' & 7) {
-        check_finish_abort(input);
-    }
     exercise_names(input);
+    exercise_uri(input);
+    exercise_xpath(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
-    if encoding::recognizes(input) {
-        return encoding::exercise(input);
+    exercise_push(input);
+    if let Some(outcome) = exercise_encoding(input) {
+        return outcome;
     }
+    exercise_serialize(input);
+    exercise_owned(input);
+    exercise_writer(input);
+    exercise_limits(input);
+    exercise_dom(input)
+}
+
+/// DOCTYPE-bearing input through every parser surface. Inputs that do not
+/// start a DOCTYPE become an internal-subset prefix, entity replacement text
+/// or attribute default, so mutations reach declaration and expansion paths.
+#[allow(dead_code, reason = "used by the dtd target and fuzz smoke tests only")]
+pub fn exercise_dtd(input: &[u8]) -> Outcome {
+    if input.starts_with(b"<!DOCTYPE") || input.starts_with(b"<?xml") {
+        return exercise(input);
+    }
+    let (control, body) = input.split_first().unwrap_or((&0, &[]));
+    let mut document = Vec::with_capacity(body.len() + 64);
+    match control % 3 {
+        0 => {
+            document.extend_from_slice(b"<!DOCTYPE r [");
+            document.extend_from_slice(body);
+            document.extend_from_slice(b"]><r>&e;</r>");
+        }
+        1 => {
+            document.extend_from_slice(b"<!DOCTYPE r [<!ENTITY e '");
+            document.extend_from_slice(body);
+            document.extend_from_slice(b"'>]><r a='&e;'>&e;&e;</r>");
+        }
+        _ => {
+            document.extend_from_slice(b"<!DOCTYPE r SYSTEM 'x' [<!ENTITY % p '");
+            document.extend_from_slice(body);
+            document.extend_from_slice(b"'>%p;<!ATTLIST r a CDATA 'd'>]><r>&e;</r>");
+        }
+    }
+    document.truncate(MAX_INPUT_BYTES);
+    exercise(&document)
+}
+
+/// URI parse, serialization, escaping and resolution invariants.
+pub fn exercise_uri(input: &[u8]) {
+    uri::exercise(input);
+}
+
+/// Borrowed parse of UTF-8 input; recognized encodings have their own oracle.
+fn parse_utf8(input: &[u8]) -> Option<Result<Document<'_>, Error>> {
+    (!encoding::recognizes(input)).then(|| Document::parse_bytes(input))
+}
+
+/// Reader/DOM agreement, tree structure and stream projection.
+pub fn exercise_dom(input: &[u8]) -> Outcome {
     let mut stream = Vec::new();
     let outcome = read(input, None, |event| stream.push(event));
     let document = Document::parse_bytes(input);
@@ -70,25 +126,48 @@ pub fn exercise(input: &[u8]) -> Outcome {
         document.is_ok(),
         "reader/DOM acceptance mismatch for {input:?}"
     );
-    if let Err(error) = &document {
-        check_error(*error, input.len());
+    match &document {
+        Ok(document) => {
+            check_document(document, input.len(), outcome.events);
+            check_projection(document, &stream);
+        }
+        Err(error) => check_error(*error, input.len()),
     }
-    if let Ok(document) = &document {
-        check_document(document, input.len(), outcome.events);
-        check_projection(document, &stream);
-        serialize::borrowed(document, input);
-    }
-    owned::exercise(
-        input,
-        Limits::default(),
-        document.as_ref().map_err(|error| *error),
-    );
     if let Ok(text) = std::str::from_utf8(input) {
         assert_eq!(document.is_ok(), Document::parse(text).is_ok());
     }
-    check_streaming(input, outcome.error);
-    writer::exercise(input, outcome.error.is_none());
-    // Vary policy independently from grammar bytes without needing a runtime.
+    outcome
+}
+
+/// Owned parsing compared with the borrowing DOM.
+pub fn exercise_owned(input: &[u8]) {
+    if let Some(document) = parse_utf8(input) {
+        owned::exercise(input, Limits::default(), document.as_ref().map_err(|e| *e));
+    }
+}
+
+/// Complete-document serialization round trip.
+pub fn exercise_serialize(input: &[u8]) {
+    if let Some(Ok(document)) = parse_utf8(input) {
+        serialize::borrowed(&document, input);
+    }
+}
+
+/// Push, chunked and `read_from` parity with the slice reader.
+pub fn exercise_push(input: &[u8]) {
+    check_finish_abort(input);
+    if let Some(document) = parse_utf8(input) {
+        check_streaming(input, document.err());
+    }
+}
+
+/// Event round trips plus caller-generated writer operations and sinks.
+pub fn exercise_writer(input: &[u8]) {
+    writer::exercise(input, Document::parse_bytes(input).is_ok());
+}
+
+/// Input-derived resource ceilings across every parsing API.
+pub fn exercise_limits(input: &[u8]) -> Outcome {
     let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
     exercise_with_limits(
         input,
@@ -106,7 +185,16 @@ pub fn exercise(input: &[u8]) -> Outcome {
             max_entity_expansion_bytes: byte(6),
             ..Limits::default()
         },
-    );
+    )
+}
+
+/// UTF-16/UTF-32 detection and decoding, returning the outcome for recognized
+/// encodings; other input exercises derived decoded ceilings instead.
+pub fn exercise_encoding(input: &[u8]) -> Option<Outcome> {
+    if encoding::recognizes(input) {
+        return Some(encoding::exercise(input));
+    }
+    let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
     encoding::exercise_decode_limits(
         input,
         yaxml::DecodeLimits {
@@ -114,7 +202,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
             max_decoded_token_bytes: byte(7),
         },
     );
-    outcome
+    None
 }
 
 /// A pending text token is emitted only when final EOF is declared. Model that
@@ -122,6 +210,10 @@ pub fn exercise(input: &[u8]) -> Outcome {
 /// incomplete document's later `UnexpectedEof` failure.
 fn check_finish_abort(input: &[u8]) {
     const HEX: &[u8; 16] = b"0123456789abcdef";
+
+    if input.first().is_none_or(|byte| byte & 7 != b'<' & 7) {
+        return;
+    }
 
     let mut source = Vec::with_capacity(4 + input.len().min(16));
     source.extend_from_slice(b"<r>");
@@ -183,6 +275,13 @@ fn check_abort(error: Error, expected_offset: usize) {
 pub fn exercise_mutation(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     mutation::exercise(input);
+}
+
+/// Exercise XPath compilation and evaluation over both DOMs; see `xpath.rs`
+/// for the testcase format.
+pub fn exercise_xpath(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    xpath::exercise(input);
 }
 
 /// Exercise validated names and owned PI targets before XML/encoding dispatch.
@@ -460,14 +559,16 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
         declaration,
         "DOM declaration differs from stream"
     );
+    // The DOM coalesces adjacent Text events produced by entity expansion.
     assert!(
-        document
-            .root()
-            .text_chunks()
-            .eq(stream.iter().filter_map(|event| match event {
-                Event::Text(value) | Event::Cdata(value) => Some(value.as_ref()),
-                _ => None,
-            })),
+        document.root().text_chunks().collect::<String>()
+            == stream
+                .iter()
+                .filter_map(|event| match event {
+                    Event::Text(value) | Event::Cdata(value) => Some(value.as_ref()),
+                    _ => None,
+                })
+                .collect::<String>(),
         "document string-value chunks differ from reader payloads"
     );
 }

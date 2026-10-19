@@ -6,7 +6,8 @@ use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, Sou
 
 /// Incremental XML 1.0 parsing with a bounded scratch token and no retained input.
 ///
-/// `feed` accepts UTF-8 or UTF-16 at arbitrary byte boundaries, including inside
+/// `feed` accepts UTF-8, UTF-16 or a declared single-byte encoding (see
+/// `docs/encoding.md`) at arbitrary byte boundaries, including inside
 /// a code unit, surrogate pair, or markup delimiter.
 /// `finish` declares final EOF and validates the complete document. Text is
 /// emitted once per lexical run, so event boundaries do not depend on chunks.

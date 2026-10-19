@@ -15,9 +15,10 @@ Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned documen
 The implemented subset now includes the borrowing slice reader, read-only DOM,
 callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
 writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
-rooted document creation, fresh element/leaf insertion, permanent subtree removal, and an explicit `Read`
-adapter. Input shares XML 1.0 grammar, including the internal DTD subset
-(below); owning/streaming input also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
+rooted document creation, fresh element/leaf insertion, permanent subtree removal, an explicit `Read`
+adapter, and [XPath 1.0](xpath.md) evaluation over both DOMs. Input shares XML 1.0 grammar, including the
+internal DTD subset (below); owning/streaming input
+also supports [UTF-16 and declared US-ASCII, ISO-8859-x and windows-1252](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
 full upstream reader/SAX/save option surfaces remain open.
 
@@ -91,6 +92,10 @@ can warn and continue. Namespace URI syntax is not validated: an exploratory
 accepts. That observation applies to both UTF-8 and UTF-16; it is not a pinned
 2.15.4 result. Encoding corpus fixtures use ASCII namespace URIs to isolate
 decoding, and this URI-validation gap remains part of the compatibility burndown.
+Single-byte decoding follows libxml2 built without iconv/ICU but with
+`LIBXML_ISO8859X_ENABLED`; the pinned oracle build disables ISO8859X, so it
+reports ISO-8859-2..16 as unsupported while yaxml decodes them. A UTF-8 BOM
+with a single-byte label is rejected where libxml2 warns and continues as UTF-8.
 
 ## Prioritized feature map
 
@@ -110,12 +115,12 @@ Priority is dependency order and migration value. P0 is the first usable secure 
 | P1 | Serialization and writer: escaping, declarations, encoding, empty-element spelling, CDATA boundaries, namespace fixup, formatting, incremental writes and I/O failures; preserve semantic round trips | `xmlsave.h`, `xmlwriter.h`, `tree.h`; `xmlSaveTo*`, `xmlSaveDoc`, `xmlTextWriter*`, `xmlDocDump*` |
 | P1 | Rust I/O and contexts: slices, strings, `Read`/`BufRead`, `Write`, context reuse/reset, explicit resource resolver, deterministic cleanup, parser options and capability reporting | `xmlIO.h`, `parser.h`; `xmlReadMemory`, `xmlReadIO`, `xmlCtxtReset`, `xmlCtxtSetOptions`, `xmlHasFeature` |
 | P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
-| P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
+| P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits. **Implemented** over both DOMs; see [xpath.md](xpath.md) for the differential results, recorded differences and gaps (XPointer, `CHECKNS`/`NOVAR` flags, lookup callbacks) | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
 | P3 | HTML parsing and serialization: libxml2's actual recovery/tree behavior, entities, implied elements, case folding, void/raw-text elements, encoding rules, push/SAX support | `HTMLparser.h`, `HTMLtree.h`; `htmlRead*`, `htmlCtxtRead*`, `htmlParseChunk`, `htmlDocDump*` |
 | P2 | Canonicalization: Canonical XML 1.0/1.1 and exclusive C14N, node subsets, comments toggle, inclusive namespace prefixes, exact bytes | `c14n.h`; `xmlC14NDocDumpMemory`, `xmlC14NDocSaveTo`, `xmlC14NExecute` |
 | P3 | XML Schema 1.0: parse/compile schemas, imports/includes/redefines, simple/complex types, facets, derivation, identity constraints, defaults, document/stream validation and diagnostics | `xmlschemas.h`, `schemasInternals.h`, `xmlschemastypes.h`; `xmlSchemaParse`, `xmlSchemaValidateDoc`, `xmlSchemaValidateStream`, `xmlSchemaVal*` |
 | P3 | RELAX NG: XML syntax, include/externalRef, patterns, datatype libraries, document and push validation, diagnostics | `relaxng.h`; `xmlRelaxNGParse`, `xmlRelaxNGValidateDoc`, `xmlRelaxNGValidatePush*` |
-| P2 | URI and resource resolution: parse/build/escape/normalize/resolve/relative URIs; base URI rules; XML and SGML catalogs, rewrite/delegate/nextCatalog, per-context resolver policy | `uri.h`, `catalog.h`; `xmlBuildURI`, `xmlParseURI`, `xmlCatalogResolve*`, `xmlACatalog*` |
+| P2 | URI and resource resolution: `yaxml::uri` implements parse/save/escape/unescape/normalize/`xmlBuildURI`/`xmlBuildRelativeURI`/`xmlCanonicPath` for Unix ([uri.md](uri.md), differential-tested); still open: base URI rules in the DOM, XML and SGML catalogs, rewrite/delegate/nextCatalog, per-context resolver policy | `uri.h`, `catalog.h`; `xmlBuildURI`, `xmlParseURI`, `xmlCatalogResolve*`, `xmlACatalog*` |
 | P2 | XInclude 1.0: XML/text inclusion, base/language fixup, fallback, recursive inclusion/cycle limits, resolver permissions, XPointer interaction | `xinclude.h`; `xmlXIncludeProcess*`, `xmlXIncludeNewContext` |
 | P2/P3 | P2 patterns: streaming pattern matching, namespace-aware patterns; P3 XPointer: supported schemes and node selections | `pattern.h`, `xpointer.h`; `xmlPatterncompile`, `xmlPatternMatch`, `xmlStreamPush*`, `xmlXPtrEval` |
 | P3 | XML recovery modes, deprecated SAX1 and parser-internal entry points: reproduce only against named option/release fixtures; malformed-input recovery is not a specification | `SAX.h`, `parserInternals.h`, deprecated `xmlParse*`, `xmlRecover*`, `xmlSAX*` |

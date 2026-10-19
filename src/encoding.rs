@@ -21,10 +21,34 @@ impl Default for DecodeLimits {
     }
 }
 
+mod charsets;
+
+/// A built-in libxml2 declaration label: UTF-16 carries an optional byte
+/// order, and single-byte charsets map bytes 0x80..=0xFF (zero is unmapped).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Charset {
+    Utf8,
+    Utf16(Option<bool>),
+    Byte(&'static [u16; 128]),
+}
+
+/// Resolves a label as libxml2 does without iconv/ICU: ASCII case-insensitively.
+pub(crate) fn charset(label: &str) -> Option<Charset> {
+    charsets::LABELS
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(label))
+        .map(|(_, charset)| *charset)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SourceEncoding {
     Utf8,
-    Utf16 { little_endian: bool, bom: bool },
+    Utf16 {
+        little_endian: bool,
+        bom: bool,
+    },
+    /// A single-byte charset selected by a BOM-less declaration.
+    Byte(&'static [u16; 128]),
 }
 
 impl SourceEncoding {
@@ -39,6 +63,7 @@ impl SourceEncoding {
                     _ => 0,
                 })
                 .sum(),
+            Self::Byte(_) => bytes.iter().filter(|b| (**b & 0xc0) != 0x80).count(),
         }
     }
 
@@ -58,7 +83,7 @@ impl TokenSpan {
     pub(crate) fn map_error(&self, raw: &str, error: Error) -> Error {
         let offset = match self.encoding {
             SourceEncoding::Utf8 => error.offset,
-            SourceEncoding::Utf16 { .. } => {
+            _ => {
                 let relative = error
                     .offset
                     .saturating_sub(self.decoded.start)
@@ -66,7 +91,7 @@ impl TokenSpan {
                 // Error locations originate in the shared UTF-8 grammar. A
                 // defensive floor also handles a location inside a scalar.
                 let prefix = &raw[..raw.floor_char_boundary(relative)];
-                self.source.start + prefix.encode_utf16().count() * 2
+                self.source.start + self.encoding.source_length(prefix.as_bytes())
             }
         };
         Error::new(error.kind, offset)
@@ -169,7 +194,9 @@ impl Decoder {
             }
             if self.preamble_cursor < self.preamble_len {
                 match encoding {
-                    SourceEncoding::Utf8 => {
+                    // A declaration selects a byte charset only after the
+                    // ASCII preamble has been forwarded as UTF-8.
+                    SourceEncoding::Utf8 | SourceEncoding::Byte(_) => {
                         let preamble = self.preamble;
                         let progress = self.forward_utf8(
                             &preamble[self.preamble_cursor..self.preamble_len],
@@ -217,8 +244,42 @@ impl Decoder {
                     cursor += 1;
                     self.unit_byte(byte, offset, little_endian)?;
                 }
+                SourceEncoding::Byte(table) => {
+                    // ASCII runs are forwarded in bounded windows, so a token
+                    // suspension never causes the remaining input to be rescanned;
+                    // one high byte at a time goes through the table and carry.
+                    let rest = &input[cursor..];
+                    let window = &rest[..rest.len().min(ASCII_WINDOW)];
+                    let run = window
+                        .iter()
+                        .position(|b| *b >= 0x80)
+                        .unwrap_or(window.len());
+                    if run > 0 {
+                        let progress = self.forward_utf8(&rest[..run], false, &mut emit)?;
+                        cursor += progress.consumed;
+                        if progress.suspended {
+                            return Ok(DecodeProgress {
+                                consumed: cursor,
+                                suspended: true,
+                            });
+                        }
+                        continue;
+                    }
+                    let offset = self.position;
+                    self.position += 1;
+                    cursor += 1;
+                    let scalar = char::from_u32(table[usize::from(rest[0] - 0x80)].into())
+                        .filter(|scalar| *scalar != '\0')
+                        .ok_or(Error::new(ErrorKind::UnmappedByte, offset))?;
+                    self.carry(scalar)?;
+                }
             }
         }
+    }
+
+    /// Applies a declaration-selected encoding to the bytes after the declaration.
+    pub(crate) fn switch(&mut self, encoding: SourceEncoding) {
+        self.encoding = Some(encoding);
     }
 
     pub(crate) fn finish_step(
@@ -306,7 +367,10 @@ impl Decoder {
         } else {
             u32::from(unit)
         };
-        let character = char::from_u32(scalar).expect("validated UTF-16 scalar");
+        self.carry(char::from_u32(scalar).expect("validated UTF-16 scalar"))
+    }
+
+    fn carry(&mut self, character: char) -> Result<(), Error> {
         if character.len_utf8() > self.limit - self.decoded {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
         }
@@ -365,7 +429,12 @@ fn check_progress(progress: DecodeProgress, available: usize, offset: usize) -> 
     Ok(())
 }
 
-const UTF32: [[u8; 4]; 8] = [
+/// Bytes scanned per byte-charset ASCII run; bounds rescanning after suspension.
+const ASCII_WINDOW: usize = 256;
+
+/// UCS-4 BOMs and `<` signatures, then EBCDIC `<?xm`: libxml2 detects these
+/// but has no built-in decoder for them.
+const UNSUPPORTED: [[u8; 4]; 9] = [
     [0, 0, 0xfe, 0xff],
     [0xff, 0xfe, 0, 0],
     [0, 0, 0xff, 0xfe],
@@ -374,13 +443,18 @@ const UTF32: [[u8; 4]; 8] = [
     [b'<', 0, 0, 0],
     [0, 0, b'<', 0],
     [0, b'<', 0, 0],
+    [0x4c, 0x6f, 0xa7, 0x94],
 ];
 
 fn select(prefix: &[u8], final_input: bool) -> Option<Result<(SourceEncoding, usize), Error>> {
-    if UTF32.iter().any(|candidate| prefix == candidate) {
+    if UNSUPPORTED.iter().any(|candidate| prefix == candidate) {
         return Some(Err(Error::new(ErrorKind::UnsupportedEncoding, 0)));
     }
-    if !final_input && UTF32.iter().any(|candidate| candidate.starts_with(prefix)) {
+    if !final_input
+        && UNSUPPORTED
+            .iter()
+            .any(|candidate| candidate.starts_with(prefix))
+    {
         return None;
     }
     if prefix.starts_with(&[0xef, 0xbb, 0xbf]) {
@@ -428,7 +502,30 @@ pub(crate) fn needs_decoding(input: &[u8]) -> bool {
         || input.starts_with(&[0xfe, 0xff])
         || input.starts_with(&[0, b'<', 0, b'?'])
         || input.starts_with(&[b'<', 0, b'?', 0])
-        || UTF32.iter().any(|signature| input.starts_with(signature))
+        || UNSUPPORTED
+            .iter()
+            .any(|signature| input.starts_with(signature))
+        || declared_label(input)
+            .and_then(charset)
+            .is_some_and(|charset| matches!(charset, Charset::Byte(_)))
+}
+
+/// Locates a leading declaration's label only to route it to the decoder;
+/// the parser still validates the declaration grammar.
+fn declared_label(input: &[u8]) -> Option<&str> {
+    let space = |b: &u8| matches!(b, b' ' | b'\t' | b'\r' | b'\n');
+    let skip = |b: &[u8]| -> usize { b.iter().position(|c| !space(c)).unwrap_or(b.len()) };
+    let head = input.strip_prefix(b"<?xml")?;
+    let head = &head[..memchr::memmem::find(head, b"?>")?];
+    if !space(head.first()?) {
+        return None;
+    }
+    let value = &head[memchr::memmem::find(head, b"encoding")? + 8..];
+    let value = value[skip(value)..].strip_prefix(b"=")?;
+    let (&quote, value) = value[skip(value)..]
+        .split_first()
+        .filter(|(quote, _)| matches!(quote, b'\'' | b'"'))?;
+    std::str::from_utf8(&value[..memchr::memchr(quote, value)?]).ok()
 }
 
 #[cfg(test)]

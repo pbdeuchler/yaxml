@@ -763,3 +763,29 @@ const ORACLE_CASES: &[&str] = &[
 fn borrow<'a>(name: &'a yaxml::Name<'_>) -> yaxml::Name<'a> {
     yaxml::Name::new(name.qualified(), name.namespace().map(Into::into)).unwrap()
 }
+
+#[test]
+fn single_byte_doctypes_decode_before_entity_processing() {
+    let mut bytes =
+        b"<?xml version='1.0' encoding='ISO-8859-1'?><!DOCTYPE r [<!ENTITY e '".to_vec();
+    bytes.push(0xe9);
+    bytes.extend_from_slice(b"'>]><r a='&e;'>&e;\xe9</r>");
+    let expected = [
+        "doctype:r:None:None:Some(\"<!ENTITY e 'é'>\")",
+        "<r a=é>",
+        "\"éé\"",
+        "</r>",
+    ];
+    assert_eq!(owned_tree(&bytes, Limits::default()).unwrap(), expected);
+    assert_eq!(
+        push(&bytes, &[1; 1 << 10], Limits::default()).unwrap(),
+        expected
+    );
+    assert_eq!(buffered(&bytes, 3, Limits::default()).unwrap(), expected);
+    let mut reader = BufferedReader::new(bytes.as_slice());
+    while let Some((event, origin)) = reader.read_event().unwrap() {
+        if let Event::Doctype(_) = event {
+            assert_eq!(origin.input_range(), Some(43..73));
+        }
+    }
+}

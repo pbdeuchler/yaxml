@@ -1,0 +1,9 @@
+http://u%40@h:80/a%20b/../c?q#f
+file:///d:/x/y.xml
+/;&
+../g;x?y#s
+http://[::1]:8080/a/./b
+
+//@/x%00y
+x://
+dir/a.xml

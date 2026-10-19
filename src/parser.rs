@@ -252,6 +252,7 @@ enum Phase {
 pub(crate) struct ParserState<'source> {
     initial: usize,
     encoding: crate::encoding::SourceEncoding,
+    switchable: bool,
     declaration_seen: bool,
     doctype_seen: bool,
     token_limit: usize,
@@ -279,6 +280,7 @@ impl<'source> ParserState<'source> {
         Self {
             initial: initial_offset,
             encoding: crate::encoding::SourceEncoding::Utf8,
+            switchable: false,
             declaration_seen: false,
             doctype_seen: false,
             token_limit: limits.max_token_bytes,
@@ -311,6 +313,15 @@ impl<'source> ParserState<'source> {
         self.set_initial_offset(initial);
         self.token_limit = decoded_token_limit;
         self.token_limit_kind = Limit::DecodedTokenBytes;
+    }
+
+    /// A BOM-less decoding stream can follow a declared byte charset.
+    pub(crate) fn allow_switch(&mut self) {
+        self.switchable = true;
+    }
+
+    pub(crate) fn encoding(&self) -> crate::encoding::SourceEncoding {
+        self.encoding
     }
 
     pub(crate) fn in_content(&self) -> bool {
@@ -480,8 +491,9 @@ impl<'source> ParserState<'source> {
             }
             let (declaration, encoding_offset) =
                 parse_declaration(&body[name_end..], start + 2 + name_end)?;
-            validate_encoding(
+            self.encoding = validate_encoding(
                 self.encoding,
+                self.switchable,
                 declaration.encoding,
                 encoding_offset.unwrap_or(start),
             )?;
@@ -1664,36 +1676,35 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Optio
     Ok((declaration, encoding_offset))
 }
 
+/// Returns the encoding for the input after the declaration. Only a BOM-less
+/// decoding stream (`switchable`) can continue in a declared byte charset.
 fn validate_encoding(
     source: crate::encoding::SourceEncoding,
+    switchable: bool,
     label: Option<&str>,
     offset: usize,
-) -> Result<(), Error> {
-    use crate::encoding::SourceEncoding;
+) -> Result<crate::encoding::SourceEncoding, Error> {
+    use crate::encoding::{Charset, SourceEncoding};
     let Some(label) = label else {
         return if source.requires_declaration() {
             Err(Error::new(ErrorKind::EncodingMismatch, offset))
         } else {
-            Ok(())
+            Ok(source)
         };
     };
-    let utf8 = label.eq_ignore_ascii_case("UTF-8");
-    let generic = label.eq_ignore_ascii_case("UTF-16");
-    let le = label.eq_ignore_ascii_case("UTF-16LE");
-    let be = label.eq_ignore_ascii_case("UTF-16BE");
-    let agrees = match source {
-        SourceEncoding::Utf8 => utf8,
-        SourceEncoding::Utf16 { little_endian, bom } => {
-            (bom && generic) || (little_endian && le) || (!little_endian && be)
+    let kind = match (source, crate::encoding::charset(label)) {
+        (_, None) => ErrorKind::UnsupportedEncoding,
+        (SourceEncoding::Utf8, Some(Charset::Utf8)) => return Ok(source),
+        (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {
+            return Ok(SourceEncoding::Byte(table));
         }
-    };
-    if agrees {
-        return Ok(());
-    }
-    let kind = if matches!(source, SourceEncoding::Utf8) || !(utf8 || generic || le || be) {
-        ErrorKind::UnsupportedEncoding
-    } else {
-        ErrorKind::EncodingMismatch
+        (SourceEncoding::Utf16 { little_endian, bom }, Some(Charset::Utf16(order)))
+            if order.map_or(bom, |order| order == little_endian) =>
+        {
+            return Ok(source);
+        }
+        (SourceEncoding::Utf16 { .. }, Some(_)) => ErrorKind::EncodingMismatch,
+        _ => ErrorKind::UnsupportedEncoding,
     };
     Err(Error::new(kind, offset))
 }

@@ -1,6 +1,6 @@
 # Fuzzing and replay
 
-The current harness is safe Rust with no added Cargo dependencies. It provides deterministic mutation smoke tests, a process-per-testcase replay entry point, and a bounded LLVM feedback campaign. Passing campaign checks does not imply 100% execution coverage. The release policy and coverage definitions are in [the security plan](../docs/security.md).
+The oracles in this directory are safe Rust with no added Cargo dependencies. They back deterministic smoke tests, a process-per-testcase replay example, and coverage-guided [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) (libFuzzer) targets. The release policy and coverage definitions are in [the security plan](../docs/security.md).
 
 Run the smoke tests and replay a testcase:
 
@@ -12,6 +12,34 @@ cargo run --release --example fuzz_replay -- --libxml2 /path/to/pinned/xmllint f
 ```
 
 The example accepts each filename as a separate testcase, or one testcase from stdin when there are no arguments. It caps testcase size at one MiB before parsing. Syntax rejection is an expected result and exits successfully; an invariant violation panics. File/read errors and oversized input fail the process. Keep that distinction when configuring an external runner.
+
+## Coverage-guided fuzzing
+
+`fuzz/Cargo.toml` is a standalone cargo-fuzz package (its own workspace), so `libfuzzer-sys` never enters the library's dependency graph. Each target in `fuzz_targets/` is a thin wrapper around one `driver::exercise_*` family; `driver::exercise` composes all of them for replay and smoke tests.
+
+| Target | Driver entry | Surface |
+| --- | --- | --- |
+| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection |
+| `owned` | `exercise_owned` | `OwnedDocument` parsing and views against the borrowed DOM |
+| `push` | `exercise_push` | `PushParser` chunk schedules, `finish`, `read_from` |
+| `buffered` | `exercise_pull` | `BufferedReader` |
+| `writer` | `exercise_writer` | `Writer` event round trips, generated operations and sinks |
+| `serialize` | `exercise_serialize` | `Writer::write_document` / `write_owned_document` |
+| `limits` | `exercise_limits` | Input-derived `Limits` across every parser |
+| `encoding` | `exercise_encoding` | UTF-16/UTF-32 detection and `DecodeLimits` |
+| `mutation` | `exercise_mutation` | `OwnedDocument::edit` operations |
+| `construction` | `exercise_construction` | `OwnedDocument::create`, `append_element` |
+| `names` | `exercise_names` | `Name` and owned PI targets |
+| `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface |
+
+```sh
+cargo install cargo-fuzz
+mkdir -p fuzz/corpus/dom
+cargo +nightly fuzz run dom fuzz/corpus/dom fuzz/corpus -- -max_total_time=60
+fuzz/coverage.sh            # all targets; or name some
+```
+
+New inputs go to the ignored `fuzz/corpus/<target>/`; the committed top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/` with a deterministic test. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-06-06`, prints one `src/` TOTAL line per target, then merges all profiles into `fuzz/coverage/report.txt` (regions, functions, lines, branches per library file). `#[cfg(test)]` modules (the DTD work) are not compiled into the targets and are absent from the denominator. The "mismatched data" warning comes from the per-binary libFuzzer entry symbols, not library code.
 
 ## Current target inventory
 
@@ -35,7 +63,9 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `Writer::write_document`, `write_owned_document` | `serialize::borrowed`, `serialize::owned`, UTF-8 and independently decoded UTF-16 references | Complete tree/declaration comparison; exact output and quota goldens; fresh-writer requirement; short/interrupted/invalid writes, prefix and flush faults; successful completion and terminal misuse |
 | XML normalization and references | Reader/DOM corpora and generated documents | Exercised indirectly; semantic golden tests are also required in the ordinary test suite |
 | Validated name construction and owned PI targets | Every bounded testcase enters `driver::exercise_names` before XML/encoding dispatch | 28 literal QName/offset goldens, borrowed/owned/Cow parity and buffer preservation, arbitrary bounded strings, getter recomposition, and exact owned-PI Writer/Reader bytes; `name-owned-views.txt` seeds a Unicode QName |
-| `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
+| `yaxml::uri` parse, raw parse, display, escape, unescape, normalize, resolve, relative | Every bounded UTF-8 testcase enters `uri::exercise` (reference, base, escape list as lines); `uri.txt` seeds | No panics; raw parse is ASCII and reparses; normalization idempotent; escape/unescape round trip up to NUL |
+| `xpath::XPath::compile_with_limits`, `evaluate`, `Context` namespace and limit bindings | `driver::exercise_xpath` (also entered from `driver::exercise`): expression bytes, optionally followed by NUL and an XML document; small finite limits | Borrowed and owned DOMs agree exactly at the root and document element (value, error kind, node ranks); node-sets strictly in document order; source text round-trips |
+| `PushParser::with_decode_limits`, UTF-8/UTF-16 detection, declared single-byte decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations, `charset-*.xml` | Standard-library UTF-16 reference, xmllint-recorded single-byte tables, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 | `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
 
 Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Existing-element attribute insertion/removal, moves, namespace editing, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
@@ -70,6 +100,10 @@ to source bytes. Materializing decoded input and a global offset map is confined
 to this test oracle; production decoding retains constant carry. A second BOM is
 explicitly rejected rather than letting the UTF-8 reference strip it. Both
 auto-decoding surfaces must reject malformed code units, XML and labels.
+A BOM-less declaration whose label the owning parser resolves to a single-byte
+table (probed byte by byte) also takes this path; the probed table must equal a
+row of `tests/fixtures/charsets.tsv`, which then decodes the reference, and an
+unmapped byte leaves no reference. EBCDIC signatures are rejected like UTF-32.
 For independently decoded malformed grammar, error kinds and mapped source
 offsets are compared across whole/chunked/I/O/owned paths. Upfront character
 validation, allocation and resource ordering have scoped exclusions. Incomplete
@@ -369,53 +403,7 @@ Coverage uses pinned nightly `2026-06-06` with `-C instrument-coverage -Z covera
 
 Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component. A system LLVM version can reject profiles from a newer Rust compiler. If tooling is unavailable, record that coverage was not measured; do not infer it from passing tests. The workflow publishes gaps and currently imposes no percentage threshold. A release requires reviewed coverage data and the additional gates in the security plan.
 
-## External fuzz engines and differential testing
-
-### Bounded LLVM feedback campaign
-
-`fuzz_campaign` is a finite, process-based mutation runner. It feeds the
-instrumented `fuzz_replay` executable and retains a candidate only when its
-cumulative LLVM report increases covered regions, executed functions, or
-covered branches. It is feedback-guided mutation, not merely a replay loop;
-LLVM's cumulative counts do not provide edge-level novelty or path-frequency
-feedback.
-
-Build the replay target with the pinned nightly, branch instrumentation, and
-LTO disabled. Then run the campaign with matching `llvm-profdata` and
-`llvm-cov` binaries:
-
-```sh
-cargo +nightly-2026-06-06 run --release --example fuzz_campaign -- \
-  --target /absolute/path/to/fuzz_replay \
-  --llvm-profdata /absolute/path/to/llvm-profdata \
-  --llvm-cov /absolute/path/to/llvm-cov \
-  --source-root /absolute/path/to/yaxml \
-  --seeds fuzz/corpus --output /private/tmp/yaxml-campaign-run \
-  --source-revision REVISION --build-flags 'coverage,branch,no-lto' \
-  --compiler-version 'rustc nightly-2026-06-06 LLVM version: 22.1.6'
-```
-
-The output path must be new. The runner writes a bounded manifest, case
-journal, retained corpus, current cumulative profile, and first-failure
-evidence there. Its revision, build-flags, and compiler-version values are
-caller-supplied labels; file identities detect accidental changes but do not
-prove how the target was built. Save the separate build manifest and external
-artifact hashes with campaign results. Defaults and hard ceilings are listed
-in [`fuzz-campaign.md`](../docs/plans/fuzz-campaign.md). The runner stops at
-the first target or infrastructure failure and does not resume campaigns.
-The runner and its campaign tests currently support Unix only: commit
-publication relies on rename-over-existing-file behavior, output roots use
-Unix mode `0700`, and the process-helper test invokes `/bin/sh`. Windows
-campaign runs are unsupported.
-See the [latest campaign results and retained artifact paths](../docs/validation-fuzz-campaign.md).
-
-The report gives all four LLVM denominators and raw covered/gap counts.
-Regions, functions, and instrumented branch outcomes drive novelty; line counts
-are diagnostic. These metrics do not establish parser-state or semantic
-coverage, and a 100% percentage would only describe those instrumented LLVM
-metrics for the explicit production source list.
-
-An external process-based fuzzer can feed stdin to the release example without changing the crate's dependency graph. Validate its instrumentation and execution feedback before calling it coverage-guided fuzzing. This repository does not yet supply an AFL++/libFuzzer integration, custom mutation runtime, or sustained-run budget. Adding a runtime dependency or unsafe foreign export requires a policy decision.
+## Differential testing
 
 `--libxml2 PATH` requires libxml2 **2.15.4** and records its version/build report.
 `--allow-other-libxml2` explicitly selects an exploratory comparison with another

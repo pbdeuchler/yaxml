@@ -251,7 +251,7 @@ fn actual_command_preserves_full_inventory_exit_policy_and_worker_bounds() {
         ("dtd.xml", b"<!DOCTYPE r><r/>"),
         (
             "encoding.xml",
-            b"<?xml version='1.0' encoding='ISO-8859-1'?><r/>",
+            b"<?xml version='1.0' encoding='Shift_JIS'?><r/>",
         ),
         ("namespace-off.xml", b"<p:r/>"),
         ("xml11.xml", b"<?xml version='1.1'?><r/>"),

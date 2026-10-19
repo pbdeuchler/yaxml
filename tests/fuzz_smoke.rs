@@ -10,6 +10,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/references.xml"),
     include_bytes!("../fuzz/corpus/malformed.xml"),
     include_bytes!("../fuzz/corpus/dtd.xml"),
+    include_bytes!("../fuzz/corpus/dtd-entities.xml"),
+    include_bytes!("../fuzz/corpus/dtd-unread.xml"),
     include_bytes!("../fuzz/corpus/declaration.xml"),
     include_bytes!("../fuzz/corpus/encoding-name.xml"),
     include_bytes!("../fuzz/corpus/infoset.xml"),
@@ -18,6 +20,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/utf16le-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16be-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
+    include_bytes!("../fuzz/corpus/charset-alias.xml"),
+    include_bytes!("../fuzz/corpus/charset-unmapped.xml"),
     include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
     include_bytes!("../fuzz/corpus/serialize.xml"),
     include_bytes!("../fuzz/corpus/mutation-operations.bin"),
@@ -28,6 +32,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/construction-format.bin"),
     include_bytes!("../fuzz/corpus/construction-long-prefix.bin"),
     include_bytes!("../fuzz/corpus/name-owned-views.txt"),
+    include_bytes!("../fuzz/corpus/uri.txt"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
@@ -986,4 +991,42 @@ fn encoded_equivalents_and_every_truncation() {
             );
         }
     }
+}
+
+#[test]
+fn xpath_entry_replays_expressions_and_documents() {
+    let cases: &[&[u8]] = &[
+        b"//*[@id]/@*",
+        b"count(//node()) + sum(//text())",
+        b"//p:c/namespace::* | //e/..",
+        b"string(/r/a[1]/following::node()[last()])",
+        b"id('i')/preceding::node()",
+        b"concat(name(//*[lang('EN')][1]), substring('abc', 2), translate('x', 'x', 'y'))",
+        b"//a[",
+        b"((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))",
+        b"//*[count(//*) > 0][1]\0<r><s><t/></s><s/></r>",
+        b"//x\0<r",
+        b"\xff\xfe//*",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_xpath(case);
+    }
+}
+
+#[test]
+fn dtd_wrappers_reach_every_construction() {
+    for input in [
+        b"\0<!ENTITY e 'x'>".as_slice(),
+        b"\x01<n/>&amp;",
+        b"\x02<!ENTITY e 'y'>",
+        b"\x00<!BAD>",
+        b"\x01&e;",
+        b"<!DOCTYPE r><r/>",
+        b"",
+    ] {
+        driver::exercise_dtd(input);
+    }
+    assert!(driver::exercise_dtd(b"\x01x").error.is_none());
+    assert!(driver::exercise_dtd(b"\x01&e;").error.is_some());
 }

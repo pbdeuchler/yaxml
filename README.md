@@ -4,7 +4,7 @@ A safe Rust XML processor pursuing libxml2 behavior, with `memchr` as its only
 dependency. This is an early implementation, not a libxml2 drop-in replacement.
 
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
-in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comments,
+in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
 value edits, leaf insertion and permanent subtree removal. Internal DTD subsets
 are processed (entities, default attributes, attribute normalization) and the
@@ -14,7 +14,8 @@ never loaded. Other encodings return structured errors.
 allocating: containers yield descendant Text/CDATA, and leaves yield their
 own payload. Callers can collect the chunks or stream them to a sink.
 `Reader` and `Document` borrow complete UTF-8 input.
-`OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE.
+`OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE,
+and decode a declared US-ASCII, ISO-8859-1..16 or windows-1252 document.
 `PushParser` consumes arbitrary byte chunks; `read_from` drives it from a
 caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain
@@ -186,6 +187,21 @@ no cumulative counters. Existing-element attribute insertion/removal,
 moves/adoption, detached ownership, namespace edits, slot reuse and
 compaction remain pending.
 
+`yaxml::xpath` evaluates XPath 1.0 over either DOM: all axes, node tests,
+predicates, unions, the four value types, the 27 core functions, and
+caller-supplied prefixes, variables and extension functions. Number
+conversion and formatting, and `substring`/`round` edge cases, follow libxml2.
+Compilation and evaluation are bounded by finite `xpath::Limits`. The
+[XPath contract](docs/xpath.md) lists the remaining differences from libxml2.
+
+```rust
+let document = yaxml::Document::parse("<r><i k='1'/><i k='2'/></r>")?;
+let sum = yaxml::xpath::XPath::compile("sum(//i/@k)")?;
+let value = sum.evaluate(&document, document.root().id(), &yaxml::xpath::Context::new())?;
+assert_eq!(value, yaxml::xpath::Value::Number(3.0));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
 their own scope decision because libxml2 exposes raw pointers and public mutable
@@ -196,6 +212,8 @@ The [compatibility catalogue](docs/compatibility.md), [design](docs/design.md),
 target and known gaps. Rust 1.100 allocator support is a planned storage milestone;
 the current stable baseline uses ordinary safe vectors. No performance advantage
 over libxml2 or complete fuzz execution coverage is claimed yet.
+Coverage-guided cargo-fuzz targets and a coverage report script are described in
+[fuzz/README.md](fuzz/README.md).
 
 Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
 `cargo bench --bench parse`, `cargo bench --bench pull`,

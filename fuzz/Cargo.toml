@@ -1,0 +1,113 @@
+[package]
+name = "yaxml-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+yaxml = { path = ".." }
+
+# Standalone workspace: the library's dependency graph stays memchr-only.
+[workspace]
+
+[[bin]]
+name = "dom"
+path = "fuzz_targets/dom.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "owned"
+path = "fuzz_targets/owned.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "push"
+path = "fuzz_targets/push.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "buffered"
+path = "fuzz_targets/buffered.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "writer"
+path = "fuzz_targets/writer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "serialize"
+path = "fuzz_targets/serialize.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "limits"
+path = "fuzz_targets/limits.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encoding"
+path = "fuzz_targets/encoding.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mutation"
+path = "fuzz_targets/mutation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "construction"
+path = "fuzz_targets/construction.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "names"
+path = "fuzz_targets/names.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "uri"
+path = "fuzz_targets/uri.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xpath"
+path = "fuzz_targets/xpath.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dtd"
+path = "fuzz_targets/dtd.rs"
+test = false
+doc = false
+bench = false

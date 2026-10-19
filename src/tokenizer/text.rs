@@ -221,6 +221,8 @@ impl<'input> TextSourceLease<'input> {
             SourceEncoding::Utf16 { bom, .. } => {
                 physical_position.is_multiple_of(2) && (!bom || physical_position >= 2)
             }
+            // A byte charset begins after a UTF-8-forwarded ASCII declaration.
+            SourceEncoding::Byte(_) => decoded_position >= physical_position,
         };
         let valid = coordinates
             && tokenizer.encoding == SourceEncoding::Utf8
