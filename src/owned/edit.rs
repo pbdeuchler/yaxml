@@ -35,21 +35,25 @@ fn error(kind: EditErrorKind) -> EditError {
 }
 
 /// Single-item locations: `None` the element name, `Some(namespace)` item 0.
-fn location(item: Option<bool>, component: EditComponent, offset: Option<usize>) -> EditLocation {
-    let component_at = |index| (index, Some(component), offset);
-    match item.map(|namespace| (namespace, component_at(0))) {
+fn location(
+    item: Option<bool>,
+    component: EditComponent,
+    byte_offset: Option<usize>,
+) -> EditLocation {
+    let (index, item_component) = (0, Some(component));
+    match item {
         None => EditLocation::ElementName {
-            component,
-            byte_offset: offset,
-        },
-        Some((true, (index, component, byte_offset))) => EditLocation::NamespaceItem {
-            index,
             component,
             byte_offset,
         },
-        Some((false, (index, component, byte_offset))) => EditLocation::AttributeItem {
+        Some(true) => EditLocation::NamespaceItem {
             index,
-            component,
+            component: item_component,
+            byte_offset,
+        },
+        Some(false) => EditLocation::AttributeItem {
+            index,
+            component: item_component,
             byte_offset,
         },
     }
@@ -162,9 +166,14 @@ impl<A: Allocator> OwnedDocument<A> {
                 self.attributes.push(copy);
             }
             let moved = |index: &mut usize| *index = start + (*index - range.start);
-            relocate(&mut self.kept, &range, |entry| moved(&mut entry.0));
+            relocate(
+                &mut self.kept,
+                &range,
+                |entry| entry.0,
+                |entry| moved(&mut entry.0),
+            );
             if let Some(html) = &mut self.html {
-                relocate(&mut html.valueless, &range, moved);
+                relocate(&mut html.valueless, &range, |&index| index, moved);
             }
             start
         };
@@ -238,8 +247,10 @@ impl<A: Allocator> OwnedDocument<A> {
                 return Ok(None);
             };
             work.charge(1 + plan.len())?;
-            let planned = plan.iter().filter(|declare| declare.element == at);
-            if let Some(declare) = planned.into_iter().find(|d| text(&d.prefix) == prefix) {
+            let planned = plan
+                .iter()
+                .find(|declare| declare.element == at && text(&declare.prefix) == prefix);
+            if let Some(declare) = planned {
                 return Ok(Some(text(&declare.uri)));
             }
             for attribute in &self.attributes[attributes.clone()] {
@@ -341,50 +352,47 @@ impl<A: Allocator> OwnedDocument<A> {
 
     /// The element height of `root`'s subtree (0 for a leaf).
     fn height(&self, root: usize) -> usize {
-        let root_depth = self.depth(root);
-        std::iter::once(root)
-            .chain(
-                self.view(NodeId(root))
-                    .into_iter()
-                    .flat_map(|node| node.descendants().skip(1))
-                    .map(|node| node.record.id.0),
-            )
-            .filter(|&index| matches!(self.nodes[index].content, Content::Element { .. }))
-            .map(|index| self.depth(index) + 1 - root_depth)
-            .max()
-            .unwrap_or(0)
+        let element = |index: usize| usize::from(self.is_kind(index, OwnedNodeKind::Element));
+        let (mut current, mut depth) = (root, element(root));
+        let mut height = depth;
+        loop {
+            if let Some(child) = self.nodes[current].first_child.get() {
+                current = child.0;
+                depth += element(current);
+                height = height.max(depth);
+                continue;
+            }
+            loop {
+                if current == root {
+                    return height;
+                }
+                depth -= element(current);
+                if let Some(next) = self.nodes[current].next_sibling.get() {
+                    current = next.0;
+                    depth += element(current);
+                    height = height.max(depth);
+                    break;
+                }
+                current = self.nodes[current].parent.get().expect("subtree node").0;
+            }
+        }
     }
 }
 
-/// Moves the run of `entries` (sorted by `index_of`) whose indices lie in
+/// Moves the run of `entries` (sorted by `index`) whose indices lie in
 /// `range` to the end, rewriting each with `moved`: the range moved to the
 /// arena tail, past every other index.
-fn relocate<T>(entries: &mut [T], range: &Range<usize>, moved: impl Fn(&mut T))
-where
-    T: RangeIndex,
-{
-    let first = entries.partition_point(|entry| entry.index() < range.start);
-    let last = entries.partition_point(|entry| entry.index() < range.end);
+fn relocate<T>(
+    entries: &mut [T],
+    range: &Range<usize>,
+    index: impl Fn(&T) -> usize,
+    moved: impl Fn(&mut T),
+) {
+    let first = entries.partition_point(|entry| index(entry) < range.start);
+    let last = entries.partition_point(|entry| index(entry) < range.end);
     entries[first..].rotate_left(last - first);
-    let count = last - first;
     let total = entries.len();
-    entries[total - count..].iter_mut().for_each(moved);
-}
-
-trait RangeIndex {
-    fn index(&self) -> usize;
-}
-
-impl RangeIndex for usize {
-    fn index(&self) -> usize {
-        *self
-    }
-}
-
-impl RangeIndex for (usize, Range<usize>) {
-    fn index(&self) -> usize {
-        self.0
-    }
+    entries[total - (last - first)..].iter_mut().for_each(moved);
 }
 
 impl<A: Allocator> Editor<'_, A> {
@@ -522,13 +530,14 @@ impl<A: Allocator> Editor<'_, A> {
         if ancestors.any(|id| id.0 == node) {
             return Err(error(EditErrorKind::Hierarchy));
         }
-        if kind == Some(OwnedNodeKind::Element) {
-            let height = document.height(node);
-            let deeper = document.depth(parent) + height;
-            let current = document.depth(node) - 1 + height;
-            if deeper > self.limits.max_depth && deeper > current {
-                return Err(limit_global(EditLimit::Depth));
-            }
+        // Only a move under a parent at least as deep as the node's current
+        // one deepens it; then its height decides.
+        let target = document.depth(parent);
+        if kind == Some(OwnedNodeKind::Element)
+            && target >= document.depth(node)
+            && target + document.height(node) > self.limits.max_depth
+        {
+            return Err(limit_global(EditLimit::Depth));
         }
         Ok(())
     }
@@ -731,6 +740,9 @@ impl<A: Allocator> Editor<'_, A> {
     ) -> Result<(), EditError> {
         let index = self.editable_element(element)?;
         check_name(&name, Some(false), &self.limits)?;
+        if self.document.is_html() && name.namespace.is_some() {
+            return Err(namespace_error(Some(false), EditComponent::NamespaceUri));
+        }
         if name.namespace == Some(XMLNS) {
             return Err(error(EditErrorKind::NamespaceDeclaration));
         }

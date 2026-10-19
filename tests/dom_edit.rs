@@ -1135,3 +1135,33 @@ fn entity_content_is_read_only_for_structure() {
     editor.append_child(root, reference).unwrap();
     assert!(written(editor.document()).ends_with("]><r><a/>&e;</r>"));
 }
+
+#[test]
+fn html_documents_take_attributes_but_no_namespaces() {
+    let parsed = yaxml::html::parse(b"<p id=a>t</p>", yaxml::html::Options::default()).unwrap();
+    let mut document = parsed.document;
+    let p = document
+        .nodes()
+        .find(|node| node.name().is_some_and(|name| name.local() == "p"))
+        .unwrap()
+        .id();
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    let refused = |result: Result<(), EditError>| {
+        assert_eq!(result.unwrap_err().kind, EditErrorKind::Namespace);
+    };
+    refused(editor.set_attribute(p, name("x", Some("urn:p"), AUTO), "1"));
+    refused(editor.declare_namespace(p, Some("q"), "urn:q"));
+    refused(editor.set_name(p, name("p", Some("urn:p"), AUTO)));
+    editor
+        .set_attribute(p, name("id", None, AUTO), "b")
+        .unwrap();
+    editor
+        .set_attribute(p, name("title", None, AUTO), "c")
+        .unwrap();
+    assert_eq!(
+        editor.document().element_by_id("b").map(|node| node.id()),
+        Some(p)
+    );
+    let node = editor.document().node(p).unwrap();
+    assert_eq!(node.attribute("title"), Some("c"));
+}

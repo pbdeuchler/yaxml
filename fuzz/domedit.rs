@@ -78,7 +78,14 @@ pub fn exercise(input: &[u8]) {
     let limits = limits(script.first().copied().unwrap_or(0));
     let foreign = OwnedDocument::parse("<f/>").unwrap().root_element().id();
     let mut handles: Vec<OwnedNodeId> = document.nodes().map(|node| node.id()).collect();
-    for operation in script.get(1..).unwrap_or_default().chunks_exact(4).take(64) {
+    for operation in script
+        .get(1..)
+        .unwrap_or_default()
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .take(64)
+    {
         let pick = |selector: u8| handles[usize::from(selector) % handles.len()];
         let (a, b, c) = (pick(operation[1]), pick(operation[2]), operation[3]);
         let before = snapshot(&document);
