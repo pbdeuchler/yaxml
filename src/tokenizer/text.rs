@@ -500,10 +500,12 @@ pub(crate) struct TextCoordinator<'input> {
     source: TextSourceLease<'input>,
     pending: Pending,
 }
+#[cfg(test)]
 pub(crate) struct TextHandoff<'input> {
     shared: TextShared,
     source: TextSourceLease<'input>,
 }
+#[cfg(test)]
 impl<'input> TextHandoff<'input> {
     pub(crate) fn into_parts(self) -> (TextShared, TextSourceLease<'input>) {
         (self.shared, self.source)
@@ -693,7 +695,9 @@ impl<'input> TextCoordinator<'input> {
     }
     /// The caller acknowledges successful inclusion scheduling; no lookup or
     /// frame mutation is performed here. Prefix acceptance already happened.
-    pub(crate) fn acknowledge_general(mut self) -> Result<TextHandoff<'input>, TextError> {
+    /// The source is left at a boundary for `source_mut` and `resume`, so the
+    /// large coordinator never moves per entity reference.
+    pub(crate) fn acknowledge_general_in_place(&mut self) -> Result<(), TextError> {
         if let Some(error) = self.shared.failure {
             return Err(error);
         }
@@ -704,12 +708,10 @@ impl<'input> TextCoordinator<'input> {
             reference.release();
         }
         self.source.boundary = true;
-        Ok(TextHandoff {
-            shared: self.shared,
-            source: self.source,
-        })
+        Ok(())
     }
-    pub(crate) fn take_complete(mut self) -> Result<TextHandoff<'input>, TextError> {
+    /// Leaves a completed source at a boundary, like `acknowledge_general_in_place`.
+    pub(crate) fn complete_in_place(&mut self) -> Result<(), TextError> {
         if let Some(error) = self.shared.failure {
             return Err(error);
         }
@@ -717,6 +719,30 @@ impl<'input> TextCoordinator<'input> {
             return Err(self.error(TextErrorKind::InvalidState));
         }
         self.source.boundary = true;
+        Ok(())
+    }
+    /// The boundary source, to switch to a new invocation or swap for another.
+    pub(crate) fn source_mut(&mut self) -> &mut TextSourceLease<'input> {
+        &mut self.source
+    }
+    /// Scans the (possibly replaced) source, as `new` would.
+    pub(crate) fn resume(&mut self) -> Result<(), TextError> {
+        self.shared.check_source(&self.source)?;
+        self.source.boundary = false;
+        self.pending = Pending::Scanning;
+        Ok(())
+    }
+    #[cfg(test)]
+    pub(crate) fn acknowledge_general(mut self) -> Result<TextHandoff<'input>, TextError> {
+        self.acknowledge_general_in_place()?;
+        Ok(TextHandoff {
+            shared: self.shared,
+            source: self.source,
+        })
+    }
+    #[cfg(test)]
+    pub(crate) fn take_complete(mut self) -> Result<TextHandoff<'input>, TextError> {
+        self.complete_in_place()?;
         Ok(TextHandoff {
             shared: self.shared,
             source: self.source,
@@ -728,7 +754,7 @@ impl<'input> TextCoordinator<'input> {
         }
         let mut consumed = 0;
         loop {
-            let outcome = match self.pending.clone() {
+            let outcome = match &self.pending {
                 Pending::TokenReady | Pending::PrefixReady(_) => Some(TextOutcome::TokenReady),
                 Pending::GeneralReady(_) => Some(TextOutcome::GeneralReferenceReady),
                 Pending::Complete => Some(TextOutcome::Complete),
@@ -737,7 +763,7 @@ impl<'input> TextCoordinator<'input> {
             if let Some(outcome) = outcome {
                 return Ok(TextStep { consumed, outcome });
             }
-            match self.pending.clone() {
+            match self.pending {
                 Pending::Scanning => {
                     let step = self.scan(&input[consumed..])?;
                     consumed += step.consumed;
@@ -799,21 +825,36 @@ impl<'input> TextCoordinator<'input> {
                             outcome: TextOutcome::NeedInput,
                         });
                     }
-                    let byte = &input[consumed..consumed + 1];
-                    let next = cursor
-                        .checked_advance(byte)
-                        .map_err(|e| self.cursor_error(e))?;
                     let source = self.source.id();
+                    let offset = self.source.offset();
                     let reference = self.shared.reference.as_mut().ok_or(TextError {
                         kind: TextErrorKind::InvalidState,
                         source,
-                        offset: self.source.offset(),
+                        offset,
                     })?;
                     let global_cap = reference
                         .usage()
                         .work
                         .saturating_add(self.shared.limits.max_work - self.shared.usage.work);
                     reference.cap_work(global_cap);
+                    // A whole simple ASCII reference cannot fail before its `;`, so
+                    // it is fed at once; anything else goes byte by byte.
+                    let rest = &input[consumed..];
+                    let byte = memchr::memchr(b';', &rest[..rest.len().min(64)])
+                        .map(|end| &rest[..=end])
+                        .filter(|window| {
+                            window.len() > 2
+                                && window[1..window.len() - 1]
+                                    .iter()
+                                    .all(|b| b.is_ascii_alphanumeric() || b"_-.:#".contains(b))
+                                && reference.fits(window)
+                                && cursor.checked_advance(window).is_ok()
+                        })
+                        .unwrap_or(&rest[..1]);
+                    let next = cursor
+                        .checked_advance(byte)
+                        .map_err(|e| self.cursor_error(e))?;
+                    let reference = self.shared.reference.as_mut().expect("checked scratch");
                     let before = reference.usage();
                     let before_position = reference.position();
                     let result = reference.advance(byte);

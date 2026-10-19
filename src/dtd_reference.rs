@@ -100,6 +100,20 @@ impl ReferenceScratch {
     pub(crate) fn position(&self) -> usize {
         self.position
     }
+    /// Whether a fresh, complete `&...;` spelling can be appended without
+    /// reaching any ceiling (two work units per byte plus classification).
+    pub(crate) fn fits(&self, spelling: &[u8]) -> bool {
+        let length = spelling.len();
+        self.buffer_len() == 0
+            && spelling.first() == Some(&b'&')
+            && length <= self.limits.max_bytes.min(self.limits.max_scratch_bytes)
+            && self.start.checked_add(length).is_some()
+            && self
+                .usage
+                .work
+                .checked_add(length.saturating_mul(3))
+                .is_some_and(|work| work <= self.limits.max_work)
+    }
     pub(crate) fn usage(&self) -> ReferenceUsage {
         self.usage
     }
