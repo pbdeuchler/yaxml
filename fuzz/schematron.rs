@@ -49,9 +49,12 @@ fn parse(schema: &[u8], max_operations: u64) -> Result<Schema, SchemaErrors> {
 
 fn text(result: &Result<Schema, SchemaErrors>) -> String {
     match result {
-        Ok(_) => String::new(),
+        Ok(schema) => schema
+            .title()
+            .map_or_else(String::new, |title| format!("title {title}")),
         Err(errors) => {
             assert!(!errors.errors.is_empty() && !errors.to_string().is_empty());
+            assert!(errors.errors.iter().all(|error| error.code.number() > 0));
             errors.to_string()
         }
     }
@@ -105,9 +108,24 @@ pub fn exercise(input: &[u8]) {
             expected
         );
     }
+    // A recovered document can lack a document element.
+    let rootless = |bytes: &[u8]| {
+        OwnedDocument::parse_with(bytes, ParseOptions::new(options::RECOVER | options::NOENT))
+            .ok()
+            .filter(|tree| tree.document_element().is_none())
+    };
+    if let Some(tree) = rootless(schema) {
+        assert!(Schema::from_tree(&tree, "s.sct", schema, &limits(2_000_000)).is_err());
+    }
     let Ok(compiled) = compiled else {
         return;
     };
+    if let Some(tree) = rootless(instance) {
+        assert_eq!(
+            compiled.validate(&tree, OUT_QUIET, instance).errors,
+            Some(1)
+        );
+    }
     let (Ok(document), Ok(owned)) = (
         Document::parse_with(instance, instance_options(schema)),
         OwnedDocument::parse_with(instance, instance_options(schema)),
@@ -129,8 +147,10 @@ pub fn exercise(input: &[u8]) {
                 compiled.validate(&document, flags, instance),
                 "reuse changed the result"
             );
+            assert_eq!(validation.is_valid(), validation.errors == Some(0));
             for diagnostic in errors(&validation) {
                 assert!(diagnostic.node.is_some() || diagnostic.line == 0);
+                assert!(diagnostic.code.number() > 0);
             }
             validation
         })

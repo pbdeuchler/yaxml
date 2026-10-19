@@ -12,7 +12,7 @@ use std::io::{self, BufRead, Read};
 
 use yaxml::{
     ErrorKind, Event, Limits, NodeType, OwnedDocument, ParseOptions, ParserProperty, ReadError,
-    ReadState, Reader, Request, TextReader, Writer,
+    ReadState, Reader, Request, TextReader, Writer, options, relaxng, xsd,
 };
 
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
@@ -485,6 +485,9 @@ pub fn exercise(input: &[u8]) {
         // so a streamed prefix is not compared.
         None => assert!(failed || slice_rejects_encoding(document)),
     }
+    if control & 0x0e == 0x0e {
+        validated(document, control);
+    }
     if let Some(expected) = &expected {
         let mut reader = TextReader::new(document);
         let mut skipped = Vec::new();
@@ -549,4 +552,44 @@ fn walk<R: BufRead>(
         }
         nodes.push(node);
     }
+}
+
+/// Streaming RELAX NG and XSD validation through the reader: schemas attach
+/// only before the first read, validity summarizes the diagnostics, and
+/// tree-only flags are rejected.
+fn validated(document: &[u8], control: u8) {
+    const RNG: &[u8] = b"<element xmlns='http://relaxng.org/ns/structure/1.0'><anyName/>\
+        <zeroOrMore><choice><attribute><anyName/></attribute><text/>\
+        <element><anyName/><empty/></element></choice></zeroOrMore></element>";
+    const XSD: &[u8] = b"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'>\
+        <xs:element name='a'><xs:complexType mixed='true'><xs:sequence>\
+        <xs:any processContents='lax' minOccurs='0' maxOccurs='unbounded'/></xs:sequence>\
+        <xs:anyAttribute processContents='lax'/></xs:complexType></xs:element></xs:schema>";
+    let none = Box::new(|_: Request<'_>| Ok(None));
+    let rng = relaxng::Schema::parse(RNG, "s.rng", none, &relaxng::Limits::default());
+    let schema = xsd::Schema::parse(XSD, "s.xsd").expect("fixed schema");
+    let mut reader = TextReader::new(document);
+    let (with_rng, with_xsd) = (control & 0x10 == 0, control & 0x80 == 0);
+    if with_rng {
+        reader
+            .relaxng_set_schema(Some(&rng.expect("fixed schema")))
+            .unwrap();
+    }
+    if with_xsd {
+        reader.xsd_set_schema(Some(&schema)).unwrap();
+    }
+    while reader.read().unwrap_or(false) {}
+    let relaxng = with_rng.then(|| reader.relaxng_diagnostics().is_empty());
+    let xsd = with_xsd.then(|| xsd::is_valid(reader.xsd_diagnostics()));
+    let valid = relaxng.or(xsd).is_some() && relaxng != Some(false) && xsd != Some(false);
+    assert_eq!(reader.is_valid(), valid);
+    let state = Err(ErrorKind::InvalidState);
+    assert_eq!(reader.relaxng_set_schema(None).map_err(|e| e.kind), state);
+    assert_eq!(reader.xsd_set_schema(None).map_err(|e| e.kind), state);
+    let tree_only = ParseOptions::new(options::DTDVALID);
+    let rejected = TextReader::with_options(document, tree_only).map(drop);
+    assert_eq!(
+        rejected.map_err(|e| e.kind),
+        Err(ErrorKind::UnsupportedOption)
+    );
 }
