@@ -24,7 +24,9 @@ use std::fmt;
 
 use crate::{DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
 
-/// `XML_PARSE_RECOVER`: not implemented; rejected everywhere.
+/// `XML_PARSE_RECOVER`: build what is parsable of a malformed document
+/// (DOMs only); `Document::errors`/`OwnedDocument::errors` list the
+/// well-formedness errors recovered from.
 pub const RECOVER: u32 = 1 << 0;
 /// `XML_PARSE_NOENT`: substitute entity references instead of keeping
 /// entity-reference nodes, and load external parsed entities (with a resolver).
@@ -93,9 +95,9 @@ pub const SKIP_IDS: u32 = 1 << 27;
 pub const LEGACY: u32 = NOENT | DTDATTR;
 
 /// Flags with no implementation on any surface.
-const NEVER: u32 = RECOVER | OLD10 | OLDSAX | UNZIP | CATALOG_PI;
+const NEVER: u32 = OLD10 | OLDSAX | UNZIP | CATALOG_PI;
 /// Flags only a tree can implement.
-const TREE_ONLY: u32 = DTDVALID | NOBLANKS | XINCLUDE;
+const TREE_ONLY: u32 = RECOVER | DTDVALID | NOBLANKS | XINCLUDE;
 const KNOWN: u32 = (1 << 28) - 1;
 
 /// libxml2 parser options, resource ceilings and the resource loader.
@@ -233,6 +235,10 @@ impl Flags {
 
     pub(crate) fn drops_blanks(self) -> bool {
         self.has(NOBLANKS)
+    }
+
+    pub(crate) fn recovers(self) -> bool {
+        self.has(RECOVER)
     }
 
     pub(crate) fn validates(self) -> bool {

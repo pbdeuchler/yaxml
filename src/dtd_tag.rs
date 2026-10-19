@@ -92,10 +92,21 @@ pub(crate) fn prepare_dtd_tag<'event>(
             &mut requested,
         );
         budget.charge_owned(requested, attribute.value_offset)?;
-        let value = normalized.map_err(|error| DtdError {
-            offset: error.offset.map(|offset| attribute.value_offset + offset),
-            ..error
-        })?;
+        let value = match normalized {
+            Ok(value) => value,
+            // Recovery empties a value whose references cannot be expanded.
+            Err(error) if budget.recovers() => {
+                let offset = attribute.value_offset + error.offset.unwrap_or(0);
+                budget.recover(crate::Error::new(error.kind, offset))?;
+                Cow::Borrowed("")
+            }
+            Err(error) => {
+                return Err(DtdError {
+                    offset: error.offset.map(|offset| attribute.value_offset + offset),
+                    ..error
+                });
+            }
+        };
         attributes.push(PreparedAttribute {
             name,
             value,

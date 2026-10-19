@@ -104,7 +104,8 @@ impl Stream {
         let mut consumed = 0;
         loop {
             if let Some((kind, _, _)) = self.tokenizer.current() {
-                if kind == TokenKind::Dtd {
+                // Recovery reads a DOCTYPE inside the root as invalid markup.
+                if kind == TokenKind::Dtd && !(self.state.recovers() && self.state.in_content()) {
                     return Ok((consumed, None));
                 }
                 let origin = token_origin(&self.tokenizer);
@@ -312,7 +313,7 @@ fn deliver(
 }
 
 /// The longest prefix of `input` that is valid UTF-8 made of XML characters.
-fn valid_prefix(input: &[u8]) -> &str {
+pub(crate) fn valid_prefix(input: &[u8]) -> &str {
     let text = std::str::from_utf8(input).unwrap_or_else(|error| {
         std::str::from_utf8(&input[..error.valid_up_to()]).expect("validated prefix")
     });
@@ -363,10 +364,10 @@ fn validate<'token>(
     bytes: &'token [u8],
     span: &TokenSpan,
 ) -> Result<&'token str, Error> {
-    // Invalid markup can be recognized on a leading UTF-8 byte. Its semantic
-    // kind is rejected without reading the incomplete scalar payload.
+    // Invalid markup can be recognized on a leading UTF-8 byte, so it can end
+    // inside a scalar: only its complete prefix is read (as recovered text).
     let raw = if matches!(kind, TokenKind::InvalidMarkup) {
-        ""
+        valid_prefix(bytes)
     } else {
         std::str::from_utf8(bytes).map_err(|error| {
             Error::new(

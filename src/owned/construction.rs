@@ -1504,6 +1504,7 @@ pub(super) fn create(
         ids: Vec::new(),
         dtd: None,
         validity: Vec::new(),
+        errors: Vec::new(),
     };
     let staged = stage(&staging_document, None, &root, limits)?;
     if limits.max_created_nodes < 1 {

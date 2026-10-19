@@ -83,6 +83,10 @@ impl PushParser {
         self.session.catalog()
     }
 
+    pub(crate) fn budget(&mut self) -> Option<&mut Budget> {
+        self.session.budget()
+    }
+
     /// Source bytes consumed, including encoding detection and one scalar of lookahead
     /// when a `<` terminates text. On failure, a chunk's suffix can be unconsumed.
     pub fn position(&self) -> usize {

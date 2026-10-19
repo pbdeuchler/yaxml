@@ -32,7 +32,7 @@ pub struct Opts {
     pub xinclude: bool,
     pub nofixup_base: bool,
     /// Parser options set directly: `--loaddtd`, `--dtdattr`, `--noent`,
-    /// `--nocdata`, `--nsclean`, `--noenc`.
+    /// `--recover`, `--nocdata`, `--nsclean`, `--noenc`.
     pub flags: u32,
     pub catalogs: bool,
     pub huge: bool,
@@ -109,6 +109,7 @@ const TABLE: &[Spec] = &[
     flag("loaddtd", |o, _| o.with(options::DTDLOAD)),
     flag("dtdattr", |o, _| o.with(options::DTDATTR)),
     flag("noent", |o, _| o.with(options::NOENT)),
+    flag("recover", |o, _| o.with(options::RECOVER)),
     flag("nocdata", |o, _| o.with(options::NOCDATA)),
     flag("nsclean", |o, _| o.with(options::NSCLEAN)),
     flag("noenc", |o, _| o.with(options::IGNORE_ENC)),
@@ -212,7 +213,6 @@ const UNSUPPORTED: &[&str] = &[
     "debug",
     "shell",
     "copy",
-    "recover",
     "sax",
     "sax1",
     "insert",

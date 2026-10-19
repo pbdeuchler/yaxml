@@ -301,7 +301,14 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
         return stream(o, file, &input);
     }
     let mut document = match parse(o, file, &input) {
-        Ok(document) => document,
+        Ok(document) => {
+            // `--recover` reports what it recovered from and keeps the tree.
+            for error in document.errors() {
+                let message = format!("{:?}", error.kind);
+                report(file, &input, Some(error.offset), "parser error", &message);
+            }
+            document
+        }
         Err(error) => {
             report(
                 file,
@@ -362,8 +369,9 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
 
 /// `--stream`: read every node through the pull interface and print nothing.
 fn stream(o: &Opts, file: &str, input: &[u8]) -> i32 {
-    // The reader neither validates nor drops blanks; it prints nothing anyway.
-    let streamable = flags(o) & !(yaxml::options::DTDVALID | yaxml::options::NOBLANKS);
+    // The reader neither validates, drops blanks nor recovers; it prints nothing anyway.
+    use yaxml::options::{DTDVALID, NOBLANKS, RECOVER};
+    let streamable = flags(o) & !(DTDVALID | NOBLANKS | RECOVER);
     let options = ParseOptions::new(streamable).with_limits(limits(o));
     let reader = yaxml::TextReader::with_options(input, options.with_resolver(file, resolver(o)));
     let mut reader = match reader {

@@ -299,8 +299,19 @@ impl<'input> ContentControllerCore<'input> {
                 None
             }
             EntityLookup::ExternalUnavailable { .. } => None,
-            EntityLookup::Unparsed => return Err(fail(ErrorKind::UnparsedEntity)),
-            EntityLookup::Undeclared => return Err(fail(ErrorKind::UnknownEntity)),
+            // Recovery keeps a reference it cannot expand, empty, as libxml2 does.
+            EntityLookup::Unparsed => {
+                self.parser
+                    .owned_budget()
+                    .recover(fail(ErrorKind::UnparsedEntity))?;
+                None
+            }
+            EntityLookup::Undeclared => {
+                self.parser
+                    .owned_budget()
+                    .recover(fail(ErrorKind::UnknownEntity))?;
+                None
+            }
             EntityLookup::Predefined => return Err(self.simple(ErrorKind::InvalidState)),
         };
         let Some((id, len)) = resolved else {
@@ -467,7 +478,7 @@ impl<'input> ContentControllerCore<'input> {
         let (kind, origin, offset, catalog_before) = self.prepare_publication()?;
         let (token, work) = self.coordinator.current_with_work().expect("ready token");
         let raw = match kind {
-            TokenKind::InvalidMarkup => "",
+            TokenKind::InvalidMarkup => crate::stream::valid_prefix(token.raw),
             _ => std::str::from_utf8(token.raw)
                 .map_err(|_| Error::new(ErrorKind::InvalidUtf8, origin.error_offset()))?,
         };
