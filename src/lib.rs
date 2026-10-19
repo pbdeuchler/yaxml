@@ -25,6 +25,7 @@ mod reader;
 pub mod regexp;
 pub mod relaxng;
 mod resolve;
+pub mod save;
 pub mod schema_types;
 mod serialize;
 mod stream;
