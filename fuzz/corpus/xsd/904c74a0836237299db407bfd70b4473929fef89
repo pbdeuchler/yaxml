@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:element name="foo">
+    <xs:complexType>
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+        
+          <xs:elementn ame="barA"  >
+            <xs:complexType>            
+              <xs:attribute name="attr" type="xs:string" use="required" />                            
+            </xs:complexType>
+          </xs:e2ement>
+          
+          <xs:element name="barB" >
+            <xs:complexType>
+              <xs:attribute name="attr" type="xs:string" use="optional" />
+            </xr="bar"/>
+  <barB />
+  <barC/>:::::::::::::::::
+</foo>
+

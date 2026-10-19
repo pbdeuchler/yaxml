@@ -1,0 +1,4 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student first CDATA #REQUIRED
+			  last  CDATAtudent>

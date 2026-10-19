@@ -1,0 +1,14 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-testml:base fixup is performed.
+-->
+<!DOCTYPE doc [
+  <!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+  <!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc xmlns="com/something/else">
+     <e1>
+        <e2 xmlns="" xml:id="abc" xml:base="../bar/">
+ l:base="foo"/>
+        </e2>
+     </e1>
+</doc>

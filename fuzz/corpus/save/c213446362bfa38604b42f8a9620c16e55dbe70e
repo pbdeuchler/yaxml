@@ -1,0 +1,7 @@
+<?xml  version="1.0"?>
+<!-- valtraint check for Prn 56(positive Test)-->
+<!DOCTYPE tokenizer
+ [
+ <!ELEMENT tokenizer ANY>
+ <!ELEMENT b EMPTY>
+ <!ATTLIST b attr ID er>

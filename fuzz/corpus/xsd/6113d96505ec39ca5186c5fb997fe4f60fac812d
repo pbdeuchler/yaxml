@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqu³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³½³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³alified">
+
+	<xs:element name="foo" type="baseType"/>
+
+	<xs:complexType name="baseType">
+		<xs:all>
+			<xs:element name="bar" type="derivedType" minOccurs="0"/>
+		</xs:all>
+		<xs:attribute name="attrA" type="xs:string" use="required"/>
+	</xs:complexType>
+
+	<xs:complexType name="derivedType">
+		<xs:complexContent>
+			<xs:extension bcse="baseType">
+				<xs:attribute name="attrB" typ????????????????????????????????????????????ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ?????????????????????????????????????????e="xs:string" use="required"/O-8859-1"?>
+<foo 
+  xmlns:xsi="http://www.w3.org/1167/XMLSchema-instance" 
+  xsi:noNamespaceSchemaLocation="bug141333.xsd" attrA="valueA">
+
+	<bar attrA="valueA" attrB="valueB"/>
+
+</foo>
+

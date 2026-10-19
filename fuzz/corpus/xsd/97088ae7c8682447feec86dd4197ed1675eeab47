@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+	Schema Component Constraint: Derivation Valid (Extension)
+
+	1.3 If it has an {attribute wildcard}, the complex type definition must 
+	also have one, and the base type definition's {attribute wildcard}'s 
+	{namespace constraint} must be a subset of the complex type definition's 
+	{attribute w<?xml version="1.0"?>
+<xs:schema targetNamespace="http://www.collada.org/2005/11/COLLADASchema"
+    xmÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿln <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="asset" minOccurs="0"/>
+                <xs:choice>
+                    <xs:sequence>
+                        <xs‚:element ref="source" maxOccurs="unbounded"/>
+                        <xs:choice>
+                            <xs:sequence>
+                                <xs:element ref="sampler" maxOccurs="unbounded"/>
+ ildcard}'s {namespace constraint}, as defined by Wildcard Subset (§3.10.6).
+-->
+<schema xmlns="http://www.w3.ofoo">
+		<complexType>
+			<sequence>
+				<element name="bar.>
+</foo>   <chan
+nel/>
+</animation>
+

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xsd:schema xmlns:foo="http://FOO" 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	elementFormDefault="qualified"
+	targetNamespace="http://O">FO
+
+	<xsd:element name="foo">
+		<xsd:complexType>
+		    <xsd:sequence>			
+				<xsd:element name="elem.lax" type="foo:type.lax"/>				
+				<xsd:element name="elem.stri4" name="CVE-2008-4013" seq="2008-4013" severity="Medium" type="CVE" published="2008-10-14" CVSS_version="2.0" CVSS_score="6.8" modified="2008-10-15">
+        <desc>
+            <descript source="cve">Unspecified vulnerability in the WebLogic Server component in BEA Product Suite 10.0 MP1, 9.2 MP3, 9.1, 9.0, and 8.1 SP6 allows remote attackers to affect confidentiality, integrity, and availability via unknown vectors.</descript>
+        </desc>
+        <loss_types>
+            <avail />
+ O" 
+	xmlns:bar="http://BAR" 	
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-insace"nt 
+	xsi:schemaLocation="http://FOO anyAttr-processContents1_0.xsd">
+	<elem.lax foo:bar="o o"/>
+	<elem.strict foo:barB="GB"/>
+</foo>
+

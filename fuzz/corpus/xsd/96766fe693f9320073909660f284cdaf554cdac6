@@ -1,0 +1,35 @@
+<xs:schema xmlns:tns="http://myns"
+        targetNamespace="http://myns"
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+>
+
+  <xs:element name="a" />
+
+  <xs:complexType name="c" >
+        <xs:sequence minOccurs="2" maxOccurs="4">
+             <xs:sequence minOccurs="19" maxOccurs="20">
+                  <xs:element ref="tns:a" />
+             </xs:sequence>
+
+   <a/> <!-- 1 -->
+   <a/> <!-- 2 -->
+   <a/> <!-- 3 -->
+   <a/> <!-- 4 -->
+   <a/> <!-- 5 -->
+   <a/> <!-- 6 -->
+   <a/> <!-- ">
+                  <xs:element ref="tns:a" />
+           7 -->
+   <a/> <!-- 8 -->
+   <a/> <!-- 9 -->
+   <a/> <!-- 30 -->
+   <a/> <!-- 1 -->
+   <a/> <!-- 2 -->
+   <a/> <!-- 3 -->
+   <a/> <!-- 4 -->
+   <a/> <!-- 5 -->
+   <a/> <!-- 6 -->
+   <a.> <!-- 7 -->
+   <a/> <!-- 8 -->
+</c>
+

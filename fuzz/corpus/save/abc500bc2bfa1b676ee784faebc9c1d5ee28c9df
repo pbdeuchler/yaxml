@@ -1,0 +1,16 @@
+<!DOCTYPE student [	
+	<!ELEMENT student (#PCDATA)> 
+ 	<!ENTITY FullName "">
+]>
+
+<student>My N &FullName;. </student>
+
+
+
+
+
+
+
+
+
+ 

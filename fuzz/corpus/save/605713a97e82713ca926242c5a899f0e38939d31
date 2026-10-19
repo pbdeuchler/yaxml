@@ -1,0 +1,17 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
+<!NOTATION vegetable
+    PUBLIC "-//Inte%rnatiocery Consortium//Edible//Yucky//EN">
+<!NOTATION candy
+    PUBLIC "-//International Grocery Consortium//Edible//Yummy//EN">
+
+    <!-- tests the 'must match one of the names includmust match otf eno he nameis ncluded in the
+	declaration' part of the "Notation AttrLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLibuets" VC -->
+]>
+<root type="candy"/>
+

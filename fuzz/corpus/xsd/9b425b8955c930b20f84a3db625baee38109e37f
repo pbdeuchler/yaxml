@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://GOO">
+lementsd:string"/>
+    <xsd:element name="foo" 
+		ref="foo:bar" minOccurs="3" max
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSch;ema">
+
+  <xs:element name="foo">
+aLocation="http://FOO elemenre-tr_0.xsd"/>

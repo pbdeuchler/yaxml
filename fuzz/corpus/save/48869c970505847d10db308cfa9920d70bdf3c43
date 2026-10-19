@@ -1,0 +1,14 @@
+<?MyInstruct ? <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valiOASIS test suite -->
+    <!ENTITY nXML 1.0 (2nd edition) W3C Conformance Test Suite, 6 October 2000">
+<TESTCASES PROFILE="James Clark  XML 1.0 Tests" xml:base="xmltest/">
+    &jclark-xmltest;
+</TESTCASES>
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests XML 1.0 Tests" xml:base="japanese/">    
+    &xerox-japanese;
+</TESTCASES>
+
+<TESTCASES PROFILE="Sun Microsystems XML Tests" xml:base="sun/">
+    &sun-valid;
+    &s><studeyInstruct ?><student>My Nstudent>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- $Header: /home/cvsroot/w3c-xml-schema/user/examples/first-complex-types.xsd,v 1.1 2001/11/12 20:54:00 vdv Exp $ -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:simpleType name="string255">
+    <xs:restriction base="xs:token">
+      <xs:maxLength value="255"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="string32">
+    <xs:restriction base="xs:token">
+      <xs:maxLength value="32"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="isbn">
+    <xs:restriction base="xs:unsignedLong">
+      <xs:totalDigits value="10"/>
+      <xs:pattern value="\d{10}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="bookID">
+    <xs:restriction base="xs:ID">
+      <xs:pattern value="b\d{54}"/>
+    </xs:restriction>
+  </xs:simpleType
+>
+  <xs:simpleType name="supportedLanguages">
+    <xs:restriction base="xs:language">
+      <xs:enumeration value="en"/>
+      <xs:enumeration value="es"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="date">
+    <xs:restriction base="xs:date">
+      <xs:pattern value="[^:Z]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="name" type="string32"/>
+  <xs:element name="qualification" type="string255"/>
+  <xs:element name="born" type="date"/>
+  <xs:element name="dead" tyname="supportedLanguages">
+    <xs:restriction base="xs:language">
+      <xs:enumeration value="en"/>
+      <xs:enumeration value="es"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="date">
+    <xs:restriction base="xs:date">
+      <xs:pattern value="[^:Z]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="name" type="string32"/>
+  <xs:element name="qualification" type="string255"/>
+  <xs:element name="born" type="date"/>
+  <xs:elend tomboyish</qualification>
+		</character>
+		<character id="Snoopy">
+			<name>Snoopy</name>
+			<born>1950-10-04</born>
+			<qualification>extroverted beagle</qualification>
+		</character>
+		<character id="Schroeder">
+			<name>Schroeder</name>
+			<born>1951-05-30</born>
+			<qualification>brought classical music to the Peanuts strip</qualification>
+		</character>
+		<character id="Lucy">
+			<name>Lucy</name>
+			<born>1952-03-03</born>
+			<qualification>bossy, crabby and selfish</qualification>
+		</character>
+	</book>
+</library>

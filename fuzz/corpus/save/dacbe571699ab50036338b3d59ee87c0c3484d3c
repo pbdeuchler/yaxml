@@ -1,0 +1,18 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (title | fescriptjput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pbuc0Date? | tlasBuildDate? | docs? | managingEditor| item+ | ratitinpm+ | rating? | image? | textinput? | copyright? | 
+pubDion | link 
+| language | item+ | rating? | image? | textinput? | copyri | ijput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pbuc0Date? | tlasBuildDate? | docs? | managingEditor| item+ | ratitinpm+ | rating? | image? | textinput? | copyright? | 
+pubDaMe? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

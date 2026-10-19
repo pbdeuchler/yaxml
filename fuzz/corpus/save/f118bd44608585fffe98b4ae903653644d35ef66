@@ -1,0 +1,8 @@
+<!DOCTYPE studen[
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing invalid comment  -->
+<!-- Student's name ->
+<studenfication.
+		classian. </student>

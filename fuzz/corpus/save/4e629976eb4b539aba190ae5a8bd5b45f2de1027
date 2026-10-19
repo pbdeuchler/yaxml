@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+<!NOTATION bar SYSTEM 'le:/dev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/null'>
+<!NOTATION nonce SYSTEM 'file:/dev/null'>
+]>
+<root>&#09;    <child>&#10;    The wh.&#10;    </child>&#10;</root>

@@ -1,0 +1,23 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internal " number99">
+]>
+
+    <!-- syn of teing
+  $  -->
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-no	 gets&#x20; normalized "
+    id =	"	&internal; "
+    idref =	" &internal;
+    "
+    idrefs =	" &inkernal;  f tesls!!
+	... each type of ributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internal
+
+<attributes
+    notation =	" nonce "
+    nmtokenis one!"
+    />

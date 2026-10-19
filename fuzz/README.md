@@ -25,6 +25,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `buffered` | `exercise_pull` | `BufferedReader` |
 | `writer` | `exercise_writer` | `Writer` event round trips, generated operations and sinks |
 | `serialize` | `exercise_serialize` | `Writer::write_document` / `write_owned_document` |
+| `save` | `exercise_save` | `save::to_vec` over hash-derived flags, encodings and indents, on the document and one subtree: DOM agreement, only markup an encoding lacks fails, reparsed output saves to the same bytes |
 | `limits` | `exercise_limits` | Input-derived `Limits` across every parser |
 | `encoding` | `exercise_encoding` | UTF-16/UTF-32 detection and `DecodeLimits` |
 | `mutation` | `exercise_mutation` | `OwnedDocument::edit` operations |
@@ -40,6 +41,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `html` | `exercise_html` | `html::parse`, `PushParser` chunk independence, `html::save`/`to_html` |
 | `pattern` | `exercise_pattern` | `pattern::Pattern` compile, `matches` on both DOMs, `StreamMatcher` against the DOM match |
 | `xinclude` | `exercise_xinclude` | `xinclude::process` over NUL-separated pieces (including document, then resources `0`..`9`), `xpointer::evaluate` |
+| `xsd` | `exercise_xsd` | `xsd::Schema::with_resolver` and `validate` on NUL-separated pieces (schema, instance, then resources `file:///f/0.xsd`..`9.xsd`) under small limits: identical diagnostics over both DOMs and on repetition, load budget held |
 | `catalog` | `exercise_catalog` | `catalog::Catalog::parse`, `resolve`, `resolve_uri` and `CatalogResolver` over NUL-separated pieces (root catalog, then files `0`..`9`; the last piece also lists queries) |
 | `relaxng` | `exercise_relaxng` | `relaxng::Schema::parse` and `validate` over NUL-separated pieces (schema, instance, then `include`/`externalRef` files `0`..`9`): determinism, both DOMs, reuse, offsets, load and work budgets |
 
@@ -57,7 +59,7 @@ New inputs go to the tracked `fuzz/corpus/<target>/`; the top-level seeds are re
 
 ```sh
 fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]   # uv run; skips inputs over MAX_INPUT_BYTES
-for t in dom owned push buffered writer serialize limits encoding dtd c14n xpath uri; do
+for t in dom owned push buffered writer serialize save limits encoding dtd c14n xpath uri; do
   (cd fuzz && cargo +nightly-2026-06-06 fuzz run $t -- -fork=1 -ignore_crashes=1 -ignore_timeouts=1 -max_total_time=900 -rss_limit_mb=2048 -timeout=60)
 done                                          # <= 8 at a time
 (cd fuzz && cargo +nightly-2026-06-06 fuzz cmin $t -- -timeout=60)   # then delete files over 16 KiB to bound size

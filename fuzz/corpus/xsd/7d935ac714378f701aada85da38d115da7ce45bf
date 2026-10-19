@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xsd:schema xmlns:foo="http://FOO" 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	elementFormDefault="qualified"
+	targetNamespace="htype.skip"/>				
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:attribute name="barA" type="xsd:language" />
+	<xsd:attribute name="barB" type="xsd:l.B foo:barA_2="o"/>
+	<elem.strict foo:barB="FR"/>
+	<elem.skip foo:barC="o"/>
+</foo>
+

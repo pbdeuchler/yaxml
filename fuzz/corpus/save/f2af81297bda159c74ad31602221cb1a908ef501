@@ -1,0 +1,13 @@
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one isn't stand and one needing normalization
+	(notation).
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	>
+    <!ENTITY internal "internal&number;">
+    <!ENTITY number "43">
+]als three?>

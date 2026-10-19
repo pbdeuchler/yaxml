@@ -1,0 +1,6 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ENTITY gt ">">
+]>
+<foo>Ycsa
+;62.</foo>

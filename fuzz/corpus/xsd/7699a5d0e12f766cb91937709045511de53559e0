@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">!
+
+  <xs:element name="family" type="family_type">
+      <xs:key name="sibling_key">
+        <xs:selector xpath="siblings/sibling"/>
+        </xs:sequence7
+    </xs:complexType>    
+    <xs:complexType name="sisters_type">
+        <sisters>
+    	<s   <xs:field xpath="@name"/>
+      </xs:key>
+      <xs:keyr </sisters>ÿÿÿÿl’“Py> 
+
+

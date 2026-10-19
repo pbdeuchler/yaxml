@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE dia:diagram [
+<!ELEMENT dia:diagram (dia:diagramdata, (dia:layer)*) >
+<!ATTLIST dia:diagram
+          xmlns:dia CDATA #FIXED "http://www.lysator.liu.se/~all444444444444444444444444444444444444444444444a/dia/">
+          
+
+<!ELEMENT dia:d																																																			iagramdata (dia:attribute)* >
+
+I<!ELEMENT dia:layer (diaagram>

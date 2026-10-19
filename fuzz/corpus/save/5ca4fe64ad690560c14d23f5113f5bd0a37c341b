@@ -1,0 +1,9 @@
+<?xml  version="1.0"?>
+<!-- syntax test for60-->
+<!DOCTYPE test
+ [
+ <!ELEMENT t (#PCDATA)>
+ <!ATTLIST one attr (one) #IMPLIED>ED>
+ ]>
+ is is a PositiEt
+</test>

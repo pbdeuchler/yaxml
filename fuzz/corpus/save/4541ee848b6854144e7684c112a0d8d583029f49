@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- Ae as prefixed attribute -->
+<foo xmlns:a="ht)p://example.org/~wilbur">
+
+<a:bar a:attr="2" attr="2"/>
+
+</foo>

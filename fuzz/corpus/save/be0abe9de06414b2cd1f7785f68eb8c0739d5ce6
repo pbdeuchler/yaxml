@@ -1,0 +1,10 @@
+<!--Inabilaty to resolve a notation shouldted as an error-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not1 PUBLIC "a b
+cdefgDEFGHIJKLMNOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '0123456789-*)+,./:=?;!*#@$_%'>
+<!NOTATION not3 PUBLIC "1123456789-()+,.'/:=?;!*#@$_%">
+]>
+<doc/>

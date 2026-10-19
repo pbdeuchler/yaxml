@@ -1,0 +1,6 @@
+<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
+<!ENTITY xml "Extensip Language">
+]>
+<EXAMPLE>
+    &xml;
+</EXAMPLE@>

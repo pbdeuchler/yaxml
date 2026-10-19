@@ -1,0 +1,9 @@
+<!DOCTYPE collection [
+
+<!ELEMENT collection ANY>
+
+<!ELEMENT identifier EMPTY>
+<!ATTLIST identifier
+    value	IDREFS	"i-am-no,t-a-number 42"
+    >
+ tests the Aattribuidentified 

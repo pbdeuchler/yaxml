@@ -39,7 +39,9 @@ use encoding::{Decoder, meta_charset, prescan, sniff};
 use tokenizer::{Stop, TagEnd, Token, Tokenizer};
 use tree::{Reaction, Settings, Tree};
 
+pub(crate) use serialize::save_as;
 pub use serialize::{save, to_html};
+pub(crate) use tables::boolean_attribute;
 
 /// `HTML_PARSE_RECOVER`: accepted; HTML parsing always recovers.
 pub const RECOVER: u32 = 1 << 0;

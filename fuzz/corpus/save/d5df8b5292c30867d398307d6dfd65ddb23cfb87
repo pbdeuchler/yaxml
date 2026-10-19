@@ -1,0 +1,17 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C) 199!----><!----><!-+ ' /
+>ar   '/>
+ o&lt;bar   '/>
+  <norm attr&#13;&#xa;&#9; '/> <!-- <normId attr='
+
+foo1ba way for internal use
+within a company or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W   <xi:include ts reserved.orm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norttr=' &#x201&;3#;&#xaa

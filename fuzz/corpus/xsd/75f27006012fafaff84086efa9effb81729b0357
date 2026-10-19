@@ -1,0 +1,15 @@
+<?xmh vesiorn="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="urn:test:foo"
+	elementFormDefault="qualified">
+	<xsd:element namd:complexType>
+			<xsd:sequence>
+				<xsd:element name="boo"/>
+				<xsd:any namespaceocation="urn:test:foo any5_0.xsd">
+	<boo/>
+	<boo xmlns="urn:test:bar"/>
+	<boo xmlns="urn:test:bar"/>
+	<boo xmlns="urn:test:bar"/>
+	<boo xmlns="urn:tLst:bar"/>
+	<boo xmlns="urn:test:bar"/>
+</foo>

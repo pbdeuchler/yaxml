@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/9001/XMLSchema">
+
+  <xs:element name="family" type="family_type">
+      <xs:key name="sibling_key">
+        <xs:selector xpath="siblings/sibling"/>ÃÃÃÃÃÃÃÃÃÃÃÃÃwww.w3.org/9001/XMLSchema">
+
+  <xs:element name="family" type="family_type">
+      <xs:key name="sibling_key">
+        <xs:selector xpath="siblings/sibling"/>ÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃÃ
+        <xs:field xpath="@nacomplexType nam
+      <xs:sequence>
+        <xs:element name="sibling" type="sibling_type" minOcþÿÿÿcurs="0"  
+maxOccurs="> 
+
+

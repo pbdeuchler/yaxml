@@ -1,0 +1,16 @@
+<?xmloivnre 0<"1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/      ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (/ple.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (*/. | //@* | //namespacestor-ot(parent::node()/namespace::* | self::nodettp:*) 
+ arents="0.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::donettp://ex/foo" xml:lang="en-ie">
+    (/ple.or | self::noo="http://example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup0//ettp://example.org/foo" xml:lang="en-ie">
+    (>cal
+ 

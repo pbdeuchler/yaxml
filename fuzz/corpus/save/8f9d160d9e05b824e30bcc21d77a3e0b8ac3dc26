@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespac%::*) 
+    [ 
+              <!-- only directly-used namespace nodes -->
+       ameCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChameChar˿/>
+	<LegalNameCharͰ/>
+	<LegalNameCharͱ/>
+	<LegalNameCharͼ/>
+	<LegalNameCharͽ/>
+	<LegalNameCharͿ/>
+	<LegalNameChar΀/>
+	<LegalNameChar῾/>
+	<LegalNameChar῿/>
+	<LegalNameChar‌/>
+	<LegalNameChar‍/>
+	<LegalNameChar⁰/>
+	<LegalNameCharⁱ/>
+	<LegalNameChar↎/>
+	?LegalNa3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333meChar↏/>
+	<LegalNameCharⰀ/>
+	<LegalNaegChar˾/>arÂ/>
+	<LegalNameCharÃ/>
+	<LegalNameChar˽/><LegalNameChar-/>
+	<LegalNameChar./>
+	<LegalNameCharAmespace-uri(pare>
+<ront::node()))
+ ot/>
+   ]
+</XPath>

@@ -1,0 +1,10 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E1 is an editorial change that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-er													a2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations <TEST RECOMMENDATION="XML1.0-errat						g.xml" ID="rmt-e2e-15g" TYPE="invalid">
+Element content can't contae a fatal error.
+</TEST>
+
+</TESTCASES>

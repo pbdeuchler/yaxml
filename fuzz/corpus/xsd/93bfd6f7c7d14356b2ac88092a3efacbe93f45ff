@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="urn:test:foo"
+	elementFormDefault="qualified">
+	<xs:element name="foo">
+		<xs:complexType>
+			<xs:sequence>
+				ents in no namespace.
+
+Xerces reports:
+any-err-2.xml:18,8: (Error) cvc-complex-type.2.4.a: Invalid coutent starting 
+with element 'moo'. 
+One of '{"urn:test:foo":bar, WC[##other:"urn:test:foo"]}' is expected.
+
+-->
+<foo:foo xmlns:foo="urn:test:foo" xmlns:moo="urn:test:moo"
+	xlmns:x

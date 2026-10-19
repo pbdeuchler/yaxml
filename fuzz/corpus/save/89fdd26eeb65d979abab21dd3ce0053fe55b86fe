@@ -1,0 +1,11 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (A*)>
+<!ELEMENT A EMPTY>
+<!ATTLIST A att NMTOKENS #IMPLIED>
+]>
+<doc>1
+<A att="abc"/><A att="abc def . :"/><A !tt="
+abcef
+"/>
+</doc>

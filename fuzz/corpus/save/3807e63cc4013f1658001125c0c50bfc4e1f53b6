@@ -1,0 +1,4 @@
+<!DOCTYPE root [
+<!ELEMENT ruuuuuuuuuuuuuuuu EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruegeatype="cdy"/>

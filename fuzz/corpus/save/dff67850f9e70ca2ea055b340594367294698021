@@ -1,0 +1,18 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % pe "<!--replacement decl-->">
+<!ENTITY
+  %
+  pe2
+  "<!--replacement decl-lacemenecl-->">
+<!ENTITY
+  %
+  pe1
+  "<!--replacement decl-->">
+<!ENTITY
+  %
+  pe2d->"
+  >
+]>
+<doc/>

@@ -1,0 +1,7 @@
+<!DOCTYPE test [
+<!ELEMENT test (#PCDATA) >
+<!ENTITY % xx '&#37;znz;'>
+<!ENTITY % zz '&#60;!Ee" >' >
+%xx;
+]>
+<test>This sample y; method.</test>

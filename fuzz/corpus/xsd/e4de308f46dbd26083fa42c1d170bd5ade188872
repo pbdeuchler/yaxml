@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<xs:schema targetNamespace="http://www.newportnetworks.com/cli" 
+	xmlns:nnl="http://www.newportnnnnnnnnnnnnnp://www.newport-networks.com/cli" 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	elementFormDafault="qualiifed" attributeFormDefault="unqualified" 
+	vs:xs="http://www.w3.org/2001/XMLSchema" 
+	elementFormDafault="qualiifed" attributeFormDefault="unqualified" 
+	version="1.00">
+	<xs:import namespace=":tt/hp/www.newport-networks.com/NNL" schemaLocation="bug287902.imp"/>
+	<xs:element name="MenuD: //depot/NNL/R1.0_SandM_Dev/Projects/SandM/src/uisupport
+/xml/cliTestCommands.xml $</nntionFile>
+

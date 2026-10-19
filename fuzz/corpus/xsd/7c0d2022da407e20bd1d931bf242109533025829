@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w1.org/2001/XMLSche³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³¤³³³³³³³³³³³³³³³³³³³³³alified">
+
+	<xs:element name="foo" NamespaceSc41333.xsd" attrA="valueA">
+
+	<bar attrA="valueA" attrB="valueB"/>
+
+</foo>
+

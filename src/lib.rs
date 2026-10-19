@@ -25,6 +25,7 @@ mod reader;
 pub mod regexp;
 pub mod relaxng;
 mod resolve;
+pub mod save;
 pub mod schema_types;
 mod serialize;
 mod stream;
@@ -36,6 +37,7 @@ mod writer;
 pub mod xinclude;
 pub mod xpath;
 pub mod xpointer;
+pub mod xsd;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	xmlns="http://FOO" targetNamespace="http://FOO">
+
+	<xs:element name="foo">
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:restriction base="typeA">
+					<xs:attribute name="barA_1" type="xs:string"  use="optional"/>
+					<?-- OK -->								
+					<xs:attribute nam''''''''''''''ing"  use="required"/>
+					<!-- OK -->									
+					<xs:attribute name="barA_3" type="xs:string"  use="prohibited"/>
+					<!-- OK -->	
+
+					<xs:attribute name="barB_1" typ[e="xs:string"  use="optional"/>		½i				<!-- 2.1.1 inconsistent ( OR 3 ) -->							
+					<xs:attribute name="barB_2" type="xs:string"  use="required"/>
+					<!-- OK -->	
+					<xs:attr—Še name="barB_3" type="xs:string"  use="prohibited"/>
+					<!-- 3 -->									
+
+					<xs:attribute name="barC_0" type="xs:string"  use="optional"/>
+				‰<!-- 2.2  no match in base -->								
+					<xs:attribute name="barC_2" type="xs:string"  use="required"/>	
+					<!-- 2.2  no match in base -->				
+					<xs:attribute name="barC_3" ty	<!-- OK -->	
+
+					<xs:attribute name="barD_0" type="xs:string"  use="optional"/>
+					<!-- 2.2  no match in base -->	
+					<xs:attribute name="barD_3" typ

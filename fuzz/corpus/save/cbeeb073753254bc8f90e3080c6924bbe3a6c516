@@ -1,0 +1,15 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//EdN">
+<!NOTATION vegetable
+    PUBLIC "-//ummy//EN">
+
+    <!-- tests themust match one of the names includmusm tatch one of th=e~ nameis ncluded in the
+	declaration' part of the "Not -->
+]>
+<root type="candy"/>
+

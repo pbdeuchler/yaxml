@@ -1,0 +1,19 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (title | description | link 
+| lrating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pbuc0Date? | tlasBuildDate? | docs? | managingEditor| item+ | ratiitnput? | copyright? | 
+pbuc0Da | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channengEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

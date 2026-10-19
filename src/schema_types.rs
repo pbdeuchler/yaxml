@@ -678,6 +678,30 @@ impl Value {
             }
     }
 
+    /// A hash consistent with [`Value::equals`], for identity-constraint
+    /// tables; dates and durations, whose equality is not canonical, share one.
+    pub(crate) fn hash_key(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.ty.primitive().hash(&mut hasher);
+        let number = |n: f64| match n {
+            n if n.is_nan() => u64::MAX,
+            0.0 => 0, // also -0.0
+            n => n.to_bits(),
+        };
+        match &self.data {
+            Data::Text(text) => text.hash(&mut hasher),
+            Data::Boolean(b) => b.hash(&mut hasher),
+            Data::Decimal(d) => d.hash(&mut hasher),
+            Data::Float(f) => number(f64::from(*f)).hash(&mut hasher),
+            Data::Double(d) => number(*d).hash(&mut hasher),
+            Data::Binary { octets, text } => (octets, text).hash(&mut hasher),
+            Data::QName { namespace, local } => (namespace, local).hash(&mut hasher),
+            Data::Duration(_) | Data::Date(_) => {}
+        }
+        hasher.finish()
+    }
+
     /// The length facets' measure: characters, list items or octets.
     /// `None` for QName and NOTATION, whose length always passes; zero for
     /// types without a length, as in libxml2.

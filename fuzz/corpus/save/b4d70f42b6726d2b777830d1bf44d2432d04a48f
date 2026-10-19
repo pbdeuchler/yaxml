@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY e "<X&#xe5cDP*E c
+do">">
+]>
+<doc;>&e</doc>

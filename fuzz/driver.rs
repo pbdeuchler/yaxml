@@ -43,6 +43,9 @@ mod pull;
 #[path = "serialize.rs"]
 mod serialize;
 
+#[path = "save.rs"]
+mod save;
+
 #[path = "mutation.rs"]
 mod mutation;
 
@@ -85,6 +88,8 @@ mod catalog;
 
 #[path = "relaxng.rs"]
 mod relaxng;
+#[path = "xsd.rs"]
+mod xsd;
 
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
@@ -112,6 +117,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_pattern(input);
     exercise_xinclude(input);
     exercise_catalog(input);
+    exercise_xsd(input);
     exercise_relaxng(input);
     exercise_c14n(input);
     exercise_valid(input);
@@ -124,6 +130,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
         return outcome;
     }
     exercise_serialize(input);
+    exercise_save(input);
     exercise_owned(input);
     exercise_writer(input);
     exercise_limits(input);
@@ -260,6 +267,12 @@ pub fn exercise_serialize(input: &[u8]) {
     }
 }
 
+/// `save::to_vec` options, encodings and subtrees: DOM agreement and
+/// fixed-point output.
+pub fn exercise_save(input: &[u8]) {
+    save::exercise(input);
+}
+
 /// Push, chunked and `read_from` parity with the slice reader.
 pub fn exercise_push(input: &[u8]) {
     check_finish_abort(input);
@@ -393,6 +406,12 @@ pub fn exercise_xpath(input: &[u8]) {
 
 /// Exercise pattern compilation, DOM matching and streaming; see `pattern.rs`
 /// for the testcase format.
+/// XML Schema construction and validation; see `xsd.rs` for the format.
+pub fn exercise_xsd(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    xsd::exercise(input);
+}
+
 pub fn exercise_pattern(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     pattern::exercise(input);

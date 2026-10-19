@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<!ELEMENT doc ANY>
+<!ENTITY % e SYSTEM "013.ent">
+<!ELEMENT doc ANY>
+<!ENTITY %	e SYSTEM "026.ent">
+%
+%e;
+<!]>CDATA "x2]>
+=doc></doc>

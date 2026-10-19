@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+   <!ELEMENT root EMPTY>
+    <!--
+	SGML dislikesarser must accepn documents "for interoperability"
+    -->
+    <!ATTLIST root
+	status		(initial-draft|revision|final) "initial-draft"
+	position	(first|intermediate|final) "first"
+	>
+]>
+
+<root/>

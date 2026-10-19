@@ -1,0 +1,5 @@
+<!DOCTYPE doc
+[
+<!ENTITY % ent2 "asdf&#65">
+]>
+<doc/>

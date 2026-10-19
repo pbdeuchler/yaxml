@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    token	NMTOKEN		#REQUIRED
+    >
+
+    <!-- tests the "name tokeue -->
+]>
+<root token="dev@null"/>

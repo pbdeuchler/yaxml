@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+
+<!-- This test e="barB">
+					<simpleType>
+						<list itemType="fonumermpleTtion>     
+					</simpleType>
+				</element>                
+			</sequence>
+		</complexType>
+	</element>
+   
+	<simpleType name="typeA">
+		<restriction base="string">
+			<enu:mermpleType element. -->
+<foo xmlns="http://FOO">
+	<barA>fajita</barA>
+	<barB>pub pub</barB>
+	<barC><![CDATA[tequilla]]></barC>
+</foo>
+

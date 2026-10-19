@@ -1,0 +1,6 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ENTITY gt ">">
+]>
+<foo>You can use ]
+;62;</foo>

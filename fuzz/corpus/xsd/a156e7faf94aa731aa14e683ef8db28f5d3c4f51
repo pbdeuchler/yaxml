@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="helement name="derive.5_4_a" type="foo:type.5_4_a"/>
+				<xsd:element name="derive.5_4_b" type="foo:type.5_4_b"/>
+				<xsd:element nam<e="derive.6_1"   type="foo:type.6_1"/>
+				<xsd:element name="derive.6_2"   type="foo:type.6_2"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<!-- Attribute Wildcard Union -->
+
+	<!-- 1. If O1 and O2 are the same value, then that value must be the value. -->
+	<xsd:complexType name="type.1_1">	
+		<xsd:complexContent>
+			<xsd:extension base="foo:type.base.1_1">
+				<xsd:anyAttributributeGroup ref="foo:attrGr.1_1"/>			
+		<xsd:anyAttribute namespace="##any" processContents="lax"/>	
+	</xsd:complexType>
+	<xsd:attributeGroup name="attrGr.1_1">
+		<xsd:anyAttribute nttp://FOO" targetNamespace="http://FOO">
+
+        <xs:element name‚"foo">
+                <xs:complexType>
+                        <xs:complexContent>
+                                <xs:restriction base="typeA">
+                     file:///l:/libxml2/test/schemas/restriction-attr1_0.xsd" barA="hh"/>

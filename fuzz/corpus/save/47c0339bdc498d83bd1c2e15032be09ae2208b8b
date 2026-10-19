@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:s:pace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >://www.ietf.org" xmlns:z2c="http://www.w3.org">
+   <e2>
+      <e2 xmlns=T
+

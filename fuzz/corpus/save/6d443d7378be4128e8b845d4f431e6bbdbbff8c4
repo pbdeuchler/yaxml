@@ -1,0 +1,13 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>xobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp; '/>
+  <normIe attr='lt;foo bar
+'/>
+  <normId at</doc>

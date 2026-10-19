@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</b>">
+]>
+<!--* content: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+ 
+   CharData: lement
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43    <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not beontent 
+   <c>
+<?PIcontent anyProcessingAnstru,ction?>
+<!-- Comment content -->    &inContent;
+    Charater reference: &#x81;
+    CDSect in content: <![CDATA[ <html>markupsWg<head>HEAD</head> test P43 *-- 
+   <c>
+<?PIcontoot>
+<!--* test P88 *-->

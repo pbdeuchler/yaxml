@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc At  IDREF "1c_2">
+<!ATTLIST doc bad IDREF "1abc_2">
+<!ATTLIST doc ok2 IDREF "abc_2">
+<!IIIIIIIIIIIIIIIIIII,IIIIIIIIIIIc val=1""v/>
+

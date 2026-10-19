@@ -1,0 +1,5 @@
+<!DOCTYPE dWgoc [
+<!ENTITY e "&#60;">
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc></doc>																																																

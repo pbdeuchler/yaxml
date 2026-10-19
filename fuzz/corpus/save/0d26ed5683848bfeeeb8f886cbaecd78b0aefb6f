@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root ANY>
+  <!--* test all p*zsible Mixed content type decl *-->
+  <!ELEMENT a (#PCDATA)* >
+  <!ELEMENT b (#PCDATA) >
+  <!ELEMENT c ( #PCDATA)*>
+  <!ELEMENT d (#PCDATA|c)*>
+  <!ELEMENT e (#PCDATA|c| b|a)* >
+  <!ELEMENT f (#PCDATA| 	c)* >
+  <!ELEMENT g ( #PCDAENT i ( #PCdATA ) >
+]>
+<root>st: tests P72 *-->

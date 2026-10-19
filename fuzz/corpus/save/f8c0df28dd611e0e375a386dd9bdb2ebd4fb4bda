@@ -1,0 +1,16 @@
+<!DOCTYPE rnode [
+<!ELEMENT rnode (f)>
+                                  
+<!ENTITY f
+   "
+   <f>
+   hello world
+   </f>
+   "
+>
+]>
+                   MTOKENS	#IMPLIED
+	id		ID		#IM                                          de>
+   &f;
+</rnode>
+

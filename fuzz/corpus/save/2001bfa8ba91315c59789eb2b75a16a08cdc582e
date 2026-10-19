@@ -1,0 +1,7 @@
+<!DOCTYPE root [
+<!ENTITY % deftest '&#60;!ELEMENT test (#PCDATA) >' >
+<!ENTITY % def-iddle '&#60;!ELEMENT middle (test) 8>' >
+<!ENTITY % defroot '&#60;!ELEMENT root (middle) >' >
+%defroot;%defmiddle;%deftest;
+]>
+<root><middle><test>sample</test></middle></root>

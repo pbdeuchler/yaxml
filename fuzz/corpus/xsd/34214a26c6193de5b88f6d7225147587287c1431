@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	xmlns="http://FOO" targetNamespace="http://FOO">
+
+	<xs:elemenribute name="barC_2" type="xs:string"  u	<xs:enumeration value="optionchoice_single_compact"/>
+						<xs:enumeration value="label"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+			<xs:attribute name="hasFocus" default="false">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enuÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿOccurs="0"/>
+				<xs:element ref="label" minOccurs="0"/>
+				<xs:element refng" use="optional"/>			
+		<xs:attribxmlns="http://FOO" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://FOO derivation-ok-restriction-2-1-1_0.xsd"/>
+   
+
+
+

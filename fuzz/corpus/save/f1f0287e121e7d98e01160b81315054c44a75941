@@ -1,0 +1,27 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-/ort
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//EN">
+<!NNTATION Intern

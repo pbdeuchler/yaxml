@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    sxe<:lement name="test">
+        <me="attrGrA">
+		<xs:anyAttribute namespace="##targetNamespace"/>
+	</xs:attributeGroup>
+
+est test0="5"
+      test2="6"
+      test3="#"
+      test8=";"
+      test5="&amp;" />

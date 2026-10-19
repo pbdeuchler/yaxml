@@ -48,8 +48,10 @@ pub(crate) struct ControllerCounters {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum DtdEvent {
-    Unit,
+pub(crate) enum DtdEvent<'a> {
+    Header,
+    /// A declaration, comment or processing instruction, after the catalog applied it.
+    Item(&'a DtdUnit<'a>),
     End,
 }
 
@@ -91,6 +93,8 @@ pub(crate) struct DtdControllerCore<'input> {
     limits: DtdLimits,
     counters: ControllerCounters,
     ready: Option<Ready>,
+    /// The ready item's unit, for consumers that read declarations.
+    unit: Option<DtdUnit<'input>>,
     origin: Option<FragmentOrigin>,
     held_end: Option<FragmentOrigin>,
     started: bool,
@@ -163,6 +167,7 @@ impl<'input> DtdControllerCore<'input> {
             limits,
             counters: ControllerCounters::default(),
             ready: None,
+            unit: None,
             origin: None,
             held_end: None,
             started: false,
@@ -180,9 +185,13 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn start(&self) -> usize {
         self.start
     }
-    pub(crate) fn current(&self) -> Option<(DtdEvent, FragmentOrigin)> {
+    pub(crate) fn catalog(&self) -> &DtdCatalog {
+        &self.catalog
+    }
+    pub(crate) fn current(&self) -> Option<(DtdEvent<'_>, FragmentOrigin)> {
         let event = match self.ready? {
-            Ready::Begin | Ready::Item => DtdEvent::Unit,
+            Ready::Begin => DtdEvent::Header,
+            Ready::Item => DtdEvent::Item(self.unit.as_ref()?),
             Ready::End => DtdEvent::End,
         };
         Some((event, self.origin?))
@@ -192,7 +201,7 @@ impl<'input> DtdControllerCore<'input> {
         let Some(ready) = self.ready.take() else {
             return;
         };
-        self.origin = None;
+        (self.origin, self.unit) = (None, None);
         if matches!(ready, Ready::Begin)
             && let Some(end) = self.held_end.take()
         {
@@ -367,25 +376,17 @@ impl<'input> DtdControllerCore<'input> {
         }
         // Grammar is always checked before an input-mode-dependent raw copy.
         self.charge_work(raw_len, origin)?;
-        let (encoding, started) = (self.encoding, self.started);
-        let parse = |raw| {
-            let unit = DtdUnit::parse(raw, self.limits).map_err(|error| {
-                Error::new(error.kind, unit_offset(encoding, origin, raw, error.offset))
-            })?;
-            match valid_unit(kind, side, started, &unit) {
-                true => Ok(unit),
-                false => Err(Error::new(ErrorKind::InvalidDtd, origin.error_offset())),
-            }
-        };
+        let (encoding, started, limits) = (self.encoding, self.started, self.limits);
         let unit = match (side, self.stable) {
             (Side::Physical, Some((source, source_start))) => {
                 let range = origin.input_range().expect("physical unit");
-                parse(&source[range.start - source_start..range.end - source_start])?
+                let raw = &source[range.start - source_start..range.end - source_start];
+                parse_unit(raw, limits, (kind, side, started), encoding, origin)?
             }
             _ => {
                 let raw = std::str::from_utf8(self.scanner(side).current().expect("ready").1)
                     .expect("scanner validates ready UTF-8");
-                let borrowed = parse(raw)?;
+                let borrowed = parse_unit(raw, limits, (kind, side, started), encoding, origin)?;
                 // A streamed unit is retained beyond its scanner as an owned copy.
                 let limit = |count: usize, ceiling| {
                     count.checked_add(raw_len).filter(|count| *count <= ceiling)
@@ -442,6 +443,7 @@ impl<'input> DtdControllerCore<'input> {
                 self.held_end = FragmentOrigin::input(delimiter..range.end);
             }
         }
+        self.unit = Some(unit);
         Ok(())
     }
 
@@ -582,6 +584,23 @@ impl<'input> DtdControllerCore<'input> {
 impl DtdBodyState {
     pub(crate) fn resume_position(&self) -> (usize, usize) {
         (self.decoded_position, self.physical_position)
+    }
+}
+
+/// Parses `raw`, read from `origin`, as a unit the scanner classified as `kind`.
+fn parse_unit(
+    raw: &str,
+    limits: DtdLimits,
+    (kind, side, started): (ScanKind, Side, bool),
+    encoding: SourceEncoding,
+    origin: FragmentOrigin,
+) -> Result<DtdUnit<'_>, Error> {
+    let unit = DtdUnit::parse(raw, limits).map_err(|error| {
+        Error::new(error.kind, unit_offset(encoding, origin, raw, error.offset))
+    })?;
+    match valid_unit(kind, side, started, &unit) {
+        true => Ok(unit),
+        false => Err(Error::new(ErrorKind::InvalidDtd, origin.error_offset())),
     }
 }
 

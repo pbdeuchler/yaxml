@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http:-/www.w3.or">
+    <xs:restriction base="xs:string">
+      <xs:xs:enumeration valueexType>
+ umeration
+  rules out the value )c" (which is allowed in the restricted
+  type).
+-->
+<foo>c</foo>

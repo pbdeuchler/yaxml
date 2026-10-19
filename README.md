@@ -22,7 +22,11 @@ caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain
 a bounded token and active document/namespace state. `Writer` validates UTF-8
 events and serializes them to a caller-provided `std::io::Write`; fresh writers
-can also serialize complete borrowed or owned DOMs.
+can also serialize complete borrowed or owned DOMs. `save::to_vec` writes a
+document or any node of either DOM as libxml2's `xmlSaveDoc`/`xmlSaveTree` do:
+`xmlSaveOption` flags (format, XHTML, ...), UTF-16 and single-byte output
+encodings, and the internal subset regenerated from its declarations
+([writer.md](docs/writer.md#libxml2-tree-output-save)).
 
 ```rust
 use std::ops::ControlFlow;
@@ -311,6 +315,26 @@ assert_eq!(early.compare(&late), Comparison::Less);
 # Ok::<(), yaxml::regexp::Error>(())
 ```
 
+`yaxml::xsd` compiles XML Schema 1.0 documents as libxml2's `xmlschemas.c`
+does (includes, imports and redefines through a caller `Resolver`, derivation
+and Unique Particle Attribution checks, counted content models, identity
+constraints) into a reusable, thread-safe `Schema` that validates either DOM
+with libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
+instances. See [XML Schema](docs/xsd.md).
+
+```rust
+use yaxml::xsd::{self, Code, Schema};
+
+let schema = Schema::parse(br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="r"><xs:complexType><xs:sequence>
+    <xs:element name="n" type="xs:int" maxOccurs="3"/>
+  </xs:sequence></xs:complexType></xs:element></xs:schema>"#, "r.xsd")?;
+let diagnostics = schema.validate(&yaxml::Document::parse("<r><n>1</n><n>x</n></r>")?);
+assert!(!xsd::is_valid(&diagnostics));
+assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 `yaxml::relaxng` compiles RELAX NG schemas (XML syntax, `include` and
 `externalRef` through a `Resolver`, full section 4 simplification and section
 7 restrictions, built-in and XML Schema datatypes) and validates either DOM
@@ -377,6 +401,11 @@ let document = yaxml::Document::with_resolver(input, Default::default(), "d.xml"
 assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
+
+`yaxmllint` (`cargo run --bin yaxmllint -- FILE`) is `xmllint`'s command line over
+these modules: `--noout --format --encode --xpath --c14n --html --valid
+--relaxng --schema --xinclude --stream --catalogs` and the rest of the table
+in [yaxmllint](docs/yaxmllint.md), with xmllint's exit codes and stdout.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need

@@ -211,7 +211,7 @@ enum Shape {
         external: Option<ExternalMeta>,
         ndata: bool,
     },
-    Notation,
+    Notation(ExternalMeta),
     Comment,
     Instruction {
         data: bool,
@@ -294,7 +294,10 @@ impl<'a> DtdUnit<'a> {
                 external,
                 ndata,
             }),
-            Shape::Notation => DtdUnitView::Notation(NotationDeclarationView { unit: self }),
+            Shape::Notation(external) => DtdUnitView::Notation(NotationDeclarationView {
+                unit: self,
+                external,
+            }),
             Shape::Comment => DtdUnitView::Comment(self.token_text(0)),
             Shape::Instruction { data } => {
                 DtdUnitView::ProcessingInstruction(ProcessingInstructionView {
@@ -580,11 +583,16 @@ impl<'a> EntityDeclarationView<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct NotationDeclarationView<'a> {
     unit: &'a DtdUnit<'a>,
+    external: ExternalMeta,
 }
 
 impl<'a> NotationDeclarationView<'a> {
     pub(crate) fn name(self) -> &'a str {
         self.unit.token_text(0)
+    }
+
+    pub(crate) fn identifier(self) -> ExternalIdView<'a> {
+        self.external.view(self.unit)
     }
 }
 
@@ -1131,10 +1139,10 @@ impl<'a> Parser<'a> {
         self.require_whitespace()?;
         self.name()?;
         self.require_whitespace()?;
-        self.external_identifier(true)?;
+        let external = self.external_identifier(true)?;
         self.whitespace();
         self.consume(">")?;
-        Ok(Shape::Notation)
+        Ok(Shape::Notation(external))
     }
 
     fn attribute_list(&mut self) -> Result<Shape, Error> {

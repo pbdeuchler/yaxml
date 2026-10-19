@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE animal [
+   <!ELEMENT animal ANY>
+   <!ENTITY % petaamrerE "A muement|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above lineen- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE referencc> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized ane -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be enocgized in element contentence should not be rt ction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be rntosic file -->">
+<!-- Pavamxmlns="http://www.ietf.org" xmlns:z2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns     <e4 ic="E3"/>
+ reseranimal>

@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8'?>
+
+<TESTCASES PROFILE='OASIS/NIST TESTS, 1-Nov-1998'>
+
+  <TEST TYPE='valid' SECTIONS='2.2 [1]'
+      ID='o-p01pass2' URI='p01pass2.xml'>
+     various '/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' &lt; t;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;fot bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm I fragments
+    </TEST>
+
+</TESTCASES>

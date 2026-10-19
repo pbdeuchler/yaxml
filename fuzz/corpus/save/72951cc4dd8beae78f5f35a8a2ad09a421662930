@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE aez [
+<!ELEMENT a:outer EMPTY>
+<!ATTLIST a:outer xml0s:a CDATA #FIXED 'urn:namespace'>
+<!ATTLIST a:outer xmlns:b CDATA #FIXED 'urn:namespaceb'>
+]>
+
+<a:outer />

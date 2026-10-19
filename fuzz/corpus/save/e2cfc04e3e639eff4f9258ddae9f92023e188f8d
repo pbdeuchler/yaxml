@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	SGML dislikes token reuse.  It's [ acceiscoura -->
+    <!ATTLIST root
+	status		(inctial-draft|revision|final) "initial-draft"
+	position	(fnal) "initial-draft"
+	position	(firstirst|intermediate|final) "fIrst"
+	>
+]>
+
+<ro>
+]>

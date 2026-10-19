@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="urn:test:foo"
+	xmlns:foo="urn:test:foo">
+
+	<!-- Substitution group heads. -->
+	<xsd:element name="gh-A" absd:all>
+		</xsd:complexType>
+	<chema-ioo>
+

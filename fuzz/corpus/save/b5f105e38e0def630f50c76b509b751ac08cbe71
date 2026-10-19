@@ -1,0 +1,7 @@
+<!DOCTYPE student [
+   <!ELEMENT student (#PCDATA)>
+   <!ENTITY unref SYSTEM	 ''>
+]>
+
+<!-- testinguotes -->
+<student>My Name is SnowMan. </student>

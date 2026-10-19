@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<xs:schema targetNamespace="httpport-networks.com/cli" 
+	xmlns:xs="http://www.w3.gor/2001/XMLSchema" 
+	elementFormDefault="qualified" attributeFormDefault="unqualified" 
+	version="1.00">
+	<xs:import namespace="http://www.newport-networks.com/NNL" schemaLocation="bug143951.imp"/>
+	<xs:element name="MenuDefinitionFile">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="nnl:schemaom/cli"  
+xmlnsx:is="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemeLocation="http://www.newport-networks.com/cli bug143951_0.xsd">
+	<nnl:fileA>$File: //depot/NNL/R1.0_SandM_Dev/Projects/SandM/src/uisupport
+/xml/cliTestCommands.xml $</nnl:file>
+</MenuDefini&ionFile>
+

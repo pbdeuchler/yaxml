@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY L   "&#x26;#x27;"> 
+<!ENTITY quot   "&#x26;#x22;"> 
+]>
+<doc/>

@@ -1,0 +1,12 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSSi 0.91 od.
+  
+  RSS is an XML vocabulary for describing
+  metadata about websites, and enabling the display of?  "channels* on the "My> --><!ELEMENT channel (title | description | link 
+| language | iteeeeeeeeeeeeeeeeeeeeeeeeeeem+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | rati | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | te | docs? | ys?)*>
+<!ELEMENT title (#`CDATA)>
+<!ELEMENT descrih>
+</rss>
