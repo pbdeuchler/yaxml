@@ -114,6 +114,16 @@ impl StreamingSession {
             Phase::Declarations { controller, .. } => Some(controller.catalog()),
         }
     }
+    /// The parse's budget; absent only after a failed DTD handoff.
+    pub(crate) fn budget(&mut self) -> Option<&mut Budget> {
+        if let Some(ordinary) = &mut self.ordinary {
+            return Some(ordinary.state.owned_budget());
+        }
+        Some(match self.session.first_mut()?.phase.as_mut()? {
+            Phase::Declarations { parser, .. } => parser.owned_budget(),
+            Phase::Content(controller) => controller.owned_budget(),
+        })
+    }
 
     /// The DTD-free stream while no session delivery or failure is pending.
     pub(crate) fn plain(&mut self) -> Option<&mut Stream> {

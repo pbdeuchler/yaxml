@@ -7,7 +7,7 @@ use memchr::memchr;
 
 use crate::escape::normalize_replacement_required;
 use crate::escape::{needs_normalization, normalize_into};
-use crate::name::{qname, validate_name};
+use crate::name::{name_char, name_start, qname, validate_name};
 use crate::tokenizer::TokenKind;
 use crate::{
     Attribute, Declaration, DtdError, Element, Error, ErrorKind, Event, Limit, Limits, Name,
@@ -34,10 +34,15 @@ pub(crate) fn reserve_frame<T>(stack: &mut Vec<T>, offset: usize) -> Result<(), 
 /// Attribute counts up to this compare expanded names pairwise.
 const SMALL_ATTRIBUTES: usize = 8;
 
-/// Shared accounting for normalized strings and retained structural strings.
+/// libxml2's `XML_MAX_ERRORS`: recovered errors beyond it are not recorded.
+const MAX_RECOVERED: usize = 100;
+
+/// Per-parse state every layer shares: accounting for normalized strings and
+/// retained structural strings, and under `RECOVER` the errors recovered from.
 pub(crate) struct Budget {
     limits: Limits,
     owned_bytes: usize,
+    recovered: Option<Vec<Error>>,
 }
 
 impl Budget {
@@ -45,7 +50,57 @@ impl Budget {
         Self {
             limits,
             owned_bytes: 0,
+            recovered: None,
         }
+    }
+
+    /// An error site's decision: strict parsing fails with `error`. Under
+    /// `RECOVER` a well-formedness error is recorded and the site continues
+    /// with its repair; resource limits, allocation failure, entity loops and
+    /// failed loads stay fatal.
+    pub(crate) fn recover(&mut self, error: Error) -> Result<(), Error> {
+        let fatal = matches!(
+            error.kind,
+            ErrorKind::LimitExceeded(_)
+                | ErrorKind::Allocation
+                | ErrorKind::IdentifierExhausted
+                | ErrorKind::Aborted
+                | ErrorKind::InvalidState
+                | ErrorKind::UnsupportedOption
+                | ErrorKind::EntityLoop
+                | ErrorKind::ExternalResource
+                | ErrorKind::XInclude
+        );
+        let Some(recovered) = self.recovered.as_mut().filter(|_| !fatal) else {
+            return Err(error);
+        };
+        if recovered.len() < MAX_RECOVERED {
+            recovered
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, error.offset))?;
+            recovered.push(error);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn recovers(&self) -> bool {
+        self.recovered.is_some()
+    }
+
+    /// How a parse with this budget ended: under `RECOVER`, the errors
+    /// recovered from, including the terminal `end` error that stopped it.
+    /// Strict parsing and fatal errors return `end`'s error.
+    pub(crate) fn conclude(
+        budget: Option<&mut Self>,
+        end: Result<(), Error>,
+    ) -> Result<Vec<Error>, Error> {
+        let Some(budget) = budget else {
+            return end.map(|()| Vec::new());
+        };
+        if let Err(error) = end {
+            budget.recover(error)?;
+        }
+        Ok(budget.recovered.take().unwrap_or_default())
     }
 
     pub(crate) fn max_events(&self) -> usize {
@@ -305,6 +360,7 @@ impl<'source> ParserState<'source> {
     /// Applies the token-level parser options (`NOCDATA`, `NSCLEAN`, `IGNORE_ENC`).
     pub(crate) fn with_flags(mut self, flags: crate::options::Flags) -> Self {
         self.flags = flags;
+        self.budget.recovered = flags.recovers().then(Vec::new);
         self
     }
 
@@ -392,9 +448,9 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Whether two resolved names share a namespace; lent names compare the
-    /// URIs bound to their prefixes.
-    fn same_namespace(&self, first: &Name<'_>, second: &Name<'_>) -> bool {
+    /// Whether two resolved attribute names are the same expanded name (see
+    /// `expanded`); lent names compare the URIs bound to their prefixes.
+    fn same_expanded(&self, first: &Name<'_>, second: &Name<'_>) -> bool {
         fn uri<'n>(state: &'n ParserState<'_>, name: &'n Name<'_>) -> Option<&'n str> {
             match name.namespace() {
                 Some(LENT) => state
@@ -403,7 +459,12 @@ impl<'source> ParserState<'source> {
                 namespace => namespace,
             }
         }
-        uri(self, first) == uri(self, second)
+        let namespace = uri(self, first);
+        namespace == uri(self, second)
+            && match namespace {
+                None => first.qualified() == second.qualified(),
+                Some(_) => first.local() == second.local(),
+            }
     }
 
     /// Removes the bindings of a scope closed by the previous token.
@@ -533,6 +594,10 @@ impl<'source> ParserState<'source> {
         self.encoding
     }
 
+    pub(crate) fn recovers(&self) -> bool {
+        self.budget.recovers()
+    }
+
     pub(crate) fn in_content(&self) -> bool {
         matches!(self.phase, Phase::Content)
     }
@@ -615,7 +680,7 @@ impl<'source> ParserState<'source> {
         let start = range.start;
         if matches!(kind, TokenKind::Dtd | TokenKind::InvalidMarkup) {
             self.check_event_limit(start)?;
-            return Err(Error::new(ErrorKind::Syntax, start));
+            self.markup_as_text(Error::new(ErrorKind::Syntax, start))?;
         }
         if raw.len() > self.token_limit {
             return Err(Error::new(
@@ -647,14 +712,15 @@ impl<'source> ParserState<'source> {
             TokenKind::End => self.end_element(raw, start),
             TokenKind::Text => {
                 if let Some(relative) = crate::tokenizer::find(raw.as_bytes(), b"]]>") {
-                    return Err(Error::new(ErrorKind::Syntax, start + relative));
+                    self.budget
+                        .recover(Error::new(ErrorKind::Syntax, start + relative))?;
                 }
                 Ok(Some(Event::Text(self.normalized(raw, start, false, true)?)))
             }
             TokenKind::Comment => {
                 let body = delimited_body(raw, "<!--", "-->", start)?;
                 if crate::tokenizer::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
-                    return Err(Error::new(ErrorKind::Syntax, start));
+                    self.budget.recover(Error::new(ErrorKind::Syntax, start))?;
                 }
                 Ok(Some(Event::Comment(self.normalized(
                     body,
@@ -672,14 +738,34 @@ impl<'source> ParserState<'source> {
                 Ok(Some(self.cdata(value)))
             }
             TokenKind::Instruction => self.instruction(raw, start),
-            TokenKind::Dtd | TokenKind::InvalidMarkup => {
-                return Err(Error::new(ErrorKind::Syntax, start));
-            }
+            TokenKind::Dtd | TokenKind::InvalidMarkup => self.text_after(raw, 1, start),
         };
         if event.is_ok() {
             self.events += 1;
         }
         event
+    }
+
+    /// Markup that starts nothing (`<!x`, a misplaced DOCTYPE, a tag without
+    /// a name): strict parsing fails, as does recovery outside the root,
+    /// where libxml2 stops. Inside it libxml2 reads it as text after `<`.
+    fn markup_as_text(&mut self, error: Error) -> Result<(), Error> {
+        match self.in_content() {
+            true => self.budget.recover(error),
+            false => Err(error),
+        }
+    }
+
+    /// The text of `raw` after its `prefix` bytes.
+    fn text_after<'event>(
+        &mut self,
+        raw: &'event str,
+        prefix: usize,
+        start: usize,
+    ) -> Result<Option<Event<'event>>, Error> {
+        let text = raw.get(prefix..).unwrap_or_default();
+        let text = self.normalized(text, start + prefix, false, true)?;
+        Ok(Some(Event::Text(text)))
     }
 
     fn normalized<'event>(
@@ -693,7 +779,8 @@ impl<'source> ParserState<'source> {
             return Ok(Cow::Borrowed(raw));
         }
         self.budget.charge_owned(raw.len(), offset)?;
-        normalize_into(raw, offset, attribute, references, String::new()).map(Cow::Owned)
+        let recover = |error| self.budget.recover(error);
+        normalize_into(raw, offset, attribute, references, String::new(), recover).map(Cow::Owned)
     }
 
     fn instruction<'event>(
@@ -702,28 +789,47 @@ impl<'source> ParserState<'source> {
         start: usize,
     ) -> Result<Option<Event<'event>>, Error> {
         let body = delimited_body(raw, "<?", "?>", start)?;
-        let name_end = body.bytes().position(space).unwrap_or(body.len());
-        let target = &body[..name_end];
-        validate_name(target, start + 2, false)?;
-        if target.eq_ignore_ascii_case("xml") {
-            if target != "xml" || start != self.initial {
-                return Err(Error::new(ErrorKind::InvalidDeclaration, start));
+        let mut name_end = body.bytes().position(space).unwrap_or(body.len());
+        if let Err(error) = validate_name(&body[..name_end], start + 2, false) {
+            // libxml2 targets the longest Name there, colons included, and
+            // reads a PI without one as text after `<?`.
+            name_end = name_length(body);
+            if name_end == 0 {
+                self.markup_as_text(error)?;
+                return self.text_after(raw, 2, start);
             }
-            let (declaration, encoding_offset) =
-                parse_declaration(&body[name_end..], start + 2 + name_end, false)?;
+            self.budget.recover(error)?;
+        }
+        let target = &body[..name_end];
+        if target == "xml" && start == self.initial {
+            let (mut declaration, encoding_offset) = parse_declaration(
+                &body[name_end..],
+                start + 2 + name_end,
+                false,
+                &mut |error| self.budget.recover(error),
+            )?;
             // `IGNORE_ENC` keeps the detected encoding, as libxml2's
-            // `xmlSetDeclaredEncoding` does.
+            // `xmlSetDeclaredEncoding` does. So does recovery from one it
+            // cannot switch to, which libxml2 also drops from the declaration.
+            let offset = encoding_offset.unwrap_or(start);
             self.encoding = match declaration.encoding {
                 Some(_) if self.flags.ignores_encoding() => self.encoding,
-                label => validate_encoding(
-                    self.encoding,
-                    self.switchable,
-                    label,
-                    encoding_offset.unwrap_or(start),
-                )?,
+                label => match validate_encoding(self.encoding, self.switchable, label, offset) {
+                    Ok(encoding) => encoding,
+                    Err(error) => {
+                        self.budget.recover(error)?;
+                        declaration.encoding = None;
+                        self.encoding
+                    }
+                },
             };
             self.declaration_seen = true;
             return Ok(Some(Event::Declaration(declaration)));
+        }
+        if target.eq_ignore_ascii_case("xml") {
+            // libxml2 keeps a misplaced or miscased declaration as a PI.
+            self.budget
+                .recover(Error::new(ErrorKind::InvalidDeclaration, start))?;
         }
         if self.encoding.requires_declaration() && !self.declaration_seen {
             return Err(Error::new(ErrorKind::EncodingMismatch, start));
@@ -746,22 +852,54 @@ impl<'source> ParserState<'source> {
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
-        if raw.len() < 2 || !raw.starts_with('<') || !raw.ends_with('>') {
+        if raw.len() < 2 || !raw.starts_with('<') {
             return Err(Error::new(ErrorKind::Syntax, start));
         }
-        let empty = raw.as_bytes()[raw.len() - 2] == b'/';
-        let content_end = raw.len() - if empty { 2 } else { 1 };
+        // A recovering slice reader passes a tag cut off by the end of input,
+        // which libxml2 makes an empty element.
+        let closed = raw.ends_with('>');
+        if !closed {
+            self.budget
+                .recover(Error::new(ErrorKind::UnexpectedEof, start))?;
+        }
+        let mut empty = !closed || raw.as_bytes()[raw.len() - 2] == b'/';
+        let content_end = raw.len() - usize::from(closed) - usize::from(closed && empty);
         let mut scan = TagScanner {
             raw: &raw[1..content_end],
             cursor: 0,
             offset: start + 1,
         };
-        let (qualified, split) = scan.scan_name()?;
-        let (element_prefix, _) = split_qname(qualified, split, start + 1)?;
+        let (qualified, split) = match scan.scan_name() {
+            Ok(name) => name,
+            // libxml2 names the element by the longest Name there, and reads
+            // a tag without one as text after `<`.
+            Err(error) => match name_length(scan.raw) {
+                0 => {
+                    self.markup_as_text(error)?;
+                    return self.text_after(raw, 1, start);
+                }
+                length => {
+                    self.budget.recover(error)?;
+                    scan.cursor = length;
+                    (&scan.raw[..length], None)
+                }
+            },
+        };
+        let (element_prefix, _) = self.qname_parts(qualified, split, start + 1)?;
         let element_prefix = element_prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
         let bindings_start = self.bindings.len();
         let mut attributes = self.take_attributes();
-        while let Some(attribute) = scan.attribute()? {
+        loop {
+            let attribute = match scan.attribute(&mut |error| self.budget.recover(error)) {
+                Ok(Some(attribute)) => attribute,
+                Ok(None) => break,
+                // libxml2 ends the element at a malformed attribute.
+                Err(error) => {
+                    self.budget.recover(error)?;
+                    empty = true;
+                    break;
+                }
+            };
             let name = attribute.qualified;
             let value = attribute.literal;
             let offset = attribute.name_offset;
@@ -772,7 +910,7 @@ impl<'source> ParserState<'source> {
                     offset,
                 ));
             }
-            let (prefix, local) = split_qname(name, attribute.split, offset)?;
+            let (prefix, local) = self.qname_parts(name, attribute.split, offset)?;
             let value = if attribute.plain {
                 Cow::Borrowed(value)
             } else {
@@ -787,8 +925,21 @@ impl<'source> ParserState<'source> {
             };
             let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
             if let Some(bound_prefix) = declaration {
+                // libxml2 ignores a declaration it cannot bind, and all but
+                // the first of a prefix in one tag.
                 if invalid_namespace_binding(bound_prefix, &value) {
-                    return Err(Error::new(ErrorKind::Namespace, offset));
+                    self.budget
+                        .recover(Error::new(ErrorKind::Namespace, offset))?;
+                    continue;
+                }
+                if self.recovers()
+                    && self
+                        .bound(bound_prefix)
+                        .is_some_and(|at| at >= bindings_start)
+                {
+                    self.budget
+                        .recover(Error::new(ErrorKind::DuplicateAttribute, offset))?;
+                    continue;
                 }
                 let namespace = self.intern_namespace(&value, offset, retain)?;
                 self.bindings
@@ -833,18 +984,21 @@ impl<'source> ParserState<'source> {
                 value,
             });
         }
-        let name = self.resolve_name(qualified, element_prefix, start + 1)?;
+        let name = self.resolve_name(Cow::Borrowed(qualified), element_prefix, start + 1, true)?;
         // Expanded-name uniqueness: equal URIs have equal namespace IDs, so
         // short lists compare resolved names directly instead of hashing.
+        // Recovery keeps duplicates, as libxml2 does.
+        let duplicate = Error::new(ErrorKind::DuplicateAttribute, start);
         if attributes.len() <= SMALL_ATTRIBUTES {
             for index in 0..attributes.len() {
-                self.resolve_namespace(&mut attributes[index].name, true, start)?;
+                self.resolve_namespace(&mut attributes[index].name, true, start, true)?;
                 let (prior, rest) = attributes.split_at(index);
                 let name = &rest[0].name;
-                if prior.iter().any(|other| {
-                    other.name.local() == name.local() && self.same_namespace(&other.name, name)
-                }) {
-                    return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+                if prior
+                    .iter()
+                    .any(|other| self.same_expanded(&other.name, name))
+                {
+                    self.budget.recover(duplicate)?;
                 }
             }
         } else {
@@ -857,7 +1011,7 @@ impl<'source> ParserState<'source> {
                 .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
             let mut failure = None;
             for attribute in &mut attributes {
-                match self.resolve_namespace(&mut attribute.name, true, start) {
+                match self.resolve_namespace(&mut attribute.name, true, start, true) {
                     Ok(identity) => identities.push(identity),
                     Err(error) => {
                         failure = Some(error);
@@ -865,22 +1019,22 @@ impl<'source> ParserState<'source> {
                     }
                 }
             }
-            let mut expanded = Vec::new();
-            expanded
+            let mut names = Vec::new();
+            names
                 .try_reserve(identities.len())
                 .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-            expanded.extend(
+            names.extend(
                 attributes
                     .iter()
                     .zip(identities)
                     .map(|(attribute, identity)| {
-                        let local = attribute.name.local();
+                        let (local, _) = expanded(&attribute.name);
                         (sort_key(local), local, identity)
                     }),
             );
-            expanded.sort_unstable();
-            if expanded.windows(2).any(|pair| pair[0] == pair[1]) {
-                return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+            names.sort_unstable();
+            if names.windows(2).any(|pair| pair[0] == pair[1]) {
+                self.budget.recover(duplicate)?;
             }
             if let Some(error) = failure {
                 return Err(error);
@@ -1148,14 +1302,14 @@ impl<'source> ParserState<'source> {
     }
 
     pub(crate) fn collect_raw_tag<'event>(
-        &self,
+        &mut self,
         raw: &'event str,
         start: usize,
     ) -> Result<RawTag<'event>, Error> {
         if raw.len() < 2 || !raw.starts_with('<') || !raw.ends_with('>') {
             return Err(Error::new(ErrorKind::Syntax, start));
         }
-        let empty = raw.as_bytes()[raw.len() - 2] == b'/';
+        let mut empty = raw.as_bytes()[raw.len() - 2] == b'/';
         let content_end = raw.len() - if empty { 2 } else { 1 };
         let mut scan = TagScanner {
             raw: &raw[1..content_end],
@@ -1163,11 +1317,21 @@ impl<'source> ParserState<'source> {
             offset: start + 1,
         };
         let qualified = scan.name()?;
-        let (prefix, _) = qname(qualified, start + 1)?;
+        let (prefix, _) = self.qname_parts(qualified, None, start + 1)?;
         let prefix_length = prefix.and_then(|value| NonZeroUsize::new(value.len()));
         let mut attributes = Vec::new();
         let mut names = HashSet::new();
-        while let Some(attribute) = scan.attribute()? {
+        loop {
+            let attribute = match scan.attribute(&mut |error| self.budget.recover(error)) {
+                Ok(Some(attribute)) => attribute,
+                Ok(None) => break,
+                // libxml2 ends the element at a malformed attribute.
+                Err(error) => {
+                    self.budget.recover(error)?;
+                    empty = true;
+                    break;
+                }
+            };
             let name = attribute.qualified;
             let offset = attribute.name_offset;
             if attributes.len() == self.budget.max_attributes() {
@@ -1176,14 +1340,19 @@ impl<'source> ParserState<'source> {
                     offset,
                 ));
             }
-            let (prefix, _) = qname(name, offset)?;
+            let (prefix, _) = self.qname_parts(name, None, offset)?;
             if names.len() == names.capacity() {
                 names
                     .try_reserve(1)
                     .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
             }
-            if !names.insert(name) {
-                return Err(Error::new(ErrorKind::DuplicateAttribute, offset));
+            // Recovery keeps a duplicate attribute (reported by expanded name)
+            // but, as libxml2, only the first declaration of a prefix.
+            let declaration = name == "xmlns" || name.starts_with("xmlns:");
+            if !names.insert(name) && (declaration || !self.recovers()) {
+                self.budget
+                    .recover(Error::new(ErrorKind::DuplicateAttribute, offset))?;
+                continue;
             }
             attributes
                 .try_reserve(1)
@@ -1277,8 +1446,10 @@ impl<'source> ParserState<'source> {
                 None
             };
             if let Some((bound_prefix, prefix_range)) = declaration {
+                // libxml2 ignores a declaration it cannot bind.
                 if invalid_namespace_binding(bound_prefix, &attribute.value) {
-                    return Err(DtdError::new(ErrorKind::Namespace, attribute.name_offset));
+                    self.recover_specified(ErrorKind::Namespace, attribute.name_offset)?;
+                    continue;
                 }
                 let offset = attribute.name_offset.unwrap_or(prepared.start);
                 let namespace = if attribute.value.is_empty() {
@@ -1375,11 +1546,8 @@ impl<'source> ParserState<'source> {
                     namespace_output,
                 )
                 .map_err(|error| DtdError::new(error.kind, attribute.name_offset))?;
-            if !expanded.insert((attribute.name.local(), namespace)) {
-                return Err(DtdError::new(
-                    ErrorKind::DuplicateAttribute,
-                    attribute.name_offset,
-                ));
+            if !expanded.insert((self::expanded(&attribute.name).0, namespace)) {
+                self.recover_specified(ErrorKind::DuplicateAttribute, attribute.name_offset)?;
             }
         }
         let qualified = if prepared.empty {
@@ -1403,7 +1571,10 @@ impl<'source> ParserState<'source> {
                 Some("xmlns") => Some(name.local()),
                 _ => None,
             };
-            if bound.is_some_and(|prefix| self.redundant(prefix, &attribute.value)) {
+            if bound.is_some_and(|prefix| {
+                self.redundant(prefix, &attribute.value)
+                    || invalid_namespace_binding(prefix, &attribute.value)
+            }) {
                 continue;
             }
             attributes.push(Attribute {
@@ -1610,18 +1781,20 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Resolves an element QName whose prefix split was already validated.
+    /// Resolves an element QName whose prefix split was already validated;
+    /// `report` as in [`Self::unbound`].
     fn resolve_name<'event>(
         &mut self,
-        qualified: &'event str,
+        qualified: Cow<'event, str>,
         prefix_length: Option<NonZeroUsize>,
         offset: usize,
+        report: bool,
     ) -> Result<Name<'event>, Error>
     where
         'source: 'event,
     {
-        let mut name = Name::from_validated_parts(Cow::Borrowed(qualified), prefix_length, None);
-        self.resolve_namespace(&mut name, false, offset)?;
+        let mut name = Name::from_validated_parts(qualified, prefix_length, None);
+        self.resolve_namespace(&mut name, false, offset, report)?;
         Ok(name)
     }
 
@@ -1655,6 +1828,7 @@ impl<'source> ParserState<'source> {
         name: &mut Name<'event>,
         attribute: bool,
         offset: usize,
+        report: bool,
     ) -> Result<Option<NamespaceId>, Error>
     where
         'source: 'event,
@@ -1663,7 +1837,10 @@ impl<'source> ParserState<'source> {
         let qualified = name.qualified();
         let (namespace, identity) = match prefix {
             Some("xmlns") if attribute => (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns)),
-            Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
+            Some("xmlns") => {
+                self.unbound(offset, report)?;
+                (None, None)
+            }
             Some("xml") => (Some(Cow::Borrowed(XML)), Some(NamespaceId::Xml)),
             None if attribute && qualified == "xmlns" => {
                 (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns))
@@ -1694,12 +1871,51 @@ impl<'source> ParserState<'source> {
                         self.bindings[index].namespace,
                     )
                 }
-                _ if prefix.is_some() => return Err(Error::new(ErrorKind::Namespace, offset)),
+                _ if prefix.is_some() => {
+                    self.unbound(offset, report)?;
+                    (None, None)
+                }
                 _ => (None, None),
             },
         };
         name.set_namespace(namespace);
         Ok(identity)
+    }
+
+    /// A prefix with no binding: strict parsing fails, and recovery leaves
+    /// the name in no namespace, reporting it (`report`) at its start tag.
+    fn unbound(&mut self, offset: usize, report: bool) -> Result<(), Error> {
+        match report || !self.budget.recovers() {
+            true => self
+                .budget
+                .recover(Error::new(ErrorKind::Namespace, offset)),
+            false => Ok(()),
+        }
+    }
+
+    /// Recovery from an error in a specified attribute; one in a defaulted
+    /// attribute (no offset) stays fatal.
+    fn recover_specified(
+        &mut self,
+        kind: ErrorKind,
+        offset: Option<usize>,
+    ) -> Result<(), DtdError> {
+        match offset {
+            Some(offset) => Ok(self.budget.recover(Error::new(kind, offset))?),
+            None => Err(DtdError::new(kind, None)),
+        }
+    }
+
+    /// A QName's prefix and local part; recovery reads a malformed QName as
+    /// an unprefixed name.
+    fn qname_parts<'n>(
+        &mut self,
+        name: &'n str,
+        split: Option<Option<NonZeroUsize>>,
+        offset: usize,
+    ) -> Result<(Option<&'n str>, &'n str), Error> {
+        split_qname(name, split, offset)
+            .or_else(|error| self.budget.recover(error).map(|()| (None, name)))
     }
 
     fn resolve_namespace_with_pending<'event, N>(
@@ -1720,7 +1936,10 @@ impl<'source> ParserState<'source> {
         let planned = pending_prefixes.get(selected).map(|index| &pending[*index]);
         let (namespace, identity) = match prefix {
             Some("xmlns") if attribute => (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns)),
-            Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
+            Some("xmlns") => {
+                self.unbound(offset, true)?;
+                (None, None)
+            }
             Some("xml") => (Some(Cow::Borrowed(XML)), Some(NamespaceId::Xml)),
             None if attribute && qualified == "xmlns" => {
                 (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns))
@@ -1742,7 +1961,8 @@ impl<'source> ParserState<'source> {
                         identity,
                     ),
                     _ if prefix.is_some() => {
-                        return Err(Error::new(ErrorKind::Namespace, offset));
+                        self.unbound(offset, true)?;
+                        (None, None)
                     }
                     _ => (None, None),
                 }
@@ -1771,26 +1991,43 @@ impl<'source> ParserState<'source> {
         let open = self.open_name();
         let trimmed = body.trim_end_matches([' ', '\t', '\r', '\n']);
         let qualified = if open == Some(trimmed) {
-            trimmed
+            Cow::Borrowed(trimmed)
         } else {
-            let qualified = scan.name()?;
-            scan.skip_space();
-            if scan.cursor != body.len() {
-                return Err(Error::new(ErrorKind::Syntax, start));
+            let named = scan.name().and_then(|qualified| {
+                scan.skip_space();
+                match (scan.cursor == body.len(), open == Some(qualified)) {
+                    (false, _) => Err(Error::new(ErrorKind::Syntax, start)),
+                    (true, false) => Err(Error::new(ErrorKind::MismatchedEndTag, start)),
+                    (true, true) => Ok(qualified),
+                }
+            });
+            match named {
+                Ok(qualified) => Cow::Borrowed(qualified),
+                Err(error) => self.end_open(error)?,
             }
-            if open != Some(qualified) {
-                return Err(Error::new(ErrorKind::MismatchedEndTag, start));
-            }
-            qualified
         };
         let prefix_length = memchr(b':', qualified.as_bytes()).and_then(NonZeroUsize::new);
-        let name = self.resolve_name(qualified, prefix_length, start + 2)?;
+        let name = self.resolve_name(qualified, prefix_length, start + 2, false)?;
         let frame = self.pop_frame();
         self.close_scope(frame.bindings_start);
         if self.stack.is_empty() {
             self.phase = Phase::Epilog;
         }
         Ok(Some(Event::End(name)))
+    }
+
+    /// The open element's name: libxml2 ends it whatever a malformed or
+    /// mismatched end tag names. Recovery stops with nothing open.
+    fn end_open(&mut self, error: Error) -> Result<Cow<'static, str>, Error> {
+        let Some(frame) = self.stack.last() else {
+            return Err(error);
+        };
+        self.budget.recover(error)?;
+        let name = match &frame.qualified {
+            FrameName::Retained(name) => name.as_ref(),
+            FrameName::Pooled(range) => &self.frame_names[range.clone()],
+        };
+        self.budget.copy(name, error.offset)
     }
 
     fn unwind_bindings(&mut self, start: usize) {
@@ -1845,6 +2082,13 @@ fn bound_in<'source>(
     }
 }
 
+/// The length of the longest Name, colons included, that `text` starts with.
+fn name_length(text: &str) -> usize {
+    text.char_indices()
+        .find(|&(i, c)| !(name_char(c, true) && (i > 0 || name_start(c, true))))
+        .map_or(text.len(), |(i, _)| i)
+}
+
 /// A QName's prefix and local part, from a scanner-proven split when present.
 fn split_qname(
     name: &str,
@@ -1855,6 +2099,15 @@ fn split_qname(
         Some(None) => Ok((None, name)),
         Some(Some(prefix)) => Ok((Some(&name[..prefix.get()]), &name[prefix.get() + 1..])),
         None => qname(name, offset),
+    }
+}
+
+/// An attribute's identity for uniqueness: its expanded name, or its QName
+/// in no namespace. Only a recovered unbound prefix makes the two differ.
+fn expanded<'n>(name: &'n Name<'_>) -> (&'n str, Option<&'n str>) {
+    match name.namespace() {
+        None => (name.qualified(), None),
+        namespace => (name.local(), namespace),
     }
 }
 
@@ -2015,7 +2268,11 @@ impl<'a> TagScanner<'a> {
     }
 
     // Returns the name's source offset; values are still unnormalized input.
-    fn attribute(&mut self) -> Result<Option<ScannedAttribute<'a>>, Error> {
+    // A `<` in a value is `recover`ed from by keeping it, as libxml2 does.
+    fn attribute(
+        &mut self,
+        recover: &mut impl FnMut(Error) -> Result<(), Error>,
+    ) -> Result<Option<ScannedAttribute<'a>>, Error> {
         let spaced = self.skip_space();
         if self.cursor == self.raw.len() {
             return Ok(None);
@@ -2052,7 +2309,7 @@ impl<'a> TagScanner<'a> {
         self.cursor += length;
         let value = &self.raw[value_start..self.cursor];
         if let Some(i) = memchr(b'<', value.as_bytes()).filter(|_| !plain) {
-            return Err(Error::new(ErrorKind::Syntax, self.offset + value_start + i));
+            recover(Error::new(ErrorKind::Syntax, self.offset + value_start + i))?;
         }
         let value_end = self.offset + self.cursor;
         self.cursor += 1;
@@ -2069,12 +2326,15 @@ impl<'a> TagScanner<'a> {
 }
 
 /// Parses an XML declaration, or with `text` an external entity's text
-/// declaration (optional version, required encoding, no standalone).
-pub(crate) fn parse_declaration(
-    raw: &str,
+/// declaration (optional version, required encoding, no standalone). Like
+/// libxml2, recovery skips a pseudo-attribute it cannot take and the rest of
+/// a malformed declaration.
+pub(crate) fn parse_declaration<'a>(
+    raw: &'a str,
     offset: usize,
     text: bool,
-) -> Result<(Declaration<'_>, Option<usize>), Error> {
+    recover: &mut impl FnMut(Error) -> Result<(), Error>,
+) -> Result<(Declaration<'a>, Option<usize>), Error> {
     let mut scan = TagScanner {
         raw,
         cursor: 0,
@@ -2087,14 +2347,18 @@ pub(crate) fn parse_declaration(
     };
     let mut count = 0;
     let mut encoding_offset = None;
-    while let Some(attribute) = scan
-        .attribute()
-        .map_err(|e| Error::new(ErrorKind::InvalidDeclaration, e.offset))?
-    {
-        let name = attribute.qualified;
+    loop {
+        let attribute = match scan.attribute(&mut Err) {
+            Ok(Some(attribute)) => attribute,
+            Ok(None) => break,
+            Err(error) => {
+                recover(Error::new(ErrorKind::InvalidDeclaration, error.offset))?;
+                break;
+            }
+        };
         let value = attribute.literal;
         let position = attribute.name_offset;
-        match name {
+        let accepted = match attribute.qualified {
             "version"
                 if count == 0
                     && value.strip_prefix("1.").is_some_and(|minor| {
@@ -2102,34 +2366,41 @@ pub(crate) fn parse_declaration(
                     }) =>
             {
                 declaration.version = value;
+                true
             }
-            "encoding" if count == usize::from(count > 0 || !text) && encoding_offset.is_none() => {
-                if !value
-                    .as_bytes()
-                    .first()
-                    .is_some_and(u8::is_ascii_alphabetic)
-                    || !value
+            "encoding"
+                if count == usize::from(count > 0 || !text)
+                    && encoding_offset.is_none()
+                    && value
+                        .as_bytes()
+                        .first()
+                        .is_some_and(u8::is_ascii_alphabetic)
+                    && value
                         .bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
-                {
-                    return Err(Error::new(ErrorKind::InvalidDeclaration, position));
-                }
+                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-')) =>
+            {
                 encoding_offset = Some(position);
                 declaration.encoding = Some(value);
+                true
             }
-            "standalone" if !text && count > 0 && declaration.standalone.is_none() => {
-                declaration.standalone = match value {
-                    "yes" => Some(true),
-                    "no" => Some(false),
-                    _ => return Err(Error::new(ErrorKind::InvalidDeclaration, position)),
-                };
+            "standalone"
+                if !text
+                    && count > 0
+                    && declaration.standalone.is_none()
+                    && matches!(value, "yes" | "no") =>
+            {
+                declaration.standalone = Some(value == "yes");
+                true
             }
-            _ => return Err(Error::new(ErrorKind::InvalidDeclaration, position)),
+            _ => false,
+        };
+        match accepted {
+            true => count += 1,
+            false => recover(Error::new(ErrorKind::InvalidDeclaration, position))?,
         }
-        count += 1;
     }
     if count == 0 || (text && encoding_offset.is_none()) {
-        return Err(Error::new(ErrorKind::InvalidDeclaration, offset));
+        recover(Error::new(ErrorKind::InvalidDeclaration, offset))?;
     }
     Ok((declaration, encoding_offset))
 }

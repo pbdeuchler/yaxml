@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::ops::Range;
 
 use crate::options::Flags;
+use crate::parser::Budget;
 use crate::{
     Attribute, Declaration, Doctype, Element, Error, ErrorKind, Event, Limits, Name, ParseOptions,
     Reader, SourceOrigin,
@@ -97,6 +98,7 @@ pub struct Document<'input> {
     ids: Vec<(NodeId, usize)>,
     dtd: Option<Box<crate::valid::Dtd>>,
     validity: Vec<crate::valid::Diagnostic<NodeId>>,
+    errors: Vec<Error>,
 }
 
 impl<'input> Document<'input> {
@@ -141,9 +143,15 @@ impl<'input> Document<'input> {
             ids: Vec::new(),
             dtd: None,
             validity: Vec::new(),
+            errors: Vec::new(),
         };
         let mut parents = Vec::new();
-        while let Some(event) = reader.read_event()? {
+        let end = loop {
+            let event = match reader.read_event() {
+                Ok(Some(event)) => event,
+                Ok(None) => break Ok(()),
+                Err(error) => break Err(error),
+            };
             let origin = reader
                 .event_origin()
                 .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
@@ -206,9 +214,23 @@ impl<'input> Document<'input> {
                     )?;
                 }
             }
+        };
+        // Recovery stops at an error no site repairs, closing what is open
+        // where reading stopped (an element opened by entity replacement text
+        // keeps its span there).
+        document.errors = Budget::conclude(reader.budget(), end)?;
+        let stop = SourceOrigin::input(reader.position()..reader.position());
+        let count = document.nodes.len();
+        for id in parents {
+            let record = &mut document.nodes[id.0];
+            record.subtree_end = count;
+            if let NodeKind::Element(_) = record.kind {
+                record.origin = record.origin.close_element(stop).unwrap_or(record.origin);
+            }
         }
         if document.root_element == NodeId(0) {
-            return Err(Error::new(ErrorKind::MissingRoot, reader.position()));
+            let missing = Error::new(ErrorKind::MissingRoot, reader.position());
+            return Err(document.errors.first().copied().unwrap_or(missing));
         }
         document.nodes[0].subtree_end = document.nodes.len();
         let dtd = reader
@@ -269,6 +291,13 @@ impl<'input> Document<'input> {
             self.nodes[parent].last_child = Some(NodeId(index));
         }
         self.root_element = map(self.root_element);
+    }
+
+    /// The well-formedness errors a `RECOVER` parse recovered from, in the
+    /// order found (at most 100, like libxml2); empty for a well-formed
+    /// document and without `RECOVER`.
+    pub fn errors(&self) -> &[Error] {
+        &self.errors
     }
 
     /// Validity diagnostics found by `DTDVALID`; empty without it.

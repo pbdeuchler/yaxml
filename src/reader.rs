@@ -282,6 +282,9 @@ pub struct Reader<'a> {
     physical: usize,
     failure: Option<Error>,
     finished: bool,
+    /// Under `RECOVER`, the invalid character or UTF-8 sequence that ends
+    /// the parsed prefix of the input.
+    cut: Option<Error>,
 }
 
 impl<'a> Reader<'a> {
@@ -314,7 +317,7 @@ impl<'a> Reader<'a> {
         flags: Flags,
         options: ParseOptions,
     ) -> Result<Self, Error> {
-        let ordinary = SliceReader::with_decode_limits(input, limits, decode, flags)?;
+        let (ordinary, cut) = SliceReader::with_decode_limits(input, limits, decode, flags)?;
         let base = options.base.as_deref().unwrap_or_default();
         let loader = options
             .resolver
@@ -336,6 +339,7 @@ impl<'a> Reader<'a> {
             origin: None,
             failure: None,
             finished: false,
+            cut,
         })
     }
 
@@ -348,13 +352,18 @@ impl<'a> Reader<'a> {
     }
 
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
+        self.budget().expect("active DTD phase")
+    }
+
+    /// The parse's budget; absent only after a failed DTD handoff.
+    pub(crate) fn budget(&mut self) -> Option<&mut Budget> {
         if let Some(ordinary) = &mut self.ordinary {
-            return ordinary.state.owned_budget();
+            return Some(ordinary.state.owned_budget());
         }
-        match self.session.first_mut().expect("active DTD phase") {
+        Some(match self.session.first_mut()? {
             Phase::Declarations { parser, .. } => parser.owned_budget(),
             Phase::Content(controller) => controller.owned_budget(),
-        }
+        })
     }
 
     /// Byte position after the most recently consumed input.
@@ -401,13 +410,19 @@ impl<'a> Reader<'a> {
                 Ok(None) => match ordinary.doctype.take() {
                     None => {
                         self.finished = true;
-                        return Ok(None);
+                        Ok(None)
                     }
                     Some(start) => self.start_dtd(start).and_then(|()| self.read_session()),
                 },
                 Err(error) => Err(error),
             },
             None => self.read_session(),
+        };
+        // Reading the prefix before a cut ends with the cut's error.
+        let result = match (result, self.cut) {
+            (Ok(None), Some(cut)) => Err(cut),
+            (Err(error), Some(cut)) if error.offset >= cut.offset => Err(cut),
+            (result, _) => result,
         };
         if let Err(error) = result {
             self.failure = Some(error);
@@ -517,7 +532,7 @@ impl<'a> SliceReader<'a> {
         limits: Limits,
         decode: DecodeLimits,
         flags: Flags,
-    ) -> Result<Self, Error> {
+    ) -> Result<(Self, Option<Error>), Error> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
@@ -528,11 +543,21 @@ impl<'a> SliceReader<'a> {
         {
             return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
         }
-        let input = std::str::from_utf8(input)
-            .map_err(|e| Error::new(ErrorKind::InvalidUtf8, e.valid_up_to()))?;
-        if let Some(i) = invalid_char(input) {
-            return Err(Error::new(ErrorKind::InvalidCharacter, i));
-        }
+        let (input, utf8) = match std::str::from_utf8(input) {
+            Ok(input) => (input, None),
+            Err(e) => (
+                std::str::from_utf8(&input[..e.valid_up_to()]).expect("valid prefix"),
+                Some(Error::new(ErrorKind::InvalidUtf8, e.valid_up_to())),
+            ),
+        };
+        let character = invalid_char(input).map(|i| Error::new(ErrorKind::InvalidCharacter, i));
+        // Strict parsing reports invalid UTF-8 first; recovery parses the
+        // prefix before the earliest error, which ends the document.
+        let cut = match utf8.or(character) {
+            Some(error) if !flags.recovers() => return Err(error),
+            found => character.or(found),
+        };
+        let input = &input[..cut.map_or(input.len(), |cut| cut.offset)];
         let initial = if input.starts_with('\u{feff}') { 3 } else { 0 };
         if input.len() - initial > decode.max_decoded_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
@@ -555,7 +580,7 @@ impl<'a> SliceReader<'a> {
                 decode.max_decoded_token_bytes,
             );
         }
-        Ok(reader)
+        Ok((reader, cut))
     }
 
     fn position(&self) -> usize {
@@ -600,7 +625,10 @@ impl<'a> SliceReader<'a> {
                 (TokenKind::Instruction, self.delimited(start, 2, b"?>")?)
             } else if tail.starts_with("</") {
                 (TokenKind::End, self.tag_end(start)?)
-            } else if tail.starts_with("<!DOCTYPE") {
+            // Recovery reads a DOCTYPE inside the root as invalid markup.
+            } else if tail.starts_with("<!DOCTYPE")
+                && !(self.state.recovers() && self.state.in_content())
+            {
                 self.check_token(start, start + 9)?;
                 self.state.check_doctype_start(start)?;
                 self.doctype = Some(start);
@@ -609,7 +637,16 @@ impl<'a> SliceReader<'a> {
                 (TokenKind::InvalidMarkup, start + 2)
             } else {
                 self.state.check_token_start(TokenKind::Start, start)?;
-                (TokenKind::Start, self.tag_end(start)?)
+                // Recovery closes a start tag cut off by the end of input.
+                let end = match self.tag_end(start) {
+                    Err(error)
+                        if error.kind == ErrorKind::UnexpectedEof && self.state.recovers() =>
+                    {
+                        self.input.len()
+                    }
+                    end => end?,
+                };
+                (TokenKind::Start, end)
             };
             let result =
                 self.state

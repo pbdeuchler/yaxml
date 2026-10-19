@@ -150,9 +150,13 @@ parser shortcut. DTD-driven attribute normalization is a later semantic layer.
 Keep `ErrorKind` and a zero-based byte offset machine-readable. Add source IDs
 when external inputs arrive; add line/column mapping without replacing offsets.
 Distinguish malformed XML, unsupported features, exhausted resource budgets,
-allocation failure, and underlying I/O errors. Future recovery should return a
-tree plus diagnostics and a clear incomplete/recovered status. It must never
-turn failure into an apparently valid strict document.
+allocation failure, and underlying I/O errors. Recovery (`RECOVER`, DOMs only)
+returns the tree plus its errors (`errors()`, non-empty exactly when the input
+is malformed), so failure never looks like a valid strict document. Each error
+site decides through the shared `Budget`: strict parsing fails, recovery
+records the error and continues with libxml2's repair; an error no site
+repairs ends parsing and the builder closes what is open. Limits stay fatal
+([compatibility](compatibility.md#recovery-recover)).
 
 ## Output validation
 
@@ -340,4 +344,4 @@ owned storage through a separate libxml2-dialect tokenizer and tree builder
 canonicalization, inclusion and adapters each need their own feature burndown
 and verification criteria. Recovery is an
 explicit compatibility project with a versioned oracle, not a shortcut around
-strict-parser failures.
+strict-parser failures; DTD errors and invalid characters are not yet repaired.

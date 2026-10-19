@@ -466,6 +466,8 @@ pub struct OwnedDocument {
     dtd: Option<Box<crate::valid::Dtd>>,
     /// Diagnostics of `DTDVALID` validation after parsing.
     validity: Vec<crate::valid::Diagnostic<OwnedNodeId>>,
+    /// Well-formedness errors a `RECOVER` parse recovered from.
+    errors: Vec<Error>,
 }
 
 impl OwnedDocument {
@@ -570,20 +572,31 @@ impl OwnedDocument {
         let mut builder = OwnedBuilder::new(input.len())?;
         let mut document = if crate::encoding::needs_decoding(input) {
             let mut parser = PushParser::configured(limits, decode, flags, options);
-            parser.feed_with(input, |event, origin, budget| {
-                builder.consume(event, origin, budget)
-            })?;
-            parser.finish_with(|event, origin, budget| builder.consume(event, origin, budget))?;
-            builder.finish(parser.position(), parser.catalog(), flags)?
+            let end = parser
+                .feed_with(input, |event, origin, budget| {
+                    builder.consume(event, origin, budget)
+                })
+                .and_then(|()| {
+                    parser
+                        .finish_with(|event, origin, budget| builder.consume(event, origin, budget))
+                });
+            let errors = Budget::conclude(parser.budget(), end)?;
+            builder.finish(parser.position(), parser.catalog(), flags, errors)?
         } else {
             let mut reader = Reader::configured(input, limits, decode, flags, options)?;
-            while let Some(event) = reader.read_event()? {
+            let end = loop {
+                let event = match reader.read_event() {
+                    Ok(Some(event)) => event,
+                    Ok(None) => break Ok(()),
+                    Err(error) => break Err(error),
+                };
                 let origin = reader
                     .event_origin()
                     .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
                 builder.consume(event, origin, reader.owned_budget())?;
-            }
-            builder.finish(reader.position(), reader.catalog(), flags)?
+            };
+            let errors = Budget::conclude(reader.budget(), end)?;
+            builder.finish(reader.position(), reader.catalog(), flags, errors)?
         };
         if let Some(resolver) = include {
             let options = crate::xinclude::Options {
@@ -592,12 +605,14 @@ impl OwnedDocument {
                 parse_flags: flags.0,
                 ..Default::default()
             };
+            let errors = std::mem::take(&mut document.errors);
             document = crate::xinclude::process(&document, &base, resolver, &options).map_err(
                 |error| match error.kind {
                     crate::xinclude::ErrorKind::Xml(error) => error,
                     _ => Error::new(ErrorKind::XInclude, error.offset.unwrap_or(0)),
                 },
             )?;
+            document.errors = errors;
         }
         if flags.validates() {
             document.validity = document.validate();
@@ -614,6 +629,13 @@ impl OwnedDocument {
     /// The declarations of the internal and loaded external subsets.
     pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
         self.dtd.as_deref()
+    }
+
+    /// The well-formedness errors a `RECOVER` parse recovered from, in the
+    /// order found (at most 100, like libxml2); empty for a well-formed
+    /// document and without `RECOVER`.
+    pub fn errors(&self) -> &[Error] {
+        &self.errors
     }
 
     /// Validity diagnostics found by `DTDVALID` after parsing; empty without it.
@@ -1446,11 +1468,31 @@ impl OwnedBuilder {
         position: usize,
         catalog: Option<&crate::dtd_catalog::DtdCatalog>,
         flags: Flags,
+        errors: Vec<Error>,
     ) -> Result<OwnedDocument, Error> {
         let xml_ids = std::mem::take(&mut self.xml_ids);
-        let document = self.finish_with_counter(position, &LAST_DOCUMENT_ID)?;
+        // A recovered parse can stop with elements open: close them where
+        // reading stopped (one opened by entity replacement text keeps its span).
+        let (stop, count) = (SourceOrigin::input(position..position), self.nodes.len());
+        for id in std::mem::take(&mut self.parents) {
+            let record = &mut self.nodes[id.0];
+            record.subtree_size = count - id.0;
+            if let (Content::Element { .. }, Some(source)) = (&record.content, record.source) {
+                record.source = Some(source.close_element(stop).unwrap_or(source));
+            }
+        }
+        let document = self
+            .finish_with_counter(position, &LAST_DOCUMENT_ID)
+            .map_err(|error| match error.kind {
+                ErrorKind::MissingRoot => errors.first().copied().unwrap_or(error),
+                _ => error,
+            })?;
         let dtd = catalog.map(|catalog| Box::new(catalog.dtd().clone()));
-        let mut document = OwnedDocument { dtd, ..document };
+        let mut document = OwnedDocument {
+            dtd,
+            errors,
+            ..document
+        };
         // Without DTD-declared ID attributes, the `xml:id`s noted while
         // building are exactly what a full traversal would find.
         document.ids = if !flags.records_ids() {
@@ -1499,6 +1541,7 @@ impl OwnedBuilder {
             ids: Vec::new(),
             dtd: None,
             validity: Vec::new(),
+            errors: Vec::new(),
         })
     }
 }
@@ -1912,6 +1955,7 @@ impl HtmlBuilder {
             ids: Vec::new(),
             dtd: None,
             validity: Vec::new(),
+            errors: Vec::new(),
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document
