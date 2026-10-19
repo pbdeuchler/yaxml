@@ -297,6 +297,15 @@ fn check_recovered(flags: u32, document: &[u8]) {
     }
     assert_eq!(tree.errors().is_empty(), strict.is_ok());
     assert!(tree.errors().len() <= 100);
+    // Recovery makes progress: every node but the root starts at a later
+    // input byte than the one before, so without entity references there
+    // are no more nodes than bytes.
+    if !document.contains(&b'&') {
+        assert!(
+            tree.nodes().len() <= document.len() + 1,
+            "recovery reread input"
+        );
+    }
     for error in tree.errors() {
         assert!(error.offset <= document.len(), "{error:?}");
         assert!(!matches!(

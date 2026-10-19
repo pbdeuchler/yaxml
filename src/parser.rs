@@ -87,15 +87,6 @@ impl Budget {
         self.recovered.is_some()
     }
 
-    /// Whether libxml2 would still deem the document well-formed: no error
-    /// was recovered from but namespace errors.
-    fn well_formed(&self) -> bool {
-        self.recovered
-            .iter()
-            .flatten()
-            .all(|error| error.kind == ErrorKind::Namespace)
-    }
-
     /// This budget under `RECOVER`.
     pub(crate) fn recovering(self) -> Self {
         Self {
@@ -864,11 +855,8 @@ impl<'source> ParserState<'source> {
             return Ok(Cow::Borrowed(raw));
         }
         self.budget.charge_owned(raw.len(), offset)?;
-        // libxml2 drops entity references from text once the document is
-        // not well-formed (`xmlParseReference`).
-        let entities = attribute || !self.rereads || self.budget.well_formed();
         let recover = |error| self.budget.recover(error);
-        let modes = (attribute, references, characters, entities);
+        let modes = (attribute, references, characters);
         normalize_into(raw, offset, modes, String::new(), recover).map(Cow::Owned)
     }
 

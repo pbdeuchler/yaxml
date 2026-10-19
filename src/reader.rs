@@ -784,8 +784,10 @@ impl<'a> SliceReader<'a> {
                 )
             });
             if result.is_ok() || consumed_error {
-                // Recovery rereads the rest of a token libxml2 ends early.
+                // Recovery rereads the rest of a token libxml2 ends early,
+                // always from past its start.
                 self.cursor = self.state.take_rewind().unwrap_or(end);
+                debug_assert!(self.cursor > start, "no progress at {start}");
             }
             let event = result?;
             if let Some(event) = event {

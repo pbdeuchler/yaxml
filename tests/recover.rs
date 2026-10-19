@@ -114,10 +114,8 @@ const SLICE: &[(&str, &str, &[ErrorKind])] = &[
     ("<r><!-- a\u{c} b --></r>", "<r> b --&gt;</r>", &[InvalidCharacter; 2]),
     ("<r><?pi a\u{c} b?></r>", "<r> b?&gt;</r>", &[InvalidCharacter; 2]),
     ("<r><![CDATA[x\u{2}y]]>z</r>", "<r>y]]&gt;z</r>", &[InvalidCharacter, Syntax, InvalidCharacter]),
-    // an undeclared entity's reference is kept, empty; once a document is
-    // not well-formed, libxml2 expands no entity reference in text
-    ("<r>a&x;b&amp;&#65;</r>", "<r>a&x;bA</r>", &[UnknownEntity]),
-    ("<r><p:a/>&amp;<a></b>&amp;</r>", "<r><p:a/>&amp;<a/></r>", &[Namespace, MismatchedEndTag]),
+    // an undeclared entity's reference is kept, empty
+    ("<r>a&x;b&#65;</r>", "<r>a&x;bA</r>", &[UnknownEntity]),
 ];
 
 /// Inputs from which, as in libxml2, no element is recovered: (input, saved
