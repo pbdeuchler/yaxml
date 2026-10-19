@@ -211,7 +211,7 @@ impl StreamingSession {
         }
         match self.session[0].phase.as_mut().expect("lent phase") {
             Phase::Declarations { controller, .. } => controller.release(),
-            Phase::Content(controller) => controller.acknowledge()?,
+            Phase::Content(controller) => controller.acknowledge(),
         }
         self.delivery = Delivery::Idle;
         Ok(())

@@ -94,8 +94,7 @@ impl<'input> ContentControllerCore<'input> {
         let markers = !body.limits.flags.substitutes();
         let fail = |kind| Error::new(kind, body.physical_position);
         let shared = TextShared::new(body.limits, body.counters.work).map_err(fail)?;
-        let coordinator = TextCoordinator::new(shared, input)
-            .map_err(|error| Error::new(error.kind, error.offset))?;
+        let coordinator = TextCoordinator::new(shared, input);
         Ok(Self {
             body,
             parser,
@@ -151,20 +150,18 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     /// Releases the lent token's source storage.
-    pub(crate) fn acknowledge(&mut self) -> Result<(), Error> {
-        if self.pending.take().is_some() {
-            self.pending = self.queued.take().map(|origin| (Marker::End, origin));
-            return Ok(());
+    pub(crate) fn acknowledge(&mut self) {
+        match self.pending.take() {
+            Some(_) => self.pending = self.queued.take().map(|origin| (Marker::End, origin)),
+            None => self.coordinator.release_token(),
         }
-        self.coordinator
-            .release_token()
-            .map_err(|error| self.text_error(error))
     }
 
     /// Processes and releases a ready token that publishes no event.
     pub(crate) fn skip_non_event(&mut self) -> Result<(), Error> {
         self.lend_with_budget()?;
-        self.acknowledge()
+        self.acknowledge();
+        Ok(())
     }
 
     fn drive(&mut self, input: &[u8]) -> Result<ContentStep, Error> {
@@ -257,16 +254,14 @@ impl<'input> ContentControllerCore<'input> {
         let (reference, extent, source) = self.coordinator.general().expect("reference ready");
         let origin = match source {
             TextSourceId::Input => {
-                FragmentOrigin::input(extent.input_span().expect("input extent").source.clone())
-                    .expect("real reference")
+                FragmentOrigin::input(extent.0.source.clone()).expect("real reference")
             }
             TextSourceId::Replacement(invocation) => {
                 let frame = self.body.frames.top().expect("active source");
                 FragmentOrigin::Replacement {
                     declaration: frame.entity,
                     invocation,
-                    local: ByteSpan::new(extent.local_range().expect("local extent"))
-                        .expect("reference range"),
+                    local: ByteSpan::new(extent.0.decoded.clone()).expect("reference range"),
                     physical_reference: frame.physical_reference,
                 }
             }
@@ -340,29 +335,26 @@ impl<'input> ContentControllerCore<'input> {
         let invocation = entered?;
         let was_physical = self.body.frames.stack().len() == 1;
         self.coordinator.release_general();
-        let result = (|| {
-            if was_physical {
-                let local = match self.local.take() {
-                    None => {
-                        let limits = self.body.limits;
-                        let tokenizer = LocalTokenizer::new(0, limits.token, limits.work);
-                        TextSourceLease::local(tokenizer, invocation)
-                    }
-                    Some(mut lease) => {
-                        lease.switch_local_at_boundary(invocation, 0)?;
-                        lease
-                    }
-                };
-                let paused = std::mem::replace(self.coordinator.source_mut(), local);
-                self.paused_input = Some(paused);
-            } else {
-                self.coordinator
-                    .source_mut()
-                    .switch_local_at_boundary(invocation, 0)?;
-            }
-            self.coordinator.resume()
-        })();
-        result.map_err(|error| self.text_error(error))?;
+        if was_physical {
+            let local = match self.local.take() {
+                None => {
+                    let limits = self.body.limits;
+                    let tokenizer = LocalTokenizer::new(0, limits.token, limits.work);
+                    TextSourceLease::local(tokenizer, invocation)
+                }
+                Some(mut lease) => {
+                    lease.switch_local_at_boundary(invocation, 0);
+                    lease
+                }
+            };
+            let paused = std::mem::replace(self.coordinator.source_mut(), local);
+            self.paused_input = Some(paused);
+        } else {
+            self.coordinator
+                .source_mut()
+                .switch_local_at_boundary(invocation, 0);
+        }
+        self.coordinator.resume();
         if let Some(name) = marker {
             self.open
                 .try_reserve(1)
@@ -379,23 +371,22 @@ impl<'input> ContentControllerCore<'input> {
         if let Some(origin) = self.open.pop() {
             self.pending = Some((Marker::End, origin));
         }
-        let next = match self.body.frames.top_mut() {
+        match self.body.frames.top_mut() {
             Some(parent) => {
                 parent.scanned = parent.cursor;
                 let (invocation, start) = (parent.invocation, parent.cursor);
                 self.coordinator
                     .source_mut()
-                    .switch_local_at_boundary(invocation, start)
+                    .switch_local_at_boundary(invocation, start);
             }
             None => {
                 let paused = self.paused_input.take().expect("paused primary input");
                 let local = std::mem::replace(self.coordinator.source_mut(), paused);
                 self.local = Some(local);
-                Ok(())
             }
-        };
-        let result = next.and_then(|()| self.coordinator.resume());
-        result.map_err(|error| self.text_error(error))
+        }
+        self.coordinator.resume();
+        Ok(())
     }
 
     fn share_expansion(&mut self) {
@@ -552,7 +543,7 @@ impl<'input> ContentControllerCore<'input> {
         let event = account_publication(event, work, delta, origin, offset);
         self.sync_usage();
         let event = event?;
-        self.acknowledge()?;
+        self.acknowledge();
         Ok((event, SourceOrigin::from_repr(origin)))
     }
 

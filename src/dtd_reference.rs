@@ -2,7 +2,7 @@
 use crate::escape::{invalid_char, numeric_reference, predefined};
 use crate::name::validate_name;
 use crate::{Error, ErrorKind, Limit};
-use std::ops::Range;
+use std::convert::Infallible;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReferenceKind {
@@ -16,7 +16,6 @@ pub(crate) enum ReferenceKind {
 pub(crate) struct ValidatedReference<'a> {
     kind: ReferenceKind,
     raw: &'a str,
-    start: usize,
 }
 
 impl<'a> ValidatedReference<'a> {
@@ -25,9 +24,6 @@ impl<'a> ValidatedReference<'a> {
     }
     pub(crate) fn raw(self) -> &'a str {
         self.raw
-    }
-    pub(crate) fn range(self) -> Range<usize> {
-        self.start..self.start + self.raw.len()
     }
 }
 
@@ -45,7 +41,6 @@ pub(crate) struct ReferenceScratch {
     max_bytes: usize,
     max_work: usize,
     work: usize,
-    complete: bool,
 }
 impl ReferenceScratch {
     pub(crate) fn new(start: usize, max_bytes: usize, max_work: usize) -> Self {
@@ -56,7 +51,6 @@ impl ReferenceScratch {
             max_bytes,
             max_work,
             work: 0,
-            complete: false,
         }
     }
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
@@ -68,12 +62,12 @@ impl ReferenceScratch {
     pub(crate) fn work(&self) -> usize {
         self.work
     }
-    /// Whether a fresh, complete `&...;` spelling can be appended without
-    /// reaching any ceiling (two work units per byte plus classification).
+    /// Whether a fresh, complete `&...;` spelling (the caller starts it at
+    /// its `&`) can be appended without reaching any ceiling (two work units
+    /// per byte plus classification).
     pub(crate) fn fits(&self, spelling: &[u8]) -> bool {
         let length = spelling.len();
         self.collected_bytes().is_empty()
-            && spelling.first() == Some(&b'&')
             && length <= self.max_bytes
             && self.start.checked_add(length).is_some()
             && self
@@ -89,11 +83,7 @@ impl ReferenceScratch {
     }
     pub(crate) fn validated(&self) -> Option<ValidatedReference<'_>> {
         match &self.buffer {
-            ReferenceBuffer::Ready { kind, raw } => Some(ValidatedReference {
-                kind: *kind,
-                raw,
-                start: self.start,
-            }),
+            ReferenceBuffer::Ready { kind, raw } => Some(ValidatedReference { kind: *kind, raw }),
             ReferenceBuffer::Pending(_) => None,
         }
     }
@@ -106,33 +96,23 @@ impl ReferenceScratch {
     }
     /// Reuses the scratch, released after a complete reference, at `start`.
     pub(crate) fn restart(&mut self, start: usize) {
-        debug_assert!(self.complete && self.collected_bytes().is_empty());
+        debug_assert!(self.collected_bytes().is_empty());
         self.start = start;
         self.position = start;
-        self.complete = false;
     }
+    /// Collects bytes of a spelling that starts at its `&`, through its `;`.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
-        if self.complete {
-            return Ok(0);
-        }
         for (index, &byte) in input.iter().enumerate() {
             self.append(byte)?;
-            if self.collected_bytes().len() == 1 && byte != b'&' {
-                return Err(Error::new(ErrorKind::InvalidReference, self.start));
-            }
             if byte == b';' {
                 self.classify(true)?;
-                self.complete = true;
                 return Ok(index + 1);
             }
         }
         Ok(input.len())
     }
     /// Input ended inside the reference: report its first lexical error.
-    pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
-        if self.complete {
-            return Ok(());
-        }
+    pub(crate) fn finish_step(&mut self) -> Result<Infallible, Error> {
         self.classify(false)?;
         Err(Error::new(ErrorKind::UnexpectedEof, self.position))
     }
