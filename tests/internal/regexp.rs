@@ -53,3 +53,19 @@ fn dfa_cache_is_bounded() {
     assert_eq!(dfa.run(&regex.nfa, &value), expected);
     assert!(!dfa.run(&regex.nfa, "c"));
 }
+
+#[test]
+fn wide_alphabets_simulate_the_nfa() {
+    let class: String = (0..2100u32)
+        .map(|i| format!("\\u{:04X}", 0x1000 + 2 * i))
+        .collect();
+    let regex = Regex::new(&format!("[{class}]+x")).unwrap();
+    assert!(regex.nfa.starts.len() * 4 * 64 > CACHE_BYTES);
+    let even: String = (0..2100u32)
+        .map(|i| char::from_u32(0x1000 + 2 * i).unwrap())
+        .collect();
+    assert!(regex.is_match(&(even.clone() + "x")));
+    assert!(!regex.is_match(&even));
+    assert!(!regex.is_match("\u{1001}x"));
+    assert!(!regex.is_match("x"));
+}

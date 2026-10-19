@@ -1,0 +1,4 @@
+((a|b|\p{Nd}){1,2}|a)a|bbbb){1,2}
+bab
+aaca
+a

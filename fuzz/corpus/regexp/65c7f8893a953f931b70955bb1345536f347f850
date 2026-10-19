@@ -1,0 +1,2 @@
+((a|b|\p{Nd}){9,2}|aaa|b?bb){1,2}
+bab0aaa

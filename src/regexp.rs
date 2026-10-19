@@ -380,19 +380,25 @@ impl Parser<'_> {
             b'{' => {
                 self.pos += 1;
                 let min = self.count()?;
-                let mut max = Some(min);
-                if self.cur() == b',' {
-                    self.pos += 1;
-                    if self.cur() != b'}' {
-                        max = Some(self.count()?).filter(|&max| max != 0).or(max);
-                    } else {
-                        max = None;
+                let max = match self.cur() {
+                    b',' => {
+                        self.pos += 1;
+                        match self.cur() {
+                            b'}' => None,
+                            _ => Some(self.count()?),
+                        }
                     }
-                }
+                    _ => Some(0),
+                };
                 if self.cur() != b'}' {
                     return self.fail("unterminated quantifier");
                 }
-                (min, max.filter(|&max| max != i32::MAX as u32))
+                let max = match max {
+                    Some(0) => Some(min),
+                    Some(max) if max == i32::MAX as u32 => None,
+                    max => max,
+                };
+                (min, max)
             }
             _ => return Ok(node),
         };
@@ -650,18 +656,10 @@ impl Nfa {
             ascii,
             atoms,
         };
-        let start = nfa.emit(root, 0, &mut budget)?;
-        let (mut seen, mut start_set) = (vec![0; nfa.insts.len()], Vec::new());
-        closure(
-            &nfa.insts,
-            start,
-            &mut seen,
-            1,
-            &mut Vec::new(),
-            &mut start_set,
-        );
-        start_set.sort_unstable();
-        nfa.start = start_set.into();
+        let entry = nfa.emit(root, 0, &mut budget)?;
+        let mut start = Scratch::default().close(&nfa.insts, [entry]);
+        start.sort_unstable();
+        nfa.start = start.into();
         Ok(nfa)
     }
 
@@ -723,24 +721,51 @@ impl Nfa {
     }
 }
 
-/// Appends the non-split instructions reachable from `from` without input.
-fn closure(
-    insts: &[Inst],
-    from: u32,
-    seen: &mut [u32],
+/// Epsilon-closure marks shared by DFA misses and NFA simulation.
+#[derive(Debug, Default)]
+struct Scratch {
+    seen: Vec<u32>,
     stamp: u32,
-    stack: &mut Vec<u32>,
-    out: &mut Vec<u32>,
-) {
-    stack.push(from);
-    while let Some(i) = stack.pop() {
-        if std::mem::replace(&mut seen[i as usize], stamp) == stamp {
-            continue;
+    stack: Vec<u32>,
+}
+
+impl Scratch {
+    /// The non-split instructions reachable from `targets` without input.
+    fn close(&mut self, insts: &[Inst], targets: impl IntoIterator<Item = u32>) -> Vec<u32> {
+        if self.seen.len() != insts.len() {
+            *self = Self {
+                seen: vec![0; insts.len()],
+                ..Self::default()
+            };
         }
-        match insts[i as usize] {
-            Inst::Split(first, second) => stack.extend([second, first]),
-            _ => out.push(i),
+        self.stamp = self.stamp.wrapping_add(1);
+        if self.stamp == 0 {
+            self.seen.fill(0);
+            self.stamp = 1;
         }
+        let mut out = Vec::new();
+        for target in targets {
+            self.stack.push(target);
+            while let Some(i) = self.stack.pop() {
+                if std::mem::replace(&mut self.seen[i as usize], self.stamp) == self.stamp {
+                    continue;
+                }
+                match insts[i as usize] {
+                    Inst::Split(first, second) => self.stack.extend([second, first]),
+                    _ => out.push(i),
+                }
+            }
+        }
+        out
+    }
+
+    /// The closed set reached from the closed `set` on `class`.
+    fn successor(&mut self, nfa: &Nfa, set: &[u32], class: u32) -> Vec<u32> {
+        let targets = set.iter().filter_map(|&i| match nfa.insts[i as usize] {
+            Inst::Atom(atom, to) if nfa.accepts(atom, class) => Some(to),
+            _ => None,
+        });
+        self.close(&nfa.insts, targets)
     }
 }
 
@@ -754,14 +779,16 @@ struct Dfa {
     accepting: Vec<bool>,
     dead: usize,
     bytes: usize,
-    seen: Vec<u32>,
-    stamp: u32,
-    stack: Vec<u32>,
+    scratch: Scratch,
 }
 
 impl Dfa {
     fn run(&mut self, nfa: &Nfa, value: &str) -> bool {
         let classes = nfa.starts.len();
+        // With rows too wide for 64 of them to fit, simulate the NFA.
+        if classes * 4 * 64 > CACHE_BYTES {
+            return self.simulate(nfa, value);
+        }
         if self.sets.is_empty() {
             self.reset(nfa);
         }
@@ -779,9 +806,21 @@ impl Dfa {
         self.accepting[state]
     }
 
+    fn simulate(&mut self, nfa: &Nfa, value: &str) -> bool {
+        let mut set = nfa.start.to_vec();
+        for c in value.chars() {
+            set = self.scratch.successor(nfa, &set, nfa.class(c));
+            if set.is_empty() {
+                return false;
+            }
+        }
+        set.iter()
+            .any(|&i| matches!(nfa.insts[i as usize], Inst::Match))
+    }
+
     fn reset(&mut self, nfa: &Nfa) {
         *self = Self {
-            seen: vec![0; nfa.insts.len()],
+            scratch: std::mem::take(&mut self.scratch),
             ..Self::default()
         };
         self.intern(nfa, nfa.start.clone());
@@ -813,26 +852,7 @@ impl Dfa {
             self.reset(nfa);
             state = self.intern(nfa, current);
         }
-        self.stamp = self.stamp.wrapping_add(1);
-        if self.stamp == 0 {
-            self.seen.fill(0);
-            self.stamp = 1;
-        }
-        let mut next = Vec::new();
-        for &i in self.sets[state].iter() {
-            if let Inst::Atom(atom, to) = nfa.insts[i as usize]
-                && nfa.accepts(atom, class as u32)
-            {
-                closure(
-                    &nfa.insts,
-                    to,
-                    &mut self.seen,
-                    self.stamp,
-                    &mut self.stack,
-                    &mut next,
-                );
-            }
-        }
+        let mut next = self.scratch.successor(nfa, &self.sets[state], class as u32);
         next.sort_unstable();
         let target = self.intern(nfa, next.into());
         self.table[state * nfa.starts.len() + class] = target as u32;

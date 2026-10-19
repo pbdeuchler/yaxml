@@ -1,0 +1,7 @@
+(a|b{5,3}){8,1}
+a
+aa
+b
+bb
+bbb
+bbbba
