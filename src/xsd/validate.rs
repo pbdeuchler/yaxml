@@ -246,7 +246,8 @@ impl<Id: Copy> Validator<Id> {
     /// The element at `depth` as messages show it.
     fn label(&self, depth: usize) -> String {
         let frame = &self.frames[depth];
-        (frame.label.as_deref()).map_or_else(|| self.schema.names.format(frame.name), Into::into)
+        (frame.label.as_deref())
+            .map_or_else(|| self.schema.data.names.format(frame.name), Into::into)
     }
 
     /// Reports against the element at `depth`.
@@ -268,8 +269,8 @@ impl<Id: Copy> Validator<Id> {
 
     fn qname(&self, local: &str, ns: Option<&str>) -> QName {
         QName {
-            ns: ns.map_or(NO_NS, |ns| self.schema.names.get(ns)),
-            local: self.schema.names.get(local),
+            ns: ns.map_or(NO_NS, |ns| self.schema.data.names.get(ns)),
+            local: self.schema.data.names.get(local),
         }
     }
 
@@ -422,7 +423,7 @@ impl<Id: Copy> Validator<Id> {
             }
         } else {
             let name = self.frames[depth].name;
-            match self.schema.global_elements.get(&name) {
+            match self.schema.data.global_elements.get(&name) {
                 Some(&decl) => self.frames[depth].decl = Some(decl),
                 None => {
                     self.element_error(
@@ -435,14 +436,14 @@ impl<Id: Copy> Validator<Id> {
             }
         }
         if let Some(wildcard) = self.frames[depth].wildcard {
-            match self.schema.wildcards[wildcard].process {
+            match self.schema.data.wildcards[wildcard].process {
                 Process::Skip => {
                     self.skip = Some(depth);
                     return true;
                 }
                 process => {
                     let name = self.frames[depth].name;
-                    if let Some(&decl) = self.schema.global_elements.get(&name) {
+                    if let Some(&decl) = self.schema.data.global_elements.get(&name) {
                         self.frames[depth].decl = Some(decl);
                     } else if process == Process::Strict {
                         self.element_error(depth, Code::CvcElt1, "No matching global element declaration available, but demanded by the strict wildcard.");
@@ -465,7 +466,7 @@ impl<Id: Copy> Validator<Id> {
             self.element_error(depth, Code::CvcType1, "The type definition is absent.");
             return false;
         };
-        if self.schema.types[ty].abstract_ {
+        if self.schema.data.types[ty].abstract_ {
             self.frames[depth].bad_type = true;
             self.element_error(depth, Code::CvcType2, "The type definition is abstract.");
             return false;
@@ -477,7 +478,7 @@ impl<Id: Copy> Validator<Id> {
             self.frames[depth].value_needed = resolved > 0;
             self.frames[depth].applied_xpath = true;
         }
-        match self.schema.types[ty].complex() {
+        match self.schema.data.types[ty].complex() {
             Some(_) => self.attributes_complex(depth, ty, attrs, dtd),
             None => {
                 for attr in attrs.iter().filter(|a| a.meta.is_none()) {
@@ -504,7 +505,7 @@ impl<Id: Copy> Validator<Id> {
         let ptype = self.frames[parent].ty.expect("validated parent");
         if ptype == ANY_TYPE {
             let name = self.frames[depth].name;
-            match self.schema.global_elements.get(&name) {
+            match self.schema.data.global_elements.get(&name) {
                 Some(&decl) => self.frames[depth].decl = Some(decl),
                 None => match attrs.iter().find(|a| a.meta == Some(Meta::Type)) {
                     Some(attr) => match self.xsi_type(depth, attr, None) {
@@ -516,7 +517,7 @@ impl<Id: Copy> Validator<Id> {
             }
             return true;
         }
-        let complex = self.schema.types[ptype].complex();
+        let complex = self.schema.data.types[ptype].complex();
         match complex.map(|c| &c.content) {
             Some(Content::Empty) => {
                 self.element_error(
@@ -528,7 +529,7 @@ impl<Id: Copy> Validator<Id> {
             }
             Some(Content::Elements { model, .. }) => {
                 let name = self.frames[depth].name;
-                let cap = self.schema.max_counter_vectors;
+                let cap = self.schema.data.max_counter_vectors;
                 let run = self.frames[parent].run.get_or_insert_with(|| model.start());
                 let step = model.step(run, name, cap);
                 match step {
@@ -573,7 +574,7 @@ impl<Id: Copy> Validator<Id> {
     }
 
     fn expected(&self, model: &super::model::Model, run: &Run) -> String {
-        let names = &self.schema.names;
+        let names = &self.schema.data.names;
         let leaves: Vec<String> = model
             .expected(run)
             .into_iter()
@@ -606,7 +607,7 @@ impl<Id: Copy> Validator<Id> {
 
     /// `xmlSchemaValidateElemDecl`: abstract, `xsi:nil`, `xsi:type`, IDCs.
     fn validate_declaration(&mut self, depth: usize, decl: ElemId, attrs: &[Attr<'_>]) -> bool {
-        let declaration = &self.schema.elements[decl];
+        let declaration = &self.schema.data.elements[decl];
         if declaration.abstract_ {
             self.element_error(depth, Code::CvcElt2, "The element declaration is abstract.");
             return false;
@@ -646,7 +647,7 @@ impl<Id: Copy> Validator<Id> {
             self.frames[depth].local_type = true;
             ty = local;
         }
-        let idcs = &self.schema.elements[decl].idcs;
+        let idcs = &self.schema.data.elements[decl].idcs;
         if !idcs.is_empty() {
             let scope = self.scopes.last_mut().expect("scope");
             self.engine.register(idcs, depth, scope);
@@ -689,7 +690,7 @@ impl<Id: Copy> Validator<Id> {
             (Some(super::parse::XS), local) => Type::from_name(local).map(builtin),
             _ => None,
         }
-        .or_else(|| self.schema.global_types.get(&name).copied());
+        .or_else(|| self.schema.data.global_types.get(&name).copied());
         let Some(local_type) = found else {
             let message = format!(
                 "The QName value '{}' of the xsi:type attribute does not resolve to a type definition.",
@@ -701,10 +702,10 @@ impl<Id: Copy> Validator<Id> {
         let Some(decl) = decl else {
             return Ok(Some(local_type));
         };
-        let declaration = &self.schema.elements[decl];
-        let decl_type = &self.schema.types[declaration.ty];
+        let declaration = &self.schema.data.elements[decl];
+        let decl_type = &self.schema.data.types[declaration.ty];
         let set = (declaration.block | decl_type.block) & (EXTENSION | RESTRICTION);
-        if !derived(&self.schema.types, local_type, declaration.ty, set) {
+        if !derived(&self.schema.data.types, local_type, declaration.ty, set) {
             let message = format!(
                 "The type definition '{}', specified by xsi:type, is blocked or not validly derived from the type definition of the element declaration.",
                 display(local, ns)
@@ -733,9 +734,20 @@ impl<Id: Copy> Validator<Id> {
         };
         let entity =
             |name: &str| dtd.is_some_and(|dtd| dtd.entities.get(name).is_some_and(Option::is_some));
-        let mut scope = Scope::new(&load, &self.schema.names, &self.schema.notations, &entity);
+        let mut scope = Scope::new(
+            &load,
+            &self.schema.data.names,
+            &self.schema.data.notations,
+            &entity,
+        );
         scope.instance = true;
-        simple::validate(&self.schema.types, &self.schema.names, ty, lexical, &scope)
+        simple::validate(
+            &self.schema.data.types,
+            &self.schema.data.names,
+            ty,
+            lexical,
+            &scope,
+        )
     }
 
     /// Registers the ID values of a valid attribute; false on a duplicate.
@@ -770,7 +782,7 @@ impl<Id: Copy> Validator<Id> {
         dtd: Option<&Dtd>,
     ) {
         let schema = self.schema.clone();
-        let complex = schema.types[ty].complex().expect("complex");
+        let complex = schema.data.types[ty].complex().expect("complex");
         let mut states: Vec<State> = attrs
             .iter()
             .map(|a| {
@@ -784,7 +796,7 @@ impl<Id: Copy> Validator<Id> {
         let mut missing = Vec::new();
         let mut defaults = Vec::new();
         for (u, use_) in complex.attributes.iter().enumerate() {
-            let decl = &schema.attributes[use_.decl];
+            let decl = &schema.data.attributes[use_.decl];
             match attrs
                 .iter()
                 .position(|a| a.meta.is_none() && a.name == decl.name && a.name.local != UNKNOWN)
@@ -795,12 +807,15 @@ impl<Id: Copy> Validator<Id> {
                 None => {}
             }
         }
-        if let Some(wildcard) = complex.wildcard.map(|w| &schema.wildcards[w]) {
+        if let Some(wildcard) = complex.wildcard.map(|w| &schema.data.wildcards[w]) {
             for (i, attr) in attrs.iter().enumerate() {
                 if states[i] != State::Unknown || !wildcard.ns.allows(attr.name.ns) {
                     continue;
                 }
-                states[i] = match (wildcard.process, schema.global_attributes.get(&attr.name)) {
+                states[i] = match (
+                    wildcard.process,
+                    schema.data.global_attributes.get(&attr.name),
+                ) {
                     (Process::Skip, _) => State::Skip,
                     (_, Some(&decl)) => State::Assessed(decl, None),
                     (Process::Lax, None) => State::LaxNoDecl,
@@ -819,7 +834,7 @@ impl<Id: Copy> Validator<Id> {
                     .evaluate(attr.local, attr.ns, true, depth, &self.scopes),
                 false => 0,
             };
-            let declaration = &schema.attributes[decl];
+            let declaration = &schema.data.attributes[decl];
             let use_ = use_index.map(|u| &complex.attributes[u]);
             let constraint = use_
                 .and_then(|u| u.value.as_ref())
@@ -850,7 +865,7 @@ impl<Id: Copy> Validator<Id> {
                         }
                         let text = normalize(
                             attr.value,
-                            simple::whitespace(&schema.types, declaration.ty),
+                            simple::whitespace(&schema.data.types, declaration.ty),
                         )
                         .into_owned();
                         key = Some(Key { value: typed, text });
@@ -874,9 +889,9 @@ impl<Id: Copy> Validator<Id> {
                 break;
             }
             let use_ = &complex.attributes[u];
-            let declaration = &schema.attributes[use_.decl];
-            let local = schema.names.str(declaration.name.local);
-            let ns = Some(schema.names.str(declaration.name.ns)).filter(|ns| !ns.is_empty());
+            let declaration = &schema.data.attributes[use_.decl];
+            let local = schema.data.names.str(declaration.name.local);
+            let ns = Some(schema.data.names.str(declaration.name.ns)).filter(|ns| !ns.is_empty());
             if self.engine.evaluate(local, ns, true, depth, &self.scopes) > 0 {
                 let constraint = use_
                     .value
@@ -931,7 +946,7 @@ impl<Id: Copy> Validator<Id> {
         for decl in missing {
             let message = format!(
                 "The attribute '{}' is required but missing.",
-                schema.names.format(schema.attributes[decl].name)
+                schema.data.names.format(schema.data.attributes[decl].name)
             );
             self.element_error(depth, Code::CvcComplexType4, &message);
         }
@@ -956,7 +971,7 @@ impl<Id: Copy> Validator<Id> {
             return true;
         }
         let Some(ty) = frame.ty else { return false };
-        let content = self.schema.types[ty].complex().map(|c| &c.content);
+        let content = self.schema.data.types[ty].complex().map(|c| &c.content);
         match content {
             Some(Content::Empty) => {
                 if run.is_none() {
@@ -985,7 +1000,7 @@ impl<Id: Copy> Validator<Id> {
             Some(Content::Elements { mixed: true, .. })
                 if frame
                     .decl
-                    .is_none_or(|d| self.schema.elements[d].value.is_none()) => {}
+                    .is_none_or(|d| self.schema.data.elements[d].value.is_none()) => {}
             _ => self.frames[depth].text.push_str(text),
         }
         false
@@ -996,8 +1011,8 @@ impl<Id: Copy> Validator<Id> {
         match self.scope_value(ty, lexical, None) {
             Ok(typed) => {
                 if self.frames[depth].value_needed {
-                    let text =
-                        normalize(lexical, simple::whitespace(&self.schema.types, ty)).into_owned();
+                    let text = normalize(lexical, simple::whitespace(&self.schema.data.types, ty))
+                        .into_owned();
                     self.frames[depth].value = Some(Key { value: typed, text });
                 }
                 true
@@ -1020,7 +1035,7 @@ impl<Id: Copy> Validator<Id> {
         }
         let frame = &self.frames[depth];
         if frame.applied_xpath {
-            let value = match frame.ty.map(|ty| &self.schema.types[ty].kind) {
+            let value = match frame.ty.map(|ty| &self.schema.data.types[ty].kind) {
                 Some(
                     Kind::Complex(ComplexType {
                         content: Content::Simple(_),
@@ -1051,7 +1066,7 @@ impl<Id: Copy> Validator<Id> {
             return;
         };
         let schema = self.schema.clone();
-        let content = schema.types[ty].complex().map(|c| &c.content);
+        let content = schema.data.types[ty].complex().map(|c| &c.content);
         if let Some(Content::Elements { model, mixed }) = content
             && ty != ANY_TYPE
         {
@@ -1084,7 +1099,7 @@ impl<Id: Copy> Validator<Id> {
             }
             return;
         };
-        let declaration = &schema.elements[decl];
+        let declaration = &schema.data.elements[decl];
         let constraint = declaration.value.as_ref();
         if let Some(constraint) = constraint.filter(|_| frame.empty && !frame.nilled) {
             if frame.local_type {

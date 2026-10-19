@@ -321,16 +321,9 @@ pub struct Schema {
     data: Arc<Compiled>,
 }
 
-impl std::ops::Deref for Schema {
-    type Target = Compiled;
-    fn deref(&self) -> &Compiled {
-        &self.data
-    }
-}
-
 /// The compiled components behind a [`Schema`].
 #[derive(Debug)]
-pub struct Compiled {
+pub(crate) struct Compiled {
     pub(crate) names: Names,
     pub(crate) types: Vec<TypeDef>,
     pub(crate) elements: Vec<ElementDecl>,
@@ -386,7 +379,7 @@ impl Schema {
 
     /// Warnings reported while building the schema.
     pub fn warnings(&self) -> &[SchemaDiagnostic] {
-        &self.warnings
+        &self.data.warnings
     }
 
     /// Validates a document (`xmlSchemaValidateDoc`).
