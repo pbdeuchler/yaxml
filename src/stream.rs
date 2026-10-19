@@ -2,9 +2,7 @@ use crate::encoding::{DecodeProgress, Decoded, Decoder, SourceEncoding, TokenSpa
 use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState};
 use crate::tokenizer::{TokenKind, Tokenizer, complete_token};
-use crate::{
-    Attribute, Attributes, DecodeLimits, Element, Error, ErrorKind, Event, Limits, SourceOrigin,
-};
+use crate::{Attributes, DecodeLimits, Element, Error, ErrorKind, Event, Limits, SourceOrigin};
 
 pub(crate) mod dtd;
 
@@ -257,23 +255,6 @@ fn parse<'token>(
     Ok(parse_event(tokenizer, state)?.map(|event| (event, origin)))
 }
 
-/// Moves an owned attribute list into `lent` and lends it to the event.
-fn lend_attributes<'s, 'e: 's>(event: Event<'e>, lent: &'s mut Vec<Attribute<'e>>) -> Event<'s> {
-    let lend = |element: Element<'e>, lent: &'s mut Vec<Attribute<'e>>| {
-        let Element { name, attributes } = element;
-        *lent = attributes.into_owned();
-        Element {
-            name,
-            attributes: Attributes::Borrowed(lent),
-        }
-    };
-    match event {
-        Event::Start(element) => Event::Start(lend(element, lent)),
-        Event::Empty(element) => Event::Empty(lend(element, lent)),
-        event => event,
-    }
-}
-
 /// Smallest remaining chunk worth scanning for complete tokens in place.
 const MIN_CHUNK_WINDOW: usize = 32;
 
@@ -290,22 +271,38 @@ fn deliver(
     let Some(event) = event else {
         return Ok(());
     };
-    let mut lent = Vec::new();
-    let lends = matches!(
-        &event,
-        Event::Start(element) | Event::Empty(element)
-            if matches!(&element.attributes, Attributes::Owned(list) if list.capacity() > 0)
-    );
-    let event = if lends {
-        lend_attributes(event, &mut lent)
-    } else {
-        event
-    };
     if let Event::Declaration(declaration) = &event {
         *standalone = declaration.standalone == Some(true);
     }
     *last_origin = Some(origin);
-    emit(event, origin, state.owned_budget())?;
+    // Each lending event is built directly as the callback's argument.
+    let mut lent = Vec::new();
+    let delivered = match event {
+        Event::Start(Element {
+            name,
+            attributes: Attributes::Owned(list),
+        }) if list.capacity() > 0 => {
+            lent = list;
+            let element = Element {
+                name,
+                attributes: Attributes::Borrowed(&lent),
+            };
+            emit(Event::Start(element), origin, state.owned_budget())
+        }
+        Event::Empty(Element {
+            name,
+            attributes: Attributes::Owned(list),
+        }) if list.capacity() > 0 => {
+            lent = list;
+            let element = Element {
+                name,
+                attributes: Attributes::Borrowed(&lent),
+            };
+            emit(Event::Empty(element), origin, state.owned_budget())
+        }
+        event => emit(event, origin, state.owned_budget()),
+    };
+    delivered?;
     if lent.capacity() > 0 {
         state.recycle_attributes(lent);
     }
