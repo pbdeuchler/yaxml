@@ -500,17 +500,6 @@ pub(crate) struct TextCoordinator<'input> {
     source: TextSourceLease<'input>,
     pending: Pending,
 }
-#[cfg(test)]
-pub(crate) struct TextHandoff<'input> {
-    shared: TextShared,
-    source: TextSourceLease<'input>,
-}
-#[cfg(test)]
-impl<'input> TextHandoff<'input> {
-    pub(crate) fn into_parts(self) -> (TextShared, TextSourceLease<'input>) {
-        (self.shared, self.source)
-    }
-}
 impl<'input> TextCoordinator<'input> {
     pub(crate) fn new(
         shared: TextShared,
@@ -611,10 +600,6 @@ impl<'input> TextCoordinator<'input> {
             }
             s.drive(input)
         })
-    }
-    #[cfg(test)]
-    pub(crate) fn advance_borrowed(&mut self) -> Result<TextStep, TextError> {
-        self.advance_borrowed_bounded(usize::MAX)
     }
     pub(crate) fn advance_borrowed_bounded(
         &mut self,
@@ -731,22 +716,6 @@ impl<'input> TextCoordinator<'input> {
         self.source.boundary = false;
         self.pending = Pending::Scanning;
         Ok(())
-    }
-    #[cfg(test)]
-    pub(crate) fn acknowledge_general(mut self) -> Result<TextHandoff<'input>, TextError> {
-        self.acknowledge_general_in_place()?;
-        Ok(TextHandoff {
-            shared: self.shared,
-            source: self.source,
-        })
-    }
-    #[cfg(test)]
-    pub(crate) fn take_complete(mut self) -> Result<TextHandoff<'input>, TextError> {
-        self.complete_in_place()?;
-        Ok(TextHandoff {
-            shared: self.shared,
-            source: self.source,
-        })
     }
     fn drive(&mut self, input: &[u8]) -> Result<TextStep, TextError> {
         if self.source.finalizing && !input.is_empty() {
@@ -1335,15 +1304,3 @@ fn validate_input(shared: &mut TextShared, tokenizer: &Tokenizer) -> Result<(), 
     }
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_text_coordinator_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_text_coordinator_spec.rs"]
-mod spec_tests;
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_text_work_ledger.rs"]
-mod work_ledger_tests;

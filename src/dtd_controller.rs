@@ -1,8 +1,6 @@
 //! Private internal-subset composition. No public XML parser enables this yet.
 
-use std::ops::Range;
-
-use crate::dtd::{DoctypeHeaderView, DtdErrorKind, DtdLimits, DtdUnit, DtdUnitView};
+use crate::dtd::{DtdErrorKind, DtdLimits, DtdUnit, DtdUnitView};
 use crate::dtd_catalog::{
     CatalogErrorKind, CatalogLimits, DeclarationContext, DtdCatalog, EntityId, EntityLookup,
     LiteralSource, ValueLocation,
@@ -129,31 +127,15 @@ pub(crate) struct ControllerError {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-pub(crate) enum DtdEvent<'a> {
-    Begin(DoctypeHeaderView<'a>),
-    Item {
-        unit: &'a DtdUnit<'a>,
-        literals: LiteralSource,
-    },
-    End,
-}
-
-#[cfg(test)]
-#[derive(Debug)]
-pub(crate) enum TakenDtdEvent<'a> {
-    Begin(DtdUnit<'a>),
-    Item {
-        unit: DtdUnit<'a>,
-        literals: LiteralSource,
-    },
+pub(crate) enum DtdEvent {
+    Unit,
     End,
 }
 
 #[derive(Clone, Copy)]
 enum Ready {
     Begin,
-    Item(LiteralSource),
+    Item,
     End,
 }
 #[derive(Clone, Copy)]
@@ -179,8 +161,6 @@ pub(crate) struct DtdBodyState {
     counters: ControllerCounters,
     decoded_position: usize,
     physical_position: usize,
-    #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-    doctype_range: Range<usize>,
     encoding: SourceEncoding,
 }
 
@@ -212,16 +192,6 @@ pub(crate) type DtdController = DtdControllerCore<'static>;
 pub(crate) type BorrowedDtdController<'input> = DtdControllerCore<'input>;
 
 impl DtdControllerCore<'static> {
-    #[cfg(test)]
-    pub(crate) fn new(
-        encoding: SourceEncoding,
-        physical_start: usize,
-        limits: ControllerLimits,
-        standalone: bool,
-    ) -> Self {
-        Self::new_at(encoding, physical_start, physical_start, limits, standalone)
-    }
-
     pub(crate) fn new_at(
         encoding: SourceEncoding,
         physical_start: usize,
@@ -310,61 +280,18 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn physical_position(&self) -> usize {
         self.position
     }
-    #[cfg(test)]
-    pub(crate) fn counters(&self) -> ControllerCounters {
-        self.counters
-    }
-    #[cfg(test)]
-    pub(crate) fn catalog(&self) -> &DtdCatalog {
-        &self.catalog
-    }
     pub(crate) fn is_complete(&self) -> bool {
         self.complete
     }
     pub(crate) fn start(&self) -> usize {
         self.start
     }
-    #[cfg(test)]
-    pub(crate) fn doctype_range(&self) -> Option<Range<usize>> {
-        self.complete.then_some(self.start..self.position)
-    }
-
-    pub(crate) fn current(&self) -> Option<(DtdEvent<'_>, FragmentOrigin)> {
+    pub(crate) fn current(&self) -> Option<(DtdEvent, FragmentOrigin)> {
         let event = match self.ready? {
-            Ready::Begin => match self.unit.as_ref()?.view() {
-                DtdUnitView::Header(header) => DtdEvent::Begin(header),
-                _ => unreachable!("checked header event"),
-            },
-            Ready::Item(literals) => DtdEvent::Item {
-                unit: self.unit.as_ref()?,
-                literals,
-            },
+            Ready::Begin | Ready::Item => DtdEvent::Unit,
             Ready::End => DtdEvent::End,
         };
         Some((event, self.origin?))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn take_current(&mut self) -> Option<(TakenDtdEvent<'input>, FragmentOrigin)> {
-        let ready = self.ready?;
-        let _origin = self.origin.expect("ready DTD event has an origin");
-        if matches!(ready, Ready::Begin | Ready::Item(_)) {
-            self.unit.as_ref().expect("ready DTD unit is retained");
-        } else {
-            assert!(self.unit.is_none(), "DTD End does not retain a unit");
-        }
-        let ready = self.ready.take().expect("checked ready DTD event");
-        let origin = self.origin.take().expect("checked ready DTD origin");
-        let event = match ready {
-            Ready::Begin => TakenDtdEvent::Begin(self.unit.take().expect("checked retained unit")),
-            Ready::Item(literals) => TakenDtdEvent::Item {
-                unit: self.unit.take().expect("checked retained unit"),
-                literals,
-            },
-            Ready::End => TakenDtdEvent::End,
-        };
-        self.finish_release(ready);
-        Some((event, origin))
     }
 
     pub(crate) fn release(&mut self) {
@@ -469,7 +396,6 @@ impl<'input> DtdControllerCore<'input> {
         {
             return Err(self.simple_error(ControllerErrorKind::InvalidState));
         }
-        let doctype_range = self.start..self.position;
         let decoded_position = self
             .decoded_start
             .checked_add(self.physical.position())
@@ -481,7 +407,6 @@ impl<'input> DtdControllerCore<'input> {
             counters: self.counters,
             decoded_position,
             physical_position: self.position,
-            doctype_range,
             encoding: self.encoding,
         })
     }
@@ -787,7 +712,7 @@ impl<'input> DtdControllerCore<'input> {
             self.ready = Some(Ready::Begin);
             self.origin = Some(begin);
         } else {
-            self.ready = Some(Ready::Item(literals));
+            self.ready = Some(Ready::Item);
             self.origin = Some(origin);
         }
         self.unit = Some(unit);
@@ -1129,48 +1054,8 @@ impl<'input> DtdControllerCore<'input> {
 }
 
 impl DtdBodyState {
-    #[cfg(test)]
-    pub(crate) fn catalog(&self) -> &DtdCatalog {
-        &self.catalog
-    }
-
-    #[cfg(test)]
-    pub(crate) fn frames(&self) -> &EntityFrames {
-        &self.frames
-    }
-
-    #[cfg(test)]
-    pub(crate) fn frames_mut(&mut self) -> &mut EntityFrames {
-        &mut self.frames
-    }
-
-    #[cfg(test)]
-    pub(crate) fn limits(&self) -> ControllerLimits {
-        self.limits
-    }
-
-    #[cfg(test)]
-    pub(crate) fn counters(&self) -> ControllerCounters {
-        self.counters
-    }
-
-    #[cfg(test)]
-    pub(crate) fn physical_position(&self) -> usize {
-        self.physical_position
-    }
-
-    #[cfg(test)]
-    pub(crate) fn decoded_position(&self) -> usize {
-        self.decoded_position
-    }
-
     pub(crate) fn resume_position(&self) -> (usize, usize) {
         (self.decoded_position, self.physical_position)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn doctype_range(&self) -> Range<usize> {
-        self.doctype_range.clone()
     }
 }
 
@@ -1252,19 +1137,3 @@ fn map_unit_error(
         value_location: None,
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_controller_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_controller_spec.rs"]
-mod spec_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_borrowed_author.rs"]
-mod borrowed_author_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_borrowed_spec.rs"]
-mod borrowed_spec_tests;

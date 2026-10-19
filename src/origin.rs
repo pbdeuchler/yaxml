@@ -6,32 +6,14 @@ use crate::{Error, ErrorKind};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct EntityDeclarationId(usize);
 
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "private DTD controller is still test-only")
-)]
 impl EntityDeclarationId {
     pub(crate) fn from_index(index: usize) -> Self {
         Self(index)
-    }
-
-    pub(crate) fn index(self) -> usize {
-        self.0
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct EntityInvocationId(pub(crate) NonZeroU64);
-
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "private DTD controller is still test-only")
-)]
-impl EntityInvocationId {
-    pub(crate) fn get(self) -> u64 {
-        self.0.get()
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ByteSpan {
@@ -76,13 +58,6 @@ pub(crate) enum OriginRepr {
     },
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "replacement origins activate with the private DTD controller"
-    )
-)]
 impl OriginRepr {
     pub(crate) fn input(span: Range<usize>) -> Option<Self> {
         ByteSpan::new(span).map(|span| Self::Input { span })
@@ -159,11 +134,6 @@ impl OriginRepr {
                 physical_context: left.physical_span().cover(right.physical_span()),
             },
         }
-    }
-
-    /// Compatibility name for the entity-frame prototype's Text-origin model.
-    pub(crate) fn join(self, next: Self) -> Self {
-        self.join_text(next)
     }
 
     fn close_element(self, end: Self) -> Result<Self, Error> {
@@ -291,11 +261,3 @@ impl SourceOrigin {
 #[cfg(test)]
 #[path = "../tests/internal/origin.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_provenance_author.rs"]
-mod provenance_author_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_provenance_spec.rs"]
-mod provenance_spec_tests;

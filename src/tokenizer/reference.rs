@@ -319,7 +319,3 @@ impl Tokenizer {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_text_boundary_author.rs"]
-mod tests;

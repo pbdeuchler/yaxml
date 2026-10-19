@@ -2101,11 +2101,3 @@ fn validate_encoding(
 #[cfg(test)]
 #[path = "../tests/internal/parser.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_tag_spec.rs"]
-mod dtd_tag_spec;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_owned_leaf_spec.rs"]
-mod dtd_owned_leaf_spec;

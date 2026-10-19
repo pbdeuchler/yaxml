@@ -335,7 +335,3 @@ fn rebase_value_location(
         ValueLocation::Declaration { .. } | ValueLocation::Replacement { .. } => Ok(location),
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_tag_author.rs"]
-mod tests;

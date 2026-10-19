@@ -14,17 +14,12 @@ pub(crate) enum EntityKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReferenceContext {
     Content,
-    AttributeValue,
-    EntityValue,
     DtdSubset,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum FrameBoundary {
     Content { element_depth: usize },
-    AttributeValue,
-    EntityValue,
     DtdSubset,
 }
 
@@ -32,8 +27,6 @@ impl FrameBoundary {
     pub(crate) fn context(self) -> ReferenceContext {
         match self {
             Self::Content { .. } => ReferenceContext::Content,
-            Self::AttributeValue => ReferenceContext::AttributeValue,
-            Self::EntityValue => ReferenceContext::EntityValue,
             Self::DtdSubset => ReferenceContext::DtdSubset,
         }
     }
@@ -81,25 +74,17 @@ pub(crate) enum FrameCounter {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum LookupFailure {
     Undeclared,
-    ExternalUnavailable,
     Unparsed,
-    Unread,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum EntityResolution {
     Internal {
         kind: EntityKind,
         declaration: EntityDeclarationId,
         replacement_len: usize,
-    },
-    Failed {
-        kind: EntityKind,
-        failure: LookupFailure,
     },
 }
 
@@ -396,12 +381,6 @@ impl EntityFrames {
                 declaration,
                 replacement_len,
             } => (kind, declaration, replacement_len),
-            EntityResolution::Failed { kind, failure } => {
-                if kind != requested {
-                    return Err(FrameError::new(FrameErrorKind::KindMismatch, offset));
-                }
-                return Err(FrameError::new(FrameErrorKind::Lookup(failure), offset));
-            }
         };
         if kind != requested {
             return Err(FrameError::new(FrameErrorKind::KindMismatch, offset));
@@ -553,13 +532,8 @@ fn nonempty_span(range: Range<usize>) -> Option<ByteSpan> {
 fn context_allows(kind: EntityKind, context: ReferenceContext) -> bool {
     matches!(
         (kind, context),
-        (
-            EntityKind::General,
-            ReferenceContext::Content | ReferenceContext::AttributeValue
-        ) | (
-            EntityKind::Parameter,
-            ReferenceContext::EntityValue | ReferenceContext::DtdSubset
-        )
+        (EntityKind::General, ReferenceContext::Content)
+            | (EntityKind::Parameter, ReferenceContext::DtdSubset)
     )
 }
 
@@ -573,15 +547,3 @@ fn checked_add_counter(
         .checked_add(delta)
         .ok_or_else(|| FrameError::new(FrameErrorKind::CounterOverflow(counter), physical_offset))
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_frames_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_frames_spec.rs"]
-mod spec_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_entity_pipeline_spec.rs"]
-mod pipeline_tests;

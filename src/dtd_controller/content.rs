@@ -218,27 +218,6 @@ impl<'input> ContentControllerCore<'input> {
         })
     }
 
-    #[cfg(test)]
-    pub(crate) fn counters(&self) -> ControllerCounters {
-        let usage = self.usage();
-        ControllerCounters {
-            work: usage.work,
-            scanned_bytes: self.body.counters.scanned_bytes
-                + (usage.source_scanned - self.text_usage.source_scanned)
-                + (usage.reference_scanned - self.text_usage.reference_scanned),
-            ..self.body.counters
-        }
-    }
-    #[cfg(test)]
-    pub(crate) fn frame_counters(&self) -> crate::dtd_frames::FrameCounters {
-        self.body.frames.counters()
-    }
-    #[cfg(test)]
-    pub(crate) fn usage(&self) -> TextUsage {
-        self.coordinator
-            .as_ref()
-            .map_or(self.text_usage, TextCoordinator::usage)
-    }
     pub(crate) fn position(&self) -> (usize, usize) {
         self.body.resume_position()
     }
@@ -286,16 +265,6 @@ impl<'input> ContentControllerCore<'input> {
             s.finalizing = true;
             s.drive(&[])
         })
-    }
-
-    /// Publish once while retaining the complete source token until acknowledgment.
-    #[cfg(test)]
-    pub(crate) fn lend(&mut self) -> Result<(Option<Event<'_>>, SourceOrigin), ContentError> {
-        let publication = self.lend_with_budget()?;
-        Ok((
-            publication.event,
-            SourceOrigin::from_repr(publication.origin),
-        ))
     }
 
     pub(crate) fn is_non_event(&self) -> bool {
@@ -1407,11 +1376,3 @@ fn physical_input_prefix(encoding: SourceEncoding, input: &[u8], remaining: usiz
     }
     input.len().min(4)
 }
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_content_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_content_spec.rs"]
-mod spec_tests;

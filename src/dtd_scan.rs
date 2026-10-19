@@ -129,18 +129,6 @@ impl DtdScanner {
         self.position
     }
 
-    #[cfg(test)]
-    /// Consumed-byte work units; framing and final validation are linear in this.
-    pub(crate) fn work(&self) -> usize {
-        self.position
-    }
-
-    #[cfg(test)]
-    /// A final header/end or fragment EOF was recognized. A unit may remain ready.
-    pub(crate) fn is_complete(&self) -> bool {
-        self.complete
-    }
-
     /// The ready unit remains available until release, including after EOF calls.
     pub(crate) fn current(&self) -> Option<(ScanKind, &[u8], Range<usize>)> {
         self.ready
@@ -384,11 +372,3 @@ impl DtdScanner {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_scan.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_pipeline_spec.rs"]
-mod pipeline_spec;

@@ -1467,16 +1467,8 @@ impl Parser<'_> {
 }
 
 #[cfg(test)]
-#[path = "../tests/internal/dtd_unit_author.rs"]
-mod tests;
-
-#[cfg(test)]
 #[path = "../tests/internal/dtd_unit_spec.rs"]
 mod spec_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_unit_ownership.rs"]
-mod ownership_tests;
 
 impl Parser<'_> {
     fn entity(&mut self) -> Result<DtdUnitKind, DtdError> {

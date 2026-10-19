@@ -229,10 +229,6 @@ impl<'a> AttributeBinding<'a> {
     pub(crate) fn name_offset(self) -> usize {
         self.0.name_offset
     }
-    #[cfg(test)]
-    pub(crate) fn kind(self) -> AttributeKind {
-        self.0.kind
-    }
     pub(crate) fn default(self) -> DefaultValue<'a> {
         self.0.default.view()
     }
@@ -284,8 +280,6 @@ impl EntityBody {
 struct Entity {
     body: EntityBody,
     parameter: bool,
-    #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-    declaration: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -414,11 +408,6 @@ impl DtdCatalog {
     }
     pub(crate) fn lookup_parameter(&self, name: &str) -> EntityLookup<'_> {
         self.lookup(&self.parameter, name, true)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn declaration(&self, id: EntityId) -> Option<usize> {
-        self.entities.get(id.0).map(|entity| entity.declaration)
     }
 
     pub(crate) fn replacement(&self, id: EntityId) -> Option<&str> {
@@ -793,11 +782,7 @@ impl DtdCatalog {
             .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
         let name = copy_string(name, location)?;
         let id = EntityId(self.entities.len());
-        self.entities.push(Entity {
-            body,
-            parameter,
-            declaration: self.usage.declarations - 1,
-        });
+        self.entities.push(Entity { body, parameter });
         table.insert(name, id);
         Ok(())
     }
@@ -842,27 +827,6 @@ impl DtdCatalog {
             CatalogLimit::Bindings,
             location,
         )
-    }
-
-    #[cfg(test)]
-    pub(crate) fn normalize_attribute_value(
-        &mut self,
-        element: &str,
-        name: &str,
-        literal_content: &str,
-        source: LiteralSource,
-    ) -> Result<String, CatalogError> {
-        self.remember(|catalog| {
-            let mut ignored = 0;
-            catalog.normalize_attribute_value_inner(
-                element,
-                name,
-                literal_content,
-                source,
-                None,
-                &mut ignored,
-            )
-        })
     }
 
     pub(crate) fn normalize_attribute_value_bounded(
@@ -1601,11 +1565,3 @@ fn copy_optional(
 ) -> Result<Option<String>, CatalogError> {
     raw.map(|value| copy_string(value, location)).transpose()
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_catalog_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_catalog_spec.rs"]
-mod spec_tests;

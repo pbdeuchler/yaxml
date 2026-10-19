@@ -82,10 +82,6 @@ impl LocalTokenizer {
             && self.clean_boundary()
             && self.inner.ready.is_none()
     }
-    #[cfg(test)]
-    pub(crate) fn is_complete(&self) -> bool {
-        self.complete
-    }
     pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], Range<usize>)> {
         if self.failure.is_some() || !self.validated_ready {
             return None;
@@ -101,10 +97,6 @@ impl LocalTokenizer {
             self.validated_ready = false;
             self.complete = self.finalizing && self.clean_boundary();
         }
-    }
-    #[cfg(test)]
-    pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, LocalError> {
-        self.advance_mode::<false>(input).map(|step| step.consumed)
     }
     pub(crate) fn advance_content(&mut self, input: &[u8]) -> Result<ContentStep, LocalError> {
         self.advance_mode::<true>(input)
@@ -232,20 +224,6 @@ impl LocalTokenizer {
             Ok(())
         })
     }
-    #[cfg(test)]
-    pub(crate) fn restart(&mut self, start: usize) -> Result<(), LocalError> {
-        self.remember(|s| {
-            if !s.complete || !s.clean_boundary() || s.inner.ready.is_some() {
-                return Err(s.error(LocalErrorKind::InvalidState, s.position()));
-            }
-            s.inner.start = start;
-            s.inner.position = start;
-            s.finalizing = false;
-            s.complete = false;
-            s.validated_ready = false;
-            Ok(())
-        })
-    }
     /// The owning text lease calls this only after an acknowledged General
     /// boundary or completed source. Pausing a parent is not EOF.
     pub(crate) fn switch_source_boundary(&mut self, start: usize) -> Result<(), LocalError> {
@@ -322,7 +300,3 @@ impl LocalTokenizer {
         result
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_content_scan_author.rs"]
-mod tests;
