@@ -27,11 +27,6 @@ pub(crate) struct ContentStep {
     pub(crate) outcome: ContentOutcome,
 }
 
-enum LocalBuffer<'input> {
-    Fresh(LocalTokenizer),
-    Released(TextSourceLease<'input>),
-}
-
 /// A published event, borrowing source storage until acknowledged.
 pub(crate) struct LentContent<'event> {
     pub(crate) event: Option<Event<'event>>,
@@ -44,7 +39,8 @@ pub(crate) struct ContentControllerCore<'input> {
     parser: ParserState<'input>,
     coordinator: TextCoordinator<'input>,
     paused_input: Option<TextSourceLease<'input>>,
-    local: Option<LocalBuffer<'input>>,
+    /// The replacement-text source, parked while physical input is read.
+    local: Option<TextSourceLease<'input>>,
     finalizing: bool,
     complete: bool,
 }
@@ -83,12 +79,6 @@ impl<'input> ContentControllerCore<'input> {
     ) -> Result<Self, Error> {
         let fail = |kind| Error::new(kind, body.physical_position);
         let shared = TextShared::new(body.limits, body.counters.work).map_err(fail)?;
-        let local = LocalTokenizer::new(0, body.limits.token, body.limits.work);
-        // Local adoption is also checked when the invocation exists. Reject an
-        // impossible configured slot now, before any frame can be published.
-        if local.scratch_capacity_requirement() > body.limits.scratch {
-            return Err(fail(ErrorKind::LimitExceeded(Limit::TokenBytes)));
-        }
         let coordinator = TextCoordinator::new(shared, input)
             .map_err(|error| Error::new(error.kind, error.offset))?;
         Ok(Self {
@@ -96,7 +86,7 @@ impl<'input> ContentControllerCore<'input> {
             parser,
             coordinator,
             paused_input: None,
-            local: Some(LocalBuffer::Fresh(local)),
+            local: None,
             finalizing: false,
             complete: false,
         })
@@ -313,9 +303,13 @@ impl<'input> ContentControllerCore<'input> {
         self.coordinator.release_general();
         let result = (|| {
             if was_physical {
-                let local = match self.local.take().expect("parked local") {
-                    LocalBuffer::Fresh(tokenizer) => TextSourceLease::local(tokenizer, invocation),
-                    LocalBuffer::Released(mut lease) => {
+                let local = match self.local.take() {
+                    None => {
+                        let limits = self.body.limits;
+                        let tokenizer = LocalTokenizer::new(0, limits.token, limits.work);
+                        TextSourceLease::local(tokenizer, invocation)
+                    }
+                    Some(mut lease) => {
                         lease.switch_local_at_boundary(invocation, 0)?;
                         lease
                     }
@@ -346,7 +340,7 @@ impl<'input> ContentControllerCore<'input> {
             None => {
                 let paused = self.paused_input.take().expect("paused primary input");
                 let local = std::mem::replace(self.coordinator.source_mut(), paused);
-                self.local = Some(LocalBuffer::Released(local));
+                self.local = Some(local);
                 Ok(())
             }
         };
