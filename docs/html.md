@@ -104,6 +104,20 @@ html5lib-style tokenizer inputs) plus, with the source tree, libxml2's
 `--nodefdtd`). At last run all 7043 inputs matched in every mode, error
 counts included.
 
+## Fuzzing
+
+`fuzz/html.rs` derives options, small limits and a push chunk schedule from
+each input and checks that push equals pull, tree invariants and that saved
+output reparses (see [fuzz/README.md](../fuzz/README.md)). Seeded with the
+corpus snippets and libxml2's `test/HTML` files,
+`cargo +nightly fuzz run html fuzz/corpus/html fuzz/corpus -- -max_total_time=360 -max_len=16384`
+ran 302,479 inputs in 6 minutes without failure. Its smoke tests had found two
+chunk-dependence bugs, and an earlier run an over-strict reparse invariant
+(`fuzz/regressions/html-reparse-prescan.html`). `fuzz/coverage.sh html` on the
+resulting corpus covers 99.8% of tokenizer lines (98.7% of branches), 98.8%
+of tree lines (92.9%), 94.2% of serializer lines (92.3%), 94.9% of encoding
+lines (93.6%) and 98.3% of the driver (90.4%).
+
 ## Known differences
 
 - libxml2's push parser delivers text at chunk boundaries, so its `NOBLANKS`
