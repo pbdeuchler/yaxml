@@ -1521,7 +1521,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
                 let opening = record
                     .source
                     .ok_or_else(|| Error::new(ErrorKind::InvalidState, offset))?;
-                record.source = Some(opening.close_element(origin)?);
+                record.source = Some(opening.close_element(origin));
                 self.parents.pop();
                 // Parsing still appends in preorder. Closing an element gives
                 // its count directly, without updating every open ancestor.
@@ -1622,7 +1622,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             let record = &mut self.nodes[id.0];
             record.subtree_size = count - id.0;
             if let (Content::Element { .. }, Some(source)) = (&record.content, record.source) {
-                record.source = Some(source.close_element(stop).unwrap_or(source));
+                record.source = Some(source.close_element(stop));
             }
         }
         // Recovery keeps a document without an element unless the input is

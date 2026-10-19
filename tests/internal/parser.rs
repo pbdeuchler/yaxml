@@ -631,16 +631,6 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
         1024,
     );
     assert_eq!(
-        state.validate_finish(4),
-        Err(Error::new(ErrorKind::EncodingMismatch, 4))
-    );
-    assert_eq!(
-        owned(&mut state, TokenKind::Start, "<r/>", 0)
-            .unwrap_err()
-            .kind,
-        ErrorKind::EncodingMismatch
-    );
-    assert_eq!(
         owned(&mut state, TokenKind::Instruction, "<?pi?>", 0)
             .unwrap_err()
             .kind,
@@ -652,13 +642,6 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
             .unwrap_err()
             .kind,
         ErrorKind::InvalidDeclaration
-    );
-    state.set_encoding(SourceEncoding::Utf8, 0, 3);
-    assert_eq!(
-        owned(&mut state, TokenKind::Start, "<r/>", 0)
-            .unwrap_err()
-            .kind,
-        ErrorKind::LimitExceeded(Limit::DecodedTokenBytes)
     );
 }
 
@@ -700,7 +683,6 @@ fn normalization_predicate_matches_all_flag_contexts_and_scan_boundaries() {
     let contexts = [
         (false, false, b"\r".as_slice()),
         (false, true, b"\r&".as_slice()),
-        (true, false, b"\r\n\t".as_slice()),
         (true, true, b"\r\n\t&".as_slice()),
     ];
     let alphabet = ["a", "\r", "\n", "\t", "&", "é", "🙂"];

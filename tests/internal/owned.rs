@@ -680,8 +680,9 @@ fn utf8_owned_fast_path_applies_decoded_limits_without_retention_charges() {
 }
 
 #[test]
-fn closing_requires_existing_provenance_and_forward_token_order() {
-    for source in [None, Some(SourceOrigin::input(4..7))] {
+fn closing_requires_existing_provenance() {
+    {
+        let source = None;
         let mut input = Reader::new(b"<r></r>").unwrap();
         let mut builder = OwnedBuilder::new(7, 0, Global).unwrap();
         let start = input.read_event().unwrap().unwrap();

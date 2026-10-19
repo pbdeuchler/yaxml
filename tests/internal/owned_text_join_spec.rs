@@ -366,7 +366,7 @@ fn spec_owned_pool_quota_failure_is_atomic_and_exact_capacity_recovers() {
 }
 
 #[test]
-fn spec_bad_closure_is_atomic_and_generated_same_occurrence_body_gaps_close() {
+fn spec_generated_same_occurrence_body_gaps_close() {
     let mut state = ParserState::new(Limits::default(), 0);
     let mut b = OwnedBuilder::new(200, 0, Global).unwrap();
     b.consume(
@@ -381,16 +381,6 @@ fn spec_bad_closure_is_atomic_and_generated_same_occurrence_body_gaps_close() {
         state.owned_budget(),
     )
     .unwrap();
-    let saved = snapshot(&b);
-    assert_eq!(
-        b.consume(
-            Event::End(Name::new("r", None).unwrap()),
-            generated(8, 20..24),
-            state.owned_budget()
-        ),
-        Err(Error::new(ErrorKind::InvalidState, 103))
-    );
-    assert_eq!(snapshot(&b), saved);
     b.consume(
         Event::End(Name::new("r", None).unwrap()),
         generated(7, 20..24),

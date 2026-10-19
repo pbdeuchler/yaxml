@@ -174,7 +174,7 @@ impl<'input> Document<'input> {
                     })?;
                     let subtree_end = document.nodes.len();
                     let record = &mut document.nodes[id.0];
-                    record.origin = record.origin.close_element(origin)?;
+                    record.origin = record.origin.close_element(origin);
                     parents.pop();
                     record.subtree_end = subtree_end;
                 }
@@ -241,7 +241,7 @@ impl<'input> Document<'input> {
             let record = &mut document.nodes[id.0];
             record.subtree_end = count;
             if let NodeKind::Element(_) = record.kind {
-                record.origin = record.origin.close_element(stop).unwrap_or(record.origin);
+                record.origin = record.origin.close_element(stop);
             }
         }
         // Recovery keeps a document without an element, as libxml2 does

@@ -37,10 +37,8 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
     match (attribute, references) {
         (false, false) => memchr(b'\r', bytes).is_some(),
         (false, true) => memchr2(b'\r', b'&', bytes).is_some(),
-        (true, false) => memchr3(b'\r', b'\n', b'\t', bytes).is_some(),
-        (true, true) => {
-            memchr3(b'\r', b'\n', b'&', bytes).is_some() || memchr(b'\t', bytes).is_some()
-        }
+        // Attribute values always expand references.
+        (true, _) => memchr3(b'\r', b'\n', b'&', bytes).is_some() || memchr(b'\t', bytes).is_some(),
     }
 }
 
