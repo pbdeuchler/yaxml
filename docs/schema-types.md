@@ -120,3 +120,7 @@ cache-independent results, and that `(P)*` and `(P)|literal` accept what
 they must. `fuzz/datatypes.rs` checks normalization idempotence, list items,
 reflexive comparison and equality, antisymmetry for totally ordered types,
 and every facet kind. See [fuzz/README.md](../fuzz/README.md).
+Two 330-second runs each on nightly-2026-06-06 (`-timeout=2`, ASan, the
+second on the final code): `regexp` 209,811 and 213,575 executions, `datatypes`
+6,531,538 and 4,171,035, no crashes, timeouts or leaks; the minimized corpora
+(`cargo fuzz cmin`) hold 898 and 3,710 inputs reaching 2,795 and 4,922 edges.

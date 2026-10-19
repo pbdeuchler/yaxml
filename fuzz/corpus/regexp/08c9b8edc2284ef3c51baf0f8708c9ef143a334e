@@ -1,0 +1,7 @@
+((a|b|\p{Pd}){1,2}|aabb{ba|)b1,2}
+bab
+aaca
+aaabbbb
+a0
+aaa0b.a
+b0aaa
