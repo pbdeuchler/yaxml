@@ -271,23 +271,30 @@ fn malformed_generated_units_report_local_and_real_reference_coordinates() {
 }
 
 #[test]
-fn unavailable_pe_and_default_values_never_publish_a_successful_end() {
+fn unread_pes_are_skipped_but_missing_default_entities_never_publish_an_end() {
+    for text in [
+        "<!DOCTYPE r [%missing;]>",
+        "<!DOCTYPE r [<!ENTITY % e SYSTEM 'urn:x'>%e;]>",
+    ] {
+        let (controller, _, _, result) = collect(
+            text.as_bytes(),
+            0,
+            SourceEncoding::Utf8,
+            0,
+            ControllerLimits::default(),
+        );
+        result.unwrap();
+        assert!(controller.is_complete(), "{text}");
+    }
+    let missing = ControllerErrorKind::Catalog(CatalogErrorKind::EntityDeclared);
     let cases = [
         (
-            "<!DOCTYPE r [%missing;]>",
-            ControllerErrorKind::Unavailable(PeUnavailable::Undeclared),
-        ),
-        (
-            "<!DOCTYPE r [<!ENTITY % e SYSTEM 'urn:x'>%e;]>",
-            ControllerErrorKind::Unavailable(PeUnavailable::External),
-        ),
-        (
             "<!DOCTYPE r [<!ENTITY e '&later;'><!ATTLIST r a CDATA '&e;'>]>",
-            ControllerErrorKind::ValueUnavailable(DependencyKind::MissingReadDeclaration),
+            missing,
         ),
         (
             "<!DOCTYPE r [<!ENTITY e '&later;'><!ATTLIST r a CDATA 'first'><!ATTLIST r a CDATA '&e;'>]>",
-            ControllerErrorKind::ValueUnavailable(DependencyKind::MissingReadDeclaration),
+            missing,
         ),
     ];
     for (text, kind) in cases {

@@ -1,9 +1,9 @@
 //! A sealed replacement-local view of the existing XML tokenizer.
 use super::reference::{ContentStep, ContentStop, ReferenceCursor, ReferenceExtent};
 use super::{ReadySpan, Scan, TokenKind, Tokenizer};
+use crate::ErrorKind;
 use crate::dtd_reference::ValidatedReference;
 use crate::escape::xml_char;
-use crate::{ErrorKind, Limit};
 use std::ops::Range;
 
 #[derive(Clone, Copy, Debug)]
@@ -82,6 +82,7 @@ impl LocalTokenizer {
             && self.clean_boundary()
             && self.inner.ready.is_none()
     }
+    #[cfg(test)]
     pub(crate) fn is_complete(&self) -> bool {
         self.complete
     }
@@ -101,6 +102,7 @@ impl LocalTokenizer {
             self.complete = self.finalizing && self.clean_boundary();
         }
     }
+    #[cfg(test)]
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, LocalError> {
         self.advance_mode::<false>(input).map(|step| step.consumed)
     }
@@ -230,6 +232,7 @@ impl LocalTokenizer {
             Ok(())
         })
     }
+    #[cfg(test)]
     pub(crate) fn restart(&mut self, start: usize) -> Result<(), LocalError> {
         self.remember(|s| {
             if !s.complete || !s.clean_boundary() || s.inner.ready.is_some() {

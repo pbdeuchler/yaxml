@@ -4,8 +4,8 @@ use std::ops::Range;
 
 use crate::dtd::{DoctypeHeaderView, DtdErrorKind, DtdLimits, DtdUnit, DtdUnitView};
 use crate::dtd_catalog::{
-    CatalogErrorKind, CatalogLimits, DeclarationContext, DependencyKind, DtdCatalog, EntityId,
-    EntityLookup, LiteralSource, ValueLocation,
+    CatalogErrorKind, CatalogLimits, DeclarationContext, DtdCatalog, EntityId, EntityLookup,
+    LiteralSource, ValueLocation,
 };
 use crate::dtd_frames::{
     ByteSpan, EntityDeclarationId, EntityFrames, EntityKind, EntityResolution, FragmentOrigin,
@@ -64,22 +64,11 @@ pub(crate) enum ControllerLimit {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PeUnavailable {
-    Undeclared,
-    External,
-    Unparsed,
-    Unread,
-    Dependency(DependencyKind),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ControllerErrorKind {
     Scan(ScanErrorKind),
     Grammar(DtdErrorKind),
     Catalog(CatalogErrorKind),
     Frame(FrameErrorKind),
-    Unavailable(PeUnavailable),
-    ValueUnavailable(DependencyKind),
     Ownership(ErrorKind),
     Limit(ControllerLimit),
     PositionOverflow,
@@ -98,6 +87,7 @@ pub(crate) struct ControllerError {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum DtdEvent<'a> {
     Begin(DoctypeHeaderView<'a>),
     Item {
@@ -107,6 +97,7 @@ pub(crate) enum DtdEvent<'a> {
     End,
 }
 
+#[cfg(test)]
 #[derive(Debug)]
 pub(crate) enum TakenDtdEvent<'a> {
     Begin(DtdUnit<'a>),
@@ -146,6 +137,7 @@ pub(crate) struct DtdBodyState {
     counters: ControllerCounters,
     decoded_position: usize,
     physical_position: usize,
+    #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
     doctype_range: Range<usize>,
     encoding: SourceEncoding,
 }
@@ -178,6 +170,7 @@ pub(crate) type DtdController = DtdControllerCore<'static>;
 pub(crate) type BorrowedDtdController<'input> = DtdControllerCore<'input>;
 
 impl DtdControllerCore<'static> {
+    #[cfg(test)]
     pub(crate) fn new(
         encoding: SourceEncoding,
         physical_start: usize,
@@ -275,15 +268,21 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn physical_position(&self) -> usize {
         self.position
     }
+    #[cfg(test)]
     pub(crate) fn counters(&self) -> ControllerCounters {
         self.counters
     }
+    #[cfg(test)]
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.catalog
     }
     pub(crate) fn is_complete(&self) -> bool {
         self.complete
     }
+    pub(crate) fn start(&self) -> usize {
+        self.start
+    }
+    #[cfg(test)]
     pub(crate) fn doctype_range(&self) -> Option<Range<usize>> {
         self.complete.then_some(self.start..self.position)
     }
@@ -303,6 +302,7 @@ impl<'input> DtdControllerCore<'input> {
         Some((event, self.origin?))
     }
 
+    #[cfg(test)]
     pub(crate) fn take_current(&mut self) -> Option<(TakenDtdEvent<'input>, FragmentOrigin)> {
         let ready = self.ready?;
         let _origin = self.origin.expect("ready DTD event has an origin");
@@ -689,7 +689,7 @@ impl<'input> DtdControllerCore<'input> {
             },
         );
         self.counters.work += self.catalog.usage().work - before;
-        let effect = result.map_err(|error| {
+        result.map_err(|error| {
             let kind = if error.kind
                 == CatalogErrorKind::Limit(crate::dtd_catalog::CatalogLimit::Work)
                 && ceiling <= self.limits.catalog.max_work
@@ -712,15 +712,6 @@ impl<'input> DtdControllerCore<'input> {
             mapped.value_location = Some(error.location);
             mapped
         })?;
-        if let Some(dependency) = effect.unavailable {
-            let mut error = self.error_for_origin(
-                ControllerErrorKind::ValueUnavailable(dependency.kind),
-                origin,
-                None,
-            );
-            error.value_location = Some(dependency.location);
-            return Err(error);
-        }
         if header {
             self.started = true;
             let DtdUnitView::Header(view) = unit.view() else {
@@ -749,7 +740,9 @@ impl<'input> DtdControllerCore<'input> {
         side: Side,
         origin: FragmentOrigin,
     ) -> Result<(), ControllerError> {
-        let (id, resolution, unavailable) = {
+        // libxml2 sets hasPErefs before resolving the name.
+        self.catalog.note_parameter_reference();
+        let (id, resolution) = {
             let raw = match side {
                 Side::Physical => self.physical.current(),
                 Side::Replacement => self.fragment.current(),
@@ -757,54 +750,45 @@ impl<'input> DtdControllerCore<'input> {
             .expect("parameter raw")
             .1;
             let raw = std::str::from_utf8(raw).expect("validated PE reference");
-            let lookup = self.catalog.lookup_parameter(&raw[1..raw.len() - 1]);
-            match lookup {
+            match self.catalog.lookup_parameter(&raw[1..raw.len() - 1]) {
                 EntityLookup::Internal { id, replacement } => (
-                    Some(id),
+                    id,
                     EntityResolution::Internal {
                         kind: EntityKind::Parameter,
                         declaration: EntityDeclarationId::from_index(id.index()),
                         replacement_len: replacement.len(),
                     },
-                    None,
                 ),
-                other => {
-                    let (failure, unavailable) = match other {
-                        EntityLookup::ExternalUnavailable { .. } => {
-                            (LookupFailure::ExternalUnavailable, PeUnavailable::External)
-                        }
-                        EntityLookup::Unparsed { .. } => {
-                            (LookupFailure::Unparsed, PeUnavailable::Unparsed)
-                        }
-                        EntityLookup::UnreadEntity => {
-                            (LookupFailure::Unread, PeUnavailable::Unread)
-                        }
-                        EntityLookup::Unavailable(dependency) => (
-                            LookupFailure::Unread,
-                            PeUnavailable::Dependency(dependency.kind),
-                        ),
-                        _ => (LookupFailure::Undeclared, PeUnavailable::Undeclared),
-                    };
-                    (
+                // External subsets and entities are not loaded; like libxml2's
+                // failed load or undeclared warning, the reference is skipped.
+                EntityLookup::ExternalUnavailable { .. } | EntityLookup::UnreadEntity => {
+                    self.release_scanner(side);
+                    return Ok(());
+                }
+                EntityLookup::Unparsed { .. } => {
+                    return Err(self.error_for_origin(
+                        ControllerErrorKind::Frame(FrameErrorKind::Lookup(LookupFailure::Unparsed)),
+                        origin,
                         None,
-                        EntityResolution::Failed {
-                            kind: EntityKind::Parameter,
-                            failure,
-                        },
-                        Some(unavailable),
-                    )
+                    ));
+                }
+                EntityLookup::Predefined(_) | EntityLookup::Undeclared => {
+                    return Err(self.error_for_origin(
+                        ControllerErrorKind::Frame(FrameErrorKind::Lookup(
+                            LookupFailure::Undeclared,
+                        )),
+                        origin,
+                        None,
+                    ));
                 }
             }
         };
         // Keep the ID stack ready before frames publish a child or move its parent.
         // Failed lookups and depth failures never need another active slot.
-        if id.is_some() && self.active.len() < self.limits.frames.max_active_depth {
+        if self.active.len() < self.limits.frames.max_active_depth {
             self.active.try_reserve(1).map_err(|_| {
                 self.error_for_origin(ControllerErrorKind::Allocation, origin, None)
             })?;
-        }
-        if unavailable.is_some() {
-            self.catalog.note_unread_parameter();
         }
         self.release_scanner(side);
         let before = self.frames.counters().work;
@@ -832,15 +816,6 @@ impl<'input> DtdControllerCore<'input> {
         self.counters.work += self.frames.counters().work - before;
         self.counters.reference_attempts = self.frames.counters().reference_attempts;
         if let Err(error) = result {
-            if matches!(error.kind, FrameErrorKind::Lookup(_))
-                && let Some(unavailable) = unavailable
-            {
-                return Err(self.error_for_origin(
-                    ControllerErrorKind::Unavailable(unavailable),
-                    origin,
-                    None,
-                ));
-            }
             return Err(self.error_for_origin(
                 if error.kind == FrameErrorKind::LimitExceeded(crate::dtd_frames::FrameLimit::Work)
                     && ceiling <= self.limits.frames.max_work
@@ -854,7 +829,7 @@ impl<'input> DtdControllerCore<'input> {
             ));
         }
 
-        self.active.push(id.expect("successful internal PE"));
+        self.active.push(id);
         Ok(())
     }
 
@@ -1068,30 +1043,37 @@ impl<'input> DtdControllerCore<'input> {
 }
 
 impl DtdBodyState {
+    #[cfg(test)]
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.catalog
     }
 
+    #[cfg(test)]
     pub(crate) fn frames(&self) -> &EntityFrames {
         &self.frames
     }
 
+    #[cfg(test)]
     pub(crate) fn frames_mut(&mut self) -> &mut EntityFrames {
         &mut self.frames
     }
 
+    #[cfg(test)]
     pub(crate) fn limits(&self) -> ControllerLimits {
         self.limits
     }
 
+    #[cfg(test)]
     pub(crate) fn counters(&self) -> ControllerCounters {
         self.counters
     }
 
+    #[cfg(test)]
     pub(crate) fn physical_position(&self) -> usize {
         self.physical_position
     }
 
+    #[cfg(test)]
     pub(crate) fn decoded_position(&self) -> usize {
         self.decoded_position
     }
@@ -1100,6 +1082,7 @@ impl DtdBodyState {
         (self.decoded_position, self.physical_position)
     }
 
+    #[cfg(test)]
     pub(crate) fn doctype_range(&self) -> Range<usize> {
         self.doctype_range.clone()
     }

@@ -261,7 +261,9 @@ fn drive(
         let result = pull.read_event();
         match result {
             Ok(Some((event, origin))) => {
-                let range = origin.input_range().expect("direct input event");
+                let range = origin
+                    .input_range()
+                    .unwrap_or_else(|| origin.physical_context());
                 assert!(range.start <= range.end && range.end <= input.len());
                 let lookahead = if matches!(&event, Event::Text(_)) {
                     if encoding::recognizes(input) { 2 } else { 1 }
@@ -286,7 +288,7 @@ fn drive(
                         event,
                         value,
                         range.clone(),
-                        expected.event_range().expect("direct input event"),
+                        super::span(expected.event_origin().unwrap()),
                     );
                 }
                 count += 1;

@@ -1,7 +1,7 @@
 use std::ops::{ControlFlow, Range};
 
 use crate::parser::Budget;
-use crate::stream::Stream;
+use crate::stream::dtd::StreamingSession;
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, SourceOrigin};
 
 /// Incremental XML 1.0 parsing with a bounded scratch token and no retained input.
@@ -22,10 +22,9 @@ use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, Sou
 /// a later invalid byte is discovered, and the first reported error can differ
 /// from the slice reader's whole-input UTF-8/character validation.
 pub struct PushParser {
-    stream: Stream,
+    session: StreamingSession,
     limits: Limits,
     received: usize,
-    origin: Option<SourceOrigin>,
     failure: Option<Error>,
     finished: bool,
 }
@@ -42,10 +41,9 @@ impl PushParser {
     /// Parses UTF-8 or UTF-16 with independent source and decoded ceilings.
     pub fn with_decode_limits(limits: Limits, decode_limits: DecodeLimits) -> Self {
         Self {
-            stream: Stream::new(limits, decode_limits),
+            session: StreamingSession::new(limits, decode_limits),
             limits,
             received: 0,
-            origin: None,
             failure: None,
             finished: false,
         }
@@ -54,13 +52,13 @@ impl PushParser {
     /// Source bytes consumed, including encoding detection and one scalar of lookahead
     /// when a `<` terminates text. On failure, a chunk's suffix can be unconsumed.
     pub fn position(&self) -> usize {
-        self.stream.position()
+        self.session.position()
     }
 
     /// Origin of the latest delivered event; absent before the first event.
     /// Stored before the callback, and retained after cancellation, failure or EOF.
     pub fn event_origin(&self) -> Option<SourceOrigin> {
-        self.origin
+        self.session.event_origin()
     }
 
     /// Exact original input span of the latest delivered event, when available.
@@ -153,22 +151,11 @@ impl PushParser {
         // A recovered callback panic must not permit reuse of partially
         // delivered tokens or mutated document state.
         self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
-        let origin = &mut self.origin;
-        let result = (|| {
-            let mut remaining = input;
-            while !remaining.is_empty() {
-                let consumed = self.stream.advance(remaining)?;
-                remaining = &remaining[consumed..];
-                if self.stream.has_token() {
-                    self.stream.emit(&mut |event, source, budget| {
-                        *origin = Some(source);
-                        emit(event, source, budget)
-                    })?;
-                    self.stream.release();
-                }
-            }
-            Ok(())
-        })();
+        let result = self
+            .session
+            .advance(input, &mut emit)
+            .map(drop)
+            .map_err(Error::from);
         self.remember(result)
     }
 
@@ -198,17 +185,7 @@ impl PushParser {
             return Ok(());
         }
         self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
-        let origin = &mut self.origin;
-        let result = (|| {
-            while self.stream.finish_step()? {
-                self.stream.emit(&mut |event, source, budget| {
-                    *origin = Some(source);
-                    emit(event, source, budget)
-                })?;
-                self.stream.release();
-            }
-            self.stream.validate_finish()
-        })();
+        let result = self.session.finish(&mut emit).map_err(Error::from);
         if result.is_ok() {
             self.finished = true;
         }

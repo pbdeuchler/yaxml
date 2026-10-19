@@ -1,4 +1,5 @@
 use super::*;
+use crate::Limit;
 fn limits() -> LocalLimits {
     LocalLimits {
         max_token_bytes: 128,

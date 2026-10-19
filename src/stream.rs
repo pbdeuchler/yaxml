@@ -4,7 +4,6 @@ use crate::parser::{Budget, ParserState};
 use crate::tokenizer::{TokenKind, Tokenizer};
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, SourceOrigin};
 
-#[cfg(test)]
 pub(crate) mod dtd;
 
 /// Concrete incremental engine shared by callback and lending frontends.
@@ -71,6 +70,7 @@ impl Stream {
         self.state.validate_finish(self.position())
     }
 
+    #[cfg(test)]
     pub(crate) fn event(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         let position = self.position();
         parse(&self.tokenizer, &mut self.state)?

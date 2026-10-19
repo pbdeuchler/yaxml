@@ -285,8 +285,6 @@ pub fn classify(case: Case<'_>, error: Option<&str>) -> Verdict {
         ("unscored", "discretionary-error")
     } else if case.entities != "none" {
         ("gap", "external-entity-processing")
-    } else if error == Some("UnsupportedDtd") {
-        ("gap", "dtd-processing")
     } else if error == Some("UnsupportedEncoding") {
         ("gap", "encoding-support")
     } else if case.kind == "not-wf" {
@@ -405,7 +403,6 @@ mod tests {
                 None,
                 ("mismatch", "unexpected-acceptance"),
             ),
-            (base, Some("UnsupportedDtd"), ("gap", "dtd-processing")),
             (
                 base,
                 Some("UnsupportedEncoding"),
@@ -531,7 +528,6 @@ mod tests {
         // successful negative conformance through a permissive fallback.
         for kind in ["valid", "invalid", "not-wf", "error"] {
             for error in [
-                "UnsupportedDtd",
                 "UnsupportedEncoding",
                 "Allocation",
                 "LimitExceeded(OwnedBytes)",

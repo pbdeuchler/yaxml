@@ -1,12 +1,22 @@
-//! Private callback-only streaming composition. Public frontends keep Stream.
+//! Streaming composition of the ordinary token loop with DTD and entity phases.
 use super::*;
-use crate::dtd_controller::content::{ContentController, ContentError, ContentOutcome};
-use crate::dtd_controller::{
-    ControllerCounters, ControllerError, ControllerLimits, DtdController, DtdEvent,
+use crate::dtd::{DtdErrorKind, DtdLimit, DtdLimits};
+use crate::dtd_catalog::{CatalogErrorKind, CatalogLimit, CatalogLimits};
+use crate::dtd_controller::content::{
+    ContentController, ContentError, ContentErrorKind, ContentOutcome,
 };
-use crate::dtd_frames::FragmentOrigin;
-use crate::tokenizer::local::LocalLimits;
-use crate::tokenizer::text::TextLimits;
+use crate::dtd_controller::{
+    ControllerError, ControllerErrorKind, ControllerLimit, ControllerLimits, DtdController,
+    DtdEvent,
+};
+use crate::dtd_frames::{FragmentOrigin, FrameErrorKind, FrameLimit, FrameLimits, LookupFailure};
+use crate::dtd_reference::{ReferenceErrorKind, ReferenceLimit, ReferenceLimits};
+use crate::dtd_scan::{ScanErrorKind, ScanLimit, ScanLimits};
+use crate::dtd_tag::DtdTagErrorKind;
+use crate::tokenizer::local::{LocalErrorKind, LocalLimits};
+use crate::tokenizer::reference::ReferenceCursorErrorKind;
+use crate::tokenizer::text::{TextErrorKind, TextLimits, TextScratchLimits};
+use crate::{Doctype, Limit};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SessionLimits {
@@ -15,10 +25,72 @@ pub(crate) struct SessionLimits {
     pub(crate) local: LocalLimits,
 }
 
-#[derive(Debug)]
-pub(crate) enum LocatedEvent<'event> {
-    Xml(Event<'event>),
-    Dtd(DtdEvent<'event>),
+impl SessionLimits {
+    /// Derives every private DTD ceiling from the public ones. Work ceilings
+    /// bound scanning and expansion together, so they scale with both inputs.
+    pub(crate) fn new(limits: Limits, decode: DecodeLimits) -> Self {
+        let token = limits.max_token_bytes;
+        let scratch = token.max(decode.max_decoded_token_bytes).saturating_mul(2);
+        let expansion = limits.max_entity_expansion_bytes;
+        let references = limits.max_entity_references;
+        let depth = limits.max_entity_depth;
+        let work = limits
+            .max_input_bytes
+            .saturating_add(expansion)
+            .saturating_mul(8);
+        Self {
+            declarations: ControllerLimits {
+                scan: ScanLimits {
+                    max_unit_bytes: token,
+                    max_scratch_bytes: token,
+                    max_work: work,
+                },
+                unit: DtdLimits {
+                    max_unit_bytes: token,
+                    max_tokens: token,
+                    max_model_depth: limits.max_depth,
+                    max_attribute_definitions: limits.max_attributes,
+                },
+                catalog: CatalogLimits {
+                    max_declarations: limits.max_dtd_bytes,
+                    max_bindings: limits.max_dtd_bytes,
+                    max_storage_bytes: limits.max_owned_bytes,
+                    max_value_bytes: token,
+                    max_expanded_bytes: expansion,
+                    max_work: work,
+                    max_references: references,
+                    max_depth: depth,
+                },
+                frames: FrameLimits {
+                    max_active_depth: depth,
+                    max_reference_attempts: references,
+                    max_work: work,
+                    max_expanded_bytes: expansion,
+                },
+                max_physical_bytes: limits.max_dtd_bytes,
+                max_work: work,
+                max_owned_bytes: limits.max_owned_bytes,
+            },
+            text: TextLimits {
+                max_work: work,
+                reference: ReferenceLimits {
+                    max_bytes: token,
+                    max_scratch_bytes: token,
+                    max_work: work,
+                },
+                scratch: TextScratchLimits {
+                    input_token_bytes: scratch,
+                    replacement_token_bytes: scratch,
+                    max_bytes: usize::MAX,
+                },
+            },
+            local: LocalLimits {
+                max_token_bytes: token,
+                max_scratch_bytes: token,
+                max_work: work,
+            },
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -62,6 +134,163 @@ impl From<ContentError> for SessionError {
     }
 }
 
+/// Every private phase failure surfaces as one public kind at its physical offset.
+impl From<SessionError> for Error {
+    fn from(error: SessionError) -> Self {
+        let kind = match error {
+            SessionError::Xml(error) => return error,
+            SessionError::Dtd(error) => controller_kind(error.kind),
+            SessionError::Content(error) => content_kind(error.kind),
+            SessionError::Allocation { .. } => ErrorKind::Allocation,
+            SessionError::Poisoned { .. } => ErrorKind::InvalidState,
+        };
+        Error::new(kind, error.physical_offset())
+    }
+}
+
+const fn limit(limit: Limit) -> ErrorKind {
+    ErrorKind::LimitExceeded(limit)
+}
+
+fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
+    match kind {
+        ControllerErrorKind::Scan(kind) => match kind {
+            ScanErrorKind::Syntax => ErrorKind::InvalidDtd,
+            ScanErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
+            ScanErrorKind::InvalidUtf8 => ErrorKind::InvalidUtf8,
+            ScanErrorKind::Limit(ScanLimit::UnitBytes | ScanLimit::ScratchBytes) => {
+                limit(Limit::TokenBytes)
+            }
+            ScanErrorKind::Limit(ScanLimit::Work) => limit(Limit::EntityExpansion),
+            ScanErrorKind::Allocation => ErrorKind::Allocation,
+        },
+        ControllerErrorKind::Grammar(kind) => match kind {
+            DtdErrorKind::InvalidName => ErrorKind::InvalidName,
+            DtdErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
+            DtdErrorKind::InvalidReference => ErrorKind::InvalidReference,
+            DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes | DtdLimit::Tokens) => {
+                limit(Limit::TokenBytes)
+            }
+            DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth) => limit(Limit::Depth),
+            DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions) => limit(Limit::Attributes),
+            DtdErrorKind::Allocation => ErrorKind::Allocation,
+            DtdErrorKind::Syntax
+            | DtdErrorKind::InvalidNmtoken
+            | DtdErrorKind::InvalidPublicIdentifier
+            | DtdErrorKind::SystemIdentifierFragment
+            | DtdErrorKind::ReservedPiTarget => ErrorKind::InvalidDtd,
+        },
+        ControllerErrorKind::Catalog(kind) => catalog_kind(kind),
+        ControllerErrorKind::Frame(kind) => frame_kind(kind),
+        ControllerErrorKind::Ownership(kind) => kind,
+        ControllerErrorKind::Limit(ControllerLimit::PhysicalBytes) => limit(Limit::DtdBytes),
+        ControllerErrorKind::Limit(ControllerLimit::Work) => limit(Limit::EntityExpansion),
+        ControllerErrorKind::Limit(ControllerLimit::OwnedBytes) => limit(Limit::OwnedBytes),
+        ControllerErrorKind::InvalidUnitFamily => ErrorKind::InvalidDtd,
+        ControllerErrorKind::PositionOverflow | ControllerErrorKind::InvalidState => {
+            ErrorKind::InvalidState
+        }
+        ControllerErrorKind::Allocation => ErrorKind::Allocation,
+    }
+}
+
+fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
+    match kind {
+        CatalogErrorKind::EntityDeclared => ErrorKind::UnknownEntity,
+        CatalogErrorKind::ExternalInAttribute => ErrorKind::ExternalEntityInAttribute,
+        CatalogErrorKind::UnparsedEntity => ErrorKind::UnparsedEntity,
+        CatalogErrorKind::LessThanInAttribute => ErrorKind::Syntax,
+        CatalogErrorKind::Recursion => ErrorKind::EntityLoop,
+        CatalogErrorKind::ParameterInInternalDeclaration
+        | CatalogErrorKind::InvalidPredefinedDeclaration => ErrorKind::InvalidDtd,
+        CatalogErrorKind::InvalidReference => ErrorKind::InvalidReference,
+        CatalogErrorKind::Namespace => ErrorKind::Namespace,
+        CatalogErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
+        CatalogErrorKind::CallerValueBytes | CatalogErrorKind::Limit(CatalogLimit::ValueBytes) => {
+            limit(Limit::TokenBytes)
+        }
+        CatalogErrorKind::Limit(CatalogLimit::Declarations | CatalogLimit::Bindings) => {
+            limit(Limit::DtdBytes)
+        }
+        CatalogErrorKind::Limit(CatalogLimit::StorageBytes) => limit(Limit::OwnedBytes),
+        CatalogErrorKind::Limit(CatalogLimit::ExpandedBytes | CatalogLimit::Work) => {
+            limit(Limit::EntityExpansion)
+        }
+        CatalogErrorKind::Limit(CatalogLimit::References) => limit(Limit::EntityReferences),
+        CatalogErrorKind::Limit(CatalogLimit::Depth) => limit(Limit::EntityDepth),
+        CatalogErrorKind::Allocation => ErrorKind::Allocation,
+    }
+}
+
+fn frame_kind(kind: FrameErrorKind) -> ErrorKind {
+    match kind {
+        FrameErrorKind::Lookup(LookupFailure::Unparsed) => ErrorKind::UnparsedEntity,
+        FrameErrorKind::Lookup(_) => ErrorKind::UnknownEntity,
+        FrameErrorKind::Cycle => ErrorKind::EntityLoop,
+        FrameErrorKind::LimitExceeded(FrameLimit::ActiveDepth) => limit(Limit::EntityDepth),
+        FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts) => {
+            limit(Limit::EntityReferences)
+        }
+        FrameErrorKind::LimitExceeded(FrameLimit::Work | FrameLimit::ExpandedBytes)
+        | FrameErrorKind::CounterOverflow(_) => limit(Limit::EntityExpansion),
+        FrameErrorKind::PrematureEnd
+        | FrameErrorKind::BoundaryMismatch
+        | FrameErrorKind::ElementBoundaryCrossing
+        | FrameErrorKind::ElementDepthMismatch => ErrorKind::UnbalancedEntity,
+        FrameErrorKind::Allocation => ErrorKind::Allocation,
+        FrameErrorKind::InvalidSpan
+        | FrameErrorKind::InvalidContext
+        | FrameErrorKind::KindMismatch
+        | FrameErrorKind::InvocationIdsExhausted
+        | FrameErrorKind::NoActiveFrame
+        | FrameErrorKind::SourceMismatch => ErrorKind::InvalidState,
+    }
+}
+
+fn content_kind(kind: ContentErrorKind) -> ErrorKind {
+    match kind {
+        ContentErrorKind::Text(kind) => match kind {
+            TextErrorKind::Xml(kind) | TextErrorKind::Local(LocalErrorKind::Xml(kind)) => kind,
+            TextErrorKind::Local(LocalErrorKind::ForbiddenMarkup) => ErrorKind::Syntax,
+            TextErrorKind::Local(LocalErrorKind::Work) | TextErrorKind::Work => {
+                limit(Limit::EntityExpansion)
+            }
+            TextErrorKind::Reference(kind) => match kind {
+                ReferenceErrorKind::Syntax => ErrorKind::InvalidReference,
+                ReferenceErrorKind::InvalidUtf8 => ErrorKind::InvalidUtf8,
+                ReferenceErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
+                ReferenceErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
+                ReferenceErrorKind::Limit(ReferenceLimit::Bytes | ReferenceLimit::ScratchBytes) => {
+                    limit(Limit::TokenBytes)
+                }
+                ReferenceErrorKind::Limit(ReferenceLimit::Work) => limit(Limit::EntityExpansion),
+                ReferenceErrorKind::Allocation => ErrorKind::Allocation,
+                ReferenceErrorKind::PositionOverflow
+                | ReferenceErrorKind::InvalidState
+                | ReferenceErrorKind::Sealed => ErrorKind::InvalidState,
+            },
+            TextErrorKind::Cursor(ReferenceCursorErrorKind::Limit(kind)) => limit(kind),
+            TextErrorKind::Scratch | TextErrorKind::ScratchOverflow => limit(Limit::TokenBytes),
+            TextErrorKind::Local(_)
+            | TextErrorKind::Cursor(_)
+            | TextErrorKind::PositionOverflow
+            | TextErrorKind::InvalidState
+            | TextErrorKind::SourceMismatch => ErrorKind::InvalidState,
+        },
+        ContentErrorKind::Frame(kind) => frame_kind(kind),
+        ContentErrorKind::Tag(kind) => match kind {
+            DtdTagErrorKind::Parser(kind) => kind,
+            DtdTagErrorKind::Catalog(kind) => catalog_kind(kind),
+            DtdTagErrorKind::PositionOverflow => ErrorKind::InvalidState,
+        },
+        ContentErrorKind::Parser(kind) | ContentErrorKind::Callback(kind) => kind,
+        ContentErrorKind::Work => limit(Limit::EntityExpansion),
+        ContentErrorKind::PhysicalBytes => limit(Limit::InputBytes),
+        ContentErrorKind::Allocation => ErrorKind::Allocation,
+        ContentErrorKind::InvalidState | ContentErrorKind::Poisoned => ErrorKind::InvalidState,
+    }
+}
+
 #[expect(
     clippy::large_enum_variant,
     reason = "the entire phase already occupies one fallibly reserved, out-of-line session slot"
@@ -70,6 +299,8 @@ enum Phase {
     Declarations {
         controller: DtdController,
         parser: ParserState<'static>,
+        /// The declaration's decoded UTF-8 text, published once at its end.
+        raw: Vec<u8>,
     },
     Content(ContentController),
 }
@@ -78,18 +309,6 @@ struct DtdSession {
     phase: Option<Phase>,
     decoder_finished: bool,
     physical: usize,
-}
-
-/// Zero-sized policy for the one fallible allocation at the DTD phase handoff.
-pub(crate) trait SessionSlotReservation {
-    fn reserve_one<T>(&self, session: &mut Vec<T>) -> bool;
-}
-
-pub(crate) struct TryReserveSessionSlot;
-impl SessionSlotReservation for TryReserveSessionSlot {
-    fn reserve_one<T>(&self, session: &mut Vec<T>) -> bool {
-        session.try_reserve_exact(1).is_ok()
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -124,10 +343,9 @@ enum Failure {
 
 /// Length-zero/one slot keeps the large DTD/body state off the ordinary stack.
 /// Whole-input receipt/limits belong to the caller, as with Stream::advance.
-pub(crate) struct StreamingSession<R = TryReserveSessionSlot> {
+pub(crate) struct StreamingSession {
     ordinary: Option<Stream>,
     session: Vec<DtdSession>,
-    reservation: R,
     limits: Limits,
     decode: DecodeLimits,
     options: SessionLimits,
@@ -141,25 +359,13 @@ pub(crate) struct StreamingSession<R = TryReserveSessionSlot> {
 }
 
 impl StreamingSession {
-    pub(crate) fn new(limits: Limits, decode: DecodeLimits, options: SessionLimits) -> Self {
-        Self::with_reservation(limits, decode, options, TryReserveSessionSlot)
-    }
-}
-
-impl<R: SessionSlotReservation> StreamingSession<R> {
-    fn with_reservation(
-        limits: Limits,
-        decode: DecodeLimits,
-        options: SessionLimits,
-        reservation: R,
-    ) -> Self {
+    pub(crate) fn new(limits: Limits, decode: DecodeLimits) -> Self {
         Self {
             ordinary: Some(Stream::new(limits, decode)),
             session: Vec::new(),
-            reservation,
             limits,
             decode,
-            options,
+            options: SessionLimits::new(limits, decode),
             standalone: false,
             origin: None,
             physical: 0,
@@ -182,12 +388,6 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
     pub(crate) fn event_origin(&self) -> Option<SourceOrigin> {
         self.origin
     }
-    pub(crate) fn dtd_counters(&self) -> Option<ControllerCounters> {
-        match self.session.first()?.phase.as_ref()? {
-            Phase::Declarations { controller, .. } => Some(controller.counters()),
-            Phase::Content(controller) => Some(controller.counters()),
-        }
-    }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
     pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {
         self.remember(|s| {
@@ -209,7 +409,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
         })
     }
     /// Publish once and lend source storage until the returned borrow ends.
-    pub(crate) fn lend(&mut self) -> Result<(LocatedEvent<'_>, SourceOrigin), SessionError> {
+    pub(crate) fn lend(&mut self) -> Result<(Event<'_>, SourceOrigin), SessionError> {
         if let Some(error) = self.stored_failure() {
             return Err(error);
         }
@@ -261,7 +461,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
     pub(crate) fn advance(
         &mut self,
         input: &[u8],
-        emit: &mut impl FnMut(LocatedEvent<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<usize, SessionError> {
         self.remember(|s| {
             if s.finalizing || s.finished {
@@ -272,7 +472,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
     }
     pub(crate) fn finish(
         &mut self,
-        emit: &mut impl FnMut(LocatedEvent<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), SessionError> {
         self.remember(|s| {
             if s.finished {
@@ -288,7 +488,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
     fn drive(
         &mut self,
         input: &[u8],
-        emit: &mut impl FnMut(LocatedEvent<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<usize, SessionError> {
         let mut consumed = 0;
         loop {
@@ -307,17 +507,7 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
                         publication.event,
                         SourceOrigin::from_repr(publication.origin),
                         publication.budget,
-                    )
-                    .map_err(|error| {
-                        if publication.content {
-                            SessionError::Content(crate::dtd_controller::content::callback_failure(
-                                error,
-                                publication.origin,
-                            ))
-                        } else {
-                            SessionError::Xml(error)
-                        }
-                    })?;
+                    )?;
                     self.acknowledge_inner()?;
                 }
                 SessionOutcome::NeedInput | SessionOutcome::Complete => return Ok(consumed),
@@ -434,11 +624,11 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
         let encoding = span.encoding;
         let physical_start = span.source.start;
         let decoded_start = span.decoded.start;
-        if !self.reservation.reserve_one(&mut self.session) {
-            return Err(SessionError::Allocation {
+        self.session
+            .try_reserve_exact(1)
+            .map_err(|_| SessionError::Allocation {
                 physical_offset: physical_start,
-            });
-        }
+            })?;
         self.physical = ordinary.position();
         let Stream {
             tokenizer,
@@ -455,22 +645,32 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
         );
         // Existing scanner work charges the nine-byte grammar rescan. These are
         // already accepted transport bytes: never resend them through Decoder.
-        let result = controller.advance(
-            tokenizer.current().expect("owned prefix").1,
-            state.owned_budget(),
-        );
+        let prefix = tokenizer.current().expect("owned prefix").1;
+        let mut raw = Vec::new();
+        let result = controller
+            .advance(prefix, state.owned_budget())
+            .map_err(SessionError::from)
+            .and_then(|consumed| {
+                capture(
+                    &mut raw,
+                    &prefix[..consumed],
+                    state.owned_budget(),
+                    physical_start,
+                )
+                .map_err(SessionError::from)
+            });
         drop(tokenizer);
         self.session.push(DtdSession {
             decoder,
             phase: Some(Phase::Declarations {
                 controller,
                 parser: state,
+                raw,
             }),
             decoder_finished: false,
             physical: self.physical,
         });
-        result?;
-        Ok(())
+        result
     }
     fn stored_failure(&mut self) -> Option<SessionError> {
         let failure = self.failure?;
@@ -499,6 +699,20 @@ impl<R: SessionSlotReservation> StreamingSession<R> {
     }
 }
 
+/// Retains accepted declaration bytes, charged to the shared string budget.
+fn capture(
+    raw: &mut Vec<u8>,
+    bytes: &[u8],
+    budget: &mut Budget,
+    offset: usize,
+) -> Result<(), Error> {
+    budget.charge_owned(bytes.len(), offset)?;
+    raw.try_reserve(bytes.len())
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    raw.extend_from_slice(bytes);
+    Ok(())
+}
+
 impl DtdSession {
     fn position(&self) -> usize {
         self.decoder.position().max(match &self.phase {
@@ -515,14 +729,23 @@ impl DtdSession {
     ) -> Result<Drain, SessionError> {
         loop {
             match self.phase.as_mut().expect("owned semantic phase") {
-                Phase::Declarations { controller, parser } => {
-                    if controller.current().is_some() {
-                        return Ok(Drain::Ready);
+                Phase::Declarations {
+                    controller, parser, ..
+                } => {
+                    // Only the declaration's end is published; its parts are internal.
+                    match controller.current() {
+                        Some((DtdEvent::End, _)) => return Ok(Drain::Ready),
+                        Some(_) => {
+                            controller.release();
+                            continue;
+                        }
+                        None => {}
                     }
                     if controller.is_complete() {
                         self.physical = self.position();
-                        let Phase::Declarations { controller, parser } =
-                            self.phase.take().expect("declaration owner")
+                        let Phase::Declarations {
+                            controller, parser, ..
+                        } = self.phase.take().expect("declaration owner")
                         else {
                             unreachable!("checked declaration phase")
                         };
@@ -615,10 +838,9 @@ impl DtdSession {
     }
 }
 struct LentSession<'event> {
-    event: LocatedEvent<'event>,
+    event: Event<'event>,
     origin: FragmentOrigin,
     budget: &'event mut Budget,
-    content: bool,
 }
 fn lend_current<'event>(
     ordinary: &'event mut Option<Stream>,
@@ -626,7 +848,7 @@ fn lend_current<'event>(
     standalone: &mut bool,
     last_origin: &mut Option<SourceOrigin>,
 ) -> Result<LentSession<'event>, SessionError> {
-    let (event, origin, budget, content) = if let Some(ordinary) = ordinary {
+    let (event, origin, budget) = if let Some(ordinary) = ordinary {
         let at = ordinary.position();
         let (event, origin) = super::parse(&ordinary.tokenizer, &mut ordinary.state)?
             .ok_or_else(|| Error::new(ErrorKind::InvalidState, at))?;
@@ -634,33 +856,36 @@ fn lend_current<'event>(
             *standalone = declaration.standalone == Some(true);
         }
         (
-            LocatedEvent::Xml(event),
+            event,
             FragmentOrigin::input(origin.input_range().expect("ordinary physical token"))
                 .expect("ordered token span"),
             ordinary.state.owned_budget(),
-            false,
         )
     } else {
         match session[0].phase.as_mut().expect("ready phase") {
-            Phase::Declarations { controller, parser } => {
-                let (event, origin) = controller.current().expect("ready DTD event");
-                parser.check_event_limit(origin.error_offset())?;
-                parser.commit_checked_dtd_event();
+            Phase::Declarations {
+                controller,
+                parser,
+                raw,
+            } => {
+                let (_, end) = controller.current().expect("ready DTD end");
+                let range = controller.start()..end.physical_context().end;
+                parser.check_event_limit(range.start)?;
+                let raw = std::str::from_utf8(raw)
+                    .map_err(|_| Error::new(ErrorKind::InvalidState, range.start))?;
+                parser.commit_doctype();
                 (
-                    LocatedEvent::Dtd(event),
-                    origin,
+                    Event::Doctype(Doctype::parse(raw)),
+                    FragmentOrigin::input(range).expect("ordered declaration span"),
                     parser.owned_budget(),
-                    false,
                 )
             }
             Phase::Content(controller) => {
                 let publication = controller.lend_with_budget()?;
-                let origin = publication.origin;
-                let budget = publication.budget;
                 let event = publication
                     .event
                     .expect("non-events were drained before readiness");
-                (LocatedEvent::Xml(event), origin, budget, true)
+                (event, publication.origin, publication.budget)
             }
         }
     };
@@ -669,7 +894,6 @@ fn lend_current<'event>(
         event,
         origin,
         budget,
-        content,
     })
 }
 
@@ -687,8 +911,18 @@ fn phase_decode(
             return Err(Error::new(ErrorKind::InvalidState, at).into());
         };
         match phase {
-            Phase::Declarations { controller, parser } => {
+            Phase::Declarations {
+                controller,
+                parser,
+                raw,
+            } => {
                 let consumed = controller.advance(bytes, parser.owned_budget())?;
+                capture(
+                    raw,
+                    &bytes[..consumed],
+                    parser.owned_budget(),
+                    controller.physical_position(),
+                )?;
                 Ok(DecodeProgress {
                     consumed,
                     suspended: controller.current().is_some() || controller.is_complete(),
@@ -708,27 +942,3 @@ fn phase_decode(
         error.decoder_stop()
     })
 }
-
-#[path = "../../tests/internal/dtd_stream_author.rs"]
-mod tests;
-
-#[path = "../../tests/internal/dtd_stream_spec.rs"]
-mod spec_tests;
-
-#[path = "../../tests/internal/dtd_stream_utf16_author.rs"]
-mod utf16_tests;
-
-#[path = "../../tests/internal/dtd_stream_utf16_spec.rs"]
-mod utf16_spec_tests;
-
-#[path = "../../tests/internal/dtd_lending_author.rs"]
-mod lending_tests;
-
-#[path = "../../tests/internal/dtd_lending_spec.rs"]
-mod lending_spec_tests;
-
-#[path = "dtd_buffered.rs"]
-pub(crate) mod buffered;
-
-#[path = "../../tests/internal/dtd_buffered_spec.rs"]
-mod buffered_spec_tests;

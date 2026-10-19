@@ -584,7 +584,9 @@ fn known_acceptance() {
         (b"<r>", false),
         (b"<r a='1' a='2'/>", false),
         (b"<r>&missing;</r>", false),
-        (b"<!DOCTYPE r><r/>", false),
+        (b"<!DOCTYPE r><r/>", true),
+        (b"<!DOCTYPE r [<!ENTITY e '&lt;n/>'>]><r>&e;</r>", true),
+        (b"<!DOCTYPE r [<!ENTITY e '&e;'>]><r>&e;</r>", false),
         (b"<p:r/>", false),
         (b"\xff", false),
     ] {

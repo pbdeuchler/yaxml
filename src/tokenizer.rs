@@ -29,7 +29,6 @@ enum Scan {
 #[derive(Clone, Debug)]
 enum ReadySpan {
     Input(TokenSpan),
-    #[cfg(test)]
     Local(std::ops::Range<usize>),
 }
 
@@ -43,7 +42,6 @@ pub(crate) struct Tokenizer {
     source_start: usize,
     source_position: usize,
     encoding: SourceEncoding,
-    #[cfg(test)]
     local: bool,
     limit: usize,
     decoded_limit: usize,
@@ -61,7 +59,6 @@ impl Tokenizer {
             source_start: 0,
             source_position: 0,
             encoding: SourceEncoding::Utf8,
-            #[cfg(test)]
             local: false,
             limit,
             decoded_limit,
@@ -74,7 +71,6 @@ impl Tokenizer {
         self.source_position
     }
 
-    #[cfg(test)]
     pub(crate) fn scratch_capacity_requirement(&self) -> usize {
         let configured = match self.encoding {
             SourceEncoding::Utf8 => self.limit,
@@ -99,20 +95,12 @@ impl Tokenizer {
     pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], &TokenSpan)> {
         match self.ready.as_ref()? {
             (kind, ReadySpan::Input(span)) => Some((*kind, self.buffer.as_slice(), span)),
-            #[cfg(test)]
             (_, ReadySpan::Local(_)) => None,
         }
     }
 
     fn local_mode(&self) -> bool {
-        #[cfg(test)]
-        {
-            self.local
-        }
-        #[cfg(not(test))]
-        {
-            false
-        }
+        self.local
     }
 
     fn raw_length(&self) -> usize {
@@ -395,7 +383,6 @@ impl Tokenizer {
     }
 
     fn mark_at(&mut self, kind: TokenKind, end: usize, source_end: usize) {
-        #[cfg(test)]
         if self.local {
             self.ready = Some((kind, ReadySpan::Local(self.start..end)));
             return;
@@ -445,11 +432,8 @@ impl Tokenizer {
 #[path = "../tests/internal/tokenizer.rs"]
 mod tests;
 
-#[cfg(test)]
 pub(crate) mod local;
 
-#[cfg(test)]
 pub(crate) mod reference;
 
-#[cfg(test)]
 pub(crate) mod text;

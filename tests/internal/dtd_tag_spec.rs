@@ -2,8 +2,7 @@
 use super::*;
 use crate::dtd::{DtdLimits, DtdUnit, LiteralSource};
 use crate::dtd_catalog::{
-    CatalogErrorKind, CatalogLimit, CatalogLimits, DeclarationContext, DependencyKind, DtdCatalog,
-    NormalizedValue, ValueLocation,
+    CatalogErrorKind, CatalogLimit, CatalogLimits, DeclarationContext, DtdCatalog, ValueLocation,
 };
 use crate::dtd_tag::{DtdTagErrorKind, DtdTagLocation, prepare_dtd_tag};
 
@@ -351,7 +350,7 @@ fn native_value_and_caller_capacity_limits_keep_distinct_causes_and_stickiness()
             assert_eq!(state.owned_budget().remaining_owned(), 31);
             assert_eq!(
                 catalog.normalize_attribute_value("r", "a", "ok", LiteralSource::Physical),
-                Ok(NormalizedValue::Value("ok".into()))
+                Ok(String::from("ok"))
             );
         } else {
             assert_eq!(
@@ -419,31 +418,6 @@ fn replacement_error_retains_entity_local_location_without_tag_rebasing() {
         error.location,
         DtdTagLocation::Value(ValueLocation::Replacement { offset: 2, .. })
     ));
-}
-
-#[test]
-fn unavailable_default_is_non_success_but_explicit_override_is_usable() {
-    for explicit in [false, true] {
-        let mut catalog = catalog(&[
-            "<!ENTITY indirect '&missing;'>",
-            "<!ATTLIST r a CDATA '&indirect;'>",
-        ]);
-        let mut state = ParserState::new(Limits::default(), 0);
-        let raw = if explicit {
-            "<r a='supplied'/>"
-        } else {
-            "<r/>"
-        };
-        let result = prepare(&mut state, &mut catalog, raw, 0, LiteralSource::Physical);
-        if explicit {
-            assert_eq!(values(&result.unwrap()), [("a", "supplied")]);
-        } else {
-            assert_eq!(
-                result.err().unwrap().kind,
-                DtdTagErrorKind::Unavailable(DependencyKind::MissingReadDeclaration)
-            );
-        }
-    }
 }
 
 #[test]

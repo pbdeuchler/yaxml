@@ -311,10 +311,10 @@ fn actual_command_preserves_full_inventory_exit_policy_and_worker_bounds() {
         &observed,
         "dtd",
         "valid",
-        "gap",
-        "dtd-processing",
-        "UnsupportedDtd",
-        "0",
+        "pass",
+        "well-formedness-acceptance",
+        "",
+        "",
     );
     assert_case(
         &observed,
@@ -365,7 +365,7 @@ fn actual_command_preserves_full_inventory_exit_policy_and_worker_bounds() {
     for surface in SURFACES {
         assert!(
             stderr.contains(&format!(
-                "surface={surface} pass=3 mismatch=0 gap=3 unscored=3 inconclusive=0\n"
+                "surface={surface} pass=4 mismatch=0 gap=2 unscored=3 inconclusive=0\n"
             )),
             "{stderr}"
         );
@@ -394,18 +394,18 @@ fn actual_command_preserves_full_inventory_exit_policy_and_worker_bounds() {
             .contains("required_pass_pairs=15 required_pass_regressions=0\n")
     );
 
-    write_required_pass(&required, 1, &["dtd\t10000"]);
+    write_required_pass(&required, 1, &["encoding\t10000"]);
     let output = run_catalog_with_required(&command, &manifest, &suite, rows.len(), &required);
     assert!(!output.status.success());
     let observed = result_rows(&output.stdout, rows.len());
     assert_case(
         &observed,
-        "dtd",
+        "encoding",
         "valid",
         "gap",
-        "dtd-processing",
-        "UnsupportedDtd",
-        "0",
+        "encoding-support",
+        "UnsupportedEncoding",
+        "20",
     );
     assert!(
         String::from_utf8(output.stderr)

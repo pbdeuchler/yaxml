@@ -141,7 +141,6 @@ fn malformed_documents_are_rejected() {
             "<?xml version='1.0' encoding='ISO-8859-1'?><r/>",
             UnsupportedEncoding,
         ),
-        ("<!DOCTYPE r><r/>", UnsupportedDtd),
     ] {
         assert_eq!(
             read(input.as_bytes()).unwrap_err().kind,
@@ -370,6 +369,7 @@ fn resource_limits_are_inclusive() {
                 max_attributes: 0,
                 max_events: 1,
                 max_owned_bytes: 0,
+                ..Limits::default()
             },
         ),
         (

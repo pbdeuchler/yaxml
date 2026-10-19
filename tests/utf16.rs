@@ -40,6 +40,7 @@ fn span(input: &str, token: &str) -> Range<usize> {
 #[derive(Debug, PartialEq, Eq)]
 enum Value {
     Declaration(String, Option<String>, Option<bool>),
+    Doctype(String),
     Start(
         String,
         Option<String>,
@@ -72,6 +73,7 @@ fn record(event: Event<'_>) -> Value {
         )
     };
     match event {
+        Event::Doctype(doctype) => Value::Doctype(doctype.name.to_owned()),
         Event::Declaration(declaration) => Value::Declaration(
             declaration.version.to_owned(),
             declaration.encoding.map(str::to_owned),

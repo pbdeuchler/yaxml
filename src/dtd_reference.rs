@@ -109,6 +109,7 @@ impl ReferenceScratch {
             ReferenceBuffer::Ready { raw, .. } => raw.as_bytes(),
         }
     }
+    #[cfg(test)]
     pub(crate) fn current(&self) -> Option<(ReferenceKind, &str, Range<usize>)> {
         self.validated()
             .map(|reference| (reference.kind(), reference.raw(), reference.range()))

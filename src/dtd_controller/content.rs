@@ -1,6 +1,6 @@
 //! Private GE content composition; physical events lend scratch, generated events own.
 use super::*;
-use crate::dtd_catalog::{CatalogLimit, Dependency};
+use crate::dtd_catalog::CatalogLimit;
 use crate::dtd_frames::{EntityInvocationId, FrameError, FrameLimit};
 use crate::dtd_tag::{DtdTagError, DtdTagErrorKind, DtdTagLocation};
 use crate::parser::{DtdLeafKind, ParserState};
@@ -18,7 +18,6 @@ pub(crate) enum ContentErrorKind {
     Frame(FrameErrorKind),
     Tag(DtdTagErrorKind),
     Parser(ErrorKind),
-    Unavailable(DependencyKind),
     Work,
     PhysicalBytes,
     Allocation,
@@ -218,6 +217,7 @@ impl<'input> ContentControllerCore<'input> {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn counters(&self) -> ControllerCounters {
         let usage = self.usage();
         ControllerCounters {
@@ -228,9 +228,11 @@ impl<'input> ContentControllerCore<'input> {
             ..self.body.counters
         }
     }
+    #[cfg(test)]
     pub(crate) fn frame_counters(&self) -> crate::dtd_frames::FrameCounters {
         self.body.frames.counters()
     }
+    #[cfg(test)]
     pub(crate) fn usage(&self) -> TextUsage {
         self.coordinator
             .as_ref()
@@ -238,6 +240,9 @@ impl<'input> ContentControllerCore<'input> {
     }
     pub(crate) fn position(&self) -> (usize, usize) {
         self.body.resume_position()
+    }
+    pub(crate) fn owned_budget(&mut self) -> &mut Budget {
+        self.parser.owned_budget()
     }
 
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<ContentStep, ContentError> {
@@ -280,6 +285,7 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     /// Publish once while retaining the complete source token until acknowledgment.
+    #[cfg(test)]
     pub(crate) fn lend(&mut self) -> Result<(Option<Event<'_>>, SourceOrigin), ContentError> {
         let publication = self.lend_with_budget()?;
         Ok((
@@ -514,7 +520,7 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     fn enter_general(&mut self) -> Result<(), ContentError> {
-        let (id, resolution, dependency, origin) = {
+        let (resolved, origin) = {
             let (reference, extent, source) = self
                 .coordinator
                 .as_ref()
@@ -548,45 +554,56 @@ impl<'input> ContentControllerCore<'input> {
                 ));
             }
             let name = &reference.raw()[1..reference.raw().len() - 1];
-            match self.body.catalog.lookup_general(name) {
-                EntityLookup::Internal { id, replacement } => (
-                    Some(id),
+            let failure = |failure| ContentErrorKind::Frame(FrameErrorKind::Lookup(failure));
+            let resolved = match self.body.catalog.lookup_general(name) {
+                EntityLookup::Internal { id, replacement } => Some((
+                    id,
                     EntityResolution::Internal {
                         kind: EntityKind::General,
                         declaration: EntityDeclarationId::from_index(id.index()),
                         replacement_len: replacement.len(),
                     },
-                    None,
-                    origin,
-                ),
-                other => {
-                    let (failure, dependency) = match other {
-                        EntityLookup::ExternalUnavailable { .. } => {
-                            (LookupFailure::ExternalUnavailable, None)
-                        }
-                        EntityLookup::Unparsed { .. } => (LookupFailure::Unparsed, None),
-                        EntityLookup::UnreadEntity => (LookupFailure::Unread, None),
-                        EntityLookup::Unavailable(dependency) => {
-                            (LookupFailure::Unread, Some(dependency))
-                        }
-                        EntityLookup::Undeclared => (LookupFailure::Undeclared, None),
-                        EntityLookup::Predefined(_) | EntityLookup::Internal { .. } => {
-                            return Err(self.simple(ContentErrorKind::InvalidState));
-                        }
-                    };
-                    (
-                        None,
-                        EntityResolution::Failed {
-                            kind: EntityKind::General,
-                            failure,
-                        },
-                        dependency,
-                        origin,
-                    )
+                )),
+                // libxml2 drops a reference that unread markup could declare,
+                // and one to an external entity that it cannot load.
+                EntityLookup::UnreadEntity | EntityLookup::ExternalUnavailable { .. } => None,
+                EntityLookup::Unparsed { .. } => {
+                    return Err(self.for_origin(failure(LookupFailure::Unparsed), origin, None));
                 }
-            }
+                EntityLookup::Undeclared => {
+                    return Err(self.for_origin(failure(LookupFailure::Undeclared), origin, None));
+                }
+                EntityLookup::Predefined(_) => {
+                    return Err(self.simple(ContentErrorKind::InvalidState));
+                }
+            };
+            (resolved, origin)
         };
-        if id.is_some() && self.active.len() < self.body.limits.frames.max_active_depth {
+        let Some((id, resolution)) = resolved else {
+            // The skipped reference is consumed from its replacement frame too.
+            if let (Some(active), Some(local)) = (self.active.last(), origin.replacement_range()) {
+                let replacement = self
+                    .body
+                    .catalog
+                    .replacement(active.id)
+                    .expect("active replacement");
+                self.body
+                    .frames
+                    .advance_current(
+                        EntityDeclarationId::from_index(active.id.index()),
+                        replacement,
+                        local.len(),
+                    )
+                    .map_err(|error| self.frame_error(error, Some(origin)))?;
+            }
+            let result = self
+                .coordinator
+                .as_mut()
+                .expect("reference coordinator")
+                .discard_general();
+            return result.map_err(|error| self.text_error(error));
+        };
+        if self.active.len() < self.body.limits.frames.max_active_depth {
             self.active
                 .try_reserve(1)
                 .map_err(|_| self.for_origin(ContentErrorKind::Allocation, origin, None))?;
@@ -619,14 +636,7 @@ impl<'input> ContentControllerCore<'input> {
         };
         self.sync_frame_work(before, origin)?;
         let invocation = entered.map_err(|error| {
-            if error.kind == FrameErrorKind::Lookup(LookupFailure::Unread)
-                && let Some(Dependency { kind, location }) = dependency
-            {
-                let mut failure =
-                    self.for_origin(ContentErrorKind::Unavailable(kind), origin, None);
-                failure.value_location = Some(location);
-                failure
-            } else if error.kind == FrameErrorKind::LimitExceeded(FrameLimit::Work)
+            if error.kind == FrameErrorKind::LimitExceeded(FrameLimit::Work)
                 && ceiling <= self.body.limits.frames.max_work
             {
                 self.for_origin(
@@ -640,7 +650,7 @@ impl<'input> ContentControllerCore<'input> {
         })?;
         let was_physical = self.active.is_empty();
         self.active.push(Active {
-            id: id.expect("successful internal lookup"),
+            id,
             invocation,
             scanned: 0,
             physical_reference: ByteSpan::new(origin.physical_context()).expect("real reference"),
@@ -1371,6 +1381,7 @@ fn physical_input_prefix(encoding: SourceEncoding, input: &[u8], remaining: usiz
     input.len().min(4)
 }
 
+#[cfg(test)]
 #[path = "../../tests/internal/dtd_content_author.rs"]
 mod tests;
 

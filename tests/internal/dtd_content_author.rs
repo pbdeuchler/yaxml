@@ -57,7 +57,7 @@ fn label(event: Event<'_>) -> String {
         Event::Comment(text) => format!("C{text}"),
         Event::Cdata(text) => format!("D{text}"),
         Event::ProcessingInstruction { target, data } => format!("P{target}:{data}"),
-        Event::Declaration(_) => "declaration".into(),
+        Event::Declaration(_) | Event::Doctype(_) => "declaration".into(),
     }
 }
 fn run(
@@ -216,10 +216,6 @@ fn malformed_cycles_unavailable_and_cross_boundary_closure_are_sticky() {
     for (declaration, kind) in [
         ("", LookupFailure::Undeclared),
         (
-            "<!ENTITY e SYSTEM 'urn:denied'>",
-            LookupFailure::ExternalUnavailable,
-        ),
-        (
             "<!NOTATION n SYSTEM 'urn:n'><!ENTITY e SYSTEM 'urn:e' NDATA n>",
             LookupFailure::Unparsed,
         ),
@@ -231,6 +227,8 @@ fn malformed_cycles_unavailable_and_cross_boundary_closure_are_sticky() {
             ContentErrorKind::Frame(FrameErrorKind::Lookup(kind))
         );
     }
+    let mut controller = make("<!DOCTYPE r [<!ENTITY e SYSTEM 'urn:denied'>]>");
+    run(&mut controller, "<r>&e;</r>").unwrap();
 }
 
 #[test]
@@ -453,108 +451,6 @@ fn unicode_source_scan_may_pause_inside_scalar_before_work_exhaustion() {
     assert_eq!(failure.kind, ContentErrorKind::Work);
     assert!(controller.counters().work <= max_work);
     assert_eq!(controller.parser.element_depth(), 1);
-}
-
-#[test]
-fn unavailable_lookup_does_not_hide_an_earlier_frame_quota_failure() {
-    fn dependency(frames: FrameLimits, max_work: usize) -> ContentController {
-        let source = "<!DOCTYPE r [<!ENTITY % p SYSTEM 'urn:unavailable'>]>";
-        let mut parser = ParserState::new(Limits::default(), 0);
-        let mut declarations = DtdController::new(
-            SourceEncoding::Utf8,
-            0,
-            ControllerLimits {
-                frames,
-                ..ControllerLimits::default()
-            },
-            false,
-        );
-        let mut cursor = 0;
-        while !declarations.is_complete() {
-            cursor += declarations
-                .advance(&source.as_bytes()[cursor..], parser.owned_budget())
-                .unwrap();
-            while declarations.take_current().is_some() {}
-        }
-        let mut body = declarations.into_body_state().unwrap();
-        // A future external-declaration controller can produce this dependency.
-        // Construct it through the real catalog engine, without external I/O or
-        // claiming that the current internal-subset controller accepts it.
-        let unit = DtdUnit::parse("<!ENTITY e '%p;'>", DtdLimits::default()).unwrap();
-        let before = body.catalog.usage().work;
-        let effect = body
-            .catalog
-            .apply(
-                &unit,
-                DeclarationContext {
-                    internal_subset: false,
-                    literals: LiteralSource::Physical,
-                },
-            )
-            .unwrap();
-        assert_eq!(
-            effect.unavailable.unwrap().kind,
-            DependencyKind::ExternalEntity
-        );
-        body.counters.work += body.catalog.usage().work - before;
-        assert!(body.counters.work <= body.limits.max_work);
-        let text = TextLimits {
-            max_work,
-            reference: ReferenceLimits {
-                max_bytes: 256,
-                max_scratch_bytes: 256,
-                max_work: usize::MAX,
-            },
-            scratch: TextScratchLimits {
-                input_token_bytes: 4096,
-                replacement_token_bytes: 4096,
-                max_bytes: 8448,
-            },
-        };
-        ContentController::new(
-            body,
-            parser,
-            Tokenizer::new(4096, 4096),
-            text,
-            LocalLimits {
-                max_token_bytes: 4096,
-                max_scratch_bytes: 4096,
-                max_work: usize::MAX,
-            },
-        )
-        .unwrap()
-    }
-    let mut baseline = dependency(FrameLimits::default(), usize::MAX);
-    let error = run(&mut baseline, "<r>&e;</r>").unwrap_err();
-    assert_eq!(
-        error.kind,
-        ContentErrorKind::Unavailable(DependencyKind::ExternalEntity)
-    );
-    let before_entry = baseline.counters().work - 1;
-    for (frames, max_work, expected) in [
-        (
-            FrameLimits {
-                max_reference_attempts: 0,
-                ..FrameLimits::default()
-            },
-            usize::MAX,
-            ContentErrorKind::Frame(FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts)),
-        ),
-        (
-            FrameLimits {
-                max_work: 0,
-                ..FrameLimits::default()
-            },
-            usize::MAX,
-            ContentErrorKind::Frame(FrameErrorKind::LimitExceeded(FrameLimit::Work)),
-        ),
-        (FrameLimits::default(), before_entry, ContentErrorKind::Work),
-    ] {
-        let mut controller = dependency(frames, max_work);
-        let failure = run(&mut controller, "<r>&e;</r>").unwrap_err();
-        assert_eq!(failure.kind, expected);
-        assert_eq!(controller.finish_step().unwrap_err(), failure);
-    }
 }
 
 #[test]

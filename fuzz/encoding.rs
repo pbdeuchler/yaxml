@@ -255,7 +255,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
     let mut reader =
         valid.then(|| Reader::new(reference.as_ref().unwrap().canonical.as_bytes()).unwrap());
     let io = PushParser::new().read_from(std::io::Cursor::new(input), |event, origin| {
-        let range = origin.input_range().expect("direct input event");
+        let range = super::span(origin);
         if let Some(reader) = &mut reader {
             let expected = reader
                 .read_event()
@@ -265,7 +265,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             reference.event(event, expected);
             assert_eq!(
                 range,
-                reference.range(reader.event_range().expect("direct input event"))
+                reference.range(super::span(reader.event_origin().unwrap()))
             );
         }
         ControlFlow::Continue(())
@@ -344,6 +344,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             max_attributes: byte(2) & 15,
             max_events: byte(3),
             max_owned_bytes: byte(4),
+            ..Limits::default()
         },
     );
     exercise_decode_limits(
@@ -437,7 +438,7 @@ fn compare_stream(
             reference.event(event, expected);
             assert_eq!(
                 range,
-                reference.range(reader.event_range().expect("direct input event"))
+                reference.range(super::span(reader.event_origin().unwrap()))
             );
         }
     });
@@ -588,8 +589,14 @@ impl<'a> DecodeOracle<'a> {
         let mut previous = bom;
         let mut token = 0;
         while let Some(event) = reader.read_event().unwrap() {
-            let range = reader.event_range().expect("direct input event");
+            let range = super::span(reader.event_origin().unwrap());
             token = token.max(range.start - previous);
+            // A DOCTYPE is one `<!DOCTYPE` token, then separately bounded units.
+            if matches!(event, Event::Doctype(_)) {
+                token = token.max("<!DOCTYPE".len());
+                previous = range.end;
+                continue;
+            }
             let growth = if matches!(event, Event::Declaration(_)) {
                 label_growth
             } else {
@@ -698,7 +705,7 @@ fn decode_stream(
     });
     let mut latest = None;
     let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
-        let range = origin.input_range().expect("direct input event");
+        let range = super::span(origin);
         if let Some(reader) = &mut reader {
             let expected = reader
                 .read_event()
@@ -708,7 +715,7 @@ fn decode_stream(
             oracle.event(event, expected);
             assert_eq!(
                 range,
-                oracle.range(reader.event_range().expect("direct input event"))
+                oracle.range(super::span(reader.event_origin().unwrap()))
             );
         }
         latest = Some(range);
@@ -729,7 +736,7 @@ fn decode_stream(
     }
     assert!(parser.position() <= input.len());
     if let Some(range) = latest {
-        assert_eq!(parser.event_range().expect("direct input event"), range);
+        assert_eq!(super::span(parser.event_origin().unwrap()), range);
     }
     match result {
         Ok(()) => {
