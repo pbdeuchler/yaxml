@@ -199,7 +199,8 @@ enum Phase {
 }
 
 /// XML semantics shared by borrowed slices and temporary streaming tokens.
-/// Events never borrow owned state: retained namespaces are copied as needed.
+/// Events borrow owned state only when lent: retained namespaces are
+/// otherwise copied as needed.
 pub(crate) struct ParserState<'source> {
     initial: usize,
     encoding: crate::encoding::SourceEncoding,
@@ -214,6 +215,14 @@ pub(crate) struct ParserState<'source> {
     /// Empty attribute list whose capacity a callback frontend returned.
     attribute_storage: Vec<Attribute<'static>>,
     copies_names: bool,
+    /// Streaming callers lend each event's retained namespace URIs (see
+    /// [`ParserState::lend`]) instead of copying them per name.
+    lends_namespaces: bool,
+    /// Bindings of the latest closed scope, removed before the next token
+    /// so a lent event can still borrow their URIs.
+    pending_unwind: Option<usize>,
+    /// Whether the latest event has names awaiting their lent URI.
+    lent_names: bool,
     bindings: Vec<Binding<'source>>,
     /// Prefix -> active binding, maintained only above `INDEXED_SCOPE`
     /// bindings; smaller scopes search `bindings` from the innermost entry.
@@ -249,6 +258,9 @@ impl<'source> ParserState<'source> {
             frame_names: String::new(),
             attribute_storage: Vec::new(),
             copies_names: false,
+            lends_namespaces: false,
+            pending_unwind: None,
+            lent_names: false,
             bindings: Vec::new(),
             namespace_index: HashMap::new(),
             indexed: false,
@@ -306,15 +318,101 @@ impl<'source> ParserState<'source> {
         self
     }
 
+    /// Events will be lent: namespace URIs retained by the parser are
+    /// borrowed by [`ParserState::lend`] rather than copied per name.
+    pub(crate) fn lending_namespaces(mut self) -> Self {
+        self.lends_namespaces = true;
+        self
+    }
+
+    /// Returns to copying namespace URIs, for consumers that never lend.
+    pub(crate) fn stop_lending(&mut self) {
+        self.settle();
+        self.lends_namespaces = false;
+    }
+
+    /// Fills the namespace URIs of a name and attributes built while
+    /// lending, borrowing them from retained bindings; returns the budget
+    /// for delivery.
+    #[inline]
+    pub(crate) fn lend<'a>(
+        &'a mut self,
+        name: &mut Name<'a>,
+        attributes: &mut [Attribute<'a>],
+    ) -> &'a mut Budget {
+        let Self {
+            bindings,
+            namespace_index,
+            indexed,
+            budget,
+            lent_names,
+            ..
+        } = self;
+        if *lent_names {
+            *lent_names = false;
+            let names = std::iter::once(name).chain(attributes.iter_mut().map(|a| &mut a.name));
+            for name in names.filter(|name| name.namespace() == Some(LENT)) {
+                let prefix = name.prefix().unwrap_or("");
+                let index = bound_in(bindings, namespace_index, *indexed, prefix)
+                    .expect("lent namespace is in scope");
+                name.set_namespace(Some(Cow::Borrowed(bindings[index].uri.as_ref())));
+            }
+        }
+        budget
+    }
+
+    /// Whether the latest event has names for [`ParserState::lend`] to fill.
+    pub(crate) fn lends_names(&self) -> bool {
+        self.lent_names
+    }
+
+    /// [`ParserState::lend`] for any event.
+    pub(crate) fn lend_event<'a>(&'a mut self, event: &mut Event<'a>) -> &'a mut Budget {
+        match event {
+            Event::Start(element) | Event::Empty(element) => match &mut element.attributes {
+                crate::Attributes::Owned(list) => self.lend(&mut element.name, list),
+                crate::Attributes::Borrowed(_) => self.lend(&mut element.name, &mut []),
+            },
+            Event::End(name) => self.lend(name, &mut []),
+            _ => &mut self.budget,
+        }
+    }
+
+    /// Whether two resolved names share a namespace; lent names compare the
+    /// URIs bound to their prefixes.
+    fn same_namespace(&self, first: &Name<'_>, second: &Name<'_>) -> bool {
+        fn uri<'n>(state: &'n ParserState<'_>, name: &'n Name<'_>) -> Option<&'n str> {
+            match name.namespace() {
+                Some(LENT) => state
+                    .bound(name.prefix().unwrap_or(""))
+                    .map(|index| state.bindings[index].uri.as_ref()),
+                namespace => namespace,
+            }
+        }
+        uri(self, first) == uri(self, second)
+    }
+
+    /// Removes the bindings of a scope closed by the previous token.
+    fn settle(&mut self) {
+        if let Some(start) = self.pending_unwind.take() {
+            self.unwind_bindings(start);
+        }
+    }
+
+    /// Closes a scope now, or after delivery when its event may be lent.
+    fn close_scope(&mut self, start: usize) {
+        if self.bindings.len() > start {
+            if self.lends_namespaces {
+                self.pending_unwind = Some(start);
+            } else {
+                self.unwind_bindings(start);
+            }
+        }
+    }
+
     /// The active binding index for `prefix`.
     fn bound(&self, prefix: &str) -> Option<usize> {
-        if self.indexed {
-            self.namespace_index.get(prefix).copied()
-        } else {
-            self.bindings
-                .iter()
-                .rposition(|binding| binding.prefix == prefix)
-        }
+        bound_in(&self.bindings, &self.namespace_index, self.indexed, prefix)
     }
 
     /// The interned identity of an active URI and its binding count (counts
@@ -499,6 +597,7 @@ impl<'source> ParserState<'source> {
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
+        self.settle();
         let start = range.start;
         if matches!(kind, TokenKind::Dtd | TokenKind::InvalidMarkup) {
             self.check_event_limit(start)?;
@@ -729,7 +828,7 @@ impl<'source> ParserState<'source> {
                 let (prior, rest) = attributes.split_at(index);
                 let name = &rest[0].name;
                 if prior.iter().any(|other| {
-                    other.name.local() == name.local() && other.name.namespace() == name.namespace()
+                    other.name.local() == name.local() && self.same_namespace(&other.name, name)
                 }) {
                     return Err(Error::new(ErrorKind::DuplicateAttribute, start));
                 }
@@ -778,7 +877,7 @@ impl<'source> ParserState<'source> {
             attributes: attributes.into(),
         };
         if empty {
-            self.unwind_bindings(bindings_start);
+            self.close_scope(bindings_start);
             if self.stack.is_empty() {
                 self.phase = Phase::Epilog;
             }
@@ -1558,12 +1657,18 @@ impl<'source> ParserState<'source> {
             None if attribute => (None, None),
             _ => match self.bound(prefix.unwrap_or("")) {
                 Some(index) if !self.bindings[index].uri.is_empty() => {
-                    if let Cow::Owned(uri) = &self.bindings[index].uri {
+                    if let Cow::Owned(uri) = &self.bindings[index].uri
+                        && !self.lends_namespaces
+                    {
                         self.budget.charge_owned(uri.len(), offset)?;
                     }
                     (
                         Some(match &self.bindings[index].uri {
                             Cow::Borrowed(uri) => Cow::Borrowed(*uri),
+                            Cow::Owned(_) if self.lends_namespaces => {
+                                self.lent_names = true;
+                                Cow::Borrowed(LENT)
+                            }
                             Cow::Owned(uri) => {
                                 let mut copy = String::new();
                                 copy.try_reserve(uri.len())
@@ -1667,7 +1772,7 @@ impl<'source> ParserState<'source> {
         let prefix_length = memchr(b':', qualified.as_bytes()).and_then(NonZeroUsize::new);
         let name = self.resolve_name(qualified, prefix_length, start + 2)?;
         let frame = self.pop_frame();
-        self.unwind_bindings(frame.bindings_start);
+        self.close_scope(frame.bindings_start);
         if self.stack.is_empty() {
             self.phase = Phase::Epilog;
         }
@@ -1703,6 +1808,26 @@ impl<'source> ParserState<'source> {
             self.namespace_ids = HashMap::new();
             self.indexed = false;
         }
+    }
+}
+
+/// Placeholder namespace of a name whose URI [`ParserState::lend`] borrows;
+/// a real namespace is never empty.
+const LENT: &str = "";
+
+/// The active binding index for `prefix`: indexed, or the innermost match.
+fn bound_in<'source>(
+    bindings: &[Binding<'source>],
+    index: &HashMap<Cow<'source, str>, usize>,
+    indexed: bool,
+    prefix: &str,
+) -> Option<usize> {
+    if indexed {
+        index.get(prefix).copied()
+    } else {
+        bindings
+            .iter()
+            .rposition(|binding| binding.prefix == prefix)
     }
 }
 

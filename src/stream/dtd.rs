@@ -128,9 +128,10 @@ impl StreamingSession {
         let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
         let at = ordinary.position();
         let origin = super::token_origin(&ordinary.tokenizer);
-        let event = super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
+        let mut event = super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
             .and_then(|event| event.ok_or_else(|| Error::new(ErrorKind::InvalidState, at)))
             .map_err(crate::ReadError::Xml)?;
+        ordinary.state.lend_event(&mut event);
         if let Event::Declaration(declaration) = &event {
             self.standalone = declaration.standalone == Some(true);
         }
@@ -331,6 +332,8 @@ impl StreamingSession {
             mut state,
             ..
         } = self.ordinary.take().expect("checked ordinary owner");
+        // The DTD session delivers events it does not lend.
+        state.stop_lending();
         let mut controller = DtdController::new_at(
             encoding,
             physical_start,

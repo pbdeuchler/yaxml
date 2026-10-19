@@ -21,6 +21,7 @@ impl Stream {
             decoder: Decoder::new(decode.max_decoded_bytes),
             state: ParserState::new(limits, 0)
                 .copying_names()
+                .lending_namespaces()
                 .with_flags(flags),
             decoded_token_limit: decode.max_decoded_token_bytes,
         }
@@ -101,8 +102,10 @@ impl Stream {
     #[cfg(test)]
     pub(crate) fn event(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         let position = self.position();
-        parse(&self.tokenizer, &mut self.state)?
-            .ok_or_else(|| Error::new(ErrorKind::InvalidState, position))
+        let (mut event, origin) = parse(&self.tokenizer, &mut self.state)?
+            .ok_or_else(|| Error::new(ErrorKind::InvalidState, position))?;
+        self.state.lend_event(&mut event);
+        Ok((event, origin))
     }
 
     /// Callback delivery for the DTD-free token loop. Returns the accepted
@@ -225,7 +228,9 @@ impl Stream {
         emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         if let Some((event, origin)) = parse(&self.tokenizer, &mut self.state)? {
-            emit(event, origin, self.state.owned_budget())?;
+            let mut event = event;
+            let budget = self.state.lend_event(&mut event);
+            emit(event, origin, budget)?;
         }
         Ok(())
     }
@@ -296,31 +301,40 @@ fn deliver(
     let mut lent = Vec::new();
     let delivered = match event {
         Event::Start(Element {
-            name,
+            mut name,
             attributes: Attributes::Owned(list),
-        }) if list.capacity() > 0 => {
+        }) if list.capacity() > 0 || state.lends_names() => {
             lent = list;
+            let budget = state.lend(&mut name, &mut lent);
             let element = Element {
                 name,
                 attributes: Attributes::Borrowed(&lent),
             };
-            emit(Event::Start(element), origin, state.owned_budget())
+            emit(Event::Start(element), origin, budget)
         }
         Event::Empty(Element {
-            name,
+            mut name,
             attributes: Attributes::Owned(list),
-        }) if list.capacity() > 0 => {
+        }) if list.capacity() > 0 || state.lends_names() => {
             lent = list;
+            let budget = state.lend(&mut name, &mut lent);
             let element = Element {
                 name,
                 attributes: Attributes::Borrowed(&lent),
             };
-            emit(Event::Empty(element), origin, state.owned_budget())
+            emit(Event::Empty(element), origin, budget)
+        }
+        Event::End(mut name) if state.lends_names() => {
+            let budget = state.lend(&mut name, &mut []);
+            emit(Event::End(name), origin, budget)
         }
         event => emit(event, origin, state.owned_budget()),
     };
     delivered?;
     if lent.capacity() > 0 {
+        // Only the allocation returns; it no longer borrows the state.
+        lent.clear();
+        let lent = lent.into_iter().map(|_| unreachable!("cleared")).collect();
         state.recycle_attributes(lent);
     }
     Ok(())

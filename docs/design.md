@@ -99,8 +99,10 @@ single copy with identical spans and counters. A four-byte preamble handles spli
 Both frontends use `ParserState` for names, declarations, normalization, document
 phase, namespaces, and budgets. A narrow retention callback borrows slice strings
 or fallibly copies streaming structural strings. Namespace IDs have scoped
-reference counts; completed scopes release inactive URI entries. Events never
-borrow owned parser state, permitting scope removal before event delivery.
+reference counts; completed scopes release inactive URI entries. Slice events
+never borrow owned parser state. Streaming events lend retained namespace URIs
+for the delivery borrow instead of copying one per name, so a closed scope is
+removed when the next token starts rather than before delivery.
 
 Push callbacks borrow events for their call and receive raw source ranges. A
 callback break is terminal cancellation. `read_from` is a thin buffered `Read`

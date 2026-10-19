@@ -17,6 +17,10 @@ const VALID: &[&[u8]] = &[
     b"<r xmlns='u' xmlns:p='p' a='0' p:a='1'><p:c xmlns:p='q'><p:d/></p:c><p:e/><c xmlns=''/><c/></r>",
     b"<r xmlns:p='one'><a xmlns:p='two'/><p:b/><a xmlns='three'/><b/></r>",
     b" \r\n<r a='>' b='&gt;'/>",
+    // Lent namespaces: equal local names under distinct URIs, and end tags
+    // whose own scope closes with them.
+    b"<r xmlns:a='u1' xmlns:b='u2' a:x='1' b:x='2'><a:e xmlns:a='u3' a:x='3'/><b:e/></r>",
+    b"<a:r xmlns:a='u1'><a:r xmlns:a='u2'>t</a:r><a:r/></a:r>",
 ];
 
 #[test]
