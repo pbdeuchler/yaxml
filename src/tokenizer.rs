@@ -349,7 +349,12 @@ impl Tokenizer {
                 .try_reserve_exact(target - self.buffer.len())
                 .map_err(|_| Error::new(ErrorKind::Allocation, self.diagnostic_start()))?;
         }
-        self.buffer.extend_from_slice(bytes);
+        if let [byte] = bytes {
+            // Single bytes (one-byte chunks, delimiters) skip the copy call.
+            self.buffer.push(*byte);
+        } else {
+            self.buffer.extend_from_slice(bytes);
+        }
         Ok(())
     }
 
