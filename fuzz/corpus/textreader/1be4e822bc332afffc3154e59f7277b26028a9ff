@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc
+     defatt  (0|1)   "e.org"
+     tst:att (0|1)   "1">
+]>
+<doc att="0"/>

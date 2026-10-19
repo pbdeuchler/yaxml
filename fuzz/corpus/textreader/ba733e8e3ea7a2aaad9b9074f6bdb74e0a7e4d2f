@@ -1,0 +1,5 @@
+<!DOCTYPE foo [
+<!ELEMENT foo (root*)>
+<!ELEMENT root EMPTY>
+<!ENTITY utf16b SYSTEM "dtds/utf16b.ent"
+        <NewsLineoo?>

@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ELEMENT doc7 EMPTY>
+<!ATTLIST doc
+     defatt  (0A1)   "0"
+    
+     tst:att (0|1)   "1">
+]>
+<d00068739955140067328ÿÿÿÿÿÿ9999999

@@ -3,11 +3,19 @@
 //! of the reader's events under libxml2's node rules, and acceptance must
 //! agree. Bit 0 trickles the input one byte per `fill_buf`; per node, the
 //! rotated control byte selects content, expansion and navigation checks.
-//! A second pass applies `next` at every node.
+//! A second pass applies `next` at every node. The top three control bits
+//! select a mode: 4 sets a base URI, 5 runs under small limits, 6 fails the
+//! source with an I/O error midway and 7 serves external resources; modes
+//! 5-7 check API consistency and termination rather than the reference.
 
 use std::io::{self, BufRead, Read};
 
-use yaxml::{Event, NodeType, OwnedDocument, ReadError, Reader, TextReader, Writer};
+use yaxml::{
+    ErrorKind, Event, Limits, NodeType, OwnedDocument, ParserProperty, ReadError, ReadState,
+    Reader, Request, TextReader, Writer,
+};
+
+const XML: &str = "http://www.w3.org/XML/1998/namespace";
 
 #[derive(Debug, PartialEq)]
 struct Node {
@@ -141,7 +149,197 @@ fn current<R: BufRead>(reader: &mut TextReader<R>) -> Node {
     if node.kind == NodeType::Element {
         assert_eq!(reader.has_attributes(), !node.attributes.is_empty());
     }
+    probe(reader);
     node
+}
+
+/// Name parts, namespaces, values and attribute lookups agree.
+fn probe<R: BufRead>(reader: &mut TextReader<R>) {
+    assert_eq!(reader.read_state(), ReadState::Interactive);
+    let name = reader.name().expect("named node").to_owned();
+    let local = reader.local_name().expect("local name").to_owned();
+    match reader.prefix() {
+        Some(prefix) => assert_eq!(name, format!("{prefix}:{local}")),
+        None => assert_eq!(name, local),
+    }
+    if reader.node_type() == NodeType::Element {
+        let bound = reader.lookup_namespace(reader.prefix());
+        assert_eq!(bound.filter(|uri| !uri.is_empty()), reader.namespace_uri());
+        assert_eq!(reader.lookup_namespace(Some("xml")), Some(XML));
+        let count = reader.attribute_count();
+        assert_eq!(reader.move_to_first_attribute(), count > 0);
+        while reader.node_type() == NodeType::Attribute {
+            let qualified = reader.name().expect("attribute name").to_owned();
+            let value = reader.value().expect("attribute value").to_owned();
+            let local = reader.local_name().expect("local name").to_owned();
+            let namespace = reader.namespace_uri().map(str::to_owned);
+            assert!(reader.has_value() && !reader.is_empty_element());
+            assert_eq!(reader.attribute_count(), 0);
+            assert_eq!(reader.get_attribute(&qualified), None);
+            assert!(matches!(reader.read_string(), Ok(None)));
+            assert!(reader.move_to_element());
+            assert_eq!(reader.get_attribute(&qualified), Some(value.as_str()));
+            assert!(
+                reader
+                    .get_attribute_ns(&local, namespace.as_deref())
+                    .is_some()
+            );
+            if let Some(namespace) = &namespace {
+                assert!(reader.move_to_attribute_ns(&local, namespace));
+                assert!(reader.move_to_element());
+            }
+            assert!(reader.move_to_attribute(&qualified));
+            assert_eq!(reader.value(), Some(value.as_str()));
+            if !reader.move_to_next_attribute() {
+                assert!(reader.move_to_element());
+            }
+        }
+        assert!(!reader.move_to_attribute("::") && !reader.move_to_element());
+        assert_eq!(reader.get_attribute("::"), None);
+        assert!(!reader.move_to_attribute_no(count));
+    } else {
+        assert!(!reader.move_to_first_attribute() && !reader.move_to_attribute_ns("a", "u"));
+        assert_eq!(
+            (
+                reader.get_attribute("a"),
+                reader.get_attribute_ns("a", None)
+            ),
+            (None, None)
+        );
+        let _ = reader.has_attributes();
+        assert_eq!(
+            reader.has_value(),
+            reader.value().is_some() || reader.node_type() == NodeType::ProcessingInstruction
+        );
+    }
+    let _ = (reader.base_uri(), reader.xml_lang());
+    for property in [
+        ParserProperty::LoadDtd,
+        ParserProperty::DefaultAttributes,
+        ParserProperty::Validate,
+        ParserProperty::SubstituteEntities,
+    ] {
+        let value = reader.parser_property(property);
+        assert!(reader.set_parser_property(property, value).is_ok());
+        assert!(reader.set_parser_property(property, !value).is_err());
+    }
+}
+
+/// After the end or a failure the cursor stays there, on no node.
+fn check_terminal<R: BufRead>(reader: &mut TextReader<R>, failed: bool) {
+    if failed {
+        assert_eq!(reader.read_state(), ReadState::Error);
+        assert!(reader.read().is_err(), "errors are sticky");
+    } else {
+        assert_eq!(reader.read_state(), ReadState::Eof);
+        assert!(!reader.read().expect("EOF is terminal"));
+    }
+    assert_eq!(reader.node_type(), NodeType::None);
+    assert_eq!((reader.name(), reader.local_name()), (None, None));
+    assert_eq!((reader.base_uri(), reader.xml_lang()), (None, None));
+    assert_eq!(reader.lookup_namespace(None), None);
+    assert!(!reader.has_value() && !reader.move_to_attribute_no(0));
+    assert!(matches!(reader.read_string(), Ok(None)));
+    assert!(matches!(reader.expand(), Ok(None)));
+    assert_eq!(reader.value(), None);
+}
+
+/// Reads to the end, buffering every other subtree; true on failure.
+fn drain<R: BufRead>(mut reader: TextReader<R>) -> bool {
+    let mut count = 0usize;
+    loop {
+        let moved = if count % 3 == 2 {
+            reader.next()
+        } else {
+            reader.read()
+        };
+        match moved {
+            Ok(true) => {}
+            Ok(false) => {
+                check_terminal(&mut reader, false);
+                return false;
+            }
+            Err(_) => {
+                check_terminal(&mut reader, true);
+                return true;
+            }
+        }
+        count += 1;
+        let _ = (reader.base_uri(), reader.xml_lang(), reader.depth());
+        if count.is_multiple_of(2) {
+            let _ = reader.read_outer_xml();
+            let _ = reader.read_string();
+        } else if count % 4 == 1 {
+            let _ = reader.read_inner_xml();
+            let _ = reader.expand();
+        }
+    }
+}
+
+/// Serves at most three bytes per `fill_buf`, then fails after `fail` bytes.
+struct Failing<'a> {
+    input: &'a [u8],
+    fail: usize,
+}
+
+impl Read for Failing<'_> {
+    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+        let n = self.fill_buf()?.len().min(out.len());
+        out[..n].copy_from_slice(&self.input[..n]);
+        self.consume(n);
+        Ok(n)
+    }
+}
+
+impl BufRead for Failing<'_> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        if self.fail == 0 && !self.input.is_empty() {
+            return Err(io::Error::other("injected"));
+        }
+        Ok(&self.input[..self.input.len().min(self.fail).min(3)])
+    }
+
+    fn consume(&mut self, amount: usize) {
+        self.input = &self.input[amount..];
+        self.fail -= amount;
+    }
+}
+
+/// Modes 5-7; false for the reference modes.
+fn special(control: u8, document: &[u8]) -> bool {
+    match control >> 5 {
+        5 => {
+            let limits = Limits {
+                max_owned_bytes: usize::from(control & 31) * 4,
+                max_depth: 2 + usize::from(control & 7),
+                ..Limits::default()
+            };
+            drain(TextReader::with_limits(document, limits));
+        }
+        6 => {
+            let fail = document.len() * usize::from(control & 31) / 32;
+            let failed = drain(TextReader::new(Failing {
+                input: document,
+                fail,
+            }));
+            // The whole input must be read, so the injected failure is met.
+            assert!(failed || document.is_empty(), "I/O failure ignored");
+        }
+        7 => {
+            let resolver = |request: Request<'_>| {
+                Ok(match request.uri.as_bytes().last() {
+                    Some(b'e') => Some(b"<x a='1'>e</x>".to_vec()),
+                    Some(b'n') => None,
+                    _ => Some(b"<!ENTITY e SYSTEM 'e'><!ATTLIST r d CDATA 'v'>".to_vec()),
+                })
+            };
+            let reader = TextReader::new(document).with_resolver("d/doc.xml", Box::new(resolver));
+            assert!(reader.parser_property(ParserProperty::LoadDtd));
+            drain(reader);
+        }
+        _ => return false,
+    }
+    true
 }
 
 fn written(document: &OwnedDocument) -> Vec<u8> {
@@ -224,6 +422,9 @@ pub fn exercise(input: &[u8]) {
     let Some((&control, document)) = input.split_first() else {
         return;
     };
+    if special(control, document) {
+        return;
+    }
     let expected = reference(document);
     let trickle = control & 1 != 0;
     let mut nodes = Vec::new();
@@ -235,8 +436,12 @@ pub fn exercise(input: &[u8]) {
             &mut nodes,
         )
     } else {
+        let reader = TextReader::new(document);
         walk(
-            TextReader::new(document),
+            match control >> 5 {
+                4 => reader.with_base_uri("http://h/d/doc.xml"),
+                _ => reader,
+            },
             control,
             expected.as_deref(),
             &mut nodes,
@@ -249,7 +454,7 @@ pub fn exercise(input: &[u8]) {
         }
         // Slice validation rejects encodings and characters before any event,
         // so a streamed prefix is not compared.
-        None => assert!(failed || Reader::new(document).is_err()),
+        None => assert!(failed || slice_rejects_encoding(document)),
     }
     if let Some(expected) = &expected {
         let mut reader = TextReader::new(document);
@@ -268,6 +473,21 @@ pub fn exercise(input: &[u8]) {
     }
 }
 
+/// The slice reader fails up front, or on a declared single-byte encoding
+/// that only the streaming decoder switches to.
+fn slice_rejects_encoding(document: &[u8]) -> bool {
+    let Ok(mut reader) = Reader::new(document) else {
+        return true;
+    };
+    loop {
+        match reader.read_event() {
+            Ok(Some(_)) => {}
+            Ok(None) => return false,
+            Err(error) => return error.kind == ErrorKind::UnsupportedEncoding,
+        }
+    }
+}
+
 /// Reads every node, comparing each with the reference as it goes; true on failure.
 fn walk<R: BufRead>(
     mut reader: TextReader<R>,
@@ -278,8 +498,14 @@ fn walk<R: BufRead>(
     loop {
         match reader.read() {
             Ok(true) => {}
-            Ok(false) => return false,
-            Err(_) => return true,
+            Ok(false) => {
+                check_terminal(&mut reader, false);
+                return false;
+            }
+            Err(_) => {
+                check_terminal(&mut reader, true);
+                return true;
+            }
         }
         let node = current(&mut reader);
         let reference = expected.and_then(|expected| expected.get(nodes.len()..));

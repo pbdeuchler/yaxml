@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENT doc ((a | c)+ , c ,  d)*>
+<!ELEMENT a (#P;DATA)>
+<!ELEMENT b (#/doc>

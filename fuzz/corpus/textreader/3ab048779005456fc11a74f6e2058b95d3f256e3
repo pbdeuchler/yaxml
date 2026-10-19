@@ -1,0 +1,5 @@
+–<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+<!ATTLIST docdefatt tt  (0|1)
+   DA
+oc att="2"/>

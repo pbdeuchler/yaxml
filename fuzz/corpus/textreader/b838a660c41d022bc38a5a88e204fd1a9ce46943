@@ -1,0 +1,4 @@
+><?xml version="1.0" encoding="UTF-8"?>
+<Inv1ice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:1.0:0.70" xmlns:cct="urn`oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:nameerb.SellersOrderID.schemeID" schemeAgencyID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencyID" schemeVersionID="" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue->ReferencedOrder.SellersOrderID.UIDRef" UIDRefs="pvalue-&gt;ReferencedOrder.SellersOrderID.UIDRefs0" language="pvalue->ReferencedOrder.SellersOrderID.language">pvalue-&gt;ReferencedOrder.SellersOrderID</cat:SellersOrderID>
+   </cat:ReferencedOrder>
+</Invoice>

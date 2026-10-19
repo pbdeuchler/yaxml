@@ -1,0 +1,55 @@
+><?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:1.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTypes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ice:1.0:0.70">
+   <cat:ReferencedOrder>
+      <cat:SellersOrderID schemeID="pvalue->ReferencedOrder.SellersOrderID.schemeID" schemeAzencyID="pvalue->ReferencedOrder.SellersOrderID.schem%AgencyID" schemeVersionID="pvalue->ReferencedOrder.SellersOrderID.schemeVersionID" schemeAgencySchemeID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySAchemeID" schemeAgencySchemeAgencyID="pvalue->ReferencedOrder.SellerscedOrder.SellersOrderID.schemeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffrencedOrder.SellersOrderID.schemeAgencyID" schemeVersionID="pvalue->ReferencedOrder.SellersOrderID.schemeVersionID" schemeAgencySchemeID="pvalue->Ref.SellerscedOrder.SellersOrderID.schesionID" schemeAgencySchemeID=">Ref.SellerscedOrder.SellersOrderID.schemeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-ffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-ffffffffffffffff.schemeURI" UID="pvaschemeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-ffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderIf.schemeURIURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-fffffffffffffr.SellersOrderIf.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffD.UID" UIDRef="pvalue-ffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-ffffffffffffURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-fffffffffffffr.SellersOrderIf.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffD.UID" UIDRef="pvalue-ffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-ffffffffffffffff.schemeURI" UID="pvaschemeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue-ffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffffffffffffffffff.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderIf.schemeURI" UID="pvalue->ReferencedOrder.SmeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrdguage">pvalue-&gt;ReferencedOrder.SellersOrderID</cat:SellersOrderID>
+   </cat:ReferencedOrder>
+</Invoice>

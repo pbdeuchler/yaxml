@@ -1,0 +1,10 @@
+×<?xml version="1.0"?>
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b ']>'>
+    <!--> ]> -->
+]    >
+<?pi p0?>
+<!--> c1 -->
+<d a=²>" b='>'>
+text&ääää-> c3 -->

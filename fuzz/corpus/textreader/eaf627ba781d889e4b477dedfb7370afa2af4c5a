@@ -1,0 +1,9 @@
+Ž<?xml version="1.0"?>
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersand (&#38;#38;) may be es b ']>'>
+    <!--> ]> -->
+] '  >
+ [
+<!umeri>" >
+]>
+<test>&example;</tüüüüüüüest>

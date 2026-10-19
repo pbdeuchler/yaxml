@@ -1,0 +1,17 @@
+î<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE rnode [
+<!ELEMENT rnode (f)>
+                    
+<!ENTITY f
+   "
+   <f>
+   hello world
+þ  </f>
+   "
+>
+]>
+                                      Ÿ                </cat:Referen
+cedOrder>
+</Inv;
+</rnode>
+

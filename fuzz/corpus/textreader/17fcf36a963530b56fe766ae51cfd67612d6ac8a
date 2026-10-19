@@ -1,0 +1,19 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <nor><?xm version="1.0" encoding"UTF-7"?>
+<collecmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm attr='   -/>
+'/>
+  <normId attr=' &amp; '/>
+  <nmmmmmmmmmmmmmmmmmmmmmmmmmormId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobarmmmmmmmmmmmmmmmm&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <no serializing back ->/-<
+dmoc>

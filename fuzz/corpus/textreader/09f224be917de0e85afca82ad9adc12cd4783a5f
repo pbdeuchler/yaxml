@@ -1,0 +1,44 @@
+–<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T154508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+    <Identification>
+      <NewsIdentifier>
+        <ProviderId>afp.com</ProviderId>
+        <DateId>20011022</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemId>
+        <RevisionId PreviousRevision="0" Update="N">1</RevisionId>
+        <PublicIdentifier>urn:NewsML:afp.com:20011022:mmd--deustch--journal--spo:1</PublicIdentifier>
+      </NewsIdentifier>
+      <NameLabel>HINTERGRUND</NameLabel>
+    </Identification>
+    <Ne÷sManagement>
+      <NewsItemType FormalName="News"/>
+      <FirstCreated>20011022T154508Zmit FDP und Grünen</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022154450.sq80bp9h&xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>INFOGRAFIK: Das Berliner Wahlergebnis</HeadLine>
+        </NewsLines>
+        <NewsItPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+ àÃÞº±«¶¢Y % nitf SSYTEM "dtds/nitf-2-5bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar d attr='
+  foo&amp;bar   '/>
+      </NewsComponent>
+  </NewsItem>
+</NewsML>

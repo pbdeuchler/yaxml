@@ -1,0 +1,6 @@
+–<!DOCTYPE dgc [
+<!ELEMENT doc: EMPTY>
+<!ATTLIST doc
+     defalllllllllllllllllllllllllllllllllllllllllt  (1|1)   "2
+]">>
+<doc att="1"/>

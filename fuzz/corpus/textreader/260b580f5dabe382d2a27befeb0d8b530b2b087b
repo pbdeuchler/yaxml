@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc
+     tst:att (0|    defa>
+]>
+<doc att="1"/>

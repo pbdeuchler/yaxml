@@ -1,0 +1,16 @@
+<!DOCTYPE doc [
+<!ATTLIST e a1 CDATA #IMPLIED>
+<!ATTLIST e a2 CDATA #IMPLIED>
+<!ATTLIST e a3 CDATA #IMPLIED>
+<!ATTLIST e a4 CDATA牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛]]></p>
+<��������牛牛牛牛牛㉛牛牛牛���牛牛牛牛牛牛牛牛牛牛牛�牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛爛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛盉��牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛牛� #IMPLIED>
+<!ATTLIST e a5 CDATA #IMPLIED>
+<!ATTLIST e a6 CDATA #IMPLIED>
+]>
+<doc>
+    <!-- This tests whethernSpecialtest;
+]>
+<root><middltest) ues
+         must not be normalized. -->
+    <e a1=" x  x " a2=" x  x " a3=" x  x " a4=" x  x " a5=" x  x " a6=" x  x "/>
+</doc>

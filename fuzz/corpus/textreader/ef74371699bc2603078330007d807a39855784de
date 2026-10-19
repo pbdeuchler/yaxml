@@ -1,0 +1,4 @@
+Ž<?xml version="1.0"?>
+<!DOCTYPE test [
+<!ENTITY example "<p>An amper(ically (&#38;#38;#38;(&#38;#38;) may be escaped
+ numeri>" ple;</test>

@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "3est 1">
+<!ENTITY test2 "test 2">
+]>
+<doc>nt>
+  ns="urn:def" xmlns:a="urn:a">
+  <Content>&test1;&test2;</Content>
+</doc>
+
+   <Content>Ret;&test2;</Content>
+</doc>
