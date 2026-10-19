@@ -286,6 +286,23 @@ assert_eq!(result.root_element().first_child().unwrap().name().unwrap().local(),
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`yaxml::schema_types` validates, compares and constrains the 45 XML Schema
+built-in datatypes as libxml2's `xmlschemastypes.c` does, and `yaxml::regexp`
+compiles XML Schema patterns to budgeted automata matched in linear time. Both
+are the foundation for XML Schema and RELAX NG validation; see
+[schema types](docs/schema-types.md).
+
+```rust
+use yaxml::{regexp::Regex, schema_types::{Comparison, Type}};
+
+let pattern = Regex::new("[A-Z]{2}\\d{3}")?;
+assert!(pattern.is_match("AB123") && !pattern.is_match("AB12"));
+let late = Type::DateTime.parse("2001-10-26T21:32:52Z", None).unwrap();
+let early = Type::DateTime.parse("2001-10-26T23:32:52+04:00", None).unwrap();
+assert_eq!(early.compare(&late), Comparison::Less);
+# Ok::<(), yaxml::regexp::Error>(())
+```
+
 `yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
 tokenization, libxml2's legacy tree construction with implied elements and
 auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding

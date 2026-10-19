@@ -1,0 +1,14 @@
+(a|b{5,3}){8,1}
+a
+aa
+){8,1}
+a
+aa
+b9bb
+bbb
+bb
+bb
+bbb
+bbbba
+aa
+){8,1}a

@@ -1,0 +1,9 @@
+(a|b{0,3}){0,1}
+a
+aa
+b
+bb
+bbb
+bbbb
+ab
+ba

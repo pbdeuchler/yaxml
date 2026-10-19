@@ -1108,6 +1108,8 @@ fn fuzz_regressions_replay() {
                 "valid" => driver::exercise_valid(&data),
                 "html" => driver::exercise_html(&data),
                 "xinclude" => driver::exercise_xinclude(&data),
+                "regexp" => driver::exercise_regexp(&data),
+                "datatypes" => driver::exercise_datatypes(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }

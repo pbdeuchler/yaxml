@@ -1,0 +1,5 @@
+(1(a|b|\P{Nd}){1,2}(1(a|b|\P{Nd}){1,2}|bab|\P{Nd}){1,2}|bab
+aaca
+aab
+aaca
+aaabb|bab|\Paa
