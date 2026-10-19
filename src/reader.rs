@@ -563,9 +563,10 @@ impl<'a> Reader<'a> {
         if let Some(loader) = self.loader.take() {
             controller.set_loader(loader);
         }
+        // The DTD stack neither rereads nor repairs characters.
         self.session.push(Phase::Declarations {
             controller,
-            parser: ordinary.state,
+            parser: ordinary.state.rereading(false, false),
         });
         Ok(())
     }
@@ -642,12 +643,9 @@ impl<'a> SliceReader<'a> {
             cursor: initial,
             origin: None,
             doctype: None,
-            state: match character {
-                Some(_) => ParserState::new(limits, initial)
-                    .with_flags(flags)
-                    .repairing_characters(),
-                None => ParserState::new(limits, initial).with_flags(flags),
-            },
+            state: ParserState::new(limits, initial)
+                .with_flags(flags)
+                .rereading(true, character.is_some()),
             limits,
             token_limit_kind: Limit::TokenBytes,
         };

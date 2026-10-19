@@ -103,6 +103,8 @@ const SLICE: &[(&str, &str, &[ErrorKind])] = &[
     ("<r a=\"1\"b=\"2\"><c/></r>", "<r a=\"1\"/>", &[Syntax, TextOutsideRoot]),
     ("<r><a b=1>x</a></r>", "<r><a/>1&gt;x</r>", &[Syntax, MismatchedEndTag, MismatchedEndTag]),
     ("<A@/>", "<A/>", &[InvalidName, Syntax, TextOutsideRoot]),
+    // markup that starts nothing loses its `<` and is reread from there
+    ("<r>1 < 2</r>", "<r>1  2</r>", &[InvalidName]),
     // ... as is one with a character reference libxml2 reads as zero
     ("<r><a b=\"x&#0;y\" c=\"1\">t</a></r>", "<r><a/>y\" c=\"1\"&gt;t</r>", &[InvalidReference, MismatchedEndTag, MismatchedEndTag]),
     ("<r><a b=\"x&#12a;y\">t</a></r>", "<r><a/>a;y\"&gt;t</r>", &[InvalidReference, MismatchedEndTag, MismatchedEndTag]),

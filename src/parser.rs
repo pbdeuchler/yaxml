@@ -313,6 +313,8 @@ pub(crate) struct ParserState<'source> {
     /// Recovery over input with characters outside `Char`, which libxml2
     /// drops from text, replaces in attribute values and ends markup at.
     repairs_characters: bool,
+    /// Recovery by a frontend that rereads tokens from `rewind`.
+    rereads: bool,
     /// Recovery: where libxml2 reads on, as content, inside the latest token.
     rewind: Option<usize>,
 }
@@ -352,16 +354,18 @@ impl<'source> ParserState<'source> {
             events: 0,
             flags: crate::options::Flags::default(),
             repairs_characters: false,
+            rereads: false,
             rewind: None,
         }
     }
 
-    /// Recovery repairs characters outside `Char` (see `repairs_characters`).
-    pub(crate) fn repairing_characters(self) -> Self {
-        Self {
-            repairs_characters: self.recovers(),
-            ..self
-        }
+    /// Recovery by the slice reader (`rereads`), which rereads a token from
+    /// where libxml2 ends it (`take_rewind`) and, over input with
+    /// `characters` outside `Char`, repairs them.
+    pub(crate) fn rereading(mut self, rereads: bool, characters: bool) -> Self {
+        self.rereads = rereads && self.recovers();
+        self.repairs_characters = self.rereads && characters;
+        self
     }
 
     /// Where the slice reader rereads the latest token's rest as content.
@@ -802,13 +806,18 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// The text of `raw` after its `prefix` bytes.
+    /// The text of `raw` after its `prefix` bytes, which a rereading
+    /// frontend reads as content.
     fn text_after<'event>(
         &mut self,
         raw: &'event str,
         prefix: usize,
         start: usize,
     ) -> Result<Option<Event<'event>>, Error> {
+        if self.rereads {
+            self.rewind = Some(start + prefix);
+            return Ok(None);
+        }
         let text = raw.get(prefix..).unwrap_or_default();
         let text = self.normalized(text, start + prefix, false, true)?;
         Ok(Some(Event::Text(text)))
