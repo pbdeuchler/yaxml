@@ -39,6 +39,7 @@ mod validate;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io::BufRead;
+use std::sync::Arc;
 
 use crate::valid::Dtd;
 use crate::xpath::Tree;
@@ -313,9 +314,16 @@ impl Default for Limits {
     }
 }
 
-/// A compiled XML Schema: immutable, reusable and thread-safe.
+/// A compiled XML Schema: immutable, reusable and thread-safe. Cloning shares
+/// the compiled data, which is how validators and readers keep a schema alive.
 #[derive(Clone, Debug)]
 pub struct Schema {
+    data: Arc<Compiled>,
+}
+
+/// The compiled components behind a [`Schema`].
+#[derive(Debug)]
+pub(crate) struct Compiled {
     pub(crate) names: Names,
     pub(crate) types: Vec<TypeDef>,
     pub(crate) elements: Vec<ElementDecl>,
@@ -371,7 +379,7 @@ impl Schema {
 
     /// Warnings reported while building the schema.
     pub fn warnings(&self) -> &[SchemaDiagnostic] {
-        &self.warnings
+        &self.data.warnings
     }
 
     /// Validates a document (`xmlSchemaValidateDoc`).
@@ -431,15 +439,23 @@ impl Schema {
 /// assert_eq!(diagnostics[0].node, Some(0));
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub struct StreamValidator<'s> {
-    validator: validate::Validator<'s, usize>,
+pub struct StreamValidator {
+    validator: validate::Validator<usize>,
     dtd: Option<Dtd>,
     elements: usize,
 }
 
-impl<'s> StreamValidator<'s> {
+impl StreamValidator {
+    /// Supplies the document's DTD, replacing the internal subset the validator
+    /// parses from the DOCTYPE event: a reader that loads the external subset
+    /// passes its [`dtd`](crate::BufferedReader::dtd), which `ID` attributes and
+    /// `ENTITY` values consult.
+    pub fn set_dtd(&mut self, dtd: &Dtd) {
+        self.dtd = Some(dtd.clone());
+    }
+
     /// A validator for one document against `schema`.
-    pub fn new(schema: &'s Schema) -> Self {
+    pub fn new(schema: &Schema) -> Self {
         Self {
             validator: validate::Validator::new(schema, HashMap::new()),
             dtd: None,
@@ -480,6 +496,11 @@ impl<'s> StreamValidator<'s> {
             }
             _ => self.validator.other(),
         }
+    }
+
+    /// The diagnostics so far; `finish` adds the missing-document-element one.
+    pub fn diagnostics(&self) -> &[Diagnostic<usize>] {
+        self.validator.diagnostics()
     }
 
     /// The diagnostics, once the document has ended.
