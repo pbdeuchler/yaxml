@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY e "<!DOCTYPE r [
+<!ELEMZ;>/doc<">
+]>
+<doc>&e;</doc>ENT 
+ SYSTEM 'n'>
+<!ENTIM 'n'>
+<

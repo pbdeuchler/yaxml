@@ -1,0 +1,13 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (tngEditor? | webMaster? | 
+s| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri | link 
+| lgeaguan | item+ | rating? | image? | textinagingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

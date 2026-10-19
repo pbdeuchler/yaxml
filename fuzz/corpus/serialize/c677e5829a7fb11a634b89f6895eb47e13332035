@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!--stuLE  ---><do-- an. </ is SnowMan. </student>

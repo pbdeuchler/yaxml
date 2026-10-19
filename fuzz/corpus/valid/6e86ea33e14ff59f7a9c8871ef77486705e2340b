@@ -1,4 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u0SEM 'u'                                                                                   D xmlns:p CDATA #I'a' q=''/></r>

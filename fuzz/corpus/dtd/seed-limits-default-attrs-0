@@ -1,1 +1,0 @@
-Ë<!DOCTYPE r [<!ATTLIST r a CDATA 'x'><!ATTLIST r b CDATA 'y'><!ATTLIST r c CDATA 'z'><!ATTLIST r d CDATA 'w'>]><r g='1'/><!--0-->

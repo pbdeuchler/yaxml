@@ -1,9 +1,0 @@
-((a|b|\p{Nd}){0,2}|aaa|bb){1,2}
-b&a}
-b&ab
-aaca
-aaabb
-aaca
-
-aa0aa	
-b0aaa

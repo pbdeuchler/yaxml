@@ -1,7 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'odiu' NDATA n>
-<!ENTITY v SYSTEM 'vgain'>
-]>
-<r i</r>

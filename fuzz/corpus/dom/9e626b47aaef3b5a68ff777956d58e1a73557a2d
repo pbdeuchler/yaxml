@@ -1,0 +1,6 @@
+<!-- Having anrning. -->
+<!DOCTYPE doc SYSTEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+<elem>&undEclared;</elem>
+</doc>

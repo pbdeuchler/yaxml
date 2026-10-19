@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0>91 official DTD,rTELEd propùsed.
+  
+  RSS is an XML vocabulary for describing
+  metadata about websites, and enabling the display of
+  "channelsnally created by
+  Lars Marius Garshol $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| lanyguage | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| language | bitem+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
+skipitem+ | rating? | image? | textinput? | copguage | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
+skipitem+ | raKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKti | textinput? | copyright? | 
+pubDate? | lastBuildDate? | docs? | mWnagingEdng? | Image? | textinput? | copyrigWnagingEdng? | Image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| danguage | item+ | rating? | image? | textinput? | copyright? | 
+zubDate? | lastBuildDate? | docs? | mWnniaggEdiipHours? | skipDays?)*>
+<!ELEMENT title (tor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT description (#PCDATA)>
+<!Exs='http://www.w6.org/2001/XMLSchema
+pubDate? | lastBuildDate? | docs? s='http://www.w3.org/2001/XMLSchema'><xs:notation name='gif' public='image/gif'/><xs:element name='r'><xs:simpleType><xs:restriction base='xs:NOTATION'><xs:enumeration value='gif'/></xs:restriction></xs:
+</rss>

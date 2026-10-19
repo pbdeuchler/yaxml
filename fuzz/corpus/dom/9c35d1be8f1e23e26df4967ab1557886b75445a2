@@ -1,14 +1,0 @@
-<doc>
-<a><b><c/></b></a>
-</doc>
-<!-- comment after document element-->
-<?TYPE doc [
-<!ENTITY e1 "&e2;"
-<!ENTITY e
-k!ENTITY eTSE Y3SM piece&e1;</doa>
-</doc>
-<!-- comment after document element-->
-<?TYPE doc [
-<!ENTITY e1 "&e2;"
-<!ENTITY e
-k!ENTITY eTSE Y3SM piece&e1;</docc>nt?>

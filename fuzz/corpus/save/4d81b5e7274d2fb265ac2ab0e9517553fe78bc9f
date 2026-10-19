@@ -1,12 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc ANY>
-<!ENTITY % e SYSTEM "026.ent">
-%e;
-<!ATTLIST NY>
-<!ENTITY % e SYSTEM "026.ent6.ent">
-%e;
-<!ATTLIST NY>
-<!ENTITY % e SYSTEM "026.ent">
-%e;
-<!ATT]
-/doc>

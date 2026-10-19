@@ -1,8 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>x/>
-  <norm attr=' &amp; '/>
-  <norm attr='
-&amp;'/>
-  <normId attr=' &lv; '/>
- <!DOCTYPE doc [
-<!ATTLIST e2/doc>

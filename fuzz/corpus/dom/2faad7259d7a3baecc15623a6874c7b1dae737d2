@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<foo:Root xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/ba@" xmlns:foo="http=://example.org/foo" xmlns="http://example.Org/" xml:lang="en-ie">
-  <bar:S<test>&#10;<num valum="ONE"></num>&#10;Thi) is a Negative test&#"?>
-<!DOCTYPEhe declaration.&#10;</test>thing />
-           </ioo:Something>
-        </bar:Something>
-     </foo:Something>
-  </bar:Something>
-</foo:Root>

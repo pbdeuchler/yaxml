@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<?Pi?><!--comment-->
-<!ELEMENT doc EMPTY>
-<?Pi?><!--comment-->
-<!ATTLIST doc att CDATA #IMPLIED>
-<?ot PUBLIC "some notation">
-<?Pi?><!--comment-->
-]>
-<doc/>

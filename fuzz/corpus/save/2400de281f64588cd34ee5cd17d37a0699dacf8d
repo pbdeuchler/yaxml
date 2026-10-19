@@ -1,7 +1,0 @@
-<?xml version='1.0'?>
-<!DOCTYPE root [
-<!ENTITY % deftest '&#60;!ELEMENT test (#DTAACP) >' >
-<!ENTITY % defmiddle '&#60;!ELEMENT middle (test) >'  >
-%defroot;%defmiddle;%deftest;
-]>
-<re</test></middle>root>

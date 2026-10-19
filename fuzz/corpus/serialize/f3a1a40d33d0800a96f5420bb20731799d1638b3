@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ATTLIST doc a1 CDATA #IMPLIED>
+<!ATTLIST doc a1 NMTOKENS #IMPLIED>
+<!EL2"></doc
+]

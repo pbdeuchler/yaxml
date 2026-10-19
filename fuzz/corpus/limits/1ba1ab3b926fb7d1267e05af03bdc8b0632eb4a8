@@ -1,0 +1,4 @@
+<!-- Detfault valueor of the enumerated values. -->
+<!DOCTYPE foo [
+<!ATTLIST foe|two|three) "four">
+]>

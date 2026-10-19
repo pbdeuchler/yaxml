@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>
+<?iva plue?>
+tbext
+-- and comments oc (<doc>
+<?pi valud?>
+tbext
+-- aNd cO

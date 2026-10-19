@@ -1,5 +1,0 @@
-<!DOCTYPE collection [
-
-<!ELEMENT cfi EMPTY>
-<!ATTLIST identified 
-   id		ID	#REQUIRWon>

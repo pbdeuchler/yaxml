@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	(fruit | vegetable)	#REQUIRED
-    >
-<!NOTATION fruit
-    PUBLIC "-//InternatioiblCTIONS="-//International Grocery Co6veguit
-    PUBLIC "-//International Grocery Coy"/>
-

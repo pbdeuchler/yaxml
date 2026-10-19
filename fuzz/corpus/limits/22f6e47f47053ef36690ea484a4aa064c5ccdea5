@@ -1,0 +1,4 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+%pe;
+<!ATTLIST r i ID #IMPLIED fs IDREFS #IM</r>

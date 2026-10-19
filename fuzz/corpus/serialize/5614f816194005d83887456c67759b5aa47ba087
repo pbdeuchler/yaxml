@@ -1,22 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc ANY>
-<!ENTITY % e SYSTEM "05T ͰLegalNameStartChar ANY>
-<!ELEMENT ͱLegalNameStartChar ANY>
-<!ELEMENT ͼLegalNameStartChar ANY>
-<!ELEMENT ͽLegalNameStartChar ANY>
-
-<!ELEMENT ˿LegalNameStartChar ANY>
-<!ELEMENT ͰLegalNameStar ANY>T ͽLegalNameStartChar ANY>
-
-<!ELEMENT ˿LegalNameStartChar ANY>
-<ameStartChar ANY>
-<!ELECharY N>
-A<!ELEMENT ͱLe!ELEMENT ͰLegalNtChar ANY>
-<!ELEMENT ͱLegalNameStartChar ANY>
-<!ELEMENT ͼLegalNameStartCh<!ELEMENT ͿLegalNameStartChar ANY>
-<!ELEMENT ΀LegalNameStartChameStartCh<!ELEMENT ͿLegalNameStartChar ANY>
-<!ELEMENT ΀LegalNameStartChar eStartCha2.ent">
-%e;
-<!ATTLIST doc a2 oc [
-<!ELEMENT doc ANY>
-<!ENTITY % e SYSTEMͼLegalNameStartCh<!ELEMENT ͿLegalNameStartChar /doc>

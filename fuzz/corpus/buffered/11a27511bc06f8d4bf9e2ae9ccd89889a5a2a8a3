@@ -1,7 +1,0 @@
-<!DOCTYPE el [
-<!ELEMENT el EMPTY>
-<!ATTLIST el at (oDOCTYPE el [
-<!IMPLIED>!DOCTYPE el [
-<!ELEMENT
->]
-<e1 at="two"/>

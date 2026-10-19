@@ -1,1 +1,0 @@
-<?xml version="1.0"?><q--before--><?pi data?><r xmlos="urn:r" xmlns:p="urn:p" z="a complete attr0;#9;" p:a="namespaced"><p:n xmlns:p="urn:q">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?empty?><!--a complete comment longer than thirty bytes: 中-->tail&#13;é🙂</r><!--irty bytes: 中-->tail&#13;é🙂</r><!--after-->

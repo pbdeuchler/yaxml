@@ -1,14 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)> 
-]>
-
-<!-- t.esting invalid CDStart -->
-<![[CDATA[This is a test]]>
-<student<!DOCTYPE root [
-<!ELEMENT root (#PCDATA|repeat-till-done|repeat-till-done)*>
-<!ELEMENT repeat-till-done (#PCDATA)>
->]My Name is SnowMan. </st>
-<rudent>oot/>
-
-
-

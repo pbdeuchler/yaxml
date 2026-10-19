@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>x00000000A;
-&#x0d;&#x0d;
-&#xAB; &#xab; &#xCx10FFFF;
-</root>
-<!--* a valid test for P66 *-->

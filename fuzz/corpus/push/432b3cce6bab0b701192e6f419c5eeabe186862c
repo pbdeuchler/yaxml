@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE student [
-	<!ENTITY info PUBLIC "This is a test Ã¡ " "student.dtd">
-]>
-
-<!-- testing invalid FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFº¹¹¹¹¹¹¯FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFpubid char with Ã¡  >
---s<tudent>My Name is ,info;. </student>
-

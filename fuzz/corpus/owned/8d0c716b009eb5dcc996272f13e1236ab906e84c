@@ -1,0 +1,79 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights re22222222or internal uion is
+granted ent>
+   anda,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W   <xi:include href="b>xml" xmlns:xi="ht>
+         E need  thi way f
+within a company or organiza,<b/>,<c/>,<d/>"lns:xi="http://www							FFFFFFF<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and with defaulna ]mespace -->
+<foo xmlns:a="http://example/ore"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr="attrValue"
+ 更attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValug"
+ 	attr.-�更="attrValuee"
+ 	A.-�attr="attrValue"
+ 	zA.-attr="attrValue"
+ 	attr0zA.="attrValue"
+ 	attr·0rA="attrValue"
+ 	attr̀·0z="attrValue"
+ 	attŕ̀·0="attrVaalue"
+ 	、。퟾attr="attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈attr="attrValue"
+ 	퟿豈論attr="attrValue"
+
+豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更:b="hipper"
+     xmlns="http://example.org/~wglbur">
+ttr="attrValue"
+
+豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更:b="hipper"
+     xmlns="http://example.org/~wglbur">
+xed attributes vith same
+FFFFFFFFFde">
+         E need lot of se
+within a company or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W   <xi:include href="b>xml" xmlns:xi="http://www							FFFFFFFFFFFFFFFFde">
+tp://www			     e/				FFFFF~k</fo>o>
+FFFFFFFFFFFde">
+         E \\\\\\\\\\\\\\\\\need  thi way f
+within a company or organiza,<b/>,<c/>,<d/>"lns:xi="http://www							FFFFFFFFFFFFFFFFde">
+         E need lot of se
+within a cympany or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test2;</ent>
+   <p> W   <xi:include href="b>xml" xmlns:xi="xed attributes vith same
+FFFFFFFFFde">
+         E need lot of se
+within a company or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W   <xi:include href="b>xml" xmlns:xi="http://www							FFFFFFFFFFFFFFFFde">
+tp://www			     e/				FFFFF~k</fo>o>
+FFFFFFFFFFFde">
+         E \\\\\\\\\\\\\\\\\need  thi way f
+within a company or organiza,<b/>,<c/>,<d/>"lns:xi="http://www							FFFFFFFFFFFFFFFFde">
+         E need lot of se
+within a cympany or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test2;</ent>
+   <p> W   <xi:include href="b>xml" xmlns:xi="http://www							FFFFFFFFFFFFFFFFde">
+         E need lot of garbage now to trigger the probme

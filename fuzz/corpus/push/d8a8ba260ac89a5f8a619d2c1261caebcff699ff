@@ -1,7 +1,0 @@
-<!DOCTYPE doc	
-[
-<!ELEMENT d (#PCDATA)>
-<!ENTITY % pð "<!---->">
-%pe ;
-]>
-<doc/>

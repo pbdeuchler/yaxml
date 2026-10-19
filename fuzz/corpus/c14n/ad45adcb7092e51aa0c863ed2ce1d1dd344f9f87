@@ -1,8 +1,0 @@
-h<?xml version="1.0"?>
-<XPath xmlns:bar="http://ex=mple.org/b!r" xmlns:baz="http://example.org/b`z" xmlns:foo="http://IIIIIIIexample.org/foo" xml:lang="en-ie">
-(   (//. | //@* | //namelpace::*) 
-    [ 
-              <!-- everyte><e><f></f></e><f></f></d>&#10; hing -->
-              ancestor-or-self::bar:Something
-    ]
-</XPath>

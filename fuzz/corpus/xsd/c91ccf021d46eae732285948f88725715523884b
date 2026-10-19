@@ -1,29 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summary(SR S) 0>91 official DTD,rTELEd propùsed.
-  rs Marius GŸŠshol - larsga@ifi.uio.no.
-  
--->
-<!ELEMENT rss (channel)>
-<!ATTLIST rss version CDATA #REQUIRED>
-<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
-| lanyguage | item+ | rating? | image? | textinput? | copyright? | 
-pubDate? | item+ | ratdocs? | mWnagingEditor? | webMaster? | 
-skipitem+ | rating? | image? | textinput? | copyright? | 
-pubDate? | lastBu| link 
-| language | item+ | rating? | image? | textinput? | copyright? | 
-pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
-skipHours? | skipDays?)*>
-<!ELEMENT title (#PCDATA)>
-<!ELEMENT description (#PCDATA)>
-<!T description (#PCDATA)>
-<!ELEMENT link (#PCDATA)>
-<!ELEMENT image (title | url | link | width? | height? | description?)*>
-<!ELEMENT url (#PCDATA)>
-<!ELEMENT item (title | linfor describing
-  metadata about websites, and enabling the display of
-  ">
-</channel>
-</rss>

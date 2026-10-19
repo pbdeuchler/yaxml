@@ -1,14 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<!-- This test case contains valid char 
-&#x9;
-&#xA;
-&#xD;
-&#x20;&#x7E;ot>
-<!--
-Testlla lva #x85;
-&#xA0;&#x123xFEF0;&#F;
-&#xE000;&#xFEF0;&#xFFFD;
-&#x10000;&#x5FEDC;&#x10FFFF;
--->

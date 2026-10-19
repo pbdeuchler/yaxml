@@ -1,6 +1,0 @@
-–<?xml version="1.0"?>
-<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
-<!ENTITY xml "Extensible;&#160;&#160;&#160;&#160;&#160610;&#;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160ITY">
-<!ENTITY image SYSTEM "img.jif"n embedded <IMG src="image"/>
-</EXAMPLE>
-

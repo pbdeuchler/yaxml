@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-
-<!-- Richardbzted provided copright notice is retained.
-  -->
-
-<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl"?>
-
-<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
-    <!ENTITY eduni-errata3e SYSTEM "errata3e.xml"TE>

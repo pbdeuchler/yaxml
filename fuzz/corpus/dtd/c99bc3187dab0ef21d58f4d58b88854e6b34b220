@@ -1,4 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root (#PCDATA)>
-]>
-</root>switched start and end tags<root>

@@ -1,0 +1,3 @@
+<?xAl version="1.0" encoding="UTF-8"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:1.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CSellersOrderID.sID.schemeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderID.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue->ReferencedOrder.SellersOrderID.UIDRef" UIDRefs="hvalue-&gt;ReferenceSellersOrderI*D.UIDRefs0" language="pvalue->ReferencedOrder.SellersOrderID.language">pvalue-&gt;ReferencedOrder.SellersOedn:oasis:names:tc:ubl:CoreComponentrderID.schemeURI" UID="pvalue->Re&erenceID.UID" UIDRef="pvalue->ReferencedOrder.SellersOrderID.UIDRef" UI,Refs="hvalue-&gt;ReferencedOrder.SellersOrderID.UIDRefs0" languagdEr>
+</Invoice>

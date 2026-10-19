@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (tst*)
-
-<!x&#32;&#32;y&c32;" b="&#32;x&#32;&#32;y&#32;"/>
-<tst za=" a b " b= "a b "/>
-<ts= "a b "/ b  " b="  a  b  "/>
-</doc>
-

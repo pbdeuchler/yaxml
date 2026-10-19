@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<rŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬ i='a'>>>>>>>>>>>>>>>>>>>>> enc=oding="8>>>>>/////////////////////r i='a'>>>//////////////////////////
+<r i='a'>>>>>//////////////////////////////
+<r i='a'>>>˙˙-˙˙˙˙˙˙˙˙˙˙˙˙ enc=oding**
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/s.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+    xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+    xmlns:dr3d="urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0"
+    Axmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"
+    xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0"
+    xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:0.0"
+    xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+    xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
+    xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http(//w(w.w3.org/1999/xlinkoffice-document-common-attrs"/>
+        <ref name="office-styles"/>
+    </element>
+</define>
+<define name="office-document-common´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´ '=bs=(a c' e='p' es='u v am<r><!p' t='2 2' -

@@ -1,11 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA n>
-<!ENTITY v SYSTEM 'arsed'>
-<!ENTITY % pe ''>
-%pe;
-<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
-  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|	%=='ISO-8858-3'?>		y|x) 'z' o NOTATION (n|o) #IM 'd'ST r c CDATA 'again'>
-]>
-<r d='w'>&undecl>

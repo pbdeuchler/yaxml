@@ -1,0 +1,5 @@
+I<!DOCTYPE doc [<!ATTLIST no6rmId id ID #IMPLIED>]>
+<doc>
+   <text>Farst line&#x0d;&#10;Second line</text>
+   <value>&#x32;</value>
+   <compute><![CDATA[value>"0" && value<"10" ?"valid":"error"]]&#9;   &atop"></FRAMESET

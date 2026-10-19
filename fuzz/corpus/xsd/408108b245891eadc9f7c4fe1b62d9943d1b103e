@@ -1,8 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY p 'parsed'>
-<!ENTITY % PLIED
-  'parsed'>
-<!ENTITY p 'parsed'><!ENTITY % PLIED
-  'parsed'Y % p!ATTLISTr>

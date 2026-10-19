@@ -1,5 +1,0 @@
-<!DOCTYPE doc[ 
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST ddoc val (v1 | v2  )3v |#IMPLIED>
-]> doc val (v1 | v2 | v3) #IMPLIED>
-]> doc val (v1 | v2<!Ddoc>

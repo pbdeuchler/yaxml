@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary ([SS) 0>91 official DTD,rTELEd propùsed.
+  
+  RSS is an0XML vocabulary for descl - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | cs? | mWnagingEditor? | webMaster? | 
+skipitem+ | nguage | item+ | rating? | image? | textinput? | copyright? | 
+pubþDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT description (#PCDAT·)>
+<!ELEMENT link (#PCDATA)>
+<!ELEMENT image (title | url | link | width? | žeight? | description?)*>
+<!ELEMENT url (#PCDATA)>
+<!ELEMENT item (title | linfor describing
+  metadata about websites, and enabling the display of
+  ">
+</channel>
+</rss>

@@ -1,0 +1,34 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName0 ANY>
+<!ATTLIST LegalName0 attr0 ID #IMPLIED>
+<!ATTLIST LegalName3 attr2 ID #IMPLIED>
+<!ATTLIST LegalName2 attr20 IDREF #IMPLIED>
+<!ELEMENT LegalName3 ANY>
+<!ATTLIST LegalName3 attr3 ID #IMPLIED>
+<!ATTLIST LegalName3 attr10 IDREF #IMPLIED>
+<!ELEMENT LegalName6 ANY>
+<!ATTLIST LegalName46 attr46 ID #IMPLIED>
+<!ATTLIST LegalName46 attr460 IDREF #IMPLIED>
+<!ELEMENT LegalName47 ANY>
+<!ATTLIST LegalName47 attr47 ID #IMPLIED>
+<!ATTLIST LegalName61 attr470 IDREF #IMPLIED>
+]>
+<!-- Legal NameshW containing one to four characters in order from the list below  used in Attr delcs a<!DOCTYPE r[%;', 0x036F, 0x203F, 0x2040 -->
+<LegalName>
+ 	attr0=":" attr00=":"
+ 	attr1="À" attr10="À"
+ 	attr2="Á" at,r20="Á"
+ 	attr3="˾" attr30="˾"
+ 	attr4="Â" attr40="Â"
+ 	attr5="Ã" attr50=180="⁰ⁱ"
+ 	tart91="ⁱ↎" attr190="ⁱ↎"
+ 	attrͮ́"
+ 	attr44="⁀‿ͯͮ" attr440="⁀‿ͯͮ"
+ 	attr45="null⁀‿ͯ" attr450="null⁀‿ͯ"
+ 	attr46="nullnull⁀‿" attr920="UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUXUUUUUUUUUUń"
+ 	attr44="⁀‿ͯͮ" attr440="⁀‿ͯͮ"
+ 	attr45="null⁀‿ͯ" attr450="null⁀‿ͯ"
+ 	attr46="nullnull⁀‿" attr920="UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUXUUUUUUUUUUnullnull⁀‿"
+ 	attr47="nullnullnull⁀" attr470="nullnullnull⁀"
+</LegalName>

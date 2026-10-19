@@ -1,9 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
-
-<!ENTITY v SYSTEM 'v' NDATA m>
-<!ENTITY p 'parsed'>
-<!ENTITY % pe ']'>
-%pe;
-<!AT>
-%pe;
-<!ATTLIST rr22222 -

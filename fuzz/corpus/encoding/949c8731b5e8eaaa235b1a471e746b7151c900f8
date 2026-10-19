@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "&#13;e document element?>
-<!-- comment after document elementore dment element?>
-<!-- co">
-]>
-<doc>&e;</doc>

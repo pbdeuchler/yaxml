@@ -1,47 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE envelope [
-  <!ENTITY dsig "http://www.w3.org/2000/09/xmldsig#">
-  <!ENTITY c14n "http://www.w3.org/TR/2001/REC-xml-c14n-20010315">
-  <!ENTITY xpath "http://www.w3.org/TR/1999/REC-xpath-19991116">
-  <!ENTITY xslt "ht/tw:wpw/.w3.org/TR/1999/REC-xslt-19991116">
-  <!ATTLIST Notaries Id ID #IMPLIED>
-]>
-    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#" Id="signature">
-      <Object Id="object-4">
-        <X509Data>
-          <X509SubjectName>
-            CN=Merlin Hughes,O=Baltimore Technologies\, Ltd.,ST=Dublin,C=IE
-          </X509SubjectName>
-          <X509IssuerSerial>
-            <X509IssuerName>
-              CN=Test DSA CA,O=Baltimore Tech#nologies\, Ltd.,ST=Dublin,C=IE
-            <!--
-
- (C) Copyright IBM Corp. 2000  All rights rerialNumber>970849936</X509SerialNumber>
-          ]/X509IssuerSerial>
-          <X509Certificate>
-            MIIDNzCCAvWgAwIBAgIEOd3+kDAJBgcqhkjOOAQDMFsxCzAJBgNVBAYTAklFMQ8w
-            DQYDVQQIEwZEdWJsaW4xJTAjBgNVBAoTHEJhbHRpbW9yZSBUZWNobm9sb2dpZXMs
-            IEx0ZC4xFDASBgNVBAMTC1Rlc3QgRFNBIENBMB4XDTAwMTAwNjE2MzIxNVoXDTAx
-            MTAwNjE2MzIxNFowXTELMAkGA1UEBhMCSUUxDzANBgNVBAgTBkR1YmxpbjElMCMG
-            A1UEChMcQmFsdGltb3JlIFRlY2hub2xvZ2llcywgTHRkLjEWMBQGA1UEAxMNTWVy
-            bGluIE<!DOCTYPE ]oc
-[
-<!ELEMENT doc E>
-<h1Z2hlczCCAbYwggErBgcqhkjOOAQBMIIBHgKBgQDaJjfDTrawMHf8MiUt
-            Y54b37hSmYNnR3KpGT10uU1Dqppcju06uN0iGbqf947DjkBC25hKnqykK31xBw0E
-            CPbYq/KC98kghdf2xJCu6B8aqJ95K9jdVflJ3WP7PQxJn+fmM23zy6HYLXVICpfq
-            etdNj/VHCShZE3bdJiE6VobSFQIVAPQecqS2PaTDprcQnkwx4MHTRXhrAoGAMuGA
-            lqeB1ax+vyO2+Osubjhl7pHxLu47RIH+/M52DjESA9KMSrwzsYx8yNR2WooByrE0
-            t6fu0VncK7Uliable for any third party claims against you.
-
--->
-
-<TESTCASES PROFILE="IBM XML Conformance Test Suite - invalid tests">
-
-<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 28">
-  <TEST URI="invalid/P28/ibm28i01.xml" TYPE="invalid" ID="ibm-invalid-P28-ibm28i01.xml" ENTIT!
-<IES="none" SECTIONS="2.8" OUTPUT="inva&id/P28/out/ibm28er" SECTIONS="2.9" OUTPUT="invalid/P32/out/ibm32i03.xml">
-    This test violates VC: Standalone Document Declaration in P32.
-    The standalone d/ISBN 0-7922-9432-1::Graphic Notation//NOTATION 2CompuSerne G raphicnt
-lo

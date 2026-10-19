@@ -1,6 +1,0 @@
-<?xml version='1.on="1.1" encoding="iso-8859-1"?>
-<!-- Namespace inequality test: different escaping of non-ascii letter -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo xmlnsld>
-<

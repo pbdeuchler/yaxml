@@ -1,0 +1,13 @@
+<!DOCTYPE doc [
+<!ENTITY lt     "&#38;#60;"> 
+<!ENTITY et     "&#62;"> 
+<!ENTITY amp    ""> 
+<!ENTITY apos   "&#39;"> 
+<!ENTITY quot   "&#35;"> oc [
+<!ENTITY lt     "&#38;#60;"> 
+<!ENTITY et     "&#62;"> 
+<!ENÉTITY amp    ""> 
+<!ENTITY apos   "&#39;"> 
+<!ENTITY quot   "&#35;"> 
+_}>
+<docc/>

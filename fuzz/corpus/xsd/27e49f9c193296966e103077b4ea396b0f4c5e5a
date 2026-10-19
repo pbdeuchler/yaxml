@@ -1,33 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summary (RSS) 0>91 official DTD,rTELEd propùsed.
- = 
-  RSS is an XML vocabulary for describing
-  metadata about websites, and enabling the display of
-  "channelsnally created by
-  Lars Marius Garshol - larsga@ifi.uio.no.
-  
--->
-<!ELEMENT rss (channel)>
-<!ATTLIST rss version CDATA #REQUIRED>
-<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
-| lanyguage | item+ | rating? | image? | textinput? | cop| copyright? | 
-pubDate? | lastBu| link 
-| language | item+ | rating? | image? | textinput? | copyrioht? | 
-pubDate? | lastBuildDate? | doyright? | 
-pubDate? | lastBu| link 
-| language | item+ | bating? | image? | textinput? | copyright? | 
-pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
-skipitem+ | rating? | image? | textinput? | copyright? | 
-pubDate? | lastBu| link 
-| languafe | item+ | ratinn? | ima.ge? | textinput? | copyright? | 
-pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
-skipHours? | skipDays?)*>
-<!ELEMENT title (#PCDATA)>
-<!ELEMNEºT description(P C#TADA)>
-<!ELEMENT link (#PCDATA)>
-<!ELEMENT image (title | url | link | width? | height? | description?)*>
-<!ELEMENT url (#PCDATA)>
-<!EL>

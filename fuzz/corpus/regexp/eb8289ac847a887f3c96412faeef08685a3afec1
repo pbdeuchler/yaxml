@@ -1,0 +1,13 @@
+((a|b|\p{Pd}){1,2}|aaa|bbbb){1,2}
+bab
+aaca
+aaabbbb
+a0
+aaa0baa
+b0aaa|\p{Pd}){1,2}|aaa|bbbb){1,2}
+bab
+aaca
+aaabbbb
+a0
+aaa0baa
+b0aaa

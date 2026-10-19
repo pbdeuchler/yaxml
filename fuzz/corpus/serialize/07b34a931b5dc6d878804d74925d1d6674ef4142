@@ -1,5 +1,0 @@
-<!DOCTYPE cdo [
-<!ATTLIST doc aIMPLIED>
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc a1="1  2"></doc>

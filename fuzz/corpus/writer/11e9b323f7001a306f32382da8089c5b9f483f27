@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT st			  last  CDA																													estin:g chardata with white space --%>
-<student first="Eric"> &#x5A; &#x09; &#x0D;&#x20;</stude.t>
-
-

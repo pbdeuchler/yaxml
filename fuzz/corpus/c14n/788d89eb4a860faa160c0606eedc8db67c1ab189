@@ -1,0 +1,22 @@
+<!DOCTYPE root [
+    <!ELEMENT root ANY	#IMPLIED
+	idrefs	IDREFS	#IMPLIED
+	>
+]>
+
+<!-- each name muue of an id attrib>
+    <!ATTLIST root
+	id	ID	#IMPLIED
+	idref	IDREF	#IMPLIED
+	idrefs	IDREFS	#IMPLIED
+	>
+]>
+
+<!-- each name muue of an id attribute on some element -->1.1"?><foo>&#140
+
+<root idrefs="d72 ee38">
+    <root id="d36"/>
+</root>
+
+
+

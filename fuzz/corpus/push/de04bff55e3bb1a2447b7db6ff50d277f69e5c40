@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<xs:schema id="foo" xmlns="" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="inner">
+    <xs:complexTer><a>0</a><b>2</b></>
+  r> <c>'34/c> </outer>

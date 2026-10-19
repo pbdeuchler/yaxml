@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<tst>
+
+       The following table displays the characters  in  ISO  8859
+       Latin-1,  which are printable and unlisted in the ascii
+       manual page.
+
+       Oct   Dec   Hex   Char   Description
+       --------------------------------------------------------------------
+       240   160   A0           NO-BREAK SPACE
+       241   161   A1     �     INVERTED EXCLAMATION MARK
+       242   162   A2     �     CENT SIGN
+       243   163   A3     �     POUND SIGNkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+       244   164   A4         �     INVERTED QUESTION MARK
+       300   192   C0     �     LATIN CAPITAL LETTER A WITH GRAVE
+       301   193   C1     �     LATIN CAPITAL LETTER A WITH ACUTE
+       302   194   C2     �     LATIN CAPITAL LETTER A WITH CIRCUMFLEX
+       303   195   C3     �     LATIN CAPITAL LETTER A WITH TILDE
+       304   196   C4     �     LATIN CAPITAL LETTER A WITH DIAERESIS
+       305   197   C5     �     LATIN CAPITAL LETTER A WITH RING ABOVE
+       306   198   C6     �     LATIN CAPITAL LETTER AE
+       307   199   C7     �     LATIN CAPITAL LETTER C WITH CEDILLA
+       310   200   C8     �     LATIN CAPITAL LETTER E WITH GRAVE
+       311   201   C9     �     LAlnull⁀attr CDATA #IMPLIED>
+]>
+<!-- Legal Names containing one to four characters in order from the list below  used in Attr delcs and attributes.  x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, 0x0370, 0x0371, 0x037C, 0x037D, 0x037F, 0x0380, 0x1FFE, 0x1FFF, 0x200C, 0x200D, 0x2070, 0x2071, 0x218E, 0x218F, 0xTIN CAPITAL LETTER E WITH ACUTE
+       312   202   CA     �     LATIN CAPITAL LETTER E WITH CIRCUMFLEX
+       313   203   CB     �     LATIN CAPITAL LETTER E WITH DIAERESIS
+       314   204   CC     �     LATIN CAPITAL LETTER I WITH GRAVE
+       315   205   CD     �     LATIN CAPITAL LETTER I WITH ACUTE
+       316   206   CE     �     LATIN CAPITAL LETTER I WITH CIRCUMFLEX
+       317   207   CF     �     LATIN CAPITAL LETTER I WITH DIAERESIS�o      320   208   D0     �     LATIN CAPITAL LETTER ETH
+       321   209   D12C00, 0x2C01, 0x2FEE, 0x2FEF, 0x3001, 0x3002, 0xD7FE, 0xD7FF, 0xF900, 0xF901, 0xFFFD, 0x002D, 0x002E, 0x0041, 0x007A, 0x0030, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040 -->
+<LegalName 
+ 	:attr="attrValue"
+ 	Àattr="attrValue"
+ 	Áattr="attrValue"
+ 	˾attr="attrValue"
+ 	Âattr="attrValue"
+ 	Ãattr="attrValue"
+ 	˽attr="attrValue"
+ 	˿attr="D>
+<!ATTLIST LegalName attr-�更豈 CDATA #IMPLIED>
+<!ATTLIST LegalName attr.-�更 CDATA #IMPLIED>
+<!ATTLIST LegalName A.-�attr CDATA #IMPLIED>
+<!ATTLIST LegalName zA.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName attr0zA. CDATA #IMPLIED>
+<!ATTLIST LegalName attr·0zA CDATA #IMPLIED>
+<!ATTLIST LegalName attr̀·0z CDATA #IMPLIED>
+<!ATTLIST LegalName attŕ̀·0 CDATA #IMPLIED>
+<!ATTLIST LegalName attrͮ́̀· CDATA #IMPLIED>
+<!ATTLIST LegalName attrͯͮ́̀ CDATA #IMPLIED>
+<!ATTLIST LegalName attr‿ͯͮ́ CDATA #IMPLIED>
+<!ATTLIST LegalName attr⁀‿ͯͮ CDATA #IMPLIED>
+<!ATTLIST LegalName null⁀‿ͯattr CDATA #IMPLIE�����D>
+<!ATTLIST LegalName nullnull⁀‿attr CDATA #IMPLIED>
+<!ATTLIST LegalName nullnul  168   A8     �rValue"
+ 	Áattr="attrValue"
+ 	˾attr="attrValue"
+ 	Âattr="attrValue"
+ 	Ãattr="attrValue"
+ 	˽attr="attrValue"
+ 	˿attr="attrValue"
+ 	Ͱattr="attrValue"
+ 	ͱattr="attrValue"
+ 	ͼͽattr="att�Value"
+ 	ͽͿattr="attrValue"
+ 	Ϳ΀attr="attrValue"
+ 	΀῾attr="attrValue"
+ 	῾῿attr="attrValue"
+ 	῿‌attr="attrValue"
+ 	‌‍attr="attrValue"
+ 	‍⁰attr="attrValue"
+ 	⁰ⁱattr="attrValue"
+  	�

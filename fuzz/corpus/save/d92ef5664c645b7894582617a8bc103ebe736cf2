@@ -1,21 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root SYSTEM "ibm50i01.dtd" [
-  <!ELEMENT root (a,b)>
-]>
-<root><a/><b>
-   <c></c >
-   content of b e!lement
-</b></root>
-<!--alid test: tests VC:Pro//www.ietf.org/standards/dav/" xmlns:R    <R:bigbox/>
-     YPE doc [
-<!ELEMENT doc (tst*)>
-<!ELEMENT tst (#PCDATA)>
-<!ATTLIST tst a NMTOKENS #IMPLIED>
-<!ATTLIST tst b CDATA #Ix20;&a;B&da;"/>
-<tst a="&#xd;&#xd;A&#xa; b="  a  b <R:author/>
-    </D:prop>
-    <D:status>HTTP 0.1:response>
-  <D:response>
-    <D:href>http://www
- *tig
- in P00 *-->

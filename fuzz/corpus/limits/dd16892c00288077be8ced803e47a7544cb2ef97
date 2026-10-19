@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (PCDATA|b)* >
-  <!ELEMENT b (#PCDATA) >
-  <!ATTLIST b attr0 CDATA #REQUIRED>
-  <!ATTLIST b attr2 (abc|def) "abc">
-  <!ATTLIST b attr3 CDATA #FIXED "fixed">
-]>

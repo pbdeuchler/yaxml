@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "hWâ¨">
+<!ATTLIST docED>
+]>
+<doc>x&e;y</do<?xml version='1.0' encoding='ISO-8859-3'?><<doc att="val"
+att2="val2" att3="val3															/					.							"/>/
+="&muot;&apos;aaaa˙˙˙˙˙˙EEEEEEEEEEEEEbs=(VUUUUUUc>(ÚÚÚÚÚr>

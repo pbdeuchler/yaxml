@@ -1,6 +1,0 @@
-<?xml version='1.0'?>
-<!DOCTYPE root [
-<!ENTITY % deftest '&lt;!ELEMENT t>' >
-%defroot;%defmiddle;e (#PCst;
-]>
-<root><midlle><test>sample</test></middle></root>

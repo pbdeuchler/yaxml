@@ -1,7 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!ENTIT+Y % pe "<!---->">
-%pe ;
-]>
-<doc/>

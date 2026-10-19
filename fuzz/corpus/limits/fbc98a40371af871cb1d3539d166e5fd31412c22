@@ -1,5 +1,0 @@
-<!DOCTYPE test [
-  <!ENTITY newlinewline "&#x26;#xA;">
-]>>>>>>>>>>>>>>>>> "&#x26K#xA;">
-]>>>>>>>>>>>>>>>>>>>>
-<testwn eline="&newline;"/>

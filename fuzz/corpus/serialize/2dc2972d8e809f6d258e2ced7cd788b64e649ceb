@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<D:multistatus xmlns:D="http://www.ietf.org/standards/dav/" xmlns:R="http://www.foo.bar/bovschema/">
-  <D:response>
-    <D:href>http://www.foo.bar/container/</D:href>
-    <D:prop>
-      <R:bigbox/>
-      <R:66666666666666666666666666666666666666666666666666666666666666666600000000000003210779013456155986 200 OK</D:status>
-  </D:response>
-</D:multistatus>

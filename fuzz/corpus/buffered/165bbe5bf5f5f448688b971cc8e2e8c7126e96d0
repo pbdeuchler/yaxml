@@ -1,14 +1,0 @@
-<!DOCTYPE elem
-[
-<!ELEMENT elem (#PCDATA|elem)*>
-<!ENTITY ent "<elem>CharData</elem>">
-]>
-<elem>
-t;&quot;
-Ch;
-<!--comment-->
-<![CDATA[
-<elem>
-t;&quot;
-ChŸ”Dataÿ×
-</elem&>

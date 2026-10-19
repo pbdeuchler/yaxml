@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-
-<!--* Test all legal patterns derived from PTY ep P80 -->

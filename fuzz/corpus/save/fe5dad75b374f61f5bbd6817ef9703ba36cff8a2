@@ -1,27 +1,0 @@
-<?xml version="1.0" standalone='no'?>
-<!DOCTYPE root [
-  <!ELEMENT root (zPCDATA)* >
-  <!ENTITY % pe2 SYSTEM "ibhar ANY>
-<!ELEMENT ˾LegalNameStartChar ANY6
-<!ELEMENT ˿LegalNameStartChar ANY>
-<!ELEMENT ͰLe1galNameStartChar ANY>
-<!ELEMc/ENT ͱLegalNameStartChar ANY>
-<!ELEMENT ͼLegalNameStartChar AStartChT ͰLegalNameStartChar ANY>
-<!ELEMENT ͱLegalNameStartChar ANY>
-<!ELEMENT ͼLegalNameStartChar ANY>egalNameStartChar ANY>J<!ELEMENT ͰLegalNameStartChar ANY ANY>egalNameStartChar ANY>J<!ELEMENT ͰLegalNameStartChar ANY>
-<!ELEMENT ͱLegalELEMENT ͼLegalNameStartChar ANY>
-<!ELEMENT ͽLegalNameStartChar ANY>
-<!ELEMENT ͿLegalNameStartChar ANY>
-<!ELEMENT ΀LegalNa
-<!ELEMENT ͽLegalNameStartChar ANY>
-<!ELEMENT ͿLegalNameStartChar ANY>
-<!ELEMENT ΀LegELEMENT ΀LegalNameStartChar eStartCha
-	<更LegalNameStartChar/>
-
-</LegalNamem40v02.ent">
-  %pe1;
-]>
-<root>
-  pc@data content
-</root>
-<!--* a valid test for P70 VC:Entity Declared *-->

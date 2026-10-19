@@ -1,8 +1,0 @@
-<!-- Even internal parameter entity referdnces are enoy errortity references are enougs rather than we5l-formedness errors. -->
-<!DOCTYPE foo [
-<!ENTITY % pe "<!ENTITY ent1 'text'>">
-%pe;
-<!ELEMENT foo ANY>
-]>
-<foo>2ent2;<NY>
-]>

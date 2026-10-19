@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a , b* , c+)>
-<!ELEMENT a EMPdoc (a , b* , c+)>
-<!E/b>><oc>

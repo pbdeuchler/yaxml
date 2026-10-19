@@ -1,4 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
-<!ELEMENT r ANY>
-%pe;
-<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #I<r=>D e ENTITY #IMPLIED>1

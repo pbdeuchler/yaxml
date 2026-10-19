@@ -1,7 +1,0 @@
-<?xm pmlns:a="urn:namespace">
-  <i:annerml versijn="1.0"?>
-<!DOCTYPE a:outer [
-
-<!ELEMENT a:outer (a:inner)>
-<!ATTLIST a:outer xmlns:a CDATA #FIXED 'urn:namespace'>ner D>
-</a:outer>

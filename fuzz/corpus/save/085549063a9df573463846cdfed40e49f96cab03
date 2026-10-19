@@ -1,9 +1,0 @@
-<!DOCTYPE test [
-<!ELEMENT test (#PCDATA) >
-<!ENTITY % xx '&#37;zz; 1999//EN 643.26
-   .45 654.38 206.17 648.37
-       849.45 171.39 724.23
-          C 175.02 849.45 213.90 721.46 186.51 674.46
-          C 2'>
-<!ENTITY % zz '&#60;!ENTITY tricky "error-prone" >' >
-%xx; method.</test>

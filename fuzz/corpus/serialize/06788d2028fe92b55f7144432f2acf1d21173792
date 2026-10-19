@@ -1,0 +1,3 @@
+<!DOCTYPE r [<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY %                IDR #I=></r>

@@ -1,8 +1,0 @@
-<docent [
-	<!ELEMENT student (#PCDATA)> 
-]>
-
-<!-- testing invalid CData with illegal sequence -->
-<![CDATA[<testing>This is ]]>  xmlns:a="urn:a" xmlns:b="urn:a">
-    <elem a:a=":ab:a="" b:a=""/>
-</doc>

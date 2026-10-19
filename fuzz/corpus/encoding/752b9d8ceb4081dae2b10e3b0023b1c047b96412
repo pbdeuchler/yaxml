@@ -1,7 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!NOTATIOknNun ot PUBLIC "Unknown">
-<!ENTITY ge SYSTEM "nop.ent" NDATA>
-]>
-<doc/>

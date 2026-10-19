@@ -1,9 +1,0 @@
-<!DOCTYPE f.oo [
-<!ELEMENT foo (root*)>
-<!ELEMENT root EMPTY>
-<!ENTITY utf16b SYSTEM "dtds/utf16b.ent">
-<!ENTITY utf46l SYSTEM "dtds/utf1~6l.eQQQQQQb.ent">
-<!ENTITY utf16l SYSTEM "dtds/utf1~6l.eTTTTTTTTTTTTTTTTTTTTTTTTTTQQQQQQQQQQQTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTznt">
-]>
-
-<foo> &utf16b; &utf16l; </foo>

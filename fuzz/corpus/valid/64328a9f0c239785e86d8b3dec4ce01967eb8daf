@@ -1,8 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|c)*,d?,(e.f)+)>
-<!ELEMENT a EMPTY>
-<!ELEMENT b (#PCDATA)>
-<!ELEMENT cg EMPTY>
-]><r>
->a/><b>t</b><c>x<a/><b/>y</c><c><d/></c><d><z/></d>mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm<e><a/>0</e><f><b/><a/><c/></f>?e/><f>text</f></r>

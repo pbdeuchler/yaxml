@@ -1,7 +1,0 @@
-<?xml version="1.1"?>
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e " ">
-<!ATTLIST doc q&"uot;"8</doca CDATA #IMPLIED>
-]>
-<doc>x&e;y</doc>

@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a?, (b, c?, d?)?, (e | f | g)*, (h+ | i | j+))>
-<!ELEMENT aoc (a?, (b, c?, d?)?, (e | f | g)+, (h+ | i | j+))>
-<!ELEMa EMPTY>
-<!ELEMENT b EM| f | g)*, (h+ | i | j+))>
-<!EELEM1ENT d EMPTY>
-<!ELEMEdoc>

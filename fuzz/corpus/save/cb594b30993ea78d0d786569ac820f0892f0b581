@@ -1,5 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST rootS    type	NOTATION	(fruit    			 bt="" by="" co="" c:bBLIC '+IS//B2-1::Graphic Notati,n//c Interchange# Format//EN'>
-]>
-<test>test</test																													<!NOTATION c

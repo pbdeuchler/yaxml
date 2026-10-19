@@ -1,0 +1,1 @@
+translate('abcabc', 'a;d', 'AB') = 'ABc'

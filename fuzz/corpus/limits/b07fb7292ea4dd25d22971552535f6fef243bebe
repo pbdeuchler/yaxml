@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (foo)>
+<!ENTITY e "&#77;foo></foo>">
+]>
+<doc>&e;</doc>

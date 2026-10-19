@@ -1,5 +1,0 @@
-<!-- Default values for attributes may not contain referencesYYYYYYYY to external entities. -->
-<!DOCTYPE foo [
-<!ENTITY  CDATA "contains &ent; reference">
-]>
-<foo a="not defaulted"/>

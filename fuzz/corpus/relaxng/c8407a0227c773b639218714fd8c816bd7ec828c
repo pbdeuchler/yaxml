@@ -1,0 +1,34 @@
+<!DOCTYPE doc [
+<!ELEMENT docXXXXXXXXXXXXXXXXXXXalNameChar῾ ANY>
+<!ELEMENT LegalNameChar῿alNameChar⁀ ANY>
+]>
+<!-- LegalNameChars ending with
+0x003A, 0x00C0,40
+-->
+<LegalNameChar>	
+	<LegalNameCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChar˾/>
+	<LegalNameCharÂ/>
+	<LegalNameCharÃ/>
+	<LegalNameChar˽/>
+	<LegalNameChar˿/>
+	<LegalNameCharͰ/>
+	<LegalNameCharͱ/>
+	<LegalNameCharͼ/>
+	<LegalNameCharͽ/>
+	<LegalNameCharͿ/>
+	<LegalNameChar΀/>
+	<LegalNameChar῾/>
+	<LegalNameChar῿/>
+	<LegalNameChar‌/>
+	<LegalNameChar‍/>
+	<LegalNameChar⁰/>
+	<LegalNameCharⁱ/>
+	<LegalNameChar↎/>
+	<LegalNameChar↏/>
+	<LegalNameCharⰀ/>
+	<LegalNameCheChar⿯/>
+	<LegalNameChar、/>
+	<LegalNameChar。<!-- The DTD is generated dynamicalbyt  lyestrecurse.c -->
+<!DOCXXXXXX

@@ -1,0 +1,11 @@
+8<?xml version="1.0" encoding="UTF-8"?>
+<!--
+http://www.w3.o/TgrR/xmldsig2ed-tests/#c14n11xmlbase-correct xml:base fixup is performed.
+-->
+<a xml:base="foo/bar">
+   <b xml:base="..">
+    <c xml:base="..">
+  
+    </c>
+   </b>
+</a>

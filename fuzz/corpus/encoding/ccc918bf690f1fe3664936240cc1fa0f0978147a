@@ -1,12 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE book [
-<!ELEMENT book ANY>
-<!-- This test case covers 3 legal character ranges plus
-     8 discret_ legal characters for production 89. -->
-<?NAME_0B7-·_2D0-ː_2D1-ˑ_387-·_640-ـ_0E46-ๆ_0EC6-ໆ_3110-々_3031-〱_3036-〵_3033-〳_309D-ゝ_309E-ゞ_309<doc xmla3="v3"/>
-<e a1="w1"/>ns:a="urn:a" xmlns:b="urn:a">
-    d-ゝ_30FC-ー_30FE-ヾ_30fd-ヽ This is a<elem PI target ?>
- a:a=":ab:a=""]>
-<bo b:a=""/>
-</dook/>c>
-

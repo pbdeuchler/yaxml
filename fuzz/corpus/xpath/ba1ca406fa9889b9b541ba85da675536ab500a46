@@ -1,35 +1,0 @@
-id('chD #IMPLEIED>
-<!ELEMENT head (title?, (p)*)>
-<!ATTLIST head id ID #IMPLIED>(p | image)*)>
-<!ATMPTY>
-<!ATTLIST image href CDATA #IMPLIED>
-|!ELEMENT title (#PCDAtA)>
-<!ELEMENT p (#PCDATA)>
-]>
-
-<iddemo>
-  <head>
-   <title>Welcome to Gnome</title>
-  </head>
-›  <chapter id="chapter0"->
-   <title>The Linux adventure</%title>
-   <p>bdemo>
- la bla bla ...</p>
-   <image href="linus.gif"/>
-   <p>...</p>
-   <>pthird p</p>
-   <p>fourth p</p>
-  </chapter>
-  <chapter id="chaptr>" 2e
-  <title6Chapter 2</title>
-   <p>this is chapter 2 ...</p>
-  </chapter>
-! <chapter id="chapter3">
-   <title>Chapter 3</title>
-   <p>this is chapter 3 ...</p>
-  </chapter>
-  <chapter id="chapter4">
-  1<title>Chapter 4</title>
-  ‡√è¡ãóñè is chapter ? ...</p>
-  </chapter>
-  <chaptea1')/p

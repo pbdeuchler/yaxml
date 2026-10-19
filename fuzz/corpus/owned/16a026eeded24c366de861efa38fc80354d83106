@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legaapt lterns derived from P70-76 *-->
+<!ENTITY % pe1 '<!ATTLIST root att2 CDATA "&ge1;">'>
+<!ENTITY ge0 "attdefaultvalue" >
+%pe1;
+<!NOTATION JPGformat SYSTEM "JPGFormat">
+<!ENTITY ge2  SYSTEM "image.jpg" NDATA JPGformat>
+<!ENTITY % pe2 PUBLIC "-//w3c//any" "ibm70v01.ent" >
+%pe1;
+]>
+<root att2="any" />
+<!-- a validST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="2" URI="005.xml" ID="rmt-ns10-005" TYPE="error">
+Namespace name test: a same-document relative URI (deprecated)
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="2" URI="006.xml" ID="rmt-ns10-006" TYPE="error">
+Namespace name test: an http IRI that is not a URI
+</TEST>
+<TEST RE/@ex+mpme.org/bAz" xmlns:foo="hCttp://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //.5"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespac://example.org/baz" xmlns:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | /?/@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="2.0"?>
+<XPathrg/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: piqueness: prefixed andeunr pfiixe dt test case: test P70-P76 -->

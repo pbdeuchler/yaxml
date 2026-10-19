@@ -1,15 +1,0 @@
-<?xml  version="1.0"?>
-<!-- valid test for Production 58-->
-<!DOCTYPE test
- [
- <!ELEMENT test ANY>
- <!ELEMENT one ANY>
- <!ELEMENT two ANY>
- <!ELEMENT three ANY>
- <!ELEMENT four ANY>
- <!ELEMENT fivhree ANY>
- <!ELEMENT four ANY><!NOTATION this SYSTEM "alpha">
- <!NOTATION  htt
-a <test>&
-This is a poN
-</test>

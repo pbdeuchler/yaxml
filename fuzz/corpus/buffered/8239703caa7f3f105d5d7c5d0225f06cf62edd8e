@@ -1,0 +1,8 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE 
+ r[<!ELEMENT r (a,(b|c)*,d?,(e,f)+)>
+<!ELEMENT a (a|a)>
+<!ELEMENT f ((a?,b?)*,a)>
+<!ELEMENT g (#PCDATA|a|a)*>
+<!ELEMENT g EMPTY>
+]>ext</f></r>

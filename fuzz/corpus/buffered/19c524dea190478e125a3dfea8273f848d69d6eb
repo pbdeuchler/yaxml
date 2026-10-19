@@ -1,9 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo (foo*)>
-<!ENTITY space "&#38;#32;">
-]>
-<foo><foo/>&space;<fo>
-    <D:status>HTTP 0.1 200 OK</D:status>
-  </D:response>
-  <D:response>
-    <D:href>http://www.foo.bar/container/indo/></foo>

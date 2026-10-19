@@ -1,0 +1,12 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LeDAIED>
+<!ATTLIST LegalName ΀῾1attr CDATA #IMPLIED>
+<!ATTLIST LegalName ῾῿attr CDATA #IMPLIED>
+<!ATTLIST LegalName ῿‌attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‌‍attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‍⁰attr  CDATA #IMPLIED>
+<!ATTLIST LegalName attr⁀‿ͯͮ CDATA TA #IMPLIED>
+<!ATTLIST LegalName ⁱ↎attr CDATtrValue"
+ 	nullnullnull⁀attr="attrValue"
+ />

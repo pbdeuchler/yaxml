@@ -1,0 +1,5 @@
+<!DOCTYPE student PUBLIC '' 'sTudent.dtd'[
+]>
+
+<!-- testing Pubid Literal with nothing between the single quotes -->
+<student>My Na SnowMan. </student>

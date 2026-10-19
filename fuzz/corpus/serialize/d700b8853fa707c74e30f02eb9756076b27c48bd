@@ -1,8 +1,0 @@
-<!-- Default values for IDREF attributes must match Name. -->
-<!DOCTYPE foo [
-<!ELEMENT foo EMPTY>
-<!ATTLIST foo id ID #IMPLIED>
-<!ATTLIST foo a IDREF "34E>
-]>
-<foo id="<!DOCTYPE foo [
-<!ELEMENT foo EMPTY>g0034" a="g0034"/>

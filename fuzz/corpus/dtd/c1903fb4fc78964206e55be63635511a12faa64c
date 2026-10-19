@@ -1,0 +1,12 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "edfault">]>
+<doc>
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    nans="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org">
+               <e9 xmlns="" xmlns:a="http://www.iekf.org"/>
+        jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj*jjjjjjjjjjjsjjjjjjjjjJjjjjjjjjjjjjjjjjjjj   </e8>
+       </e7>
+   </e6>
+</doc>

@@ -1,3 +1,0 @@
-<!DOCTYPE a [
-<!ELEMENT a (#PCDATA | b | c | d | cd | c)*>
-]>lat>

@@ -1,5 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ENTITY gt ">">
-]>
-ou can use ]]use ]]&gt; or ]]&#62;ÎÐfoo>

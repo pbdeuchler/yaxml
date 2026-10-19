@@ -1,14 +1,0 @@
-<!DOCTYPE LegalName [
-<!ELEMENT YLegalName ANY>
-<!ATTLI
-<!ATTLISIMPLIED>
-<!ATTLIST LegalName Âattr CDATA #IMPLIED>
-<!ATTLIST LegalName Ãattr CDATA #IMPLIED>
-<!ATTLIST LeATTLIST LegalName 、。퟾attr CDATA #IMPLIED>
-#IMPLIED>
-<!ATTLIST LegalName �更豈퟿attr CDATA #IMPLIED>
-<!ATTLIST LegalNAme attr-�更豈 DDC>
-<!ATTLIST LegalName attrͮ́̀· CDATA "IMPLIED>
-<!ATTLIST LegalName attrͯͮ́̀ CD>ATA #IMPLIED>
-<!ATTLIST LegalName attr‿ͯͮ́ CDATA #IMPLIED>
-<!ATTLIST Leg />

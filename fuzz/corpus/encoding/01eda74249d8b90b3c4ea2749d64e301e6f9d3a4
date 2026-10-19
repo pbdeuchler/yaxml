@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<rŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬ i='a'>>>>>>>>>>>>>>>>>>>>> enc=oding="3>>>>>/////////////////////r i='a'>>>//////////////////////////
+<r i='a'>>>>>//////////////////////////////
+<r i='a'>>>˙˙-˙˙˙˙˙˙˙˙˙˙˙˙ enc=oding**
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:2.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:0.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:t  </choice>
+</start>
+<define name="office-document-styles">
+    <element name="of="office-document-c[mmon-attrs"IST r c CDATA 'again'>
+]>
+<rŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬversion">
+            <ref name="string"/>
+        </attribute>
+    </optional>
+</define>
+<define name="office-styles">
+    <optional>
+        <element name="office:styles">
+            <interleave>
+                <zeroOrMore>
+     ////////////
+<r i='a'>>>ding="7>>>>>//////////////////////////////
+<r i='a'>>>>>>on="1.0" encoding="8>>>>>>>>>>>>>>>>>>>>>'d*  '=bs=(a c' e='p' es='u v am<r><!p' t='2 2' -

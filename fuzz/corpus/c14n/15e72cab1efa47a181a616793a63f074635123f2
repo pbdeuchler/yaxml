@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<rek>
+<eg><![CDATA[<!ENTIT]>
+<foo>
+&empty;
+<a/>
+&space;
+<a/>
+<![CDATA[]]>
+<a/>
+<![CDATA[ ]]>
+<a/>
+</foo> &rights;" >]]></mp;rights;</eg>J</rec>

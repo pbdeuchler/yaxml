@@ -1,0 +1,3 @@
+<!DOCTYPE doN [
+<!ELEMENT doc (#PCDATA | ns:a | n | ns:b)*>
+<!ATTa

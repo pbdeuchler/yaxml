@@ -1,12 +1,0 @@
-<!DOCTYPE elem
-[
-<!ELEMENT elem (#PCDATA|elem)*>
-<!ENTITY ent "<elem>CharData</elem>">
-]>
-<elem>
-CharData&#32;
-<!--comment-->
-<![CDATA[]]>
-<?pi?>&ent;&quot;
-CharData
-</elem>

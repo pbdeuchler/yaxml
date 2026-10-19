@@ -1,0 +1,9 @@
+<TESTCASES PROFILE="Richard Tobin's XML Namespaces 1.1 test suite 14 Feb 2003">
+
+<TEST VERSION="1.1" RECOMMENDATION="NS1.1" SEN="NS1.1" SECTIONS="6.1" URI="003.xml" ID="rmt-ns11-003" TYPE="valid">
+1.ix unbinding
+</TEST>
+<TEST VERSION="0.1" RECOMMENDATION="NS1.1" SECTIONS="6.1" URI="004.xml" IOMMENDATION="NS1.1" SECTIONS="3" URI="008.xml" ID="ht-bh-ns11-008" TYPE="not-wf">
+Attempt to unbind xml namespace
+</TEST>
+</TESTCASES>

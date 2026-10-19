@@ -1,1 +1,0 @@
-sum(//a/@id) + sum(//text()) div 2 mod 3

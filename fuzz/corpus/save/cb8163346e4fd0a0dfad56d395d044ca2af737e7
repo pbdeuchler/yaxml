@@ -1,15 +1,0 @@
-<!DOCTYPE doc[
-
-<!ELEMENT doc ANY>
-<!--NOTE: XML doesner this i a seq-->
-<!ELEMENT a (doc?)>
-<!ELEMENT b (doc,a)>
-<!ELEMENT c (
-doc
-,
-a
-,
-c?
-)>
-]~
-<doc/>

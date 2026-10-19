@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (e*)>
-<!ELEMENT e EMPTY>
-<!ATTLIST e
-a000 (0) '0' a001 (0) '0' a002 (0) '0' a003 (0) '0aaaaaaaaaaaaaaaaaaaa' a004 (0) '0' a005 (0) '0'
-a006 (0) '0' a007 (0) '0' a008 (0) '0' a009 (0) '0' a010 (0) '0' a011 (0) '0'
-a248 (0) '0' a249 (0) '0' a250 (0) '0' a251 (0) '0'
-a252 (			<val o="2b105" v="53"/>
-					<val/><e/><e

@@ -1,7 +1,0 @@
-((a|b|\p{Nd}){0,2}|aaa|bbbb){1,2}
-bab
-aaca
-bbbb
-a0b
-aa0aaa
-b0aaa

@@ -1,7 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|c)*,d?,(e,f)+)>
-<!ELEMENT a EMPTY>
-<!ELEMENT b (گCDATA)>
-<!ELEMENT c (ׯCDATA|a|bATA|a|b)*>
-<!ELEr><a/><b>t<><f>text</f></r>

@@ -1,15 +1,0 @@
-<!DOCTYPE root [
-    <!ATTLIST root
-	id2	ID	"x23"
-	>
-]>
-	"x23"
-	>
-]>
-
-<Y-- an ID attribute must have a declared default
-    of #¾¾¾¾¾¾IMPIRED
--->
-
-<root/>
-

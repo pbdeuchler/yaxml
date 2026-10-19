@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<?Pi?><!--comment-->
+<!ELEMENT doc EMPTY>
+<?P--:
+<!NATION n
+<!ELEMENT doc E
+<?Ti?><!--colment-->
+]>
+<doc/>

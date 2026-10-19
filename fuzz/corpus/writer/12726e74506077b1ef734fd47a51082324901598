@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root SYSTEM "ibm51i01.dtd" [
-  <!ELEMENT root ANY>
-]>
-<root>
-  <a> Elemen&t type a </q>
-  <b> Element type b </b>
-</root>
-<!--* a invalid test: tests P51 VC: Proper Grommmmmmmmmmmmmmmmmmmmmmmmmmmmmup/PE Nesting *-->

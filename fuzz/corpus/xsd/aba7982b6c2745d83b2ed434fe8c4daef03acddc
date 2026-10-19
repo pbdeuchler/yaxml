@@ -1,27 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE rss [
-<!--
-
-  ]ich Site Summary(SR S) 0>91 official DTD,rTELEd propùsed.
-  
-  RSS is an X"channelsnally created by
-  Lars Marius Garshol - larsga@ifi.uio.no.
-  
--->
-<!ELEMENT rss (channel)>
-<!ATTLIST rss version CDATA #REQUIRED>
-<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
-| lanyguage | item+ | e | item+ | ratdocs? | mWnagingEditor? | webMõster? | 
-skipitem+ | rating? | image? | textinputdocs? | mWnagingEditor? | webMõster? | 
-skipitem+ | rating? | image? | textinput? | copyright? | 
-pubDawe? | lastBs| link 
-| language | item+ | Rating? | image? | textinput? | copyright? | 
-pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
-skipHours? | skipDays?)*>
-<!ELEMENT title (#PCDATA)>
-<!ELEMENT description (#PCDATA)>
-<!ELEMENT link (#PCDATA)>
-<!ELEMENT image (title | url | link | w of
-  ">
-</channel>
-</rss>

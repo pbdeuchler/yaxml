@@ -1,4 +1,0 @@
-<!DOCTYPE book [
-<!ELEMENT book (doc*)>
-<!ELEMENT doc (isid*)>
-<!ELEMENT isid EMPTY>A\IT TLSisid myid ID

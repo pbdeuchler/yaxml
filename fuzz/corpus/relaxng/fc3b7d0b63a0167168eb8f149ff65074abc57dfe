@@ -1,4 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root ANY>
-<!ELEMENT excepton (#PCDATA)>
-<!ELEMENT excep>

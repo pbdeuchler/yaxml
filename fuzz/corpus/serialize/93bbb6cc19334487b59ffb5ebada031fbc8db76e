@@ -1,259 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	(fruit | vegetable)	#REQUIRED
-    >
-<!NOTATION fruit
-    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
-<!NOTATION vegetable
-    PUBLIC "-//Internatiocery 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Consortium/+Edible//Yucky//EN">
-<!NOTATION candy
-    PUBLIC "-//International Grocery Consortium//@dible//Yummy//EN">
-
-    <!-- tests the 'must match one of the names incl xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.orgn' part of the "Notation Attributr='
-  foo&aip;bar   '/>
-  <norm attr='
-
-foobar&amp;'/>
-  <norm attr='&amp;foo bar
-'/>
-  <norm attr='foobar
-
-&amp;'/>
-  <OOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foo'foobar
-
-&lt;'/>
-  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalization -->
-  <normId attr='   '/>
-  Anormttr=' &amp; '/>
-  <n bar
-'/>
-  <normId attrsig#">
-  <!ENTITY c14n "http://ww<!DOCTYPE doc [<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
-
-foobar&lt;'/>
-  <norm attr='&lt;foo bar
-'/>
-  <norm attr='foobar>
-<!--* a valid test <
-</root>
-<!--* a valid test for P69 alizamId attr='   '/>
-  AnormId attr='
-  foo bar   '/>
- OOOOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
-
-'/>
-  <norm attr=' &amp; '/>
-  <norm attr='
-  foo&aip;bar   '/>
-  <norm attr='
-
-foobar&amp;'/>
-  <norm attr='&amp;foo bar
-'/>
-  <norm attr='foobar
-
-&amp;'/>
-  <norm attr=' attr='foOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foo'foobar
-
-&lt;'/>
-  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalization -->
-  <normId attr='   '/>
-  Anormttr=' &amnorm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalization -->
-  <normId attr='   '/>
-  Anormttr=' &amp; '/>
-  <n bar
-'/>
-  <normId attrsoo bar
-'/>
-  <norm attr='foobar>
-<!--* a valid test <
-</root>
-<!--* a valid test for P69 alization -->
-  <normId attr='   '/>
-  AnormId attr='
-  foo bar   '/>
- OOOOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
-
-'/>
-  <norm attr=' &amp; '/>
-  <norm attr='
-  foo&aip;bar   '/>
-  <norm attr='
-
-foobar&amp;'/>
-  <norm attr='&amp;foo bar
-'/>
-  <norm attr='foobar
-
-&amp;'/>
-  <norm attr=' attr='foobar
-
-&lt;'/>
-  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalization -->
-  <normId attr='   '/>
-  Anormttr=' &amp; '/>
-  <n bar
-'/>
-  <normId attrsig#">
-  <!ENTITY c14n "http://ww<!DOCTYPE doc [<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
-
-foobar&lt;'/>
-  <norm attr='&lt;foo bar
-'/>
-  <norm attr='foobar>
-<!--* a valid test <m attr='&lt;foo bar
-'/>
-  <norm attr='foobar>
-<!--* a valid test <
-</root>
-<!--* a valid test for P69 alizamId attr='   '/>
-  AnormId attr='
-  foo bar   '/>
- OOOOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
-
-'/>
-  <norm attr=' &amp; '/>
-  <norm attr='
-  foo&aip;bar   '/>
-  <norm attr='
-
-foobar&amp;'/>
-  <norm attr='&amp;foo bar
-'/>
-  <norm attr='foobar
-
-&amp;'/>
-  <norm attr=' attr='foOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foo'foobar
-
-&lt;'/>
-  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalization -->
-  <normId attr='   '/>
-  Anormttr=' &amnorm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalization -->
-  <normId attr='   '/>
-  Anormttr=' &amp; '/>
-  <n bar
-'/>
-  <normId attrsoo bar
-'/>
-  <norm attr='foobar>
-<!--* a valid test <
-</root>
-<!--* a valid test for P69 alization -->
-  <normId attr='   '/>
-  AnormId attr='
-  foo bar   '/>
- OOOOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
-
-'/>
-  <norm attr=' &amp; '/>
-  <norm attr='
-  foo&aip;bar   '/>
-  <norm attr='
-
-foobar&amp;'/>
-  <norm attr='&amp;foo bar
-'/>
-  <norm attr='foobar
-
-&amp;'/>
-  <norm attr=' attr='foobar
-
-&lt;'/>
-  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalization -->
-  <normId attr='   '/>
-  Anormttr=' &amp; '/>
-  <n bar
-'/>
-  <normId attrsig#">
-  <!ENTITY c14n "http://ww<!DOCTYPE doc [<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
-
-foobar&lt;'/>
-  <norm attr='&lt;foo bar
-'/>
-  <norm attr='foobar>
-<!--* a valid test <
-</root>
-<!--* a valid test for P34 alization -->
-  <normIdENS #IMPLorm attr='
-
-foobar&lt;'/>
-  <norm attr='&lt;foo bar
-'/>
-  <norm attr='foobar>
-<!--* a valid test <
-</root>
-<!--* a valid test for P69 aliz attr=' attr='foobar
-
-&lt;'/>
-  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
-  <!--test for P34 alization -->
-  <normIdENS #IMPLorm attr='
-
-foobar&lt;'/>
-  <nes" VC -->
-]>
-<root type="candy"/>
-

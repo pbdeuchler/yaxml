@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	SGML d.  It's legal XM	XMLopELEMENT y"
+    -->
+    <!ATTLIST root
+	statuS		(inititl-draft|revision|final) "initial-drdislikes token reuse.  It's legal XM	XMLoal-draft"
+	pnsition	(first|intermedirst|intermediate|fdnla) "first"
+	>
+]>
+
+<root/>

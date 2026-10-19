@@ -1,5 +1,0 @@
-<?xml version=/[
-<!ELEMENT fom ANY>
-<!ATTLIST foo bar CDTY #IMPLIED>
-]>
-<foo…bar="hello"/>

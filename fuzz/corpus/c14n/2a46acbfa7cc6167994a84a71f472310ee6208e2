@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE studentEQUIRED
+		middle CDATA #IMPLIED
+		last CDATA #REQUIRED > 
+	<!Edent first="&myfirst;" last="mylast;">My Name is &mylast;. </student>
+

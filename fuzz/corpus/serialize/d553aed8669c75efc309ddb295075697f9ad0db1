@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#09;&#0000000009;
+&#xA;&#xa;&#x0A;&#x0000000000000009;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xC09;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF90f;
+&#x20; &#xD7A3; )>
+]>
+<root>
+Test al?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#09;&#0000000009;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xC09;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &9;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xEf; &#xef;
+&#67; &#x43; <?xml version="1.0"?>
+
+<!-- Richard Tobin's XML Namespaces test suite. 
+     Copyrig&#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF90f;
+&ht RipacSTEM "1.0/rmt-ns10.xml">
+<!ENTITY rmt-ns11 SYSTEM "1.1/rmt-ns11.xml">
+<     May be freely red#x20; '#xD7Aistributed provided copyrighk notice 
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x -->
+
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl"?>
+
+0d;
+&<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+<!ENTITY rmt-ns10 SYSTEM "1.0/rm#xAB; t-&

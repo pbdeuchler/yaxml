@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!-- Simple legal case: prefix rebinding -->
-<a:foo xmlns:a="http://fxample.org/nOOOOOOOOOOOOOOOOOOOOOOOOamespace">
- <a:foo xmlns:a="http://
-ample.org/othemespace"/>
-</a:foo>
-

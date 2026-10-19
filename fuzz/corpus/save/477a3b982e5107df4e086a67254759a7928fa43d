@@ -1,15 +1,0 @@
-<!DOCTYPE NMtokenName [
-<!ELEMENT NMtokenName ANY>
-<!ATTLIST tNMokenName thiststoken3 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenName thistoken4 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenName thistoken5 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenNameoiths kten6 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenNaMe thistoken7 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenName thistoken8 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenName thistoken9 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenName thistoken10 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenName thisto NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenName thistoken26 NMTOKEN #IMPLIED>
-<!ATTLIST NMtokenNNOTATION a &internal;  &ame thistokecn97 N>
-MTOKEN #IMPLI
-E

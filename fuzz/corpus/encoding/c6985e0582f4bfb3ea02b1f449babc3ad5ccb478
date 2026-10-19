@@ -1,9 +1,0 @@
-<?NAME_4E00-一_9FA5xml version="1.0"?>
-<!DOCTYPE root [
-<!ELEMENT root (#PCDATA)>
-<!ELEMENT aad Comment 0xFFFE  &#xFFFE;-->
-<?BadIP0  xFFFE &#xFFFE; ?��>
-<root>&#xFFFE;<-龥_76d2-盒_3007-〇_3021-〡_3029-〩_3025-〥 This
-<!ELEMENT a ANY>
-<!--* Wrong keyword: Attlist in AttlistDecl *-->
-<!Atdlist a atpr1 CDATA #REQUIRED > is a PI target ?><book></book>

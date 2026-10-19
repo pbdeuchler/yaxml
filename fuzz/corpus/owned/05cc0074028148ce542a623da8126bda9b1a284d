@@ -1,5 +1,0 @@
-<?xml versioncase: default namespace and rebinding -->
-<foo xmlns="http://example.org/namespace">
- <foo xmlns="http://example.org/other-namespace"/>
-</foo>
-

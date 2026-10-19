@@ -1,9 +1,0 @@
-<߻OCTYPG doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!NOTATION unkno text">
-<!ENTITY ge1 SYSTEM "nop.ent">
-<!ENTITY ge3 SYSTEM "nop.ent" NDATA unknot>
-]>ot>
-]>
-<doc/>

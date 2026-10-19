@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater re;&#09;&#0000000009;
+&#xA;&#xa;&#x0A;&#x000000010A;
+ferences for Ps2:
+&#9;&#09;&#0000000009;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab;FGD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valides- for P66 *-->

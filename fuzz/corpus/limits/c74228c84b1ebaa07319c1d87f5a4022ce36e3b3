@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ENTIT>Y % e SYSTEM "E60.ent">
-%e;
-]>
-<foo/>

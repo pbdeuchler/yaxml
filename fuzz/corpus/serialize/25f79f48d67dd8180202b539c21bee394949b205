@@ -1,0 +1,7 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r d='w'>&undeclared;<r i='a' q=''/></r>

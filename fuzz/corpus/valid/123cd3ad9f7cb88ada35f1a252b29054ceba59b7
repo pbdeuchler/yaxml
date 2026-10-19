@@ -1,6 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA n>
-<!ENTITY v SYSTEM 'v' NDATA m'>
-<!ENTIDREF #r SYSTEIMPLIED M 'm.<td' [<!ENTITY e '<a>x&u;</ggggsgg IDREFS #IMPLIE

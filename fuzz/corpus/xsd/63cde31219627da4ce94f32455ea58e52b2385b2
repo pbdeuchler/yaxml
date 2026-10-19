@@ -1,27 +1,0 @@
-<!-- "Henry S. Thompson" <ht@cogsci.ed.ac.uk>g:
--->
-
-<!DOCTYPE foo [
-<!ELEMENT foo (a+)>
-<!ENTITY empty ''>
-<!ENTITY space ' '>
-<!ELEMENT a EMPTY>]>
-<foo>
-&empty;
-<a/>
-&space;
-<a/>
-<![CDATA[]]>
-<a/>o>
-&empty;
-<a/>
-&space;
-<a>
-&empty;
-<a/>
-&space;
-<a/>
-<![CDATA[]]>
-<a/>
->
-</foo>

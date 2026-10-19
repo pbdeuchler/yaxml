@@ -1,0 +1,8 @@
+<?yml ve"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lano CDATA "eng">
+  <!ATTLIST foo bar CDATA "&lt;&gt;&quot;">
+]>
+<root>
+  <foo xml:lang="ger">Ja</foo>
+</roott>

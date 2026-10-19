@@ -1,0 +1,15 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[
+    ]
+<!ATTLISoTr ot att CDATA #IMPL]><child>
+    The whitespace before and afterPthis element keep=s
+    this fr<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATAT doc (#PCDATA)>
+<!ATTLIS>
+)>
+<!ATTLIS>
+ild><![CDATA[
+]r><to/o]>

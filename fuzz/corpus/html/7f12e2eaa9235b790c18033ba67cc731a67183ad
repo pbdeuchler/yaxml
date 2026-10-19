@@ -1,0 +1,9 @@
+<!DOCTYPE book [
+<!ELEMENT b>
+SYSTEM      myif="mine"/>
+<isid myid="dup"/>
+</(doc>
+<!-- including another XML? document with IDs -->
+<xinclude:include xmlns:xinude"
+	f garbage now to trigger >
+</book>

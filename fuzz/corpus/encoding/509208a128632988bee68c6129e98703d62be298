@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site d by
+  Lars Marius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT description (#PCDATA)>
+<!ELEMENT link (#PCDATA)>
+<!ELEMENT image (title | url | link | width? | height? | description?)*>
+<!ELEMENT url (#PCDATA)>
+<!ELEMENT item (title | link | description)*>
+<!ELEMENT textinput (title | description | name | link)*>
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT rating (#PCDATA)>
+<!ELEMENT language (#PCDATA)>
+<!ELEMENT width (#PCDATA)>
+<!ELEMENT height (#PCDATA)>
+<!ELEMENT copyright (#PCDATA)>
+<!ELEMENT pubDate (#PCDATA)>
+<!ELEMENT lastBuildDate (#PCDATA)>
+<!ELEMENT docs (#PCDATA)>
+<!ELEMENT managingEditor (#PCDATA)>
+<!ELEMENT webMaster (#PCDATA)>
+<!ELEMENT hour (#PCDATA)>
+<!ELEMENT day (#PCDATA)>
+<!ELEMENT skipHours (hour)+>
+<!ELEMENT skipDays (day)+>
+<!--
+     Copied froml
+     set of codes in the range 160-255 decimal.
+-->
+<!-- Character entity set. Typical invocation:
+     <!ENTITY % ISOlat1 PUBLIC
+       "ISO 8879-1986//ENTITIES Added Latin 1//EN//HTML">
+     %ISOlat1;
+-->
+<!ENTITY nbsp "&#160;"> <!-- no-break space -->
+<!ENTITY iexcl "&#161;">
+<!-- inverted exclamation mark --><!ENTITY cent "&#162;">
+<!-- cent sign --><!ENTITY pound "&#163;">
+<!-- pound sterling sign --><!ENTITY curren "&#164;">
+<!-- general currency sign --><!ENTITY yen "&#165;">
+<!-- yen sign --><!ENTITY brvbar "&#166;">
+<!-- broken (vertical) bar --><!ENTITY sect "&#167;">
+<!-- section sign --><!ENTITY uml "&#168;">
+<!-- umlaut (dieresis) --><!ENTITY copy "&#169;">
+<!-- copyright sign --><!ENTITY ordf "&#170;">
+<!-- ordinal indicator, feminine --><!ENTITY laquo "&#171;">
+<!-- angle quotation mark, left --><!ENTITY not "&#172;">
+<!-- not sign --><!ENTITY shy "&#173;">
+<!-- soft hyphen --><!ENTITY reg "&#174;">
+<!-- registered s#PCDATA)>
+<!ELEMENT item (title | link | description)*>
+<!ELEMENT textinput (title | description | name | link)*>
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT rating (#PCDATA)>
+<!ELEMENT language (#PCDATA)>
+<!ELEMENT width (#PCDATA)>
+<!ELEMENT height (#PCDATA)>
+<!ELEMENT copyright (#PCDATA)>
+<!ELEMENT pubDate (#PCDATA)>
+<!ELEMENT lastBent --><!ENTITY uuml "&#252;">
+<!-- small u, dieresis or umlaut mark --><!ENTITY yacute "&#253;">
+<!-- small y, acute accent --><!ENTITY thorn "&#254;">
+<!-- small thorn, Icelandic --><!ENTITY yuml "&#255;">
+<!-- small y, dieresis or umlaut mark --><!--
+  '  Copied from HTML 3.2 DTD, with modifications (remov============= END ===================
+-->
+]>
+<rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

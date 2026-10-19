@@ -1,11 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT b (
-#PCDATA
-|
-OOOOOOO:
-a
-|
-b
-)*>
-/>

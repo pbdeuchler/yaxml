@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl"?>
+<!DOCTYPE TESTSUITE SYSTEM "../../testcases.dtd" [
+
+    <!ENTITY eduni-misc	SYSTEM "ht-bh.xml">
+] >
+<TESTSUITE PROFILE="XML 1.0 (2nd edition) W3C Conformance Test Suite, 6 October 2000">
+<TESTCASES>
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

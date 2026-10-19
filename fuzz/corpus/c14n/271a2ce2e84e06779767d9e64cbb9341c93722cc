@@ -1,9 +1,0 @@
-h<XPath xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-(//. | //@* | //namespace::*)
-[
->
-<a><![CDATA[xyz]]]></a>
-<![CDATA[]]></a>
-</doc>    ancestor-or-self::ds:SignedInfo
-] 
-</XPath>

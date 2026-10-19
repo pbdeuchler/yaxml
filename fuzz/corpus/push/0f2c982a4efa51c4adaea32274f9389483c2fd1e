@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]><?pi x
-y?></doc>><doc><?pi x
-y?></doc>

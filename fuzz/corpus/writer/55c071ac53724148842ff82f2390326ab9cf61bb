@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e PUBLIC "a ot vere" "011.en]>>"
+t
+<doc>&e;</doc>

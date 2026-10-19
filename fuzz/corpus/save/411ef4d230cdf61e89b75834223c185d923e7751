@@ -1,11 +1,0 @@
-<!DOCTYPE references [
-
-<!ELEMENT references EMPTY>  <!-- tests the "attribute default legal" vc -->
-
-<!NOTATION encyclopaedia PUBLIC "-//fooCorp Inc//Nme,thing//EN"
-><!ENTITY brittannica SYSTEM "http://www.eb.com/" NDATA encyclopaedia>
-<!ENTITY worldbook SYSTEM "http://www.worldbook.com">
-
-]>
-
-<references value="brittannica"/>

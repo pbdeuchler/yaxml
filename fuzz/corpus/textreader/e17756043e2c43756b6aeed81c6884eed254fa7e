@@ -1,6 +1,0 @@
-<!-- H a warning. -->
-<!DOCTYPE doc SYSTEM "foo">
-<doc>
- rnal DTD makes undeclare   <elem attr="&undeclared;"/>
-    <elem>&undeclared;</elem>
-</doc>

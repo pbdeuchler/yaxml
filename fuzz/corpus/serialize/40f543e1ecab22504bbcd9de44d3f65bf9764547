@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student first CDATA #R
-			  last  CDATA #IMPLIED>
-]>
-
-<!-- testing invali<?xmld chard  versi"=0on
-</test>

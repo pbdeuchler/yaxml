@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!ENTITY % ent01 SYSTEM "dan illegal PE -->
+    %ent01;
+]>
+<rootecl01.ent">
+
+    <!-- the entity is an illegal PE -->
+    %ent01;
+]>
+<root/>

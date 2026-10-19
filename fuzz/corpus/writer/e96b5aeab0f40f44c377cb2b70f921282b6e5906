@@ -1,0 +1,7 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-c28nck that correct xml:base fixup is performed.
+-->
+<XPath xmlns:ietf="http://www.ietf.org" >
+(//. | //@* | I//namespace::*) 
+[self::a t-or-self::d]
+</XPath>

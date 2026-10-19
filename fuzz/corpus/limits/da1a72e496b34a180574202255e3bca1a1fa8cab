@@ -1,11 +1,0 @@
-<!DOCTYPE test [
-  <!ENTITY newlinewline "&#x26;#xA;">
-]>>>>>>>>>>>>>>>>> "&#x2 doc (#PCDATA)>
-<!ENTITY e "">
-n<!E">
-]>
-<doc>&e;</doc>6K#xA;">
-]CTYP!DOCTYPE doc [
-<!TYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "">2ine;"/>

@@ -1,11 +1,0 @@
-<!DOCTYPE test																												 [
-]<!DOCTYPE doc [
-<!ELEMENT doc <!ENTITY newline "&#x98;'&>
-]>
-<tes#xr (#PCDATA)>
-<!ATTLIST doce d a1 (foo
-ocument element?><doc>
-<!-- com0ent-->
-<?PI before </docYPE s>
-<D:mu>ilst
-tatus 

@@ -1,17 +1,0 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3Canimal ANY>
-   <!ENTITY % parameterE "cat SYSTEM">
-   <!NOTATml version="1.0" encoding='UTF-8'?>
-<!DOCTYPE animal [
-   <!ELEMENT animal ANY>
-   <!ENTITY % parameterE "cat SYSTEM">g
-   <!NOTATION %parameterE; "cat.txt">
-]>
-<!-- Parameter reference appears inside a NotationDecl in DTD -->
-<animal>Any conteION %parameterE; "cat.txt">
-]>
-<!-- Parameter reference appears in>
- side a NotationDecl in DTD -->
-<ani </g>
-<mal>Any conte/svg>
-nt</anim`l>

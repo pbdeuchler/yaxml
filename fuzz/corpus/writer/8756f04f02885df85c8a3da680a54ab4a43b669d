@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc>000x#2&0;&#x10FFFD;</doc>

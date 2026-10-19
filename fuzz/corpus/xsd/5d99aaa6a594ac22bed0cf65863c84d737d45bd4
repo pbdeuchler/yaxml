@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e "&#x10000;&#x10FFFD;&#x10FFFF;">
-<!ELEMENTD
-]>
-<doc>&e;<

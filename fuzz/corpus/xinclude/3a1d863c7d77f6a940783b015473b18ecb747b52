@@ -1,0 +1,17 @@
+<?xml version='1.0| textinput? | cop| copyright? | 
+pubDatng? | image? | textinput? | cop| copyright? | 
+pubDate? | lastBu| link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDatght? | 
+pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
+skipitem+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| languafe | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#Ptor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PC:AT(#PCDATA)? | docs? | mWnagingEditor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PC:AT(#PCDATA)>
+<!ELEMENT image (title | url | link | width? | height? | des' encoding='ISO-8859-3'?><stanµµµ0ml version='1.0' stanµµµ0;µstanµml version='1.0' anµµµml veµµµµµµµµµµµµ0ml version='1.0' anµµµ0[µml wersion=µanµµµ0[µml wersion='1.0ÿÿÿÿÿÿÿÿr>¡¥</r>

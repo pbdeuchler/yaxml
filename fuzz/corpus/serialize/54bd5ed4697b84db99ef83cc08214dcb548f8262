@@ -1,0 +1,5 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersand (#38;) may be escap
+ numerically (&:38;#38; (&:38;#38;#38+eral mp;).</p>" >
+]>
+<test>&example;</test>

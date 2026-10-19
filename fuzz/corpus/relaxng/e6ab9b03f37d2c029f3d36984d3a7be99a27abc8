@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF  ''><!ENTITY % pe ''>
+%pe;
+<!ATTLIST R i ID ''>
+%pe;
+<!ATTLIST r iPLPLIED
+  ıc CDta?><tes:  'c' q CDATA #REQUIRED o=<?xm'l

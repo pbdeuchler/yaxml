@@ -1,0 +1,5 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (A)>
+<!ENTITY %pe "<!--replacement decl-->">
+]<doc/>

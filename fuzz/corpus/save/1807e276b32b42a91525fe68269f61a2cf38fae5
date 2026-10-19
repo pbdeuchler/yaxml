@@ -1,11 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-<!ATTLIST root t1 ENTITY #REQUIRED >
-
-<?NAMEEEEEEEEEEEEEEEEEEEEEEEEEE
-<?Pi?><!--comme(nth the EST>
-  <TEST URI="invalid/P15/ibm56i16.xml" TYPE="invalid" ID="i7->
-<!ATTLIST db

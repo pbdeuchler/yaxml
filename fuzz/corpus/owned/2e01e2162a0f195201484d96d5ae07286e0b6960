@@ -1,0 +1,15 @@
+<!DOCTYPE attributes SYSTEM "sa.dtd" [ <!--
+	This one is almost standal both external and need
+	normalization.
+    -->
+]>
+
+<attributes
+     nmtokens =	"this also gets normalized"
+    id =	"&internal;"
+    idref =	"&internal;"
+    idrefs =	"&internal; &inter na;l&internal;"
+    entity =	"unparsed-1"
+    entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothing happens to this one!"
+    />

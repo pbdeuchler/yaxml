@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE s [
-<!ELEMENT r ANY>
-<!NOTATION A SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA	 EMPTY>
-]>
-<r><a/><b>t</b><c>x<a/><b/>y</c><c><d/></c><d><z/> n>
-<!ENTITTITYY v TY p 'parsYSTE4' -

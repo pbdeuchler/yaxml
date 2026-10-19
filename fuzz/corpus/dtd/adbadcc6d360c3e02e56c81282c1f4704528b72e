@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    affiliated	ENTITIES	#R<QUIRED
-    >
-    <!-- tests the "entity name" VC ... the "entity declared" cla

@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<?Pi?><!--comment-->
+<!ELEMENT doc EMPTY>
+<?Pi?><

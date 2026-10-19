@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a , b? , c+)oc (a , b? , c+)?>
-<!ELEMENª a EMPTY>
-<!ELEMENT b (#PCDATA)>
-<!ELEMacks c</b></doc>

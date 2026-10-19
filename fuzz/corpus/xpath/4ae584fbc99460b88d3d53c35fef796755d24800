@@ -1,1 +1,0 @@
-substring("12",x,substring("12",x,-10)-10)

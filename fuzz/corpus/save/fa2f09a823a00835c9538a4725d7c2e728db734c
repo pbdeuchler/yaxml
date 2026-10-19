@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc>&#0FFFFFFFFFFFFFFFFFuuuuuuu<?xml version='1.0' standalone='yes'?>
-
-<!DOCTYPE root SYake_small "<!ELEMENT small EMPTY>">
-   %make_small;
-   <!E></root>

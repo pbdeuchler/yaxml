@@ -1,9 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (a|b)*>
-<!ELEMENT aj ANY>
-<!ELEMENT b ANY>
-<!NOTATION a SYSTEM "a">
-<!ATTLIST a att (a|b
-[
-<!<(doc>oc

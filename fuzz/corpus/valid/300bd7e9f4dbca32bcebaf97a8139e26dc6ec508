@@ -1,8 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT  c (#PCDATA|a|b)*>
-<!ELEMENT d ANY>
-<!ELEMENT e (a|a)>
-<!ELEMENT f ((a?,b?)*,c)>
-<!ELEMENT g (#PCDATA|t|a)*>
-<!ELEMENq</r>

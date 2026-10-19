@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!NOTATION n SYSTEM "http://www.w0.org/">
+<!ENTITY e SYSTEM "http://www.w3.org/" NDATA n>
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a ENTITY "ww.w1.org/">
+<!NTITY e SYSTE
+]>
+<doc></doc>

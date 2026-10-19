@@ -1,13 +1,0 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
-<!-- Containßžßœ—ž—actIMPLIED
-	nmtokens	NMTOKENS	#IMPLIED
-	id	.1 but not ÿÿÿÿ-->
-<rence ÿ² a C0 control character (form-feed),
-     legal in XML 1.1 ûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûol characterè×™’Ò™eed),
-     legal in XML$1ÿÿÿ.1 but not ÿÿÿÿ-->
-<rence ÿ² a C0 control character (form-feed),
-     legal in XML 1.1 ûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûbut not 1.0 -->
-<!DOPETYC foo [
-<!ELEMENT foo ANY>
-]>
-<foo>&#x1c;</foo>

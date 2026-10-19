@@ -1,6 +1,0 @@
-<!DOCTYPE rooy [
-<!ELEMENT root ANY
-<!ATTLIST root attr1 CDADOCTYPE rooy [
-<!E>*<!ATTLIST root attr1 CDATA #IMPLIED>
-]>
-<root sequence iииииииииииииииииииииииииииииииииииииииииииииииииииииииииииn ETag <root>

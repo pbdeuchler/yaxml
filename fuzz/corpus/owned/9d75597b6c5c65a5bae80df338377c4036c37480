@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+	<!ELEMENT test EMPTY>
+	<!ATTLIST test ttc1 NMTOKENS #IMPLIED>
+]>
+<!-- Shoulde invalid due to h/-V10-2e-errata#E20 -->
+<test attrtr1=" a&#x9;b "/>

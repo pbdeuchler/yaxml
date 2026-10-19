@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-<!ELEMENoot><a></e><b>&#10;   <c></c>&#10;T root (#PCDATA)>
-<content</root>
-!--* Wrong keyword: Any in contentspec *-->
-<!ELE>
-]>
-<root>Any content</root>

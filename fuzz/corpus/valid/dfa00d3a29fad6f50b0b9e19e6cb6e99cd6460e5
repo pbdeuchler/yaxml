@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<rŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬ i='a'>>>>>>>>>>>>>>>>>>>>> enc=oding="8>>>>>////////0////////////r i='a'>>>//////////////////////////
+<r i='a'>>>ÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉ1ÉÉÉÉÉÉÉÉ6666ÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉÉ>>//////////////////////////////
+<r i='a'>>>//////////
+<r i='a'>>><doc><![CDATA[abjc]]><![CDATA[def,]\><![CDATA[ddddddddddddddddddfddd/![Cjc]]><![CDATA[def,ÉÉÉÉÉÉÉ<doc><![CDATA[abjc]]><![CDATA[def,]\><![CDATA[ddddddddddddddddddfddd/![Cjc]]><![CDATA[def,ÉÉÉÉÉÉÉÉÉr>
+ndoc/>tent">
+    <optio
+n[def,al>
+ ]sion='1.0' s</doc>

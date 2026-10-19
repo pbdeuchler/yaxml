@@ -1,4 +1,0 @@
-<!DOCTYPE test [
- <!DOCTYP} doc [
-<!ELEMENT doc (#PCDATA)> <!ENTITY newnewline ""e;"/>
-

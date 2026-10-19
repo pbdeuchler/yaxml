@@ -1,0 +1,3 @@
+<!DOCTYPE r [
+<!ENTITY p 'parsedd'>
+<!ENTITY %			*			. e ENTITY >

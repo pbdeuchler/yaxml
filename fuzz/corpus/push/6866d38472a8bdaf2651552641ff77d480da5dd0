@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" nxmlns:foo="http://example.org/foo" xml:lang="en-ie">
-    (//. | //@* | //namespace::*) 
-    [ 
-              <!-- no namespace nodes; I am not in my parent's namespace axis -->*              ancestor-or-self::bar:Something  and
-              (count(parent::node()/namespace::*) # !=
-               count(parent::node()/namespac:|e*:  self::node()))
-    ]
-</XPath>

@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc a CDATA #REQUIRED>
-]>
-<doc a="v"><oc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc a CDATA #REQUIRED>
-]>
-<doc a="v"></d/doc>

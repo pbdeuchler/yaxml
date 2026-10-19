@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc val (v0 |  v2| v3) #IMPLIED>
-]>
-<doc val="v4"></4"><

@@ -1,0 +1,14 @@
+<!DOCTYPE rss [
+<!--
+rsion="1.0" sta
+  Rich Site Summaay of?  "s" on jthe "My> --><!ELEMENT channel (titletinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | coright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyripyri? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | lInk 
+| lanag? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | rating? | i2ation?)*>
+<!ELEMENT ue>
+</channei>
+</rss>

@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e PUBLIC "a not very ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZinteresting file" "012.t this `<ent">
+]>
+<doc>&e;</doc>

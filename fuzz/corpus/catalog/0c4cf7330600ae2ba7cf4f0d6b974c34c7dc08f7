@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE catalog PUBLIC "-//OASIS//DTDN" "http:mmittees/entity/release/1.0/catal">
-
-<delegatePublic publicIdStartString="-//OASIS//"
-		catalog="oasis.xml"/>
-<deltalog='0'/><delegateSystem systemIL+V4.1.2:EN

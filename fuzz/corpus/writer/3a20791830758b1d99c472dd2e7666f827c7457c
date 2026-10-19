@@ -1,0 +1,10 @@
+<?xml version='1.0'?>
+<!DOCTYPE test [
+<!ELEMENT test (#PCDATA) >
+<!ENTITY % xx '<?PI before document elEment?>
+<!-- comment after document element-->
+<?PI before&#38;zz;'>
+<!ENTITY % zz '&#60;!ENTITY tricky "error-prone" >' >
+%xx;t?>
+<ter docu.ment e
+>

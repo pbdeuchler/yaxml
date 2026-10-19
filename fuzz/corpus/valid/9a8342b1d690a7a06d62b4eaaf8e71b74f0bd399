@@ -1,13 +1,0 @@
-<?xmfWl version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|c)*,d?,(e,f)+)>
-<!ELEMENT b (#PCDATA)>
-<!ELEMENT c (#PCDATA|a|b)*>
-<!ELEMENT d ANY>
-<!ELEMENT e (a|a)>
-<!ELEMENT f ((a?,b?)*,c)>
-<!ELEMENT g (#PCDATA|a|a)*>
-<!ELEMENT g Y>
-]> EMPTY>
-]>
-<r><a/><b</b><c>x<a/><bt</f></r>

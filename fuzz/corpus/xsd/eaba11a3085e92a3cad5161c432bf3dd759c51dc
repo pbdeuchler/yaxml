@@ -1,8 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (CDATA)>
-<!ENTITY ent "replacement text">
-]>
-<doc>
-& ent;
-</doc>

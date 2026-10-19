@@ -1,9 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
-<doc>
-   <e1   />
-   <e2   ></e2>
-   <e3    name = "elem3"   id="esem3"    />
-   <e4    name="elem4"   id="																																				elem4"    ></e4>
-   <e5 a:attr="out" b:attr="sorte>
-   </e6>
-</doc>

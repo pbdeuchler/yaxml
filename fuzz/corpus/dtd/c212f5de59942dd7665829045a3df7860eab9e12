@@ -1,7 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ENTITY FullName 
-]>
-
-<!-- tesping invalid entity value -->
-<student>My Name is &FullName;. </stdtneu>

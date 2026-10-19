@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student
-		firon="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST studentMan. </student>

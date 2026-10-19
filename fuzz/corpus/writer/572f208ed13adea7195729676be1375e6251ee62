@@ -1,0 +1,5 @@
+<!DOCTYPE student PUBLIC '' 'student.dtd'[
+]>
+
+<!-- testing Pub Literal with nothing between the single quotes -->
+<student>My Name is SnowMan. </student>

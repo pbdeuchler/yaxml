@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" >
+<!ENKITY   book   "La Peste: Albert Camus, 
+&#xA9; 19<!DOCTYPE doc [
+<!ELEMENT doc ANY>
+]                                >
+<doc><!c>
+</eg>
+then the replacement text fversion='1.0' encoding='ISO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights resor threc>
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" >
+<!ENKITY   boqk   "La Peste: Albert Camus, 
+&#xA9; 1947 %pub;. ÿÿÿÿÿÿÿÿyÿÿÿÿÿÿÿÿÿÿÿÿÿÿe entity "<code>book</code>" is:
+<eg>La Peste
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ESO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY ! pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights resor threc>
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" >
+<!ENKITY   book   "La Peste: Albert Camus, 
+&#xA9; 1947 %pub;. ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿe entity "<code>book</code>" is:
+<eg>La Peste: Albert Camus, 
+&#169; 1947 &#201;ditions Gall: Albert Camus, 
+&#169; 1947 &#201;ditions Gallimard. &amp;rights;</eg>
+</rec>

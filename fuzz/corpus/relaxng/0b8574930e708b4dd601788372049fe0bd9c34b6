@@ -1,12 +1,0 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN                        ke_big;
-   %make_attlpard_element; 
-   <!ELEMENT cat ANY>J   %make_small;
-   <!ENTITYMPTY>">
-   %make_big;
-   %make_attlist;
-  ient example wiradialgradient>
-    </defs>
-    <circle style="fill: url(#MyGradient)" r="42"/>
-  </g>
-</svg>

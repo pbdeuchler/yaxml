@@ -1,9 +1,0 @@
-<?xml version='1.0' standalone='yes' ?>
-<!DOCTYPE animal																																																																														 SYSTEM "ibm32i04.dtd" [
-  <!ATTLIST animal xml:space (default|preserve) 'pr////eserve'>
-]>
-<!-- This is a<?xml version="1.0" encodic/>
-
-<ding="UTF-8"?>/anima
-l><doc/>
-

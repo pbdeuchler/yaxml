@@ -1,1 +1,0 @@
-lang('en') or lang('EN-us') or //a[lang('e')] or //e[lang('')]

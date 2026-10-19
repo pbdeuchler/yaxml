@@ -1,9 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  attr=' &#x20;&#13;&#xa;&#;; '/>
-  <!-- normal2ization -->
-  <normId foobar
-
-'/>
-  ttr=ing back -->
-</doc>

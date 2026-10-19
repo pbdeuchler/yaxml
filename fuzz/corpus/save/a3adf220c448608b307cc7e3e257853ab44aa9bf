@@ -1,5 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT a (#PCDATA)* >
-  <!ELEMENT b (#PCDATA) >
-  <!ELEMENT c ( #PCDATA)*>	
- XAATA|c)

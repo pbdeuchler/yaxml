@@ -1,0 +1,11 @@
+<?xwl version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater P66:
+&#9;&#09;&#0000000009;
+&#xA;&#x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a;&#x0A;&#x00008000A;
+&#x0d;
+&#xAB; &#xab;ot>
+<!--* a valid test for P66 *-->

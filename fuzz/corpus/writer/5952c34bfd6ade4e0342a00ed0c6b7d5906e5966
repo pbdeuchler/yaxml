@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	
-    >
-<!NOT`ATI

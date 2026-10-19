@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT root ANY
->	  <!ELEMENT a (#PCDATA)* >
-  <!ELEMENT b (#PCDATA) >
-  <!ELEMENT c ( #PCDATA)*>
-  <!ELEMENT d (#PA-ests P25 VC: No D-->

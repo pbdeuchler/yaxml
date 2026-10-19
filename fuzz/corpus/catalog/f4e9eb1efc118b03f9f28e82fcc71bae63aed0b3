@@ -1,37 +1,0 @@
-CATALOG "0"
-BASE "d/"
-PUBLIC "-'/A//DTD X//EN" "x.dtd"
-SYSTEM http://e/x.dtd s.dtd
--- c -- OVERRIDE YES
-ENTI~~CATALOG "0"
-BASE "d/"
-PUBLIC "-//A//DTD X//EN" "x.d¦td"
-SQSTEM http://e/x.dTd s.dtd
--- c -- OVE~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-/A/B/http://e/x.dtd s.dtd
--- c CATALOG catalsgml
-CAT-- OVERRIDE YES
-ENTI~~CATALOG "0"
-BASE "d/"
-PUBLIC "-//A//DTD Xb//EN" "x.dtd"
-SQSTEM http://e/x.dTd s.dtd
--- c -- OVE~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-//B//  Y ' y.~~~~~~~~~~~~~~Ô&Y e 'eÚ
-DELEASE "d/"
-PUBLIC "-//A//DTD X//EN","x.dtd"
-SQSTEM http://e/x.dTd s.dtd
--- c -- OVE~~~~~~~~~~~-//OASIS//DTD Entity 0Resolution XML Catalog V1.0//EN"
-         "http://www.oasis-(opity/release/1.0/catalog.dtf">
-p://wwTd s.dtd
--- c -- OVE~~~~~~~~~~~-//OASIS//DTD Entity 1Resolution XML Catalog V1.0//EN"
-         "http://www.oasis-opity/release/1.0/catalog.dtf">
-p://www.oasis-open.org/committDE YES
-ENTITY e 'e'
-DELEGTE '-//mitteesB//  Y ' y.~~~~~~~~~~~~~~ÔY ,,,,,,,,,.oasis-open.org/commtites/entity/stylesheetERRIDE YES
-ENTITY e 'e'
-DELEGATE '-//mitteeRRIDE YES
-ENTITY e 'e'
-DELEGTE '-//mitteesB//  Y ' y.~~~~~~~~~~~~~~ÔY e 'eÚ
-DELEALOGRRIDE YES
-ENTITY e 'e'
-DELEGATE '-//mitteeRRIDE YES
-ELEGTE '-//mitteesB//  Y ' y.~~~~~~~~~~~~~~ÔY e 'eÚ
-DELERRI DE cYatal2/ES

@@ -1,0 +1,13 @@
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one is almost standal both external and need
+	normalization.
+    -->
+]>
+
+<attri.utes
+       nmtokens =	"this also gets normalized"
+    id =	"&internal;"
+    idref =	"&internal;"
+    idrefs =	"&internal; &inter na;l&ints one!"
+    />

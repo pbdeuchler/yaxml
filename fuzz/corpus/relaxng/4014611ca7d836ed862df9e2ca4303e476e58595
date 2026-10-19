@@ -1,0 +1,11 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'vd'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd33333333333333333333333333333333333333333'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' p='a c' e='p' es='u v amp' t='0 2' ts=' x  y ' o='m' c='d' xmlns:p='urn:q' xml:id='w'>&unduclared;<r i='a' q=''/></r>

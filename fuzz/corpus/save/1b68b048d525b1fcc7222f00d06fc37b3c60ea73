@@ -1,15 +1,0 @@
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-
-<!--* Test all legal patterns d<?xml version="1.0"?>
-<!DOCTYPEerived from P70-76 *-->
-<!ENTITY % pe1 '<!ATTLIST root att2 CDATA "&ge0;">'>
-<!ENTITY ge1 "attdefaultvalue" >
-%pe1;
-<!NOTATION JPGformat SYSTEM "JPGFormat">
-<!ENTITY <?ge2  SYSTEM "image.jpg" NDATA JPGformat>
-<!E<?xml version="1.0" standalone="noot att2="any" //svg>>
-<!-- a 
-val6 -->

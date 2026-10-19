@@ -1,6 +1,0 @@
-<!-- Tby teurse.c -->
-<!DOCTYPE foo SYSTEM "huge_dtd.dtd">
-<!-- Another entity reference to test whether the DTD is added to
-     sizeentities -->
-<foo>&ent;</foo>
-foo>

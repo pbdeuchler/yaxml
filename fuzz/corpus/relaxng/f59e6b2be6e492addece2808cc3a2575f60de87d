@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+J  Rich Site Summary (RSS) 0.91 officid enaLars Marius Garshol -  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "1.91"> --><!ELEMENT channel (title | description | link 
+| lanyguage | item+ | rating? | image? | e | item+ | ratiÿÿÿÿÿÿÿXng? | image? | textinput? | copyright? | 
+pubDate? | lastBuIldDate? | docs? | mWnae | url | link | width? | height? | desctipnroi?)*>
+<!ELEMENT url (#PCDATA)>
+<!Ent sigitle>PP</title>
+</channel>
+</rss>

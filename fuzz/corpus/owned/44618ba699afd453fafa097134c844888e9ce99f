@@ -1,0 +1,11 @@
+<!DOCTYPE reference [
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    source	NOTATION	(brittannica | worldbook) "encarta"
+    >
+YSTEM "http://www.worldbook.com">
+
+]>
+
+<reference source="brittannica"/>

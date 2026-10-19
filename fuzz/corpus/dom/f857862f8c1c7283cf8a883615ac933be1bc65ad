@@ -1,0 +1,7 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+<![IGNORE[This was falid in SGML, but nolem>

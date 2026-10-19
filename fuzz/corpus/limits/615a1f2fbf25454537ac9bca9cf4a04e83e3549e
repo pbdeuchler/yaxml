@@ -1,7 +1,0 @@
-<!DOCTYPE test [
-  <!ENTITY newline "&#x98;#xA;">
-]>
-<test newline="&newline;"TYPE root SYSTEM "../valid/sa.dtd">
-    
-<root><![CDATA[
-    ]]><childng in F</ceeme/>

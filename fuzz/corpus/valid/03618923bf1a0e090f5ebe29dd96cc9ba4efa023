@@ -1,5 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<?xml version="2<!ELEMENT r (a,(b|c)*,d? (#PCDATA|a|b)*>
-<LEMENT f ((a?,b?)*,c)>
-<!ELEMENT g 1(#A><d><e><?f><b/><a/><c/><</f>>/r>

@@ -1,6 +1,0 @@
-<?xmlCTYPE stu version="1.0"?>
-<!DOCTYPE
-	<!ELEMENT student (#PCDATA)> 
-tudent>My Name is SnowMan. <![CDATA[This is a test]]> </student>
-
-

@@ -1,19 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)> 
-]>
-<!DOCTYPI test [
-  <!ENTITY newl
--->
-<student>My Na<test newline="&newl98;'#xine;"/>
-me is A;">]
->
-<test nSno;wMaewline="&newlin. </student>
-
-
-
-
-ne;"/>
-
-
- 

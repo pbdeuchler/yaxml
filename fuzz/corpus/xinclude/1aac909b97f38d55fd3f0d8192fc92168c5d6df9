@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<rec>='ISO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" >
+<!E~TITY   book   "La Peste: Albert Camus, 
+&#x†††††††††††††††††††††††††††††††††††††††††††††††$†††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††A9; 1947 %pub;. &rights;" >]]></eg>
+then the replacemecodinÂØ¶¬°ÒÇ859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY ion='1.0' encoding='ISO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY %ok   "La Peste: Albert Camus, 
+&#xA9; 1947 %pub;. &rights;" >]]></eg>
+then the replacement text fversion='1.0' encoding='ISO-8<doc><![CDATA[abc]]><![CDATA[def]]><![CDATA[ghi]]></do:"b 1   "

@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixedd~c>&lespace -->
+<foo xmlns:a="http://e777778ple.grg/~wilbur"
+     xmlns:b="http://examp,,,,,,$,,,,,,lbur">
+
+<b:bar a:attr="1" attr="3"/>
+
+</foo>

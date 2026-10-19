@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="latin1"?>		<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'vd'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd33333333333333333333333333333333333333333'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b'				            <!DOCTYPE r [<!ENTITY % p'<!"z=riMPLIE   o p='a c' e='q' xml:id='w'>&undeclared;<r"?ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ i='a' q=''/ÿÿÿÿÿÿÿÿÿ><r a="&#13;'>]><&e;</><r>/r>

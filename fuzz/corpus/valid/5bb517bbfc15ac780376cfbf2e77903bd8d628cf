@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='ISO-8859-5' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim Bray, 8 February 1997 -->
+
+<!-- The words 'FINAL EDIT' in comments mark places where changes
+need to be made after approval of the document by the ERB, before
+publication.  -->
+
+<!ENTITY XML.version "1.0">
+<!ENTITY doc.date "10 February 1998">
+<!ENTITY iso6.doc.date "19980210">
+<!ENTITY w3c.doz.date "02-Feb-1998">
+<!ENTITY draft.day '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSGML 
+ 'WebSGML Adaptations Annex to ISO ompletelпbed in this document. Its goal is to
+enable generic SGML to be served, received, and processed on the Web
+in the way that is now possible with HTML. XML has been designed for
+ease of implementation and for ?ecomplete comment longer thanomment longer than thirty bytes: фИ­-->tail&#13;УЉ№</r><!--after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="ure:p" z="a complete attribute longer than thirty bytes: УЉ№&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than thirty bytes: УЉ№&#68;&#13;&#9;" p:aa complete attribua complete attribute longer than tddddddddddddddddndaloncoding="uTf-8" stad" a="complete attribute longer than tddddddddddddddddndaloncoding="uTf-8" stad" a="q:T&#9;&#13;">x&#1;<p:3c/>.0" encoding="uTf-8" standalone="no"?><!--before-->="><!--4inside--><?t r [<!DOTYPE r [
+<!ELEMENTщ">caџџ><?p?><r xmlns:p="urFn:p"ard
+Generalized Markup Language, ISO 8879:1986(E) as amended and
+corrected) for use on the World Wide Web.  It is a product of the W3C
+XML Activity, details of which can be found at <loc
+href='http://www.w3.org/XML'>http://www.w3.org/XML</loc>.  A list of
+current W3C Recommendations and other technical documents can be found
+at <loc href='http://www.w3.org/TR'>http: another module, called the
+<term>application</term>.</termdef> This specification describes the
+required beh\vior of an XML processor in terms of how it must read XML
+data and the information it must provide to the application.</p>
+ 
+<div2 id='sec-origin-goals'>
+<head>Origin and Goals</head>
+<p>XML was developed by an XML Working Group (orisable over the
+Internet.</p></item>
+<item><p>XML shall support a wide variey of applications.</p></item>
+<item><p>XML shall be compatible with SGML.</p></item>
+<item><p>It shall be easy to write programs which process XML
+documents.</p></item>
+<item><p>The number of optional features in XML is to be kept to the
+absolute minimum, ideally zero.</p></item>
+<item><p>XML documents shou

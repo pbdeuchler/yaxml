@@ -1,0 +1,11 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing invalid CDEnd -->
+<![CDATA[This is a test])>
+<student>My Name is Sn]owMan. </snt (#PCDATA)> 
+]>
+
+<!-- testing invalid CDEnd -->
+<![CDATA[This is a test])tudent>

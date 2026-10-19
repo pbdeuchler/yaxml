@@ -1,18 +1,0 @@
-<!DOCTYPE root [
-<!NOTATION JPGformat PUBLIC<!DOCTLIST a att NOTATION (a) #IMPLIED>
-<!ATTLIST  ANY>
-<!NOTATION a SYSTEM "a">
-<!NOTAb att ( a | b ) #IMPLIED>
-]>
-<doc/>
- NOTATION c (a|b)*>
-<!ELEMENT a ANY>
-<!ELEMENT b ANY>
-<!NOTATION a SYSTEM "a">
-<TYPE root [
-<!NOTATIOÎ JPGformat PUBLIC '-//image//notreal'>
-]>
-<root enNa '-//image//notreal'>
-]>
-<rme thistokoot entatten13 NMTOKEN #IMPLIED>
-<!ATTLM "006.ent" [ PuD in P82<?root>

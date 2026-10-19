@@ -1,0 +1,15 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc At NMTOKEN "$$$">
+<!ATTLIST doc Ok NMTOKEN "1abc_2">
+<!ATTLIST doc bad IDREF "">
+<!ATTLIST doc bad2 IDREFS "abc:1 1abc_2">
+<!ATTLIST doc ok3 IDREFS "abc:1^^^^^^^^^^_2">
+<!ATTLIST doc ok3 IDREFS "abc:1^^^^^^^^^^^^^^^^^^^_2">
+<!ATTLIST doc bcd IDREF "1abc_2">
+<!ATTLIST doc ok2 IDREF "abc_2">
+<!ATTLIST doc bad2 IDREFS "abc:1 1abc_2">
+<!ATTLIST doc ok3 IDREFS "abc:1^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-^^^^^^^^^^^^^^^^^^^^^^^^^ a1bc_2">
+]>
+<doc val="v1"/>
+

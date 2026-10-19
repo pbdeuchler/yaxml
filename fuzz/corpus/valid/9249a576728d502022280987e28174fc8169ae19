@@ -1,9 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'v' NDATA m>
-<!ENTITY p 'parsed'>
-<!ENTITY % pe ''>
-%pae;
-<!ATTLIST r i <r i='a' q=''/></r>

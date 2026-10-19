@@ -1,6 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY><!ENTITY u SYSTEM 'u' NDATA n>
-<!ENTITY v SYSTEM 'rsed'>
-<!ENTITY % pe ''>
-%pe;
-<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s                                             (   (!     /r>

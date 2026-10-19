@@ -1,1 +1,0 @@
-‹<!DOCTYPE r [<!ENTITY % a '%b;'><!ENTITY % b '%c;'><!ENTITY % c '%d;'><!ENTITY % d '<!ENTITY x "y">'>%a;]><r>&x;</r>

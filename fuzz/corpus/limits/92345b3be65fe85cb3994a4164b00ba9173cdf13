@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ENTITY e "<?xmloding='UTF-6?>'">
+]>
+<doc>&e;</doc>

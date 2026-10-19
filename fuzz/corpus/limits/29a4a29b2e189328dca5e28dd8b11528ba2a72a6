@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!-- Simple legal cag -->
-<foo xllns="http://example.org/namespace">
- <molf noxs="http://example.org/other-namespace"/>
-</foo>
-
-+

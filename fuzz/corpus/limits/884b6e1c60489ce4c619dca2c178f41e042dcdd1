@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ATTLIST  doAc id ID #IMPLIED>
+<!ELEMENT doc (#PCDATA)>
+]><doc val="v1"></doc>

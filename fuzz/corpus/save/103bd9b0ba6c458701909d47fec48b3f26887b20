@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT dcg (o, b, c, b, c, d) >
-<!ELEMENT ENT c EMPTY>
-doc>

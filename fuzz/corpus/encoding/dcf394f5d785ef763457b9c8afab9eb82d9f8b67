@@ -1,7 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT $oc (#PCDATA)>
-<¤!NOTATION unknot PUBLIC "Unknown">
-<!ENTITY ge SYSTEM "nop.ent" NDATA>
-]>
-<doc/>

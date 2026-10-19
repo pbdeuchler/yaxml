@@ -1,7 +1,0 @@
-<!-- CDATA sections, comments and PIs may occur in ANY content. -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-]>
-<foo>
-a <![CDATA[cdata section]]> in&mixed contentg instruction?> in ontentg instrixed content.
-</foo>

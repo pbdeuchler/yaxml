@@ -1,0 +1,4 @@
+<!DOCTYPE doEc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#85;doc></doc>

@@ -1,15 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)> 
-]>
-
-
-<!-- testing invalid PITarget  -->
-<?XML This is a tžŒ‹ßÀÁòõ<student>My Name is SnowMan. </student>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student first CDATA #REQUIR
-
-ED
-			  lat>Reten&£231;&#227;o</Content>
-   <Content>&lt;&gt;</Content>
-   <Cont<student first="Snow">My name is Snow&Man </student>

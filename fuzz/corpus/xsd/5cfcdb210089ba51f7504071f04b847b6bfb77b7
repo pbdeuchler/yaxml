@@ -1,4 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST c att CDATA #REQEIREDdc att="value"/>

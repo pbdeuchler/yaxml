@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utfv02.dtd" [
-   <!NOTATIVN animal_class SYSTEM "ibm28v02.txt">
-  ="invalid/P32/out/ibm32i03.xml">
-    This test violates VC: Standalone Document Declaration in P32.
-    The standalone document declaP32.
-    The standalone document declaration has the value yes, BUT th<!ELEMENT big EMPTY>">
-   %make_big;
-   %make_atPI" ?>
-   <!-- This is a valid test file for p2nimal>

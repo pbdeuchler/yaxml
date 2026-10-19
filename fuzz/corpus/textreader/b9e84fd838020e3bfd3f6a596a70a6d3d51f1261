@@ -1,4 +1,0 @@
-î<?xml version="1.0" standalone="yes"?>
-<!DOCTYPE root [
-<!ELEMENT root  (cont2, (cont1, cont2?)+)>
-( <!ELEMENT cont1  EMPt1/t>

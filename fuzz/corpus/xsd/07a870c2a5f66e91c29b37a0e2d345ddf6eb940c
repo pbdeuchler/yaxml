@@ -1,45 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
-
-]>
-<r i='a'>>>>>>>>>>>>>>>>>>\>>>>>>>>>>>>>>>>>{>>>>>>>>>>>>>>on="2.0" enc=oding="8>>>>>/////////////////////r i='a'>>>//////////////////////////
-<r i='a'>>>>>///////////˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙÷˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙>>//////////////////////////////
-<r i='a'>>>˙˙˙˙˙˙˙˙˙˙˙˙˙˙ enc=oding="7>>>>>/˙˙˙˙˙˙˙[///////ÚÚ˙nÚÚÚ2ÚÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ<?xmlYYYYħĤYÙYYYYYYYYYYYYYYYNT r (ÄÄÄa,(b˙˙˙˙˙˙˙˙˙˙coding='ISO-8859-3'?><rĦ>, CDATA 'ÚÚÚÚÚÚÚÚÚ,ÚÚÚÚRÚÚÚÚÚ˙nÚÚÚ2ÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ<?xmlYYYYYYYÙYYYYYYYYYYYYYYYNT r (ÄÄÄa,(b
-ÚÚÚ?><rĦ>, CDATA.0' encoding='ISO-8859-3'?><rĦ>, CDATA 'ÚÚÚÚ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙ÚÚÚÚĠÚ˙nÚÚÚ2ÚÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ<?xmlYYYYYYYYYYYYYYYYYYYYml version='2.0' encoding='ISO-8859-3'?><rĦ>, CDATA 'ÚÚÚÚÚÚÚÚÚ,ÚÚÚÚRÚÚÚÚÚ˙nÚÚÚ2ÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ<?xmlYYYYYYYÙYYYYYYYYYYYYYYYNT ' (ÄÄÄa,(b
-ÚÚÚ?><rĦ>, CDATA.0' encoding='ISO-8859-3'?><rĦ>, CDATA 'ÚÚÚÚÚÚÚÚÚ,ÚÚÚÚRÚÚÚÚÚ˙nÚÚÚ2ÚÚÚÚion='2.0' encoding='ISO-8859-3'?><rĦ>, CDATA '9-3'?><rĦ>, CDATA 'ÚÚÚÚÚÚÚÚÚ,ÚÚÚÚRÚÚÚÚÚ˙nÚÚÚ2ÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ<?xmlYYYYYYYÙYYYYYYYYYYYYYYYNT r (ÄÄÄa,(b
-ÚÚÚ?><rĦ>, CDATA.0' encoding='ISO-8859-3'?><rĦ>, CDATA 'ÚÚÚÚ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙ÚÚÚÚĠÚ˙nÚÚÚ2ÚÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ<?xmlYYYYYYYYYYYYYYYYYYYYml version='2.0' encoding='ISO-8<?xml version="1.0"?>
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <xsd:annotation>
-    <xsd:documentation xml:lang="en">
-      Testing duration data types
-    </xsd:documentation>
-  </xsd:annotation>
-  <xsd:element name="duration">
-    <xsd:complexType>
-      <xsd:sequence>
-        <xsd:choice minOccurs="1" maxOccurs="unbounded">
-          <xsd:element name="second1">
-            <xsd:simpleType>
-              <xsd:restriction base="xsd:duration">
-                <xsd:maxExclusive value="PT1S"/>
-                <xsd:minExclusive value="PT0.1S"/>
-              </xsd:restriction>
-            </xsd:simpleType>
-          </xsd:element>
-          <xsd:element name="second2">
-            <xsd:simpleType>
-              <xsd:restriction base="xsd:duration">
-                <xsd:maxInclusive value="PT1S"/>
-                <xsd:minInclusive value="PT0.1S"/>
-              </xsd:restriction>
-          ŝ˙˙Ŝxsd:simpleType>
-          </xsd:element>
-          <xsd:element name="month1">
-            <xsd:simÚÚ2ÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄlue="P1Y"/>
-              </xsd:restriction>
-            </xsd:simpleType>
-          </xsd:element>
-        </xsd:choice>
-      </xsd:sequence>
-    O-8859-3'?><rĦ>, CDATA 'ÚÚÚÚÚÚÚÚÚ,ÚÚÚÚRÚÚÚÚÚ˙nÚÚÚ2ÚÚÚ˙ÄÄÄÄÄÄÄÄ§ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ<?xmlYYYYYYYÙYYYYYYYYYYYYYYYNT r</xsd:complexType>
-  </xsd:element>
- (ÄÄ  <xsd:simpl

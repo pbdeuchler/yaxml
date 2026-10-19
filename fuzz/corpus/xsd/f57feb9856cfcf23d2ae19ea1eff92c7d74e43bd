@@ -1,9 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (q,(b|c)*,d?,(e,f)+,(e.f)+)>
-<!ELEMENT a EMPTY>
-<!ELEMENT b (#PCDATA)>
-<!ELEMENT cr (q,(b|c)*,d?,(e,f)+,(e.f)+)>
-<!ELEMENT a EMPT
-<!ELEMENT T ,b
-<!ELEMENT r>

@@ -1,0 +1,8 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST rIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' d='b' s='a c' e='p' es='u v amp' xmlpns:='urn:q' xml:id='w'>&undeclared;<r i' q=''/>.</r>

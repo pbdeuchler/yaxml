@@ -1,28 +1,0 @@
-<?xml vnd referenced content
-  </desc>
-  
-  <!-- <g> with inline content -->
-  <g>
-    <!-- Inline content goes here -->
-  </g>
-
-  <!-- referenced content -->                                                     
-  <use hrexml version="1.1" encoding
-  </g>
-
-  <!-- referenced content -->                                                     
-  <use hrexml version="1.1" encoding="UTF-8"ÿÿÿf?>
-<!DOCTYPE LegalName [
-<!ELEMENT L%galName ANY>
-<!ELEMENT LegalName0 ANY>
-<!ATTLIST LegalName0 ="UTF-8"?>
-<!DOCTYPE LegalName [
-<!ELEMENT L%galName ANY>
-<!ELEMENT LegalName0 ANY>
-<!ATTLIST LegalName0 att`r0 ID #IMPLIED>
-<!ATTLIST LegalName0 attr00 IDREF #IMPLIED>
-<!ELEMENT LegalName1 ANY>
-<!ATTLIST LegalN    ->
-  </g>
-
-</svg>

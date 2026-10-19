@@ -1,9 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (A*)>
-<!ELEMENT A EMPTY>
-<c"/><A att="abc def . :"/><A att="
-abc
-dmf
-"/>
-</doc>

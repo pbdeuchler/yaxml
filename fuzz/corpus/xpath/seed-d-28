@@ -1,1 +1,0 @@
-starts-with('abc', 'ab') and contains('abc', 'c') and string-length() and string-length('x') and normalize-space('  a  b ') and normalize-space()

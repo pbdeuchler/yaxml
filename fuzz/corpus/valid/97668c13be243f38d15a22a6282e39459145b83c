@@ -1,1 +1,0 @@
-<?xml version="1.0"?><!--before--><?pi version="1.0"?><!--before-0><r xmlns:p="urn:p">a<p:c x="&#9;"/z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn:q">a<![CDATA[b]]>c</p:DATA[]]><9;empty xmlns=""/><?empty?n><![CDATA[]]y xmlns=""/>>tail&#13;é🙂</r><!--after-->

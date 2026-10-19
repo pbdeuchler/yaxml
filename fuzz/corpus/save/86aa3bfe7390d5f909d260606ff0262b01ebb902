@@ -1,6 +1,0 @@
-<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
-<!ENTITY xml "Extensible Mariup Language">
-]>
-<EXAMPLE >&a:p;b .
-</EXAMPLE>
-

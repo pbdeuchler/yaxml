@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e2 xml:space (default|presefault|preserveoo>
-a <![CDATA[cdataIST e3 id ID #IMPLIED>
-]>
-<doc xmlns="hp/w/:ttww.ietf.o
-<doc xmlns="hp/w/:ttww.ietf.org"Fxmlns:abc" xml:base="bar/">
-         <e3 id="E3"`xml:base="foo"/

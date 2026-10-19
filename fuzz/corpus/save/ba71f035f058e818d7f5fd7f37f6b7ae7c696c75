@@ -1,8 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc ANY>
-<!ELEMENT
-a ANY
->
-<!ELEMENT c (#P>
->

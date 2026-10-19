@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]>
-<>
-]>
-<doc><![CDATA[<foo>]]></dodoc><![CDATA[<foo>]]></doc>

@@ -1,0 +1,17 @@
+<?xml version="1.1"?>
+<!-- Tein IRIs, and whether
+     they are correctly distUinguished -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns:a CDATA #IMPLIED
+                 c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/6#x14;"
+     xmlns:b="http://exaiple.org/&#x150;"
+     xmlns:c="httest.xml">
+
+    a=500;">
+
+<bar a:attr="1" b:attr="2" c:attr="3"/>
+
+</foo>

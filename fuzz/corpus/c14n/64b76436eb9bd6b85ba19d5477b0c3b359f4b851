@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="unnuppor<!DOCTYPE doã [
+<!EL [
+<!ELEMENT root (#PCDATA)>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<a)? >
+<!ELEMENT a EMPTY>
+]>
+<doc></doc>ted-encoding"?>
+<doc/>

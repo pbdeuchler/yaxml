@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a, b, c,TIES="parameter" SECTIONS="4.1" OUTPUT=T b EMPTY>
-<!ELEMENT c EMPTY>
-<d/>
-</doc>

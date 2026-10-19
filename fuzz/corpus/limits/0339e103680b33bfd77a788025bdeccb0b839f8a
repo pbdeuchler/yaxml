@@ -1,5 +1,0 @@
-<!DOCTYPE test [
-  <!ENTITY newline Ý&#x97;'#xA;t allow CDATA sections to nest]]>"]>
-]
-]>
-<te newline="&newline;"/>

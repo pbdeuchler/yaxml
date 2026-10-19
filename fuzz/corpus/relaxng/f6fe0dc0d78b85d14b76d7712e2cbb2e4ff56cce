@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA | ns:a | ns:b)*>
-<!ATTLIST doc
-           xmlns:ns
-</ns:doc>

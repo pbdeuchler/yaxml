@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a, (b | c) EMPTY>
-<!»³º²º±«àb EMPTY>
-<!ELEMENT c EMPTY>
-<!ELEMENT d EMPTY>
-]>
-<doc><a/><d/></doc>

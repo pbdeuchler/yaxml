@@ -1,0 +1,29 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need:a="namespaced"><p:n xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><rmn xls="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than th10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c<//p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer thanomment longer than thirty bytes: 中-->tail&#13;é🙂</r><!--after-0"?><!--bef$ore--><?pi datt longer thanomment longer tEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than th98;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns="EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="n<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W2C//DTD SVG Apjil 0999//EN" 
+  "http://www.w3.org/Graphamespaced">omplete attribute longer than th98;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete commen version="1.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bythan thirty bytes: 中-->tail&#64;é🙂</r><!--after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than third"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longe é🙂&#69;&#13;&#9;" p:a="namespaced"><p:n xmlns:ics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Two groups, each of two rectangles
+  </desc>
+  <g style="fillcolor:red">
+    <rect x="100" y="100""width="100" height="100" />
+    <rect x="300" y="100" width="100" height="100" />
+  </g>
+  <g style="fillcolor:blue">
+    <rect x="100" y="300" width="100" height="p="r SYSTEM 'm.dtd'><r>&urn:q">C<![C""/><?empty?><!-a- comp,ete comment l-he problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbagew to trigger the problem100" />2
+    <reoct x="300" y="300" width="100" height="100" />
+  </g>
+</sv</p>
+   <p> WE need lot of garbage now to trigger the problem<g>
+/p>
+   <p> WE need lot of garbage now to trigger the trigger the problem</p>
+   <ent>&test1;</ent>
+</doc>
+

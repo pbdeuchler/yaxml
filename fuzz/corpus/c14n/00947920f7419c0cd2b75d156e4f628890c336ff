@@ -1,0 +1,3 @@
+<?xml version="1.0"?>
+<!-- Sime legal case: prefixed attribute -->
+<foo xmlns:a="http://example.org/n!mesp!ce" a:attr="2"/>

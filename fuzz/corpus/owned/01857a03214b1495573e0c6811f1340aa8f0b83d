@@ -1,0 +1,17 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 go attributes
+	in standalo~e docs:  no exte   -->
+
+    <!ATTLIST attributes
+	token		(a|
+    
+    <!ENTITY internal <!DOCTYPE doc [
+<!ENTITY e SYSTEM "001.ent">
+]>" hnternal&numbernue!"
+>
+    />

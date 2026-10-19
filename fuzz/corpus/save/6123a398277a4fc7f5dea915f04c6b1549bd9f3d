@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<?xole!vrrsin'=1o.[
+<!ELEMENT r ANY>
+<!NOTATION <!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDAn SYSTEM 'n'>
+TA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREF #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|y|x) '' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b&' s=': c' e='p' es='u  vamp' t='4 2' ts=' x  y m'' =o' c<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v'= NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #Iy!ELEoot [
+ ¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼/¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼¼ÿ¼¼¼¼¼¼¼¼¼¼¼¼¼¼-2¼¼¼¼¼â¼¼¼¼¼¼¼¼
+ 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY 'd% pe ''>
+%pe;
+<!ATTLI' xmlns:p='uSä‘rn:q' xd='w'>&undeclared;Äß='a'›š q=''/><Á/r>õ
+

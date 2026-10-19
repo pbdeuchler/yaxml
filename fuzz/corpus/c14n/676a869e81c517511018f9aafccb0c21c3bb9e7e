@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv2.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtdÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalogÿÿM‹.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T154508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+    <Identification>
+      <NewsIdentif</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="022042369316.lctevest.xml"/>
+      </NewsComponent>
+      <NewsComp]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]e]N]wsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Rexrodt - das Stehaufmännchen der Berliner FDP</HeadLine>*        </NewsLines>
+        <NewsItemRef NewsItem="000820938621.gujrz59m.xml"/>
+      </NewsComponent>
+    </NewsComponent>
+  </NewsItem>
+</NewsML>

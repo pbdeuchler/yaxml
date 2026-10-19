@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (e*)>
-<!ELEMENT e EMPTY>
-<!ATTLIST e
-a615 (0) '0+' a001 (0) '(0' a002 (0) '0' a003 (0) '0' a004 (0) '0' attr NMTOKENS #IMPLIED>]>
-<doc>xorab
-
-'/>
-  <norm atval /><e

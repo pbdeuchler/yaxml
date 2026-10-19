@@ -1,8 +1,0 @@
-<?xml version='1.0' standalone='yes'?>
-
-<!DOCTYPE attributes [
-    <!ELEMENT                                                                                                              
-                   <!NOTATION nonce SYSTEM "file:/dev/null">
-    <!N ' <!NOTATION bar SYST:/dev/tty">
-
-    <!ENTITY unparsed-1 

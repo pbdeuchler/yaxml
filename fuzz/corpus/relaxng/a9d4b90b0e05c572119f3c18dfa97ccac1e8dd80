@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT r (#PCDATA) >
-  <!ELEMENT c (                                  #PCDATA)*>
-  <!ELEMENT d (#PC Element type b </b>
-</root>
-<!--* a invalid test: tests P26 VC: No Duplicate Types *-->

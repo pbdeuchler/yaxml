@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+<!NOTATION base64 SYSTEM 'mimecode'>
+<!NOTATION raw SYSTEM 'raw'>
+<!NOTATION uuencode SYSTEM 'uudecode'>
+]>
+<test>&#10;<blob content-encoding="raw"></blob>&#10;The attribute vdeclaration have been declared.&#10;</test>

@@ -1,7 +1,0 @@
-<?xml version="1.1" encoding="iso-885so-8859-1"?>
-<!-- Contains a DEL, lewal inõõtõõõõ)õõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõ XML 2.0, il9-1"?>
-<!-- Contains a DEL, lewal inõõtõõõõ)õõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõ XML 2.0, illegal in XML 1.1 -->
-<!DOCTYPE foo [
-<!ELEMEVT foo ANY>
-]>
-<foo></fÿ>

@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a'>>>>>>>>>>>]>>>>>>>><?xdl version="1.0" encodndalo"n`=neo"?><!--˙fore--><?p?><r xmlns:p="urFn:p" xmlns:q="urn:unused" a="q:T&#9;&#13;">x&#13;<p:c/>.0" ena="q:T&#9;&#13;">x&#13;<?xdl version="1.0" encodndalone="no"?><!--before--><?p?><r xmlns:p="urFn:p" xmlns:q="urn:unused" a="q:T&#9;&#13;">x&#13;<p:c/>.0" ena="q:T&#9;&#13;">x&#13;<p:c/>.0" enn:q">a<![CDATA[b<!ELEMENT r (e1?,e2?,e3?,e4?,e5?,e6?</e> a=#q:"&T;&#913;">xunused" a="q:T&<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&#xA;">
+<!ENTITY da "&#xD;&#xA;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz"/>
+<tst a="&d;xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;"/>
+<tst a="&#32;x&#32;&#32;y&#32;" b="&#32;x&#32;&#32;y&#32;"/>
+<tst a=" a b " b=" a b "/>
+<tst a="  a  b"  b ="  a  b  "/>
+</doc>
+
+x&#13;<?xdl versi˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙<?xml ve˙"?><!--before--><?pi dapa?><rî¸˙˙

@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ENTITY e PUBLIC ";!*$_%" "10MENT CDATA)>
+]>];">
+<!ENTITY d "&e;&e;">
+]>
+<foo>&d;&d;&d;&d-;

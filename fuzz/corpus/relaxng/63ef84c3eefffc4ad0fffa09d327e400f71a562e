@@ -1,0 +1,23 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comme ntz->
+<![CDATA[!<elem>
+<#ELEMENT elemttp://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kiphttp://www.ietf.ottp://www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="htteste: Albert Camus,&#10;© 1947 Éditp://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org">
+               <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+    ]>
+<?pi?>&ent;&quot;
+CharData
+</elem>atdribute type.&#10;<
+/tes
+t>

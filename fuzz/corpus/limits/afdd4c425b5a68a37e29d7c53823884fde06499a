@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e a NOTATION MnI# ()e)*>
-<!ELEMENT e (#PC]>
-<doc></doc>

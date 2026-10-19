@@ -1,0 +1,19 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights reserved.  Permi='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  Anar   is(grantrny or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;<C) 198 vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUinclude//Inte§.atio am6Jes Clark.  All rin

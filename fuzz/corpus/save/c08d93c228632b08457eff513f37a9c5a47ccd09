@@ -1,8 +1,0 @@
-<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
-<!ENTITY image SYSTEM "img.gif" NDATA GIF>
-]>
-<EXAMPLE>
-  &title;
-  This text is about6 XML, the &xml; and this is an embedded <IMG src="image"/>
-<>
-

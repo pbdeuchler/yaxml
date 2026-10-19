@@ -1,17 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e1 "&e<?xml version="1.0" encoding="EUC-J&P"?>
-<foo>
-sion="1.0" encoding="EUC-JP"?>
-<foo>
-Text with EUC-JP chars at position 214 (0xHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHd6)
-___
-_______________
-_______________
-_______________
-_______________
-_______2;"e<
->!	NTITY e4 "&e3;">
-<!ENTITY e2 "&e1;"<doc a=________
-_____"&e1;"></doc>
-______
-___/foo>

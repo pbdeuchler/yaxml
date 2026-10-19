@@ -1,0 +1,5 @@
+<!DOCTYPE dox0FF20c [
+<!ENTITY % e PUBLIC 'whatever' "e.dtd">
+<!ELEMENT doc (#PCDATA)
+]>
+<doc></doc>

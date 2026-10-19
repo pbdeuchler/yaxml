@@ -1,0 +1,13 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (a|b)*>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!NOTATION a SYSTEM "a">
+<!NOTATION b SYSTEM "b">
+<!ATTLIST a att NOTATION (| b ) #B   </dirtIMPLIED>y>
+      C
+]>
+<doc/>
+ ì  </mixed>
+</doc#

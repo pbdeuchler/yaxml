@@ -1,0 +1,7 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!ENTITY % 
+<!NOTATION a SYSTEM "a">ent1 "asdf&#65">
+]>
+<doc/>

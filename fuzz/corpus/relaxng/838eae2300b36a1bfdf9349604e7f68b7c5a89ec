@@ -1,5 +1,0 @@
-<!-- Des to external entes. -->
-<!DOCTYPE foo [
-<!ENTITY  CDATA "contains &ent; reference">
-]>
-<foo a="not defaulted"/>
