@@ -928,11 +928,27 @@ impl<'source> ParserState<'source> {
                 &mut |error| self.budget.recover(error),
             )?;
             // `IGNORE_ENC` keeps the detected encoding, as libxml2's
-            // `xmlSetDeclaredEncoding` does. So does recovery from one it
-            // cannot switch to, which libxml2 also drops from the declaration.
+            // `xmlSetDeclaredEncoding` does, and records no label unless the
+            // input was auto-detected (a UTF-8 BOM; a mismatch reads "UTF-8").
+            // Recovery from a label it cannot switch to also drops it.
             let offset = encoding_offset.unwrap_or(start);
             self.encoding = match declaration.encoding {
-                Some(_) if self.flags.ignores_encoding() => self.encoding,
+                Some(label) if self.flags.ignores_encoding() => {
+                    declaration.encoding = match self.encoding {
+                        crate::encoding::SourceEncoding::Utf8 if start == 0 => None,
+                        crate::encoding::SourceEncoding::Utf8 => Some(
+                            if label.eq_ignore_ascii_case("UTF-8")
+                                || label.eq_ignore_ascii_case("UTF8")
+                            {
+                                label
+                            } else {
+                                "UTF-8"
+                            },
+                        ),
+                        _ => Some(label),
+                    };
+                    self.encoding
+                }
                 label => match validate_encoding(self.encoding, self.switchable, label, offset) {
                     Ok(encoding) => encoding,
                     Err(error) => {

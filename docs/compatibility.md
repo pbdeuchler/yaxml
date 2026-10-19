@@ -210,7 +210,7 @@ effect on results. `tests/options.rs` covers each row; the `dom`, `owned` and
 | `OLD10`, `UNZIP`, `CATALOG_PI` | Rejected (pre-Fifth-Edition names, decompression and catalog PIs are not implemented). |
 | `NOBASEFIX` | With `XINCLUDE`, no `xml:base` fixup. |
 | `HUGE` | Raises token and DTD ceilings to 1 GB, depth to 2048 and entity depth to 40 (libxml2's huge values); larger caller limits stay. |
-| `IGNORE_ENC` | Ignores the declared encoding: UTF-8 (or the BOM-detected encoding) is kept. |
+| `IGNORE_ENC` | Ignores the declared encoding: UTF-8 (or the BOM-detected encoding) is kept, and the label is not recorded as the document encoding (BOM-detected: kept, or "UTF-8" on mismatch). |
 | `NO_XXE` | Never loads the external subset or external entities, even with a resolver. |
 | `SKIP_IDS` | DOMs record no ID attributes (`element_by_id`, XPath `id()`). |
 
