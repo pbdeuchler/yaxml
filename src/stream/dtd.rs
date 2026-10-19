@@ -44,11 +44,6 @@ enum Delivery {
     Ready,
     Lent,
 }
-enum Drain {
-    Ready,
-    NeedInput,
-    Complete,
-}
 
 #[derive(Clone, Copy)]
 enum Failure {
@@ -347,21 +342,15 @@ impl StreamingSession {
             } else {
                 let session = self.session.first_mut().expect("one active DTD session");
                 match session.drain(self.limits, self.decode)? {
-                    Drain::Ready => {
-                        self.delivery = Delivery::Ready;
-                        return Ok(SessionStep {
-                            consumed,
-                            outcome: SessionOutcome::Ready,
-                        });
+                    SessionOutcome::NeedInput => {}
+                    outcome => {
+                        self.delivery = match outcome {
+                            SessionOutcome::Ready => Delivery::Ready,
+                            _ => Delivery::Idle,
+                        };
+                        self.finished = outcome == SessionOutcome::Complete;
+                        return Ok(SessionStep { consumed, outcome });
                     }
-                    Drain::Complete => {
-                        self.finished = true;
-                        return Ok(SessionStep {
-                            consumed,
-                            outcome: SessionOutcome::Complete,
-                        });
-                    }
-                    Drain::NeedInput => {}
                 }
                 if self.finalizing {
                     session.finish_decoder()?;
@@ -484,7 +473,7 @@ impl DtdSession {
             None => self.physical,
         })
     }
-    fn drain(&mut self, limits: Limits, decode: DecodeLimits) -> Result<Drain, Error> {
+    fn drain(&mut self, limits: Limits, decode: DecodeLimits) -> Result<SessionOutcome, Error> {
         loop {
             match self.phase.as_mut().expect("owned semantic phase") {
                 Phase::Declarations {
@@ -492,7 +481,7 @@ impl DtdSession {
                 } => {
                     // Only the declaration's end is published; its parts are internal.
                     match controller.current() {
-                        Some((DtdEvent::End, _)) => return Ok(Drain::Ready),
+                        Some((DtdEvent::End, _)) => return Ok(SessionOutcome::Ready),
                         Some(_) => {
                             controller.release();
                             continue;
@@ -528,7 +517,7 @@ impl DtdSession {
                                 controller.physical_position(),
                             ));
                         }
-                        return Ok(Drain::NeedInput);
+                        return Ok(SessionOutcome::NeedInput);
                     }
                 }
                 Phase::Content(controller) => {
@@ -543,7 +532,7 @@ impl DtdSession {
                                 controller.skip_non_event()?;
                                 continue;
                             }
-                            return Ok(Drain::Ready);
+                            return Ok(SessionOutcome::Ready);
                         }
                         ContentOutcome::Progress => {}
                         ContentOutcome::NeedPhysicalInput => {
@@ -553,38 +542,28 @@ impl DtdSession {
                                     controller.position().1,
                                 ));
                             }
-                            return Ok(Drain::NeedInput);
+                            return Ok(SessionOutcome::NeedInput);
                         }
-                        ContentOutcome::Complete => return Ok(Drain::Complete),
+                        ContentOutcome::Complete => return Ok(SessionOutcome::Complete),
                     }
                 }
             }
         }
     }
     fn advance_decoder(&mut self, input: &[u8]) -> Result<DecodeProgress, Error> {
-        let mut failure = None;
         let phase = self.phase.as_mut().expect("semantic phase");
-        let result = self
-            .decoder
-            .advance(input, |decoded| phase_decode(phase, decoded, &mut failure));
-        if let Some(error) = failure {
-            return Err(error);
-        }
-        result
+        self.decoder
+            .advance(input, |decoded| phase_decode(phase, decoded))
     }
     fn finish_decoder(&mut self) -> Result<(), Error> {
         if self.decoder_finished {
             return Ok(());
         }
-        let mut failure = None;
         let phase = self.phase.as_mut().expect("semantic phase");
-        let result = self
+        if !self
             .decoder
-            .finish_step(|decoded| phase_decode(phase, decoded, &mut failure));
-        if let Some(error) = failure {
-            return Err(error);
-        }
-        if !result? {
+            .finish_step(|decoded| phase_decode(phase, decoded))?
+        {
             self.decoder_finished = true;
         }
         Ok(())
@@ -650,50 +629,38 @@ fn lend_current<'event>(
     })
 }
 
-fn phase_decode(
-    phase: &mut Phase,
-    decoded: Decoded<'_>,
-    failure: &mut Option<Error>,
-) -> Result<DecodeProgress, Error> {
-    let result = (|| -> Result<DecodeProgress, Error> {
-        let Decoded::Bytes(bytes) = decoded else {
-            let at = match phase {
-                Phase::Declarations { controller, .. } => controller.physical_position(),
-                Phase::Content(controller) => controller.position().1,
-            };
-            return Err(Error::new(ErrorKind::InvalidState, at));
+fn phase_decode(phase: &mut Phase, decoded: Decoded<'_>) -> Result<DecodeProgress, Error> {
+    let Decoded::Bytes(bytes) = decoded else {
+        let at = match phase {
+            Phase::Declarations { controller, .. } => controller.physical_position(),
+            Phase::Content(controller) => controller.position().1,
         };
-        match phase {
-            Phase::Declarations {
-                controller,
-                parser,
+        return Err(Error::new(ErrorKind::InvalidState, at));
+    };
+    match phase {
+        Phase::Declarations {
+            controller,
+            parser,
+            raw,
+        } => {
+            let consumed = controller.advance(bytes, parser.owned_budget())?;
+            capture(
                 raw,
-            } => {
-                let consumed = controller.advance(bytes, parser.owned_budget())?;
-                capture(
-                    raw,
-                    &bytes[..consumed],
-                    parser.owned_budget(),
-                    controller.physical_position(),
-                )?;
-                Ok(DecodeProgress {
-                    consumed,
-                    suspended: controller.current().is_some() || controller.is_complete(),
-                })
-            }
-            Phase::Content(controller) => {
-                let step = controller.advance(bytes)?;
-                Ok(DecodeProgress {
-                    consumed: step.consumed,
-                    suspended: step.outcome != ContentOutcome::NeedPhysicalInput,
-                })
-            }
+                &bytes[..consumed],
+                parser.owned_budget(),
+                controller.physical_position(),
+            )?;
+            Ok(DecodeProgress {
+                consumed,
+                suspended: controller.current().is_some() || controller.is_complete(),
+            })
         }
-    })();
-    result.map_err(|error| {
-        *failure = Some(error);
-        // The decoder's callback takes Error; the typed phase failure is kept
-        // beside this stop signal and returned instead of it.
-        Error::new(ErrorKind::InvalidState, error.offset)
-    })
+        Phase::Content(controller) => {
+            let step = controller.advance(bytes)?;
+            Ok(DecodeProgress {
+                consumed: step.consumed,
+                suspended: step.outcome != ContentOutcome::NeedPhysicalInput,
+            })
+        }
+    }
 }
