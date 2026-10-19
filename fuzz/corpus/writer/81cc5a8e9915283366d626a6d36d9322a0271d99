@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General (entity reference in element content</b>y element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference shoue above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater re   <c></c> 
+   ontent;
+    Charater rent|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?>
+<!-- Commeft content -->
+    &inContent;
+    Charater re   <c></c> 
+   ontent;
+    Charate-->
+    &inContent;
+    Charater re   <c></c> 
+   ontent;
+    CharatearData: content of b element
+   %paaa; : PE reference should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?-normalized" nmtokens="this also gets normalized" notation="nonce" toke>
+<!-- Comment content -->
+    &inContent;
+    Charater re   <c></c> 
+   ontent;
+    Charater reference: &#x10;
+    DtCSc ein content: <![CDATA[ <html>markups<head>HEAD</head><bod$>nothing</body></htcognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?-normalized" nmtokens="this also gets normalized" notation="nonce" toke>
+<!-- Comment content -->
+    &inContent;
+    Charater re   <c></c> 
+   ontent;
+    Charater reference: &#x10;
+    DtCSc ein e: &#x19;
+    DtCSc ein content: <![CDATA[ <html>markups<head>HEAD</hed>HEAD</head><bod$>nothing</body></html> ]]>
+   </c>
+</b>
+</rIMPLIED>
+<!ATTLIST tst b CDATA #IMPLIa  b  " b=" rence: &#x10;
+     a  b  "CDS/>

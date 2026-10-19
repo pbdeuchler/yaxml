@@ -1,0 +1,14 @@
+<?xml  version="1.0"?>
+<!-- valid test for Production 57-->
+<!DOCTYPE test
+ [
+ <!ELEMENT test ANY>
+ <!ELEMENT one ANY>
+ <!ELEMENT two ANY>
+ <!ELEMENT three ANY>
+ <!ELEMENT four ANY>
+ <!ELEMENT five ANY>
+ <!NOTATION this SYSTEM "alpha">
+ <!NOTATION that SYSTEM 
+Thii is a positive test with different patterns fAor NOTATION
+</test>

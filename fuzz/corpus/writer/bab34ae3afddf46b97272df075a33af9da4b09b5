@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ELEMENT d ANY>
+  <!ELEMENT e ANY>
+  <!ELEMENT f ANY>
+  <!--* test all possible children,cp,choice,seq patterns in P94,P48,P49,P50 *-->
+  <!ELEMENT child0 (a)>
+  <!ELEMENT child1 (a|b|c)>
+  <!ELEMENT child2 (a ,b,b?,a*,c,c,a,a,b+,c ) >
+  <!ELEMENT child3 (a+|b)? >
+  <!ELEMENT child4 (a, (b|c)+, (a|d)?, (e|f)* )?>
+  <!ELEMENT child5 ( (a,b) | c? | ((d|e),b,c) )* >
+  <!ELEMENT child1 (a|b|(a,b)* | (c,b)? | (d,a)+ | ((e|f),b,c) )* >
+  <!ELEMENT child6 (a,b,c)*>
+  <!ELEMENT child7 ((a,b)|c*|((d|e),b,c) )+ >
+  <!ELEMENT child8 ( a, (b|c), (a|b), b)+>  
+]>
+<root><a/><b<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˾attr CDATA #IMPLIED>
+<!ATTLIST LegalName Âattr CDATA #IMPLIED>
+<!ATTLIST LegalName Ãattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˽attr CDATA #IMPLIED>
+<!ATTLIST LegalName ˿attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ͱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͼͽattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͽͿattr CDATA #IMPLIED>
+<!ATTLIST LegalName Ϳ΀attr CDATA #IMPLIED>
+<!ATTLIST LegalName ΀῾attr CDATA #IMPLIED>
+<!ATTLIST LegalName ῾῿attr CDATA #IMPLIED>
+<!ATTLIST LegalName ῿‌attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‌‍attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‍⁰attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⁰ⁱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ⁱ↎attr CDATA #IMPLIED>
+<!ATTLIST LegalName ↎↏Ⰰattr CDATA #IMPLIED>
+<!ATTLiST LegalName ↏ⰀⰁattr CDATA #IMPLIED>
+<!ATTLIST LegalName ⰀⰁ⿮attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ⰱ⿮⿯attr CDATA #IMPLIED>
+<!ATTLIST LegalNamx ⿮⿯、attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⿯、。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 、。퟾attr CDATA #IMPLIED>
+<!ATTLIST LegalName 。퟾퟿attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟾퟿豈attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟿豈更attr CDATA #IMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>
+<!ATTLIST LegalName �更豈퟿attr CDATA #IMPLIED>
+<!ATTLIST LegalName attr-�更豈 CDATA #IMPLIED>
+<!ATTLIST LegalName attr.-�更 CDATA #IMPLIED>
+<!ATTLIST LegalName A.-�attr CDATA #IMPLIED>
+<!ATTLIST LegalName zA.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName attr0zA. CDATA #IMPLIED>
+<!ATTLIST LegalName attr·0zA CDATA #IMPLIED>
+<!ATTLIST LegalName attr̀·0z CDATA #IMPLIED>
+<!ATTLIST LegalName attŕ̀·0 CDATA #IMPLIED>
+<!ATTLIST LegalName attrͮ́̀· CDATA #IMPLIED>
+<!ATTLIST LegalName attrͯͮ́̀ CDATA #IMPLIED>
+<!ATTLIST LegalName attr‿ͯͮ́ CDATA #IMPLIED>
+<!ATTLIST LegalName attr⁀‿ͯͮ CDATA #IMPLIED>
+<!ATTLIST LegalName null⁀‿ͯattr CDATA #IMPLIED>
+<!ArValue"
+ 	ⰀⰁ⿮attr="attrValue"
+ 	Ⰱ⿮⿯attr="attrValue"
+ 	⿮⿯、attr="attrValue"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr;"attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈attr="attrValue"
+ 	퟿豈更attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="aData</em>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--co (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--comment-->
+<?pi?>&enelem>">>
+   <c></c 
+]>
+<elem>
+CharData&#31;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<J<!--co (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--comment-->
+<?pi4444444444444444444444444?>&enelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATmment-->
+<?pi?>&ent;&quot;
+CharData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#33;
+<!->
+   content of b element
+</b></root>
+<!--* a valid test: t-comment-->
+<?pi?>&ent;&quoA|elet;
+CharData
+ttrValue"
+ 	zA.-attr="attrValue"
+ 	attr0zA.="attrValue"
+ 	attr·0zA="attrValue"
+ 	attr̀·0z="attrValue"
+ 	attŕ̀·0="attrValue"
+ 	attrͮ́̀·="attrValue"
+ 	attrͯͮ́̀="attrValue"
+ 	attr‿ͯͮ́="attrValue"
+ 	attr⁀‿ͯͮ="attrValue"
+ 	null⁀‿ͯattr3:stuff xmlns:n3="ftle.net"ests P47,P48,P49,P50*-- xml:lang="en"> </n1:elem2>
+</n0:local>
+		      
+			 ="attrValue"
+ 	nullnull⁀‿attr="attrValue"
+ 	nullnullnull⁀attr="attrValue"
+ />>
+

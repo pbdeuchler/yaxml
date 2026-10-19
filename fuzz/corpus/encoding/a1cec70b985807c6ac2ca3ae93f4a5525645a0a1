@@ -1,0 +1,10 @@
+<?xml  <!-- Simple test of including another text document -->
+   <xinclude:include href="../ents/isolatin.txt" encoding="ISO-8859efix
+     to the xmlns nam<!DOCTYPE animal [
+<!ELEMENT animal ANY>espace -->
+<f
+<?຋ an illegal char #x0e8b
+ ioo xmlns:ymlns="http://www.w3.on PITarget ?>
+]>
+<animal/>rg/2000/xml
+ns/"/>

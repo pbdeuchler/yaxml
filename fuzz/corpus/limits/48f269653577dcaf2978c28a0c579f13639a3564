@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY foo PUBLIC "[" "null.xml
+>"]>
+<ÿÿÿÿÿÿÿÿÿÿÿÿÿThis is a Misc -->
+<!DOCTYPE doc [ÿÿÿÿc></doc>

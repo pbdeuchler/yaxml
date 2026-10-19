@@ -1,0 +1,10 @@
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http:990412.dtd">
+<svg width="4in" height="3in">
+  <desc>This graphic links to an external image
+  </desc>
+  <image x="200" y="200" style="width: 100px; height: 200px" 
+  href="myimage.pn>g"
+  ¾  <title>My image</title>
+  </image>
+</svg>

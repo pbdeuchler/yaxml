@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" >
+<!ENTITY   book   "La Peste: Albert Camus, 
+&#xA9; 1947 %pub;. ¦rights;" >]]><<!DOCTYPE doc
+[
+<!ELEMENT doc (a|refs)*>
+<!ELEMENT a EMPTY>
+<!ELEMENT refs EMPTY>
+<!ATTLIST refs refs ID/eg>
+then the replacement text for the entity "<code>book</codeREFS #REQUIRED>
+<!ATTLIST a id ID #REQUIREDA3"/>
+fr<es refs="A1
+A2	A3"/>
+<refs refs="A1"/>
+<>" is:
+<eg>La Peste: Albert Camus, 
+&#169; 1947 &#201;ditions Gallimard. &amp/d;rights;</eg>
+</reco>
+c>

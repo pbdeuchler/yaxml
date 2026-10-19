@@ -1,0 +1,147 @@
+<x xmlns:xinclude="http://www.w3.oite - valid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 1">
+  <TEST URI="valid/P01/ibm01v01.xml" TYPE="valid" ID="ibm-valid-P01-ibm01v01.xml" ENTITIES="none" SECTIONS="2.1" OUTPUT="valid/P01/out/ibm01v01.xml">
+    Tests with a xml document consisting of <EM>prolog</EM> followed by 
+    <EM>element</EM> then <EM>Misc</EM> 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 2">
+  <TEST URI="valid/P02/ibm02v01.xml" TYPE="valid" ID="ibm-valid-P02-ibm02v01.xml" ENTITIES="none" SECTIONS="2.2">
+     This test case covers legal character ranges plus discrete legal characters for production 02.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 3">
+  <TEST URI="valid/P03/ibm03v01.xml" TYPE="valid" ID="ibm-valid-P03-ibm03v01.xml" ENTITIES="none" SECTIONS="2.3">
+    Tests all 4 legal white space characters - #x20 #x9 #xD #xA
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 9">
+  <TEST URI="valid/P09/ibm09v01.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v01.xml">
+    Empty EntityValue is legal
+  </TEST>
+  <TEST URI="valid/P09/ibm09v02.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v02.xml">
+    Tests a normal EnitityValue
+  </TEST>
+  <TEST URI="valid/P09/ibm09v03.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v03.xml">
+    Tests EnitityValue referencing a Parameter Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v04.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v04.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v04.xml">
+    Tests EnitityValue referencing a General Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v05.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v05.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v05.xml">
+    Tests EnitityValue with combination of GE, PE and text, the GE used is 
+    declared in the student.dtd
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 10">
+  <TEST URI="valid/P10/ibm10v01.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v01.xml">
+    Tests empty AttValue with doubth sides
+</TEST>
+  <TEST URI="valid/P25/ibm25v03.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v03.xml">
+    Tests EQ with = and space in front of it
+</TEST>
+  <TEST URI="valid/P25/ibm25v04.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v04.xml">
+    Tests EQ with = and space after it
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 26">
+  <TEST URI="valid/P26/ibm26v01.xml" TYPE="valid" ID="ibm-valid-P26-ibm26v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P26/out/ibm26v01.xml">
+    Tests VersionNum 1.0
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 27">
+  <TEST URI="valid/P27/ibm27v01.xml" TYPE="valid" ID="ibm-valid-P27-ibm27v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P27/out/ibm27v01.xml">
+    Tests Misc with comment
+</TEST>
+  <TEST URI="valid/P27/ibm27v02.xml" TYPE="valid" ID="ibm-valid-P27-ibm27v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P27/out/ibm27v02.xml">
+    Tests Misc with PI
+</TEST>
+  <TEST URI="valid/P27/ibm27v03.xml" TYPE="valid" ID="ibm-valid-P27-ibm27v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P27/out/ibm27v03.xml">
+    Tests Misc with white spaces
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 28">
+  <TEST URI="valid/P28/ibm28v01.xml" TYPE="valid" ID="ibm-valid-P28-ibm28v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P68/out/ibm28v01.xml">
+    Tests doctypedecl with internal DTD only
+</TEST>
+  <TEST URI="valid/P28/ibm28v02.xml" TYPE="valid" ID="ibm-valid-P28-ibm28v02.xml" ENTITIES="parameter" SECTIONS="2.8" OUTPUT="valid/P28/out/ibm28v02.xml">
+    Tests doctypedecl with external subset and combinations of different markup
+    declarations and PEReferences
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 29">
+  <TEST URI="valid/P29/ibm29v01.xml" TYPE="valid" ID="ibm-valid-P29-ibm29v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P29/out/ibm29v01.xml">
+    Tests markupdecl with combinations of elementdecl, AttlistDecl,EntityDecl, 
+    NotationDecl, PI and comment
+</TEST>
+  <TEST URI="valid/P29/ibm29v02.xml" TYPE="valid" ID="ibm-valid-P29-ibm29v02.xml" ENTITIES="parameter" SECTIONS="2.8" OUTPUT="valid/P29/out/ibm29v02.xml">
+    Tests WFC: PE in internal subset as a positive test
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 30">
+  <TEST URI="valid/P30/ibm30v01.xml" TYPE="valid" ID="ibm-valid-P30-ibm30v01.xml" ENTITIES="parameter" SECTIONS="2.8" OUTPUT="valid/P30/out/ibm30v01.xml">
+    Tests extSubset with extSubsetDecl only in the dtd file
+</TEST>
+  <TEST URI="valid/P30/ibm30v02.xml" TYPE="valid" ID="ibm-valid-P30-ibm30v02.xml" ENTITIES="parameter" SECTIONS="2.8" OUTPUT="valid/P30/out/ibm30v02.xml">
+    Tests extSubset with TextDecl and extSubsetDecl in the dtd file
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 31">
+  <TEST URI="valid/P31/ibm31v01.h thexml" TYPE="valid" ID="ibm-valid-P31-ibm31v01.xml" ENTITIES="parameter" SECTIONS="2.8" OUTPUT="valid/P31/out/ibm31v01.xml">
+    Tests extSubsetDecl with combinations of markupdecls, conditionalSects, 
+    PEReferences and white spaces
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 32">
+  <TEST URI="valid/P32/ibm32v01.xml" TYPE="valid" ID="ibm-valid-P32-ibm32v01.xml" ENTITIES="parameter" SECTIONS="2.9" OUTPUT="valid/P32/out/ibm32v01.xml">
+    Tests VC: Standalone Document Declaration with absent attribute that 
+    has default value and standalone is no
+</TEST>
+  <TEST URI="valid/P32/ibm32v02.xml" TYPE="valid" ID="ibm-valid-P32-ibm32v02.xml" ENTITIES="parameter" SECTIONS="2.9" OUTPUT="valid/P32/out/ibm32v02.xml">
+    Tests VC: Standalone Document Declaration with external entity reference
+    and standalone is no
+</TEST>
+  <TEST URI="valid/P32/ibm32v03.xml" TYPE="valid" ID="ibm-valid-P32-ibm32v03.xml" ENTITIES="parameter" SECTIONS="2.9" OUTPUT="valid/P32/out/ibm32v03.xml">
+    Tests VC: Standalone Document Declaration with attribute values that need
+    to be normalized and standalone is no
+</TEST>
+  <TEST URI="valid/P32/ibm32v04.xml" TYPE="valid" ID="ibm-valid-P32-ibm32v04.xml" ENTITIES="parameter" SECTIONS="2.9" OUTPUT="valid/P32/out/ibm32v04.xml">
+    Tests VC: Standalone Document Declaration with whitespace in mixed content
+    and standalone is no
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 33">
+  <TEST URI="valid/P33/ibm33v01.xml" TYPE="valid" ID="ibm-valid-P33-ibm33v01.xml" ENTITIES="none" SECTIONS="2.12" OUTPUT="valid/P33/ouh the element "a".
+    the 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 58">
+  <TEST URI="valid/P58/ibm58v01.xml" TYPE="valid" ID="ibm-valid-P58-ibm58v01.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="valid/P58/out/ibm58v01.xml">
+    Tests NotationType for P58. It shows different patterns fro the NOTATION 
+    attribute "attr".
+  </TEST>
+  <TEST URI="valid/P58/ibm58v02.xml" TYPE="valid" ID="ibm-valid-P58-ibm58v02.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="valid/P58/out/ibm58v02.xml">
+    Tests NotationType for P58: Notation Attributes. The value "base64" of the 
+    NOTATION attribute "attr" matches one of the notation names declared.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 59">
+  <TEST URI="valid/Prg/2003/SInclude">
+   <!-- Simple test of including a set of nodes from an XML documen+ -->
+   <xinclude:include href="../ents/something.xmlIxpointer(//p)"/>
+</x>

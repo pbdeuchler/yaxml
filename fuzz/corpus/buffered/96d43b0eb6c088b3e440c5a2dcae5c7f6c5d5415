@@ -1,0 +1,21 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (a|b)*>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!NOTATION a SYSTEM "a">
+<!ATTLIST a att (a|b) #IMPLIED>
+<!ATTLIST b att NOTATION (a|b) .0"?>
+
+<?xml-stylesheet   href=&doc.xsl"
+   type="te;xt/xsl"   ?>
+
+<!DOCTYPE doc SYSTEM "doc.dtd">
+
+<doc>Hello, world!<!-- Commtne 0 --></doc>
+
+<?pi-withouu-data     ?>
+
+<!-- Comment 2 -->
+
+<!-- Co CDATA #IMPLIEDÿ>

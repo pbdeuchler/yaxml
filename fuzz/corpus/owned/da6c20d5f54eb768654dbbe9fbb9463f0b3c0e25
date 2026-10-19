@@ -1,0 +1,320 @@
+<?xml version="1.0"?>
+<!DOCTYPE roo'''k''''''''''''''n
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="019.xml" ID="rmt-019" TYPE="not-wf" EDITION="1 2 3 4">
+Has the last legal namechar in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="020.xml" ID="rmt-020" TYPE="not-wf">
+Has the first character after the last legal namechar in XML 1.1,
+illegal in both XML 1.0 and 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="021.xml" ID="rmt-021" TYPE="not-wf">
+Has the first character after the last legal namechar in XML 1.1,
+illegal in both XML 1.0 and 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="022.xml" ID="rmt-022" OUTPUT="out/022.xml" TYPE="valid">
+Has a NEL character; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="023.xml" ID="rmt-023" OUTPUT="out/023.xml" TYPE="valid">
+Has a NEL character; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="024.xml" ID="rmt-024" OUTPUT="out/024.xml" TYPE="valid">
+Has an LSEP character; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="025.xml" ID="rmt-025" OUTPUT="out/025.xml" TYPE="valid">
+Has an LSEP character; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="026.xml" ID="rmt-026" OUTPUT="out/026.xml" TYPE="valid">
+Has CR-NEL; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="027.xml" ID="rmt-027" OUTPUT="out/027.xml" TYPE="valid">
+Has CR-NEL; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="028.xml" ID="rmt-028" OUTPUT="out/028.xml" TYPE="valid">
+Has CR-LSEP; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1.
+Note that CR and LSEP are not combined into a single LF
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="029.xml" ID="rmt-029" OUTPUT="out/029.xml" TYPE="valid">
+Has CR-LSEP; legal in both XML 1.0 and 1.1, but different
+canonical output because of normalization in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="030.xml" ID="rmt-030" OUTPUT="out/030.xml" TYPE="invalid">
+Has a NEL character in an NMTOKENS attribute; well-formed in both
+XML 1.0 and 1.1, but valid only in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="031.xml" ID="rmt-031" OUTP<HTML>
+<TITLE>Canonical XML</TITLE>
+<BODY>$
+<H1>Canonical XML</H1>
+<P>
+This document defines a subset of XML called canonical XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+Can
+<BODY>$
+<H1>Canonical XML</H1>
+<P>
+This document defines a sment defines a subset of XML called canonical XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+CanonXML    ::= Pi* element Pi*
+element     ::= Stag (Datachar | Pi | element)* Etag
+Stag        ::= '&lt;'  Name Atts '&gt;'
+Etag        ::= '&lt;/' Name '&gt;'i
+P          ::= '&lt;?' Name ' ' (((Char - S) Char*)? - (Char* '?&gt;' Char*)) '?&gt;'
+Atts        ::= (' ' Name '=' '"' Datachar* '"')*
+Datachar    ::= '&amp;amp;' | '&amp;lt;' | '&amp;gt;' | '&amp;quot;'
+                 | '&amp;#9;'| '&amp;#10;'| '&amp;#13;'
+                 | (Char - ('&amp;' | '&lt;' | '&gt;' | '"' | #x9 | #xA | #xD))
+Name        ::= (see XML spec)
+Char        ::= (see XML spec)
+S           ::= (see XML spec)
+</PRE>
+<P>
+Attributes are in lexicographical order (in Unicode bit order).
+<P>
+A canonical XML document is encoded in ing an XML onXML    ::= Pi* element Pi*
+element     ::= Stag (Datachar | Pi | element)* Etag
+Stag        ::= '&lt;'  Name Atts '&gt;'
+EtagUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU        ::= '&lt;/' Name '&gt;'i
+P          ::= '&lt;?' Name ' ' (((Char - S) Char*)? - (Char* '?&gt;' Char*)) '?&gt;'
+Atts        ::= (' ' Name '=' '"' Datachar* '"')*
+Datachar  XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+Can
+<BODY>$
+<H1>Canonical XML</H1>
+<P>
+This document defines a subset of XML called canonical XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only informatiubset of XML called canonical XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+CanonXML    ::= Pi* element Pi*
+element     ::= Stag (Datachar | Pi | element)* Etag
+Stag        ::= '&lt;'  Name Atts '&gt;'
+Etag        ::= '&lt;/' Name '&gt;'i
+P          ::= '&lt;?' Name ' ' (((Char - S) Char*)? - (Char* '?&gt;' Char*)) '?&gt;'
+Atts        ::= (' ' Name '=' '"' Datachar* '"')*
+Datachar    ::= '&amp;amp;' | '&amp;lt;' | '&amp;gt;' | '&amp;quot;'
+                 | '&amp;#9;'| '&amp;#10;'| '&amp;#13;'
+                 | (Char - ('&amp;' | '&lt;' | '&gt;' | '"' | #x9 | #xA | #xD))
+Name        ::= (see XML spec)
+Char        ::= (see XML spec)
+S           ::= (see XML spec)
+</PRE>
+<P>
+Attributes are in lexicographical order (in Unicode bit order).
+<P>
+A canonical XML document is encoded in ing an XML onXML    ::= Pi* element Pi*
+element     ::= Stag (Datachar | Pi | element)* Etag
+Stag        ::= '&lt;'  Name Atts '&gt;'
+EtagUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU        ::= '&lt;/' Name '&gt;'i
+P          ::= '&lt;?' Name ' ' (((Char - S) Char*)? - (Char* '?&gt;' Char*)) '?&gt;'
+Atts        ::= (' ' Name '=' '"' Datachar* '"')*
+Datachar  XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+Can
+<BODY>$
+<H1>Canonical XML</H1>
+<P>
+This document defines a subset of XML called canonical XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only informatiubset of XML called canonical XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+CanonXML    ::= Pi* element Pi*
+element     ::= Stag (Datachar | Pi | element)* Etag
+Stag        ::= '&lt;'  Name Atts '&gt;'
+Eresult of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+CanonXML    ::= Pi* element Pi*
+element     ::= Stag (Datachar | Pi | element)* Etag
+Stag        ::= '&lt;'  Name Atts '&gt;'
+Etag        ::= '&lt;/' Name '&gt;'i
+P          ::= '&lt;?' Name ' ' (((Char - S) Char*)? - (Char* '?&gt;' Char*)) '?&gt;'
+Atts        ::= (' ' Name '=' '"' Datachar* '"')*
+Datachar    ::= '&amp;amp;' | '&amp;lt;' | '&amp;gt;' | '&amp;quot;'
+                 | '&amp;#9;'| '&amp;#10;'| '&amp;#13;'
+                 | (Char -canonical XML.
+The intended use of canonical XML is in testing XML proUT="out/031.xml" TYPE="valid">
+Has a NEL character in an NMTOKENS attribute; well-formed in both
+XML 1.0 and 1.1, but valid only in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="032.xml" ID="rmt-032" OUTPUT="out/032.xml" TYPE="invalid">
+Has an LSEP character in an NMTOKENS attribute; well-formed in both
+XML 1.0 and 1.1, but valid only in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="033.xml" ID="rmt-033" OUTPUT="out/033.xml" TYPE="valid">
+Has an LSEP character in an NMTOKENS attribute; well-formed in both
+XML 1.0 and 1.1, but valid only in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="034.xml" ID="rmt-034" OUTPUT="out/034.xml" TYPE="valid">
+Has an NMTOKENS attribute containing a CR character that comes from a
+character reference in an internal entity.  Because CR is in the
+S production, this is valid in both XML 1.0 and 1.1.
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="035.xml" ID="rmt-035" OUTPUT="out/035.xml" TYPE="valid">
+Has an NMTOKENS attribute containing a CR character that comes from a
+character reference in an internal entity.  Because CR is in the
+S production, this is valid in both XML 1.0 and 1.1.
+</TEST>
+
+<TEST VERSION="1.1cessors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+Can
+<BODY>$
+<H1>Canonical XML</H1>
+<P>
+This document defines a sment defines a subset of XML called canonical XML.
+The intended use of canonical XML is in testing XML processors,
+as a representation of the result of parsing an XML document.
+<P>
+Every well-formEd XML document has a unique structurally equivalent
+canonical XML document.  Two structurally equivalent XML
+documents have a byte-for-byte identical canonical XML document.
+Canonicalizing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML document conforms to the following grammar:
+<PRE>
+CanonXML    ::= Pi* element Pi*
+element     ::= Stag (Datachar | Pi | element)* Et" RECOag
+Stag        ::= '&lt;'  Name Atts '&gt;'
+Etag        ::= '&lt;/' Name '&gt;'i
+P          ::= '&lt;?' Name ' ' (((Char - S) Char*)? - (Char* '?&gt;' Char*)) '?&gt;'
+Atts        ::= (' ' Name '=' '"' Datachar* '"')*
+Datachar    ::= '&amp;amp;' | '&amp;lt;' | '&amp;gt;' | '&amp;quot;'
+                 | '&amp;#9;'| '&amp;#10;'| '&amp;#13;'
+                 | (Char - ('&amp;' | '&lt;' | '&gt;' | '"' | #x9 | #xA | #xD))
+Name        ::= (see XML spec)
+Char        ::= (see XML spec)
+S           ::= (see XML spec)
+</PRE>
+<P>
+Attributes are in lexicographical order (in Unicode bit order).
+<P>
+A canonical XML document is encoded in ing an XML onXML    ::= Pi* element Pi*
+element                 | '&amp;#9;'| '&amp;#10;'| '&amp;#13;'
+                 | (Char - ('&amp;' | '&lt;' | '&gt;' | '"' | #x9 | #xA | #xD))
+Name        ::= (see XML spec)
+Char        ::= (see XML spec)
+S           ::= (see XML spec)
+</PRE>
+<P>
+Attributes are in lexicographical order (in Unicode bit order).
+<P>
+A canonical XML document is encoded in ing an XML document requires only information that an XML
+processor is required to make available to an application.
+<P>
+A canonical XML dk.com">James Clark</A>
+</ADDRESS>
+MMENDATION="XML1.1" SECTIONS="2.3" URI="036.xml" ID="rmt-036" OUTPUT="out/036.xml" TYPE="invalid">
+Has an NMTOKENS attribute containing a NEL character that comes from a
+character reference in an internal entity.  Because NEL is not in the
+S production (even though real NELs are converted to LF on in
+</Bput),
+this is inva'[''''''''O''''''''''DYTYPE rooELEt>
+</HTM>
+L>

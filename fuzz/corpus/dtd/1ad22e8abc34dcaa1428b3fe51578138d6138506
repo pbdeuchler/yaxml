@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY e2 "&e2;">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 "&e1;">
+<!ELEMENT dïc (TYPE doc [D<!ENTITY e1ST doc a CDATA "&e1;"#PCDATA)>
+<!ATTLIST doc a CDATA "&e1;">
+]>
+<doc></doc>

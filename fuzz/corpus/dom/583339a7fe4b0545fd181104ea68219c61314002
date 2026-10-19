@@ -1,0 +1,148 @@
+<?xml69 (0) '0' a070 (0) '0' a071 (0) '0'
+a072 (0) '0' a073 (0) '0' a074 (0) '0' a775 (0) '0' a07) '0' a297 (0) '0' a298 (0) '0' a299 (0) '0'
+>
+]>
+<doc>
+<e/><e/><e/><<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XML Spy v4.4 U (http://www.xmlspy.com) by Slava (GIVC) -->
+<electroxml modified="20021216T072726">
+	<data from="20021031T22" to="20021130T22">
+		<select>
+			<device serialnumb="E00001781">
+				<par memind="113400" h="3dc1a8de">
+					<val o="0" v="53"/>
+					<val o="e08" v="53"/>
+					<val o="1c32" v="53"/>
+					<val o="2a3c" v="53"/>
+					<val o="3835" v="53"/>
+					<val o="4645" v="53"/>
+					<val o="5455" v="53"/>
+					<val o="6265" v="53"/>
+					<val o="7075" v="53"/>
+					<val o="7e85" v="53"/>
+					<val o="8c96" v="53"/>
+					<val o="9aa5" v="53"/>
+					<val o="a8b6" v="53"/>
+					<val o="b6c5" v="53"/>
+					<val o="c4d7" v="53"/>
+					<val o="d30b" v="53"/>
+					<val o="e0f6" v="53"/>
+					<val o="ef06" v="53"/>
+					<val o="fd17" v="53"/>
+					<val o="10b27" v="53"/>
+					<val o="11937" v="53"/>
+					<val o="12746" v="53"/>
+					<val o="13556" v="53"/>
+					<val o="14366" v="53"/>
+					<val o="15181" v="53"/>
+					<val o="15f85" v="53"/>
+					<val o="16d95" v="53"/>
+					<val o="17ba4" v="53"/>
+					<val o="189b5" v="53"/>
+					<val o="197c4" v="53"/>
+					<val o="1a5d5" v="53"/>
+					<val o="1b3e6" v="53"/>
+					<val o="1c1f6" v="53"/>
+					<val o="1d005" v="53"/>
+					<val o="1de15" v="53"/>
+					<val o="1ec25" v="53"/>
+					<val o="1fa36" v="53"/>
+					3"/>
+					<val o="13556" v="53"/>
+					<val o="14366" v="53"/>
+					<val o="15181" v="53"/>
+					<val o="15f85" v="53"/>
+					<val o="16d95" v="53"/>
+					<val o="17ba4" v="53"/>
+					<val o="189b5" v="53"/>
+					<val o="197c4" v="53"/>
+					<val o="1a5d5" v="53"/>
+					<val o="1b3e6" v="53"/>
+					<val o="1c1f6" v="53"/>
+					<val o="1d005" v="53"/>
+					<val o="1de15" v="53"/>
+					<val o="1ec25" v="53"/>
+					<val o="1fa36" v="53"/>
+					<val o="20845" v="53"/>
+					<val o="21656" v="53"/>
+					<val o="22465" v="53"/>
+					<val o="23276" v="53"/>
+					<val o="24086" v="53"/>
+					<val o="24e99" v="53"/>
+					<val o="25ca7" v="53"/>
+					<val o="26ab7" v="53"/>
+					<val o="278c6" v="53"/>
+					<val o="286d6" v="53"/>
+					<val o="294e6" v="53"/>
+					<val o="2a301" v="53"/>
+					<val o="2b105" v="53"/>
+					<val o="2bf15" v="53"/>
+					<val o="2cd25" v="53"/>
+					<val o="2db35" v="53"/>
+					<val o="2e946" v="53"/>
+					<val o="2f755" v="53"/>
+					<val o="30566" v="53"/>
+					<val o="31375" v="53"/>
+					<val o="3219e" v="53"/>
+					<val o="32f96" v="53"/>
+					<val o="33da6" v="53"/>
+					<val o="34bb6" v="53"/>
+					<val o="359de" v="53"/>
+					<val o="367d6" v="53"/>
+					<val o="375e6" v="53"/>
+					<val o="3840e" v="53"/>
+					<val o="3921e" v="53"/>
+ a290 (0) '0' a291 (0) '0' a292 (0) '0' a293 (0) '0'
+a292 (0) '0' a295 (0) '0' a296 (0) '0' a297 (0) '0' a298 (0) '0' a299 (0) '0'
+>
+]>
+<doc>
+<e/><e/><e/><<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XML Spy v4.4 U (http://www.xmlspy.com) by Slava (GIVC) -->
+<electroxml modified="20021216T072726">
+	<data from="20021031T22" to="20021130T22">
+		<select>
+			<device serialnumb="E00001781">
+				<par memind="113400" h="3dc1a8de">
+					<val o="0" v="53"/>
+					<val o="e08" v="53"/>
+					<val o="1c32" v="53"/>
+					<val o="2a3c" v="53"/>
+					<val o="3835" v="53"/>
+					<val o="4645" v="53"/>
+					<val o="5455" v="53"/>
+					<val o="6265" v="53"/>
+					<val o="7075" v="53"/>
+					<val o="7e85" v="53"/>
+					<val o="8c96" v="53"/>
+					<val o="9aa5" v="53"/>
+					<val o="a8b6" v="53"/>
+					<val o="b6c5" v="53"/>
+					<val o="c4d7" v="53"/>
+					<val o="d30b" v="53"/>
+					<val o="e0f6" v="53"/>
+					<val o="ef06" v="53"/>
+					<val o="fd17" v="53"/>
+					<val o="10b27" v="53"/>
+					<val o="11937" v="53"/>
+					<val o="12746" v="53"/>
+					<val o="13556" v="53"/>
+					<val o="14366" v="53"/>
+					<val o="15181" v="53"/>
+					<val o="15f85" v="53"/>
+					<val o="16d95" v="53"/>
+					<val o="17ba4" v="53"/>
+					<val o="189b5" v="53"/>
+					<val o="197c4" v="53"/>
+					<val o="1a5d5" v="53"/>
+					<val o="1b3e6" v="53"/>
+					<val o="1c1f6" v="53"/>
+					<val o="1d005" v="53"/>
+					 version="1.0" standalone="yes"?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is an example SVG file</mydoc:title""""">
+      <mydoc:para>The global description uses CCCCCCCCCCCCCture goes here -->
+   </g>
+</svg>

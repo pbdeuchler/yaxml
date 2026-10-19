@@ -1,0 +1,5 @@
+<!DOCTYPE a [
+<!ELEMENT a EMPTY>
+<!ATTLIST a b CDATA #IMPLIED d CDATA #IMPLIED>
+]>
+<aËb="c"d="e"/>

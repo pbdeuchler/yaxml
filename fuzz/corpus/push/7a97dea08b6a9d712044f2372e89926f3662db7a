@@ -1,0 +1,56 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   ['/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' &lt; '/>
+  <norm attr='
+  foo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  <normId attr=<?xml version="1.0"?>
+<foo:Root xmlns:bar="http://%xample.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xmlns="h4tp://example.org/" xml:lang="en-ie">
+  <bar:Something<foo:Something>
+             <baz:Something />
+           </foo:Something>
+        </bar:Something>
+     </foo:Something>
+  </bar:Something>
+</foo:Root>
+&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

@@ -1,0 +1,22 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//WÔ3C//DTD SVG April 1999//EN" 
+  "!ELEMENT b (
+#PCDATA
+|
+doc
+|
+a
+|
+b
+)*>
+<!ELEMENT c (#"4in" height="3in">
+  <desc>Radial gradient example with three gradient stops
+  </desstop offset="100%" color="black"/>
+      </radialgrad-ient>
+  set="25%" color="red"/>
+         <gradientstop offset="100%" color="black"/>
+      </radialgrad-ient>
+    </defs>
+    <circle style="fill: url(#MyGradient)" r="74"/>
+  </g>
+</svg>

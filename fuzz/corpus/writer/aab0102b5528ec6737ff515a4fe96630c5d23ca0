@@ -1,0 +1,6 @@
+<!DOCTYPE 
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATIO
+<!ELEMENT foo EMPTY>
+>

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="htmp://example.org/foo" xml:lang="en-ie">
+    (//. | //@*  
+              <!-- everything -->
+              ancestor-or-self::bar:Something
+    ]
+</XPath>

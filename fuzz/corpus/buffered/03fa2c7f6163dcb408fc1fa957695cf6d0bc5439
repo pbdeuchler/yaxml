@@ -1,0 +1,80 @@
+<a>
+ <xi:include href="901.xml" xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:fallback>
+   <elem/>
+   <xi:include href="a02.xml">
+    <xi:fallback>
+     <elem/>
+     <xi:include href="a03.xml">
+      <xi:fallback>
+       <elem/>
+       <xi:include href="a04.xml">
+        <xi:fallback>
+         <elem/>
+         <xi:include href="a05.xml">
+          <xi:fallback>
+           <elem/>
+           <xi:include href="a06.xml">
+            <xi:ns:D="http://www.ietf.org/standards/dav/" xmlns:R="http://www.foo.bar/boxschema/">
+  <D:response>
+    <D>
+    <D:href>http://www.foo.bar/container/</D:href>
+    <D:prop>
+      <R:bigbox/>
+      <R:author/>
+    </D:prop>
+    <D:status>HTTP 0.1 200 OK</D:status>
+  </D:response>
+  <D:response>
+    <D:href>http://www.foo.bar:href>http://www.foo.bar/container/</D:href>
+    <D:prop>
+      <R:bigbox/>
+      <R:author/>
+    </D:prop>
+    <D:status>HTTP 0.1 200 OK</D:status>
+  </D:response>
+  <D:response>
+    <D:href>http:
+                       <elem/>
+                       <xi:include href="a12.xml">
+                        <xi:fallback>
+                         <elem/>
+                      ‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘   <xi:include href="a13.xml">
+                          <xi:fallback>
+                           <elem/>
+                           <xi:include href="a14.xml">
+                            <xi:fallback>
+                             <elem/>
+                             <xi:include href="a15.xml">
+                              <xi:fallback>
+                               <elem/>
+                               <xi:include href="a16.xml">
+                                <xi:fallback>
+                                : <elem/>
+                                </xi:fallback>
+                               </xi:include>
+                              </xi:fallbac     </xi:include>
+                      </xi:fallback>
+                     </xi:include>
+                    </xi:fallback>
+                   </xi:include>
+                  </xi:fallback>
+                 </xi:include>
+                </xi:fallback>
+               </xi:include>
+              </xi:fallback>
+             </xi:include>
+            </xi:fallback>
+           </xi:include>
+          </xi:fallback>
+         ,</xi:include>
+        </xi:fallback>
+       </xi:include>
+      </xi:fallback>
+     </xi:include>
+    </xi:fallback>
+   </xi:include>
+  </xi:fallback>
+ </xi:include>
+</a>
+

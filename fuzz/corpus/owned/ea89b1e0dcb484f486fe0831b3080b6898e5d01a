@@ -1,0 +1,366 @@
+<!-- ............................................................... -->
+<!-- XML specification DTD ......................................... -->
+<!-- ............................................................... -->
+
+<!--
+TYPICAL INVOCATION:
+#  <!DOCTYPE spec PUBLIC
+#       "-//W3C//DTD Specification::19980323//EN"
+#       "http://www.w3.org/XML/Group/DTD/xmlspec.dtd">
+
+PURPOSE:
+  This DTD was developed for use with the XML family of W3C
+  specifications.  It is an XML-compliant DTD based in part on
+  the TEI Lite and Sweb DTDs.
+
+DEPENDENCIES:
+  None.
+
+CHANGE HISTORY:
+  The list of changes is at the end of the DTD.
+
+  For all details, see the design report at:
+
+    <http://www.w3.org/XML/Group/DTD/xmlspec-report.htm>
+
+  The "typical invocation" FPI always gets updated to reflect the
+  date of the most recent changes.
+
+  Search this file for "#" in the first column to see change history
+  comments.
+
+MAINTAINER:
+  Eve Maler
+  ArborText Inc.
+  elm@arbortext.com
+  voice: +1 781 270 5750
+  fax:   +1 781 273 3760
+-->
+
+<!-- ............................................................... -->
+<!-- Entities for characters and symbols ........................... -->
+
+<!--
+#1998-03-10: maler: Added &ldquo; and &rdquo;.
+#                   Used 8879:1986-compatible decimal character
+#                   referen
+  This DTD was developed for use with the XML family of W3C
+  specifications.  It is an XML-compliant DTD based in part on
+  the TEI Lite and Sweb DTDs.
+
+DEPENDENCIES:
+  None.
+
+CHANGE HISTORY:
+  The list of changes is at the end of the DTD.
+
+  For all details, see the design report at:
+
+    <http://www.w3.org/XML/Group/DTD/xmlspec-report.htm>
+
+  The "typical invocation" FPI always gets updated to reflect the
+  date of the most recent changes.
+
+  Search this file for "#" in the first column to see change history
+  comments.
+
+MAINTAINER:
+  Eve Maler
+  ArborText Inc.
+  elm@arbortext.com
+  voice: +1 781 270 5750
+  fax:   +1 781 273 3760
+-->
+
+<!-- ............................................................... -->
+<!-- Entities for characters and symbols ........................... -->
+
+<!--
+#1998-03-10: maler: Added &ldquo; and &rdquo;.
+#                   Used 8879:1986-compatible decimal character
+#                   references.
+#                   Merged charent.mod file back into main file.
+-->
+
+<!ENTITY lt     "&#38;#60;">
+<!ENTITY gt     "&#62;">
+<!ENTITY amp    "&#38;#38;">
+<!ENTITY apos   "&#39;">
+<!ENTITY quot   "&#34;">
+<!ENTITY mdash  "--">
+<!ENTITY nbsp   "&#160;">
+<!ENTITY ldquo  "#x201C;">
+<!ENTITY rdquo  "#x201D;">
+
+<!-- ............................................................... -->
+<!-- Entities for classes of standalone elements ................... -->
+
+<!--
+#1997-10-16: maler: Added table to %illus.class;.
+#1997-11-28: maler: Added htable to %illus.class;.
+#1997-12-29: maler: IGNOREd table.
+#1998-03-10: maler: Removed SGML Open-specific %illus.class;.
+#                   Added "local" entities for customization.
+-->
+
+<!ENTITY % local.p.class        "">
+<!ENTITY % p.class              "p
+                                %local.p.class;">
+
+<!ENTITY % local.statusp.class  "">
+<!ENTITY % statusp.class        "statusp
+                                %local.statusp.class;">
+
+<!ENTITY % local.list.class     "">
+<!ENTITY % list.class           "ulist|olist|slist|glist
+                                %local.list.class;">
+
+<!ENTITY % local.speclist.class "">
+<!ENTITY % speclist.class       "orglist|blist
+                                %local.speclist.class;">
+
+<!ENTITY % local.note.class     "">
+<!ENTITY % note.class      %common.att;
+        %xmlspace.att;>
+
+<!ELEMENT graphic EMPTY>
+<!--    source attribute:
+        The graphic data must reside at the location pointed to.
+        This is a hypertext reference, but for practical purposes,
+        for now it should just be a pathname. -->
+<!ATTLIST graphic
+        %common.att;
+        %source-req.att;
+        alt             CDATA           #IMPLIED>
+
+<!--
+#1997-11-28: maler: Added prodgroup to scrap and defined it.
+-->
+
+<!ELEMENT scrap (head, (prodgroup+ | prod+ | bnf))>
+<!--    lang attribute:
+        The scrap can link to a description of the language used,
+        found in a language element in the header. -->
+<!ATTLIST scrap
+        %common.att;
+        lang            IDREF           #IMPLIED>
+
+<!ELEMENT prodgroup (prod+)>
+<!--    pcw<n> attributes:
+        Presentational attributes to control the width
+        of the "pseudo-table" columns used to output
+        groups of productions. -->
+<!ATTLIST prodgroup
+        %common.att;
+        pcw1            CDATA           #IMPLIED
+        pcw2            CDATA           #IMPLIED
+        pcw3            CDATA           #IMPLIED
+        pcw4            CDATA           #IMPLIED
+        pcw5            CDATA           #IMPLIED
+>
+
+<!ELEMENT prod (lhs, (rhs, (com|wfc|vc)*)+)>
+<!--    ID attribute:
+        The production must have an ID so that cross-references
+        (specref) and mentions of nonterminals (nt) can link to
+        it. -->
+<!ATTLIST prod
+        %common-idreq.att;>
+
+<!ELEMENT lhs (#PCDATA)>
+<!ATTLIST lhs %common.att;>
+
+<!ELEMENT rhs (#PCDATA|nt|xnt|com)*>
+<!ATTLIST rhs %common.att;>
+
+<!--      nt and xnt (defined in "Phrase-level elements" below) -->
+
+<!--
+#1997-11-28: maler: Added loc and bibref to com content.
+-->
+
+<!ELEMENT com (#PCDATA|loc|bibref)*>
+<!ATTLIST com %common.att;>
+
+<!--    wfc: Should generate the head of the wfcnote pointed to -->
+<!ELEMENT wfc EMPTY>
+<!--    def attribute:
+        Each well formedness tagline in a production must link to the
+        wfcnote that defines it. -->
+<!ATTLIST wfc
+        %def-req.att;
+        %common.att;>
+
+<!--    vc: Should generate the head of the vcnote pointed to -->
+<!ELEMENT vc EMPTY>
+<!--    def attribute:
+        Each validity tagline in a production must link to the vcnote
+        that defines it. -->
+<!ATTLIST vc
+        %def-req.att;
+        %common.att;>
+
+<!--
+#1999-03-23: maler: Added xml:space attribute.
+-->
+
+<!--    bnf: Un-marked-up production -->
+<!ELEMENT bnf (%eg.pcd.mix;)*>
+<!ATTLIST bnf
+        %common.att;
+        %xmlspace.att;>
+
+<!--
+#1997-10-16: maler: Added table mechanism.
+#1997-11-28: maler: Added non-null system ID to entity declaration.
+#                   Added HTML table module.
+#1997-12-29: maler: IGNOREd SGML Open table model.
+#1998-03-10: maler: Removed SGML Open table model.
+#                   Merged html-tbl.mod file into main file.
+#                   Added %common.att; to all HTML table elements.
+-->
+
+<!--    TR and TD attributes:
+        Alignment attributes.  No default. -->
+<!ENTITY % trtd.att
+        "align          (left
+                        |center
+                        |right)         #IMPLIED
+        valign          (top
+                        |middle
+                        |bottom)        #IMPLIED">
+
+<!ELEMENT htable (htbody+)>
+<!ATTLIST htable
+          border        CDATA           "0"
+          cellpadding   CDATA           "0"
+          align         (left
+                        |center
+                        |right)         "left">
+
+<!ELEMENT htbody (tr+)>
+<!ATTLIST htbody %common.att;>
+
+<!ELEMENT tr     (td+)>
+<!ATTLIST tr
+        %common.att;
+        %trtd.att;>
+
+<!ELEMENT td     (%p.pcd.mix;)*>
+<!ATTLIST td
+        %common.att;
+        %trtd.att;
+        bgcolor         CDATA           #IMPLIED
+        rowspan         CDATA           "1"
+        colspan         CDATA           "1">
+
+<!-- ............................................................... -->
+<!-- Phrase-level elements ......................................... -->
+
+<!--    bibref: Should generate, in square brackets, "key" on bibl -->
+<!ELEMENT bibref EMPTY>
+<!--    ref attribute:
+        A bibliography reference must link to the bibl element that
+        describes the resource. -->
+<!ATTLIST bibref
+        %common.att;
+        %ref-req.att;>
+
+<!ELEMENT code (%tech.pcd.mix;)*>
+<!ATTLIST code %common.att;>
+
+<!--
+#1998-03-10: maler: Declared ednote and related elements.
+-->
+
+<!ELEMENT ednote (name?, date?, edtext)>
+<!ATTLIST ednote %common.att;>
+
+<!ELEMENT date (#PCDATA)>
+<!ATTLIST date %common.att;>
+
+<!ELEMENT edtext (#PCDATA)>
+<!ATTLIST edtext %common.att;>
+
+<!ELEMENT emph (#PCDATA)>
+<!ATTLIST emph %common.att;>
+
+<!--    footnote: Both footnote content and call to footnote -->
+<!ELEMENT footnote (%obj.mix;)+>
+<!ATTLIST footnote %common.att;>
+
+<!ELEMENT kw (%tech.pcd.mix;)*>
+<!ATTLIST kw %common.att;>
+
+<!ELEMENT loc (#PCDATA)>
+<!--    HREF attribute:
+        The purpose of a loc element is to function as a hypertext
+        link to a resource.  (Ideally, the content of loc will also
+        mention the URI of the resource, so that readers of the
+        printed version will be able to locate the resource.) -->
+<!ATTLIST loc
+        %common.att;
+        %href-req.att;>
+
+<!ELEMENT nt (#PCDATA)>
+<!--    def attribute:
+        The nonterminal must link to the production that defines
+        it. -->
+<!ATTLIST nt
+        %common.att;
+        %def-req.att;>
+
+<!--
+#1998-03-10: maler: Declared quote.
+-->
+
+<!--    quote: Scare quotes and other purely presentational quotes -->
+<!ELEMENT quote (%p.pcd.mix;)*>
+<!ATTLIST quote %common.att;>
+
+<!--    specref: Should generate italic "[n.n], Section Title" for
+        div, "n" for numbered item, or "[n]" for production -->
+<!ELEMENT specref EMPTY>
+<!--    ref attribute:
+        The purpose of a specref element is to link to a div, item
+        in an olist, or production in the current spec. -->
+<!ATTLIST specref
+        %common.att;
+        %ref-req.att;>
+
+<!ELEMENT term (#PCDATA)>
+<!ATTLIST term %common.att;>
+
+<!ELEMENT termdef (%termdef.pcd.mix;|%termdef.mix;)*>
+<!--    ID attribute:
+        A term definition must have an ID so that it can be linked
+        to from termref elements. -->
+<!--    term attribute:
+        The canonical form of the term or phrase being defined must
+        appear in this attribute, even if the term or phrase also
+        appears in the element content in identical form (e.g., in
+        the term element). -->
+<!ATTLIST termdef
+        %common-idreq.att;
+        term            CDATA           #REQUIRED>
+
+<!ELEMENT termref (#PCDATA)>
+<!--    ref attribute:
+        A term reference must link to the termdef element that
+        defines the term. -->
+<!ATTLIST termref
+        %common.att;
+        %def-req.att;>
+
+<!ELEMENT titleref (#PCDATA)>
+sp in status.
+#- Added non-null system IDs to external parameter entity declarations.
+#- (Modified the SGML Open table module to make it XML-compliant.)
+#- (Modified the characes of href.
+#- Added %common.att; to all HTML table elements.
+#- Added a real URI to the "typical invocation" comment.
+-->
+
+<!-- ............................................................... -->
+<!-- End of XML specification DTD .................................. -->
+<!-- ............................................................... -->

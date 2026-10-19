@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+    <!-- SGML-ism:  illegal lt -->
+
+    <!ATTLIST root
+	language	CDATA	#CONREF
+	>
+
+]>
+
+<Ž‡ language="Dutch"/>
+

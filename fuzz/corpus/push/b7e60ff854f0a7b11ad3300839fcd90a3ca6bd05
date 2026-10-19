@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace*) 
+    [ 
+              <!--namespace nodes -->
+              ancestor-or-self::bar:Something  an\\\l version="1.0"?>
+<XPath xmlns:bar="http://example.org://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace*) 
+    [ 
+              ãããããããããããããã]
+</XPath>

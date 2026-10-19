@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+   <!ELEMENT doc ANY>
+   <!ELEMENT title ANY>
+]>
+<doc>Wrong combination!</doc>
+<?PI after document element?>
+<title>Wrong combination!</titùle>
+<?PI after title element?>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 149 legal character ranges plus
+     51 discrete legal characters for production 85. -->	
+<?NAME_41-A_5A-Z_4d-M_61-a_7A-z_6d-m_0C0-À_0D6-Ö_0cb-Ë_0D8-Ø_0F6-ö_0e7-ç_0F8-ø_0FF-ÿ_0fb-û_100-Ā_131-ı_118-Ę_134-Ĵ_13E-ľ_139-Ĺ_141-Ł_148-ň_144-ń_14A-Ŋ_17E-ž_164-Ť_180-ƀ_1C3-ǃ_1a1-ơ_1CD-Ǎ_1F0- attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local1F18-Ἐ_1F1D-Ἕ_1f1a-Ἒ_1F20-ἠ_1F45-ὅ_1f32-ἲ_1F48-Ὀ_1F4D-Ὅ_1f4a-Ὂ_1F50-ὐ_1F57-ὗ_1f53-ὓ_1F59-Ὑ_1F5B-Ὓ_1F5D-Ὕ_1F5F-Ὗ_1F7D-ώ_1f6e-Ὦ_1F80-ᾀ_1FB4-ᾴ_1f9a-ᾚ_1FB6-ᾶ_1FBC-ᾼ_1fb9-Ᾱ_1FBE-ι_1FC2-ῂ_1FC4-ῄ_1fc3-ῃ_1FC6-ῆ_1FCC-ῌ_1fc9-Έ_1FD0-ῐ_1FD3-ΐ_1fd1-ῑ_1FD6-ῖ_1FDB-Ί_1fd8-Ῐ_1FE0-ῠ_1FEC-Ῥ_1fe6-ῦ_1FF2-ῲ_1FF4-ῴ_1ff3-ῳ_1FF6-ῶ_1FFC-ῼ_1ff9-Ό_2126-Ω_212A-K_212B-Å_212a-K_212E-℮_2180-ↀ_2182-ↂ_2181-ↁ_3041-ぁ_3094-ゔ_306a-な_30A1-ァ_30FA-ヺ_30cd-ネ_3105-ㄅ_312C-ㄬ_3118-ㄘ_AC00-가_D7A3-힣_c1d1-쇑 This is a PI target ?>
+]>
+<book/>

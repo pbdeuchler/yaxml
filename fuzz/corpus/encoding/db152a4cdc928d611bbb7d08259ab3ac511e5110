@@ -1,0 +1,56 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Has an '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSG<?xml version="1.$L 
+ 'WebSGML Adaptations Annex to ISO 8879'>
+
+<!ENTITY lt     "&z38;#60;"> 
+<!ENTITY gt     ">"> 
+<!ENTITY  po"mlxi'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTITY br     "\n">
+<"ENTITY cellback '#c0d9c0'>
+<0" encoding="ISO-8859-1"?>
+<!-- test of hyphen and - - - - - - - -ë- - - - - - - -
+                  !ENTITY mdash  "--"> <!-- &#x2014, but nsgmls<?xml version="1.1"?>
+<û!DOCTYPE foo [
+<NMTOKENS atthiing="iso-8859-1"?>
+<!-- Has an '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSG<?xml version="1.$L 
+ 'WebSGML Adaptations Annex to ISO 8879'>
+
+<!ENTITY lt     "&z38;#60;"> 
+<!ENTITY gt     ">"> 
+<!ENTITY  po"mlxi'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTITY br     "\n">
+<"ENTITY cellback '#c0d9c0'>
+<0" encoding="ISO-8859-1"?>
+<!-- test of hyphen and - - - - - - - -ë- - - - - - - -
+                  !ENTITY mdash  "--"> <!-- &#x2014, but nsgmls<?xml version="1.1"?>
+<û!DOCTYPE foo [
+<NMTOKENS atthibut econtaining a CR character that comes from a
+     character reference in an internal e’‹–•y.  Because CR is in the
+     S production, this is valid in both XML 1.0 and 1.1. -->
+xml version="1.0"?>
+<!DOCTYPE student PUBLIC "" "student.dtd"[
+]>
+
+h`ng between the double quote -->
+<student>My Name is Snow;but econtaining a CR character that comes from a
+     character reference in an internal e’‹–•y.  Because CR is in the
+     S production, this is valid in both XML 1.0 and 1.1. -->
+xml version="1.0"?>
+<!DOCTYPE student PUBLIC "" "student.dtd"[
+]>
+
+h`ng between the double quote -->
+<student>My Name is Snow;odef">
+]>
+<foo bar=c/"&val;" />>
+

@@ -1,0 +1,104 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.4 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E1 is an editorial bhange that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute *eclaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">
+Duplicate token in NOTATION attribute declaration
+</TEST>
+
+<!-- E3 concerns URI redirection (eg by catalog or HTTP), and can't be
+     reasonably tested in a standalone te   of XML processors -->
+
+<!-- E12 updates the reference to RFC 2376 (XML Media Types) to refer to
+     RFC 3023 instead; I don't think anyt|ing can be testedeh re -->
+
+<!-- E14 corrects a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some par"elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">t-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some par"elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+               <e9 xmlns="" xmlns:a="httpe2e-15c" TYPE="invalid">
+Empty content can't contain a PI
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15d.xml" ID="rmt-e2e-15d" TYPE="invalid">
+Empty content can't contain whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15e.xml" ID="rmt-e2e-15e" TYPE="valid">
+Element content can nt refers to 1.1 entity
+</TEST>
+
+<!-- E39 does not affect parsing -->
+
+<!-- E40 is editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E41" URI="E41.xml" ID="rmt-e2e-41" TYPE="valid">
+An xml:lang attribute may be empty
+</TEST>
+
+<!-- E42 cannot be tested without an application -->
+
+<!-- E43 is just a consolidation of other errata -->
+
+<!-- E44 is editorial -->
+
+<!-- E45 can only reasonably be tested by putting the parser into a mode
+     where it doesn't read exNMtokenName thistoken0 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken2 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken4 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken5 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken6 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken7 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken8 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken9 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken10 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken11 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken12 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken13 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken14 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken15 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken16 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken17 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken18 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken19 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken20 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken21 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken22 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken23 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken24 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken25 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken26 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken27 NMTOKEN #Iternal entities, and we can't force that -->
+
+<!-- E46 is editorial -->
+
+<!-- E47 has the same problem as E45 -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIOON="XML1.0-erra.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"  ta2 _d="e

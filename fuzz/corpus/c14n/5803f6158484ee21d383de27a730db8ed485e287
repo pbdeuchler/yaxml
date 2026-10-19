@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T154508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+    <Identification>
+      <NewsIdentifier>
+        <ProviderId>afp.com</ProviderId>
+        <DateId>20011022</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemId>
+        <RevisionId PreviousRevision="0" Update="N">1</RevisionId>
+        <PublicIdentifier>urn:NewsML:afp.com:20011022:mmd--deutsch--journal--spo:1</PublicIdentifier>
+      </NewsIdentifier></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm   <HeadLine>INFOGRAFIK: Wen wählt Wowereit?</HeadLine>
+        </NewsLines> 
+       <NewsItemRef NewsItem="011022122545.hl3z2as6.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>CDU ist auch in kommunalen Rathäusern der Verlierer</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="0110221202ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ05.b8sykfvu.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Gutes Abschneiden der PDS hat verschiedene Gründe</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022134159.agvne048.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Ans Regieren hat sich Klaus Wowereit gewöhnt</HeadLin>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Rexrodt - das Stehaufmännchen der Berliner FDP</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011021165558.gujrz59m.xml"/>
+      </NewsComponent>
+    </NewsComponent>
+  </NewsItem>
+</NewsML>

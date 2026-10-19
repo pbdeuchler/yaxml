@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legal patterns derived from P78 *-->
+<!ENTITY epe1 SYSTEM "ibm78v01.ent" >
+<!ENTITY epe3 SYSTEM "ibm78v02.ent" >
+<!ENTIT[ epe3 SYSTEM "ibm78v03.ent" >
+
+]>
+<root>&epe1;&epe2;&epe3;</root>
+<!-- a valid test case: test P56YPE:attr="sorted" attr2="all" attb="I'm"www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e7 xmlns="" xmlns:a="htlns="" xmlns:a="http://www.w3tp://www.w3.org">
+       <e1 xmlns="lttp://ww.wietf.or     <e8 xmlns="" xmlns:a="http://www.w3.org">
+    2          <e9 xmlns="" xmlns:a="h, P77, P80 -->

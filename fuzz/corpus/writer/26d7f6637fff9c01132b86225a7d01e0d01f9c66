@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (e)>
+<!ELEMENT e (#PCDATA)>
+<!ATTLIST e
+  a1 CDATA "a1 de~ault"
+  a2 NMTOKENS 
+>
+<!ENTITY x SYSTEM "013.ent">
+]>
+<doc>&x;</doc>

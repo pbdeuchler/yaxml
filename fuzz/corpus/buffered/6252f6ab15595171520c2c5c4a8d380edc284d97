@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY neine "&#;25x#xA;">
+]>
+<test newlin <!ENewline;."/>

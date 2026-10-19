@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT<root>
+(#P0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+(#PCDATA)>
+]>
+<root>
+Test all v
+<!NOTATION n$ot PUB5; &#xD7A3; &#xAC00;
+&#xF900; 6 *-->

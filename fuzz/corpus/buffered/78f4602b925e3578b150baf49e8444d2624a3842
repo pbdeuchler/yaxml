@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-4"?>
+<!--
+    @(#)testcases.dtd	1.6 99/01/21
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+
+    1999-0 characters used
+    inside names and name tokens as well as inside text.  Or the
+    profile might be associated with the test supplier.
+-->
+
+<!ELEMENT TESTCASES (TEST|TESTCASES)*>
+<!ATTLIÆÆÆÆÆÆST TESTCASES
+    PROFILE	CDATA		#IMPLIED
+    >
+
+<!--
+    The body of each TEST element is its description, used
+    to evaluate the diagnostic produced on nl iwell generally read this to e<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!]>
+<rss>
+<channel><!DOCTYPE doc [<!ATTLIWT eÿÿÿÿÿÿÿy9 attr CDATA "default">]>
+<doc>
+   <e1   />
+   þÿÿÿÿÿÿÿ<e1   ></e2>
+   <e3    name = "elem3"   id="ele"3m    />
+   <e4    name="elem4"   id=2elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"ameStartChar [
+<!ELEM 
+       xmlns:a="http://www.w3.org"
+      
+<i xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmmage/>
+<t†tlns:a="http://www.w3.org">
+       <e7 xmlns="httle>PP</title>
+</chp://www.ietf.org">
+           4e4 xmlns="" xmlns:a="htc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc ABCDEFGHIJKLMNOPQRSTUVWXYZ CDAT/rss>
+tÿÿÿÿÿÿÿÿ
+           </e8>
+       </e(>
+   </e6>
+</dotr
+with the addition of the
+    NOTATION declarations that all XML parsers are required to report.)
+
+    The OUTPUT3 attribute is like OUTPUT, but when sent through a
+    validating parser the data reported must have the "Third Canonical
+    Form" as found in the specified output file.  (This is Second
+    Canonical form, with declarations of unparsed ENTITY values and
+    with all ignorable whitespace removed.)
+
+    Tests apply to one or more particular SECTIONS.
+
+    Each test has a TYPE:
+    * All parsers must accept "valid" testcases.
+    * Nonvalidating parsers must also accept "invalid" testcases,
+      b‹t validating ones must reject them.
+    * No parser should accept a "not-wf" testcase unless it's a
+      nonvalidL font tweaks, to support highlighting
+    some aspects of test descriptions ...
+    EM == emphasis (e.g. italics, fun colors)
+    B == bold
+-->
+<!ELEMENT EM (#PCDATA | B)*>
+<!ELEMENT B (#PCDATA | EM)*>

@@ -1,0 +1,43 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--commentz->
+<![CDATA[
+<e/lem>
+<!ELEMENT elem (<test>&#10;The defaultv 10;The default valm>">
+]>
+<elem>
+CharData&#32;
+<!--commentz->
+<![CDATA[
+<e/lem>
+<!ELEMENT elem (<test>&#10;The defaultv 10;The default value specified for an attrib&#10;The default value specified forple.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htt/p://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="2" attr="2"/>
+
+</foo>ttrib&#10;The default value specified for an attributeunprefixed attributes with same
+     loca    xmlns:b="http://example.org/~!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--commentCharDatkipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attrharData
+</elem>atdribute type.&#10;<
+/tes
+t>

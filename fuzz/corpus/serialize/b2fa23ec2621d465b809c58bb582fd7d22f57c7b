@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element contity reference in element content</b>">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcessingAnstruction?>
+<!-- Comment content -->    &inContent;
+    Charlu!DOCTYPE doc [
+<!ELEMENT doc ((a | b)+, c) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b> TEPM]
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <myapp:piece label="Southern Region" value="3.89"/>
+       ld not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcessingAnstruction?>
+<!-- Comment content -->    &inContent;
+    Charlu!DOCTYPE doc [
+<!ELEMENT doc ((a | b)+, c) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b> TEPM]
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <myapp:piece label="Southern Region" value="3.89"/>
+        <myapp:piece label="Western Regiotent</b>">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not bY>
+  <!ENTITY inContent "<b>General entity reference in element contity reference in element content</b>">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcessingAnstruction?>
+<!-- Comment content -->    &inContent;
+    Charlu!DOCTYPE doc [
+<!ELEMENT doc ((a | b)+, c) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b> TEPM]
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <myapp:piece label="Southern Region" value="3.89"/>
+       ld not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcessingAnstruction?>
+<!-- Comment content -->    &inContent;
+    Charlu!DOCTYPE doc [
+<!ELEMENT doc ((a | b)+, c) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b> TEPM]
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <myapp:piece label="Southern Region" value="3.89"/>
+        <myapp:piece label="Western Regiotent</b>">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P86 *-- 
+   <c>e rt P86 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- <?x
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcessingAnstruction?>
+<!-- Comment content -->    &iml vernContent;
+    Charlu!DOCTYPE doc [
+<!ELEMENT doc ((a | b)+, c) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b> TEPMY
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <-yapp:piece label="Southern Rsion="1.0"?>
+<!DOCTYPE root [
+<!ELEMENT roa EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c A <myapp:piece label="Western Regiotent</b>">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- <?x
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcessingAnstruction?>
+<!-- Comment content -->    &iml vernContent;
+    Charlu!DOCTYPE doc [
+<!ELEMENT doc ((a | b)+, c) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b> TEPMY
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <-yapp:piece label="Southern Rsion="1.0"?>
+<!DOCTYPE root [
+<!ELEMENT roa EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element contity reference in element content</b>">
+]>reference: &#x82;
+    CDSect in content:> <![CDATA[ <html>markups<head>HEAD</head><body>nothing</body></html> ]]>   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Commejt content t>
+<!--* test P43 *-->

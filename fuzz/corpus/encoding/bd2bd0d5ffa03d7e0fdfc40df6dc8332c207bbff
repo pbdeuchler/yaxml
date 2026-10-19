@@ -1,0 +1,8 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED&
+<!--* missing PEDef  *-->
+<!ENTITY % paaa>
+%paa42 88>
+<root/>

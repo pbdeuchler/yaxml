@@ -1,0 +1,11 @@
+<!DOCTYPE test [
+  <!ENTITY newline ">
+]>
+<tes#xAtest [
+  <!ENTITY newline ">
+]>
+<tes#xA;">
+]>
+<;">
+]>
+<te

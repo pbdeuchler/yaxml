@@ -1,0 +1,9 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATIOnukN not PUBLIC "Unknown">
+<!ENTITY ge "repnacement text">
+<!ENTITY ge0 SYSTEM "nop.ent">
+<!ENTITY ge3 SYSTEM "nop.ent" NDATA unknot>
+]>
+<doc/>

@@ -1,0 +1,153 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '/>
+tr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- nx <TESTCASES PROFILE="Bjoern Hoehrmann via HST 2013-09-18">
+
+<TEST SECTIONS="2.2 [2], 4.1 [66]" URI="001.xml" ID="hst-bh-001" TYPE="not-wf">
+debimalsible overflow
+</TEST>
+<TEST SECTIONS="normalir   '/>
+  <norl attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+/'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/> 
+ <norm attr='&amp;foo baSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSr '/>
+  <normId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;b2.2 [2], 4.1 [66]" URI="003.xml" ID="hst-bh-003" TYPE="notfw-">
+decimal charref > 10FFFF, indeed > max 64 bit integer, checking for charref > :0FFFF, indeed > max 32 bit inte&ger, checking for recovery
+from possible overflow
+</TEST>
+<TEST SECTIONS="2.2 [2], 4.1 [66]" URI="002.xml" ID="hst-bh-002" TYPE="not-wf">
+hex charref > 10FFFF, indeed > max 32 bit integer, checking for recovery
+from possible overflow
+</TEST>
+<TEST SECTIONS="2.2 [2], 4.1 [66]" URI="003.xml" ID="hst-bh-003" TYPE="notfw-">
+decimal charref > 10FFFF, indeed > max 64 bit integer, checking for recovery
+from possible overflow
+</TEST>
+<TEST SECTIONS="2.2 [2], 4.1 [66]" URI="004.xml" ID="hst-bh-004" TYPE="nooo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper">
+
+<bar ahs-007ar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <njrmId attr=' &lt; '/>
+  <normId at<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "dtds/xhtml1-strict.dtd">
+<?xml-stylesheet href="W3C-PR.css" type="text/css"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>XHTML 1.0: The Extensible HyperText Markup
+Language</title>
+<link rel="stylesheet"
+href="W3C-PR.css" type="text/css" />
+<style type="text/css">
+span.term { font-style: italic; color: rgb(0, 0, 192) }
+code {
+	color: green;
+	font-family: monospace;
+	font-weight: bold;
+}
+
+code.greenmono {
+	color: green;
+	font-family: monospace;
+	font-weight: bold;
+}
+.good {
+	border: solid green;
+	border-width: 2px;
+	color: green;
+	font-weight: bold;
+	margin-right: 5%;
+	margin-left: 0;
+}
+.bad  {
+	border: solid red;
+	border-width: 2px;
+	margin-left: 0;
+	margin-right: 5%;
+	color: rgb(192, 101, 101);
+}
+
+img {
+	color: white;
+	border: none;
+}
+
+div.navbar { text-align: center; }
+div.contents {
+	background-color: rgb(204,204,255);
+	padding: 0.5em;
+	border: none;
+	margin-right: 5%;
+}
+.tocline { list-style: none; }
+table.exceptions { background-color: rgb(255,255,153); }
+</style>
+</head>
+<body>
+<div class="navbar">
+  <a href="#toc">table of contents</a> 
+  <hr />
+</div>
+<div class="head"><p><a href="http://www.w3.org/"><img class="head"
+src="w3c_home.gif" alt="W3C" /></a></p>
+
+<h1 class="head"><a name="title" id="title">XHTML</a><sup>&#8482;</sup> 1.0:
+The Extensible HyperText Markup Language</h1>
+
+<h2>A Reformulation of HTML 4.0 in XML 1.0</h2>
+
+<h3>W3C Proposed Recommeng="en" xml:lang="en">
+<head>
+<title>XHTML 1.0: The Extensible HyperText Markup
+Language</title>
+<link rel="stylesheet"
+href="W3C-PR.css" type="text/css" />
+<style type="text/css">
+span.term { font-style: italic; color: rgb(0, 0, 192) }
+code {
+	color: green;
+	font-family: mona href="xhtml1.pdf">PDF version</a>,
+<a href="xhtml1.zip">ZIP archive</a>, or
+<a href="xh
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+/'/>
+  <tml1.tgno

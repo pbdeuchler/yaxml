@@ -1,0 +1,42 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -#IMPLIED>]>
+<doc>
+  <!-- ->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '->
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/>
+  <norm aMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -#IMPLIED>]>
+<doc>
+  <!-- ->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '->
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/> attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <nor/>
+  <normId attr='foobar
+
+&lt;'/>
+  <norwYd attr=' &#18;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

@@ -1,0 +1,14 @@
+id('chD #IMPLIED>
+<!ELEMENT head (title?, (p)*)>
+/p>
+   <p>third p</p>
+   <p>fourth p</p>
+  </chapter>
+  <chapter id="chapter2">
+   <title>Chapter 2</title>
+   <p>this is chapter 2 ...</p>
+  </c?, (p | image)*)>
+<!ATTLIST chapter id ID #IMPLIED>
+<!ELEMENT image  ...</p>
+  </chapter>
+  <chaptea1')/p

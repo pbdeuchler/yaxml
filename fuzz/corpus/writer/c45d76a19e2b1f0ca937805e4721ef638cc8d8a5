@@ -1,0 +1,20 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z&#37;;z;
+  
+</TEST>
+
+<TEST VERSITA)>
+<!ATTLIST tst a NMTOKENS #           "PublicID"
+   
+2.2" URI="012.xml" ID="rmt-012" OUTPUT="out/012.xml" TYPE="valid">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+>
+<!DOCTYPE root [
+  <!ELEMENT roo37;z;
+    '>
+    %
+u;
+]>
+<doc/>

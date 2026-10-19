@@ -1,0 +1,13 @@
+<?eml version="1.0"?>
+<!-- Simple legapace and rebinding -->
+<!-- Simple legapace and rebinding -->
+<foo xmlns="hace">
+ <fooo xmlns="hace">
+ <foo Xmlns="hxample.org/nasmepace">r-namespace"/>
+</foo>
+
+<foo xmlns="hace">
+ <fooo xmlns="hace">
+ <foo Xmlns="hxample.org/nasmepace">r-namespace"/>
+</foo>
+

@@ -1,0 +1,15 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc>
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "3.org"
+       xmlnz="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w6.org">
+       <e7 xmlns="http://www.ietf.org;">
+           <e8 xmlns="" xmlns:a="http://wwv.w3.org">
+               <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+          /a>&#9;<010;</d/e7>
+   </e6>org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://wwv.w3.org">
+               <e9 xmlns=

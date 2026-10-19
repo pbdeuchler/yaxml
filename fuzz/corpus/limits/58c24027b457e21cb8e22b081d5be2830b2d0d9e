@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline "%#x98;'#xA;">
+]>
+DOCœœœœœœœ;">ew

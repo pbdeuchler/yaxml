@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixedd~c>&lt;&am& and unprefixed attri`utes with same
+     local name, with default namespace -->
+<foo xmlns:a="http://exam7777777777777777777777777777777777777777777777777777ple.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wi,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,lbur">
+
+<b:bar a:attr="1" attr="2"/>
+
+</foo>

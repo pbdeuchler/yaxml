@@ -1,0 +1,5 @@
+<!DOCTYPE root [ 
+<!ELEMENT root ANY> 
+<!ENTITY e SYSTEM "ibm02n66.ent">
+]>
+ <root>&e;</root?

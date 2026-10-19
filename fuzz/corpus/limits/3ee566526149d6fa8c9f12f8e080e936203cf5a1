@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#x10000;&#x10F<!DOCTYPE p [
+<!ELEMENT p (#PCDATA)>
+]>
+<p>Fa&#4294967542;il</p>        FFD;</doc>
+   <!-- 32 bit integer overflow -->

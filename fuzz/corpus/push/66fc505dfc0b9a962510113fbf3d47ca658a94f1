@@ -1,0 +1,11 @@
+<?xml version="1.1"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<!-- This test case contains valid char references that match the char production. -->
+<root>
+Test all valid new Charater references for P66:
+&#x1;&#x1F;&#x0000000001;&#xF; &#x05; &#x1F;
+&#x7F; &#x80; &#x8F; &#x90; &#x9F;
+&#x9xE000;&#xFEF0;&#;&#x5FEDC;&#x10FFFF;
+-->

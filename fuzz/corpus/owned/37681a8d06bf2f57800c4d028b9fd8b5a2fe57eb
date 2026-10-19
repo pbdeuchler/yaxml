@@ -1,0 +1,37 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E1 is an editorial bhange that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated d can't bS="E55" URI="E55.xml" ID="rmt-e2e-55" TYPE="error">
+A reference to an unparsed entity in an entity value is an error r333333333333333333333333333'
+  foo bar   '/>
+  <nor mattr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+ an explanatory note -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E60" URI="E60.xml" ID="rmt-e2e-60" ENTITIES="parameter" TYPE="valid">C
+toiindonal sections are allowed in external parameter entities referred
+to from the internal subset.
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E61" URI="E61.xml" ID="rmt-e2e-61" rrata1e" SECTIONS="E61" URI="E61.xml" ID="rmt-e2e-61" TYPE="not-wf">
+(From John Cowan) An encoding declaration in ASCII specifying an encoding
+that is not compatible with ASCII (so the document is n[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[ot in its declared
+encoding).  It should generate a fatal error.
+</TEST>
+
+</TESTCASES>

@@ -1,0 +1,11 @@
+<?xml 0"?>
+<!-- Simple 9//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4"ni height="3in">
+  <defs>
+    <style><![CDATA
+[      .TitleText({ font-size: 16; font-family: Helvetica } ]]>
+    </style>
+  </defs>
+  <text 01/XInclude" href=Here is my title</text>
+</svg>

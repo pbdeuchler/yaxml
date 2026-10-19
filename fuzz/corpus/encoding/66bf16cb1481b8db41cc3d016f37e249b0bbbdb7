@@ -1,0 +1,3 @@
+<!-- Default values for attributes may not contain references to external entities. -->
+<!DOCTYPE foo [
+<!oo a="not defaulted"/>

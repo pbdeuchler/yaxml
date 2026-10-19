@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 3 legal character ranges plus
+     8 discrete legal characters for production 89. -->
+<?NAME_0B7-Â·_2D0Ó4otarget ?>
+]>
+<book/>

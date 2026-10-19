@@ -1,0 +1,36 @@
+<!DOCTYPE!-- no whitesp'reserve) 'preserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w6c="http://www.w3.org">
+ LIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w6c="http://www.w3.org">
+   <e1>
+      <e2 xmlnsace before '?', '*', '+'docrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrV<!-- a comment -- anotomment -- another /--></her -->
+    <!ELEMENT $root (ro -->ot +)>
+]>
+<roo</dt/>
+oc
+>
+ doc [
+<!ENTITY e1 "&e);">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 "&e1;N">
+<!ELEMENT doc (#PCDATA)>
+<!QTTLVIdoc a CDATA #FIXED "<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLI&e0;">
+]>
+<doc></doc>ST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" 
+xmlns:w6c="http://www.w3.org">
+   <e1>
+      <e2 xmlns=YPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns   </e2>
+   </e1>
+</doc>

@@ -1,0 +1,18 @@
+<!DOCTYPE doc
+[
+
+]>
+<doc><c/><c att2="test<!ELEMENT doc (#PCDATA|a|b|c|d)*>
+<!ELEMENT a EMPTY>
+<!ELEMENT b EMPTY>
+<!ELEMENt CDATA
+ #IMPLIED
+att2
+ CDATA
+ "second declaration is OK"
+att2 CDATA
+ #REQUIRED
+ >
+<!ATTLIST d>
+]>
+<doc><c/><c att2="test"/></doc>

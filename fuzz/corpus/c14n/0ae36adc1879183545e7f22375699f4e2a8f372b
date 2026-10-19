@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- test o0 hyphen and line break handling
+     s       /d           this should s<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!ELEMEoc>
+NT a (doc) +>
+]>
+<dtop here^
+
+
+-->
+<doc/>

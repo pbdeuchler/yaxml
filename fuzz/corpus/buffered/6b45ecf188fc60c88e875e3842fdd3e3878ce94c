@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!NOTATION bar SYSTEM 'file:/dev/tty'>
+<!NOTATION foo PUBLIC '-/?public id//foo' 'file:/dev/null'>
+<!NOT¿«¶°±ß‘‘nce SYSTEM 'file:/dev/null'>
+]tandalone.&#20;    </child>&#10;</root>

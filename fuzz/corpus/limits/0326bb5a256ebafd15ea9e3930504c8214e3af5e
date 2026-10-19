@@ -1,0 +1,4 @@
+<!DOCTYPE tes-t [
+  <!ENTITY newline "&#x13;#xA;">
+]>
+<tes entwlinÄ="&ndwline;4"/>

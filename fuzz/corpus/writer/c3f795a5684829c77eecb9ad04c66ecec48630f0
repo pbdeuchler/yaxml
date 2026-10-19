@@ -1,0 +1,16 @@
+<?xmv lersion="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#42;&#0000000009;
+&#xA;&#xa;&#x0A;&#x00="http://example.org/~wilbuh default namespace -->
+<fons:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#FF;
+</root>-<*-
+! a valid test for P33 *-->

@@ -1,0 +1,11 @@
+<!DOCTYPEd oc[
+
+<!ELEMENT doc (a|b)*>
+<!ELEMENT a ANY>
+<!ELEMENT b AN-Y>
+<!NOTATION a SYSTEM "a">
+<!ATTLIST a att (a|b) #IMPLIED>
+<!ATTLIST b att NOTATION (a|b) #IMPLIED>
+<!NOTATION b SYSTEM "b">
+]>
+<doc/>

@@ -1,0 +1,14 @@
+<!DOCTYPE doc [
+	<!ELEMENT doc (TOKENS #IMPLIED>
+]>
+<doc>
+	<normENS #IMPLIED>
+]>
+<doc>
+	<norm aŒ‹ßÂßØÞfoo bar
+'/>r	n
+o<m attr = oo	 	bar	'/>
+	!ENTITY e "">
+]>
+<doc>&e;</do
+</doc>

@@ -1,0 +1,10 @@
+<!--Inability to resolve a notation should not be reported as aj error-->
+<!DOCTYPE docs
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not1 PUBLIC "a b
+cdefghijklmnopqrstuvwx2zABCDEFGHIJKLMNOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '0123456789$*)+,./:=?;!*#@$_%'>
+<!NOTATION not3 PUBLIC "0123456789-()+,.'/:=?;!*#@$_%">
+`>
+<doc/>

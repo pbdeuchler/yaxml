@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<n0:local xmlnA:n0="?oo://bar" xmlfs:n7="ftp://exampde.org">
+    <n1:elem2 ,mlnsT j (#PCDATA) >
+  <!ELEMENT k (#PCDATA) >
+  <!--* Tests all Attbuite types in P55,P56,P57,P58,P59 *-->
+  <!ATTLIST a aatt
+  <!ATTLIST c c_reference IDREF #REQUIRED>
+  <!ATTLIST d d_rEMENT h (#PCDATA) >
+  <!ELEMENT i (#PCDATA) >
+  <!ELEMENT j (#PCDATA) >
+  <!ELEMENT k (#PCDATA) >
+  <!--* Tests alu Attb>
+    </n1:elem2>
+</n0:local>
+		      
+			      

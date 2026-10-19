@@ -1,0 +1,8 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-prop-5
+
+Check that imests/#c14n11xmlbase-prop-5
+
+Check that implementations of [XML-C14N1.1] properly build the xmlCheck thadiate level (ietf:e2) without any xml:base attribute is absent 
+from the document subset.
+-->th>

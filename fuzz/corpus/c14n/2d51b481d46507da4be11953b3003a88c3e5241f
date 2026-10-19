@@ -1,0 +1,10 @@
+Z<doc>
+   <clean>   </clean>
+   <dirty>   A   B   </dirty>
+   <mixed>
+      <clean>   </clean>
+      B
+      <dirty>   A   B   </dirty>
+      C
+   </mixed>
+</doc>

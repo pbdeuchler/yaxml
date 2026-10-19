@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#x9o;'#xA;">
+]>
+<test newline="&newline;"Ø/>

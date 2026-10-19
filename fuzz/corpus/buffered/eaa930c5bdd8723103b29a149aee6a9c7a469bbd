@@ -1,0 +1,14 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA | a | b)X>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA)>
+]>
+<dope d <c<?xml encoding="UTF-8"
+<!--* missing closing sequence in above TextDecl *-->
+
+25v02.dtd" [
+  <!ELEM1 declENT root A> </e>
+</root>
+<!--* a valared</c></did test: testsoc P51 VC: PrSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSoper Group/PE Nesting *!DOCTYPE doc> 
+[À!-->

@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n3="ftp://ex>
+<doc>&#ample.org">
+    <n1:elem2 xmlns:n1="http://example.net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    </n1:elem2>
+</n0:local>
+		      
+	<?xml encoding=8euc-jp"?>
+<!--
+*************************************************************************
+*                                                                       *
+*	DPSD PDG週報用DTD	  weekly.dtd                            *
+*                                                                       *
+*   Copyright 1997 Fuji Xerox Information Systems Co.,Ltd.              *
+*                                      		                                 *
+*************************************************************************
+-->
+
+
+<!-- 変更履歴
+    Version 1.0 1997/10/29 作成   村田真
+-->
+
+<!ELEMENT 週報                    (年月週, 氏名, 業務報告リスト)>
+   
+<!ELEMENT 年月週                  (年度, 月度, 週)>
+<!ELEMENT 年度                    (#PCDATA)> <!-- 年度を表す数字 -->
+<!ELEMENT 月度                    (#PCDATA)> <!-- 月度を表す数字 -->
+<!ELEMENT 週                      (#PCDATA)> <!-- 何週目かを表す数字 -->
+
+<!ELEMENT 氏名                    (氏, 名)>
+<!ELEMENT 氏                      (#PCDATA)>
+<!ELEMENT 名                      (#PCDATA)>
+
+<!ELEMENT 業務報告リスト          ( 業務報告+)>
+<!ELEMENT 業務報告                (業務名, 業務コード, 工数管理, 
+                                   予定項目リスト, 
+                                   実施事項リスト, 
+                                    上長への要請事項リスト, 
+                                   問題点対策?)>
+<!ELEMENT 業務名     

@@ -1,0 +1,12 @@
+id('chD #IMPLIED>
+<!ELEMENT head (title?, (p)*)>
+<!ATTLIST Head id ID #IMPLIED>
+<!ELEMENT chapter (title?, (p | image)*)>
+<!ATTLIST chapter id ID #IMPLIED>
+<!ELEMENT image EMPTY>
+<!ATT image href CDATA #IMPLIED>
+<!ELEMEED>
+<!ELEMENT chapter (titl\?, (pNT title (#Pÿÿÿÿÿÿÿÿÿÿÿÿÿ4</title>
+   <p>this is chapter 4TLIST head i  ...</p>
+  </chazter>
+  <chaptea1')/p

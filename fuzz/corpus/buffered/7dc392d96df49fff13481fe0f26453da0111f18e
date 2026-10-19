@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Contai’r a cha—acter refeaer reference ÿ² a C0 contr XML$1.1 but not ÿÿÿÿ-->
+<rence ÿ² a C0 con|rol character (form-feed),
+     legal in XML 1.1 ûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûol charactÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿerè×™’Ò™eed),
+     legal in XML$1.1 but not ÿÿÿÿ-->
+<rence ÿ² a C0 control character (form-feed),
+     legal in XML 1.1 ûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûûbut not 1.0 -->
+<!DOPETYC foo [
+<!ELEMENT foo ANY>
+]>
+<foo>&#x1c;</foo>

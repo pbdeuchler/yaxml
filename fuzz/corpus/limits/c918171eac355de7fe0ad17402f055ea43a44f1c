@@ -1,0 +1,12 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATI!ATTLIST doc att NOTATION (c|0b) #IMPLIED>
+enizer>&#10;<a first="AC1999"></a>&#102;<b second="Ca fir-
+
+
+<!NOTATIO
+[
+<!ELEMENT doc >
+]>
+<doc/>

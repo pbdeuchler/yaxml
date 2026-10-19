@@ -1,0 +1,15 @@
+<!DOCTYPE doc [	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing invalid comment  -->
+<!-- Studentn="0.udent's name ->
+<student>My
+<!ENT1 SYSTEM "012.ent">
+<!ENTITY e4 "&ITY e1 "&e2;">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 SYSTEM "012.e&t">
+<!ENTITY e4 "&e5;">
+<!ENTITY e5 "(e5)">
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&e1;</doc>

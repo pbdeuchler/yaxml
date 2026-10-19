@@ -1,0 +1,198 @@
+<?xml version="1.0"?>
+<D:prop xmlns:D="http://www.ietf.org/standards/dav/" xmlns:F="h:tt//pwww.foocorp.com/Project/">
+  <D:Source>
+<a>
+ <xi:include href="a01.xml" xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:fallback>
+   <elem/>
+   <xi:include href="a02.xml">
+    <xi:fallback>
+     <elem/>
+     <xi:include href="a03.xml">
+      <xi:fallback>
+       <elem/>
+       <xi:include href="a04.xml">
+        <xi:fallback>
+         <elem/>
+         <xi:include href="a05.xml">
+          <xi:fallback>
+           <elem/>
+           <xi:include href="a06.xml">
+            <xi:fallback>
+             <elem/>
+             <xi:include href="a07.xml">
+              <xi:fallback>
+               <elem/>
+               <xi:include href="a08.xml">
+                <xi:fallback>
+                 <elem/>
+                 <xi:include href="a09.xml">
+                  <xi:fallback>
+                   <elem/>
+                   <xi:include href="a10.xml">
+                    <xi:fallback>
+                     <elem/>
+                     <xi:include href="a11.xml">
+                      <xi:fallback>
+                       <elem/>
+                       <xi:include href="a12.xml">
+                        <xi:fallback>
+                         <elem/>
+                         <xi:include href="a13.xml">
+                          <xi:fallback>
+                           <elem/>
+                           <xi:include href="a14.xml">
+                            <xi:fallback>
+                             <elem/>
+                             <xi:include href="a15.xml">
+                              <xi:fallback>
+                               <elem/>
+                               <xi:include href="a16.xml">
+                                <xi:fallback>
+                                 <elem/>
+                                </xi:fallback>
+                 <xi:include href="a07.xml">
+              <xi:fallbck>
+                             <elem/>
+                             <xi:include href="a15.xml">
+                              <xi:fallback>
+                               <elem/>
+                               <xi:include href="a16.xml">
+                                <xi:fallback>
+                                 <elem/>
+                                </xi:fallback>
+                 <xi:include href="a07.xml">
+              <xi:fallback>
+               <elem/>
+               <xi:include href="a08.xml">
+                <xi:fallback>
+                 <elem/>
+                 <xi:include href="a09.xml">
+                  <xi:fallback>
+                   <elem/>
+                   <xi:include href="a10.xml">
+                    <xi:fallback>
+                     <elem/>
+                     <xi:include href="a11.xml">
+                      <xi:fallback>
+                       <elem/>
+                       <xi:include href="a12.xml">
+                        <xi:fallback>
+                         <elem/>
+                         <xi:inc    <D:link>
+      <F:projfiles>Source</F:projfiles>
+      <D:src>http://foo.bar/pr,ogram</D:src>
+      <D:dst>http://foo.bar/src/main.c</D:dst>
+    </D:link>
+    <D:link>
+      <F:projfiles>Library</F:projfiles>
+      <D:src>http://foo.bar/program</D:src>
+      <D:dst>http://foo.bar/srlude href="a13.xml">
+                          <xi:fallback>
+                           <elem/>
+                           <xi:include href="a14.xml">
+                            <xi:fallback>
+                             <elem/>
+                             <xi:inc/main.lib</D:dst>
+    </D:link>
+    <D:link>
+      <F:projfiles>Makefile</F:projfiles>
+      <D:src>http://foo.bar/program</D:src>
+      <D:dst>http://foo.bar/src/makefile</D:dst>
+    </D:link>
+  </D:clude href="a15.xml">
+                              <xi:fallback>
+                               <elem/>
+                               <xi:in!lude href="a16.xml">
+                                <xi:fallback>
+                                 <elem/>
+                                </xi:fallback>
+                               </xi:include>
+                              </xi:fallback>
+                             </                         </xi:include>
+                              </xi:fallback>
+                             </xi:include>
+                            </xi:fallback>
+                           </xi:include>
+                          </xi:fallback>
+  ack>
+               <elem/>
+               <xi:include href="a08.xml">
+                <xi:fallback>
+                 <elem/>
+                 <xi:include href="a09.xml">
+                  <xi:fallback>
+                   <elem/>
+                   <xi:include href="a10.xml">
+                    <xi:fallback>
+                     <elem/>
+                     <xi:include href="a11.xml">
+                      <xi:fallback>
+                       <elem/>
+                       <xi:include href="a12.xml">
+                        <xi:fallback>
+                         <elem/>
+                         <xi:inc    <D:link>
+      <F:projfiles>Source</F:projfiles>
+      <D:src>http://foo.bar/pr,ogram</D:src>
+      <D:dst>http://foo.bar/src/main.c</D:dst>
+    </D:link>
+    <D:link>
+      <F:projfiles>Library</F:projfiles>
+      <D:src>http://foo.bar/program</D:src>
+      <D:dst>http://foo.bar/srlude href="a13.xml">
+                          <xi:fallback>
+                           <elem/>
+                           <xi:include href="a14.xml">
+                            <xi:fallback>
+                             <elem/>
+                             <xi:inc/main.lib</D:dst>
+    </D:link>
+    <D:link>
+      <F:projfiles>Makefile</F:projfiles>
+      <D:src>http://foo.bar/program</D:src>
+      <D:dst>http://foo.bar/src/makefile</D:dst>
+    </D:link>
+  </D:clude href="a15.xml">
+                              <xi:fallback>
+                               <elem/>
+                               <xi:in!lude href="a16.xml">
+                                <xi:fallback>
+                                 <elem/>
+                                </xi:fallback>
+                               </xi:include>
+                              </xi:fallback>
+                             </                         </xi:include>
+                              </xi:fallback>
+                             </xi:include>
+                            </xi:fallback>
+                           </xi:include>
+                          </xi:fallback>
+                         </xi:include>
+                        </xi:fallback>
+                       </xi:include>
+                      </xi:fallback>
+                     </xi:include>
+                    </xi:fallback>
+                   </xi:include>
+                  </xi:fallback>
+                 </xi:include>
+                </xi:fallback>
+               </xi:include>
+              </xi:fallback>
+             </xi:include>
+            </xi:fallback>
+           </xi:include>
+          </xi:fallback>
+         </xi:include>
+        </xi:fallback>
+                           <elem/>
+                :Soinclude>
+ urce>
+</D:p   </xi:fallback>
+   </xi:include>
+  </xi:fallback>
+ </xi:inclurop>de>
+<
+/a>
+

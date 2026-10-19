@@ -1,0 +1,26 @@
+<!DOCTYPE animal [
+   <!ELEMENT animal (cat|tiger|leopard)+>
+   <!NOTATION animal_class SYSTEM "ibm29v01.txt">
+   <!ELEMENT cat ANY>
+   <!ENTITY forcat "This is a small cat">
+   <!ELEMENT tiger (#PCDATA)>
+   <!ENTITY % make_leopard_element "<!ELEMENT leopard ANY>">
+   %make_leopard_element; 
+   <!ELEMENT small EMPTY>
+   <!ELEMENT big EMPTY>
+   <!ATTLIST tiger color CDATA #REQUIRED>T identifier
+    value	IDREF	"42"
+    >
+    <!-- tests the "attribute default legal" vc -->
+
+<!ELEMENT identified EMPTY>
+<!ATTLIST identified
+    id		ID	#REQUIRED
+    >
+]>
+
+<collection>
+    <identifier    <small/>
+      <big/>
+   </leopard>
+</animal>

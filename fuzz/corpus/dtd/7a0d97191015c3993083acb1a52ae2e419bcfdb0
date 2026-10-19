@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY e1 "&e2;">
+<!ENTITY e2 "&e3;<>
+!"ENTITY e3 S^^^^^^^YSTEM "012.ent">
+<!ENT)">
+<!ELEMENT doc (#PCDATA)>
+«Á
+<doc>&e1A</doc>

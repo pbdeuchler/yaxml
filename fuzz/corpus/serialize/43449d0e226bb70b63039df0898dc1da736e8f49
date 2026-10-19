@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<?IPi?><!--comment-->
+<!ELEMENT doc EMPTY>
+<?Pi?><!--comme(nt-
+<?Pi?><!--comment-->
+<!ELEMENT doc EMPTY>
+<?Pi?><!--comme(nt-->
+<!ATTLIST doact t CDION not PUBLIC "some notation"><!--comment-->
+\>
+<doc/>

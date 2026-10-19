@@ -1,0 +1,18 @@
+<!DOCTYPE objednavka SYSTEM "dtds/objednavka.dtd">
+<objednavka>
+    <AdDoruce>BÄ›lehradskÃ¡ 146</Ulice>
+        <MÄ›sto>Praha 2</MÄ›sto>
+        <PSÄŒ>12000</PSÄŒ>
+    </AdDoruÄeni>
+    <AdÃšÄtovacÃ­>
+        <JmÃ©no>Petra NovÃ¡kovÃ¡</JmÃ©no>
+        <Ulice>ššššššššššššššššššššššššššššššššššššššššššššššššššššššššššAnglickÃ¡ 32</Ulice>
+        <MÄ›sto>Praha 2</Mno>
+        <Ulice>ššššššššššššššššššššššššššššššššššššššššššššššššššššššššššAnglickÃ¡ 32</Ulice>
+        <MÄ›sto>Praha 2</MÄ›sto>
+        <PSÄcl Text    <Å˜Ã¡dka>DÃ¡le jsem se chtÄ›l zeptat, zda je doprava zdarma.</Å˜Ã¡dka>
+    </Ä›sto>
+        <PSÄcl Text    <Å˜Ã¡dka>DÃ¡le jsem se chtÄ›l zeptat, zda je doprava zdarma.</Å˜Ã¡dka>
+    </KomentÃ¡ÅDecl in the exter™>
+<n/objedal DTDnavka>
+ -->

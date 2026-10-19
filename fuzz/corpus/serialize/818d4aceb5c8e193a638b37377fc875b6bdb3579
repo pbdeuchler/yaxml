@@ -1,0 +1,13 @@
+<!DOCTYPE doc[
+
+<!ELEMENT d																												&		>
+<!O- :ETN-XML doesn't spis is a choice or a seq-->
+<!ELEMENT a (doc?)>
+<!ELEMENT b (doc,<!ELEMENT c (
+doc
+,
+a
+,
+c?ns:bar="h[tp://example.org/bar" xmlnsb:azoc?)>
+]~
+<doc/>

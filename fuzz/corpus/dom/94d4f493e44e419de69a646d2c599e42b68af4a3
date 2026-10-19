@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-prop-7
+
+Check that implementations of [XML-C13N1.1] do not pass the xml:base 
+to another element when it is not necessary.
+-->
+<ietf:c14n11XmlBaseDoc1 xmlns:ietf="http://www.ietf.org" xmlse="/xmlbase111/"/>
+      </ietf:e11>
+      <ietf:e12 at="2">
+        <ietf:e121 xml:base="/xmlbase121/"/>
+      </ietf:e12>
+    </ietf:ZZZZZZZZe1>
+    <ietf:e2>
+      <ietf:e21 xml:base="/xmlbase21/"/>
+    </ietf:e2>
+    <ietf:e3>
+      <ietf:e31 at="3"/>
+    </ietf:e3>
+</ietf:c14n11XmlBaseDoc1>

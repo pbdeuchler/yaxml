@@ -1,0 +1,34 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internal " number99">
+]>
+
+    <!-- sync with ../valid/not-sa02.xml -->
+
+    <!--
+	LOTS of normalized/defaulted attributes
+	keep this from being standalone
+
+	XXX not the best of tests!!
+	.[
+<!ELEMENT doc ED "vaPTY>
+<!ATTLIST doc a.. each type of normalization/defaulting
+	needs separate testing
+    -->
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized "
+    nmtokens =	" this&#x0d;&#x0a; also	 gets&#x20; normalized "
+    id =	"	&internal; "
+    i >ef =	" &interna att Cl;
+    "
+    idrefs =	" &inkernal;  &internal;    &intDATernal;"
+    entity =	" unparsed-1 "
+    entities =	"unparsed-1A
+    unparsed-2		
+"
+    cda
+ta =	"nothing happens to this one!"
+    />

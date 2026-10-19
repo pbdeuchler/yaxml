@@ -1,0 +1,85 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</e))))lem>">
+]>
+<elem>
+CharData&#32;
+<!--co<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&#xA;">
+<?ENTITY da "&#xD;&#xA;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz"/>
+<tst a="&d;&d;A&a;&#x20;&a>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "x&#A;">
+<!ENTITY da "&#xD;&#xA;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz"/>
+<tst a="&d;&d;A&a;&#x20;&a;B&da;" b="&d;&d;A&a;&#x20;&a;B&da;"/>
+<tst a="&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;"/>
+<tst a="&#32;x&# a b " b=" a b "/>
+<tsat= "  a  b  " b="  a  b  "/>
+</doc;B&da;" bmment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEve="&d;&d;A&a;&#x20;&a;B&da;"/>
+<tst a="&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;"/>
+<tst a="&#64;x&#32;&#32;y&n internal parameter entity referneces are enoug,h to make undeclared entities into mere validity errors rather t#32;" b="&#32;x&#32;&#32;y&#32;"/>
+<tst a=" a b " b=" a b "/>
+<tsat= "  a  b  " b="  han well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'texta  b  '>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&e"/>
+</dnt2;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEoc>MENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</elem>
+]]>
+<?pi?>&ent;&quot;
+Ch
+arData
+</ele
+m>

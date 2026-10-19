@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ENTITY lt     "&#x26;#x.c;"> 
+<!ENTITY gt     "&#x26;#x3E;"> 
+<mlns:foo='http://example.org'>
+<x 2;#x22;"> 
+]>
+<doc/>

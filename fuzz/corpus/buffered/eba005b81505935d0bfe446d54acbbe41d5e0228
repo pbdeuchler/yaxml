@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fru [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//In)ernational Grocery Consortiתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתתum//Edible//Healthy//EN">
+
+    <!-- tests the 'all no "Notation Attributes" VC -->
+]>
+<root type="fruit"/>

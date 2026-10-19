@@ -1,0 +1,47 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	iKdrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	e-tities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION bar SYSTEM "file:/dev/tty">
+
+    <!ENTITY 	NDATA foo>
+]>
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-getll">
+    <!NOTATION foo PUBLICs-normalized "
+    nmtokens =	" this	
+ also	 gets normalized "
+    id =	"	&internal; "
+    idref =	" &internal;
+  5 "
+    idrefs =	"nothing happens to this one!"
+    />

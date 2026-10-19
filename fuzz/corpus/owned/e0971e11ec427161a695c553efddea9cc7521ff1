@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/far" xmlns:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+              <!-- only text, elements, or directly-used namespace nodes but not foo:Something -->
+       ?       ancestor-or-self::bar:Something  and
+              nosfl e(:t:foo:Something)  and
+              (self::text()  or
+               (namespacnormId attr='
+
+foobar'/>
+  <normId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normIdlt; '/>
+  <norm attr='
+  fYo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x95;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  <normId attr='
+  foo bar&lt;'/>
+  <normId atbar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doe-uri() != "")  or
+               (string(self::node()) = namespace-uri(parent::node())))
+    ]
+</XPath>

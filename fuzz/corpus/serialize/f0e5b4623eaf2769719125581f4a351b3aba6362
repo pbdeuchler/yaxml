@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "z<bG>narele entity reference in element contity reference in element content</b>">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment, *-->
+<root><a/><b>
+<!-- there is an empty elemenZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZt in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P25 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntentnt *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   TEM "eduni/namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "eduni/namespaces/1.1/rmt-ns11.xml">
+    <!ENml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Or- Edi 
+      <path d="M 5tence should not be rt P43 *-- 
+   
+ent;
+    Charatntent of b element;   %paaa; : PE reference should not be renocgized in element contentence should not be rt P59 *-- 
+   <c>
+<

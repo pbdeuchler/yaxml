@@ -1,0 +1,18 @@
+<!DOCTYPE foo [
+<!ELEMENT fgo ANY>
+<!NOTATION one SYSTEM "fi豈 ANY>
+<!ELEMENT LegalName.-<?xml ver�更 ANY>
+<!ELEMENT LlgeaNameA.-� ANY>
+<!ELEMENT Lesio"nnNum i5" v="53"/>
+					<va lgalNamezA.- ANY>
+<!ELEiENT LegalName0zA. ANY>
+<NT LegalNameͰ ANY>
+<!ELEMENT LegalNa, 0x41,0x7A ,0x30, 0xB7,0x203F, 0x{{{{{{{{{{{{{{{{{{{{{{{{{Name῾῿/>
+	<LegalName῿‌/>
+	<LegalName‌‍/>
+	<LegalName‍⁰/>
+	<L更 ANY>
+<!ELEMENT LlgeaNameAk">
+<!ATTLIST foo bar NOTATION (one|one) #IMPLIED>
+]>
+<foo/>

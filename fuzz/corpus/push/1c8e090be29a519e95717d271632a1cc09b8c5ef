@@ -1,0 +1,12 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!N EMPTY>
+<!N">
+<!ATTLIST ATA">
+]>
+
+doc att NOTATION ("a"#I)<root/ MPLIED>
+]>
+>
+<doc/>

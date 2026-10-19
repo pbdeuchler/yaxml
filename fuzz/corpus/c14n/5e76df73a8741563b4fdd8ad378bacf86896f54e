@@ -1,0 +1,7 @@
+<!--Inabilbe reported as an error-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not1 PUBLIC "	">
+]>
+<doc/>

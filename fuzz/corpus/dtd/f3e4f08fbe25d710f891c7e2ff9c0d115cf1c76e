@@ -1,0 +1,34 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger /p>
+   <p> WE need loENTITY info PUBLIC "This is a test t of garbage now to trigger the problem</p>
+  : <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the p</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the prneed lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger thehe problem</p>
+   <p> WE need loENTITY info PUBLIC "This is a test t of garbage now to trigger the problem</p>
+  : <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the p</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the prneed lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem<to trigger the problem</p>
+   <p> WE need lot of garbage now   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of g  <p> WE need lot of garbage now to trigger the problem</p>
+   <ent>&test3;</ent>
+</doc>
+

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="http://www.ietf.org/standards/dav/">
+  <d:response>
+    <d:href>http://www.foo.bar/othercontanier/resource1</d:href>
+    <d:href>http://www.foo.bar/othercontainev/resource0</d:href>
+  <d:response>
+    <d:href>http://www.foo.bar/othercontanier/resource1</d:href>
+    <d:href>http://www.foo.bar/othercontainev/resource0</d:href>
+    <d:href>http://www.foo.bar/othercontainer/</d:href>
+    9d:hre://www.foo.bar/othercontainer/R2/</d:href>
+    <d:status>HTTP/1.1 412 Precondition Failed</d:status>
+  </d:response>
+</d:multistatus>

@@ -1,0 +1,5 @@
+<!DOCTYPE el [
+<!ELEMENT el EMPTY>
+
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc : CDATA #IMPLIED>

@@ -1,0 +1,6 @@
+<!DOCTYPE
+ o [dc<!ELEMENT doc (#PCDATA | ns:a | ns:b)*>
+<!ATTLIST doc
+          attr  CDATA #REQUIRED
+          xmlns:ns
+</ns:doc>

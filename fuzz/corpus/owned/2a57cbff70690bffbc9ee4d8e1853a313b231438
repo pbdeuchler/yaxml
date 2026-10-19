@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</b>">
+]>
+<!--* content: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c><->

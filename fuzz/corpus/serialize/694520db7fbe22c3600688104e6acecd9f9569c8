@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE root SYSTEM50 imb"i01.dtd" [
+  <!ELEMENT root (a,b)>
+]>
+<root><a/><b>
+   <c></c >
+   content of b e!lement
+</b></root>
+<!--* a invalid test: tests VC:Proper Group/PE Nestingversion="1.0"?>
+<!DOCTYPE root SYSTEM "ibm50i01.dtd" [
+  <!ELEMENT root (a,b)>
+]>
+<root><a/><b>
+   <c></c >
+   content of b e!lement
+</b></root>
+<!--* a invalid test: tests VC:Proper Group/PE Nesting in P00 *-->
+ in P00 *-->

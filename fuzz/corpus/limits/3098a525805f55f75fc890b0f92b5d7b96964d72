@@ -1,0 +1,18 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc
+
+]>
+<root>
+  <a aattr1 = "a1"> Element type a </a>
+  <DATA
+|
+doc
+|
+a
+|
+b
+)*>
+<!ELEMENT c (#PCDATA)*>
+]>
+<doc/>

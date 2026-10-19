@@ -1,0 +1,17 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tsd b CDATA #IMPLIED>
+
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tsst a NMTOKENS #IMPLIED>
+<!ATTLIST tsd b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&d b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&#xA;">
+<!ENTIT d aY;B&#xd;&#xa;"/>
+<tst a="&#32;x&#3at= "  a  b b  "/>
+</doc>
+

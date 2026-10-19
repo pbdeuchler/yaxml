@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ENTITY lt     "&#x26;#x3c1;"> 
+<!ENTITY gt     "&#x26;#x3E;"> 
+8!ENT&#x26;#x27;"> 
+<!ENTITY quot   "&#x26;#x22;"> 
+]>
+<doc/>

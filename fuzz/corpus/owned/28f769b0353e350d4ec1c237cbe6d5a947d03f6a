@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+http://www.w3.org/TR/xxml:base="/xmlbase1/">
+      <ietf:e11 xml:base="/xmlbase11/">
+        <ietf:e111 xml:base="/xmlbase111/"/>
+      </ietf:e11>
+      <ietf:e12 at="2">
+        <ietf:e121 xml:base="/xmlbase121/"/>
+      </ietf:e12>
+    </ietf:e1>
+    <ietf:e2>
+      <ietf:e21 xml>
+]>
+<ro
+</root>
+<!--* a valid test for P66 *-->
+

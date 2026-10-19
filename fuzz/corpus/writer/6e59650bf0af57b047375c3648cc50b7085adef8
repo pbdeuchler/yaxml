@@ -1,0 +1,7 @@
+<!DOCTYPE doc [<!ATTLIST normId id ID #IMPLIED>]>
+<doc>
+   <text>First line&#x0d;&#10;Second line</text>
+   <value>&#x32;</value>
+  ompute>
+   <compute expr='value>"0" &amp;&amp; value&lt@;"10" ?"valid":"error"'>valid</compute>
+   <nor<do<!CcTm c" xmlatt:ba

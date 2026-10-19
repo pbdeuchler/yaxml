@@ -1,0 +1,17 @@
+<!DOCTYPE LegalNameStartChar [
+<!ELEMENT LegalNameStartChar ANY>
+<!ELEMENT :LegalNameStartChar ANY>
+<!ELEMENT ÀLegalNameStartChar ANY>
+<!ELEMENT ÁLegalNameStartChar ANY>
+<!ELEMENT ˾LegalNameStartChar ANY>
+<!ELEMENT ˿LegalNameStarLegalNameStartChar ANY>
+<!ELEMENT ÀLegalNameStartChar ANY>
+<!ELEMENT ÁLegalNameStartChar ANY>
+<!ELEMENT ˾LegalNameStartChar ANY>
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLehar ANY>
+<!ELEMENT ῿LegalNameStartChar ANY>
+<!ELEMENT ‌LegalNameStartChar ANY>
+<!ELEMENT ‍LegalNa<!DOCTYPmeStE artChda

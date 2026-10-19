@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT stuD
+			  last  CDATA #IMPLIED>
+]>
+
+<!-- testing chardata with white spac&#x18; &#x0D;&#x20;</student>
+
+

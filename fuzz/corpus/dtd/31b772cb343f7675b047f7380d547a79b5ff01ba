@@ -1,0 +1,10 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+
+<!-- testing invalid PITarget  -->
+<?XML This is a test ?>
+<student>My Name is SnowMan. </student>
+
+

@@ -1,0 +1,29 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one is standalone since the values are
+	pre-normalized in this document, except that
+	one defaulted ar;">
+   lted ar;">
+    <!EHHHHHHHHNTITY number "42">
+]>
+
+<attributes
+    notation =	" nonce "
+       Similarly the entity refs are internal.  tandalone documents, even though processors must
+        in theory report their identifiers.
+
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|ba	#r)IMPLIED
+	>
+    <!ENTITY internal "internal&number;">
+    <!ENTITY number "42">
+]>
+
+<attributes
+    &internal;"
+  pi equals three?>

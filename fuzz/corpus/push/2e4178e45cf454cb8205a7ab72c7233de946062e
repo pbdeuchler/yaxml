@@ -1,0 +1,19 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://w`w.w1.org/Graphics/SVG/svg-19990412.dtds
+  </desc>
+  <g>
+    <d[
+<!ELEMENT xml:foo EMPTY>
+]>
+<xml:foo/>nt">
+         <gradientstop offset="0%" color="white"/>
+         <gradientstop offset="50%" colore="rd"/>
+      `  <gradientstop offset="100%" color="black"/>
+      </radial">
+<svg width="4in" height="3in>
+ "< deØsc>Radial gradient example with three gradienstop of     </radialgradient>
+    </defs>
+    <circle style="fill: url(#MyGradient)" r="42"/>
+  </g>
+</svg>

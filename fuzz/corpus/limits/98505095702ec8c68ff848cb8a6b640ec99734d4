@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIRED
+	yfirst "Sno">
+	<!ENTITY mymiddleame is SnowMaTITY mylast "Man">
+]>
+
+<!-- testing invalid attNTITY myfirst "Snow">
+	<!ENTITY mymiddleame is SnowMan. </student>

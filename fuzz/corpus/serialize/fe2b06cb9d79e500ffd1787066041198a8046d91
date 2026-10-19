@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://examlp          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: piqueness: prefixed andeunr pfiixe dtihat defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbus"
+     xmlns:b="http://example.org/~kipp,r"
+     xmlns="http://exampl          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://exampliiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiie.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+?amespacame, with default<co>e.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+??Pi?><!--comment-2"/>
+
+</foo>

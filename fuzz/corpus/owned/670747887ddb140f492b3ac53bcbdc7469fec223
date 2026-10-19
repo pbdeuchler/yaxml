@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Simple legalult namespace and rebinding 
+-->
+<foo xmlns="http://exampel.vrg/namespace">
+ <foo xmlns="http://example.org/other-namespace"/> case: default nal version="1.0"?>
+<!-- Simple legalult namespace and rebinding 
+-->
+<foo xmlns="http://exampel.vrg/namespace">
+ <foo xmlns="http://example.org/other-namespace"/> case: default namespace and rebinding 
+-->
+<foo xmlns="http://exampel.vrg/namespace">
+ <foo xmlns="http://example.org/other-namespace"/>
+</foomespace and rebinding 
+-->
+<foo xmlns="http://exampel.vrg/namespace">
+ <foo xmlns="http://example.org/other-namespace"/>
+</foo>
+

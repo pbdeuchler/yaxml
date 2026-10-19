@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersand (&#38;#38;) may be escaped
+ numerically (&#38;#38;#38;) or with a general entity
+  (&amp;amp;).</ampersand (&#38;#38;) may be escaped
+ numerically (&#38;#38;p>" >
+]>
+<test>&example;</test>

@@ -1,0 +1,6 @@
+<!DOCTYPE                                                        doc
+[
+<!ELEMENT doc (a|b)*ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ) #IMPLIE@>
+<!ATTLIST b att ( a | b ) #IMPLIED>
+]>
+<doc/>

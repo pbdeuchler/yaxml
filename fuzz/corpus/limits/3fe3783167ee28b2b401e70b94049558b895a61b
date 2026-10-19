@@ -1,0 +1,21 @@
+<!DOCTYPE root [
+    <!ELEMENT 	rOCTYPE root [
+    <!ELEMENT 	root EMPTY>
+    <!ATLIST root
+	req CDATA #REQUIRED
+	>
+]>
+
+<A #REQUIRE>
+    <!ATTLIS;T root
+	root/>
+
+<!-- doesn't incATA #REQUIREjjjjjjjjjD
+	>
+]>
+
+<root/>
+
+<!-- d tsnoei'de requ
+MPTY>
+<?Pi?><!--comment

@@ -1,0 +1,13 @@
+<!-- CDATA sections, comments a*nd PIs may occur in ANY content. -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+]>
+<foo>
+a <![CDATA[cdata section]]> in&mixed contentg instruction?> in ontentg instrixed content.
+</foo>
+<?SAME_09- _0A-
+
+_0D-
+_e20- ۺNTITY ent3 PUBLIC
+              "PublicID"
+              FFF-􏿿_08f&ff-򏿿 This is a PI target A?><book></book>

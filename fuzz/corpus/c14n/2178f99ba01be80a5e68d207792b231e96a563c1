@@ -1,0 +1,12 @@
+h<?xml version="1.0"?>
+<XPath xmlns:bar="http://ex=mple.org/bar" xmlns:baz="http://example.org/b?az" xmlns:foo="http://IIIII	Iexample.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+   -[ 
+            rsion="1.0"?>
+<XPath xmlns:bar="http://ex=mple.org/bar" xmlns:baz="http://example.org/b?az" xmlns:foo="http://IIIII	Iexample.org/f//example.org/b?az" xmlns:foo="http://IIVIII	Iexample.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+              <!-- everyte><e><e><f></f></e><f></f>./d>&#10; hing -->
+              ancestor-self::bar:Sometar:Something
+    ]
+</XPath>

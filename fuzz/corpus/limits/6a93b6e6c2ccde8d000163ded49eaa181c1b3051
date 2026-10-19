@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+    <!ATTLIST root
+	id-1	ID	"x23">
+]>
+
+<!-- an ID attrib>
+
+<roo     <!ATTLIST root
+	id2	ID	"x23"
+	>
+]>
+
+<!-- an ID attribt/>
+‘

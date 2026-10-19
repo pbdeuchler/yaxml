@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE student PUBLIC "The big ' in it" "student.dtd"[
+]>
+
+<!-- testing Pubid Literal with nside -->
+<st+udent>My Name is SnowMan. \</student>

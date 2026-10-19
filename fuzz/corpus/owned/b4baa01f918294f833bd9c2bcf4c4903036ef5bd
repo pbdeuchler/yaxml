@@ -1,0 +1,13 @@
+<!DOCTYPE violation6[
+<!ELEMENT violation (a,a,a,b)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b EMPTY>
+    <!-- tests the "element valid" constraint for content
+	whichre can be an inch tests...)
+	-->
+]>
+<violation>
+    <a/>
+    <a/>
+    <b/>
+</violation>

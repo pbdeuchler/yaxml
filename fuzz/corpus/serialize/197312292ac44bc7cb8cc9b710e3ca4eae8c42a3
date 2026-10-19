@@ -1,0 +1,18 @@
+<?xmloivnre 0="1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:bXz="htup://example.org/baz" xmlns:foot="htp://example.org/foo" xml:lang="en-ie">
+    (//. | (//@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::node(//namespace::        <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmlo I am no. in my parent's namespace axis -->
+     //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+                     example.http://example.org/~kipper"e::* | self::()))
+    ]
+</XPath>

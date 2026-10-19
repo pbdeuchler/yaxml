@@ -1,0 +1,94 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalNameChar [
+<!ELEMENT LegalNameChar ANY>
+<!ELEMENT LegalNameCharÀ ANY>
+<!ELEMENT LegalNameCharÁ ANY>
+<!ELEMENT LegalNameChar˾ ANY>
+<!ELEMENT LegalNameCharÂ ANY>
+<!ELEMENT LegalNameCharÃ ANY>
+<!ELEMENT LegalNameChar˽ ANY>
+<!ELEMENT LegalNameChar˿ ANY>
+<!ELEMENT LegalNameCharͰ ANY>
+<!ELEMENT LegalNameCharͱ ANY>
+<!ELEMENT LegalNameCharͼ ANY>
+<!ELEMENT LegalNameCharͽ ANY>
+<!ELEMENT LegalNameCharͿ ANY>
+<!ELEMENT LegalNameChar΀ ANY>
+<!ELEMENT LegalNameChar῾ ANY>
+<!ELEMENT LegalNameChar῿ ANY>
+<!ELEMENT LegalNameChar‌ ANY>
+<!ELEMENT LegalNameChar‍ ANY>
+<!ELEMENT LegalNameChar⁰ ANY>
+<!ELEMENT LegalNameCharⁱ ANY>
+<!ELEMENT LegalNameChar↎ ANY>
+<!ELEMENT LegalNameChar↏ ANY>
+<!ELEMENT LegalNameCharⰀ ANY>
+<!ELEMENT LegalNameCharⰁ ANY>
+<!ELEMENT LegalNameChar⿮ ANY>
+<!ELEMENT LegalNameChar⿯ ANY>
+<!ELEMENT LegalNameChar、 ANY>
+<!ELEMENT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>
+<!ELEMENT LegalNameChar퟿ ANY>
+<!ELEMENT LegalNameChar豈 ANY>
+<!ELEMENT LegalNameChar更 ANY>
+<!ELEMENT LegalNameChar� ANY>
+<!ELEMENT LegalNameChar- ANY>
+<!ELEMENT LegalNameChar. ANY>
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT LegalNameChar̀ ANY>
+<!ELEMENT LegalNameChaŕ ANY>
+<!ELEMENT LegalNameCharͮ ANY>
+<!ELEMENT LegalNameCharͯ ANY>
+<!ELEMENT LegalNameChar‿ ANY>
+<!ELEMENT LegalNameCha								X																																																							doc [
+<!ELEMENT doc (#PCD+ATA)>
+<!ATTLIST doc a NMTOKENS# #iMPLIED>
+]>
+<doc ar⁀ ANY>
+]>
+<!-- LegalNameChars ending with
+0x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, 0x0370, 0x0371, 0x037C, 0x037D, 0x037F, 0x0380, 0x1FFE, 0x1FFF, 0x200C, 0x200D, ͱ ANY>
+<!ELEMENT LegalNameCharͼ ANY>
+<!ELEMENT LegalNameCharͽ ANY>
+<!ELEMENT LegalNameCharͿ ANY>
+<!ELEMENT LegalNameChar΀ ANY>
+<!ELEMENT LegalNameChar῾ ANY>
+<!ELEMENT LegalNameChar῿ ANY>
+<!ELEMENT LegalNameChar‌ ANY>
+<!ELEMENT LegalNameChar‍ ANY>
+<!ELEMENT LegalNameChar⁰ ANY>
+<!ELEMENT LegalNameCharⁱ ANY>
+<!ELEMENT LegalNameChar↎ ANY>
+<!ELEMENT LegalNameChar↏ ANY>
+<!ELEMENT LegalNameCharⰀ ANY>
+<!ELEMENT LegalNameCharⰁ ANY>
+<!ELEMENT LegalNameChar⿮ ANY>
+<!ELEMENT LegalNameChar⿯ ANY>
+<!ELEMENT LegalNameChar、 ANY>
+<!ELEMENT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>
+<!ELEMENT LegalNameChar퟿ ANY>
+<!ELEMENT LegalNameChar豈 ANY>
+<!ELEMENT LegalNameChar更 ANY>
+<!ELEMENT LegalNameChar� ANY>
+<!ELEMENT LegalNameChar- ANY>
+<!ELEMENT LegalNameChar. ANY>
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT LegalNameChar̀ ANY>
+<!ELEMENTmeCharz/>
+	<LegalNameChar0/>
+	<LegalNameChar·/>
+	<LegalNameChar̀/>
+	<LegalNameChaŕ/>
+	<LegalNameCharͮ/>
+	<LegalNameCharͯ/>
+	<LegalNameChar‿/>
+	<LegalNameChar⁀/>
+</LegalNameChar>

@@ -1,0 +1,14 @@
+<!DOCTYPE rlNameCharͮ ANY˿arͽ ANY>
+<!ELEMENT Leg!lNameCharͿ ANY>
+<!ELEMENT LegaENT LegalNameChar更  ANY>
+<!ELEMENT LegalNameCharͮ ANY˿ APTY>
+    <!ATTLIST root
+>
+    <!ATTLIST root
+	req CDATA #REQUIRED
+	>
+]>
+
+<root/>
+
+<!-- dod 'req' attribute -->

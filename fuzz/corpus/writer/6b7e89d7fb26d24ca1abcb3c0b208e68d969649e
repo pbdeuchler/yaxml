@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTITY forcr 'def'>
+]>
+<root attribute="&foo;">
+   <element>&bar;</element>
+<<?xml version=#1.0"?>
+<!DOCTYPE root [
+<!ENTITY foo 'abc'>
+<!ENTITY bar 'def'>
+]>
+<roo
+<root attrib -->
+]>
+<animal>
+   <cat>&forcat;</cat>
+   <tiger color="white">This is a white tiger in Mirage!!</tiger>
+   <cat/>
+   <leopardA
+    big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a valid test file for p28<!ELEMENT doc element>
+<<?xml version="1.0"?>
+<!DOCTYPE root [
+<!Exml version="1.0"?>
+<!DOCTYPE root [
+<!ENTITY foo 'abc'>
+<!ENTITY bar 'def'>
+]>
+<root attribute="&foo;">
+   <element>&bar;</element>
+<<?xml version="1.0"?>
+<!DOCTYPE root [
+<!ENTITY foo 'abc'>
+<!ENTITY bar 'def'>
+]>
+<roo
+<root attrib -->
+]>
+<animal>
+   <cat>&forcat;</cat>
+   <tiger color="white">This is a white tiger in Mirage!!</tiger>
+   <cat/>
+   <leopardA
+      <small/>
+      <big/>
+   </leopard>
+</animal>

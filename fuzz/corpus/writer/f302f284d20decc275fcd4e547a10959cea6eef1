@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM.txt">
+   <!ENTITY forcat "This is a smST LegalName7 attr7 ID #IMPLIED>
+<!ATTLIST LegalName7 attr70 IDREF #IMPLIED>
+<!ELEMENT LegalName8 ANY>
+<!ATTLIST LegalName8 attr8 ID #IMPLIED>
+<!ATTLIST Legd>
+</animal>

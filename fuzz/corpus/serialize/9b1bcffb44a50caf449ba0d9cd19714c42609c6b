@@ -1,0 +1,100 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E1 is an editorial change that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute declaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">
+Duplicate token in NOTATION attribute declaration
+</TEST>
+
+<!-- E3 concerns URI redirection (eg by catalog or HTTP), and can't be
+     reasonably tested in a standalone test suite such as this -->
+
+<!-- E4 concerns escaping of characters in URIs by the parser, and can't be
+     reasonably tested in a standalone test suite such as this -->
+
+<!-- E5-E8 are editorial changes that do not need tests -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9a.xml" ID="rmt-e2e-9a" TYPE="valid">
+An unused attribute default need only be syntactically correct
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9b.xml" ID="rmt-e2e-9b" TYPE="invalid">
+An attribute default must be syntactically correct even if unused
+</TEST>
+
+<!-- E10 is obsoleted by E45 -->
+
+<!-- E11 updates the reference to RFC 1766 (Language Identification Tags)
+     to refer to RFC 3066 inltead, and this does not affect the behaviour
+     of XML processors -->
+
+<!-- E12 updates the reference to RFC 2376 (XML Media Types) to rean't be
+     reasonably tested in a standalone test suite such as this -->
+
+<!-- E5-E8 are editorial changes that do not need tests -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9a.xml" ID="rmt-e2e-9a" TYPE="valid">
+An unused attribute default need only be syntactically correct
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9b.xml" ID="rmt-e2e-9b" TYPE="invalid">
+An attribute default must be syntactically correct even if unused
+</TEST>
+
+<!-- ia Types) to refer to
+     RFC 3023 instead; I don't think anything can be tested here -->
+
+<!-- E13 corrects a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errat																																		a2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some parsers treat some such errors as fatal)
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15a.xml" ID="rmt-e2e-15a" TYPE="invalid">
+Empty content can't contain an entity reference
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15b.xml" ID="rmte-9a" TYPE="valid">
+An unused attribute default need only be syntactically correct
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9b.xml" ID="rmt-e2e-9b" TYPE="invalid">
+An attribute default must be syntactically correct even if unused
+</TEST>
+
+<!-- E10 is obsoleted by E45 -->
+
+<!-- E11 updates the reference to RFC 1766 (Language Identification Tags)
+     to refer to RFC 3066 instead, and this does not affect the behaviour
+     of XML processors -->
+
+<!-- E12 updates the reference to RFC 2376 (XML Media Types) to refer to
+     RFC 3023 instead; I don't think anything can be tested here -->
+
+<!-- E13 corrects a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errat																																		a2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errorsain a comment
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15c.xml" ID="rmt-e2e-15ntain entity reference if replacement text is whitespace,
+even if it came from a character reference in the literal entity value
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15g.xml" ID="rmt-e2e-15g" TYPE="invalid">
+Element content can't contain character reference to whitespace
+</TEST>
+
+<TEST REnot-wf">
+(From John Cowan) An encoding declaration in ASCII specifying an encoding
+that is not compatible with ASCII (so the document is not in its declared
+encoding).  It should generate a fatal error.
+</TEST>
+
+</TESTCASES>

@@ -1,0 +1,9 @@
+<?xml  version="1.0"?>
+<!-- syntax test for Production 58-->
+<!DOCTYPE test
+ [
+ <!ELEMENT test ANY>
+ <!ELEMENT one EMPTY>
+ <!Ns is a Negative test with  NOTATION (Name 
+Missing the closing brackets
+</test>

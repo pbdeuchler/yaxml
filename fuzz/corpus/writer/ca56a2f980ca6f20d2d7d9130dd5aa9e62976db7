@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!-- Simple legal case: prefix rebinding -->
+<a:foo xmlns:a="http://examlpe.org/namespac	e">
+ <a:foo xmlns:a="http://example.orhoe/gtr-namespace"/>
+</a:foo>
+

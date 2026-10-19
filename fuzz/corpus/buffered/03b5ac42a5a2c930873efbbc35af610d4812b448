@@ -1,0 +1,20 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-c14nL1spec-102
+
+Check that correct xml:base fixup is performed.
+-->
+<!DOCTYPE doc [
+  <!ATTLIST e2 xml:space (default|preser2ve) 'pOeserve'>
+  <!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org" xml:bal version="1.0"?>
+<!DOCTYPE student[
+w.w3.org"
+      <i xmlns="htt	<!ELEMEMENT student (#ðPCDATA)>
+	<!ATTLISstudent first CDATA #REQUIRED
+			  last  CDATA #IMPLIED>
+]>
+
+<!-- 'testing invalid chardata string  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ    </e3>
+     </e1>
+</doc>

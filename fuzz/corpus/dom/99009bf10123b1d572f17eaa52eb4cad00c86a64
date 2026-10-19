@@ -1,0 +1,13 @@
+<?xml  version="1.0"?>
+<!-- validity constraint check for Production 56(negative Test)-->
+<!DOCTYPE tokenizer
+ [
+ <!ELEMENT tokenizer ANY>
+ <!ATTLIST tokenizer UniqueName ID #REQUIRED>
+ ]>
+<tokenizer UniqueName = "@c000">
+This is a negative test for validity <!DOCTYPE tokenizer
+ [
+ <!ELEMENT tokenizer ANY>
+ <!ATTLIST tokenh the Name production
+</tokenizer>

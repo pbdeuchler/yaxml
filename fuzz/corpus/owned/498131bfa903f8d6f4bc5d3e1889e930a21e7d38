@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA|b)* >
+  <!ELEMENT b EMPTY >
+  <!ATTLIST b attr1 CDATA #IMPLIED>
+  <!ATTLIST b attr2 CDATA #IMPLIED>
+  <!ATTLIST b attr3 CDATA #IMPLIED>
+]>
+<!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is"EST>
+  <TEST URI="valid/P11/ibm11v03.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v03.xml">
+    Tests regular systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v04.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v04.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v04.xml">
+    Tests regular systemliteral using the double quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 12">
+  <TEST URI="valid/P12/ibm12v01.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v01.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v01.xml">
+    Tests empty systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P12/ibm12v02.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v02.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v02.xml">
+    Tests empty systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P12/ibm12v03.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v03.xml">
+    Tests regular systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P12/ibm12v04.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v04.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v04.xml"dingDecl
+</TEST>
+  <TEST URI="valid/P23/ibm23v03.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v03.xml">
+    Tests XMLDecl with VersionInfo SDDecl
+</TEST>
+  <TEST URI="valid/P23/ibm23v04.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v04.xml">
+    Tests XMLDecl with VerstionInfo and a trailing whitespace char
+</TEST>
+  <TEST URI="valid/P23/ibm23v05.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v05.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v05.xml">
+    Tests XMLDecl with VersionInfo EncodingDecl SDDecl
+</TEST>
+  <TEST URI="valid/P23/ibm23v06.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v06.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v06.xml">
+    Tests XMLDecl with VersionInfo EncodingDecl SDDecl and a trailing whitespace
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 24">
+  <TEST URI="valid/P24/ibm24v01.xml" TYPE="valid" ID="ibm-valid-P24CASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 33">
+  <TEST URI="valid/P33/ibm33v01.xml" TYPE="valid" ID="ibm-valid-P33-ibm33v01.xml" ENTITIES="none" SECTIONS="2.12" OUTPUT="valid/P33/out/ibm33v01.xml">
+    Tests LanguageID with Langcode - Subcode
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 34">
+  <TEST URI="valid/P34/ibm34v01.xml" TYPE="valid" ID="ibm-valid-P34-ibm34v01.xml" ENTITIES="none" SECTIONS="2.12" OUTPUT="valid/P34/out/ibm34v01.xml">
+    Duplicate Test as ibm33v01.xml
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 35">
+  <TEST URI="valid/P35/ibm35v01.xml" TYPE="valid" ID="ibm-valid-P35-ibm35v01.xml" ENTITIES="none" SECTIONS="2.12" OUTPUT="valid/P35/out/ibm35v01.xml">
+    Tests ISO639Code
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 36">
+  <TEST URI="valid/P36/ibm36v01.xml" TYPE="valid" ID="ibm-valid-P36-ibm36v01.xml" ENTITIES="none" SECTIONS="2.12" OUTPUT="valid/P36/out/ibm36v01.xml">
+    Tests IanaCode
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 37">
+  <TEST URI="valid/P37/ibm37v01.xml" TYPE="valid" ID="ibm-valid-P37-ibm37v01.xml" ENTITIES="none" SECTIONS="2.12" OUTPUT="valid/P37/out/ibm37v01.xml">
+    Tests UserCode
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 38">
+  <TEST URI="valid/P38/ibm38v01.xml" TYPE="valid" ID="ibm-valid-P38-ibm38v01.xml" ENTITIES="none" SECTIONS="2.12" OUTPUT="valid/P38/out/ibm38v01.xml">
+    Tests SubCode
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 39">
+  <TEST URI="valid/P39/ibm39v01.xml" TYPE="valid" ID="ibm-valid-P39-ibm39v01.xml" ENTITIES="none" SECTIONS="3" OUTPUT="valid/P39/out/ibm39v01.xml">
+    Tests element with EmptyElemTag and STag content Etag, also tests the 
+    VC: Element Valid with elements that have children, Mixed and ANY 
+    contents
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 40">
+  <TEST URI="valid/P40/ibm40v01.xml" TYPE="valid" ID="ibm-valid-P40-ibm40v01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="valid/P40/out/ibm40v01.xml">
+    Tests STag with possible combinations of its fields, also tests WFC:
+    Unique Att Spec.
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 41">
+  <TEST URI="valid/P41/ibm41v01.xml" TYPE="valid" ID="ibm-valid-P41-ibm41v01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="valid/P41/out/ibm41v01.xml">
+    Tests Attribute with Name Eq AttValue and VC: Attribute Value Type
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 42">
+  <TEST URI="valid/P42/ibm42v01.xml" TYPE="valid" ID="ibm-valid-P42-ibm42v01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="valid/P42/out/ibm42v01.xml">
+    Tests ETag with possible combinations of its fields
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conforman

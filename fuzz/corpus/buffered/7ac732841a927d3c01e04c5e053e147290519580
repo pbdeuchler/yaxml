@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- The xml namespace m!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns CDATA #IMPLIED>
+]>
+<foo xmlns="http://www.ust not be declared as the default namespace. -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns CDATA #IMPLIED>
+]>
+<foo xmlns="http://www.w3.org/XML/1998/namespace"/>

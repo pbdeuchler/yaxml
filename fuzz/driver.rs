@@ -88,7 +88,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
 #[allow(dead_code, reason = "used by the dtd target and fuzz smoke tests only")]
 pub fn exercise_dtd(input: &[u8]) -> Outcome {
     if input.starts_with(b"<!DOCTYPE") {
-        return exercise(input);
+        return exercise_doctype(input);
     }
     let (control, body) = input.split_first().unwrap_or((&0, &[]));
     if control % 4 == 3 {
@@ -113,7 +113,15 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
         }
     }
     document.truncate(MAX_INPUT_BYTES);
-    exercise(&document)
+    exercise_doctype(&document)
+}
+
+/// The DTD-relevant subset of `exercise`; the full family is far slower.
+fn exercise_doctype(input: &[u8]) -> Outcome {
+    exercise_owned(input);
+    exercise_serialize(input);
+    exercise_push(input);
+    exercise_dom(input)
 }
 
 /// NUL-separated pieces: internal-subset text, then the resources the

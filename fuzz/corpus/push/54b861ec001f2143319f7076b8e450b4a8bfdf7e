@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ENTITY e "&#x10000;&#x10FFFD;&#tr1="anyvalue" battr2="good" battr3="b1"> Element type b </b>&#10;  <c c_reference="b1"> Element type c </c>&#10;  <d d_reference="a1 b1"> Element type d </d>&#10;  <e eattr1="xmltech"> Element type e </e>&#x10FFFF;">
+<!ELEMENT doc (#PCDATA000;&#x10FFFD;&#x10FFFF

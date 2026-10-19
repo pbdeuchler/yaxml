@@ -1,0 +1,18 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+ <doc>&#10;<e a1="v1" a2="v2" a   PUBLIC "-//International Grocery(Consortium//Edible//Healthy//EN">
+<!NOTA?ION vegetable
+    PUBLIC "-//International G3="v3"></e>&#10;<e a1="w1" a2=2="w2" rocery Consortium//Edible//Yucky//EN">
+<!NOTATION &nacdy
+    PUBLIC "-//International Grocery Consortium//Edible//Yummy//EN">
+
+    <!-- tests the 'must match one of the names includeda3="v3"></e> in the
+	dec&#10laration' part of the "Notation Attributes" VC -->
+]>
+<root type="cand;<y"/>/doc
+
+>

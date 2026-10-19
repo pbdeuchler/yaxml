@@ -1,0 +1,318 @@
+<?xml v' URI='p28pass1.xml'>
+    Empty-element tag must be used for element which are declared EMPTY.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.1 [28] [69]'
+      ID='o-p28pass3' ENTITIES="parameter" URI='p28pass3.xml'>
+    Valid doctypedecl with Parameter entity reference.  The declaration of a parameter entity must precede any reference to it.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.2.2 [28] [75]'
+      ID='o-p28pass4' ENTITIES="parameter" URI='p28pass4.xml'>
+    Valid doctypedecl with ExternalID as an External Entity declaration.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.1 [28] [69]'
+      ID='o-p28pass5' ENTITIES="parameter" URI='p28pass5.xml'>
+    Valid doctypedecl with ExternalID as an External Entity.  A parameter entity reference is also used.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 [29]'
+      ID='o-p29pass1' URI='p29pass1.xml'>
+     Valid types of markupdecl.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.2.2 [30] [75]'
+      ID='o-p30pass1' ENTITIES="parameter" URI='p30pass1.xml'>
+    Valid doctypedecl with ExternalID as an External Entity.  The external entity has an element declaration.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.2.2 4.3.1 [30] [75] [77]'
+      ID='o-p30pass2' ENTITIES="parameter" URI='p30pass2.xml'>
+    Valid doctypedecl with ExternalID as an Enternal Entity.  The external entity begins <?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!ENTITY % pe1 '<!ATTLIS oTrto att2 CDATA "&ge1;">'>
+<!ENTITY ge1 "attdefaultvalue" >
+%pe1;
+
+<!--* notation JPGformat not declared *-->
+<!ENTITY ge2  SYSTEM "image.jpg" NDATA JPGformat>
+
+]>
+<root att2="any" />
+<!-- a invalid test case: test P76 VC: Notation Declared -->al entity contains a parameter entity reference and condtional sections.</TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.4 2.5 2.6 2.7 [15] [16] [18]'
+      ID='o-p43pass1' URI='p43pass1.xml'>
+    Valid use of character data, comments, processing instructions and CDATA sections within the start and end tag.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 [45]'
+      ID='o-p45pass1' URI='p45pass1.xml'>
+     valid element declarations
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 3.2.1 3.2.2 [45] [46] [47] [51]'
+      ID='o-p46pass1' URI='p46pass1.xml'>
+    Valid use of contentspec, element content models, and mixed content within an element type declaration.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 3.2.1 [45] [46] [47] '
+      ID='o-p47pass1' URI='p47pass1.xml'>
+    Valid use of contentspec, element content models, choices, sequences and content particles within an element type declaration.  The optional character following a name or list governs the number of times the element or content particle may appear.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 3.2.1 [45] [46] [47]'
+      ID='o-p48pass1' URI='p48pass1.xml'>
+    Valid use of contentspec, element content models, choices, sequences and content particles within an element type declaration.  The optional character following a name or list governs the number of times the element or content particle may appear.    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 3.2.1 [45] [46] [47]'
+      ID='o-p49pass1' URI='p49pass1.xml'>
+    Valid use of contentspec, element content models, choices, and content particles within an element type declaration.  The optional character following a name or list governs the number of times the element or content particle may appear.  Whitespace is also valid between choices.   </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 3.2.1 [45] [46] [47]'
+      ID='o-p50pass1' URI='p50pass1.xml'>
+    Valid use of contentspec, element content models, sequences and content particles within an element type declaration.  The optional character following a name or list governs the number of times the element or content particle may appear.  Whitespace is also valid between sequences.   </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2.2 [51]'
+      ID='o-p51pass1' URI='p51pass1.xml'>
+     valid Mixed contentspec's.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3 [52]'
+      ID='o-p52pass1' URI='p52pass1.xml'>
+     valid AttlistDecls: No AttDef's are required,
+    and the terminating
+          S is optional, multiple ATTLISTS per element are OK, and multiple
+          declarations of the same attribute are OK.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3 [53]'
+      ID='o-p53pass1' URI='p53pass1.xml'>
+     a valid AttDef
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.1 [54]'
+      ID='o-p54pass1' URI='p54pass1.xml'>
+     the three kinds of attribute types
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.1 [55]'
+      ID='o-p55pass1' URI='p55pass1.xml'>
+     StringType = "CDATA"
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.1 [56]'
+      ID='o-p56pass1' URI='p56pass1.xml'>
+     the 7 tokenized attribute types
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.1 [57]'
+      ID='o-p57pass1' URI='p57pass1.xml'>
+     enumerated types are NMTOKEN or NOTATION lists
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.1 [58]'
+      ID='o-p58pass1' URI='p58pass1.xml'>
+     NOTATION enumeration has on or more items
+    </TEST>
+
+  <TEST T<?xml version='1.0' encoding='UTF-8'?>
+
+<TESTCASES PROFILE='OASIS/NIST TESTS, 1-Nov-1998'>
+
+  <TEST TYPE='valid' SECTIONS='2.2 [1]'
+      ID='o-p01pass2' URI='p01pass2.xml'>
+     various Misc items where they can occur
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.3 [6]'
+      ID='o-p06pass1' URI='p06pass1.xml'>
+     various satisfactions of the Names production in a NAMES
+    attribute
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.3 [7]'
+      ID='o-p07pass1' URI='p07pass1.xml'>
+     various valid Nmtoken 's in an attribute list declaration.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.3 [8]'
+      ID='o-p08pass1' URI='p08pass1.xml' NAMESPACE='no'>
+     various satisfaction of an NMTOKENS attribute value.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.3 [9]'
+      ID='o-p09pass1' ENTITIES="parameter" URI='p09pass1.xml'>
+     valid EntityValue's.  Except for entity references,
+              markup is not recognized.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.3 [12]'
+      ID='o-p12pass1' URI='p12pass1.xml'>
+     valid public IDs.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 [22]'
+      ID='o-p22pass4' URI='p22pass4.xml'>
+     XML decl and doctypedecl
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 [22]'
+      ID='o-p22pass5' URI='p22pass5.xml'>
+     just doctypedecl
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 [22]'
+      ID='o-p22pass6' URI='p22pass6.xml'>
+     S between decls is not required
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.1 [43] [44]'
+      ID='o-p28pass1' URI='p28pass1.xml'>
+    Empty-element tag must be used for elemenYPE='valid' SECTIONS='3.3.1 [59]'
+      ID='o-p59pass1' URI='p59pass1.xml'>
+     NMTOKEN enumerations haveon or more items
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.2 [60]'
+      ID='o-p60pass1' URI='p60pass1.xml'>
+     the four types of default values
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.4 [61]'
+      ID='o-p61pass1' ENTITIES="parameter" URI='p61pass1.xml'>
+     valid conditional sections are INCLUDE and IGNORE
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.4 [62]'
+      ID='o-p62pass1' ENTITIES="parameter" URI='p62pass1.xml'>
+     valid INCLUDE sections -- options S before and
+    after keyword, sections can nest
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.4 [63]'
+      ID='o-p63pass1' ENTITIES="parameter" URI='p63pass1.xml'>
+     valid IGNORE sections
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.4 [64]'
+      ID='o-p64pass1' ENTITIES="parameter" URI='p64pass1.xml'>
+     IGNOREd sections ignore everything except section delimiters
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.1 [68]'
+      ID='o-p68pass1' URI='p68pass1.xml'>
+     Valid entity references.  Also ensures that a charref to
+          '&amp;' isn't interpreted as an entity reference open delimiter
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.1 [69]'
+      ID='o-p69pass1' ENTITIES="parameter" URI='p69pass1.xml'>
+     Valid PEReferences.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [70]'
+      ID='o-p70pass1' URI='p70pass1.xml'>
+     An EntityDecl is either a GEDecl or a PEDecl
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [71]'t which are declared EMPTY.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.1 [28] [69]'
+      ID='o-p28pass3' ENTITIES="parameter" URI='p28pass3.xml'>
+    Valid doctypedecl with Parameter entity reference.  The declaration of a parameter entity must precede any reference to it.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.2.2 [28] [75]'
+      ID='o-p28pass4' ENTITIES="parameter" URI='p28pass4.xml'>
+    Valid doctypedecl with ExternalID as an External Entity declaration.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.1 [28] [69]'
+      ID='o-p28pass5' ENTITIES="parameter" URI='p28pass5.xml'>
+    Valid doctypedecl with ExternalID as an External Entity.  A parameter entity reference is also used.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 [29]'
+      ID='o-p29pass1' URI='p29pass1.xml'>
+     Valid types of markupdecl.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.2.2 [30] [75]'
+      ID='o-p30pass1' ENTITIES="parameter" URI='p30pass1.xml'>
+    Valid doctypedecl with ExternalID as an External Entity.  The external entity has an element declaration.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.2.2 4.3.1 [30] [75] [77]'
+      ID='o-p30pass2' ENTITIES="parameter" URI='p30pass2.xml'>
+    Valid doctypedecl with ExternalID as an Enternal Entity.  The external entity begins with a Text Declaration.     
+      ID='o-p71pass1' URI='p71pass1.xml'>
+     Valid GEDecls
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [72]'
+      ID='o-p72pass1' URI='p72pass1.xml'>
+     Valid PEDecls
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [73]'
+      ID='o-p73pass1' URI='p73pass1.xml'>
+     EntityDef is either Entity value or an external id,
+    with an optional NDataDecl
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2.2 [76]'
+      ID='o-p76pass1' URI='p76pass1.xml'>
+     valid NDataDecls
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.1 [1]'
+      ID='o-p01pass1' URI='p01pass1.xml'>
+     no prolog
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.1 [1]'
+      ID='o-p01pass3' URI='p01pass3.xml'>
+     Misc items after the document
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [3]'
+      ID='o-p03pass1' URI='p03pass1.xml'>
+     all valid S characters
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [4]'
+      ID='o-p04pass1' URI='p04pass1.xml' NAMESPACE='no'>
+     names with all valid ASCII characters, and one from each
+              other class in NameChar
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [5]'
+      ID='o-p05pass1' URI='p05pass1.xml' NAMESPACE='no'>
+     various valid Name constructions
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [6]'
+      ID='o-p06fail1' URI='p06fail1.xml'>
+     Requires at least one name.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [8]'
+      ID='o-p08fail1' URI='p08fail1.xml'>
+     at least one Nmtoken is required.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [8]'
+      ID='o-p08fail2' URI='p08fail2.xml'>
+     an invalid Nmtoken character.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [10]'
+      ID='o-p10pass1' URI='p10pass1.xml'>
+     valid attribute values
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.4 [14]'
+      ID='o-p14pass1'</TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 [31]'
+      ID='o-p31pass1' ENTITIES="parameter"  URI='p14pass1.xml'>
+     valid CharData
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.5 [15]'
+      ID='o-p15pass1' URI='p15pass1URI='p31pass1.xml'>
+     external subset 

@@ -1,0 +1,75 @@
+<!DOCTYPE doc [
+<!ENTITY e "&#1<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST9;" attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokens	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal "1 internal&numœer; ">
+    <!E>
+]>
+a="&e;"><NTITY ributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|ba<?xml  version="1.0"?>
+<!-- syntax test for Production 61-->
+<!DOCTYPE r)	#IMPLIED
+	nÿÿÿnen		NMTOKEN		#IMPLIED
+	nmtokens	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDSEF		#IMPLIED
+	idrefs		IDREFSÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <.ENTITY number "42">
+
+    <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION bar SYSTEM "file:/dev/tty">
+
+    <!ENTsed-1 unparsed-6"
+    cdan<!NOTATION bar SYSTEM "file:/dev/tty">
+
+!"
+  /doc> YSTEM "ibm61v02.dtd"
+[
+<!ELEMENT
+ animal EMPTY>
+] >/>
+
+<animal/>
+
+ 

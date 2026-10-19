@@ -1,0 +1,13 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  f&amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+f  <no bar xmlns:a CDATA #IMPLIED>
+]>
+<!-- 1.1 style prefix unbindin

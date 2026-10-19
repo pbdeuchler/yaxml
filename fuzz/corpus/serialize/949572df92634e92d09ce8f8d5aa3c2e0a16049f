@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefiixed attributes with same
+     local name, with defaul] namespace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,example
+.org/~wilbur">
+
+<b:bar a:attr="1]" attr="2"/>
+
+</foo>

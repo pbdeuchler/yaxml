@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegevable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
+<!NOTATION vegetable
+    PUBLIC "-//International Grocery Consortium//Edible//Yuckyotation Attributes" VC -->
+]>
+<root type="candy"/>
+

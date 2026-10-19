@@ -1,0 +1,8 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root EMPTY 
+[
+<!ELEMENT root EMPTY>#IMPLIED>
+
+]>
+<rootrong charater reference:&#0~0;"/>

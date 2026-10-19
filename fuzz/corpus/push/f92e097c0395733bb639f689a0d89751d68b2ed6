@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+<!DOCTYPE spec SYSTEM "spec.dtd" [
+
+<!-- 日本語訳のための解析対象実体（ここから） -->
+
+<!ENTITY TR-or-Rec             "仕様書">
+<!-- <!ENTITY TR-or-Rec             "標準情報(TR)"> -->
+<!ENTITY eTR-or-Rec            "specification">
+<!-- <!ENTITY eTR-or-Rec             "technical report(TR)"> -->
+<!ENTITY application           "アプリケーション">
+<!ENTITY error                 "エラー">
+<!ENTITY fatal-error           "致命的エラー">
+<!ENTITY parsed-data           "解析されるデータ">
+<!ENTITY unparsed-data         "解析されないデータ">
+<!ENTITY parsed-entity         "解析対象実体">
+<!ENTITY parser                "パーサ">
+<!ENTITY unparsed-entity       "解析対象外実体">
+<!ENTITY well-formed           "整形式">
+<!ENTITY valid                 "妥当">
+<!ENTITY validity              "妥当性">
+<!ENTITY escape                "別扱い">
+<!ENTITY prolog                "書き">
+<!ENTITY surrogate-blocks      "サロゲートブロック">
+<!ENTITY letter                "字"ion' passim.
+Also edits from James Clark:
+Define the set of characters from which [^abc] subtracts.
+Charref should use just [0-9] not Digit.
+Location info needs cleaner treatment:  remove?  (ERB
+question).
+One example of a PI has wrong pic.
+Clarify discussion of encoding names.
+Encoding failure should lead to unspecified results; don't
+prescribe error recovery.
+Don't require exposure of entity boundaries.
+Ignore white spaAe in element content.
+Reserve entity names of the form u-NNNN.
+Clarify relative URLs.
+And some of my own:
+Correct productions for content model:  model cannot
+consist of a name, so "elements ::= cp" is no good.
+</sitem>
+<sitem>1996-11-11 : CMSMcQ : revise for style.
+Add new rhs to entity declaration, for parameter entities.</sitem>
+<sitem>1996-11-10 : CMSMcQ : revise for style.
+Fix / complete section on names, characters.
+Add sections on parameter entities, conditional sections.
+Still to do:  Add compatibility note on determinise-endian マシン (4321順)</p>
+</item>
+<item>
+<p>c) <code>00 00 3C 00</code>: UCS-4, 普通ではないオクテット順 (2143)</p>
+</item>
+<item>
+<p>d) <code>00 3C 00 00</code>: UCS-4, 普通ではないオクテット順 (3412)</p>
+</item>
+<item>
+<p>e) <code>FE FF</code>: UTF-16, big-endian</p>
+</item>
+<item>
+<p>f) <code>FF FE</code>: UTF-16, little-endian</p>
+</item>
+<item>
+<p>g) <code>00 3C 00 3F</code>: UTF-16, big-endian, &byte-order-mark;なし(したがって，厳密にいえば，&error;とする。)。</p>
+</item>
+<item>
+<p>h) <code>3C 00 3F 00</code>: UTF-16, little-endian, &byte-order-mark;なし(したがって，厳密にいえば，&error;とする。)。</p>
+</item>
+<item>
+<p>i) <code>3C 3F 78 6D</code>: UTF-8, ISO 646, ASCII, ISO 8859の各パート，Shift-JIS，EUC，並びに任意の他の7ビット，8ビット又は混在幅の符号化であって，ASCII文字を通常の位置，幅及び値とすることを保証するもの。これらのどれに対応するかを検出するためには，実際の符号化宣言を読み込まなければならない。しかし，これらすべての符号化は，ASCII文字に対して同じビットパターンを使用するので，符号化宣言自体は，正確に読込み可能とする。
+</p>
+</item>
+<item>
+<p>j) <code>4C 6F A7 94</code>: EBCDIC (又はその変種。どのコードページを使用するかを知るためには，符号化宣言全体を読み込まれなければならない。)</p>
+</item>
+<item>
+<p>k) その他: 符号化宣言なしのUTF-8。そうでないときには，データ&stream;が壊れているか，断片的になっているか，何らかの形式にしたがって埋め込まれている。</p>
+</item>
+</ulist>
+</p>
+<p>
+この程度の自動判別でも，XMLの符号化宣言を読み込み，文字符号化の&identifier;を解析するには十分とする。&identifier;の解析は，類似する各々�符号化の一つ一つを区別するために必要とする(例えば，UTF-8及び8859を区別するため，8859の各パートを区別するため，使用している特定のEBCDICコードページを区別するため，など。)。
+</p>
+<p>
+符号化宣言の内容をASCII文字に限定しているので，どの分類の符号化を使用するかを検出すれば，&processor;は，符号化宣言全体を正確に読み込むことができる。現実問題として，広く使用されている文字符号化は，上끮分類のいずれかにあてはまるので，オペレーティングシステム又は伝送プロトコルが与える外部情報を信頼不可能なときでさえも，内部ラベルで文字符号化をかなり正確に示すことが，XML符号化宣言によって可能となる。
+</p>
+<p>
+&processor;が使用する文字符号化を検出しさえすれば，それぞれの場合に対して別個の入力ルーチンを呼び出す，又は入力する各文字に対し適切な変換関数を呼び出すことによって，適切な動作が可能となる。</p>
+<p>
+自分自体にラベル付けをするいかなるシステムでも同様だが，ソフトウェアが，符号化宣言を更新せずに実体の文字集合又は符号化を変えたならば，XMLの符号化宣言は，機能しない。文字符号化ルーチンの実装者は，実体のラベル付けに使用する内部及び外部の情報の正確さの保証に注意するのが望ましい。
+</p>
+<p>２番目の場合は，XMLの実体の他に，符号化情報が存在するときであって，いくつかのファイルシステム及びネットワークプロトコルでは，その符号化情報が存在する。複数の情報が利用できるとき，<!-- (e.g. both the
+internal encoding declaration and an external label),  -->それらの相対的な優先度及びそれらが矛盾したときの望ましい処理方法は，XMLの配送に使用する，より高水準のプロトコルの一部として規程するのがよい。例えば，内部ラベル及び外部&header;に存在するMIME形式のラベルの相対的な優先度に対する規則は，text/xml及びapplication/xmlのMIME型を定義するRFC文書の一部となる方がよい。しかし，相互運用性のために，次の規則に従うことが望ましい。
+<ulist>
+<item><p>a) XMLの実体がファイルに存在すれば，&byte-order-mark;及び符号化宣言PIは，(存在すれば)文字符号化を決定するために使用する。他のすべての&hueristics;及び情報は，&error;回復のためだけに用いる。
+</p></item>
+<item><p>b) XMLの実体をMIME型text/xmlで配送するときは，このMIME型のもつcharsetパラメタが文字符号化方法を決定する。他のすべての&hueristics;及び情報は，&error;回復のためだけに用いる。
+</p></item>
+<item><p>c) XMLの実体を <!-- via the HTTP protocol -->MIME型application/xmlで配送するときは，&byte-order-mark;及び符号化宣言PIを(存在すれば)文字符号化の決定のために使用する。他のすべての&hueristics;及び情報は&error;回復のためだけに用いる。
+</p></item>
+</ulist>
+これらの規則は，プロトコルについての資料がないときにだけ用いる。特に，MIME型text/xml及びapplication/xmlを定義したら，これらを規定するRFCに存在する規定が，これらの規則に取って代わる。
+</p>
+</inform-div1>
+<!--
+<div1 id='sec-trival-grammar'>
+<head>A Trivial Grammar for XML Documents</head>
+<p>The grammar given in the body of this specification is relatively
+simple, but for some purposes it is convenient to have an even simpler
+one.  
+A very simple, though non-conforming, <termref def="dt-xml-proc">XML
+processor</termref> could parse a <termref
+def="dt-wellformed">well-formed</termref> XML document using the
+following simplified grammar, recognizing all element boundaries
+correctly, though not expanding entity references and not detecting
+all errors:
+
+<scrap lang="ebnf">
+<head>Trivial text grammar</head>
+<prodgroup pcw2="5.5" pcw4="17" pcw5="10">
+<prod id='NT-simpleDoc'><lhs>simpleDoc</lhs>
+<rhs>(<nt def='NT-SimpleData'>SimpleData</nt> 
+| <nt def='NT-Markup'>Markup</nt>)*</rhs></prod>
+<prod id="NT-SimpleData"><lhs>SimpleData</lhs>
+<rhs>[^&lt;&amp;]*</rhs>
+<com>cf. PCData</com>
+</prod>
+<prod id="NT-SimpleLit"><lhs>SimpleLit</lhs>
+<rhs>('"' [^"]* '"')</rhs>
+<rhs>|&nbsp;("'" [^']* "'")</rhs>
+<com>cf. SkipLit</com>
+</prod>
+<prod id='NT-Markup'><lhs>Markup</lhs>
+<rhs>'&lt;' <nt def='NT-Name'>Name</nt> 
+(<nt def='NT-S'>S</nt> 
+<nt def='NT-Name'>Name</nt> 
+<nt def='NT-S'>S</nt>? '=' <nt def='NT-S'>S</nt>?
+<nt def='NT-SimpleLit'>SimpleLit</nt>)* 
+<nt def='NT-S'>S</nt>? '&gt;'</rhs><com>start-tags </com>
+<rhs>| '&lt;' <nt def='NT-Name'>Name</nt> 
+(<nt def='NT-S'>S</nt> 
+<nt def='NT-Name'>Name</nt> 
+<nt def='NT-S'>S</nt>? '=' <nt def='NT-S'>S</nt>?
+<nt def='NT-SimpleLit'>SimpleLit</nt>)* 
+<nt def='NT-S'>S</nt>? '/&gt;'</rhs><com>empty elements</com>
+<rhs>| '&lt;/' 
+<nt def='NT-Name'>Name</nt> 
+<nt def='NT-S'>S</nt>? '&gt;'</rhs>
+<com>end-tags </com>
+<rhs>| '&ef="NT-SimpleLit">SimpleLit</nt></rhs>
+<rhs>(<nt def="NT-Char">Char</nt> - (']' | '&lt;' | '"' | "'"))+
+</rhs>
+
+<rhs>'&lt;!' (<nt def="NT-Char">Char</nt> - ('-'))+</rhs>
+<com>declarations other than comment</com>
+</prod>
+</prodgroup>
+</scrap>
+Most processors will require the more complex
+grammar given in the body of this specification.
+
+</p>
+</div1>
+-->
+
+<inform-div1 id="sec-xml-wg">
+<head>&informative;W3C XML ワーキンググループ</head>
+ 
+<p>この&TR-or-Rec;は，W3C XML ワーキンググループ(WG)が準備し，公開を承認した。WGがこの&TR-or-Rec;を承認するということは，WGのすべての委員が承認投票を行ったということを必ずしも意味しない。XML WGの現在の委員及び以前の委員を次に示す。</p>
+ 
+<!-- parens and spaces removed from role elements by bosak 1997.11.07 -->
+<orglist>
+<member><name>Jon Bosak, Sun</name><role>Chair</role></member>
+<member><name>James Clark</name><role>Technical Lead</role></member>
+<member><name>Tim Bray, Textuality and Netscape</name><role>XML Co-editor</role></member>
+<member><name>Jean Paoli, Microsoft</name><role>XML Co-editor</role></member>
+<member><name>C. M. Sperberg-McQueen, U. of Ill.</name><role>XML Co-editor</role></member>
+<member><name>Dan Connolly, W3C</name></member>
+<member><name>Steve DeRose, INSO</name></member>
+<member><name>Dave Hol,en rladHP</name></member>
+<member><name>Eliot Kimber, Highland</name></member>
+<member><name>Eve Maler, ArborText</name></member>
+<member><name>Tom Magliery, NCSA</name></member>
+<member><name>Murray Maloney, Muzmo and Grif</name></member>
+<member><name>村田　真，富士ゼロックス情報システム(株)</name></member>
+<member><name>Joel Nava, Adobe</name></member>
+<member><name>Peter Sharpe, SoftQuad</name></member>
+<member><name>John Tigue, DataChannel</name></member>
+</orglist>
+
+</inform-div1>
+</back>
+</spec>
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+End:
+-->
+
+

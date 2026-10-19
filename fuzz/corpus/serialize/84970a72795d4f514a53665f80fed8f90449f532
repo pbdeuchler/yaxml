@@ -1,0 +1,18 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY 
+
+ >  <!--
+	2.9 gives validiLEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStd.
+  </TEST>
+  <TEST URI="invalid/P32/ibm32i04.xml" TYPE="invalid" ID="ibm-invalid-P32-ibm32i04.xml" ENTITIES="parameter" SECTIONS="2.9" OUTPUT="invalid-P3
+9-ibm39i02.xml" ENTITIES="none" SECTIONS="3" OUTPUT="invalid/P39/out/ibm39i02.xml">
+    This test violates VC: Element Valid in P39. root is declared only havingNameStartChar ANY>
+<!ELEMENT ΀LegalNameSta
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChar ANY-->LIC "-//public id//foo" "
+fhis o  "
+e n! />

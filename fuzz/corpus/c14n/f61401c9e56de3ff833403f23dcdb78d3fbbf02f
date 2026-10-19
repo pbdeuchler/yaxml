@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!-- Namespace equality test: plain repetition -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns:a CDATA #IMPLIED
+              xmlns:b CDATA #IMPLIED
+              xmlns:c CDATA #IMPLIED>
+<!ELEMENT bar ANY>
+<!ATTLIST bar a:a CDATA #IMPLIED>
+<!ELEMENT bar ANY>
+<!ATTLIST bar a:attr CDATA #IMPLIED
+              b:attr CDATA #IMPLIED
+              c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="httttr CDATA #IMPLIED
+              b:attr CDATA #IMPLIED
+              c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a=
+<bar a:attr="1" b:attg="2"/>
+
+</foo>
+

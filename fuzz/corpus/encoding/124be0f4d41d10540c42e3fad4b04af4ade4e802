@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+    <!ELEMENT root ANY>
+<!DOCTYPE AttrType
+[
+<!ELEMENT AttrType (#PCDATA)>
+<!ELEMENT a EMPTY>
+<!ATTLIST a a default
+    of #IMPLIED or #REQUIRED
+-->
+
+<root/>
+
+

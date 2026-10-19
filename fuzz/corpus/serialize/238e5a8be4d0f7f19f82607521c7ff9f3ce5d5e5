@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W2C//DT%D SVG April 1===========================1======================================================================*=====================================================================*===========================================999//EN" 
+  "http://www.w3.org/Graphics/SV' SECTIONS='2.2 [2]'
+      ID='o-thin XML document.     </TE:T>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail18' URI='p02fail18.xml'>
+    Use of illegal character within XML documxmlns:a="httt://example.org/~wilbur"
+     xmlns:b="http://example.org/&tent.     </TESilde;wilbuT>
+
+  <TEST TYPE='n</g>
+
+]>
+<root>Any </content</rosovg>t>
+

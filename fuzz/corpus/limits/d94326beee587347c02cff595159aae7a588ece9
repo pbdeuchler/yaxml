@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+  <!ENTITY ne7newline "">]
+>
+<test newline8;'#xA;"(]
+>
+<teSITY newnewl"/>

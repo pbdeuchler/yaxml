@@ -40,7 +40,23 @@ cargo +nightly fuzz run dom fuzz/corpus/dom fuzz/corpus -- -max_total_time=60
 fuzz/coverage.sh            # all targets; or name some
 ```
 
-New inputs go to the ignored `fuzz/corpus/<target>/`; the committed top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/<target>/`; `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-06-06`, prints one `src/` TOTAL line per target, then merges all profiles into `fuzz/coverage/report.txt` (regions, functions, lines, branches per library file). `#[cfg(test)]` modules (the DTD work) are not compiled into the targets and are absent from the denominator. The "mismatched data" warning comes from the per-binary libFuzzer entry symbols, not library code.
+New inputs go to the tracked `fuzz/corpus/<target>/`; the top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/<target>/`; `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-06-06`, prints one `src/` TOTAL line per target, then merges all profiles into `fuzz/coverage/report.txt` (regions, functions, lines, branches per library file). `#[cfg(test)]` modules (the DTD work) are not compiled into the targets and are absent from the denominator. The "mismatched data" warning comes from the per-binary libFuzzer entry symbols, not library code.
+
+
+`fuzz/corpus/<target>/` is tracked (about 20 MiB, 33k files): the `cargo fuzz cmin` set after seeding and fuzzing. Regenerate with:
+
+```sh
+fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]   # uv run; skips inputs over MAX_INPUT_BYTES
+for t in dom owned push buffered writer serialize limits encoding dtd c14n xpath uri; do
+  (cd fuzz && cargo +nightly-2026-06-06 fuzz run $t -- -fork=1 -ignore_crashes=1 -ignore_timeouts=1 -max_total_time=900 -rss_limit_mb=2048 -timeout=60)
+done                                          # <= 8 at a time
+(cd fuzz && cargo +nightly-2026-06-06 fuzz cmin $t -- -timeout=60)   # then delete files over 16 KiB to bound size
+```
+
+`seed.py` feeds the W3C XMLTS and libxml2 `test/` trees to the XML targets (dom, owned, push, buffered, writer, serialize, limits, encoding), DOCTYPE-leading documents and `.dtd`/`.ent` bodies (control byte 0) to `dtd`, `selector byte + XML` (15 selectors for `test/c14n`, 2 otherwise) to `c14n`, XPath expressions alone and NUL + the matching `XPath/docs` file to `xpath`, and `reference\nbase\n/:%#` lines from `test/URI` to `uri`. `mutation`, `construction` and `names` use structured bytes and are fuzzed from the top-level seeds only. Crashes found while seeding are in [`open/`](open/README.md) (unfixed) or `regressions/` (replayed by `tests/fuzz_smoke.rs`). The `dtd` target runs only owned, serialize, push and DOM checks (about 1,000-2,000 exec/s, versus 50-145 when it ran every family).
+
+Merged `src/` coverage from the tracked corpora (`fuzz/coverage.sh`): 88.73% regions, 83.97% functions, 91.13% lines, 83.61% branches (previously 70.72% regions with ignored, unseeded corpora). Weakest files by region: `xpath/mod.rs` 54%, `origin.rs` 77%, `tokenizer/local.rs` 78%, `dtd_frames.rs` 79%, `stream/dtd.rs` 82%, `dtd_controller*.rs` 82%.
+
 
 ## Current target inventory
 

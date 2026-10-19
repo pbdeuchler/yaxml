@@ -1,0 +1,15 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing CDSect with CDStCTYPE st">
+<!ENTITY ge SYSTEM "nop
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<)-- testing CDSect with CDStCTYPE student art CData CDEnd!-->
+
+student>My Name is SnowMan. <![C
+
+student>My Name is SnowMan. <![CDATA[This is <normal> text]]> </student>
+

@@ -1,0 +1,5 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root EMPTY>
+<!ATTLIST
+<root att="wrong charater reference:&#5~0;"/>

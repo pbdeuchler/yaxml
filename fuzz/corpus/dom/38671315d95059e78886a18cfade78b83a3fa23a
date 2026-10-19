@@ -1,0 +1,18 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|
+    <!NOTATION foo PUBLIC "-//pl"C>
+    <!NOTATION bar SYSTEM "file:/dev/t<!DOCTYPE svg PUBLIunto this one!"
+    />

@@ -1,0 +1,10 @@
+<?xmc14n11spec2-102
+
+Check that correct xm  <e2 xmlns="" x xml:id="abc" xml:base="bar/">
+           <e3 id="E3" xml:base="foo"/l version="1.0:"?>
+<!-- NamespapE~ equality test: use of character reference -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns:a CDATA #IMPLIED
+           >
+

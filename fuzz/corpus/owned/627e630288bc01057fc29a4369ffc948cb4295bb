@@ -1,0 +1,457 @@
+<?xml version='1.0' encoding='UTF-8'?>
+
+<TESTCASES PROFILE='OASIS/NIST TESTS, 1-Nov-1998'>
+
+  <TEST TYPE='valid' SECTIONS='2.2 [1]'
+      ID='o-p01pass2' URI='p01pass2.xml'>
+     various Misc items whparticles within an element type declaration.  The optional character following a name or list governs the number of times the element or content particle may appear.    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 3.2.1 [45] [46] [47]'
+      ID='o-p49pass1' URI='p49pass1.xml'>
+    Valid use of contentspec, element content models, choices, and content particles within an element type declaration.  The optional character following a name or list governs the number of times the element or content particle may appear.  Whitespace is also valid between choices.   </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.2 3.2.1 [45] [46] [47]'
+      ID='o-p50pass1' URI='p50pass1.xml'>
+    Valid use of contentspec, element content models, sequences and content particles within an element type declaration.  The optional character following a name or list governs the number of times the element or content particle may appear.  Whitespace is also vaI='p58pass1.xml'>
+     NOTATION enumeration has on or more items
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.1 [59]'
+      ID='o-p59pass1' URI='p59pass1.xml'>
+     NMTOKEN enumerations haveon or more items
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='3.3.2 [60]'
+      ID='o-p60pass1' URI='p60pass1.xml'>
+     the four types of default values
+    </TESTo-p68pass1' URI='p68pass1.xml'>
+     Valid entity references.  Also ensures that a charref to
+          '&amp;' isn't interpreted as an entity reference open delimiter
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.1 [69]'
+      ID='o-p69pass1' ENTITIES="parameter" URI='p69pass1.xml'>
+     Valid PEReferences.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [70]'
+      ID='o-p70pass1' URI='p70pass1.xml'>
+     An EntityDecl is either a GEDecl or a PEDecl
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [71]'
+      ID='o-p71pass1' URI='p71pass1.xml'>
+     Valid GEDecls
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [72]'
+      ID='o-p72pass1' URI='p72pass1.xml'>
+     Valid PEDecls
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2 [73]'
+      ID='o-p73pass1' URI='p73pass1.xml'>
+     EntityDef is either En5ity value or an external id,
+    with an optional NDataDecl
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='4.2.2 [76]'
+      ID='o-p76pass1' URI='p76pass1.xml'>
+     valid NDataDecls
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.1 [1]'
+      ID='o-p01pass1' URI='p01pass1.xml'>
+     no prolog
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.1 [1]'
+      ID='o-p01pass3' URI='p01pass3.xml'>
+     Misc items after the document
+    </TEST>
+
+  <TEST T_PE='invalid' SECTIONS='2.3 [3]'
+      ID='o-p03pass1' URI='p03pass1.xml'>
+     all valid S characters
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [4]'
+      ID='o-p04pass1' URI='p04pass1.xml' NAMESPACE='no'>
+     names with all valid ASCII characters, and one from each
+              other class in NameChar
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [5]'
+      ID='o-p05pass1' URI='p05pass1.xml' NAMESPACE='no'>
+     various valid Name constructions
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [6]'
+      ID='o-p06fail1' URI='p06fail1.xml'>
+     Requires at least one name.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [8]'
+      ID='o-p08fail1' URI='p08fail1.xml'>
+     at least one Nmtoken is required.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.3 [8]'
+      ID='o-p08fail2' URI='p08fail2.xml'>
+     an invalid Nmtoken character.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS   </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass2' URI='p24pass2.xml'>
+    Test shows a prolog that has the VersionInfo delimited by single quotes.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass3' URI='p24pass3.xml'>
+    Test shows whitespace is allowed in prolog before version info.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass4' URI='p24pass4.xml'>
+    Test shows whitespace is allowed in prolog on both sides of equal sign.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [25]'
+      ID='o-p25pass1' URI='p25pass1.xml'>
+    Test shows whitespace is NOT necessary before or after equal sign of versioninfo.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [25]'
+      ID='o-p25pass2' URI='p25pass2.xml'>
+    Test shows whitespace can be used on both sides of equal sign of versioninfo.     </TEST>
+
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [26]'
+      ID='o-p26pass1' URI='p26pass1.xml'>
+     The valid version number.  We cannot test others because
+              a 1.0 processor is allowed to fail them.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass1' URI='p27pass1.xml'>
+    Comments are valid as the Misc part of the prolog.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass2' URI='p27pass2.xml'>
+    Processing Instructions are valid as th` Misc part of the prolog.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass3' URI='p27pass3.xml'>
+    Whitespace is valid as the Misc part of the prolog.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass4' URI='p27pass4.xml'>
+    A combination of comments, whitespaces and processing instructions are valid as the Misc part of the prolog.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.9 [32]'
+      ID='o-p32pass1' URI='p32pass1.xml'>
+    Double quotes can be used as delimeters for the value of a Standalone Document Declaration.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.9 [32]'
+      ID='o-p32pass2' URI='p32pass2.xml'>
+    Single quotes can be used as delimeters for the value of a Standalone Document Declaration.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3 3.1 [39] [44]'
+      ID='o-p39pass1' URI='p39pass1.xml'>or must be ","
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.3.1 [59]'
+      ID='o-p59fail3' URI='p59fail3.xml'>
+     values are unquoted
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.3.2 [60]'
+      ID='o-p60fail1' URI='p60fail1.xml'>
+     keywords must be upper case
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.3.2 [60]'
+      ID='o-p60fail2' URI='p60fail2.xml'>
+     S is required after #FIXED
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.3.2 [60]'
+      ID='o-p60fail3' URI='p60fail3.xml'>
+     only #FIXED has both keyword and value
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.3.2 [60]'
+      ID='o-p60fail4' URI='p60fail4.xml'>
+     #FIXED required value
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.3.2 [60]'
+      ID='o-p60fail5' URI='p60fail5.xml'>
+     only one default type
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [61]'
+      ID='o-p61fail1' ENTITIES="parameter" URI='p61fail1.xml'>
+     no other types, including TEMP, which is valid in SGML
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [62]'
+      ID='o-p62fail1' ENTITIES="parameter" URI='p62fail1.xml'>
+     INCLUDE must be upper case
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [62]'
+      ID='o-p62fail2' ENTITIES="parameter" URI='p62fail2.xml'>
+     no spaces in terminating delimiter
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [63]'
+      ID='o-p63fail1' ENTITIES="parameter" URI='p63fail1.xml'>
+     IGNORE must be upper case
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [>3]'
+      ID='o-p63fail2' ENTITIES="parameter" URI='p63fail2.xml'>
+     delimiters must be balanced
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [64]'
+      ID='o-p64fail1' ENTITIES="parameter" URI='p64fail1.xml'>
+     section delimiters must balance
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [64]'
+      ID='o-p64fail2' ENTITIES="parameter" URI='p64fail2.xml'>
+     section delimiters must balance
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail1' URI='p66fail1.xml'>
+     terminating ';' is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail2' URI='p66fail2.xml'>
+     no S after '&amp;#'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail3' URI='p66fail3.xml'>
+     no hex digits in numeric reference
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail4' URI='p66fail4.xml'>
+     only hex digits in hex references
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail5' URI='p66fail5.xml'>
+     no references to non-characters
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail6' URI='p66fail6.xml'>
+     no references to non-characters
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [68]'
+      ID='o-p68fail1' URI='p68fail1.xml'>
+     terminating ';' is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [68]'
+      ID='o-p68fail2' URI='p68fail2.xml'>
+     no S after '&amp;'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [68]'
+      ID='o-p68fail3' URI='p68fail3.xml'>
+     no S before ';'
+    </TEST>
+
+  <TEST TYCTIONS='4.1 [66]'
+      ID='o-p66fail4' URI='p66fail4.xml'>
+     only hex digits in hex references
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail5' URI='p66fail5.xml'>
+     no references to non-characters
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail6' URI='p66fail6.xml'>
+     no references to non-characters
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [68]'
+      ID='o-p68fail1' URI='p68fail1.xml'>
+     terminating ';' is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [68]'
+      ID='o-p68fail2' URI='p68fail2.xml'>
+     no S after '&amp;'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [68]'
+      ID='o-p68fail3' URI='p68fail3.xml'>
+     no S before ';'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [69]'
+      ID='o-p69fail1' URI='p69fail1.xml'>
+     terminating ';' is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [69]'
+      ID='o-p69fail2' URI='p69fail2.xml'>
+     no S after '%'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [69]'
+      ID='o-p69fail3' URI='p69fail3.xml'>
+     no S before ';'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [70]'
+      ID='o-p70fail1' URI='p70fail1.xml'>
+     This is neither
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail1' URI='p71fail1.xml'>
+     S is required before EntityDef
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail2' URI='p71fail2.xml'>
+     Entity name is a Name, not an NMToken
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail3' URI='p71fail3.xml'>
+     no S after "&lt;!"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail4' URI='p71fail4.xml'>
+     S is required after "&lt;!ENTITY"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail1' URI='p72fail1.xml'>
+     S is required after "&lt;!ENTITY"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail2' URI='p72fail2.xml'>
+     S is required after '%'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail3' URI='p72fail3.xml'>
+     S is required after name
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail4' URI='p72fail4.xml'>
+     Entity name is a name, not an NMToken
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail1' URI='p73fail1.xml'>
+     No typed replacement text
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail2' URI='p73fail2.xml'>
+     Only one replacement value
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail30' URI='p73fail3.xml'>
+     No NDataDecl on replacement text
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail4' URI='p73fail4.xml'>
+     Value is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail5' URI='p73fail5.xml'>
+     No NDataDecl without value
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [74]'
+      ID='o-p74fail1' URI='p74fail1.xml'>
+     no NDataDecls on parameter entities
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [74]'
+      ID='o-p74fail2' URI='p74fail2.xml'>
+     value is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [74]'
+      ID='o-p74fail3' URI='p74fail3.xml'>
+     only one value
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [75]'
+      ID='o-p75fail1' URI='p75fail1.xml'>
+     S required after "PUBLIC"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [75]'
+      ID='o-p75fail2' URI='p75fail2.xml'>
+     S required after "SYSTEM"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [75]'
+      ID='o-p75fail3' URI='p75fail3.xml'>
+     S required between literals
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [75]'
+      ID='o-p75fail4' URI='p75fail4.xml'>
+     "SYSTEM" implies only one literal
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [75]'
+      ID='o-p75fail5' URI='p75fail5.xml'>
+     only one keyword
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [75]'
+      ID='o-p75fail6' URI='p75fail6.xml'>
+     "PUBLIC" requires two literals (contrast with SGML)
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [76]'
+      ID='o-p76fail1' URI='p76fail1.xml'>
+     S is required before "NDATA"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [76]'
+      ID='o-p76fail2' URI='p76fail2.xml'>
+     "NDATA" is upper-case
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [76]'
+      ID='o-p76fail3' URI='p76fail3.xml'>
+     notation name is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2.2 [76]'
+      ID='o-p76fail4' URI='p76fail4.xml'>
+     notation names are Names
+    </TEST>
+
+  <TEST TYPE='error' SECTIONS='2.3, 4.2.2 [11]'
+      ID='o-p11pass1' URI='p11pass1.xml'>
+     system literals may not contain
+    URI fragments
+    </TEST>
+
+</TESTCASES>

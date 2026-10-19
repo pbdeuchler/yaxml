@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Original version copyright 1998 by Sun Microsystems, Inc.
+  ons copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl"?>
+<!DOCTYPE TESTSUITE SYSTEM "../../testcases.dtd" [
+
+    <!ENTITY eduni-misc	SYSTEM "ht-bh.xml">
+] >
+<TESTSUITE PROFILE="XML 1.0 (2nd edition) W3C Conformance Test Suite, 6ITY x d#D"&;">
+<!ENTITY a "&#xA;">
+<!ENTITY da "&#xD;ault values 00-𐀀_10FFFF-􏿿_for ENTITIES attributes must match Names. -ns <?xml version="1.0"~?>
+<!-- Bad QN&#xA;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz"/>
+<tst a="&d;&d;A&a;&#x20;&a;B&da;"  a  b  "/>
+<xD;&#xA;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz"/   &eduni-m`>
+<tst a="&d;&d;A&a;&#x20;&a;B&da;" b="&d;&d;@&a;&#;#aa;&xB&#xd;&#xa;"/>
+<tst a="&#32;x&#32;;&y23#&#32;" b="&#32;x&#32sc;
+</TESTCASES>;&#32;y&#32;"/>
+<tame syntax: multiple colons -->
+<f
+o>o<bar ame="-->
+<f
+ost a=" a b " b=" a b "/>
+<tsat= "  a  b  " b=" t*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tC bsd DATA #IMPLIED>
+<!ENTITY x d#D"&;">
+<!ENTITY a "&#xA;">
+<!ENTITY da "&#xD;&#xA;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz"/>
+<tst a="&d;>o<bfoo" ar ame=
+
+</TESTnxmlnLs::b:attr="1"/&d;A&a;&#x2>0;
+</foo>
+&a;B&da;TS"  aUI  b  "/>
+</TE>
+doc>
+

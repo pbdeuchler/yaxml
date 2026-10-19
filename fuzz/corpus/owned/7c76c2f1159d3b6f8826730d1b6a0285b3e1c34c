@@ -1,0 +1,457 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "dtds/xhtml1-strict.dtd">
+<?xml-stylesheet href="W3C-PR.css" type="text/css"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>XHTML 1.0: The Extensible HyperText Markup
+Language</title>
+<link rel="stylesheet"
+href="W3C-PR.css" type="text/css" />
+<style type="text/css">
+span.term { font-style: italic; color: rgb(0, 0, 192) }
+code {
+	color: green;
+	font-family: monospace;
+	font-weight: bold;
+}
+
+code.greenmono {
+	color: green;
+	font-family: monospace;
+	font-weight: bold;
+}
+.good {
+	border: solid green;
+	border-width: 2px;
+	color: green;
+	font-weight: bold;
+	margin-right: 5%;
+	margin-left: 0;
+}
+.bad  {
+	border: solid red;
+	border-width: 2px;
+	margin-left: 0;
+	margin-right: 5%;
+	color: rgb(192, 101, 101);
+}
+
+img {
+	color: white;
+	border: none;
+}
+
+div.navbar { text-align: center; }
+div.contents {
+	background-color: rgb(204,204,255);
+	padding: 0.5em;
+	border: none;
+	margin-right: 5%;
+}
+.tocline { list-style: none; }
+table.exceptions { background-color: rgb(255,255,153); }
+</style>
+</head>
+<body>
+<div class="navbar">
+  <a href="#toc">table of contents</a> 
+  <hr />
+</div>
+<div class="head"><p><a href="http://www.w3.org/"><img class="head"
+src="w3c_home.gif" alt="W3C" /></a></p>
+
+<h1 class="head"><a name="title" id="title">XHTML</a><sup>&#8482;</sup> 1.0:
+The Extensible HyperText Markup Language</h1>
+
+<h2>A Reformulation of HTML 4.0 in XML 1.0</h2>
+
+<h3>W3C Proposed Recommendation 10 December 1999</h3>
+
+<dl>
+<dt>This version:</dt>
+
+<dd><a href=
+"http://www.w3.org/TR/1999/PR-xhtml1-19991210">
+http://www.w3.org/TR/1999/PR-xhtml1-19991210</a> <br />
+(<a href="xhtml1.ps">Postscript version</a>,
+<a href="xhtml1.pdf">PDF version</a>,
+<a href="xhtml1.zip">ZIP archive</a>, or
+<a href="xhtml1.tgz">Gzip'd TAR archive</a>)
+</dd>
+
+<dt>Latest version:</dt>
+
+<dd><a href="http://www.w3.org/TR/xhtml1">
+http://www.w3.org/TR/xhtml1</a></dd>
+
+<dt>Previous versions:</dt>
+
+<dd><a href=
+"http://www.w3.org/TR/1999/WD-xhtml1-19991124">
+http:/<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
+    <!ENTITY sun-invalid	SYSTEM "sun/sun-invalid.xml">
+    <!ENTITY sun-not-wf		SYSTEM "sun/sun-not-wf.xml">
+    <!ENTITY sun-error		SYSTEM "sun/sun-error.xml">
+
+    <!-- James Clark "XMLTEST" -->
+    <!ENTITY jclark-xmltest	SYSTEM "xmltest/xmltest.xml">
+
+    <!-- Fuji Xerox "Japanese Documents" -->
+    <!ENTITY xerox-japanese	SYSTEM "japanese/japanese.xml">
+
+    <!-- NIST/OASIS test suite -->
+    <!ENTITY nist-oasis		SYSTEM "oasis/oasis.xml">
+	
+    <!-- IBM tests -->
+    <!ENTITY ibm-invalid	SYSTEM "ibm/ibm_oasis_invalid.xml">
+    <!ENTITY ibm-not-wf		SYSTEM "ibm/ibm_oasis_not-wf.xml">
+    <!ENTITY ibm-valid		SYSTEM "ibm/ibm_oasis_valid.xml">
+    <!ENTITY ibm-xml1.1-invalid SYSTEM "ibm/xml-1.1/ibm_invalid.xml">
+    <!ENTITY ibm-xml1.1-not-wf  SYSTEM "ibm/xml-1.1/ibm_not-wf.xml">
+    <!ENTITY ibm-xml1.1-valid   SYSTEM "ibm/xml-1.1/ibm_valid.xml">
+
+    <!-- Edinburgh University tests -->
+    <!ENTITY eduni-errata2e	SYSTEM "eduni/errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "eduni/xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "eduni/namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "eduni/namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "eduni/errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "eduni/namespaces/errata-1e/errata1e.xml">
+    <!ENTITY eduni-errata4e	SYSTEM "eduni/errata-4e/errata4e.xml">
+    <!ENTITY eduni-misc         SYSTEM "eduni/misc/ht-bh.xml">
+] >
+<TESTSUITE PROFILE="XML 1.0 (2nd edition) W3C Conformance Test Suite, 6 October 2000">
+<TESTCASES PROFILE="James Clark  XML 1.0 Tests" xml:base="xmltest/">
+    &jclark-xmltest;
+</TESTCASES>
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests XML 1.0 Tests" xml:base="japanese/">    
+    &xerox-japanese;
+</TESTCASES>
+
+<TESTCASES PROFILE="Sun Microsystems XML Tests" xml:base="sun/">
+    &sun-valid;
+    &sun-invalid;
+    &sun-not-wf;
+    &sun-error;
+</TESTCASES>
+
+<TESTCASES PROFILE="OASIS/NIST XML 1.0 Tests" xml:base="oasis/">
+    &nist-oasis;
+</TESTCASES>
+    
+<TESTCASES PROFILE="IBM XML 1.0 Tests" xml:base="ibm/">
+    &ibm-invalid;
+    &ibm-not-wf;
+    &ibm-valid;
+</TESTCASES>
+<!-- Wrapping TESTCASES elements below added by Dieter Köhler -->
+<TESTCASES PROFILE="IBM XML 1.1 Tests" xml:base="ibm/xml-1.1/">
+    &ibm-/www.w3.org/TR/1999/WD-xhtml1-19991124</a></dd>
+<dd><a href=
+"http://www.w3.org/TR/1999/PR-xhtml1-19990824">
+http://www.w3.org/TR/1999/PR-xhtml1-19990824</a></dd>
+
+<dt>Authors:</dt>
+
+<dd>See <a href="#acks">acknowledgements</a>.</dd>
+</dl>
+
+<p class="copyright"><a href= 
+"http://www.w3.org/Consortium/Legal/ipr-notice#Copyright">
+Copyright</a> &copy; 1999 <a href="http://www.w3.org/">W3C</a><sup>&reg;</sup>
+(<a href="http://www.lcs.mit.edu/">MIT</a>, <a href= 
+"http://www.inria.fr/">INRIA</a>, <a href=
+"http://www.keio.ac.jp/">Keio</a>), All Rights Reserved. <abbr
+title="World Wide Web Consortium">W3C</abbr> <a
+href= 
+"http://www.w3.org/Consortium/Legal/ipr-notice#Legal_Disclaimer">
+liability</a>, <a href= 
+"http://www.w3.org/Consortium/Legal/ipr-notice#W3C_Trademarks">
+trademark</a>, <a href= 
+"http://www.w3.org/Consortium/Legal/copyright-documents">document
+use</a> and <a href= 
+"http://www.w3.org/Consortium/Legal/copyright-software">software
+licensing</a> rules apply.</p>
+<hr />
+</div>
+
+<h2 class="notoc">Abstract</h2>
+
+<p>This specification defines <abbr title="Extensible Hypertext Markup
+Language">XHTML</abbr> 1.0, a reformulation of HTML
+4.0 as an XML 1.0 application, and three <abbr title="Document Type
+Definition">DTDs</abbr> corresponding to
+the ones defined by HTML 4.0. The semantics of the elements and
+their attributes are defined in the W3C Recommendation for HTML
+4.0. These semantics provide the foundation for future
+extensibility of XHTML. Compatibility with existing HTML user
+agents is possible by following a small set of guidelines.</p>
+
+<h2>Status of this document</h2>
+
+<p><em>This section describes the status of this document at the time
+of its publication. Other documents may supersede this document. The
+latest status of this document series is maintained at the W3C.</em></p>
+
+<p>This specification is a Proposed Recommendation of the HTML Working Group. It is 
+a revision of the Proposed Recommendation dated <a
+href= "http://www.w3.org/TR/1999/PR-xhtml1-19990824/">24 August
+1999</a> incorporating changes as a result of comments from the Proposed
+Recommendation review, and 
+comments and further deliberations of the W3C HTML Working Group. A 
+<a href="xhtml1-diff-19991210.html">diff-marked version</a> from the previous
+proposed recommendation is available for comparison purposes.</p>
+
+<p>On 10 December 1999, this document enters a
+<a href="http://www.w3.org/Consortium/Process/#RecsPR">
+Proposed Recommendation</a> review period. From that date until 8 January
+2000,
+W3C Advisory Committee representatives are encouraged
+to review this specification and return comments in their completed
+ballots to w3c-html-review@w3.org. Please send any comments of a
+confidential nature in separate email to w3t-html@w3.org, which is
+visible to the Team only.</p>
+
+<p>No sooner than 14 days after the end of the review period, the
+Director will announce the document's disposition: it may become a W3C
+Recommendation (possibly with minor changes), it may revert to Working
+Draft status, or it may be dropped as a W3C work item.</p>
+
+<p>Publication as a Proposed Recommendation does not imply endorsement
+by the W3C membership.  This is still a draft document and may be
+updated, replaced or obsoleted by other documents at any time. It is
+inappropriate to cite W3C Proposed Recommendation as other than "work
+in progress."</p>
+
+<p>This document has been produced as part of the <a href= 
+"http://www.w3.org/MarkUp/">W3C HTML Activity</a>. The goals of
+the <a href="http://www.w3.org/MarkUp/Group/">HTML Working
+Group</a> <i>(<a href="http://cgi.w3.org/MemberAccess/">members
+only</a>)</i> are discussed in the <a href= 
+"http://www.w3.org/MarkUp/Group/HTMLcharter">HTML Working Group
+charter</a> <i>(<a href="http://cgi.w3.org/MemberAccess/">members
+only</a>)</i>.</p>
+
+<p>A list of current W3C Recommendations and other technical documents
+can be found at <a
+href="http://www.w3.org/TR">http://www.w3.org/TR</a>.</p>
+
+<p>Public discussion on <abbr title="HyperText Markup
+Language">HTML</abbr> features takes place on the mailing list <a
+href="mailto:www-html@w3.org"> www-html@w3.org</a> (<a href=
+"http://lists.w3.org/Archives/Public/www-html/">archive</a>). The W3C
+staff contact for work on HTML is <a href= "mailto:dsr@w3.org">Dave
+Raggett</a>.</p>
+
+<p>Please report errors in this document to <a
+href="mailto:www-html-editor@w3.org">www-html-editor@w3.org</a>.</p>
+
+<p>The list of known errors in this specification is available at <a
+href="http://www.w3.org/1999/12/PR-xhtml1-19991210-errata">http://www.w3.org/1999/12/PR-xhtml1-19991210-errata</a>.</p>
+
+<h2 class="notoc"><a id="toc" name="toc">Contents</a></gt;The following is MathML markup:&lt;/p&gt;
+    &lt;math xmlns="http://www.w3.org/1998/Math/MathML"&gt;
+      &lt;apply&gt; &lt;log/&gt;
+        &lt;logbase&gt;
+          &lt;cn&gt; 3 &lt;/cn&gt;
+        &lt;/logbase&gt;
+        &lt;ci&gt; x &lt;/ci&gt;
+      &lt;/apply&gt;
+    &lt;/math&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+</div>
+
+<p>The following example shows the way in which XHTML 1.0 markup
+could be incorporated into another XML namespace:</p>
+
+<div class="good">
+<pre>
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!-- initially, the default namespace is "books" --&gt;
+&lt;book xmlns='urn:loc.gov:books'
+    xmlns:isbn='urn:ISBN:0-395-36341-6' xml:lang="en" lang="en"&gt;
+  &lt;title&gt;Cheaper by the Dozen&lt;/title&gt;
+  &lt;isbn:number&gt;1568491379&lt;/isbn:number&gt;
+  &lt;notes&gt;
+    &lt;!-- make HTML the default namespace for a hypertext commentary --&gt;
+    &lt;p xmlns='http://www.w3.org/1999/xhtml'&gt;
+        This is also available &lt;a href="http://www.w3.org/"&gt;online&lt;/a&gt;.
+    &lt;/p&gt;
+  &lt;/notes&gt;
+&lt;/book&gt;
+</pre>
+</div>
+
+<h2><a name="uaconf" id="uaconf">3.2 User Agent
+Conformance</a></h2>
+
+<p>A conforming user agent must meet all of the following
+criteria:</p>
+
+<ol>
+<li>In order to be consistent with the XML 1.0 Recommendation <a
+href="#ref-xml">[XML]</a>, the user agent must parse and evaluate
+an XHTML document for well-formedness. If the user agent claims
+to be a validating user agent, it must also validate documents
+against their referenced DTDs according to <a href="#ref-xml">
+[XML]</a>.</li>
+
+<li>When the user agent claims to support <a href="#facilities">
+facilities</a> defined within this specification or required by
+this specification through normative reference, it must do so in
+ways consistent with the facilities' definition.</li>
+
+<li>When a user agent processes an XHTML document as generic XML,
+it shall only recognize attributes of type
+<code>ID</code> (e.g. the <code>id</code> attribute on most xml1.1-invalid;
+    &ibm-xml1.1-not-wf;
+    &ibm-xml1.1-valid;
+</TESTCASES>
+
+<TESTCASES xml:base="eduni/errata-2e/">
+    &eduni-errata2e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/xml-1.1/">
+    &eduni-xml11;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/1.0/">
+    &eduni-ns10;XHTML elements)
+as fragment identifiers.</li>
+
+<li>If a user agent encounters an element it does not recognize,
+it must render the element's content.</li>
+
+<li>If a user agent encounters an attribute it does not
+recognize, it must ignore the entire attribute specification
+(i.e., the attribute and its value).</li>
+
+<li>If a user agent encounters an attribute value it doesn't
+recognize, it must use the default attribute value.</li>
+
+<li>If it encounters an entity reference (other than one
+of the predefined entities) for which the User Agent has 
+processed no declaration (which could happen if the declaration
+is in the external subset which the User Agent hasn't read), the entity 
+reference should be rendered as the characters (starting
+with the ampersand and ending with the semi-colon) that
+make up the entity reference.</li>
+
+<li>When rendering content, User Agents that encounter 
+characters or character entity references that are recognized but not renderable should display the document in such a way that it is obvious to the user that normal rendering has not taken place.</li>
+
+<li>
+The following characters are defined in [XML] as whitespace characters:
+
+<ul>
+<li>Space (&amp;#x0020;)</li>
+<li>Tab (&amp;#x0009;)</li>
+<li>Carriage return (&amp;#x000D;)</li>
+<li>Line feed (&amp;#x000A;)</li>
+</ul>
+
+<p>
+The XML processor normalizes different system's line end codes into one
+single line-feed character, that is passed up to the application. The XHTML
+user agent in addition, must treat the following characters as whitespace:
+</p>
+
+<ul>
+<li>Form feed (&amp;#x000C;)</li>
+<li>Zero-width space (&amp;#x200B;)</li>
+</ul>
+
+<p>
+In elements where the 'xml:space' attribute is set to 'preserve', the user
+agent must leave all whitespace characters intact (with the exception of
+leading and trailing whitespace characters, which should be removed).
+Otherwise, whitespace
+is handled according to the following rules:
+</p>
+
+<ul>
+<li>
+All whitespace surrounding block elements should be removed.
+</li>
+<li>
+Comments are removed entirely and do not affect whitespace handling. One
+whitespace character on either side of a comment is treated as two white
+space characters.
+</li>
+<li>
+Leading and trailing whitespace inside a block element must be removed.
+</li>
+<li>Line feed characters within a block element must be converted into a
+space (except when the 'xml:space' attribute is set to 'preserve').
+</li>
+<li>
+A sequence of white space characters must be reduced to a single space
+character (except when the 'xml:space' attribute is set to 'preserve').
+</li>
+<li>
+With regard to rendition,
+the User Agent should render the content in a
+manner appropriate to the language in which the content is written.
+In languages whose primary script is Latinate, the ASCII space
+character is typically used to encode both grammatical word boundaries and
+typographic whitespace; in languages whose script is related to Nagari
+(e.g., Sanskrit, Thai, etc.), grammatical boundaries may be encoded using
+the ZW 'space' character, but will not typically be represented by
+typographic whitespace in rendered output; languages using Arabiform scripts
+may encode typographic whitespace using a space character, but may also use
+the ZW space character to delimit 'internal' grammatical boundaries (what
+look like words in Arabic to an English eye frequently encode several words,
+e.g. 'kitAbuhum' = 'kitAbu-hum' = 'book them' == their book); and languages
+in the Chinese script tradition typically neither encode such delimiters nor
+use typographic whitespace in this way. 
+</li>
+</ul>
+
+<p>Whitespace in attribute values is processed according to <a
+href="#ref-xml">[XML]</a>.</p>
+</li>
+</ol>
+
+<!--OddPage-->
+<h1><a name="diffs" id="diffs">4. Differences with HTML
+4.0</a></h1>
+
+<p>Due to the fact that XHTML is an XML application, certain
+practices that were perfectly legal in SGML-based HTML 4.0 <a
+href="#ref-html4">[HTML]</a> must be changed.</p>
+
+<h2><a name="h-4.1" id="h-4.1">4.1 Documents must be
+well-formed</a></h2>
+
+<p><a href="#wellformed">Well-formedness</a> is a new concept
+introduc
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/1.1/">
+    &eduni-ns11;
+</TESTCASES>
+<TESTCASES xml:base="eduni/errata-3e/">
+    &eduni-errata3e;
+</TESTCASES>
+<TESTCASES xml:ed by <a hrbaef="#ref-xml">[XML]</a>. Essentially this
+means that all elements must either have closing tags or be
+written in a special form (as described below), and that all the
+elementsse="eduni/errata-4)*>
+<!ELCTYPE doc
+[ 

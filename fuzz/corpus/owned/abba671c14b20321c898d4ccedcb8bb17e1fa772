@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UThWF-8"?>
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c15n11xmlbase-c14n11spec3-102
+
+Check that correct xml:;ase fixup is ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿpe   </d>
+    </c>
+   </b>
+</a>

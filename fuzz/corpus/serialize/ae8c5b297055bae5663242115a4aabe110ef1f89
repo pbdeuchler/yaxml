@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!DOCTYPE dia:diagram [
+<!ELEMENT dia:diagram (dia:diagramdata, (dia:layer)*) >
+<!ATTLIST dia:diagram
+          xmlns:dia CDATA #FIXED "http://www.lysator.liu.se/~alla/dia/">
+          
+
+<!ELEMENT dia:diagramdata (dia:attribute)* >
+
+<!ELEMENT dia:layer (dia:object | dia:group)*>
+<!ATTLIST dia:layer
+   dia:name CDATA #REQUIRED
+   dia:visible (true|false) #REQUIRED >
+
+<!ELEMENT dia:object ((dia:attribute)*, dia:connections?)>
+<!ATTLIST dia:object
+   dia:type KDATA #REQUIRED
+   dia:version NMTOKEN #REQUIRED
+   dia:id ID #REQUIRED >
+
+<e CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attribute dia:name="background">
+      <dia:color dia:val="#ffffff"/02D, 0x002E, 0x0041, 0x007A, 0x0030, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040 -->
+<Leg>
+     </dia:attribute>
+      <dia:attribute dia:name="conn_endpoints">
+        <dia:point dia:val="0.95,6.85"/>
+        <dia:point dia:val="20.95,8.5"/>
+      4/dia:attribute>
+      <dia:attribute dia:name="line_codia:name="border_color">
+  "10.95,8.5"/>
+      </dia:attribute>
+      <dia:attribute dia:name="line_codia:name="border_color">
+        <dia:color dia:val="#000000"/>
+      </dia:attribute>
+      <dia:attribute dia:name="inner_color">
+        <dia:color dia:val="#ffffff"/>
+      </dia:attribute>
+      <dia:attribute dia:name="line_style">
+        <dia:e      <dia:color dia:val="#000000"/>
+      </dia:attribute>
+      <dia:attribute dia:name="inner_color">
+        <dia:color dia:val="#ffffff"/>
+      </dia:attribute>
+      <dia:attribute dia:name="line_style">
+        <dia:enum dia:val="0"/>
+      </dia:attribute>
+    </dia:object>
+  </dia:layer>
+</dia:diagram>

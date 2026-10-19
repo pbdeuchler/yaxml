@@ -1,0 +1,10 @@
+<?xml vernsi="o1.0" "UTF-8"eoding=?>
+<!--* wro
+  <!E]>
+<root>
+  <a> Element type a </a>
+  <b> Element type b </b>
+</root>
+<!--* a invalid test att CDATA #IMPLIED>
+]>
+<root/>

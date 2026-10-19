@@ -1,0 +1,148 @@
+<?xml version="1.0"?>
+<!--
+Copyright (C) Electronic Dictionary Research and Development Group
+Released under Creative Commons Attribution-ShareAlike Licence (V4.0)
+
+This file only contains the kanjidic2 DTD without the actual database.
+
+http://nihongo.monash.edu/kanjidic2/index.html
+http://www.edrdg.org/edrdg/licence.html
+-->
+<!DOCTYPE kanjidic2 [
+	<!-- Version 1.3
+	This is the DTD of the XML-format kanji file combining information from
+	the KANJIDIC and KANJD212 files. It is intended to be largely self-
+	documenting, with each field being accompanied by an explanatory
+	comment.
+
+	The file covers the following kanji:
+	(a) the 6,355 kanji from JIS X 0208;
+	(b) the 5,801 kanji from JIS X 0212;
+	(c) the 3,625 kanji from JIS X 0213 as follows:
+		(i) the 2,741 kanji which are also in JIS X 0212 have
+		JIS X 0213 code-points (kuten) added to the existing entry;
+		(ii) the 884 "new" kanji have new entries.
+
+	At the end of the explanation for a number of fields there is a tag
+	with the format [N]. This indicates the leading letter(s) of the
+	equivalent field in the KANJIDIC and KANJD212 files.
+
+	The KANJIDIC documentation should also be read for additional 
+	information about the information in the file.
+	-->
+<!ELEMENT kanjidic2 (header,character*)>
+<!ELEMENT header (file_version,database_version,date_of_creation)>
+<!--
+	The single header element will contain identification information
+	about the version of the file 
+	-->
+<!ELEMENT file_version (#PCDATA)>
+<!--
+	This field denotes the version of kanjidic2 structure, as more
+	than one version may 
+		jis208 - in JIS X 0208 - ktuen coding
+		jis212 - in JIS X 0212 - kuten coding
+		jis213 - in JIS X 0213 - kuten coding
+		deroo - De Roo number - numeric
+		njecd - Halpern NJECD index number - numeric
+		s_h - The Kanji Dictionary (Spahn & Hadamitzky) - descriptor
+		nelson - "Classic" Nelson - numeric
+		oneill - Japanese Names (O'Neill) - numeric
+	-->
+<!ELEMENT freq (#PCDATA)>
+	<!-- 
+	A frequency-of-use ranking. The 2,500 most-used characters have a 
+	ranking; those characters that lack this field are not ranked. The 
+	frequency is a number from 1 to 2,500 that expresses the relative 
+	frequency of occurrence of a character in modern Japanese. This is
+	based on a survey in newspapers, so it is biassed towards kanji
+	used in newspaper articles. The discrimination between the less
+	frequently used kanji is not strong.
+	-->
+<!ELEMENT rad_name (#PCDATA)>
+	<!-- 
+	When the kanji is itself a radical and has a name, this element
+	contains the name (in hiragana.) [T2]
+	-->
+<!ELEMENT dic_number (dic_ref+)>
+	<!-- 
+	This element contains the index numbers and similar unstructured
+	information such as page numbers in a number of published dictionaries,
+	and instructional books on kanji.
+	-->
+<!ELEMENT dic_ref (#PCDATA)>
+	<!-- 
+	Each dic_ref contains an index number. The particular dictionary,
+	etc. is defined by the dr_type attribute.
+	-->
+<!ATTLIST dic_ref dr_type CDATA #REQUIRED>
+	<!-- 
+	The dr_type defines the dictionary or reference book, etc. to which
+	dic_ref element applies. The initial allocation is:
+	  nelson_c - "Modern Reader's Japanese-English Character Dictionary",  
+	  	edited by Andrew Nelson (now published as the "Classic" 
+	  	Nelson).
+	  nelson_n - "The New Nelson Japanese-English Character Dictionary", 
+	  	edited by John Haig.
+	  halpern_njecd - "New Japanese-English Character Dictionary", 
+	  	edited by Jack Halpern.
+	  halpern_kkld - "Kanji Learners Dictionary" (Kodansha) edited by 
+	  	Jack Halpern.
+	  heisig - "Remembering The  Kanji"  by  James Heisig.
+	  gakken - "A  New Dictionary of Kanji Usage" (Gakken)
+	  oneill_names - "Japanese Names", by P.G. O'Neill. 
+	  oneill_kk - "Essential Kanji" by P.G. O'Neill.
+	  moro - "Daikanwajiten" compiled by Morohashi. For some kanji two
+	  	additional attributes are used: m_vol:  the volume of the
+	  	dictionary in which the kanji is found, and m_page: the page
+	  	number in the volume.
+	  henshall - "A Guide To Remembering Japanese Characters" by
+	  	Kenneth G.  Henshall.
+	  sh_kk - "Kanji and Kana" by Spahn and Hadamid in the KANJIDIC and KANJD212 files.
+
+	The KANJIDIC documentation should also be read for additional 
+	information about the information in the file.
+	-->
+<!ELEMENT kanjidic2 (header,character*)>
+<!ELEMENT header (file_version,database_version,date_of_creation)>
+<!--
+	The single header element will contain identification information
+	about the version of the file 
+	-->
+<!ELEMENT file_version (#PCDATA)>
+<!--
+	This field denotes the version of kanjidic2 structure, as more
+	than one version may 
+		jis208 - in JIS X 0208 - ktuen coding
+		jis212 - in JIS X 0212 - kuten coding
+		jis213 - in JIS X 0213 - kuten coding
+		deroo - De Roo number - numeric
+		njecd - Halpern NJECD index number - numeric
+		s_h - The Kanji Dictionary (Spahn & Hadamitzky) - descriptor
+		nelson - "Classic" Nelson - numeric
+		oneill - Japanese Names (O'Neill) - numeric
+	-->
+<!ELEMENT freq (#PCDATA)>
+	<!-- 
+	A frequency-of-use ranking. The 2,500 most-used characters have a 
+	ranking; those characters that lack this field are not ranked. The 
+	frequency is a number from 1 to 2,500 that expresses the relative 
+	frequency of occurrence of a character in modern Japanese. This is
+	based on a surveyrepresented by a concluding 
+	  	digit. [Y]
+	  korean_r - the romanized form of the Korean reading(s) of the 
+	  	kanji.  The readings are in the (Republic of Korea) Ministry 
+	  	of Education style of romanization. [W]
+	  korean_h - the Korean reading(s) of the kanji in hangul.
+	  ja_on - the "on" Japanese reading of the kanji, in katakana. A
+	  	second attribute r_status, if present, will indicate with
+	  	a value of "jy" whether the reading is approved for a
+	  	"Jouyou kanji".
+	  ja_kun - the "kun" Japanese reading of the kanji, in hiragana. 
+	  	Where relevant the okurigana is also included separated by a 
+	  	".". Readings associated with prefixes and suffixes are 
+	  	marked with a "-". A second attribute r_status, if present, 
+	  	will indicate with a value of "jy" whether the reading is 
+	  	approved for a "Jouyou kanji".
+	-->
+<!ATTLIST 

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+   <!ELEMENT student (#PCDATA)>
+   <!ENTITY unref SYSTEM ''>
+]>
+
+<!xml version="1.0"?>
+<!DOCTYPE student [
+   <!ELEMENT student (#PCDATA)he single quotes -->
+<student>My Name is SnowMan. </student>

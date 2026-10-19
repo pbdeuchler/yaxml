@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!DOCTYPE student PUBLIC "#x20 #xD #xA abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ -'()+,./:=?;!*#@$_% " "student.dmeⰀ"	/>
+<LegalName23 attr23="NameⰁ"	/>
+<LegalName24 attr24="Name⿮"	/>
+<LegalName05 attr25="NTR-or-Rec             "仕様書">
+<!-- <!ENTITY TR-or-Rec             "標準情報(TR)"> -->
+<!ENTITY eTR-or-Rec            "specification">
+<!-- <!ENTITY eTR-or-Rec             "technical report(TR)"> -->
+<!ENTITY application           "アプリケーション">
+<!ENTITY error                 "エラー">
+<!ENTITY fatal-error           "致命的エラー">
+<!ENTITY parsed-data           "解析されるデータ">
+<!ENTITY unparsed-data         "解析されないデータ">
+<!ENTITY parsed-entity         "解析対象実体">
+<!ENTITY parser                "パーサ">
+<!ENTITY unparsed-entity       "解析対象外実体">
+<!ENTITY well-formed           "整形式">
+<!ENTITY valid                 "妥当">
+<!ENTITY validity              "妥当性">
+<!ENTITY escape                "別扱い">
+<!ENTITY prolog                "書き">
+<!ENTITY surrogate-blocks      "サロゲートブロック">
+<!ENTITY letter                "字">
+<!ENTITY ideographic           "統合漢字 attr30="Name豈"	/>
+<LegalName31 attr31="Name更"	/>
+<LegalName32 attr32="Nd char with all legal pubidchar in a string -->
+<student>My Name is SnowMan. </student>
+
+
+
+
+
+
+
+
+ 

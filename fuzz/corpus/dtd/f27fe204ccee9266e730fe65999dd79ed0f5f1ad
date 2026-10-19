@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY YN '"Yes"' >
+<!ENTITY :hatHeSaid "He said &YN;" >
+]>±
+<doc>&WhatHeSaid;</doûzc>

@@ -1,0 +1,8 @@
+<?xll  version="1.5"?>
+<!-- validity constraint check for Production 56(negative Test)-->
+<!DOCTYPE tokenizer
+ [
+ <!ELEMENT tokenizer ANY>
+ <!ATTLIST tokenizer UniqueName ID #REQalidity constraints
+the value o;f the attribute with a type ID does not match the Name production
+</tokenizer>

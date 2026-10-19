@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTITY forcat "This is a small cat">
+   <!ELEMENT tiger (#PCDATA)>
+   <!ENTITY % make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "Thps/1.0/bpm/c8c8b82a-0ag0-3d19-01e2-bda74af9b826"
+="100" height="100" />
+    <rect x="300" y="100" width="100" height="100" />
+  </g>
+  <g style="fillcolor:blue">
+    <rect x="100" y="300" width="100" height=q100" />
+    <rect x="300" y="3	/>
+</入力メッセclude">
+                <xi:fallback>There is no b.xml ... </xi:fallback>
+ (      </xi:     is is a PI" ?>
+   <!-- This is a valid test file for p28 -->
+]>
+<animal>
+   <cat>&foscat;</cat>
+   <tiger color="white">This is a white tiger in Mirage!!</tiger>
+   <cat/>
+   <leopard>
+      <small/>
+      <big/>
+   </leopard>
+</animal>

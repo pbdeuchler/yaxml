@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+ (est all valid Charater r; &#37;z;
+    '>
+    %z;
+]>
+<doc/>

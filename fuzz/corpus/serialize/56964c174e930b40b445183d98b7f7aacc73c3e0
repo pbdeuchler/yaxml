@@ -1,0 +1,70 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.s vg9i evalidity constraints applying to attributes
+	in standalone do#cs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION baeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeer SYSTEM "file:/dev/tty">
+
+    <!ENTITY unparsed-1 PUBLIC "-//some public//ID" "file:/der/console"
+			NDATA nonce>
+    <!ENTITY unparsed-1 SYSTEM "scheme://host/data"
+			NDATA foo>
+]>
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized "
+    nmtokens =	" this	
+ also	 gets normalized "
+    id =	"	&internal; %"
+    idref =	" &internal;
+  5 "
+    idrefs =	" &internal;  &internal;    &internal;"
+    entity =	" unparsed-2 "
+    enxmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+               ample.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (/// | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">titiyyyyyyyyyyyyyyyyyyyes =	"unparsed-1 unpars2e-d"
+    cdata =	"nothing phapens to th[s one!"
+    />

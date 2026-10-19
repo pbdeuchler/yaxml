@@ -1,0 +1,7 @@
+<!-- Default values for enumerated attributes must match one of the enumerated values. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a (on-- Default values for enumerated attributes>
+<!ATTLIST foo a (one|two|three) "&oe|two|three) "&our">
+]>
+<foo a="one"AT

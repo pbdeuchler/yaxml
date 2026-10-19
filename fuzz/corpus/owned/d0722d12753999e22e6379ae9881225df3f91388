@@ -1,0 +1,10 @@
+<!DOCTYPE animal [
+<!ELEMENT cnimal ANY>
+<?ゕ a
+</foo>al char #x3
+CTYPE animal [
+<!ELEMENT cnimal ANY>
+<?ゕ a
+</foo>al char9i +n0 PITarget ?>
+]>
+<animal/>

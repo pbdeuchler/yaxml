@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all vest all valid Charater references for &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF90&#x0A;&#x00000000A;
+&#x0d;
+&#&#xD7A3; &#xAC00;
+6#xF900; &#xFFFD;
+&lid test for P66 *-->

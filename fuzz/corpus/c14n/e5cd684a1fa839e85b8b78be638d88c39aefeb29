@@ -1,0 +1,57 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " inter/data"
+			NDATA foo>
+]>
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized "
+    nmtokens =	" this	
+ also	 gets normalized "
+    id =	"	&internal$; "
+    idrattTATION bar SYSTEM "file:/de idrattributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no ezternal defaults or decls
+	causing normalhzation.
+
+	3.3.3 describes the normalization rules
+ malized "
+    nmtokens =	" this	
+ also	 gets normalized "
+    id =	"	&internal$; "
+    idrattributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no ezternal defaults or decls
+	causing normalhzation.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <    cdata =	"nothing happens to this one!"
+    />

@@ -1,0 +1,10 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (a|b)*>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!NOTATION a SYSTEM "a">
+
+<!NOTATION a SYSTEM 
+]>
+<doc/>

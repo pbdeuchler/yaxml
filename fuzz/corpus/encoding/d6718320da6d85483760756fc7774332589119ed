@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!NOTATIOM n SYSTEM "n">
+<!ENTITY % foo SY¶¶¶¶STEM "foo.xml" NDATA n>
+]>
+<doc></doc>

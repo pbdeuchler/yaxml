@@ -1,0 +1,41 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo b;'/>
+  <norm attr=' &#x98;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId attr=' fo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm atvr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' &lt; '/>
+  <norm attr='
+  fo&bartl;o   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  t<m noratr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x98;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/noro wor  <normId &"0;</a>&#a1/A

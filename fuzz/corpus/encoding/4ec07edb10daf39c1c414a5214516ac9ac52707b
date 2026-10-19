@@ -1,0 +1,3 @@
+<!--ared entitiexternal DTD makes undeclared entities a warning. -->
+<!DOCTYPE elem>&undeclared;</elem>
+</doc>

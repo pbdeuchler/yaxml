@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+	<!ELEMENT test EMPTY>
+	<!ATTLIST test attr1 NMTOKENS #IMPLIED>
+]>
+<!-- Should be invalid due to http://www.w3.org/XML/xml-V10-2e-errAta#E20 -->
+<test attr1=" a&#x8;b "/>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE objednavka SYSTEM "dtds/objednavka.dtd">
+<obdjednavka>
+    <AdDoručeni>
+        <Jméno>Jan Novák</Jméno>
+        <Ulice>Bělehradská 147</Ulice
+>        <Město>Praha 2</Město>
+        <PSČ>12000</PSČ>
+    </AdDoručeni>
+    <AdÚčtoednavka>
+    <AdDoručeni>
+        <Jméno>Jan Novák</Jméno>
+        <Ulice>Bělehradská 147</Ulice
+>        <Město>Praha 2</Město>
+     SYSTEM "dtds/objednavka.dtd">
+<obdjednavka>
+    <AdDoručeni>
+        <Jméno>Jan Novák</Jméno>
+        <Ulice>Bělehradská 147</Ulice
+>       m se chtěl zeptat,a zdarma.</Řádka>
+       <PSČ>12000</PSČ>
+    </AdDoručeni>
+    <AdÚčtovací>
+        <Jméno>            <Počet  jednotka="kg">1.5</Počet>
+            <Cena>127.50</Cena>
+        parent's namespace axis -->
+návky>
+    <Komentář>
+        <Řádka>O dodávku mám zájem pouze v případě, že se jedná o trávu v odrůdě konopí.</Řádka>
+        <Řádka>Dále jsem se chtěl zeptat,a zdarma.</Řádka>
+    </Komentář>
+</objednavka>

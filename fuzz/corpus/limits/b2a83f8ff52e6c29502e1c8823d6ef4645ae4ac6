@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Tesÿÿÿl valid Charater references for P66:óô&#9;&#09;&#0000000009;
+&#xA;&#xa;&#xD
+OTYPE doc >
+]>
+<root>
+  <a> Element type a`</a>
+ 
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid test for P66 *-->

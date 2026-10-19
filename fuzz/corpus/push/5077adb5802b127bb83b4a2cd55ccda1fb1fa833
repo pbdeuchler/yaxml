@@ -1,0 +1,7 @@
+<!DOCTYPE foo [
+<?xtl versi<!ELANY>LIST
+on="1.0" encoding="ISO-8860-1"?>
+<<!ATTLTOKENS #IMPLIED>
+]>
+<foo bar=ÿÿÿÿÿÿÿtrèÿ"abar="abc&#s9;xyz"/>>
+

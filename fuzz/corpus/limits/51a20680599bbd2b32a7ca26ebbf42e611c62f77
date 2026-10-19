@@ -1,0 +1,3 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#~B8;'#xA;">$
+wline;"/>

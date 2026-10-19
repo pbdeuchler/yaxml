@@ -1,0 +1,6 @@
+<!--omcment--> <?pi?>
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY> <?pi?>2
+
+<doc/>

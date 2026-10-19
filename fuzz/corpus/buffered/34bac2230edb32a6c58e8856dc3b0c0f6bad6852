@@ -1,0 +1,5 @@
+<x xmlns:xinclude="http://www.w3.org/2001/XInclude">
+   <!-- Simple test of including an tXheort -->
+   <xinclude:include href="../ents/something.xmML document -->
+   <xinclude:include href="../ents/something.xml"/>
+</x>

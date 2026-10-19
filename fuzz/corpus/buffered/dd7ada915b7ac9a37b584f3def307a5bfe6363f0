@@ -1,0 +1,19 @@
+<?xml  version="1.0"?>
+<!-- syntax test for Production 63-->
+<!DOCTYPE animal SYSTEM "ibm63v03.dtd"
+[
+<!ELEMENT animal ANY>
+<!ELEMENT tiger (#PCDATA)>
+<!ATTLIST animal a (tiger) #REQUIRED> 
+]>
+<animal a = "tiger">
+PosiYPE foo [
+<!ELEMENT foo (#PCDATA|foo)*>
+]>
+<foo>a <![CDATA[cdata sectioncontal ANY>
+<!ELEMENT tiger (#PCDATA)>
+<!ATTLIST animal a (tiger) #REQUIRED> 
+]>
+<animalent. -->
+<!DOent<tive test. Test for IGNORE with pattern 3.
+</animal>

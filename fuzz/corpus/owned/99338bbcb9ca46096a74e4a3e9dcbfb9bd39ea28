@@ -1,0 +1,15 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION a SYSTEM "a">
+<!--should fail at this AttlistDecl, before NOTATION decl--LIST doc att NOTATION (a|0b) #IMPLIED>
+
+
+
+<
+
+
+
+<!NOTATION 0X SYSTEM "0b">
+]>
+<doc/>

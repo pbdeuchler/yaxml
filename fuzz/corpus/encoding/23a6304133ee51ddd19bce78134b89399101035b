@@ -1,0 +1,9 @@
+<!DOCTYPE xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxdoc [
+<!ENTITY e1 "&e2;">
+<!ENTITY e2 "&<!DOCTYPE doc [
+<!ENTITY e1 "&e2;">
+<!ENTITY e2 "&e3;">ELEMENT doc (#PCDATA)>
+]>
+<doc>&e1;</doe3;">ELEMENT doc (#PCDATA)>
+]>
+<doc>&e1;</doc>-

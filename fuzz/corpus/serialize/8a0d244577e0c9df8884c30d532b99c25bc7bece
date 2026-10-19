@@ -1,0 +1,205 @@
+<?xmloivnre 0<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+?amespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+??Pi?><!--comment-3"/>
+
+</foo>refixed and unprefiixed atith defaul] <"1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (R//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancustor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//.yyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="enrent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="htnamescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespacE -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,exatp://example.org/foo" xml:lang="en-ie">
+    (R//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespac-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axiorg/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+?amespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+??Pi?><!--comment-3"/>
+
+</foo>refixed and unprefiixed atith defaul] <"1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (R//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancustor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//.yyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="enrent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="htnamescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespacE -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,exatp://example.org/foo" xml:lang="en-ie">
+    (R//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespac-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ a{ent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="enrent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup:/moo./example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (R//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespac-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (/s -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ a{ent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="enrent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup:/moo./example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (R//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ettp://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespac-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo=" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(parent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //examplemrl?.xooivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:la"http://example.or?xmloivnre s="1.0"?>
+<XPqth xmlns:bar="http://example.org/bar" xmlns:baz="htupbar/boxschema/">
+  <D>
+?amespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //examplemrl?.xooivnre s="1.0"?>
+<XPath xmlns:bar="http://examexamoo.bar/boxschema/">
+  ple.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+ <D>
+??Pi?><!--com   (//. | //@* | //namespment-1"/>
+
+</fooace::*) 
+    [ 
+               ample.org/bar" xmlns:baz="hlang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+                     example.http://example.org/~kipper"e>::* | self::()))
+    ]
+<
+/XPath>

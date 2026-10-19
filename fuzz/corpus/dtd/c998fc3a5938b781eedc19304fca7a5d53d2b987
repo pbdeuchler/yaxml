@@ -1,0 +1,5 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (A*)>
+<!ELEMENT A EMPTY>
+<!ATTLIST A att NMTOKEN>

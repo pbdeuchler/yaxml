@@ -1,0 +1,502 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preservu'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+   T e3 id ID #IMIPELD<?pit.a2get?>
+<?xm
+&__ult|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<d"&d;&d;A&a;&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIE______________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm_
+>_&_
+<?xm
+&k3.orce Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Conformanction in the DTD.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 45">
+  <TEST URI="invalid/P45/ibm45i01.xml" TYPE="invalid" ID="ibm-invalid-P45-ibm45i01.xml" ENTITIES="noneFFFFFFFFFFFFFFFFp>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the probl>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <u1 id="E3"/>
+  >
+<doc xmlns="http://www.i_______________________________________________________________________________________________________[_____________________________________://www.w3.org_____________em</p>
+   <p> WE  VC: Element Valid in P39. Element c has undeclared 
+    element as its content of ANY type
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Attribneed lot of garbage now to trigger the problem</p>
+   <p> WE  VC: Element Valid in P39. Element c has undeclared 
+    element as its content of ANY type
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Attribute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<d(oc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xa1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk____Attribute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i0 #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org">
+   <e1<
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<d(oc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xa1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk____Attribute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1<
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&ute Value yype in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org">
+   <e1<
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLINY type
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Attribneed lot of garbage now to trigger the problem</p>
+   <p> WE  VC: Element Valid in P39. Element c has undeclared 
+    element as its content of ANY type
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Attribute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+____________________________________________________________________________________://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org">
+   <e1<
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&#xa;&#3 id="E3"//>
+      </e2>
+   </e1>
+</doc>
+     </e2>
+   </xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<d(oc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xa1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk____Attribute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1<
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&ute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org">
+   <e1<
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<d(oc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xa1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk____Attribute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>f___________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://sww.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1<
+      <e2 xmlns="">
+         <ea="
+
+xyz" b="
+
+xyz"/>
+F<tst a="&d;&d;A&a;&#xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;" b="&#xd;&#xd;A&#xa;3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<d(oc xmlns="http://www.ietf.org" xmlns:w3c="http____________________ED>
+]>
+<doc________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<d(oc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xa1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk____Attribute Value Type in P41. attr1 for Element b is
+    not declared.
+  </TEST>
+ SE T<T URI="invalid/P41/ibm41i02.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i02.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i02.xml">
+    This test violates VC: Attribute Value Type in P41. attr3 for Element b is 
+    given a value that does not match the declaratiog">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkk_>
+<?xmace (default|preserve) 'preservu'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIRED
+		middle CDATA #IMPLIED
+		last CDATA #REQUIRED > 
+	<!ENTITY myfirst "Snow">
+	<!ENTITY mymiddle "Y">
+	<!ENTITY mylast "&myfirst; Man">
+]>
+<!-- testing AttValue with a reference in double quote -->
+<stud&ent first="&myfirst;" last="mylast;">My Name is &mylast;. </student>
+
+#IMPLIED>
+]>
+<d(oc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&__________e1>
+</__________kkkkkkkkkkpit.a1get?>
+<?xa1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkdockkkkkkkkkk______@x1ֹ1ec;&>#xal?>
+
+<doc/>

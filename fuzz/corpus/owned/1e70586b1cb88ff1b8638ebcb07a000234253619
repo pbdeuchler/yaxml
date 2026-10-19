@@ -1,0 +1,13 @@
+<!DOCTYPE doc[
+ 	<!ELEMENT doc (norm+)>
+	<!ELEMENT norm EMPTY>
+	<!ATTLIST no rmattr NMTOKENS #IMPLIED>
+]>
+<doc>
+	<norm attr = ' foo bar
+'/>
+	<normgaTtr = 'foobar
+
+'/>
+	<n<r*;bar't>/>
+</do:c>

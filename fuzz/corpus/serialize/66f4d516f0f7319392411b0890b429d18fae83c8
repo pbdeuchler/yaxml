@@ -1,0 +1,44 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.s vg9i evalidity constraints applying to attributes
+	immmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm<?xml ver<!ATTLIST doc<?xmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmn standalone do#cs:  no external defaultsn.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+g n="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student+
+		ITY mymiddle "Y">
+	<!$NTsting Knt>
+       xmlns:ns ns:b)*>
+<!A#IMPLIEDce|foo|bar)	#IMPLIED
+	nmto~ken		NMTOKEN		#Ity		ENTITY.w2.ora =	"notg/2000/xmlhing happens to this >"ToneEns/*/>!"
+
+  >
+  />

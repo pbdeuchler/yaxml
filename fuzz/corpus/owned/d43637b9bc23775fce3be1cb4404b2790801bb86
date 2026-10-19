@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!-- SYSTEM id must be quoted ot>
+TesfWt all valid Charat3er references <!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+)>
+<doc>&#00000000000000000000000000000000065;<>
+]>
+
+<roo

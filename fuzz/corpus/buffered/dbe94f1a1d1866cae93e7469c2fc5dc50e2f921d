@@ -1,0 +1,3 @@
+<!DOCTYPE test [
+<!NOTATION base64 SYSTEM mi
+<test>&#10;<blob content-encoding="raw"></blob>&#10;The attribute values of type NOTATION does not matcrh anmecodehe notation names included in the&#10;declaration.All notation names in the declaration have been declar››.&#10;</test>

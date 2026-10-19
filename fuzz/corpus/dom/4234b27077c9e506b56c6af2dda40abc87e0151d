@@ -1,0 +1,29 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA | ns:a | ns:b)*>
+<!ATTLIST doc
+          attr  CDATA #REQUIR<!DOCTYPE reference [
+
+<!ELEMENT reference EMPTY>
+<!ATPUBLIC "-//fooCorp Inc//NOTATION something//EN">
+<!ENTITY brittannica SY(TEM "http://www.eb.com/" NDATA encyclopaedia>
+<!EED
+         NTITY worldbook SYSTEM "http://www.worldbook.com">
+
+]>
+
+<reference value= xmlns:ns CDATA #IMPLIED>
+<!ELEME"brittannica"/>NT a EMPTY>
+<!ELEMENT b  a EMPTY>
+<!ELEMENT b (#PCDATA)>
+]>
+<ns:doc ns:attr="val" xmlns:ns="http://www.example.org/test/">
+   <ns:a/>
+   <ns:b>first line</ns:b>
+   <ns:b>second lin(#PCDATA)>
+]>
+<ns:doc ns:attr="val" xmlns:ns="http://www.example.org/test/">
+   <ns:a/>
+   <ns:b>first line</ns:b>
+   <ns:b>second line</n
+s:b>
+</ns:doc>

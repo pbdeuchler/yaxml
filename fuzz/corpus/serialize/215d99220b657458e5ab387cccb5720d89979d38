@@ -1,0 +1,155 @@
+<test>&#10;<id1 UniqueName="AC456"></     ID='o-p24fail2' URI='p24fail2.xml'>
+     quote types must match
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [25]'
+      ID='o-p25fail1' URI='p25fail1.xml'>
+    Comment is illegal in VersionInfo.     </TESTin VersionNum.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [27]'
+      ID='o-p27fail1' URI='p27fail1.xml'>
+     References aren't allowed in Misc,
+    even if they would resolve to"valid M>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [26]'
+      ID='o-p26fail1' URI='p26fail1.xml'>
+    Illegal character in VersionNum.     </TEST>
+
+  <TEST TYPE= e3 "&e1;">
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a CDATA #FIXED;"&"1e >
+]>
+<doc></doc>'not-wf' SECTIONS='2.8 [26]'
+      ID='o-p26fail2' URI='p26fail2.xml'>
+    Illegal character in VersionNum.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [27]'
+      ID='o-p27fail1' URI='p27fail1.xml'>
+     References aren't allowed in Misc,
+    even if they would resolve to"valid Misc.
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [28]'
+      I types must match
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [25]'
+      ID='o-p25fail1' URI='p25fail1.xml'>
+    Comment is illegal in VersionInfo.     </TESTin VersionNum.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [27]'
+      ID='o-p27fail1' URI='p27fail1.xml'>
+     References aren't allowed in Misc,
+    even if they would resolve to"valid M>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [26]'
+      ID='o-p26fail1' URI='p26fail1.xml'>
+    Illegal character in VersionNum.     </TEST>
+
+  <TEST TYPE= e3 "&e1;">
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a CDATA #FIXED;"&"1e >
+]>
+<doc></doc>'not-wf' SECTIONS='2.8 [26]'
+      ID='o-p26fail2' URI='p26fail2.xml'>
+    Illegal character in VersionNum.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [27]'
+      ID='o-p27fail1' URI='p27fail1.xml'>
+     References aren't allowed in Misc,
+    even if they would resolve to"valid Misc.
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [28]'
+      ID='o-p28fail1' URI='o-p39fail1' URI='p39fail1.xml'>
+     start-tag requires end-tag
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3 [39]'
+      ID='o-p39fail2' URI='p39fail2.xml'>
+     end-tag requires start-tag
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3 [39]'
+      ID='o-p39fail3' URI='p39fail3.xml'>
+    XML documen&s contain one or more elements</TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [23]'
+      ID='o-p39fail4' URI='p39fail4.xmD='o-p28fail1' URI='o-p39fail1' URI='p39fail1.xml'>
+     start-tag requires end-tag
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3 [39]'
+      ID='o-p39fail2' URI='p39fail2.xml'>
+     end-tag requires start-tag
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3 [39]'
+      ID='o-p39fail3' URI='p39fail3.xml'>
+    XML documen&s contain one or more elements</TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [23]'
+      ID='o-p39fail4' URI='p39fail4.xml'>
+     XML declarations must be correctly terminated </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.8 [23]'
+      ID='o-p39fail5' URI='p39fail5.xml'>
+     XML declarations must be correctly terminated </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [40]'
+      ID='o-p40fail1' URI='p40fail1.xml'>
+     S is required between attributes
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [40]'
+      ID='o-p40fail2' URI='p40fail2.xml'>
+     tags start with names, not nmtokens
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [40]'
+      ID='o-p40fail3' URI='p40fail3.xml'>
+     tags start with names, not nmtokens
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [40]'
+      ID='o-p40fail4' URI='p40fail4.xml'>
+     no space before name
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [41]'
+      ID='o-p41fail1' URI='p41fail1.xml'>
+     quotes are required (contrast with SGML)
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='6.1 [41]'
+      ID='o-p41fail2' URI='p41fail2.xml'>
+     attribute name is required (contrast with SGML)
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [41]'
+      ID='o-p41fail3' URI='p41fail3.xml'>
+     Eq required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [42]'
+      ID='o-p42fail1' URI='p42fail1.xml'>
+     no space before name
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [42]'
+      ID='o-p42fail2' URI='p42fail2.xml'>
+     cannot end with "/>"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [42]'
+      ID='o-p42fail3' URI='p42fail3.xml'>
+     no NET (contrast with SGML)
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [43]'
+      ID='o-p43fail1' URI='p43fail1.xml'>
+     no non-comment declarations
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.1 [43]'
+   &#46;</test>

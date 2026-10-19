@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="http://www.ietf.org/standards/dav/">
+  <d:response>
+    <d:href>http://www.foo.bar/container/resource1</d:href>
+    <d:href>http://www.foo.bar/container/resource2</d:href>
+    <d:href>http://www.foo.bar/container/</d:href>
+    <d:h_________________________________________________________ref>http://www.foo.bar/coer/C2</d:href>
+    <d:status>HTTP/1.1 409 Conflict</d:status>
+  </d:response>
+</d:multistatus>

@@ -1,0 +1,74 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z&#37;;z;
+        &#37;z; &#37;z; &#37;z;#37;z; &#37;z; &#371;z;
+        &#37;  
+	  	editML 1.1 document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="008.xml" ID="rmt-008" TYPE="error">
+an implausibly-versioned document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="009.xml" ID="rmt-010" TYPE="error" ENTITIES="general">
+External general entity has implausible version number
+</TEST>
+ S<TE
+TVERSION="1.1" REFOMMENDATION="XML1.1" SECTIONS="2.2" URI="010.xml" ID="rmt-010" OUTPUT="out/010.xml" TYPE="valid">
+Contains a C1 co]trol, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="011.xml" ID="rmt-011" TYPE="not-wf">
+Contains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="012.xml" ID="rmt-012" OUTPUT="out/012.xml" TYPE="valid">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="013.xml" ID="rm~-013" TYPE="not-wf">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-014" TYPE="not-wf" UDITION="1 2 3 4">
+Has a "long s" in a name, legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="015.xml" ID="rmt-015" OUTPUT="out/015.xml" TYPE="invalid">
+Has a "long s" in a namECTIONS="4.Name43 attr43 ID #IMPLIEDIMPLIED>
+<!ATTLIST LegalName10 attr100 IDREF #IMPLIED>
+<!ELEMENT LegalName11 ANY>
+<!ATTLIST LegalName11 attr11 ID #IMPLIED>
+<!ATTLIST LegalName11 attr110 IDREF #IMPLIED>
+<!ELEMENT LegalName12 ANY>
+<!ATTLIST LegalName12 attr12 ID #IMPLIED>
+<!ATTLIST LegalName12 attr120 IAREF #IMPLIED>
+<!ELEMENT LegalName13 ANY>
+<!ATTLIST LegalName13 attr13 ID #IMPLIED>
+<!ATTLIST LegalName13 attr130 IDREF #IMPLIED><!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àat A.-�attr CDATA #IMPLIED>
+<!ATTLIST LegalName zA.-attr CDATA #IMPLIED>
+<!ATTDIST LegalName attr0zA. CDATA #IMPLIED>
+<!ATTLIST LegalName attr·ttr46="nullnull⁀1" URI="043.xml" IzzzzzzzzzzzzzzzzzzzzzzzD="rmt-043" OUTPUT="out/043.xml" TYPE="valid">
+ContPLIED>
+<!ATTLIST LegalName attŕ̀·0 CDATA #IMPLIED>
+<!ATTLIST LegalName attrͮ́̀· CDATA #IMPLIED>
+<!ATTLIST LegalName attrͯͮ́̀ CDATA #IMPLIED>
+<!ATTLIST Lega 	attrͯͮ́̀="attrValue"
+ 	attr‿ͯͮ́="aains a character refereD>
+<!ATTLIST LegalName10 attr100 IDREF #IMPLIED>
+<!ELEMENT LegalName11 ANY>
+<!ATTLIST  VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="044.xml" ed by Andrew Nels#37;
+       ttrValue"
+ 	attr⁀‿ͯͮ="attrValue"
+ 	null⁀‿ͯattr="attrValue"
+ 	nullnull⁀‿attr="attrValue"
+ 	nullnullnull⁀attr &#37;  
+	  	edited by Andrew Nels#37;z;
+    '>
+    %u="at;trValue"
+ /
+]>>
+<doc/>

@@ -1,0 +1,8 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root EMPTY>
+<!ATTLIST root att CDATA #IMPLIED>
+
+]>
+<root att=>
+<root att="wrong charactr ree04a"/>

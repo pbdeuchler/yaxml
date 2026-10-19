@@ -1,0 +1,4 @@
+<!DOCTYPE A [
+  <!ENTITY % SYSTEM "A<bbbbbbbbbbbbbbbbbbb_">
+  %SYSTEM;
+  <![

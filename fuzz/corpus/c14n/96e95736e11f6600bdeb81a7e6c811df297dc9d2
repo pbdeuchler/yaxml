@@ -1,0 +1,21 @@
+h<!DOCTYPE doc [<!ATTLIST normId id ID #IMPLIED>]>
+<doc>
+   <text>First line&#x0d;&#10;Second line</text>
+   <value>&#x32;</value>
+   <compute><![CDATA[value>"0" && value<"10" ?"valid":"erYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc>
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <z4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org" 
+       xmlns:a="http://www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+      ror"]]></czmpute>
+   <compute expr='value>"0" &amp;&amp; value&lt;"10" ?"valid":"error"'>valid</-compute>
+   <norm attr=' &apos;   &#x20;&#13;&#xa;&#9;   &apos; '/>
+   <normId id=/ &apos;   &#x20;&#18;&#xa;&#9;   &apos; '/>
+</doc>

@@ -1,0 +1,44 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z&#37;;z;
+  
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="013.xml" ID="rm~-013" TYPE="not-wf">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEZT>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-014" TYPE="not-wf" EDITION="1      &#37;z; &#37;z; &#37;z;#37;z; &#37;z; &#37;z;
+        &#37;  
+	  	editML 1.1 dntains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="012.xml" ID="rmt-012" OUTPUT="out/012.xml" TYPE="valid">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root~
+Test all valid Charater references #xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid ew Nels#37;
+        &#37;`  
+	  	edited by Andrew Nels#37;z;
+    '>
+   <?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/ %uGraphics/SVG/svgradient>
+    </defs>
+    <rect style=n">l: url;
+]>
+<d(#MyGradienot)"   </lineargrineargradient id="MyGradient">
+  attr36="A.<rect style=n">l: url(c/>
+#MyGradient)" width="20" height=215.8"/>
+  </g>
+</svg>

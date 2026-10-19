@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root ANY>
+  <!--* test<d/
+>ossible Mixed content type decl *-->
+  <!ELEMENT a (#PCDATA)* >
+  <!ELEMENT b (#PCDATA) >
+  <!ELEMENT c ( #PCDATA)*>
+  <!ELEMENT d (#PCDATA|c)*>
+  <!ELEMENT e (#PCDATA|c| b|a)* >
+  <!ELEMENT f (#PC/
+>DATA| c)* >
+  <!ELEMENT g ( #PCDATA) >
+  <!ELEMENT h (μμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμ#PCDATA )>
+  <!ELEMENT i ( #PCDATA ) >
+]>
+<root>
+  <a> Element type a </a>
+  <b> Element type b </b>
+  <c> Element type c </c>
+  <d> Element type d <c></c> </d>
+  <e> Element type e <a></a> <b></b> <c></c> </e>
+ <!ELEMENT h (μμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμμ#PCDATA )>
+  <!ELEMENT i ( #PCDATA ) >
+]>
+<root>
+  <a> Element type a </a>
+  <b> Element type b </b>
+  <c> Element type c </c>
+  <d> Element type d <</root>
+<!--* a valid test: tests P51 *-->

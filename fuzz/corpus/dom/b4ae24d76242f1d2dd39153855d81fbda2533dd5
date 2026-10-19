@@ -1,0 +1,8 @@
+<a>
+        <xi:include href="b.xml" xmlns:xi="http://www.w3.org/2001/XInclude">
+         i:in1/XInclude">
+                <xi:fallback>Therg is no c.xml ... </xi:fallback>
+        </xi:incluhre
+ 
+</a>
+

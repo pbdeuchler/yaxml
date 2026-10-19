@@ -1,0 +1,41 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April )* version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internaent in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paala; : PE reference should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?>
+<!-- Comment content--> 
+    &inContent;
+    Charater reference: &#x41 " number99">
+]>
+
+    <!-- sync with ../valid/not-sa02.xml -->
+
+    <!--
+	LOTS of normalized/defaulted attributes
+	keep this from being standalone
+
+	XXX not the best of tests!!
+	... eacnce: &#x41 " numbce should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?>
+<!-- Comment content--> 
+    &inContent;
+    Charater reference: &#x41 " number99">
+]>
+
+    <!-- sync with ../valid/not-sa02.xml -->
+
+    <!--
+	LOTS of normalized/fduealted attributes
+	keep this from being  y="100" width="100" height="100" />
+  </g>
+  <g style="fillcolor:blue">
+    <rect x="100" y="300" width="100" height=q100" />
+    <rect x="300" y="300" wid
+  </g>
+</svg>

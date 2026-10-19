@@ -1,0 +1,5 @@
+<!DOCTYPE doc0[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e PUBLIC "a not very interesting file" "011.mnt">
+]>
+<doc>&e;</toc>

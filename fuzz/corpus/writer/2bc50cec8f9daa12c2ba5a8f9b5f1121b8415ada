@@ -1,0 +1,23 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&#xAITY da "&#xD;&#xA;">
+]>
+<doc>
+TTLIST root
+    type	NOTATION	(fruit |xd;&#xd;A&#xa;B&#xd;&#xa;"/>
+<tst a="&#64;x&#32;&#32;y&#32;" b="&#32;x&#32;&#MPLIED>
+<!ATTLIST ts;">
+&!ENTITY da "&#xD;&#xA;">
+]>
+<doc>
+TTLIST root
+    type	NOTATION	(fruit |xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;"/>
+<tst a="&#32;x&#32;&#32;y&#32;" b="&#32;x&#32;&#MPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITY d "  b  " b="  a  b  "/>
+</doc>
+

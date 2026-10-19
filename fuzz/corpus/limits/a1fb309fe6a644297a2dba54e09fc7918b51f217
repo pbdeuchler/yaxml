@@ -1,0 +1,6 @@
+<!DOCTYPE                                 test [1
+  <!ENTITY newliline wliline "&#x98;#xA]
+;>">
+<te=s1t ne="&newli
+;>">
+<te=s1t ne="&newli

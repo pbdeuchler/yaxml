@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<rec>
+<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" >
+<!ENTITY   book   "La Peste: Albert Camus, 
+&#xA9; 1947 %pub;. &rights;" >]]></eg>
+then the replacement text fversion='1.0' encoding='ISO-8859-1'?>
+<rec>
+<eg><![CDATA_<!ENTITY %  ANY>
+<!-- This test case covers 1 legal character ranges plus
+   _  1 discrete legal characters for produ�_3007-〇_3021-〡_3029-〩_3025-〥 This ms a PI target ?>
+]>&amp;rights;</eg>
+</rec>

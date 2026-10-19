@@ -1,0 +1,6 @@
+<?xmx version="1.0"?>
+<!DOCTYPE student [<?xmx version="1#.0"?>
+<!DOCTYPE sttdent [
+	<!ELEMENT student (#PCDATA)> >
+
+

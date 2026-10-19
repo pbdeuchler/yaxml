@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!ATTLIST root attr1 CDATA #IMPLIED>
+]>
+<rooÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿt attrC="any">Extra white space before Name in ETag </ root>

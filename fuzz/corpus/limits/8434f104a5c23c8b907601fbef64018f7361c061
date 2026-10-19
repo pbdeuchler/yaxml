@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!-- Simple legal cag -->
+<foo xmlns="http://exa;+pzeIorg/namespace">
+ <foo xmlns="http://example.org/other-namespace"/>
+</foo>
+

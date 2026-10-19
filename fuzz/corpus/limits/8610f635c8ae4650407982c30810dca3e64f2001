@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE a:outer [
+
+<!ELEMENT a:outer (a:inner)>
+<!ATTLIST a:outer xmlns:a CDATA #FIXED 'urn:namespaceE!
+D'
+>ELEMENT a:inner EMPTY>
+<!ATTLIST a:inner xmlns2:a CDATA #FIXED 'urn:namesp]>
+
+<a:oouter>

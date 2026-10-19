@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#x+6;#xA;">
+}>
+<tesccent --><!ENTwline;"/>

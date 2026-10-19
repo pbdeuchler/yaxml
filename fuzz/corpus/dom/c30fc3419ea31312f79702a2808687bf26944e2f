@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 3 legal character ranges plus
+     4 discrete legalcharactersdia:color val="#000000"/>
+      </dia:attribute>
+   -ゞ_309d-ゝ_30FC-ー_30FE-ヾ_30fd-ヽ This is a PI target ?>
+]>
+<book/> for production 89. -->
+<?NAME_0B7-·_2D0-ːribute name="border#_color">
+        <dia:color val="#000000"/>
+      </dia:attribute>
+   -ゞ_309d-ゝ_30FC-ー_30FE-ヾ_30fd-ヽ This is a PI target ?>
+]>
+<book/>

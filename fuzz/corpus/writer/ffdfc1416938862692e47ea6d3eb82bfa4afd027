@@ -1,0 +1,21 @@
+<!--
+   
+    I'd be inteting parsers wrt the
+    following:
+-->
+
+<!DOCTYPE foo [
+<!ELEMENT foo (a+)>
+<!ENTITY empty ''>
+<!ENTITY space ' '>
+<!ELEMENT a EMPTY>]>
+<foo>
+&empty;
+<a/>
+&space;
+<a/>
+<![CDATA[]]>
+<a/>
+<![CDATA[ ]]>
+<&a/>
+</foo>

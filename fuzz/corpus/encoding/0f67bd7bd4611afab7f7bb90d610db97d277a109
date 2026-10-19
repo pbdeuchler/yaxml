@@ -1,0 +1,4 @@
+<!-- Default values for attributes may not contai[<E!LME
+ENT doc (#PCDATA)>. -->
+<!DOCT1YPE foo [
+<!oo a="not defaulted"/>

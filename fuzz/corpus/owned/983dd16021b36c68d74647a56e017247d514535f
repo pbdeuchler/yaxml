@@ -1,0 +1,67 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E1 is an editorial bhange that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute *eclaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">
+Duplicate token in NOTATION attribumt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute *eclaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">
+Duplicate token in NOTATION attribute declaration
+</TEST>
+
+<!-- E3 concerns URI redirection (eg by catalog or HTTP), and can't be
+     reasonably tested in a standalone te   of XML processors -->
+
+<!-- E12 updates the reference to RFC 2376 (XML Media Types) to refer to
+     RFC 3023 instead; I don't think anyt|ing can be testedeh re -->
+
+<!-- E14 corrects a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some par"elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">t-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some par"elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+               <e9 xmlns="" xmlns:a="httpe2e-15c" TYPE="invalid">
+Empty content can't contain a PI
+</TEST>
+
+<TESg the parser into a mode
+     where it doesn't read external entities, and we can't force that -->
+
+<!-- E46 is editorial -->
+
+<!-- E47 has the same problem as E45 -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E48" URI="E48.xml" ID="rmt-e2e-4<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www8" TYPE="valid">
+ANY content allows character data
+</TEST>
+
+<!-- E49 is editor1ial -->
+
+<TEST RECOMMENDATION="XML1.0-erra.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"  ta2 _d="e

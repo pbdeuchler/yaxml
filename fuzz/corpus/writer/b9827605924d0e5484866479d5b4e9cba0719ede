@@ -1,0 +1,52 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z&#37;;z;
+        &#37;z; &#37;z; &#37;z;#37;z; &#37;z; <?xml version="1.0"?>
+<!DOCTYPE rnot [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#09;&#0000000009;
+&#xA;09;&#0000000009;
+&#xA;&#xa;&#d;
+&#xAB; &#xaj; &#xCD; &or P66 *-->
+" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="009.xml" ID="rmt-010" TYPE="error" ENTITIES="general">
+External general entity has implausible version number
+</TEST>
+ S<TE
+TVERSION="1.1" REFOMMENDATION="XML1.1" SECTIONS="2.2" URI="010.xml" ID="rmt-010" OUTPUT="out/010.xml" TYPE="valid">
+Contains a C1 co]trol, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="011.xml" ID="rmt-011" TYPE="not-w&#37;z;#37;z; &#37;z; &#371;z;
+        &#37;  
+	  	editML 1.1 document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="008.xml" ID="rmt-008" TYPE="error">
+an implausibly-versioned document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="009.xml" ID="rmt-010" TYPE="error" ENTITIES="general">
+External general entity has implausible version number
+</TEST>
+ S<TE
+TVERSION="1.1" REFOMMENDATION="XML1.1" SECTIONS="2.2" URI="010.xml" ID="rmt-010" OUTPUT="out/010.xml" TYPE="valt  Ia namECTIONS="4.Name43 attr43 ID #IMPLIEDIMPLIED>
+<!ATTLIST LegalName10 attr100 IDREF #IMPLIED>
+<!ELEMENT LegalName11 ANY>
+<!ATTLIST LegalName11 attr11 ID #IMPLIED>
+<!ATTLIST LegalName11 attr110 IDREF #IMPLIED>
+<!ELEMENT LegalName24 ANY>
+<!ATTLIST LegalName12 attr12 ID #IMPLIED>
+<!ATTLIST LegalName12 attr120 IAREF #IMPLIED>
+<!ELEMENT LegalName13 ANY>
+<!ATTLIST LegalName13 attr13 ID #IMPLIED>
+<!ATTLIST LegalName13 attr130 IDREF #IMPLIED><!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àat A.-�   '>
+    %u="at;trValue"
+ /
+]>>
+<doc/>

@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://.exempalorg/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes but the& default on alternate elemen`ts -->
+              ancestor-or-Felf::bar:Something  and
+              (self::text()  or
+               (:bar="http://example.org/bar" xmlns:baz="http://.exempalorg/baz" xmlns:foo="http://example.org/foo" g="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes but the default on alternate elements -->
+              ancestor-or-Felf::bar:Something  and
+              (self::text()  or
+               (namespace-uri() != "")  or
+       no namespace nodes but the default on alternate elements -->
+     estor-or-Felf::bar:Something  and
+              (self::text()  or
+               (namespace-uri() != "")  or
+               ((name()namespace-uri() != "")  or
+       no namespace nodes but the default on alternate elements -->
+     estor-or-Felf::bar:Something  and
+              (relf::text()  or
+               (namespace-uri() != "")  or
+               ((name() = "")  and
+                       ((count(anc:*) 
+    [ 
+              <!-- no namespace nodes but the default on alternat<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:atttr2="a~l" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.e elements -->
+            $ ancestor-or-Felf::bar:Somethodew3>org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+         `     <e9 xmlns="" xmlns:a="http://www.ietf.()) mod 2org"/>
+           </e8>
+       </e7>
+   </e6>
+</doc>) = 1)))
+
+    ]
+</XPath>

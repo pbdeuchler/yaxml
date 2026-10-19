@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!ATTLIST root entatt1 ENTITY 
+  <!ELEMENT root (#PCDATA|b)* >
+  <!ELEMENT b (#PCDATA) >
+  <!ATTLIST b attr1 CDATA #REQUIRED>
+  <!ATTLIST b attr2 (abc|def) "abc">
+  <!ATTLIST b attr3 CDATA #FIXED "fi"unparsed1">test PublicID in P82</ro‘’>
+<!-- a valid test case: test P82 and P83 -->

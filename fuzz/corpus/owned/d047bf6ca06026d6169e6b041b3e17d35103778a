@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P65:
+&#9;&#09;&#0000000009;
+&#xA;&#xa;&#x  Unparsed
+        entities and notations are not listed among the
+        items t(at must not be ~externally declared in
+        standalone documents, even though processors must
+        in theory report their identifiers.
+
+0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&D;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid te--* a valid test for P66 *-->

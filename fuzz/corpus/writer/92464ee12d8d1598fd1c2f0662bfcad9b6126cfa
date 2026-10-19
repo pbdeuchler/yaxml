@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE a.imal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM 
+   <!ELEMENT cat ANY>
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %mak"ibmg;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+ 
+   <!ELEMENT cat ANY>
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?   <cat/>
+   <leopard>
+      <small/>
+      <big/>
+   </leopard>
+</animal>

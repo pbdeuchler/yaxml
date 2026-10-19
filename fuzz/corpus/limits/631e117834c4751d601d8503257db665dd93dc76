@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT 	!
+s<E NTITY FullName "Snow&Man">
+]>
+
+<!-- testing invalid entity vald entity value -->
+<stud>
+]>
+
+<!-- testing invalid entity vtudent>Mtudent>

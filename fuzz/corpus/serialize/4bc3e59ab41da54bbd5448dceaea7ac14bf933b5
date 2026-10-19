@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<?Pi?><!--comment-->
+<!ELEMENT doc EMPTY>
+<?Pi?><!--comment-->
+<!ATTLIST doc att CDATA #IMPLIED>
+<?Pi?><!--comment-->
+<!ENITTY % ent "">
+<?Pi?><!--comment-->
+<!NOTATION notP UBLIC "some notation"]>
+<doc/>

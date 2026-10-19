@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!ELEMENT root (#PCDATA)>
+]>
+<root>
+<!--* Missing end tag and no content -->

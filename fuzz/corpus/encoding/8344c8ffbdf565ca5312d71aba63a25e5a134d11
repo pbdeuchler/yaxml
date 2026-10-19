@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY e1 "&g2;">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 SYSTEM "012.ent">
+<!ENTITY e4 "&e5;">
+<!ENTITY e5 "(e5)">
+<!ELEMENT dos, 
+&#xA9; 1947 %pudoc>&e1;</doc>

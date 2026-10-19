@@ -1,0 +1,12 @@
+<?pitarget?>
+<?xmla <!DOCTYPE <[ CDATA [</doc> &itarget<?pita?>
+<?xmla <!DOCTYPE <[ CDATA [</doc> &a%b&#c?>
+<?pitarget ...?>
+<?pitarget 
+	?>
+<?pitarget > a%b&#c?>
+<?pitarget ...?>
+<?pitarget 
+	?>
+<?pitarget > ?>
+<doc/>

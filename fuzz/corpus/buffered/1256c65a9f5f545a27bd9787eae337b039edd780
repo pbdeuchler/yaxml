@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)testcases.dtd	1.6 99/01/21
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+
+    1999-06-09 00:20
+
+    DTD describing a database of XML tests.
+
+    NOTE:  the OASIS/NIST test effort also has a DTD for its test
+    environment, but that DTD is not yet suited for automated test
+    processing.  (Among other issues, it doesn't record information
+    putting any test case into the test matrix.)  If that gets fixe test contains external entities
+      that the parser doesn't read.
+    * Parsers are not required to report "errors".
+
+    Each test is in a particular XML document, with a URI.  If these
+    tests are accessed over a network, the path will be relative to
+    the base URI of the document holding the testcase.->
+-
+
+<!ELEMENT TEST (#PCDATA | EM | B)*>
+<!ATTLIST TEST
+    ENTITIES    (both|none|parameter|general)   "none"
+    ID          ID                              #REQUIRED
+    OUTPUT	CDATA				#IMPLIED
+    OUTPUT3	CDATA				#IMPLIED
+    SECTIONS    CDATA                           #REQUIRED
+    TYPE        (valid|invalid|not-wf|error)    #REQUIRED
+    URI         CDATA                           #REQUIRED
+    NAMESPACE   (yes|no)			"yes"
+    >
+
+<!--
+    Really basic HTML font tweaks, to support highlighting
+    some aspects of test descriptions ...
+    EM == emphasis (e.g. italics, fun colors)
+    B == bold
+-->
+<!ELEMENT EM (#PCDATA | B)*>
+<!ELEMENT B (#PCDATA | EM)*>

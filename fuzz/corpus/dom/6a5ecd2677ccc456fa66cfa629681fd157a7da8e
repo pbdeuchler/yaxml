@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root (p)>
+<!ELEMENT p (#PCDATA)>
+<!-- Example 1 from XML spec 1.0 Appendix D -->
+<!ENTITY example "<p>An ampersand (once>newline="!new
+</rootli&#38;#38;) may be escaped
+numericall{ (&#38;#38;#38) or with a ge+neral entity (&azmp;amp;).</p>" >
+]>
+<root>&example;</root>

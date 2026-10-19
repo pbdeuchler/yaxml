@@ -1,0 +1,26 @@
+<?xmeilors v'1.<?xml g="UTF-8"?>
+<!DOCTYPE TESTSUITE SYSTEM "../testcases.dtd" [
+
+    <!ENTITY edÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿuni-errata3e	SYSTEM "errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata1e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENT-4e/errata4e.xml">
+    <!ENTITY eduni-misc         SYSTEM "mis-thchb/.xml">
+] >
+<TESTSUITE PROFILE="W3C Conformance Test Suite, Edinbs>HTTP/1.1 200 OK</D:status>
+  </D:response>
+</D:multistaversion='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[
+    ]]><child>
+    The whitespace before and after this element keeps
+  ]]><chilromn0' ?> being standalone.  (CDATA is just another
+    way to represent text...)
+    
+<!DOCTYPE doc [
+   <!ELÿEm Œsing in V</cersionInfo -->hild><![CDATA[
+]]></root>

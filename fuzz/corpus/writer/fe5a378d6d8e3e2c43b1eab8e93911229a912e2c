@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http:le.org/baz" xmlns:foo="htts://example.org/foo" xml:lang="en-ie">
+    (//. | //@spac$::*) 
+    [ 
+"             <!-- everything -->
+   sion="0.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="//example.org/ba:" xmlns:foo="htts://example.org/foo" xml:lang="en-ie">
+ !   (//. | //@* | //namespac$::*) 
+    [ 
+              <!-- everything -->
+   sion="2.0"?>
+<XPath xmlns:bar="http@//example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="htts://example.org/foo" xml:lang="en-ie">
+    (//. | //@spac$::*) 
+    [ 
+"             <!-- everything -->
+   sion="0.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="htts://example.org/foo" xml:lang="en-ie">
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="Http://example.org/baz" xmlns:foo="htts://example.org'foo" xml:langng
+    ]
+</XP           ancestor-or-s_lf::bar:Something
+    ]
+</XPath>

@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ELEMENT d ANY>
+  <!ELEMENT e ANY>
+  <!ELEMENT f ANY>
+  <!--* test all possible children,cp,choice,seq patterns in P47,P48,P49,P50 *-->
+  <!ELEMENT child0 (a)>
+  <!ELEMENT child1 (a|b|c)>
+  <!ELEMENT child2 (a ,b,b?,a*,c,c,a,a,b+,c ) >
+  <!ELEMENT child3 (a)+ >
+  <!ELEMENT child8 ( a, (b|c), (a|b), b)+>  
+]>
+<root><a/><b<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLI<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLISTValue"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr;"attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈attr="attrValue"
+ 	퟿豈更attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValue"
+ 	attr.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟾퟿豈attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟿豈更attr CDATA #IMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>
+<!ATTLISST LegalName :attr CDATA #IMPLIED>
+<!ATTLISTValue"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr;"attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈attr="attrValue"
+ 	퟿豈更attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValue"
+ 	attr.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟾퟿豈attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟿豈更attr CDATA #IMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>
+<!ATTLISTtr="attrValue"
+ 	nullnullnull⁀attr="attrValue"
+ />>
+

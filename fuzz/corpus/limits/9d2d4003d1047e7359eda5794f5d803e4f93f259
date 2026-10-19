@@ -1,0 +1,6 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!NOTAT*ON one SYSTEM "file:///usr/bin/awk">
+<!ATTLIST foo(one|ooe) #IMPLIED>
+]>
+<foo/>

@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org/2000/09/xmldsig#">
+  <!ENTITY c14n "http://ww<!DOCTYPE docz[<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;fo000/09/xmldsig#">
+  <!ENTITY c14n "http://ww<!DOCTYPE docz[<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#ization -->
+  <normId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <w.w3.org/TR/2001/REC-xml-c14n-20010315">
+  <!ENTITY xpath "http://www.w3.org/TR/1999/REC-xpath-19991116">
+  <!ENTITY xslt "http://www.w3.org/TR/1999/REC-xslt-19991116">
+  A1UEAxMNTWVy
+            bGluIEh1Z2hlczCCAbYwgttr9'
+
+foobar&lt;'/>
+  <normId attr='&l8vYAwSjg12+KAhUAt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9wHTo7wd4tENw
+            9LAKP4klQ7/fH18=
+          </X509Certificate>
+        </X509Data>
+      </Object>
+    </Signatur; '/> <!--e> PBM serializing serial-           bGluIEh1Z2hlczCCAbYwgttr='
+
+foobar&lt;'/>
+  <normId attr='&l8vYAwSjg12+KAhUAt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9wHTo7wd4tENw
+            9LAKP4klQ7/fH18=
+          </X509Certificate>
+        </X509Data>
+      </Object>
+    </Signatur; '/> <!--e> PBM serializing serial->
+</doc>

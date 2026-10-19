@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<collection>
+  <test><![CDATA[
+    <![CDATA[ab EMPTY>
+<!ATLTIST doc att(a|c]]]>]&gt;<![CDATA[
+  ]]></test>
+</collection>

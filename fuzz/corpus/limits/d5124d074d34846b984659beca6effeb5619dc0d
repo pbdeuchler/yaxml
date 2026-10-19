@@ -1,0 +1,42 @@
+<!DOCTYPE LegalNameStartChar [
+<!ELEMENT LegalNameStartChar ANY>
+<!ELEMENT :LegalNameStartChar ANY>
+<!ELEMENT ÀLegalNameStartChar ANY>
+<!ELEMENT ÁLegalNameStartChar ANY>
+<!ELEMENT ˾LegalNameStartChar ANY>
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLFEF,0x3001,0x3002,0xD7FE,0xD7FF,0xF900,0xF901,0xEFFFF,0xFFFFF
+in p02:   -->
+<LegalNameStartChar>	<:LegalNameStartChar/>
+	<ÀLegalNameStartChar/>
+	<ÁLegalNameStartChar/>
+	<˾LegalNameStartChar/>
+	<˿LegalNameStartChar/>
+	<ͰLegalNameStartChar/>
+	<ͱLegalNameStartChar/>
+	<ͼLegalNameStartChar/>
+	<ͽLegalNameStartChar/>
+	<ͿLegalNameStartChar/>
+	<΀LegalNameStartChar/>
+	<῾LegalNameStartChar/>
+	<῿LegalNameStartChar/>
+	<‌LegalNameStartChar/>
+	<‍LegalNameStartChar/>
+	<⁰LegalNameStartChar/>
+	<ⁱLegalNameStartChar/>
+	<↎LegalNameStartChar/>
+	<↏LegalNameStartChar/>
+	<ⰀLegalNameStartChar/>
+	<ⰁLegalNameStartChar/>
+	<⿮LegalNameStartChar/>
+	<⿯LegalNameStartChar/>
+	<、LegalNameStartChar/>
+	<。LegalNameStartChar/>
+	<퟾LegalNameStartChar/>
+	<퟿LegalNameStartChar/>
+	<豈LegalNameStartChar/>
+	<更LegalNameStartChar/>
+
+</LegalNameStartChar>

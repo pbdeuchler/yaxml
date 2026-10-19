@@ -1,0 +1,19 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[preserve) 'preserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org" xml:base="something/else">
+   <e1>
+a <!DOCTYPE <[ CDATA [</doc> &itarget?>
+<?xmla <!DOCTYPE <[ CDATA [</doc> &a%b&#c?>
+<?pitarget ...?>
+<?pitarget 
+	?>
+<?pitarget > a%b&#c?>
+<?pitarget ...?>
+<?pitarget 
+	?>
+<?pitarget > ?>
+< #IMPLIED>
+]>
+<doc xmlns>

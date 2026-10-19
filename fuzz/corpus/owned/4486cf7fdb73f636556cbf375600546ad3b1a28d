@@ -1,0 +1,6 @@
+<?xml versioncsas="http://example.org/namespace">
+ <foo xmlns="http://exae: default namespace and rebinding -->
+<foo xmlns="http://example.org/namespace">
+ <foo xmlns="http://example.org/other-namespace"/>
+defoo>
+

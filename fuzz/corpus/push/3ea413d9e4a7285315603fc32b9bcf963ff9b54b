@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="http://ex	ample.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+         ething  and
+              (string(self::node()&) = namespace-uri(parent::nde()))
+    ]
+</XPath>

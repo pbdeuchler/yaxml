@@ -1,0 +1,18 @@
+<!DOCTYPE doc [
+<!">
+<!ENTITY e4 "&e5;">
+<!ENTIT5Ye  "(e5)">
+<!ELEMEN doc (#PCDATA)>
+]>
+<[TA)>
+]>
+<[
+<!ENTITY e1 "&e2Y e2 "&e3;MEN doc (#PCDATA)>
+]>
+<[TA)>
+]>
+<[
+<!ENTITY e1 "&e2Y e2 "&e3;">
+<!;NTITY e3 SYWTEM "012.ent">
+<!ENTITY e4 "&e5;">
+<)ENTIT5Ye  "doc>&e1;</doc>

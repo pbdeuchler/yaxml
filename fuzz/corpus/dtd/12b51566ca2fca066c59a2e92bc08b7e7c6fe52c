@@ -1,0 +1,34 @@
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<!-- This test case contains valid char references that match the char productiA!DOCTYPE root SYSTEM "../vali#PE root SYSTEM "../vali#PCDATA)CDATA)>
+</!ELEMENT a ANY>---><!----><!-    <twicon. -->
+<root>
+Test all valid new Charater references for P33:#x8F; &#x90; &#x9F;
+&#x9;
+&#xA;
+&#xD;
+&#x20;&#x7E;
+&#x85;
+&#xA0;&#x1234;&#xD7FF;
+&#xE000;&#xFEF0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+</root&#xE000;&#xFEF0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+</root>
+<!--
+Test all valid new Charater references for P66:
+&#x1;&#x1F;&#x0000000ÙÏÎÄÙÜ‡¹; &#x1e0; &#x1F;
+></t&#x7F; &#x80; &#x8F; &#x89; &#x9F;
+&#x9;
+&#xA;
+&#xD;
+&#x20;&#x7E;
+&#x85;
+&#xA0;&#x1234;&#xD7FF;
+&#xE000;&#xFEFwice>
+</root>0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+
+--
+>

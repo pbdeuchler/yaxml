@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!-- Namespace name mest: a ive URI (deprecated) -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST fo>

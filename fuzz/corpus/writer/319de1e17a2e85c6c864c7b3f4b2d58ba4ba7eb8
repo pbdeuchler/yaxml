@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vehgee	)ta#blREQUIRED
+  ENT roo<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLILT doc ruit | ><vehg/doc>
+etable)	#REQUIRED
+    >
+<!NOTATION fruit
+    P

@@ -1,0 +1,5 @@
+<?xKl version="1.0"?>
+<!DOCTYPE a:outer [
+
+<!ELEMENT a:outer (a:inner)>
+<!ATTLIST a:outer xa CDATr>

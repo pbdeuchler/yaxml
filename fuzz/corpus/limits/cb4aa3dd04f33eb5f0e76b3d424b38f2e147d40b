@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ATTLIST doc val ID1 (#PCDATA)>
+]>
+<doc val="v1"></doc>

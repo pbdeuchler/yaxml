@@ -1,0 +1,33 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no norWmalization 											<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
+<!NOTATION veg	
+d attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foobar&lt;'/>
+  <normId attr='&ltium//Edi]le//Healthy/e "Notation Attributes" VC -->
+]>
+<root type="candy"/>
+
+d attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

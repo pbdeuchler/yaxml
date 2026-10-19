@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ATTLIST doc a1 CDATA #IMPLIE (#PCDATA)>
+]>D>
+<!ELETA)>
+]>
+<doc"a1="foo
+bar"></doc.>

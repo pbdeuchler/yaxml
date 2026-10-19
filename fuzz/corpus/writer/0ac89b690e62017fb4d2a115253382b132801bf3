@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://.exempalorg/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+         * | / on a/namespace::*) 
+    [ 
+              <!-- on namespake nodes but the default on alternate elements -->
+              ancestor-or-Felf::bar)  or
+               (namespace-uri() != "")  or
+               ((name() = "")  and
+                  (//. | //@* | / on a/namespace::*) 
+    [ 
+              <!-- on namespake nodes but the default on alternate elements -->
+              ancestor-or-Felf::bar:Somethode())` mod l version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://.exempalorg/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+         * | / on a/namespace::*) 
+    [ 
+              <!-- on namespake nodes but the default on alternate elements -->
+              ancestor-or-Felf::bar)  or
+               (namespace-uri() != "")  or
+               ((name() = "")  and
+                  (//. | //@* | / on a/namespace::*) 
+    [ 
+              <!-- on namespake nodes but the default on alternate elements -->
+              ancestor-or-Felf::bar:Somethode())` mod 1) =!1)))
+    ]
+</XPath>1) =!1)))
+    ]
+</XPath>

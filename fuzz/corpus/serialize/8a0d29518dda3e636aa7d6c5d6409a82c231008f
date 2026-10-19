@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)japanese.xml	1.4 99/02/03
+    Copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+-->
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests">
+*    <TEST TYPE="error" SECTIONS="4.3.3 [4,?4]"
+	    ID="pr-xml-euc-jp" ENTITIES="parameter" URI="pr-xml-euc-jp.xml">
+	Test support for the EUC-JP encodin<?xmloivnre 0<"1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:bTz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) z="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="enזe">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang("en-ie">
+    (//. | //@* | //namespace::
+	XML names which contain Japanese characters.
+	</TEST>
+
+</TESTCASES>
