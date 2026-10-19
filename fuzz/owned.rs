@@ -1,6 +1,9 @@
 //! Owned storage must preserve the borrowing tree after source independence.
 
-use yaxml::{Document, Error, ErrorKind, Limit, Limits, NodeKind, OwnedDocument, OwnedNodeKind};
+use yaxml::options::XINCLUDE;
+use yaxml::{
+    Document, Error, ErrorKind, Limit, Limits, NodeKind, OwnedDocument, OwnedNodeKind, ParseOptions,
+};
 
 pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<'_>, Error>) {
     let mut temporary = input.to_vec();
@@ -45,6 +48,7 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
             if limits == Limits::default() {
                 super::serialize::owned(&owned, borrowed, input);
             }
+            drop_kept_form(owned);
         }
         Err(error) => {
             assert!(error.offset <= input.len());
@@ -63,6 +67,9 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
                 assert_eq!(Some(error), borrowed.err(), "owned parse differs");
             }
         }
+    }
+    if limits == Limits::default() {
+        xinclude(input, outcome);
     }
     if limits == Limits::default()
         && let Ok(text) = std::str::from_utf8(input)
@@ -129,6 +136,14 @@ pub(super) fn check_nodes(
         let count = expected.attributes().len();
         assert!((0..count).all(|position| actual.attribute_has_value(position)));
         assert!(!actual.attribute_has_value(count));
+        assert!(
+            (0..=count)
+                .all(|at| actual.unexpanded_attribute(at) == expected.unexpanded_attribute(at)),
+            "owned kept attribute form changed"
+        );
+        #[allow(clippy::clone_on_copy)]
+        let copy = actual.clone();
+        assert_eq!(copy.id(), actual.id());
         let (kind, target) = match expected.kind() {
             NodeKind::Document => (OwnedNodeKind::Document, None),
             NodeKind::Doctype(doctype) => {
@@ -206,10 +221,53 @@ pub(super) fn check_nodes(
     }
     assert_eq!(owned.doctype(), borrowed.doctype().copied());
     assert!(owned.element_by_id("\u{0}").is_none());
+    assert_eq!(owned.html_encoding(), None);
+    if owned.nodes().len() <= 64 {
+        assert!(!format!("{owned:?}").is_empty());
+    }
     if let Some(last) = owned.nodes().last() {
         let small = OwnedDocument::parse("<r/>").unwrap();
         assert!(small.node(last.id()).is_none());
         assert!(small.node(owned.root().id()).is_none());
         assert!(owned.node(small.root().id()).is_none());
     }
+}
+
+/// `XINCLUDE` through the owned parser, with no resolver: a document without
+/// XInclude elements parses as without the flag; failures keep an offset.
+fn xinclude(input: &[u8], plain: Option<Error>) {
+    let included = OwnedDocument::parse_with(input, ParseOptions::new(XINCLUDE));
+    // A resolver that has nothing behaves as none.
+    let none = Box::new(|_: yaxml::Request<'_>| Ok(None));
+    let resolved = ParseOptions::new(XINCLUDE).with_resolver("d.xml", none);
+    let resolved = OwnedDocument::parse_with(input, resolved);
+    assert_eq!(resolved.as_ref().err(), included.as_ref().err());
+    match &included {
+        Err(error) => assert!(error.offset <= input.len()),
+        Ok(_) => assert_eq!(plain, None, "XINCLUDE accepted a rejected document"),
+    }
+    let marker = |ns: &[u8]| input.windows(ns.len()).any(|w| w == ns);
+    // References could spell the namespace.
+    if !marker(b"Include") && !input.contains(&b'&') {
+        assert_eq!(included.err(), plain);
+    }
+}
+
+/// Setting an attribute value drops the kept-reference form it replaces.
+fn drop_kept_form(mut owned: OwnedDocument) {
+    let Some(element) = owned.nodes().find(|n| n.unexpanded_attribute(0).is_some()) else {
+        return;
+    };
+    let id = element.id();
+    let name = element.attributes().next().unwrap().name.clone();
+    let (namespace, local) = (name.namespace().map(str::to_owned), name.local().to_owned());
+    // Values become `v` without a kept form; only a repeated name could differ.
+    let mut editor = owned.edit(yaxml::EditLimits::default()).unwrap();
+    if editor
+        .set_attribute_value(id, namespace.as_deref(), &local, "v")
+        .is_err()
+    {
+        return;
+    }
+    assert_eq!(owned.node(id).unwrap().unexpanded_attribute(0), None);
 }

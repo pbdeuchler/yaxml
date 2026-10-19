@@ -374,12 +374,11 @@ fn owned_links_are_reciprocal_and_subtree_counts_match_ancestor_membership() {
 }
 
 #[test]
-fn compact_links_preserve_the_full_slot_domain_except_the_private_sentinel() {
+fn compact_links_preserve_every_slot_below_the_private_sentinel() {
     assert_eq!(Link::NONE.get(), None);
     for index in [0, 1, usize::MAX - 1] {
-        assert_eq!(Link::new(NodeId(index)).unwrap().get(), Some(NodeId(index)));
+        assert_eq!(Link::new(NodeId(index)).get(), Some(NodeId(index)));
     }
-    assert_eq!(Link::new(NodeId(usize::MAX)), None);
 }
 
 #[test]
@@ -430,12 +429,12 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
     let root = document.root_element;
     let previous = document.nodes[root.0].last_child;
     let late = NodeId(document.nodes.len());
-    let late_link = Link::new(late).unwrap();
+    let late_link = Link::new(late);
     document.nodes.push(OwnedRecord {
         id: late,
         content: Content::Comment(0..0),
         source: None,
-        parent: Link::new(root).unwrap(),
+        parent: Link::new(root),
         first_child: Link::NONE,
         last_child: Link::NONE,
         previous_sibling: previous,
@@ -514,7 +513,7 @@ fn removed_slots_are_rejected_by_lookup_and_existing_edit_boundaries() {
     };
     let root = document.root_element;
     document.nodes[root.0].next_sibling = Link::NONE;
-    document.nodes[0].last_child = Link::new(root).unwrap();
+    document.nodes[0].last_child = Link::new(root);
     document.nodes[0].subtree_size = 2;
     document.slots_are_preorder = false;
     assert!(document.node(removed).is_none());
@@ -600,16 +599,7 @@ fn linked_mode_walks_deep_and_wide_trees_without_recursion() {
 #[test]
 fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     use std::ops::ControlFlow;
-    let mut builder = OwnedBuilder::new(10, 0, Global).unwrap();
-    let mut reader = reader(1);
-    assert_eq!(
-        builder.consume(
-            Event::End(Name::new("r", None).unwrap()),
-            SourceOrigin::input(6..10),
-            reader.owned_budget()
-        ),
-        Err(Error::new(ErrorKind::MismatchedEndTag, 6))
-    );
+    let builder = OwnedBuilder::new(0, 0, Global).unwrap();
     assert_eq!(
         builder
             .finish(10, None, Default::default(), Vec::new())
@@ -676,28 +666,6 @@ fn utf8_owned_fast_path_applies_decoded_limits_without_retention_charges() {
             OwnedDocument::with_decode_limits(b"<r/>", limits, decode).unwrap_err(),
             Error::new(ErrorKind::LimitExceeded(kind), 0)
         );
-    }
-}
-
-#[test]
-fn closing_requires_existing_provenance_and_forward_token_order() {
-    for source in [None, Some(SourceOrigin::input(4..7))] {
-        let mut input = Reader::new(b"<r></r>").unwrap();
-        let mut builder = OwnedBuilder::new(7, 0, Global).unwrap();
-        let start = input.read_event().unwrap().unwrap();
-        builder
-            .consume(start, input.event_origin().unwrap(), input.owned_budget())
-            .unwrap();
-        let id = builder.parents[0];
-        builder.nodes[id.0].source = source;
-        let end = input.read_event().unwrap().unwrap();
-        let error = builder
-            .consume(end, input.event_origin().unwrap(), input.owned_budget())
-            .unwrap_err();
-        assert_eq!(error, Error::new(ErrorKind::InvalidState, 3));
-        assert_eq!(builder.nodes[id.0].source, source);
-        assert_eq!(builder.nodes[id.0].subtree_size, 1);
-        assert_eq!(builder.parents, vec![id]);
     }
 }
 

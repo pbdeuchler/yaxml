@@ -1,0 +1,1 @@
+ê<!DOCTYPE a [<!ELEMENT a (b)*><!ELEMENT b EMPTY><!ATTLIST b id ID #IMPLIED>]><a> <b id="x"/> <b/></a>

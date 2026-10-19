@@ -626,7 +626,7 @@ fn publish_generated(
     origin: FragmentOrigin,
 ) -> Result<Event<'static>, Error> {
     let offset = range.start;
-    let leaf = |leaf| parser.process_dtd_leaf_owned(leaf, raw, range);
+    let mut leaf = |leaf| parser.process_dtd_leaf_owned(leaf, raw, offset);
     match kind {
         TokenKind::Start => parser
             .process_dtd_start_owned(raw, offset, catalog)

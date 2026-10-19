@@ -253,12 +253,9 @@ impl PreparedTag<'_> {
         for attribute in self.attributes {
             let offset = attribute.name_offset.unwrap_or(start);
             let name = attribute.name.try_into_static(offset)?;
-            let Cow::Owned(value) = attribute.value else {
-                return Err(Error::new(ErrorKind::InvalidState, offset));
-            };
             attributes.push(PreparedAttribute {
                 name,
-                value: Cow::Owned(value),
+                value: Cow::Owned(attribute.value.into_owned()),
                 name_offset: attribute.name_offset,
                 kept: attribute.kept,
             });
@@ -681,7 +678,6 @@ impl<'source> ParserState<'source> {
             && (bytes.is_empty()
                 || (matches!(kind, TokenKind::Text)
                     && !self.in_content()
-                    && (!self.encoding.requires_declaration() || self.declaration_seen)
                     && bytes.iter().all(|byte| space(*byte))))
     }
 
@@ -694,9 +690,6 @@ impl<'source> ParserState<'source> {
     }
 
     pub(crate) fn check_doctype_start(&self, offset: usize) -> Result<(), Error> {
-        if self.encoding.requires_declaration() && !self.declaration_seen {
-            return Err(Error::new(ErrorKind::EncodingMismatch, offset));
-        }
         if self.doctype_seen || !matches!(self.phase, Phase::Prolog) {
             return Err(Error::new(ErrorKind::Syntax, offset));
         }
@@ -710,9 +703,6 @@ impl<'source> ParserState<'source> {
     }
 
     pub(crate) fn validate_finish(&self, offset: usize) -> Result<(), Error> {
-        if self.encoding.requires_declaration() && !self.declaration_seen {
-            return Err(Error::new(ErrorKind::EncodingMismatch, offset));
-        }
         match self.phase {
             Phase::Prolog => Err(Error::new(ErrorKind::MissingRoot, offset)),
             Phase::Content => Err(Error::new(ErrorKind::UnexpectedEof, offset)),
@@ -754,20 +744,8 @@ impl<'source> ParserState<'source> {
             self.check_event_limit(start)?;
             self.markup_as_text(Error::new(ErrorKind::Syntax, start))?;
         }
-        if raw.len() > self.token_limit {
-            return Err(Error::new(
-                ErrorKind::LimitExceeded(self.token_limit_kind),
-                start,
-            ));
-        }
         if self.is_non_event(kind, raw.as_bytes()) {
             return Ok(None);
-        }
-        if self.encoding.requires_declaration()
-            && !self.declaration_seen
-            && !matches!(kind, TokenKind::Instruction)
-        {
-            return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         if matches!(kind, TokenKind::Text) && !self.in_content() {
             return match raw.bytes().position(|byte| !space(byte)) {
@@ -1269,12 +1247,6 @@ impl<'source> ParserState<'source> {
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
-        if raw.len() > self.token_limit {
-            return Err(Error::new(ErrorKind::LimitExceeded(self.token_limit_kind), start).into());
-        }
-        if self.encoding.requires_declaration() && !self.declaration_seen {
-            return Err(Error::new(ErrorKind::EncodingMismatch, start).into());
-        }
         self.check_event_limit(start)?;
         self.check_token_start(TokenKind::Start, start)?;
         let raw = self.collect_raw_tag(raw, start)?;
@@ -1303,9 +1275,6 @@ impl<'source> ParserState<'source> {
         if raw.len() > self.token_limit {
             return Err(Error::new(ErrorKind::LimitExceeded(self.token_limit_kind), start).into());
         }
-        if self.encoding.requires_declaration() && !self.declaration_seen {
-            return Err(Error::new(ErrorKind::EncodingMismatch, start).into());
-        }
         self.check_event_limit(start)?;
         self.check_token_start(TokenKind::Start, start)?;
         let raw = self.collect_raw_tag(raw, start)?;
@@ -1326,20 +1295,13 @@ impl<'source> ParserState<'source> {
         &mut self,
         kind: DtdLeafKind,
         raw: &str,
-        local_range: Range<usize>,
+        start: usize,
     ) -> Result<Event<'static>, Error> {
-        let start = local_range.start;
-        if local_range.end.checked_sub(start) != Some(raw.len()) {
-            return Err(Error::new(ErrorKind::InvalidState, start));
-        }
         if raw.len() > self.token_limit {
             return Err(Error::new(
                 ErrorKind::LimitExceeded(self.token_limit_kind),
                 start,
             ));
-        }
-        if self.encoding.requires_declaration() && !self.declaration_seen {
-            return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         if matches!(kind, DtdLeafKind::Text) && !self.in_content() {
             let offset = raw
@@ -1418,9 +1380,6 @@ impl<'source> ParserState<'source> {
                 start,
             ));
         }
-        if self.encoding.requires_declaration() && !self.declaration_seen {
-            return Err(Error::new(ErrorKind::EncodingMismatch, start));
-        }
         self.check_event_limit(start)?;
         self.check_token_start(TokenKind::End, start)?;
         let body = delimited_body(raw, "</", ">", start)?;
@@ -1440,9 +1399,6 @@ impl<'source> ParserState<'source> {
         let name = self.resolve_end_name_owned(qualified, start + 2)?;
         let frame = self.pop_frame();
         self.unwind_bindings(frame.bindings_start);
-        if self.stack.is_empty() {
-            self.phase = Phase::Epilog;
-        }
         self.events += 1;
         Ok(Event::End(name))
     }
@@ -1960,14 +1916,17 @@ impl<'source> ParserState<'source> {
     ) -> Result<Name<'static>, Error> {
         let (prefix, _) = qname(qualified, offset)?;
         let prefix_length = prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
+        // An unbindable `xmlns` prefix is unbound, as at the start tag.
         let namespace = match prefix {
-            Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
             Some("xml") => Some(Cow::Borrowed(XML)),
             _ => match self.bound(prefix.unwrap_or("")) {
                 Some(index) if !self.bindings[index].uri.is_empty() => {
                     Some(self.budget.copy(&self.bindings[index].uri, offset)?)
                 }
-                _ if prefix.is_some() => return Err(Error::new(ErrorKind::Namespace, offset)),
+                _ if prefix.is_some() => {
+                    self.unbound(offset, false)?;
+                    None
+                }
                 _ => None,
             },
         };
@@ -2148,20 +2107,22 @@ impl<'source> ParserState<'source> {
         let qualified = if open == Some(trimmed) {
             Cow::Borrowed(trimmed)
         } else {
-            let named = scan.name().and_then(|qualified| {
+            // A Name and spaces alone would equal `trimmed`: they name
+            // another element.
+            let error = scan.name().map_or_else(std::convert::identity, |_| {
                 scan.skip_space();
-                match (scan.cursor == body.len(), open == Some(qualified)) {
-                    (false, _) => Err(Error::new(ErrorKind::Syntax, start)),
-                    (true, false) => Err(Error::new(ErrorKind::MismatchedEndTag, start)),
-                    (true, true) => Ok(qualified),
-                }
+                let kind = match scan.cursor == body.len() {
+                    true => ErrorKind::MismatchedEndTag,
+                    false => ErrorKind::Syntax,
+                };
+                Error::new(kind, start)
             });
-            match named {
-                Ok(qualified) => Cow::Borrowed(qualified),
-                Err(error) => self.end_open(error)?,
-            }
+            self.end_open(error)?
         };
-        let prefix_length = memchr(b':', qualified.as_bytes()).and_then(NonZeroUsize::new);
+        // Split as the start tag did: a recovered malformed QName has no prefix.
+        let prefix_length = memchr(b':', qualified.as_bytes())
+            .filter(|_| qname(&qualified, start).is_ok())
+            .and_then(NonZeroUsize::new);
         let name = self.resolve_name(qualified, prefix_length, start + 2, false)?;
         let frame = self.pop_frame();
         self.close_scope(frame.bindings_start);

@@ -103,7 +103,8 @@ impl Stream {
     #[cfg(test)]
     pub(crate) fn event(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         let position = self.position();
-        let (mut event, origin) = parse(&self.tokenizer, &mut self.state)?
+        let origin = token_origin(&self.tokenizer);
+        let mut event = parse_event(&self.tokenizer, &mut self.state)?
             .ok_or_else(|| Error::new(ErrorKind::InvalidState, position))?;
         self.state.lend_event(&mut event);
         Ok((event, origin))
@@ -226,16 +227,9 @@ impl Stream {
         Ok(())
     }
 
-    pub(crate) fn emit(
-        &mut self,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
-    ) -> Result<(), Error> {
-        if let Some((event, origin)) = parse(&self.tokenizer, &mut self.state)? {
-            let mut event = event;
-            let budget = self.state.lend_event(&mut event);
-            emit(event, origin, budget)?;
-        }
-        Ok(())
+    /// Processes the ready token, which `is_non_event` classified.
+    pub(crate) fn skip_non_event(&mut self) -> Result<(), Error> {
+        parse_event(&self.tokenizer, &mut self.state).map(drop)
     }
 }
 
@@ -270,14 +264,6 @@ fn decode(
             })
         }
     }
-}
-
-fn parse<'token>(
-    tokenizer: &'token Tokenizer,
-    state: &mut ParserState<'static>,
-) -> Result<Option<(Event<'token>, SourceOrigin)>, Error> {
-    let origin = token_origin(tokenizer);
-    Ok(parse_event(tokenizer, state)?.map(|event| (event, origin)))
 }
 
 /// Smallest remaining chunk worth scanning for complete tokens in place.
