@@ -1521,3 +1521,10 @@ fn restriction_keeps_the_base_fixed_value() {
         );
     }
 }
+
+/// Compiled schemas are shared across threads.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<yaxml::xsd::Schema>();
+    assert_send_sync::<yaxml::xsd::StreamValidator>();
+};
