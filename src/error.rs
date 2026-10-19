@@ -194,6 +194,10 @@ pub enum EditErrorKind {
     InvalidName,
     Namespace,
     DuplicateAttribute,
+    /// The node cannot go there: it would contain its own parent, be a
+    /// second document element, or put Text, CDATA or an entity reference
+    /// directly under the document; or a sibling anchor has no parent.
+    Hierarchy,
     IdentifierExhausted,
     LimitExceeded(EditLimit),
     Allocation,

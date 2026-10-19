@@ -265,6 +265,15 @@ impl Dtd {
         })
     }
 
+    /// The default or fixed value declared for `attribute` of `element`
+    /// (names as written), as `xmlGetDtdQAttrDesc` finds it.
+    pub(crate) fn default_value(&self, element: &str, attribute: &str) -> Option<&str> {
+        let element = &self.elements[*self.element_index.get(element)?];
+        element.attributes[*element.index.get(attribute)?]
+            .default
+            .value()
+    }
+
     /// The declaration of attribute `attribute` on `element`, qualified name first.
     fn attribute(&self, element: QName<'_>, attribute: &str) -> Option<&AttributeDecl> {
         let declared = |name: &str| {
