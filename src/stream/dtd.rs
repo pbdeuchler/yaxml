@@ -1,6 +1,6 @@
 //! Streaming composition of the ordinary token loop with DTD and entity phases.
 use super::*;
-use crate::dtd::{DtdErrorKind, DtdLimit, DtdLimits};
+use crate::dtd::DtdLimits;
 use crate::dtd_catalog::{CatalogErrorKind, CatalogLimit};
 use crate::dtd_controller::content::{
     ContentController, ContentError, ContentErrorKind, ContentOutcome,
@@ -76,25 +76,6 @@ const fn limit(limit: Limit) -> ErrorKind {
     ErrorKind::LimitExceeded(limit)
 }
 
-fn grammar_kind(kind: DtdErrorKind) -> ErrorKind {
-    match kind {
-        DtdErrorKind::InvalidName => ErrorKind::InvalidName,
-        DtdErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
-        DtdErrorKind::InvalidReference => ErrorKind::InvalidReference,
-        DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes | DtdLimit::Tokens) => {
-            limit(Limit::TokenBytes)
-        }
-        DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth) => limit(Limit::Depth),
-        DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions) => limit(Limit::Attributes),
-        DtdErrorKind::Allocation => ErrorKind::Allocation,
-        DtdErrorKind::Syntax
-        | DtdErrorKind::InvalidNmtoken
-        | DtdErrorKind::InvalidPublicIdentifier
-        | DtdErrorKind::SystemIdentifierFragment
-        | DtdErrorKind::ReservedPiTarget => ErrorKind::InvalidDtd,
-    }
-}
-
 fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
     match kind {
         ControllerErrorKind::Scan(kind) => match kind {
@@ -105,7 +86,6 @@ fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
             ScanErrorKind::Limit(ScanLimit::Work) => limit(Limit::EntityExpansion),
             ScanErrorKind::Allocation => ErrorKind::Allocation,
         },
-        ControllerErrorKind::Grammar(kind) => grammar_kind(kind),
         ControllerErrorKind::Catalog(kind) => catalog_kind(kind),
         ControllerErrorKind::Frame(kind) => frame_kind(kind),
         ControllerErrorKind::Ownership(kind) => kind,
@@ -145,7 +125,6 @@ pub(crate) fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
         CatalogErrorKind::Limit(CatalogLimit::References) => limit(Limit::EntityReferences),
         CatalogErrorKind::Limit(CatalogLimit::Depth) => limit(Limit::EntityDepth),
         CatalogErrorKind::Allocation => ErrorKind::Allocation,
-        CatalogErrorKind::Grammar(kind) => grammar_kind(kind),
         CatalogErrorKind::Xml(kind) => kind,
         CatalogErrorKind::Load(_) => ErrorKind::InvalidState,
     }

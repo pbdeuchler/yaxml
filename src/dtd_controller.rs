@@ -1,6 +1,6 @@
 //! Private internal-subset composition. No public XML parser enables this yet.
 
-use crate::dtd::{DtdErrorKind, DtdLimits, DtdUnit, DtdUnitView};
+use crate::dtd::{DtdLimits, DtdUnit, DtdUnitView};
 use crate::dtd_catalog::{
     CatalogErrorKind, DeclarationContext, DtdCatalog, EntityId, EntityLookup, LiteralSource,
     ValueLocation,
@@ -63,7 +63,6 @@ pub(crate) enum ControllerLimit {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ControllerErrorKind {
     Scan(ScanErrorKind),
-    Grammar(DtdErrorKind),
     Catalog(CatalogErrorKind),
     Frame(FrameErrorKind),
     Ownership(ErrorKind),
@@ -537,7 +536,7 @@ impl<'input> DtdControllerCore<'input> {
                     origin,
                     raw,
                     error.offset,
-                    ControllerErrorKind::Grammar(error.kind),
+                    ControllerErrorKind::Ownership(error.kind),
                 )
             })?;
             if !valid_unit(kind, side, self.started, &unit) {
@@ -562,7 +561,7 @@ impl<'input> DtdControllerCore<'input> {
                     origin,
                     raw,
                     error.offset,
-                    ControllerErrorKind::Grammar(error.kind),
+                    ControllerErrorKind::Ownership(error.kind),
                 )
             })?;
             if !valid_unit(kind, side, self.started, &borrowed) {

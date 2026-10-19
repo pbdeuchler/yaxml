@@ -3,6 +3,7 @@ use std::ops::Range;
 
 use crate::escape::{invalid_char, xml_char};
 use crate::name::{name_char, name_start};
+use crate::{Error, ErrorKind, Limit};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum LiteralSource {
@@ -88,40 +89,6 @@ impl DtdLimits {
     pub(crate) fn expansion_allowance(&self, consumed: usize) -> usize {
         self.expansion_floor
             .max(consumed.saturating_mul(self.amplification))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DtdLimit {
-    UnitBytes,
-    Tokens,
-    ModelDepth,
-    AttributeDefinitions,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DtdErrorKind {
-    Syntax,
-    InvalidName,
-    InvalidNmtoken,
-    InvalidCharacter,
-    InvalidReference,
-    InvalidPublicIdentifier,
-    SystemIdentifierFragment,
-    ReservedPiTarget,
-    LimitExceeded(DtdLimit),
-    Allocation,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct DtdError {
-    pub(crate) kind: DtdErrorKind,
-    pub(crate) offset: usize,
-}
-
-impl DtdError {
-    fn new(kind: DtdErrorKind, offset: usize) -> Self {
-        Self { kind, offset }
     }
 }
 
@@ -253,16 +220,16 @@ pub(crate) struct DtdUnit<'a> {
 }
 
 impl<'a> DtdUnit<'a> {
-    pub(crate) fn parse(raw: impl Into<Cow<'a, str>>, limits: DtdLimits) -> Result<Self, DtdError> {
+    pub(crate) fn parse(raw: impl Into<Cow<'a, str>>, limits: DtdLimits) -> Result<Self, Error> {
         let raw = raw.into();
         if raw.len() > limits.unit_bytes {
-            return Err(DtdError::new(
-                DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes),
+            return Err(Error::new(
+                ErrorKind::LimitExceeded(Limit::TokenBytes),
                 limits.unit_bytes,
             ));
         }
         if let Some(offset) = invalid_char(&raw) {
-            return Err(DtdError::new(DtdErrorKind::InvalidCharacter, offset));
+            return Err(Error::new(ErrorKind::InvalidCharacter, offset));
         }
         let (kind, tokens) = Parser::new(&raw, limits).parse()?;
         Ok(Self { raw, tokens, kind })
@@ -380,11 +347,6 @@ impl<'a> DtdUnit<'a> {
                 })
             }
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn references(&self) -> impl Iterator<Item = ReferenceView<'_>> {
-        self.reference_positions().map(|(_, reference)| reference)
     }
 
     pub(crate) fn reference_positions(&self) -> impl Iterator<Item = (usize, ReferenceView<'_>)> {
@@ -679,14 +641,6 @@ impl<'a> AttributeListView<'a> {
         self.unit.token_text(0)
     }
 
-    #[cfg(test)]
-    pub(crate) fn definition_count(self) -> usize {
-        let TokenKind::AttributeListName { definitions } = self.unit.tokens[0].kind else {
-            unreachable!("validated ATTLIST starts with its element-name token")
-        };
-        definitions
-    }
-
     pub(crate) fn definitions(self) -> AttributeDefinitions<'a> {
         AttributeDefinitions {
             unit: self.unit,
@@ -793,26 +747,6 @@ impl<'a> NotationDeclarationView<'a> {
     pub(crate) fn name(self) -> &'a str {
         self.unit.token_text(0)
     }
-
-    #[cfg(test)]
-    pub(crate) fn identifier(self) -> ExternalIdView<'a> {
-        match self.kind {
-            DtdUnitKind::SystemNotation => ExternalMeta {
-                public: None,
-                system: Some(1),
-            },
-            DtdUnitKind::PublicNotation => ExternalMeta {
-                public: Some(1),
-                system: None,
-            },
-            DtdUnitKind::PublicSystemNotation => ExternalMeta {
-                public: Some(1),
-                system: Some(2),
-            },
-            _ => unreachable!("view created only for notation kinds"),
-        }
-        .view(self.unit)
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -844,7 +778,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse(mut self) -> Result<(DtdUnitKind, Vec<DtdToken>), DtdError> {
+    fn parse(mut self) -> Result<(DtdUnitKind, Vec<DtdToken>), Error> {
         let kind = if self.raw.starts_with("<!DOCTYPE") {
             self.header()?
         } else if self.raw.starts_with("<!ELEMENT") {
@@ -860,53 +794,50 @@ impl<'a> Parser<'a> {
         } else if self.raw.starts_with("<?") {
             self.processing_instruction()?
         } else {
-            return Err(DtdError::new(
-                DtdErrorKind::Syntax,
+            return Err(Error::new(
+                ErrorKind::InvalidDtd,
                 dispatch_error_offset(self.raw),
             ));
         };
         if self.position != self.raw.len() {
-            return Err(self.error(DtdErrorKind::Syntax));
+            return Err(self.error(ErrorKind::InvalidDtd));
         }
         Ok((kind, self.tokens))
     }
 
-    fn push(&mut self, kind: TokenKind, range: Range<usize>) -> Result<usize, DtdError> {
+    fn push(&mut self, kind: TokenKind, range: Range<usize>) -> Result<usize, Error> {
         if self.tokens.len() >= self.limits.unit_tokens {
-            return Err(DtdError::new(
-                DtdErrorKind::LimitExceeded(DtdLimit::Tokens),
+            return Err(Error::new(
+                ErrorKind::LimitExceeded(Limit::TokenBytes),
                 range.start,
             ));
         }
         self.tokens
             .try_reserve(1)
-            .map_err(|_| DtdError::new(DtdErrorKind::Allocation, range.start))?;
+            .map_err(|_| Error::new(ErrorKind::Allocation, range.start))?;
         let index = self.tokens.len();
         self.tokens.push(DtdToken { kind, range });
         Ok(index)
     }
 
-    fn error(&self, kind: DtdErrorKind) -> DtdError {
-        DtdError::new(kind, self.position)
+    fn error(&self, kind: ErrorKind) -> Error {
+        Error::new(kind, self.position)
     }
 
     fn remaining(&self) -> &'a str {
         &self.raw[self.position..]
     }
 
-    fn consume(&mut self, expected: &str) -> Result<(), DtdError> {
+    fn consume(&mut self, expected: &str) -> Result<(), Error> {
         let remaining = self.remaining().as_bytes();
         for (relative, expected) in expected.bytes().enumerate() {
             match remaining.get(relative) {
                 Some(actual) if *actual == expected => {}
                 Some(_) => {
-                    return Err(DtdError::new(
-                        DtdErrorKind::Syntax,
-                        self.position + relative,
-                    ));
+                    return Err(Error::new(ErrorKind::InvalidDtd, self.position + relative));
                 }
                 None => {
-                    return Err(DtdError::new(DtdErrorKind::Syntax, self.raw.len()));
+                    return Err(Error::new(ErrorKind::InvalidDtd, self.raw.len()));
                 }
             }
         }
@@ -929,17 +860,17 @@ impl<'a> Parser<'a> {
         self.position != start
     }
 
-    fn require_whitespace(&mut self) -> Result<(), DtdError> {
+    fn require_whitespace(&mut self) -> Result<(), Error> {
         if self.whitespace() {
             Ok(())
         } else {
-            Err(self.error(DtdErrorKind::Syntax))
+            Err(self.error(ErrorKind::InvalidDtd))
         }
     }
 
-    fn expected_one_of(&self, expected: &[&str]) -> DtdError {
-        DtdError::new(
-            DtdErrorKind::Syntax,
+    fn expected_one_of(&self, expected: &[&str]) -> Error {
+        Error::new(
+            ErrorKind::InvalidDtd,
             self.position + longest_common_prefix(self.remaining(), expected),
         )
     }
@@ -960,13 +891,13 @@ impl<'a> Parser<'a> {
         true
     }
 
-    fn name(&mut self) -> Result<usize, DtdError> {
+    fn name(&mut self) -> Result<usize, Error> {
         let start = self.position;
         let Some(first) = self.remaining().chars().next() else {
-            return Err(self.error(DtdErrorKind::InvalidName));
+            return Err(self.error(ErrorKind::InvalidName));
         };
         if !name_start(first, true) {
-            return Err(self.error(DtdErrorKind::InvalidName));
+            return Err(self.error(ErrorKind::InvalidName));
         }
         self.position += first.len_utf8();
         while let Some(character) = self.remaining().chars().next() {
@@ -978,7 +909,7 @@ impl<'a> Parser<'a> {
         self.push(TokenKind::Name, start..self.position)
     }
 
-    fn nmtoken(&mut self) -> Result<usize, DtdError> {
+    fn nmtoken(&mut self) -> Result<usize, Error> {
         let start = self.position;
         while let Some(character) = self.remaining().chars().next() {
             if !name_char(character, true) {
@@ -987,19 +918,19 @@ impl<'a> Parser<'a> {
             self.position += character.len_utf8();
         }
         if self.position == start {
-            return Err(self.error(DtdErrorKind::InvalidNmtoken));
+            return Err(self.error(ErrorKind::InvalidDtd));
         }
         self.push(TokenKind::NmToken, start..self.position)
     }
 
-    fn header(&mut self) -> Result<DtdUnitKind, DtdError> {
+    fn header(&mut self) -> Result<DtdUnitKind, Error> {
         self.consume("<!DOCTYPE")?;
         self.require_whitespace()?;
         self.name()?;
         let had_whitespace = self.whitespace();
         let external = if !matches!(self.byte(), Some(b'[' | b'>')) {
             if !had_whitespace {
-                return Err(self.error(DtdErrorKind::Syntax));
+                return Err(self.error(ErrorKind::InvalidDtd));
             }
             let external = self.external_identifier(false)?;
             self.whitespace();
@@ -1016,7 +947,7 @@ impl<'a> Parser<'a> {
                 self.position += 1;
                 false
             }
-            _ => return Err(self.error(DtdErrorKind::Syntax)),
+            _ => return Err(self.error(ErrorKind::InvalidDtd)),
         };
         Ok(match (external, has_internal_subset) {
             (None, false) => DtdUnitKind::Header,
@@ -1038,7 +969,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn external_identifier(&mut self, public_only_allowed: bool) -> Result<ExternalMeta, DtdError> {
+    fn external_identifier(&mut self, public_only_allowed: bool) -> Result<ExternalMeta, Error> {
         if self.keyword("SYSTEM") {
             self.require_whitespace()?;
             let system = self.system_literal()?;
@@ -1057,7 +988,7 @@ impl<'a> Parser<'a> {
                         system: None,
                     });
                 }
-                return Err(self.error(DtdErrorKind::Syntax));
+                return Err(self.error(ErrorKind::InvalidDtd));
             }
             if matches!(self.byte(), Some(b'\'' | b'"')) {
                 let system = self.system_literal()?;
@@ -1072,38 +1003,38 @@ impl<'a> Parser<'a> {
                     system: None,
                 })
             } else {
-                Err(self.error(DtdErrorKind::Syntax))
+                Err(self.error(ErrorKind::InvalidDtd))
             }
         } else {
             Err(self.expected_one_of(&["SYSTEM", "PUBLIC"]))
         }
     }
 
-    fn system_literal(&mut self) -> Result<usize, DtdError> {
+    fn system_literal(&mut self) -> Result<usize, Error> {
         self.literal(LiteralKind::SystemIdentifier)
     }
 
-    fn public_literal(&mut self) -> Result<usize, DtdError> {
+    fn public_literal(&mut self) -> Result<usize, Error> {
         self.literal(LiteralKind::PublicIdentifier)
     }
 
-    fn entity_value(&mut self) -> Result<usize, DtdError> {
+    fn entity_value(&mut self) -> Result<usize, Error> {
         self.literal(LiteralKind::EntityValue)
     }
 
-    fn attribute_value(&mut self) -> Result<usize, DtdError> {
+    fn attribute_value(&mut self) -> Result<usize, Error> {
         self.literal(LiteralKind::AttributeValue)
     }
 
-    fn literal(&mut self, kind: LiteralKind) -> Result<usize, DtdError> {
+    fn literal(&mut self, kind: LiteralKind) -> Result<usize, Error> {
         let start = self.position;
         let Some(quote @ (b'\'' | b'"')) = self.byte() else {
-            return Err(self.error(DtdErrorKind::Syntax));
+            return Err(self.error(ErrorKind::InvalidDtd));
         };
         self.position += 1;
         loop {
             let Some(byte) = self.byte() else {
-                return Err(self.error(DtdErrorKind::Syntax));
+                return Err(self.error(ErrorKind::InvalidDtd));
             };
             if byte == quote {
                 self.position += 1;
@@ -1115,14 +1046,14 @@ impl<'a> Parser<'a> {
                 }
                 LiteralKind::SystemIdentifier => {
                     if byte == b'#' {
-                        return Err(self.error(DtdErrorKind::SystemIdentifierFragment));
+                        return Err(self.error(ErrorKind::InvalidDtd));
                     }
                     self.advance_character();
                 }
                 LiteralKind::PublicIdentifier => {
                     let character = self.remaining().chars().next().expect("byte exists");
                     if !pubid_char(character) || (quote == b'\'' && character == '\'') {
-                        return Err(self.error(DtdErrorKind::InvalidPublicIdentifier));
+                        return Err(self.error(ErrorKind::InvalidDtd));
                     }
                     self.position += character.len_utf8();
                 }
@@ -1136,7 +1067,7 @@ impl<'a> Parser<'a> {
                     _ => self.advance_character(),
                 },
                 LiteralKind::AttributeValue => match byte {
-                    b'<' => return Err(self.error(DtdErrorKind::Syntax)),
+                    b'<' => return Err(self.error(ErrorKind::InvalidDtd)),
                     b'&' => {
                         self.reference_from_ampersand()?;
                     }
@@ -1151,7 +1082,7 @@ impl<'a> Parser<'a> {
         self.position += character.len_utf8();
     }
 
-    fn reference_from_ampersand(&mut self) -> Result<usize, DtdError> {
+    fn reference_from_ampersand(&mut self) -> Result<usize, Error> {
         if self.remaining().starts_with("&#x") {
             self.character_reference(true)
         } else if self.remaining().starts_with("&#") {
@@ -1161,7 +1092,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn reference(&mut self, kind: ReferenceKind) -> Result<usize, DtdError> {
+    fn reference(&mut self, kind: ReferenceKind) -> Result<usize, Error> {
         let start = self.position;
         let delimiter = match kind {
             ReferenceKind::General => b'&',
@@ -1171,24 +1102,24 @@ impl<'a> Parser<'a> {
             }
         };
         if self.byte() != Some(delimiter) {
-            return Err(self.error(DtdErrorKind::InvalidReference));
+            return Err(self.error(ErrorKind::InvalidReference));
         }
         self.position += 1;
         if let Err(error) = self.name() {
-            return Err(if error.kind == DtdErrorKind::InvalidName {
-                DtdError::new(DtdErrorKind::InvalidReference, error.offset)
+            return Err(if error.kind == ErrorKind::InvalidName {
+                Error::new(ErrorKind::InvalidReference, error.offset)
             } else {
                 error
             });
         }
         if self.byte() != Some(b';') {
-            return Err(self.error(DtdErrorKind::InvalidReference));
+            return Err(self.error(ErrorKind::InvalidReference));
         }
         self.position += 1;
         self.push(TokenKind::Reference(kind), start..self.position)
     }
 
-    fn character_reference(&mut self, hexadecimal: bool) -> Result<usize, DtdError> {
+    fn character_reference(&mut self, hexadecimal: bool) -> Result<usize, Error> {
         let start = self.position;
         self.position += if hexadecimal { 3 } else { 2 };
         let digits = self.position;
@@ -1211,15 +1142,15 @@ impl<'a> Parser<'a> {
             value = value
                 .checked_mul(if hexadecimal { 16 } else { 10 })
                 .and_then(|value| value.checked_add(digit))
-                .ok_or_else(|| self.error(DtdErrorKind::InvalidReference))?;
+                .ok_or_else(|| self.error(ErrorKind::InvalidReference))?;
             self.position += 1;
         }
         if self.position == digits || self.byte() != Some(b';') {
-            return Err(self.error(DtdErrorKind::InvalidReference));
+            return Err(self.error(ErrorKind::InvalidReference));
         }
         let character = char::from_u32(value)
             .filter(|character| xml_char(*character))
-            .ok_or_else(|| DtdError::new(DtdErrorKind::InvalidReference, start))?;
+            .ok_or_else(|| Error::new(ErrorKind::InvalidReference, start))?;
         let _ = character;
         self.position += 1;
         self.push(
@@ -1232,16 +1163,16 @@ impl<'a> Parser<'a> {
         )
     }
 
-    fn comment(&mut self) -> Result<DtdUnitKind, DtdError> {
+    fn comment(&mut self) -> Result<DtdUnitKind, Error> {
         self.consume("<!--")?;
         let content_start = self.position;
         let Some(relative) = self.remaining().find("--") else {
             self.position = self.raw.len();
-            return Err(self.error(DtdErrorKind::Syntax));
+            return Err(self.error(ErrorKind::InvalidDtd));
         };
         self.position += relative;
         if !self.remaining().starts_with("-->") {
-            return Err(DtdError::new(DtdErrorKind::Syntax, self.position + 1));
+            return Err(Error::new(ErrorKind::InvalidDtd, self.position + 1));
         }
         self.push(
             TokenKind::Literal(LiteralKind::Comment),
@@ -1251,7 +1182,7 @@ impl<'a> Parser<'a> {
         Ok(DtdUnitKind::Comment)
     }
 
-    fn processing_instruction(&mut self) -> Result<DtdUnitKind, DtdError> {
+    fn processing_instruction(&mut self) -> Result<DtdUnitKind, Error> {
         self.consume("<?")?;
         let target = self.name()?;
         if self.tokens[target]
@@ -1260,8 +1191,8 @@ impl<'a> Parser<'a> {
             .map(|index| self.raw.as_bytes()[index].to_ascii_lowercase())
             .eq(b"xml".iter().copied())
         {
-            return Err(DtdError::new(
-                DtdErrorKind::ReservedPiTarget,
+            return Err(Error::new(
+                ErrorKind::InvalidDtd,
                 self.tokens[target].range.start,
             ));
         }
@@ -1272,7 +1203,7 @@ impl<'a> Parser<'a> {
             let start = self.position;
             let Some(relative) = self.remaining().find("?>") else {
                 self.position = self.raw.len();
-                return Err(self.error(DtdErrorKind::Syntax));
+                return Err(self.error(ErrorKind::InvalidDtd));
             };
             self.position += relative;
             self.push(
@@ -1349,7 +1280,7 @@ fn longest_common_prefix(raw: &str, expected: &[&str]) -> usize {
 }
 
 impl Parser<'_> {
-    fn element(&mut self) -> Result<DtdUnitKind, DtdError> {
+    fn element(&mut self) -> Result<DtdUnitKind, Error> {
         self.consume("<!ELEMENT")?;
         self.require_whitespace()?;
         self.name()?;
@@ -1380,9 +1311,9 @@ impl Parser<'_> {
         tail.starts_with("#PCDATA")
     }
 
-    fn mixed_model(&mut self) -> Result<Range<usize>, DtdError> {
+    fn mixed_model(&mut self) -> Result<Range<usize>, Error> {
         if self.limits.model_depth == 0 {
-            return Err(self.error(DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth)));
+            return Err(self.error(ErrorKind::LimitExceeded(Limit::Depth)));
         }
         let start = self.tokens.len();
         let open = self.position;
@@ -1405,7 +1336,7 @@ impl Parser<'_> {
             self.name()?;
             names = names
                 .checked_add(1)
-                .ok_or_else(|| self.error(DtdErrorKind::Allocation))?;
+                .ok_or_else(|| self.error(ErrorKind::Allocation))?;
             self.whitespace();
         }
         let close = self.position;
@@ -1422,7 +1353,7 @@ impl Parser<'_> {
         Ok(start..self.tokens.len())
     }
 
-    fn children_model(&mut self) -> Result<Range<usize>, DtdError> {
+    fn children_model(&mut self) -> Result<Range<usize>, Error> {
         let start = self.tokens.len();
         let mut stack = Vec::new();
         self.open_group(&mut stack)?;
@@ -1440,7 +1371,7 @@ impl Parser<'_> {
                 frame.particles = frame
                     .particles
                     .checked_add(1)
-                    .ok_or_else(|| self.error(DtdErrorKind::Allocation))?;
+                    .ok_or_else(|| self.error(ErrorKind::Allocation))?;
                 expects_particle = false;
                 continue;
             }
@@ -1456,7 +1387,7 @@ impl Parser<'_> {
                         .connector
                         .is_some_and(|existing| existing != connector)
                     {
-                        return Err(self.error(DtdErrorKind::Syntax));
+                        return Err(self.error(ErrorKind::InvalidDtd));
                     }
                     frame.connector = Some(connector);
                     let offset = self.position;
@@ -1472,7 +1403,7 @@ impl Parser<'_> {
                     if frame.particles == 0
                         || (frame.connector == Some(Connector::Choice) && frame.particles < 2)
                     {
-                        return Err(self.error(DtdErrorKind::Syntax));
+                        return Err(self.error(ErrorKind::InvalidDtd));
                     }
                     stack.pop();
                     let offset = self.position;
@@ -1483,23 +1414,23 @@ impl Parser<'_> {
                         parent.particles = parent
                             .particles
                             .checked_add(1)
-                            .ok_or_else(|| self.error(DtdErrorKind::Allocation))?;
+                            .ok_or_else(|| self.error(ErrorKind::Allocation))?;
                     } else {
                         return Ok(start..self.tokens.len());
                     }
                 }
-                _ => return Err(self.error(DtdErrorKind::Syntax)),
+                _ => return Err(self.error(ErrorKind::InvalidDtd)),
             }
         }
     }
 
-    fn open_group(&mut self, stack: &mut Vec<GroupFrame>) -> Result<(), DtdError> {
+    fn open_group(&mut self, stack: &mut Vec<GroupFrame>) -> Result<(), Error> {
         if stack.len() >= self.limits.model_depth {
-            return Err(self.error(DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth)));
+            return Err(self.error(ErrorKind::LimitExceeded(Limit::Depth)));
         }
         stack
             .try_reserve(1)
-            .map_err(|_| self.error(DtdErrorKind::Allocation))?;
+            .map_err(|_| self.error(ErrorKind::Allocation))?;
         let offset = self.position;
         self.consume("(")?;
         self.push(TokenKind::Model(ModelSyntax::Open), offset..self.position)?;
@@ -1510,7 +1441,7 @@ impl Parser<'_> {
         Ok(())
     }
 
-    fn occurrence(&mut self) -> Result<(), DtdError> {
+    fn occurrence(&mut self) -> Result<(), Error> {
         let Some((syntax, occurrence)) = self.byte().and_then(|byte| match byte {
             b'?' => Some((Occurrence::Optional, self.position)),
             b'*' => Some((Occurrence::ZeroOrMore, self.position)),
@@ -1533,7 +1464,7 @@ impl Parser<'_> {
 mod spec_tests;
 
 impl Parser<'_> {
-    fn entity(&mut self) -> Result<DtdUnitKind, DtdError> {
+    fn entity(&mut self) -> Result<DtdUnitKind, Error> {
         self.consume("<!ENTITY")?;
         self.require_whitespace()?;
         let parameter = if self.byte() == Some(b'%') {
@@ -1577,7 +1508,7 @@ impl Parser<'_> {
         Ok(kind)
     }
 
-    fn notation(&mut self) -> Result<DtdUnitKind, DtdError> {
+    fn notation(&mut self) -> Result<DtdUnitKind, Error> {
         self.consume("<!NOTATION")?;
         self.require_whitespace()?;
         self.name()?;
@@ -1597,7 +1528,7 @@ impl Parser<'_> {
 }
 
 impl Parser<'_> {
-    fn attribute_list(&mut self) -> Result<DtdUnitKind, DtdError> {
+    fn attribute_list(&mut self) -> Result<DtdUnitKind, Error> {
         self.consume("<!ATTLIST")?;
         self.require_whitespace()?;
         let element = self.name()?;
@@ -1609,10 +1540,10 @@ impl Parser<'_> {
                 break;
             }
             if !had_whitespace {
-                return Err(self.error(DtdErrorKind::Syntax));
+                return Err(self.error(ErrorKind::InvalidDtd));
             }
             if definitions >= self.limits.attribute_definitions {
-                return Err(self.error(DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions)));
+                return Err(self.error(ErrorKind::LimitExceeded(Limit::Attributes)));
             }
             let definition_start = self.position;
             let name = self.name()?;
@@ -1622,7 +1553,7 @@ impl Parser<'_> {
             let default = self.default_declaration()?;
             definitions = definitions
                 .checked_add(1)
-                .ok_or_else(|| self.error(DtdErrorKind::Allocation))?;
+                .ok_or_else(|| self.error(ErrorKind::Allocation))?;
             self.push(
                 TokenKind::AttributeDefinition(AttributeDefinitionMeta {
                     name,
@@ -1636,7 +1567,7 @@ impl Parser<'_> {
         Ok(DtdUnitKind::AttributeList)
     }
 
-    fn attribute_type(&mut self) -> Result<AttributeTypeMeta, DtdError> {
+    fn attribute_type(&mut self) -> Result<AttributeTypeMeta, Error> {
         if self.keyword("CDATA") {
             Ok(AttributeTypeMeta::Cdata)
         } else if self.keyword("IDREFS") {
@@ -1666,7 +1597,7 @@ impl Parser<'_> {
         }
     }
 
-    fn value_list(&mut self, names: bool) -> Result<Range<usize>, DtdError> {
+    fn value_list(&mut self, names: bool) -> Result<Range<usize>, Error> {
         self.consume("(")?;
         self.whitespace();
         let start = self.tokens.len();
@@ -1691,7 +1622,7 @@ impl Parser<'_> {
         }
     }
 
-    fn default_declaration(&mut self) -> Result<DefaultMeta, DtdError> {
+    fn default_declaration(&mut self) -> Result<DefaultMeta, Error> {
         if self.keyword("#REQUIRED") {
             Ok(DefaultMeta::Required)
         } else if self.keyword("#IMPLIED") {

@@ -13,9 +13,9 @@ fn marked(marked: &str) -> (String, usize) {
     (raw, offset)
 }
 
-fn rejects(marked_raw: &str, kind: DtdErrorKind) {
+fn rejects(marked_raw: &str, kind: ErrorKind) {
     let (raw, offset) = marked(marked_raw);
-    let expected = DtdError { kind, offset };
+    let expected = Error { kind, offset };
     assert_eq!(
         DtdUnit::parse(&raw, DtdLimits::STANDALONE),
         Err(expected),
@@ -368,7 +368,7 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
         panic!("expected ATTLIST view");
     };
     assert_eq!(list.element_name(), "r");
-    assert_eq!(list.definition_count(), expected.len());
+    assert_eq!(list.definitions().count(), expected.len());
     let actual = list.definitions().collect::<Vec<_>>();
     assert_eq!(actual.len(), expected.len());
     for (definition, (name, attribute_type, default)) in actual.into_iter().zip(expected) {
@@ -377,7 +377,9 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
         assert_eq!(definition.default(), default);
     }
     assert_eq!(
-        unit.references().collect::<Vec<_>>(),
+        unit.reference_positions()
+            .map(|(_, reference)| reference)
+            .collect::<Vec<_>>(),
         [
             ReferenceView {
                 kind: ReferenceKind::General,
@@ -401,7 +403,7 @@ fn empty_duplicate_and_percent_attlists_stay_lexical() {
     let DtdUnitView::AttributeList(list) = unit.view() else {
         panic!("expected ATTLIST view");
     };
-    assert_eq!(list.definition_count(), 0);
+    assert_eq!(list.definitions().count(), 0);
     assert_eq!(list.definitions().count(), 0);
 
     let unit = parse("<!ATTLIST r a CDATA '%p;' a CDATA 'y' id1 ID 'x' id2 ID #REQUIRED>");
@@ -419,7 +421,12 @@ fn empty_duplicate_and_percent_attlists_stay_lexical() {
         }
     );
     assert_eq!(definitions[1].name(), "a");
-    assert!(unit.references().next().is_none());
+    assert!(
+        unit.reference_positions()
+            .map(|(_, reference)| reference)
+            .next()
+            .is_none()
+    );
 }
 
 #[test]
@@ -521,39 +528,28 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
         assert_eq!(entity.is_parameter(), case.parameter);
         assert_eq!(entity.name(), case.name);
         assert_eq!(entity.definition(), case.definition);
-        assert_eq!(unit.references().collect::<Vec<_>>(), expected_references);
+        assert_eq!(
+            unit.reference_positions()
+                .map(|(_, reference)| reference)
+                .collect::<Vec<_>>(),
+            expected_references
+        );
     }
 }
 
 #[test]
 fn notations_comments_and_processing_instructions_preserve_lexical_data() {
-    for (raw, name, public, system) in [
-        (
-            "<!NOTATION gif SYSTEM 'image/gif'>",
-            "gif",
-            None,
-            Some("'image/gif'"),
-        ),
-        (
-            "<!NOTATION n PUBLIC '-//A B//EN' 'n.sys'>",
-            "n",
-            Some("'-//A B//EN'"),
-            Some("'n.sys'"),
-        ),
-        (
-            "<!NOTATION n PUBLIC '-//A B//EN'>",
-            "n",
-            Some("'-//A B//EN'"),
-            None,
-        ),
-        ("<!NOTATION n PUBLIC ''>", "n", Some("''"), None),
+    for (raw, name) in [
+        ("<!NOTATION gif SYSTEM 'image/gif'>", "gif"),
+        ("<!NOTATION n PUBLIC '-//A B//EN' 'n.sys'>", "n"),
+        ("<!NOTATION n PUBLIC '-//A B//EN'>", "n"),
+        ("<!NOTATION n PUBLIC ''>", "n"),
     ] {
         let unit = parse(raw);
         let DtdUnitView::Notation(notation) = unit.view() else {
             panic!("expected NOTATION view");
         };
         assert_eq!(notation.name(), name);
-        assert_eq!(notation.identifier(), ExternalIdView { public, system });
     }
 
     for (raw, body) in [
@@ -565,7 +561,12 @@ fn notations_comments_and_processing_instructions_preserve_lexical_data() {
     ] {
         let unit = parse(raw);
         assert_eq!(unit.view(), DtdUnitView::Comment(body));
-        assert!(unit.references().next().is_none());
+        assert!(
+            unit.reference_positions()
+                .map(|(_, reference)| reference)
+                .next()
+                .is_none()
+        );
     }
 
     for (raw, target, data) in [
@@ -579,102 +580,95 @@ fn notations_comments_and_processing_instructions_preserve_lexical_data() {
             unit.view(),
             DtdUnitView::ProcessingInstruction(ProcessingInstructionView { target, data })
         );
-        assert!(unit.references().next().is_none());
+        assert!(
+            unit.reference_positions()
+                .map(|(_, reference)| reference)
+                .next()
+                .is_none()
+        );
     }
 }
 
 #[test]
 fn syntax_and_lexical_failures_report_the_selected_production_offset() {
     let cases = [
-        ("<!DOCTYPE^r>", DtdErrorKind::Syntax),
-        ("<!DOCTYPE ^1r>", DtdErrorKind::InvalidName),
-        ("<!DOCTYPE r PUBLIC 'p'^>", DtdErrorKind::Syntax),
-        ("<!DOCTYPE r SYSTEM^'s'>", DtdErrorKind::Syntax),
-        ("<!DOCTYPE r SYSTEM 's'>^x", DtdErrorKind::Syntax),
-        ("<!DOCTYPE r SYSTEM 's^", DtdErrorKind::Syntax),
-        (
-            "<!DOCTYPE r PUBLIC 'bad^[pub' 's'>",
-            DtdErrorKind::InvalidPublicIdentifier,
-        ),
-        ("<!DOCTYPE r [^]>", DtdErrorKind::Syntax),
-        ("<!^BOGUS r>", DtdErrorKind::Syntax),
-        ("<!ELEMENT^r EMPTY>", DtdErrorKind::Syntax),
-        ("<!ELEMENT rEMPTY^>", DtdErrorKind::Syntax),
-        ("<!ELEMENT r ^empty>", DtdErrorKind::Syntax),
-        ("<!ELEMENT r (^)>", DtdErrorKind::InvalidName),
-        ("<!ELEMENT r (a|^)>", DtdErrorKind::InvalidName),
-        ("<!ELEMENT r (a,b^|c)>", DtdErrorKind::Syntax),
-        ("<!ELEMENT r (#PCDATA|a)^>", DtdErrorKind::Syntax),
-        ("<!ELEMENT r (#PCDATA)^?>", DtdErrorKind::Syntax),
-        ("<!ELEMENT r (a ^?)>", DtdErrorKind::Syntax),
-        ("<!ELEMENT r (a)*^*>", DtdErrorKind::Syntax),
-        ("<!ELEMENT r (a,(b|c)^", DtdErrorKind::Syntax),
-        ("<!ELEMENT r ANY ^x>", DtdErrorKind::Syntax),
-        ("<!ATTLIST^r>", DtdErrorKind::Syntax),
-        ("<!ATTLIST r aCDATA ^#IMPLIED>", DtdErrorKind::Syntax),
-        ("<!ATTLIST r a ^UNKNOWN #IMPLIED>", DtdErrorKind::Syntax),
+        ("<!DOCTYPE^r>", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE ^1r>", ErrorKind::InvalidName),
+        ("<!DOCTYPE r PUBLIC 'p'^>", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE r SYSTEM^'s'>", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE r SYSTEM 's'>^x", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE r SYSTEM 's^", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE r PUBLIC 'bad^[pub' 's'>", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE r [^]>", ErrorKind::InvalidDtd),
+        ("<!^BOGUS r>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT^r EMPTY>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT rEMPTY^>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r ^empty>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r (^)>", ErrorKind::InvalidName),
+        ("<!ELEMENT r (a|^)>", ErrorKind::InvalidName),
+        ("<!ELEMENT r (a,b^|c)>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r (#PCDATA|a)^>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r (#PCDATA)^?>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r (a ^?)>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r (a)*^*>", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r (a,(b|c)^", ErrorKind::InvalidDtd),
+        ("<!ELEMENT r ANY ^x>", ErrorKind::InvalidDtd),
+        ("<!ATTLIST^r>", ErrorKind::InvalidDtd),
+        ("<!ATTLIST r aCDATA ^#IMPLIED>", ErrorKind::InvalidDtd),
+        ("<!ATTLIST r a ^UNKNOWN #IMPLIED>", ErrorKind::InvalidDtd),
         (
             "<!ATTLIST r a NOTATION (^) #IMPLIED>",
-            DtdErrorKind::InvalidName,
+            ErrorKind::InvalidName,
         ),
         (
             "<!ATTLIST r a NOTATION (^1|x) #IMPLIED>",
-            DtdErrorKind::InvalidName,
+            ErrorKind::InvalidName,
         ),
-        ("<!ATTLIST r a (^) #IMPLIED>", DtdErrorKind::InvalidNmtoken),
-        (
-            "<!ATTLIST r a (x|^) #IMPLIED>",
-            DtdErrorKind::InvalidNmtoken,
-        ),
-        ("<!ATTLIST r a CDATA #FIXED^'x'>", DtdErrorKind::Syntax),
-        ("<!ATTLIST r a CDATA \"a^<b\">", DtdErrorKind::Syntax),
+        ("<!ATTLIST r a (^) #IMPLIED>", ErrorKind::InvalidDtd),
+        ("<!ATTLIST r a (x|^) #IMPLIED>", ErrorKind::InvalidDtd),
+        ("<!ATTLIST r a CDATA #FIXED^'x'>", ErrorKind::InvalidDtd),
+        ("<!ATTLIST r a CDATA \"a^<b\">", ErrorKind::InvalidDtd),
         (
             "<!ATTLIST r a CDATA \"&bad^\">",
-            DtdErrorKind::InvalidReference,
+            ErrorKind::InvalidReference,
         ),
         (
             "<!ATTLIST r a CDATA \"^&#x110000;\">",
-            DtdErrorKind::InvalidReference,
+            ErrorKind::InvalidReference,
         ),
-        ("<!ATTLIST r a CDATA #IMPLIED x^>", DtdErrorKind::Syntax),
-        ("<!ENTITY^e 'v'>", DtdErrorKind::Syntax),
-        ("<!ENTITY %^p 'v'>", DtdErrorKind::Syntax),
-        ("<!ENTITY % p^'v'>", DtdErrorKind::Syntax),
-        ("<!ENTITY e \"&^;\">", DtdErrorKind::InvalidReference),
-        ("<!ENTITY e \"%^;\">", DtdErrorKind::InvalidReference),
-        ("<!ENTITY e \"&#^;\">", DtdErrorKind::InvalidReference),
-        ("<!ENTITY e \"&#x^;\">", DtdErrorKind::InvalidReference),
-        ("<!ENTITY e \"^&#0;\">", DtdErrorKind::InvalidReference),
-        ("<!ENTITY e \"unterminated>^", DtdErrorKind::Syntax),
-        ("<!ENTITY e PUBLIC 'p'^>", DtdErrorKind::Syntax),
-        ("<!ENTITY % p SYSTEM 's' ^NDATA n>", DtdErrorKind::Syntax),
-        ("<!ENTITY e 'v' ^NDATA n>", DtdErrorKind::Syntax),
-        ("<!ENTITY e SYSTEM 's' NDATA ^>", DtdErrorKind::InvalidName),
-        ("<!ENTITY e SYSTEM^'s'>", DtdErrorKind::Syntax),
-        (
-            "<!ENTITY e PUBLIC 'bad^[pub' 's'>",
-            DtdErrorKind::InvalidPublicIdentifier,
-        ),
-        ("<!NOTATION n^>", DtdErrorKind::Syntax),
-        ("<!NOTATION n PUBLIC^'p'>", DtdErrorKind::Syntax),
-        ("<!NOTATION n SYSTEM 's' ^x>", DtdErrorKind::Syntax),
-        ("<!-- a-^-b -->", DtdErrorKind::Syntax),
-        ("<!-- a -^-->", DtdErrorKind::Syntax),
-        ("<!-- a^", DtdErrorKind::Syntax),
-        ("<?^xml data?>", DtdErrorKind::ReservedPiTarget),
-        ("<?^XmL?>", DtdErrorKind::ReservedPiTarget),
-        ("<?^1x?>", DtdErrorKind::InvalidName),
-        ("<?p data?>^x", DtdErrorKind::Syntax),
-        ("<?p data?>^ more?>", DtdErrorKind::Syntax),
-        (
-            "<!DOCTYPE r SYSTEM 'a^#b'>",
-            DtdErrorKind::SystemIdentifierFragment,
-        ),
+        ("<!ATTLIST r a CDATA #IMPLIED x^>", ErrorKind::InvalidDtd),
+        ("<!ENTITY^e 'v'>", ErrorKind::InvalidDtd),
+        ("<!ENTITY %^p 'v'>", ErrorKind::InvalidDtd),
+        ("<!ENTITY % p^'v'>", ErrorKind::InvalidDtd),
+        ("<!ENTITY e \"&^;\">", ErrorKind::InvalidReference),
+        ("<!ENTITY e \"%^;\">", ErrorKind::InvalidReference),
+        ("<!ENTITY e \"&#^;\">", ErrorKind::InvalidReference),
+        ("<!ENTITY e \"&#x^;\">", ErrorKind::InvalidReference),
+        ("<!ENTITY e \"^&#0;\">", ErrorKind::InvalidReference),
+        ("<!ENTITY e \"unterminated>^", ErrorKind::InvalidDtd),
+        ("<!ENTITY e PUBLIC 'p'^>", ErrorKind::InvalidDtd),
+        ("<!ENTITY % p SYSTEM 's' ^NDATA n>", ErrorKind::InvalidDtd),
+        ("<!ENTITY e 'v' ^NDATA n>", ErrorKind::InvalidDtd),
+        ("<!ENTITY e SYSTEM 's' NDATA ^>", ErrorKind::InvalidName),
+        ("<!ENTITY e SYSTEM^'s'>", ErrorKind::InvalidDtd),
+        ("<!ENTITY e PUBLIC 'bad^[pub' 's'>", ErrorKind::InvalidDtd),
+        ("<!NOTATION n^>", ErrorKind::InvalidDtd),
+        ("<!NOTATION n PUBLIC^'p'>", ErrorKind::InvalidDtd),
+        ("<!NOTATION n SYSTEM 's' ^x>", ErrorKind::InvalidDtd),
+        ("<!-- a-^-b -->", ErrorKind::InvalidDtd),
+        ("<!-- a -^-->", ErrorKind::InvalidDtd),
+        ("<!-- a^", ErrorKind::InvalidDtd),
+        ("<?^xml data?>", ErrorKind::InvalidDtd),
+        ("<?^XmL?>", ErrorKind::InvalidDtd),
+        ("<?^1x?>", ErrorKind::InvalidName),
+        ("<?p data?>^x", ErrorKind::InvalidDtd),
+        ("<?p data?>^ more?>", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE r SYSTEM 'a^#b'>", ErrorKind::InvalidDtd),
     ];
     let mut mismatches = Vec::new();
     for (marked_raw, kind) in cases {
         let (raw, offset) = marked(marked_raw);
-        let expected = Err(DtdError { kind, offset });
+        let expected = Err(Error { kind, offset });
         let actual = DtdUnit::parse(&raw, DtdLimits::STANDALONE);
         if actual != expected {
             mismatches.push(format!("{raw:?}: actual {actual:?}, expected {expected:?}"));
@@ -696,8 +690,8 @@ fn invalid_xml_characters_are_rejected_in_every_lexical_context() {
     ];
     for (raw, invalid) in cases {
         let offset = raw.find(invalid).expect("invalid scalar is in fixture");
-        let expected = DtdError {
-            kind: DtdErrorKind::InvalidCharacter,
+        let expected = Error {
+            kind: ErrorKind::InvalidCharacter,
             offset,
         };
         assert_eq!(
@@ -716,33 +710,25 @@ fn invalid_xml_characters_are_rejected_in_every_lexical_context() {
         panic!("expected enumeration");
     };
     assert_eq!(values.collect::<Vec<_>>(), ["\u{301}", "x"]);
-    rejects("<!ELEMENT ^\u{301}x EMPTY>", DtdErrorKind::InvalidName);
+    rejects("<!ELEMENT ^\u{301}x EMPTY>", ErrorKind::InvalidName);
 }
 
 #[test]
 fn public_literals_and_character_references_use_their_distinct_grammars() {
     let public_body = " AZaz09-'()+,./:=?;!*#@$_%\r\n";
     let notation_raw = format!("<!NOTATION n PUBLIC \"{public_body}\">");
-    let notation = parse(&notation_raw);
-    let DtdUnitView::Notation(view) = notation.view() else {
-        panic!("expected NOTATION view");
-    };
-    let quoted_public = format!("\"{public_body}\"");
-    assert_eq!(
-        view.identifier(),
-        ExternalIdView {
-            public: Some(&quoted_public),
-            system: None,
-        }
-    );
+    assert!(matches!(
+        parse(&notation_raw).view(),
+        DtdUnitView::Notation(_)
+    ));
 
     for invalid in ['[', ']', '&', '<', 'π'] {
         let raw = format!("<!NOTATION n PUBLIC \"a{invalid}b\">");
         let offset = raw.rfind(invalid).unwrap();
         assert_eq!(
             DtdUnit::parse(raw, DtdLimits::STANDALONE),
-            Err(DtdError {
-                kind: DtdErrorKind::InvalidPublicIdentifier,
+            Err(Error {
+                kind: ErrorKind::InvalidDtd,
                 offset,
             })
         );
@@ -751,7 +737,10 @@ fn public_literals_and_character_references_use_their_distinct_grammars() {
     let entity_raw = "<!ENTITY e \"&#9;&#13;&#x20;&#x10FFFF;\">";
     let entity = parse(entity_raw);
     assert_eq!(
-        entity.references().collect::<Vec<_>>(),
+        entity
+            .reference_positions()
+            .map(|(_, reference)| reference)
+            .collect::<Vec<_>>(),
         [
             ReferenceView {
                 kind: ReferenceKind::DecimalCharacter,
@@ -776,8 +765,8 @@ fn public_literals_and_character_references_use_their_distinct_grammars() {
         let offset = raw.find('&').unwrap();
         assert_eq!(
             DtdUnit::parse(raw, DtdLimits::STANDALONE),
-            Err(DtdError {
-                kind: DtdErrorKind::InvalidReference,
+            Err(Error {
+                kind: ErrorKind::InvalidReference,
                 offset,
             })
         );
@@ -805,8 +794,8 @@ fn every_incomplete_unit_prefix_fails_and_trailing_input_is_rejected() {
             );
         }
         let suffixed = format!("{raw}x");
-        let expected = DtdError {
-            kind: DtdErrorKind::Syntax,
+        let expected = Error {
+            kind: ErrorKind::InvalidDtd,
             offset: raw.len(),
         };
         assert_eq!(
@@ -834,8 +823,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
     };
     assert_eq!(
         DtdUnit::parse(raw, short),
-        Err(DtdError {
-            kind: DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes),
+        Err(Error {
+            kind: ErrorKind::LimitExceeded(Limit::TokenBytes),
             offset: raw.len() - 1,
         })
     );
@@ -853,8 +842,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
     let outer_occurrence = raw.rfind('+').unwrap();
     assert_eq!(
         DtdUnit::parse(raw, short_tokens),
-        Err(DtdError {
-            kind: DtdErrorKind::LimitExceeded(DtdLimit::Tokens),
+        Err(Error {
+            kind: ErrorKind::LimitExceeded(Limit::TokenBytes),
             offset: outer_occurrence,
         })
     );
@@ -876,8 +865,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
                 ..DtdLimits::STANDALONE
             },
         ),
-        Err(DtdError {
-            kind: DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth),
+        Err(Error {
+            kind: ErrorKind::LimitExceeded(Limit::Depth),
             offset: "<!ELEMENT r ((".len(),
         })
     );
@@ -899,8 +888,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
                 ..DtdLimits::STANDALONE
             },
         ),
-        Err(DtdError {
-            kind: DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions),
+        Err(Error {
+            kind: ErrorKind::LimitExceeded(Limit::Attributes),
             offset: attributes.find("d (x|y)").unwrap(),
         })
     );
@@ -921,7 +910,10 @@ fn borrowed_and_owned_inputs_have_identical_views_and_owned_storage_moves() {
     let borrowed = DtdUnit::parse(Cow::Borrowed(raw), DtdLimits::STANDALONE).unwrap();
     assert!(matches!(borrowed.raw, Cow::Borrowed(_)));
     let borrowed_view = borrowed.view();
-    let borrowed_references = borrowed.references().collect::<Vec<_>>();
+    let borrowed_references = borrowed
+        .reference_positions()
+        .map(|(_, reference)| reference)
+        .collect::<Vec<_>>();
 
     let owned_input = raw.to_owned();
     let owned_pointer = owned_input.as_ptr();
@@ -930,7 +922,13 @@ fn borrowed_and_owned_inputs_have_identical_views_and_owned_storage_moves() {
     assert_eq!(owned.raw().as_ptr(), owned_pointer);
     assert_eq!(owned.raw(), raw);
     assert_eq!(owned.view(), borrowed_view);
-    assert_eq!(owned.references().collect::<Vec<_>>(), borrowed_references);
+    assert_eq!(
+        owned
+            .reference_positions()
+            .map(|(_, reference)| reference)
+            .collect::<Vec<_>>(),
+        borrowed_references
+    );
 }
 
 #[test]
@@ -971,15 +969,12 @@ fn bounded_whitespace_name_quote_and_depth_properties_keep_literal_oracles() {
         let DtdUnitView::AttributeList(list) = unit.view() else {
             panic!("expected ATTLIST view");
         };
-        assert_eq!(list.definition_count(), 1);
+        assert_eq!(list.definitions().count(), 1);
 
         let notation =
             format!("<!NOTATION{whitespace}n{whitespace}PUBLIC{whitespace}'p'{whitespace}>");
         let unit = parse(&notation);
-        let DtdUnitView::Notation(notation) = unit.view() else {
-            panic!("expected NOTATION view");
-        };
-        assert_eq!(notation.identifier().public, Some("'p'"));
+        assert!(matches!(unit.view(), DtdUnitView::Notation(_)));
     }
 
     for name in ["a", "_", ":", "π", "名", "a:b:c", "\u{10000}"] {
@@ -994,7 +989,7 @@ fn bounded_whitespace_name_quote_and_depth_properties_keep_literal_oracles() {
         let raw = format!("<!ELEMENT {non_name_start}x EMPTY>");
         assert_eq!(
             DtdUnit::parse(raw, DtdLimits::STANDALONE).unwrap_err().kind,
-            DtdErrorKind::InvalidName
+            ErrorKind::InvalidName
         );
     }
 

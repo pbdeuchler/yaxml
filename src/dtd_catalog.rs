@@ -81,7 +81,6 @@ pub(crate) enum CatalogErrorKind {
     Limit(CatalogLimit),
     Allocation,
     /// Malformed external DTD text.
-    Grammar(crate::dtd::DtdErrorKind),
     /// A failed load or decode of an external resource.
     Xml(crate::ErrorKind),
     /// Internal: the value processor needs this external PE loaded first.

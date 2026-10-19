@@ -5,7 +5,7 @@
 //! parameter references inside declarations (XML 1.0 §2.8, §3.4, §4.4.8).
 
 use super::*;
-use crate::dtd::{DtdErrorKind, DtdUnit};
+use crate::dtd::DtdUnit;
 use crate::parser::space;
 use crate::resolve::ResourceKind;
 
@@ -47,7 +47,10 @@ fn boundary(catalog: &mut DtdCatalog, began: (usize, Source), frames: &[Frame], 
 }
 
 fn syntax() -> CatalogError {
-    error(CatalogErrorKind::Grammar(DtdErrorKind::Syntax), LOCATION)
+    error(
+        CatalogErrorKind::Xml(crate::ErrorKind::InvalidDtd),
+        LOCATION,
+    )
 }
 
 /// Reads the external DTD `system` on its own, as libxml2's `xmlParseDTD`.
@@ -291,12 +294,12 @@ impl DtdCatalog {
                 let close = if rest.starts_with("<?") { "?>" } else { "-->" };
                 let end = rest.find(close).ok_or_else(syntax)? + close.len();
                 DtdUnit::parse(&rest[..end], self.limits)
-                    .map_err(|e| error(CatalogErrorKind::Grammar(e.kind), LOCATION))?;
+                    .map_err(|e| error(CatalogErrorKind::Xml(e.kind), LOCATION))?;
                 end
             } else if rest.starts_with("<!") {
                 let declaration = self.collect(subset, frames, outer, Until::Declaration)?;
                 let unit = DtdUnit::parse(declaration, self.limits)
-                    .map_err(|e| error(CatalogErrorKind::Grammar(e.kind), LOCATION))?;
+                    .map_err(|e| error(CatalogErrorKind::Xml(e.kind), LOCATION))?;
                 if !matches!(
                     unit.view(),
                     DtdUnitView::Element(_)
