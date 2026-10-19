@@ -72,7 +72,7 @@ impl Budget {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum NamespaceId {
     Xml,
     Xmlns,
@@ -705,7 +705,11 @@ impl<'source> ParserState<'source> {
                 ));
             }
             let (prefix, local) = split_qname(name, attribute.split, offset)?;
-            let value = self.normalized(value, value_offset, true, true)?;
+            let value = if attribute.plain {
+                Cow::Borrowed(value)
+            } else {
+                self.normalized(value, value_offset, true, true)?
+            };
             let declaration = if name == "xmlns" {
                 Some("")
             } else if prefix == Some("xmlns") {
@@ -772,15 +776,42 @@ impl<'source> ParserState<'source> {
                 }
             }
         } else {
-            let mut expanded = HashSet::new();
-            expanded
+            // Resolve in order up to the first failure. The interleaved check
+            // above would report any duplicate among the resolved attributes
+            // before reaching that failure, so sorting finds the same result.
+            let mut identities = Vec::new();
+            identities
                 .try_reserve(attributes.len())
                 .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            let mut failure = None;
             for attribute in &mut attributes {
-                let namespace = self.resolve_namespace(&mut attribute.name, true, start)?;
-                if !expanded.insert((attribute.name.local(), namespace)) {
-                    return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+                match self.resolve_namespace(&mut attribute.name, true, start) {
+                    Ok(identity) => identities.push(identity),
+                    Err(error) => {
+                        failure = Some(error);
+                        break;
+                    }
                 }
+            }
+            let mut expanded = Vec::new();
+            expanded
+                .try_reserve(identities.len())
+                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            expanded.extend(
+                attributes
+                    .iter()
+                    .zip(identities)
+                    .map(|(attribute, identity)| {
+                        let local = attribute.name.local();
+                        (sort_key(local), local, identity)
+                    }),
+            );
+            expanded.sort_unstable();
+            if expanded.windows(2).any(|pair| pair[0] == pair[1]) {
+                return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+            }
+            if let Some(error) = failure {
+                return Err(error);
             }
         }
         let element = Element {
@@ -1809,6 +1840,30 @@ const NAME_BYTES: [u8; 256] = {
     table
 };
 
+/// An integer prefix of a name that orders most distinct names without
+/// comparing strings: its length and first eight bytes.
+fn sort_key(name: &str) -> u64 {
+    let mut head = [0; 8];
+    let bytes = name.as_bytes();
+    let length = bytes.len().min(8);
+    head[..length].copy_from_slice(&bytes[..length]);
+    u64::from_be_bytes(head) ^ (bytes.len() as u64).rotate_right(8)
+}
+
+/// For a value closed within its first 32 bytes, its length and whether it
+/// is free of `<`, references and whitespace that attribute normalization
+/// rewrites. Longer values are left to the vectorized searches.
+fn short_value(bytes: &[u8], quote: u8) -> Option<(usize, bool)> {
+    let mut plain = true;
+    for (index, &byte) in bytes.iter().take(32).enumerate() {
+        if byte == quote {
+            return Some((index, plain));
+        }
+        plain &= !matches!(byte, b'<' | b'&' | b'\r' | b'\n' | b'\t');
+    }
+    None
+}
+
 struct TagScanner<'a> {
     raw: &'a str,
     cursor: usize,
@@ -1817,6 +1872,8 @@ struct TagScanner<'a> {
 
 struct ScannedAttribute<'a> {
     qualified: &'a str,
+    /// The value is known to need no normalization.
+    plain: bool,
     /// The proven QName split, when the scanner established it.
     split: Option<Option<NonZeroUsize>>,
     literal: &'a str,
@@ -1913,19 +1970,26 @@ impl<'a> TagScanner<'a> {
             .ok_or(Error::new(ErrorKind::Syntax, self.offset + self.cursor))?;
         self.cursor += 1;
         let value_start = self.cursor;
-        let length = memchr(quote, &self.raw.as_bytes()[value_start..]).ok_or(Error::new(
-            ErrorKind::UnexpectedEof,
-            self.offset + value_start,
-        ))?;
+        let (length, plain) = match short_value(&self.raw.as_bytes()[value_start..], quote) {
+            Some(scanned) => scanned,
+            None => (
+                memchr(quote, &self.raw.as_bytes()[value_start..]).ok_or(Error::new(
+                    ErrorKind::UnexpectedEof,
+                    self.offset + value_start,
+                ))?,
+                false,
+            ),
+        };
         self.cursor += length;
         let value = &self.raw[value_start..self.cursor];
-        if let Some(i) = memchr(b'<', value.as_bytes()) {
+        if let Some(i) = memchr(b'<', value.as_bytes()).filter(|_| !plain) {
             return Err(Error::new(ErrorKind::Syntax, self.offset + value_start + i));
         }
         let value_end = self.offset + self.cursor;
         self.cursor += 1;
         Ok(Some(ScannedAttribute {
             qualified: name,
+            plain,
             split,
             literal: value,
             name_offset: self.offset + start,
