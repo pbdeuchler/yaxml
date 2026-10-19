@@ -749,7 +749,7 @@ fn normalization_predicate_matches_all_flag_contexts_and_scan_boundaries() {
                     (index == 0 || positions[index - 1] != value).then_some(value)
                 })
             {
-                for sentinel in [b'\r', b'\n', b'\t', b'&'] {
+                for sentinel in *b"\r\n\t&" {
                     let mut bytes = vec![b'x'; length];
                     bytes[position] = sentinel;
                     let raw = std::str::from_utf8(&bytes).unwrap();

@@ -41,7 +41,7 @@ fn concurrent_identity_assignment_is_unique() {
 fn construction_finishes_xml_before_assigning_identity() {
     let counter = AtomicUsize::new(0);
     assert_eq!(
-        OwnedBuilder::new(0)
+        OwnedBuilder::new(0, Global)
             .unwrap()
             .finish_with_counter(0, &counter)
             .unwrap_err(),
@@ -52,7 +52,7 @@ fn construction_finishes_xml_before_assigning_identity() {
     for last in [0, usize::MAX] {
         let counter = AtomicUsize::new(last);
         let mut reader = Reader::new(b"<r/>").unwrap();
-        let mut builder = OwnedBuilder::new(4).unwrap();
+        let mut builder = OwnedBuilder::new(4, Global).unwrap();
         let event = reader.read_event().unwrap().unwrap();
         builder
             .consume(
@@ -600,7 +600,7 @@ fn linked_mode_walks_deep_and_wide_trees_without_recursion() {
 #[test]
 fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     use std::ops::ControlFlow;
-    let mut builder = OwnedBuilder::new(10).unwrap();
+    let mut builder = OwnedBuilder::new(10, Global).unwrap();
     let mut reader = reader(1);
     assert_eq!(
         builder.consume(
@@ -683,7 +683,7 @@ fn utf8_owned_fast_path_applies_decoded_limits_without_retention_charges() {
 fn closing_requires_existing_provenance_and_forward_token_order() {
     for source in [None, Some(SourceOrigin::input(4..7))] {
         let mut input = Reader::new(b"<r></r>").unwrap();
-        let mut builder = OwnedBuilder::new(7).unwrap();
+        let mut builder = OwnedBuilder::new(7, Global).unwrap();
         let start = input.read_event().unwrap().unwrap();
         builder
             .consume(start, input.event_origin().unwrap(), input.owned_budget())

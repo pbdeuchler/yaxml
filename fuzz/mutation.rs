@@ -1184,7 +1184,7 @@ pub(super) fn exercise(input: &[u8]) {
         },
         ..EditLimits::default()
     };
-    for operation in input[start..end].chunks_exact(8) {
+    for operation in input[start..end].as_chunks::<8>().0 {
         let target = usize::from(operation[1] & 1);
         let opcode = operation[0] & 15;
         let handle = if matches!(opcode, 6 | 7 | 15) {

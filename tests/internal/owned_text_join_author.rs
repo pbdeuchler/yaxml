@@ -15,7 +15,7 @@ fn state(max_owned_bytes: usize) -> ParserState<'static> {
 
 #[test]
 fn owned_parsed_text_extends_the_pool_tail_without_a_second_node() {
-    let mut builder = OwnedBuilder::new(32).unwrap();
+    let mut builder = OwnedBuilder::new(32, Global).unwrap();
     let mut state = state(3);
     builder
         .consume(
@@ -45,7 +45,7 @@ fn owned_parsed_text_extends_the_pool_tail_without_a_second_node() {
 
 #[test]
 fn owned_empty_text_is_not_published_and_does_not_hide_a_gap() {
-    let mut builder = OwnedBuilder::new(32).unwrap();
+    let mut builder = OwnedBuilder::new(32, Global).unwrap();
     let mut state = state(32);
     builder
         .consume(
@@ -85,7 +85,7 @@ fn owned_empty_text_is_not_published_and_does_not_hide_a_gap() {
 
 #[test]
 fn owned_text_limit_failure_preserves_pool_record_and_origin() {
-    let mut builder = OwnedBuilder::new(32).unwrap();
+    let mut builder = OwnedBuilder::new(32, Global).unwrap();
     builder.pool.0 = String::with_capacity(1);
     let mut initial = state(0);
     builder
@@ -151,7 +151,7 @@ fn owned_non_tail_text_range_fails_without_copying() {
 
 #[test]
 fn owned_non_text_event_keeps_text_nodes_separate() {
-    let mut builder = OwnedBuilder::new(32).unwrap();
+    let mut builder = OwnedBuilder::new(32, Global).unwrap();
     let mut state = state(128);
     let events = [
         (Event::Text(Cow::Borrowed("a")), 0..1),

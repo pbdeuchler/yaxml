@@ -185,7 +185,7 @@ impl Action {
     fn leaf(self) -> Node {
         let (kind, target, value) = self.fields();
         Node {
-            kind: [b'?', b'T', b'C', b'M', b'P'][kind],
+            kind: b"?TCMP"[kind],
             parent: None,
             name: target.as_bytes().to_vec(),
             namespace: Vec::new(),

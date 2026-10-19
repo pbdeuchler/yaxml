@@ -267,7 +267,7 @@ Later rows receive their own detailed burndown when their dependencies are under
 
 The [streaming contract](streaming.md) describes the implemented P1 subset. Push
 and buffered pull parsing share one resumable engine and bounded token buffer;
-neither accumulates the input. Additional encodings and allocator support remain pending. The
+neither accumulates the input. Additional encodings remain pending. The
 [owned DOM contract](owned-dom.md) describes the implemented independent storage
 mode; retained-memory and comparative performance evidence remain open.
 Its [value-mutation validation](archive/validation-owned-mutation.md) and
@@ -318,6 +318,8 @@ matrix remains required before claiming an engine-level performance advantage.
 Verify the user's Rust 1.100 allocator premise against the official issue, compiler availability, and a minimal compile probe before setting the minimum supported Rust version or making the public API generic over allocators. Standard-library allocator support, collection support, and the ability to implement a custom allocator without unsafe are separate questions. Keep the default API usable with the verified compiler, and document experimental configurations honestly. The requested reference is the [allocator API tracking issue](https://github.com/rust-lang/rust/issues/32838).
 
 Document ownership and arena boundaries now; defer a pervasive generic allocator parameter until the toolchain gate passes and a benchmark demonstrates its value. Allocation failure and memory accounting still require audits regardless of allocator selection. An arena reduces allocation overhead; it does not bound expanded data by itself.
+
+Status: probed on `rustc 1.100.0-beta.7`. The opt-in `allocator_api` feature puts owned-document nodes and attributes in a caller allocator without making the reader generic; the string pool stays global because `String` has no allocator parameter. Findings, boundary and remaining global allocations: [allocator strategy](design.md#allocator-strategy). Drop the feature gate once the MSRV reaches 1.100.
 
 ## References and review
 

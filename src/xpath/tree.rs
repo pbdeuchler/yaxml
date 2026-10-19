@@ -162,7 +162,7 @@ impl Navigate for Document<'_> {
     }
 }
 
-impl Navigate for OwnedDocument {
+impl<A: crate::allocator::Allocator> Navigate for OwnedDocument<A> {
     type Id = OwnedNodeId;
 
     fn xml_violation(&self) -> Option<String> {
@@ -292,7 +292,9 @@ fn visible(node: Option<crate::Node<'_, '_>>) -> Option<NodeId> {
         .map(|node| node.id())
 }
 
-fn visible_owned(node: Option<crate::OwnedNode<'_>>) -> Option<OwnedNodeId> {
+fn visible_owned<A: crate::allocator::Allocator>(
+    node: Option<crate::OwnedNode<'_, A>>,
+) -> Option<OwnedNodeId> {
     std::iter::successors(node, |node| node.next_sibling())
         .find(|node| node.kind() != OwnedNodeKind::DocumentType)
         .map(|node| node.id())

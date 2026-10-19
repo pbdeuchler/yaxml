@@ -112,8 +112,7 @@ impl Reference {
         if !bytes.len().is_multiple_of(2) {
             return None;
         }
-        let units = bytes.chunks_exact(2).map(|pair| {
-            let pair = [pair[0], pair[1]];
+        let units = bytes.as_chunks::<2>().0.iter().map(|&pair| {
             if little {
                 u16::from_le_bytes(pair)
             } else {

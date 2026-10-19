@@ -10,6 +10,7 @@ use std::marker::PhantomData;
 #[cfg(test)]
 use std::rc::Rc;
 
+use crate::allocator::{self, Allocator, Global};
 use crate::options::Flags;
 use crate::parser::Budget;
 use crate::{
@@ -133,7 +134,7 @@ fn inject_edit_reservation_failure(reservation: EditReservation) -> Result<(), E
 
 fn document_identity(counter: &AtomicUsize) -> Result<NonZeroUsize, Error> {
     let previous = counter
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last| {
+        .try_update(Ordering::Relaxed, Ordering::Relaxed, |last| {
             last.checked_add(1)
         })
         .map_err(|_| Error::new(ErrorKind::IdentifierExhausted, 0))?;
@@ -446,11 +447,15 @@ impl Pool {
 /// Nodes and attributes contain ranges into one string pool, so moving the
 /// document or growing its storage creates no self-references. Parsing,
 /// traversal and destruction are iterative. Source bytes are not retained.
+///
+/// `A` holds node and attribute storage. It is always the global heap unless
+/// the `allocator_api` feature (Rust 1.100) enables
+/// `parse_in` and `create_in`.
 #[derive(Debug)]
-pub struct OwnedDocument {
+pub struct OwnedDocument<A: Allocator = Global> {
     identity: NonZeroUsize,
-    nodes: Vec<OwnedRecord>,
-    attributes: Vec<StoredAttribute>,
+    nodes: allocator::Vec<OwnedRecord, A>,
+    attributes: allocator::Vec<StoredAttribute, A>,
     pool: Pool,
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
@@ -511,7 +516,7 @@ impl OwnedDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn create(root: ElementSpec<'_>, limits: EditLimits) -> Result<Self, EditError> {
-        construction::create(root, limits)
+        construction::create(root, limits, Global)
     }
 
     pub fn parse(input: &str) -> Result<Self, Error> {
@@ -550,8 +555,88 @@ impl OwnedDocument {
     /// Parses with libxml2 parser options; see [`crate::options`]. With
     /// `XINCLUDE` the result is [`xinclude::process`](crate::xinclude::process)ed
     /// through the same resolver; its failures are `ErrorKind::XInclude`.
-    pub fn parse_with(input: &[u8], mut options: ParseOptions) -> Result<Self, Error> {
-        let flags = options.check(true, 0)?;
+    pub fn parse_with(input: &[u8], options: ParseOptions) -> Result<Self, Error> {
+        let (mut document, flags, include) = Self::parse_tree(input, options, 0, Global)?;
+        if let Some((resolver, base, limits)) = include {
+            let options = crate::xinclude::Options {
+                base_fixup: flags.fixes_base(),
+                limits,
+                parse_flags: flags.0,
+                ..Default::default()
+            };
+            let errors = std::mem::take(&mut document.errors);
+            document = crate::xinclude::process(&document, &base, resolver, &options).map_err(
+                |error| match error.kind {
+                    crate::xinclude::ErrorKind::Xml(error) => error,
+                    _ => Error::new(ErrorKind::XInclude, error.offset.unwrap_or(0)),
+                },
+            )?;
+            document.errors = errors;
+        }
+        Ok(document.validated(flags))
+    }
+}
+
+/// What a deferred XInclude pass needs: resolver, base URI and limits.
+type Include = (Box<dyn crate::Resolver>, String, Limits);
+
+#[cfg(feature = "allocator_api")]
+impl<A: Allocator + Clone> OwnedDocument<A> {
+    /// Parses like [`parse_with`](OwnedDocument::parse_with), charging node and
+    /// attribute storage to `allocator`; each growth is a fallible reservation
+    /// reported as [`ErrorKind::Allocation`]. The string pool and the other
+    /// allocations listed in `docs/owned-dom.md` stay on the global heap.
+    /// `XINCLUDE` is [`ErrorKind::UnsupportedOption`]: its result tree is
+    /// built on the global heap.
+    ///
+    /// Each storage vector holds a clone of `allocator`; pass `&A` to share one
+    /// allocator by reference, or `Arc<dyn Allocator + Send + Sync>` for one
+    /// erased, owned type.
+    ///
+    /// ```
+    /// use std::alloc::System;
+    /// use yaxml::{OwnedDocument, ParseOptions, Writer};
+    ///
+    /// let arena = System;
+    /// let document = OwnedDocument::parse_in(b"<r a='1'>text</r>", ParseOptions::default(), &arena)?;
+    /// assert!(std::ptr::eq(*document.allocator(), &arena));
+    /// let mut writer = Writer::new(Vec::new());
+    /// writer.write_owned_document(&document)?;
+    /// assert_eq!(writer.into_inner(), b"<r a=\"1\">text</r>");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn parse_in(input: &[u8], options: ParseOptions, allocator: A) -> Result<Self, Error> {
+        let (document, flags, _) =
+            Self::parse_tree(input, options, crate::options::XINCLUDE, allocator)?;
+        Ok(document.validated(flags))
+    }
+
+    /// [`create`](OwnedDocument::create) with node and attribute storage
+    /// charged to `allocator`.
+    pub fn create_in(
+        root: ElementSpec<'_>,
+        limits: EditLimits,
+        allocator: A,
+    ) -> Result<Self, EditError> {
+        construction::create(root, limits, allocator)
+    }
+
+    /// The allocator holding this document's nodes and attributes.
+    pub fn allocator(&self) -> &A {
+        self.nodes.allocator()
+    }
+}
+
+impl<A: Allocator + Clone> OwnedDocument<A> {
+    /// Builds the tree. XInclude, whose result is a global-heap document, is
+    /// left to the caller.
+    fn parse_tree(
+        input: &[u8],
+        mut options: ParseOptions,
+        unsupported: u32,
+        allocator: A,
+    ) -> Result<(Self, Flags, Option<Include>), Error> {
+        let flags = options.check(true, unsupported)?;
         let (limits, decode) = options.effective_limits();
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
@@ -569,8 +654,8 @@ impl OwnedDocument {
                 None
             }
         };
-        let mut builder = OwnedBuilder::new(input.len())?;
-        let mut document = if crate::encoding::needs_decoding(input) {
+        let mut builder = OwnedBuilder::new(input.len(), allocator)?;
+        let document = if crate::encoding::needs_decoding(input) {
             let mut parser = PushParser::configured(limits, decode, flags, options);
             let end = parser
                 .feed_with(input, |event, origin, budget| {
@@ -598,31 +683,25 @@ impl OwnedDocument {
             let errors = Budget::conclude(reader.budget(), end)?;
             builder.finish(reader.position(), reader.catalog(), flags, errors)?
         };
-        if let Some(resolver) = include {
-            let options = crate::xinclude::Options {
-                base_fixup: flags.fixes_base(),
-                limits,
-                parse_flags: flags.0,
-                ..Default::default()
-            };
-            let errors = std::mem::take(&mut document.errors);
-            document = crate::xinclude::process(&document, &base, resolver, &options).map_err(
-                |error| match error.kind {
-                    crate::xinclude::ErrorKind::Xml(error) => error,
-                    _ => Error::new(ErrorKind::XInclude, error.offset.unwrap_or(0)),
-                },
-            )?;
-            document.errors = errors;
-        }
+        Ok((
+            document,
+            flags,
+            include.map(|resolver| (resolver, base, limits)),
+        ))
+    }
+}
+
+impl<A: Allocator> OwnedDocument<A> {
+    fn validated(mut self, flags: Flags) -> Self {
         if flags.validates() {
-            document.validity = document.validate();
+            self.validity = self.validate();
         }
-        Ok(document)
+        self
     }
 
     /// The element whose `xml:id` or DTD-declared `ID` attribute has this
     /// value; the first in document order wins, as in libxml2's `xmlGetID`.
-    pub fn element_by_id(&self, value: &str) -> Option<OwnedNode<'_>> {
+    pub fn element_by_id(&self, value: &str) -> Option<OwnedNode<'_, A>> {
         crate::xpath::tree::element_by_id(self, &self.ids, value).and_then(|id| self.node(id))
     }
 
@@ -654,18 +733,18 @@ impl OwnedDocument {
     }
 
     /// Returns the synthetic root, including surrounding comments and PIs.
-    pub fn root(&self) -> OwnedNode<'_> {
+    pub fn root(&self) -> OwnedNode<'_, A> {
         self.view(NodeId(0)).expect("owned document root is live")
     }
 
-    pub fn root_element(&self) -> OwnedNode<'_> {
+    pub fn root_element(&self) -> OwnedNode<'_, A> {
         self.view(self.root_element)
             .expect("owned document element is live")
     }
 
     /// Looks up a checked owned handle, rejecting foreign or out-of-range IDs.
     #[inline]
-    pub fn node(&self, id: OwnedNodeId) -> Option<OwnedNode<'_>> {
+    pub fn node(&self, id: OwnedNodeId) -> Option<OwnedNode<'_, A>> {
         if id.document != self.identity {
             return None;
         }
@@ -673,7 +752,7 @@ impl OwnedDocument {
     }
 
     #[inline]
-    fn view(&self, id: NodeId) -> Option<OwnedNode<'_>> {
+    fn view(&self, id: NodeId) -> Option<OwnedNode<'_, A>> {
         let record = self.nodes.get(id.0)?;
         // Contiguous parsed slots are all live. Structural edits permanently
         // disable that invariant before any slot can become Removed.
@@ -685,7 +764,7 @@ impl OwnedDocument {
         )
     }
 
-    pub fn nodes(&self) -> impl ExactSizeIterator<Item = OwnedNode<'_>> + '_ {
+    pub fn nodes(&self) -> impl ExactSizeIterator<Item = OwnedNode<'_, A>> + '_ {
         self.root().descendants()
     }
 
@@ -802,7 +881,7 @@ impl OwnedDocument {
     /// let mut editor = document.edit(EditLimits::default()).unwrap();
     /// editor.set_node_value(view.id(), "new").unwrap();
     /// ```
-    pub fn edit(&mut self, limits: EditLimits) -> Result<Editor<'_>, EditError> {
+    pub fn edit(&mut self, limits: EditLimits) -> Result<Editor<'_, A>, EditError> {
         if self.edit_created_nodes > limits.max_created_nodes {
             return Err(EditError::new(
                 EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
@@ -933,13 +1012,13 @@ impl Default for EditLimits {
 /// An editor remains usable after an error. Surviving names and provenance stay
 /// unchanged; created nodes have no original source location.
 /// Dropping an editor performs no work. Equal replacements take the edit path.
-pub struct Editor<'document> {
-    document: &'document mut OwnedDocument,
+pub struct Editor<'document, A: Allocator = Global> {
+    document: &'document mut OwnedDocument<A>,
     limits: EditLimits,
 }
 
-impl Editor<'_> {
-    pub fn document(&self) -> &OwnedDocument {
+impl<A: Allocator> Editor<'_, A> {
+    pub fn document(&self) -> &OwnedDocument<A> {
         self.document
     }
 
@@ -1322,22 +1401,22 @@ fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), Edit
 }
 
 /// Concrete shared sink: all strings are copied using the parser's budget.
-struct OwnedBuilder {
-    nodes: Vec<OwnedRecord>,
+struct OwnedBuilder<A: Allocator = Global> {
+    nodes: allocator::Vec<OwnedRecord, A>,
     /// `(element slot, attribute index)` of each `xml:id`, in document order.
     xml_ids: Vec<(NodeId, usize)>,
-    attributes: Vec<StoredAttribute>,
+    attributes: allocator::Vec<StoredAttribute, A>,
     pool: Pool,
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
     parents: Vec<NodeId>,
 }
 
-impl OwnedBuilder {
-    fn new(source_length: usize) -> Result<Self, Error> {
+impl<A: Allocator + Clone> OwnedBuilder<A> {
+    fn new(source_length: usize, allocator: A) -> Result<Self, Error> {
         // About one node per eight source bytes, capped: small documents
         // skip repeated regrowth without over-reserving large ones.
-        let mut nodes = Vec::new();
+        let mut nodes = allocator::Vec::new_in(allocator.clone());
         nodes
             .try_reserve(1 + (source_length / 8).min(4096))
             .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
@@ -1345,7 +1424,7 @@ impl OwnedBuilder {
         Ok(Self {
             nodes,
             xml_ids: Vec::new(),
-            attributes: Vec::new(),
+            attributes: allocator::Vec::new_in(allocator),
             pool: Pool::default(),
             root_element: NodeId(0),
             declaration: None,
@@ -1469,7 +1548,7 @@ impl OwnedBuilder {
         catalog: Option<&crate::dtd_catalog::DtdCatalog>,
         flags: Flags,
         errors: Vec<Error>,
-    ) -> Result<OwnedDocument, Error> {
+    ) -> Result<OwnedDocument<A>, Error> {
         let xml_ids = std::mem::take(&mut self.xml_ids);
         // A recovered parse can stop with elements open: close them where
         // reading stopped (one opened by entity replacement text keeps its span).
@@ -1521,7 +1600,7 @@ impl OwnedBuilder {
         mut self,
         position: usize,
         counter: &AtomicUsize,
-    ) -> Result<OwnedDocument, Error> {
+    ) -> Result<OwnedDocument<A>, Error> {
         if self.root_element == NodeId(0) {
             return Err(Error::new(ErrorKind::MissingRoot, position));
         }
@@ -1563,9 +1642,9 @@ fn store_declaration(
 }
 
 /// Stores a node event's strings; declarations and end tags are not nodes.
-fn store_content(
+fn store_content<A: Allocator>(
     pool: &mut Pool,
-    attributes: &mut Vec<StoredAttribute>,
+    attributes: &mut allocator::Vec<StoredAttribute, A>,
     event: Event<'_>,
     offset: usize,
     budget: &mut Budget,
@@ -1619,8 +1698,8 @@ fn store_content(
 /// without merging Text: the XInclude result tree. Appends follow preorder and
 /// each element is closed after its subtree.
 pub(crate) struct TreeBuilder {
-    nodes: Vec<OwnedRecord>,
-    attributes: Vec<StoredAttribute>,
+    nodes: allocator::Vec<OwnedRecord, Global>,
+    attributes: allocator::Vec<StoredAttribute, Global>,
     pool: Pool,
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
@@ -1638,8 +1717,8 @@ impl TreeBuilder {
             .map(|declaration| store_declaration(&mut pool, declaration, 0, &mut budget))
             .transpose()?;
         Ok(Self {
-            nodes: OwnedBuilder::new(0)?.nodes,
-            attributes: Vec::new(),
+            nodes: OwnedBuilder::new(0, Global)?.nodes,
+            attributes: allocator::Vec::new_in(Global),
             pool,
             root_element: NodeId(0),
             declaration,
@@ -1711,8 +1790,8 @@ impl TreeBuilder {
 }
 
 /// Appends a record as `parent`'s last child; parsing appends in preorder.
-fn append_record(
-    nodes: &mut Vec<OwnedRecord>,
+fn append_record<A: Allocator>(
+    nodes: &mut allocator::Vec<OwnedRecord, A>,
     parent: NodeId,
     content: Content,
     source: Option<SourceOrigin>,
@@ -1765,8 +1844,8 @@ pub(crate) enum LastChild<'a> {
 /// Text or CDATA appends merge, and nodes carry no source origins. Errors are
 /// limit or allocation failures with offset 0; the caller supplies offsets.
 pub(crate) struct HtmlBuilder {
-    nodes: Vec<OwnedRecord>,
-    attributes: Vec<StoredAttribute>,
+    nodes: allocator::Vec<OwnedRecord, Global>,
+    attributes: allocator::Vec<StoredAttribute, Global>,
     pool: Pool,
     root_element: NodeId,
     valueless: Vec<usize>,
@@ -1775,10 +1854,10 @@ pub(crate) struct HtmlBuilder {
 
 impl HtmlBuilder {
     pub(crate) fn new(source_length: usize, limits: Limits) -> Result<Self, Error> {
-        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length)?;
+        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length, Global)?;
         Ok(Self {
             nodes,
-            attributes: Vec::new(),
+            attributes: allocator::Vec::new_in(Global),
             pool: Pool::default(),
             root_element: NodeId(0),
             valueless: Vec::new(),
@@ -1979,14 +2058,23 @@ impl HtmlBuilder {
 }
 
 /// A read-only view bounded by its owned document's lifetime.
-#[derive(Clone, Copy, Debug)]
-pub struct OwnedNode<'document> {
-    document: &'document OwnedDocument,
+#[derive(Debug)]
+pub struct OwnedNode<'document, A: Allocator = Global> {
+    document: &'document OwnedDocument<A>,
     record: &'document OwnedRecord,
 }
 
-impl<'document> OwnedNode<'document> {
-    pub(crate) fn document(self) -> &'document OwnedDocument {
+// Derives would require `A: Copy`; a view only copies two references.
+impl<A: Allocator> Clone for OwnedNode<'_, A> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<A: Allocator> Copy for OwnedNode<'_, A> {}
+
+impl<'document, A: Allocator> OwnedNode<'document, A> {
+    pub(crate) fn document(self) -> &'document OwnedDocument<A> {
         self.document
     }
 
@@ -2219,16 +2307,16 @@ mod text_join_author_tests;
 #[path = "../tests/internal/owned_text_join_spec.rs"]
 mod text_join_spec_tests;
 
-enum Descendants<'document> {
+enum Descendants<'document, A: Allocator> {
     Contiguous {
-        document: &'document OwnedDocument,
+        document: &'document OwnedDocument<A>,
         slots: std::slice::Iter<'document, OwnedRecord>,
     },
-    Linked(LinkedDescendants<'document>),
+    Linked(LinkedDescendants<'document, A>),
 }
 
-impl<'document> Iterator for Descendants<'document> {
-    type Item = OwnedNode<'document>;
+impl<'document, A: Allocator> Iterator for Descendants<'document, A> {
+    type Item = OwnedNode<'document, A>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -2252,17 +2340,17 @@ impl<'document> Iterator for Descendants<'document> {
     }
 }
 
-impl ExactSizeIterator for Descendants<'_> {}
-impl std::iter::FusedIterator for Descendants<'_> {}
+impl<A: Allocator> ExactSizeIterator for Descendants<'_, A> {}
+impl<A: Allocator> std::iter::FusedIterator for Descendants<'_, A> {}
 
-struct LinkedDescendants<'document> {
-    next: Option<OwnedNode<'document>>,
+struct LinkedDescendants<'document, A: Allocator> {
+    next: Option<OwnedNode<'document, A>>,
     root: NodeId,
     remaining: usize,
 }
 
-impl<'document> Iterator for LinkedDescendants<'document> {
-    type Item = OwnedNode<'document>;
+impl<'document, A: Allocator> Iterator for LinkedDescendants<'document, A> {
+    type Item = OwnedNode<'document, A>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -2295,8 +2383,8 @@ impl<'document> Iterator for LinkedDescendants<'document> {
     }
 }
 
-impl ExactSizeIterator for LinkedDescendants<'_> {}
-impl std::iter::FusedIterator for LinkedDescendants<'_> {}
+impl<A: Allocator> ExactSizeIterator for LinkedDescendants<'_, A> {}
+impl<A: Allocator> std::iter::FusedIterator for LinkedDescendants<'_, A> {}
 
 #[cfg(test)]
 #[path = "../tests/internal/owned.rs"]
