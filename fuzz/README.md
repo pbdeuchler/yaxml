@@ -35,7 +35,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `Writer::write_document`, `write_owned_document` | `serialize::borrowed`, `serialize::owned`, UTF-8 and independently decoded UTF-16 references | Complete tree/declaration comparison; exact output and quota goldens; fresh-writer requirement; short/interrupted/invalid writes, prefix and flush faults; successful completion and terminal misuse |
 | XML normalization and references | Reader/DOM corpora and generated documents | Exercised indirectly; semantic golden tests are also required in the ordinary test suite |
 | Validated name construction and owned PI targets | Every bounded testcase enters `driver::exercise_names` before XML/encoding dispatch | 28 literal QName/offset goldens, borrowed/owned/Cow parity and buffer preservation, arbitrary bounded strings, getter recomposition, and exact owned-PI Writer/Reader bytes; `name-owned-views.txt` seeds a Unicode QName |
-| `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
+| `PushParser::with_decode_limits`, UTF-8/UTF-16 detection, declared single-byte decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations, `charset-*.xml` | Standard-library UTF-16 reference, xmllint-recorded single-byte tables, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 | `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
 
 Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Existing-element attribute insertion/removal, moves, namespace editing, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
@@ -70,6 +70,10 @@ to source bytes. Materializing decoded input and a global offset map is confined
 to this test oracle; production decoding retains constant carry. A second BOM is
 explicitly rejected rather than letting the UTF-8 reference strip it. Both
 auto-decoding surfaces must reject malformed code units, XML and labels.
+A BOM-less declaration whose label the owning parser resolves to a single-byte
+table (probed byte by byte) also takes this path; the probed table must equal a
+row of `tests/fixtures/charsets.tsv`, which then decodes the reference, and an
+unmapped byte leaves no reference. EBCDIC signatures are rejected like UTF-32.
 For independently decoded malformed grammar, error kinds and mapped source
 offsets are compared across whole/chunked/I/O/owned paths. Upfront character
 validation, allocation and resource ordering have scoped exclusions. Incomplete

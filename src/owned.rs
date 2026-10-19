@@ -477,7 +477,7 @@ impl OwnedDocument {
         Self::parse_bytes(input.as_bytes())
     }
 
-    /// Parses UTF-8 or UTF-16 XML independently of the source's lifetime.
+    /// Parses UTF-8, UTF-16 or declared single-byte XML independently of the source's lifetime.
     pub fn parse_bytes(input: &[u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }

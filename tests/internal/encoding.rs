@@ -101,7 +101,7 @@ fn decoding_is_independent_of_every_byte_boundary() {
 
 #[test]
 fn signatures_wait_until_ambiguity_is_resolved() {
-    for signature in UTF32 {
+    for signature in UNSUPPORTED {
         for split in 0..=4 {
             let mut decoder = Decoder::new(1024);
             let mut starts = 0;
@@ -467,5 +467,187 @@ fn decoded_consumer_progress_is_checked() {
         if !accepted {
             assert_eq!(result, Err(Error::new(ErrorKind::InvalidState, 7)));
         }
+    }
+}
+
+/// libxml2 2.15.4 xmllint output per byte, recorded by tooling/charset_oracle.py.
+fn oracle() -> impl Iterator<Item = (&'static str, Vec<u32>)> {
+    include_str!("../fixtures/charsets.tsv")
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .map(|line| {
+            let (label, values) = line.split_once('\t').unwrap();
+            let values = values
+                .split(' ')
+                .map(|value| u32::from_str_radix(value, 16).unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(values.len(), 128);
+            (label, values)
+        })
+}
+
+fn byte_encoding(label: &str) -> SourceEncoding {
+    match charset(label) {
+        Some(Charset::Byte(table)) => SourceEncoding::Byte(table),
+        other => panic!("{label} is not a byte charset: {other:?}"),
+    }
+}
+
+#[test]
+fn every_byte_charset_decodes_all_bytes_like_libxml2() {
+    let mut labels = 0;
+    for (label, high) in oracle() {
+        labels += 1;
+        for byte in 0..=u8::MAX {
+            let mut decoder = Decoder::new(1024);
+            decoder.switch(byte_encoding(label));
+            let mut found = Vec::new();
+            let result = decoder.feed(&[byte], |decoded| {
+                if let Decoded::Bytes(bytes) = decoded {
+                    found.extend_from_slice(bytes);
+                }
+                Ok(())
+            });
+            let expected = match byte {
+                0..0x80 => Some(char::from(byte)),
+                _ => char::from_u32(high[usize::from(byte - 0x80)]).filter(|c| *c != '\0'),
+            };
+            match expected {
+                Some(character) => {
+                    result.unwrap();
+                    assert_eq!(found, character.to_string().as_bytes(), "{label} {byte:#x}");
+                }
+                None => {
+                    assert_eq!(result, Err(Error::new(ErrorKind::UnmappedByte, 0)));
+                    assert!(found.is_empty());
+                }
+            }
+            assert_eq!(decoder.position(), 1);
+        }
+    }
+    assert_eq!(labels, 17);
+}
+
+#[test]
+fn byte_charsets_carry_scalars_across_suspension_and_limits() {
+    let input = b"a\xe9\xa4b";
+    for (label, limit, expected) in [
+        ("ISO-8859-1", 64, Ok("a\u{e9}\u{a4}b")),
+        ("ISO-8859-15", 64, Ok("a\u{e9}\u{20ac}b")),
+        (
+            "ISO-8859-15",
+            4,
+            Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0)),
+        ),
+        ("US-ASCII", 64, Err(Error::new(ErrorKind::UnmappedByte, 1))),
+    ] {
+        let mut decoder = Decoder::new(limit);
+        decoder.switch(byte_encoding(label));
+        let mut found = Vec::new();
+        // Consume one decoded byte per callback so each scalar's carry resumes.
+        let mut result = Ok(());
+        let mut cursor = 0;
+        while cursor < input.len() && result.is_ok() {
+            result = decoder
+                .advance(&input[cursor..], |decoded| {
+                    let Decoded::Bytes(bytes) = decoded else {
+                        unreachable!()
+                    };
+                    found.push(bytes[0]);
+                    Ok(DecodeProgress {
+                        consumed: 1,
+                        suspended: true,
+                    })
+                })
+                .map(|progress| cursor += progress.consumed);
+        }
+        match expected {
+            Ok(text) => {
+                result.unwrap();
+                decoder
+                    .finish(|decoded| {
+                        if let Decoded::Bytes(bytes) = decoded {
+                            found.extend_from_slice(bytes);
+                        }
+                        Ok(())
+                    })
+                    .unwrap();
+                assert_eq!(found, text.as_bytes(), "{label}");
+                assert_eq!(decoder.position(), input.len());
+            }
+            Err(error) => assert_eq!(result, Err(error), "{label}"),
+        }
+    }
+}
+
+#[test]
+fn labels_resolve_like_libxml2_without_iconv() {
+    for (alias, canonical) in [
+        ("latin1", "ISO-8859-1"),
+        ("ISO_8859-1:1987", "ISO-8859-1"),
+        ("CP819", "ISO-8859-1"),
+        ("l2", "ISO-8859-2"),
+        ("Cyrillic", "ISO-8859-5"),
+        ("asmo-708", "ISO-8859-6"),
+        ("greek8", "ISO-8859-7"),
+        ("visual", "ISO-8859-8"),
+        ("latin5", "ISO-8859-9"),
+        ("L6", "ISO-8859-10"),
+        ("iso885913", "ISO-8859-13"),
+        ("csisolatin9", "ISO-8859-15"),
+        // libxml2's table resolves these spellings to Latin-1.
+        ("iso8859-15", "ISO-8859-1"),
+        ("ISO8859-10", "ISO-8859-1"),
+        ("ascii", "US-ASCII"),
+        ("ANSI_X3.4-1968", "US-ASCII"),
+        ("x-cp1252", "windows-1252"),
+    ] {
+        assert_eq!(charset(alias), charset(canonical), "{alias}");
+        assert!(matches!(charset(alias), Some(Charset::Byte(_))), "{alias}");
+    }
+    for (label, expected) in [
+        ("utf8", Some(Charset::Utf8)),
+        ("UNICODE-1-1-UTF-8", Some(Charset::Utf8)),
+        ("csUnicode", Some(Charset::Utf16(None))),
+        ("unicodefeff", Some(Charset::Utf16(Some(true)))),
+        ("UTF-16BE", Some(Charset::Utf16(Some(false)))),
+        // Recognized by libxml2 but only decodable through iconv/ICU.
+        ("Shift_JIS", None),
+        ("EUC-JP", None),
+        ("ISO-2022-JP", None),
+        ("UCS-2", None),
+        ("UCS-4", None),
+        ("IBM037", None),
+        ("HTML", None),
+        ("ISO-8859-12", None),
+        ("iso885911", None),
+        ("latin-1", None),
+        (" UTF-8", None),
+        ("", None),
+    ] {
+        assert_eq!(charset(label), expected, "{label}");
+    }
+}
+
+#[test]
+fn owned_routing_peeks_only_at_a_byte_charset_label() {
+    for (input, expected) in [
+        (&b"<?xml version='1.0' encoding='latin1'?><r/>"[..], true),
+        (
+            b"<?xml version=\"1.0\" encoding = \"ISO-8859-2\" ?><r/>",
+            true,
+        ),
+        (b"<?xml version='1.0' encoding='UTF-8'?><r/>", false),
+        (b"<?xml version='1.0' encoding='Shift_JIS'?><r/>", false),
+        (b"<?xml version='1.0'?><r a='encoding=\"latin1\"'/>", false),
+        (b"<?xml version='1.0' encoding='latin1", false),
+        (b"<?xml version='1.0' encoding latin1?>", false),
+        (b"<?xml version='1.0' encoding=`latin1`?>", false),
+        (b"<?xml\x0cversion='1.0' encoding='latin1'?>", false),
+        (b"<?xml version='1.0' encoding='latin1'", false),
+        (b"<r/>", false),
+        (b"Lo\xa7\x94", true),
+    ] {
+        assert_eq!(needs_decoding(input), expected, "{input:?}");
     }
 }

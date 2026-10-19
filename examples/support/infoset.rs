@@ -66,23 +66,30 @@ pub struct Projection {
 impl Projection {
     pub fn from_input(input: &[u8]) -> Result<Self, ProjectionError> {
         // The borrowing interfaces deliberately remain UTF-8-only. Own logical
-        // values for the auto-decoding surface without retaining decoded input.
-        if input.starts_with(&[0xff, 0xfe])
+        // values for the auto-decoding surface without retaining decoded input:
+        // UTF-16 signatures, or a declared encoding the borrowing reader rejects.
+        if !(input.starts_with(&[0xff, 0xfe])
             || input.starts_with(&[0xfe, 0xff])
             || input.starts_with(&[0, b'<', 0, b'?'])
-            || input.starts_with(&[b'<', 0, b'?', 0])
+            || input.starts_with(&[b'<', 0, b'?', 0]))
         {
-            let document = OwnedDocument::parse_bytes(input).map_err(|error| {
-                if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes) {
-                    ProjectionError::Limit("projection storage bytes")
-                } else {
-                    ProjectionError::Xml(error)
-                }
-            })?;
-            Self::from_nodes(owned_nodes(&document)?)
-        } else {
-            Self::from_nodes(nodes(input)?)
+            match nodes(input) {
+                Err(ProjectionError::Xml(error))
+                    if matches!(
+                        error.kind,
+                        ErrorKind::UnsupportedEncoding | ErrorKind::InvalidUtf8
+                    ) => {}
+                nodes => return Self::from_nodes(nodes?),
+            }
         }
+        let document = OwnedDocument::parse_bytes(input).map_err(|error| {
+            if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes) {
+                ProjectionError::Limit("projection storage bytes")
+            } else {
+                ProjectionError::Xml(error)
+            }
+        })?;
+        Self::from_nodes(owned_nodes(&document)?)
     }
 
     fn from_nodes(nodes: Vec<ProjectedNode<'_>>) -> Result<Self, ProjectionError> {

@@ -41,8 +41,15 @@ impl Stream {
             .is_some_and(|(kind, bytes, _)| self.state.is_non_event(kind, bytes))
     }
 
+    /// Releases the token; a declaration that selected a byte charset takes
+    /// effect here, before any byte after it is decoded.
     pub(crate) fn release(&mut self) {
         self.tokenizer.release();
+        let encoding = self.state.encoding();
+        if matches!(encoding, crate::encoding::SourceEncoding::Byte(_)) {
+            self.decoder.switch(encoding);
+            self.tokenizer.switch(encoding);
+        }
     }
 
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
@@ -103,6 +110,9 @@ fn decode(
                 0
             };
             state.set_encoding(encoding, initial, limit);
+            if encoding == crate::encoding::SourceEncoding::Utf8 && bom == 0 {
+                state.allow_switch();
+            }
             Ok(DecodeProgress {
                 consumed: 0,
                 suspended: false,
