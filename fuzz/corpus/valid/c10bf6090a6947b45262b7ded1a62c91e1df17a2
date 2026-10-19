@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'ud'>
+<!ATTLIST r c CDATA 'agaYin'>
+]>
+<r i='a' f='b' s=': c' e='p' es='u v amp''u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDA m>!$NTITY u SYSTEM 'ud'>
+<!A'd  '=bs=(a c' e='p' t='2 2' -

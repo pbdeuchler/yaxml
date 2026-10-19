@@ -24,6 +24,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/charset-unmapped.xml"),
     include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
     include_bytes!("../fuzz/corpus/serialize.xml"),
+    include_bytes!("../fuzz/corpus/textreader.xml"),
     include_bytes!("../fuzz/corpus/mutation-operations.bin"),
     include_bytes!("../fuzz/corpus/mutation-quotas.bin"),
     include_bytes!("../fuzz/corpus/structure-operations.bin"),
@@ -33,6 +34,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/construction-long-prefix.bin"),
     include_bytes!("../fuzz/corpus/name-owned-views.txt"),
     include_bytes!("../fuzz/corpus/uri.txt"),
+    include_bytes!("../fuzz/corpus/html.html"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
@@ -994,6 +996,25 @@ fn encoded_equivalents_and_every_truncation() {
 }
 
 #[test]
+fn valid_entry_replays_models_attributes_and_separate_dtds() {
+    let cases: &[&[u8]] = &[
+        include_bytes!("../fuzz/corpus/valid-models.xml"),
+        include_bytes!("../fuzz/corpus/valid-attributes.xml"),
+        include_bytes!("../fuzz/corpus/valid-dtdvalid.bin"),
+        include_bytes!("../fuzz/corpus/valid-pathological.txt"),
+        b"<!ELEMENT r (a|a)><!ELEMENT a EMPTY>",
+        b"<!ELEMENT r (#PCDATA)>\0<r/>",
+        b"<!ELEMENT r (\0<r/>",
+        b"<r/>",
+        b"<r",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_valid(case);
+    }
+}
+
+#[test]
 fn xpath_entry_replays_expressions_and_documents() {
     let cases: &[&[u8]] = &[
         b"//*[@id]/@*",
@@ -1011,6 +1032,24 @@ fn xpath_entry_replays_expressions_and_documents() {
     ];
     for case in cases {
         driver::exercise_xpath(case);
+    }
+}
+
+#[test]
+fn textreader_entry_replays_controls_and_documents() {
+    let document = b"<?xml version='1.0'?><!DOCTYPE r [<!ENTITY e 'x<b/>'>]><!--a--><r xmlns:p='urn:p' p:a='1' b='2' xmlns='urn:d'>t&e;<p:c><![CDATA[y]]><!--c--><?pi?><e/></p:c> </r><?z d?>";
+    let mut cases: Vec<Vec<u8>> = (0..=255u8)
+        .map(|control| [&[control][..], document].concat())
+        .collect();
+    cases.extend([
+        b"\x06<r/><s/>".to_vec(),
+        b"\x07<r><a>".to_vec(),
+        b"\x05\xff\xfe<\x00r\x00/\x00>\x00".to_vec(),
+        b"\x00".to_vec(),
+        Vec::new(),
+    ]);
+    for case in &cases {
+        driver::exercise_textreader(case);
     }
 }
 
@@ -1066,6 +1105,8 @@ fn fuzz_regressions_replay() {
                 "dtd" => drop(driver::exercise_dtd(&data)),
                 "c14n" => driver::exercise_c14n(&data),
                 "limits" => drop(driver::exercise_limits(&data)),
+                "valid" => driver::exercise_valid(&data),
+                "html" => driver::exercise_html(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }

@@ -1,5 +1,5 @@
 //! One bounded lexical reference. No lookup, replacement or normalization.
-use crate::escape::xml_char;
+use crate::escape::{invalid_char, xml_char};
 use crate::name::validate_name;
 use std::ops::Range;
 
@@ -290,7 +290,7 @@ impl ReferenceScratch {
         }
     }
     fn classify_spelling(&self, raw: &str, closed: bool) -> Result<ReferenceKind, ReferenceError> {
-        if let Some((offset, _)) = raw.char_indices().find(|(_, c)| !xml_char(*c)) {
+        if let Some(offset) = invalid_char(raw) {
             return Err(self.error(ReferenceErrorKind::InvalidCharacter, self.start + offset));
         }
         if raw.is_empty() {

@@ -1,0 +1,11 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE 
+ r[<!ELEMENT r (a,(b|g)*)>
+<!ELEMENT c (#PCDATA|a|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,c)>
+<!ELEMENT g (#PCDATA|a|lone='no'?>
+<!pe ''>
+%pe;
+<!ATTLIST r i ID f>text</f></r>

@@ -4,7 +4,7 @@ use memchr::{memchr, memmem};
 
 use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
 use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
-use crate::escape::xml_char;
+use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState, space};
 use crate::resolve::{Loader, Resolver};
 use crate::stream::dtd::{SessionError, SessionLimits};
@@ -290,34 +290,38 @@ impl<'a> Reader<'a> {
         if self.finished {
             return Ok(None);
         }
-        let result = self.read_next().map_err(Error::from);
+        // The DTD-free token loop stays on plain `Error` results; only a
+        // DOCTYPE moves the reader onto the out-of-line session path.
+        let result = match &mut self.ordinary {
+            Some(ordinary) => match ordinary.read_step() {
+                Ok(ReaderStep::Xml(event)) => {
+                    if let Event::Declaration(declaration) = &event {
+                        self.standalone = declaration.standalone == Some(true);
+                    }
+                    self.origin = ordinary.origin;
+                    return Ok(Some(event));
+                }
+                Ok(ReaderStep::Complete) => {
+                    self.finished = true;
+                    return Ok(None);
+                }
+                Ok(ReaderStep::Doctype(start)) => self
+                    .start_dtd(start)
+                    .and_then(|()| self.read_session())
+                    .map_err(Error::from),
+                Err(error) => Err(error),
+            },
+            None => self.read_session().map_err(Error::from),
+        };
         if let Err(error) = result {
             self.failure = Some(error);
         }
         result
     }
 
-    fn read_next(&mut self) -> Result<Option<Event<'a>>, SessionError> {
+    #[inline(never)]
+    fn read_session(&mut self) -> Result<Option<Event<'a>>, SessionError> {
         loop {
-            if let Some(ordinary) = &mut self.ordinary {
-                match ordinary.read_step()? {
-                    ReaderStep::Xml(event) => {
-                        if let Event::Declaration(declaration) = &event {
-                            self.standalone = declaration.standalone == Some(true);
-                        }
-                        self.origin = ordinary.origin;
-                        return Ok(Some(event));
-                    }
-                    ReaderStep::Doctype(start) => {
-                        self.start_dtd(start)?;
-                        continue;
-                    }
-                    ReaderStep::Complete => {
-                        self.finished = true;
-                        return Ok(None);
-                    }
-                }
-            }
             if matches!(self.session.first(), Some(Phase::Declarations { controller, .. }) if controller.is_complete())
             {
                 self.start_content()?;
@@ -442,7 +446,7 @@ impl<'a> SliceReader<'a> {
         }
         let input = std::str::from_utf8(input)
             .map_err(|e| Error::new(ErrorKind::InvalidUtf8, e.valid_up_to()))?;
-        if let Some((i, _)) = input.char_indices().find(|(_, c)| !xml_char(*c)) {
+        if let Some(i) = invalid_char(input) {
             return Err(Error::new(ErrorKind::InvalidCharacter, i));
         }
         let initial = if input.starts_with('\u{feff}') { 3 } else { 0 };

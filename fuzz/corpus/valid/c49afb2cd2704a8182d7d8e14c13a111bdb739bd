@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="latin1"?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS
+ding="latin0"?> #IMPLIED e ENTITED ej ID 'd c </r>

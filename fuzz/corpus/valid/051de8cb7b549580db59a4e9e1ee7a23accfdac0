@@ -1,0 +1,11 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd3333/33333333333333333333333333333333333333333333333333333333333333xm é🙂&#10;&#13;&#9;" p:a="namesp="a complthirty bytes: é🙂&#11;&#13;&NYN>
+Y<!ELEMENT e (a|A333333333333333333333333333'>
+<!ATTLIST r c CDATA 'agp='urn:q' xAml:id='w'>&clared;<r i='a' q=''/></r>

@@ -9,8 +9,11 @@ use crate::dtd::{
 use crate::escape::xml_char;
 use crate::name::validate_name;
 use crate::resolve::Loader;
+use crate::valid::{AttributeDecl, Code, Dtd, ElementDecl};
 
 mod external;
+
+pub(crate) use external::external_dtd;
 
 pub(crate) use crate::dtd::LiteralSource;
 
@@ -189,8 +192,8 @@ pub(crate) enum DefaultValue<'a> {
     Value { fixed: bool, value: &'a str },
 }
 
-#[derive(Debug)]
-enum StoredDefault {
+#[derive(Clone, Debug)]
+pub(crate) enum StoredDefault {
     Required,
     Implied,
     Value { fixed: bool, value: String },
@@ -216,17 +219,8 @@ impl StoredDefault {
     }
 }
 
-#[derive(Debug)]
-struct Attribute {
-    name: String,
-    name_offset: usize,
-    kind: AttributeKind,
-    default: StoredDefault,
-    declaration: usize,
-}
-
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct AttributeBinding<'a>(&'a Attribute);
+pub(crate) struct AttributeBinding<'a>(&'a AttributeDecl);
 
 impl<'a> AttributeBinding<'a> {
     pub(crate) fn name(self) -> &'a str {
@@ -245,12 +239,12 @@ impl<'a> AttributeBinding<'a> {
     pub(crate) fn declaration(self) -> usize {
         self.0.declaration
     }
-}
-
-#[derive(Default)]
-struct ElementAttributes {
-    ordered: Vec<Attribute>,
-    index: HashMap<String, usize>,
+    pub(crate) fn internal(self) -> bool {
+        self.0.internal
+    }
+    pub(crate) fn tokenized(self) -> bool {
+        self.0.kind != AttributeKind::Cdata
+    }
 }
 
 struct ExternalEntity {
@@ -304,8 +298,7 @@ pub(crate) struct DtdCatalog {
     general: HashMap<String, EntityId>,
     parameter: HashMap<String, EntityId>,
     entities: Vec<Entity>,
-    element_index: HashMap<String, usize>,
-    elements: Vec<ElementAttributes>,
+    dtd: Dtd,
     frames: Vec<ValueFrame>,
     limits: CatalogLimits,
     usage: CatalogUsage,
@@ -325,8 +318,10 @@ impl DtdCatalog {
             general: HashMap::new(),
             parameter: HashMap::new(),
             entities: Vec::new(),
-            element_index: HashMap::new(),
-            elements: Vec::new(),
+            dtd: Dtd {
+                standalone,
+                ..Dtd::default()
+            },
             frames: Vec::new(),
             limits,
             usage: CatalogUsage::default(),
@@ -430,21 +425,25 @@ impl DtdCatalog {
         self.entities.get(id.0)?.body.text()
     }
 
-    /// `(element, attribute)` qualified names declared with type `ID`.
-    pub(crate) fn id_attributes(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.element_index.iter().flat_map(|(element, index)| {
-            self.elements[*index]
-                .ordered
-                .iter()
-                .filter(|attribute| attribute.kind == AttributeKind::Id)
-                .map(move |attribute| (element.as_str(), attribute.name.as_str()))
-        })
+    pub(crate) fn standalone(&self) -> bool {
+        self.standalone
+    }
+
+    /// Records a validity error found while parsing.
+    pub(crate) fn note(&mut self, code: Code, offset: Option<usize>, message: String) {
+        self.dtd.issues.push((code, offset, message));
+    }
+
+    /// The validation view of every declaration applied so far.
+    pub(crate) fn dtd(&self) -> &Dtd {
+        &self.dtd
     }
 
     pub(crate) fn attributes(&self, element: &str) -> impl Iterator<Item = AttributeBinding<'_>> {
-        self.element_index
+        self.dtd
+            .element_index
             .get(element)
-            .map(|index| self.elements[*index].ordered.as_slice())
+            .map(|index| self.dtd.elements[*index].attributes.as_slice())
             .unwrap_or(&[])
             .iter()
             .map(AttributeBinding)
@@ -506,6 +505,7 @@ impl DtdCatalog {
         }
         match unit.view() {
             DtdUnitView::Header(header) => {
+                self.dtd.name = Some(copy_string(header.root_name(), location)?);
                 self.external_subset |= header.external_id().is_some();
                 if let Some(identifier) = header.external_id() {
                     self.subset = Some(self.external_entity(identifier, None, context, location)?);
@@ -513,6 +513,16 @@ impl DtdCatalog {
             }
             DtdUnitView::Entity(entity) => {
                 let parameter = entity.is_parameter();
+                if !parameter && self.standalone && !context.internal_subset {
+                    // Never bound, but libxml2 still finds it for ENTITY attributes.
+                    let notation = match entity.definition() {
+                        EntityDefinitionView::External { notation, .. } => notation,
+                        EntityDefinitionView::Internal { .. } => None,
+                    };
+                    let bytes = entity.name().len() + notation.map_or(0, str::len);
+                    self.store_bytes(bytes, location)?;
+                    self.record_entity(entity.name(), notation, location)?;
+                }
                 // WFC Entity Declared: a standalone document cannot use general
                 // entities from external markup, so they are never bound.
                 let duplicate = if parameter {
@@ -632,72 +642,127 @@ impl DtdCatalog {
                             StoredDefault::Value { fixed, value }
                         }
                     };
-                    let existing = self.element_index.get(list.element_name()).copied();
-                    if existing.is_some_and(|index| {
-                        self.elements[index].index.contains_key(definition.name())
-                    }) {
+                    let values = match definition.attribute_type() {
+                        AttributeTypeView::Notation(tokens)
+                        | AttributeTypeView::Enumeration(tokens) => {
+                            tokens.map(str::to_owned).collect()
+                        }
+                        _ => Vec::new(),
+                    };
+                    let element = self.element_slot(list.element_name(), location)?;
+                    let attribute = AttributeDecl {
+                        name: copy_string(definition.name(), location)?,
+                        name_offset: definition.name_offset(),
+                        kind,
+                        values,
+                        default,
+                        declaration: self.usage.declarations - 1,
+                        internal: context.internal_subset,
+                    };
+                    self.dtd.check_attribute(element, &attribute);
+                    if self.dtd.elements[element]
+                        .index
+                        .contains_key(definition.name())
+                    {
                         continue;
                     }
                     self.add_binding(location)?;
-                    let element_bytes = if existing.is_none() {
-                        list.element_name().len()
-                    } else {
-                        0
-                    };
+                    let values: usize = attribute.values.iter().map(String::len).sum();
                     self.store_bytes(
                         checked_sum(
                             &[
-                                element_bytes,
                                 definition.name().len(),
                                 definition.name().len(),
-                                default.bytes(),
+                                attribute.default.bytes(),
+                                values,
                             ],
                             location,
                         )?,
                         location,
                     )?;
-                    let element = match existing {
-                        Some(index) => index,
-                        None => {
-                            self.element_index
-                                .try_reserve(1)
-                                .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-                            self.elements
-                                .try_reserve(1)
-                                .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-                            let name = copy_string(list.element_name(), location)?;
-                            let index = self.elements.len();
-                            self.elements.push(ElementAttributes::default());
-                            self.element_index.insert(name, index);
-                            index
-                        }
-                    };
-                    let attributes = &mut self.elements[element];
+                    let attributes = &mut self.dtd.elements[element];
                     attributes
                         .index
                         .try_reserve(1)
                         .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
                     attributes
-                        .ordered
+                        .attributes
                         .try_reserve(1)
                         .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
                     let key = copy_string(definition.name(), location)?;
-                    let name = copy_string(definition.name(), location)?;
-                    let index = attributes.ordered.len();
-                    attributes.ordered.push(Attribute {
-                        name,
-                        name_offset: definition.name_offset(),
-                        kind,
-                        default,
-                        declaration: self.usage.declarations - 1,
-                    });
-                    attributes.index.insert(key, index);
+                    attributes.index.insert(key, attributes.attributes.len());
+                    attributes.attributes.push(attribute);
                     effect.bindings_added += 1;
                 }
+            }
+            DtdUnitView::Element(view) => {
+                let element = self.element_slot(view.name(), location)?;
+                // Follow-set entries are four bytes: bound them by storage too.
+                let work = self.limits.max_work - self.usage.work;
+                let storage = self.limits.max_storage_bytes - self.usage.storage_bytes;
+                let (limit, budget) = match work <= storage / 4 {
+                    true => (CatalogLimit::Work, work),
+                    false => (CatalogLimit::StorageBytes, storage / 4),
+                };
+                let mut remaining = budget;
+                let bytes = self
+                    .dtd
+                    .declare_element(element, view, context.internal_subset, &mut remaining)
+                    .map_err(|_| error(CatalogErrorKind::Limit(limit), location))?;
+                self.usage.work += budget - remaining;
+                self.store_bytes(bytes, location)?;
+            }
+            DtdUnitView::Notation(notation) => {
+                self.store_bytes(notation.name().len(), location)?;
+                self.dtd
+                    .declare_notation(notation.name(), context.internal_subset);
             }
             _ => {}
         }
         Ok(effect)
+    }
+
+    /// Records general entity `name` for ENTITY attribute validation.
+    fn record_entity(
+        &mut self,
+        name: &str,
+        notation: Option<&str>,
+        location: ValueLocation,
+    ) -> Result<(), CatalogError> {
+        if !self.dtd.entities.contains_key(name) {
+            self.dtd
+                .entities
+                .try_reserve(1)
+                .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+            let notation = copy_optional(notation, location)?;
+            self.dtd
+                .entities
+                .insert(copy_string(name, location)?, notation);
+        }
+        Ok(())
+    }
+
+    /// The index of `name`'s element declaration, created on first use.
+    fn element_slot(&mut self, name: &str, location: ValueLocation) -> Result<usize, CatalogError> {
+        if let Some(&index) = self.dtd.element_index.get(name) {
+            return Ok(index);
+        }
+        self.store_bytes(name.len(), location)?;
+        self.dtd
+            .element_index
+            .try_reserve(1)
+            .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+        self.dtd
+            .elements
+            .try_reserve(1)
+            .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+        let index = self.dtd.elements.len();
+        let key = copy_string(name, location)?;
+        self.dtd
+            .elements
+            .push(ElementDecl::new(copy_string(name, location)?));
+        self.dtd.element_index.insert(key, index);
+        Ok(index)
     }
 
     fn insert_entity(
@@ -707,6 +772,14 @@ impl DtdCatalog {
         body: EntityBody,
         location: ValueLocation,
     ) -> Result<(), CatalogError> {
+        if !parameter {
+            // Validation's copy is bounded by the binding's charged bytes.
+            let notation = match &body {
+                EntityBody::External(external) => external.notation.as_deref(),
+                EntityBody::Internal(_) => None,
+            };
+            self.record_entity(name, notation, location)?;
+        }
         let table = if parameter {
             &mut self.parameter
         } else {
@@ -846,14 +919,15 @@ impl DtdCatalog {
     }
 
     fn tokenized_attribute(&self, element: &str, name: &str) -> bool {
-        self.element_index
+        self.dtd
+            .element_index
             .get(element)
             .and_then(|index| {
-                let attributes = &self.elements[*index];
+                let attributes = &self.dtd.elements[*index];
                 attributes
                     .index
                     .get(name)
-                    .map(|index| attributes.ordered[*index].kind != AttributeKind::Cdata)
+                    .map(|index| attributes.attributes[*index].kind != AttributeKind::Cdata)
             })
             .unwrap_or(false)
     }
@@ -922,6 +996,7 @@ impl DtdCatalog {
         }
         let may_be_unread = self.may_be_unread();
         let (usage, requested) = (self.usage, *request.requested);
+        let noted = self.dtd.issues.len();
         loop {
             let mut processor = ValueProcessor {
                 general: &self.general,
@@ -935,6 +1010,7 @@ impl DtdCatalog {
                     ..request
                 },
                 usage: &mut self.usage,
+                issues: &mut self.dtd.issues,
                 may_be_unread,
                 loadable: self.loader.is_some(),
                 raw,
@@ -954,6 +1030,7 @@ impl DtdCatalog {
                 return result;
             };
             (self.usage, *request.requested) = (usage, requested);
+            self.dtd.issues.truncate(noted);
             self.load(id)?;
         }
     }
@@ -1004,6 +1081,7 @@ struct ValueProcessor<'a, 'raw> {
     amplification_ceiling: usize,
     request: ValueRequest<'a>,
     usage: &'a mut CatalogUsage,
+    issues: &'a mut Vec<(Code, Option<usize>, String)>,
     may_be_unread: bool,
     loadable: bool,
     raw: &'raw str,
@@ -1110,6 +1188,8 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                         // could declare, or an unloaded external PE, expands empty.
                         let Some(&id) = table.get(name) else {
                             if self.may_be_unread {
+                                let message = format!("Entity '{name}' not defined");
+                                self.issues.push((Code::UndeclaredEntity, None, message));
                                 continue;
                             }
                             return Err(error(CatalogErrorKind::EntityDeclared, location));

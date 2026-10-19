@@ -300,10 +300,7 @@ fn validate_part(
     item: Option<(usize, bool)>,
     is_name: bool,
 ) -> Result<(), EditError> {
-    if let Some((offset, _)) = value
-        .char_indices()
-        .find(|(_, c)| !crate::escape::xml_char(*c))
-    {
+    if let Some(offset) = crate::escape::invalid_char(value) {
         return Err(match item {
             Some((index, namespace)) => located_item(
                 EditErrorKind::InvalidCharacter,
@@ -369,11 +366,7 @@ fn validate_spec(spec: &ElementSpec<'_>) -> Result<(), EditError> {
                 if let PrefixPolicy::Exact(Some(prefix)) = attribute.name.prefix {
                     validate_part(prefix, EditComponent::Prefix, Some((index, false)), true)?;
                 }
-                if let Some((offset, _)) = attribute
-                    .value
-                    .char_indices()
-                    .find(|(_, c)| !crate::escape::xml_char(*c))
-                {
+                if let Some(offset) = crate::escape::invalid_char(attribute.value) {
                     return Err(located_item(
                         EditErrorKind::InvalidCharacter,
                         index,
@@ -1507,7 +1500,9 @@ pub(super) fn create(
         edit_created_nodes: 0,
         edit_created_attributes: 0,
         slots_are_preorder: true,
+        html: None,
         ids: Vec::new(),
+        dtd: None,
     };
     let staged = stage(&staging_document, None, &root, limits)?;
     if limits.max_created_nodes < 1 {

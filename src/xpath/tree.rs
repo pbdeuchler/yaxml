@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::dtd_catalog::DtdCatalog;
+use crate::valid::Dtd;
 
 use crate::{Document, NodeId, NodeKind, OwnedDocument, OwnedNodeId, OwnedNodeKind};
 
@@ -75,6 +75,14 @@ pub trait Navigate {
     fn ranks(&self) -> Option<Vec<usize>>;
     /// `(element, attribute index)` of ID-typed attributes, sorted.
     fn ids(&self) -> &[(Self::Id, usize)];
+    /// Whether a text item is a CDATA section.
+    fn is_cdata(&self, id: Self::Id) -> bool;
+    /// The start of the node's source range.
+    fn offset(&self, id: Self::Id) -> Option<usize>;
+    /// Content XML output cannot represent (only possible in HTML documents).
+    fn xml_violation(&self) -> Option<String> {
+        None
+    }
 }
 
 impl Navigate for Document<'_> {
@@ -133,10 +141,23 @@ impl Navigate for Document<'_> {
     fn ids(&self) -> &[(NodeId, usize)] {
         Document::ids(self)
     }
+
+    fn is_cdata(&self, id: NodeId) -> bool {
+        self.node(id)
+            .is_some_and(|node| matches!(node.kind(), NodeKind::Cdata(_)))
+    }
+
+    fn offset(&self, id: NodeId) -> Option<usize> {
+        Some(self.node(id)?.range()?.start)
+    }
 }
 
 impl Navigate for OwnedDocument {
     type Id = OwnedNodeId;
+
+    fn xml_violation(&self) -> Option<String> {
+        OwnedDocument::xml_violation(self)
+    }
 
     fn root(&self) -> OwnedNodeId {
         OwnedDocument::root(self).id()
@@ -193,13 +214,22 @@ impl Navigate for OwnedDocument {
     fn ids(&self) -> &[(OwnedNodeId, usize)] {
         OwnedDocument::ids(self)
     }
+
+    fn is_cdata(&self, id: OwnedNodeId) -> bool {
+        self.node(id)
+            .is_some_and(|node| node.kind() == OwnedNodeKind::Cdata)
+    }
+
+    fn offset(&self, id: OwnedNodeId) -> Option<usize> {
+        Some(self.node(id)?.range()?.start)
+    }
 }
 
 /// ID-typed attributes of a freshly parsed tree: `xml:id` and those declared
 /// `ID` for their element in the DTD, as libxml2's `xmlIsID`.
-pub(crate) fn find_ids<T: Navigate>(tree: &T, catalog: Option<&DtdCatalog>) -> Vec<(T::Id, usize)> {
+pub(crate) fn find_ids<T: Navigate>(tree: &T, dtd: Option<&Dtd>) -> Vec<(T::Id, usize)> {
     let mut declared: HashMap<&str, HashSet<&str>> = HashMap::new();
-    for (element, attribute) in catalog.into_iter().flat_map(DtdCatalog::id_attributes) {
+    for (element, attribute) in dtd.into_iter().flat_map(Dtd::id_attributes) {
         declared.entry(element).or_default().insert(attribute);
     }
     let mut ids: Vec<_> = preorder(tree, Some(tree.root()), None)

@@ -10,6 +10,7 @@ use crate::tokenizer::text::{
     TextSourceId, TextSourceLease, TextUsage,
 };
 use crate::tokenizer::{TokenKind, Tokenizer};
+use crate::valid::Code;
 use crate::{Event, SourceOrigin};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -574,7 +575,15 @@ impl<'input> ContentControllerCore<'input> {
                 )),
                 // libxml2 drops a reference that unread markup could declare,
                 // and one to an external entity that it cannot load.
-                EntityLookup::UnreadEntity | EntityLookup::ExternalUnavailable { .. } => None,
+                EntityLookup::UnreadEntity => {
+                    let offset = origin.input_range().map(|range| range.start);
+                    let message = format!("Entity '{name}' not defined");
+                    self.body
+                        .catalog
+                        .note(Code::UndeclaredEntity, offset, message);
+                    None
+                }
+                EntityLookup::ExternalUnavailable { .. } => None,
                 EntityLookup::Unparsed { .. } => {
                     return Err(self.for_origin(failure(LookupFailure::Unparsed), origin, None));
                 }

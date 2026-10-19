@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'µ'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v '>
+%pe
+!;<ATTLIST r i ID #IMPLl ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙ es='u><!p' t='2 2' -

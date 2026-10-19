@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|y|x) 'z˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙{˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙ìììììììììììììììììììììì0		xM"T r i  ìììììììììììììììììììììììììììììììììììììììììììììììììììììì˙˙˙˙n'>
+]>
+<r i='a'>>>>>>>>>>>>>>>>>>>>>>>>˙˙˙˙˙˙˙0˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙8>>>>>>>>>>>>>>>>>>4 2' -

@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ELEMENT r (a,b)>
+<!ELEMENT c (áPCDATA|a|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b˙)*,c)>
+<!EL[[[[[[˙˙˙AT(a c' e='

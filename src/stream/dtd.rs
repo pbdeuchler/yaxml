@@ -203,7 +203,7 @@ fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
     }
 }
 
-fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
+pub(crate) fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
     match kind {
         CatalogErrorKind::EntityDeclared => ErrorKind::UnknownEntity,
         CatalogErrorKind::ExternalInAttribute => ErrorKind::ExternalEntityInAttribute,
@@ -417,6 +417,24 @@ impl StreamingSession {
             Phase::Declarations { .. } => None,
         }
     }
+
+    /// The DTD-free stream while no session delivery or failure is pending.
+    pub(crate) fn plain(&mut self) -> Option<&mut Stream> {
+        let idle = self.delivery == Delivery::Idle && self.failure.is_none() && !self.finished;
+        self.ordinary.as_mut().filter(|_| idle)
+    }
+    /// Lends the plain stream's ready token, recording what a DTD session needs.
+    pub(crate) fn lend_plain(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
+        let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
+        let at = ordinary.position();
+        let (event, origin) = super::parse(&ordinary.tokenizer, &mut ordinary.state)?
+            .ok_or_else(|| Error::new(ErrorKind::InvalidState, at))?;
+        if let Event::Declaration(declaration) = &event {
+            self.standalone = declaration.standalone == Some(true);
+        }
+        self.origin = Some(origin);
+        Ok((event, origin))
+    }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
     pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {
         self.remember(|s| {
@@ -520,6 +538,26 @@ impl StreamingSession {
         emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<usize, SessionError> {
         let mut consumed = 0;
+        if let Some(ordinary) = &mut self.ordinary
+            && self.delivery == Delivery::Idle
+            && !self.finished
+        {
+            let (accepted, finished) = ordinary.drive(
+                input,
+                self.finalizing,
+                &mut self.standalone,
+                &mut self.origin,
+                emit,
+            )?;
+            match finished {
+                Some(finished) => {
+                    self.finished = finished;
+                    return Ok(accepted);
+                }
+                // A DOCTYPE token is parked; the session path takes it over.
+                None => consumed = accepted,
+            }
+        }
         loop {
             let step = self.prepare_inner(&input[consumed..])?;
             consumed += step.consumed;

@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID '<!DOCTYPE _____&>>>>>>>>>u;</a>'>~<!N>>>>>>>>>>>>>>>>>>>>> d='b' s='a c' e='p ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i=O'a' es='u v am<r><!p' t='2 2' -

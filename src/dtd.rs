@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use crate::escape::xml_char;
+use crate::escape::{invalid_char, xml_char};
 use crate::name::{name_char, name_start};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -199,10 +199,7 @@ impl<'a> DtdUnit<'a> {
                 limits.max_unit_bytes,
             ));
         }
-        if let Some((offset, _)) = raw
-            .char_indices()
-            .find(|(_, character)| !xml_char(*character))
-        {
+        if let Some(offset) = invalid_char(&raw) {
             return Err(DtdError::new(DtdErrorKind::InvalidCharacter, offset));
         }
         let (kind, tokens) = Parser::new(&raw, limits).parse()?;
@@ -377,7 +374,6 @@ pub(crate) struct DoctypeHeaderView<'a> {
 }
 
 impl<'a> DoctypeHeaderView<'a> {
-    #[cfg(test)]
     pub(crate) fn root_name(self) -> &'a str {
         self.unit.token_text(0)
     }
@@ -400,7 +396,6 @@ impl ExternalMeta {
     }
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ElementContentView<'a> {
     Empty,
@@ -415,7 +410,6 @@ pub(crate) struct ElementDeclarationView<'a> {
     kind: DtdUnitKind,
 }
 
-#[cfg(test)]
 impl<'a> ElementDeclarationView<'a> {
     pub(crate) fn name(self) -> &'a str {
         self.unit.token_text(0)
@@ -440,7 +434,6 @@ impl<'a> ElementDeclarationView<'a> {
     }
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ModelTokenView<'a> {
     Open,
@@ -451,7 +444,6 @@ pub(crate) enum ModelTokenView<'a> {
     Occurrence(Occurrence),
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ModelTokens<'a> {
     unit: &'a DtdUnit<'a>,
@@ -459,7 +451,6 @@ pub(crate) struct ModelTokens<'a> {
     end: usize,
 }
 
-#[cfg(test)]
 impl<'a> Iterator for ModelTokens<'a> {
     type Item = ModelTokenView<'a>;
 

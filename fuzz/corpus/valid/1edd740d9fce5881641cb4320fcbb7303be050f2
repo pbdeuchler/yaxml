@@ -1,0 +1,5 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE 
+ r[<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,c)>
+<!ELEMENT g (#PCDATA|a|						+							>text</f></r>

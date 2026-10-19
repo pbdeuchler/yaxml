@@ -56,6 +56,8 @@ pub enum Error {
     RelativeNamespace(String),
     /// The sink failed.
     Io(io::Error),
+    /// An HTML document holds names or text that XML cannot represent.
+    NotXml(String),
 }
 
 impl fmt::Display for Error {
@@ -64,6 +66,7 @@ impl fmt::Display for Error {
             Self::InvalidUri(uri) => write!(f, "C14N error: invalid URI {uri:?}"),
             Self::RelativeNamespace(uri) => write!(f, "C14N error: relative namespace {uri:?}"),
             Self::Io(error) => write!(f, "C14N output error: {error}"),
+            Self::NotXml(problem) => write!(f, "C14N error: {problem}"),
         }
     }
 }
@@ -199,6 +202,9 @@ fn canonicalize<T: Navigate>(
     options: &Options<'_, T::Id>,
     emit: impl FnMut(&str) -> io::Result<()>,
 ) -> Result<(), Error> {
+    if let Some(problem) = tree.xml_violation() {
+        return Err(Error::NotXml(problem));
+    }
     let mut c14n = C14n {
         tree,
         options,

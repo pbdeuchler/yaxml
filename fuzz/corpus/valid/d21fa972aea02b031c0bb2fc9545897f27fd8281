@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e NOTATION (n   |o) #IMPLIED
+  c CDATA #FIXED 'c' q 'b' s='a c' e='p' es='u v amp' o='}h' c='d' xmlns:p='urn:q' xml:id='w'>&undeclared;<r i= ENTITY #IMPLIED ej ID 'd'>>Ĉ>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>on="0.0" enco<!p' t='2 2' -

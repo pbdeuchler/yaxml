@@ -106,6 +106,20 @@ doc = false
 bench = false
 
 [[bin]]
+name = "valid"
+path = "fuzz_targets/valid.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "textreader"
+path = "fuzz_targets/textreader.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "c14n"
 path = "fuzz_targets/c14n.rs"
 test = false
@@ -115,6 +129,13 @@ bench = false
 [[bin]]
 name = "dtd"
 path = "fuzz_targets/dtd.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "html"
+path = "fuzz_targets/html.rs"
 test = false
 doc = false
 bench = false

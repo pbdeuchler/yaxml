@@ -93,7 +93,8 @@ bounded lexical scanner. It retains a raw token until its delimiter arrives,
 including text until the next `<` or final EOF, so event boundaries and token
 limits are independent of chunking. The lexer carries quote/delimiter state
 instead of rescanning an accumulated prefix. Safe `memchr` searches copy ordinary
-byte runs in bulk. A four-byte preamble handles split encoding signatures.
+byte runs in bulk, and a token complete within one UTF-8 chunk is adopted in a
+single copy with identical spans and counters. A four-byte preamble handles split encoding signatures.
 
 Both frontends use `ParserState` for names, declarations, normalization, document
 phase, namespaces, and budgets. A narrow retention callback borrows slice strings
@@ -326,8 +327,10 @@ contiguous attributes, and a finite feedback-guided campaign is available.
 The next work includes broader construction fuzz coverage, sustained campaigns,
 existing-element attribute membership, broader comparative performance evidence and
 allocator support on the target compiler. XPath 1.0 is implemented over both DOMs
-(see [the XPath contract](xpath.md)). DTDs, remaining encodings,
-HTML compatibility, validation, canonicalization, inclusion and adapters each
-need their own feature burndown and verification criteria. Recovery is an
+(see [the XPath contract](xpath.md)). HTML parsing and serialization reuse
+owned storage through a separate libxml2-dialect tokenizer and tree builder
+([html.md](html.md)). DTDs, remaining encodings, validation,
+canonicalization, inclusion and adapters each need their own feature burndown
+and verification criteria. Recovery is an
 explicit compatibility project with a versioned oracle, not a shortcut around
 strict-parser failures.
