@@ -1,0 +1,21 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % pe "<!--replacementLIST LegalName6 attr6 ID #IMPLIED>
+<!ATTLIST LegalName6 attr60 IDREF #IMPLIED>
+attr130 IDREF #IMPLIED150 IDREF #IMPLIED>
+<!ELEMENT LegalName16 A<!ELEMENT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>
+<!ELEMENT LeCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChar˾/>
+	<LegalNameCharÂ/>
+	<LegalNeamCharÃ/>
+	<LegalNamechar˽/>
+	<Legaxt">
+   <!ENTITY forcat "This is a small cat">
+   <!ELEMENT tiger (#PCDATA)>
+   <!ENTITY % make_small "<!ELEMENT <!DOCTYPE!ELEME-replacement decl-->"
+  >
+]>
+<doc/>

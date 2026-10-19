@@ -1,0 +1,19 @@
+<?xXl version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org/2000/09/xmldsig#">
+  <!ENTITY c14n "http://www.w3.org/TR/2001/REC-x   </X509SubjectName>
+          <X509IssuerSerial>
+            <X509IssuerName>
+              CN=Test D/REC-xTR/1999/REC-xslt-19991116">
+  <!ATTLIST Notaries Id ID #IMPLIED>
+]>
+    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#" Id="signature">
+      <Object Id="       A1VQQIEwZEdWJsaW4xJTAjBgNVBAoTHEJhbHRpbW9yZSBUZWNobm9sb2dpZXMs
+            IEx0ZC4xFDASBgNVBAMTC1Rlc3QgRFNBIENBMBPQxJn+fmM23zy6HY\XVICpfq
+            etdNj/VHCShZE3bdJiE6VobSFQIVAPQecqS2PaTDprcQnkwx4MHTRXhrAoGAMuGA
+            lqeB1ax+vyO2+Osubjhl7pHxLu47RIH+/M52DjESA9KMSrwzsYx8yNR2WooByrE0
+            t6ml-c14n-20010315">
+  <!ENTITY xpath "http://www.w3.org/TR/1999/REC-xpath-19991116">
+  <!ENTITY xslt "http://www.UEChMcQmFsdGltb3JlIFRlY2hub2x </X509Data>
+      </Object>
+    </Signature>

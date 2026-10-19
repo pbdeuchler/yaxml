@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixedd~c>&lt;&am& and`IIIIIIIIIIIIIIIIIIIIIII     local name, with default namespace -->
+<foo xmlns:a="http://e777778ple.gsg/~wilbur"
+     xmlns:b="http://examp,,,bur">
+
+<b:bar a:attr="2" attr="3"/>
+
+</foo>

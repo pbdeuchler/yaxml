@@ -1,0 +1,20 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed7 SYSTEM "p3.<!NOTATION b SYSTEM 'b'>
+]>
+<root>&he "My> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? |kcopymage? | textinput? |kcostBuildDate? | docs? | managingEdinput? | copyrightI | 
+pubDaMe? | lastBuildDate? | docs? | janagingEditor? | webMaster? | 
+skipHours? | skipDays)>
+<!ELEMENT wzdskipHours? | skipDays)>
+<!ELEME#PCDALEMENT copyright (#PCDATA)>
+<!ELEMENT==
+-->
+]>
+<rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+/<rss>

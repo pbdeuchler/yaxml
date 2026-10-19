@@ -1,0 +1,8 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    t2pe	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//Int/EdiblCTIONS="...........................................-nst="candy"/>
+

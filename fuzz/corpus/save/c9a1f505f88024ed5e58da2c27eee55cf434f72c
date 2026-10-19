@@ -1,0 +1,11 @@
+<!DOCTYPE animal [
+   <!ELEMENT animal (cat|tiger|leopard)+>
+   <!NOTATION animal_class SYSTEM "ibm15v01.txt">
+   <!ELEMENT cat ANY>
+   <!ENTITY forcat "This is a small cat">
+   <!ELEMENT tiger (#PCDATA)>
+   <!ENTITY % make_leopard_element "<!ELEMENT leopard ANY>">
+   %make_leopard_element; 
+  MPTY>
+   <!ue	IDREF	rd>
+</animal>

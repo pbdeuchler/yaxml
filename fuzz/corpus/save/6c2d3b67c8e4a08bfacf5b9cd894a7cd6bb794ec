@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org2/00S  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <noorm attr='foobar
+
+&amp;'/>
+  <norm attr=' &lt; '/>
+  <nor5 attr  <normId attr='   '/>
+  AnormId attrr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm/ attr=' &lt; '/>
+  <norm attr  <normId attr='   '/>
+  AnormId attr='
+  foo ba'
+
+foobar&amp;'/>
+  <norm ag#">
+  <!ENTITY c14n "http://www.wttr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm a3.org/TR/200ttr1/RE=C-'

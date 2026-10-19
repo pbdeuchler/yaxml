@@ -1,0 +1,14 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attttr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foo
+&lt;'/>
+  <norm attr=' &#x19;&#13;&#xa;&#9; '/>
+ )<!-- normaI bar
+'/>
+  <normId Ea

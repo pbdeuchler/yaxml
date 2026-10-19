@@ -9,79 +9,15 @@ use std::sync::{Arc, Mutex};
 
 use yaxml::xinclude::{self, ErrorKind, Options};
 use yaxml::{
-    Event, FileResolver, Limit, Limits, OwnedDocument, OwnedNode, OwnedNodeKind, Request, Resolver,
-    ResourceKind, Writer,
+    FileResolver, Limit, Limits, OwnedDocument, Request, Resolver, ResourceKind, Writer, save,
 };
 
 const DEFAULT_SOURCE: &str =
     "/Users/pbdeuchler/workspace/src/github.com/pbdeuchler/yaxml-oracle/libxml2-2.15.4";
 
-/// Serializes like `xmlDocDumpMemory`: a declaration line, then each
-/// top-level node on its own line.
-fn dump(document: &OwnedDocument) -> String {
-    let declaration = document.declaration();
-    let mut output = format!(
-        "<?xml version=\"{}\"{}?>\n",
-        declaration.map_or("1.0", |declaration| declaration.version),
-        declaration
-            .and_then(|declaration| declaration.encoding)
-            .map_or(String::new(), |encoding| format!(
-                " encoding=\"{encoding}\""
-            )),
-    );
-    let mut writer = Writer::new(Vec::new());
-    let mut breaks = Vec::new();
-    for node in document.root().children() {
-        write_node(&mut writer, node);
-        breaks.push(writer.position());
-    }
-    let body = String::from_utf8(writer.into_inner()).unwrap();
-    let mut start = 0;
-    for end in breaks {
-        output.push_str(&body[start..end]);
-        output.push('\n');
-        start = end;
-    }
-    output
-}
-
-fn write_node(writer: &mut Writer<Vec<u8>>, node: OwnedNode<'_>) {
-    let event = match node.kind() {
-        OwnedNodeKind::Element => {
-            let element = yaxml::Element {
-                name: node.name().unwrap(),
-                attributes: node.attributes().collect(),
-            };
-            if node.first_child().is_none() {
-                return writer.write_event(&Event::Empty(element)).unwrap();
-            }
-            writer.write_event(&Event::Start(element)).unwrap();
-            for child in node.children() {
-                write_node(writer, child);
-            }
-            Event::End(node.name().unwrap())
-        }
-        OwnedNodeKind::DocumentType => Event::Doctype(node.doctype().unwrap()),
-        OwnedNodeKind::Text => Event::Text(node.text().unwrap().into()),
-        OwnedNodeKind::Cdata => Event::Cdata(node.text().unwrap().into()),
-        OwnedNodeKind::Comment => Event::Comment(node.text().unwrap().into()),
-        OwnedNodeKind::ProcessingInstruction => Event::ProcessingInstruction {
-            target: node.processing_instruction_target().unwrap().into(),
-            data: node.text().unwrap().into(),
-        },
-        _ => unreachable!(),
-    };
-    writer.write_event(&event).unwrap();
-}
-
-#[derive(Debug, PartialEq)]
-enum Outcome {
-    Pass,
-    /// libxml2 re-serializes the internal subset; yaxml keeps its text.
-    InternalSubset,
-    /// libxml2 writes the declared encoding; the writer emits only UTF-8.
-    OutputEncoding,
-    Mismatch(String),
+/// `xmlDocDumpMemory`, as `xmllint --xinclude` prints the result.
+fn dump(document: &OwnedDocument) -> Vec<u8> {
+    save::to_vec(document, &save::Options::default()).unwrap()
 }
 
 #[test]
@@ -92,7 +28,7 @@ fn libxml2_suite() {
         eprintln!("skipping: no libxml2 source at {}", source.display());
         return;
     }
-    let mut outcomes = Vec::new();
+    let (mut mismatches, mut total) = (Vec::new(), 0);
     let mut errors = Vec::new();
     for directory in ["docs", "without-reader", "issue1120"] {
         let mut names: Vec<_> = fs::read_dir(root.join(directory))
@@ -104,53 +40,30 @@ fn libxml2_suite() {
             let base = format!("{directory}/{name}");
             let input = fs::read(root.join(&base)).unwrap();
             // A missing result file means libxml2 fails and prints nothing.
-            let expected = fs::read(source.join("result/XInclude").join(&name))
-                .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
-                .unwrap_or_default();
+            let expected = fs::read(source.join("result/XInclude").join(&name)).unwrap_or_default();
             let resolver = || Box::new(FileResolver::new(&root).unwrap());
             let document =
                 OwnedDocument::with_resolver(&input, Limits::default(), &base, resolver()).unwrap();
             let result = xinclude::process(&document, &base, resolver(), &Options::default());
-            let ours = result.as_ref().map_or_else(|_| String::new(), dump);
+            let ours = result.as_ref().map_or_else(|_| Vec::new(), dump);
             if let Err(error) = result {
                 errors.push((base.clone(), error.kind));
             }
-            let outcome = if ours == expected {
-                Outcome::Pass
-            } else if expected.contains("<!DOCTYPE") && expected.contains("<!ELEMENT") {
-                Outcome::InternalSubset
-            } else if expected.contains("encoding=\"ISO-8859-1\"") {
-                Outcome::OutputEncoding
-            } else {
-                Outcome::Mismatch(format!("expected:\n{expected}\nyaxml:\n{ours}"))
-            };
-            outcomes.push((base, outcome));
+            total += 1;
+            if ours != expected {
+                mismatches.push(format!(
+                    "{base}:\nexpected:\n{}\nyaxml:\n{}",
+                    String::from_utf8_lossy(&expected),
+                    String::from_utf8_lossy(&ours)
+                ));
+            }
         }
     }
-    let passed = outcomes
-        .iter()
-        .filter(|(_, outcome)| *outcome == Outcome::Pass);
     eprintln!(
-        "libxml2 XInclude suite: {} of {} pass",
-        passed.count(),
-        outcomes.len()
+        "libxml2 XInclude suite: {} of {total} match",
+        total - mismatches.len()
     );
-    let failures: Vec<_> = outcomes
-        .iter()
-        .filter(|(_, outcome)| *outcome != Outcome::Pass)
-        .collect();
-    assert_eq!(
-        failures,
-        [
-            (String::from("docs/docids.xml"), Outcome::InternalSubset),
-            (
-                String::from("docs/tstencoding.xml"),
-                Outcome::OutputEncoding
-            ),
-        ]
-        .iter()
-        .collect::<Vec<_>>(),
-    );
+    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
     // The suite's failing inputs, with libxml2's first reported error.
     assert_eq!(
         errors,

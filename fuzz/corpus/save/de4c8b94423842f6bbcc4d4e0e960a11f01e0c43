@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm12v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt"
+  <normIdNTITY /doc>
+ <
+  c

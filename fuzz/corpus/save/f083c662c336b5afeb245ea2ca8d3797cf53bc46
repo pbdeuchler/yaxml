@@ -1,0 +1,3 @@
+<!DOCTYPE doN [
+<!ELEMENT doc (#PCDATA |DATA | ns:a | n0s:b	*>
+<!A:doc>

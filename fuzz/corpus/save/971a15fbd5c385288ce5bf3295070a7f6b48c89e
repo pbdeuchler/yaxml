@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)monformanc    All Rights Reserved.
+    Modi/fications copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-lid.xml">
+    <!ENTITY ibm-:xml2.1-invalid SYSTEM "ibm/xml-p1.1/ibm_invalid.xml">
+    <!ENTITY iibm_vanid.xol">
+
+ <TESTCASES xml:base="eS>
+<TEc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

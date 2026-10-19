@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixedd~c>&lt;&am& and III[IIIIIIIIIIIIIIIIIIIt namespace -->
+<foo xmlns:a="httx://e777778ple.grg/~wilbur"
+     xmlns:b="http://examp,,,,,,,,,,,,,lbur">
+
+<b:bar a:adtr="2" attr="3"/>
+
+</foo>

@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc
+     defatt  (2|1)   "0e.org"
+     tst:att (0|0)   "2">
+]>
+<dtc aot="1"/>

@@ -1,0 +1,30 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed.
+  
+  RSS is an XML vocoot>&#10;Teet href="#9;&#9;&#10;&#10;&#1bsites, and enabchannels" on the "My Netscape" website.
+  
+  ML/ 
+  
+  copyright Netscape Communications, 1999
+
+  Dan Libby - danda@netscape.com
+  
+  Based on RSS DTD origina1ly cr(eated by
+  Lars Marius Garshol - larsga@ifi.uio.no.
+  
+-=
+-->
+<!-- 
+     Charact currency sign --><!ENTITY yen "&#165;">
+<!-- yen sign --><!ENTITY brvbar "&#166;">
+<!-- broken (vertical) bar --><!ENTITY sect "&#167;">
+<!-- section sign --><!ENTITY																																				 --><!ENTITY Egrave "&#200;">
+<!-- capital E, grave accent --><!ENTITY Eacute "&#202;">
+<!-- capital E, acute accent --><!ENTITY Ecirc "&#202;">s>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

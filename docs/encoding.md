@@ -5,7 +5,8 @@ detect UTF-8, UTF-16LE and UTF-16BE, and follow a BOM-less declaration naming
 one of libxml2 2.15.4's built-in single-byte encodings: US-ASCII, ISO-8859-1
 through ISO-8859-16 (no 12) and windows-1252. `Reader` and the borrowing
 `Document` remain UTF-8-only. Stored strings and event values always use UTF-8.
-The writer emits UTF-8 only.
+`Writer` emits UTF-8 only; `save` also writes UTF-16 and these single-byte
+encodings ([writer.md](writer.md)).
 
 UTF-16 BOMs select byte order; a following XML declaration is optional. Without
 a BOM, only the four-byte signatures for `<?` select UTF-16, and the leading
@@ -73,6 +74,6 @@ The decoder uses constant carry and never retains a complete decoded source or
 a document-wide offset map. The tokenizer retains one bounded UTF-8 token; the
 owned tree copies logical values into its existing pool under the shared string
 budget. `Writer::write_owned_document` accepts such a tree, emits UTF-8, and
-rewrites a present declaration encoding to `UTF-8`. Non-UTF-8 output and
-iconv-only input encodings remain open work. Event-by-event callers remain responsible for
+rewrites a present declaration encoding to `UTF-8`; `save::to_vec` writes the
+declared or requested encoding. iconv-only encodings remain open work. Event-by-event callers remain responsible for
 supplying a declaration compatible with UTF-8 output.

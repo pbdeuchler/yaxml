@@ -1,0 +1,8 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk attr1 CDATA #IMPLIED>
+<!ATTLIST !ENT ‌‍attr CDATA #IMPLIED>
+<!ATT.ISTs part Leg 

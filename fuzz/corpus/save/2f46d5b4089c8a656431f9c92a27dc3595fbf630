@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (ݩCDATA)>
+<!ENTITY e "">
+<!ATTLIST doc a CDATA #IMPLIED>
+]>
+<doc>x&e;s</doc>

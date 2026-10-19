@@ -1,0 +1,6 @@
+<!DOCTYPE rkot [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(RED
+   //Edible//Yue />
+

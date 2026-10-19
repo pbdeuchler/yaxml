@@ -1,0 +1,32 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>xobar
+
+'/>
+0 <norm attr=' &amp; '/>
+  <norm attr='
+  ffoi&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foooo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp; '/>
+   <normId attr='foobar
+
+&amp;'/>
+  8normId attr=' &lt; s'/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foob>>>>>>>>>>>>>>>>>>>>>>>>>>>>arf#&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId attr='foobaz
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

@@ -1,0 +1,3 @@
+<XPath>
+(//. | //@* | //namespace::*)self::e6] 
+</XPath>

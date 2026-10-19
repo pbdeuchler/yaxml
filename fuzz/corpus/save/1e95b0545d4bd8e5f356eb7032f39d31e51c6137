@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>Gcontent</b>">
+]>
+<!--* content: element|CharData|Raference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>*
+<!-- there is an empty element in the above line -->
+   <c></c>0 attr10="Nameͼ"	/>
+<LegalName11 attr11="Nameͽ"	/>
+<LegalName12 attr12="NameͿ"	/>
+<LegalName13 attr13="Name΀"	/>
+<LegalName14 attr14="Name῾"	/>
+<LegalName15 attr15head>HEAD</head><body>nothing</body>,/ht2l> ]]>
+   </c>
+</b>
+</root>
+<!--* test P43 *-->

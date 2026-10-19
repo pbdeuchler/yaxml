@@ -1,0 +1,5 @@
+<!DOCTYPE test [
+<!NOTATION base65 SYSTEM 'mimecode'>
+<!NOTATION uuencode SYSTEM 'udecode'>
+]>
+<test>&#10;<blob content-encoding="raw"></blob>&#10;The attribute values of mes in the declaration have not been declared&#09;</test>

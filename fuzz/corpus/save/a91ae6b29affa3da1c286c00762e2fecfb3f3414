@@ -1,0 +1,22 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalNaleChar [
+
+<!ELEMENT LegalNameCharÁ ANY>
+<!ELEMENT LegalNameChar˿ ANY>
+<!ELEMENT LegalNameCharͰ ANY>
+<!ELEMENT LegNameCharͮ ANY>
+<!ELEMENT LegalNa-meCharͯ ANY>
+<!ELEMENT LegalNameChar‿ ANY>
+<!ELEMENT LegalNameChar⁀ ANY>
+]>
+<!-- LegalNameChars ending with
+0x003A, 0x00C0, 0x00C1, 0x02FE, 0x00Cr
+</root>
+<!--*oot test P43 *--NameChar̀/>
+	<LegalNameChaŕ/>
+	<LegaEMENT LegalNameChar⁀ ANY>
+]>
+<!-- LegalNameChars ending with
+1x003A, 0x00C0
+</LegalNameCha
+>r>

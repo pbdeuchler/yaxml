@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 65 legal character ranges plus
+     30 discrete legal characters for production 87. -->
+<?NAME_300-̀_345-ͅ_322-̢_360-͠_360-͡_360-͠_483-҃_486-҆_484-҄_591-֑_5A1-֡_599-֙_5A3-֣_5B0ac8-ૈ_0ACB-ો_0ACD-્_0acc-ૌ_0B01-ଁ_0B03-ଃ_0b02-ଂ_0B3C-଼_0B3E-ା_0B43-ୃ_0b40-ୀ_0B47-େ_0B48-ୈ_0ntity		ENTITY		#I-C-ຼ_0ebb-ົ_0EC8-່_0ECD-ໍ_0eca-໊_0F18-༘_0F19-༙_0f18-༘_0F35-༵_0F37-༷D0-⃐_20DC-⃜_20d6-⃖_20E1-⃡_302A-〪_302F-ེ〯_0F86-྆_0F8B-ྋ_0f88-ྈ_0F90-ྐ_0F95-ྕ_0f92-ྒ_0F97-ྗ_0F99-ྙ_0FAD-ྭ_0fa3-ྣ_0FB1-ྱ_0FB7-ྷ_0fb4-ྴ_0FB9-ྐྵ_20D0-⃐_20DC-⃜_20d6-⃖_20E1-⃡_302A-〪_302F-〯_302c-〬_3099-゙_309A-゚ This is a PI target ?>
+]>
+<book/>

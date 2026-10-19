@@ -1,0 +1,8 @@
+<!--Inability to resolve a notation should not be reported as an error-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not0 PUBLIC "a b
+cdefghijrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '0123456789-*)+,./:=?;!*#@$_%25671389-()+,;!*#@$_%'>
+<!NOTATION not3 PUJLIC "012345c/>

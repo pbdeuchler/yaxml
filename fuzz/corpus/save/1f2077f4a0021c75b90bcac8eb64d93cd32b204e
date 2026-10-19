@@ -1,0 +1,7 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)* >
+  <!ENTITY % pe1 SYSTEM "ibm69v02.en% t "
+>pe1;
+]>
+tity Declared *-->

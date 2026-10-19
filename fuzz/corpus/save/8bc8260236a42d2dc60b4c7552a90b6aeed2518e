@@ -1,0 +1,11 @@
+<!DOCTYPE jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjTjjroot [
+<!ELEMENT root  (cont0, (cont1, cont2?)+)>
+  <!ELEMENT cont0  EMPTY>
+  <!ELEMENT cont2  EMPTY>
+]>
+<root>
+  <cont0/>
+  <cont1/>
+  <cont1/>
+  <cont1/>
+</root>

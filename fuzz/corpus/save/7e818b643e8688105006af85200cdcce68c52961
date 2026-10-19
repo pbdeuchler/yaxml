@@ -1,0 +1,22 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.9 gives validity constraints applying to tributes
+	in standalone docs:  no external rules
+    -->
+
+    <!ATTLIST attED
+	idren		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	e-tities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nzzzzrzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzref		IDRE />

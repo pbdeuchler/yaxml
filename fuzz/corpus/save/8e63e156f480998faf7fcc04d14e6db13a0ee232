@@ -1,0 +1,8 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+<!--*es Tts *et *-->
+<!---->
+<student>My NamewMan. </student>
+
+

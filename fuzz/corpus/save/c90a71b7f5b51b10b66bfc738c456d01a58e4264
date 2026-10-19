@@ -1,0 +1,5 @@
+<!-- Default values for attributes may not coYYYY to external entities. -->
+<!DOCTYPE foo [
+<!ENTITY  CDATA "contarence">
+]>
+<foo a="not defaulted"/>

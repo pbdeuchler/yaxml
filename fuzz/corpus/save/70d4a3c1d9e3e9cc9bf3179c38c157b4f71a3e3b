@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % e SYSTEM "097">
+<!ATTLIST doc a1 CDATA "v1">
+c></doc

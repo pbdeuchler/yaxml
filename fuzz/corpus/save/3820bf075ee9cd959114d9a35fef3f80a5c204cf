@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org/2000/09/xmldttp://www.w3.org/2000/09/xmldsig#">
+  <!ENTITY c14n "http://ww<!DOCTYPE doc [<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
+
+goobar&lt;'/>
+  <norm attr='$lt;foo bar
+'/>
+  <norm attr='foobar>3; &#xAC00;
+&#xF900; &#xFFF0D;
+&#x10000; &#x100000009;
+&#
+<!--* a vanid test for P66 *-]>id="in>
+  -

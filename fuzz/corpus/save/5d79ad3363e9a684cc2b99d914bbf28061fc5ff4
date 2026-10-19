@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e a1 CDATA "v1" a2 CDATA "v2" a3 CDATA #IDPLIED>
+"/"v3"/>
+</

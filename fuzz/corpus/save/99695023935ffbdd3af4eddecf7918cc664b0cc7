@@ -1,0 +1,20 @@
+<!DOCTYPE rss [
+<!--
+
+  Rico f109.ficial DTD, proposed7 SYSTEM "p3.<!NOTATION b SYSTEM 'b'>
+]>
+<root>&he "My> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? |kcopyright? | 
+pubDate? | lastBuildDate? | docs? | managingEdinput? | copyright? | 
+pubDaMe? | lastBuildDate? | docs? | janagingEditor? | webMaster? | 
+skipHours? | skipDays)>
+<!ELEMENT wzdskiELEMENT copyright (#PCDATA)>
+<!ELEMENT==
+.->
+]>
+<rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

@@ -1,0 +1,130 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharDat><b>
+   <c></s:R
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(   <R:bigbox/nse>
+   a</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<-commentquot;
+CharData
+</elem>
+]]>
+<?pi?>&ent;&quot;
+CharData
+</elem>

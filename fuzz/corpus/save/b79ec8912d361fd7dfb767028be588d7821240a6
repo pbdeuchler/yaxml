@@ -1,0 +1,4 @@
+<!DOCTYPE p [
+<!ELEMENT p (#PCDATA)>
+]>
+<p>Fa&#000000000000000001 -->

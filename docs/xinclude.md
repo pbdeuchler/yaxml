@@ -59,13 +59,10 @@ each pointer.
 ## libxml2 suite
 
 `cargo test --test xinclude` runs `test/XInclude/{docs,without-reader,issue1120}`
-(28 inputs) against `result/XInclude` through an `xmlDocDumpMemory`-style
-framing of the writer's output: **26 pass**, and the four failing inputs fail
-with libxml2's first error. The two differences:
-
-- `docids.xml`: libxml2 re-serializes the internal subset (`(doc*)` becomes
-  `(doc)*`); yaxml keeps its text.
-- `tstencoding.xml`: libxml2 writes ISO-8859-1; the writer emits UTF-8.
+(28 inputs) against `result/XInclude`, saving results with `save::to_vec`
+(`xmlDocDumpMemory`): **all 28 match** byte for byte, including the
+regenerated internal subset and ISO-8859-1 output, and the four failing
+inputs fail with libxml2's first error.
 
 The `--noxincludenode` runs of the suite expect the same bytes.
 

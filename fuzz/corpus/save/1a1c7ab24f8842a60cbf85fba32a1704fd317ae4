@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!DOCTYPE root SYSTEM "ibm50i01.dtd" [
+  <!ELEMENT root (a,b)>
+]>
+<root><a/><b>
+   <c></c >
+   content of b e!lement
+</b></root>
+<!--alid test: tests VC:Pro//www.ie    <R:bigbox/>
+      YPE doc [
+<!ELEMENT dost(*t c)><?xml versi
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOJENS #IMPLIED>
+<!ATTon="1.1"?>LIST tst b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&#xA;">
+<!ENTITY da "&#xD>
+
+<attributes
+    notation =	" no	&internal; "
+  fs =	" &i`nkernal;  &internal;    &internal;"
+    entity =	" unparsed-1 "
+    entities =	"unparsed-1
+    unparsed-2		
+"
+    cdata =	"nothing happens to this onse>
+  <D:response>
+    <D:href>http://www
+ *tig
+ i2n Pe0!0 *"
+    />
+-->
