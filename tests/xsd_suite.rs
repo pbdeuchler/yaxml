@@ -60,6 +60,17 @@ fn check(schema: &Schema, instance: &Path) -> (Verdict, usize) {
         "{} stream",
         instance.display()
     );
+    // `TextReader::xsd_set_schema` feeds the same events, so it reports the same.
+    let mut reader = yaxml::TextReader::new(bytes.as_slice());
+    reader.xsd_set_schema(Some(schema)).unwrap();
+    while reader.read().unwrap() {}
+    assert_eq!(
+        project(&a),
+        project(reader.xsd_diagnostics()),
+        "{} text reader",
+        instance.display()
+    );
+    assert_eq!(reader.is_valid(), xsd::is_valid(&a));
     if let Ok(borrowed) = Document::parse_bytes(&bytes) {
         assert_eq!(
             project(&a),
@@ -95,6 +106,7 @@ fn libxml2_schema_suite_verdicts() {
     let mut differences = Vec::new();
     let xmllint = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from);
     let (mut stream_agree, mut stream_differences) = (0, Vec::new());
+    let (mut cli_agree, mut cli_exact, mut cli_differences) = (0, 0, Vec::new());
     for base in &schemas {
         // runtest.c: strip ".xsd" and up to two "_N" suffixes for the
         // instance prefix; the error file keeps the schema's number.
@@ -141,15 +153,30 @@ fn libxml2_schema_suite_verdicts() {
             };
             // libxml2's stream validation (`xmllint --stream --schema`).
             if let (Some(xmllint), Ok(_)) = (&xmllint, &built) {
-                let output = std::process::Command::new(xmllint)
-                    .current_dir(&source)
-                    .args(["--noout", "--stream", "--schema"])
-                    .args([
-                        format!("test/schemas/{base}"),
-                        format!("test/schemas/{instance}"),
-                    ])
-                    .output()
-                    .unwrap();
+                let run = |program: &Path| {
+                    std::process::Command::new(program)
+                        .current_dir(&source)
+                        .args(["--noout", "--stream", "--schema"])
+                        .args([
+                            format!("test/schemas/{base}"),
+                            format!("test/schemas/{instance}"),
+                        ])
+                        .output()
+                        .unwrap()
+                };
+                let output = run(xmllint);
+                // `yaxmllint --stream --schema` ends as xmllint does; message wording and
+                // reader line numbers can differ.
+                let lint = run(Path::new(env!("CARGO_BIN_EXE_yaxmllint")));
+                let summary = |out: &std::process::Output| {
+                    let text = String::from_utf8_lossy(&out.stderr);
+                    (out.status.code(), expected(&text), validity_errors(&text))
+                };
+                cli_exact += usize::from(lint.stderr == output.stderr);
+                match summary(&lint) == summary(&output) {
+                    true => cli_agree += 1,
+                    false => cli_differences.push(format!("{base} {instance}")),
+                }
                 let text = String::from_utf8_lossy(&output.stderr);
                 let oracle = (expected(&text), validity_errors(&text));
                 let ours = (got, errors);
@@ -228,5 +255,13 @@ fn libxml2_schema_suite_verdicts() {
         }
         let compared = stream_agree + stream_differences.len();
         println!("{stream_agree}/{compared} agree with xmllint --stream (verdict and error count)");
+        for difference in &cli_differences {
+            println!("cli: {difference}");
+        }
+        let compared = cli_agree + cli_differences.len();
+        println!(
+            "{cli_agree}/{compared} yaxmllint --stream --schema exit codes, verdict lines and error counts equal xmllint's ({cli_exact} with identical stderr)"
+        );
+        assert!(cli_differences.is_empty());
     }
 }

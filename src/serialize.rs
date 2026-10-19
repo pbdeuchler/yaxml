@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use crate::save::Tree;
+use crate::allocator::Allocator;
+use crate::save::{Tree, Walk};
 use crate::{Attributes, Declaration, Document, Element, Event, OwnedDocument, WriteError, Writer};
 
 pub(crate) use crate::save::owned_leaf;
@@ -18,22 +19,22 @@ pub(crate) fn borrowed<W: Write>(
     )
 }
 
-pub(crate) fn owned<W: Write>(
+pub(crate) fn owned<W: Write, A: Allocator>(
     writer: &mut Writer<W>,
-    document: &OwnedDocument,
+    document: &OwnedDocument<A>,
     max_attributes: usize,
 ) -> Result<(), WriteError> {
     write(
         writer,
-        Tree::Owned(document.root()),
+        document.root(),
         document.declaration(),
         max_attributes,
     )
 }
 
-fn write<W: Write>(
+fn write<'document, W: Write>(
     writer: &mut Writer<W>,
-    root: Tree<'_, '_>,
+    root: impl Walk<'document>,
     declaration: Option<Declaration<'_>>,
     max_attributes: usize,
 ) -> Result<(), WriteError> {

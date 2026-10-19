@@ -446,8 +446,8 @@ fn declaration_prefix<'a>(name: &'a Name<'_>) -> Option<Option<&'a str>> {
     }
 }
 
-fn lookup<'a>(
-    document: &'a OwnedDocument,
+fn lookup<'a, A: Allocator>(
+    document: &'a OwnedDocument<A>,
     parent: Option<usize>,
     prefix: Option<&'a str>,
     local: &'a [LocalBinding<'a>],
@@ -527,8 +527,8 @@ fn lookup_generated<'a>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn ensure_binding(
-    document: &OwnedDocument,
+fn ensure_binding<A: Allocator>(
+    document: &OwnedDocument<A>,
     parent: Option<usize>,
     local: &[LocalBinding<'_>],
     generated: &mut Vec<GeneratedBinding>,
@@ -648,8 +648,8 @@ fn exact_prefix_is_compatible(
     Ok(true)
 }
 
-fn generated_prefix_available(
-    document: &OwnedDocument,
+fn generated_prefix_available<A: Allocator>(
+    document: &OwnedDocument<A>,
     parent: Option<usize>,
     local: &[LocalBinding<'_>],
     generated: &[GeneratedBinding],
@@ -667,8 +667,8 @@ fn generated_prefix_available(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn next_prefix(
-    document: &OwnedDocument,
+fn next_prefix<A: Allocator>(
+    document: &OwnedDocument<A>,
     parent: Option<usize>,
     local: &[LocalBinding<'_>],
     generated: &[GeneratedBinding],
@@ -707,8 +707,8 @@ fn next_prefix(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn find_matching_prefix<'a>(
-    document: &'a OwnedDocument,
+fn find_matching_prefix<'a, A: Allocator>(
+    document: &'a OwnedDocument<A>,
     parent: Option<usize>,
     spec: &ElementSpec<'_>,
     local: &'a [LocalBinding<'a>],
@@ -941,8 +941,8 @@ fn semantic_name_location(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn resolve_name(
-    document: &OwnedDocument,
+fn resolve_name<A: Allocator>(
+    document: &OwnedDocument<A>,
     parent: Option<usize>,
     spec: &ElementSpec<'_>,
     name: NameSpec<'_>,
@@ -1205,8 +1205,8 @@ fn resolve_name(
     )
 }
 
-fn stage(
-    document: &OwnedDocument,
+fn stage<A: Allocator>(
+    document: &OwnedDocument<A>,
     parent: Option<usize>,
     spec: &ElementSpec<'_>,
     limits: EditLimits,
@@ -1433,11 +1433,11 @@ fn store_name(pool: &mut String, scratch: &str, name: &StagedName) -> StoredName
     }
 }
 
-fn store_attributes(
+fn store_attributes<A: Allocator>(
     pool: &mut String,
     scratch: &str,
     staged: &[StagedAttribute],
-    output: &mut Vec<StoredAttribute>,
+    output: &mut allocator::Vec<StoredAttribute, A>,
 ) {
     for attribute in staged {
         output.push(StoredAttribute {
@@ -1447,8 +1447,8 @@ fn store_attributes(
     }
 }
 
-fn depth_bounded(
-    document: &OwnedDocument,
+fn depth_bounded<A: Allocator>(
+    document: &OwnedDocument<A>,
     parent: usize,
     maximum: usize,
 ) -> Result<usize, EditError> {
@@ -1476,10 +1476,11 @@ fn limit_global(limit: EditLimit) -> EditError {
     EditError::new(EditErrorKind::LimitExceeded(limit), None)
 }
 
-pub(super) fn create(
+pub(super) fn create<A: Allocator + Clone>(
     root: ElementSpec<'_>,
     limits: EditLimits,
-) -> Result<OwnedDocument, EditError> {
+    allocator: A,
+) -> Result<OwnedDocument<A>, EditError> {
     if limits.max_depth < 1 {
         return Err(limit_global(EditLimit::Depth));
     }
@@ -1491,8 +1492,8 @@ pub(super) fn create(
     // to share the same bounded namespace planner as append_element.
     let mut staging_document = OwnedDocument {
         identity: NonZeroUsize::MIN,
-        nodes: Vec::new(),
-        attributes: Vec::new(),
+        nodes: allocator::Vec::new_in(allocator.clone()),
+        attributes: allocator::Vec::new_in(allocator),
         pool: Pool::default(),
         root_element: NodeId(0),
         declaration: None,
@@ -1580,8 +1581,8 @@ pub(super) fn create(
     Ok(staging_document)
 }
 
-pub(super) fn append(
-    editor: &mut Editor<'_>,
+pub(super) fn append<A: Allocator>(
+    editor: &mut Editor<'_, A>,
     parent_id: OwnedNodeId,
     element: ElementSpec<'_>,
 ) -> Result<OwnedNodeId, EditError> {
@@ -2115,6 +2116,54 @@ mod tests {
             );
             assert_eq!(editor.document().edit_created_nodes, 1);
             assert_eq!(editor.document().edit_created_attributes, 0);
+        }
+    }
+
+    /// A supplied allocator cannot be capped without unsafe code, so the
+    /// failpoint stands in for its failure at each reservation site.
+    #[cfg(feature = "allocator_api")]
+    #[test]
+    fn supplied_allocator_reservation_failures_publish_nothing() {
+        let system = std::alloc::System;
+        let item = [ElementItem::Attribute(AttributeSpec {
+            name: NameSpec {
+                local: "id",
+                namespace: None,
+                prefix: PrefixPolicy::Exact(None),
+            },
+            value: "1",
+        })];
+        let spec = ElementSpec {
+            name: root_spec().name,
+            items: &item,
+        };
+        let allocation = Err(EditError::new(EditErrorKind::Allocation, None));
+        for reservation in [
+            EditReservation::Node,
+            EditReservation::Attribute,
+            EditReservation::Pool,
+        ] {
+            let failure = EditReservationFailureGuard::arm(reservation, 0);
+            let created = OwnedDocument::create_in(spec, EditLimits::default(), &system);
+            assert_eq!(created.map(drop), allocation, "{reservation:?}");
+            assert!(failure.fired(), "{reservation:?}");
+            drop(failure);
+
+            let mut document =
+                OwnedDocument::create_in(spec, EditLimits::default(), &system).unwrap();
+            let parent = document.root_element().id();
+            let mut editor = document.edit(EditLimits::default()).unwrap();
+            let failure = EditReservationFailureGuard::arm(reservation, 0);
+            let appended = editor.append_element(parent, spec);
+            assert_eq!(appended.map(drop), allocation, "{reservation:?}");
+            assert!(failure.fired(), "{reservation:?}");
+            let document = editor.document();
+            assert_eq!(
+                (document.nodes.len(), document.attributes.len()),
+                (2, 1),
+                "{reservation:?}"
+            );
+            assert!(std::ptr::eq(*document.allocator(), &system));
         }
     }
 

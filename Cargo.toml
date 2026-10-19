@@ -11,6 +11,8 @@ memchr = "2.8.0"
 
 [features]
 default = []
+# Allocator-aware OwnedDocument storage; requires Rust 1.100 (std allocator API).
+allocator_api = []
 
 [[bench]]
 name = "parse"

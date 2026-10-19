@@ -196,6 +196,16 @@ no cumulative counters. Existing-element attribute insertion/removal,
 moves/adoption, detached ownership, namespace edits, slot reuse and
 compaction remain pending.
 
+The `allocator_api` cargo feature (Rust 1.100) charges owned-document node
+and attribute storage to a caller's allocator:
+`OwnedDocument::parse_in(input, options, allocator)` and `create_in` build an
+`OwnedDocument<A>` for any `A: Allocator + Clone`, for example an arena
+`&A`, `System`, or `Arc<dyn Allocator + Send + Sync>` for language bindings.
+Navigation, editing, XPath, C14N, validation and `Writer` work on any `A`.
+The string pool, `save`, HTML output and XInclude stay on the global heap.
+Without the feature the crate builds on Rust 1.95 and existing code is
+unchanged; see [allocator strategy](docs/design.md#allocator-strategy).
+
 `yaxml::xpath` evaluates XPath 1.0 over either DOM: all axes, node tests,
 predicates, unions, the four value types, the 27 core functions, and
 caller-supplied prefixes, variables and extension functions. Number
@@ -441,8 +451,8 @@ structs. No adapter may weaken the core's restrictions.
 
 The [compatibility catalogue](docs/compatibility.md), [design](docs/design.md),
 [roadmap](docs/roadmap.md), and [security plan](docs/security.md) describe the full
-target and known gaps. Rust 1.100 allocator support is a planned storage milestone;
-the current stable baseline uses ordinary safe vectors. No performance advantage
+target and known gaps. Allocator-aware owned storage is the opt-in `allocator_api`
+feature; the default build uses ordinary safe vectors. No performance advantage
 over libxml2 or complete fuzz execution coverage is claimed yet.
 Coverage-guided cargo-fuzz targets and a coverage report script are described in
 [fuzz/README.md](fuzz/README.md).
@@ -450,7 +460,8 @@ Coverage-guided cargo-fuzz targets and a coverage report script are described in
 Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
 `cargo bench --bench parse`, `cargo bench --bench pull`,
 `cargo bench --bench serialize`, `cargo bench --bench mutation`, and
-`cargo bench --bench structural_mutation`. These runners report yaxml-only DOM,
+`cargo bench --bench structural_mutation`; with Rust 1.100, also run clippy
+and the tests with `--features allocator_api`. These runners report yaxml-only DOM,
 slice-event, push, buffered-pull, complete-tree serialization, value-edit and
 structural-edit measurements. The [structural validation report](docs/archive/validation-owned-structure.md)
 records the pinned libxml2 conformance results, independent review and measured

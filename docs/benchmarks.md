@@ -58,43 +58,99 @@ normalization in every element, so the DTD path is measured too. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 
-### Current matched results (2026-10-19)
+### Current matched results (2026-10-19, fourth series)
 
 Ratios are **libxml2 median / yaxml median** of parse plus destruction per
-document (above 1 favors yaxml), before → after the third optimization series
-(`44531bc` → `53f3f19`), with the min–max of the per-pair ratios after. Method:
-the release `parse_bench` of each revision and the static libxml2 2.15.4 helper
-(`-std=c11 -O3 -DNDEBUG`) ran under `parse_benchmark` with one calibration
-targeting 50 ms batches, then 9 alternating pairs per workload, the two
-revisions back to back for every workload so both saw the same host load.
-The ten noisiest push rows (`flat`, `unicode` and `deep` push, `deep` owned and
-every 1/7-byte push) were repeated with 21 pairs, which the table shows.
-Apple M1 Max shared with other jobs (load average 30-130), so `tiny` rows and
-wide ranges carry tens of percent of noise. Differences between yaxml builds
-were confirmed with retired-instruction counts (`/usr/bin/time -l`), which
-load does not change, and the libxml2 gaps with per-document cycle counts
-(the difference between N- and 2N-document runs, minimum of five). yaxml leads
-in **58 of 65** workloads (55 for the baseline in the same runs).
+document (above 1 favors yaxml), before → after the fourth optimization
+series (`2a0e872` → `45c756e`, which includes a merge of main), with the
+min–max of the per-pair ratios after. Method:
+release `parse_bench` of each revision and the static libxml2 2.15.4 helper
+under `parse_benchmark`, one calibration targeting 50 ms batches, 9
+alternating pairs per workload with both revisions back to back; the
+noisiest rows (`flat`, `unicode`, `deep` push, `deep` owned and every
+1/7-byte push) were repeated with 21 pairs, which the table shows. Apple M1
+Max shared with other jobs (load average 5-30). yaxml leads in **61 of 65**
+workloads (58 for the baseline in the same runs). Retired instructions per
+document (difference of N- and 2N-document runs) rose by at most 1.2% on
+any workload; small-chunk buffered input fell 10-20%.
 
 | Fixture | DOM | Owned | Reader | Push | Buffered |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| tiny | 3.17 → **2.81** (2.15–5.50) | 2.78 → **2.37** (0.72–3.51) | 2.95 → **4.05** (1.37–6.39) | 1.51 → **1.51** (1.40–2.25) | 2.15 → **2.26** (2.18–2.31) |
-| flat | 1.29 → **1.31** (1.26–1.37) | 1.14 → **1.14** (1.10–1.18) | 1.36 → **1.38** (1.33–1.39) | 0.87 → **0.90** (0.60–1.09) | 0.94 → **1.04** (1.02–1.07) |
-| text | 2.53 → **2.93** (2.91–2.96) | 2.29 → **2.58** (2.54–2.62) | 1.26 → **1.28** (1.28–1.29) | 1.12 → **1.14** (1.13–1.18) | 1.25 → **1.27** (1.26–1.28) |
-| attributes | 2.14 → **2.14** (2.12–2.15) | 1.76 → **1.76** (1.74–1.77) | 1.42 → **1.43** (1.41–1.44) | 1.03 → **1.06** (1.06–1.09) | 1.34 → **1.39** (1.38–1.40) |
-| namespaces | 1.60 → **1.62** (1.60–1.63) | 1.30 → **1.30** (1.29–1.32) | 1.91 → **1.94** (1.88–1.97) | 1.05 → **1.11** (1.09–1.27) | 1.30 → **1.47** (1.46–1.53) |
-| normalized | 1.56 → **1.62** (1.61–1.65) | 1.47 → **1.48** (1.44–1.50) | 1.73 → **1.75** (1.73–1.76) | 1.05 → **1.08** (1.05–1.10) | 1.26 → **1.39** (1.37–1.43) |
-| unicode | 1.39 → **1.37** (1.36–1.40) | 1.20 → **1.22** (1.20–1.25) | 1.67 → **1.68** (1.65–1.72) | 0.96 → **0.98** (0.77–1.49) | 1.11 → **1.30** (1.05–1.33) |
-| deep | 1.13 → **1.18** (1.16–1.21) | 0.94 → **1.05** (0.68–1.69) | 1.77 → **1.87** (1.86–1.89) | 0.93 → **0.98** (0.70–1.63) | 1.03 → **1.21** (0.52–1.38) |
-| mixed | 1.88 → **1.89** (1.65–2.08) | 1.66 → **1.80** (1.40–2.12) | 2.35 → **2.48** (2.45–2.53) | 0.96 → **1.03** (1.00–1.14) | 1.57 → **1.62** (1.10–1.69) |
+| tiny | 3.86 → **3.91** (3.70–4.03) | 2.43 → **2.40** (2.33–2.46) | 4.36 → **4.34** (4.31–4.40) | 1.47 → **1.51** (1.46–1.57) | 2.19 → **2.19** (2.13–2.31) |
+| flat | 1.40 → **1.34** (1.31–1.37) | 1.19 → **1.22** (1.11–1.50) | 1.39 → **1.38** (1.37–1.55) | 0.89 → **0.95** (0.95–0.97) | 1.10 → **1.03** (0.82–1.12) |
+| text | 2.90 → **2.83** (2.82–3.05) | 2.50 → **2.53** (1.33–3.35) | 1.29 → **1.29** (1.27–1.30) | 1.14 → **1.14** (1.11–1.15) | 1.27 → **1.27** (1.26–1.28) |
+| attributes | 2.08 → **2.10** (2.05–2.12) | 1.74 → **1.72** (1.70–1.73) | 1.41 → **1.42** (1.38–1.43) | 1.06 → **1.06** (1.05–1.07) | 1.36 → **1.38** (1.37–1.39) |
+| namespaces | 1.62 → **1.63** (1.53–1.64) | 1.32 → **1.31** (1.29–1.33) | 1.91 → **1.93** (1.90–1.99) | 1.08 → **1.09** (1.08–1.10) | 1.42 → **1.45** (1.44–1.49) |
+| normalized | 1.60 → **1.59** (1.56–1.65) | 1.47 → **1.48** (1.41–1.73) | 1.73 → **1.71** (1.56–1.78) | 1.04 → **1.08** (1.06–1.26) | 1.35 → **1.39** (1.36–1.40) |
+| unicode | 1.38 → **1.39** (1.37–1.54) | 1.22 → **1.23** (1.21–1.26) | 1.65 → **1.67** (1.64–1.70) | 0.99 → **1.02** (1.01–1.04) | 1.27 → **1.28** (1.25–1.28) |
+| deep | 1.18 → **1.20** (1.19–1.24) | 1.01 → **1.01** (0.98–1.04) | 1.81 → **1.83** (1.78–1.88) | 0.98 → **1.04** (0.99–1.06) | 1.20 → **1.23** (1.21–1.26) |
+| mixed | 2.13 → **2.13** (2.08–2.17) | 1.71 → **1.79** (1.67–1.83) | 2.64 → **2.64** (2.60–2.68) | 1.05 → **1.08** (1.07–1.24) | 1.52 → **1.56** (1.55–1.59) |
 
 | Small chunks | Push 1 | Push 7 | Buffered 1 | Buffered 7 |
 | --- | ---: | ---: | ---: | ---: |
-| tiny | 1.30 → **1.61** (0.69–2.29) | 1.34 → **1.34** (0.61–3.04) | 2.50 → **2.51** (2.04–3.07) | 2.00 → **2.28** (1.99–2.42) |
-| text | 1.02 → **1.02** (0.70–1.32) | 1.03 → **0.99** (0.97–1.00) | 1.76 → **3.27** (1.32–5.67) | 1.31 → **1.43** (1.33–1.52) |
-| namespaces | 0.99 → **1.05** (1.04–1.07) | 0.81 → **0.94** (0.92–0.99) | 1.56 → **1.49** (1.24–2.94) | 1.18 → **1.46** (1.21–1.52) |
-| normalized | 1.04 → **1.10** (1.08–1.13) | 0.83 → **0.94** (0.93–1.07) | 1.73 → **1.82** (1.27–2.94) | 1.33 → **1.45** (1.11–1.77) |
-| mixed | 1.03 → **1.04** (1.02–1.07) | 0.70 → **0.81** (0.79–0.87) | 3.21 → **1.95** (1.60–2.18) | 1.27 → **1.63** (1.17–2.96) |
+| tiny | 1.78 → **1.89** (1.81–2.00) | 1.39 → **1.42** (1.36–1.50) | 2.48 → **2.62** (2.58–2.68) | 2.12 → **2.10** (2.02–2.16) |
+| text | 1.02 → **1.19** (1.18–1.20) | 0.97 → **1.19** (1.16–1.21) | 1.76 → **2.24** (2.23–2.25) | 1.43 → **1.67** (1.65–1.70) |
+| namespaces | 1.03 → **1.12** (1.07–1.13) | 0.92 → **0.98** (0.92–1.03) | 1.74 → **1.97** (1.95–2.00) | 1.40 → **1.54** (1.53–1.56) |
+| normalized | 1.08 → **1.20** (1.18–1.21) | 0.90 → **0.97** (0.95–1.00) | 1.86 → **2.16** (2.14–2.18) | 1.47 → **1.57** (1.55–1.61) |
+| mixed | 1.02 → **1.18** (1.15–1.21) | 0.79 → **0.89** (0.87–0.91) | 1.95 → **2.27** (2.24–3.19) | 1.50 → **1.71** (1.67–2.26) |
+
+Retired instructions per document (millions) for the rows that lost before:
+
+| Workload | libxml2 | before | after |
+| --- | ---: | ---: | ---: |
+| flat push 8192 | 11.15 | 11.94 | 11.61 |
+| unicode push 8192 | 22.07 | 23.37 | 23.07 |
+| deep push 8192 | 0.18 | 0.21 | 0.20 |
+| mixed push 7 | 14.84 | 20.28 | 17.53 |
+| namespaces push 7 | 41.16 | 44.50 | 41.58 |
+| normalized push 7 | 27.10 | 33.90 | 31.36 |
+| text push 7 | 27.13 | 29.36 | 24.44 |
+
+Root causes, found with exact per-call instruction traces: a throwaway
+example calls `PushParser::feed` from an `#[inline(never)]` function, lldb
+single-steps 20-40 of those calls, and `atos -i` attributes every retired
+instruction through its inline chain.
+
+- **Call boundaries per chunk.** `Stream::advance` and `Tokenizer::advance`
+  were out-of-line calls, entered once or twice per small chunk, with
+  prologues saving most callee-saved registers. Inlining them removed 5% of
+  `mixed` and 9% of `text` push/7 instructions.
+- **Byte-wise prefix classification.** A markup prefix still took one
+  tokenizer step and one buffer append per byte (nine for `<![CDATA[`). It
+  now classifies every available byte in one step (`mixed` push/7 -4%).
+- **Checked appends.** Every token run went through the out-of-line growth
+  path even with spare capacity. Runs within capacity now append directly
+  (`text` push/7 -8%, `mixed`, `namespaces`, `normalized` push/7 -3 to -5%).
+- **Duplicate state in `PushParser`.** It kept its own sticky failure,
+  finished flag and input count next to the session's identical ones and
+  checked both per feed. The session now owns all three (about 1%).
+- **Event copies.** `deliver` and `parse_valid` were out of line, so the
+  88-byte `Event` was copied across them; inlining them removed 3% of `flat`
+  and 4% of `deep` push instructions.
+
+Tried and rejected, by the same counts: parsing complete tokens in place in
+chunk remainders under 32 bytes (+6% on push/7: short tails rarely hold a
+whole token, so the extra scan is wasted), scalar loops instead of `memchr`
+on short haystacks (+2%), and `#[inline(always)]` on `process_token` (-2%
+instructions but +6-11% cycles on `flat` and `mixed` push).
+
+Event delivery timing is unchanged: every event is still delivered in the
+feed call that supplies its last byte.
+
+Remaining losses are all push. `flat` (0.95) spends about 50 instructions
+per event in `deliver` copying and rebuilding the by-value `Event` and
+`SourceOrigin` (88 and 56 bytes) and about 15 dropping it after the
+callback; libxml2 passes pointers. Removing that needs a delivery shape
+that does not move events, which the public callback signature fixes.
+`mixed` push/7 (0.89) still retires 18% more instructions than libxml2:
+per 7-byte chunk about 400 in the tokenizer carry path, 90 validating the
+completed token (`from_utf8` plus the XML-character screen on 5-10 bytes)
+and 70 in shared text normalization. `namespaces` and `normalized` push/7
+(0.97) are within 3% on time but `normalized` retires 16% more
+instructions, mostly attribute and text normalization shared with every
+mode.
+
+### Third series (2026-10-19, `44531bc` → `53f3f19`)
 
 Root causes found by sampling (`xctrace` Time Profiler with line tables,
 attributed through inline chains) and instruction counts:
@@ -115,20 +171,6 @@ attributed through inline chains) and instruction counts:
 - **Regrowth and empty lookups.** Element stacks doubled from four entries on
   every fresh parser, and unprefixed names searched an empty binding stack
   (`deep` push -6% instructions).
-
-Remaining losses are all push. `flat` (0.90) and, within noise, `unicode` and
-`deep` (0.98) pay per-event layering: each event is a validated, by-value
-`Event` handed through delivery and callback layers, where libxml2's SAX
-passes interned names and buffer pointers; libxml2's push is 40% faster than
-its own reader on `flat`, ours is on par with our reader. Seven-byte chunks of
-delimiter-dense documents (`mixed` 0.81, `namespaces` and `normalized` 0.94,
-`text` 0.99) still cost about twice libxml2's per chunk: per feed both spend
-roughly 250 instructions on a text continuation, but a token completed from
-the tokenizer buffer adds about 600 more for buffer validation, origin
-tracking and a second pass through the feed loop for the chunk's remainder.
-Closing that gap needs a carry buffer that parses complete tokens in place, as
-`drive_chunk` already does for large chunks, which changes when events are
-delivered and was left out of this series.
 
 ## Buffered pull observations
 

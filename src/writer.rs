@@ -137,7 +137,10 @@ impl<W: Write> Writer<W> {
 
     /// Serializes a complete owned DOM, with the same policy as write_document.
     /// Its original UTF-8 or UTF-16 source encoding does not affect output bytes.
-    pub fn write_owned_document(&mut self, document: &OwnedDocument) -> Result<(), WriteError> {
+    pub fn write_owned_document<A: crate::allocator::Allocator>(
+        &mut self,
+        document: &OwnedDocument<A>,
+    ) -> Result<(), WriteError> {
         self.begin_document()?;
         crate::serialize::owned(self, document, self.limits.max_attributes)?;
         self.finish_inner()?;

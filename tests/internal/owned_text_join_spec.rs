@@ -19,7 +19,7 @@ fn element(name: &'static str) -> crate::Element<'static> {
     }
 }
 fn begin(budget: &mut Budget) -> OwnedBuilder {
-    let mut b = OwnedBuilder::new(200).unwrap();
+    let mut b = OwnedBuilder::new(200, Global).unwrap();
     b.consume(
         Event::Start(element("r")),
         SourceOrigin::input(0..3),
@@ -368,7 +368,7 @@ fn spec_owned_pool_quota_failure_is_atomic_and_exact_capacity_recovers() {
 #[test]
 fn spec_bad_closure_is_atomic_and_generated_same_occurrence_body_gaps_close() {
     let mut state = ParserState::new(Limits::default(), 0);
-    let mut b = OwnedBuilder::new(200).unwrap();
+    let mut b = OwnedBuilder::new(200, Global).unwrap();
     b.consume(
         Event::Start(element("r")),
         generated(7, 0..3),

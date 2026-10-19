@@ -21,6 +21,7 @@
 
 use std::borrow::Cow;
 
+use crate::allocator::Allocator;
 use crate::encoding::Output;
 use crate::{
     Attribute, Declaration, Doctype, Document, Error, ErrorKind, Event, Limit, Name, Node,
@@ -129,29 +130,48 @@ impl<'document, 'input> From<&'document OwnedDocument> for Tree<'document, 'inpu
     }
 }
 
-impl<'document, 'input> Tree<'document, 'input> {
-    pub(crate) fn first_child(self) -> Option<Self> {
+/// The walk `save` and `Writer` share: `Tree` covers the borrowed DOM and
+/// global-heap owned documents; `OwnedNode` covers any allocator.
+pub(crate) trait Walk<'document>: Copy {
+    fn first_child(self) -> Option<Self>;
+    fn next_sibling(self) -> Option<Self>;
+    fn parent(self) -> Option<Self>;
+    fn name(self) -> Option<Name<'document>>;
+    /// A leaf node's event; documents and elements have none.
+    fn leaf(self) -> Option<Event<'document>>;
+    /// Replaces `attributes` with this element's, failing above `limit`.
+    fn attributes(
+        self,
+        attributes: &mut Vec<Attribute<'document>>,
+        limit: usize,
+        offset: usize,
+    ) -> Result<(), Error>;
+    fn is_document(self) -> bool;
+}
+
+impl<'document> Walk<'document> for Tree<'document, '_> {
+    fn first_child(self) -> Option<Self> {
         match self {
             Self::Borrowed(node) => node.first_child().map(Self::Borrowed),
             Self::Owned(node) => node.first_child().map(Self::Owned),
         }
     }
 
-    pub(crate) fn next_sibling(self) -> Option<Self> {
+    fn next_sibling(self) -> Option<Self> {
         match self {
             Self::Borrowed(node) => node.next_sibling().map(Self::Borrowed),
             Self::Owned(node) => node.next_sibling().map(Self::Owned),
         }
     }
 
-    pub(crate) fn parent(self) -> Option<Self> {
+    fn parent(self) -> Option<Self> {
         match self {
             Self::Borrowed(node) => node.parent().map(Self::Borrowed),
             Self::Owned(node) => node.parent().map(Self::Owned),
         }
     }
 
-    pub(crate) fn name(self) -> Option<Name<'document>> {
+    fn name(self) -> Option<Name<'document>> {
         match self {
             Self::Borrowed(node) => node.name().map(Name::as_borrowed),
             Self::Owned(node) => node.name(),
@@ -159,7 +179,7 @@ impl<'document, 'input> Tree<'document, 'input> {
     }
 
     /// A leaf node's event; documents and elements have none.
-    pub(crate) fn leaf(self) -> Option<Event<'document>> {
+    fn leaf(self) -> Option<Event<'document>> {
         match self {
             Self::Borrowed(node) => match node.kind() {
                 NodeKind::Doctype(doctype) => Some(Event::Doctype(*doctype)),
@@ -180,45 +200,68 @@ impl<'document, 'input> Tree<'document, 'input> {
     }
 
     /// Replaces `attributes` with this element's, failing above `limit`.
-    pub(crate) fn attributes(
+    fn attributes(
         self,
         attributes: &mut Vec<Attribute<'document>>,
         limit: usize,
         offset: usize,
     ) -> Result<(), Error> {
-        attributes.clear();
-        let count = match self {
-            Self::Borrowed(node) => node.attributes().len(),
-            Self::Owned(node) => node.attributes().len(),
-        };
-        if count > limit {
-            return Err(Error::new(
-                ErrorKind::LimitExceeded(Limit::Attributes),
-                offset,
-            ));
-        }
-        attributes
-            .try_reserve_exact(count)
-            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
         match self {
             Self::Borrowed(node) => {
-                attributes.extend(node.attributes().iter().map(|attribute| Attribute {
+                let items = node.attributes().iter().map(|attribute| Attribute {
                     name: attribute.name.as_borrowed(),
                     value: Cow::Borrowed(&attribute.value),
-                }))
+                });
+                collect_attributes(attributes, items, limit, offset)
             }
-            Self::Owned(node) => attributes.extend(node.attributes()),
+            Self::Owned(node) => collect_attributes(attributes, node.attributes(), limit, offset),
         }
-        Ok(())
     }
 
-    pub(crate) fn is_document(self) -> bool {
+    fn is_document(self) -> bool {
         match self {
             Self::Borrowed(node) => matches!(node.kind(), NodeKind::Document),
             Self::Owned(node) => node.kind() == OwnedNodeKind::Document,
         }
     }
+}
 
+impl<'document, A: Allocator> Walk<'document> for OwnedNode<'document, A> {
+    fn first_child(self) -> Option<Self> {
+        OwnedNode::first_child(self)
+    }
+
+    fn next_sibling(self) -> Option<Self> {
+        OwnedNode::next_sibling(self)
+    }
+
+    fn parent(self) -> Option<Self> {
+        OwnedNode::parent(self)
+    }
+
+    fn name(self) -> Option<Name<'document>> {
+        OwnedNode::name(self)
+    }
+
+    fn leaf(self) -> Option<Event<'document>> {
+        owned_leaf(self)
+    }
+
+    fn attributes(
+        self,
+        attributes: &mut Vec<Attribute<'document>>,
+        limit: usize,
+        offset: usize,
+    ) -> Result<(), Error> {
+        collect_attributes(attributes, OwnedNode::attributes(self), limit, offset)
+    }
+
+    fn is_document(self) -> bool {
+        self.kind() == OwnedNodeKind::Document
+    }
+}
+
+impl<'document, 'input> Tree<'document, 'input> {
     fn same(self, other: Self) -> bool {
         match (self, other) {
             (Self::Borrowed(a), Self::Borrowed(b)) => a.id() == b.id(),
@@ -265,8 +308,29 @@ impl<'document, 'input> Tree<'document, 'input> {
     }
 }
 
+/// Replaces `attributes` with `items`, failing above `limit`.
+pub(crate) fn collect_attributes<'a>(
+    attributes: &mut Vec<Attribute<'a>>,
+    items: impl ExactSizeIterator<Item = Attribute<'a>>,
+    limit: usize,
+    offset: usize,
+) -> Result<(), Error> {
+    attributes.clear();
+    if items.len() > limit {
+        return Err(Error::new(
+            ErrorKind::LimitExceeded(Limit::Attributes),
+            offset,
+        ));
+    }
+    attributes
+        .try_reserve_exact(items.len())
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    attributes.extend(items);
+    Ok(())
+}
+
 /// A leaf node's event; documents and elements have none.
-pub(crate) fn owned_leaf(node: OwnedNode<'_>) -> Option<Event<'_>> {
+pub(crate) fn owned_leaf<A: Allocator>(node: OwnedNode<'_, A>) -> Option<Event<'_>> {
     match node.kind() {
         OwnedNodeKind::DocumentType => node.doctype().map(Event::Doctype),
         OwnedNodeKind::Text => Some(Event::Text(Cow::Borrowed(node.text()?))),
