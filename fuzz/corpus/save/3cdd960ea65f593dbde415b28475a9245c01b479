@@ -1,0 +1,13 @@
+<!DOCTYPE doc[
+
+<!ELEMENT doc ANY>
+<!--NOTE doesn' a choice or a seq-->
+<!ELEMENT a (doc?)>
+<!ELEMENT b (doc,a)>
+<!ELEMENT c (
+doc
+,U
+a
+,>
+]~
+<doc/>

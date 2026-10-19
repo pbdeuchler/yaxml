@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	S "finteropeIST root
+	v   -->
+    <!ATTLIST root
+	vtatus		(initial-draft|revdiate|																												>
+]>
+
+Ĕoot/>

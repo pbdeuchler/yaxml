@@ -1,0 +1,5 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?䳿 n illegal char Target ?>
+]>
+<animal/>

@@ -1,0 +1,7 @@
+<!DOCTYPE a [
+<!ELEMENT a (#PCDATA | b | c)*>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA)>
+<!ELEMENT a (#PCDATA | b | c)*>
+]>
+<a> violates [nV:C U ique Element Type Declaration ] </a>

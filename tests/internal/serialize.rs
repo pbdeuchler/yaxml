@@ -1,10 +1,12 @@
 use super::*;
+use crate::{Error, ErrorKind, Limit};
+use std::borrow::Cow;
 
 #[test]
 fn views_borrow_normalized_names_and_attributes_and_reuse_metadata() {
     let document = Document::parse("<p:r xmlns:p='urn:&#114;' a='x&#9;y'><c/></p:r>").unwrap();
     let mut attributes = Vec::new();
-    let root = TreeNode::Borrowed(document.root_element());
+    let root = Tree::Borrowed(document.root_element());
     let name = root.name().unwrap();
     assert_eq!(name.namespace(), Some("urn:r"));
     assert_eq!(
@@ -34,13 +36,13 @@ fn views_borrow_normalized_names_and_attributes_and_reuse_metadata() {
         .unwrap();
     assert!(attributes.is_empty());
     assert!(root.leaf().is_none());
-    assert!(TreeNode::Borrowed(document.root()).name().is_none());
-    assert!(TreeNode::Borrowed(document.root()).leaf().is_none());
+    assert!(Tree::Borrowed(document.root()).name().is_none());
+    assert!(Tree::Borrowed(document.root()).leaf().is_none());
 
     let owned = OwnedDocument::parse("<r a='v'/>").unwrap();
-    let node = TreeNode::Owned(owned.root_element());
+    let node = Tree::Owned(owned.root_element());
     assert!(node.leaf().is_none());
-    assert!(TreeNode::Owned(owned.root()).leaf().is_none());
+    assert!(Tree::Owned(owned.root()).leaf().is_none());
     node.attributes(&mut attributes, 1, 0).unwrap();
     assert_eq!(attributes[0].value, "v");
     assert!(matches!(attributes[0].value, Cow::Borrowed(_)));

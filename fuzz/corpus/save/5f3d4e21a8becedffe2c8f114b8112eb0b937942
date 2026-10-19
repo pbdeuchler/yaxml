@@ -1,0 +1,11 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives valiscribes the normalization rules
+    -->
+
+    <!ATTLIST		(a|b|c)		"a"
+	notation	(/>

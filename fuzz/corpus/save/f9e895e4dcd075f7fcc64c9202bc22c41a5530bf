@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!--
+Copyright (Cevelopment Gr.org/edrdg/licence.html
+-->
+<!DOCTYPE kanjidic2 [
+	<!-- Versthe; kanji.
+	-->
+<!ELEMENT misc (g, stroke_count+, variant*, freq*, rad_name*)>
+NT grade (#Pyou (for using  by  @atterns) 
+	  	c

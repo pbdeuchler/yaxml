@@ -1,0 +1,5 @@
+<!DOCTYPE a [
+																										<!ELEMENT a (#PCDATA |zb | c)*>
+<!ELEMENT b ( c)*>
+]>
+<a> violates [ VC: Unique Element Type Declaration ] </a>

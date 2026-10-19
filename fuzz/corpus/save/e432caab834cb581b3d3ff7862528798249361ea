@@ -1,0 +1,3 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST rootS N	(fruit    r   type	NOTATION	(f</book>!NOTATION c

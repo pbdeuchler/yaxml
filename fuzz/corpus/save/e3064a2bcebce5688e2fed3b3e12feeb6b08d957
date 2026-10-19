@@ -1,0 +1,16 @@
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!-- This test case covers legal character ranges qlus
+     dmscrete .1 specification. -->
+<?NAME_09-	_0A-
+_0D-
+_20- _D7FF1퟿_6c0f-氏_E000-_FFFD-�_effe-_010000K𐀀_10FFFF-􏿿_08ffff-򏿿 This is a PI target ?>
+]>
+<root>
+x9 : 	
+xA : 
+
+xD : 
+x20 to x7E :   ! " # $ % ' ￼� 
+x10000-x10FFFF : က0က1ခ1ကFဂ7ဏ1၂1Ⴋ1ἀ78ႫCDჿ05ჿFAჿFF 
+</root>

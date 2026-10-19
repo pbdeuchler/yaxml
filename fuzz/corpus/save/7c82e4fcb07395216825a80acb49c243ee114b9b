@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all lJa</foo>
+ CDATA "eng">
+  <!ATTLIS *-->
+<!ENTITY % pe0 '<!ATTLIST root att3 CDATA "&ge1;">'>
+<!ENTITY ge0 "attdefaultvalue" >
+<!NOTATION >

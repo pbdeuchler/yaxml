@@ -57,6 +57,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "save"
+path = "fuzz_targets/save.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "limits"
 path = "fuzz_targets/limits.rs"
 test = false

@@ -1,0 +1,22 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed.
+  
+  RSS is an XML vo"0.91"> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBui000000000000000000000000000044576644749211875ldDate? | docs? | managi? | 
+pubDate? | stalBuildDate? | docs? | managingEditor? | webMaster? | 
+qkipHours? | skipDays?)*>
+---><!---
+>
+<!-- capital E, grave accenml#dtd
+     ================= END ===================
+-->
+]>
+<rss>
+<ckannel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

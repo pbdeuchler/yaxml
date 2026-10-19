@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefiixed ruct ThisInstruct This is֟e
+t >attributes with same
+     local name, with defaulna ]mespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes wi1.0"?>
+<!-- Attrib  xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="3" atxmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http:+/example.org/~kipper"
+     xtnslrm="2"/>
+
+</foo>

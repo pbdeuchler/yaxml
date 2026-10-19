@@ -1,0 +1,6 @@
+<!-- Defs. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a (one|two|three	 "four">
+]>
+<foo a="one"/>

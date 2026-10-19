@@ -1136,6 +1136,7 @@ fn fuzz_regressions_replay() {
                 "datatypes" => driver::exercise_datatypes(&data),
                 "catalog" => driver::exercise_catalog(&data),
                 "relaxng" => driver::exercise_relaxng(&data),
+                "save" => driver::exercise_save(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }
@@ -1231,5 +1232,28 @@ fn relaxng_entry_replays_seeds_and_malformed_pieces() {
     ];
     for case in cases {
         driver::exercise_relaxng(case);
+    }
+}
+
+#[test]
+fn save_entry_reaches_fixed_points_for_seeds_and_edge_documents() {
+    for seed in SEEDS {
+        driver::exercise_save(seed);
+    }
+    let cases: &[&[u8]] = &[
+        b"<r/>",
+        b"<?xml version='1.0' encoding='ISO-8859-1'?><r a='\xe9'>\xe9<!--c--></r>",
+        b"<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'x'><html lang='l'><head/><p name='n'/></html>",
+        b"<!DOCTYPE r [<!ELEMENT r ((a|b?)+,c*)><!ATTLIST r a NMTOKENS ' x  y '><!ENTITY e '&#233;'>]><r>&e;</r>",
+        b"<p:r xmlns:p='u' xmlns='d'><p:a><b>t</b><![CDATA[]]>]]></p:a><?pi?></p:r>",
+        "<r>\u{e9}\u{20ac}<\u{3b1}/></r>".as_bytes(),
+    ];
+    for case in cases {
+        // Vary the hash-derived options by appending ignorable whitespace.
+        for padding in 0..24 {
+            let mut input = case.to_vec();
+            input.extend(std::iter::repeat_n(b' ', padding));
+            driver::exercise_save(&input);
+        }
     }
 }

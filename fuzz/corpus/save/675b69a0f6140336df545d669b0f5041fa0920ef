@@ -1,0 +1,6 @@
+<!DOCTYPE student SYSTEM "student.dtd" [
+]>
+
+<!-- test nigsystemliteral with a string with '"' -->
+<student>My Name is SowMa </student>
+

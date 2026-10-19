@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root ANY>
+  <!ATTLIST b battr2 CDATA #REQUIRED 
+              batt2r (good|bad) #REQUIRED 
+              battr3 ID #REQUIRED>
+  <!ATTLIST c c_reference IDREF #REQUIRED>
+  <!ATTLIST d d_reference IDREFS #REQUIRED>
+  <!ENTITY xmltech SYSTEM "xmltch.gif" NDATA gif>
+  <!NOTATION gif SYSTEM "gif">
+  <!ATTLIST e eattr1 ENTITY #REQUIRED>
+  <!ENTITY IBMlogo SYSTEM "IBMlogo.gif" NDATA Gif>
+  <!ATTLIST f fattr1 ENTITIES #REQUIRED>
+  <!ATTLIST g gattr2 NMTOKENATTLIST h hattr1 NMTOKENS #REQUIRED>
+  <!NOTATION UTF-8 SYSTEM "UTF-8">
+   a valid test: tests P54 *-->

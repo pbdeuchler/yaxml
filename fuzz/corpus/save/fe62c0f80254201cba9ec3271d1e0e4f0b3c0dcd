@@ -1,0 +1,21 @@
+<?xmloivnre 0="1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis --amespace::*) 
+ arent's namespace axis -->
+              ancestz="htup://example.org/baz" xmlns:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:bbz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+    / /example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/*) 
+    [ 
+                     example.http://example.org/~kipper"e::* | self::()))
+    ]
+</XPath>

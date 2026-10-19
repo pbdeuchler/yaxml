@@ -1,0 +1,23 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE nerigger the problem</p>
+   <p> WE need lnt of garbage now to trigger the problem</p>
+   <p> WE need lot of e.
+ IBM we. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kippek"
+     xmlns="http://exammp          e.org/~wilbur">
+mescace -->
+<foo xmlns:a="/:phtt/examps"
+     xmlns:b="http://example.org/~kipp,r"
+     xmlns="http://exampl          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: prefixed and unprefiixed atith defaul] namesYace -->
+<foo xmlns:a="/:phtt/exambm28i01.xml" TYPE="invalid" ID="ibm-invalid-P28-ibm28i01.xn 78UT="invalid/P39/out/ibm39io

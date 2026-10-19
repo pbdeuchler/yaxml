@@ -1,0 +1,17 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 g= "1.0"?ruels
+    -->
+
+    <!ATTLIST attributes
+	token		(a|
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "21">
+
+    <!NOTATION nonc
+    />

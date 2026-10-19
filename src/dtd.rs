@@ -732,7 +732,6 @@ impl<'a> NotationDeclarationView<'a> {
         self.unit.token_text(0)
     }
 
-    #[cfg(test)]
     pub(crate) fn identifier(self) -> ExternalIdView<'a> {
         match self.kind {
             DtdUnitKind::SystemNotation => ExternalMeta {

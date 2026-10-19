@@ -1,0 +1,15 @@
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
+    <!ENTITY sun-invalid	SYSTEM "sun/sun-invalid.xml">   <!ENTITY sun-errclark-xmltest	SYSTEM "xmltest/xmltest.xml">
+
+    <!-- Fuji Xerox "Japanese Documents" -->
+    <!ENTITY xerox-japanese	SYSTEM "japanese/japanese.xml">
+
+    <!-- NIST/OASIS test suite -->
+    <!ENTITY nist-oasis		SYSTEM "oasis/oasis.xml">
+	
+    <!-- IBM tests -->
+    <!ENTITY ibm-invalid	SYSTEM "ibm/ibm_oasis_invalid.xml "> 
+ <?music "Here is PI" ?><animal>&#10;   <cat></ca t

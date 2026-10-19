@@ -1,0 +1,7 @@
+<!DOCTYPE root [
+<!NOTATION bar SYSTEM 'file:/dev/tty'>
+<!NOTATION foo PUBLIC '-//po' 'file:/dev/null'>
+<!NOTATION nonce SYSTEM 'file:/dev/null'>
+]>
+<root>&#09;    <child>&#10;    The whitespace beE doc ![
+<ELE&#10;</root>

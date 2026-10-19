@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE animal [
+   <!ELEMENT animal ANY>
+   <!ENTITY % parameterE "A muement|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should no Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIconxsnt anyProcessingAnstruction?>
+<!-- Comment<?PIcontent anyProcess*-- 
+   <c>
+<?PIcontosic file -->">
+<!-- Parameter reference appears inside a comment in DTD -->
+   <!-- This is %parameterE;
+]>
+<animal>Any content</animal>

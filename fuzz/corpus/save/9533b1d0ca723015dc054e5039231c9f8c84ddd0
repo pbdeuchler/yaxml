@@ -1,0 +1,13 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName0 ANY>
+<!ATTLIST LegalName0 attr0 ID #IMPLIED>
+<!ATTLIST LegalName0 attr00 IDREF #IMPLIED>
+<!ELEMENT LegalName1 ANY>
+<!ATTLIST LegalName1 attr1 ID #IMPLIED>
+<!ATTLIST LeLegalName43 attr430 IDREF #IMPLIED>
+<!ELEMENT LeglmaaNe44 ANY>
+<!ATTLIST<!ATTLISTmMENT LegalName45 ANY>
+<!ATTLIST LegalName45 attr45 ID #IMPLIED>
+<!ATTL[ST LegalName45 attr450 IDREF #IMPLIED>
+nd attributes.  x003A, 0x15C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, 0x0

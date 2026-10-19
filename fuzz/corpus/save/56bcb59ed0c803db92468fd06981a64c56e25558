@@ -1,0 +1,29 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % pe "<!--replacementLIST LegalName6 attr6 ID #IMPLIED>
+<!ATTLIST LegalName6 attr60 IDREF #IMPLIED>
+<!ELEMENT LegaegalNameChar⿯ ANY>
+<!ELEMENT LegalNameChar、 ANY>
+<!ELEMENT LelNameChar퟾ ANY>
+<!ELEMENT LeCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChar˾/>
+	<LegalNameCharÂ/>
+	<LegalNameCharÃ/>
+	<LegalNameChar˽LEMENT LegalName28 ANY>
+<!ATTLIST LegalName28 attr28 eChar퟾ ANY>
+<!ELEMENT LeCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChar˾/>
+	<LegalNameCharÂ/>
+	<LegalNameCharÃ/>
+	<LegalNameChar˽LEMENT LegalName27 ANY>
+<cl-lacement decl-->">
+<!ENTITY
+  %
+  pe1
+  "<!--replacement decl-->"
+  >
+]>
+<doc/>

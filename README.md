@@ -22,7 +22,11 @@ caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain
 a bounded token and active document/namespace state. `Writer` validates UTF-8
 events and serializes them to a caller-provided `std::io::Write`; fresh writers
-can also serialize complete borrowed or owned DOMs.
+can also serialize complete borrowed or owned DOMs. `save::to_vec` writes a
+document or any node of either DOM as libxml2's `xmlSaveDoc`/`xmlSaveTree` do:
+`xmlSaveOption` flags (format, XHTML, ...), UTF-16 and single-byte output
+encodings, and the internal subset regenerated from its declarations
+([writer.md](docs/writer.md#libxml2-tree-output-save)).
 
 ```rust
 use std::ops::ControlFlow;
@@ -397,6 +401,11 @@ let document = yaxml::Document::with_resolver(input, Default::default(), "d.xml"
 assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
+
+`yaxmllint` (`cargo run --bin yaxmllint -- FILE`) is `xmllint`'s command line over
+these modules: `--noout --format --encode --xpath --c14n --html --valid
+--relaxng --schema --xinclude --stream --catalogs` and the rest of the table
+in [yaxmllint](docs/yaxmllint.md), with xmllint's exit codes and stdout.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need

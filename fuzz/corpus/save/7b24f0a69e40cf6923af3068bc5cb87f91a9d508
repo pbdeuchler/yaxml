@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.%dtd" [
+   <!NOTATION animallasanimal_class SYSTEM "ib.~28v02.txt >"
+ 
+<!-- s VC:>
+  <n bar
+'/>
+ 1"normId attrsnt;o

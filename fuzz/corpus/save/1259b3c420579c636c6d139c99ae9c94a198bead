@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "z<b>General entity reference in element contity reference in e<!DOCTYPE docATA)>
+]>
+<c>&#xFFFF;<0doc>
+e|CDSect|PI|CDSect|PI|CWgment, *-->
+<root><a/><b>
+<! :attr IMPLIED>
+<!ATTLIST LegalName ͱattr CDATA #IMPLIED
+<!schema/">
+rg/~wilbur">
+xed attributes with same
+o  c l  al name, with default<co>om namespace  content -->
+    &inCont<!D

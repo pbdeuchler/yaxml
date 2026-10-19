@@ -1,0 +1,6 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<?MyInstruct ?>
+<student>My Names SnowMan. </student>

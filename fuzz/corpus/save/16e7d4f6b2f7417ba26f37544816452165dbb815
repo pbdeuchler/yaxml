@@ -1,0 +1,7 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'file:/dev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'fifile:/dev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/`dev/null'>
+<!NzTATION nonce SYSTEM 'file:/dev/null'>
+]>
+<attternal42" nmtoken="this-gets-normalized" nmtok<ata="nothing hapes>

@@ -1,0 +1,9 @@
+<!DOCTYPE billion [
+  <!ELEMENT billion (#PCDATA)>
+  <!ENTITY % p0 SYSTEM "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&p0.ent">
+  <!ENTITY % p1 SYSTEM "p1.ent">
+  <!ENTITY % p2 SYSTEM "p2.ent">
+  <!ENTITY % p6 SYSTEM "p3.ent">
+  %p3;
+]>
+<billion/>

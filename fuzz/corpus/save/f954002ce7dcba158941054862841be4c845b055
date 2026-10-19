@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and with defaulna ]mespace -->
+<foo xmlns:a="http://example/ore"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr="attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈attr="attrValue"
+ 	퟿豈礁attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+A.-�attr="attrValue"
+ 	zA.-attr="attrValu`"
+ 	attr0zA.="attrValue"
+ 	attr·0zA="attrValue"
+ 	attr̀·0z="attrValue"
+ 	attŕ̀·0="attrVaalue"
+ 	、。퟾attr="attrValue"
+ 	。퟾폿attr="attrValue"
+ 	퟾퟿豈attr="attrValue"
+ 	퟿豈更attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="atthttp1://example.org/~kipper"
+     xmlns="http:7/example.org/~wilbur">
+xed    xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="1" atxmlns:b="http://examp#l b)*>
+<!ELEMUNT a (#<b:bar a:attr="1" atxmlns:b="http://examp#l b)*>
+<!ELEMUNT a (#PCDATA)>mLns="http://example.org/~wglbur">
+xed attr/foo>
+

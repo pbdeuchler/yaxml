@@ -1,0 +1,10 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[
+    ]]><child>
+     before and after this elementher
+    way to represent text...)
+    </child><![CDATA[
+]]></root>

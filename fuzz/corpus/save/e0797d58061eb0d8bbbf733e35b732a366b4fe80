@@ -1,0 +1,30 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % pe "<!--replacementLIST LegalName6 attr6 ID #IMPLIED>
+<!ATTLIS LegalNameCharⰀ LEMENT LegalName19 ANY>
+<!ATTLIST LegalName19 attr19 ID #IMPLIED>
+<(ATTLIST LegalName19 attr190 IDREF #IMPLIED>
+<!ELEMENT LegalName20 ANY>
+<<!ELEMENT LNameCharⰀ ANY>
+<!ELEMENT LegalNameCharⰁ ANY>
+<!ELEMENT LegalNameChar⿮ ANY>
+<!ELEMENT LegalNameChar⿯ ANY>
+<!egalNameChar῾ ANY>
+<!EELEMENT LegalNameCharⰀ ANY>
+<!ELEMENT LegalNameCharⰁ ANY>
+<!ELEMENT LegalNameChar⿮ ANY>
+<!ELEMENT LegalNameChar⿯ ANY>
+<!ELEMENT LegalNameChar、 ANY>
+<!ELEMENT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>=
+<!ELEMENT LeCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChl-->">
+<!ENTITY
+  %
+  pe2
+  "<!--replacement decl-->"
+  >
+]>
+<doc/>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reerence in element content</b>">
+]>
+<!--* ed.
+  -->
+
+<?hml-stylesheet hreormance.xsl" type="text/xsl?xml version="1="utf-8" ?>
+<!DOt
+	lanutCT
+

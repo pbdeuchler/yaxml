@@ -1,10 +1,11 @@
-//! Complete-document output only: trees are constructed outside timed batches.
+//! Complete-document output through `Writer` sinks and `save::to_vec`; trees
+//! are constructed outside timed batches.
 
 use std::hint::black_box;
 use std::io::{self, BufWriter, Write};
 use std::time::Instant;
 
-use yaxml::{Document, Limits, OwnedDocument, WriteError, Writer, WriterLimits};
+use yaxml::{Document, Limits, OwnedDocument, WriteError, Writer, WriterLimits, save};
 
 fn parameter(name: &str) -> Option<String> {
     std::env::var(name).ok()
@@ -88,6 +89,14 @@ impl Tree<'_, '_> {
             Self::Owned(tree) => writer.write_owned_document(tree),
         }
     }
+    fn save(self) -> Vec<u8> {
+        let options = save::Options::default();
+        match self {
+            Self::Borrowed(tree) => save::to_vec(tree, &options),
+            Self::Owned(tree) => save::to_vec(tree, &options),
+        }
+        .expect("saved")
+    }
     fn label(self) -> &'static str {
         match self {
             Self::Borrowed(_) => "borrowed",
@@ -105,8 +114,12 @@ struct Sample<'a> {
 }
 
 fn measure(tree: Tree<'_, '_>, sample: &Sample<'_>) {
-    for sink in ["counting", "buffered"] {
+    for sink in ["counting", "buffered", "save"] {
         if !selected("YAXML_SERIALIZE_SINK", sink) {
+            continue;
+        }
+        if sink == "save" {
+            measure_save(tree, sample);
             continue;
         }
         let iterations = number(
@@ -170,6 +183,36 @@ fn measure(tree: Tree<'_, '_>, sample: &Sample<'_>) {
     }
 }
 
+/// `save::to_vec` with default options into a fresh vector per iteration.
+fn measure_save(tree: Tree<'_, '_>, sample: &Sample<'_>) {
+    let iterations = number(
+        "YAXML_SERIALIZE_ITERATIONS",
+        if cfg!(debug_assertions) {
+            1
+        } else {
+            (1_048_576 / sample.input_bytes).clamp(1, 100)
+        },
+    );
+    let mut bytes = 0;
+    let started = Instant::now();
+    for _ in 0..iterations {
+        let output = tree.save();
+        bytes += output.len();
+        black_box(output);
+    }
+    let elapsed = started.elapsed();
+    println!(
+        "shape={} tree={} sink=save siblings={} depth={} input_bytes={} status=complete iterations={iterations} output_bytes_total={bytes} elapsed_ns={} output_mib_per_s={:.2}",
+        sample.shape,
+        tree.label(),
+        sample.siblings,
+        sample.depth,
+        sample.input_bytes,
+        elapsed.as_nanos(),
+        bytes as f64 / elapsed.as_secs_f64() / 1_048_576.0
+    );
+}
+
 fn main() {
     for (name, choices) in [
         (
@@ -177,7 +220,10 @@ fn main() {
             &["flat", "text", "normalized", "lexical", "namespaces"][..],
         ),
         ("YAXML_SERIALIZE_TREE", &["borrowed", "owned"][..]),
-        ("YAXML_SERIALIZE_SINK", &["counting", "buffered"][..]),
+        (
+            "YAXML_SERIALIZE_SINK",
+            &["counting", "buffered", "save"][..],
+        ),
     ] {
         if let Some(choice) = parameter(name) {
             assert!(

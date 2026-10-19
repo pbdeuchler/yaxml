@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE nee>
+   <p> he prolbem</p>
+   <pnt::node::* | self::nodettp://exampl<doc><![CDAe

@@ -1,0 +1,7 @@
+<!DOCTYPE root SYSTEM "ibm68n06.dtd"
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST rD>
+
+]>
+<root att="&aaa;">entity declared externally but standalone is yes</root>

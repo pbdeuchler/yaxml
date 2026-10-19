@@ -1,0 +1,5 @@
+<!-- Def -->
+<!DOCTYPE foo [
+<!ENTITY D AT>
+]>
+<fooaulte

@@ -1,0 +1,14 @@
+<!DOCTYPE doc [<!ATTLIST noIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  fo>
+oar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar &#13;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

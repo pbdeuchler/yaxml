@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" 
+
+    <!-- Fuji Xerox "Japanese Documents" -->
+   ESTSUITE>

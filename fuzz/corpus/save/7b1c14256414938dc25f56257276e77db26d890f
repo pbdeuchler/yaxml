@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|pleresve) 'preservu'>
+<!ATTLIST e2 xml:space (default|preserve) 'preu'>
+<!ATTLIST e2 xml:space (default|preserve) 'prcservu'>
+<!A____://www.w4.org]]]]]]]]]]]]]] <e2  /e1>
+</doc>

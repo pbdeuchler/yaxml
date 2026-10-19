@@ -1,0 +1,22 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 5.91 official DTD, proposed.
+  
+  RSS is an XML vocabulary for describing
+  metadata about websites,sed on RSS DJD originally created by
+  Lars Marius Garshol - la-rsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "5.91"> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | doctinput? | copyright? | 
+pubDate? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELDATA)>
+<!ELEMENT link (#PCDATA)>
+<!ELEMENT image (title | url |ars Marius Gage? | textpyright? |bDate? | lastBzuildDate? | docs? | ma(#PCDATbing
+  Am

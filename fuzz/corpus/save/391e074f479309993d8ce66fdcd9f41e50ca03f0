@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and with defaulna ]mespace -->
+<foo xmlns:a="http://example/ore"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr="attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈ttr-�更豈="attrattrValue"
+ 	attŕ̀·1="2"/>
+
+</foo>

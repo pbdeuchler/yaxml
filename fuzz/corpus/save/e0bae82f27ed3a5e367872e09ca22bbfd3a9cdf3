@@ -1,0 +1,7 @@
+<!DOCTYPE ro
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST PLIED><!ENTITY aaa "aString"
+
+]>
+<root>&aaa;</root>

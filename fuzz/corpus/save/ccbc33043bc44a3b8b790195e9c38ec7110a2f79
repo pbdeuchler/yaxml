@@ -1,0 +1,5 @@
+<?x?>
+<!DOCTYPE root [
+<!ENTITY % deftest '&#60;!ELATA) EMETN root (middle) >' >
+%defroot;%defmiddle;%deftest;
+]<rest>samplg</te

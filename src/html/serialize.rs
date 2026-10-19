@@ -2,7 +2,7 @@
 //! htmlAttrDumpOutput, htmlSerializeUri, htmlDtdDumpOutput) and the HTML
 //! escape tables of `xmlIO.c`. The walk is iterative.
 
-use super::encoding::{Output, content_charset};
+use super::encoding::{content_charset, encode, output};
 use super::tables;
 use super::tokenizer::blank;
 use crate::{Doctype, Error, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind};
@@ -17,15 +17,21 @@ pub fn to_html(document: &OwnedDocument) -> Result<Vec<u8>, Error> {
 /// `<meta>` charset declarations name the output encoding and a top-level
 /// head without one gains `<meta charset>`. `format` is XML_SAVE_FORMAT.
 pub fn save(document: &OwnedDocument, format: bool) -> Result<Vec<u8>, Error> {
-    dump(
-        document,
-        format,
-        Some(document.html_encoding().unwrap_or("HTML")),
-    )
+    save_as(document, format, document.html_encoding().unwrap_or("HTML"))
+}
+
+/// `xmlSaveDoc` with `XML_SAVE_AS_HTML` and encoding `label`, which names both
+/// the output converter and the `<meta>` charset.
+pub(crate) fn save_as(
+    document: &OwnedDocument,
+    format: bool,
+    label: &str,
+) -> Result<Vec<u8>, Error> {
+    dump(document, format, Some(label))
 }
 
 fn dump(document: &OwnedDocument, format: bool, encoding: Option<&str>) -> Result<Vec<u8>, Error> {
-    let output = Output::for_label(document.html_encoding())?;
+    let output = output(encoding.or(document.html_encoding()))?;
     let mut dumper = Dumper {
         out: Vec::new(),
         format,
@@ -33,7 +39,7 @@ fn dump(document: &OwnedDocument, format: bool, encoding: Option<&str>) -> Resul
         meta_head: None,
     };
     dumper.document(document);
-    Ok(output.encode(dumper.out))
+    Ok(encode(output, dumper.out))
 }
 
 struct Dumper<'a> {

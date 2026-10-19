@@ -1,0 +1,7 @@
+<!DOCTYPE collection [
+
+<!ELEMENT dentifier EMPTY>
+<!ATTLIST identifier
+    value	IDREFS	"i-r 21"
+   
+   >  <!-- attkkkkkkkkon>

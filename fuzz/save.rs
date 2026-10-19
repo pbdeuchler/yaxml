@@ -1,0 +1,144 @@
+//! `save::to_vec` over save options and output encodings, derived from a hash
+//! of the input so every input is a document. Both DOMs must agree, only
+//! markup an encoding lacks may fail, and saving the reparsed output again
+//! must reproduce it byte for byte: the output is a fixed point, which
+//! checks the regenerated internal subset, escaping, references, formatting
+//! and the namespace declarations a subtree gains.
+
+use yaxml::{Document, ErrorKind, OwnedDocument, OwnedNodeKind, save};
+
+const FLAGS: [u32; 8] = [
+    save::FORMAT,
+    save::NO_DECL,
+    save::NO_EMPTY,
+    save::NO_XHTML,
+    save::XHTML,
+    save::WSNONSIG,
+    save::NO_INDENT,
+    save::EMPTY,
+];
+
+const ENCODINGS: [Option<&str>; 8] = [
+    None,
+    Some("UTF-8"),
+    Some("UTF-16"),
+    Some("UTF-16BE"),
+    Some("ISO-8859-1"),
+    Some("US-ASCII"),
+    Some("windows-1252"),
+    Some("ISO-8859-7"),
+];
+
+const INDENTS: [&str; 3] = ["  ", "\t", " \t "];
+
+pub(super) fn exercise(input: &[u8]) {
+    let Ok(owned) = OwnedDocument::parse_bytes(input) else {
+        return;
+    };
+    let seed = input.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, &byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
+    });
+    let flags = FLAGS
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| seed >> index & 1 == 1)
+        .fold(0, |flags, (_, flag)| flags | flag);
+    // XHTML additions are separated by one space even under WSNONSIG, as in
+    // libxml2, so that pair is not a fixed point.
+    let flags = if flags & save::WSNONSIG != 0 {
+        flags & !save::XHTML | save::NO_XHTML
+    } else {
+        flags
+    };
+    let options = save::Options {
+        flags,
+        encoding: ENCODINGS[(seed >> 8) as usize % ENCODINGS.len()],
+        indent: INDENTS[(seed >> 11) as usize % INDENTS.len()],
+    };
+    let output = save::to_vec(&owned, &options);
+    if let Ok(borrowed) = Document::parse_bytes(input) {
+        assert_eq!(
+            save::to_vec(&borrowed, &options),
+            output,
+            "DOM disagreement"
+        );
+    }
+    let label = options.encoding.or_else(|| {
+        owned
+            .declaration()
+            .and_then(|declaration| declaration.encoding)
+    });
+    match output {
+        Ok(output) => fixed_point(
+            &output,
+            &save::Options {
+                encoding: label,
+                ..options
+            },
+        ),
+        Err(error) => assert_lossy(error.kind, label),
+    }
+    // One subtree, chosen by the hash.
+    let count = owned.nodes().len();
+    let node = owned.nodes().nth((seed >> 16) as usize % count).unwrap();
+    let subtree = save::to_vec(node, &options);
+    if let Ok(borrowed) = Document::parse_bytes(input) {
+        let view = borrowed.nodes().nth((seed >> 16) as usize % count).unwrap();
+        assert_eq!(save::to_vec(view, &options), subtree, "DOM disagreement");
+    }
+    match subtree {
+        // A subtree has no declaration, so only UTF-8 output reparses.
+        Ok(output)
+            if node.kind() == OwnedNodeKind::Element
+                && matches!(options.encoding, None | Some("UTF-8")) =>
+        {
+            let reparsed = OwnedDocument::parse_bytes(&output)
+                .expect("an element subtree is a namespace-well-formed document");
+            assert_eq!(
+                save::to_vec(reparsed.root_element(), &options).unwrap(),
+                output,
+                "subtree output is not a fixed point"
+            );
+        }
+        Ok(_) => {}
+        Err(error) => assert_lossy(error.kind, options.encoding),
+    }
+}
+
+/// Only markup an encoding cannot represent fails.
+fn assert_lossy(kind: ErrorKind, label: Option<&str>) {
+    assert_eq!(kind, ErrorKind::InvalidCharacter);
+    assert!(
+        label.is_some_and(|label| !label.to_ascii_uppercase().starts_with("UTF")),
+        "{label:?} represents every character"
+    );
+}
+
+/// Saving the reparsed output in the same encoding reproduces it, when it
+/// can be reparsed: without a declaration, only UTF-8, ASCII-only output or
+/// UTF-16 behind a BOM is detected.
+fn fixed_point(output: &[u8], options: &save::Options<'_>) {
+    let detected = match options.encoding.map(str::to_ascii_uppercase).as_deref() {
+        None | Some("UTF-8") => true,
+        Some("UTF-16") => output.starts_with(&[0xFF, 0xFE]),
+        Some(label) => !label.starts_with("UTF") && output.is_ascii(),
+    };
+    if options.flags & save::NO_DECL != 0 && !detected {
+        return;
+    }
+    let resave = |output: &[u8]| {
+        let reparsed = OwnedDocument::parse_bytes(output).unwrap_or_else(|error| {
+            panic!(
+                "saved output does not reparse ({error}): {:?}",
+                String::from_utf8_lossy(output)
+            )
+        });
+        save::to_vec(&reparsed, options).unwrap()
+    };
+    // libxml2 normalizes `(a? | b? | c)+` to `(a? | b | c)*` and that to
+    // `(a | b | c)*`, so a content model can take one more round to settle.
+    let second = resave(output);
+    if second != output {
+        assert_eq!(resave(&second), second, "saved output does not settle");
+    }
+}

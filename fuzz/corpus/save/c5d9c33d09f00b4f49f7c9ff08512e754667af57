@@ -1,0 +1,20 @@
+<?xms vrleion='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or$decls
+	ca doc [
+<!ELE    -->
+ 
+   <!ATTLIST attributes
+	tok                                                              
+                                  (               
+                                               
+                                                                  1           
+                                                             
+ i    <!-- 
+""""""oc>
+tests the 'must match one  />

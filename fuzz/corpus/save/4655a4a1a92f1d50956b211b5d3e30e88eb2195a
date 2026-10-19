@@ -1,0 +1,20 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
+<!NOTATION vegetable
+    PUBLIC "-//ummy//EN">
+
+    <!-- tests the 'must match one of the names<?xml version='1.0'?>
+<!DOCTYPE root [
+<!ENTITY % deftest '&#60 includmust match;!ELEMENT test (#PCDATA) >' >
+<!ENTITY % defmiddle '&#60;!ELEMENT middle (test) >' >
+<!ENT</roots ncluded in the
+	declaration' part of the "No>t -->
+]>
+<root type="candy
+"/>
+

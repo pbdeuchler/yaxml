@@ -46,6 +46,68 @@ pub(crate) fn charset(label: &str) -> Option<Charset> {
         .map(|(_, charset)| *charset)
 }
 
+/// An output converter `xmlOpenCharEncodingHandler` provides without
+/// iconv/ICU. Generic UTF-16 is little-endian behind a BOM, as libxml2 writes it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Output {
+    Utf8,
+    Utf16 { little_endian: bool, bom: bool },
+    Byte(&'static [u16; 128]),
+}
+
+impl Output {
+    pub(crate) fn for_label(label: &str) -> Option<Self> {
+        Some(match charset(label)? {
+            Charset::Utf8 => Self::Utf8,
+            Charset::Utf16(None) => Self::Utf16 {
+                little_endian: true,
+                bom: true,
+            },
+            Charset::Utf16(Some(little_endian)) => Self::Utf16 {
+                little_endian,
+                bom: false,
+            },
+            Charset::Byte(table) => Self::Byte(table),
+        })
+    }
+
+    /// The byte-order mark written before any output.
+    pub(crate) fn bom(self) -> &'static [u8] {
+        match self {
+            Self::Utf16 { bom: true, .. } => &[0xFF, 0xFE],
+            _ => &[],
+        }
+    }
+
+    /// Appends `c`; false, appending nothing, when the charset lacks it.
+    pub(crate) fn push(self, out: &mut Vec<u8>, c: char) -> bool {
+        let code = u32::from(c);
+        match self {
+            Self::Utf8 => out.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes()),
+            Self::Utf16 { little_endian, .. } => {
+                for unit in c.encode_utf16(&mut [0; 2]) {
+                    out.extend_from_slice(&if little_endian {
+                        unit.to_le_bytes()
+                    } else {
+                        unit.to_be_bytes()
+                    });
+                }
+            }
+            Self::Byte(_) if code < 0x80 => out.push(code as u8),
+            Self::Byte(table) => {
+                // Most tables map their upper half to itself; try that first.
+                let same = (code < 0x100 && u32::from(table[code as usize - 0x80]) == code)
+                    .then_some(code as usize - 0x80);
+                match same.or_else(|| table.iter().position(|&m| m != 0 && u32::from(m) == code)) {
+                    Some(index) => out.push(0x80 + index as u8),
+                    None => return false,
+                }
+            }
+        }
+        true
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SourceEncoding {
     Utf8,

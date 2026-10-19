@@ -1,0 +1,6 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST IMPLIED>
+<!--*ssingl *--><!NOTATIONJPGformat SYST
+<root/>

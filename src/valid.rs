@@ -230,6 +230,22 @@ impl Dtd {
         self.name.as_deref()
     }
 
+    /// Whether `name` is declared with element-only content (`Some(true)`),
+    /// ANY or mixed content (`Some(false)`), or neither (`None`): the cases
+    /// libxml2's `XML_PARSE_NOBLANKS` decides by declaration.
+    pub fn has_element_content(&self, name: &str) -> Option<bool> {
+        match self
+            .elements
+            .get(*self.element_index.get(name)?)?
+            .content
+            .as_ref()?
+        {
+            Content::Children(_) => Some(true),
+            Content::Any | Content::Mixed(_) => Some(false),
+            Content::Empty => None,
+        }
+    }
+
     fn element(&self, name: QName<'_>) -> Option<(usize, &ElementDecl)> {
         let index = self.element_index.get(name.qualified).or_else(|| {
             (name.qualified != name.local)

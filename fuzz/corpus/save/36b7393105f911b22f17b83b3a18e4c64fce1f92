@@ -1,0 +1,24 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % m!ELEMENT small EMPTY>">
+   %machild> doc a0 NMTOKENS #IMPLI[ED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a CDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a text...)PLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![CDATA[
+]]></root>

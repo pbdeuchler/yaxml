@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    alvue	NMTOKENS	"alpha beta $gamma"
+    >
+    <!-- tests the "attrib -->
+]
+
+
+
+<!EMPTY>ests t l

@@ -1,0 +1,27 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˾attr CDATA #IMPLIED>
+<!ATTLIST LegalName Âattr CDATA #IMPLIED>
+<!ATTLIST LegalName Ãattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˽attr CDATA #IMPLIED>
+<!ATTLIST LegalName ˿attr CDATA #IMPLIED>
+<!ATTLIST LegalalName attr0zA. CDATA #IMPLIED>
+<!ATTLIST LegalNaPLIED>
+<!ATTLIST LegalName attrͮ́̀· CDATA #IMPLIED>
+<!ATTLIST LegalName attrͯͮ́̀ CDATA #IMPLIED>
+<!ATTLIST LegalName attr‿ͯͮ́ CDATA #IMPLIED>
+<!ATTLIST LegalName attr⁀‿ͯͮ CDATA #IMPLIED>
+<!ATTLIST LegalName null⁀‿ͯattr CDATA #IMPLIE<?xml version='1.0'?>
+<!DOCTYPE root [
+<!ENTITY % deftest '&#60;!ELATA) EMENT root (middle) >' >
+%defrootD>
+<!ATTLIST LegalName nullnull⁀‿tValue"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr="attrValuettrValue"
+ 	豈퟿퟾。attt;
+]>
+<rest>samplg</ter="st><

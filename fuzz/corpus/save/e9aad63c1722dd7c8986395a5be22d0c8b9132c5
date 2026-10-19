@@ -1,0 +1,8 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    token	NMTOKEN		#REQUI[
+    >
+
+ dev@null&#00/oc>
+>

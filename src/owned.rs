@@ -1897,6 +1897,10 @@ pub struct OwnedNode<'document> {
 }
 
 impl<'document> OwnedNode<'document> {
+    pub(crate) fn document(self) -> &'document OwnedDocument {
+        self.document
+    }
+
     #[inline]
     fn record(self) -> &'document OwnedRecord {
         self.record

@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+  ype	NOTATION	(fruit | vegetable)	#REQUIRED
+    e	NOTATION	(fruit | vegele)	#REQUIRED
+    >
+U!NOTATION fruit
+$BLIC "-//Internationndy"/>
+

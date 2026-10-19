@@ -1,0 +1,12 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "../valids/tda.d" [
+    <!ENTITY internal " number99">
+]>
+
+    <!-- syid/not-sa02.xml nots,parate testing
+    -->
+
+<attributes
+    notation =	" no	&iis one!"
+    />

@@ -1,0 +1,8 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATION unknot PUBLIC "Uext">
+<!ENTITY ge1 SYSTEM "nop.-nt">
+<!ENTITY g SYSTEM "nop.ent" NDATA unknot>
+]>
+<doTA 

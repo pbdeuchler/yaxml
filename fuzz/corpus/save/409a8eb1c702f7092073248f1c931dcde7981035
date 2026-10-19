@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE root [
+  <!ELEMENT root (zPCDATA)* >
+  <!ENTITY % pe2 SYSTEM "ibhar ANY>
+<!ELEMENT ˾LegalNameStartChar ANY6'<alNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENTStartChar ANY>LEMENT ͿLegalNameStartChar ANY>
+<!ELEMENT ΀LegalNameStartChar eStartCha
+	<更LegalNameStartChar/>
+
+</LegalNamem20v02.ent">
+  %pe1;
+]>
+<root>
+  pc@data content
+</root>
+<!--* a valid test for P70 VC:Entity Declared *-->

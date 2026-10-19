@@ -1,0 +1,16 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internal " number49">
+]>
+
+    <!-- sync with ../valid/not-sa02.xml -->
+
+    <!--ch type of normalization/defaulting
+	needs separate testing
+    -->
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized "
+    nmtokels !"  />

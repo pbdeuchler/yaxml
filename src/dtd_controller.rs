@@ -129,11 +129,14 @@ pub(crate) struct ControllerError {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum DtdEvent<'a> {
-    Begin(DoctypeHeaderView<'a>),
+    Begin(
+        #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
+        DoctypeHeaderView<'a>,
+    ),
     Item {
         unit: &'a DtdUnit<'a>,
+        #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
         literals: LiteralSource,
     },
     End,
@@ -314,7 +317,6 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn counters(&self) -> ControllerCounters {
         self.counters
     }
-    #[cfg(test)]
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.catalog
     }

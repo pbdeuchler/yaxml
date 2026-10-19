@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//ION vegetable
+    PUBLIC" -//International//Yucky//Ef">
+<!NOTATION caynd
+    PUBILC "e names include="candy"/>
+
