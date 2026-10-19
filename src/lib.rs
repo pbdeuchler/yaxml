@@ -20,6 +20,7 @@ mod dtd_writer;
 mod encoding;
 mod error;
 mod escape;
+pub mod html;
 mod name;
 mod origin;
 mod owned;

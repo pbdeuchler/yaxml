@@ -23,6 +23,17 @@ pub(crate) struct Budget {
 }
 
 impl Budget {
+    pub(crate) fn new(limits: Limits) -> Self {
+        Self {
+            limits,
+            owned_bytes: 0,
+        }
+    }
+
+    pub(crate) fn max_events(&self) -> usize {
+        self.limits.max_events
+    }
+
     #[cfg(test)]
     pub(crate) fn max_attributes(&self) -> usize {
         self.limits.max_attributes
@@ -310,10 +321,7 @@ impl<'source> ParserState<'source> {
             namespace_index: HashMap::new(),
             namespace_ids: HashMap::new(),
             next_namespace: 0,
-            budget: Budget {
-                limits,
-                owned_bytes: 0,
-            },
+            budget: Budget::new(limits),
             events: 0,
         }
     }
