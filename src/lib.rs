@@ -18,6 +18,7 @@ mod name;
 mod origin;
 mod owned;
 mod parser;
+pub mod pattern;
 mod push;
 mod reader;
 pub mod regexp;

@@ -244,6 +244,11 @@ namespace/`xml:lang`/`xml:base` scope, `next`, `read_string`, inner/outer XML
 and `expand` to an `OwnedDocument`, in bounded memory. See the
 [TextReader contract](docs/textreader.md) for libxml2 agreement and gaps.
 
+`yaxml::pattern` compiles libxml2's XPath pattern subset (`a/b`, `//a`, `.//a`,
+`a|b`, `@x`, `p:*`) and matches a node of either DOM or evaluates it
+incrementally over element events in memory bounded by pattern and depth; see
+[patterns](docs/pattern.md).
+
 ```rust
 use yaxml::{NodeType, TextReader};
 
