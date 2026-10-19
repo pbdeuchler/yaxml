@@ -101,15 +101,23 @@ struct Node {
     declarations: usize,
 }
 
+fn get(pool: &str, (start, end): Span) -> &str {
+    &pool[start..end]
+}
+
+fn push(pool: &mut String, value: &str) -> Span {
+    let start = pool.len();
+    pool.push_str(value);
+    (start, pool.len())
+}
+
 impl Node {
-    fn get(&self, (start, end): Span) -> &str {
-        &self.text[start..end]
+    fn get(&self, span: Span) -> &str {
+        get(&self.text, span)
     }
 
     fn push(&mut self, value: &str) -> Span {
-        let start = self.text.len();
-        self.text.push_str(value);
-        (start, self.text.len())
+        push(&mut self.text, value)
     }
 
     fn qname(&mut self, name: &Name<'_>) -> QName {
@@ -146,7 +154,10 @@ impl Node {
         self.kind = match event {
             Event::Declaration(_) => return false,
             Event::Doctype(doctype) => {
-                self.name.qualified = self.push(doctype.name);
+                self.name = QName {
+                    qualified: self.push(doctype.name),
+                    ..QName::default()
+                };
                 Kind::Doctype
             }
             Event::Start(element) | Event::Empty(element) => {
@@ -186,7 +197,10 @@ impl Node {
                 }
             }
             Event::ProcessingInstruction { target, data } => {
-                self.name.qualified = self.push(target);
+                self.name = QName {
+                    qualified: self.push(target),
+                    ..QName::default()
+                };
                 self.value = self.push(data);
                 Kind::Pi
             }
@@ -214,14 +228,8 @@ struct Scope {
 }
 
 impl Scope {
-    fn get(&self, (start, end): Span) -> &str {
-        &self.text[start..end]
-    }
-
-    fn push_str(&mut self, value: &str) -> Span {
-        let start = self.text.len();
-        self.text.push_str(value);
-        (start, self.text.len())
+    fn get(&self, span: Span) -> &str {
+        get(&self.text, span)
     }
 
     fn push(&mut self, node: &Node) {
@@ -236,13 +244,13 @@ impl Scope {
             let (prefix, local) = (node.prefix(attribute.name), node.local(attribute.name));
             let value = node.get(attribute.value);
             if index < node.declarations {
-                let prefix = prefix.map(|_| self.push_str(local));
-                let uri = self.push_str(value);
+                let prefix = prefix.map(|_| push(&mut self.text, local));
+                let uri = push(&mut self.text, value);
                 self.bindings.push((prefix, uri));
             } else if prefix == Some("xml") && local == "lang" {
-                frame.lang = Some(self.push_str(value));
+                frame.lang = Some(push(&mut self.text, value));
             } else if prefix == Some("xml") && local == "base" {
-                frame.base = Some(self.push_str(value));
+                frame.base = Some(push(&mut self.text, value));
             }
         }
         self.frames.push(frame);
@@ -433,12 +441,12 @@ impl<R: BufRead> TextReader<R> {
             match self.fetch() {
                 Ok(true) => {}
                 Ok(false) => break,
-                // Deliver the text; the source repeats an XML failure.
-                Err(ReadError::Io(error)) => {
-                    self.pending = Some(ReadError::Io(error));
+                // Deliver the text first. The source repeats an XML failure
+                // but reports an I/O failure only once.
+                Err(error) => {
+                    self.pending = matches!(error, ReadError::Io(_)).then_some(error);
                     break;
                 }
-                Err(ReadError::Xml(_)) => break,
             }
         }
         Ok(true)
