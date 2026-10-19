@@ -603,7 +603,8 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                     .dtd()
                     .is_some_and(|dtd| dtd.entities.get(name).is_some_and(Option::is_some))
         };
-        let scope = Scope::new(&load, &self.schema.names, &self.schema.notations, &entity);
+        let mut scope = Scope::new(&load, &self.schema.names, &self.schema.notations, &entity);
+        scope.instance = true;
         simple::validate(&self.schema.types, &self.schema.names, ty, lexical, &scope)
     }
 

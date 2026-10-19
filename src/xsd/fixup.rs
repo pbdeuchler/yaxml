@@ -777,7 +777,7 @@ impl Fix {
                         Code::StPropsCorrect2,
                         "The definition is circular.".into(),
                     );
-                    break;
+                    return;
                 }
                 if is_builtin(ty) || !seen.insert(ty) {
                     break;
@@ -792,7 +792,7 @@ impl Fix {
                     self.format(self.d.groups[g].name)
                 );
                 let loc = self.d.groups[g].loc;
-                self.report(loc, Code::MgPropsCorrect2, message);
+                return self.report(loc, Code::MgPropsCorrect2, message);
             }
         }
         for g in 0..self.d.attr_groups.len() {
@@ -802,7 +802,71 @@ impl Fix {
                     self.format(self.d.attr_groups[g].name)
                 );
                 let loc = self.d.attr_groups[g].loc;
-                self.report(loc, Code::SrcAttributeGroup3, message);
+                return self.report(loc, Code::SrcAttributeGroup3, message);
+            }
+        }
+    }
+
+    fn shape(&self, ty: TypeId) -> Option<&Shape> {
+        (!is_builtin(ty)).then(|| &self.d.types[ty - Drafts::FIRST_TYPE].shape)
+    }
+
+    /// The member types of the union `ty` derives from, if any.
+    fn union_members(&self, ty: TypeId) -> Option<&[TypeId]> {
+        let mut seen = HashSet::new();
+        let mut t = ty;
+        loop {
+            match self.shape(t)? {
+                Shape::Union(_) => return self.members.get(&t).map(Vec::as_slice),
+                Shape::Restriction if seen.insert(t) => t = self.bases[t]?,
+                _ => return None,
+            }
+        }
+    }
+
+    /// `xmlSchemaCheckUnionTypeDefCircularRecur`.
+    fn union_reaches(
+        &self,
+        root: TypeId,
+        members: &[TypeId],
+        visited: &mut HashSet<TypeId>,
+    ) -> bool {
+        for &member in members {
+            let mut t = Some(member);
+            let mut chain = HashSet::new();
+            while let Some(ty) = t {
+                if ty == root {
+                    return true;
+                }
+                if is_builtin(ty) || !chain.insert(ty) {
+                    break;
+                }
+                if let Some(inner) = self.union_members(ty)
+                    && visited.insert(ty)
+                    && self.union_reaches(root, inner, visited)
+                {
+                    return true;
+                }
+                t = self.bases[ty];
+            }
+        }
+        false
+    }
+
+    /// `xmlSchemaCheckUnionTypeDefCircular` for every union type.
+    fn union_circularity(&mut self) {
+        for id in Drafts::FIRST_TYPE..self.types.len() {
+            if !matches!(self.shape(id), Some(Shape::Union(_))) {
+                continue;
+            }
+            let members = self.members.get(&id).cloned().unwrap_or_default();
+            if self.union_reaches(id, &members, &mut HashSet::new()) {
+                let loc = self.d.types[id - Drafts::FIRST_TYPE].loc;
+                self.report(
+                    loc,
+                    Code::SrcSimpleType4,
+                    "The union type definition is circular.".into(),
+                );
             }
         }
     }
@@ -996,6 +1060,10 @@ impl Fix {
     }
 
     fn simple_types(&mut self) {
+        self.union_circularity();
+        if self.d.errors() {
+            return;
+        }
         for id in self.type_order() {
             if self.is_simple(id) {
                 self.fix_simple(id);
@@ -1362,7 +1430,10 @@ impl Fix {
                         }),
                         _ => return None,
                     }),
-                    Err(_) => {
+                    Err(failure) => {
+                        for (code, message) in failure {
+                            self.report(raw.loc, code, message);
+                        }
                         let message = format!(
                             "The value '{}' of the facet does not validate against the base type {}.",
                             raw.value,
@@ -1612,11 +1683,13 @@ impl Fix {
                         value: Some(value),
                     })
                 }
-                Err(_) => self.report(
-                    draft.loc,
-                    Code::APropsCorrect2,
-                    "The value of the value constraint is not valid.".into(),
-                ),
+                Err(failure) => {
+                    for (code, message) in failure {
+                        self.report(draft.loc, code, message);
+                    }
+                    let message = "The value of the value constraint is not valid.";
+                    self.report(draft.loc, Code::APropsCorrect2, message.into());
+                }
             }
         }
         let uses: Vec<_> = self

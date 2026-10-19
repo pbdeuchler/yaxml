@@ -15,6 +15,9 @@ pub(crate) struct Scope<'a> {
     names: &'a Names,
     notations: &'a HashSet<QName>,
     entity: &'a dyn Fn(&str) -> bool,
+    /// Instance values report an unbound QName prefix separately, as
+    /// libxml2's `xmlSchemaValidateQName` does.
+    pub(crate) instance: bool,
 }
 
 impl<'a> Scope<'a> {
@@ -30,6 +33,7 @@ impl<'a> Scope<'a> {
             names,
             notations,
             entity,
+            instance: false,
         }
     }
 }
@@ -125,10 +129,22 @@ pub(crate) fn validate(
                 true => Code::CvcDatatypeValid1_2_2,
                 false => Code::CvcDatatypeValid1_2_1,
             };
-            let value = simple
-                .builtin
-                .parse(&text, Some(scope))
-                .map_err(|_| invalid(code, &text))?;
+            let value = simple.builtin.parse(&text, Some(scope)).map_err(|_| {
+                let unbound = scope.instance
+                    && simple.builtin == Type::QName
+                    && text.split_once(':').is_some_and(|(prefix, _)| {
+                        schema_types::Context::namespace(scope, prefix).is_none() && prefix != "xml"
+                    });
+                let mut failure = match unbound {
+                    true => vec![(
+                        Code::CvcDatatypeValid1_2_1,
+                        format!("The QName value '{text}' has no corresponding namespace declaration in scope."),
+                    )],
+                    false => Vec::new(),
+                };
+                failure.extend(invalid(code, &text));
+                failure
+            })?;
             let typed = Typed::Atomic(value);
             check_facets(types, names, ty, &typed, &text)?;
             Ok(typed)
