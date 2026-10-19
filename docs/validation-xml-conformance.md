@@ -1,5 +1,30 @@
 # Pinned XML conformance inventory validation
 
+## Update: external resources (2026-10-18)
+
+The worker now receives `--worker <suite-root> <case-path>` and gives every
+surface a `FileResolver` rooted at the suite with the case path as document
+base, so external subsets and entities load (no network). External-entity
+cases are therefore scored instead of being a blanket gap. Same catalog,
+suite and command as below:
+
+| Interface | Pass | Gap | Unscored | Mismatch | Pass before |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Reader | 1,921 | 53 | 611 | 0 | 1,678 |
+| Borrowing DOM | 1,921 | 53 | 611 | 0 | 1,678 |
+| Owned DOM | 1,963 | 11 | 611 | 0 | 1,716 |
+| Push | 1,963 | 11 | 611 | 0 | 1,716 |
+| Buffered pull | 1,963 | 11 | 611 | 0 | 1,716 |
+
+714 of 812 `valid` cases pass on borrowing interfaces (721 on decoding ones).
+Remaining gaps are legacy encodings (44 borrowing, 2 decoding) and the
+namespace-off profile (9). The first run had five mismatches, all fixed:
+a PE between declarations holding a partial declaration (`ibm28an01`),
+standalone documents using externally declared general entities
+(`ibm32n09`, `ibm68n06`, `not-sa03`) and a version-1.1 text declaration
+(`E38`). The regenerated baseline holds **1,963 IDs and 9,731 pairs** and is
+a superset of the previous one.
+
 ## Update: DTD activation (2026-10-18)
 
 Re-running the same runner, catalog (`/private/tmp/yaxml-xmlconf-evidence-21c746f/catalog.tsv`)

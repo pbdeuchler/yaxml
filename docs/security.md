@@ -10,7 +10,7 @@ Treat document bytes, parser options, caller-created tree data, resolver respons
 
 Use iterative stacks for input-driven nesting, including parsing, traversal, serialization, entity processing, and destruction. Avoid one heap object whose recursive ownership follows each input element. Check additions, multiplications, offsets, and conversions before using them as sizes or indices. A parser error terminates ordinary event production; diagnostic recovery, if implemented, is a separate mode with an explicit contract. XML defines fatal-error handling and requires normal processing to stop after such an error. [XML 1.0, terminology](https://www.w3.org/TR/2008/REC-xml-20081126/#sec-terminology).
 
-The parser rejects DTDs and unsupported encodings explicitly. It must not silently skip a construct and return a misleading success. Borrowing interfaces require UTF-8; owned and streaming input also accept UTF-16 under the [encoding contract](encoding.md). Decoded totals and token bytes have separate finite limits, malformed surrogates fail, and the decoder retains constant carry rather than a complete expanded source.
+The parser rejects unsupported constructs and encodings explicitly. It must not silently skip a construct and return a misleading success. Borrowing interfaces require UTF-8; owned and streaming input also accept UTF-16 under the [encoding contract](encoding.md). Decoded totals and token bytes have separate finite limits, malformed surrogates fail, and the decoder retains constant carry rather than a complete expanded source.
 
 ## Resource policy
 
@@ -26,8 +26,8 @@ need boundary tests. A compatibility option must not quietly disable unrelated l
 | Owned strings | Cumulative requested string capacity, including namespace copies, streaming names and full new owned-DOM pool capacities; one shared normalization/storage counter | Allocator-level byte accounting and failure injection; current budget is not a process memory quota |
 | Owned edits | Per-value/name and aggregate supplied-byte ceilings; bounded construction depth, start-tag items and namespace/expanded-name work; cumulative full pool-capacity requests, created slots and created attributes/declarations across editors; validate before storage and publish after reservation; removal refunds no counter | Existing-element attribute membership, reclamation/compaction and allocator-level failure injection |
 | Structure | Element depth, attributes per element and event count; parsed node creation is bounded by events; fresh owned nodes and attributes have persistent counts; construction and subtree removal are iterative | Retained DOM bytes, existing-element namespace edits, general insertion and cycle checks, moves/import/adoption, detached ownership and slot reclamation/reuse |
-| Entities | Reject DTDs; recognize only predefined and numeric references | Entity nesting, reference count, expanded bytes, expansion work, and cycle detection |
-| External resources | No implicit I/O | Request count, cumulative bytes, nesting, redirects, and caller cancellation |
+| Entities | Entity nesting, reference count, expanded bytes, expansion work and cycle detection, shared by internal and external entities | Validation-time content models |
+| External resources | No I/O without a caller `Resolver`; `max_external_loads` requests and `max_external_bytes` cumulative response bytes per document, checked before decoding; nesting/expansion share the entity budgets | Redirects and cancellation belong to the caller's resolver |
 | Query/validation | Unsupported initially | Expression size, evaluation steps, intermediate results, schema state and recursion |
 | Output | Encoded event and total byte ceilings, depth/attributes/events/owned strings; validation before sink I/O; iterative complete-tree serialization; partial positions and terminal errors | Namespace repair, subtree output, transcoding, canonicalization and their additional budgets |
 
@@ -42,7 +42,9 @@ Use fallible reservation for attacker-sized collection growth. Audit implicit al
 
 ## External resources and compatibility
 
-No document-controlled filesystem or network access is implicit. Future DTD, XInclude, catalog, and schema support receives an explicit resolver from the caller. The core requests a resource with its kind, base URI, resolved identifier, and remaining budget; the caller decides access policy. A resolver can return in-memory bytes without granting ambient filesystem access. Apply cumulative limits across recursive loads, not a fresh budget per resource.
+No document-controlled filesystem or network access is implicit. External DTD subsets and entities load only through a `Resolver` the caller passes in; future XInclude, catalog and schema support must use the same path. The core sends a `Request` with the resource kind, the system ID resolved against the declaring resource's base, the public ID and the remaining byte budget; the caller decides access policy. A resolver can return in-memory bytes without granting ambient filesystem access. Limits are cumulative across recursive loads, never per resource, and loaded text shares the document's entity expansion, reference and depth budgets, so external "billion laughs" stops at the same ceilings.
+
+`FileResolver` is an opt-in convenience: it serves relative paths and `file:` URIs beneath one canonicalized root, rejects lexical `..` escapes, symbolic links leaving the root, non-file schemes and non-regular files, declines missing files and reads at most one byte past the remaining budget. Its checks precede `open` and are not atomic with it, so it is not a defense against a concurrently modified directory tree. It never touches the network.
 
 Keep resource policy distinct from syntax compatibility. libxml2 documents that entity substitution can load external entities, DTD validation can be vulnerable to complexity attacks, and its `NONET` option is not a general restriction on custom loaders. A security profile cannot be implemented by copying that single flag. [libxml2 parser options](https://gnome.pages.gitlab.gnome.org/libxml2/html/parser_8h.html#xmlParserOption).
 

@@ -611,7 +611,7 @@ fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
         Err(Error::new(ErrorKind::MismatchedEndTag, 6))
     );
     assert_eq!(
-        builder.finish(10).unwrap_err(),
+        builder.finish(10, None).unwrap_err(),
         Error::new(ErrorKind::MissingRoot, 10)
     );
     let mut parser = PushParser::new();

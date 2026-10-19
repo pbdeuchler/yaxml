@@ -283,8 +283,6 @@ pub fn classify(case: Case<'_>, error: Option<&str>) -> Verdict {
         ("gap", "namespace-off-profile")
     } else if case.kind == "error" {
         ("unscored", "discretionary-error")
-    } else if case.entities != "none" {
-        ("gap", "external-entity-processing")
     } else if error == Some("UnsupportedEncoding") {
         ("gap", "encoding-support")
     } else if case.kind == "not-wf" {
@@ -472,7 +470,7 @@ mod tests {
                     ..base
                 },
                 Some("Syntax"),
-                ("gap", "external-entity-processing"),
+                ("mismatch", "unexpected-rejection"),
             ),
         ] {
             assert_eq!(
@@ -485,15 +483,6 @@ mod tests {
         }
         for error in [None, Some("Syntax")] {
             for (case, status, reason) in [
-                (
-                    Case {
-                        kind: "not-wf",
-                        entities: "general",
-                        ..base
-                    },
-                    "gap",
-                    "external-entity-processing",
-                ),
                 (
                     Case {
                         kind: "not-wf",

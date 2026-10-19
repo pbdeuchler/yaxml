@@ -1069,3 +1069,28 @@ fn fuzz_regressions_replay() {
         }
     }
 }
+
+#[test]
+fn resolver_wrapper_serves_fuzz_resources_to_every_surface() {
+    let resolved = [
+        (b"\x03".as_slice(), true),
+        (
+            b"\x03\0<!ATTLIST r a CDATA 'd'>\0text<b/>\0<!ENTITY x 'y'>",
+            true,
+        ),
+        (
+            b"\x03\0<![INCLUDE[<!ENTITY q SYSTEM '0'>]]>\0&q;\0\0<i/>",
+            true,
+        ),
+        (b"\x03\0\0<a>", false),
+        (b"\x03\0\0\0%p;", false),
+        (b"\x03\0<!BAD>", false),
+    ];
+    for (input, accepted) in resolved {
+        assert_eq!(
+            driver::exercise_dtd(input).error.is_none(),
+            accepted,
+            "{input:?}"
+        );
+    }
+}

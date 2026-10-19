@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use yaxml::c14n::{self, Error, Mode, Options};
 use yaxml::xpath::{Context, Tree, XPath};
-use yaxml::{Document, OwnedDocument};
+use yaxml::{Document, FileResolver, Limits, OwnedDocument, Resolver};
 
 const DEFAULT_SOURCE: &str =
     "/Users/pbdeuchler/workspace/src/github.com/pbdeuchler/yaxml-oracle/libxml2-2.15.4";
@@ -109,38 +109,52 @@ fn libxml2_suite() {
                 true => Vec::new(),
                 false => list.split(',').collect(),
             };
+            // Like runtest.c's xmlReadFile with NOENT, entities load beside the input.
+            let base = format!("{name}.xml");
+            let resolver =
+                || -> Box<dyn Resolver> { Box::new(FileResolver::new(&inputs).unwrap()) };
             // The owned DOM decodes every supported encoding; the borrowed one must agree when it parses.
-            let outcome = match OwnedDocument::parse_bytes(&input) {
-                Ok(owned) => {
-                    let selection = selection(&inputs.join(format!("{name}.xpath")));
-                    let selection = selection.as_ref();
-                    let root = owned.root().id();
-                    let actual = canonical(&owned, root, mode, with_comments, selection, &prefixes)
-                        .expect("owned c14n");
-                    if let Ok(borrowed) = Document::parse_bytes(&input) {
-                        let root = borrowed.root().id();
-                        let other =
-                            canonical(&borrowed, root, mode, with_comments, selection, &prefixes);
-                        assert_eq!(
-                            other.expect("borrowed c14n"),
-                            actual,
-                            "{directory}/{name}: DOMs disagree"
-                        );
-                    }
-                    match actual.as_bytes() == expected {
-                        true => Outcome::Pass,
-                        false => {
-                            eprintln!(
-                                "{directory}/{name}:\n{actual}\n--- expected\n{}",
-                                String::from_utf8_lossy(&expected)
+            let outcome =
+                match OwnedDocument::with_resolver(&input, Limits::default(), &base, resolver()) {
+                    Ok(owned) => {
+                        let selection = selection(&inputs.join(format!("{name}.xpath")));
+                        let selection = selection.as_ref();
+                        let root = owned.root().id();
+                        let actual =
+                            canonical(&owned, root, mode, with_comments, selection, &prefixes)
+                                .expect("owned c14n");
+                        if let Ok(borrowed) =
+                            Document::with_resolver(&input, Limits::default(), &base, resolver())
+                        {
+                            let root = borrowed.root().id();
+                            let other = canonical(
+                                &borrowed,
+                                root,
+                                mode,
+                                with_comments,
+                                selection,
+                                &prefixes,
                             );
-                            Outcome::Mismatch
+                            assert_eq!(
+                                other.expect("borrowed c14n"),
+                                actual,
+                                "{directory}/{name}: DOMs disagree"
+                            );
+                        }
+                        match actual.as_bytes() == expected {
+                            true => Outcome::Pass,
+                            false => {
+                                eprintln!(
+                                    "{directory}/{name}:\n{actual}\n--- expected\n{}",
+                                    String::from_utf8_lossy(&expected)
+                                );
+                                Outcome::Mismatch
+                            }
                         }
                     }
-                }
-                Err(_) if input.windows(9).any(|window| window == b"<!DOCTYPE") => Outcome::Dtd,
-                Err(error) => panic!("{directory}/{name}: unexpected parse error {error:?}"),
-            };
+                    Err(_) if input.windows(9).any(|window| window == b"<!DOCTYPE") => Outcome::Dtd,
+                    Err(error) => panic!("{directory}/{name}: unexpected parse error {error:?}"),
+                };
             outcomes.push(outcome);
         }
     }
@@ -156,8 +170,9 @@ fn libxml2_suite() {
         count(Outcome::Mismatch),
     );
     eprintln!("libxml2 c14n suite: {pass} pass, {dtd} need DTD support, {mismatch} mismatch");
-    // Remaining mismatches need external entities or DTD-declared IDs.
-    assert_eq!((pass, dtd, mismatch), (61, 0, 12));
+    // without-comments/test-3 and exc-without-comments/test-{0,1} select an
+    // `xmlns=""` namespace node, which yaxml's XPath does not model (c14n.md).
+    assert_eq!((pass, dtd, mismatch), (70, 0, 3));
 }
 
 /// Canonicalizes `xml` over both DOMs, checking they agree.

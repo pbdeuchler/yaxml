@@ -455,6 +455,8 @@ pub struct OwnedDocument {
     // Parsing produces contiguous preorder. A future structural edit clears
     // this permanently; value-only edits leave the fast path valid.
     slots_are_preorder: bool,
+    /// `(element, attribute index)` of parsed ID-typed attributes, in document order.
+    ids: Vec<(OwnedNodeId, usize)>,
 }
 
 impl OwnedDocument {
@@ -523,29 +525,69 @@ impl OwnedDocument {
         limits: Limits,
         decode: DecodeLimits,
     ) -> Result<Self, Error> {
+        Self::parse_with(input, limits, decode, None)
+    }
+
+    /// Parses with a resolver for the external subset and external entities;
+    /// `base` is the document's URI or path. See [`Reader::with_resolver`].
+    pub fn with_resolver(
+        input: &[u8],
+        limits: Limits,
+        base: &str,
+        resolver: Box<dyn crate::Resolver>,
+    ) -> Result<Self, Error> {
+        Self::parse_with(
+            input,
+            limits,
+            DecodeLimits::default(),
+            Some((base, resolver)),
+        )
+    }
+
+    fn parse_with(
+        input: &[u8],
+        limits: Limits,
+        decode: DecodeLimits,
+        resolver: Option<(&str, Box<dyn crate::Resolver>)>,
+    ) -> Result<Self, Error> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
         let mut builder = OwnedBuilder::new(input.len())?;
 
-        let position = if crate::encoding::needs_decoding(input) {
+        if crate::encoding::needs_decoding(input) {
             let mut parser = PushParser::with_decode_limits(limits, decode);
+            if let Some((base, resolver)) = resolver {
+                parser = parser.with_resolver(base, resolver);
+            }
             parser.feed_with(input, |event, origin, budget| {
                 builder.consume(event, origin, budget)
             })?;
             parser.finish_with(|event, origin, budget| builder.consume(event, origin, budget))?;
-            parser.position()
+            builder.finish(parser.position(), parser.catalog())
         } else {
             let mut reader = Reader::with_decode_limits(input, limits, decode)?;
+            if let Some((base, resolver)) = resolver {
+                reader = reader.with_resolver(base, resolver);
+            }
             while let Some(event) = reader.read_event()? {
                 let origin = reader
                     .event_origin()
                     .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
                 builder.consume(event, origin, reader.owned_budget())?;
             }
-            reader.position()
-        };
-        builder.finish(position)
+            builder.finish(reader.position(), reader.catalog())
+        }
+    }
+
+    /// The element whose `xml:id` or DTD-declared `ID` attribute has this
+    /// value; the first in document order wins, as in libxml2's `xmlGetID`.
+    pub fn element_by_id(&self, value: &str) -> Option<OwnedNode<'_>> {
+        crate::xpath::tree::element_by_id(self, &self.ids, value).and_then(|id| self.node(id))
+    }
+
+    pub(crate) fn ids(&self) -> &[(OwnedNodeId, usize)] {
+        &self.ids
     }
 
     /// Returns the synthetic root, including surrounding comments and PIs.
@@ -1335,8 +1377,14 @@ impl OwnedBuilder {
         Ok(id)
     }
 
-    fn finish(self, position: usize) -> Result<OwnedDocument, Error> {
-        self.finish_with_counter(position, &LAST_DOCUMENT_ID)
+    fn finish(
+        self,
+        position: usize,
+        catalog: Option<&crate::dtd_catalog::DtdCatalog>,
+    ) -> Result<OwnedDocument, Error> {
+        let document = self.finish_with_counter(position, &LAST_DOCUMENT_ID)?;
+        let ids = crate::xpath::tree::find_ids(&document, catalog);
+        Ok(OwnedDocument { ids, ..document })
     }
 
     fn finish_with_counter(
@@ -1359,6 +1407,7 @@ impl OwnedBuilder {
             edit_created_nodes: 0,
             edit_created_attributes: 0,
             slots_are_preorder: true,
+            ids: Vec::new(),
         })
     }
 }
