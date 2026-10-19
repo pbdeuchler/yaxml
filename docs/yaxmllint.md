@@ -70,7 +70,8 @@ line and column come from the error's byte offset, and the wording is yaxml's.
   under `--postvalid` it fails.
 - `--recover` parses with `RECOVER`: each recovered error is printed as a
   parser error and the recovered document is output with exit code 0, as in
-  xmllint. A document from which no element is recovered fails (exit 4).
+  xmllint, also one from which no element is recovered (only empty input
+  fails, exit 4).
   `--stream` ignores it, as `TextReader` does not recover.
 
 ## Differences from xmllint
@@ -92,9 +93,9 @@ and compares stdout and exit code: `--noout`, `--valid`, `--postvalid`,
 `--format` output agree on 127/143 and 126/143 inputs (105 and 104 before
 entity references were kept), the rest being the gaps above and three
 documents with references in attribute values. `--recover` agrees with
-`xmllint --recover` on 23/45 `test/errors` inputs and on 717/1498 XMLTS
-not-wf documents; most differences are inputs from which libxml2 recovers
-no element (see [Recovery](compatibility.md#recovery-recover)).
+`xmllint --recover` on 37/45 `test/errors` inputs (82.22%) and on 1305/1498
+XMLTS not-wf documents (87.12%); the differences are listed under
+[Recovery](compatibility.md#recovery-recover).
 `recover_against_xmllint` reports these rates (`YAXML_SUITES` names the
 directory of `xmlconf-catalog.tsv`) and requires a curated table of
 recoverable inputs to agree. The pinned `xmllint` lacks

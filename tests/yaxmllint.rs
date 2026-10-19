@@ -645,8 +645,7 @@ fn has_element(saved: &str) -> bool {
 
 /// `--recover` against xmllint: the curated table must agree; libxml2's
 /// `test/errors` and the XMLTS not-wf documents are reported, in total and
-/// without the inputs from which libxml2 recovers no element (yaxml then
-/// fails with the first error, by design).
+/// without the inputs from which libxml2 recovers no element.
 #[test]
 fn recover_against_xmllint() {
     let Some(xmllint) = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from) else {

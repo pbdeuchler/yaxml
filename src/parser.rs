@@ -850,14 +850,31 @@ impl<'source> ParserState<'source> {
         attribute: bool,
         references: bool,
     ) -> Result<Cow<'event, str>, Error> {
-        let characters = self.repairs_characters && crate::escape::invalid_char(raw).is_some();
-        if !characters && !needs_normalization(raw, attribute, references) {
+        if self.repairs_characters && crate::escape::invalid_char(raw).is_some() {
+            return self.repaired(raw, offset, attribute, references);
+        }
+        if !needs_normalization(raw, attribute, references) {
             return Ok(Cow::Borrowed(raw));
         }
         self.budget.charge_owned(raw.len(), offset)?;
         let recover = |error| self.budget.recover(error);
-        let modes = (attribute, references, characters);
-        normalize_into(raw, offset, modes, String::new(), recover).map(Cow::Owned)
+        normalize_into(raw, offset, attribute, references, String::new(), recover).map(Cow::Owned)
+    }
+
+    /// `normalized` over text with characters outside `Char`, which
+    /// recovery repairs first (see `repairs_characters`).
+    #[cold]
+    fn repaired<'event>(
+        &mut self,
+        raw: &str,
+        offset: usize,
+        attribute: bool,
+        references: bool,
+    ) -> Result<Cow<'event, str>, Error> {
+        self.budget.charge_owned(raw.len(), offset)?;
+        let mut recover = |error| self.budget.recover(error);
+        let raw = crate::escape::repair_characters(raw, offset, attribute, &mut recover)?;
+        normalize_into(&raw, offset, attribute, references, String::new(), recover).map(Cow::Owned)
     }
 
     fn instruction<'event>(

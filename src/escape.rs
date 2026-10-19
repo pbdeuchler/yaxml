@@ -50,27 +50,53 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
 /// `recover`ed from by dropping it as far as libxml2 reads it, except that
 /// an attribute value fails at a character reference libxml2 reads as zero
 /// (an `InvalidReference` error at the offset where libxml2 reads on).
-/// With `characters`, a character outside `Char` is `recover`ed from as
-/// libxml2 does: dropped from text, U+FFFD in an attribute value.
 pub(crate) fn normalize_into(
     raw: &str,
     offset: usize,
-    (attribute, references, characters): (bool, bool, bool),
+    attribute: bool,
+    references: bool,
     out: String,
     recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
-    let modes = (attribute, references, true, characters);
-    normalize(raw, offset, modes, out, recover)
+    normalize(raw, offset, attribute, references, true, out, recover)
 }
 
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    normalize(raw, offset, (false, true, false, false), String::new(), Err)
+    normalize(raw, offset, false, true, false, String::new(), Err)
+}
+
+/// Recovery from characters outside `Char` in `raw`, as libxml2 does:
+/// dropped from text, U+FFFD in an `attribute` value.
+pub(crate) fn repair_characters(
+    raw: &str,
+    offset: usize,
+    attribute: bool,
+    recover: &mut impl FnMut(Error) -> Result<(), Error>,
+) -> Result<String, Error> {
+    let mut out = String::new();
+    out.try_reserve(raw.len())
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    let mut rest = raw;
+    while let Some(at) = invalid_char(rest) {
+        recover(Error::new(
+            ErrorKind::InvalidCharacter,
+            offset + raw.len() - rest.len() + at,
+        ))?;
+        out.push_str(&rest[..at]);
+        out.extend(attribute.then_some('\u{fffd}'));
+        let length = rest[at..].chars().next().map_or(1, char::len_utf8);
+        rest = &rest[at + length..];
+    }
+    out.push_str(rest);
+    Ok(out)
 }
 
 fn normalize(
     raw: &str,
     offset: usize,
-    (attribute, references, physical_eol, characters): (bool, bool, bool, bool),
+    attribute: bool,
+    references: bool,
+    physical_eol: bool,
     mut out: String,
     mut recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
@@ -79,19 +105,13 @@ fn normalize(
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
     let bytes = raw.as_bytes();
     // Unchanged runs between special bytes are copied whole; every special
-    // byte starts a character, so run boundaries are character boundaries.
+    // byte is ASCII, so run boundaries are character boundaries.
     let (mut run, mut i) = (0, 0);
     while let Some(&byte) = bytes.get(i) {
         let special = match byte {
             b'&' => references,
             b'\r' => physical_eol,
             b'\n' | b'\t' => attribute,
-            0..0x20 | 0xef => {
-                characters
-                    && (byte != 0xef
-                        || bytes.get(i + 1) == Some(&0xbf)
-                            && matches!(bytes.get(i + 2), Some(0xbe | 0xbf)))
-            }
             _ => false,
         };
         if !special {
@@ -127,15 +147,9 @@ fn normalize(
                 i += 1 + usize::from(bytes.get(i + 1) == Some(&b'\n'));
                 out.push(if attribute { ' ' } else { '\n' });
             }
-            b'\n' | b'\t' => {
+            _ => {
                 i += 1;
                 out.push(' ');
-            }
-            // A character outside `Char`.
-            _ => {
-                recover(Error::new(ErrorKind::InvalidCharacter, offset + i))?;
-                i += if byte == 0xef { 3 } else { 1 };
-                out.extend(attribute.then_some('\u{fffd}'));
             }
         }
         run = i;
@@ -237,11 +251,10 @@ mod tests {
                 found.push((error.kind, error.offset));
                 Ok(())
             };
-            let modes = (false, true, false);
-            let recovered = normalize_into(text, 0, modes, String::new(), recover);
+            let recovered = normalize_into(text, 0, false, true, String::new(), recover);
             assert_eq!(recovered.as_deref(), Ok(*value), "{text}");
             assert_eq!(found, *errors, "{text}");
-            let strict = normalize_into(text, 0, modes, String::new(), Err);
+            let strict = normalize_into(text, 0, false, true, String::new(), Err);
             let first = errors
                 .first()
                 .map(|&(kind, offset)| Error::new(kind, offset));

@@ -683,9 +683,8 @@ impl<'a> SliceReader<'a> {
     /// `doctype`). Events return in the reader's own result type, so they are
     /// not rewrapped on the way out.
     fn read_step(&mut self) -> Result<Option<Event<'a>>, Error> {
-        if let Some(origin) = self.reference_end.take() {
-            self.origin = Some(origin);
-            return Ok(Some(Event::EntityEnd));
+        if self.reference_end.is_some() {
+            return Ok(Some(self.end_reference()));
         }
         loop {
             if !self.state.in_content() {
@@ -711,21 +710,13 @@ impl<'a> SliceReader<'a> {
                 let rest = &self.input.as_bytes()[start..];
                 let end = start + memchr(b'<', rest).unwrap_or(rest.len());
                 self.check_token(start, end)?;
-                // Recovery keeps a reference to an undeclared entity, as
-                // libxml2 does without `NOENT`, as an empty reference.
-                let text = &self.input[start..end];
-                let keeps = self.state.keeps_undeclared() && self.state.in_content();
-                match keeps.then(|| undeclared_reference(text)).flatten() {
-                    Some((0, name)) => {
-                        let end = start + name.len() + 2;
-                        let event = self.state.undeclared_reference(name, start)?;
-                        let origin = SourceOrigin::input(start..end);
-                        (self.cursor, self.origin) = (end, Some(origin));
-                        self.reference_end = Some(origin);
-                        return Ok(Some(event));
+                if self.state.keeps_undeclared() && self.state.in_content() {
+                    match self.undeclared(start, end)? {
+                        Ok(event) => return Ok(Some(event)),
+                        Err(end) => (TokenKind::Text, end),
                     }
-                    Some((at, _)) => (TokenKind::Text, start + at),
-                    None => (TokenKind::Text, end),
+                } else {
+                    (TokenKind::Text, end)
                 }
             } else if tail.starts_with("<!--") {
                 (TokenKind::Comment, self.delimited(start, 4, b"-->")?)
@@ -796,6 +787,33 @@ impl<'a> SliceReader<'a> {
                 return Ok(Some(event));
             }
         }
+    }
+
+    /// The end of a recovered undeclared entity reference.
+    #[cold]
+    fn end_reference(&mut self) -> Event<'a> {
+        self.origin = self.reference_end.take();
+        Event::EntityEnd
+    }
+
+    /// Recovery keeps a reference to an undeclared entity in the text from
+    /// `start` to `end`, as libxml2 does without `NOENT`, as an empty
+    /// reference: its start event, or where the text before it ends.
+    #[cold]
+    fn undeclared(&mut self, start: usize, end: usize) -> Result<Result<Event<'a>, usize>, Error> {
+        let input = self.input;
+        Ok(match undeclared_reference(&input[start..end]) {
+            Some((0, name)) => {
+                let end = start + name.len() + 2;
+                let event = self.state.undeclared_reference(name, start)?;
+                let origin = SourceOrigin::input(start..end);
+                (self.cursor, self.origin) = (end, Some(origin));
+                self.reference_end = Some(origin);
+                Ok(event)
+            }
+            Some((at, _)) => Err(start + at),
+            None => Err(end),
+        })
     }
 
     fn check_token(&self, start: usize, end: usize) -> Result<(), Error> {

@@ -40,7 +40,9 @@ from the incremental decoder. Normalization, streaming names and the owned pool
 share one aggregate budget.
 
 `root()` includes the synthetic document node and surrounding comments/PIs.
-`root_element()` returns the single element. `nodes()` visits every node in
+`root_element()` returns the single element (`document_element()` is `None`
+for an HTML or `RECOVER` document without one, where `root_element()` is the
+synthetic root). `nodes()` visits every node in
 preorder, including the synthetic root. `OwnedNode` is a Copy view bounded by
 its document, with parent, child, sibling and subtree navigation matching `Node`.
 `descendants()` includes the selected node itself. Parsing, traversal and

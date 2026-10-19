@@ -228,46 +228,70 @@ the same tree as without `RECOVER`. Streams and `TextReader` reject the flag:
 the tree builder closes what an unrepaired error leaves open, and libxml2's
 push parser does not support recovery either.
 
+A recovered document can have no element, as libxml2's (only empty input
+stays an error). `Document::document_element` and
+`OwnedDocument::document_element` (`xmlDocGetRootElement`, DOM's
+`documentElement`) return `None` then; `root_element` keeps its signature and
+returns the synthetic root, as it already did for an HTML document without an
+element. Callers that parse with `RECOVER` (and bindings, where `None` maps to
+a null root) use `document_element`; every other caller keeps the guarantee
+that a successful parse has an element.
+
 | Error | Tree (libxml2 and yaxml) |
 | --- | --- |
 | Mismatched or malformed end tag | Ends the open element. With none open (after the root) parsing stops. |
 | End of input inside content | Closes the open elements. A start tag cut off by the end is an empty element (UTF-8 documents without a DOCTYPE; elsewhere parsing stops before it). |
-| Malformed attribute (`a=1`, `a="1"b`, no value) | The element ends there, empty, with the attributes before it. |
+| Malformed attribute (`a=1`, `a="1"b`, no value), a character reference libxml2 reads as zero in a value (`&#0;`, `&#12a;`) | The element ends there, empty, with the attributes before it; the rest of the tag is reread as content (`<a b=1>x` gives `<a/>1&gt;x`). |
 | `<` in an attribute value, duplicate attributes | Kept. |
 | Unbound prefix, malformed QName | The name is kept in no namespace (a malformed QName unprefixed). |
 | Unbindable declaration (`xmlns:p=""`, `xml`/`xmlns` misuse), a prefix declared again in one tag | Dropped. |
 | Malformed reference | Dropped as far as libxml2 reads it (`&`, `&name`, `&#x4` of `&#x4G;`); a complete reference to a non-character is U+FFFD, `&#0;` nothing. |
-| Undeclared or unparsed entity reference (with a DOCTYPE) | An empty `EntityRef` node. |
+| Undeclared or unparsed entity reference | An empty `EntityRef` node (without `NOENT`). |
 | Unexpandable reference in an attribute value (with a DOCTYPE) | yaxml empties the value. |
+| Character outside `Char` | Dropped from text, U+FFFD in an attribute value; a comment, PI or CDATA section ends at it (and is not kept), and parsing reads on from it. |
+| Invalid UTF-8 | Each byte that starts no sequence reads as U+FFFD (`xmlCurrentCharRecover`), reported once. |
 | `]]>` in text, `--` in a comment | Kept. |
 | Misplaced or miscased XML declaration | A processing instruction. |
-| Invalid PI target | The longest Name there is the target; without one the PI is text after `<?`. |
-| Invalid element name, `<!x`, a DOCTYPE inside the root | The longest Name there names the element; without one the markup is text after `<`. |
+| Invalid PI target | The longest Name there is the target; without one `<?` is dropped and parsing reads on after it. |
+| Invalid element name, `<!x`, a DOCTYPE inside the root | The longest Name there names the element; without one `<` is dropped and parsing reads on after it. |
 | Invalid XML declaration pseudo-attribute, unsupported encoding | Ignored; the detected encoding is kept and the label dropped. |
+| Missing space libxml2 only reports (after `<!DOCTYPE`, `SYSTEM`, `PUBLIC`, a public identifier, `<!ENTITY`, `%`, an entity or element name, around `NDATA`, `<!ATTLIST`, `#FIXED`) | Read on. |
+| Other DTD error | The DOCTYPE keeps the header (`xmlParseDocTypeDecl`'s reading: no name is an empty one, a public identifier ends at a non-PubidChar) and the declarations before the error, an entity whose value was read and the ATTLIST definitions read included. The document resumes where libxml2's does: at the error in the subset, else after the header's `>` or where the header ends; anything there but markup ends parsing. |
 | Content after the root element | Parsing stops; comments and PIs before it stay. |
+| No element (text, markup or a DTD error before the root) | The document has no element. |
 
 Fatal, as in strict parsing: resource limits (libxml2 stops there but keeps
 the partial tree), entity loops, allocation failure and resolver failures.
 `tests/recover.rs` covers each row, and `yaxmllint --recover` is compared
 with `xmllint --recover` (`tests/yaxmllint.rs`): libxml2's `test/errors`
-agree on 23/45 inputs (51.11%), the XMLTS not-wf documents on 717/1498
-(47.86%). Most differences are inputs from which libxml2 recovers no element;
-without them the rates are 23/34 (67.65%) and 717/914 (78.45%). The known
-differences, by design:
+agree on 37/45 inputs (82.22%; 23/45 before the repairs below), the XMLTS
+not-wf documents on 1305/1498 (87.12%; 717/1498 before), give or take three
+that flip between runs as libxml2 writes notations in hash order. The
+known differences, by design:
 
-- A document from which no element is recovered is an error: the first
-  recovered error is returned, where libxml2 returns an element-less tree.
-- DTD errors are not repaired, so a malformed DOCTYPE ends parsing before the
-  root. libxml2 skips or half-keeps malformed declarations.
-- Invalid characters and invalid UTF-8 end parsing (the slice reader keeps the
-  valid prefix before them, decoded input the tokens before them). libxml2
-  drops invalid characters from text, writes U+FFFD in attribute values and
-  decodes invalid bytes as U+FFFD.
-- A malformed tag is one unit up to its `>`: libxml2 rereads what follows
-  the error as text (`<a b=1>x` gives `<a/>1&gt;x`, yaxml `<a/>x`), and markup
-  read as text runs to that `>` (`1 < 2</doc>` keeps `</doc>` as text).
-- An undeclared entity reference without a DOCTYPE is dropped; libxml2 keeps
-  an empty reference node.
+- With a DOCTYPE, content is read by the DTD stack, which recovers what the
+  shared parser does (tags, names, namespaces, comments, end of input) but
+  does not reread a malformed tag's rest, repair characters outside `Char`
+  (it reads the prefix before the first), recover malformed or invalid
+  character references in content, or keep an undeclared entity's empty
+  reference without a DOCTYPE. Decoded input (UTF-16, byte charsets) is
+  read the same way, with or without a DOCTYPE; its DTD errors recover as
+  above. Entity loops stay fatal (libxml2 keeps the partial tree).
+- The borrowed `Document` borrows its text and keeps the prefix before
+  invalid UTF-8; `OwnedDocument` repairs it, and its offsets then count the
+  repaired text. U+FFFD is a name character, so an invalid byte inside a
+  name does not end it as libxml2's `XML_INVALID_CHAR` does.
+- A declaration libxml2 declares in part from a malformed external
+  identifier (`PUBLIC "a&b"` keeps `PUBLIC "a"`), an entity value with a
+  parameter-entity reference in the internal subset, and a malformed
+  character reference in an entity value end the DOCTYPE; libxml2 declares
+  them and reads on.
+- Once a document is not well-formed, libxml2's `xmlParseReference`
+  expands no entity reference in text, predefined ones included; yaxml keeps
+  them, so that recovered output (where `save` writes `&gt;`) recovers to
+  itself.
+- Markup read as text after a tag error runs to that tag's `>` on the DTD
+  stack (`1 < 2</doc>` keeps `</doc>` as text there).
 - Unclosed comments and unterminated XML declarations follow the token rules
   (`<!--a--->` is a comment with an error; libxml2 reads to the end of input).
 
