@@ -88,16 +88,16 @@ impl Navigate for Document<'_> {
     }
 
     fn first_child(&self, id: NodeId) -> Option<NodeId> {
-        self.node(id)?.first_child().map(|node| node.id())
+        visible(self.node(id)?.first_child())
     }
 
     fn next_sibling(&self, id: NodeId) -> Option<NodeId> {
-        self.node(id)?.next_sibling().map(|node| node.id())
+        visible(self.node(id)?.next_sibling())
     }
 
     fn item(&self, id: NodeId) -> Item<'_> {
         match self.node(id).map(|node| node.kind()) {
-            None | Some(NodeKind::Document) => Item::Root,
+            None | Some(NodeKind::Document | NodeKind::Doctype(_)) => Item::Root,
             Some(NodeKind::Element(element)) => Item::Element(QName::new((
                 element.name.qualified(),
                 element.name.namespace(),
@@ -142,11 +142,11 @@ impl Navigate for OwnedDocument {
     }
 
     fn first_child(&self, id: OwnedNodeId) -> Option<OwnedNodeId> {
-        self.node(id)?.first_child().map(|node| node.id())
+        visible_owned(self.node(id)?.first_child())
     }
 
     fn next_sibling(&self, id: OwnedNodeId) -> Option<OwnedNodeId> {
-        self.node(id)?.next_sibling().map(|node| node.id())
+        visible_owned(self.node(id)?.next_sibling())
     }
 
     fn item(&self, id: OwnedNodeId) -> Item<'_> {
@@ -164,7 +164,7 @@ impl Navigate for OwnedDocument {
                 node.processing_instruction_target().unwrap_or_default(),
                 text,
             ),
-            OwnedNodeKind::Document => Item::Root,
+            OwnedNodeKind::Document | OwnedNodeKind::DocumentType => Item::Root,
         }
     }
 
@@ -180,6 +180,19 @@ impl Navigate for OwnedDocument {
     fn ranks(&self) -> Option<Vec<usize>> {
         self.preorder_ranks()
     }
+}
+
+// The XPath data model has no DOCTYPE node; navigation steps over it.
+fn visible(node: Option<crate::Node<'_, '_>>) -> Option<NodeId> {
+    std::iter::successors(node, |node| node.next_sibling())
+        .find(|node| !matches!(node.kind(), NodeKind::Doctype(_)))
+        .map(|node| node.id())
+}
+
+fn visible_owned(node: Option<crate::OwnedNode<'_>>) -> Option<OwnedNodeId> {
+    std::iter::successors(node, |node| node.next_sibling())
+        .find(|node| node.kind() != OwnedNodeKind::DocumentType)
+        .map(|node| node.id())
 }
 
 /// The next preorder node after `id`'s subtree, never leaving `stop`'s subtree.

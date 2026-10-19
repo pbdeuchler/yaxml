@@ -16,7 +16,8 @@ The implemented subset now includes the borrowing slice reader, read-only DOM,
 callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
 writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
 rooted document creation, fresh element/leaf insertion, permanent subtree removal, an explicit `Read`
-adapter, [XPath 1.0](xpath.md) evaluation and [canonicalization](c14n.md) over both DOMs. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
+adapter, [XPath 1.0](xpath.md) evaluation and [canonicalization](c14n.md) over both DOMs. Input shares XML 1.0 grammar, including the
+internal DTD subset (below); owning/streaming input
 also supports [UTF-16 and declared US-ASCII, ISO-8859-x and windows-1252](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
 full upstream reader/SAX/save option surfaces remain open.
@@ -25,8 +26,42 @@ full upstream reader/SAX/save option surfaces remain open.
 string-value pieces for supported node kinds. Containers concatenate descendant
 Text/CDATA logically; comment and PI leaves expose their own data. Joining the
 pieces matches `xmlNodeGetContent` on the bounded [pinned oracle cases](validation-text-chunks.md).
-The methods retain chunk boundaries and do not add entity/DTD nodes, attribute
+The methods retain chunk boundaries and do not add entity nodes, attribute
 nodes or the allocating C entry point.
+
+## Document type declarations
+
+Every parser reports one `Event::Doctype` (DOM: `NodeKind::Doctype` /
+`OwnedNodeKind::DocumentType`, `doctype()`) with the name, unquoted public and
+system identifiers and the exact internal-subset text. The internal subset is
+processed: parameter entities, general entity substitution in content and
+attribute values (re-tokenized, so replacement markup becomes events), default
+and `#FIXED` attributes, and tokenized attribute-type normalization. External
+subsets and external entities are recorded but never read; no resolver exists.
+
+Defaults follow `xmlReadMemory(..., XML_PARSE_NOENT | XML_PARSE_DTDATTR)`.
+Without `DTDATTR`, libxml2 does not insert default attributes; yaxml always
+does, as XML 1.0 §5.1 requires of non-validating processors. Undeclared-entity
+handling mirrors libxml2's `xmlHandleUndeclaredEntity`: once any PE reference
+or an external subset is seen and the document is not `standalone='yes'`, an
+undeclared general or parameter entity is dropped (libxml2 reports a
+recoverable error), and references to unloaded external entities expand to
+nothing (libxml2's failed load). Otherwise `UnknownEntity` is fatal. Like
+libxml2, declarations after an unread PE reference are still processed.
+Unparsed entities in content (`UnparsedEntity`), external entities in attribute
+values (`ExternalEntityInAttribute`), recursion (`EntityLoop`), unbalanced
+replacement markup (`UnbalancedEntity`) and malformed declarations
+(`InvalidDtd`) are fatal. Ceilings are `Limits::max_dtd_bytes`,
+`max_entity_expansion_bytes`, `max_entity_references` and `max_entity_depth`.
+
+Known differences from the pinned oracle, all intentional: colons in entity or
+notation names are a fatal `Namespace` error (libxml2 warns); PE references
+inside internal-subset markup are fatal as the WFC requires; a `&#13;` in
+replacement text stays CR in content (libxml2 parses entity text as new input
+and turns it into LF); the serializer writes the DOCTYPE exactly as parsed
+rather than regenerating declarations; no DTD validation, `xmlGetID` or
+external loading. The differential cases live in `tests/dtd.rs`
+(`YAXML_XMLLINT=... cargo test --test dtd -- --ignored`).
 
 The [owned edit API](owned-dom.md#editing-existing-values) replaces literal leaf
 and existing ordinary-attribute values by checked handle. Value edits preserve

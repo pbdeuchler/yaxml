@@ -670,7 +670,7 @@ fn malformed_private_tokens_fail_without_slicing_panics() {
         }
     }
     for (kind, expected) in [
-        (TokenKind::Dtd, ErrorKind::UnsupportedDtd),
+        (TokenKind::Dtd, ErrorKind::Syntax),
         (TokenKind::InvalidMarkup, ErrorKind::Syntax),
     ] {
         let mut state = ParserState::new(Limits::default(), 0);

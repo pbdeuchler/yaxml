@@ -52,22 +52,30 @@ fn roundtrip(input: &[u8]) {
         max_token_bytes: ceiling,
         ..yaxml::Limits::default()
     };
-    let mut reader = Reader::with_limits(&output, limits).unwrap();
-    let mut original = Reader::new(input).unwrap();
-    loop {
-        let actual = reader.read_event().unwrap();
-        let expected = original.read_event().unwrap();
-        assert!(actual == expected, "serialized values changed");
-        if actual.is_none() {
-            break;
-        }
-    }
+    assert!(
+        logical(Reader::with_limits(&output, limits).unwrap())
+            == logical(Reader::new(input).unwrap()),
+        "serialized values changed"
+    );
     Document::with_limits(&output, limits).unwrap();
     let mut streaming = PushParser::with_limits(limits);
     streaming
         .feed(&output, |_, _| ControlFlow::Continue(()))
         .unwrap();
     streaming.finish(|_, _| ControlFlow::Continue(())).unwrap();
+}
+
+/// Events with adjacent Text coalesced: entity expansion can split one run.
+fn logical(mut reader: Reader<'_>) -> Vec<String> {
+    let mut events: Vec<String> = Vec::new();
+    while let Some(event) = reader.read_event().unwrap() {
+        match (&event, events.last_mut()) {
+            (Event::Text(text), Some(last)) if last.starts_with("Text:") => last.push_str(text),
+            (Event::Text(text), _) => events.push(format!("Text:{text}")),
+            _ => events.push(format!("{event:?}")),
+        }
+    }
+    events
 }
 
 fn name(qualified: &str) -> Name<'_> {

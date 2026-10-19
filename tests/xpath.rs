@@ -22,6 +22,7 @@ fn borrowed_label(document: &Document<'_>, node: Node<NodeId>) -> String {
         let node = document.node(id).expect("live node");
         match node.kind() {
             NodeKind::Document => "/".into(),
+            NodeKind::Doctype(_) => unreachable!("XPath never selects a DOCTYPE"),
             NodeKind::Element(element) => element.name.qualified().into(),
             NodeKind::Text(text) | NodeKind::Cdata(text) => format!("text({text})"),
             NodeKind::Comment(text) => format!("comment({text})"),
@@ -997,4 +998,17 @@ fn values_and_nodes_convert() {
     assert!(Node::Tree(1u8) < Node::Attribute(0, 0));
     let context: Context<u8> = Context::default();
     assert!(format!("{context:?}").contains("namespaces"));
+}
+
+#[test]
+fn doctype_is_invisible_and_expanded_content_is_queryable() {
+    let xml = "<!--c--><!DOCTYPE r [<!ENTITY e '<n>x</n>'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
+    let context = Context::new();
+    let run = |expression| run_with(xml, expression, &context, &Context::new());
+    assert_eq!(run("/node()"), nodes(&["comment(c)", "r"]));
+    assert_eq!(run("count(//node())"), num(4.0));
+    assert_eq!(run("string(/r/@a)"), string("d"));
+    assert_eq!(run("string(/r/n)"), string("x"));
+    assert_eq!(run("/comment()/following-sibling::node()"), nodes(&["r"]));
+    assert_eq!(run("/r/preceding-sibling::node()"), nodes(&["comment(c)"]));
 }

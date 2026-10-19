@@ -176,7 +176,7 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
             kind: "1",
         };
         match event {
-            Event::Declaration(_) => continue,
+            Event::Declaration(_) | Event::Doctype(_) => continue,
             Event::End(_) => {
                 depth -= 1;
                 continue;

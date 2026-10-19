@@ -31,6 +31,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `construction` | `exercise_construction` | `OwnedDocument::create`, `append_element` |
 | `names` | `exercise_names` | `Name` and owned PI targets |
 | `c14n` | `exercise_c14n` | `c14n::to_string` modes, comments, node-sets and prefix lists |
+| `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface |
 
 ```sh
 cargo install cargo-fuzz

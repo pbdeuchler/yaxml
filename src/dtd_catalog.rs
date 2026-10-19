@@ -94,6 +94,8 @@ pub(crate) enum CatalogErrorKind {
     InvalidReference,
     InvalidCharacter,
     InvalidPredefinedDeclaration,
+    /// Namespaces 1.0 forbids colons in entity and notation names.
+    Namespace,
     CallerValueBytes,
     Limit(CatalogLimit),
     Allocation,
@@ -103,31 +105,6 @@ pub(crate) enum CatalogErrorKind {
 pub(crate) struct CatalogError {
     pub(crate) kind: CatalogErrorKind,
     pub(crate) location: ValueLocation,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DependencyKind {
-    UnreadEntity,
-    MissingReadDeclaration,
-    ExternalEntity,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct Dependency {
-    pub(crate) kind: DependencyKind,
-    pub(crate) location: ValueLocation,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) enum NormalizedValue {
-    Value(String),
-    Unavailable(Dependency),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) enum NormalizedAttribute<'raw> {
-    Value(Cow<'raw, str>),
-    Unavailable(Dependency),
 }
 
 /// Unquoted identifier contents with literal EOL processing already applied.
@@ -154,7 +131,6 @@ pub(crate) enum EntityLookup<'a> {
         identifier: ExternalIdentifier<'a>,
         notation: &'a str,
     },
-    Unavailable(Dependency),
     UnreadEntity,
     Undeclared,
 }
@@ -162,9 +138,6 @@ pub(crate) enum EntityLookup<'a> {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct DeclarationEffect {
     pub(crate) bindings_added: usize,
-    pub(crate) unavailable_defaults: usize,
-    pub(crate) unavailable: Option<Dependency>,
-    pub(crate) ignored_after_unread_parameter: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -203,14 +176,13 @@ pub(crate) enum DefaultValue<'a> {
     Required,
     Implied,
     Value { fixed: bool, value: &'a str },
-    Unavailable { fixed: bool, dependency: Dependency },
 }
 
 #[derive(Debug)]
 enum StoredDefault {
     Required,
     Implied,
-    Value { fixed: bool, value: NormalizedValue },
+    Value { fixed: bool, value: String },
 }
 
 impl StoredDefault {
@@ -218,29 +190,16 @@ impl StoredDefault {
         match self {
             Self::Required => DefaultValue::Required,
             Self::Implied => DefaultValue::Implied,
-            Self::Value {
-                fixed,
-                value: NormalizedValue::Value(value),
-            } => DefaultValue::Value {
+            Self::Value { fixed, value } => DefaultValue::Value {
                 fixed: *fixed,
                 value,
-            },
-            Self::Value {
-                fixed,
-                value: NormalizedValue::Unavailable(dependency),
-            } => DefaultValue::Unavailable {
-                fixed: *fixed,
-                dependency: *dependency,
             },
         }
     }
 
     fn bytes(&self) -> usize {
         match self {
-            Self::Value {
-                value: NormalizedValue::Value(value),
-                ..
-            } => value.len(),
+            Self::Value { value, .. } => value.len(),
             _ => 0,
         }
     }
@@ -265,6 +224,7 @@ impl<'a> AttributeBinding<'a> {
     pub(crate) fn name_offset(self) -> usize {
         self.0.name_offset
     }
+    #[cfg(test)]
     pub(crate) fn kind(self) -> AttributeKind {
         self.0.kind
     }
@@ -300,11 +260,11 @@ impl ExternalEntity {
 enum EntityBody {
     Internal(String),
     External(ExternalEntity),
-    Unavailable(Dependency),
 }
 
 struct Entity {
     body: EntityBody,
+    #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
     declaration: usize,
 }
 
@@ -325,7 +285,7 @@ pub(crate) struct DtdCatalog {
     usage: CatalogUsage,
     standalone: bool,
     external_subset: bool,
-    unread_parameter: bool,
+    parameter_reference: bool,
     failure: Option<CatalogError>,
 }
 
@@ -342,7 +302,7 @@ impl DtdCatalog {
             usage: CatalogUsage::default(),
             standalone,
             external_subset: false,
-            unread_parameter: false,
+            parameter_reference: false,
             failure: None,
         }
     }
@@ -355,12 +315,13 @@ impl DtdCatalog {
         self.usage
     }
 
-    pub(crate) fn note_unread_parameter(&mut self) {
-        self.unread_parameter = true;
+    /// Any parameter reference relaxes Entity Declared, as in libxml2's hasPErefs.
+    pub(crate) fn note_parameter_reference(&mut self) {
+        self.parameter_reference = true;
     }
 
     fn may_be_unread(&self) -> bool {
-        !self.standalone && (self.external_subset || self.unread_parameter)
+        !self.standalone && (self.external_subset || self.parameter_reference)
     }
 
     fn lookup(&self, table: &HashMap<String, EntityId>, name: &str) -> EntityLookup<'_> {
@@ -384,7 +345,6 @@ impl DtdCatalog {
                     identifier: entity.identifier(),
                 },
             },
-            EntityBody::Unavailable(dependency) => EntityLookup::Unavailable(*dependency),
         }
     }
 
@@ -398,6 +358,7 @@ impl DtdCatalog {
         self.lookup(&self.parameter, name)
     }
 
+    #[cfg(test)]
     pub(crate) fn declaration(&self, id: EntityId) -> Option<usize> {
         self.entities.get(id.0).map(|entity| entity.declaration)
     }
@@ -464,15 +425,19 @@ impl DtdCatalog {
             ));
         }
         let mut effect = DeclarationEffect::default();
+        let colon = match unit.view() {
+            DtdUnitView::Entity(entity) => entity.name().contains(':'),
+            DtdUnitView::Notation(notation) => notation.name().contains(':'),
+            _ => false,
+        };
+        if colon {
+            return Err(error(CatalogErrorKind::Namespace, location));
+        }
         match unit.view() {
             DtdUnitView::Header(header) => {
                 self.external_subset |= header.external_id().is_some();
             }
             DtdUnitView::Entity(entity) => {
-                if self.unread_parameter && !self.standalone {
-                    effect.ignored_after_unread_parameter = true;
-                    return Ok(effect);
-                }
                 let parameter = entity.is_parameter();
                 let duplicate = if parameter {
                     self.parameter.contains_key(entity.name())
@@ -494,32 +459,19 @@ impl DtdCatalog {
                             Some(declaration),
                             ValueRequest::unbounded(&mut ignored),
                         )?;
-                        if let NormalizedValue::Unavailable(dependency) = &result {
-                            effect.unavailable.get_or_insert(*dependency);
+                        if !parameter
+                            && let Some(character) = predefined(entity.name())
+                            && !valid_predefined(entity.name(), character, &result)
+                        {
+                            return Err(error(
+                                CatalogErrorKind::InvalidPredefinedDeclaration,
+                                ValueLocation::Declaration {
+                                    declaration,
+                                    offset,
+                                },
+                            ));
                         }
-                        if !parameter && let Some(character) = predefined(entity.name()) {
-                            let valid = match &result {
-                                NormalizedValue::Value(value) => {
-                                    valid_predefined(entity.name(), character, value)
-                                }
-                                _ => false,
-                            };
-                            if !valid {
-                                return Err(error(
-                                    CatalogErrorKind::InvalidPredefinedDeclaration,
-                                    ValueLocation::Declaration {
-                                        declaration,
-                                        offset,
-                                    },
-                                ));
-                            }
-                        }
-                        match result {
-                            NormalizedValue::Value(value) => EntityBody::Internal(value),
-                            NormalizedValue::Unavailable(dependency) => {
-                                EntityBody::Unavailable(dependency)
-                            }
-                        }
+                        EntityBody::Internal(result)
                     }
                     EntityDefinitionView::External {
                         identifier,
@@ -579,10 +531,6 @@ impl DtdCatalog {
                 }
             }
             DtdUnitView::AttributeList(list) => {
-                if self.unread_parameter && !self.standalone {
-                    effect.ignored_after_unread_parameter = true;
-                    return Ok(effect);
-                }
                 for definition in list.definitions() {
                     let kind = AttributeKind::from_view(definition.attribute_type());
                     let default = match definition.default() {
@@ -610,14 +558,6 @@ impl DtdCatalog {
                             StoredDefault::Value { fixed, value }
                         }
                     };
-                    if let StoredDefault::Value {
-                        value: NormalizedValue::Unavailable(dependency),
-                        ..
-                    } = &default
-                    {
-                        effect.unavailable_defaults += 1;
-                        effect.unavailable.get_or_insert(*dependency);
-                    }
                     let existing = self.element_index.get(list.element_name()).copied();
                     if existing.is_some_and(|index| {
                         self.elements[index].index.contains_key(definition.name())
@@ -734,13 +674,14 @@ impl DtdCatalog {
         )
     }
 
+    #[cfg(test)]
     pub(crate) fn normalize_attribute_value(
         &mut self,
         element: &str,
         name: &str,
         literal_content: &str,
         source: LiteralSource,
-    ) -> Result<NormalizedValue, CatalogError> {
+    ) -> Result<String, CatalogError> {
         self.remember(|catalog| {
             let mut ignored = 0;
             catalog.normalize_attribute_value_inner(
@@ -762,7 +703,7 @@ impl DtdCatalog {
         source: LiteralSource,
         caller_value_bytes: usize,
         requested_value_bytes: &mut usize,
-    ) -> Result<NormalizedValue, CatalogError> {
+    ) -> Result<String, CatalogError> {
         *requested_value_bytes = 0;
         if let Some(error) = self.failure {
             return Err(error);
@@ -791,7 +732,7 @@ impl DtdCatalog {
         source: LiteralSource,
         caller_value_bytes: Option<usize>,
         requested_value_bytes: &mut usize,
-    ) -> Result<NormalizedValue, CatalogError> {
+    ) -> Result<String, CatalogError> {
         let tokenized = self.tokenized_attribute(element, name);
         self.process_value(
             literal_content,
@@ -828,7 +769,7 @@ impl DtdCatalog {
         literal_content: &'raw str,
         caller_value_bytes: usize,
         requested_value_bytes: &mut usize,
-    ) -> Result<NormalizedAttribute<'raw>, CatalogError> {
+    ) -> Result<Cow<'raw, str>, CatalogError> {
         *requested_value_bytes = 0;
         if let Some(error) = self.failure {
             return Err(error);
@@ -862,15 +803,10 @@ impl DtdCatalog {
         mode: ValueMode,
         declaration: Option<usize>,
         request: ValueRequest<'_>,
-    ) -> Result<NormalizedValue, CatalogError> {
+    ) -> Result<String, CatalogError> {
         match self.process_value_cow(raw, offset, source, mode, declaration, request)? {
-            NormalizedAttribute::Value(Cow::Owned(value)) => Ok(NormalizedValue::Value(value)),
-            NormalizedAttribute::Unavailable(dependency) => {
-                Ok(NormalizedValue::Unavailable(dependency))
-            }
-            NormalizedAttribute::Value(Cow::Borrowed(_)) => {
-                unreachable!("owned value policy cannot borrow")
-            }
+            Cow::Owned(value) => Ok(value),
+            Cow::Borrowed(_) => unreachable!("owned value policy cannot borrow"),
         }
     }
 
@@ -882,7 +818,11 @@ impl DtdCatalog {
         mode: ValueMode,
         declaration: Option<usize>,
         request: ValueRequest<'_>,
-    ) -> Result<NormalizedAttribute<'raw>, CatalogError> {
+    ) -> Result<Cow<'raw, str>, CatalogError> {
+        // EntityValue admits `%` only to start a PE reference; it sets hasPErefs first.
+        if matches!(mode, ValueMode::Entity) && raw.contains('%') {
+            self.parameter_reference = true;
+        }
         let may_be_unread = self.may_be_unread();
         let mut processor = ValueProcessor {
             general: &self.general,
@@ -901,11 +841,6 @@ impl DtdCatalog {
         };
         let result = processor.process();
         processor.frames.clear();
-        if matches!(mode, ValueMode::Entity)
-            && matches!(&result, Ok(NormalizedAttribute::Unavailable(_)))
-        {
-            self.unread_parameter = true;
-        }
         result
     }
 
@@ -973,7 +908,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         }
     }
 
-    fn process(&mut self) -> Result<NormalizedAttribute<'raw>, CatalogError> {
+    fn process(&mut self) -> Result<Cow<'raw, str>, CatalogError> {
         let root = self.input_location(self.offset);
         increment(
             &mut self.usage.work,
@@ -1055,38 +990,25 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                         } else {
                             self.general
                         };
+                        // As libxml2 does, an undeclared entity that unread markup
+                        // could declare, or an unloaded external PE, expands empty.
                         let Some(&id) = table.get(name) else {
-                            if is_entity || self.may_be_unread || frame.entity.is_some() {
-                                return Ok(NormalizedAttribute::Unavailable(Dependency {
-                                    kind: if self.may_be_unread {
-                                        DependencyKind::UnreadEntity
-                                    } else {
-                                        DependencyKind::MissingReadDeclaration
-                                    },
-                                    location,
-                                }));
+                            if self.may_be_unread {
+                                continue;
                             }
                             return Err(error(CatalogErrorKind::EntityDeclared, location));
                         };
                         match &self.entities[id.0].body {
-                            EntityBody::Unavailable(dependency) => {
-                                return Ok(NormalizedAttribute::Unavailable(*dependency));
-                            }
+                            EntityBody::External(_) if is_entity => continue,
                             EntityBody::External(external) => {
-                                if !is_entity {
-                                    return Err(error(
-                                        if external.notation.is_some() {
-                                            CatalogErrorKind::UnparsedEntity
-                                        } else {
-                                            CatalogErrorKind::ExternalInAttribute
-                                        },
-                                        location,
-                                    ));
-                                }
-                                return Ok(NormalizedAttribute::Unavailable(Dependency {
-                                    kind: DependencyKind::ExternalEntity,
+                                return Err(error(
+                                    if external.notation.is_some() {
+                                        CatalogErrorKind::UnparsedEntity
+                                    } else {
+                                        CatalogErrorKind::ExternalInAttribute
+                                    },
                                     location,
-                                }));
+                                ));
                             }
                             EntityBody::Internal(replacement) => {
                                 increment(
@@ -1148,10 +1070,10 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         if matches!(&output, ValueOutput::Matching { raw, matched } if *matched != raw.len()) {
             self.materialize(&mut output, root)?;
         }
-        Ok(NormalizedAttribute::Value(match output {
+        Ok(match output {
             ValueOutput::Owned(value) => Cow::Owned(value),
             ValueOutput::Matching { raw, .. } => Cow::Borrowed(raw),
-        }))
+        })
     }
 
     fn emit(

@@ -1,6 +1,5 @@
 use super::*;
-use crate::dtd::{DtdLimits, DtdUnit, LiteralSource};
-use crate::dtd_catalog::{DeclarationContext, DependencyKind};
+
 use crate::dtd_frames::FrameLimit;
 use crate::dtd_reference::ReferenceLimits;
 use crate::origin::{ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr};
@@ -169,7 +168,7 @@ fn seen_event(event: Event<'_>) -> SeenEvent {
         Event::ProcessingInstruction { target, data } => {
             SeenEvent::Pi(target.into_owned(), data.into_owned())
         }
-        Event::Declaration(_) => SeenEvent::Declaration,
+        Event::Declaration(_) | Event::Doctype(_) => SeenEvent::Declaration,
     }
 }
 
@@ -809,11 +808,6 @@ fn missing_external_unparsed_and_unused_bad_entities_have_literal_outcomes() {
             FrameErrorKind::Lookup(LookupFailure::Undeclared),
         ),
         (
-            "<!DOCTYPE r [<!ENTITY e SYSTEM 'x'>]>",
-            "e",
-            FrameErrorKind::Lookup(LookupFailure::ExternalUnavailable),
-        ),
-        (
             "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY e SYSTEM 'x' NDATA n>]>",
             "e",
             FrameErrorKind::Lookup(LookupFailure::Unparsed),
@@ -825,6 +819,15 @@ fn missing_external_unparsed_and_unused_bad_entities_have_literal_outcomes() {
         assert_eq!(error.kind, ContentErrorKind::Frame(expected), "{name}");
         assert_eq!(error.physical_offset, dtd.len() + 3);
     }
+    // An external entity is never loaded; like libxml2's failed load, its
+    // reference contributes no content.
+    let (seen, _) = run(
+        make("<!DOCTYPE r [<!ENTITY e SYSTEM 'x'>]>"),
+        "<r>&e;post</r>",
+    )
+    .unwrap();
+    assert_eq!(seen.len(), 3);
+    assert!(matches!(&seen[1].event, SeenEvent::Text(text) if text == "post"));
 
     let unused = concat!(
         "<!DOCTYPE r [",
@@ -853,60 +856,6 @@ fn direct_and_indirect_cycles_fail_only_on_use_with_nested_local_origin() {
             Some(expected_local)
         );
     }
-}
-
-fn unit(raw: &'static str) -> DtdUnit<'static> {
-    DtdUnit::parse(raw, DtdLimits::default()).unwrap()
-}
-
-#[test]
-fn dependency_metadata_does_not_mask_an_earlier_attempt_limit() {
-    let mut limits = ControllerLimits::default();
-    limits.frames.max_reference_attempts = 0;
-    let (mut body, parser) = declarations("<!DOCTYPE r>", limits, Limits::default());
-    let catalog_work_before = body.catalog.usage().work;
-    body.catalog
-        .apply(
-            &unit("<!DOCTYPE r SYSTEM 'unread'>"),
-            DeclarationContext {
-                internal_subset: false,
-                literals: LiteralSource::Physical,
-            },
-        )
-        .unwrap();
-    let effect = body
-        .catalog
-        .apply(
-            &unit("<!ENTITY e '%missing;'>"),
-            DeclarationContext {
-                internal_subset: false,
-                literals: LiteralSource::Physical,
-            },
-        )
-        .unwrap();
-    assert_eq!(
-        effect.unavailable.unwrap().kind,
-        DependencyKind::UnreadEntity
-    );
-    body.counters.work = body
-        .counters
-        .work
-        .checked_add(body.catalog.usage().work - catalog_work_before)
-        .unwrap();
-    let controller = ContentController::new(
-        body,
-        parser,
-        Tokenizer::new(TOKEN, TOKEN),
-        text_limits(DTD_WORK),
-        local_limits(),
-    )
-    .unwrap();
-    let error = failed(run(controller, "<r>&e;</r>"));
-    assert_eq!(
-        error.kind,
-        ContentErrorKind::Frame(FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts))
-    );
-    assert_eq!(error.value_location, None);
 }
 
 #[test]

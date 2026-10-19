@@ -2,8 +2,8 @@ use super::*;
 
 use crate::Limits;
 use crate::dtd::DtdUnitView;
-use crate::dtd_catalog::{DependencyKind, ValueLocation};
-use crate::dtd_frames::{FrameErrorKind, FrameLimit};
+use crate::dtd_catalog::{CatalogErrorKind, ValueLocation};
+use crate::dtd_frames::{FrameErrorKind, FrameLimit, LookupFailure};
 use crate::encoding::{DecodeProgress, Decoded, Decoder, SourceEncoding};
 use crate::parser::ParserState;
 
@@ -690,12 +690,13 @@ fn empty_cycle_and_unavailable_parameter_uses_are_distinct() {
         (
             "<!DOCTYPE r [<!ENTITY % p \"&#37;missing;\">%p;]><r/>",
             42,
-            ControllerErrorKind::Unavailable(PeUnavailable::Undeclared),
+            ControllerErrorKind::Frame(FrameErrorKind::Lookup(LookupFailure::Undeclared)),
         ),
     ] {
         let mut state = ParserState::new(Limits::default(), 0);
+        // Only a standalone document makes an undeclared PE fatal.
         let mut controller =
-            DtdController::new(SourceEncoding::Utf8, 0, ControllerLimits::default(), false);
+            DtdController::new(SourceEncoding::Utf8, 0, ControllerLimits::default(), true);
         let mut offset = 0;
         let error = loop {
             match controller.advance(&raw.as_bytes()[offset..], state.owned_budget()) {
@@ -808,7 +809,7 @@ fn controller_rejects_an_unavailable_default_even_when_its_binding_is_duplicate(
     let failure = fail_with(raw, ControllerLimits::default());
     assert_eq!(
         failure.error.kind,
-        ControllerErrorKind::ValueUnavailable(DependencyKind::MissingReadDeclaration)
+        ControllerErrorKind::Catalog(CatalogErrorKind::EntityDeclared)
     );
     let Some(ValueLocation::Replacement { entity, offset }) = failure.error.value_location else {
         panic!("expected replacement dependency location")

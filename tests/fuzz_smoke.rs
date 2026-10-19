@@ -10,6 +10,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/references.xml"),
     include_bytes!("../fuzz/corpus/malformed.xml"),
     include_bytes!("../fuzz/corpus/dtd.xml"),
+    include_bytes!("../fuzz/corpus/dtd-entities.xml"),
+    include_bytes!("../fuzz/corpus/dtd-unread.xml"),
     include_bytes!("../fuzz/corpus/declaration.xml"),
     include_bytes!("../fuzz/corpus/encoding-name.xml"),
     include_bytes!("../fuzz/corpus/infoset.xml"),
@@ -587,7 +589,9 @@ fn known_acceptance() {
         (b"<r>", false),
         (b"<r a='1' a='2'/>", false),
         (b"<r>&missing;</r>", false),
-        (b"<!DOCTYPE r><r/>", false),
+        (b"<!DOCTYPE r><r/>", true),
+        (b"<!DOCTYPE r [<!ENTITY e '&lt;n/>'>]><r>&e;</r>", true),
+        (b"<!DOCTYPE r [<!ENTITY e '&e;'>]><r>&e;</r>", false),
         (b"<p:r/>", false),
         (b"\xff", false),
     ] {
@@ -1026,4 +1030,21 @@ fn c14n_entry_replays_modes_and_node_sets() {
     for case in &cases {
         driver::exercise_c14n(case);
     }
+}
+
+#[test]
+fn dtd_wrappers_reach_every_construction() {
+    for input in [
+        b"\0<!ENTITY e 'x'>".as_slice(),
+        b"\x01<n/>&amp;",
+        b"\x02<!ENTITY e 'y'>",
+        b"\x00<!BAD>",
+        b"\x01&e;",
+        b"<!DOCTYPE r><r/>",
+        b"",
+    ] {
+        driver::exercise_dtd(input);
+    }
+    assert!(driver::exercise_dtd(b"\x01x").error.is_none());
+    assert!(driver::exercise_dtd(b"\x01&e;").error.is_some());
 }

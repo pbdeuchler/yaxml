@@ -111,3 +111,10 @@ path = "fuzz_targets/c14n.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "dtd"
+path = "fuzz_targets/dtd.rs"
+test = false
+doc = false
+bench = false

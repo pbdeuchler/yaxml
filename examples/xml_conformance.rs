@@ -142,13 +142,17 @@ fn known_error(kind: &str) -> bool {
             | "Namespace"
             | "InvalidReference"
             | "UnknownEntity"
+            | "EntityLoop"
+            | "UnparsedEntity"
+            | "ExternalEntityInAttribute"
+            | "UnbalancedEntity"
+            | "InvalidDtd"
             | "MissingRoot"
             | "MultipleRoots"
             | "TextOutsideRoot"
             | "InvalidDeclaration"
             | "UnsupportedEncoding"
             | "EncodingMismatch"
-            | "UnsupportedDtd"
             | "Allocation"
             | "IdentifierExhausted"
             | "Aborted"
@@ -168,6 +172,10 @@ fn known_error(kind: &str) -> bool {
                     | "Attributes"
                     | "Events"
                     | "OwnedBytes"
+                    | "DtdBytes"
+                    | "EntityExpansion"
+                    | "EntityReferences"
+                    | "EntityDepth"
             )
         })
 }
@@ -434,7 +442,7 @@ mod tests {
     #[test]
     fn worker_protocol_is_complete_ordered_and_typed() {
         let good = format!(
-            "{WORKER_HEADER}\nreader\taccepted\t\t\ndocument\trejected\tSyntax\t3\nowned\trejected\tUnsupportedDtd\t0\npush\trejected\tLimitExceeded(Depth)\t4\nbuffered\trejected\tInvalidUtf16\t2\n"
+            "{WORKER_HEADER}\nreader\taccepted\t\t\ndocument\trejected\tSyntax\t3\nowned\trejected\tInvalidDtd\t0\npush\trejected\tLimitExceeded(Depth)\t4\nbuffered\trejected\tInvalidUtf16\t2\n"
         );
         let observed = observations(good.as_bytes(), 4).unwrap();
         assert_eq!(observed.len(), 5);
@@ -464,7 +472,7 @@ mod tests {
             good.replace("Syntax\t3", "Syntax\t-1"),
             good.replace("Syntax\t3", "Syntax\t9999999999999999999999999"),
             good.replace("reader\taccepted\t\t", "reader\taccepted\tSyntax\t0"),
-            good.replace("owned\trejected\tUnsupportedDtd\t0\n", ""),
+            good.replace("owned\trejected\tInvalidDtd\t0\n", ""),
         ] {
             assert!(observations(bad.as_bytes(), 4).is_err(), "{bad:?}");
         }

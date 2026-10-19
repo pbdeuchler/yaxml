@@ -20,6 +20,7 @@ pub(crate) enum ReferenceContext {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum FrameBoundary {
     Content { element_depth: usize },
     AttributeValue,
@@ -80,6 +81,7 @@ pub(crate) enum FrameCounter {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum LookupFailure {
     Undeclared,
     ExternalUnavailable,
@@ -88,6 +90,7 @@ pub(crate) enum LookupFailure {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
 pub(crate) enum EntityResolution {
     Internal {
         kind: EntityKind,

@@ -37,7 +37,7 @@ fn initial_replacement_and_default_phases_are_distinct() {
         catalog
             .normalize_attribute_value("r", "a", "AT&amp;T;", LiteralSource::Physical)
             .unwrap(),
-        NormalizedValue::Value("AT&T;".into())
+        String::from("AT&T;")
     );
     declare(&mut catalog, "<!ATTLIST r a NMTOKENS '  a  &#9; b  '>").unwrap();
     let attribute = catalog.attributes("r").next().unwrap();
@@ -56,18 +56,21 @@ fn initial_replacement_and_default_phases_are_distinct() {
 }
 
 #[test]
-fn internal_pe_restriction_and_unread_barrier_are_explicit() {
+fn internal_pe_restriction_is_explicit_and_parameter_references_keep_later_declarations() {
     let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
-    catalog.note_unread_parameter();
-    assert!(
-        declare(&mut catalog, "<!ENTITY e 'ignored'>")
-            .unwrap()
-            .ignored_after_unread_parameter
-    );
+    catalog.note_parameter_reference();
+    declare(&mut catalog, "<!ENTITY e 'kept'>").unwrap();
     assert!(matches!(
         catalog.lookup_general("e"),
-        EntityLookup::UnreadEntity
+        EntityLookup::Internal {
+            replacement: "kept",
+            ..
+        }
     ));
+    assert_eq!(
+        catalog.lookup_general("missing"),
+        EntityLookup::UnreadEntity
+    );
     let error = declare(&mut catalog, "<!ENTITY e '%p;'>").unwrap_err();
     assert_eq!(error.kind, CatalogErrorKind::ParameterInInternalDeclaration);
     assert_eq!(
@@ -109,13 +112,9 @@ fn replacement_literals_preserve_numeric_cr_and_predefined_errors_cannot_panic()
 }
 
 fn value(catalog: &mut DtdCatalog, raw: &str) -> String {
-    match catalog
+    catalog
         .normalize_attribute_value("r", "a", raw, LiteralSource::Physical)
         .unwrap()
-    {
-        NormalizedValue::Value(value) => value,
-        NormalizedValue::Unavailable(dependency) => panic!("unexpected dependency {dependency:?}"),
-    }
 }
 
 #[test]
@@ -129,24 +128,15 @@ fn forward_entity_values_bind_at_use_but_defaults_do_not_rebind() {
             ..
         }
     ));
-    let effect = declare(&mut catalog, "<!ATTLIST r a CDATA '&e;'>").unwrap();
-    assert_eq!(effect.unavailable_defaults, 1);
-    let old = catalog.attributes("r").next().unwrap().default();
-    assert!(matches!(
-        old,
-        DefaultValue::Unavailable {
-            dependency: Dependency {
-                kind: DependencyKind::MissingReadDeclaration,
-                location: ValueLocation::Replacement { offset: 0, .. }
-            },
-            ..
-        }
-    ));
     declare(&mut catalog, "<!ENTITY later 'v'>").unwrap();
     assert_eq!(value(&mut catalog, "&e;"), "v");
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    declare(&mut catalog, "<!ENTITY e '&later;'>").unwrap();
+    let error = declare(&mut catalog, "<!ATTLIST r a CDATA '&e;'>").unwrap_err();
+    assert_eq!(error.kind, CatalogErrorKind::EntityDeclared);
     assert!(matches!(
-        catalog.attributes("r").next().unwrap().default(),
-        DefaultValue::Unavailable { .. }
+        error.location,
+        ValueLocation::Replacement { offset: 0, .. }
     ));
 
     let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
@@ -245,13 +235,13 @@ fn first_binding_is_per_attribute_and_lexical_element_and_entity_class() {
         catalog
             .normalize_attribute_value("p:r", "a", "  a  b  ", LiteralSource::Physical)
             .unwrap(),
-        NormalizedValue::Value("  a  b  ".into())
+        String::from("  a  b  ")
     );
     assert_eq!(
         catalog
             .normalize_attribute_value("p:r", "b", "  a  b  ", LiteralSource::Physical)
             .unwrap(),
-        NormalizedValue::Value("a b".into())
+        String::from("a b")
     );
 }
 
@@ -268,49 +258,29 @@ fn duplicate_defaults_still_receive_required_reference_checks() {
 }
 
 #[test]
-fn unread_dependency_and_standalone_barrier_policies_are_separate() {
+fn unread_references_expand_empty_unless_standalone() {
     for standalone in [false, true] {
         let mut catalog = DtdCatalog::new(CatalogLimits::default(), standalone);
         declare(&mut catalog, "<!DOCTYPE r SYSTEM 'never-open' [").unwrap();
         let result =
-            catalog.normalize_attribute_value("r", "a", "&unknown;", LiteralSource::Physical);
+            catalog.normalize_attribute_value("r", "a", "a&unknown;b", LiteralSource::Physical);
         if standalone {
             assert_eq!(result.unwrap_err().kind, CatalogErrorKind::EntityDeclared);
         } else {
-            assert_eq!(
-                result.unwrap(),
-                NormalizedValue::Unavailable(Dependency {
-                    kind: DependencyKind::UnreadEntity,
-                    location: ValueLocation::Input(0)
-                })
-            );
+            assert_eq!(result.unwrap(), "ab");
         }
         let mut catalog = DtdCatalog::new(CatalogLimits::default(), standalone);
-        declare(&mut catalog, "<!ENTITY first 'retained'>").unwrap();
-        catalog.note_unread_parameter();
-        let entity = declare(&mut catalog, "<!ENTITY second 'new'>").unwrap();
-        let attrs = declare(&mut catalog, "<!ATTLIST r a CDATA 'default'>").unwrap();
-        assert_eq!(entity.ignored_after_unread_parameter, !standalone);
-        assert_eq!(attrs.ignored_after_unread_parameter, !standalone);
+        catalog.note_parameter_reference();
+        declare(&mut catalog, "<!ENTITY second 'new'>").unwrap();
+        declare(&mut catalog, "<!ATTLIST r a CDATA 'default'>").unwrap();
         assert!(matches!(
-            catalog.lookup_general("first"),
+            catalog.lookup_general("second"),
             EntityLookup::Internal {
-                replacement: "retained",
+                replacement: "new",
                 ..
             }
         ));
-        assert_eq!(catalog.attributes("r").count(), usize::from(standalone));
-        if standalone {
-            assert!(matches!(
-                catalog.lookup_general("second"),
-                EntityLookup::Internal {
-                    replacement: "new",
-                    ..
-                }
-            ));
-        } else {
-            assert_eq!(catalog.lookup_general("second"), EntityLookup::UnreadEntity);
-        }
+        assert_eq!(catalog.attributes("r").count(), 1);
     }
 }
 
@@ -389,49 +359,37 @@ fn external_entity_value_context_includes_parameter_text_without_padding_or_quot
 }
 
 #[test]
-fn unavailable_parameter_construction_is_first_bound_without_retroactive_repair() {
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+fn unread_parameter_references_in_entity_values_expand_empty() {
     let external = DeclarationContext {
         internal_subset: false,
         literals: LiteralSource::Physical,
     };
-    let unit = DtdUnit::parse("<!ENTITY e '%later;'>", DtdLimits::default()).unwrap();
-    catalog.apply(&unit, external).unwrap();
+    let unit = DtdUnit::parse("<!ENTITY e 'a%later;b'>", DtdLimits::default()).unwrap();
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), true);
     assert_eq!(
-        catalog.lookup_general("e"),
-        EntityLookup::Unavailable(Dependency {
-            kind: DependencyKind::MissingReadDeclaration,
+        catalog.apply(&unit, external).unwrap_err(),
+        CatalogError {
+            kind: CatalogErrorKind::EntityDeclared,
             location: ValueLocation::Declaration {
                 declaration: 0,
-                offset: 12
+                offset: 13
             }
-        })
+        }
     );
-    declare(&mut catalog, "<!ENTITY % later 'now'>").unwrap();
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    catalog.apply(&unit, external).unwrap();
     assert!(matches!(
         catalog.lookup_general("e"),
-        EntityLookup::Unavailable(_)
+        EntityLookup::Internal {
+            replacement: "ab",
+            ..
+        }
     ));
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), true);
     declare(&mut catalog, "<!ENTITY % p SYSTEM 'not-opened'>").unwrap();
     let unit = DtdUnit::parse("<!ENTITY e '%p;'>", DtdLimits::default()).unwrap();
     catalog.apply(&unit, external).unwrap();
-    assert!(matches!(
-        catalog.lookup_general("e"),
-        EntityLookup::Unavailable(Dependency {
-            kind: DependencyKind::ExternalEntity,
-            ..
-        })
-    ));
-    assert!(matches!(
-        catalog
-            .normalize_attribute_value("r", "a", "&e;", LiteralSource::Physical)
-            .unwrap(),
-        NormalizedValue::Unavailable(Dependency {
-            kind: DependencyKind::ExternalEntity,
-            ..
-        })
-    ));
+    assert_eq!(value(&mut catalog, "x&e;y"), "xy");
 }
 
 #[test]
@@ -462,7 +420,7 @@ fn literal_eol_and_reference_whitespace_phases_have_independent_expected_results
             catalog
                 .normalize_attribute_value("r", "a", "&e;", source)
                 .unwrap(),
-            NormalizedValue::Value(
+            String::from_iter(
                 replacement
                     .chars()
                     .map(|c| if matches!(c, '\r' | '\n' | '\t') {
@@ -470,7 +428,6 @@ fn literal_eol_and_reference_whitespace_phases_have_independent_expected_results
                     } else {
                         c
                     })
-                    .collect()
             )
         );
     }
@@ -483,7 +440,7 @@ fn literal_eol_and_reference_whitespace_phases_have_independent_expected_results
         catalog
             .normalize_attribute_value("r", "a", "a\r\nb\rc", LiteralSource::Replacement)
             .unwrap(),
-        NormalizedValue::Value("a  b c".into())
+        String::from("a  b c")
     );
 }
 
@@ -674,7 +631,7 @@ fn all_attribute_types_normalize_without_enforcing_validity() {
         catalog
             .normalize_attribute_value("r", "c", "different", LiteralSource::Physical)
             .unwrap(),
-        NormalizedValue::Value("different".into())
+        String::from("different")
     );
 }
 
@@ -711,7 +668,7 @@ fn direct_value_input_checks_reference_and_character_grammar_and_keeps_failures_
 }
 
 #[test]
-fn unread_pe_inside_entity_value_sets_the_later_declaration_barrier() {
+fn unloaded_pe_inside_entity_value_keeps_later_declarations() {
     for standalone in [false, true] {
         let mut catalog = DtdCatalog::new(CatalogLimits::default(), standalone);
         declare(&mut catalog, "<!ENTITY % p SYSTEM 'never-open'>").unwrap();
@@ -727,21 +684,22 @@ fn unread_pe_inside_entity_value_sets_the_later_declaration_barrier() {
             .unwrap();
         assert!(matches!(
             catalog.lookup_general("e"),
-            EntityLookup::Unavailable(_)
+            EntityLookup::Internal {
+                replacement: "",
+                ..
+            }
         ));
+        declare(&mut catalog, "<!ENTITY later 'v'>").unwrap();
+        declare(&mut catalog, "<!ATTLIST r a CDATA 'v'>").unwrap();
+        assert_eq!(catalog.attributes("r").count(), 1);
         assert_eq!(
-            declare(&mut catalog, "<!ENTITY later 'v'>")
-                .unwrap()
-                .ignored_after_unread_parameter,
-            !standalone
+            catalog.lookup_general("missing"),
+            if standalone {
+                EntityLookup::Undeclared
+            } else {
+                EntityLookup::UnreadEntity
+            }
         );
-        assert_eq!(
-            declare(&mut catalog, "<!ATTLIST r a CDATA 'v'>")
-                .unwrap()
-                .ignored_after_unread_parameter,
-            !standalone
-        );
-        assert_eq!(catalog.attributes("r").count(), usize::from(standalone));
     }
 }
 
@@ -857,7 +815,7 @@ fn value_and_expansion_limits_count_utf8_bytes_and_pre_collapse_output() {
         declare(&mut catalog, "<!ENTITY e 'é'>").unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;", LiteralSource::Physical);
         if allowed == 4 {
-            assert_eq!(result.unwrap(), NormalizedValue::Value("é".into()));
+            assert_eq!(result.unwrap(), String::from("é"));
         } else {
             assert_eq!(
                 result.unwrap_err().kind,
@@ -896,7 +854,7 @@ fn empty_entities_consume_reference_and_depth_budgets_without_output() {
         declare(&mut catalog, "<!ENTITY e ''>").unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;&e;", LiteralSource::Physical);
         if allowed == 2 {
-            assert_eq!(result.unwrap(), NormalizedValue::Value(String::new()));
+            assert_eq!(result.unwrap(), String::new());
         } else {
             let error = result.unwrap_err();
             assert_eq!(
@@ -916,7 +874,7 @@ fn empty_entities_consume_reference_and_depth_budgets_without_output() {
         declare(&mut catalog, "<!ENTITY e ''>").unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;", LiteralSource::Physical);
         if allowed == 1 {
-            assert_eq!(result.unwrap(), NormalizedValue::Value(String::new()));
+            assert_eq!(result.unwrap(), String::new());
         } else {
             assert_eq!(
                 result.unwrap_err().kind,
@@ -936,7 +894,7 @@ fn work_charges_entered_text_and_cycle_comparisons_before_consuming_replacements
         let mut catalog = DtdCatalog::new(limits, false);
         let result = catalog.normalize_attribute_value("r", "a", "abc", LiteralSource::Physical);
         if allowed == 3 {
-            assert_eq!(result.unwrap(), NormalizedValue::Value("abc".into()));
+            assert_eq!(result.unwrap(), String::from("abc"));
             assert_eq!(catalog.usage().work, 3);
         } else {
             assert_eq!(
@@ -958,7 +916,7 @@ fn work_charges_entered_text_and_cycle_comparisons_before_consuming_replacements
         declare(&mut catalog, unit).unwrap();
         let result = catalog.normalize_attribute_value("r", "a", "&e;", LiteralSource::Physical);
         if allowed == unit.len() + 4 {
-            assert_eq!(result.unwrap(), NormalizedValue::Value(String::new()));
+            assert_eq!(result.unwrap(), String::new());
             assert_eq!(catalog.usage().work, allowed);
         } else {
             assert_eq!(
@@ -1075,36 +1033,7 @@ fn fatal_errors_preserve_only_a_read_only_prefix_and_never_resume_catalog_mutati
 }
 
 #[test]
-fn unavailable_duplicate_defaults_are_reported_without_overwriting_first_binding() {
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
-    declare(&mut catalog, "<!ENTITY e '&missing;'>").unwrap();
-    declare(&mut catalog, "<!ATTLIST r a CDATA 'first'>").unwrap();
-    let effect = declare(&mut catalog, "<!ATTLIST r a CDATA '&e;' b CDATA '&e;'>").unwrap();
-    assert_eq!(effect.bindings_added, 1);
-    assert_eq!(effect.unavailable_defaults, 2);
-    assert!(matches!(
-        effect.unavailable,
-        Some(Dependency {
-            kind: DependencyKind::MissingReadDeclaration,
-            location: ValueLocation::Replacement { offset: 0, .. },
-        })
-    ));
-    let mut attributes = catalog.attributes("r");
-    assert_eq!(
-        attributes.next().unwrap().default(),
-        DefaultValue::Value {
-            fixed: false,
-            value: "first"
-        }
-    );
-    assert!(matches!(
-        attributes.next().unwrap().default(),
-        DefaultValue::Unavailable { .. }
-    ));
-}
-
-#[test]
-fn unavailable_duplicate_entity_value_is_reported_and_keeps_the_barrier() {
+fn duplicate_entity_value_with_unloaded_parameter_keeps_first_binding() {
     let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
     declare(&mut catalog, "<!ENTITY e 'first'>").unwrap();
     declare(&mut catalog, "<!ENTITY % p SYSTEM 'never-open'>").unwrap();
@@ -1119,17 +1048,6 @@ fn unavailable_duplicate_entity_value_is_reported_and_keeps_the_barrier() {
         )
         .unwrap();
     assert_eq!(effect.bindings_added, 0);
-    assert_eq!(effect.unavailable_defaults, 0);
-    assert_eq!(
-        effect.unavailable,
-        Some(Dependency {
-            kind: DependencyKind::ExternalEntity,
-            location: ValueLocation::Declaration {
-                declaration: 2,
-                offset: 12
-            }
-        })
-    );
     assert!(matches!(
         catalog.lookup_general("e"),
         EntityLookup::Internal {
@@ -1137,9 +1055,9 @@ fn unavailable_duplicate_entity_value_is_reported_and_keeps_the_barrier() {
             ..
         }
     ));
-    assert!(
-        declare(&mut catalog, "<!ENTITY later 'ignored'>")
-            .unwrap()
-            .ignored_after_unread_parameter
-    );
+    declare(&mut catalog, "<!ENTITY later 'kept'>").unwrap();
+    assert!(matches!(
+        catalog.lookup_general("later"),
+        EntityLookup::Internal { .. }
+    ));
 }

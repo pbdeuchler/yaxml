@@ -162,23 +162,6 @@ fn final_attribute_limit_names_the_first_unretained_default() {
 }
 
 #[test]
-fn unavailable_default_keeps_the_catalog_dependency_location() {
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
-    declare(&mut catalog, "<!ENTITY e '&later;'>");
-    declare(&mut catalog, "<!ATTLIST r a CDATA '&e;'>");
-    let mut state = ParserState::new(Limits::default(), 0);
-    let error = prepare(&mut state, &mut catalog, "<r/>", LiteralSource::Physical).unwrap_err();
-    assert_eq!(
-        error.kind,
-        DtdTagErrorKind::Unavailable(DependencyKind::MissingReadDeclaration)
-    );
-    assert!(matches!(
-        error.location,
-        DtdTagLocation::Value(ValueLocation::Replacement { offset: 0, .. })
-    ));
-}
-
-#[test]
 fn explicit_value_locations_are_rebased_without_touching_entity_locations() {
     let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
     let mut state = ParserState::new(Limits::default(), 0);
@@ -201,19 +184,14 @@ fn explicit_value_locations_are_rebased_without_touching_entity_locations() {
     declare(&mut catalog, "<!DOCTYPE r SYSTEM 'never' [");
     let mut state = ParserState::new(Limits::default(), 0);
     let tag = state.collect_raw_tag("<r z='xx&unknown;'/>", 40).unwrap();
-    assert_eq!(
-        prepare_dtd_tag(
-            &mut catalog,
-            state.owned_budget(),
-            tag,
-            LiteralSource::Physical
-        )
-        .unwrap_err(),
-        DtdTagError {
-            kind: DtdTagErrorKind::Unavailable(DependencyKind::UnreadEntity),
-            location: DtdTagLocation::Value(ValueLocation::Input(48))
-        }
-    );
+    let prepared = prepare_dtd_tag(
+        &mut catalog,
+        state.owned_budget(),
+        tag,
+        LiteralSource::Physical,
+    )
+    .unwrap();
+    assert_eq!(prepared.attributes[0].value, "xx");
 
     let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
     declare(&mut catalog, "<!ENTITY e '&later;'>");
@@ -228,7 +206,7 @@ fn explicit_value_locations_are_rebased_without_touching_entity_locations() {
         )
         .unwrap_err(),
         DtdTagError {
-            kind: DtdTagErrorKind::Unavailable(DependencyKind::MissingReadDeclaration),
+            kind: DtdTagErrorKind::Catalog(CatalogErrorKind::EntityDeclared),
             location: DtdTagLocation::Value(ValueLocation::Replacement { offset: 0, .. })
         }
     ));
@@ -505,7 +483,7 @@ fn normalization_obeys_the_smaller_catalog_or_parser_output_ceiling() {
                 catalog
                     .normalize_attribute_value("r", "a", "x", LiteralSource::Physical)
                     .unwrap(),
-                NormalizedValue::Value(String::from("x")),
+                String::from("x"),
             );
         } else {
             assert_eq!(result.unwrap().attributes[0].value, "abcd");

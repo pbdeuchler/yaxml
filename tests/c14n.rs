@@ -156,7 +156,8 @@ fn libxml2_suite() {
         count(Outcome::Mismatch),
     );
     eprintln!("libxml2 c14n suite: {pass} pass, {dtd} need DTD support, {mismatch} mismatch");
-    assert_eq!((pass, dtd, mismatch), (50, 23, 0));
+    // Remaining mismatches need external entities or DTD-declared IDs.
+    assert_eq!((pass, dtd, mismatch), (61, 0, 12));
 }
 
 /// Canonicalizes `xml` over both DOMs, checking they agree.

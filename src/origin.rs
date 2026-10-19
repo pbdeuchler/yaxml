@@ -250,27 +250,19 @@ impl SourceOrigin {
         })
     }
 
-    #[cfg_attr(
-        not(test),
-        allow(dead_code, reason = "private DTD controller is still test-only")
-    )]
     pub(crate) fn from_repr(origin: OriginRepr) -> Self {
         Self(origin)
     }
 
-    #[cfg_attr(
-        not(test),
-        allow(dead_code, reason = "replacement-origin access is still private")
-    )]
-    pub(crate) fn replacement_range(self) -> Option<Range<usize>> {
+    /// Byte range within the replacement text of the innermost entity that
+    /// produced this value; absent for values read directly from the input.
+    pub fn replacement_range(self) -> Option<Range<usize>> {
         self.0.replacement_range()
     }
 
-    #[cfg_attr(
-        not(test),
-        allow(dead_code, reason = "replacement-origin access is still private")
-    )]
-    pub(crate) fn physical_context(self) -> Range<usize> {
+    /// The original input bytes responsible for this value: its own span, or
+    /// the outermost entity reference whose expansion produced it.
+    pub fn physical_context(self) -> Range<usize> {
         self.0.physical_context()
     }
 

@@ -13,6 +13,14 @@ pub enum Limit {
     Attributes,
     Events,
     OwnedBytes,
+    /// Bytes in the document type declaration, including its internal subset.
+    DtdBytes,
+    /// Entity replacement bytes produced by expansion, or the equivalent work.
+    EntityExpansion,
+    /// Entity references expanded across the document.
+    EntityReferences,
+    /// Nesting depth of entity expansion.
+    EntityDepth,
 }
 
 /// Structured failures; offsets are input bytes, or prospective writer output bytes.
@@ -31,14 +39,24 @@ pub enum ErrorKind {
     DuplicateAttribute,
     Namespace,
     InvalidReference,
+    /// An undeclared entity whose declaration is required (WFC: Entity Declared).
     UnknownEntity,
+    /// An entity references itself directly or indirectly.
+    EntityLoop,
+    /// A content reference names an unparsed (NDATA) entity.
+    UnparsedEntity,
+    /// An attribute value references an external entity.
+    ExternalEntityInAttribute,
+    /// Entity replacement text does not nest correctly with its context.
+    UnbalancedEntity,
+    /// Malformed document type declaration or internal subset.
+    InvalidDtd,
     MissingRoot,
     MultipleRoots,
     TextOutsideRoot,
     InvalidDeclaration,
     UnsupportedEncoding,
     EncodingMismatch,
-    UnsupportedDtd,
     LimitExceeded(Limit),
     Allocation,
     /// The non-recycled owned-document identity space is exhausted.

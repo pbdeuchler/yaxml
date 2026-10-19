@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 use crate::parser::Budget;
 use crate::{
-    Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
+    Attribute, Declaration, Doctype, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
     SourceOrigin,
 };
 use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
@@ -168,6 +168,7 @@ impl OwnedNodeId {
 #[non_exhaustive]
 pub enum OwnedNodeKind {
     Document,
+    DocumentType,
     Element,
     Text,
     Cdata,
@@ -178,6 +179,7 @@ pub enum OwnedNodeKind {
 #[derive(Debug)]
 enum Content {
     Document,
+    DocumentType(StoredDoctype),
     Element {
         name: StoredName,
         attributes: Range<usize>,
@@ -289,6 +291,26 @@ impl StoredDeclaration {
             version: &pool[self.version.clone()],
             encoding: self.encoding.as_ref().map(|range| &pool[range.clone()]),
             standalone: self.standalone,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct StoredDoctype {
+    name: Range<usize>,
+    public_id: Option<Range<usize>>,
+    system_id: Option<Range<usize>>,
+    internal_subset: Option<Range<usize>>,
+}
+
+impl StoredDoctype {
+    fn view<'pool>(&self, pool: &'pool str) -> Doctype<'pool> {
+        let get = |range: &Option<Range<usize>>| range.as_ref().map(|range| &pool[range.clone()]);
+        Doctype {
+            name: &pool[self.name.clone()],
+            public_id: get(&self.public_id),
+            system_id: get(&self.system_id),
+            internal_subset: get(&self.internal_subset),
         }
     }
 }
@@ -585,6 +607,11 @@ impl OwnedDocument {
         self.declaration
             .as_ref()
             .map(|declaration| declaration.view(&self.pool.0))
+    }
+
+    /// Returns the document type declaration while its node remains.
+    pub fn doctype(&self) -> Option<Doctype<'_>> {
+        self.root().children().find_map(OwnedNode::doctype)
     }
 
     /// Opens a bounded tree editor. Owned-byte, created-node and created-attribute
@@ -1011,7 +1038,10 @@ impl Editor<'_> {
             Content::Cdata(range) => (range, ValueKind::Cdata),
             Content::Comment(range) => (range, ValueKind::Comment),
             Content::ProcessingInstruction { data, .. } => (data, ValueKind::Pi),
-            Content::Removed | Content::Document | Content::Element { .. } => {
+            Content::Removed
+            | Content::Document
+            | Content::DocumentType(_)
+            | Content::Element { .. } => {
                 return Err(EditError::new(EditErrorKind::WrongNodeKind, None));
             }
         };
@@ -1175,6 +1205,19 @@ impl OwnedBuilder {
                     standalone: declaration.standalone,
                 });
                 return Ok(());
+            }
+            Event::Doctype(doctype) => {
+                let mut store = |value: Option<&str>| {
+                    value
+                        .map(|value| self.pool.store(value, offset, budget))
+                        .transpose()
+                };
+                Content::DocumentType(StoredDoctype {
+                    name: store(Some(doctype.name))?.expect("present name"),
+                    public_id: store(doctype.public_id)?,
+                    system_id: store(doctype.system_id)?,
+                    internal_subset: store(doctype.internal_subset)?,
+                })
             }
             Event::End(_) => {
                 let id = self
@@ -1345,6 +1388,7 @@ impl<'document> OwnedNode<'document> {
         match &self.record().content {
             Content::Removed => unreachable!("owned node is live"),
             Content::Document => OwnedNodeKind::Document,
+            Content::DocumentType(_) => OwnedNodeKind::DocumentType,
             Content::Element { .. } => OwnedNodeKind::Element,
             Content::Text(_) => OwnedNodeKind::Text,
             Content::Cdata(_) => OwnedNodeKind::Cdata,
@@ -1398,6 +1442,14 @@ impl<'document> OwnedNode<'document> {
                 _ => None,
             });
         self.text().into_iter().chain(descendants)
+    }
+
+    /// Returns a document type node's declaration.
+    pub fn doctype(self) -> Option<Doctype<'document>> {
+        match &self.record().content {
+            Content::DocumentType(doctype) => Some(doctype.view(&self.document.pool.0)),
+            _ => None,
+        }
     }
 
     /// The element's QName and namespace, borrowed from the pool.

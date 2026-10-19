@@ -108,6 +108,7 @@ impl BufRead for Window<'_> {
 #[derive(Debug, PartialEq, Eq)]
 enum Value {
     Declaration(String, Option<String>, Option<bool>),
+    Doctype(String, Option<String>),
     Element(
         bool,
         String,
@@ -136,6 +137,9 @@ fn value(event: Event<'_>) -> Value {
         )
     };
     match event {
+        Event::Doctype(d) => {
+            Value::Doctype(d.name.to_owned(), d.internal_subset.map(str::to_owned))
+        }
         Event::Declaration(d) => Value::Declaration(
             d.version.to_owned(),
             d.encoding.map(str::to_owned),
@@ -424,7 +428,16 @@ fn malformed_tokens_report_explicit_original_byte_errors() {
         ("<r/><s/>", ErrorKind::MultipleRoots, "<r/>"),
         ("<r><!🙂</r>", ErrorKind::Syntax, "<r>"),
         ("<![CDATA[x]]><r/>", ErrorKind::TextOutsideRoot, ""),
-        ("<!DOCTYPE r><r/>", ErrorKind::UnsupportedDtd, ""),
+        (
+            "<!DOCTYPE r [<!BAD>]><r/>",
+            ErrorKind::InvalidDtd,
+            "<!DOCTYPE r [<!",
+        ),
+        (
+            "<!DOCTYPE r><r>&u;</r>",
+            ErrorKind::UnknownEntity,
+            "<!DOCTYPE r><r>",
+        ),
     ] {
         for encoding in ENCODINGS {
             let bytes = encoding.encode(input);
