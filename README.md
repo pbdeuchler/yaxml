@@ -191,6 +191,8 @@ The [compatibility catalogue](docs/compatibility.md), [design](docs/design.md),
 target and known gaps. Rust 1.100 allocator support is a planned storage milestone;
 the current stable baseline uses ordinary safe vectors. No performance advantage
 over libxml2 or complete fuzz execution coverage is claimed yet.
+Coverage-guided cargo-fuzz targets and a coverage report script are described in
+[fuzz/README.md](fuzz/README.md).
 
 Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
 `cargo bench --bench parse`, `cargo bench --bench pull`,

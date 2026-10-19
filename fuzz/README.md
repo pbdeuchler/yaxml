@@ -1,6 +1,6 @@
 # Fuzzing and replay
 
-The current harness is safe Rust with no added Cargo dependencies. It provides deterministic mutation smoke tests, a process-per-testcase replay entry point, and a bounded LLVM feedback campaign. Passing campaign checks does not imply 100% execution coverage. The release policy and coverage definitions are in [the security plan](../docs/security.md).
+The oracles in this directory are safe Rust with no added Cargo dependencies. They back deterministic smoke tests, a process-per-testcase replay example, and coverage-guided [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) (libFuzzer) targets. The release policy and coverage definitions are in [the security plan](../docs/security.md).
 
 Run the smoke tests and replay a testcase:
 
@@ -12,6 +12,33 @@ cargo run --release --example fuzz_replay -- --libxml2 /path/to/pinned/xmllint f
 ```
 
 The example accepts each filename as a separate testcase, or one testcase from stdin when there are no arguments. It caps testcase size at one MiB before parsing. Syntax rejection is an expected result and exits successfully; an invariant violation panics. File/read errors and oversized input fail the process. Keep that distinction when configuring an external runner.
+
+## Coverage-guided fuzzing
+
+`fuzz/Cargo.toml` is a standalone cargo-fuzz package (its own workspace), so `libfuzzer-sys` never enters the library's dependency graph. Each target in `fuzz_targets/` is a thin wrapper around one `driver::exercise_*` family; `driver::exercise` composes all of them for replay and smoke tests.
+
+| Target | Driver entry | Surface |
+| --- | --- | --- |
+| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection |
+| `owned` | `exercise_owned` | `OwnedDocument` parsing and views against the borrowed DOM |
+| `push` | `exercise_push` | `PushParser` chunk schedules, `finish`, `read_from` |
+| `buffered` | `exercise_pull` | `BufferedReader` |
+| `writer` | `exercise_writer` | `Writer` event round trips, generated operations and sinks |
+| `serialize` | `exercise_serialize` | `Writer::write_document` / `write_owned_document` |
+| `limits` | `exercise_limits` | Input-derived `Limits` across every parser |
+| `encoding` | `exercise_encoding` | UTF-16/UTF-32 detection and `DecodeLimits` |
+| `mutation` | `exercise_mutation` | `OwnedDocument::edit` operations |
+| `construction` | `exercise_construction` | `OwnedDocument::create`, `append_element` |
+| `names` | `exercise_names` | `Name` and owned PI targets |
+
+```sh
+cargo install cargo-fuzz
+mkdir -p fuzz/corpus/dom
+cargo +nightly fuzz run dom fuzz/corpus/dom fuzz/corpus -- -max_total_time=60
+fuzz/coverage.sh            # all targets; or name some
+```
+
+New inputs go to the ignored `fuzz/corpus/<target>/`; the committed top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/` with a deterministic test. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-06-06`, prints one `src/` TOTAL line per target, then merges all profiles into `fuzz/coverage/report.txt` (regions, functions, lines, branches per library file). `#[cfg(test)]` modules (the DTD work) are not compiled into the targets and are absent from the denominator. The "mismatched data" warning comes from the per-binary libFuzzer entry symbols, not library code.
 
 ## Current target inventory
 
@@ -369,53 +396,7 @@ Coverage uses pinned nightly `2026-06-06` with `-C instrument-coverage -Z covera
 
 Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component. A system LLVM version can reject profiles from a newer Rust compiler. If tooling is unavailable, record that coverage was not measured; do not infer it from passing tests. The workflow publishes gaps and currently imposes no percentage threshold. A release requires reviewed coverage data and the additional gates in the security plan.
 
-## External fuzz engines and differential testing
-
-### Bounded LLVM feedback campaign
-
-`fuzz_campaign` is a finite, process-based mutation runner. It feeds the
-instrumented `fuzz_replay` executable and retains a candidate only when its
-cumulative LLVM report increases covered regions, executed functions, or
-covered branches. It is feedback-guided mutation, not merely a replay loop;
-LLVM's cumulative counts do not provide edge-level novelty or path-frequency
-feedback.
-
-Build the replay target with the pinned nightly, branch instrumentation, and
-LTO disabled. Then run the campaign with matching `llvm-profdata` and
-`llvm-cov` binaries:
-
-```sh
-cargo +nightly-2026-06-06 run --release --example fuzz_campaign -- \
-  --target /absolute/path/to/fuzz_replay \
-  --llvm-profdata /absolute/path/to/llvm-profdata \
-  --llvm-cov /absolute/path/to/llvm-cov \
-  --source-root /absolute/path/to/yaxml \
-  --seeds fuzz/corpus --output /private/tmp/yaxml-campaign-run \
-  --source-revision REVISION --build-flags 'coverage,branch,no-lto' \
-  --compiler-version 'rustc nightly-2026-06-06 LLVM version: 22.1.6'
-```
-
-The output path must be new. The runner writes a bounded manifest, case
-journal, retained corpus, current cumulative profile, and first-failure
-evidence there. Its revision, build-flags, and compiler-version values are
-caller-supplied labels; file identities detect accidental changes but do not
-prove how the target was built. Save the separate build manifest and external
-artifact hashes with campaign results. Defaults and hard ceilings are listed
-in [`fuzz-campaign.md`](../docs/plans/fuzz-campaign.md). The runner stops at
-the first target or infrastructure failure and does not resume campaigns.
-The runner and its campaign tests currently support Unix only: commit
-publication relies on rename-over-existing-file behavior, output roots use
-Unix mode `0700`, and the process-helper test invokes `/bin/sh`. Windows
-campaign runs are unsupported.
-See the [latest campaign results and retained artifact paths](../docs/validation-fuzz-campaign.md).
-
-The report gives all four LLVM denominators and raw covered/gap counts.
-Regions, functions, and instrumented branch outcomes drive novelty; line counts
-are diagnostic. These metrics do not establish parser-state or semantic
-coverage, and a 100% percentage would only describe those instrumented LLVM
-metrics for the explicit production source list.
-
-An external process-based fuzzer can feed stdin to the release example without changing the crate's dependency graph. Validate its instrumentation and execution feedback before calling it coverage-guided fuzzing. This repository does not yet supply an AFL++/libFuzzer integration, custom mutation runtime, or sustained-run budget. Adding a runtime dependency or unsafe foreign export requires a policy decision.
+## Differential testing
 
 `--libxml2 PATH` requires libxml2 **2.15.4** and records its version/build report.
 `--allow-other-libxml2` explicitly selects an exploratory comparison with another
