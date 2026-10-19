@@ -18,20 +18,6 @@ pub(crate) struct ContentStep {
     pub(crate) stop: ContentStop,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ReferenceCursorErrorKind {
-    PositionOverflow,
-    Limit(Limit),
-    InvalidState,
-}
-
-/// Offset is physical for Input and replacement-local for Local cursors.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ReferenceCursorError {
-    pub(crate) kind: ReferenceCursorErrorKind,
-    pub(crate) offset: usize,
-}
-
 #[derive(Clone, Copy, Debug)]
 enum ReferenceStart {
     Input {
@@ -92,7 +78,8 @@ impl ReferenceCursor {
         }
     }
 
-    pub(crate) fn checked_advance(self, bytes: &[u8]) -> Result<Self, ReferenceCursorError> {
+    /// Errors are at the reference start: physical for input, local otherwise.
+    pub(crate) fn checked_advance(self, bytes: &[u8]) -> Result<Self, Error> {
         let (decoded_start, source_start, encoding) = match self.start {
             ReferenceStart::Input {
                 decoded,
@@ -101,27 +88,22 @@ impl ReferenceCursor {
             } => (decoded, source, encoding),
             ReferenceStart::Local(start) => (start, start, SourceEncoding::Utf8),
         };
-        let fail = |kind| ReferenceCursorError {
-            kind,
-            offset: source_start,
-        };
+        let fail = |kind| Error::new(kind, source_start);
         let decoded_end = self
             .decoded_end
             .checked_add(bytes.len())
-            .ok_or_else(|| fail(ReferenceCursorErrorKind::PositionOverflow))?;
+            .ok_or_else(|| fail(ErrorKind::InvalidState))?;
         let mut source_end = self.source_end;
         for byte in bytes {
             source_end = source_end
                 .checked_add(encoding.source_length(std::slice::from_ref(byte)))
-                .ok_or_else(|| fail(ReferenceCursorErrorKind::PositionOverflow))?;
+                .ok_or_else(|| fail(ErrorKind::InvalidState))?;
         }
         if source_end - source_start > self.raw_limit {
-            return Err(fail(ReferenceCursorErrorKind::Limit(Limit::TokenBytes)));
+            return Err(fail(ErrorKind::LimitExceeded(Limit::TokenBytes)));
         }
         if decoded_end - decoded_start > self.decoded_limit {
-            return Err(fail(ReferenceCursorErrorKind::Limit(
-                Limit::DecodedTokenBytes,
-            )));
+            return Err(fail(ErrorKind::LimitExceeded(Limit::DecodedTokenBytes)));
         }
         Ok(Self {
             decoded_end,
@@ -133,7 +115,7 @@ impl ReferenceCursor {
     pub(crate) fn finish(
         self,
         reference: ValidatedReference<'_>,
-    ) -> Result<ReferenceExtent, ReferenceCursorError> {
+    ) -> Result<ReferenceExtent, Error> {
         let (start, span) = match self.start {
             ReferenceStart::Input {
                 decoded,
@@ -150,10 +132,7 @@ impl ReferenceCursor {
             ReferenceStart::Local(start) => (start, ReadySpan::Local(start..self.decoded_end)),
         };
         if reference.range() != (start..self.decoded_end) {
-            return Err(ReferenceCursorError {
-                kind: ReferenceCursorErrorKind::InvalidState,
-                offset: self.anchor(),
-            });
+            return Err(Error::new(ErrorKind::InvalidState, self.anchor()));
         }
         Ok(ReferenceExtent { span })
     }

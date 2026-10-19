@@ -1,4 +1,4 @@
-//! Private effective DTD bindings and value processing. No document acceptance.
+//! Effective DTD bindings and value processing. No document acceptance.
 
 use std::{borrow::Cow, collections::HashMap};
 
@@ -6,25 +6,18 @@ use crate::dtd::{
     AttributeTypeView, DefaultDeclarationView, DtdLimits, DtdUnit, DtdUnitView,
     EntityDefinitionView, ReferenceKind,
 };
-use crate::escape::xml_char;
+use crate::escape::{numeric_reference, predefined, xml_char};
 use crate::name::validate_name;
 use crate::resolve::Loader;
 use crate::valid::{AttributeDecl, Code, Dtd, ElementDecl};
+use crate::{DtdError, ErrorKind, Limit};
 
 mod external;
 
 pub(crate) use external::external_dtd;
 
 pub(crate) use crate::dtd::LiteralSource;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct EntityId(usize);
-
-impl EntityId {
-    pub(crate) fn index(self) -> usize {
-        self.0
-    }
-}
+pub(crate) use crate::origin::EntityId;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DeclarationContext {
@@ -44,86 +37,23 @@ pub(crate) struct CatalogUsage {
     pub(crate) amplification: usize,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CatalogLimit {
-    Declarations,
-    Bindings,
-    StorageBytes,
-    ValueBytes,
-    ExpandedBytes,
-    Work,
-    References,
-    Depth,
+const fn limit(limit: Limit) -> ErrorKind {
+    ErrorKind::LimitExceeded(limit)
 }
-
-/// Input offsets belong to the current operation, never implicitly physical input.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ValueLocation {
-    Input(usize),
-    Declaration { declaration: usize, offset: usize },
-    Replacement { entity: EntityId, offset: usize },
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CatalogErrorKind {
-    EntityDeclared,
-    ExternalInAttribute,
-    UnparsedEntity,
-    LessThanInAttribute,
-    Recursion,
-    ParameterInInternalDeclaration,
-    InvalidReference,
-    InvalidCharacter,
-    InvalidPredefinedDeclaration,
-    /// Namespaces 1.0 forbids colons in entity and notation names.
-    Namespace,
-    CallerValueBytes,
-    Limit(CatalogLimit),
-    Allocation,
-    /// Malformed external DTD text.
-    /// A failed load or decode of an external resource.
-    Xml(crate::ErrorKind),
-    /// Internal: the value processor needs this external PE loaded first.
-    Load(EntityId),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct CatalogError {
-    pub(crate) kind: CatalogErrorKind,
-    pub(crate) location: ValueLocation,
-}
-
-/// Unquoted identifier contents with literal EOL processing already applied.
-/// Public-ID whitespace matching normalization and URI resolution are deferred.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ExternalIdentifier<'a> {
-    pub(crate) public: Option<&'a str>,
-    pub(crate) system: Option<&'a str>,
-}
+const DTD_BYTES: ErrorKind = limit(Limit::DtdBytes);
+const OWNED: ErrorKind = limit(Limit::OwnedBytes);
+const EXPANSION: ErrorKind = limit(Limit::EntityExpansion);
+const VALUE_BYTES: ErrorKind = limit(Limit::TokenBytes);
+const ALLOCATION: ErrorKind = ErrorKind::Allocation;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EntityLookup<'a> {
-    Predefined(char),
-    Internal {
-        id: EntityId,
-        replacement: &'a str,
-    },
-    ExternalUnavailable {
-        id: EntityId,
-        identifier: ExternalIdentifier<'a>,
-    },
-    Unparsed {
-        id: EntityId,
-        identifier: ExternalIdentifier<'a>,
-        notation: &'a str,
-    },
+    Predefined,
+    Internal { id: EntityId, replacement: &'a str },
+    ExternalUnavailable { id: EntityId },
+    Unparsed,
     UnreadEntity,
     Undeclared,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) struct DeclarationEffect {
-    pub(crate) bindings_added: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -157,13 +87,6 @@ impl AttributeKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DefaultValue<'a> {
-    Required,
-    Implied,
-    Value { fixed: bool, value: &'a str },
-}
-
 #[derive(Clone, Debug)]
 pub(crate) enum StoredDefault {
     Required,
@@ -172,67 +95,22 @@ pub(crate) enum StoredDefault {
 }
 
 impl StoredDefault {
-    fn view(&self) -> DefaultValue<'_> {
+    pub(crate) fn value(&self) -> Option<&str> {
         match self {
-            Self::Required => DefaultValue::Required,
-            Self::Implied => DefaultValue::Implied,
-            Self::Value { fixed, value } => DefaultValue::Value {
-                fixed: *fixed,
-                value,
-            },
+            Self::Value { value, .. } => Some(value),
+            _ => None,
         }
-    }
-
-    fn bytes(&self) -> usize {
-        match self {
-            Self::Value { value, .. } => value.len(),
-            _ => 0,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct AttributeBinding<'a>(&'a AttributeDecl);
-
-impl<'a> AttributeBinding<'a> {
-    pub(crate) fn name(self) -> &'a str {
-        &self.0.name
-    }
-    pub(crate) fn name_offset(self) -> usize {
-        self.0.name_offset
-    }
-    pub(crate) fn default(self) -> DefaultValue<'a> {
-        self.0.default.view()
-    }
-    pub(crate) fn declaration(self) -> usize {
-        self.0.declaration
-    }
-    pub(crate) fn internal(self) -> bool {
-        self.0.internal
-    }
-    pub(crate) fn tokenized(self) -> bool {
-        self.0.kind != AttributeKind::Cdata
     }
 }
 
 struct ExternalEntity {
     public: Option<String>,
-    system: Option<String>,
     /// The system identifier resolved against its declaration's base.
     uri: Option<String>,
     notation: Option<String>,
     /// Loaded replacement text; `loaded` records any attempt.
     text: Option<String>,
     loaded: bool,
-}
-
-impl ExternalEntity {
-    fn identifier(&self) -> ExternalIdentifier<'_> {
-        ExternalIdentifier {
-            public: self.public.as_deref(),
-            system: self.system.as_deref(),
-        }
-    }
 }
 
 enum EntityBody {
@@ -271,7 +149,6 @@ pub(crate) struct DtdCatalog {
     standalone: bool,
     external_subset: bool,
     parameter_reference: bool,
-    failure: Option<CatalogError>,
     amplification_ceiling: usize,
     loader: Option<Loader>,
     /// The DOCTYPE's external identifier, kept only for loading.
@@ -294,7 +171,6 @@ impl DtdCatalog {
             standalone,
             external_subset: false,
             parameter_reference: false,
-            failure: None,
             amplification_ceiling: usize::MAX,
             loader: None,
             subset: None,
@@ -315,13 +191,14 @@ impl DtdCatalog {
     }
 
     /// Charges copied default-attribute text as libxml2 charges `expandedSize`.
-    pub(crate) fn charge_default(&mut self, bytes: usize) -> Result<(), CatalogError> {
+    pub(crate) fn charge_default(&mut self, bytes: usize) -> Result<(), DtdError> {
+        let ceiling = self.amplification_ceiling;
         increment(
             &mut self.usage.amplification,
             bytes,
-            self.amplification_ceiling,
-            CatalogLimit::ExpandedBytes,
-            ValueLocation::Input(0),
+            ceiling,
+            EXPANSION,
+            Some(0),
         )
     }
 
@@ -340,46 +217,38 @@ impl DtdCatalog {
 
     /// Loaded external general entities resolve like internal ones; external
     /// parameter entities are always included by `include_parameter`.
-    fn lookup(
-        &self,
-        table: &HashMap<String, EntityId>,
-        name: &str,
-        parameter: bool,
-    ) -> EntityLookup<'_> {
+    fn lookup(&self, parameter: bool, name: &str) -> EntityLookup<'_> {
+        let table = if parameter {
+            &self.parameter
+        } else {
+            &self.general
+        };
         let Some(&id) = table.get(name) else {
-            return if self.may_be_unread() {
-                EntityLookup::UnreadEntity
-            } else {
-                EntityLookup::Undeclared
+            return match self.may_be_unread() {
+                true => EntityLookup::UnreadEntity,
+                false => EntityLookup::Undeclared,
             };
         };
         match &self.entities[id.0].body {
             EntityBody::Internal(replacement) => EntityLookup::Internal { id, replacement },
-            EntityBody::External(entity) => match (entity.notation.as_deref(), &entity.text) {
-                (Some(notation), _) => EntityLookup::Unparsed {
-                    id,
-                    identifier: entity.identifier(),
-                    notation,
-                },
+            EntityBody::External(entity) => match (&entity.notation, &entity.text) {
+                (Some(_), _) => EntityLookup::Unparsed,
                 (None, Some(replacement)) if !parameter => {
                     EntityLookup::Internal { id, replacement }
                 }
-                (None, _) => EntityLookup::ExternalUnavailable {
-                    id,
-                    identifier: entity.identifier(),
-                },
+                (None, _) => EntityLookup::ExternalUnavailable { id },
             },
         }
     }
 
     pub(crate) fn lookup_general(&self, name: &str) -> EntityLookup<'_> {
         match predefined(name) {
-            Some(character) => EntityLookup::Predefined(character),
-            None => self.lookup(&self.general, name, false),
+            Some(_) => EntityLookup::Predefined,
+            None => self.lookup(false, name),
         }
     }
     pub(crate) fn lookup_parameter(&self, name: &str) -> EntityLookup<'_> {
-        self.lookup(&self.parameter, name, true)
+        self.lookup(true, name)
     }
 
     pub(crate) fn replacement(&self, id: EntityId) -> Option<&str> {
@@ -400,76 +269,59 @@ impl DtdCatalog {
         &self.dtd
     }
 
-    pub(crate) fn attributes(&self, element: &str) -> impl Iterator<Item = AttributeBinding<'_>> {
+    pub(crate) fn attributes(&self, element: &str) -> impl Iterator<Item = &AttributeDecl> {
         self.dtd
             .element_index
             .get(element)
             .map(|index| self.dtd.elements[*index].attributes.as_slice())
             .unwrap_or(&[])
             .iter()
-            .map(AttributeBinding)
     }
 
+    /// Applies one declaration. Failure offsets are relative to `unit`, or
+    /// absent inside replacement text.
     pub(crate) fn apply(
         &mut self,
         unit: &DtdUnit<'_>,
         context: DeclarationContext,
-    ) -> Result<DeclarationEffect, CatalogError> {
-        self.remember(|catalog| catalog.apply_inner(unit, context))
-    }
-
-    fn apply_inner(
-        &mut self,
-        unit: &DtdUnit<'_>,
-        context: DeclarationContext,
-    ) -> Result<DeclarationEffect, CatalogError> {
-        let declaration = self.usage.declarations;
-        let location = ValueLocation::Declaration {
-            declaration,
-            offset: 0,
-        };
+    ) -> Result<(), DtdError> {
+        let at = Some(0);
+        let limits = self.limits;
         increment(
             &mut self.usage.declarations,
             1,
-            self.limits.declarations,
-            CatalogLimit::Declarations,
-            location,
+            limits.declarations,
+            DTD_BYTES,
+            at,
         )?;
         increment(
             &mut self.usage.work,
             unit.raw().len(),
-            self.limits.work,
-            CatalogLimit::Work,
-            location,
+            limits.work,
+            EXPANSION,
+            at,
         )?;
         if context.internal_subset
             && let Some((offset, _)) = unit
                 .reference_positions()
                 .find(|(_, reference)| reference.kind == ReferenceKind::Parameter)
         {
-            return Err(error(
-                CatalogErrorKind::ParameterInInternalDeclaration,
-                ValueLocation::Declaration {
-                    declaration,
-                    offset,
-                },
-            ));
+            return Err(DtdError::new(ErrorKind::InvalidDtd, Some(offset)));
         }
-        let mut effect = DeclarationEffect::default();
         let colon = match unit.view() {
             DtdUnitView::Entity(entity) => entity.name().contains(':'),
             DtdUnitView::Notation(notation) => notation.name().contains(':'),
             _ => false,
         };
         if colon {
-            return Err(error(CatalogErrorKind::Namespace, location));
+            return Err(DtdError::new(ErrorKind::Namespace, at));
         }
         match unit.view() {
             DtdUnitView::Header(header) => {
-                self.dtd.name = Some(copy_string(header.root_name(), location)?);
+                self.dtd.name = Some(copy_string(header.root_name())?);
                 self.external_subset |= header.external_id().is_some();
                 if let Some(identifier) = header.external_id() {
-                    self.subset = Some(self.external_entity(identifier, None, context, location)?);
+                    self.subset = Some(self.external_entity(identifier, None, context)?);
                 }
             }
             DtdUnitView::Entity(entity) => {
@@ -480,9 +332,8 @@ impl DtdCatalog {
                         EntityDefinitionView::External { notation, .. } => notation,
                         EntityDefinitionView::Internal { .. } => None,
                     };
-                    let bytes = entity.name().len() + notation.map_or(0, str::len);
-                    self.store_bytes(bytes, location)?;
-                    self.record_entity(entity.name(), notation, location)?;
+                    self.store_bytes(entity.name().len() + notation.map_or(0, str::len))?;
+                    self.record_entity(entity.name(), notation)?;
                 }
                 // WFC Entity Declared: a standalone document cannot use general
                 // entities from external markup, so they are never bound.
@@ -498,67 +349,49 @@ impl DtdCatalog {
                             .quoted_literal_offset()
                             .expect("internal entity literal has a token")
                             + 1;
-                        let mut ignored = 0;
                         let result = self.process_value(
                             &quoted_literal[1..quoted_literal.len() - 1],
                             offset,
                             context.literals,
                             ValueMode::Entity,
-                            Some(declaration),
-                            ValueRequest::unbounded(&mut ignored),
+                            &mut ValueRequest::default(),
                         )?;
                         if !parameter
                             && let Some(character) = predefined(entity.name())
                             && !valid_predefined(entity.name(), character, &result)
                         {
-                            return Err(error(
-                                CatalogErrorKind::InvalidPredefinedDeclaration,
-                                ValueLocation::Declaration {
-                                    declaration,
-                                    offset,
-                                },
-                            ));
+                            return Err(DtdError::new(ErrorKind::InvalidDtd, Some(offset)));
                         }
-                        EntityBody::Internal(result)
+                        EntityBody::Internal(result.into_owned())
                     }
                     EntityDefinitionView::External {
                         identifier,
                         notation,
                     } => {
                         if !parameter && predefined(entity.name()).is_some() {
-                            return Err(error(
-                                CatalogErrorKind::InvalidPredefinedDeclaration,
-                                location,
-                            ));
+                            return Err(DtdError::new(ErrorKind::InvalidDtd, at));
                         }
                         if duplicate {
-                            return Ok(effect);
+                            return Ok(());
                         }
-                        let bytes = checked_sum(
-                            &[
-                                entity.name().len(),
-                                identifier
-                                    .public
-                                    .map_or(0, |raw| identifier_length(raw, context.literals)),
-                                identifier
-                                    .system
-                                    .map_or(0, |raw| identifier_length(raw, context.literals)),
-                                notation.map_or(0, str::len),
-                            ],
-                            location,
-                        )?;
-                        self.store_bytes(bytes, location)?;
-                        self.add_binding(location)?;
-                        let external =
-                            self.external_entity(identifier, notation, context, location)?;
-                        self.insert_entity(
+                        let bytes = checked_sum(&[
+                            entity.name().len(),
+                            identifier
+                                .public
+                                .map_or(0, |raw| identifier_length(raw, context.literals)),
+                            identifier
+                                .system
+                                .map_or(0, |raw| identifier_length(raw, context.literals)),
+                            notation.map_or(0, str::len),
+                        ])?;
+                        self.store_bytes(bytes)?;
+                        self.add_binding()?;
+                        let external = self.external_entity(identifier, notation, context)?;
+                        return self.insert_entity(
                             entity.name(),
                             parameter,
                             EntityBody::External(external),
-                            location,
-                        )?;
-                        effect.bindings_added = 1;
-                        return Ok(effect);
+                        );
                     }
                 };
                 if !duplicate {
@@ -566,13 +399,9 @@ impl DtdCatalog {
                         EntityBody::Internal(value) => value.len(),
                         _ => 0,
                     };
-                    self.store_bytes(
-                        checked_sum(&[entity.name().len(), bytes], location)?,
-                        location,
-                    )?;
-                    self.add_binding(location)?;
-                    self.insert_entity(entity.name(), parameter, body, location)?;
-                    effect.bindings_added = 1;
+                    self.store_bytes(checked_sum(&[entity.name().len(), bytes])?)?;
+                    self.add_binding()?;
+                    self.insert_entity(entity.name(), parameter, body)?;
                 }
             }
             DtdUnitView::AttributeList(list) => {
@@ -589,7 +418,6 @@ impl DtdCatalog {
                                 .default_literal_offset()
                                 .expect("default literal has a token")
                                 + 1;
-                            let mut ignored = 0;
                             let value = self.process_value(
                                 &quoted_literal[1..quoted_literal.len() - 1],
                                 offset,
@@ -597,10 +425,12 @@ impl DtdCatalog {
                                 ValueMode::Attribute {
                                     tokenized: kind != AttributeKind::Cdata,
                                 },
-                                Some(declaration),
-                                ValueRequest::unbounded(&mut ignored),
+                                &mut ValueRequest::default(),
                             )?;
-                            StoredDefault::Value { fixed, value }
+                            StoredDefault::Value {
+                                fixed,
+                                value: value.into_owned(),
+                            }
                         }
                     };
                     let values = match definition.attribute_type() {
@@ -610,14 +440,12 @@ impl DtdCatalog {
                         }
                         _ => Vec::new(),
                     };
-                    let element = self.element_slot(list.element_name(), location)?;
+                    let element = self.element_slot(list.element_name())?;
                     let attribute = AttributeDecl {
-                        name: copy_string(definition.name(), location)?,
-                        name_offset: definition.name_offset(),
+                        name: copy_string(definition.name())?,
                         kind,
                         values,
                         default,
-                        declaration: self.usage.declarations - 1,
                         internal: context.internal_subset,
                     };
                     self.dtd.check_attribute(element, &attribute);
@@ -627,101 +455,76 @@ impl DtdCatalog {
                     {
                         continue;
                     }
-                    self.add_binding(location)?;
+                    self.add_binding()?;
                     let values: usize = attribute.values.iter().map(String::len).sum();
-                    self.store_bytes(
-                        checked_sum(
-                            &[
-                                definition.name().len(),
-                                definition.name().len(),
-                                attribute.default.bytes(),
-                                values,
-                            ],
-                            location,
-                        )?,
-                        location,
-                    )?;
+                    self.store_bytes(checked_sum(&[
+                        definition.name().len(),
+                        definition.name().len(),
+                        attribute.default.value().map_or(0, str::len),
+                        values,
+                    ])?)?;
                     let attributes = &mut self.dtd.elements[element];
-                    attributes
-                        .index
-                        .try_reserve(1)
-                        .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+                    attributes.index.try_reserve(1).map_err(|_| allocation())?;
                     attributes
                         .attributes
                         .try_reserve(1)
-                        .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-                    let key = copy_string(definition.name(), location)?;
+                        .map_err(|_| allocation())?;
+                    let key = copy_string(definition.name())?;
                     attributes.index.insert(key, attributes.attributes.len());
                     attributes.attributes.push(attribute);
-                    effect.bindings_added += 1;
                 }
             }
             DtdUnitView::Element(view) => {
-                let element = self.element_slot(view.name(), location)?;
+                let element = self.element_slot(view.name())?;
                 // Follow-set entries are four bytes: bound them by storage too.
                 let work = self.limits.work - self.usage.work;
                 let storage = self.limits.storage - self.usage.storage_bytes;
-                let (limit, budget) = match work <= storage / 4 {
-                    true => (CatalogLimit::Work, work),
-                    false => (CatalogLimit::StorageBytes, storage / 4),
+                let (kind, budget) = match work <= storage / 4 {
+                    true => (EXPANSION, work),
+                    false => (OWNED, storage / 4),
                 };
                 let mut remaining = budget;
                 let bytes = self
                     .dtd
                     .declare_element(element, view, context.internal_subset, &mut remaining)
-                    .map_err(|_| error(CatalogErrorKind::Limit(limit), location))?;
+                    .map_err(|_| DtdError::new(kind, at))?;
                 self.usage.work += budget - remaining;
-                self.store_bytes(bytes, location)?;
+                self.store_bytes(bytes)?;
             }
             DtdUnitView::Notation(notation) => {
-                self.store_bytes(notation.name().len(), location)?;
+                self.store_bytes(notation.name().len())?;
                 self.dtd
                     .declare_notation(notation.name(), context.internal_subset);
             }
             _ => {}
         }
-        Ok(effect)
+        Ok(())
     }
 
     /// Records general entity `name` for ENTITY attribute validation.
-    fn record_entity(
-        &mut self,
-        name: &str,
-        notation: Option<&str>,
-        location: ValueLocation,
-    ) -> Result<(), CatalogError> {
+    fn record_entity(&mut self, name: &str, notation: Option<&str>) -> Result<(), DtdError> {
         if !self.dtd.entities.contains_key(name) {
-            self.dtd
-                .entities
-                .try_reserve(1)
-                .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-            let notation = copy_optional(notation, location)?;
-            self.dtd
-                .entities
-                .insert(copy_string(name, location)?, notation);
+            self.dtd.entities.try_reserve(1).map_err(|_| allocation())?;
+            let notation = notation.map(copy_string).transpose()?;
+            self.dtd.entities.insert(copy_string(name)?, notation);
         }
         Ok(())
     }
 
     /// The index of `name`'s element declaration, created on first use.
-    fn element_slot(&mut self, name: &str, location: ValueLocation) -> Result<usize, CatalogError> {
+    fn element_slot(&mut self, name: &str) -> Result<usize, DtdError> {
         if let Some(&index) = self.dtd.element_index.get(name) {
             return Ok(index);
         }
-        self.store_bytes(name.len(), location)?;
+        self.store_bytes(name.len())?;
         self.dtd
             .element_index
             .try_reserve(1)
-            .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-        self.dtd
-            .elements
-            .try_reserve(1)
-            .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+            .map_err(|_| allocation())?;
+        self.dtd.elements.try_reserve(1).map_err(|_| allocation())?;
         let index = self.dtd.elements.len();
-        let key = copy_string(name, location)?;
-        self.dtd
-            .elements
-            .push(ElementDecl::new(copy_string(name, location)?));
+        let key = copy_string(name)?;
+        self.dtd.elements.push(ElementDecl::new(copy_string(name)?));
         self.dtd.element_index.insert(key, index);
         Ok(index)
     }
@@ -731,28 +534,23 @@ impl DtdCatalog {
         name: &str,
         parameter: bool,
         body: EntityBody,
-        location: ValueLocation,
-    ) -> Result<(), CatalogError> {
+    ) -> Result<(), DtdError> {
         if !parameter {
             // Validation's copy is bounded by the binding's charged bytes.
             let notation = match &body {
                 EntityBody::External(external) => external.notation.as_deref(),
                 EntityBody::Internal(_) => None,
             };
-            self.record_entity(name, notation, location)?;
+            self.record_entity(name, notation)?;
         }
         let table = if parameter {
             &mut self.parameter
         } else {
             &mut self.general
         };
-        table
-            .try_reserve(1)
-            .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-        self.entities
-            .try_reserve(1)
-            .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-        let name = copy_string(name, location)?;
+        table.try_reserve(1).map_err(|_| allocation())?;
+        self.entities.try_reserve(1).map_err(|_| allocation())?;
+        let name = copy_string(name)?;
         let id = EntityId(self.entities.len());
         self.entities.push(Entity { body, parameter });
         table.insert(name, id);
@@ -764,94 +562,35 @@ impl DtdCatalog {
         identifier: crate::dtd::ExternalIdView<'_>,
         notation: Option<&str>,
         context: DeclarationContext,
-        location: ValueLocation,
-    ) -> Result<ExternalEntity, CatalogError> {
-        let system = copy_identifier(identifier.system, context.literals, location)?;
+    ) -> Result<ExternalEntity, DtdError> {
+        let system = copy_identifier(identifier.system, context.literals)?;
         Ok(ExternalEntity {
-            public: copy_identifier(identifier.public, context.literals, location)?,
+            public: copy_identifier(identifier.public, context.literals)?,
             uri: self
                 .loader
                 .as_ref()
                 .zip(system.as_deref())
                 .map(|(loader, system)| loader.uri(system)),
-            system,
-            notation: copy_optional(notation, location)?,
+            notation: notation.map(copy_string).transpose()?,
             text: None,
             loaded: false,
         })
     }
 
-    fn store_bytes(&mut self, bytes: usize, location: ValueLocation) -> Result<(), CatalogError> {
+    fn store_bytes(&mut self, bytes: usize) -> Result<(), DtdError> {
+        let ceiling = self.limits.storage;
         increment(
             &mut self.usage.storage_bytes,
             bytes,
-            self.limits.storage,
-            CatalogLimit::StorageBytes,
-            location,
+            ceiling,
+            OWNED,
+            Some(0),
         )
     }
 
-    fn add_binding(&mut self, location: ValueLocation) -> Result<(), CatalogError> {
-        increment(
-            &mut self.usage.bindings,
-            1,
-            self.limits.declarations,
-            CatalogLimit::Bindings,
-            location,
-        )
-    }
-
-    pub(crate) fn normalize_attribute_value_bounded(
-        &mut self,
-        element: &str,
-        name: &str,
-        literal_content: &str,
-        source: LiteralSource,
-        caller_value_bytes: usize,
-        requested_value_bytes: &mut usize,
-    ) -> Result<String, CatalogError> {
-        *requested_value_bytes = 0;
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        let result = self.normalize_attribute_value_inner(
-            element,
-            name,
-            literal_content,
-            source,
-            Some(caller_value_bytes),
-            requested_value_bytes,
-        );
-        if let Err(error) = result
-            && error.kind != CatalogErrorKind::CallerValueBytes
-        {
-            self.failure = Some(error);
-        }
-        result
-    }
-
-    fn normalize_attribute_value_inner(
-        &mut self,
-        element: &str,
-        name: &str,
-        literal_content: &str,
-        source: LiteralSource,
-        caller_value_bytes: Option<usize>,
-        requested_value_bytes: &mut usize,
-    ) -> Result<String, CatalogError> {
-        let tokenized = self.tokenized_attribute(element, name);
-        self.process_value(
-            literal_content,
-            0,
-            source,
-            ValueMode::Attribute { tokenized },
-            None,
-            ValueRequest {
-                ceiling: caller_value_bytes,
-                requested: requested_value_bytes,
-                borrow_physical: false,
-            },
-        )
+    fn add_binding(&mut self) -> Result<(), DtdError> {
+        let ceiling = self.limits.declarations;
+        increment(&mut self.usage.bindings, 1, ceiling, DTD_BYTES, Some(0))
     }
 
     fn tokenized_attribute(&self, element: &str, name: &str) -> bool {
@@ -868,70 +607,51 @@ impl DtdCatalog {
             .unwrap_or(false)
     }
 
-    /// Only the caller's physical literal can back the returned borrow.
-    pub(crate) fn normalize_attribute_borrowed_bounded<'raw>(
+    /// Normalizes attribute `name` of `element`, spending at most
+    /// `caller_value_bytes` of new capacity, recorded in `requested`. With
+    /// `borrow`, an unchanged physical literal is returned as is.
+    #[expect(clippy::too_many_arguments, reason = "one normalization request")]
+    pub(crate) fn normalize_attribute<'raw>(
         &mut self,
         element: &str,
         name: &str,
         literal_content: &'raw str,
+        source: LiteralSource,
+        borrow: bool,
         caller_value_bytes: usize,
-        requested_value_bytes: &mut usize,
-    ) -> Result<Cow<'raw, str>, CatalogError> {
-        *requested_value_bytes = 0;
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
+        requested: &mut usize,
+    ) -> Result<Cow<'raw, str>, DtdError> {
         let tokenized = self.tokenized_attribute(element, name);
-        let result = self.process_value_cow(
+        let mut request = ValueRequest {
+            ceiling: Some(caller_value_bytes),
+            requested: 0,
+            borrow_physical: borrow,
+        };
+        let result = self.process_value(
             literal_content,
             0,
-            LiteralSource::Physical,
+            source,
             ValueMode::Attribute { tokenized },
-            None,
-            ValueRequest {
-                ceiling: Some(caller_value_bytes),
-                requested: requested_value_bytes,
-                borrow_physical: true,
-            },
+            &mut request,
         );
-        if let Err(error) = result
-            && error.kind != CatalogErrorKind::CallerValueBytes
-        {
-            self.failure = Some(error);
-        }
+        *requested = request.requested;
         result
     }
 
-    fn process_value(
-        &mut self,
-        raw: &str,
-        offset: usize,
-        source: LiteralSource,
-        mode: ValueMode,
-        declaration: Option<usize>,
-        request: ValueRequest<'_>,
-    ) -> Result<String, CatalogError> {
-        match self.process_value_cow(raw, offset, source, mode, declaration, request)? {
-            Cow::Owned(value) => Ok(value),
-            Cow::Borrowed(_) => unreachable!("owned value policy cannot borrow"),
-        }
-    }
-
-    fn process_value_cow<'raw>(
+    fn process_value<'raw>(
         &mut self,
         raw: &'raw str,
         offset: usize,
         source: LiteralSource,
         mode: ValueMode,
-        declaration: Option<usize>,
-        request: ValueRequest<'_>,
-    ) -> Result<Cow<'raw, str>, CatalogError> {
+        request: &mut ValueRequest,
+    ) -> Result<Cow<'raw, str>, DtdError> {
         // EntityValue admits `%` only to start a PE reference; it sets hasPErefs first.
         if matches!(mode, ValueMode::Entity) && raw.contains('%') {
             self.parameter_reference = true;
         }
         let may_be_unread = self.may_be_unread();
-        let (usage, requested) = (self.usage, *request.requested);
+        let (usage, requested) = (self.usage, request.requested);
         let noted = self.dtd.issues.len();
         loop {
             let mut processor = ValueProcessor {
@@ -941,48 +661,29 @@ impl DtdCatalog {
                 frames: &mut self.frames,
                 limits: self.limits,
                 amplification_ceiling: self.amplification_ceiling,
-                request: ValueRequest {
-                    requested: &mut *request.requested,
-                    ..request
-                },
+                request: &mut *request,
                 usage: &mut self.usage,
                 issues: &mut self.dtd.issues,
                 may_be_unread,
                 loadable: self.loader.is_some(),
                 raw,
                 offset,
-                declaration,
                 source,
                 mode,
             };
             let result = processor.process();
             processor.frames.clear();
             // An external PE inside an entity value is loaded, then the value restarts.
-            let Err(CatalogError {
-                kind: CatalogErrorKind::Load(id),
-                ..
-            }) = result
-            else {
-                return result;
-            };
-            (self.usage, *request.requested) = (usage, requested);
-            self.dtd.issues.truncate(noted);
-            self.load(id)?;
+            match result {
+                Ok(value) => return Ok(value),
+                Err(Stop::Fail(error)) => return Err(error),
+                Err(Stop::Load(id)) => {
+                    (self.usage, request.requested) = (usage, requested);
+                    self.dtd.issues.truncate(noted);
+                    self.load(id)?;
+                }
+            }
         }
-    }
-
-    fn remember<T>(
-        &mut self,
-        operation: impl FnOnce(&mut Self) -> Result<T, CatalogError>,
-    ) -> Result<T, CatalogError> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        let result = operation(self);
-        if let Err(error) = result {
-            self.failure = Some(error);
-        }
-        result
     }
 }
 
@@ -992,19 +693,23 @@ enum ValueMode {
     Attribute { tokenized: bool },
 }
 
-struct ValueRequest<'a> {
+#[derive(Default)]
+struct ValueRequest {
+    /// The caller's remaining capacity for new value storage.
     ceiling: Option<usize>,
-    requested: &'a mut usize,
+    requested: usize,
     borrow_physical: bool,
 }
 
-impl<'a> ValueRequest<'a> {
-    fn unbounded(requested: &'a mut usize) -> Self {
-        Self {
-            ceiling: None,
-            requested,
-            borrow_physical: false,
-        }
+/// Why value processing stopped: a failure, or an external PE to load first.
+enum Stop {
+    Fail(DtdError),
+    Load(EntityId),
+}
+
+impl From<DtdError> for Stop {
+    fn from(error: DtdError) -> Self {
+        Self::Fail(error)
     }
 }
 
@@ -1015,41 +720,30 @@ struct ValueProcessor<'a, 'raw> {
     frames: &'a mut Vec<ValueFrame>,
     limits: DtdLimits,
     amplification_ceiling: usize,
-    request: ValueRequest<'a>,
+    request: &'a mut ValueRequest,
     usage: &'a mut CatalogUsage,
     issues: &'a mut Vec<(Code, Option<usize>, String)>,
     may_be_unread: bool,
     loadable: bool,
     raw: &'raw str,
     offset: usize,
-    declaration: Option<usize>,
     source: LiteralSource,
     mode: ValueMode,
 }
 
 impl<'raw> ValueProcessor<'_, 'raw> {
-    fn input_location(&self, offset: usize) -> ValueLocation {
-        match self.declaration {
-            Some(declaration) => ValueLocation::Declaration {
-                declaration,
-                offset,
-            },
-            None => ValueLocation::Input(offset),
-        }
-    }
-
-    fn process(&mut self) -> Result<Cow<'raw, str>, CatalogError> {
-        let root = self.input_location(self.offset);
+    fn process(&mut self) -> Result<Cow<'raw, str>, Stop> {
+        let root = Some(self.offset);
         increment(
             &mut self.usage.work,
             self.raw.len(),
             self.limits.work,
-            CatalogLimit::Work,
+            EXPANSION,
             root,
         )?;
         self.frames
             .try_reserve(1)
-            .map_err(|_| error(CatalogErrorKind::Allocation, root))?;
+            .map_err(|_| DtdError::new(ALLOCATION, root))?;
         self.frames.push(ValueFrame {
             entity: None,
             cursor: 0,
@@ -1075,44 +769,41 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                 self.frames.pop();
                 continue;
             }
-            let location = match frame.entity {
-                Some(entity) => ValueLocation::Replacement {
-                    entity,
-                    offset: frame.cursor,
-                },
-                None => self.input_location(self.offset + frame.cursor),
-            };
+            // Offsets exist only in the caller's own text.
+            let at = frame.entity.is_none().then_some(self.offset + frame.cursor);
+            let fail = |kind| Stop::Fail(DtdError::new(kind, at));
             let remaining = &text[frame.cursor..];
             let character = remaining.chars().next().expect("nonempty UTF-8 frame");
             let mut consumed = character.len_utf8();
             if !xml_char(character) {
-                return Err(error(CatalogErrorKind::InvalidCharacter, location));
+                return Err(fail(ErrorKind::InvalidCharacter));
             }
             let is_entity = matches!(self.mode, ValueMode::Entity);
             if character == '&' || (is_entity && character == '%') {
-                let reference = parse_reference(remaining, character, location)?;
-                consumed = reference.spelling.len();
+                let (spelling, reference) =
+                    parse_reference(remaining).ok_or(fail(ErrorKind::InvalidReference))?;
+                consumed = spelling.len();
                 increment(
                     &mut self.usage.references,
                     1,
                     self.limits.references,
-                    CatalogLimit::References,
-                    location,
+                    limit(Limit::EntityReferences),
+                    at,
                 )?;
                 self.frames.last_mut().expect("active value frame").cursor += consumed;
-                match reference.value {
+                match reference {
                     Reference::Character(character) => {
-                        self.emit(&mut output, &mut pending_space, character, location)?
+                        self.emit(&mut output, &mut pending_space, character, at)?
                     }
                     Reference::Named(_) if is_entity && character == '&' => {
                         // Every GE, including predefined names, is bypassed in EntityValue.
-                        for character in reference.spelling.chars() {
-                            self.emit(&mut output, &mut pending_space, character, location)?;
+                        for character in spelling.chars() {
+                            self.emit(&mut output, &mut pending_space, character, at)?;
                         }
                     }
                     Reference::Named(name) => {
                         if !is_entity && let Some(character) = predefined(name) {
-                            self.emit(&mut output, &mut pending_space, character, location)?;
+                            self.emit(&mut output, &mut pending_space, character, at)?;
                             continue;
                         }
                         let table = if is_entity {
@@ -1128,49 +819,43 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                                 self.issues.push((Code::UndeclaredEntity, None, message));
                                 continue;
                             }
-                            return Err(error(CatalogErrorKind::EntityDeclared, location));
+                            return Err(fail(ErrorKind::UnknownEntity));
                         };
                         match &self.entities[id.0].body {
                             EntityBody::External(external) if !is_entity => {
-                                return Err(error(
-                                    if external.notation.is_some() {
-                                        CatalogErrorKind::UnparsedEntity
-                                    } else {
-                                        CatalogErrorKind::ExternalInAttribute
-                                    },
-                                    location,
-                                ));
+                                return Err(fail(match external.notation {
+                                    Some(_) => ErrorKind::UnparsedEntity,
+                                    None => ErrorKind::ExternalEntityInAttribute,
+                                }));
                             }
                             EntityBody::External(external) if external.text.is_none() => {
                                 if self.loadable && !external.loaded {
-                                    return Err(error(CatalogErrorKind::Load(id), location));
+                                    return Err(Stop::Load(id));
                                 }
                                 continue;
                             }
                             body => {
                                 let replacement = body.text().expect("checked replacement");
+                                let work = self.limits.work;
                                 increment(
                                     &mut self.usage.work,
                                     self.frames.len(),
-                                    self.limits.work,
-                                    CatalogLimit::Work,
-                                    location,
+                                    work,
+                                    EXPANSION,
+                                    at,
                                 )?;
                                 if self.frames.iter().any(|frame| frame.entity == Some(id)) {
-                                    return Err(error(CatalogErrorKind::Recursion, location));
+                                    return Err(fail(ErrorKind::EntityLoop));
                                 }
                                 if self.frames.len() > self.limits.depth {
-                                    return Err(error(
-                                        CatalogErrorKind::Limit(CatalogLimit::Depth),
-                                        location,
-                                    ));
+                                    return Err(fail(limit(Limit::EntityDepth)));
                                 }
                                 increment(
                                     &mut self.usage.work,
                                     replacement.len(),
-                                    self.limits.work,
-                                    CatalogLimit::Work,
-                                    location,
+                                    work,
+                                    EXPANSION,
+                                    at,
                                 )?;
                                 // libxml2 charges each entered replacement plus a fixed cost.
                                 increment(
@@ -1179,12 +864,10 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                                         .len()
                                         .saturating_add(crate::dtd_controller::ENTITY_FIXED_COST),
                                     self.amplification_ceiling,
-                                    CatalogLimit::ExpandedBytes,
-                                    location,
+                                    EXPANSION,
+                                    at,
                                 )?;
-                                self.frames
-                                    .try_reserve(1)
-                                    .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+                                self.frames.try_reserve(1).map_err(|_| fail(ALLOCATION))?;
                                 self.frames.push(ValueFrame {
                                     entity: Some(id),
                                     cursor: 0,
@@ -1205,7 +888,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                 character
             };
             if !is_entity && character == '<' {
-                return Err(error(CatalogErrorKind::LessThanInAttribute, location));
+                return Err(fail(ErrorKind::Syntax));
             }
             let character = if !is_entity && matches!(character, '\r' | '\n' | '\t') {
                 ' '
@@ -1213,7 +896,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                 character
             };
             self.frames.last_mut().expect("active value frame").cursor += consumed;
-            self.emit(&mut output, &mut pending_space, character, location)?;
+            self.emit(&mut output, &mut pending_space, character, at)?;
         }
         if matches!(&output, ValueOutput::Matching { raw, matched } if *matched != raw.len()) {
             self.materialize(&mut output, root)?;
@@ -1229,14 +912,14 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         output: &mut ValueOutput<'raw>,
         pending_space: &mut bool,
         character: char,
-        location: ValueLocation,
-    ) -> Result<(), CatalogError> {
+        at: Option<usize>,
+    ) -> Result<(), DtdError> {
         increment(
             &mut self.usage.expanded_bytes,
             character.len_utf8(),
             self.limits.expansion,
-            CatalogLimit::ExpandedBytes,
-            location,
+            EXPANSION,
+            at,
         )?;
         if matches!(self.mode, ValueMode::Attribute { tokenized: true }) {
             if character == ' ' {
@@ -1244,32 +927,30 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                 return Ok(());
             }
             if *pending_space {
-                self.append_output(output, ' ', location)?;
+                self.append_output(output, ' ', at)?;
                 *pending_space = false;
             }
         }
-        self.append_output(output, character, location)
+        self.append_output(output, character, at)
     }
 
     fn append_output(
         &mut self,
         output: &mut ValueOutput<'raw>,
         character: char,
-        location: ValueLocation,
-    ) -> Result<(), CatalogError> {
+        at: Option<usize>,
+    ) -> Result<(), DtdError> {
         if let ValueOutput::Matching { raw, matched } = output {
             let needed = matched
                 .checked_add(character.len_utf8())
                 .filter(|length| *length <= self.limits.token)
-                .ok_or_else(|| {
-                    error(CatalogErrorKind::Limit(CatalogLimit::ValueBytes), location)
-                })?;
+                .ok_or(DtdError::new(VALUE_BYTES, at))?;
             increment(
                 &mut self.usage.work,
                 character.len_utf8(),
                 self.limits.work,
-                CatalogLimit::Work,
-                location,
+                EXPANSION,
+                at,
             )?;
             let mut encoded = [0; 4];
             if raw.as_bytes().get(*matched..needed)
@@ -1278,26 +959,37 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                 *matched = needed;
                 return Ok(());
             }
-            self.materialize(output, self.input_location(self.offset))?;
+            self.materialize(output, Some(self.offset))?;
         }
         let ValueOutput::Owned(output) = output else {
             unreachable!("materialized output")
         };
-        append(
-            output,
-            character,
-            self.limits.token,
-            self.request.ceiling,
-            self.request.requested,
-            location,
-        )
+        let needed = output
+            .len()
+            .checked_add(character.len_utf8())
+            .filter(|length| *length <= self.limits.token)
+            .ok_or(DtdError::new(VALUE_BYTES, at))?;
+        if needed > output.capacity() {
+            let target = output
+                .capacity()
+                .saturating_mul(2)
+                .max(64)
+                .max(needed)
+                .min(self.limits.token);
+            self.request_capacity(target, at)?;
+            output
+                .try_reserve_exact(target - output.len())
+                .map_err(|_| DtdError::new(ALLOCATION, at))?;
+        }
+        output.push(character);
+        Ok(())
     }
 
     fn materialize(
         &mut self,
         output: &mut ValueOutput<'raw>,
-        location: ValueLocation,
-    ) -> Result<(), CatalogError> {
+        at: Option<usize>,
+    ) -> Result<(), DtdError> {
         let ValueOutput::Matching { raw, matched } = output else {
             return Ok(());
         };
@@ -1305,26 +997,27 @@ impl<'raw> ValueProcessor<'_, 'raw> {
             &mut self.usage.work,
             *matched,
             self.limits.work,
-            CatalogLimit::Work,
-            location,
+            EXPANSION,
+            at,
         )?;
         let mut owned = String::new();
         if *matched != 0 {
             let target = (*matched).max(64).min(self.limits.token);
-            if let Some(ceiling) = self.request.ceiling {
-                *self.request.requested = self
-                    .request
-                    .requested
-                    .checked_add(target)
-                    .filter(|total| *total <= ceiling)
-                    .ok_or_else(|| error(CatalogErrorKind::CallerValueBytes, location))?;
-            }
+            self.request_capacity(target, at)?;
             owned
                 .try_reserve_exact(target)
-                .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+                .map_err(|_| DtdError::new(ALLOCATION, at))?;
             owned.push_str(&raw[..*matched]);
         }
         *output = ValueOutput::Owned(owned);
+        Ok(())
+    }
+
+    /// Spends `bytes` of the caller's value capacity, when it set one.
+    fn request_capacity(&mut self, bytes: usize, at: Option<usize>) -> Result<(), DtdError> {
+        if let Some(ceiling) = self.request.ceiling {
+            increment(&mut self.request.requested, bytes, ceiling, OWNED, at)?;
+        }
         Ok(())
     }
 }
@@ -1342,67 +1035,23 @@ impl ValueOutput<'_> {
     }
 }
 
-struct ParsedReference<'a> {
-    spelling: &'a str,
-    value: Reference<'a>,
-}
 enum Reference<'a> {
     Character(char),
     Named(&'a str),
 }
 
-fn parse_reference(
-    raw: &str,
-    delimiter: char,
-    location: ValueLocation,
-) -> Result<ParsedReference<'_>, CatalogError> {
-    let invalid = || error(CatalogErrorKind::InvalidReference, location);
-    if !raw.starts_with(delimiter) {
-        return Err(invalid());
-    }
-    let end = raw.find(';').ok_or_else(invalid)?;
+/// The reference spelled at the start of `raw` through its `;`, and its value.
+fn parse_reference(raw: &str) -> Option<(&str, Reference<'_>)> {
+    let end = raw.find(';')?;
     let body = &raw[1..end];
-    let value = if delimiter == '&' && body.starts_with('#') {
-        let (digits, radix) = match body.strip_prefix("#x") {
-            Some(digits) => (digits, 16),
-            None => (&body[1..], 10),
-        };
-        if digits.is_empty()
-            || !digits.bytes().all(|byte| {
-                if radix == 16 {
-                    byte.is_ascii_hexdigit()
-                } else {
-                    byte.is_ascii_digit()
-                }
-            })
-        {
-            return Err(invalid());
+    let value = match body.strip_prefix('#').filter(|_| raw.starts_with('&')) {
+        Some(number) => Reference::Character(numeric_reference(number)?),
+        None => {
+            validate_name(body, 0, true).ok()?;
+            Reference::Named(body)
         }
-        let character = u32::from_str_radix(digits, radix)
-            .ok()
-            .and_then(char::from_u32)
-            .filter(|character| xml_char(*character))
-            .ok_or_else(invalid)?;
-        Reference::Character(character)
-    } else {
-        validate_name(body, 0, true).map_err(|_| invalid())?;
-        Reference::Named(body)
     };
-    Ok(ParsedReference {
-        spelling: &raw[..=end],
-        value,
-    })
-}
-
-fn predefined(name: &str) -> Option<char> {
-    match name {
-        "lt" => Some('<'),
-        "gt" => Some('>'),
-        "amp" => Some('&'),
-        "apos" => Some('\''),
-        "quot" => Some('"'),
-        _ => None,
-    }
+    Some((&raw[..=end], value))
 }
 
 fn valid_predefined(name: &str, character: char, replacement: &str) -> bool {
@@ -1412,81 +1061,41 @@ fn valid_predefined(name: &str, character: char, replacement: &str) -> bool {
     {
         return true;
     }
-    let Ok(reference) = parse_reference(replacement, '&', ValueLocation::Input(0)) else {
-        return false;
-    };
-    reference.spelling.len() == replacement.len()
-        && matches!(reference.value,Reference::Character(found) if found==character)
+    replacement.starts_with('&')
+        && matches!(parse_reference(replacement),
+            Some((spelling, Reference::Character(found)))
+                if spelling.len() == replacement.len() && found == character)
 }
 
-fn append(
-    output: &mut String,
-    character: char,
-    ceiling: usize,
-    caller_ceiling: Option<usize>,
-    requested: &mut usize,
-    location: ValueLocation,
-) -> Result<(), CatalogError> {
-    let needed = output
-        .len()
-        .checked_add(character.len_utf8())
-        .filter(|length| *length <= ceiling)
-        .ok_or_else(|| error(CatalogErrorKind::Limit(CatalogLimit::ValueBytes), location))?;
-    if needed > output.capacity() {
-        let target = output
-            .capacity()
-            .saturating_mul(2)
-            .max(64)
-            .max(needed)
-            .min(ceiling);
-        if let Some(caller_ceiling) = caller_ceiling {
-            *requested = requested
-                .checked_add(target)
-                .filter(|total| *total <= caller_ceiling)
-                .ok_or_else(|| error(CatalogErrorKind::CallerValueBytes, location))?;
-        }
-        output
-            .try_reserve_exact(target - output.len())
-            .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
-    }
-    output.push(character);
-    Ok(())
-}
-
-fn error(kind: CatalogErrorKind, location: ValueLocation) -> CatalogError {
-    CatalogError { kind, location }
+fn allocation() -> DtdError {
+    DtdError::new(ALLOCATION, Some(0))
 }
 
 fn increment(
     value: &mut usize,
     amount: usize,
     ceiling: usize,
-    limit: CatalogLimit,
-    location: ValueLocation,
-) -> Result<(), CatalogError> {
+    kind: ErrorKind,
+    at: Option<usize>,
+) -> Result<(), DtdError> {
     *value = value
         .checked_add(amount)
         .filter(|total| *total <= ceiling)
-        .ok_or_else(|| error(CatalogErrorKind::Limit(limit), location))?;
+        .ok_or(DtdError::new(kind, at))?;
     Ok(())
 }
 
-fn checked_sum(values: &[usize], location: ValueLocation) -> Result<usize, CatalogError> {
+fn checked_sum(values: &[usize]) -> Result<usize, DtdError> {
     values.iter().try_fold(0usize, |sum, value| {
-        sum.checked_add(*value).ok_or_else(|| {
-            error(
-                CatalogErrorKind::Limit(CatalogLimit::StorageBytes),
-                location,
-            )
-        })
+        sum.checked_add(*value).ok_or(DtdError::new(OWNED, Some(0)))
     })
 }
 
-fn copy_string(raw: &str, location: ValueLocation) -> Result<String, CatalogError> {
+fn copy_string(raw: &str) -> Result<String, DtdError> {
     let mut value = String::new();
     value
         .try_reserve_exact(raw.len())
-        .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+        .map_err(|_| allocation())?;
     value.push_str(raw);
     Ok(value)
 }
@@ -1508,15 +1117,14 @@ fn identifier_length(quoted: &str, source: LiteralSource) -> usize {
 fn copy_identifier(
     quoted: Option<&str>,
     source: LiteralSource,
-    location: ValueLocation,
-) -> Result<Option<String>, CatalogError> {
+) -> Result<Option<String>, DtdError> {
     let Some(quoted) = quoted else {
         return Ok(None);
     };
     let mut output = String::new();
     output
         .try_reserve_exact(identifier_length(quoted, source))
-        .map_err(|_| error(CatalogErrorKind::Allocation, location))?;
+        .map_err(|_| allocation())?;
     let mut characters = quoted[1..quoted.len() - 1].chars().peekable();
     while let Some(character) = characters.next() {
         if source == LiteralSource::Physical && character == '\r' {
@@ -1529,11 +1137,4 @@ fn copy_identifier(
         }
     }
     Ok(Some(output))
-}
-
-fn copy_optional(
-    raw: Option<&str>,
-    location: ValueLocation,
-) -> Result<Option<String>, CatalogError> {
-    raw.map(|value| copy_string(value, location)).transpose()
 }

@@ -1,166 +1,10 @@
 //! Streaming composition of the ordinary token loop with DTD and entity phases.
 use super::*;
+use crate::Doctype;
 use crate::dtd::DtdLimits;
-use crate::dtd_catalog::{CatalogErrorKind, CatalogLimit};
-use crate::dtd_controller::content::{
-    ContentController, ContentError, ContentErrorKind, ContentOutcome,
-};
+use crate::dtd_controller::content::{ContentController, ContentOutcome};
 use crate::dtd_controller::{DtdController, DtdEvent};
-use crate::dtd_frames::{FragmentOrigin, FrameErrorKind, FrameLimit, LookupFailure};
-use crate::dtd_reference::{ReferenceErrorKind, ReferenceLimit};
-use crate::dtd_tag::DtdTagErrorKind;
-use crate::tokenizer::local::LocalErrorKind;
-use crate::tokenizer::reference::ReferenceCursorErrorKind;
-use crate::tokenizer::text::TextErrorKind;
-use crate::{Doctype, Limit};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum SessionError {
-    Xml(Error),
-    Content(ContentError),
-    Allocation { physical_offset: usize },
-    Poisoned { physical_offset: usize },
-}
-impl SessionError {
-    pub(crate) fn physical_offset(self) -> usize {
-        match self {
-            Self::Xml(error) => error.offset,
-            Self::Content(error) => error.physical_offset,
-            Self::Allocation { physical_offset } | Self::Poisoned { physical_offset } => {
-                physical_offset
-            }
-        }
-    }
-    // Decoder's callback accepts Error. The actual typed phase failure is kept
-    // beside this private stop signal and returned instead of exposing it.
-    fn decoder_stop(self) -> Error {
-        Error::new(ErrorKind::InvalidState, self.physical_offset())
-    }
-}
-impl From<Error> for SessionError {
-    fn from(error: Error) -> Self {
-        Self::Xml(error)
-    }
-}
-impl From<ContentError> for SessionError {
-    fn from(error: ContentError) -> Self {
-        Self::Content(error)
-    }
-}
-
-/// Every private phase failure surfaces as one public kind at its physical offset.
-impl From<SessionError> for Error {
-    fn from(error: SessionError) -> Self {
-        let kind = match error {
-            SessionError::Xml(error) => return error,
-            SessionError::Content(error) => content_kind(error.kind),
-            SessionError::Allocation { .. } => ErrorKind::Allocation,
-            SessionError::Poisoned { .. } => ErrorKind::InvalidState,
-        };
-        Error::new(kind, error.physical_offset())
-    }
-}
-
-const fn limit(limit: Limit) -> ErrorKind {
-    ErrorKind::LimitExceeded(limit)
-}
-
-pub(crate) fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
-    match kind {
-        CatalogErrorKind::EntityDeclared => ErrorKind::UnknownEntity,
-        CatalogErrorKind::ExternalInAttribute => ErrorKind::ExternalEntityInAttribute,
-        CatalogErrorKind::UnparsedEntity => ErrorKind::UnparsedEntity,
-        CatalogErrorKind::LessThanInAttribute => ErrorKind::Syntax,
-        CatalogErrorKind::Recursion => ErrorKind::EntityLoop,
-        CatalogErrorKind::ParameterInInternalDeclaration
-        | CatalogErrorKind::InvalidPredefinedDeclaration => ErrorKind::InvalidDtd,
-        CatalogErrorKind::InvalidReference => ErrorKind::InvalidReference,
-        CatalogErrorKind::Namespace => ErrorKind::Namespace,
-        CatalogErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
-        CatalogErrorKind::CallerValueBytes | CatalogErrorKind::Limit(CatalogLimit::ValueBytes) => {
-            limit(Limit::TokenBytes)
-        }
-        CatalogErrorKind::Limit(CatalogLimit::Declarations | CatalogLimit::Bindings) => {
-            limit(Limit::DtdBytes)
-        }
-        CatalogErrorKind::Limit(CatalogLimit::StorageBytes) => limit(Limit::OwnedBytes),
-        CatalogErrorKind::Limit(CatalogLimit::ExpandedBytes | CatalogLimit::Work) => {
-            limit(Limit::EntityExpansion)
-        }
-        CatalogErrorKind::Limit(CatalogLimit::References) => limit(Limit::EntityReferences),
-        CatalogErrorKind::Limit(CatalogLimit::Depth) => limit(Limit::EntityDepth),
-        CatalogErrorKind::Allocation => ErrorKind::Allocation,
-        CatalogErrorKind::Xml(kind) => kind,
-        CatalogErrorKind::Load(_) => ErrorKind::InvalidState,
-    }
-}
-
-pub(crate) fn frame_kind(kind: FrameErrorKind) -> ErrorKind {
-    match kind {
-        FrameErrorKind::Lookup(LookupFailure::Unparsed) => ErrorKind::UnparsedEntity,
-        FrameErrorKind::Lookup(_) => ErrorKind::UnknownEntity,
-        FrameErrorKind::Cycle => ErrorKind::EntityLoop,
-        FrameErrorKind::LimitExceeded(FrameLimit::ActiveDepth) => limit(Limit::EntityDepth),
-        FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts) => {
-            limit(Limit::EntityReferences)
-        }
-        FrameErrorKind::LimitExceeded(FrameLimit::Work | FrameLimit::ExpandedBytes)
-        | FrameErrorKind::CounterOverflow(_) => limit(Limit::EntityExpansion),
-        FrameErrorKind::PrematureEnd
-        | FrameErrorKind::BoundaryMismatch
-        | FrameErrorKind::ElementBoundaryCrossing
-        | FrameErrorKind::ElementDepthMismatch => ErrorKind::UnbalancedEntity,
-        FrameErrorKind::Allocation => ErrorKind::Allocation,
-        FrameErrorKind::InvalidSpan
-        | FrameErrorKind::InvalidContext
-        | FrameErrorKind::KindMismatch
-        | FrameErrorKind::InvocationIdsExhausted
-        | FrameErrorKind::NoActiveFrame
-        | FrameErrorKind::SourceMismatch => ErrorKind::InvalidState,
-    }
-}
-
-fn content_kind(kind: ContentErrorKind) -> ErrorKind {
-    match kind {
-        ContentErrorKind::Text(kind) => match kind {
-            TextErrorKind::Xml(kind) | TextErrorKind::Local(LocalErrorKind::Xml(kind)) => kind,
-            TextErrorKind::Local(LocalErrorKind::ForbiddenMarkup) => ErrorKind::Syntax,
-            TextErrorKind::Local(LocalErrorKind::Work) | TextErrorKind::Work => {
-                limit(Limit::EntityExpansion)
-            }
-            TextErrorKind::Reference(kind) => match kind {
-                ReferenceErrorKind::Syntax => ErrorKind::InvalidReference,
-                ReferenceErrorKind::InvalidUtf8 => ErrorKind::InvalidUtf8,
-                ReferenceErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
-                ReferenceErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
-                ReferenceErrorKind::Limit(ReferenceLimit::Bytes) => limit(Limit::TokenBytes),
-                ReferenceErrorKind::Limit(ReferenceLimit::Work) => limit(Limit::EntityExpansion),
-                ReferenceErrorKind::Allocation => ErrorKind::Allocation,
-                ReferenceErrorKind::PositionOverflow
-                | ReferenceErrorKind::InvalidState
-                | ReferenceErrorKind::Sealed => ErrorKind::InvalidState,
-            },
-            TextErrorKind::Cursor(ReferenceCursorErrorKind::Limit(kind)) => limit(kind),
-            TextErrorKind::Scratch | TextErrorKind::ScratchOverflow => limit(Limit::TokenBytes),
-            TextErrorKind::Local(_)
-            | TextErrorKind::Cursor(_)
-            | TextErrorKind::PositionOverflow
-            | TextErrorKind::InvalidState
-            | TextErrorKind::SourceMismatch => ErrorKind::InvalidState,
-        },
-        ContentErrorKind::Frame(kind) => frame_kind(kind),
-        ContentErrorKind::Tag(kind) => match kind {
-            DtdTagErrorKind::Parser(kind) => kind,
-            DtdTagErrorKind::Catalog(kind) => catalog_kind(kind),
-            DtdTagErrorKind::PositionOverflow => ErrorKind::InvalidState,
-        },
-        ContentErrorKind::Parser(kind) | ContentErrorKind::Callback(kind) => kind,
-        ContentErrorKind::Work => limit(Limit::EntityExpansion),
-        ContentErrorKind::PhysicalBytes => limit(Limit::InputBytes),
-        ContentErrorKind::Allocation => ErrorKind::Allocation,
-        ContentErrorKind::InvalidState | ContentErrorKind::Poisoned => ErrorKind::InvalidState,
-    }
-}
+use crate::dtd_frames::FragmentOrigin;
 
 #[expect(
     clippy::large_enum_variant,
@@ -208,7 +52,7 @@ enum Drain {
 
 #[derive(Clone, Copy)]
 enum Failure {
-    Error(SessionError),
+    Error(Error),
     Poisoned,
 }
 
@@ -294,32 +138,32 @@ impl StreamingSession {
         Ok(Some((event, origin)))
     }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
-    pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {
+    pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, Error> {
         self.remember(|s| {
             if s.finished || (s.finalizing && (!input.is_empty() || s.delivery != Delivery::Ready))
             {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()).into());
+                return Err(Error::new(ErrorKind::InvalidState, s.position()));
             }
             s.prepare_inner(input)
         })
     }
     /// Seal physical EOF while allowing a parked Ready token to be lent once.
-    pub(crate) fn finish_step(&mut self) -> Result<SessionStep, SessionError> {
+    pub(crate) fn finish_step(&mut self) -> Result<SessionStep, Error> {
         self.remember(|s| {
             if s.delivery == Delivery::Lent {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()).into());
+                return Err(Error::new(ErrorKind::InvalidState, s.position()));
             }
             s.finalizing = true;
             s.prepare_inner(&[])
         })
     }
     /// Publish once and lend source storage until the returned borrow ends.
-    pub(crate) fn lend(&mut self) -> Result<(Event<'_>, SourceOrigin), SessionError> {
+    pub(crate) fn lend(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         if let Some(error) = self.stored_failure() {
             return Err(error);
         }
         if self.delivery != Delivery::Ready {
-            let error = Error::new(ErrorKind::InvalidState, self.position()).into();
+            let error = Error::new(ErrorKind::InvalidState, self.position());
             self.failure = Some(Failure::Error(error));
             return Err(error);
         }
@@ -345,12 +189,12 @@ impl StreamingSession {
         }
     }
     /// Confirm delivery and release the paused source; no entity is entered here.
-    pub(crate) fn acknowledge(&mut self) -> Result<(), SessionError> {
+    pub(crate) fn acknowledge(&mut self) -> Result<(), Error> {
         self.remember(Self::acknowledge_inner)
     }
-    fn acknowledge_inner(&mut self) -> Result<(), SessionError> {
+    fn acknowledge_inner(&mut self) -> Result<(), Error> {
         if self.delivery != Delivery::Lent {
-            return Err(Error::new(ErrorKind::InvalidState, self.position()).into());
+            return Err(Error::new(ErrorKind::InvalidState, self.position()));
         }
         if let Some(ordinary) = &mut self.ordinary {
             ordinary.release();
@@ -367,10 +211,10 @@ impl StreamingSession {
         &mut self,
         input: &[u8],
         emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
-    ) -> Result<usize, SessionError> {
+    ) -> Result<usize, Error> {
         self.remember(|s| {
             if s.finalizing || s.finished {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()).into());
+                return Err(Error::new(ErrorKind::InvalidState, s.position()));
             }
             s.drive(input, emit)
         })
@@ -378,13 +222,13 @@ impl StreamingSession {
     pub(crate) fn finish(
         &mut self,
         emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
-    ) -> Result<(), SessionError> {
+    ) -> Result<(), Error> {
         self.remember(|s| {
             if s.finished {
                 return Ok(());
             }
             if s.delivery == Delivery::Lent {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()).into());
+                return Err(Error::new(ErrorKind::InvalidState, s.position()));
             }
             s.finalizing = true;
             s.drive(&[], emit).map(|_| ())
@@ -394,7 +238,7 @@ impl StreamingSession {
         &mut self,
         input: &[u8],
         emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
-    ) -> Result<usize, SessionError> {
+    ) -> Result<usize, Error> {
         let mut consumed = 0;
         if let Some(ordinary) = &mut self.ordinary
             && self.delivery == Delivery::Idle
@@ -439,9 +283,9 @@ impl StreamingSession {
             }
         }
     }
-    fn prepare_inner(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {
+    fn prepare_inner(&mut self, input: &[u8]) -> Result<SessionStep, Error> {
         if self.delivery == Delivery::Lent {
-            return Err(Error::new(ErrorKind::InvalidState, self.position()).into());
+            return Err(Error::new(ErrorKind::InvalidState, self.position()));
         }
         if self.delivery == Delivery::Ready {
             return Ok(SessionStep {
@@ -499,7 +343,7 @@ impl StreamingSession {
                         outcome: SessionOutcome::NeedInput,
                     });
                 }
-                return Err(Error::new(ErrorKind::InvalidState, ordinary.position()).into());
+                return Err(Error::new(ErrorKind::InvalidState, ordinary.position()));
             } else {
                 let session = self.session.first_mut().expect("one active DTD session");
                 match session.drain(self.limits, self.decode)? {
@@ -533,17 +377,17 @@ impl StreamingSession {
                         });
                     }
                     if progress.consumed == 0 {
-                        return Err(Error::new(ErrorKind::InvalidState, session.position()).into());
+                        return Err(Error::new(ErrorKind::InvalidState, session.position()));
                     }
                 }
             }
         }
     }
-    fn start_dtd(&mut self) -> Result<(), SessionError> {
+    fn start_dtd(&mut self) -> Result<(), Error> {
         let ordinary = self.ordinary.as_ref().expect("ordinary phase");
         let (_, raw, span) = ordinary.tokenizer.current().expect("DTD prefix ready");
         if raw != b"<!DOCTYPE" {
-            return Err(Error::new(ErrorKind::InvalidState, span.source.start).into());
+            return Err(Error::new(ErrorKind::InvalidState, span.source.start));
         }
         ordinary.state.check_doctype_start(span.source.start)?;
         let encoding = span.encoding;
@@ -551,9 +395,7 @@ impl StreamingSession {
         let decoded_start = span.decoded.start;
         self.session
             .try_reserve_exact(1)
-            .map_err(|_| SessionError::Allocation {
-                physical_offset: physical_start,
-            })?;
+            .map_err(|_| Error::new(ErrorKind::Allocation, physical_start))?;
         self.physical = ordinary.position();
         let Stream {
             tokenizer,
@@ -577,7 +419,6 @@ impl StreamingSession {
         let mut raw = Vec::new();
         let result = controller
             .advance(prefix, state.owned_budget())
-            .map_err(SessionError::from)
             .and_then(|consumed| {
                 capture(
                     &mut raw,
@@ -585,7 +426,6 @@ impl StreamingSession {
                     state.owned_budget(),
                     physical_start,
                 )
-                .map_err(SessionError::from)
             });
         drop(tokenizer);
         self.session.push(DtdSession {
@@ -600,21 +440,16 @@ impl StreamingSession {
         });
         result
     }
-    fn stored_failure(&mut self) -> Option<SessionError> {
+    fn stored_failure(&mut self) -> Option<Error> {
         let failure = self.failure?;
         let error = match failure {
             Failure::Error(error) => error,
-            Failure::Poisoned => SessionError::Poisoned {
-                physical_offset: self.position(),
-            },
+            Failure::Poisoned => Error::new(ErrorKind::InvalidState, self.position()),
         };
         self.failure = Some(Failure::Error(error));
         Some(error)
     }
-    fn remember<T>(
-        &mut self,
-        run: impl FnOnce(&mut Self) -> Result<T, SessionError>,
-    ) -> Result<T, SessionError> {
+    fn remember<T>(&mut self, run: impl FnOnce(&mut Self) -> Result<T, Error>) -> Result<T, Error> {
         if let Some(error) = self.stored_failure() {
             return Err(error);
         }
@@ -649,7 +484,7 @@ impl DtdSession {
             None => self.physical,
         })
     }
-    fn drain(&mut self, limits: Limits, decode: DecodeLimits) -> Result<Drain, SessionError> {
+    fn drain(&mut self, limits: Limits, decode: DecodeLimits) -> Result<Drain, Error> {
         loop {
             match self.phase.as_mut().expect("owned semantic phase") {
                 Phase::Declarations {
@@ -691,8 +526,7 @@ impl DtdSession {
                             return Err(Error::new(
                                 ErrorKind::InvalidState,
                                 controller.physical_position(),
-                            )
-                            .into());
+                            ));
                         }
                         return Ok(Drain::NeedInput);
                     }
@@ -706,8 +540,7 @@ impl DtdSession {
                     match step.outcome {
                         ContentOutcome::EventReady => {
                             if controller.is_non_event() {
-                                controller
-                                    .emit(&mut |_, _, _| unreachable!("classified non-event"))?;
+                                controller.skip_non_event()?;
                                 continue;
                             }
                             return Ok(Drain::Ready);
@@ -718,8 +551,7 @@ impl DtdSession {
                                 return Err(Error::new(
                                     ErrorKind::InvalidState,
                                     controller.position().1,
-                                )
-                                .into());
+                                ));
                             }
                             return Ok(Drain::NeedInput);
                         }
@@ -729,7 +561,7 @@ impl DtdSession {
             }
         }
     }
-    fn advance_decoder(&mut self, input: &[u8]) -> Result<DecodeProgress, SessionError> {
+    fn advance_decoder(&mut self, input: &[u8]) -> Result<DecodeProgress, Error> {
         let mut failure = None;
         let phase = self.phase.as_mut().expect("semantic phase");
         let result = self
@@ -738,9 +570,9 @@ impl DtdSession {
         if let Some(error) = failure {
             return Err(error);
         }
-        result.map_err(SessionError::Xml)
+        result
     }
-    fn finish_decoder(&mut self) -> Result<(), SessionError> {
+    fn finish_decoder(&mut self) -> Result<(), Error> {
         if self.decoder_finished {
             return Ok(());
         }
@@ -768,7 +600,7 @@ fn lend_current<'event>(
     session: &'event mut [DtdSession],
     standalone: &mut bool,
     last_origin: &mut Option<SourceOrigin>,
-) -> Result<LentSession<'event>, SessionError> {
+) -> Result<LentSession<'event>, Error> {
     let (event, origin, budget) = if let Some(ordinary) = ordinary {
         let at = ordinary.position();
         let (event, origin) = super::parse(&ordinary.tokenizer, &mut ordinary.state)?
@@ -821,15 +653,15 @@ fn lend_current<'event>(
 fn phase_decode(
     phase: &mut Phase,
     decoded: Decoded<'_>,
-    failure: &mut Option<SessionError>,
+    failure: &mut Option<Error>,
 ) -> Result<DecodeProgress, Error> {
-    let result = (|| -> Result<DecodeProgress, SessionError> {
+    let result = (|| -> Result<DecodeProgress, Error> {
         let Decoded::Bytes(bytes) = decoded else {
             let at = match phase {
                 Phase::Declarations { controller, .. } => controller.physical_position(),
                 Phase::Content(controller) => controller.position().1,
             };
-            return Err(Error::new(ErrorKind::InvalidState, at).into());
+            return Err(Error::new(ErrorKind::InvalidState, at));
         };
         match phase {
             Phase::Declarations {
@@ -860,6 +692,8 @@ fn phase_decode(
     })();
     result.map_err(|error| {
         *failure = Some(error);
-        error.decoder_stop()
+        // The decoder's callback takes Error; the typed phase failure is kept
+        // beside this stop signal and returned instead of it.
+        Error::new(ErrorKind::InvalidState, error.offset)
     })
 }

@@ -536,10 +536,6 @@ impl<'a> AttributeDefinitionView<'a> {
         self.unit.token_text(self.meta.name)
     }
 
-    pub(crate) fn name_offset(self) -> usize {
-        self.unit.tokens[self.meta.name].range.start
-    }
-
     pub(crate) fn attribute_type(self) -> AttributeTypeView<'a> {
         match &self.meta.attribute_type {
             AttributeTypeMeta::Cdata => AttributeTypeView::Cdata,

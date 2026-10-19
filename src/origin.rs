@@ -4,13 +4,7 @@ use std::ops::Range;
 use crate::{Error, ErrorKind};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct EntityDeclarationId(usize);
-
-impl EntityDeclarationId {
-    pub(crate) fn from_index(index: usize) -> Self {
-        Self(index)
-    }
-}
+pub(crate) struct EntityId(pub(crate) usize);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct EntityInvocationId(pub(crate) NonZeroU64);
@@ -48,7 +42,7 @@ pub(crate) enum OriginRepr {
         span: ByteSpan,
     },
     Replacement {
-        declaration: EntityDeclarationId,
+        declaration: EntityId,
         invocation: EntityInvocationId,
         local: ByteSpan,
         physical_reference: ByteSpan,

@@ -93,6 +93,27 @@ impl fmt::Display for Error {
     }
 }
 
+/// A failure in DTD-processed text. `offset` is relative to the text the
+/// caller supplied, and absent when the failure lies in declared text
+/// (replacement text or a default value) the caller locates itself.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct DtdError {
+    pub(crate) kind: ErrorKind,
+    pub(crate) offset: Option<usize>,
+}
+
+impl DtdError {
+    pub(crate) const fn new(kind: ErrorKind, offset: Option<usize>) -> Self {
+        Self { kind, offset }
+    }
+}
+
+impl From<Error> for DtdError {
+    fn from(error: Error) -> Self {
+        Self::new(error.kind, Some(error.offset))
+    }
+}
+
 impl std::error::Error for Error {}
 
 /// A ceiling for bounded owned-tree edits and construction.

@@ -40,6 +40,7 @@ pub mod xpointer;
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};
 pub use encoding::DecodeLimits;
+pub(crate) use error::DtdError;
 pub use error::{
     EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
     ReadError, WriteError,

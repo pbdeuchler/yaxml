@@ -1,12 +1,12 @@
 //! Independent owned sink and construction controls from frozen D01--M02.
 use super::*;
-use crate::origin::{ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr};
+use crate::origin::{ByteSpan, EntityId, EntityInvocationId, OriginRepr};
 use crate::parser::ParserState;
 use std::num::NonZeroU64;
 
 fn generated(i: u64, range: Range<usize>) -> SourceOrigin {
     SourceOrigin::from_repr(OriginRepr::Replacement {
-        declaration: EntityDeclarationId::from_index(1),
+        declaration: EntityId(1),
         invocation: EntityInvocationId(NonZeroU64::new(i).unwrap()),
         local: ByteSpan::new(range).unwrap(),
         physical_reference: ByteSpan::new(103..106).unwrap(),

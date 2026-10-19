@@ -166,12 +166,10 @@ pub(crate) enum Content {
 #[derive(Clone, Debug)]
 pub(crate) struct AttributeDecl {
     pub(crate) name: String,
-    pub(crate) name_offset: usize,
     pub(crate) kind: AttributeKind,
     /// Enumerated or notation tokens.
     pub(crate) values: Vec<String>,
     pub(crate) default: StoredDefault,
-    pub(crate) declaration: usize,
     pub(crate) internal: bool,
 }
 
