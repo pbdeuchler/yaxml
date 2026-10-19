@@ -37,10 +37,7 @@ struct Work {
 
 impl Work {
     fn charge(&mut self, amount: usize) -> Result<(), EditError> {
-        let next = self
-            .used
-            .checked_add(amount)
-            .ok_or_else(namespace_work_error)?;
+        let next = self.used.saturating_add(amount);
         if next > self.limit {
             return Err(namespace_work_error());
         }
@@ -49,11 +46,7 @@ impl Work {
     }
 
     fn compare(&mut self, left: &str, right: &str) -> Result<bool, EditError> {
-        self.charge(
-            left.len()
-                .checked_add(right.len())
-                .ok_or_else(namespace_work_error)?,
-        )?;
+        self.charge(left.len() + right.len())?;
         Ok(left == right)
     }
 }
@@ -144,22 +137,7 @@ fn check_length(
             None => limit_error(EditLimit::NameBytes, component, limit),
         });
     }
-    let next = supplied
-        .checked_add(value.len())
-        .ok_or_else(|| match item {
-            Some((index, namespace)) => limit_item_error(
-                EditLimit::SuppliedBytes,
-                index,
-                namespace,
-                component,
-                limits.max_supplied_bytes.saturating_sub(*supplied),
-            ),
-            None => limit_error(
-                EditLimit::SuppliedBytes,
-                component,
-                limits.max_supplied_bytes.saturating_sub(*supplied),
-            ),
-        })?;
+    let next = supplied.saturating_add(value.len());
     if next > limits.max_supplied_bytes {
         return Err(match item {
             Some((index, namespace)) => limit_item_error(
@@ -195,15 +173,7 @@ fn check_value_length(
             limits.max_value_bytes,
         ));
     }
-    let next = supplied.checked_add(value.len()).ok_or_else(|| {
-        limit_item_error(
-            EditLimit::SuppliedBytes,
-            index,
-            false,
-            EditComponent::Value,
-            limits.max_supplied_bytes.saturating_sub(*supplied),
-        )
-    })?;
+    let next = supplied.saturating_add(value.len());
     if next > limits.max_supplied_bytes {
         return Err(limit_item_error(
             EditLimit::SuppliedBytes,
@@ -472,7 +442,7 @@ fn lookup<'a, A: Allocator>(
     }
     let mut current = parent;
     while let Some(index) = current {
-        let record = document.nodes.get(index).ok_or_else(allocation_error)?;
+        let record = &document.nodes[index];
         let Content::Element { attributes, .. } = &record.content else {
             break;
         };
@@ -560,11 +530,7 @@ fn ensure_binding<A: Allocator>(
             return Err(namespace_error(error_location));
         }
     }
-    let planned_count = supplied_items
-        .checked_add(generated.len())
-        .and_then(|count| count.checked_add(1))
-        .ok_or_else(|| limit_global(EditLimit::Attributes))?;
-    if planned_count > max_attributes {
+    if supplied_items + generated.len() + 1 > max_attributes {
         return Err(limit_global(EditLimit::Attributes));
     }
     generated.push(GeneratedBinding {
@@ -842,10 +808,7 @@ fn ensure_scratch(
     additional: usize,
     maximum: usize,
 ) -> Result<(), EditError> {
-    let required = scratch
-        .len()
-        .checked_add(additional)
-        .ok_or_else(allocation_error)?;
+    let required = scratch.len().saturating_add(additional);
     if required > maximum {
         return Err(namespace_work_error());
     }
@@ -867,9 +830,8 @@ fn make_name(
 ) -> Result<StagedName, EditError> {
     let required = prefix
         .map_or(0, |prefix| prefix.len().saturating_add(1))
-        .checked_add(local_name.len())
-        .and_then(|bytes| bytes.checked_add(namespace.map_or(0, str::len)))
-        .ok_or_else(allocation_error)?;
+        .saturating_add(local_name.len())
+        .saturating_add(namespace.map_or(0, str::len));
     ensure_scratch(scratch, required, scratch_limit)?;
     let start = scratch.len();
     if let Some(prefix) = prefix {
@@ -897,10 +859,9 @@ fn make_declaration(
     scratch_limit: usize,
 ) -> Result<StagedAttribute, EditError> {
     let required = (if prefix.is_some() { 6usize } else { 5usize })
-        .checked_add(prefix.map_or(0, str::len))
-        .and_then(|bytes| bytes.checked_add(XMLNS.len()))
-        .and_then(|bytes| bytes.checked_add(uri.len()))
-        .ok_or_else(allocation_error)?;
+        .saturating_add(prefix.map_or(0, str::len))
+        .saturating_add(XMLNS.len())
+        .saturating_add(uri.len());
     ensure_scratch(scratch, required, scratch_limit)?;
     let start = scratch.len();
     if let Some(prefix) = prefix {
@@ -972,46 +933,43 @@ fn resolve_name<A: Allocator>(
             EditComponent::Prefix,
         )));
     }
-    let prefix = match name.prefix {
-        PrefixPolicy::Exact(prefix) => {
+    let prefix = match (name.prefix, namespace) {
+        (PrefixPolicy::Exact(None) | PrefixPolicy::Automatic, None) => {
+            if is_element {
+                let explicit_default = declaration_exists(local, None, work)?;
+                if let Some(current) = lookup(document, parent, None, local, generated, work)?
+                    && !work.compare(current, "")?
+                {
+                    if explicit_default {
+                        return Err(namespace_error(namespace_location));
+                    }
+                    ensure_binding(
+                        document,
+                        parent,
+                        local,
+                        generated,
+                        None,
+                        "",
+                        true,
+                        work,
+                        namespace_location,
+                        spec.items.len(),
+                        limits.max_attributes,
+                    )?;
+                }
+            }
+            None
+        }
+        (PrefixPolicy::Exact(prefix), namespace) => {
             let empty_prefix = prefix == Some("");
             let xmlns_prefix = prefix == Some("xmlns");
             if empty_prefix || xmlns_prefix {
                 return Err(namespace_error(component_location));
             }
             match (namespace, prefix) {
-                (None, None) => {
-                    if is_element {
-                        let explicit_default = declaration_exists(local, None, work)?;
-                        if let Some(current) =
-                            lookup(document, parent, None, local, generated, work)?
-                        {
-                            if !work.compare(current, "")? {
-                                if explicit_default {
-                                    return Err(namespace_error(namespace_location));
-                                }
-                                ensure_binding(
-                                    document,
-                                    parent,
-                                    local,
-                                    generated,
-                                    None,
-                                    "",
-                                    true,
-                                    work,
-                                    namespace_location,
-                                    spec.items.len(),
-                                    limits.max_attributes,
-                                )?;
-                            }
-                        } else if explicit_default {
-                            // An explicit empty declaration already resolves to no namespace.
-                        }
-                    }
-                    None
-                }
                 (None, Some("xml")) => return Err(namespace_error(namespace_location)),
-                (None, Some(_)) => return Err(namespace_error(component_location)),
+                // No namespace with no prefix resolved above.
+                (None, _) => return Err(namespace_error(component_location)),
                 (Some(_uri), Some("xml")) if xml_namespace => Some(clone_string("xml")?),
                 (Some(_uri), Some("xml")) => return Err(namespace_error(namespace_location)),
                 (Some(uri), Some(prefix)) => {
@@ -1049,37 +1007,9 @@ fn resolve_name<A: Allocator>(
                 (Some(_), None) => return Err(namespace_error(component_location)),
             }
         }
-        PrefixPolicy::Automatic => match namespace {
-            None => {
-                if is_element {
-                    let explicit_default = declaration_exists(local, None, work)?;
-                    if let Some(current) = lookup(document, parent, None, local, generated, work)? {
-                        if !work.compare(current, "")? {
-                            if explicit_default {
-                                return Err(namespace_error(namespace_location));
-                            }
-                            ensure_binding(
-                                document,
-                                parent,
-                                local,
-                                generated,
-                                None,
-                                "",
-                                true,
-                                work,
-                                namespace_location,
-                                spec.items.len(),
-                                limits.max_attributes,
-                            )?;
-                        }
-                    } else if explicit_default {
-                        // An explicit empty declaration already resolves to no namespace.
-                    }
-                }
-                None
-            }
-            Some(_uri) if xml_namespace => Some(clone_string("xml")?),
-            Some(uri) if is_element => {
+        (PrefixPolicy::Automatic, Some(uri)) => match uri {
+            _ if xml_namespace => Some(clone_string("xml")?),
+            uri if is_element => {
                 let default_binding = lookup(document, parent, None, local, generated, work)?;
                 if let Some(bound) = default_binding
                     && work.compare(bound, uri)?
@@ -1142,7 +1072,7 @@ fn resolve_name<A: Allocator>(
                     Some(prefix)
                 }
             }
-            Some(uri) => {
+            uri => {
                 if let Some(prefix) = find_matching_prefix(
                     document,
                     parent,
@@ -1218,25 +1148,15 @@ fn stage<A: Allocator>(
         .iter()
         .filter(|item| matches!(item, ElementItem::Attribute(_)))
         .count()
-        .checked_add(1)
-        .ok_or_else(allocation_error)?;
-    let output_capacity = spec
-        .items
-        .len()
-        .checked_add(generated_bound)
-        .ok_or_else(allocation_error)?;
+        + 1;
+    let output_capacity = spec.items.len() + generated_bound;
     let mut local: Vec<LocalBinding<'_>> = Vec::new();
     let mut generated = Vec::new();
     let mut attributes = Vec::new();
     reserve_vec(&mut local, spec.items.len())?;
     reserve_vec(&mut generated, generated_bound)?;
     reserve_vec(&mut attributes, output_capacity)?;
-    let declaration_overhead = spec
-        .items
-        .len()
-        .checked_add(generated_bound)
-        .and_then(|count| count.checked_mul(6 + XMLNS.len()))
-        .ok_or_else(allocation_error)?;
+    let declaration_overhead = output_capacity.saturating_mul(6 + XMLNS.len());
     // Supplied bytes account for up to four copies in staged names, values,
     // generated bindings, and declaration values. A chosen inherited prefix
     // is copied into a temporary and final qualified name, bounded by charged
@@ -1361,12 +1281,7 @@ fn stage<A: Allocator>(
             }
         }
     }
-    let final_count = spec
-        .items
-        .len()
-        .checked_add(generated.len())
-        .ok_or_else(allocation_error)?;
-    if final_count > limits.max_attributes {
+    if spec.items.len() + generated.len() > limits.max_attributes {
         return Err(EditError::new(
             EditErrorKind::LimitExceeded(EditLimit::Attributes),
             None,
@@ -1388,29 +1303,15 @@ fn stage<A: Allocator>(
     })
 }
 
-fn checked_payload_size(staged: &StagedElement) -> Result<usize, EditError> {
-    let mut size = staged.name.qualified.len();
-    if let Some(namespace) = &staged.name.namespace {
-        size = size.checked_add(namespace.len()).ok_or_else(|| {
-            EditError::new(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes), None)
-        })?;
-    }
-    for attribute in &staged.attributes {
-        size = size
-            .checked_add(attribute.name.qualified.len())
-            .ok_or_else(|| {
-                EditError::new(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes), None)
-            })?;
-        if let Some(namespace) = &attribute.name.namespace {
-            size = size.checked_add(namespace.len()).ok_or_else(|| {
-                EditError::new(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes), None)
-            })?;
-        }
-        size = size.checked_add(attribute.value.len()).ok_or_else(|| {
-            EditError::new(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes), None)
-        })?;
-    }
-    Ok(size)
+/// The bytes `staged` stores: disjoint ranges of its scratch string.
+fn payload_size(staged: &StagedElement) -> usize {
+    let name =
+        |name: &StagedName| name.qualified.len() + name.namespace.as_ref().map_or(0, Range::len);
+    let attributes = staged.attributes.iter();
+    name(&staged.name)
+        + attributes
+            .map(|a| name(&a.name) + a.value.len())
+            .sum::<usize>()
 }
 
 fn store(pool: &mut String, value: &str) -> Range<usize> {
@@ -1447,29 +1348,16 @@ fn store_attributes<A: Allocator>(
     }
 }
 
+/// The element depth of `parent`, counted up to `maximum`.
 fn depth_bounded<A: Allocator>(
     document: &OwnedDocument<A>,
     parent: usize,
     maximum: usize,
-) -> Result<usize, EditError> {
-    let mut current = Some(NodeId(parent));
-    let mut result = 0usize;
-    while let Some(id) = current {
-        let record = document
-            .nodes
-            .get(id.0)
-            .ok_or_else(|| EditError::new(EditErrorKind::InvalidHandle, None))?;
-        if matches!(record.content, Content::Element { .. }) {
-            result = result.checked_add(1).ok_or_else(|| {
-                EditError::new(EditErrorKind::LimitExceeded(EditLimit::Depth), None)
-            })?;
-            if result >= maximum {
-                return Ok(result);
-            }
-        }
-        current = record.parent.get();
-    }
-    Ok(result)
+) -> usize {
+    std::iter::successors(Some(NodeId(parent)), |id| document.nodes[id.0].parent.get())
+        .filter(|id| matches!(document.nodes[id.0].content, Content::Element { .. }))
+        .take(maximum)
+        .count()
 }
 
 fn limit_global(limit: EditLimit) -> EditError {
@@ -1516,7 +1404,7 @@ pub(super) fn create<A: Allocator + Clone>(
     if created_attributes > limits.max_created_attributes {
         return Err(limit_global(EditLimit::CreatedAttributes));
     }
-    let additional = checked_payload_size(&staged)?;
+    let additional = payload_size(&staged);
     let capacity = staging_document
         .pool
         .edit_capacity(additional, 0, limits.max_owned_bytes)?;
@@ -1542,13 +1430,11 @@ pub(super) fn create<A: Allocator + Clone>(
     let mut document_node = OwnedRecord::root(0);
     document_node.source = None;
     let root_id = NodeId(1);
-    let root_link = Link::new(root_id).ok_or_else(allocation_error)?;
-    let document_link = Link::new(NodeId(0)).ok_or_else(allocation_error)?;
+    let root_link = Link::new(root_id);
+    let document_link = Link::new(NodeId(0));
     let root_name = store_name(&mut staging_document.pool.0, &staged.strings, &staged.name);
     let start = staging_document.attributes.len();
-    let expected_end = start
-        .checked_add(created_attributes)
-        .ok_or_else(allocation_error)?;
+    let expected_end = start + created_attributes;
     store_attributes(
         &mut staging_document.pool.0,
         &staged.strings,
@@ -1594,33 +1480,23 @@ pub(super) fn append<A: Allocator>(
     ) {
         return Err(EditError::new(EditErrorKind::WrongNodeKind, None));
     }
-    let prospective_depth = depth_bounded(editor.document, parent, editor.limits.max_depth)?
-        .checked_add(1)
-        .ok_or_else(|| limit_global(EditLimit::Depth))?;
-    if prospective_depth > editor.limits.max_depth {
+    if depth_bounded(editor.document, parent, editor.limits.max_depth) + 1 > editor.limits.max_depth
+    {
         return Err(limit_global(EditLimit::Depth));
     }
     if element.items.len() > editor.limits.max_attributes {
         return Err(limit_global(EditLimit::Attributes));
     }
     let staged = stage(editor.document, Some(parent), &element, editor.limits)?;
-    let created_nodes = editor
-        .document
-        .edit_created_nodes
-        .checked_add(1)
-        .ok_or_else(|| limit_global(EditLimit::CreatedNodes))?;
+    let created_nodes = editor.document.edit_created_nodes + 1;
     if created_nodes > editor.limits.max_created_nodes {
         return Err(limit_global(EditLimit::CreatedNodes));
     }
-    let created_attributes = editor
-        .document
-        .edit_created_attributes
-        .checked_add(staged.attributes.len())
-        .ok_or_else(|| limit_global(EditLimit::CreatedAttributes))?;
+    let created_attributes = editor.document.edit_created_attributes + staged.attributes.len();
     if created_attributes > editor.limits.max_created_attributes {
         return Err(limit_global(EditLimit::CreatedAttributes));
     }
-    let additional = checked_payload_size(&staged)?;
+    let additional = payload_size(&staged);
     let capacity = editor.document.pool.edit_capacity(
         additional,
         editor.document.edit_owned_bytes,
@@ -1628,8 +1504,8 @@ pub(super) fn append<A: Allocator>(
     )?;
 
     let node_id = NodeId(editor.document.nodes.len());
-    let node_link = Link::new(node_id).ok_or_else(allocation_error)?;
-    let parent_link = Link::new(NodeId(parent)).ok_or_else(allocation_error)?;
+    let node_link = Link::new(node_id);
+    let parent_link = Link::new(NodeId(parent));
     #[cfg(test)]
     if editor.document.nodes.len() == editor.document.nodes.capacity() {
         inject_edit_reservation_failure(EditReservation::Node)?;
@@ -1661,9 +1537,7 @@ pub(super) fn append<A: Allocator>(
 
     let name = store_name(&mut editor.document.pool.0, &staged.strings, &staged.name);
     let start = editor.document.attributes.len();
-    let end = start
-        .checked_add(staged.attributes.len())
-        .ok_or_else(allocation_error)?;
+    let end = start + staged.attributes.len();
     store_attributes(
         &mut editor.document.pool.0,
         &staged.strings,

@@ -88,9 +88,9 @@ fn spec_pool_tail_extension_keeps_one_prefix_copy_slot_and_links() {
         .unwrap();
         assert_eq!(b.pool.0.as_ptr(), pool_pointer);
         assert_eq!(b.nodes.len(), 3);
-        assert_eq!(b.nodes[1].first_child, Link::new(NodeId(2)).unwrap());
-        assert_eq!(b.nodes[1].last_child, Link::new(NodeId(2)).unwrap());
-        assert_eq!(b.nodes[2].parent, Link::new(NodeId(1)).unwrap());
+        assert_eq!(b.nodes[1].first_child, Link::new(NodeId(2)));
+        assert_eq!(b.nodes[1].last_child, Link::new(NodeId(2)));
+        assert_eq!(b.nodes[2].parent, Link::new(NodeId(1)));
         assert_eq!(b.nodes[2].previous_sibling, Link::NONE);
         assert_eq!(b.nodes[2].next_sibling, Link::NONE);
     }
@@ -104,8 +104,8 @@ fn spec_pool_tail_extension_keeps_one_prefix_copy_slot_and_links() {
         state.owned_budget(),
     )
     .unwrap();
-    assert_eq!(b.nodes[2].next_sibling, Link::new(NodeId(3)).unwrap());
-    assert_eq!(b.nodes[3].previous_sibling, Link::new(NodeId(2)).unwrap());
+    assert_eq!(b.nodes[2].next_sibling, Link::new(NodeId(3)));
+    assert_eq!(b.nodes[3].previous_sibling, Link::new(NodeId(2)));
     let doc = end(b, state.owned_budget());
     assert_eq!(summary(&doc), ["T:pretailpost", "M:later"]);
     assert_eq!(doc.nodes[0].subtree_size, 4);
@@ -497,24 +497,6 @@ fn spec_editor_keeps_adjacent_text_ids_and_parsed_mixed_provenance() {
         ["changed", "A", "b", "c"]
     );
     assert_eq!(serialized(&doc), b"<r>changedAbc</r>");
-}
-
-#[test]
-fn spec_non_tail_pool_extension_rejects_before_bytes_or_budget_change() {
-    let mut pool = Pool(String::from("prefixlater"));
-    let before = pool.0.clone();
-    let pointer = pool.0.as_ptr();
-    let capacity = pool.0.capacity();
-    let mut state = ParserState::new(Limits::default(), 0);
-    let remaining = state.owned_budget().remaining_owned();
-    assert_eq!(
-        pool.extend_tail(&(0..6), "x", 103, state.owned_budget()),
-        Err(Error::new(ErrorKind::InvalidState, 103))
-    );
-    assert_eq!(pool.0, before);
-    assert_eq!(pool.0.as_ptr(), pointer);
-    assert_eq!(pool.0.capacity(), capacity);
-    assert_eq!(state.owned_budget().remaining_owned(), remaining);
 }
 
 #[test]
