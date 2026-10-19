@@ -1048,3 +1048,24 @@ fn dtd_wrappers_reach_every_construction() {
     assert!(driver::exercise_dtd(b"\x01x").error.is_none());
     assert!(driver::exercise_dtd(b"\x01&e;").error.is_some());
 }
+
+/// Replays every minimized crash under `fuzz/regressions/<target>/` through
+/// that target's entry point.
+#[test]
+fn fuzz_regressions_replay() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/regressions");
+    for target in std::fs::read_dir(root).unwrap() {
+        let target = target.unwrap();
+        let name = target.file_name().into_string().unwrap();
+        for case in std::fs::read_dir(target.path()).unwrap() {
+            let data = std::fs::read(case.unwrap().path()).unwrap();
+            match name.as_str() {
+                "buffered" => {
+                    driver::exercise_pull(&data, data.get(data.len() / 2).copied().unwrap_or(0));
+                }
+                "dtd" => drop(driver::exercise_dtd(&data)),
+                _ => drop(driver::exercise(&data)),
+            }
+        }
+    }
+}
