@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use yaxml::c14n::{self, Error, Mode, Options};
 use yaxml::xpath::{Context, Tree, XPath};
-use yaxml::{Document, FileResolver, Limits, OwnedDocument, Resolver};
+use yaxml::{Document, FileResolver, OwnedDocument, ParseOptions, Resolver};
 
 const DEFAULT_SOURCE: &str =
     "/Users/pbdeuchler/workspace/src/github.com/pbdeuchler/yaxml-oracle/libxml2-2.15.4";
@@ -113,48 +113,43 @@ fn libxml2_suite() {
             let base = format!("{name}.xml");
             let resolver =
                 || -> Box<dyn Resolver> { Box::new(FileResolver::new(&inputs).unwrap()) };
+            // runtest.c: XML_PARSE_NOENT | XML_PARSE_DTDATTR | XML_PARSE_DTDLOAD.
+            let options = |base: &str, resolver| {
+                use yaxml::options::{DTDATTR, DTDLOAD, NOENT};
+                ParseOptions::new(NOENT | DTDATTR | DTDLOAD).with_resolver(base, resolver)
+            };
             // The owned DOM decodes every supported encoding; the borrowed one must agree when it parses.
-            let outcome =
-                match OwnedDocument::with_resolver(&input, Limits::default(), &base, resolver()) {
-                    Ok(owned) => {
-                        let selection = selection(&inputs.join(format!("{name}.xpath")));
-                        let selection = selection.as_ref();
-                        let root = owned.root().id();
-                        let actual =
-                            canonical(&owned, root, mode, with_comments, selection, &prefixes)
-                                .expect("owned c14n");
-                        if let Ok(borrowed) =
-                            Document::with_resolver(&input, Limits::default(), &base, resolver())
-                        {
-                            let root = borrowed.root().id();
-                            let other = canonical(
-                                &borrowed,
-                                root,
-                                mode,
-                                with_comments,
-                                selection,
-                                &prefixes,
+            let outcome = match OwnedDocument::parse_with(&input, options(&base, resolver())) {
+                Ok(owned) => {
+                    let selection = selection(&inputs.join(format!("{name}.xpath")));
+                    let selection = selection.as_ref();
+                    let root = owned.root().id();
+                    let actual = canonical(&owned, root, mode, with_comments, selection, &prefixes)
+                        .expect("owned c14n");
+                    if let Ok(borrowed) = Document::parse_with(&input, options(&base, resolver())) {
+                        let root = borrowed.root().id();
+                        let other =
+                            canonical(&borrowed, root, mode, with_comments, selection, &prefixes);
+                        assert_eq!(
+                            other.expect("borrowed c14n"),
+                            actual,
+                            "{directory}/{name}: DOMs disagree"
+                        );
+                    }
+                    match actual.as_bytes() == expected {
+                        true => Outcome::Pass,
+                        false => {
+                            eprintln!(
+                                "{directory}/{name}:\n{actual}\n--- expected\n{}",
+                                String::from_utf8_lossy(&expected)
                             );
-                            assert_eq!(
-                                other.expect("borrowed c14n"),
-                                actual,
-                                "{directory}/{name}: DOMs disagree"
-                            );
-                        }
-                        match actual.as_bytes() == expected {
-                            true => Outcome::Pass,
-                            false => {
-                                eprintln!(
-                                    "{directory}/{name}:\n{actual}\n--- expected\n{}",
-                                    String::from_utf8_lossy(&expected)
-                                );
-                                Outcome::Mismatch
-                            }
+                            Outcome::Mismatch
                         }
                     }
-                    Err(_) if input.windows(9).any(|window| window == b"<!DOCTYPE") => Outcome::Dtd,
-                    Err(error) => panic!("{directory}/{name}: unexpected parse error {error:?}"),
-                };
+                }
+                Err(_) if input.windows(9).any(|window| window == b"<!DOCTYPE") => Outcome::Dtd,
+                Err(error) => panic!("{directory}/{name}: unexpected parse error {error:?}"),
+            };
             outcomes.push(outcome);
         }
     }

@@ -215,11 +215,13 @@ fn cases() -> Vec<Case> {
         case("stream", &["--stream", "a.xml"], 0, Empty),
         err(on(case("stream malformed", &["--stream", "a.xml"], 1, Empty), &[("a.xml", "<a>")], ""), "failed to parse"),
         // external resources
-        on(case("noent loads the DTD", &["--noent", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
-        on(case("DTD not loaded by default", &["a.xml"], 0, Has("<r/>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
-        on(case("path searches directories", &["--noent", "--path", "sub", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", EXT), ("sub/r.dtd", "<!ENTITY e 'loaded'>")], ""),
-        Case { env: &[("XML_CATALOG_FILES", "cat.xml")], ..on(case("catalogs", &["--catalogs", "--noent", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", r#"<!DOCTYPE r SYSTEM "http://example.com/r.dtd"><r>&e;</r>"#), ("cat.xml", CATALOG), ("sub/r.dtd", "<!ENTITY e 'loaded'>")], "") },
-        Case { env: &[("XML_CATALOG_FILES", "cat.xml")], ..on(case("catalog ignored without --catalogs", &["--noent", "a.xml"], 0, Has("<r/>")), &[("a.xml", r#"<!DOCTYPE r SYSTEM "http://example.com/r.dtd"><r>&e;</r>"#), ("cat.xml", CATALOG), ("sub/r.dtd", "<!ENTITY e 'loaded'>")], "") },
+        on(case("noent alone does not load the DTD", &["--noent", "a.xml"], 0, Has("<r/>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
+        on(case("loaddtd noent loads the DTD", &["--loaddtd", "--noent", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
+        on(case("loaddtd keeps the reference", &["--loaddtd", "a.xml"], 0, Has("<r>&e;</r>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
+        on(case("DTD not loaded by default", &["a.xml"], 0, Has("<r>&e;</r>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
+        on(case("path searches directories", &["--loaddtd", "--noent", "--path", "sub", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", EXT), ("sub/r.dtd", "<!ENTITY e 'loaded'>")], ""),
+        Case { env: &[("XML_CATALOG_FILES", "cat.xml")], ..on(case("catalogs", &["--catalogs", "--loaddtd", "--noent", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", r#"<!DOCTYPE r SYSTEM "http://example.com/r.dtd"><r>&e;</r>"#), ("cat.xml", CATALOG), ("sub/r.dtd", "<!ENTITY e 'loaded'>")], "") },
+        Case { env: &[("XML_CATALOG_FILES", "cat.xml")], ..on(case("catalog ignored without --catalogs", &["--loaddtd", "--noent", "a.xml"], 0, Has("<r/>")), &[("a.xml", r#"<!DOCTYPE r SYSTEM "http://example.com/r.dtd"><r>&e;</r>"#), ("cat.xml", CATALOG), ("sub/r.dtd", "<!ENTITY e 'loaded'>")], "") },
     ]
 }
 

@@ -68,7 +68,13 @@ pub(super) fn exercise(input: &[u8]) {
             .declaration()
             .and_then(|declaration| declaration.encoding)
     });
+    // A kept reference to an entity that is not declared (or not loaded)
+    // cannot reparse, in libxml2 either.
+    let resolvable = owned
+        .nodes()
+        .all(|node| node.entity_name().is_none() || node.first_child().is_some());
     match output {
+        Ok(_) if !resolvable => {}
         Ok(output) => fixed_point(
             &output,
             &save::Options {
@@ -90,7 +96,8 @@ pub(super) fn exercise(input: &[u8]) {
         // A subtree has no declaration, so only UTF-8 output reparses.
         Ok(output)
             if node.kind() == OwnedNodeKind::Element
-                && matches!(options.encoding, None | Some("UTF-8")) =>
+                && matches!(options.encoding, None | Some("UTF-8"))
+                && node.descendants().all(|node| node.entity_name().is_none()) =>
         {
             let reparsed = OwnedDocument::parse_bytes(&output)
                 .expect("an element subtree is a namespace-well-formed document");

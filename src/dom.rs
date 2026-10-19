@@ -1,9 +1,10 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
+use crate::options::{CONVENIENCE, Flags};
 use crate::{
-    Attribute, Declaration, Doctype, Element, Error, ErrorKind, Event, Limits, Name, Reader,
-    SourceOrigin,
+    Attribute, Declaration, Doctype, Element, Error, ErrorKind, Event, Limits, Name, ParseOptions,
+    Reader, SourceOrigin,
 };
 
 /// A document-local node index. IDs must only be used with their originating document.
@@ -24,6 +25,10 @@ pub enum NodeKind<'input> {
         target: Cow<'input, str>,
         data: Cow<'input, str>,
     },
+    /// A kept general entity reference (libxml2's `XML_ENTITY_REF_NODE`),
+    /// parsed without `NOENT`. Its children are the replacement text's nodes;
+    /// an unloaded or undeclared entity has none.
+    EntityRef(Cow<'input, str>),
 }
 
 #[derive(Debug)]
@@ -91,6 +96,7 @@ pub struct Document<'input> {
     /// `(element, attribute index)` of ID-typed attributes, in document order.
     ids: Vec<(NodeId, usize)>,
     dtd: Option<Box<crate::valid::Dtd>>,
+    validity: Vec<crate::valid::Diagnostic<NodeId>>,
 }
 
 impl<'input> Document<'input> {
@@ -106,22 +112,35 @@ impl<'input> Document<'input> {
 
     /// Parses a complete input with explicit resource ceilings.
     pub fn with_limits(input: &'input [u8], limits: Limits) -> Result<Self, Error> {
-        Self::from_reader(Reader::with_limits(input, limits)?, input.len())
+        Self::parse_with(input, ParseOptions::new(CONVENIENCE).with_limits(limits))
     }
 
-    /// Parses with a resolver for the external subset and external entities;
-    /// `base` is the document's URI or path. See [`Reader::with_resolver`].
+    /// Parses with a resolver for the external subset and external entities,
+    /// adding `DTDLOAD | DTDATTR | NOENT`; `base` is the document's URI or path.
     pub fn with_resolver(
         input: &'input [u8],
         limits: Limits,
         base: &str,
         resolver: Box<dyn crate::Resolver>,
     ) -> Result<Self, Error> {
-        let reader = Reader::with_limits(input, limits)?.with_resolver(base, resolver);
-        Self::from_reader(reader, input.len())
+        let options = ParseOptions::new(Flags(CONVENIENCE).loading().0).with_limits(limits);
+        Self::parse_with(input, options.with_resolver(base, resolver))
     }
 
-    fn from_reader(mut reader: Reader<'input>, length: usize) -> Result<Self, Error> {
+    /// Parses with libxml2 parser options; see [`crate::options`].
+    /// `XINCLUDE` needs an owned tree and is `UnsupportedOption` here.
+    pub fn parse_with(input: &'input [u8], options: ParseOptions) -> Result<Self, Error> {
+        let flags = options.check(true, crate::options::XINCLUDE)?;
+        let (limits, _) = options.effective_limits();
+        let decode = crate::DecodeLimits {
+            max_decoded_bytes: usize::MAX,
+            max_decoded_token_bytes: limits.max_token_bytes,
+        };
+        let reader = Reader::configured(input, limits, decode, flags, options)?;
+        Self::from_reader(reader, input.len(), flags)
+    }
+
+    fn from_reader(mut reader: Reader<'input>, length: usize, flags: Flags) -> Result<Self, Error> {
         let mut nodes = Vec::new();
         nodes
             .try_reserve(1)
@@ -133,6 +152,7 @@ impl<'input> Document<'input> {
             declaration: None,
             ids: Vec::new(),
             dtd: None,
+            validity: Vec::new(),
         };
         let mut parents = Vec::new();
         while let Some(event) = reader.read_event()? {
@@ -154,6 +174,18 @@ impl<'input> Document<'input> {
                     record.origin = record.origin.close_element(origin)?;
                     parents.pop();
                     record.subtree_end = subtree_end;
+                }
+                Event::EntityStart(name) => {
+                    parents
+                        .try_reserve(1)
+                        .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
+                    parents.push(document.append(parent, NodeKind::EntityRef(name), origin)?);
+                }
+                Event::EntityEnd => {
+                    let id = parents.pop().ok_or_else(|| {
+                        Error::new(ErrorKind::InvalidState, origin.error_offset())
+                    })?;
+                    document.nodes[id.0].subtree_end = document.nodes.len();
                 }
                 Event::Start(element) => {
                     parents
@@ -196,12 +228,66 @@ impl<'input> Document<'input> {
         let dtd = reader
             .catalog()
             .map(|catalog| Box::new(catalog.dtd().clone()));
-        // Without DTD-declared ID attributes, the `xml:id`s noted while
-        // building are exactly what a full traversal would find.
-        if crate::xpath::tree::declares_ids(dtd.as_deref()) {
-            document.ids = crate::xpath::tree::find_ids(&document, dtd.as_deref());
+        let mut document = Self { dtd, ..document };
+        if flags.drops_blanks() {
+            let blanks = crate::xpath::tree::blanks(&document);
+            document.remove_leaves(&blanks);
         }
-        Ok(Self { dtd, ..document })
+        // Without DTD-declared ID attributes or removed nodes, the `xml:id`s
+        // noted while building are exactly what a full traversal would find.
+        let traverse = flags.drops_blanks() || crate::xpath::tree::declares_ids(document.dtd());
+        document.ids = match (flags.records_ids(), traverse) {
+            (false, _) => Vec::new(),
+            (true, true) => crate::xpath::tree::find_ids(&document, document.dtd()),
+            (true, false) => std::mem::take(&mut document.ids),
+        };
+        if flags.validates() {
+            document.validity = document.validate();
+        }
+        Ok(document)
+    }
+
+    /// Removes leaves (sorted, never the root or an element with children),
+    /// keeping preorder storage and relinking the survivors.
+    fn remove_leaves(&mut self, leaves: &[NodeId]) {
+        if leaves.is_empty() {
+            return;
+        }
+        // `kept[i]`: survivors before slot `i`, which is slot `i`'s new index.
+        let mut kept = Vec::with_capacity(self.nodes.len() + 1);
+        let mut removed = leaves.iter().peekable();
+        let mut count = 0;
+        for index in 0..=self.nodes.len() {
+            kept.push(count);
+            match removed.peek() {
+                Some(leaf) if leaf.0 == index => drop(removed.next()),
+                _ => count += 1,
+            }
+        }
+        let map = |id: NodeId| NodeId(kept[id.0]);
+        let mut slot = 0;
+        self.nodes.retain_mut(|record| {
+            let keep = kept[slot + 1] != kept[slot];
+            slot += 1;
+            record.parent = record.parent.map(map);
+            record.subtree_end = kept[record.subtree_end];
+            (record.first_child, record.last_child, record.next_sibling) = (None, None, None);
+            keep
+        });
+        for index in 1..self.nodes.len() {
+            let parent = self.nodes[index].parent.expect("non-root parent").0;
+            match self.nodes[parent].last_child {
+                Some(previous) => self.nodes[previous.0].next_sibling = Some(NodeId(index)),
+                None => self.nodes[parent].first_child = Some(NodeId(index)),
+            }
+            self.nodes[parent].last_child = Some(NodeId(index));
+        }
+        self.root_element = map(self.root_element);
+    }
+
+    /// Validity diagnostics found by `DTDVALID`; empty without it.
+    pub fn validity(&self) -> &[crate::valid::Diagnostic<NodeId>] {
+        &self.validity
     }
 
     /// The declarations of the internal and loaded external subsets.
@@ -419,7 +505,18 @@ impl<'document, 'input> Node<'document, 'input> {
                 Some(value)
             }
             NodeKind::ProcessingInstruction { data, .. } => Some(data),
-            NodeKind::Document | NodeKind::Doctype(_) | NodeKind::Element(_) => None,
+            NodeKind::Document
+            | NodeKind::Doctype(_)
+            | NodeKind::Element(_)
+            | NodeKind::EntityRef(_) => None,
+        }
+    }
+
+    /// The entity an entity-reference node names, or `None` for other kinds.
+    pub fn entity_name(self) -> Option<&'document str> {
+        match self.kind() {
+            NodeKind::EntityRef(name) => Some(name),
+            _ => None,
         }
     }
 

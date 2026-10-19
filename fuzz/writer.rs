@@ -68,11 +68,14 @@ fn roundtrip(input: &[u8]) {
     streaming.finish(|_, _| ControlFlow::Continue(())).unwrap();
 }
 
-/// Events with adjacent Text coalesced: entity expansion can split one run.
+/// Events with adjacent Text coalesced and entity boundaries dropped: entity
+/// expansion can split one run.
 fn logical(mut reader: Reader<'_>) -> Vec<String> {
     let mut events: Vec<String> = Vec::new();
     while let Some(event) = reader.read_event().unwrap() {
         match (&event, events.last_mut()) {
+            // The writer expands references; their boundaries carry no value.
+            (Event::EntityStart(_) | Event::EntityEnd, _) => {}
             (Event::Text(text), Some(last)) if last.starts_with("Text:") => last.push_str(text),
             (Event::Text(text), _) => events.push(format!("Text:{text}")),
             _ => events.push(format!("{event:?}")),

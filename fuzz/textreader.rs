@@ -33,8 +33,17 @@ fn node(depth: usize, kind: NodeType, name: &str, value: Option<&str>) -> Node {
 /// The expected nodes, or None when the slice reader rejects the input.
 fn reference(input: &[u8]) -> Option<Vec<Node>> {
     let mut reader = Reader::new(input).ok()?;
-    let (mut nodes, mut depth) = (Vec::<Node>::new(), 0);
+    let (mut nodes, mut depth, mut hidden) = (Vec::<Node>::new(), 0, 0_usize);
     while let Some(event) = reader.read_event().ok()? {
+        // The reader does not visit entity-reference content.
+        if hidden > 0 {
+            match event {
+                Event::EntityStart(_) => hidden += 1,
+                Event::EntityEnd => hidden -= 1,
+                _ => {}
+            }
+            continue;
+        }
         let kind = match &event {
             Event::Declaration(_) => continue,
             Event::Doctype(doctype) => {
@@ -69,6 +78,12 @@ fn reference(input: &[u8]) -> Option<Vec<Node>> {
                 nodes.push(node(depth, NodeType::ProcessingInstruction, target, data));
                 continue;
             }
+            Event::EntityStart(name) => {
+                nodes.push(node(depth, NodeType::EntityReference, name, None));
+                hidden = 1;
+                continue;
+            }
+            Event::EntityEnd => continue,
         };
         let mut element = node(depth, NodeType::Element, kind.name.qualified(), None);
         element.empty = matches!(event, Event::Empty(_));
@@ -203,7 +218,18 @@ fn content<R: BufRead>(reader: &mut TextReader<R>, nodes: &[Node]) -> Result<(),
     let outer = reader.read_outer_xml()?;
     let serializable = !matches!(nodes[0].kind, NodeType::DocumentType | NodeType::EndElement);
     assert_eq!(outer.is_some(), serializable);
-    if nodes[0].kind == NodeType::Element {
+    // Kept entity references serialize as `&name;`, which needs their DTD.
+    let references = nodes[..=end]
+        .iter()
+        .any(|node| node.kind == NodeType::EntityReference);
+    if nodes[0].kind == NodeType::Element && references {
+        let expanded = reader.expand()?.expect("element expands");
+        let name = expanded
+            .root_element()
+            .name()
+            .map(|name| name.qualified().to_owned());
+        assert_eq!(name.as_deref(), Some(nodes[0].name.as_str()));
+    } else if nodes[0].kind == NodeType::Element {
         let outer = outer.expect("element serializes");
         let parsed = OwnedDocument::parse(&outer).expect("outer XML reparses");
         let expanded = reader.expand()?.expect("element expands");

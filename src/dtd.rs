@@ -38,6 +38,8 @@ pub(crate) struct DtdLimits {
     pub(crate) expansion_floor: usize,
     /// Permitted expansion per consumed input byte above the floor.
     pub(crate) amplification: usize,
+    /// The parser options that shape DTD processing.
+    pub(crate) flags: crate::options::Flags,
 }
 
 impl DtdLimits {
@@ -57,6 +59,7 @@ impl DtdLimits {
         scratch: 0,
         expansion_floor: 0,
         amplification: 0,
+        flags: crate::options::Flags::LEGACY,
     };
 
     /// Work ceilings bound scanning and expansion together, so they scale
@@ -85,6 +88,7 @@ impl DtdLimits {
             scratch: token.max(decode.max_decoded_token_bytes).saturating_mul(2),
             expansion_floor: limits.max_entity_expansion_bytes,
             amplification: limits.max_entity_amplification,
+            flags: crate::options::Flags::LEGACY,
         }
     }
 

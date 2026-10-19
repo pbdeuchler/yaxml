@@ -2,7 +2,11 @@ use super::*;
 
 #[test]
 fn tokens_remain_available_until_explicit_release() {
-    let mut stream = Stream::new(Limits::default(), DecodeLimits::default());
+    let mut stream = Stream::new(
+        Limits::default(),
+        DecodeLimits::default(),
+        Default::default(),
+    );
     assert_eq!(stream.advance(b"<r/>tail").unwrap(), 4);
     assert_eq!(stream.position(), 4);
     let (event, range) = stream.event().unwrap();
@@ -19,7 +23,11 @@ fn tokens_remain_available_until_explicit_release() {
 
 #[test]
 fn unavailable_or_non_event_tokens_cannot_be_lent_as_events() {
-    let mut stream = Stream::new(Limits::default(), DecodeLimits::default());
+    let mut stream = Stream::new(
+        Limits::default(),
+        DecodeLimits::default(),
+        Default::default(),
+    );
     assert_eq!(
         stream.event().unwrap_err(),
         Error::new(ErrorKind::InvalidState, 0)
@@ -49,7 +57,11 @@ fn sibling_history_does_not_grow_retained_state() {
         }
         input.push_str("</r>");
         for capacity in [1, 7, 8192] {
-            let mut stream = Stream::new(Limits::default(), DecodeLimits::default());
+            let mut stream = Stream::new(
+                Limits::default(),
+                DecodeLimits::default(),
+                Default::default(),
+            );
             let mut events = 0;
             let mut state_peaks = [(0usize, 0usize); 4];
             let mut token_peak = 0;

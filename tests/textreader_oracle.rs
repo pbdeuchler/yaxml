@@ -12,7 +12,7 @@ use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use yaxml::{FileResolver, NodeType, ReadError, Request, Resolver, ResourceKind, TextReader};
+use yaxml::{FileResolver, NodeType, ReadError, Request, Resolver, TextReader};
 
 /// Inputs for the helper comparison; intentional differences are in docs/textreader.md.
 const CASES: &[&str] = &[
@@ -208,6 +208,20 @@ const RDE_DIFFERENCES: &[&str] = &["ebcdic_566012.xml", "ent11", "icu_parse_test
 
 #[test]
 fn rde_results_match() {
+    replay("rde", yaxml::options::NOENT, RDE_DIFFERENCES);
+}
+
+/// Inputs whose `.rdr` (no `NOENT`) differs for documented reasons: the
+/// unsupported encodings.
+const RDR_DIFFERENCES: &[&str] = &["ebcdic_566012.xml", "icu_parse_test.xml"];
+
+#[test]
+fn rdr_results_match() {
+    replay("rdr", 0, RDR_DIFFERENCES);
+}
+
+/// Replays runtest.c's reader results with `extension` for parser `flags`.
+fn replay(extension: &str, flags: u32, known: &[&str]) {
     let source =
         std::env::var_os("YAXML_LIBXML2_SRC").map_or(PathBuf::from(DEFAULT_SOURCE), PathBuf::from);
     if !source.join("result").is_dir() {
@@ -219,33 +233,32 @@ fn rde_results_match() {
         .unwrap()
         .filter_map(|entry| {
             let name = entry.ok()?.file_name().into_string().ok()?;
-            Some(name.strip_suffix(".rde")?.to_owned())
+            Some(name.strip_suffix(&format!(".{extension}"))?.to_owned())
         })
         .collect();
     names.sort();
     let (mut matched, mut differences) = (0, Vec::new());
     for name in &names {
         let expected =
-            std::fs::read_to_string(source.join("result").join(format!("{name}.rde"))).unwrap();
-        let ours = rde(reader(&tests, name));
+            std::fs::read_to_string(source.join("result").join(format!("{name}.{extension}")))
+                .unwrap();
+        let ours = rde(reader(&tests, name, flags));
         if ours == expected {
             matched += 1;
-        } else if !RDE_DIFFERENCES.contains(&name.as_str()) {
+        } else if !known.contains(&name.as_str()) {
             differences.push(format!("{name}\n--- libxml2\n{expected}--- yaxml\n{ours}"));
         }
     }
-    println!("{matched} of {} .rde results match", names.len());
+    println!("{matched} of {} .{extension} results match", names.len());
     assert!(differences.is_empty(), "{}", differences.join("\n"));
 }
 
-/// Like runtest.c's `xmlReaderForFile(NOENT)`: external entities load beside
-/// the input, and without `DTDLOAD` the external subset is not read.
-fn reader(tests: &Path, name: &str) -> TextReader<std::io::BufReader<std::fs::File>> {
+/// Like runtest.c's `xmlReaderForFile(flags)`: what the flags load comes
+/// from beside the input; without `DTDLOAD` the external subset is not read.
+fn reader(tests: &Path, name: &str, flags: u32) -> TextReader<std::io::BufReader<std::fs::File>> {
     let file = std::fs::File::open(tests.join(name)).unwrap();
     let mut files = FileResolver::new(tests).unwrap();
-    let resolver = move |request: Request<'_>| match request.kind {
-        ResourceKind::DtdSubset => Ok(None),
-        _ => files.resolve(request),
-    };
-    TextReader::new(std::io::BufReader::new(file)).with_resolver(name, Box::new(resolver))
+    let resolver = move |request: Request<'_>| files.resolve(request);
+    let options = yaxml::ParseOptions::new(flags).with_resolver(name, Box::new(resolver));
+    TextReader::with_options(std::io::BufReader::new(file), options).unwrap()
 }

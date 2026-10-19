@@ -27,6 +27,7 @@ fn borrowed_label(document: &Document<'_>, node: Node<NodeId>) -> String {
             NodeKind::Text(text) | NodeKind::Cdata(text) => format!("text({text})"),
             NodeKind::Comment(text) => format!("comment({text})"),
             NodeKind::ProcessingInstruction { target, .. } => format!("pi({target})"),
+            NodeKind::EntityRef(_) => unreachable!("XPath never selects an entity reference"),
         }
     };
     match node {
@@ -87,8 +88,20 @@ fn run_with(
     borrowed: &Context<NodeId>,
     owned: &Context<OwnedNodeId>,
 ) -> Result<Out, ErrorKind> {
-    let document = Document::parse(xml).expect("borrowed parse");
-    let owned_document = OwnedDocument::parse(xml).expect("owned parse");
+    run_flagged(xml, 0, expression, borrowed, owned)
+}
+
+/// [`run_with`] on documents parsed with `flags`.
+fn run_flagged(
+    xml: &str,
+    flags: u32,
+    expression: &str,
+    borrowed: &Context<NodeId>,
+    owned: &Context<OwnedNodeId>,
+) -> Result<Out, ErrorKind> {
+    let options = || yaxml::ParseOptions::new(flags);
+    let document = Document::parse_with(xml.as_bytes(), options()).expect("borrowed parse");
+    let owned_document = OwnedDocument::parse_with(xml.as_bytes(), options()).expect("owned parse");
     let xpath = XPath::compile(expression).map_err(|error| error.kind)?;
     let left = xpath
         .evaluate(&document, document.root().id(), borrowed)
@@ -1004,7 +1017,16 @@ fn values_and_nodes_convert() {
 fn doctype_is_invisible_and_expanded_content_is_queryable() {
     let xml = "<!--c--><!DOCTYPE r [<!ENTITY e '<n>x</n>'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
     let context = Context::new();
-    let run = |expression| run_with(xml, expression, &context, &Context::new());
+    // Without NOENT, as libxml2: the reference and its content are invisible
+    // to node tests, but its text is part of string values.
+    let kept = |expression| run_with(xml, expression, &context, &Context::new());
+    assert_eq!(kept("count(//node())"), num(2.0));
+    assert_eq!(kept("count(/r/node())"), num(0.0));
+    assert_eq!(kept("string(/r)"), string("x"));
+    assert_eq!(kept("count(//n)"), num(0.0));
+    assert_eq!(kept("string(/r/@a)"), string(""));
+    let flags = yaxml::options::LEGACY;
+    let run = |expression| run_flagged(xml, flags, expression, &context, &Context::new());
     assert_eq!(run("/node()"), nodes(&["comment(c)", "r"]));
     assert_eq!(run("count(//node())"), num(4.0));
     assert_eq!(run("string(/r/@a)"), string("d"));

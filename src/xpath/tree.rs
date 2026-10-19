@@ -56,6 +56,9 @@ pub enum Item<'a> {
     Text(&'a str),
     Comment(&'a str),
     Pi(&'a str, &'a str),
+    /// A kept entity reference. XPath never selects it or its content,
+    /// whose text still counts in string values, as in libxml2.
+    EntityRef(&'a str),
 }
 
 /// Primitive accessors. Lookups of foreign IDs return `None` or `Item::Root`.
@@ -120,6 +123,7 @@ impl Navigate for Document<'_> {
             Some(NodeKind::Text(text) | NodeKind::Cdata(text)) => Item::Text(text),
             Some(NodeKind::Comment(text)) => Item::Comment(text),
             Some(NodeKind::ProcessingInstruction { target, data }) => Item::Pi(target, data),
+            Some(NodeKind::EntityRef(name)) => Item::EntityRef(name),
         }
     }
 
@@ -200,6 +204,7 @@ impl Navigate for OwnedDocument {
                 node.processing_instruction_target().unwrap_or_default(),
                 text,
             ),
+            OwnedNodeKind::EntityRef => Item::EntityRef(node.entity_name().unwrap_or_default()),
             OwnedNodeKind::Document | OwnedNodeKind::DocumentType => Item::Root,
         }
     }
@@ -326,6 +331,29 @@ pub(crate) fn descendants<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Ite
     preorder(tree, tree.first_child(id), Some(id))
 }
 
+/// [`preorder`] as XPath sees it: entity references are never entered.
+pub(crate) fn visible_preorder<T: Navigate>(
+    tree: &T,
+    first: Option<T::Id>,
+    stop: Option<T::Id>,
+) -> impl Iterator<Item = T::Id> + '_ {
+    std::iter::successors(first, move |&id| {
+        let opaque = matches!(tree.item(id), Item::EntityRef(_));
+        (!opaque)
+            .then(|| tree.first_child(id))
+            .flatten()
+            .or_else(|| skip_subtree(tree, id, stop))
+    })
+}
+
+/// [`descendants`] as XPath sees them, without entity-reference content.
+pub(crate) fn visible_descendants<T: Navigate>(
+    tree: &T,
+    id: T::Id,
+) -> impl Iterator<Item = T::Id> + '_ {
+    visible_preorder(tree, tree.first_child(id), Some(id))
+}
+
 /// In-scope namespaces as (prefix, URI), `""` naming the default namespace.
 /// Order follows libxml2: `xml` first, then `xmlGetNsList` reversed.
 /// Default-namespace undeclarations hide outer bindings but are not nodes.
@@ -361,4 +389,102 @@ pub(crate) fn attributes<T: Navigate>(
         tree.attribute(id, index)
             .map(|(name, value)| (index, name, value))
     })
+}
+
+/// Whitespace-only Text nodes `XML_PARSE_NOBLANKS` drops, in document order,
+/// by libxml2's `areBlanks`: never under `xml:space="preserve"`; in elements
+/// the DTD declares with element content always; otherwise only when the
+/// text is not the only child and neither the first child nor the node
+/// before it is text, and it is not followed by an entity reference.
+pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
+    let text = |id: T::Id| matches!(tree.item(id), Item::Text(_)) && !tree.is_cdata(id);
+    let blank = |id: T::Id| {
+        matches!(tree.item(id), Item::Text(value) if value.bytes().all(|b| b" \t\r\n".contains(&b)))
+            && !tree.is_cdata(id)
+    };
+    let preserved = |element: T::Id| {
+        std::iter::successors(Some(element), |&id| tree.parent(id))
+            .find_map(|id| {
+                attributes(tree, id)
+                    .find(|(_, name, _)| name.qualified == "xml:space")
+                    .map(|(_, _, value)| value == "preserve")
+            })
+            .unwrap_or(false)
+    };
+    let mut found = Vec::new();
+    for parent in preorder(tree, Some(tree.root()), None) {
+        let Item::Element(name) = tree.item(parent) else {
+            continue;
+        };
+        if preserved(parent) {
+            continue;
+        }
+        let declared = tree
+            .dtd()
+            .and_then(|dtd| dtd.has_element_content(name.qualified));
+        let children: Vec<_> =
+            std::iter::successors(tree.first_child(parent), |&id| tree.next_sibling(id)).collect();
+        let mut kept: Vec<T::Id> = Vec::new();
+        for &child in &children {
+            let leading = kept
+                .last()
+                .is_none_or(|&last| !text(last) && !text(kept[0]));
+            // libxml2 sees the `&` of a following reference: not blank.
+            let reference = tree
+                .next_sibling(child)
+                .is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)));
+            match blank(child) && !reference && declared.unwrap_or(children.len() > 1 && leading) {
+                true => found.push(child),
+                false => kept.push(child),
+            }
+        }
+    }
+    found.sort_unstable();
+    found
+}
+
+/// Children with entity references replaced by their content, recursively:
+/// what validators see of a tree parsed without `NOENT`.
+pub(crate) fn flattened_children<T: Navigate>(
+    tree: &T,
+    id: T::Id,
+) -> impl Iterator<Item = T::Id> + '_ {
+    std::iter::successors(flattened_first(tree, id), move |&child| {
+        flattened_next(tree, id, child)
+    })
+}
+
+/// The first of `parent`'s [`flattened_children`].
+pub(crate) fn flattened_first<T: Navigate>(tree: &T, parent: T::Id) -> Option<T::Id> {
+    past_references(tree, parent, tree.first_child(parent))
+}
+
+/// The flattened child of `parent` after `child`.
+pub(crate) fn flattened_next<T: Navigate>(tree: &T, parent: T::Id, child: T::Id) -> Option<T::Id> {
+    past_references(tree, parent, flattened_step(tree, parent, child))
+}
+
+fn is_reference<T: Navigate>(tree: &T, id: T::Id) -> bool {
+    matches!(tree.item(id), Item::EntityRef(_))
+}
+
+/// The next node inside `parent`, entering entity references only.
+fn flattened_step<T: Navigate>(tree: &T, parent: T::Id, node: T::Id) -> Option<T::Id> {
+    if is_reference(tree, node)
+        && let Some(first) = tree.first_child(node)
+    {
+        return Some(first);
+    }
+    let mut node = node;
+    loop {
+        if let Some(next) = tree.next_sibling(node) {
+            return Some(next);
+        }
+        node = tree.parent(node).filter(|&up| up != parent)?;
+    }
+}
+
+fn past_references<T: Navigate>(tree: &T, parent: T::Id, node: Option<T::Id>) -> Option<T::Id> {
+    std::iter::successors(node, |&node| flattened_step(tree, parent, node))
+        .find(|&node| !is_reference(tree, node))
 }

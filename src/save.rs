@@ -172,6 +172,7 @@ impl<'document, 'input> Tree<'document, 'input> {
                         data: Cow::Borrowed(data),
                     })
                 }
+                NodeKind::EntityRef(name) => Some(Event::EntityStart(Cow::Borrowed(name))),
                 NodeKind::Document | NodeKind::Element(_) => None,
             },
             Self::Owned(node) => owned_leaf(node),
@@ -211,7 +212,7 @@ impl<'document, 'input> Tree<'document, 'input> {
         Ok(())
     }
 
-    fn is_document(self) -> bool {
+    pub(crate) fn is_document(self) -> bool {
         match self {
             Self::Borrowed(node) => matches!(node.kind(), NodeKind::Document),
             Self::Owned(node) => node.kind() == OwnedNodeKind::Document,
@@ -275,6 +276,7 @@ pub(crate) fn owned_leaf(node: OwnedNode<'_>) -> Option<Event<'_>> {
             target: Cow::Borrowed(node.processing_instruction_target()?),
             data: Cow::Borrowed(node.text()?),
         }),
+        OwnedNodeKind::EntityRef => Some(Event::EntityStart(Cow::Borrowed(node.entity_name()?))),
         OwnedNodeKind::Document | OwnedNodeKind::Element => None,
     }
 }
@@ -847,6 +849,11 @@ impl<'a> Saver<'a> {
                 self.out.raw("?>");
             }
             Event::Doctype(doctype) => dtd::doctype(&mut self.out, doctype),
+            Event::EntityStart(name) => {
+                self.out.raw("&");
+                self.out.raw(name);
+                self.out.raw(";");
+            }
             _ => {}
         }
     }
@@ -856,10 +863,10 @@ fn is_declaration(attribute: &Attribute<'_>) -> bool {
     attribute.name.namespace() == Some(XMLNS)
 }
 
-/// Text (or, outside XHTML, CDATA) children turn formatting off.
+/// Text, entity reference (or, outside XHTML, CDATA) children turn formatting off.
 fn has_text(node: Tree<'_, '_>, xhtml: bool) -> bool {
     node.children().any(|child| match child.leaf() {
-        Some(Event::Text(_)) => true,
+        Some(Event::Text(_) | Event::EntityStart(_)) => true,
         Some(Event::Cdata(_)) => !xhtml,
         _ => false,
     })

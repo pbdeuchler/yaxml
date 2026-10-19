@@ -5,9 +5,10 @@ use std::borrow::Cow;
 use std::cell::Cell;
 use std::io::{self, Write};
 
+use yaxml::options::NOENT;
 use yaxml::{
-    Document, ErrorKind, Event, Limit, Limits, NodeKind, OwnedDocument, WriteError, Writer,
-    WriterLimits,
+    Document, ErrorKind, Event, Limit, Limits, NodeKind, OwnedDocument, ParseOptions, WriteError,
+    Writer, WriterLimits,
 };
 
 #[derive(Clone, Copy)]
@@ -82,7 +83,12 @@ fn exercise(tree: Tree<'_, '_>, expected: &Document<'_>, input: &[u8]) {
         },
     )
     .unwrap();
-    tree_equal(expected, &reparsed);
+    // The writer expands kept entity references: compare with the substituted tree.
+    let substituted = expected
+        .nodes()
+        .any(|node| node.entity_name().is_some())
+        .then(|| Document::parse_with(input, ParseOptions::new(NOENT)).unwrap());
+    tree_equal(substituted.as_ref().unwrap_or(expected), &reparsed);
     misuse(tree);
     if output.len() <= 4096 {
         let control = input.get(input.len() / 2).copied().unwrap_or(0);

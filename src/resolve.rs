@@ -135,9 +135,26 @@ impl Resolver for FileResolver {
     }
 }
 
+/// Handles to one resolver for several consumers in turn (parsing, then
+/// XInclude); calls never overlap.
+pub(crate) fn share(resolver: Box<dyn Resolver>) -> impl Fn() -> Box<dyn Resolver> {
+    let shared = std::sync::Arc::new(std::sync::Mutex::new(resolver));
+    move || {
+        let shared = shared.clone();
+        Box::new(move |request: Request<'_>| {
+            let mut resolver = shared
+                .lock()
+                .map_err(|_| io::Error::other("resolver panicked"))?;
+            resolver.resolve(request)
+        })
+    }
+}
+
 /// The resolver with its document base and cumulative budgets.
 pub(crate) struct Loader {
     resolver: Box<dyn Resolver>,
+    /// What the parser options allow to load; other requests are declined.
+    flags: crate::options::Flags,
     /// Base of the resource whose declarations are being processed.
     pub(crate) base: String,
     loads_left: usize,
@@ -150,10 +167,16 @@ impl Loader {
         Self {
             resolver,
             base: base.to_owned(),
+            flags: crate::options::Flags::LOAD_ALL,
             loads_left: limits.max_external_loads,
             bytes_left: limits.max_external_bytes,
             max_bytes: limits.max_external_bytes,
         }
+    }
+
+    /// Declines what `flags` do not load, without consulting the resolver.
+    pub(crate) fn with_flags(self, flags: crate::options::Flags) -> Self {
+        Self { flags, ..self }
     }
 
     /// Bytes the resolver has returned so far.
@@ -173,6 +196,9 @@ impl Loader {
         uri: &str,
         public_id: Option<&str>,
     ) -> Result<Option<String>, ErrorKind> {
+        if !self.flags.loads(kind) {
+            return Ok(None);
+        }
         self.loads_left = self
             .loads_left
             .checked_sub(1)

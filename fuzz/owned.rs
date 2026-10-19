@@ -136,6 +136,10 @@ pub(super) fn check_nodes(
             NodeKind::ProcessingInstruction { target, .. } => {
                 (OwnedNodeKind::ProcessingInstruction, Some(target.as_ref()))
             }
+            NodeKind::EntityRef(name) => {
+                assert_eq!(actual.entity_name(), Some(name.as_ref()));
+                (OwnedNodeKind::EntityRef, None)
+            }
         };
         assert_eq!(actual.kind(), kind);
         assert!(

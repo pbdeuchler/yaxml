@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use crate::schema_types::{Context, Type};
-use crate::xpath::tree::{Item, Navigate, QName, Tree, attributes, namespaces};
+use crate::xpath::tree::{self, Item, Navigate, QName, Tree, attributes, namespaces};
 use crate::{OwnedDocument, Resolver};
 use pattern::{Arena, Deriver, Id, NOT_ALLOWED, Name, NameClass, Pat, Tables, is_whitespace};
 
@@ -237,7 +237,7 @@ impl Schema {
         resolver: Box<dyn Resolver>,
         limits: &Limits,
     ) -> Result<Self, SchemaErrors> {
-        let document = OwnedDocument::with_limits(input, limits.xml).map_err(|error| {
+        let document = OwnedDocument::parse_legacy(input, limits.xml).map_err(|error| {
             SchemaErrors(vec![SchemaError {
                 code: SchemaCode::ParseError,
                 uri: base.to_owned(),
@@ -399,7 +399,7 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
                 }
                 continue;
             };
-            frame.next = self.tree.next_sibling(child);
+            frame.next = tree::flattened_next(self.tree, frame.element, child);
             match self.tree.item(child) {
                 Item::Text(text) => frame.text.push_str(text),
                 Item::Element(_) => {
@@ -472,8 +472,8 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
             errored = true;
             closed = self.deriver.start_tag_close(current, true);
         }
-        let first = tree.first_child(element);
-        let mixed = std::iter::successors(first, |&child| tree.next_sibling(child))
+        let first = tree::flattened_first(tree, element);
+        let mixed = tree::flattened_children(tree, element)
             .any(|child| matches!(tree.item(child), Item::Element(_)));
         Some(Frame {
             element,

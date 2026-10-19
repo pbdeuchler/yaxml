@@ -120,6 +120,8 @@ enum Value {
     Cdata(String),
     Comment(String),
     Pi(String, String),
+    EntityStart(String),
+    EntityEnd,
 }
 
 fn value(event: Event<'_>) -> Value {
@@ -167,6 +169,8 @@ fn value(event: Event<'_>) -> Value {
         Event::ProcessingInstruction { target, data } => {
             Value::Pi(target.into_owned(), data.into_owned())
         }
+        Event::EntityStart(name) => Value::EntityStart(name.into_owned()),
+        Event::EntityEnd => Value::EntityEnd,
     }
 }
 
@@ -767,7 +771,15 @@ fn dtd_text_consumes_its_terminating_reference_and_stops_after_entity_errors() {
                 (None, "<!DOCTYPE r [<!ENTITY e 'x'>]>"),
                 (None, "<!DOCTYPE r [<!ENTITY e 'x'>]><r>"),
                 (text("a"), "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;"),
+                (
+                    Some(Value::EntityStart("e".into())),
+                    "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;",
+                ),
                 (text("x"), "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;"),
+                (
+                    Some(Value::EntityEnd),
+                    "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;",
+                ),
                 (text("b"), "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;b&u;"),
             ],
             ErrorKind::UnknownEntity,

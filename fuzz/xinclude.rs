@@ -125,6 +125,7 @@ pub fn exercise(input: &[u8]) {
         max_depth: 8,
         limits: LIMITS,
         xpath: XPATH,
+        parse_flags: yaxml::options::LEGACY,
     };
     let (result, requests) = run(&document, &resources, &options(true, false));
     // Processing is deterministic and never changes its input.

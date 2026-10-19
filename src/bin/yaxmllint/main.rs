@@ -14,8 +14,8 @@ use opts::{Opts, *};
 use yaxml::catalog::{Catalog, CatalogResolver};
 use yaxml::xpath::{Context, XPath};
 use yaxml::{
-    EditLimits, ErrorKind, Limit, Limits, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind,
-    Request, Resolver, c14n, relaxng, save, valid, xsd,
+    ErrorKind, Limit, Limits, OwnedDocument, ParseOptions, Request, Resolver, c14n, relaxng, save,
+    valid, xsd,
 };
 
 /// Compiled `--relaxng` and `--schema` documents, shared by every input.
@@ -28,8 +28,6 @@ fn limits(o: &Opts) -> Limits {
     let base = Limits::default();
     let huge = |value: usize| if o.huge { value << 6 } else { value };
     Limits {
-        max_depth: if o.huge { 2048 } else { base.max_depth },
-        max_token_bytes: huge(base.max_token_bytes),
         max_input_bytes: o
             .maxmem
             .map_or(base.max_input_bytes, |m| m.min(base.max_input_bytes)),
@@ -141,73 +139,29 @@ fn print_all(file: &str, input: &[u8], kind: &str, found: &[impl Finding]) -> bo
     })
 }
 
-/// Whitespace-only text nodes `XML_PARSE_NOBLANKS` drops (libxml2's `areBlanks`
-/// heuristic without a DTD): not the only child, not after text, not in
-/// `xml:space="preserve"` scope.
-fn blanks(document: &OwnedDocument) -> Vec<OwnedNodeId> {
-    let preserved = |element: OwnedNode<'_>| {
-        let space = |n: OwnedNode<'_>| {
-            n.attributes()
-                .find(|a| a.name.qualified() == "xml:space")
-                .map(|a| a.value.to_string())
-        };
-        std::iter::successors(Some(element), |n| n.parent())
-            .find_map(space)
-            .is_some_and(|v| v == "preserve")
-    };
-    let mut found = Vec::new();
-    for parent in document
-        .nodes()
-        .filter(|n| n.kind() == OwnedNodeKind::Element && !preserved(*n))
-    {
-        let children: Vec<_> = parent.children().collect();
-        let declared = document
-            .dtd()
-            .zip(parent.name())
-            .and_then(|(dtd, name)| dtd.has_element_content(name.qualified()));
-        let mut kept: Vec<OwnedNodeKind> = Vec::new();
-        for child in &children {
-            let blank = child.kind() == OwnedNodeKind::Text
-                && child
-                    .text()
-                    .is_some_and(|t| t.bytes().all(|b| b" \t\r\n".contains(&b)));
-            let leading = kept
-                .last()
-                .is_none_or(|last| *last != OwnedNodeKind::Text && kept[0] != OwnedNodeKind::Text);
-            match blank && declared.unwrap_or(children.len() > 1 && leading) {
-                true => found.push(child.id()),
-                false => kept.push(child.kind()),
-            }
-        }
-    }
-    found
+/// xmllint's parser options for the command line.
+fn flags(o: &Opts) -> u32 {
+    use yaxml::options::*;
+    let set = |on: bool, flag: u32| if on { flag } else { 0 };
+    o.flags
+        | set(o.huge, HUGE)
+        | set(o.noblanks || o.format == 1, NOBLANKS)
+        | set(o.valid, DTDVALID)
+        | set(o.postvalid || o.dtdvalid.is_some(), DTDLOAD)
+        | set(o.relaxng.is_some() || o.schema.is_some(), NOENT | DTDLOAD)
+        | set(o.c14n.is_some(), NOENT | DTDATTR | DTDLOAD)
 }
 
 fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Error> {
     let limits = limits(o);
-    let noblanks = o.noblanks || o.format == 1;
     if o.html {
+        let noblanks = o.noblanks || o.format == 1;
         let flags = o.html_flags | yaxml::html::COMPACT | yaxml::html::BIG_LINES;
         let flags = flags | if noblanks { yaxml::html::NOBLANKS } else { 0 };
         return Ok(yaxml::html::parse(input, yaxml::html::Options { flags, limits })?.document);
     }
-    let loads = o.load || o.valid || o.postvalid || o.c14n.is_some();
-    let mut document = if loads || o.relaxng.is_some() || o.schema.is_some() {
-        OwnedDocument::with_resolver(input, limits, name, resolver(o))?
-    } else {
-        OwnedDocument::with_limits(input, limits)?
-    };
-    let blanks = if noblanks {
-        blanks(&document)
-    } else {
-        Vec::new()
-    };
-    if let Ok(mut editor) = document.edit(EditLimits::default()) {
-        blanks.into_iter().for_each(|id| {
-            let _ = editor.remove_subtree(id);
-        });
-    }
-    Ok(document)
+    let options = ParseOptions::new(flags(o)).with_limits(limits);
+    OwnedDocument::parse_with(input, options.with_resolver(name, resolver(o)))
 }
 
 fn save(o: &Opts, document: &OwnedDocument, out: &mut Vec<u8>) -> i32 {
@@ -369,6 +323,7 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
         let options = yaxml::xinclude::Options {
             base_fixup: !o.nofixup_base,
             limits: limits(o),
+            parse_flags: flags(o) & !yaxml::options::XINCLUDE,
             ..Default::default()
         };
         match yaxml::xinclude::process(&document, file, resolver(o), &options) {
@@ -407,8 +362,17 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
 
 /// `--stream`: read every node through the pull interface and print nothing.
 fn stream(o: &Opts, file: &str, input: &[u8]) -> i32 {
-    let mut reader =
-        yaxml::TextReader::with_limits(input, limits(o)).with_resolver(file, resolver(o));
+    // The reader neither validates nor drops blanks; it prints nothing anyway.
+    let streamable = flags(o) & !(yaxml::options::DTDVALID | yaxml::options::NOBLANKS);
+    let options = ParseOptions::new(streamable).with_limits(limits(o));
+    let reader = yaxml::TextReader::with_options(input, options.with_resolver(file, resolver(o)));
+    let mut reader = match reader {
+        Ok(reader) => reader,
+        Err(error) => {
+            eprintln!("{file} : failed to parse: {error:?}");
+            return UNCLASS;
+        }
+    };
     loop {
         match reader.read() {
             Ok(true) => {}

@@ -381,7 +381,11 @@ fn capture(event: Event<'_>) -> Option<Value> {
         Event::ProcessingInstruction { target, data } => {
             Some(Value::Pi(target.into(), data.into_owned()))
         }
-        Event::Declaration(_) | Event::Doctype(_) | Event::End(_) => None,
+        Event::Declaration(_)
+        | Event::Doctype(_)
+        | Event::End(_)
+        | Event::EntityStart(_)
+        | Event::EntityEnd => None,
     }
 }
 
@@ -463,7 +467,7 @@ fn logical_values_have_spec_derived_goldens() {
                 NodeKind::ProcessingInstruction { target, data } => {
                     Some(Value::Pi(target.to_string(), data.to_string()))
                 }
-                NodeKind::Document | NodeKind::Doctype(_) => None,
+                NodeKind::Document | NodeKind::Doctype(_) | NodeKind::EntityRef(_) => None,
             })
             .collect();
         assert_eq!(values, expected, "DOM: {input:?}");

@@ -643,7 +643,7 @@ fn prefer(node: OwnedNode<'_>, inherited: bool) -> bool {
 /// `xmlParseXMLCatalogFile`: the entries of an XML catalog, `group`
 /// members flattened in document order. `None` if malformed.
 fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>> {
-    let document = OwnedDocument::with_limits(input, crate::Limits::default()).ok()?;
+    let document = OwnedDocument::parse_legacy(input, crate::Limits::default()).ok()?;
     let local = |node: OwnedNode<'_>| {
         (node.name())
             .filter(|name| name.namespace() == Some(NAMESPACE))

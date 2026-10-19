@@ -435,7 +435,7 @@ impl<'l> Loader<'l> {
             ));
         }
         self.bytes += bytes.len();
-        OwnedDocument::with_limits(&bytes, *xml).map_err(|error| {
+        OwnedDocument::parse_legacy(&bytes, *xml).map_err(|error| {
             self.error(
                 SchemaCode::ParseError,
                 at,

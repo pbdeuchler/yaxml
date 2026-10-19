@@ -325,3 +325,49 @@ fn html_as_xml_matches_xmllint() {
     );
     assert!(mismatches.is_empty());
 }
+
+/// libxml2's default parse (no `NOENT`, no `DTDATTR`): kept entity references
+/// serialize as `&name;`. Reported, with the differing documents listed under
+/// `YAXML_SAVE_VERBOSE`; attribute-value references are a known difference.
+#[test]
+fn kept_references_match_xmllint_default() {
+    let Some(program) = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from) else {
+        eprintln!("YAXML_XMLLINT unset; skipping the default-parse save differential");
+        return;
+    };
+    let verbose = std::env::var_os("YAXML_SAVE_VERBOSE").is_some();
+    let (mut compared, mut matched, mut references) = (0, 0, 0);
+    for (path, root) in corpus() {
+        let output = Command::new(&program)
+            .arg("--nonet")
+            .arg(&path)
+            .output()
+            .expect("run xmllint");
+        if !output.status.success() {
+            continue;
+        }
+        let input = std::fs::read(&path).unwrap();
+        let base = path
+            .strip_prefix(&root)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let options = yaxml::ParseOptions::default()
+            .with_resolver(&base, Box::new(FileResolver::new(&root).unwrap()));
+        let Ok(document) = OwnedDocument::parse_with(&input, options) else {
+            continue;
+        };
+        compared += 1;
+        references += usize::from(document.nodes().any(|node| node.entity_name().is_some()));
+        let ours = save::to_vec(&document, &save::Options::default()).unwrap();
+        if ours == output.stdout {
+            matched += 1;
+        } else if verbose {
+            eprintln!("differs: {}", path.display());
+        }
+    }
+    eprintln!(
+        "default parse: {matched}/{compared} identical to xmllint ({references} keep references)"
+    );
+    assert!(compared > 0 && matched > 0);
+}

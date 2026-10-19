@@ -686,6 +686,15 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                 assert!(node.name() == Some(name), "end name differs from DOM");
                 continue;
             }
+            Event::EntityEnd => {
+                let parent = parents.pop().expect("entity end without open reference");
+                let node = document.node(parent).unwrap();
+                assert!(
+                    node.entity_name().is_some(),
+                    "entity end closes a non-reference"
+                );
+                continue;
+            }
             _ => {}
         }
         let node = nodes.next().expect("DOM lost an event node");
@@ -704,6 +713,10 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                 if matches!(event, Event::Start(_)) {
                     parents.push(node.id());
                 }
+            }
+            (Event::EntityStart(expected), NodeKind::EntityRef(actual)) => {
+                assert!(actual == expected, "entity name differs from stream");
+                parents.push(node.id());
             }
             (Event::Doctype(expected), NodeKind::Doctype(actual)) => {
                 assert_eq!(actual, expected, "DOCTYPE differs from stream");
@@ -862,6 +875,12 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
                 assert!(node.text().is_none());
             }
             NodeKind::Document | NodeKind::Doctype(_) => {
+                assert!(node.name().is_none());
+                assert!(node.text().is_none());
+                assert!(node.attributes().is_empty());
+            }
+            NodeKind::EntityRef(name) => {
+                assert_eq!(node.entity_name(), Some(name.as_ref()));
                 assert!(node.name().is_none());
                 assert!(node.text().is_none());
                 assert!(node.attributes().is_empty());

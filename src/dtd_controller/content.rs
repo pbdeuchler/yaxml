@@ -34,6 +34,12 @@ pub(crate) struct LentContent<'event> {
     pub(crate) budget: &'event mut Budget,
 }
 
+/// An entity reference boundary, published when references are kept.
+enum Marker {
+    Start(String),
+    End,
+}
+
 pub(crate) struct ContentControllerCore<'input> {
     body: DtdBodyState,
     parser: ParserState<'input>,
@@ -43,6 +49,14 @@ pub(crate) struct ContentControllerCore<'input> {
     local: Option<TextSourceLease<'input>>,
     finalizing: bool,
     complete: bool,
+    /// Report entity references as `EntityStart`/`EntityEnd` (no `NOENT`).
+    markers: bool,
+    /// A boundary to publish before any further token.
+    pending: Option<(Marker, FragmentOrigin)>,
+    /// The `End` of a pending `Start` whose reference expands to nothing.
+    queued: Option<FragmentOrigin>,
+    /// Origins of the references being expanded, for their `End`s.
+    open: Vec<FragmentOrigin>,
 }
 
 pub(crate) type ContentController = ContentControllerCore<'static>;
@@ -77,6 +91,7 @@ impl<'input> ContentControllerCore<'input> {
         parser: ParserState<'input>,
         input: TextSourceLease<'input>,
     ) -> Result<Self, Error> {
+        let markers = !body.limits.flags.substitutes();
         let fail = |kind| Error::new(kind, body.physical_position);
         let shared = TextShared::new(body.limits, body.counters.work).map_err(fail)?;
         let coordinator = TextCoordinator::new(shared, input)
@@ -89,6 +104,10 @@ impl<'input> ContentControllerCore<'input> {
             local: None,
             finalizing: false,
             complete: false,
+            markers,
+            pending: None,
+            queued: None,
+            open: Vec::new(),
         })
     }
 
@@ -124,13 +143,19 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     pub(crate) fn is_non_event(&self) -> bool {
-        self.coordinator
-            .current()
-            .is_some_and(|token| self.parser.is_non_event(token.kind, token.raw))
+        self.pending.is_none()
+            && self
+                .coordinator
+                .current()
+                .is_some_and(|token| self.parser.is_non_event(token.kind, token.raw))
     }
 
     /// Releases the lent token's source storage.
     pub(crate) fn acknowledge(&mut self) -> Result<(), Error> {
+        if self.pending.take().is_some() {
+            self.pending = self.queued.take().map(|origin| (Marker::End, origin));
+            return Ok(());
+        }
         self.coordinator
             .release_token()
             .map_err(|error| self.text_error(error))
@@ -144,6 +169,9 @@ impl<'input> ContentControllerCore<'input> {
 
     fn drive(&mut self, input: &[u8]) -> Result<ContentStep, Error> {
         let step = |consumed, outcome| Ok(ContentStep { consumed, outcome });
+        if self.pending.is_some() {
+            return step(0, ContentOutcome::EventReady);
+        }
         if self.coordinator.current().is_some() {
             return step(0, ContentOutcome::EventReady);
         }
@@ -248,6 +276,14 @@ impl<'input> ContentControllerCore<'input> {
             return Err(fail(ErrorKind::TextOutsideRoot));
         }
         let name = &reference.raw()[1..reference.raw().len() - 1];
+        let marker = match self.markers {
+            true => Some(owned_name(
+                name,
+                self.parser.owned_budget(),
+                origin.error_offset(),
+            )?),
+            false => None,
+        };
         let catalog = &mut self.body.catalog;
         catalog
             .load_general(name)
@@ -273,6 +309,11 @@ impl<'input> ContentControllerCore<'input> {
                 self.body.frames.advance(local.len())?;
             }
             self.coordinator.discard_general();
+            // libxml2 still keeps a reference node, with no content.
+            if let Some(name) = marker {
+                self.pending = Some((Marker::Start(name), origin));
+                self.queued = Some(origin);
+            }
             return Ok(());
         };
         let before = self.body.frames.counters().work;
@@ -310,12 +351,23 @@ impl<'input> ContentControllerCore<'input> {
             }
             self.coordinator.resume()
         })();
-        result.map_err(|error| self.text_error(error))
+        result.map_err(|error| self.text_error(error))?;
+        if let Some(name) = marker {
+            self.open
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
+            self.open.push(origin);
+            self.pending = Some((Marker::Start(name), origin));
+        }
+        Ok(())
     }
 
     fn finish_general(&mut self) -> Result<(), Error> {
         let depth = Some(self.parser.element_depth());
         self.body.frames.finish(depth)?;
+        if let Some(origin) = self.open.pop() {
+            self.pending = Some((Marker::End, origin));
+        }
         let next = match self.body.frames.top_mut() {
             Some(parent) => {
                 parent.scanned = parent.cursor;
@@ -392,9 +444,26 @@ impl<'input> ContentControllerCore<'input> {
         Ok((kind, origin, offset, catalog_before))
     }
 
+    /// Publishes the pending entity boundary.
+    fn lend_marker(&mut self) -> Option<LentContent<'_>> {
+        let (marker, origin) = self.pending.as_ref()?;
+        let event = match marker {
+            Marker::Start(name) => Event::EntityStart(Cow::Borrowed(name)),
+            Marker::End => Event::EntityEnd,
+        };
+        Some(LentContent {
+            event: Some(event),
+            origin: *origin,
+            budget: self.parser.owned_budget(),
+        })
+    }
+
     /// Publishes the ready token; its event borrows source storage until
     /// `acknowledge`.
     pub(crate) fn lend_with_budget(&mut self) -> Result<LentContent<'_>, Error> {
+        if self.pending.is_some() {
+            return Ok(self.lend_marker().expect("pending marker"));
+        }
         let (kind, origin, offset, catalog_before) = self.prepare_publication()?;
         let (token, work) = self.coordinator.current_with_work().expect("ready token");
         let raw = match kind {
@@ -427,6 +496,14 @@ impl<'input> ContentControllerCore<'input> {
 
     /// Moves a stable-input event out; no field can borrow reusable controller storage.
     pub(crate) fn take_event(&mut self) -> Result<(Option<Event<'input>>, SourceOrigin), Error> {
+        if let Some((marker, origin)) = self.pending.take() {
+            self.pending = self.queued.take().map(|origin| (Marker::End, origin));
+            let event = match marker {
+                Marker::Start(name) => Event::EntityStart(Cow::Owned(name)),
+                Marker::End => Event::EntityEnd,
+            };
+            return Ok((Some(event), SourceOrigin::from_repr(origin)));
+        }
         let token = self.coordinator.current().expect("ready token");
         let stable = match token.location {
             TextLocation::Input(_) => Some(self.coordinator.stable_current().expect("stable")),
@@ -626,4 +703,14 @@ fn tag_failure(
         _ => origin.error_offset(),
     };
     Error::new(error.kind, offset)
+}
+
+/// A budgeted copy of an entity name for its `EntityStart` marker.
+fn owned_name(name: &str, budget: &mut Budget, offset: usize) -> Result<String, Error> {
+    budget.charge_owned(name.len(), offset)?;
+    let mut copy = String::new();
+    copy.try_reserve_exact(name.len())
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    copy.push_str(name);
+    Ok(copy)
 }

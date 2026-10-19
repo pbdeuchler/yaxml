@@ -158,6 +158,10 @@ impl<W: Write> Writer<W> {
     }
 
     pub(crate) fn write_event_inner(&mut self, event: &Event<'_>) -> Result<(), WriteError> {
+        // Entity boundaries write nothing: the replacement's events follow.
+        if matches!(event, Event::EntityStart(_) | Event::EntityEnd) {
+            return Ok(());
+        }
         self.prepare(event).map_err(WriteError::Xml)?;
         self.write_buffer()
     }
@@ -296,6 +300,9 @@ impl<W: Write> Writer<W> {
                     ">"
                 })?;
                 TokenKind::Start
+            }
+            Event::EntityStart(_) | Event::EntityEnd => {
+                return Err(Error::new(ErrorKind::InvalidState, self.position));
             }
             Event::End(name) => {
                 buffer.push("</")?;
