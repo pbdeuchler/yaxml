@@ -1,0 +1,1 @@
+substring-before('a/b', '/') = substring-after('a/b', '/') or substring('12345', 1.5, 2.6) = '234' or substring('abc', -1 div 0) = '' or substring('abc', 0 div 0) or substring('abc', 2)

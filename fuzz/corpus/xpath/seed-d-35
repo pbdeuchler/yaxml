@@ -1,0 +1,1 @@
+/descendant::* | /descendant-or-self::node() | //b/parent::* | //a/child::text() | //a/attribute::* | //p:c/namespace::p

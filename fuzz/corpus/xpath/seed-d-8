@@ -1,0 +1,1 @@
+//*/self::p:c | //p:* | //*[namespace-uri() = 'urn:d'] | //@xml:*

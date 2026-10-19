@@ -1,8 +1,45 @@
 //! URI parsing, serialization, escaping and resolution on arbitrary text.
 //! Input is up to three newline-separated lines: reference, base, escape list.
+//! Displays propagate formatter failures at every byte and errors display.
 
 use yaxml::Uri;
 use yaxml::uri::{canonic_path, escape, normalize_path, relative, resolve, unescape};
+
+/// Accepts `room` bytes, then fails.
+struct Bounded {
+    output: String,
+    room: usize,
+}
+
+impl std::fmt::Write for Bounded {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        if text.len() > self.room - self.output.len() {
+            return Err(std::fmt::Error);
+        }
+        self.output.push_str(text);
+        Ok(())
+    }
+}
+
+/// Formatting into every shorter sink fails with a prefix of the full text.
+fn check_display(value: &impl std::fmt::Display) {
+    use std::fmt::Write;
+    let expected = value.to_string();
+    for room in 0..expected.len().min(64) {
+        let mut sink = Bounded {
+            output: String::new(),
+            room,
+        };
+        assert!(write!(sink, "{value}").is_err(), "{expected:?} at {room}");
+        assert!(expected.starts_with(&sink.output));
+    }
+}
+
+fn check_error<T>(result: &Result<T, yaxml::UriError>) {
+    if let Err(error) = result {
+        assert!(!error.to_string().is_empty());
+    }
+}
 
 pub(super) fn exercise(input: &[u8]) {
     let Ok(text) = std::str::from_utf8(input) else {
@@ -12,7 +49,10 @@ pub(super) fn exercise(input: &[u8]) {
     let mut line = || lines.next().unwrap_or("");
     let (reference, base, list) = (line(), line(), line());
     // Raw components are ASCII and serialize to something that parses again.
-    if let Ok(uri) = Uri::parse_raw(reference) {
+    let raw = Uri::parse_raw(reference);
+    check_error(&raw);
+    if let Ok(uri) = raw {
+        check_display(&uri);
         let saved = uri.to_string();
         assert!(saved.is_ascii(), "{reference:?} saved as {saved:?}");
         // libxml2 saves an authority-less path starting with "//" (even one
@@ -24,8 +64,15 @@ pub(super) fn exercise(input: &[u8]) {
             "{reference:?} saved as {saved:?}"
         );
     }
-    let _ = Uri::parse(reference).map(|uri| uri.to_string());
-    let _ = (resolve(reference, base), relative(reference, base));
+    let parsed = Uri::parse(reference);
+    check_error(&parsed);
+    if let Ok(uri) = parsed {
+        check_display(&uri);
+    }
+    let (resolved, related) = (resolve(reference, base), relative(reference, base));
+    check_error(&resolved);
+    check_error(&related);
+    check_error(&unescape(reference));
     let once = normalize_path(reference);
     assert_eq!(normalize_path(&once), once);
     // Escaping outside a list without '%' is exactly reversible, up to a NUL.

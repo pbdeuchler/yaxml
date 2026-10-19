@@ -1,0 +1,1 @@
+name(//@*[1]) | local-name(//namespace::*[2]) | namespace-uri(//@xml:id) | name(//processing-instruction())

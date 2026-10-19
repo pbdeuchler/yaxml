@@ -1,0 +1,1 @@
+//*[position() = last()][position() mod 2 = 0][1] | (//*)[last() - 1] | (//node())[3] | //a[last()]

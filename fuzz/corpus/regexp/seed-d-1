@@ -1,0 +1,3 @@
+\p{IsBasicLatin}+\p{IsGreek}?\P{IsCyrillic}*\p{IsCJKUnifiedIdeographs}{0,2}
+abc
+abα

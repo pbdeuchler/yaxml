@@ -1,0 +1,1 @@
+floor(-1.5) + ceiling(1.5) + round(2.5) + round(-0.5) + round(0 div 0) + number('  -12.5e0 ') + number() + number(true()) + number(//zz)

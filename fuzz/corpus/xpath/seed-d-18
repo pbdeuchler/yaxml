@@ -1,0 +1,1 @@
+count($ns) + count($p:v/..)

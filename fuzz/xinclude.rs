@@ -1,6 +1,9 @@
 //! XInclude over fuzz-provided resources. A testcase is NUL-separated: the
 //! including document, then the resources served as `0`..`9` beside it. The
-//! last piece is also evaluated as an XPointer over both DOMs.
+//! last piece is also evaluated as an XPointer over both DOMs. Default
+//! options with the harness budgets reproduce every result that does not
+//! hit the depth limit, and small input-derived budgets either fail or
+//! reproduce the full result.
 
 use std::sync::{Arc, Mutex};
 
@@ -60,7 +63,10 @@ fn run(
     let log = Log::default();
     let result = xinclude::process(document, "d/doc.xml", resolver(resources, &log), options)
         .map(|result| check(&result))
-        .map_err(|error| error.kind);
+        .map_err(|error| {
+            assert!(error.to_string().starts_with("XInclude error"));
+            error.kind
+        });
     let requests = log.lock().unwrap().clone();
     // Only the response that exhausts the byte budget may exceed it.
     let served: usize = requests
@@ -109,6 +115,25 @@ fn check(result: &OwnedDocument) -> Vec<u8> {
     bytes
 }
 
+/// Small load, byte, node and depth budgets chosen by the input bytes.
+fn tight(input: &[u8]) -> Options {
+    let hash = input.iter().fold(0u32, |hash, &byte| {
+        hash.wrapping_mul(31).wrapping_add(byte.into())
+    });
+    Options {
+        base_fixup: true,
+        lang_fixup: false,
+        max_depth: (hash >> 20 & 3) as usize,
+        limits: Limits {
+            max_external_loads: (hash & 3) as usize,
+            max_external_bytes: (hash >> 2 & 1023) as usize,
+            max_events: 4 + (hash >> 12 & 63) as usize,
+            ..LIMITS
+        },
+        xpath: XPATH,
+    }
+}
+
 pub fn exercise(input: &[u8]) {
     let mut pieces = input.split(|byte| *byte == 0);
     let main = pieces.next().unwrap_or_default();
@@ -127,11 +152,22 @@ pub fn exercise(input: &[u8]) {
         xpath: XPATH,
     };
     let (result, requests) = run(&document, &resources, &options(true, false));
-    // Processing is deterministic and never changes its input.
-    assert_eq!(
-        run(&document, &resources, &options(true, false)),
-        (result.clone(), requests)
-    );
+    // Processing is deterministic and never changes its input; the default
+    // options differ only in a deeper nesting limit.
+    let defaults = Options {
+        limits: LIMITS,
+        xpath: XPATH,
+        ..Options::default()
+    };
+    if result != Err(ErrorKind::RecursionDepth) {
+        assert_eq!(
+            run(&document, &resources, &defaults),
+            (result.clone(), requests)
+        );
+    }
+    if let (Ok(small), Ok(full)) = (run(&document, &resources, &tight(input)).0, &result) {
+        assert_eq!(&small, full, "small budgets changed the result");
+    }
     // Fixups only add, change or remove xml:base and xml:lang attributes.
     let (other, _) = run(&document, &resources, &options(false, true));
     if result.is_ok() {
@@ -143,6 +179,9 @@ pub fn exercise(input: &[u8]) {
 
     let pointer = String::from_utf8_lossy(resources.last().copied().unwrap_or(main));
     let owned = yaxml::xpointer::evaluate(&document, &pointer, &XPATH).map(|nodes| nodes.len());
+    if let Err(error) = &owned {
+        assert!(error.to_string().starts_with("XPointer"));
+    }
     let borrowed = Document::with_resolver(main, LIMITS, "d/doc.xml", resolver(&resources, &log));
     if let Ok(borrowed) = borrowed {
         let borrowed = yaxml::xpointer::evaluate(&borrowed, &pointer, &XPATH);

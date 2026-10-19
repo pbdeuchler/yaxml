@@ -1,7 +1,9 @@
 //! XML and SGML catalogs over fuzz-provided files. A testcase is
 //! NUL-separated: the root catalog (`d/root`), then files served as `d/0`..`d/9`.
 //! Queries are fixed identifiers plus every line of the last piece: `p…`
-//! public, `s…` system, `u…` URI, otherwise `public|system`.
+//! public, `s…` system, `u…` URI, otherwise `public|system`. The resolver
+//! fails with an I/O error for `d/err`. The queries also run against
+//! `Catalog::load` of `d/0` and under small input-derived limits.
 
 use std::sync::{Arc, Mutex};
 
@@ -16,17 +18,19 @@ const LIMITS: Limits = Limits {
 
 const NAMES: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-const FIXED: [&str; 6] = [
+const FIXED: [&str; 7] = [
     "p-//A//DTD X//EN",
     "shttp://e/x.dtd",
     "uhttp://e/x",
     "purn:publicid:-:A:DTD+X:EN",
     "p-//A//DTD X//EN|http://e/x.dtd",
     "x",
+    "uurn:publicid:-:A:DTD+X:EN",
 ];
 
-/// Requested URIs and response lengths.
-type Log = Arc<Mutex<Vec<(String, usize)>>>;
+/// Requested URIs, response lengths and the byte budget each request carried.
+type Requests = Vec<(String, usize, usize)>;
+type Log = Arc<Mutex<Requests>>;
 
 fn resolver(resources: &[&[u8]], log: &Log) -> Box<dyn Resolver> {
     let resources: Vec<Vec<u8>> = resources.iter().map(|piece| piece.to_vec()).collect();
@@ -38,7 +42,11 @@ fn resolver(resources: &[&[u8]], log: &Log) -> Box<dyn Resolver> {
         log.lock().unwrap().push((
             request.uri.to_owned(),
             response.as_ref().map_or(0, Vec::len),
+            request.max_bytes,
         ));
+        if name == "err" {
+            return Err(std::io::Error::other("fuzz resolver failure"));
+        }
         Ok(response)
     })
 }
@@ -62,15 +70,33 @@ fn query(line: &str) -> Query<'_> {
     }
 }
 
+/// Small load, byte and depth limits chosen by the input bytes.
+fn tight(input: &[u8]) -> Limits {
+    let hash = input.iter().fold(0u32, |hash, &byte| {
+        hash.wrapping_mul(31).wrapping_add(byte.into())
+    });
+    Limits {
+        max_loads: (hash & 3) as usize,
+        max_bytes: (hash >> 2 & 1023) as usize,
+        max_depth: (hash >> 12 & 3) as usize,
+    }
+}
+
 /// Every answer in order, and the requests that produced them.
 fn run(
-    root: &[u8],
+    root: Option<&[u8]>,
     resources: &[&[u8]],
     queries: &[Query<'_>],
-) -> (Vec<Option<String>>, Vec<(String, usize)>) {
+    limits: Limits,
+) -> (Vec<Option<String>>, Requests) {
     let log = Log::default();
-    let answers = match Catalog::parse(root, LIMITS, "d/root", resolver(resources, &log)) {
+    let built = match root {
+        Some(root) => Catalog::parse(root, limits, "d/root", resolver(resources, &log)),
+        None => Catalog::load("d/0", limits, resolver(resources, &log)),
+    };
+    let answers = match built {
         Ok(mut catalog) => {
+            assert!(format!("{catalog:?}").starts_with("Catalog"));
             assert_eq!(catalog.resolve(None, None), None);
             (queries.iter())
                 .map(|query| match *query {
@@ -79,19 +105,27 @@ fn run(
                 })
                 .collect()
         }
-        Err(_) => Vec::new(),
+        Err(error) => {
+            assert!(!error.to_string().is_empty());
+            Vec::new()
+        }
     };
     let requests = log.lock().unwrap().clone();
-    // Only the response that exhausts the byte budget may exceed it.
-    let served: usize = requests
-        .iter()
-        .rev()
-        .skip(1)
-        .map(|(_, length)| length)
-        .sum();
+    // Each request offers what earlier accepted responses left; a larger
+    // response is rejected and spends nothing.
+    let mut left = limits.max_bytes;
+    for (_, length, offered) in &requests {
+        assert_eq!(
+            *offered, left,
+            "byte budget is not cumulative: {requests:?}"
+        );
+        if length <= offered {
+            left -= length;
+        }
+    }
     assert!(
-        requests.len() <= LIMITS.max_loads && served <= LIMITS.max_bytes,
-        "budgets ignored: {requests:?}"
+        requests.len() <= limits.max_loads,
+        "load budget ignored: {requests:?}"
     );
     (answers, requests)
 }
@@ -103,9 +137,19 @@ pub fn exercise(input: &[u8]) {
     let text = String::from_utf8_lossy(resources.last().copied().unwrap_or(root));
     let lines: Vec<&str> = FIXED.iter().copied().chain(text.lines().take(32)).collect();
     let queries: Vec<Query<'_>> = lines.iter().map(|line| query(line)).collect();
-    let (answers, requests) = run(root, &resources, &queries);
+    let (answers, requests) = run(Some(root), &resources, &queries, LIMITS);
     // Resolution is deterministic, lazy loading included.
-    assert_eq!(run(root, &resources, &queries), (answers, requests));
+    assert_eq!(
+        run(Some(root), &resources, &queries, LIMITS),
+        (answers, requests)
+    );
+    run(Some(root), &resources, &queries, tight(input));
+    let defaults = Limits {
+        max_loads: LIMITS.max_loads,
+        max_bytes: LIMITS.max_bytes,
+        ..Limits::default()
+    };
+    run(None, &resources, &queries, defaults);
 
     // The adapter asks the catalog exactly as libxml2's entity loader does.
     let Some(Query::Id(Some(public), Some(system))) = queries.get(4) else {

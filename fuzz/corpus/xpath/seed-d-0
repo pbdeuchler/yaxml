@@ -1,0 +1,1 @@
+count(//node()) + count(//@*) - count(//namespace::*)
