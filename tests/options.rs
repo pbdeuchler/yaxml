@@ -615,3 +615,51 @@ fn loading(
         .with_limits(limits)
         .with_resolver(base, resolver)
 }
+
+/// libxml2 records the declared label as the document encoding only when it
+/// switched to it (or a BOM auto-detected it): `IGNORE_ENC` leaves none, so
+/// `save` neither rejects an unsupported label nor writes it back. Outputs
+/// are pinned from `xmllint [--noenc]` (plain ISO-8859-1 differs per DOM,
+/// see the test above).
+#[test]
+fn ignored_encoding_label_is_not_the_document_encoding() {
+    let decl = |label: &str| format!("<?xml version=\"1.0\" encoding=\"{label}\"?><r>é</r>");
+    let bom = |label: &str| format!("\u{feff}{}", decl(label));
+    let ignored: &[u8] = b"<?xml version=\"1.0\"?>\n<r>&#xE9;</r>\n";
+    // (input, flags, pinned save output or the kind of the parse error)
+    type Case<'a> = (String, u32, Result<&'a [u8], ErrorKind>);
+    let cases: Vec<Case> = vec![
+        (decl("UTF-8"), IGNORE_ENC, Ok(ignored)),
+        (decl("ISO-8859-1"), IGNORE_ENC, Ok(ignored)),
+        (decl("UTF-7"), IGNORE_ENC, Ok(ignored)),
+        (decl("UTF-7"), IGNORE_ENC | RECOVER, Ok(ignored)),
+        (
+            decl("UTF-8"),
+            0,
+            Ok("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r>é</r>\n".as_bytes()),
+        ),
+        (decl("UTF-7"), 0, Err(ErrorKind::UnsupportedEncoding)),
+        // A BOM auto-detects UTF-8: the label is kept, or read as UTF-8.
+        (
+            bom("UTF-8"),
+            IGNORE_ENC,
+            Ok("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r>é</r>\n".as_bytes()),
+        ),
+        (
+            bom("UTF-7"),
+            IGNORE_ENC,
+            Ok("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r>é</r>\n".as_bytes()),
+        ),
+    ];
+    for (input, flags, expected) in cases {
+        let expected = expected.map(<[u8]>::to_vec);
+        let borrowed = Document::parse_with(input.as_bytes(), options(flags))
+            .map_err(|error| error.kind)
+            .and_then(|tree| save::to_vec(&tree, &Default::default()).map_err(|e| e.kind));
+        let owned = OwnedDocument::parse_with(input.as_bytes(), options(flags))
+            .map_err(|error| error.kind)
+            .and_then(|tree| save::to_vec(&tree, &Default::default()).map_err(|e| e.kind));
+        assert_eq!(borrowed, expected, "{input:?} {flags:#x} borrowed");
+        assert_eq!(owned, expected, "{input:?} {flags:#x} owned");
+    }
+}
