@@ -62,6 +62,8 @@ pub enum ErrorKind {
     TextOutsideRoot,
     InvalidDeclaration,
     UnsupportedEncoding,
+    /// A requested parser option or property is not implemented.
+    UnsupportedOption,
     EncodingMismatch,
     LimitExceeded(Limit),
     Allocation,
