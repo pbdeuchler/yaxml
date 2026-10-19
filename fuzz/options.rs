@@ -6,7 +6,8 @@ use std::io::BufReader;
 use std::ops::ControlFlow;
 
 use yaxml::options::{
-    DTDATTR, DTDVALID, IGNORE_ENC, NOBLANKS, NOCDATA, NOENT, NSCLEAN, RECOVER, SKIP_IDS,
+    DTDATTR, DTDVALID, HUGE, IGNORE_ENC, NOBLANKS, NOCDATA, NOENT, NSCLEAN, RECOVER, SKIP_IDS,
+    XINCLUDE,
 };
 use yaxml::{
     BufferedReader, Document, ErrorKind, Event, Limits, NodeKind, OwnedDocument, ParseOptions,
@@ -52,6 +53,11 @@ pub(super) fn exercise(input: &[u8]) {
 
 /// Every surface on `document` under `flags`.
 pub(super) fn exercise_flags(flags: u32, document: &[u8]) {
+    // `HUGE` only raises ceilings; streams reject tree-only flags.
+    let huge = ParseOptions::new(flags | HUGE);
+    let (limits, _) = huge.effective_limits();
+    assert!(limits.max_depth >= 2048 && format!("{huge:?}").contains("flags"));
+    assert!(PushParser::with_options(ParseOptions::new(flags | XINCLUDE)).is_err());
     if flags & RECOVER != 0 {
         return check_recovered(flags, document);
     }
@@ -333,7 +339,9 @@ fn check_recovered(flags: u32, document: &[u8]) {
         ));
     }
     let bytes = saved(&tree);
-    let again = Document::parse_with(&bytes, ParseOptions::new(flags)).unwrap_or_else(|error| {
+    // A BOM-detected label `IGNORE_ENC` recorded is saved, then ignored without it.
+    let reparse = ParseOptions::new(flags & !IGNORE_ENC);
+    let again = Document::parse_with(&bytes, reparse).unwrap_or_else(|error| {
         panic!("{error:?} reparsing {:?}", String::from_utf8_lossy(&bytes))
     });
     assert_eq!(saved(&again), bytes, "recovery is not a fixed point");
