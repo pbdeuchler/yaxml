@@ -29,6 +29,9 @@ mod construction;
 #[path = "names.rs"]
 mod names;
 
+#[path = "xpath.rs"]
+mod xpath;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -49,6 +52,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
         check_finish_abort(input);
     }
     exercise_names(input);
+    fuzz_xpath(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -174,6 +178,13 @@ fn check_abort(error: Error, expected_offset: usize) {
 pub fn exercise_mutation(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     mutation::exercise(input);
+}
+
+/// Exercise XPath compilation and evaluation over both DOMs; see `xpath.rs`
+/// for the testcase format.
+pub fn fuzz_xpath(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    xpath::exercise(input);
 }
 
 /// Exercise validated names and owned PI targets before XML/encoding dispatch.

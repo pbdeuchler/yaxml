@@ -30,6 +30,7 @@ mod serialize;
 mod stream;
 mod tokenizer;
 mod writer;
+pub mod xpath;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};

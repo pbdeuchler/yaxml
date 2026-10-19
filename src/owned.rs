@@ -157,6 +157,12 @@ pub struct OwnedNodeId {
     slot: NodeId,
 }
 
+impl OwnedNodeId {
+    pub(crate) fn slot(self) -> usize {
+        self.slot.0
+    }
+}
+
 /// The content category of a node in an owned document.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -554,6 +560,25 @@ impl OwnedDocument {
 
     pub fn nodes(&self) -> impl ExactSizeIterator<Item = OwnedNode<'_>> + '_ {
         self.root().descendants()
+    }
+
+    /// Preorder rank per slot, or `None` while slots are already preorder.
+    pub(crate) fn preorder_ranks(&self) -> Option<Vec<usize>> {
+        (!self.slots_are_preorder).then(|| {
+            let mut ranks = vec![0; self.nodes.len()];
+            for (rank, node) in self.nodes().enumerate() {
+                ranks[node.record.id.0] = rank;
+            }
+            ranks
+        })
+    }
+
+    fn name_parts(&self, name: &StoredName) -> (&str, Option<&str>) {
+        let pool = &self.pool.0;
+        (
+            &pool[name.qualified.clone()],
+            name.namespace.as_ref().map(|range| &pool[range.clone()]),
+        )
     }
 
     pub fn declaration(&self) -> Option<Declaration<'_>> {
@@ -1373,6 +1398,29 @@ impl<'document> OwnedNode<'document> {
                 _ => None,
             });
         self.text().into_iter().chain(descendants)
+    }
+
+    /// The element's QName and namespace, borrowed from the pool.
+    pub(crate) fn name_parts(self) -> Option<(&'document str, Option<&'document str>)> {
+        match &self.record().content {
+            Content::Element { name, .. } => Some(self.document.name_parts(name)),
+            _ => None,
+        }
+    }
+
+    /// One attribute's QName, namespace and value by source index.
+    pub(crate) fn attribute_parts(
+        self,
+        index: usize,
+    ) -> Option<((&'document str, Option<&'document str>), &'document str)> {
+        let Content::Element { attributes, .. } = &self.record().content else {
+            return None;
+        };
+        let attribute = self.document.attributes[attributes.clone()].get(index)?;
+        Some((
+            self.document.name_parts(&attribute.name),
+            &self.document.pool.0[attribute.value.clone()],
+        ))
     }
 
     pub fn processing_instruction_target(self) -> Option<&'document str> {

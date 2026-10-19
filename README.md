@@ -181,6 +181,21 @@ no cumulative counters. Existing-element attribute insertion/removal,
 moves/adoption, detached ownership, namespace edits, slot reuse and
 compaction remain pending.
 
+`yaxml::xpath` evaluates XPath 1.0 over either DOM: all axes, node tests,
+predicates, unions, the four value types, the 27 core functions, and
+caller-supplied prefixes, variables and extension functions. Number
+conversion and formatting, and `substring`/`round` edge cases, follow libxml2.
+Compilation and evaluation are bounded by finite `xpath::Limits`. The
+[XPath contract](docs/xpath.md) lists the remaining differences from libxml2.
+
+```rust
+let document = yaxml::Document::parse("<r><i k='1'/><i k='2'/></r>")?;
+let sum = yaxml::xpath::XPath::compile("sum(//i/@k)")?;
+let value = sum.evaluate(&document, document.root().id(), &yaxml::xpath::Context::new())?;
+assert_eq!(value, yaxml::xpath::Value::Number(3.0));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
 their own scope decision because libxml2 exposes raw pointers and public mutable
