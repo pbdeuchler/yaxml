@@ -27,7 +27,7 @@ impl Context for Fixed {
     }
 
     fn has_notation(&self, name: &str) -> bool {
-        name.len() % 2 == 0
+        name.len().is_multiple_of(2)
     }
 
     fn has_unparsed_entity(&self, name: &str) -> bool {
