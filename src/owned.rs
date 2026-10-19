@@ -1221,10 +1221,7 @@ fn validate_value_length(value: &str, limit: usize) -> Result<(), EditError> {
 }
 
 fn validate_characters(value: &str) -> Result<(), EditError> {
-    if let Some((index, _)) = value
-        .char_indices()
-        .find(|(_, character)| !crate::escape::xml_char(*character))
-    {
+    if let Some(index) = crate::escape::invalid_char(value) {
         return Err(EditError::new(EditErrorKind::InvalidCharacter, Some(index)));
     }
     Ok(())

@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use crate::dtd_controller::DtdController;
-use crate::escape::xml_char;
+use crate::escape::invalid_char;
 use crate::parser::{ParserState, space};
 use crate::stream::dtd::SessionLimits;
 use crate::tokenizer::TokenKind;
@@ -84,7 +84,8 @@ impl<W: Write> Writer<W> {
                     ..Limits::default()
                 },
                 0,
-            ),
+            )
+            .copying_names(),
             buffer: TokenBuffer {
                 text: String::new(),
                 offset: 0,
@@ -402,12 +403,7 @@ impl<W: Write> Writer<W> {
     }
 
     fn validate_buffer_characters(&self) -> Result<(), Error> {
-        if let Some((relative, _)) = self
-            .buffer
-            .text
-            .char_indices()
-            .find(|(_, character)| !xml_char(*character))
-        {
+        if let Some(relative) = invalid_char(&self.buffer.text) {
             return Err(Error::new(
                 ErrorKind::InvalidCharacter,
                 self.position + relative,

@@ -247,7 +247,7 @@ fn generated_end_copy_failure_after_namespace_copy_keeps_the_exact_scope_live() 
             assert_eq!(state.events, 1);
             assert!(state.in_content());
             assert_eq!(
-                state.resolve_name("r", false, 10).unwrap().0.namespace(),
+                state.resolve_name("r", None, 10).unwrap().namespace(),
                 Some("urn")
             );
         } else {
@@ -400,7 +400,11 @@ fn nonempty_generated_start_retains_default_scope_after_raw_and_catalog_drop() {
         let end = state.process_dtd_end_owned("</p:c>", 0).unwrap();
         assert_eq!(state.element_depth(), 1);
         assert_eq!(
-            state.resolve_name("p:x", false, 0).err().unwrap().kind,
+            state
+                .resolve_name("p:x", std::num::NonZeroUsize::new(1), 0)
+                .err()
+                .unwrap()
+                .kind,
             ErrorKind::Namespace
         );
         state.process_dtd_end_owned("</r>", 0).unwrap();
@@ -450,7 +454,11 @@ fn nonempty_generated_start_frame_copy_ceiling_keeps_pending_scope_unpublished()
             assert_eq!(state.element_depth(), 1);
             assert_eq!(state.events, 1);
             assert_eq!(
-                state.resolve_name("p:x", false, 0).err().unwrap().kind,
+                state
+                    .resolve_name("p:x", std::num::NonZeroUsize::new(1), 0)
+                    .err()
+                    .unwrap()
+                    .kind,
                 ErrorKind::Namespace
             );
         } else {

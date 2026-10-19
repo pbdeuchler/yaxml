@@ -311,33 +311,48 @@ fn owned_state_outlives_temporary_tokens_and_events_outlive_scope_removal() {
 
 #[test]
 fn interner_reference_counts_include_aliases_and_shadowed_bindings() {
-    let mut state = ParserState::new(Limits::default(), 0);
-    let root = "<r xmlns:p='urn:a' xmlns:q='urn:a'>";
-    owned(&mut state, TokenKind::Start, root, 0).unwrap();
-    assert_eq!(state.namespace_ids.len(), 1);
-    assert_eq!(state.namespace_ids.get("urn:a").unwrap().bindings, 2);
-    let child = "<p:c xmlns:p='urn:b' xmlns:q='urn:a' p:a='' q:a=''/>";
-    let event = owned(&mut state, TokenKind::Start, child, root.len()).unwrap();
-    assert_eq!(state.namespace_ids.len(), 1);
-    assert_eq!(state.namespace_ids.get("urn:a").unwrap().bindings, 2);
-    assert!(!state.namespace_ids.contains_key("urn:b"));
-    assert!(
-        matches!(event, Some(Event::Empty(element)) if element.name.namespace() == Some("urn:b") && element.attributes[2].name.namespace() == Some("urn:b") && element.attributes[3].name.namespace() == Some("urn:a"))
-    );
-    let sibling = "<p:c/>";
-    assert!(
-        matches!(owned(&mut state, TokenKind::Start, sibling, root.len() + child.len()).unwrap(), Some(Event::Empty(element)) if element.name.namespace() == Some("urn:a"))
-    );
-    owned(
-        &mut state,
-        TokenKind::End,
-        "</r>",
-        root.len() + child.len() + sibling.len(),
-    )
-    .unwrap();
-    assert!(state.namespace_ids.is_empty());
-    assert!(state.namespace_index.is_empty());
-    assert_eq!(state.next_namespace, 2);
+    // Without padding the scope is searched linearly; with it, indexed.
+    for pad in [0, 20] {
+        let mut state = ParserState::new(Limits::default(), 0);
+        let wrapper: String = (0..pad)
+            .map(|n| format!(" xmlns:z{n}='urn:z{n}'"))
+            .collect();
+        let wrapper = format!("<w{wrapper}>");
+        owned(&mut state, TokenKind::Start, &wrapper, 0).unwrap();
+        let mut offset = wrapper.len();
+        let count = |state: &ParserState<'_>, uri| {
+            state
+                .interned(uri)
+                .map(|(_, count)| if state.indexed { count } else { 2 })
+        };
+        let root = "<r xmlns:p='urn:a' xmlns:q='urn:a'>";
+        owned(&mut state, TokenKind::Start, root, offset).unwrap();
+        offset += root.len();
+        assert_eq!(state.indexed, pad > 0);
+        assert_eq!(count(&state, "urn:a"), Some(2));
+        let aliases = &state.bindings[state.bindings.len() - 2..];
+        assert_eq!(aliases[0].namespace, aliases[1].namespace);
+        let child = "<p:c xmlns:p='urn:b' xmlns:q='urn:a' p:a='' q:a=''/>";
+        let event = owned(&mut state, TokenKind::Start, child, offset).unwrap();
+        offset += child.len();
+        assert_eq!(count(&state, "urn:a"), Some(2));
+        assert_eq!(state.interned("urn:b"), None);
+        assert!(
+            matches!(event, Some(Event::Empty(element)) if element.name.namespace() == Some("urn:b") && element.attributes[2].name.namespace() == Some("urn:b") && element.attributes[3].name.namespace() == Some("urn:a"))
+        );
+        let sibling = "<p:c/>";
+        assert!(
+            matches!(owned(&mut state, TokenKind::Start, sibling, offset).unwrap(), Some(Event::Empty(element)) if element.name.namespace() == Some("urn:a"))
+        );
+        offset += sibling.len();
+        owned(&mut state, TokenKind::End, "</r>", offset).unwrap();
+        assert_eq!(state.interned("urn:a"), None);
+        assert_eq!(state.next_namespace, pad + 2);
+        if pad == 0 {
+            assert!(state.namespace_ids.is_empty());
+            assert!(state.namespace_index.is_empty());
+        }
+    }
 }
 
 #[test]

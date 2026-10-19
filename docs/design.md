@@ -93,7 +93,8 @@ bounded lexical scanner. It retains a raw token until its delimiter arrives,
 including text until the next `<` or final EOF, so event boundaries and token
 limits are independent of chunking. The lexer carries quote/delimiter state
 instead of rescanning an accumulated prefix. Safe `memchr` searches copy ordinary
-byte runs in bulk. A four-byte preamble handles split encoding signatures.
+byte runs in bulk, and a token complete within one UTF-8 chunk is adopted in a
+single copy with identical spans and counters. A four-byte preamble handles split encoding signatures.
 
 Both frontends use `ParserState` for names, declarations, normalization, document
 phase, namespaces, and budgets. A narrow retention callback borrows slice strings

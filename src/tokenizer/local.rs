@@ -3,7 +3,7 @@ use super::reference::{ContentStep, ContentStop, ReferenceCursor, ReferenceExten
 use super::{ReadySpan, Scan, TokenKind, Tokenizer};
 use crate::ErrorKind;
 use crate::dtd_reference::ValidatedReference;
-use crate::escape::xml_char;
+use crate::escape::invalid_char;
 use std::ops::Range;
 
 #[derive(Clone, Copy, Debug)]
@@ -295,7 +295,7 @@ impl LocalTokenizer {
                     start + e.valid_up_to(),
                 )
             })?;
-            if let Some((offset, _)) = raw.char_indices().find(|(_, c)| !xml_char(*c)) {
+            if let Some(offset) = invalid_char(raw) {
                 return Err(self.error(
                     LocalErrorKind::Xml(ErrorKind::InvalidCharacter),
                     start + offset,

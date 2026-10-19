@@ -56,6 +56,50 @@ parse/destruction, slice events and 8 KiB push workloads. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 
+### Current matched results (2026-10-19)
+
+Ratios are **libxml2 median / yaxml median** of parse plus destruction per
+document (above 1 favors yaxml), from `parse_benchmark` with 5 alternating
+pairs at the DTD-activation merge `2a46232` and 7 pairs after the
+optimization series ending at `7fba88e`. Release builds as above; static
+libxml2 2.15.4 helper built with `-std=c11 -O3 -DNDEBUG`; Apple M1 Max.
+The host was shared with other jobs (load average 10-130), so single rows
+carry several percent of noise. Cells read before → after. yaxml leads in **45 of 65** workloads,
+up from 14.
+
+| Fixture | DOM | Owned | Reader | Push | Buffered |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| tiny | 2.83 → **3.87** | 2.07 → **2.68** | 2.73 → **4.23** | 1.06 → **1.45** | 1.42 → **2.01** |
+| flat | 0.71 → **1.14** | 0.65 → **1.01** | 0.69 → **1.21** | 0.30 → **0.58** | 0.40 → **0.79** |
+| text | 0.32 → **2.53** | 0.31 → **2.27** | 0.72 → **1.26** | 0.64 → **1.13** | 0.72 → **1.24** |
+| attributes | 1.19 → **1.50** | 1.05 → **1.35** | 0.92 → **1.16** | 0.61 → **0.79** | 0.84 → **1.04** |
+| namespaces | 0.63 → **1.30** | 0.63 → **1.10** | 0.84 → **1.53** | 0.40 → **0.79** | 0.55 → **1.08** |
+| normalized | 0.94 → **1.66** | 0.90 → **1.57** | 0.96 → **1.50** | 0.40 → **0.69** | 0.60 → **1.01** |
+| unicode | 0.72 → **1.23** | 0.68 → **1.09** | 0.87 → **1.44** | 0.45 → **0.68** | 0.57 → **0.97** |
+| deep | 0.77 → **1.10** | 0.66 → **0.77** | 0.96 → **1.58** | 0.32 → **0.63** | 0.41 → **0.83** |
+| mixed | 1.36 → **1.84** | 1.27 → **1.56** | 1.52 → **2.02** | 0.32 → **0.65** | 0.53 → **1.08** |
+
+| Small chunks | Push 1 | Push 7 | Buffered 1 | Buffered 7 |
+| --- | ---: | ---: | ---: | ---: |
+| tiny | 1.29 → **1.76** | 1.03 → **1.35** | 1.47 → **2.26** | 1.39 → **1.87** |
+| text | 0.64 → **0.86** | 0.73 → **1.07** | 0.75 → **1.58** | 0.83 → **1.41** |
+| namespaces | 0.55 → **0.81** | 0.44 → **0.67** | 0.73 → **1.33** | 0.60 → **0.97** |
+| normalized | 0.61 → **0.85** | 0.49 → **0.70** | 0.81 → **1.44** | 0.67 → **1.09** |
+| mixed | 0.64 → **0.87** | 0.43 → **0.51** | 0.88 → **1.43** | 0.67 → **0.91** |
+
+
+Remaining losses are streaming. `PushParser` loses every 8 KiB row
+except `tiny` and `text`: libxml2's SAX push hands out interned names and buffer pointers with
+no per-event allocation, while each yaxml event is a by-value `Event`
+(an attribute `Vec` per attributed start tag, owned strings for
+normalized text and streaming namespace URIs) behind several validation
+and delivery layers. Without the benchmark observer, yaxml push costs
+about 1.08 ms on `flat` versus 0.79 ms for the borrowing reader. Seven-byte
+chunks rarely contain a complete token, so they fall back to the byte-wise
+tokenizer. Buffered pull still trails on `flat`, `deep` and narrowly on
+`unicode`/7-byte namespaces. Owned DOM trails on `deep`, a 900-byte input
+dominated by per-document setup.
+
 ## Buffered pull observations
 
 `cargo bench --bench pull` runs tiny elements, attributes, text, lexical payloads,
