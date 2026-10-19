@@ -67,6 +67,8 @@ pub(crate) struct CatalogUsage {
     pub(crate) expanded_bytes: usize,
     pub(crate) work: usize,
     pub(crate) references: usize,
+    /// Replacement text entered and defaults copied, with a fixed cost each.
+    pub(crate) amplification: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -304,6 +306,7 @@ pub(crate) struct DtdCatalog {
     external_subset: bool,
     parameter_reference: bool,
     failure: Option<CatalogError>,
+    amplification_ceiling: usize,
     loader: Option<Loader>,
     /// The DOCTYPE's external identifier, kept only for loading.
     subset: Option<ExternalEntity>,
@@ -326,6 +329,7 @@ impl DtdCatalog {
             external_subset: false,
             parameter_reference: false,
             failure: None,
+            amplification_ceiling: usize::MAX,
             loader: None,
             subset: None,
         }
@@ -333,6 +337,26 @@ impl DtdCatalog {
 
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
         self.limits.max_work = self.limits.max_work.min(ceiling);
+    }
+
+    pub(crate) fn set_amplification_ceiling(&mut self, ceiling: usize) {
+        self.amplification_ceiling = ceiling;
+    }
+
+    /// Bytes returned by the resolver; libxml2 counts them as consumed input.
+    pub(crate) fn external_bytes(&self) -> usize {
+        self.loader.as_ref().map_or(0, Loader::loaded)
+    }
+
+    /// Charges copied default-attribute text as libxml2 charges `expandedSize`.
+    pub(crate) fn charge_default(&mut self, bytes: usize) -> Result<(), CatalogError> {
+        increment(
+            &mut self.usage.amplification,
+            bytes,
+            self.amplification_ceiling,
+            CatalogLimit::ExpandedBytes,
+            ValueLocation::Input(0),
+        )
     }
 
     pub(crate) fn usage(&self) -> CatalogUsage {
@@ -980,6 +1004,7 @@ impl DtdCatalog {
                 entities: &self.entities,
                 frames: &mut self.frames,
                 limits: self.limits,
+                amplification_ceiling: self.amplification_ceiling,
                 request: ValueRequest {
                     requested: &mut *request.requested,
                     ..request
@@ -1053,6 +1078,7 @@ struct ValueProcessor<'a, 'raw> {
     entities: &'a [Entity],
     frames: &'a mut Vec<ValueFrame>,
     limits: CatalogLimits,
+    amplification_ceiling: usize,
     request: ValueRequest<'a>,
     usage: &'a mut CatalogUsage,
     issues: &'a mut Vec<(Code, Option<usize>, String)>,
@@ -1208,6 +1234,16 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                                     replacement.len(),
                                     self.limits.max_work,
                                     CatalogLimit::Work,
+                                    location,
+                                )?;
+                                // libxml2 charges each entered replacement plus a fixed cost.
+                                increment(
+                                    &mut self.usage.amplification,
+                                    replacement
+                                        .len()
+                                        .saturating_add(crate::dtd_controller::ENTITY_FIXED_COST),
+                                    self.amplification_ceiling,
+                                    CatalogLimit::ExpandedBytes,
                                     location,
                                 )?;
                                 self.frames

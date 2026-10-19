@@ -524,6 +524,7 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     fn enter_general(&mut self) -> Result<(), ContentError> {
+        self.share_expansion();
         let (resolved, origin) = {
             let (reference, extent, source) = self
                 .coordinator
@@ -671,35 +672,25 @@ impl<'input> ContentControllerCore<'input> {
             scanned: 0,
             physical_reference: ByteSpan::new(origin.physical_context()).expect("real reference"),
         });
-        let (shared, source) = self
-            .coordinator
-            .take()
-            .expect("reference coordinator")
-            .acknowledge_general()
-            .map_err(|error| self.text_error(error))?
-            .into_parts();
-        let local = if was_physical {
-            self.paused_input = Some(source);
-            match self.local.take().expect("parked local") {
-                LocalBuffer::Fresh(tokenizer) => TextSourceLease::local(tokenizer, invocation)
-                    .map_err(|error| self.text_error(error))?,
-                LocalBuffer::Released(mut lease) => {
-                    lease
-                        .switch_local_at_boundary(invocation, 0)
-                        .map_err(|error| self.text_error(error))?;
-                    lease
-                }
+        let coordinator = self.coordinator.as_mut().expect("reference coordinator");
+        let result = coordinator.acknowledge_general_in_place().and_then(|()| {
+            if was_physical {
+                let local = match self.local.take().expect("parked local") {
+                    LocalBuffer::Fresh(tokenizer) => TextSourceLease::local(tokenizer, invocation)?,
+                    LocalBuffer::Released(mut lease) => {
+                        lease.switch_local_at_boundary(invocation, 0)?;
+                        lease
+                    }
+                };
+                self.paused_input = Some(std::mem::replace(coordinator.source_mut(), local));
+            } else {
+                coordinator
+                    .source_mut()
+                    .switch_local_at_boundary(invocation, 0)?;
             }
-        } else {
-            let mut source = source;
-            source
-                .switch_local_at_boundary(invocation, 0)
-                .map_err(|error| self.text_error(error))?;
-            source
-        };
-        self.coordinator =
-            Some(TextCoordinator::new(shared, local).map_err(|error| self.text_error(error))?);
-        Ok(())
+            coordinator.resume()
+        });
+        result.map_err(|error| self.text_error(error))
     }
 
     fn finish_general(&mut self) -> Result<(), ContentError> {
@@ -726,13 +717,12 @@ impl<'input> ContentControllerCore<'input> {
                 element_depth: self.parser.element_depth(),
             })
             .map_err(|error| self.frame_error(error, None))?;
-        let (shared, mut source) = self
+        let completed = self
             .coordinator
-            .take()
+            .as_mut()
             .expect("completed local")
-            .take_complete()
-            .map_err(|error| self.text_error(error))?
-            .into_parts();
+            .complete_in_place();
+        completed.map_err(|error| self.text_error(error))?;
         self.active.pop();
         let next = if let Some(parent) = self.active.last_mut() {
             let replacement = self
@@ -758,17 +748,37 @@ impl<'input> ContentControllerCore<'input> {
                 return Err(self.simple(ContentErrorKind::InvalidState));
             }
             parent.scanned = current.local_start;
-            source
-                .switch_local_at_boundary(parent.invocation, current.local_start)
-                .map_err(|error| self.text_error(error))?;
-            source
+            let (invocation, start) = (parent.invocation, current.local_start);
+            self.coordinator
+                .as_mut()
+                .expect("completed local")
+                .source_mut()
+                .switch_local_at_boundary(invocation, start)
         } else {
-            self.local = Some(LocalBuffer::Released(source));
-            self.paused_input.take().expect("paused primary input")
+            let paused = self.paused_input.take().expect("paused primary input");
+            let local = std::mem::replace(
+                self.coordinator
+                    .as_mut()
+                    .expect("completed local")
+                    .source_mut(),
+                paused,
+            );
+            self.local = Some(LocalBuffer::Released(local));
+            Ok(())
         };
-        self.coordinator =
-            Some(TextCoordinator::new(shared, next).map_err(|error| self.text_error(error))?);
-        Ok(())
+        let result =
+            next.and_then(|()| self.coordinator.as_mut().expect("completed local").resume());
+        result.map_err(|error| self.text_error(error))
+    }
+
+    fn share_expansion(&mut self) {
+        let body = &mut self.body;
+        share_expansion(
+            &body.limits,
+            body.physical_position,
+            &mut body.frames,
+            &mut body.catalog,
+        );
     }
 
     fn prepare_publication(
@@ -777,6 +787,7 @@ impl<'input> ContentControllerCore<'input> {
         if self.delivery != Delivery::Ready {
             return Err(self.simple(ContentErrorKind::InvalidState));
         }
+        self.share_expansion();
         let (kind, length, origin, offset) = {
             let token = self
                 .coordinator

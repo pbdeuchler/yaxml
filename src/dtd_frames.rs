@@ -153,6 +153,7 @@ pub(crate) struct EntityFrames {
     limits: FrameLimits,
     counters: FrameCounters,
     next_invocation: Option<NonZeroU64>,
+    expansion_ceiling: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -178,11 +179,17 @@ impl EntityFrames {
             limits,
             counters: FrameCounters::default(),
             next_invocation: NonZeroU64::new(1),
+            expansion_ceiling: usize::MAX,
         }
     }
 
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
         self.limits.max_work = self.limits.max_work.min(ceiling);
+    }
+
+    /// The live amplification allowance, beneath the configured ceiling.
+    pub(crate) fn set_expansion_ceiling(&mut self, ceiling: usize) {
+        self.expansion_ceiling = ceiling;
     }
 
     pub(crate) fn depth(&self) -> usize {
@@ -487,7 +494,7 @@ impl EntityFrames {
             FrameCounter::ExpandedBytes,
             physical_offset,
         )?;
-        if expanded_bytes > self.limits.max_expanded_bytes {
+        if expanded_bytes > self.limits.max_expanded_bytes.min(self.expansion_ceiling) {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::ExpandedBytes),
                 physical_offset,
@@ -524,7 +531,7 @@ impl EntityFrames {
             FrameCounter::ExpandedBytes,
             physical_offset,
         )?;
-        if expanded_bytes > self.limits.max_expanded_bytes {
+        if expanded_bytes > self.limits.max_expanded_bytes.min(self.expansion_ceiling) {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::ExpandedBytes),
                 physical_offset,

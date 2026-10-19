@@ -16,6 +16,7 @@ const LIMITS: Limits = Limits {
     max_owned_bytes: 1 << 22,
     max_dtd_bytes: 1 << 16,
     max_entity_expansion_bytes: 1 << 16,
+    max_entity_amplification: 5,
     max_entity_references: 1 << 12,
     max_entity_depth: 8,
     max_external_loads: 16,
