@@ -20,6 +20,7 @@ mod owned;
 mod parser;
 mod push;
 mod reader;
+pub mod regexp;
 mod resolve;
 mod serialize;
 mod stream;
