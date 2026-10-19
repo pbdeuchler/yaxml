@@ -36,7 +36,7 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
   source offset, message); `xsd::is_valid` ignores warnings.
 - `Schema::validate_stream(input, options)` parses a `BufRead` with
   `BufferedReader` and validates in the same pass (`xmlSchemaValidateStream`).
-  `StreamValidator::new(&schema)` takes each `Event` and its `SourceOrigin`
+  `StreamValidator::new(&schema)` (no lifetime: `Schema` clones share one `Arc` of compiled data) takes each `Event` and its `SourceOrigin`
   from any streaming surface (`Reader`, `PushParser`, `BufferedReader`), as
   libxml2's SAX plug does, and `finish` returns the diagnostics. They equal
   `validate`'s for the parsed tree, with `node` the element's index in
@@ -89,6 +89,12 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
   `xmllint --stream --schema`) agrees on all 204 `test/schemas` instances whose
   schema builds, the 20,000 random cases (with the counted-loop quirk below) and
   every table case but two (`ID` and `ENTITY`, below).
+- `TextReader::xsd_set_schema` feeds the same events as the reader takes from
+  its source: its diagnostics equal `validate_stream`'s on all 233 suite
+  instances (`tests/xsd_suite.rs`), and `yaxmllint --stream --schema` ends as
+  `xmllint --stream --schema` does (exit code, verdict line, error count) on all
+  204, with identical stderr on 183; the rest differ in message wording (facet
+  messages, enumeration sets, keyref element prefix) and reader line numbers.
 
 ## Differences
 
@@ -110,9 +116,9 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
   verdicts. Streams see the DTD of the internal subset only (`ID` attributes
   and unparsed entities of an external subset are unknown), and since a tree
   knows every ID beforehand, a schema `ID` repeated by a later DTD ID or
-  `xml:id` is reported at the later attribute in a stream. `TextReader` has no
-  schema hook yet (`xmlTextReaderSchemaValidate`); feed `StreamValidator` from
-  a `BufferedReader` instead.
+  `xml:id` is reported at the later attribute in a stream. `StreamValidator::set_dtd`
+  replaces the internal subset with a reader's fuller DTD, as `TextReader`
+  does.
 - Derivation by restriction must restate a base attribute's `fixed` value
   (derivation-ok-restriction 2.1.3). libxml2 2.15.4 compares the base's value
   with itself and never reports this, so it accepts schemas that omit or change

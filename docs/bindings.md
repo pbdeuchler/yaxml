@@ -21,6 +21,7 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
 | Need | Core facility |
 | --- | --- |
 | Long-lived documents not tied to input lifetimes | `OwnedDocument` (also produced by `html::parse`) |
+| Document memory charged to the host allocator | `OwnedDocument::parse_in`/`create_in` (`allocator_api` feature) |
 | Stable node handles that reject stale or foreign use | `OwnedNodeId`: a private non-recycled document identity plus slot; removed slots are never reused |
 | Pull streaming with no callbacks across the boundary | `TextReader` (xmlTextReader model), `BufferedReader` |
 | Bulk results instead of one call per node | XPath `select_nodes` returns id vectors; serializers write whole documents to a `Write` |
@@ -42,9 +43,40 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
 5. Resolvers and XPath extension functions are the only places the core calls
    host code. Both are explicit, `Send` and fallible. A host exception becomes
    an `io::Error` or XPath error rather than unwinding through Rust.
-6. Allocator-aware constructors, once Rust 1.100 is the MSRV, let adapters
-   charge document memory to the host runtime's allocator. That is an
-   optimization, not a correctness dependency.
+6. Allocator-aware constructors (`allocator_api`, Rust 1.100) let adapters
+   charge document memory to the host runtime's allocator; see
+   [Allocators](#allocators). That is a memory-accounting choice, not a
+   correctness dependency.
+
+## Allocators
+
+With the `allocator_api` feature (Rust 1.100), an adapter can charge document
+storage to the host runtime: `OwnedDocument::parse_in(input, options,
+allocator)` and `create_in` return `OwnedDocument<A>`. The core cannot
+implement `Allocator` because the trait is unsafe. The adapter crate already
+contains the binding's unsafe code, so it supplies the implementation, for
+example a wrapper over `PyMem_RawMalloc` or a counting quota allocator.
+
+- Use one concrete `A` per adapter. `Arc<dyn Allocator + Send + Sync>` is an
+  owned, `'static`, erased allocator, so wrapper types need no generics or
+  lifetimes and documents stay `Send + Sync`. A document holds one clone per
+  storage vector, currently two. An `&'a Arena` document borrows its arena,
+  which suits scoped Rust callers but not objects a host keeps alive.
+- Clones must behave as one allocator, as the `Allocator` contract requires.
+  A quota allocator therefore keeps its counter behind the shared pointer.
+- A failed reservation is `ErrorKind::Allocation` while parsing and
+  `EditErrorKind::Allocation` while editing. Neither publishes partial state,
+  so a bounded allocator is a safe way to cap memory under hostile input.
+  Keep `Limits` and `EditLimits` as well: they bound work and the global-heap
+  memory the allocator never sees.
+- The allocator covers node records and attributes: 93–99% of retained bytes
+  for markup-heavy documents in the parse benchmarks, 62% for one large text
+  node. The string pool, ID and diagnostic lists, the DTD, parser working
+  memory and all consumer output stay on the global heap. See
+  [allocator strategy](design.md#allocator-strategy). XPath, C14N,
+  validators and `Writer` accept any `A`. `save::to_vec`, HTML serialization
+  and XInclude take global-heap documents only, and `parse_in` rejects
+  `XINCLUDE`.
 
 ## Open decisions
 

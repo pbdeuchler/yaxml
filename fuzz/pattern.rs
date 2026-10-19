@@ -30,7 +30,7 @@ fn stream_walk(
     document: &Document<'_>,
     pattern: &Pattern,
     node: Element<'_>,
-    stream: &mut StreamMatcher<'_>,
+    stream: &mut StreamMatcher,
     exact: bool,
 ) {
     // Attributes are not nodes of `//.`-like patterns, which libxml2 streams
@@ -74,7 +74,7 @@ fn stream_walk(
 /// Streams the first-child chain under small limits: only the depth limit,
 /// and only beyond `max_depth` open elements, may stop it. (Like libxml2,
 /// an XPath-mode `.` alternative tracks no depth, so it never stops.)
-fn deep_walk(stream: &mut StreamMatcher<'_>, node: Element<'_>, depth: usize, max_depth: usize) {
+fn deep_walk(stream: &mut StreamMatcher, node: Element<'_>, depth: usize, max_depth: usize) {
     let name = node.name().expect("element");
     match stream.push(name.local(), name.namespace()) {
         Ok(_) => {

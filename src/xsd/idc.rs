@@ -19,7 +19,7 @@ enum Role {
 }
 
 /// An active XPath state object (`xmlSchemaIDCStateObj`).
-struct State<'s> {
+struct State {
     role: Role,
     /// The depth of the element where it started.
     depth: usize,
@@ -27,7 +27,7 @@ struct State<'s> {
     history: Vec<usize>,
     /// The matcher: its scope's depth and index.
     matcher: (usize, usize),
-    stream: StreamMatcher<'s>,
+    stream: StreamMatcher,
 }
 
 /// A key: the computed value and its normalized text for messages.
@@ -103,9 +103,9 @@ fn format_sequence(keys: &[Key]) -> String {
     format!("[{}]", items.join(", "))
 }
 
-pub(crate) struct Engine<'s> {
-    schema: &'s Schema,
-    states: Vec<State<'s>>,
+pub(crate) struct Engine {
+    schema: Schema,
+    states: Vec<State>,
     /// Per IDC, the depth of the topmost keyref that refers to it.
     keyref_depth: Vec<Option<usize>>,
     /// Whether the schema has keyrefs at all (node tables are built only then).
@@ -115,13 +115,17 @@ pub(crate) struct Engine<'s> {
     keys: usize,
 }
 
-impl<'s> Engine<'s> {
-    pub(crate) fn new(schema: &'s Schema) -> Self {
+impl Engine {
+    pub(crate) fn new(schema: &Schema) -> Self {
         Self {
-            schema,
+            schema: schema.clone(),
             states: Vec::new(),
-            keyref_depth: vec![None; schema.idcs.len()],
-            keyrefs: schema.idcs.iter().any(|idc| idc.kind == IdcKind::KeyRef),
+            keyref_depth: vec![None; schema.data.idcs.len()],
+            keyrefs: schema
+                .data
+                .idcs
+                .iter()
+                .any(|idc| idc.kind == IdcKind::KeyRef),
             keys: 0,
         }
     }
@@ -133,7 +137,7 @@ impl<'s> Engine<'s> {
     /// `xmlSchemaIDCRegisterMatchers` for an element at `depth`.
     pub(crate) fn register<Id>(&mut self, idcs: &[IdcId], depth: usize, scope: &mut Scope<Id>) {
         for &idc in idcs {
-            let definition = &self.schema.idcs[idc];
+            let definition = &self.schema.data.idcs[idc];
             if let Some(refer) = definition.refer {
                 scope.has_keyrefs = true;
                 let slot = &mut self.keyref_depth[refer];
@@ -190,7 +194,9 @@ impl<'s> Engine<'s> {
                 Role::Selector => {
                     let matcher = state.matcher;
                     let idc = scopes[matcher.0].matchers[matcher.1].idc;
-                    for (field, (_, pattern)) in self.schema.idcs[idc].fields.iter().enumerate() {
+                    for (field, (_, pattern)) in
+                        self.schema.data.idcs[idc].fields.iter().enumerate()
+                    {
                         if let Some(stream) = pattern.stream() {
                             self.states.push(State {
                                 role: Role::Field(field),
@@ -215,7 +221,7 @@ impl<'s> Engine<'s> {
     }
 
     fn designation(&self, idc: IdcId) -> String {
-        let definition = &self.schema.idcs[idc];
+        let definition = &self.schema.data.idcs[idc];
         let kind = match definition.kind {
             IdcKind::Unique => "unique",
             IdcKind::Key => "key",
@@ -223,7 +229,7 @@ impl<'s> Engine<'s> {
         };
         format!(
             "{kind} identity-constraint '{}'",
-            self.schema.names.format(definition.name)
+            self.schema.data.names.format(definition.name)
         )
     }
 
@@ -250,7 +256,7 @@ impl<'s> Engine<'s> {
                 state.history.pop();
                 let matcher = &mut scopes[scope].matchers[index];
                 let idc = matcher.idc;
-                let definition = &self.schema.idcs[idc];
+                let definition = &self.schema.data.idcs[idc];
                 match role {
                     Role::Field(field) => {
                         let xpath = &definition.fields[field].0;
@@ -321,14 +327,14 @@ impl<'s> Engine<'s> {
                                             self.designation(idc)
                                         ),
                                     );
-                                } else if self.keys == self.schema.max_idc_keys {
+                                } else if self.keys == self.schema.data.max_idc_keys {
                                     self.keys += 1;
                                     report(
                                         node,
                                         Code::VInternal,
                                         "Too many identity-constraint key sequences.".into(),
                                     );
-                                } else if self.keys < self.schema.max_idc_keys {
+                                } else if self.keys < self.schema.data.max_idc_keys {
                                     self.keys += 1;
                                     if definition.kind != IdcKind::KeyRef {
                                         matcher
@@ -367,7 +373,7 @@ impl<'s> Engine<'s> {
         };
         if self.keyrefs {
             for matcher in std::mem::take(&mut scope.matchers) {
-                let kind = self.schema.idcs[matcher.idc].kind;
+                let kind = self.schema.data.idcs[matcher.idc].kind;
                 if kind == IdcKind::KeyRef {
                     scope.matchers.push(matcher);
                     continue;
@@ -400,9 +406,9 @@ impl<'s> Engine<'s> {
                 }
             }
         }
-        if scope.has_keyrefs && self.keys <= self.schema.max_idc_keys {
+        if scope.has_keyrefs && self.keys <= self.schema.data.max_idc_keys {
             for matcher in &scope.matchers {
-                let definition = &self.schema.idcs[matcher.idc];
+                let definition = &self.schema.data.idcs[matcher.idc];
                 let (IdcKind::KeyRef, Some(refer)) = (definition.kind, definition.refer) else {
                     continue;
                 };
@@ -423,7 +429,7 @@ impl<'s> Engine<'s> {
                     if found {
                         continue;
                     }
-                    let name = self.schema.names.format(definition.name);
+                    let name = self.schema.data.names.format(definition.name);
                     let sequence = format_sequence(&target.keys);
                     let in_dupls =
                         table.is_some_and(|b| b.dupls.iter().any(|d| equal(&d.keys, &target.keys)));

@@ -119,9 +119,52 @@ alternative storage layouts need measurement before replacing this baseline.
 
 Structural vectors use fallible growth, but their capacity, allocator overhead,
 caller input and later consumer allocations are outside this string budget.
-This is not a process-memory quota, a complete allocation-failure guarantee or
-custom allocator support. The core continues to forbid unsafe code and has only
-`memchr` as a dependency.
+This is not a process-memory quota or a complete allocation-failure guarantee.
+The core continues to forbid unsafe code and has only `memchr` as a dependency.
+
+## Supplied allocators
+
+With the `allocator_api` cargo feature (Rust 1.100), node records and
+attributes live in a caller-supplied allocator:
+
+```rust,ignore
+let document: OwnedDocument<&Arena> = OwnedDocument::parse_in(input, options, &arena)?;
+let created = OwnedDocument::create_in(root_spec, EditLimits::default(), shared.clone())?;
+assert!(Arc::ptr_eq(created.allocator(), &shared));
+```
+
+`OwnedDocument<A = Global>`, `OwnedNode<'d, A = Global>` and
+`Editor<'d, A = Global>` default to the global heap, so code without the
+feature, or code that never names `A`, is unchanged. `A: Allocator + Clone`.
+The document keeps one clone per allocator-backed vector, which is two. Pass `&A`
+to share one allocator, or `Arc<dyn Allocator + Send + Sync>` for an owned,
+erased type. `parse_in` accepts the same options and reports the same errors as
+`parse_with`. The exception is `XINCLUDE`, which is `UnsupportedOption` because
+XInclude builds a new global-heap tree. `create_in` matches `create`.
+
+Node and attribute growth reserves fallibly. While parsing, failure returns
+`ErrorKind::Allocation` and drops the partial tree. While editing, it returns
+`EditErrorKind::Allocation` before any link is published. Navigation, editing,
+XPath, XPointer, C14N, patterns, DTD validation, RELAX NG, XSD, Schematron and
+`Writer::write_owned_document` accept any `A`. `save::to_vec`,
+`html::to_html`/`save` and `xinclude::process` take `OwnedDocument` (global)
+only.
+
+These allocations stay on the global heap for every `A`:
+
+| Allocation | Owner |
+| --- | --- |
+| String pool: names, namespace URIs, values, text, declaration and DOCTYPE strings | `String`, which takes no allocator; a byte pool would re-validate UTF-8 on every view |
+| ID-attribute list, `DTDVALID` diagnostics, `RECOVER` errors | document `Vec`s, built by collecting |
+| DTD declarations (`dtd()`), HTML metadata | `Box`es and maps inside them |
+| Parser working memory: open-element stack, `xml:id` scratch, tokenizer, normalization, namespace frames, entity expansion, decoding buffers | the reader or push parser, freed when parsing ends |
+| Construction scratch: staged names, attributes and prefix planning | `append_element`/`create_in`, freed per call |
+| Consumer output and working sets: XPath node sets, C14N and `Writer` buffers, validator state | each consumer |
+| The caller's input and resolver-loaded resources | the caller and the `Resolver` |
+
+On `benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
+retained document bytes (node + attribute + pool capacity) for markup-heavy
+input and 62% for one 500 KB text node.
 
 ## Editing existing values
 
@@ -347,7 +390,7 @@ Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
 adapters. Existing-element attribute insertion/removal, sibling insertion, moves,
 copy/import/adoption, detached ownership, slot reuse, compaction, name and namespace
-edits, declaration editing, foreign registries, allocator parameters, formatting,
+edits, declaration editing, foreign registries, an allocator-aware string pool, formatting,
 namespace repair, and UTF-16 output remain separate work items. Comparative
 parsing/serialization performance and complete fuzz coverage remain open
 evidence gates.

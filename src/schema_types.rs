@@ -224,7 +224,7 @@ impl Type {
     /// The base type; `anySimpleType` for primitive and list types, and
     /// `None` for `anySimpleType` itself.
     pub fn base(self) -> Option<Type> {
-        Some(TYPES[self as usize].2).filter(|_| self != Type::AnySimpleType)
+        (self != Type::AnySimpleType).then_some(TYPES[self as usize].2)
     }
 
     /// The primitive ancestor (`anySimpleType` for list types).

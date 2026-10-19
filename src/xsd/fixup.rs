@@ -6,6 +6,7 @@
 //! Phases run in libxml2's order and stop at the first phase with errors.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::schema_types::{Comparison, Facet, Type, WhiteSpace};
 
@@ -16,7 +17,7 @@ use super::parse::{
     AttrItem, Compositor, Drafts, GlobalKind, Loc, Particle, RawFacet, Ref, Shape, Term,
 };
 use super::simple::{self, Scope};
-use super::{Code, Error, Limits, Schema};
+use super::{Code, Compiled, Error, Limits, Schema};
 
 use super::parse::Table;
 
@@ -2628,19 +2629,21 @@ impl Fix {
                 .collect()
         };
         Schema {
-            global_elements: pick(GlobalKind::Element),
-            global_types: pick(GlobalKind::Type),
-            global_attributes: pick(GlobalKind::Attribute),
-            notations: self.notations.clone(),
-            names: self.d.names.clone(),
-            types: self.types.clone(),
-            elements,
-            attributes,
-            wildcards: self.wildcards.clone(),
-            idcs,
-            warnings: self.d.diagnostics.clone(),
-            max_counter_vectors: self.limits.max_counter_vectors,
-            max_idc_keys: self.limits.max_idc_keys,
+            data: Arc::new(Compiled {
+                global_elements: pick(GlobalKind::Element),
+                global_types: pick(GlobalKind::Type),
+                global_attributes: pick(GlobalKind::Attribute),
+                notations: self.notations.clone(),
+                names: self.d.names.clone(),
+                types: self.types.clone(),
+                elements,
+                attributes,
+                wildcards: self.wildcards.clone(),
+                idcs,
+                warnings: self.d.diagnostics.clone(),
+                max_counter_vectors: self.limits.max_counter_vectors,
+                max_idc_keys: self.limits.max_idc_keys,
+            }),
         }
     }
 }

@@ -241,34 +241,76 @@ error-order rules.
 
 ## Allocator strategy
 
-As checked on 2026-10-15, [Rust PR #156882](https://github.com/rust-lang/rust/pull/156882)
-merged on September 23. It stabilizes an MVP: `Allocator`, `Global`/`System`, and
-minimal allocator-aware `Vec`/`Box` APIs. Other functionality remains under
+[Rust PR #156882](https://github.com/rust-lang/rust/pull/156882) stabilizes an
+allocator MVP for Rust 1.100; the rest stays under
 [`allocator_ext` #163177](https://github.com/rust-lang/rust/issues/163177).
-The [original tracking issue](https://github.com/rust-lang/rust/issues/32838)
-records expected delivery in Rust 1.100, conditional on the release process.
-Installed older compilers do not verify that release's behavior. A probe on
-`rustc 1.100.0-beta.7 (2026-10-17)` compiles `Vec::new_in`, `try_reserve`
-and `Box::new_in` with a generic `A: Allocator` under `forbid(unsafe_code)`.
-Design the allocator API against 1.100 and gate it by MSRV until 1.100 is stable.
+A probe on `rustc 1.100.0-beta.7 (2026-10-17)`, compiling each item with a
+generic `A: Allocator` under `forbid(unsafe_code)`, found:
 
-Use safe collection APIs with an allocator supplied by the application or the
-standard library. `Allocator` remains an unsafe trait; yaxml cannot implement
-its own bump allocator or allocation-counting wrapper under `forbid(unsafe_code)`.
-Index arenas built from ordinary vectors require no custom allocator.
+| Stable in 1.100 | Still unstable or absent |
+| --- | --- |
+| `Allocator`, `Global`, `System`; `Allocator` for `&A`, `Box<A>`, `Rc<A>`, `Arc<A>` and `Arc<dyn Allocator + Send + Sync>` | Implementing `Allocator` safely (E0200: it needs `unsafe impl`) |
+| `Vec::<T, A>::new_in`, `with_capacity_in`, `try_reserve`, `try_reserve_exact`, `allocator` | `Vec::try_with_capacity_in`, `<[T]>::to_vec_in`, `drain`, `splice`, `extract_if`; `const` `new_in`; `into_raw_parts_with_alloc` |
+| Every other `Vec<T, A>` method we use: `push`, `extend`, `retain`, `truncate`, `into_iter`, `into_boxed_slice`, `Clone`/`split_off` (with `A: Clone`), `Debug`, `Hash`, `PartialEq`; `Send`/`Sync` follow `A` | `TryReserveError::kind` |
+| `Box::<T, A>::new_in`, `Box::allocator` | `Box::try_new_in`, `Rc::new_in`, `Arc::new_in` |
+| | Any allocator parameter on `String`, `HashMap`, `HashSet`, `VecDeque`, `BTreeMap`, `BinaryHeap` or `LinkedList` (`String` has none; the others' `new_in` is `allocator_ext`) |
 
-The first allocator milestone should cover DOM node and attribute vectors, then
-parser stacks and normalized text. Borrow one allocator into several vectors to
-avoid relying on `A: Clone` semantics. Prefer fallible reservation and report
-failure before publishing partial state. Do not assume `String`, `Cow`, shared
-strings, or every collection becomes allocator-aware with this stabilization.
-Document exactly which allocations still use the global allocator.
+yaxml uses the stable subset behind the `allocator_api` cargo feature, which
+requires Rust 1.100. Without it the crate builds on MSRV 1.95 unchanged.
+`src/allocator.rs` is the only switch: with the feature it re-exports
+`std::alloc::{Allocator, Global}` and `Vec<T, A>`; without it a sealed
+stand-in `Global` and a `Vec` newtype over the global heap keep the same
+generic code compiling. Outside callers cannot name either stand-in.
 
-Do not make the strict reader generic over an allocation framework merely to
-claim allocator support. Add allocator parameters where storage is actually
-allocated, with ordinary defaults. Validate the final public `parse_in` shape on
-the target compiler before committing to it. A temporary feature gate on older
-nightlies is experimental, not a claim of Rust 1.100 release validation.
+**API.** `OwnedDocument<A: Allocator = Global>`, `OwnedNode<'d, A = Global>`
+and `Editor<'d, A = Global>` carry the allocator. The feature adds
+`OwnedDocument::parse_in(input, options, allocator)`, `create_in(root,
+limits, allocator)` and `allocator()`. Constructors that already exist stay in
+the `Global` impl, so `OwnedDocument::parse(..)` still infers its type. Each
+document needs `A: Clone` and holds one clone per allocator-backed vector,
+which is two clones. The `Allocator` contract already requires a clone to
+behave as the same allocator. `&A` is itself a `Copy` allocator, so sharing
+by reference is the `A = &Arena` case of this bound, not a separate design.
+For bindings, `Arc<dyn Allocator + Send + Sync>` is one owned, `'static`,
+erased type: the adapter has no generics or lifetimes, documents stay
+`Send + Sync`, and a host-owned document can outlive any Rust stack frame.
+Storing `&A` in every document instead would tie each document to a borrow,
+and a garbage-collected host cannot hold one.
+
+**Boundary.** Generics stop where memory stops being document storage. Node
+records and attributes live in `A`. On the benchmark fixtures they are 93–99%
+of retained document bytes for markup (200-byte records, 64-byte attributes).
+For a single 500 KB text node they are 62%. Navigation and editing are
+generic. So is every consumer behind the crate-private `Navigate` trait:
+XPath, XPointer, C14N, patterns, DTD validation, RELAX NG, XSD and
+Schematron. `Writer::write_owned_document` is generic through a private
+`save::Walk` trait. The public `save::Tree` stays
+non-generic. A defaulted parameter there would break `Tree::Borrowed(node)`
+call sites (E0283), because defaults never drive expression inference. So
+`save::to_vec`, `html::to_html`/`save`, `xinclude::process`,
+`TextReader::expand` and `html::parse` accept or return global-heap documents
+only. `parse_in` rejects `XINCLUDE` as `UnsupportedOption`, as
+`Document::parse_with` does, because XInclude builds its result on the
+global heap.
+
+**Still global.** The string pool is a `String`: `String` takes no allocator.
+A `Vec<u8, A>` pool would need `str::from_utf8` on every view, because there
+is no safe unchecked conversion. Also global: ID and validity lists, recovered
+errors, the DTD, HTML metadata, parser stacks, normalization and decoding
+buffers, the input, temporary construction scratch, and every consumer's
+output and working memory. `docs/owned-dom.md` lists them per call.
+
+**Fallibility.** Node and attribute vectors grow only through `try_reserve*`.
+Failure is `ErrorKind::Allocation` for parsing or `EditErrorKind::Allocation`
+for editing. A failed parse publishes nothing, and allocator clones are
+dropped with the partial builder. Edits reserve every arena before linking
+anything. Tests cannot write a counting or capped allocator without unsafe
+code, so `tests/allocator.rs` proves routing through `Arc` reference counts
+and `&System` identity. The private failpoint injects reservation failure at
+each site of a `&System` document.
+
+Do not make the streaming reader generic over an allocator just to claim
+allocator support. Add parameters only where document storage is allocated.
 
 ## Security boundaries
 

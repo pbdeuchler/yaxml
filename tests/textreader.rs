@@ -778,3 +778,115 @@ fn relaxng_validates_while_reading() {
     while reader.read().unwrap() {}
     assert!(reader.relaxng_diagnostics().is_empty() && !reader.is_valid());
 }
+
+/// `xmlTextReaderSetSchema` and `IsValid`: the XML Schema verdicts and
+/// diagnostics equal `Schema::validate_stream`'s, with kept entity references,
+/// the DTD serving `ENTITY` values, `expand` and a RELAX NG schema alongside.
+#[test]
+fn xsd_validates_while_reading() {
+    use yaxml::relaxng;
+    use yaxml::xsd::{self, Code, Schema};
+    let xs = br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="r"><xs:complexType><xs:sequence>
+        <xs:element name="a" minOccurs="0" maxOccurs="2"><xs:complexType>
+          <xs:simpleContent><xs:extension base="xs:string">
+            <xs:attribute name="e" type="xs:ENTITY"/></xs:extension></xs:simpleContent>
+        </xs:complexType></xs:element>
+        <xs:element name="n" type="xs:int" minOccurs="0"/>
+      </xs:sequence></xs:complexType></xs:element></xs:schema>"#;
+    let schema = Schema::parse(xs, "s.xsd").unwrap();
+    let dtd = "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u' NDATA n>\
+        <!ENTITY t 'x'><!ENTITY m '<n>1</n>'>]>";
+    let noent = yaxml::options::NOENT;
+    let cases: &[(u32, String, &[Code])] = &[
+        (0, "<r><a/><n>1</n></r>".into(), &[]),
+        (0, "<r/>".into(), &[]),
+        (0, "<r><n>x</n></r>".into(), &[Code::CvcDatatypeValid1_2_1]),
+        (0, "<r><a/><a/><a/></r>".into(), &[Code::ElementContent]),
+        (0, "<q/>".into(), &[Code::CvcElt1]),
+        (0, format!("{dtd}<r><a e='u'/>&m;</r>"), &[]),
+        (noent, format!("{dtd}<r><a e='u'/>&m;</r>"), &[]),
+        (
+            0,
+            format!("{dtd}<r><a e='t'/></r>"),
+            &[Code::CvcDatatypeValid1_2_1],
+        ),
+        (0, format!("{dtd}<r><a>&t;</a></r>"), &[]),
+    ];
+    let relaxng = relaxng::Schema::parse(
+        br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"><empty/></element>"#,
+        "s.rng",
+        Box::new(|_: Request<'_>| Ok(None)),
+        &relaxng::Limits::default(),
+    )
+    .unwrap();
+    for (flags, xml, expected) in cases {
+        let options = || ParseOptions::new(*flags);
+        let expected_codes = schema
+            .validate_stream(xml.as_bytes(), options())
+            .unwrap()
+            .into_iter()
+            .map(|d| (d.code, d.offset, d.message))
+            .collect::<Vec<_>>();
+        for (expand, with_relaxng) in [(false, false), (true, false), (false, true)] {
+            let mut reader = TextReader::with_options(xml.as_bytes(), options()).unwrap();
+            assert!(!reader.is_valid(), "no schema yet");
+            reader.xsd_set_schema(Some(&schema)).unwrap();
+            reader
+                .relaxng_set_schema(with_relaxng.then_some(&relaxng))
+                .unwrap();
+            while reader.read().unwrap() {
+                if expand && reader.node_type() == NodeType::Element {
+                    reader.expand().unwrap();
+                }
+            }
+            let found = reader
+                .xsd_diagnostics()
+                .iter()
+                .map(|d| (d.code, d.offset, d.message.clone()))
+                .collect::<Vec<_>>();
+            assert_eq!(found, expected_codes, "{xml}");
+            let codes: Vec<_> = found.iter().map(|d| d.0).collect();
+            assert_eq!(codes, *expected, "{xml}");
+            let rng_ok = !with_relaxng || reader.relaxng_diagnostics().is_empty();
+            assert_eq!(
+                reader.is_valid(),
+                xsd::is_valid(reader.xsd_diagnostics()) && rng_ok,
+                "{xml}"
+            );
+        }
+    }
+    // Either validator failing makes the reader invalid; both passing makes it valid.
+    let mut reader = TextReader::new(b"<r><a/></r>".as_slice());
+    reader.xsd_set_schema(Some(&schema)).unwrap();
+    reader.relaxng_set_schema(Some(&relaxng)).unwrap();
+    while reader.read().unwrap() {}
+    assert!(reader.xsd_diagnostics().is_empty() && !reader.relaxng_diagnostics().is_empty());
+    assert!(!reader.is_valid());
+    // After the first read the schema is fixed; without one nothing is checked.
+    let mut reader = TextReader::new(b"<r/>".as_slice());
+    reader.xsd_set_schema(Some(&schema)).unwrap();
+    reader.xsd_set_schema(None).unwrap();
+    assert!(reader.read().unwrap());
+    let error = reader.xsd_set_schema(Some(&schema)).unwrap_err();
+    assert_eq!(error.kind, ErrorKind::InvalidState);
+    while reader.read().unwrap() {}
+    assert!(reader.xsd_diagnostics().is_empty() && !reader.is_valid());
+}
+
+/// `PushParser::dtd` mirrors `BufferedReader::dtd`: absent without a DOCTYPE,
+/// present once one was fed.
+#[test]
+fn push_parser_exposes_its_dtd() {
+    use std::ops::ControlFlow;
+    let cases: &[(&[u8], Option<&str>)] = &[
+        (b"<r/>", None),
+        (b"<!DOCTYPE r [<!ENTITY e 'x'>]><r/>", Some("r")),
+    ];
+    for &(xml, root) in cases {
+        let mut parser = yaxml::PushParser::new();
+        assert!(parser.dtd().is_none(), "before input");
+        parser.feed(xml, |_, _| ControlFlow::Continue(())).unwrap();
+        assert_eq!(parser.dtd().and_then(|dtd| dtd.name()), root);
+    }
+}
