@@ -32,8 +32,49 @@ enum Until {
 
 const LOCATION: ValueLocation = ValueLocation::Input(0);
 
+/// The current entity: its depth and source.
+fn here(frames: &[Frame]) -> (usize, Source) {
+    (frames.len(), frames.last().expect("active frame").source)
+}
+
+/// VC: Proper Declaration/PE Nesting, Proper Group/PE Nesting and the
+/// conditional-section equivalent: markup must end in the entity it began in.
+fn boundary(catalog: &mut DtdCatalog, began: (usize, Source), frames: &[Frame], what: &str) {
+    if began != here(frames) {
+        let message = format!("{what} doesn't start and stop in the same entity");
+        catalog.note(Code::EntityBoundary, None, message);
+    }
+}
+
 fn syntax() -> CatalogError {
     error(CatalogErrorKind::Grammar(DtdErrorKind::Syntax), LOCATION)
+}
+
+/// Reads the external DTD `system` on its own, as libxml2's `xmlParseDTD`.
+pub(crate) fn external_dtd(
+    system: &str,
+    limits: crate::Limits,
+    resolver: Box<dyn crate::Resolver>,
+) -> Result<Dtd, crate::Error> {
+    let fail = |kind| crate::Error::new(kind, 0);
+    let mut loader = Loader::new("", resolver, &limits, crate::dtd::DtdLimits::default());
+    let uri = loader.uri(system);
+    let text = loader
+        .load(ResourceKind::DtdSubset, &uri, None)
+        .map_err(fail)?
+        .ok_or(fail(crate::ErrorKind::ExternalResource))?;
+    loader.base = uri;
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    catalog.set_loader(loader);
+    let mut frames = vec![Frame {
+        source: Source::Subset,
+        cursor: 0,
+        base: None,
+    }];
+    catalog
+        .run(&text, &mut frames, &[])
+        .map_err(|error| fail(crate::stream::dtd::catalog_kind(error.kind)))?;
+    Ok(catalog.dtd)
 }
 
 impl DtdCatalog {
@@ -193,8 +234,8 @@ impl DtdCatalog {
         frames: &mut Vec<Frame>,
         outer: &[EntityId],
     ) -> Result<(), CatalogError> {
-        let frame = frames.last().expect("active frame");
-        let rest = &self.text(subset, frame.source)[frame.cursor..];
+        let &Frame { source, cursor, .. } = frames.last().expect("active frame");
+        let rest = &self.text(subset, source)[cursor..];
         let end = rest.find(';').ok_or_else(syntax)?;
         validate_name(&rest[1..end], 0, true)
             .map_err(|_| error(CatalogErrorKind::InvalidReference, LOCATION))?;
@@ -203,7 +244,12 @@ impl DtdCatalog {
         self.parameter_reference = true;
         match id {
             Some(id) => self.enter(id, frames, outer),
-            None if self.may_be_unread() => Ok(()),
+            None if self.may_be_unread() => {
+                let name = &self.text(subset, source)[cursor + 1..cursor + end];
+                let message = format!("Entity '{name}' not defined");
+                self.note(Code::UndeclaredEntity, None, message);
+                Ok(())
+            }
             None => Err(error(CatalogErrorKind::EntityDeclared, LOCATION)),
         }
     }
@@ -214,7 +260,7 @@ impl DtdCatalog {
         frames: &mut Vec<Frame>,
         outer: &[EntityId],
     ) -> Result<(), CatalogError> {
-        let mut sections = 0usize;
+        let mut sections = Vec::new();
         while let Some(frame) = frames.last() {
             let rest = &self.text(subset, frame.source)[frame.cursor..];
             let spaces = rest.bytes().take_while(|byte| space(*byte)).count();
@@ -228,15 +274,18 @@ impl DtdCatalog {
                 continue;
             } else if rest.starts_with("<![") {
                 frames.last_mut().expect("active frame").cursor += 3;
+                let began = here(frames);
                 let keyword = self.collect(subset, frames, outer, Until::Keyword)?;
+                boundary(self, began, frames, "Conditional section");
                 match keyword.trim_matches([' ', '\t', '\n']) {
-                    "INCLUDE" => sections += 1,
+                    "INCLUDE" => sections.push(began),
                     "IGNORE" => self.ignore(subset, frames)?,
                     _ => return Err(syntax()),
                 }
                 continue;
             } else if rest.starts_with("]]>") {
-                sections = sections.checked_sub(1).ok_or_else(syntax)?;
+                let began = sections.pop().ok_or_else(syntax)?;
+                boundary(self, began, frames, "Conditional section");
                 3
             } else if rest.starts_with("<!--") || rest.starts_with("<?") {
                 let close = if rest.starts_with("<?") { "?>" } else { "-->" };
@@ -272,9 +321,9 @@ impl DtdCatalog {
             };
             frames.last_mut().expect("active frame").cursor += consumed;
         }
-        match sections {
-            0 => Ok(()),
-            _ => Err(syntax()),
+        match sections.is_empty() {
+            true => Ok(()),
+            false => Err(syntax()),
         }
     }
 
@@ -289,8 +338,10 @@ impl DtdCatalog {
         until: Until,
     ) -> Result<String, CatalogError> {
         let depth = frames.len();
+        let began = here(frames);
         let mut output = String::new();
         let mut quote = None;
+        let mut groups = Vec::new();
         loop {
             let frame = frames.last().ok_or_else(syntax)?;
             let rest = &self.text(subset, frame.source)[frame.cursor..];
@@ -324,7 +375,14 @@ impl DtdCatalog {
                 (Some(_), _) => {}
                 (None, '"' | '\'') => quote = Some(character),
                 (None, '[') if until == Until::Keyword => return Ok(output),
+                (None, '(') => groups.push(here(frames)),
+                (None, ')') => {
+                    if let Some(began) = groups.pop() {
+                        boundary(self, began, frames, "Element content declaration");
+                    }
+                }
                 (None, '>') if until == Until::Declaration => {
+                    boundary(self, began, frames, "Declaration");
                     output.push('>');
                     increment(
                         &mut self.usage.work,

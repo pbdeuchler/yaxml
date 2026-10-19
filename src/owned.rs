@@ -457,6 +457,7 @@ pub struct OwnedDocument {
     slots_are_preorder: bool,
     /// `(element, attribute index)` of parsed ID-typed attributes, in document order.
     ids: Vec<(OwnedNodeId, usize)>,
+    dtd: Option<Box<crate::valid::Dtd>>,
 }
 
 impl OwnedDocument {
@@ -584,6 +585,17 @@ impl OwnedDocument {
     /// value; the first in document order wins, as in libxml2's `xmlGetID`.
     pub fn element_by_id(&self, value: &str) -> Option<OwnedNode<'_>> {
         crate::xpath::tree::element_by_id(self, &self.ids, value).and_then(|id| self.node(id))
+    }
+
+    /// The declarations of the internal and loaded external subsets.
+    pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
+        self.dtd.as_deref()
+    }
+
+    /// Checks the current tree against its DTD, as libxml2's `xmlValidateDocument`.
+    /// Never fails: an empty result means valid; see [`crate::valid`].
+    pub fn validate(&self) -> Vec<crate::valid::Diagnostic<OwnedNodeId>> {
+        crate::valid::validate_document(self, self.dtd())
     }
 
     pub(crate) fn ids(&self) -> &[(OwnedNodeId, usize)] {
@@ -1383,8 +1395,13 @@ impl OwnedBuilder {
         catalog: Option<&crate::dtd_catalog::DtdCatalog>,
     ) -> Result<OwnedDocument, Error> {
         let document = self.finish_with_counter(position, &LAST_DOCUMENT_ID)?;
-        let ids = crate::xpath::tree::find_ids(&document, catalog);
-        Ok(OwnedDocument { ids, ..document })
+        let dtd = catalog.map(|catalog| Box::new(catalog.dtd().clone()));
+        let ids = crate::xpath::tree::find_ids(&document, dtd.as_deref());
+        Ok(OwnedDocument {
+            ids,
+            dtd,
+            ..document
+        })
     }
 
     fn finish_with_counter(
@@ -1408,6 +1425,7 @@ impl OwnedBuilder {
             edit_created_attributes: 0,
             slots_are_preorder: true,
             ids: Vec::new(),
+            dtd: None,
         })
     }
 }

@@ -24,6 +24,7 @@ mod serialize;
 mod stream;
 mod tokenizer;
 pub mod uri;
+pub mod valid;
 mod writer;
 pub mod xpath;
 
