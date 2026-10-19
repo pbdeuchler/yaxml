@@ -307,6 +307,12 @@ fn check_recovered(flags: u32, document: &[u8]) {
             "DOMs recover differently"
         );
     }
+    // Decoded input recovers only through the owned DOM's push parser.
+    if (super::encoding::recognizes(document) || declared)
+        && let Ok(owned) = OwnedDocument::parse_with(document, ParseOptions::new(flags))
+    {
+        assert!(owned.errors().len() <= 100);
+    }
     let Ok(tree) = recovered else {
         return;
     };

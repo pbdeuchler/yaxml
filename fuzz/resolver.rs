@@ -72,11 +72,16 @@ pub(super) fn profile(profile: u8, seed: u64, len: usize) -> Limits {
             max_external_bytes: small(2, 96),
             ..LIMITS
         },
-        2 => Limits {
+        2 if seed >> 16 & 15 != 0 => Limits {
             max_entity_expansion_bytes: small(0, 128),
             max_entity_amplification: small(8, 3),
             max_entity_references: small(10, 12),
             max_entity_depth: small(14, 4),
+            ..LIMITS
+        },
+        // A token ceiling too large to address fails DTD content.
+        2 => Limits {
+            max_token_bytes: usize::MAX,
             ..LIMITS
         },
         _ => Limits {
