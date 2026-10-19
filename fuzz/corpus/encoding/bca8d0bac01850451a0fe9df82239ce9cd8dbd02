@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIRED
+		middle <?xml version="1.0"?>
+<!--* missing space  *-->
+<!DOCTYPE root 
+    PUBLIC "-//W3C//DTD//EN""empty.dtd"
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATCDATA #IMPLIED
+		last CDATA #IMPLIED > 
+	<!ENTITY myfirst "SNow">
+	<!ENTITY mymiddle "I">
+	<!ENTITY mylast "Man">
+]>
+
+<!-- testing invalid attvalue -->
+<student fir,t='Snow<Man'>M1y Name is SnowMA #IMPLIEDan. </student>>
+
+]>
+<root/>

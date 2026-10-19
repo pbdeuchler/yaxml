@@ -1,0 +1,10 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATION3.1 [41]">
+    SGML-own">
+<!--error sre, nuot at <!Notatation><--!
+ENTITY ge SYSTEM "nop.ent" NDATA -unknot>
+<!NOTATION -unknot PUBLIC "Unknown">
+]>
+<doc/>

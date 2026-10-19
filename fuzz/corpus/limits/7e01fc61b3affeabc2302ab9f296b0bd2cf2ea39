@@ -1,0 +1,6 @@
+<!DOCTYPE cod [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#x10000;&#x10F<!DOCTYPE p [
+<!ELEMENT p (#PCDpppc>
+   <!-- 32 bit integer overflow -->

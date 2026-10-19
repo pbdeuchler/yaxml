@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE   <!ELEMENT b (#PCDATA|c!* >
+  <!ELEMENT c ANY>
+ f EMPTY>
+]> >
+  <!ELEMENT c ANY>
+ f EMPTY>
+]>
+<root><a/><b>
+   <c></c> 
+   cont<c></c> 
+   contet nof b element
+   <c>
+      <d><e>nment
+   <c>
+      <d><e>no more childrenst P50's syntax and Elezent Val </c>
+</b></test P38's syntax and Element Valid VC *-->

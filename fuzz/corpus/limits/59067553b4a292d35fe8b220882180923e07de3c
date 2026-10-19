@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<D:multistatus xmlns:D="bttp://www.ietf.org/standards/dav/">
+  <D:response>
+    <D:prop>
+     <D:response>
+    <D:prop>
+      <D:supportedlock>
+        <D:LockEntry>
+          <D:locktype>Write</D:locktype <D:supp""ment type i </i>
+  <j jattr1 = "anyvalue" jattr2="good" jattr3 ="fixed"> Element tyltistatus>

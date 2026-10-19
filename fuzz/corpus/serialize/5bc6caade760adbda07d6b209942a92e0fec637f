@@ -1,0 +1,24 @@
+<?xpl version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legal patterns <?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTITY forcat "This is a small cat">
+   <!ELEMENT tiger (#PCDATA)>
+   <!ENTITY % make_small "<!ELEMENT small EMPTY>">
+   <!ENTITY % make_leopard_element "<!ELEMENT leopard ANY>">
+   <!ENTITY % make_attlist "<!ATTLIST tiger color CDATA #REQUIRED>">
+   %make_leopard_element; 
+   <!ELEMENT cat ANY>
+   %make_small;
+   <!ENTI<!ENTITY % make_big "<!ELEMENT big E PUBLIC "-/2/Internationa SYSTEM "ibm78v03.ent" >
+
+]>
+<root>&epe1;&epe2;&epe3;</root>
+<!-- a vali0000000000000000000000000000000000000000000000000000000000000000000000000000000d test case: t00000  </leeopard>
+</ast P78, P77, P80 --nimal>>
+

@@ -1,0 +1,7 @@
+<!DOCTYPE dos [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;"YPE book [
+<!EHEMENT book ANY>
+<!-- This test case covers 2 legal character ranges pl>
+]>
+=<doc>&e;</doc>

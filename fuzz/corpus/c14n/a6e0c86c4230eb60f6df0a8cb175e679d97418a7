@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+    <!ELEMENT root ANY>
+    <!ATTLIST root
+	id	ID	#IMPLIED
+	idref	IDREF	#IMPLIED
+	idrefs	IDR type IDREFS must match the names production -->
+
+<root idrefs="d36 36d">
+</root>
+
+
+

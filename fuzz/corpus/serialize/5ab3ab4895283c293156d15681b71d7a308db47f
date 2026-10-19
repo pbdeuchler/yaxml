@@ -1,0 +1,46 @@
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST tNMokenName thistoken0 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken2 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken4 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken5 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenNameoiths kten6 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenNamet histoken7 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken8 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken9 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenNeme thistoken0 N1TMOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken11 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken12 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken13 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken14 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken15 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken16 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken18 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken18 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken19 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken20 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken21 NMTOKE N#IMPLIED>
+<!ATTLIST NMtokenName thistoken22 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken23 NMTOKEN #IMPLIED>
+<!ATTLIST histoken4="À"
+ thistoken5="Á"
+ thistoken6="˾"
+ thistoken7="˿"
+ thistoken8="Ͱ"
+ thistoken9="ͱ"
+ thistoken10="ͼ"
+ thistoken11="ͽ"
+ thistoken12="Ϳ"
+ thistoken13="΀"
+ thistoken14="῾"
+ thistoken15="῿"
+ thistoken16="‌"
+token32="_"
+ thistoken33=".?"
+ thistoken34="0"
+ thistoken35="·"
+ thistoken36="À"
+ thistoken37="ͼ"
+ />

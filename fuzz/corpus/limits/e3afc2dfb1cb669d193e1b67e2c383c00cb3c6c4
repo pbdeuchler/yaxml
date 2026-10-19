@@ -1,0 +1,7 @@
+<!DOCTYPE xml:foo [
+<!ELEMENT xml:foo EMPTY>
+]>
+<xml:foo:foo [
+<!ELEMENT xml:foo EMPTY>
+]>
+<xml:fo/>

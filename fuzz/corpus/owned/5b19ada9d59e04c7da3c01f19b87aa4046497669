@@ -1,0 +1,8 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!ELEMENT a (doc)>
+<!ELEMENT b ((doc|a?))>
+<!ELEMENT c (T doc ANY>
+<!ELEMENT a (doc)>
+<!ELEMMENT f (doc?)>d1<!ELEMEN?)>d1<!ELEMENT g ((a,b)*)>

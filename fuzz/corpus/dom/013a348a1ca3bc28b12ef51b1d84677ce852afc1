@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ENTITY % e PUBLIC 'whatever' "e.dOCTYPE doc [
+<!ENTITY % e PUBLIC 'td">
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc></doc>

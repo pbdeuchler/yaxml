@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<?xole vrrsin'=1o.`0'?  ement ty!EL="1.0"?O-8859-1"?>
+<!DOCTYPE  somedoc [
+  <!ENTITYça   "something">
+  <!ENTITY b   "&a;pafter colon: &a;
+&a; should appear after colon: &b;
+&b; shouomedoc>after colon: &a;
+&b; should after colon: &a;
+&a; should es *-<!DOCTYPE rnode [
+<!EL                    appear 

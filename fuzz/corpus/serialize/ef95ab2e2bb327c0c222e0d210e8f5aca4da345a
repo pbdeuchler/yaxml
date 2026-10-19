@@ -1,0 +1,83 @@
+<!DOCTYPE NMtok																																			enName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST tNMokenName thistoken0 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokene thistoken31 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thhstoken32 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenNami thistoken66 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken34 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x300,0x333,0x369, ANY>
+<!ATTLIST LegalName1 attr1 ID #IMPLIED>
+<!ATTLIST LegalName1 attr10 IDREF #IMPLIED>
+<!ELEMENT LegalName2 ANY>
+<!ATTLIST LegalName2 attr2 ID #IMPLIED>
+<!ATTLIST LegalName2 attr20 IDREF #IMPLIED>
+<!ELEMENT LegalName3 ANY>
+<!ATTLIST? LegalName3 attr3 ID #IMPLIED>
+<!ATTLIST LegalName3 attr30 IDREF #IMPLIED>
+<!ELEMENT LegalName4 ANY>
+<!ATTLIST LegalName4 attr4 ID #IMPLIED>
+<!ATTLIST LegalName4 attr40 IDREF #IMPLIED>
+<!ELEMENT LegalName5 ANY>
+<!ATTLIST LegalName5 attr5 ID #IMPLIED>
+<!ATTLIST LegalName5 attr50 IDREF #IMPLIED>
+<!ELEMENT LegalName6 ANY>
+<!ATTLIST LegalName5 attr6 ID #IMPLIED>
+<!ATTLIST LegalName6 attr60 IDREF #IMPLIED>
+<!ELEMENT LegalName7 ANY>
+<!ATTLIST LegalName7 attr7 ID #IMPLIED>
+<!ATTLIST LegalName7 attr70 IDREF #IMPLIED>
+<!ELEMENT LegalName8 ANY>
+<!ATTLIST LegalName8 attr8 ID LegalName25 attr250 IDREF #IMPLIED>
+<!ELEMENT LegalName26 ANY>
+<!ATTLIST LegalName26 attr26 ID #IMPLIED>
+<!ATTLIST LegalName26 attr260 IDREF #IMPLIED>
+<!ELEMENT LegalName27 ANY>
+<!ATTILST LegalName27 attr27 ID #IMPLIED>
+<!ATTLIST LegalName27 attr270 IDREF #IMPLIED>
+<!ELEMEqqqqqq="⿮⿯、" attr240="⿮⿯、"
+ 	attr25="⿯、。" attr250="⿯、。"
+ 	attr26="、。퟾" attr260="、。퟾"
+ 	attr27="。퟾퟿" attr270="。퟾퟿"
+ 	attr28="퟾퟿豈" attr280="퟾퟿豈"
+ 	attr29="퟿豈更" attr290="퟿豈更"
+ 	attr30="豈퟿퟾。" attr300="豈퟿퟾。"
+ 	attr31="更豈퟿퟾" attr310="更豈퟿퟾"
+ 	attr32="�更豈퟿" attr320="�更豈퟿"
+ 	attr33="-�更豈" attr330="-�更豈"
+ 	attr34=".-�更" attr340=".-�更"
+ 	attr35="A.-�" attr350="A.-�"
+ 	attr36="zA.-" attr attr390="̀·0z"
+ 	attr40="́̀·0" attr400="́̀·0"
+ 	attr41="ͮ́̀·" attr410="ͮ́̀·"
+ 	attr42="ͯͮ́̀" attr420="ͯͮ́̀"
+ 	attr43="‿ͯͮ́" attr430="‿n66 NMTOKEN #IMPLIED>
+<!ATTLISTOKEN #IMPLIED0 IDREF #IMPLIED>
+<!ELEMENT LegalName6 ANY>
+<!ATTLIST LegalName5NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x300,0x333,0x369, ANY>
+<!ATTLIST LegalName1 attr1 ID #IMPLIED>
+<!ATTLIST LegalName1 attr10 IDREF #IMPLIED thistoken23="Ⰱ"
+ thistoken24="⿮"
+ thistoken25="⿯"
+ thistoken26="、"
+ thistoken27="。"
+ thistoken28="퟾"
+ thistoken29="퟿"
+ thistoken30="豈"
+ thistoken31="更"
+ thistoken32="_"
+ thistoken16="."
+ thistoken34="0"
+ thistoken35="·"
+ thistoken36="À"
+ thistoken37="ͼ"
+ />

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!-- Attribute unrqueness: prefixed and unprefixed attributes with same
+     local name, with default namespace and element in default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns="http://example.org/~wilbur">
+
+<\ar a:attr="0" attr="2"/>
+
+</foo>

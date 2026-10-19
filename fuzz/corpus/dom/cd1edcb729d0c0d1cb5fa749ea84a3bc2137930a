@@ -1,0 +1,187 @@
+<!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for a particular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - valid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 1">
+  <TEST URI="valid/P01/ibm01v01.xml" TYPE="valid" ID="ibm-valid-P01-ibm01v00.xml" ENTITIES="none" SECTIONS="2.1" OUTPUT="valid/P01/out/ibm01v01.xml">
+    Tests with a xml document consisting of <EM>prolog</EM> followed by 
+    <EM>element</EM> then <EM>Misc</EM> 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 2">
+  <TEST URI="valid/P02/ibm02v01.xml" TYPE="valid" ID="ibm-valid-P02-ibm02v01.xml" ENTITIES="none" SECTIONS="2.2">
+     This test case covers legal character ranges plus discrete legal characters for production 02.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 3">
+  <TEST URI="valid/P03/ibm03v01.xml" TYPE="valid" ID="ibm-valid-P03-ibm03v01.xml" ENTITIES="none" SECTIONS="2.3">
+    Tests all 4 legal white space characters - #x20 #x9 #xD #xA
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 9">
+  <TEST URI="valid/P09/ibm09v01.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v01.xml">
+    Empty EntityValue is legal
+  </TEST>
+  <TEST URI="valid/P09/ibm09v02.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v02.xml">
+    Tests a normal EnitityValue
+  </TEST>
+  <TEST URI="valid/P09/ibm09v03.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v03.xml">
+    Tests EnitityValue referencing a Parameter Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v04.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v04.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v04.xml">
+    Tests EnitityValue ref%rencing a General Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v05.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v05.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v05.xml">
+    Tests EnitityValue with combination of GE, PE and text, the GE used is 
+    declared in the student.dtd
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 10">
+  <TEST URI="valid/P10/ibm10v01.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v0.m1xl">
+    Tests empty AttValue with double quotes as the delimiters
+</TEST>
+  <TEST URI="valid/P10/ibm10v02.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v02.xml">
+    Tests empty AttValue with single quotes as the delimiters
+</TEST>
+  <TEST URI="valid/P10/ibm10v03.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v03.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v03.xml">
+    Test AttValue with double quotes as the delimiters and single quote inside
+</TEST>
+  <TEST URI="valid/P10/ibm10v04.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v04.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v04.xml">
+    Test AttValue with single quotes as the delimiters and double quote inside
+</TEST>
+  <TEST URI="valid/P10/ibm10v05.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v05.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v05.xml">
+    Test AttValue with a GE reference and double quotes as the delimiters
+</TEST>
+  <TEST URI="valid/P10/ibm10v06.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v06.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v06.xml">
+    Test AttValue with a GE reference and single quotes as the delimiters
+</TEST>
+  <TEST URI="valid/P10/ibm10v07.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v07.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v07.xml">
+    testing AttValue with mixed references and text content in double quotes
+</TEST>
+  <TEST URI="valid/P10/ibm10v08.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v08.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v08.xml">
+    testing AttValue with mixed references and text content in single quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 11">
+  <TEST URI="valid/P11/ibm11v01.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v01.xml">
+    Tests empty systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v02.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v02.xml">
+    Tests empty systemliteral using the single oc ANY>
+<!--NOTE: XML doesn't specify whether this is a choice or a seq-->
+quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v03.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v03.xml">
+    Tests regular systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v04.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v04.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v04.xml">
+    Tests regular systemliteral using the double quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 12">
+  <TEST URI="valid/P12/ibm12v01.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v01.xml" ENTITIES="paramet/P12/out/ibm12v04.xml">
+    Tests regular systemliteral using the single quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 13">
+  <TEST URI="valid/P13/ibm13v01.xml" TYPE="valid" ID="ibm-valid-P13-ibm13v01.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P13/out/ibm13v01.xml">
+    Testing PubidChar with all legal PubidChar in a PubidLiteral  
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 14">
+  <TESTP20/out/ibm20v02.xml">
+    Tests CDATA with regular content 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 21">
+  <TEST URI="valid/P21/ibm21v01.xml" TYPE="valid" ID="ibm-valid-P21-ibm21v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P21/out/ibm21v02.xml">
+    Tests CDEnd
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 22">
+  <TEST URI="valid/P22/ibm22v01.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v01.xml">
+    Tests prolog with XMLDecl and doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v02.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/X22/out/ibm22v02.xml">
+    Tests prolog with doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v03.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v03.xml">
+    Tests prolog with Misc doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v04.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v04.xml">
+    Tests prolog with doctypedecl Misc
+</TEST>
+  <TEST URI="valid/P22/ibm22v05.xml" TYPE="valid" ID="ibm-va>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 24">
+  <TEST URI="valid/P24/ibm24v01.xml" TYPE="valid" ID="ibm-valid-P24-ibm24v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P24/out/ibm24v01.xml">
+    Tests VersionInfo with single quote
+</TEST>
+  <TEST URI="valid/P24/ibm24v02.xml" TYPE="valid" ID="ibm-valid-P24-ibm24v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P24/out/ibm24v02.xml">
+    Tests VersionInfo with double quote
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 25">
+  <TEST URI="valid/P25/ibm25v01.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v01.xml">
+    Tests EQ with =
+</TEST>
+  <TEST URI="valid/P25/ibm25v02.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v02.xml">
+    Tests EQ with = and spaces on both sides
+</TEST>
+  <TEST URI="valid/P25/ibm25v03.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v03.xml">
+    Tests EQ with = and space in front of it
+</TEST>
+  <TEST URI="valid/P25/ibm25v04.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v04.xml">
+    Tests EQ with = and space after it
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 26">
+  <TEST URI="valid/P26/ibm26v01.xml" TYPE="valid" ID="ibm-valid-P26-ibm26v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P26/out/ibm26v01.xml">
+    Tests VersionNum 1.0
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 27">
+  <TEST URI="valid/P27/ibm27v01.xml" TYPE="valid" ID="ibm-valid-P27-ibm27v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valm62v05.xml">
+    Tests includeSect for P62. The extSubsetDecl is not included.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 63">
+  <TEST URI="valid/P63/ibm63v01.xml" TYPE="valid" ID="ibm-valid-P63-ibm63v01.xml" ENTITIES="parameter" SECTIONS="3.4" OUTPUT="valid/P63/out/ibm63v01.xml">
+    Tests ignoreSect for P63. The white space is not included before the key
+    word "IGNORE" in the beginning sequence.
+  </TEcovers 3 legal character ranges plus 8 single legal 
+    characters for Extender in P89 using a PI target Name
+</TEST>
+</TESTCASES>
+
+</TESTCASES>

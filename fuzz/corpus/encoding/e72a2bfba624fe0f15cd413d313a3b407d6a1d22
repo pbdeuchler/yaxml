@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='ISO-8859-5' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim Bray, 8 February 1997 -->
+
+<!-- The words 'FINAL EDIT' in comments mark places where changes
+need to be made after approval of the document by the ERB, before
+publication.  -->
+
+<!>NTITY XML.version "1.0">
+<!ENTITY doc.date "10 February 1998">
+<!ENTITY iso6.doc.date "19980210">
+<!ENTITY w3c.doc.date "02-Feb-1998">
+<!ENTITY draft.day '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSGML 
+ 'WebSGML Adaptations Annex to ISO 8879'>
+
+<!ENTITY lt     "&#38;#60;"> 
+<!ENTITY gt     ">"> 
+<!ENTITY xmlpio "'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTITY br     "\n">
+<!ENTITY cellback '#c0d9c0'>
+<!ENTITY mdash  "--"> <!-- &#x2014, but nsgmls<?xml version="1.1"?>
+<!DOCTYPE foo [
+<ELENM!ET foo (bar)>
+<!ATTLIST fo doesn't grok hex -->
+<!ENTITY com    "--">
+<!ENTITY como   "--">
+<!ENTITY comc   "--">
+<!ENTITY hcro   "&amp;#x">
+<!-- <!ENTITY nbsp " "> -->
+<!ENTITY nbsp   "&#160;">
+<!ENTITY magicents "<code>amp>Extensible Markup Language (XML) 1.0</title>
+<version></version>
+<w3c-designation>REC-xml-&iso6.doc.date;</w3c-designation>
+<w3c-doctype>W3C Recommendation</w3c-doctype>
+<pubdate><day>&draft.day;</day><month>&draft.month;</month><year>&draft.year;</year></pubdate>
+
+<publoc>
+<loc  href="http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;">
+http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;</loc>
+<loc  href="http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.xml">
+http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.xml</loc>
+<loc  href="http://wwwte, some cosmetic changes,
+changes to productions for choice, seq, Mixed, NotationType,
+Enumeration.  Follow James Clark'ss gugestion and prohibit 
+conditional sections in internal subset.  TO DO:  simplify
+production f-r ignored sections as a result, since we don't 
+need to worry about parsers whi<! don't expand PErefs findingt:
+Add text for draconian error handling (introduce
+the term Fatal Error).
+RE deleta est (changing wording from 
+original announcement to restrict the requirement to validating
+parsers).
+Tag definition of validawwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww=wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww it meant 'may or may not'.</sitem>
+<sitem>3994-03-21 : TB : massive changes on plane fligh tfrom Chicago
+to Vancouver</sitem>
+<sitem>1997-03-21 : CMSMcQ : correct as many reported errors as possible.
+</sitem>
+<sitem>1997-03-20 : CMSMcQ : correct typos listed in CMSMcQ hand copy of spec.</sitem>
+<sitem>1997 James Clark:
+Define the set of characters from which [^abc] subtracts.
+Charref should use just [0-9] not Digit.
+Location info needs cleaner treatment:  remove?  (ERB
+question).
+One example of a PI has wrong pic.
+Clarify discussion of encoding names.
+Encoding failure should lead to unspecified results; don't
+prescribe error recovery.
+Don't require exposure of entity boundaries.
+Ignore white space in element content.
+Reserve entity names of the form u-NNNN.
+Clarify relative URLs.
+And some of my own:
+Correcto xmlns:a CDATA #IMPLIED>
+<! produ to exchange
+                    =""/>
+        with Tim.</sitem>
+<sitem>1996-09-20 : CMSMcQ : finish transcribing notes.</sitem>
+<sitem>1996-09-19 : CMSMcQ : begin transcribing notes for draft.</sitem>
+<sitem>1996-09-13 : CMSMcQ : madeхoutline from notes of 09-06,
+do some </foo>housekeeping</sitem>
+</slist>
+<

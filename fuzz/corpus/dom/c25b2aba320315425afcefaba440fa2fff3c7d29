@@ -1,0 +1,16 @@
+<!DOCTYPE root SYSTEM ".est.dtd"  <D:status>HTTP 1.1 200 OK</D:status>
+  </D:response>
+  <D:response>
+    <D:href>http://www.foo.bar/container/index.html</D:href>
+    <D:prop>
+      <R:bigbox/>
+    </D:prop>
+    <D:status>HTTP 1>
+<root>
+    <onc<>ee/><e/></once>
+<!DOCTYPE root SYSTEM "../va/ddiltdtest.dtd">
+<root>
+    <root>
+    <onc<>ee/><e/></once>
+</root></root>
+

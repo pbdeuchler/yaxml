@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+]>
+<doc>Oops, thi]>
+<doc>&e;</doc>ared EMPTY</doc>

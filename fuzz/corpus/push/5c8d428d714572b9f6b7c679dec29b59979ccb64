@@ -1,0 +1,18 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
+        &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
+    <?xml version="1.1"?>
+<!-- Has a Byzantine Musical Symbol Kratimata in a name,
+     legal in XML 1.1, illegal in XML 1.0 -->
+<ð€²/>
+    &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
+        &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
+        &#37;z; &#37<?xml version="1.1"?>
+<!-- Has a Byzantine Musical Symbol Kratimata in a name,
+     legal in XML 1.1, ;z; &#37;z; &#37;z; &#37;illegal inz;
+  XML 1.0    '>
+    %z;
+]>
+<d-ÿÿÿÿÿÿÿ/>o
+c/>

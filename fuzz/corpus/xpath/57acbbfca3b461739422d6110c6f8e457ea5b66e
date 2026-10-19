@@ -1,0 +1,1 @@
+substring("2345"-1 div 0, 3)

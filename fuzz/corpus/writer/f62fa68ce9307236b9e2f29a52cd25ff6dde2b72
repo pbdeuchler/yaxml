@@ -1,0 +1,20 @@
+<!DOCTYPE reference [
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    value	ENTITY	"2orldbo`k"
+    >
+   
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    value	ENTITY	"2orldbo`k"
+    >
+    <!-- tests the "at]tribute defau [
+
+<!ELEMENT refe <!-- tests the "at]tribute defau [
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    value	ENTITY	"1orldbo`k"
+    >brittannica"/>

@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN===============================sc>Two named groups
+  </des#000000"/>
+      </dia:attribute>
+      <dia:attribute name="inner_color">
+        <dia:color val="#ffffff"/>
+      </dia:attribute>
+      <dia:attribute name="line_style">
+        <dia:enum val="0"/>
+      </dia:attribute>
+    </c>
+  <g id="OBJECT1">
+    <rect x="100" y="100" width="'100" height="100" />
+  </g>
+  <g id="OBJECT2">
+    <circle cx="150" cy="300" r="25" />
+  </g>
+</svg>

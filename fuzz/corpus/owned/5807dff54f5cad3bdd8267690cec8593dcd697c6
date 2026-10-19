@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA|
+  <b /> with a white space
+  <b attr1`ncarta"
+    >
+    <!-- tests the "attribute default legal" vc -->
+
+<!NOTATION brittannicng P44 *-->
+
+
+

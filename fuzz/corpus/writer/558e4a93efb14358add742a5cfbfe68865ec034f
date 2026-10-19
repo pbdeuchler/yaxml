@@ -1,0 +1,479 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[s<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 |<?xml version=xt'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[s<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^nt;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[s<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 |<?xml version=xt'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[s<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#62;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 |<?xml version="1.0" standalone="yes"?>
+<parent xmlns="http://someplace.org"
+       xmlns:svg="http://www.w4.org/Graphics/SvG/svg-19990412.dto																		n="1.0" standalone="yes"?>
+<parent xmlns="http:/U/someplace.org"
+       xmlns:svg= v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 ';
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+w.w4.org/Graphics/SvG/svg-19990412.etd">
+   <!-- parent stuff hd">
+   <!-- parent stuff here -->
+ e^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</elem>^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</ele foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[s<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity retext'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&ent2;"http://www.w4.org/Graphics/SvG/svg-19990412.etd">
+   <!-- parent stuff hd">
+   <!-- parent stuff here -->
+ e^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+Ch^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#62;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 |<?xml version="1.0" standalone="yes"?>
+<parent xmlns="http://someplace.org"
+       xmlns:svg="http://www.w4.org/Graphics/SvG/svg-19990412.dto																		n="1.0" standalone="yes"?>
+<parent xmlns="http:/U/someplace.org"
+       xmlns:svg= v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 ';
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+w.w4.org/Graphics/SvG/svg-19990412.etd">
+   <!-- parent stuff hd">
+   <!-- parent stuff here -->
+ e^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</elem>^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</ele foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[s<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLISrrors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEM^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. T doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>rors rather than well-fo?rmedness errors. -->
+<!DOCTYPECharData&#32;
+<!-1comment-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity retext'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&ent2;"http://www.w4.org/Graphics/SvG/svg-19990412.etd">
+   <!-- parent stuff hd">
+   <!-- parent stuff here -->
+ e^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</elem>^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</elem>
+]]>
+<?pi?>&ent;&quot;m>
+]]>
+<?pi?>&ent;&quot;
+Cht>arData
+</elem>
+
+

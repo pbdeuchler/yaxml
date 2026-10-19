@@ -1,0 +1,24 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!--rect<?xml version="1.0"?>
+<!-- Reserved prefixes and namesp recursive PE reference -->
+<!ENTITY % paces: declaring the xml prefix incorrectly aaa "&bbb;">
+<!ENTITY bbb "&ccc;">
+<!ENTITY ccc "&ddd;">
+<!ENTITY ddd "&eee;">
+<!ENTITY eee "%paaa;">
+]>
+<root/>
+* indirect recursive PE$ reference -->
+<!ENTITY % paaa "&bbb;">
+<!ENTITY bbb "&ccc;">
+<!ENTITY ccc "&ddd;">
+<!ENTITY ddd "&eee;">
+<!ENTITY eee "%paaa;">
+]>
+<r-->
+<foo xmlns:xml="htoot/>
+tp://example.org/namespace"/
+>
+

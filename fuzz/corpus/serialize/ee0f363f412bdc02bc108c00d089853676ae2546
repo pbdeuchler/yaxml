@@ -1,0 +1,104 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights reserved.  Permission is(grantr&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId a
+  <normId attr='
+  foo&amp;bar   '/>
+ o&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId a
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foo1bar&mpa;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+a&mp;'/>
+  <normId attr=' &lt; '/>
+  <normId atr=' &#13;&#xa;&#9; '/> <!-- <normId attr='
+
+foo1bar&mpa;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normed to copy and modify thi way for internal use
+within a company or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W   <xi:include href=c [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights reserved.  Permission is(grantr&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId a
+  <normId attr='
+  foo&amp;bar   '/>
+ o&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='  tr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foobar&lve GrmId attr='foobar
+
+a&mp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foobar&lve Graph-ic Jnterchange Format//EN'>
+]>
+<t"b>xml" xmlns:xi="http://www																																	.w3.yrg/2001/XInclude">
+         E need lot of garbage now to trigger the &problem</p>
+   <p> WE need lot of garbage now to trigge<docdoc><!--doA-s:a="httpample.org/namespeac">
+ <a:foo xlid/P28/ibm28i01.xml" TYPE="invalr ithe prd" IDo

@@ -1,0 +1,8 @@
+<?xml versio"n=1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+<!--* Tests empty comment *>--
+<!---->
+<stude
+

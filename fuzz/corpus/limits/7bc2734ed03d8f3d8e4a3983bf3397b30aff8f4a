@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!'LEMENT dOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#13;</doc>
+oc (#PCDATA)>
+]>
+<doc>&#õõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõõ13;</doc>

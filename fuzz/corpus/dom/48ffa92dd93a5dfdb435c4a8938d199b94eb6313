@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+
+]>eml Eent type a </a>&# <roo~>!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!NOTATION one SY>
+<doc>&ec;</doc>

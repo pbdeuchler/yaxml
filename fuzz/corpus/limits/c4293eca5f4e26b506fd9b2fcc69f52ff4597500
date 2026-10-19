@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="http://www.ietf.org/standards/dav/">
+  <d:response>
+    <d:href>http:/ercontainer/R2/</d:href>
+    <d:status>HTTP/1.1 412 Precondition Failed</d:status>
+  </d:response>
+</d:multistatus>

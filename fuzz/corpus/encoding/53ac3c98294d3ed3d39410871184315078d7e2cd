@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='ISO-8859-5' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim B' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim Bray, 8 FebruaпЮЦЦШх-->
+
+<!-- The words 'FINAL EDIT' in commen   ">"> 
+<!ENTITY xmlpio "'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTITY br     "\n">
+<!ENTITY cellback '#c0d9c0'>
+<!ENTITY mdash  "--"<?xml vers> <!-- &#x2014, bion="1ut nsgml

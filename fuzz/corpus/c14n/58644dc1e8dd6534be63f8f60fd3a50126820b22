@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Has element content whi1.1. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (foo*)>
+<!"1.0" encoding="iso-8859-1"?>
+<!-- Has element content whi1.1. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (foo*)>
+<!ENTITI e "&ENTITI e "&#x0d;">
+]>
+Cfoo>&e;</foo>

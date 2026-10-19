@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<!ENTITY % e PUBLIC 'whatever' "e.dtd">
+<!ELEMENT doc (#PCDATA)
+>]>
+<d"?>
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!ATTLIST root attr1 CDATA #IMPLIED>
+<!ATTLIST root attr2 CDATA #IMPLIEDattr1="&aExternal;">direct reference to external entinity in Attribute</oc></doc>

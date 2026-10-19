@@ -1,0 +1,10 @@
+<?xml  version="1.0"?>
+<!-- syntax test for Production 62-->
+<!DOCTYPE<?xml version="1.0"?>
+<!-- Reserved prefixes and namespaces: declaring the xml prefix correctly -->
+<foo xmlns:xml="ht animal tp://www.w3.org/XML/19SYSTEM "ibm62n07.dtd">
+<animal>
+98/namesp <tiger/>
+Negatiace"/>ve test. Missing closi
+ng sequence.
+</animal>

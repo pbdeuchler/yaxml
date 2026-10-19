@@ -1,0 +1,7 @@
+<?xml ?>
+<!DOCTYPE root [
+  <!ELEMENT root ANY>
+  <!ELEMENT a !ELEMENT b (#P+CDATA) >
+  <!ELEMENT c ( #PCDATA)*>
+  <!ELEMENT d c)* >
+  <ment types : No Duplicate Types *-->

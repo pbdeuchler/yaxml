@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPEg/TR/xmldsig2ed-tests/#c14n11xmlbase-prop-3
+
+Check that implementations of [Xof [XML-C14N1.1] properly build the [ml:base 
+if one of intermediate the levels (ietf:e1) are absent from the document 
+subset.
+-->
+<XPath xmlns:ietf="http://www.ietf.org" >
+(//. | ML-C14N1.1] properly build the [ml:base 
+
+]>
+<r

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE root SYSTEM "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ibm50v01.dtd" [
+  <!ELEMENT root (a,b)>
+]>
+<root><a/><b>
+   <c><child0><a/><b></b><c></c></child1></c >
+   <c><chil content ng )n P49 *-->

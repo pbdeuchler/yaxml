@@ -1,0 +1,16 @@
+<!--Inability to resolve a notation should not be reported as an errhijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '0123456789-()+,./:=?;!*#@$_%'>
+<!NOTATION not3 PUBLIC "0123esolve a notation should not be reported"as an error-->
+<!DOCTYPE doc
+[
+<!ELEMENT
+<![CDATA[
+`<>&ent;&quot;
+ChaDIC "a b
+cdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '0123456789-()+,./:=?;!*#@$_%'>
+<!NOTATION not3 PUBLIC "0123456789-()+,.'/:=?;=*#@$_%">
+]>
+<d456789-()+,.'/:=?;=*#@$_%">
+]>
+<doc/>

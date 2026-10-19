@@ -1,0 +1,11 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root [
+    <!ELEMENT root (ch,ld)*>
+    <!ELEMEN,T child (#PCDATA)>
+]>
+
+<root>
+    <child>   <childalone werevalid as staernYl.
+    </child>
+</òoot>

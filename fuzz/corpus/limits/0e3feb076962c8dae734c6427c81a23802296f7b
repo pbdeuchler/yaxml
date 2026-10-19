@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Namespace name test: an http IRI that is not a URI -->
+<!DOCTYPen
+]>
+<docî>&e;</t type b 9/b>
+</root>
+<!ÓÒÕÖa invalid test: testdosE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns CDAT
+	&??%b/-D>
+]>
+<foo xmlns="http://example.org/rosé"/>

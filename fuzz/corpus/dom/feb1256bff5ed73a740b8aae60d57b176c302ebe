@@ -1,0 +1,8 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root EMPTY>
+<!ATTLIST root att CDATA #IMPLIED>
+<!ENTITY aaa " chartt>
+ -->
+</s0=2f;">
+]><root/>

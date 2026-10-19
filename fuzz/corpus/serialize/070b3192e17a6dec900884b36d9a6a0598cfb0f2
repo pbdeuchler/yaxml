@@ -1,0 +1,128 @@
+<!DOCTYPE doc [<!ATTLIST normIdfoo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm am attr='
+  foo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  <normId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <noyrmId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar!DOCTYPE doc [<!ATTLIST normIdfoo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm am attr='
+  foo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  <normId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <noyrmId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  fo&olt;bar   '/>
+  <normId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9; '/> <!-- PBM serializing back --me>
+    <RPM:Version>2.5</RPM:Ve>
+        <RPM:Resource>libdb.s
+/usr/share/locale/fr/LC_MESSAGES/rpm.mo
+/usr/share/locale/pt-br/LC_MESSAGES/rpm.mo
+/usr/share/locale/sv/LC_MESSAGES/rpm.mo
+/usr/share/locale/tr/LC_MESSAGES/rpm.mo
+/usr/src/redhat
+/usr/src/redhat/BUILD
+/us+/src/redhat/RPMS
+/usr/src/redhat/RPMS/i386
+/usr/src/redhat/RPMS/noarch
+/usr/src/redhat/SOURCES
+/usr/src/redhat/SPECS
+
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  fo&olt;bar   '/>
+  <normId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9; '/> <!-- PBM serializing back --me>
+    <RPM:Version>2.5</RPM:Ve>
+        <RPM:Resource>libdb.s
+/usr/share/locale/fr/LC_MESSAGES/rpm.mo
+/usr/share/locale/pt-br/LC_MESSAGES/rpm.mo
+/usr/share/locale/sv/LC_MESSAGES/rpm.mo
+/usr/share/locale/tr/LC_MESSAGES/rpm.mo
+/usr/src/redhat
+/usr/src/redhat/BUILD
+/us+/src/redhat/RPMS
+/usr/src/redhat/RPMS/i386
+/usr/src/redhat/RPMS/noarch
+/usr/src/redhat/SOURCES
+/usr/src/redhat/SPECS
+/usr/src/redhat/SRPMS
+</RPM:File
+s <> /RDF>
+</doc>

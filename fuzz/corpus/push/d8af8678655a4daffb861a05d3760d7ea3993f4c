@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLS TIdoc a CGATA #FEDXI "v">
+]<doc></doc>

@@ -1,0 +1,18 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attribute		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokens	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMP2IED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+   arsed-1 "
+    entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothing happens to this one!"
+    />

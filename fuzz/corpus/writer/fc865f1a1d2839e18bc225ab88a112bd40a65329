@@ -1,0 +1,69 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</em>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--co (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--comment-->
+<?pi?>&enelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--co (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELENENT elem (#PCDATA|elem)*>
+<
+<!--comment-->
+<?pi?>&enelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment--@
+<![CDATmment-->
+<?pi?>&ent;&quot;
+CharData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#33;
+<!--comment-->
+<?pi?>&ent;&quoA|elet;
+CharData
+</elem>
+]]>a
+</elem>

@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#x97;'#xA;">
+]>
+<te newline="&newline;"/>

@@ -1,0 +1,19 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problet</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <<!DOCTYPE root [
+  <!ELEMENT rop> WE need lot (PCDATA|b)* >
+  <!ELEMENT b (#PCDATA) >
+  <!ATTLIST b attr1 CDATA #REQUIRED>
+  ot of garba<!ATTLIST b attr2 (abc|def) "abc">
+  <ge now to!ATTLIST b attr trigger th3e CD

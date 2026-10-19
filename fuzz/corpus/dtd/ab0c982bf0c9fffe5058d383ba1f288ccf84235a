@@ -1,0 +1,10 @@
+    <!-- SGML-ism:  illegal attribute types -->
+
+    <!ATTLIST root
+	number	NAMES	"The King"
+	>
+
+]>
+
+<root/>
+

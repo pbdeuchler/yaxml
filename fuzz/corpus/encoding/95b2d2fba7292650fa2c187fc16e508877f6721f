@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!-- Simple legal case: default namespacJ and unbinding -->
+<foo xmlns="h/emxpaleoargn/.mespace">
+ <foo xmlns=""/>
+3/foo>
+

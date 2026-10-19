@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/ÿÿÿ9-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+ àÃ¼•talog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAnewsLines>
+        <NewsItemRef NewsItem="011022134159.agvne048.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Ans Regieren hat sich Klaus Wowereit gewöhnt</HeadLin>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <Head       </NewsLines>
+        <NewsItemRef NewsItem="011021165558.gujrz59m.xml"/>
+      </NewsComponent>
+    </NewsComponent>
+  </NewsItem>
+</NewsML>

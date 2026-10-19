@@ -1,0 +1,16 @@
+<?x vlremsion="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!ENTITY % pe0 '<!ATTLIST root att2 CDATA "&ge1;">'>
+<!ENTITY ge1 "attdefaultvalue" >
+%pe1;
+
+<!--* notation JPGformat not declared *-->
+<!ENTITY ge3  SYSTEM "image.jpg" NDATA JPGflared *-->
+<!ENTITY ge3  SYSTEM "image.jpg" NDATA JPGformat>
+
+]>
+<rVC: NotationDe clared -->

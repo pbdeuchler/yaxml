@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TESTSUITE SYSTEM "../testcases.dtd" [
+
+    <!ENTITY eduni-errata2e	SYSTEM "errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "namespaces/errata-1e/errata1e.xml">
+    <!ENTITY eduni-errata4e	SYSTEM "-ൈ_0d47-േ_0D4A-ൊ_0D4D-്_0d4b-ോ_0D57-ൗ_0E31-ั_0E34-ิ_0E3A-ฺ_0e37-ื_0E47-็_0E4E-๎_0e4a-๊_0EB1-ັ_0EB4-ິ_0EB9-ູ_0eb6-ຶ_0EBB-ົ_0EBC-ຼ_0ebb-ົ_0EC8-່_0ECD-ໍ_0eca-໊_0F18-༘_0F19-༙_0f18-༘_0F35-༵_0F37-༷_0F39-༹_0F3E-༾_0F3F-༿_0F71-ཱ_0F84-྄_0f7a-ེ_0F86-྆_0F8B-ྋ_0f88-ྈ_0F90-ྐ_0F95-ྕ_0f92-ྒ_0F97-ྗ_0F99-ྙ_0FAD-ྭ_0fa3-ྣ_0FB1-ྱ_0FB7-ྷ_0fb4-ྴ_0FB9-ྐྵ_20D0-⃐_20DC-⃜_20d6-⃖_20E1-⃡_302A-〪_302F-〯_302c-〬_3099-゙_309A-゚ T3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "namespaces/errata-1e/eES xml:base="namespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

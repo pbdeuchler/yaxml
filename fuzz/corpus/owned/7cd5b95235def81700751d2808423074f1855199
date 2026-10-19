@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF9"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDATA "eng">
+  <!ATTLIST  oofbar CDATA "&<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLIST e3 _d ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns'>
+<!ATTLIo"/>
+      </e2>
+   </e1>
+</doc>
+t>
+  <foo xml:l"&lt;&gt;&quot;">
+]>
+<root>
+  <foo xml:lang="ger">Ja</foo>
+</root>

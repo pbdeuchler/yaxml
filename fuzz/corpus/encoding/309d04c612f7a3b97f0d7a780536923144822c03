@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='ISO-8859-5' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+http://www.w3.org/TR/WD-xml-971117'>
+http://www.w3.org/TR/WD-xml-971117</loc>-->
+</prevlocs>
+<authlist>
+<author><name>Tim Bray</name>
+<affiliation>Textuality and Netscape</affiliation>
+<email 
+href="mailto:tbray@textuality.com">tbray@textuality.com</email></author>
+<author><name>Jean Paoli</name>
+<affiliation>Microsoft</affiliation>
+<email href="mailto:jeanpa@microsoft.com">jeanpa@microsoft.com</email></author>
+<author><name>C. M. Sperberg-McQueen</name   "&#38;#60;"> 
+<!ENTI<w3ctdeco-py>W3C Recommendation</w3c-doctype>
+<pub
+date><day>&draft.day;</day><month>&draft.month;</month><year>&draft.year;</year></pubdate]>
+<!-<loc>
+<loc  href="http://www.w3.org/TR/17

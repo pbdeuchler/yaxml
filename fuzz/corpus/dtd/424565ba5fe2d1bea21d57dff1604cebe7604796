@@ -1,0 +1,6 @@
+<!DOCTYPE a SYSTEM "dtds/a.dtd" [
+<!ELEMENT a (#PCDATA | b | c)*>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA)>
+]>
+<a> violates [ VC: Unique Element Type Declaration ] </a>

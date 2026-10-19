@@ -1,0 +1,91 @@
+<!DOCTYPE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ rPE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ root [
+<!ELEMENT root EMPTY*>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-// "-//Mntern
+<!NOTATION candy
+    PUBLIC "-//!International Grocer>
+<root type="candy"/>
+

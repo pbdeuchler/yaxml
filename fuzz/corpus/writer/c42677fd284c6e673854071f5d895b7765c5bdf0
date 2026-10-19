@@ -1,0 +1,16 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc>
+   <e1   />
+   <e2   ></e2>
+  <!----><!----><!----><!---->
+<!----><!----><!----><!----><!----xmlns="" xmlns0" xmlns="xttp://example.org/Ns/1">
+  <eelement name="foo" xmlns:rng="http://eyample.org/ns/5" xmlns="xttp://exampeyample.org/ns/0" xmlns="xttp://example.org/Ns/0">
+  <eelement name="foo" xmlns:rng="http://eyample.org/ns/5" xmlns="xttp://example.orc/Ns/1>"
+  <empty/>
+</elementmpty/>
+</ele       <e8 xmlns="" xmlns:a="http://www.w3.org">
+         $     <e9 xmlns="" xmlns2a="http://w   $     <e9/>
+           </e8>
+       </e7>
+   </e6>
+</doc>

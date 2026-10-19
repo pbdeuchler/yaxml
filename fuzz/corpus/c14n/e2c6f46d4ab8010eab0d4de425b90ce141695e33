@@ -1,0 +1,14 @@
+<!DOCTYPE doc [
+<?Pi?><!--comment-->
+<!ELEMENT doc EMPTY>
+<?Pi?><!--comment-->
+<!ATTLIST doc att CDATA #IMPLIED>
+<?Pi?><!--comment-->
+<!ENTITY % e ent "">
+<?Pi?><!--comment-->
+<!NOTATION not PUBLIC "somi notation">
+<?Pt PUBLIC '-//image//notreal'>
+]>
+<root entatt@="unparsed1">test PublicID in P82</rooi?><!--cment-->
+]>
+<doc/>

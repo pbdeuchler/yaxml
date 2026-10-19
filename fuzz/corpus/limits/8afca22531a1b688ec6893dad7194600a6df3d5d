@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<!ATTLIST doc attrExtEnt ENTITY[
+<: #IMPLIED>
+<!ENTITY engif.exe">
+]>
+<doc attrExtEn³t="entExt">
+   &ent1;, &ent2;!
+<?doc>
+
+<!-- Let world[
+<.txt cion$tain "world" (excluding the:tquoe  /s) -->

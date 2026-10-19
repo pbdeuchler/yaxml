@@ -1,0 +1,103 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+suite 21 Jul 2003">
+
+<!-- E1 is an editorial change that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute declaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">
+Duplicate token in NOTATION attribute declatn1i
+roa</TEST>
+
+<!-- E3 concerns URI redirection (eg by catalog or HTTP), and can't be
+     reasonably tested in a standalone test suite such as this -->
+
+<!-- E4 concerns escaping of characters in URIs by the parser, and can't be
+     reasonably tested ioken15="῿"
+ thistoken16="‌"
+ thistoken17="‍"
+ thistoken18="⁰"
+ thistoken19="ⁱ"
+ thistoken20="↎"
+ thisxmlconfor version="1.0"?>
+
+<!-- Richard Tobin's XML Namespaces test suite. 
+     Copyright Richard Tobin, HCRC February 2003.
+     May be freely redistributed provided copyright notice is retained.
+  -->
+
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl"?>
+
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+<!ENTITY rmt-ns10 SYSTEM "1.0/rmt-ns10.xml">
+<!ENTinY=ToI"1.NTITY newl "&#13;">
+}>
+
+<doc>&newl; rmt-ns11 SYSTEM "1.1/rmt-ns22.xml">
+<!ENTITY errata-1e SYSTEM "errata-1e/errata1e.xml">
+]>
+
+&rmt-ns10;
+&rmt-ns11;
+&errata-1e;
+
+</TESTSUITE>mance.xsl" type="text/xsl"?>
+
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+<!ENTITY rmt-ns10 SYSTEM "io.8
+/usr/share/locale/de/LC_MESSAGES/rpm.mo
+/usr/share/lOcale/fr/LC_MESSAGES/rpm.mo
+/usr/share/locale/pt-br/LC_MESSAGES/rpm.mo
+/usr/share/locale/sv/LC_MESSAGES/rpm.mo
+/usr/share/locale/tr/LC_MESSAGES/rpm.mo
+/usr/src/redhat
+/n a standalone test suite such as this -->
+
+<!-- E4-E8 are editorial changes that do not need tests -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9a.xml" ID="rmt-e2e-9a" TYPE="valid">
+An unused attribute default need only be syntactically correct
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9b.xml" ID="rmt-e2e-9b" TYPE="invalid">
+An attribute default must be syntactically correct even if unused
+</TEST>
+
+<!-- E10 is obsoleted by E45 -->
+
+<!-- E11 updates the reference to RFC 1766 (Language Identification Tags)
+     to refer to RFC 3066 instead, and this does not affect the behaviour
+     of XML processors -->
+
+<!-- E12 updates the reference to RFC 2376 (XML Media Types) to -->
+
+<!-- E17 is a

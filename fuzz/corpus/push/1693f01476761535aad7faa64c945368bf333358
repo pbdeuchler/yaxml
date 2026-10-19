@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!DOCTYP<!ENTITY
+]>
+<doc a="&e;"E root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root xml:lang CDATA #IMPLIED>
+]>
+<root xm>l:lang<="X-Ja/vdoca"/>
+>
+

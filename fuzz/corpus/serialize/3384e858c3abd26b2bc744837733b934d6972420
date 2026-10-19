@@ -1,0 +1,194 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org/2000/09/xmldttp://www.w3.org/2000/09/xmldsig#">
+  <!ENTITY c14n "http:/&aip;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  Anormttr=' &amp; '/>
+  <n bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <no/ww<!DOCTYPE doc [<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar>
+<!--* a valid test <
+</root>
+<!--* a valid test for P69 alization -->
+  <normId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+ OOOOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&aip;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  Anormttr=' &amp; '/>
+  <n bar
+'/>
+  <normId attrsig#">
+  <!ENTITY c14n "http://ww<!DOCTYPE doc [<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar>
+<!--* a valid test <
+</root>
+<!--* a valid test for P69 alization -->
+  <normIdENS #IMPLorm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar>
+<!--* a valid test <
+</root>
+<!--* a valid test for P69 alization -->
+  <normId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+ OOOOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&aip;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  Anormttr=' &amp; '/>
+  <n bar
+'/>
+  <normId attrsig#">
+  <!ENTITY c14n "http://ww<!DOCTYPE doc [<!ATTLIST normId at~r NMTOKENS #IMPLorm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'
+ >/ <norm attr='foobar>
+<!--* a valid test <
+</root>
+<!--* a valid test for P69 alization -->
+  <normId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+ OOOOOOOOOOOOOOOOO'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&aip;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  Anormttr=' &amp; '/>
+  <n bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <w.w3.org/TR/2001/REC-xml attr='   '/>
+  AnormId attr='
+  foo bar   ttr='   '/>
+  Anormttr=' &amp; '/>
+  <n bar
+'/>
+  <n<!DOCTYPE doc [
+<!EN>
+<doc></doc>
+&e;
+amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <w.w3.org/TR/2001/REC-xml-c14n-20010315">
+  <!ENTITY xpathdoc>

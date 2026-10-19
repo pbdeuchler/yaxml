@@ -1,0 +1,7 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+ 	<!ENTITY FullName "Snow&Man">
+]>
+
+<!-- testing invalid entity value -->
+<student>My Name is &FullName;. </student>

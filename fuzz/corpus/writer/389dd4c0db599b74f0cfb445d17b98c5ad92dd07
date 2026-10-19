@@ -1,0 +1,23 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Linear gradient example
+  </desc>
+  <g>
+    <defs>
+      <lineargradient id="MyGradient">
+  attr35="A.-�" attr350="A.-�"
+ 	attr36="zA.-" attr360="zA.-"
+ 	attr37="0zA." attr370="0zA."
+ 	attr38="·0zA" attr380="·0zA"
+ 	attr39="̀·0z" attr390="̀·0z"
+ 	attr40="́̀·0" attr400="́̀·0"
+ 	attr41="ͮ́̀·" attr410="ͮ́̀·"
+ 	att42r="ͯͮ́̀" attrolor="#F60"/>
+        <gradientstop of1fset="70%" color="#FF6"/>
+      </lineargradient>
+    </defs>
+    <rect style="fill: url(#MyGradient)" width="20" height="15.8"/>
+  </g>
+</svg>

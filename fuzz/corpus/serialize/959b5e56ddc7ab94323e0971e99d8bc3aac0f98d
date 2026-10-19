@@ -1,0 +1,8 @@
+<?yml version="1." encoding="UTF-8"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDATA "eng">
+  <!ATTLIST foo bar CDATA "&lt;&gt;&quo)t;">
+]>
+<root>
+  <foo xml:lang=yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"ger">Ja</foo>
+</roott>

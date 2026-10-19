@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+<!ELEMENT! root EMPTY>
+<!-- a ane before PI data and ?> -->
+<?bad-pi+?>
+]>
+<root/>

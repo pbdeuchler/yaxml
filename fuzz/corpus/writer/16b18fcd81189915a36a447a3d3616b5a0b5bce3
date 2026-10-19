@@ -1,0 +1,40 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "<?xml encoding='UTF-6'?>">
+]>
+<doc>&ENd.
+    Modifications copyright 1999 by OASIS.
+
+    1999-06-09 00:20
+
+    DTD describing a database of XML tests.
+
+    NOTE:  the OASIS/NIST test effort also has a DTD for its test
+    environment, but that DTD is not yet suited for automated test
+    processing.  (Among other issues, it doesn't record information
+    putting any test case into the test matrix.)  If that gets fixed,
+    it may be useful to switch over to that DTD.
+-->
+
+<!--
+    The root element of the whole collectio
+    improper processing by IE5.
+-->
+<!ELEMENT TESTSUITE ( TESTCASES+ )>
+<!ATTLIST TESTSUITE 
+    PROFILE	CDATA		#IMPLIED
+    >
+
+<!--
+    The root element of a collection should be "TESTCASES".  It groutput file.  (This is
+    what James Clark titled "Canonical XML", with the addition of the
+    NOTATION declarations that all XML parsers are required to report.)
+
+    The OUTPUT3 attribute is like OUTPUT, but when sent through a
+    validating parser the data reported must have the "Third Canonical
+    Form" as found in the specified output file.  (This is Second
+    Canonical descriptions ...
+    EM == emphasis (e.g. italics, fun colors)
+    B == bold
+-->
+<!ELEMENT EM (#PCDATe;</doc>

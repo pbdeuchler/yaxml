@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+
+    <!-- illegal public ID charact >se--r
+
+    <!ENTITY e PUBLIC "thiTYPE root [
+    <!ELEMENT root EMPTY>
+
+    <!-- illegal public ID charact >se--r
+
+    <!ENTITY e PUBLIC "this isn&apos;t allowed" "ignoreds isn&apos;t allowed" "ignored">
+]>
+
+<root/>

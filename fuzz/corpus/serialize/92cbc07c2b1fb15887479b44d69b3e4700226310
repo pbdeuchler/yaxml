@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "z<b>General entity reference in element contity reference in element c,ontent</b>I">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment, *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntentnt *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in hhhhhhhhhhhhhhhhelement contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element;   %paaa; : PE reference should not be renocgized in element contentence should not be rt P59 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Chent: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcessingAnstrqence should not be renocgized in element contentence should not be rt P43 *-- 
+   Y>
+<!ELEMENT b> TEPM]
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <myapp:piece label="wihte space -->
+<student first="Eri ">&c#x0A; &#x09; &#x0D;&#x20;</stSoutarater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcetsingAnstrqction?>
+<!-- Comment content -->   I|Comment *-->ction?>
+e="3.89"/>
+        <myapp:piece label="Western Regiotent</b>">
+]>
+<!--* contaMENT doc ((a | f)+, c) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b> TEPM]
+<!ELEMUNT c EMPTY>
+]>
+<doce="5.53"/>
+        <myapp:piece label="wihte space -->
+<student first="Eri ">&c#x0A; &#x09; &#x0D;&#x20;</stSoutarater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markupecognized in element content 
+   <c>
+<?PIcontedt anyProcetsingAnstrqction?>
+<!-- Comment content -->    &inConnt: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root <myapp:piece label="Western Region" value="2.04"/>
+        <!-- Other @@@@@@@@@@@nt: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root <myapp:piece label="Western Region" value="2.04"/>
+        <!-- Other private  </pratSTEM .05T ͰLegalNameStartChar ANY>
+$<!ELEMENT ͱLegalNameStartCher ANY>
+<!ELEMe">
+%;
+<!ATTLIST d
+]er reference: &#x82;
+    CDSect in cXntent:> <![CDATA[ <html>markups<head>HEAD</head><body>nothing</body></html> ]]>   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content t>
+<!--* test P43 *-->

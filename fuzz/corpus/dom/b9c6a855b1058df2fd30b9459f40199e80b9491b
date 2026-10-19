@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
+<!ENTITY xml "Exted in this document, and the
+	defaulted attribute is explicit.
+    
+	BUT the entity refs are both external and need
+	normalization.
+    -->
+]>
+
+<attributes
+    token =	"b"
+    notation nce the values
+	are pre-normalized in this document, and the
+	defaulted attribute is expliciid =	"&internal;"
+    idref =	"&internal;"
+    idrefs =	"&internal; &internal; &internal;"
+    entity ="b"
+    notation =	"foo"
+    nmtoken =	"this-gets-n"
+    cdata =	"nothing happens to this one!"
+    /.gif" NDATA GIF>
+]>
+<EXAMPLE>
+  &title;
+  This text is about XML, the &xml; and this "img.gif" NDATA GIF>
+]>
+"image"/>
+</EXAMPLE>
+

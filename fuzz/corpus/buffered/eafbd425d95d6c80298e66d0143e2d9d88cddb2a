@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENY dom (#PCDATA)>
+<!ATTLIST doc a1 (foo|bar)#IMPLIED>
+]><doc></doc>

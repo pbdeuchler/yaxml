@@ -1,0 +1,4 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+   <!-- SYSTEM id must be quSTEM id must be quoted -->
+    <!ENTITY foo SYSTEM et/>

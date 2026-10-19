@@ -1,0 +1,41 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  ,norm attr='foobar
+
+/'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/> 
+ <norm attr='&amp;foo bar '/>
+  <no.............................................................................................................rmId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normfoobar
+
+&amp;'/>
+  <njrmId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foobar&lt;'/>
+  <normImixed3>
+    <mixed3><empty/> too</mixed3>
+
+</rooting>
+ back -->
+</doc>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Contains a C1 control, legal<item title="Icrontic.com - Warning: Breakdancing midget with tourette&apos;s syndrome on-board&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#118;&#160;&#160;&#160;&#160;&#160;&#159;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&`160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160 in XML 1.0, illegal in XML 1.1 -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+]>
+<foo>�</foo>;&#160;&#160;" url="http://www.icrontic.com/" first_time="985034339" last_time="985034339" v-〇_3021-〡_3029-〩_3025-〥 This
+<!ELEMENT a ANY>
+<!--* Wrong keyword: Attlist in AttlistDecl *-->
+<!
+Attlist a attr1 CDATA #REQUIRED > is a PI target ?><book></booisits="1"/>

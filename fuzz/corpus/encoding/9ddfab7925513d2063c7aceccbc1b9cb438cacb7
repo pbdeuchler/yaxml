@@ -1,0 +1,20 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Contains a C0 control character (form-f³³³³³³³³³³â³³³³³ÿ³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ³³³³³³³³³c.doc.date "02-Feb-1998d att ENTITY #IMPLIED>
+<!ATTLIST e att ENTITIES #I">
+<!ENTITY draft.day '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSGML 
+ 'WebSGML Adaptations Annex to ISO 8879'>
+
+<!ENTITY lt     "&#38;#60;"> 
+<!ENTITY gt     ">"> 
+<!ENTITY xmlpio "'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTI³³³³³³³³³³³³³³³³eed), illegal %in
+     both XML 1.0 and 1.1 -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+]>
+<foo></foo>

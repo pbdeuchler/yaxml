@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (a?, (b, c?, d?)?, (e | f | g)*, (h+ | i | j+distribution status:  for use at publication time -->
+<!ENTITY doc.audience "puEMENT i EMPTY>
+<!ELEMENT j EMPTY>
+]>
+<doc>
+<i/>
+</doc>

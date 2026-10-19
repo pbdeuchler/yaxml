@@ -1,0 +1,15 @@
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<!-- This test case contains valid char references that ma;ch the char production. -->
+<root>
+Test all valid new Charater references for P33:#x8F; &#x90; &#xEF0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+<*/root&#xE000;&#xFEF0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+</root>
+<!--
+Test all valid new Charater references for P66:
+&ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ;&#xFEF0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+-->

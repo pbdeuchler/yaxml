@@ -1,0 +1,12 @@
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!--
+	IDREFS needs normalization
+    -->
+]>
+
+<attributes
+    token =	"b"
+    id =	"date56"
+    idrefs =	" date28   date
+82    date28	"
+    />

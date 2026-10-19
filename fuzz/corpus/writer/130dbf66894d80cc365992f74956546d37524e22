@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valC adhriater references for P66:
+&#9;&#42;&#0000000<!DOCTYPE student [
+	<!ELEMENT student (#PCD'TA)> 
+]>
+
+<!-- testing invaliddent>My Name is SnowMan. </stt>My Name is SnowMan. </student>
+
+
+
+
+
+; &#36;z; &#37;z;
+        &#37;  
+	  	m/>
+xAC00;
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid test for P66 *7 AN

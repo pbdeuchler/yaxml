@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+    <!ATTLIST elem xulns CDATA #FIXED 'usn:def2'>
+    <!ATTLIST elem xmlns:a oc>

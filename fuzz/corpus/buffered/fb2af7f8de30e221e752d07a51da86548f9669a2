@@ -1,0 +1,84 @@
+<a>
+ <xi:include href="a01.xml" xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:fallback>
+   <elem/>
+   <xi:include href="a02.xml">
+    <xi:fallback>
+     <elem/>
+     <xi:include href="a03.xml">
+      <xi:fallback>
+       <elem/>
+       <xi:include href="a04.xml">
+        <xi:fallback>
+         <elem/>
+         <xi:include href="a05.xml">
+          <xi:fallback>
+           <elem/>
+           <xi:include href="a06.xml">
+            <xi:fallback>
+             <elem/>
+             <xi:include href="a07.xml">
+              <xi:fallback>
+               <elem/>
+               <xi:include href="a08.xml">
+                <xi:fallback>
+                 <elem/>
+                 <xi:include href="a09.xml">
+                  <xi:fallback>
+                   <elem/>
+                   <xi:include href="a10.xml">
+                    <xi:fallback>
+                     <elem/>
+                     <xi:include href="a11.xml">
+                      <xi:fallback>
+                       <elem/>
+                       <xi:include href="a12.xml">
+                        <xi:fallback>
+                         <elem/>
+                         <xi:include href="a13.xml">
+                          <xi:fallback>
+                           <elem/>
+                           <xi:include href="a14.xml">
+                            <xi:fallback>
+                             <elem/>
+                             <xi:include href="a15.xml">
+                              <xi:fallback>
+                            <?xml version="1.0"?>
+<!DOCTYPE root SYSTEM "ibm50v01.dtd" [
+  <!ELEMENT root (a,b)>
+]>
+<root><a/><b>
+   <c><child1><a/><b></b><c></c></chilÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ)ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿd1></c >
+   <c><child2>></root>
+<!--* a valid test: tests VC:Proper Group/PE Nesting in P50 *-->
+/xi:include>
+                            </xi:fallback>
+                           </xi:include>
+                          </xi:fallback>
+                         </xi:include>
+                        </xi:fallback>
+                       </xi:include>
+                      </xi:fallback>
+                     </xi:include>
+                    </xi:fallback>
+                   </xi:include>
+                  </xi:fallback>
+                 </xi:include>
+                </xi:fallback>
+               </xi:include>
+              </xi:fallback>
+             </xi:include>
+            </xi:fallback>
+           </xi:include>
+          </xi:fallback>
+         </xi:include>
+        </xi:fallback>
+       </xi:include>
+      </xi:fallback>
+     </xi:include>
+    </xi:fallback>
+   </xi:include>
+  </xi:fallback>
+ </xi:include>
+</a>
+

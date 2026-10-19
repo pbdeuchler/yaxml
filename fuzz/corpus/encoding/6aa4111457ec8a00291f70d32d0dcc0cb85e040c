@@ -1,0 +1,25 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Has an '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSGML 
+ 'WebSGML Adaptations Annex to ISO 8879'>
+
+<!ENTITY lt     "&#38;#60;"> 
+<!ENTITY gt     ">"> 
+<!ENTITY xmlpio "'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTITY br     "\n">
+<!ENTITY cellback '#c0d9c0'>
+<!ENTITY mdash  "--"> <!-- &#x2014, but nsgmls<?xml version="1.1"?>
+<!DOCTYPE foo [
+<NMTOKENS attribut econtaining a CR character that comes from a
+     character reference in an internal entity.  Because CR is in the
+     S production, this is valid in both XML 1.0 and 1.1. -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo bar  NMTOKENS #IMPLIED>
+<!ENTITY val "abc&#x0d;def">
+]>
+<foo bar="&val;" />

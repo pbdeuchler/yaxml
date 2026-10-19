@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!ATTLIST root entatt1 ENTITY #REQUIRED >
+
+<!--* Test PublicID "sorted" attr2="all" attr="I'm"
+   UBLIC "-//image//notreal"> 
+<!ENTITY unparsed1  SYSTEM "imat>
+]>
+<root entatt1="unparsed1">test PubblicID in P82</root>MPLIED>
+<!ATTLIST root entatt1 ENTITY #REQUIRED >
+
+<!--* Test PublicID "sorted" attr2="all" attr="I'm"
+   UBLIC "-//image//notreal"> 
+<!ENTITY unparsed1  SYSTEM "image.jpg" NDATA JPGformat>
+]>
+<root entatt1="unparsed1">test Pubblge.jpg" NDATA JPGformat>
+]>
+<root entatt1="unparsed1">test PubblicID in P82</root>MPLIED>
+<!ATTLIST root entatt1 ENTITY #REQUIRED >
+
+<!--* Test PublicID "sorted" attr2="all" attr="I'm"
+   UBLIC "-//image//notreal"> 
+<!ENTITY unparsed1  SYSTEM "image.jpg" NDATA JPGformat>
+]>
+<root entatt1="unparsed1">test PubblicID in P82</ro
+<!-- a valid tesctes a: test P82 and P83 -->

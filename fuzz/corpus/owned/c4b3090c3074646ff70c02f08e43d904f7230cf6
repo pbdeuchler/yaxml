@@ -1,0 +1,116 @@
+<?xml version='1.0'?>
+<!DOCTYPE root [
+<!ENTITY % deftest '&#60;!version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMEST LegalName27 attr270 IDREF #IMPLIED>
+<!ELEMENT LegalName28 ANY>
+<!ATTLIST LegalName28 attr28 ID #IMPLIED>
+<!ATTLIST LegalName28 attr280 IDREF #IMPLIED>
+<!ELEMENT LegalName29 ANY>
+<!ATTLIST ;</rootnything |egal as PCDATA....&#10;N.B. also tested P77anythiLegalName29 attr29 ID #IMPLIED>
+<!ATTLIST LegalName29 attr290 IDREF #IMPLIED>
+<!ELEMENT LegalName30 ANY>
+<!ATTLIST LegalName30 attr30 ID #IMPLIED>
+<!ATTLIST LegalName30 attr300 IDREF #IMPLIED>
+<!ELEMENT LegalName31 ANY>
+<!ATTLIST LegalName31 attr31 ID #IMPLIED>
+<!ATTLIST LegalName31 attr310 IDREF #IMPLIED>
+<!ELEMENT LegalName32 ANY>
+<!ATTLIST LegalName32 attr32 ID #IMPLIED>
+<!ATTLIST LegalName32 attr320 IDREF #IMPLIED>
+<!ELEMENT LegalName33 ANY>
+<!ATTLIST LegalName33 attr33 ID #IMPLIED>
+<!ATTLIST LegalName33 attr330 IDREF #IMPLIED>
+<!ELEMENT LegalName34 ANY>
+<!ATTLIST LegalName34 attr03 ID #IMPLIED>
+<!ATTLIST LegalN, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040 -->
+<LegalName>
+ 	attr0=":" attr00=":"
+ 	attr1="À" attr10="À"
+ 	attr2="Á" attr20="Á"
+ 	attr3="˾" attr30="˾"
+ 	attr4="Â" attr40="Â"
+ 	attr5="Ã" attr50="Ã"
+ 	attr6="˽" attr60="˽"
+ 	attr7="˿" attr70="˿"
+ 	attr8="Ͱ" attr80="Ͱ"
+ 	attr9="ͱ" attr90="ͱ"
+ 	attr10="ͼͽ" attr100="ͼͽ"
+ 	attr11="ͽͿ" attr110="ͽͿ"
+ 	attr12="Ϳ΀" attr120="Ϳ΀"
+ 	attr13="΀῾" attr130="΀῾"
+ 	attr14="῾῿" attr140="῾῿"
+ 	attr15="῿‌" attr150="῿‌"
+ 	attr16="‌‍" attr160="‌‍"
+ 	attr17="‍⁰" attr170="‍⁰"
+ 	attr18="⁰ⁱ" attr180="⁰ⁱ"
+ 	atpty
+</TEST>
+
+<!-- E42 cannot be tested without an application -->
+
+<!-- E43 is just a consolidation of other errata -->
+
+<!-- E44 is editorial -->
+
+<!-- E45 can only reasonably be tested by putting the parser into a mode
+     where it doesn't read external entities, and we can't force that -->
+
+<!-- E46 is editorial -->
+
+<!-- E47 has th Unparsed
+        entities and notations are not listed among the
+        items that must not be externally declared in
+        standalone documents, even though processors must
+        in theory report their identifiers.
+
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	>
+    <!ENTITY internal "inrmalized one.
+    
+        Similarly the entity refs aentire rnal.  Unparsed
+        entities and notations are not listed among the
+        items that  happens to this oe same problem as E45 -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E48" URI="E48.xml" ID="rmt-e2e-48" TYPE="valid">
+ANY content allows character data
+</TEST>
+
+<!-- E49 is editor1ial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E50" URI="E50.xml" ID="rmt-e2e-50" VERSION="1.1" TYPE="valid">
+All line-ends are normalized, even those not passed to the application.
+NB this can only be tested effectively in XML 1.1, since CR is in the
+S production; in 1.1 we can use NEL which isn't.
+</TEST>
+
+<!-- E51-E54 are editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E55" URI="E55.xml" ID="rmt-e2e-55" TYPE="error">
+A reference to an unparsed entity in an entity value is an error rather
+than forbidden (unless the entity is referenced, of course)
+</TEST>
+
+<!-- E56 is editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E57" URI="E57.xml" ID="rmt-e2e-57" TYPE="error">
+A value other than pr<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#00000000000000000000000000000000065;<-doc>
+defined, so there is
+     nothing that can usefully be tested -->
+
+<!-- E59 is an explanatory note -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E60" URI="E60.xml" ID="rmt-e2e-60" ENTITIES="parameter" TYPE="valid">
+Conditional sections are allowed in external parameter entities referred
+to from the internal subset.
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E61" URI="E61.xml" ID="rmt-e2e-61" TYPE="not-w<middle><test>sample</test></middle></xoot>

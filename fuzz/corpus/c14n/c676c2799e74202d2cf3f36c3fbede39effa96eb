@@ -1,0 +1,7 @@
+.<!-- Even interors rather than well-formedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+<foo>&ent3;</foo>

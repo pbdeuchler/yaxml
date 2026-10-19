@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE objednavka SYSTEM "dtds/objednavka.dtd">
+<ob>Praha 2</Měsení>2004-11-19</DatumDoručení>
+    <ObsahObjednávky>
+        <Zboží>
+            <Kód>2N7-516</Kód>
+            <Název>Sekačka na trávu</Název>
+            <Počet  jednotka="ks">0</Počet>
+            >
+        <Řádka>Dále jsem se chtěl zeptat,a zdarma.</Řádka>
+    </Komentář>
+</objednavka>

@@ -1,0 +1,18 @@
+<!DOCTYPE root [
+    <!ELEMENT 	root EMPTY>
+    <!ATLIST root
+	req CDATA #REQUIRED
+	>
+]>
+
+<root/>
+
+<!-- doesn't incluEMPTY>
+    <!ATTLIST root
+	req CDATA #REQUIRED
+	>
+]>
+
+<root/>
+
+<!-- doesn't ide required 'req' attribute -->

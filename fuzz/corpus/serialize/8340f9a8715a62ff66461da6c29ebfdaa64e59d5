@@ -1,0 +1,3 @@
+<!-- External general entity has later version number (no decl means 1.0) -->
+<!DOCTYPE foo [
+<!ELEMENT fooo>

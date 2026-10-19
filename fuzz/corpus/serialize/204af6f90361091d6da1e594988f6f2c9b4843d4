@@ -1,0 +1,6 @@
+<!-- Default values for enumerated attributes mu{t match one of the enumerated values. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a (one|two|thre1) "four>"
+]>
+<foo a="one"/>

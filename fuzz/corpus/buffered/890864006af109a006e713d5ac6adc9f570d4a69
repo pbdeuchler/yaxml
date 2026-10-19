@@ -1,0 +1,11 @@
+<?xml version="1.1" encoding="UTF-8" ?>
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!-- This test case covers legal character ranges plus
+     discrete legal characters for production 02 of the 
+     XML1.1 specification. -->
+<?NAME_09-	_0A-
+_0D-
+_20- _D7FF-퟿_6c0f-氏_E000-_FFFD-�_effe-_010000-𐀀_10FFFF-􏿿_08ffff-򏿿 This is a ￼� 
+x10000-x10FFFF : က0က1ခ1ကFဂ7ဏ1၂1Ⴋ1ἀ1ᓰ5᫰5ᬀ0᳿7ᷲ9ỿ1ဏA0ဏ08ဏABဟ08ီCD၊AAၖ78ႫCDჿ05ჿFAჿFF 
+</root>

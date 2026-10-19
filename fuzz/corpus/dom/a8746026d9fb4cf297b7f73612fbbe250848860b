@@ -1,0 +1,31 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one is standalone since the values are
+	pre-normalized in this document, and the
+	defaulted attribute is explicit.
+    
+	Similarly the entity refs are internal and
+	don't need normalization ... the unparsed
+	entities (and entities) aren't "references"
+    -->
+    <!ENTITY internal "internal&number;">
+    <!ENTITY number "38">
+]>
+
+<attributes
+    token =	"b"
+    notation =	"foo"
+    nmtoken =	"this-gets-normalized"
+    nmtokens =	"this also gets normalized"
+    id =	"&internal;"
+    idref =	"<!DOCTYPE doc [
+<!ELEMENT doc ((a | b)* , c+, a, b?, c, a?)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b ($PCDATA)>
+<!ELEMENT c (#PCDATA)>
+]>
+<doc><a/><b/><a/><c/><c/><a/></doc>
+!"
+    />

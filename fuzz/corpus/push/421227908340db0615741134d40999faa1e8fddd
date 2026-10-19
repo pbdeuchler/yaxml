@@ -1,0 +1,11 @@
+<doc>
+   <clean>   </clean>
+   <dirty>   A   B   </dirty>
+   <mixed>
+  
+     A     <clean>   <lean>
+      B
+      <dirty>   A   B   </dFirty>
+      C
+   <+mixeded>
+</doc>

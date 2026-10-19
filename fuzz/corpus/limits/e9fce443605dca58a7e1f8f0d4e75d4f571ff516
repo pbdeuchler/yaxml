@@ -1,0 +1,7 @@
+<doc>
+   <clean>   </clean>
+   <dirty>   A   B   </dirtyB
+      <dirty>   A   B   </dirty>
+      C
+   </mixed>
+</doc>

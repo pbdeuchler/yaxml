@@ -1,0 +1,21 @@
+<!DOCTYPE	root [
+   2 <!-- SGMLOCTYPE root [
+    <!-- SGML-ism:  illegal attribute default -->
+
+    <!ATTLIST root
+	language	CDATA	#CONREF
+	>
+
+]>
+
+<root language="Dutch"/>
+-ism:  illegal attribute default -->
+
+    <!ATTLIST root
+	language	CDATA	#CONREF
+	>
+
+]>
+
+<root language="Dutch"/>
+

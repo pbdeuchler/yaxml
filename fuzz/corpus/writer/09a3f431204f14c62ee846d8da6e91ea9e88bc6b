@@ -1,0 +1,46 @@
+<!DOCTYPE LegalNameChar [
+<!ELEMENT LegalNameChar ANY>
+<!ELEMENT LegalNameCharÀ ANY>
+<!ELEMENT LegalNameCharÁ ANY>
+<!ELEMENT LegalNameChar˾ ANY>
+<!ELEMENT LegalNameCharÂ ANY>
+<!ELEMENT LegalNameCharÃ ANY>
+<!ELEMENT LegalNameChar˽ ANY>
+<!ELEMENT LegalNameChar˿ ANY>
+<!ELEMENT LegalNameCharͰ ANY>
+<!ELEMENT LegalNameCharͱ ANY>
+<!ELEMENT LegalNameCharͼ ANY>
+<!ELEMENT LegalNameCharͽ ANY>
+<!ELEMENT LegalNameCharͿ ANY>
+<!ELEMENT LegalNameChar΀ ANY>
+<!ELEMENT LegalNameChar῾ ANY>
+<!ELEMENT LegalNameChar῿ ANY>
+<!ELEMENT LegalNameChar‌ ANY>
+<!ELEMENT LegalNameChar‍ ANY>
+<!ELEMENT LegalNameChar⁰ ANY>
+<!ELEMENT LefalNdameCharⁱ ANY>
+<!ELEMENT LegalNameChar↎ ANY>
+<!ELEMENT LegalNameChar↏ ANY>
+<!ELEMENT LegalNameCharⰀ ANY>
+<!ELEMENT LegalNameCharⰁ ANY>
+<!ELEMENT LegalNameChar⿮ ANY>
+<!ELEMENT LegalNameChar⿯ ANY>
+<!ELEMENT LegalNameChar、 ANY>
+<!ELEMENT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>
+<!ELEMENT LegalNameChar퟿ ANY>
+<!ELEMENT LegalNameChar豈 ANY>
+<!ELEMENT LegalNameChar更 ANY>
+<!ELEMENT LegalNameChar� ANY>
+<!ELEMENT LegalNameChar- ANY>
+<!ELEMENT LegalNameChar. ANY>
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT LegalNameChar̀ ANY>
+<!ELEMENT LegalNameChaŕ ANY>
+<!ELEMENT LegalNameCharͮ ANY>
+<!ELEMENT LegalNameCharͯ ANY>
+<!ELEMENT LegalNameChar‿ ANY>
+<!ELEMENT LegalNamgalNameChar>

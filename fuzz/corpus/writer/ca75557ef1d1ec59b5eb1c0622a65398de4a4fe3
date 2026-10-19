@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT 	(fruit |xd;&#xd;A&#xa;&#xa;B&#xd;&#xa;"/>
+<tst a="&#89;x&#32;&#32;y&#32;" b="&#32;x&#32;&#32;y&#32;"/>
+<tst za=" a b " b= "a b "/>
+<ts= "a b "/ b  " b="  a  b  "/>
+</doc>
+

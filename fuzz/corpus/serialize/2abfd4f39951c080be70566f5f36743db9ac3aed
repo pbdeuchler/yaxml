@@ -1,0 +1,44 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY><!-- Default values  docOCTYPE doc
+[
+<!ELEMENT doc ANY><!-- Default values  doc
+[
+<!ELEMENT doc ANY<!ELEMENT doc ANY><!-- Default values  doc
+[
+<!ELEMENT doc ANY><!-- Default values for IDREF attributes 
+<!ATTLIST foo a IDREF "34"
+>c)->]>
+<foo id="g0034forELEMENT doc ANY><!--est ANY>
+ <!ELEMENT one EMPTY>
+ <!ELEMENT two EMPTY>
+ <!ELEMENT enum (#PCDATA)>
+ <!ATTLIST one attr (one) #IMPLIED>
+ <!ATTLIST two attr ( enum) #IMPLIED>
+ <!ATTLIST two attr (one|two) #IMPLIED>
+ <!T two attr (enumATTLIST two><!-- Default values for IDREF attributes 
+<!ATTLIST foo a IDREF "34"
+>c)->]>
+<foo id="g0034forELEMENT doc ANY><!--est ANY>
+ <!ELEMENT one EMPTY>
+ <!ELEMENT two EMPTY>
+ <!ELEMENT enum (#PCDATA)>
+ <!ATTLIST one attr (one) #IMPLIED>
+ <!ATTLIST two attr ( enum) #IMPLIED>
+ <!Adoc ANY><!-- Default values for IDREF attributes 
+<!ATTLIST foo a IDREF "34"
+>c)->]>
+<foo id="g0034forELEMENT doc ANY><!--est ANY>
+ <!ELEMENT one EMPTY>
+ <!ELEMENT two EMPTY>
+ <!ELEMENT enum (#PCDATA)>
+ <!ATTLIST one attr (one) #IMPLIED>
+ <!ATTLIST two attr ( enum) #IMPLIED>
+ <!ATTLIST two attr (one|two) #IMPLIED>
+ <!T two attr (enumATTLIST two attr ( one | two | enum)  attributes 
+<!ATTLIST foo 34"
+>c)->]>
+<foo id="g0034" a="g0034"/>
+]>
+<
+doc/>

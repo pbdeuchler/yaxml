@@ -1,0 +1,14 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-teif one of isent from the document 
+swbzet.
+-->
+<XPath xmlns:ietf="http://www.ietfRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR.org" >
+(//. | //sts)/#c14n11xmlbase-prop-<?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | /xxxxxxxxxxxxxxxxxxx:node()))
+    ]
+</XPath>
+ | //d@* | //namespace::*)
+[ancestor-or-self::ietf:e11]
+</XPath  [ 
+              <#-- no >

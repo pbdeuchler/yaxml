@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="http://www.ietf.org/standards/dav/">
+  <d:response>
+    <d:href>http://www.foo.bar/container/resouiacute "&#237;">
+<!-- small i, acute accent --><!ENTITY icirc "&#238;">
+<!-- small i, circumflex accent --><!ENTITY iuml "&#239;">
+<!-- small i, dieresis or umlaut mark --><!ENTITY eth "&#240;">
+<!-- small eth, Icelandic --><!ENTITY ntilde "&#241;">
+<!-- small n, tilde --><!ENTITY ograve "&#242;">
+<!-- small o, grave accent --><!ENTITY oacute "&#243;">
+<!-- smal
+  </d:response>
+  <d:response>
+    <d:href>http://www.foo.bar/othercontainer/C2</d:href>
+    <d:status>HTTP/1.1 409 Conflict</d
+ )  <d:href>http://www.fooÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ.bar/container/resource1,</d:href>
+    <d:href>http://www.foo.bar/container/resourcsponse>
+  <d:response>
+    <d:href>http://www.foo.bar/container/C2</d:href>
+    <d:status>HTTP/1. 420 Method Failure</d:status>
+  </d:response>
+  <d:response>
+    <d:href>http://www.foo.bar/othercontainer/C2</d:href>
+    <d:status>HTTP/1.1 409 Conflict</d::status>
+  </d:response>
+</d:multistatus>

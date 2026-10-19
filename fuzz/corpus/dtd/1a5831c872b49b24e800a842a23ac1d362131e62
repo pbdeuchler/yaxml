@@ -1,0 +1,14 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIRED
+		middle CDATA #IMPLIED
+		last CDATA #IMPLIED > 
+	<!ENTITY myfirst "Snow">
+	<!ENTITY mymiddlast "Man">ýýýýýýýýýýýýýýýýýýýýýtudlid attvalue -->
+<sýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýýtudent first="Snow<Man">My Name is SnowMan. </student>
+
+
+
+
+

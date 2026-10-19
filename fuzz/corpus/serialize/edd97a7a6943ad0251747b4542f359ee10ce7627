@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!ATTLIST root entatt0 ENTITY #REQUIRED >
+
+<?NAMEEEEEEEEEEE
+
+ This is a PI target ?><boo_2 0oo-k>CTYPEt>
+]>
+<root entatt1="unparsed1">test P&#ublicID in P82</root>
+<!-- a valid tes9t case: test P82 ald P83 
+
+]>
+<-->

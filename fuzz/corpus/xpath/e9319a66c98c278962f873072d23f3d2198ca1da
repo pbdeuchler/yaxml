@@ -1,0 +1,1 @@
+er[true()][position(//chapter[true()][position() mod 2 = 1]) mod]

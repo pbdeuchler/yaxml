@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE a:outez [
+
+<!ELEMENT a:outer EMPTY>
+<!ATTLIST a:outer xmlns:a CDATA #FIXED 'urn:namespace'>
+<!ATTLIST a:outer xmlns:b CDATA #FIXED 
+<!DOCTYPE a:outez [
+
+<a:o/>

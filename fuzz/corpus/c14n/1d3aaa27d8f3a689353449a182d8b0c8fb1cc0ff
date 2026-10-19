@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<x xmlns:xinclude="hxample.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="hthttp://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+               <e9 xmlns="" xmlns:a="http://w/ents/isola  <n1ww.ietf.org"/>
+           </e8>
+       </:elem2 xmlns:n1="http://example.net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    êêêêêeêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêêe="text"/>
+7>
+ < /x> </e6>
+</doc>
+

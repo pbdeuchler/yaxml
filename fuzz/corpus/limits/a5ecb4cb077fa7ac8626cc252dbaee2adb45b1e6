@@ -1,0 +1,4 @@
+<!DOCTYPE x [
+<!ELEMENT x (test*)><!DOC
+<!ELEMENT test EMPTY>
+<!ATTLIST test att  <> test/TYPE roo>

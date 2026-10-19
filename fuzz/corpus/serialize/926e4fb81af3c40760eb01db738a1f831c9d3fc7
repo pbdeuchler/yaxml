@@ -1,0 +1,11 @@
+<!DOCTYPE doc[
+
+<!ELEMENT d									)>
+<!ELEMENT b (doc,<!ELEMENT c (
+doc
+,
+a
+,
+c?ns:bar="h[tp://example.org/bar" xmlnsb:azoc?)>
+]~
+<doc/>

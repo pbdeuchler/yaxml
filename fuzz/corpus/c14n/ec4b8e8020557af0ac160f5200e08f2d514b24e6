@@ -1,0 +1,8 @@
+Z<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bie">
+    (//. | //@*/ | //namespace::*) 
+    [ 
+              <!-- everything -->
+              ancestor-or-self::bar:Something
+    ]
+</XPath>

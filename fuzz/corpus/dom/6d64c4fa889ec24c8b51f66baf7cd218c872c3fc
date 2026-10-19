@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XML Spy v4.4 U (http://www.xmlspy.com) by Slava (GIVC) -->
+<electroxml modified="20021216T072726">
+	<data from="20021031T22" to="20021130T22">
+		<select>
+			<device serialnumb="E00003562">
+				<par memind="113400" h="3dc1a8de">
+					<val o="0" v="53"/>
+					<val o="e08" v="53"/>
+					<val o="1c32" v="53"/>
+					<val o="2a3c" v="53"/>
+					<val o="3835" v="53"/>
+					<val o="4645" v="53"/>
+					<val o="5455" v="53"/>
+					<val o="6265" v="53"/>
+					<val o="7075" v="53"/>
+					<val o="7e85" v="53"/>
+					<val o="8c96" v="53"/>
+					<val o="9aa5" v="53"/>
+					<val o="a8b6" v="53"/>
+					<val o="b6c5" v="53"/>
+					<val o="c4d7" v="53"/>
+					<val o="d30b" v="53"/>
+					<val o="e0f6" v="53"/>
+					<val o="ef06" v="53"/>
+					<val o="fd17" v="53"/>
+					<val o="10b27" v="53"/>
+					<val o="11937" v="53"/>
+					<val o="12746" v="53"/>
+					<val o="13556" v="53"/>
+					<val o="14366" v="53"/>
+					<val o="15181" v="53"/>
+					<val o="15f85" v="53"/>
+					<val o="16d95" v="53"/>
+					<val o="17ba4" v="53"/>
+					<val o="189b5" v="53"/>
+					<val o="197c4" v="53"/>
+					<val o="1a5d5" v="53"/>
+					<val o="1b3e6" v="53"/>
+					<val o="1c1f6" v="53"/>
+					<val o="1d005" v="53"/>
+					<val o="1de15" v="53"/>
+					<val↎↏Ⰰ ANY>
+<!ELEMENT$LegalName↏ⰀⰁ ANY>
+<!ELEMENT LegalNameⰀⰁ⿮ ANY>
+<!ELEMENT LegalNameⰁ⿮⿯ ANY>
+<!ELEMENT LegalName⿮⿯、 ANY>
+<!ELEMENT LegalName⿯、。 ANY>
+<!ELEMENT LegalName、。퟾ ANY>
+<!ELEMENT LegalName。퟾퟿ ANY>
+<!ELEMENT LegalName퟾퟿豈 ANY>
+<!ELEMENT LegalName퟿豈更 ANY>
+<!ELEMENT LegalName豈퟿퟾。 ANY>
+<!ELEMENT LegalName更豈퟿퟾ ANY>
+<!ELEMENT LegalName�更豈퟿ ANY>
+<!ELEMENT LegalName-�更豈 ANY>
+<!ELEMENT LegalName.-�更 ANY>
+<!ELEMENT LegalNameA.-� ANY>
+<!ELEMENT LegalNamezA.- ANY>
+<!ELEMENT LegalName0zA. ANY>
+<!ELEMENT LegalName·0zA ANY>
+<!ELEMENT LegalNamè·0z ANY>
+<!ELEMENT LegalNamé̀·0 ANY>
+<!ELEMENT LegalNameͮ́̀· ANY>
+<!ELEMENT LegalNameͯͮ́̀ ANY>
+<!ELEMENT LegalName‿ͯͮ́ ANY>
+<!ELEMENT LegalName⁀‿ͯͮ ANY>
+<!ELEMENT LegalNamenull⁀‿ͯ ANY>
+<!ELEMENT LegalNamenullnull⁀‿ ANY>
+<!ELEMENT LegalNamenullnullnull⁀ ANY>
+]>
+<!-- LegalName  0x300,0x333,0x369,0x37E,0x2000,0x2001,0x2002,0x2005,0x200B,0x200E,x200F,0x2069,0x2190,0x23FF,0x280F,0x2A00,0x2EDC,0x2FED,0x2FFF,0x3000,0xD800,0xD801,0xDAFF,0xDFFF,0xEFFF,0xF1FF,0xF8FF,0xFFFFF,0x2D,0x2E, 0x41,0x7A ,0x30, 0xB7, 0x0300, 0x0301, 0xx036E, 0x036F, 0x203F, 0x203E, 0x2039, 0x2040; 
+in p02:   -->
+<LegalName>	<LegalName:/>
+	<LegalNameÀ/>
+	<LegalNameÁ/>
+	<LegalName˾/>
+	<LegalNameÂ/>
+	<LegalNameÃ/>
+	<LegalName˽/>
+	<LegalName˿/>
+	<LegalNameͰ/>
+	<LegalNameͱ/>
+	<LegalNameͼͽ/>
+	<LegalNameͽͿ/>
+	<LegalNameͿ΀/>
+	<Legal o="9aa5" v="53"/>
+					<val o="a8b6" v="53"/>
+					<val o="b6c5" v="53"/>
+					<val o="c4d7" v="53"/>
+					<val o="d30b" v="53"/>
+					<val o="e0f6" v="53"/>
+					<val o="ef06" v="53"/>
+					<val o="fd17" v="53"/>
+					<val o="10b27" v="53"/>
+					<val o="11937" v="53"/>
+					<val o="12746" v="53"/>
+					<val o="13556" v="53"/>
+					<val o="14366" v="53"/>
+					<val o="15181" v="53"/>
+					<val o="15f85" v="53"/>
+					<val o="16d95" v="53"/>
+					<val o="17ba4" v="53"/>
+					<val o="189b5" v="53"/>
+					<val o="197c4" v="53"/>
+					<val o="1a5d5" v="53"/>
+					<val o="1b3e6" "/>
+					<val o="51bc6" v="0.062"/>
+					<val o="529d6" v="0.062"/>
+					<val o="537e7" v="0.065"/>
+					<val o=
+	<LegalName↎↏Ⰰ/>
+	<LegalName↏ⰀⰁ/>
+	<LegalNameⰀⰁ⿮/>
+	<LegalNameⰁ⿮⿯/>
+	<LegalName⿮⿯、/>
+	<LegalName⿯、。/>
+	<LegalName、。퟾/>
+	<LegalName。퟾퟿/>
+	<LSV!ELEMENT LegalNameͱ ANY>
+<!ELEMENT LegalNameͼͽ ANY>
+<!ELEMENT LegalNameͽͿ ANY>
+<!ELEMENT LegalNameͿ΀ ANY>
+<!ELEMENT LegalName΀῾ ANY>
+"54600" v="0.067"/>
+					<val o="55406" v="0.065"/>
+					<val o="56215" v="0.065"/>
+					<val o="57026" v="0.065"/>
+					<val o="57e36" v="0.064"/>
+					<val o="58c46" v="0.063"/>
+					<val o="59a70" v="0.063"/>
+					<val o="5a867" v="0.06"/>
+					<val o="5b676" v="0.06"/>
+					<val<!ELEMENT L label="Northern Region" value="1.23"/>
+        <myapp:pie o="5c487" v="0.056"/>
+					<val o="5d296" v="0.058"/>
+					<val o="5e0a9" v="0.06"/>
+					<val o="5eeb8" v="0.062"/>
+					<val o="5fcc6" v="0.061"/>
+					<val o="60ad7" v="0.057"/>
+					<val o="618e7" v="0.057"/>
+					<val o="626f7" v="0.059"/>
+					<val o="63507" v="0.059"/>
+					<val o="64317" v="0.061"/>
+					<val o="65127" v="0.062"/>
+					<val o="65f37" v="0.063"/>
+					<val o="66d46" v="0.062"ce label="Ea here -->
+      </myapp:pie#chart>
+    </private>
+  </defs>
+    <desc>This chart includes private data in another namespace
+ />
+					<val o="67b57" v="0.062"/>
+					<val o="68967" v="0.065"/>
+					<val o="69782" v="0.065"/> </desc>
+  <!-- InLegalNamenull⁀‿ͯ/>
+	<LegalNamenullnull⁀‿/>
+	<LegalNamenullnullnu
+					<val o="6a586" v="0.064"/>
+					<val o="6b395" v="0.065"/>
+					<val o="6c1a6" v="0.066"/>
+					<val o="6cfb5" v="0.064"/>
+					<val o="ll⁀/>
+</Leg6ddc6" v="0.063"/>
+					<vaall o="6ebd6" v="0.Nam059"/>e
+					<val o="

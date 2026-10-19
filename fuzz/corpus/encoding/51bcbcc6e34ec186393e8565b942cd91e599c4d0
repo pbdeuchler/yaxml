@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<tst>
+
+       The following table displays the characters  in  ISO  8859
+       Latin-1,  which are printable and unlisted in the ascii
+       manual page.
+
+       Oct   Dec   Hex   Char   Description
+       --------------------------------------------------------------------
+       240   160   A0           NO-BREAK SPACE
+       241   161   A1     ¡     INVERTED EXCLAMATION MARK
+       242   162   A2     ¢     CENT SIGN
+       243   163   A3     £     POUND SIGN
+       244   164   A4         ¿     INVERTED QUESTION MARK
+       300   192   C0     À     LATIN CAPITAL LETTER A WITH GRAVE
+       301   193   C1     Á     LATIN CAPITAL LETTER A WITH ACUTE
+       302   194   C2     Â     LATIN CAPITAL LETTER A WITH CIRCUMFLEX
+       303   195   C3     Ã     LATIN CAPITAL LETTER A WITH TILDE
+       304   196   C4     Ä     LATIN CAPITAL LETTER A WITH DIAERESIS
+       305   197   C5     Å     LATIN CAPITAL LETTER A WITH RING ABOVE
+       306   198   C6     Æ     LATIN CAPITAL LETTER AE
+       307   199   C7     Ç     LATIN CAPITAL LETTER C WITH CEDILLA
+       310   200   C8     È     LATIN CAPITAL LETTER E WITH GRAVE
+       311   201   C9     É     LAlnullâ€attr CDATA #IMPLIED>
+]>
+<!-- Legal Names containing one to four characters in order from the list below  used in Attr delcs and attributes.  x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, 0x0370, 0x0371, 0x037C,0030, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040 -->
+<LegalName 
+ 	:attr="ionship to Existing Standards to back matter and
+combine with References,
+re-order back matter so normative appendices come first,
+re-tag back matter so informative appendices are tagged informdiv1,
+remove XXX XXX from list of 'normative' specs in prose,
+move some references from Other References to Normative References,
+add RFC 1738, 1808, and 2141 to Other References (they are not
+normative since we do not require the processor to enforce any 
+rules based on them),
+add reference to 'Fielding draft' (Berners-Lee et al.),
+move notation section to end of body,
+drop URIchar non-terminal and use SkipLit instead,
+lose stray reference to defunct nonterminal 'mwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww it meant 'may or may not'.</sitem>
+<sitem>1997-03-21 : TB : massive changes on plane flight from Chicago
+to Vancouver</sitem>
+<sitem>1997-03-21 : CMSMcQ : correct as many reported errors as possible.
+</sitem>
+<sitem>1997-03-20 : CMSMcQ : correct typos listed in CMSMcQ hand copy of spec.</sitem>
+<sitem>1997 James Clark:
+Define the set of characters from which [^abc] subtracts.
+Charref should use just [0-9] not Digit.
+Location info needs cleaner treatment:  remove?  (ERB
+question).
+One example of a PI has wrong pic.
+Clarify discussion of encoding names.
+Encoding failure should lead to unspecified results; don't
+prescribe error recovery.
+Don't require exposure of entity boundaries.
+Ignore white space in element content.
+Reserve entity names of the form u-NNNN.
+Clarify relative URLs.
+And some of my own:
+Correct productions for content model:  model cannot
+consist of a name, so "elements ::= cp" is no good.
+</sitem>
+<sitem>1996-11-11 : CMSMcQ : revise for style.
+Add new rhs to entity declaration, for parameter entities.</sitem>
+<sitem>1996-11-10 : CMSMcQ : revise for style.
+Fix / complete section on names, characters.
+Add sections on parameter entities, conditional sections.
+Still to do:  Add compatibility note on deterministic content models.
+Finish stylistic revision.</sitem>
+<sitem>1996-10-31 : TB : Add Entity Handling section</sitem>
+<sitem>1996-10-30 : TB : Clean up term &amp; termdef.  Slip in
+ERB decision re EMPTY.</sitem>
+<sitem>1996-10-28 : TB : Change DTD.  Implement some of Michael's
+suggestions.  Change comments back to //.  Introduce language for
+XML namespace reservation.  Add section on white-space handling.
+Lots more cleanup.</sitem>
+<sitem>1996-10-24 : CMSMcQ : quick tweaks, implement some ERB
+decisions.  Characters are not integers.  Comments are /* */ not //.
+Add bibliographic refs to 10646, HyTime, Unicode.
+Rename old Cdata as MsData since it's <emph>only</emph> seen
+in marked sections.  Call them attribute-value pairs not
+name-value pairs, except once.  Internal subset is optional, needs
+'?'.  Implied attributes should be signaled to the app, not
+have values supplied by processor.</sitem>
+<sitem>1996-10-16 : TB : track down &amp; excise all DSD references;
+introduce some EBNF for entity declarations.</sitem>
+<sitem>1996-10-?? nsistency check, fix up scraps so
+they all parse, get formatter working, correct a space handling.
+Lots more cleanup.</sitem>
+<sitem>1996-10-24 : CMSMcQ : quick tweaks, implement some ERB
+decisions.  Characters are not integers.  Comments are /* */ not //.
+Add bibliographic refs to 10646, HyTime, Unicode.
+Rename old Cdata as MsData since it's <emph>only</emph> seen
+in marked sections.  Call them attribute-value pairs not
+name-value pairs, except once.  Internal subset is optional, needs
+'?'.  Implied attributes should be signaled to the app, not
+have values supplied by processor.</sitem>
+<sitem>1996-10-16 : TB : track down &amp; excise all DSD references;
+introduce some EBNF for entity declarations.</sitem>
+<sitem>1996-10-?? nsistency check, fix up scraps so
+they all parse, get formatter working, correct a few productions.</sitem>
+<sitem>1996-10-10/11 : CMSMcQ : various maintenance, stylistic, and
+organizational changes:
+Replace a few literals with xmlpio and
+pi""entities, to make them consistent and ensure we can change pic
+reliably when the ERB votes.
+Drop paragraph on recognizers from notation section.
+Add match, exact match to terminology.
+Move old 2.2 XML Processors and Apps into intro.
+Mention comments, PIs, and marked sections in discussion of
+delimiter escaping.
+Streamline discussion of doctype decl syntax.
+Drop old section of 'PI syntax' for doctype decl, and add
+section on partial-DTD summary PIs to end of Logical Structures
+section.
+Revise DSD syntax section to use Tim's subset-in-a-PI
+mechanism.</sitem>
+<sitem>1996-10-10 : TB : eliminate name recognizers (and more?)</sitem>
+<sitem>1996-10-09 : CMSMcQ : revise for style, consistency through 2.3
+(Characters)</sitem>
+<sitem>1996-10-09 : CMSMcQ : re-unite everything for convenience,
+at least temporarily, and revise quickly</sitem>
+<sitem>1996-10-08 : TB : first major homogenization pass</sitem>
+<sitem>1996-10-08 : TB : turn "current" attribute on div type into 
+CDATA</sitem>
+<sitem>1996-10-02 : TB : remould into skeleton + entities</sitem>
+<sitem>1996-0½-30 : CMSMcQ : add a few more sections prior to exchange
+                            with Tim.</sitem>
+<sitem>1996-09-20 : CMSMcQ : finish transcribing notes.</sitem>
+<sitem>1996-09-19 : CMSMcQ : begin transcribing notes for draft.</sitem>
+<sitem>1996-09-13 : CMSMcQ : made outline from notattrValue"
+ 	Ã€attr="attrValue"
+ 	Ãattr="attrValue"
+ 	Ë¾attr="attrValue"
+ 	Ã‚attr="attrValue"
+ 	Ãƒattr="attrValue"
+ 	Ë½attr="attrValue"
+ 	Ë¿attr="D>
+<!ATTLIST LegalName attr-ï¿½ï¤ï¤€ CDATA #IMPLIED>
+<!ATTLIST LegalName attr.-ï¿½ï¤ CDATA #IMPLIED>
+<!ATTLIST LegalName A.-ï¿½attr CDATA #IMPLIED>
+<!ATTLIST LegalName zA.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName attr0zA. CDATA #IMPLIED>
+<!ATTLIST LegalName attrÂ·0zA CDATA #IMPLIED>
+<!ATTLIST LegalName attrÌ€Â·0z CDATA #IMPLIED>
+<   181   B5     µ     MICRO SIGN
+       266   182   B6     ¶     PILCROW SIGN
+       267   183   B7     ·     MIDDLE DOT
+       270   184   B8     ¸     CEDILLA
+       271   185   B9     ¹     SUPERSCRIPT ONE
+       272   186   BA     º     MASCULINE ORDINAL INDICATOR
+       273   187   BB     »     RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
+       274   188   BC     ¼     VULGAR FRACTION ONE QUARTER
+       275   189   BD     ½     VULGAR FRACTION ONE HALF
+       276   190   BE     ¾     VULGAR FRACTION THREE QUARTERS
+       277   191   BF     ¿     INVERTED QUESTION MARK
+       300   192   C0     À     LATIN CAPITAL LETTER A WITH GRAVE
+       301   193   C1     Á     LATIN CAPITAL 1ETTER A WITH ACUTE
+       302   194   C2     Â     LATIN CAPITAL LETTER A WITH CIRCUMFLEX
+       303   195   C3     Ã     LATIN CAPITAL LETTER A WITH TILDE
+       304   196   C4     Ä     LATIN CAPITAL LETTER A WITH DIAERESIS
+       305   197   C5     Å     LATIN CAPITAL LETTER A WITH RING ABOVE
+       306   198   C6     Æ     LATIN CAPITAL LETTER AE
+       307   199   C7     Ç     LATIN CAPITAL LETTER C WITH CEDILLA
+       310   200   C8     È     LATIN CAPITAL LETTER E WITH GRAVE
+       311   201   C9     É     LAlnullâ€attr CDATA #IMPLIED>
+]>
+<!-- Legal Names containing one to four characters in order from the list below  used in Attr delcs and attributes.  x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, 0x0370, 0x0371, 0x037C, 0x037D, 0x037F, 0x0380, 0x1FFE, 0x1FFF, 0x200C, 0x200D, 0x2070, 0x2071, 0x218E, 0x218F, 0xTIN CAPITAL LETTER E WITH ACUTE
+       312   202   CA     Ê     LATIN CAPITAL LETTER E WITH CIRCUMFLEX
+       313   203   CB     Ë     LATIN CAPITAL LETTER E WITH DIAERESIS
+       314   204   CC     Ì     LATIN CAPITAL LETTER I WITH GRAVE
+       315   205   CD     Í     LATIN CAPITAL LETTER I WITH ACUTE
+       316   206   CE     Î     LATIN CAPITAL LETTER I WITH CIRCUMFLEX
+       317   207   CF     Ï     LATIN CAPITAL LETTER I WITH DIAERESISÍo      320   208   D0     Ð     LATIN CAPITAL LETTER ETH
+       321   209   D12C00, 0x2C01, 0x2FEE, 0x2FEF, 0x3001, 0x3002, 0xD7FE, 0xD7FF, 0xF900, 0xF901, 0xFFFD, 0x002D, 0x002E, 0x0041, 0x007A, 0x0030, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040 -->
+<LegalName 
+ 	:attr="attrValue"
+ 	Ã€atšr="attrValue"
+ 	Ãattr="attrValue"
+ 	Ë¾attr="attrValue"
+ 	Ã‚attr="attrValu        e"
+ 	Ãƒattr="attrValue"
+ 	Ë½attr="attrValue"
+ 	Ë¿attr="attrValue"
+ 	Í°attr="attrValue"
+ 	Í±attr="attrValue"
+ 	Í¼Í½attr="attrValue"
+ 	Í½Í¿attr="attrValue"
+ 	Í¿Î€attr="attrValue"
+ 	Î€á¿¾attr="attrValue"
+ 	á¿¾á¿¿attr="attrValue"
+ 	á¿¿â€Œattr="attrValue"
+ 	â€Œâ€attr="attrValue"
+ 	â€â°attr="attrValue"
+ 	â°â±attr="attrValue"
+  	â

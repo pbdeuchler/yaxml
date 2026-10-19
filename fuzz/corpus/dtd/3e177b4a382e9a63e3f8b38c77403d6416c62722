@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "
+">
+<!ATTLIST 
+]>
+<doc a=ù"x&e;y"></doc>

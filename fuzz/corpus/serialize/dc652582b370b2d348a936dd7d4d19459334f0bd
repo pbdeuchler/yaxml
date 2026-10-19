@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dstcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
+    <!ENTITY sun-invalid	SYSTEM "sun/sun-invalid.xml">
+    <!ENTITY sun-not-wf		SYSTEM "sun/sun-not-wf.xml">
+    <!ENTITY sun-error		SYSTEM "sun/sun-error.xml">
+
+    <!-- James Clark "XMLTEST" -->
+    <!ENTITY jclark-xmltest	SYSTEM "xmltest/xmltest.xml">
+
+    <!-- Fuji Xerox "Japanese Documents" -->
+    <!ENTITY xerox-japanese	SYSTEM "japanese/japanese.xml">
+
+    <!-- NIST/OASIS test Nuite -->
+    <!ENTITY nist-oasis		SYSTEM "oasis/oasis.xml">
+	
+    <!-- IBM tests -->
+    <!ENTITY ibm-invalid	SYSTEM "ibm/ibm_oasis_invalid.xml">
+    <!ENTITY                                                                      
+                                                                              
+                                                                              
+                                                  td" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
+    <!ENTITY sun-invalid	SYSTEM "sun/sun-invalid.xml">
+    <!ENTITY sun-not-wf		SYSTEM "sun/sun-not-wf.xml">
+    <!ENTITY sun-error		SYSTEM "sun/sun-error.xml">
+
+    <!-- James Clark "XMLTEST" -->
+    <!ENTITY jclark-xmltest	SYSTEM "xmltest/xmltest.xml">
+
+    <!-- Fuji Xerox "Japanese Documents" -->
+    <!ENTITY xerox-japanese	SYSTEM "japanese/japanese.xml">
+
+    <!-- NIST/OASIS test Nuite -->
+    <!ENTITY nist-oasis		SYSTEM "oasis/oasis.xml">
+	
+    <!-- IBM tests -->
+    <!ENTITY ibm-invalid	SYSTEM "ibm/ibm_oasis_invalid.xml">
+    <!ENTITY                                                                      
+                                                                              
+                                                                              
+                                                                              
+                                                   <?xml version="2.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C/8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888<use href="#Triangle2"/>
+    <use href="#Triangle1"/>
+    <use href="#Triangle2"/>
+    <use href="#Triangle1"/>
+    <use href="#Triangle2"/>
+  </text>
+newl "&#
+                                                                    
+                                             
+                                                                              
+                      amespaces/errata-1e>">
+    &eduni-nse;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

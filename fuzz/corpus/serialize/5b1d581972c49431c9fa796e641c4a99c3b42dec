@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)
+		last CDAT #RUQEAIR ED> 
+	<!ENTITY myfirst "Snow">
+	<!ENTITY mymi&mylast;. </student>
+

@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ENTITY e "&#2+;![CDATA[">T do
+]>
+<doc>&e;]]></doc>

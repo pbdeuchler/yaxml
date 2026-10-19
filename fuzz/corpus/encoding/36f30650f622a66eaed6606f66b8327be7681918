@@ -1,0 +1,42 @@
+<!DOCTYPE foo [
+<!ENTITY f "some internal data">
+<!ENTITY e "&f;&f;">
+<!ENTITY d "&e;&e;">
+]>
+<foo>&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d<?xml version='1.0' encoding='ISO-8859-5' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim Bray, 8 February 1997 -->
+
+<!-- The words 'FINAL EDIT' in comments mark places where changes
+need to be made after approval of the document by the ERB, before
+publication.  -->
+
+<!ENTITY XML.version "1.0">
+<!ENTIT;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&Y doc.date "10 February 1998">
+<!ENTITY iso6.doc.date "19980210">
+<!Ed;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&NTITY w3c.doc.date "02-Feb-1998">
+<!ENTITY draft.day '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSGML 
+ 'WebSGML Adaptations Annex to ISO 8879'>
+
+<!ENTITY lt     "&#38;#60;"> 
+<!ENTITY gt     ">"> 
+<!ENTITY xmlpio "'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTITY br     "\n">
+<!ENTITY cellback '#c0d9c0'>
+<!ENTITY mdash  "--"> <!-d;&d;&d;
+&d;&- &#x2014, butd;&d;&d;&d;&d;&d;&d;&d;&d n

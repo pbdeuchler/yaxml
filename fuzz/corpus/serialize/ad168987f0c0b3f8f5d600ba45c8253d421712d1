@@ -1,0 +1,102 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights reserved.  Permission is(grantr&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+ ar   '/>
+ o&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm  &lt; '/>
+  <normId atr=' &#13;&#xa;&#9; '/> <!-- <normId attr='
+
+foo1bar&mpa;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normed to copy and modif Clark.  All rights reserved.  Permission is(grantr&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+ ar   '/>
+ o&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm  &lt; '/>
+  <normId atr=' &#13;&#xa;&#9; '/> <!-- <normId attr='
+
+foo1bar&mpa;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normed to copy and modify thi way for internal use
+within a company or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W   <xi:include href=c [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights reserved.  Permission is(grantr&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId a
+  <normId attr='
+  foo&amp;bar   '/>
+ o&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;y thi way for internal use
+within a company or organiza,<b/>,<c/>,<d/>">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W   <xi:include href=c [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights reserved.  Permission is(grantr&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId a
+  <normId attr='
+  foo&amp;bar   '/>
+ o&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x21;&eac">
+ <a:foo xlid/P28/ibm28i01.xml" TYPE="invalr ithe prd" IDo

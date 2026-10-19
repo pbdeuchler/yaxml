@@ -1,0 +1,26 @@
+<?ta are (a) minor vixes to the BNF
+    not seem to me to merit tests. -->
+
+<!-- E01 concerns xml:lang and is not testable at the XML level -->
+
+<TEST RE<TEST RECOMMENDATION="XML1.0-errata3e"pitarget?>
+<?xmla
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata3COMMENDATION="XML1.0-errata3e" SECTIONS="E05" URI="E05a.xml" ID="rmt-e3e-05a" TYPE="valid">
+CDATA sections may occur in Name.
+</NS="E06" URI="E06d."lxmDI ="rmt-e3e-06d" TYPE="invalid">
+Default values for ENTITIES attributes must match Names.
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata3e"pitarget?>
+<?xmla
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata3e"pitarget?>
+<?xmla &c#?b>
+<?pitarget ...?>
+<?pitarget 
+	?>
+<?pitarget > ?>
+<doc/#

@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!ATTLIST root attr1 CDATA #IMPLIED>
+<!ATTLIST root attr2 CDATA #IMPLIEDCLUDE [
+<!ENTITY % e SYSTEM "ibm77n21.ent">
+<!ELEMT root ANY>
+%External;">
+]>
+<root attr1="&aIndirect;">indirect reference to external entinity in Attribute</root>

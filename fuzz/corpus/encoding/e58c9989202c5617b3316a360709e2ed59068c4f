@@ -1,0 +1,14 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (a|b)*>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!NOTATION a SYSTEM "a">
+<!NOTATION b SYSTEM "b">
+<!ATTLIST a att NOTATION (a) #IMPLIED>
+<!ATTLIST b att ( a | b ) #IMPLIED>
+]>
+<doc/>
+ NOTATION ( a | b ) #IMPLIED>
+]>
+<doc/>

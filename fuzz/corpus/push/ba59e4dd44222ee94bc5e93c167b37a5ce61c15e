@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="yes"?>
+<smil>
+  <body>
+    <!-- The SMIL <switch> element will process the
+         first child element which tests true and skip
+         past all others. -->
+    <switch>
+
+      <!-- The system-required attribute tests to see if
+           the user agent supports SVG. If true, then
+           render the file drawing.sv-->
+      <img src="alternate_image.jpg" />
+    </switch>
+  </body>
+</smil>
+
+

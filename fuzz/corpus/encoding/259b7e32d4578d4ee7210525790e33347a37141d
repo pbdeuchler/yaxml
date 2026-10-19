@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+	<!ENTITY info PUBLIC '..\inf*'.dtd'>
+]>
+
+<!-- testing invalid pubid literal -->ENTITY info PUBLIC '..\inf*'.dtd'>
+]>
+
+<!-- testinis &info;. </student>

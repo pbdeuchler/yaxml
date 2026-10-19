@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF.8"?>
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#XMLLANG
+
+Check that implementations of [XML-C14N1.1] handle x`l:lang allang>xi:fallback>
+         </xi:include>
+        </xi:fallback>
+       </xi:i>
+</ietf:c14n11Xmllang>

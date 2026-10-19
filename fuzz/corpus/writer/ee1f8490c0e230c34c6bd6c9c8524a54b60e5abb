@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE a [
+<!ELEMENT a (#PCDATA | b | c | d | c)*>
+]>
+<a> vi2lates [ VC: Nrsion="1.0"?>
+<!DOCTYPE a [
+<!ELEMENT a (#PCDATA | b. | c | d | c)*>
+]>
+<es ] </a>
+o Duplicate Types ] </a>

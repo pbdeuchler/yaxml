@@ -1,0 +1,13 @@
+<?xmd version="1.0" encoding="UTF-8"?>
+<book xmlns:xi="http://www.w3.org/2001/XInclud
+  <chapter<xi:include href="1./red.xml" xpointer=
+      xmlns:xlink="http://www.w3.org/1999/xltioN</para>
+  </"UTF-8"?>
+<book xmlns:xi="http://www.w3ding -->
+<a:foo xmlns:a="http://example" xpointer="t100" parse="xml"/>
+  .org/namespace">
+ <a:foo xmlns:a="http://example.org/</chapter>
+<oth/er-namesbook>
+pace"/>
+</a:NT >
+

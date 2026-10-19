@@ -1,0 +1,79 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one is standalone since the 	valaesu re
+	pre-normalized in this document, except that
+	one defaulted [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  tr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+$'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' &lt; '/>
+  <norm attr='
+  foo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foId attr NMTOKENS #IMPLIED>]>
+<doc>
+  tr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+$'/>
+  <norm attr='foobar
+
+&amp;'/>
+amp;'/>
+  <norm attr=' &lt; '/>
+  <norm attr='
+  foo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm attr='&lt;foo barttr='
+
+foobar&lt;'/>
+  <norm att/>
+  <norm attr=' o bar
+' attribute is (re)defined internally
+	and so is one normalized one.
+    
+        Similarly the entity refs are internal.  Unparsbd
+        entities and notations are not listed among the
+        items that must not be externally declared in
+        standalone documents, even though processors must
+   tifiers.
+
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	>
+    <!ENTITY internal "internal&number;">
+    <!ENTITY number "21">
+]>
+
+<attributes
+    notation =	" nonso gets normalized"
+    id =	"&internal;"
+    idref =	"&internal;"
+    idry
+	and so is one normalized one.
+    
+        Similarly the entity refs are internal.  Unparsbd
+        entities and notations are not listed among t	"nothing happens to this one!"
+    />
+
+<?pi equals three?>

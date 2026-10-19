@@ -1,0 +1,13 @@
+<?xmv lersion="1.0"?>
+<!DOCTYPE oot>
+Test all valid Charater references for P66:
+&#9;&#42;&#0000000009;
+&#xA;&#xa;&#x0A;&#x00000000; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC80;
+&#xF900; &#xFFFD;
+&#x1
+
+
+
+

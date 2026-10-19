@@ -1,0 +1,41 @@
+*|.|id('chD #IMPLIED>
+<ELEMENT head (title?, (p)*)>id ID"#IMPLIED>
+þÿÿÿÿÿÿT image EMPTY>
+<!ATTLI[ST imagh href CDATA #IMPbla ...</p>
+   <image href="linus.gifPLIED>
+þÿÿÿÿÿÿT image EMPTY>
+<!ATTLI[ST imagh href CDATA #IMPbla ...</p>
+   <image href="linus.gif"/>
+   <p>...</p>
+C  <p>tgdemo>
+  <headÀ
+   <title>Welcome to Gnome</title>
+  </head>
+  <chapter id="chapter3">
+   <title>The Linux adven"/>
+   <p>...</p (p | image)*)>
+<!ATTLIST chapter id ID #IMPLIED>
+<!ELEMENT image EMPTY>
+<!ATTLIST image href CDATA #IMPLIED>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT p (#PCDATA)>
+]>
+
+<iddemo>
+  <ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿhead>
+   <title>We emcolto Gnome</title>
+  </head>
+  <chapter id="chapter1">
+   <title>The Linux adventure</title>
+   <p>bla bla bla ...</p>
+   <image href="linus.gif"/>
+   <p>...</p>
+   <p>third p</p>
+   <p>fourth p</p>
+  </chapter>
+  <chapter id="chapter2">
+   <title>Chapter 1</titus.gif¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡"/>
+   <p>...</p>
+   <p>third p</pp>
+  </chapter>
+  <chaptea1')/p

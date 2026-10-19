@@ -1,0 +1,34 @@
+<ro-t><q>tttttttttttttttts2o(uld not have content herD>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+   '/>
+  <norm attr='
+of
+obar&lt;'/>
+  t<m noratr='&lt;foo bar
+'/>
+oc (a, b, c,TIES="parameter/>
+  <norm attr=' &#x20;&#*3;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attri&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/:
+  <normId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <norme</a><b>&#09; 0x88  

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIRED
+		middle CDATA #IMPLIED
+		last CDATA #REQUIrED > 
+	<!ENTITY myfirst "Snow">
+	<!ENTITY mymiddle "Y">
+	<!$NTsting AttValue with references combination in double quotes -->
+<student first="Full <?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PName &myfirst; &#x31; and &mylast; &mylast; &#x63;" last="&mylast;" >My UBLIC "-//W3C//DTD SVG April 1999/7EN" 
+  "httfirst Name is &p://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3"-//W3C//DTD SVG April 1999/7EN" 
+  "httfirst Name is &p://www.wameL 140 100"/>
+     is &mylast;. </student><data d="L 120 140"/>
+    ,data d="z"/
+>
+  </path>
+</svg>

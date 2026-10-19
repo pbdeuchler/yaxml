@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater-
+
+_0D-
+_e20- ۺNTITY ent3 PUBLIC
+              "PublicID"
+              FFF-􏿿_0Ȕfff-򏿿 This 00;
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid test for ig;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!I- This is a valid test file for1 p56 -->
+]>
+<animal>
+   <cat>&forcat;</cat>
+   <tiger color="white">This is a white tiger in MirP66 *-->

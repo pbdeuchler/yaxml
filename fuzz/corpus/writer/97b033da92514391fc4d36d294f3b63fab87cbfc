@@ -1,0 +1,26 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST	Ãattr="attrValue"
+ 	˽attr="attrValue"
+ 	˿attr="attrValue"
+ 	Ͱattr="attrValue"
+ 	ͱattr="attrValue"
+ 	ͼͽattr="attrValue"
+ 	ͽͿattr="attrValue"
+ 	Ϳ΀attr="attrValue"
+ 	΀῾attr="attegalName :attr CDATA #IMPLIED>
+<!ATTLIST	Ãattr="attrValue"
+ 	˽attr="attrValue"
+ 	˿attr="attrValue"
+ 	Ͱattr="attrValue"
+ 	ͱattr="attrValue"
+ 	ͼͽattr="attrValue"
+ 	ͽͿattr="attrValue"
+ 	Ϳ΀attr="attrValue"
+ 	΀῾attr="attrValue"
+ 	΅="attrValue"
+ 	null⁀‿ͯattr="attrValue"
+ 	nullnull⁀‿attr="attrValue"
+ 	nullnulltrValue"ttr="attrValue"
+ />

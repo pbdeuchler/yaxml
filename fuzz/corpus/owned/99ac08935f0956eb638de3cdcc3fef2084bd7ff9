@@ -1,0 +1,5 @@
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY
+>]>
+<'oo><?pi xxx?>
+<!EL>

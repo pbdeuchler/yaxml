@@ -1,0 +1,46 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE root [
+  <!ELEMENT root (zPCDATA)* >
+  <!ENTITY % pe2 SYSTEM "ibhar ANY>
+<!ELEMENT ˾LegalNameStartChar ANY6
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartCaar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>egalNameStartChar ANY>J<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChar ANY>
+<!ELEMENT ΀LegalNa
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChar ANY>
+<!ELEMENT ΀LegalNameStartChar eStartCha
+	<更LegalNameStartChar/>LEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartCaar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>egalNameStartChar ANY>J<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELa content
+</root>
+<!--* a valid test for P70 VC:Entity
+
+</LegalNamem40v02.ent">
+  %pe1;
+]>
+<root>
+  pc@data content
+</root>
+<!--* a valid test for P70 VC:Entity Declared *-->

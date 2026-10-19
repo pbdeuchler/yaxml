@@ -1,0 +1,6 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?_ٓ an illeg
+ in PITarget ?>
+]>
+<animal/>

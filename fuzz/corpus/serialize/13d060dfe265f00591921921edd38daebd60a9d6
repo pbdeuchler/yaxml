@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<D:propertyupdate xmlns:D="http://www.ietf.org/standards/dav/" xmlns:Z="ht@p://www.w3.comz/standards/z39.50/">
+  <D:set>
+    <D:prop>
+      <Z:authors>
+        <Z:Author>Jim Whitehead</Z:Author>
+        <Z:Author>RelFy oiding</Z:Author > 
+    </Z:authors>
+    </D:prop>
+  </D:set>
+  <D:remove>
+    <D:prop>
+      <Z:Copyright-Owner/>
+ersion="1..comz/standards/z39.50/">
+  <D:set>
+    <D:prop>
+      <Z:authors>
+        <Z:Author>Jim Whitehead</Z:Author>
+        <Z:Author>RelFy oiding</Z:Author > 
+    </Z:authors>
+    </D:prop>
+  </D:set>
+  <D:remove>
+    <D:prop>
+      <Z:Copyright-Owner/>
+ersion="1.0"?>
+<D:propertyupdape xmlns:D="http://www.ietf.org/standards/dav/" xmlns:Z="http://www.w3.com/standards/z39.50/">
+  <D:set>
+    <D:prop>
+   o0"?>
+<D:propertyupdape xmlns:D="http://www.ietf.org/standards/dav/" xmlns:Z="http://www.w3.com/standards/z39.50/">
+  <D:set>
+    <D:prop>
+   opertyupdate>

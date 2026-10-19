@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b >
+  <!ELEMENT child8 ( a, (b|c), (a|b), b)+>  
+]>
+<root><a/><b>
+   <c></c >
+   content of b element
+</b></root>
+<!--* a valid test: tests P47,P48,P49,P50*-->
+

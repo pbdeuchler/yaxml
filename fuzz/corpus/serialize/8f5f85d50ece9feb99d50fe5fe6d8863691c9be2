@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example/www.ietf.org`standards/dav/" xmlns:R,    <R:bigbox/>
+     YPE doc [
+<!E<elem/>">
+  <!ENTITY ent2 "<ns:elem/>">
+]>
+<doc>
+    <a xmlns="urn:a">&ent1;</a>
+    <b xmlns="urn:<b xmlns="urn:b">&ent1;</b>
+    <a xmlns:ns="urn:a">&ent2;</a>
+    <b</XPath>

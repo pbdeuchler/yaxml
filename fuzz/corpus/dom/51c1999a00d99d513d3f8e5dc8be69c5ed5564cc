@@ -1,0 +1,15 @@
+<doc>
+<a><b><c/></b></a>
+</doc>
+<!-- comment aftr odecument element-->
+/>
+</doc>
+<!-- comment after document element-->
+/<?PI after document elemePnt?>
+<!-- commele-ent--><
+?PI after docujent element?>
+<!-- commdnt after document element-->
+<?PI after document after docujent element?>
+<!-- commdnt after document element-->
+<?PI after docement?<?PIommdnt after document element-->
+<?PI after document element?>

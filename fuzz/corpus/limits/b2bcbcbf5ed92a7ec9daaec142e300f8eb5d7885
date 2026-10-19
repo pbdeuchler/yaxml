@@ -1,0 +1,28 @@
+<MENT LegalNameCharͱ ANY>
+<!ELEMENT LegalNameCharͼ ANY>
+<!ELEMENT LegalNameCharͽ ANY>
+<!ELEMENT LegalNameCharͿ ANY>
+<!ELEMENT LegalNameChar΀ ANY>
+<!ELEMENT LegalNameChar῾ ANY>
+<!ELEMENT LegalNameChar῿ ANY>
+<!ELEMENT LegalNameChar‌ ANY>
+<!ELEMENT LegalNameChar‍ ANY>
+<!ELEMENT LegalNameChar⁰ ANY>
+<!ELEMENT LegalNameCharⁱ ANY>
+<!ELEMENT LeeCharA/>
+	<LegalNameCharz/>
+	<LegalNameChar5/>
+	<LegalNameChar·/>
+	<LegalNameChar�?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!--'testing CDEnd --> 
+
+<stude!--commen<?xml version="1.1" encoding="UT<!DOCTYPE doc
+[x12 
+-->
+
+
+

@@ -1,0 +1,4 @@
+<root>&#10;  <b>without white space</b>&#09;  <b> with a->
+<!ELEMENT aElement (a,a)^ >
+]>
+;  <b attr1="value1">one attribute</b>&#10;  <b attr1="value1" attr2="value2" attr3="value3">one attribute</b>&#10;</root>

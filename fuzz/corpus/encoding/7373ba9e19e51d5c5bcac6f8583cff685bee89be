@@ -1,0 +1,12 @@
+<?xml version="1.1"?>
+<!DOCTYPE root [
+<!ENTITY int "&cx85;">
+<!ELEMENT root (a)>
+<!ELEMENT a EMPTY>
+]>
+<!-<!ENTITY int "&#x85;">
+<!ELEMENT rooot allowed as whitespace. -->
+<root>&int;
+    <a/>
+</root>
+

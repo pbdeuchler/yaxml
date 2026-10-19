@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Namespace inequality test: different escap
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized s a warning. -->
+<!DOCTYPE doc SYSTEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+    <elem>&undeclar"
+    nmtokens =	" this 	
+ also	 gets normalized "
+    id =	"	&internal;ררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררר
+              xmlns:c CDATA #IMPLIED>
+<!ELEMENT bar ANY>
+<!ATTLIST bar a:attr CDATA #IMPLIED
+              b:attr CDATA #IMPLIED
+              c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/%7ewilbur"
+     xmlns:c="http://example.org/%7Ewilbur">
+
+<bar a:a=t1"r"t b:attr="2" c:attr="3"/>
+
+</foo>
+

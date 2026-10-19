@@ -1,0 +1,223 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST NMtokenName thistoken0 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken2 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken4 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken5 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken6 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken7 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken8 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken9 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken10 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken11 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken12 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken13 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken14 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken15 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken16 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken17 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken18 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken19 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken20 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken21 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken22 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken23 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken24 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken25 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken26 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken27 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken28 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName ttkhsenoi29 NMTOKE^ #IMPLIED>
+<!ATTLIST NMtokenName thistoken30 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken31 NMTOKEN #IMPLIED>
+<!ATTLIST NStokenName thistoken32 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken33 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken34 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken36 NMTOKEN #<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e SYSTEM "010.ent">
+]>
+<doc>&minfo/a/aaa-24-rv
+/usr/share/ncurses4/terminfo/a/aaa-26
+/usr/share/ncurses4/terminfo/a/aaa-28
+/usr/share/ncurses4/terminfo/a/aaa-30
+/usr/share/ncurses4/terminfo/a/aaa-30-ctxt
+/usr/share/ncurses4/terminfo/a/aaa-30-rv
+/usr/share/ncurses4/terminfo/a/aaa-30-rv-ctxt
+/usr/share/ncurses4/terminfo/a/aaa-30-s
+/usr/share/ncurses4/terminfo/a/aaa-30-s-ctxt
+/usr/share/ncurses4/terminfo/a/aaa-30-s-rv
+/usr/share/ncurses4/terminfo/a/aaa-30-s-rv-ct
+/usr/share/ncurses4/terminfo/a/aaa-36
+/usr/share/ncurses4/terminfo/a/aaa-36-rv
+/usr/share/ncurses4/terminfo/a/aaa-40
+/usr/share/ncurses4/terminfo/a/aaa-40-rv
+/usr/share/ncurses4/terminfo/a/aaa-48
+/usr/share/ncurses4/terminfo/a/aaa-48-rv
+/usr/share/ncurses4/terminfo/a/aaa-60
+/usr/share/ncurses4/terminfo/a/aaa-60-dec-rv
+/usr/share/ncurses4/terminfo/a/aaa-60-rv
+/usr/share/ncurses4/terminfo/a/aaa-60-s
+/usr/share/ncurses4/terminfo/a/aaa-60-s-rv
+/usr/share/ncurses4/terminfo/a/aaa-ctxt
+/usr/share/ncurses4/terminfo/a/aaa-db
+/usr/share/ncurses4/terminfo/a/aaa-rv
+/usr/share/ncursIMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x300,0x333,0x369,0x37E,0x2000,0x2001,0x2002,0x2005,0x200B,0x200E,x200F,0x2069,0x2190,0x23FF,0x280F,0x2A00,0x2EDC,0x2FED,0x2FFN,0x3000,0xD800,0xD801,0xDAFF,0xDFFF,0xEFFF,0xF1FF,0xF8FF,0xFFFFF; _, ., 0, B7, C0, 2FFF in P07 -->
+<NMtokenName  thistoken0=":"
+ thistoken1="À"
+ thistoken2="Á"
+ thistoken3="˾"
+ thistoken4="À"
+ thistoken5="Á"
+ thistoken6="˾"
+ thistoken7="˿"
+ thistoken8="Ͱ"
+ thistoken9="ͱ"
+ thistoken10="ͼ"
+ thistoken11="ͽ"
+ thistoken12="Ϳ"
+ thistoken13="΀"
+ thistoken14="῾"
+ thistoken15="῿"
+ thistoken16="‌"
+ thistoken17="‍"
+ thistoken18="⁰"
+ thistoken19="ⁱ"
+ thistoken20="↎"
+ thistoken21="↏"
+ thistoken22="Ⰰ"
+ thistoken23="Ⰱ"
+ thistoken24="⿮"
+ thistoken25="⿯"
+ thistoken26="、"
+ thistoken27="。"
+ thistoken28="퟾"
+ thistoken29="퟿"
+ thistoken30="豈"
+ thistoken31="更"
+ thistoken32es4/terminfo/a/aaa-rv-ctxt
+/usr/share/ncurses4/terminfo/a/aaa-rv-unk
+/usr/share/ncurses4/terminfo/a/aaa-s
+/usr/share/ncurses4/terminfo/a/aaa-s-ctxt
+/usr/share/ncurses4/terminfo/a/aaa-s-rv
+/usr/share/ncurses4/terminfo/a/aaa-s-rv-ctxt
+/usr/share/ncurses4/terminfo/a/aaa-unk
+/usr/share/ncurses4/terminfo/a/aas1901
+/usr/share/ncurses4/terminfo/a/abm80
+/usr/share/ncurses4/terminfo/a/abm85
+/usr/share/ncurses4/terminfo/a/abm85e
+/usr/share/ncurses4/terminfo/a/abm85h
+/usr/share/ncurses4/terminfo/a/abm85h-old
+/usr/share/ncurses4/terminfo/a/act4
+/usr/share/ncurses4/terminfo/a/act5
+/usr/share/ncurses4/terminfo/a/addrinfo
+/usr/share/ncurses4/terminfo/a/adds980
+/usr/share/ncurses4/terminfo/a/addsviewpoint
+/usr/share/ncurses4/terminfo/a/addsvp60
+/usr/share/ncurses4/terminfo/a/adm+sgr
+/usr/share/ncurses4/terminfo/a/adm1
+/usr/share/ncurses4/terminfo/a/adm11
+/usr/share/ncurses4/terminfo/a/adm1178
+/usr/share/ncurses4/terminfo/a/adm12
+/usr/share/ncurses4/terminfo/a/adm1a
+/usr/share/ncurses4/terminfo/a/adm2
+/usr/share/ncurses4/terminfo/a/adm20
+/usr/share/ncurses4/terminfo/a/adm21
+/usr/share/ncurses4/terminfo/a/adm22
+/usr/share/ncurses4/terminfo/a/adm3
+/usr/share/ncurses4/terminfo/a/adm31
+/usr/share/ncurses4/terminfo/a/adm31-old
+/usr/share/ncurses4/terminfo/a/adm36
+/usr/share/ncurses4/terminfo/a/adm3a
+/usr/share/ncurses4/terminfo/a/adm3a+
+/usr/share/ncurses4/terminfo/a/adm42
+/usr/share/ncurses4/terminfo/a/adm42-ns
+/usr/share/ncurses4/terminfo/a/adm5
+/usr/share/ncurses4/terminfo/a/aepro
+/usr/share/ncurses4/terminfo/a/aixterm-m
+/usr/share/ncurses4/terminfo/a/aST root att CDATA #IMPLIED>
+<!ATTLIST root entatt1 ENTITY #REQUIRED >
+
+<!--* Test PublicID in P82 *-->
+<!NOTATION JPGformat PUBLIC "-//image//notreal" >
+<!ENTITY unparsed1  SYSTEM "image.jpg" NDATA JPGformat>
+]>
+<root entatt1="unparsed1">test PublicID in P82</root>
+<!-- a valid test case: test P82 and P8ixterm-m-old
+/usr/share/ncurses4/terminfo/a/aj
+/usr/share/ncurses4/terminfo/a/aj510
+/usr/share/ncurses4/terminfo/a/aj830
+/usr/share/ncurses4/terminfo/a/aj832
+/usr/share/ncurses4/terminfo/a/alt2
+/usr/share/ncurses4/terminf<o/a/alt3
+/usr/share/ncurses4/terminfo/a/alt4
+/usr/share/ncurses4/terminfo/a/alt5
+/usr/share/ncurses4/terminfo/a/alt7
+/usr/share/ncurses4/terminfo/a/alt7pc
+/usr/share/ncurses4/terminfo/a/alto-h19
+/usr/share/ncurses4/terminfo/a/alto-heath
+/usr/share/ncurses4/terminfo/a/altoh19
+/usr/share/ncurses4/terminfo/a/altoheath
+/usr/share/ncurses4/terminfo/a/altos-2
+/usr/share/ncurses4/terminfo/a/altos-3
+/usr/share/ncurses4/terminfo/a/altos-4
+/usr/share/ncurses4/terminfo/a/altos-5
+/usr/share/ncurses4/terminfo/a/altos2
+/usr/share/ncurses4/terminfo/a/altos3
+/usr/share/ncurses4/terminfo/a/altos4
+/usr/share/ncurses4/terminfo/a/altos5
+/usr/share/ncurses4/terminfo/a/altos7
+/usr/share/ncurses4/terminfo/a/altos7pc
+/usr/share/ncurses4/terminfo/a/ambas
+/usr/share/ncurses4/terminfo/a/ambassador
+/usr/share/ncurses4/terminfo/a/amiga
+/usr/share/ncurses4/terminfo/a/amiga-h
+/usr/share/ncurses4/terminfo/a/amp219
+/usr/share/ncurses4/terminfo/a/amp219w
+/usr/share/ncurses4/terminfo/a/ampex-219
+/usr/share/ncurses4/terminfo/a/ampex-219w
+/usr/share/ncurses4/terminfo/a/ampex-232
+/usr/share/ncurses4/terminfo/a/ampex175
+/usr/share/ncurses4/terminfo/a/ampex175-b
+/usr/share/ncurses4/terminfo/a/ampex210
+/usr/share/ncurses4/terminfo/a/ampex219
+/usr/share/ncurses4/terminfo/a/ampex219w
+/usr/share/ncurses4/terminfo/a/ampex232
+/usr/share/ncurses4/terminfo/a/ampex232w
+/usr/share/ncurses4/terminfo/a/ampex80
+/usr/share/ncurses4/terminfo/a/annarbor4080
+/usr/share/ncurses4/terminfo/a/ansi
+/usr/share/ncurses4/terminfo/a/ansi-color-2-emx
+/usr/share/ncurses4/terminfo/a/ansi-color-3-emx
+/usr/share/ncurses4/terminfo/a/ansi-emx
+/usr/share/ncurses4/terminfo/a/ansi-m
+/usr/share/ncurses4/terminfo/a/ansi-mini
+/usr/share/ncurses4/terminfo/a/ansi-mono
+/usr/share/ncurses4/terminfo/a/ansi-nt
+/usr/share/ncurses4/terminfo/a/ansi.sys
+/usr/share/ncurses4/terminfo/a/ansi.sys-old
+/usr/share/ncurses4/terminfo/a/ansi.sysk
+/usr/share/ncurses4/terminfo/a/ansi43m
+/usr/share/ncurses4/terminfo/a/ansi77
+/usr/share/ncurses4/terminfo/a/ansi80x25
+/usr/share/ncurses4/terminfo/a/ansi80x25-mono
+/usr/share/ncurses4/terminfo/a/ansi80x25-raw
+/usr/share/ncurses4/terminfo/a/ansi80x30
+/usr/share/ncurses4/terminfo/a/ansi80x30-mono
+/usr/share/ncurses4/terminfo/a/ansi80x43
+/usr/share/ncurses4/terminfo/a/ansi80x43-mono
+/usr/share/="_"
+ thistoken33="."
+ thistoken34="0"
+ thistoken35ncurses4/terminfo/a/ansi80x50
+/usr/share/ncurses4/terminfo/a/ansi80x50-mono
+/usr/share/ncurses4/terminfo/a/ansi80x60
+/usr/share/ncurses4/terminfo/a/ansi8="·"
+ 

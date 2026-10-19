@@ -1,0 +1,32 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no exter<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying dalone docs:  no exter<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in nal defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokens	NMTOKENS	#IMPLIED
+	id		ID		#IMPLstaREFSL	

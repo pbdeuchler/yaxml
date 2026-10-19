@@ -1,0 +1,46 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˾attr CDATA #IMPLIED>
+<!ATTLIST LegalName Âattr CDATA #IMPLIED>
+<!ATTLIST LegalName Ãattr CDATA #IMPLIED>
+<!ATTLIST LegalNameⰁ⿮attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ⰱ⿮⿯attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⿮⿯、attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⿯、。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 、。퟾attr CDATA #IMPLIED>
+<!ATTLIST LegalName 。퟾퟿attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟾퟿豈attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟿豈更attr CDATA #IMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>
+<!ATTLIST LegalName �更豈퟿attr CDATA #IMPLIED>
+<!ATTLIST LegalName attr-�更豈 CDATA #IMPLIED>
+<!ATTLIST LegalName attr.-�更 CDATA #IMPLIED>
+<!ATTLIST LegalName A.-�attr CDATA #IMPLIED>
+<!ATTLIST LegalName zA.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName attr0zA. CDATA #IMPLIED>
+<!ATTLIST LegalName attr·0zA CDATA #IMPLIED>
+<!ATTLIST LegalName attr̀·0z CDATA #IMPLIED>
+<!ATTLIST LegalName attŕ̀·0 CDATA #IMPLIED>
+<!ATTLIST LegalName attrͮ́̀· CDATA #IMPLIED>
+<!ATTLIST LegalName attrͯͮ́̀ CDATA #IMPLIED>
+<!ATTLIST LegalName attr‿ͯͮ́ CDATA #IMPLIED>
+<!ATTLIST LegalName attr⁀‿ͯͮ CDATA #IMPLIED>
+<!ATTLIST LegalName null⁀‿ͯattr CDATA #IMPLIED>
+<!ATTLIST LegalName nullnull⁀‿
+ 	zA.-attr="attrValue"
+ 	attr0zA.="attrValue"
+ 	attr·0zA="attrValue"
+ 	attr̀·0z="attrValue"
+ 	attŕ̀·0="attrValue"
+ 	attrͮ́̀·="attrValue"
+ 	attrͯͮ́̀="attrValue"
+ 	attr‿ͯͮ́="attrValue"
+ 	attr⁀‿ͯͮC"attrValue"
+ 	null⁀‿ͯattr="attrValue"
+ 	nullnull⁀‿attr="attrValue"
+ 	nullnullnull⁀attr="attrValue"
+ />

@@ -1,0 +1,24 @@
+<?xml version='1.0' standalone='no'?>
+
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internal " number99">
+]>
+
+  e best basis for negative tests!!
+    -->
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized "
+    nmtokens =	" this 	
+ also	 gets normalized "
+    id =	"	&internal; "
+    idref =	" &internal;
+    "
+    idrefs =	" &internal;  &internal;    &internal;"
+  d-0 "
+    entities =	"unparsed-1
+    unparsed-2		
+"
+    cdata =	"nothing happens to this one!"
+    +/>

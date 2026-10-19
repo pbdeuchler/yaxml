@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT rnot (#PCDATA)>
+]>
+<root>
+Test all vaater references for Pb; &#xCD; &#xcD; &#xEff;;ex #&
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF900; &#wFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid test for P66 *-->

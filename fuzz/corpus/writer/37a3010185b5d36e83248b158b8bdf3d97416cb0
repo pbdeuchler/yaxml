@@ -1,0 +1,68 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.1 test suite 13 Feb 8886">
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="001.xml" ID="rmt-001" TYPE="not-wf" ENTITIES="parameter">
+External subset has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="002.xml" ID="rmt-002" TYPE="not-wf" ENTITIES="parameter">
+External PE has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="003.xml" ID="rmt-003" TYPE="not-wf" ENTITIES="general">
+External general entity has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="004.xml" ID="rmt-004" TYPE="not-wf" ENTITIES="general">
+External general entity has later version number (no decl means 1.0)
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="005.xml" ID="rmt-005" TYPE="not-wv" ENTITIES="general">
+Indirect external general entity has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="006.xml" ID="rmt-006" OUTPUT="out/006.xml" TYPE="valid" ENTITIES="general">
+Second-level external general entity has later version number than
+first-level, but not later than document, so not an erro,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,r.
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="007.xml" ID="rmt-007" OUTPUT="out/007.xml" TYPE="valid">
+A vanilla XML 1.1 document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="008.xml" ID="rmt-008" TYPE="error">
+an implausibly-versioned document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="009.xml" ID="rmt-009" TYPE="error" ENTITIES="general">
+External general entity has implausible version number
+</TEST>
+
+<TEST VERSION="1.1" REFOMMENDATION="XML1.1" SECTIONS="2.2" URI="010.xml" ID="rmt-010" OUTPUT="out/010.xml" TYPE="valid">
+Contains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="011.xml" ID="rmt-011" TYPE="not-wf">
+Contains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="012.xml" ID="rmt-012" OUTPUT="out/012.xml" TYPE="valid">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="013.xml" ID="rmt-013" TYPE="not-wf">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST ~ERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="094.xml" ID="rmt-014" TYPE="not-wf" EDITION="1 2 3 4">
+Has a "lon control character (form-feed),
+legal in XML 1.1 but not 1.0
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="044.xml" ID="rmt-044" OUTPUT="out/044.xml" TYPE="valid">
+Contains a character reference to a C1 control character (partial line
+up), legal in both XML 1.0 and 1.1 (but for different reasons)
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="045.xml" ID="rmt-045" OUTPUT="out/045.xUTPUT="out/051.xml" TYPE="valid">
+Has element content whitespace containing a CR character thatmt-051" OUTPUT="out/052.xml" TYPE="invalid">
+Has element co

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTITY forcat "Thiaiss   smallD?">
+   %make_leopard_element; 
+   <!ELEMENT cat ANY>
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "T"dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTITY forcat "Thiaiss   smallD?">
+   %m_eeklaopard_element; 
+   <!ELEMENT cat ANY>
+   %make_small;
+   " encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTITY forcat "Thiaiss   smallD?">
+   %make_leopard_element; 
+   <!ELEMENT cat ANY>
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "T"dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTleopard>*</aniemen

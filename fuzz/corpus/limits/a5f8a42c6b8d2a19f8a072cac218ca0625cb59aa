@@ -1,0 +1,8 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e.t "replacement text">
+]>
+<doc>
+&ent>
+</doc>

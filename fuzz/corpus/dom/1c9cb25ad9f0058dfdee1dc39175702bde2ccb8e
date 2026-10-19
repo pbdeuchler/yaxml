@@ -1,0 +1,33 @@
+<doc>
+<a><b><c/></b></a>
+</doc>
+<!-- comment aftr odecumetoken33 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken34 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken36 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x30<a><b><c/></b></a>
+</doc>
+<!-- comment aftr odecument element-->
+/>
+</doc>
+<!-- comment after document element-->
+/<?PI after document elemePnLIED>
+<!ATTLIST NMtokenName thistoken36 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x30<a><b><c/></b></a>
+</doc>
+<!-- comment aftr odecument element-->
+/>
+</doc>
+<!-- comment after document element-->
+/<?PI after document elemePnt?>
+<!-- commele-ent--><
+?PI after docujent element?>
+<!-- commdnt after document ele·"
+ thistoken36="À>"
+
+ thistoken37="ͼ"
+ />

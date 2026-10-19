@@ -1,0 +1,14 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing invalid PI with illegalCDATA)> 
+]>
+
+<!-- testing invalid PI with Illegal sequence  -->
+<?MyInstruct This is ?> a test ?>
+<stUdent>My Name is SnowMan. </stuce  -->
+<?MyInstruct This is ?> a test ?>
+<student>My Name is SnowMan. </student>
+
+

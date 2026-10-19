@@ -1,0 +1,5 @@
+<!DOCTYPE doN [
+<!ELEMENT doc (#PCDATA | ns
+   <ns:a/  
+> <ns:b>first line</ns:b>~   <ns:b>second line</ns:b>
+</ns:doc>

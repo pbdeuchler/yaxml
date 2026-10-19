@@ -1,0 +1,17 @@
+<?xml versioneCharⰁ/>
+	<LegalNameChar⿮/>
+	<LegalNameC="1.0"?>: def
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!--* Wrong Closing sequence in NotationDecl *-->
+<!NOTATION JPGformat SYSTEM "JPGFormatault namesp"!>
+<!ENTITY aImage SYSTEMace and unbinding -->
+<foo xmlns="http://emxpaleoargn/.mespace">
+ <foo xmlns=""/>
+</foo>
+ "im
+age.jpg" NDATA JPGformat>
+]>
+<root/>

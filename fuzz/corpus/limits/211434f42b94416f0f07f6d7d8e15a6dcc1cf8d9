@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE roqt [
+<!ELEMENT root ANY>
+<!ATTLISst [<!ENTITY newline "&#x26;#xA;">
+]>
+
+  <!ENTITY newl>
+ON one SYSTEM "file:///usr/bOCTYPE test [<!ENTwl>
+<test newline="&newline;"in/awk">
+<!ATTLIST foo bar ent text in Attribute</root>

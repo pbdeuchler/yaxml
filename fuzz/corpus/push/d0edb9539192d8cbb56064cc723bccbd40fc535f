@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+
+<!ELEMENT root EMPTY>
+<!ATTLIST r
+    value	(brittannica | worldbook) "encarta"
+    >
+    <!-- tests the "attribute default legal" vc -->
+]>
+]>
+
+<root value="brittannica"/>

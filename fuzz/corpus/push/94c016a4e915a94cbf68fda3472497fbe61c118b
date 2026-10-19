@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!DOCTYPE billion [
+<!ELEMENT billion (#PCDATA)>
+<!ENTITY laugh0 "ha">
+<!ENTITY laugh1 "&laugh0;&laugh0;">
+<!ENTITY laugh2 "&laugh1;&laugh1;">
+<!ENTITY laugh3 "&laugh2;&laugh2;">
+<!ENTITY laugh4 "&laugh3;&laugh3;">
+<!ENTITY laugh5 "&laugh4;&laugh4;">
+<!ENTITY laugh6 "&laugh5;&laugh5;">
+<!ENTIT&laugh12;&lau<!DOCTYPE root [
+<!ELEgh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&lauge;</root>
+ spec 1.0 Appendix D -->
+<!ENTITY example "<p>An ampersand (&#38;#38;) may be escaped
+numerically (&#38;#38;#38) or with a gen
+eral entity (&amp;amp;).</p>" >
+]>
+
+<root>&example;</root>

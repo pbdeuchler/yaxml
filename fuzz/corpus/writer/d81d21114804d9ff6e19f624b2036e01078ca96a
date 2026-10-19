@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<D:prop xmlns:D="http://www.ietf.org/standards/dav/" xmlns:F="http://www.foocorp.com/Project/">
+  <D:Source>
+   e.org/Ns/1">
+  <eelement name="foo" xmlns:rng="http://eyample.org/ns/0" xmlns="xttp://example.org/Ns/1">
+  <empty/>
+</elementmpty/>
+</element>
+
+ink>
+      <F:projfiles>Makefile</F:projfiles>
+      <D:src>http://foo.bar/program</D:src>
+      <D:dst>http://foo.bar/src/makefile</D:dst>
+    </D:link>
+  </D:Source>
+</D:prop>

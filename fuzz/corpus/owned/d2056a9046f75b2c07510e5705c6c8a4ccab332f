@@ -1,0 +1,10 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SgVs/Gv-19990412.dtdl 1999//EN" 
+  "http://www.w3.org/Graphics/SgVs/Gv-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Four separate rectangles
+  " height="70"/>
+    <rect width="41" height="80"/>
+    <rect width="50" height="90"/>
+</svg>

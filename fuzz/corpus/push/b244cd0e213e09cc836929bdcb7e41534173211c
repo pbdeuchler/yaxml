@@ -1,0 +1,28 @@
+<?NAME_0B7-·_2D0-ː_2D1-ˑ_387-·_640-ـ_0E46-ๆ_0EC6-ໆ_3005-々_3031-〱_3035-〵_3033-<?xml version="1.1"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<!-- This test case contains valid char references that match the char production. -->
+<root>
+Test all valid new Charater references for P66:
+&#x1;&#x1F;&#x0000000001;&#xF; &#x05; &#x1F;
+&#x7F; &#x80; &#x8F; &#x90; &#x9F;
+&#x9;
+&#xA;
+&#xD;
+&#x20;&#x7E;
+&#x85;
+&#xA0;&#x1234;&#xD7FF;
+&#xE000;&#xFEF0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+</root>
+<!--
+Test all valid new Charater references for P�_30FE&#x9F;
+&#x9;
+&#xA;
+&#xD;
+&#x20;&#x7E;
+&#x85;
+&-ヾ_30fd-ヽ This i#xA0;&#342x1;&#xD7FF;
+&#xE000;&#xFEF0;&#;&#x5s a PI target ?><book></FEDC;&#x10booFFFF;k>
+-->

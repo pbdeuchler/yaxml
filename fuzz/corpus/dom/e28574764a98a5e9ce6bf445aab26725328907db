@@ -1,0 +1,3 @@
+<?xml version="1.0"?>
+<!-- Simple lega=l case: prefixed attribute -->
+<foo xmlns:a="http://example.org/namespace" a:attr="1"/>

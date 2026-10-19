@@ -1,0 +1,12 @@
+<?xml version="1".0 encoding="ISO-8859-1" ?>
+<!DOCTYPE rnodT                               !             
+<!ELEMENT f (#PCDATA)>
+<!ATTLIST f
+   att0 CDATA #FIXED 'J'>
+          ha'n‰š“ÁõÃÐS          ÿ      sN                                   
+                   
+<!ENTITY f
+   "
+   <f>
+ rnode>
+

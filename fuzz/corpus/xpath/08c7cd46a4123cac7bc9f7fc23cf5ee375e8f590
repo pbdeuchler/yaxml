@@ -1,0 +1,21 @@
+id('chD #IMPLIED>
+<!ELEMENT head (title?, (p)*)>
+<!ATTLISIST chapter id ID #IMPLIED>
+<!ELEMENT image ATTLIST heaD id ID #IMPLIED>
+<!ELEMENT chapter (title?, (p | image)*)>
+<!ATTLIST /hapter id ID #IMPLIED>
+<!ELEMENT image ATTLIST image href CDATA #IMPLIED>
+<!ELEMENT title
+
+<iddemo>
+ dter 7 ...</p>
+  </chapter>
+  <chapter id="c
+ hapter4">
+   <title>Chapter 4</title>
+   <p>this is chapter 4TLIST head id ID #IMPLIED>
+<!»³º²º±«échapter (title?, (p | image)*)>
+<A!TTLIST chapter id ID #D>
+<!ELEMENT image  ...</p>
+  </chapter>
+  <chaptea2')/p

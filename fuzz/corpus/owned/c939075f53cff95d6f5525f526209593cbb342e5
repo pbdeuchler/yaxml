@@ -1,0 +1,11 @@
+<?xml versioncase: default namespace and rebinding -->
+<foo xmlns="http://example.org/namespace">
+ <foo xm<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE root [
+<!ELEMENT root  EMPTY>
+<!--  " lns="ht-tp:/->
+]>
+<r/e.ooot/>rg/other-namespa
+ce"/>
+</foo>
+

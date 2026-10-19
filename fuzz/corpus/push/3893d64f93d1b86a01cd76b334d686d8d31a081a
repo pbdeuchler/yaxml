@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legal patterns derived from P78 *-->
+<!ENTITY epe1 SYSTEM "ibm78v01.ent" ><!DOCTYPE d<doc>&e;</dP80 -o->c>
+

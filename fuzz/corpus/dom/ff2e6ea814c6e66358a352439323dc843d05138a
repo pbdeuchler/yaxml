@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE studen		ft iCsrDATA #REQUIRED
+		middle CDATA #IMPLIED
+		last CDATA #REQUIRED > 
+	<!ENTITY myfirst "Snow">
+	<!ENTITY mymiddle "Y">
+	<!ENTITY mylast ''>
+]>
+<!-- testing AttValue witnow &mylast; Man. </student>
+

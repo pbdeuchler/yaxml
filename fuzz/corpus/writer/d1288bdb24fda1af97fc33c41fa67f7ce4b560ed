@@ -1,0 +1,11 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?຋?an illegal char #x1e8b
+ iY>
+<?຋?an illegal char #x<!ELEMENT animal ANY>
+<mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?຋?an illegal char #x1e8b
+ iY>
+<?຋?an illegal char #x<!ELEMENT anmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmimal ANY>
+<mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm?຋?an illegal char #xmmmmmmmmribute1e8x>s>

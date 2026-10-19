@@ -1,0 +1,146 @@
+<!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for a particular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - valid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 1">
+  <TEST URI="valid/P01/ibm01v01.xml" TYPE="valid" ID="ibm-valid-P01-ibm01v00.xml" ENTITIES="none" SECTIONS="2.1" OUTPUT="valid/P01/out/ibm01v01.xml">
+    Tests with a xml document consisting of <EM>prolog</EM> followed by 
+    <EM>element</EM> then <EM>Misc</EM> 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 2">
+  <TEST URI="valid/P02/ibm02v01.xml" TYPE="valid" ID="ibm-valid-P02-ibm02v01.xml" ENTITIES="none" SECTIONS="2.2">
+     This test case covers legal character ranges plus discrete legal characters fo="valid/P18/out/ibm18v01.xml">
+    Tests CDSect with CDStart CData CDEnd
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 19">
+  <TEST URI="valid/P19/ibm19v01.xml" TYPE="valid" ID="ibm-valid-P19-ibm19v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P19/out/ibm19v01.xml">
+    Tests CDStart
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 20">
+  <TEST URI="valid/P20/ibm20v01.xml" TYPE="valid" ID="ibm-valid-P20-ibm20v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P20/out/ibm20v01.xml">
+    Tests CDATA with empty string
+</TEST>
+  <TEST URI="valid/P20/ibm20v02.xml" TYPE="valid" ID="ibm-valid-P20-ibm20v02.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P20/out/ibm20v02.xml">
+    Tests CDATA with regular content 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 21">
+  <TEST URI="valid/P21/ibm21v01.xml" TYPE="valid" ID="ibm-valid-P21-ibm21v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P21/out/ibm21v01.xml">
+    Tests CDEnd
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 22">
+  <TEST URI="valid/P22/ibm22v01.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v01.xml">
+    Tests prolog with XMLDecl and doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v02.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v02.xml">
+    Tests prolog with doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v03.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v03.xml">
+    Tests prolog with Misc doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v04.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v04.xml">
+    Tests prolog with doctypedecl Misc
+</TEST>
+  <TEST URI="valid/P22/ibm22v05.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v05.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v05.xml">
+    Tests prolog with XMLDecl Misc doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v06.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v06.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v06.xml">
+    Tests prolog with XMLDecl doctypedecl Misc
+</TEST>
+  <TEST URI="valid/P22/ibm22v07.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v07.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v07.xml">
+    Tests prolog with XMLDecl Misc doctypedecl Misc
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 23">
+  <TEST URI="valid/P23/ibm23v01.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v01.xml">
+    Tests XMLDecl with VersionInfo only
+</TEST>
+  <TEST URI="valid/P23/ibm23v02.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v02.xml">
+    Tests XMLDecl with VersionInfo EncodingDecl
+</TEST>
+  <TEST URI="valid/P23/ibm23v03.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v03.xml">
+    Tests XMLDecl with VersionInfo SDDecl
+</TEST>
+  <TEST URI="valid/P23/ibm23v04.xml" TYPE="valiD" ID="ibm-valid-P23-ibm23v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v04.xml">
+    Tests XMLDecl with VerstionInfo and a trailing whitespace char
+</TEST>
+  <TEST URI="valid/P23/ibm23v05.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v05.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v05.xml">
+    Tests XMLDecl with VersionInfo EncodingDecl SDDecl
+</TEST>
+  <TEST URI="valid/P23/ibm23v06.xml" TYPE="valid" ID="ibm-valid-P23-ibm23v06.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P23/out/ibm23v06.xml">
+    Tests XMLDecl with VersionInfo EncodingDecl SDDecl and a trailing whitespace
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 24">
+  <TEST URI="valid/P24/ibm24v01.xml" TYPE="valid" ID="ibm-valid-P24-ibm24v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P24/out/ibm24v01.xml">
+    Tests VersionInfo with single quote
+</TEST>
+  <TEST URI="valid/P24/ibm24v02.xml" TYPE="valid" ID="ibm-valid-P24-ibm24v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P24/out/ibm24v02.xml">
+    Tests VersionInfo with double quote
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 25">
+  <TEST URI="valid/P25/ibm25v01.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v01.xml">
+    Tests EQ with =
+</TEST>
+  <TEST URI="valid/P25/ibm25v02.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v02.xml">
+    Tests EQ with = and spaces on both sides
+</TEST>
+  <TEST URI="valid/P25/ibm25v03.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v03.xml">
+    Tests EQ with = and space in front of it
+</TEST>
+  <TEST URI="valid/P25/ibm25v04.xml" TYPE="valid" ID="ibm-valid-P25-ibm25v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P25/out/ibm25v04.xml">
+    Tests EQ with = and space after it
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 26">
+  <TEST URI="valid/P26/ibm26v01.xml" TYPE="valid" ID="ibm-valid-P26-ibm26v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P26/out/ibm26v01.xml">
+    Tests VersionNum 1.0
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 27">
+  <TEST URI="valid/P27/ibm27v01.xml" TYPE="valid" ID="ibm-valid-P27-ibm27v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valm62v05.xml">
+    Tests includeSect for P62. The extSubsetDecl is not included.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 63">
+  <TEST URI="valid/P63/ibm63v01.xml" TYPE="valid" ID="ibm-valid-P63-ibm63v01.xml" ENTITIES="parameter" SECTIONS="3.4" OUTPUT="valid/P63/out/ibm63v01.xml">
+    Tests ignoreSect for P63. The white space is not included before the key
+    word "IGNORE" in the beginning sequence.
+  </TEcovers 3 legal character ranges plus 8 single legal 
+    characters for Extender in P89 using a PI target Name
+</TEST>
+</TESTCASES>
+
+</TESTCASES>

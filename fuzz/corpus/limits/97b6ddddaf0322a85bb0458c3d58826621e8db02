@@ -1,0 +1,6 @@
+<?xm. version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!--student wMan. </student>

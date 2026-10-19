@@ -1,0 +1,71 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|fo1o|bar)	#IMPLIED
+	nmtoke.		NMTOKEN		#IMPLIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	e-tities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal  "internal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION bar SYSTEM "file:/dev/tty">
+
+    <!ENTITY unparsed-1 PUBLIC "-//some public//ID" "file:/dev/console"
+		 nonce>
+    <!ENTITY unparsed-2 SYSTEM "scheme:/ributes
+	token		(a|b|c)		"a"
+	notation	(nonce|fo1o|bar)	#IMPLIt/ibm39i01.xml">
+    This test violates VC: Element Valid in P39. Element a is declared empty 
+    in DTD, but has content in the document.
+  </TEST>
+  <TEST URI="invalid/P39/ibm39i02.xml" TYPE="invalid" ID="M "file:/dev/tty">
+
+    <!ENTITY unparsed-1 PUBLIC "-//some public//ID" "file:/dev/console"
+			NDATA nonce>
+    <!ENTITY unparsed-2 SYSTEM "scheme:/ributes
+	token		(a|b|c)		"a"
+	notation	(nonce|fo1o|bar)	# 
+  his-gets-normalized "
+    nmtokens =	" this	
+ also	 gets normalized "
+    id =	"	&internal; "
+    idref =	" &internal;
+  5 "
+    idrefs =	" &internal;  &internal;    &ins the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	nota-tion	(nonce|fo1o|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	e-tities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIEternal;"
+    entity =	" unparsed-1 "
+    entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothing happens to this onn P39. Ele

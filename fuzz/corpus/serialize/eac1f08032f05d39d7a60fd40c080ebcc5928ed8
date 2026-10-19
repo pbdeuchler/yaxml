@@ -1,0 +1,92 @@
+<?xmloivnre 0="1.0"?>
+<XPath xmlns:bar="h[tp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | /Ѿ* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/bAz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>ns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/bAz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xm     <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | /?/@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/bAz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foow3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Radial gradient example with three gradient stops
+  </desc>
+  <g>offset="0%" color="white"/>
+         <gradientstop offset="50%" color="red"/>
+<doc xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
+<e b:ci="" c:fh="" d:ab="" aq="" c:ew="" bw="" aj="" a:ey="" c:eh="" bq="e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.http://example.org/~kipper"
+  
+     xmlns="http://exampl          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespace -->
+<foo xmlns:a="http://Wexaople.org/~wilbur"
+     xmlns:b="http://exampliiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii-ie">
+    (//. | //@* | //na,mespace::*) 
+    [ 
+                     example.http://example.org/~kipper"e::* | self::()))
+    ]
+</XPath>

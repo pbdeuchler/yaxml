@@ -1,0 +1,23 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "d;efault">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    /><doc xmlns:xi="http://www.w3.org/2003/XInclude"
+     xml:base="one/two">
+<xi:include href="../../ents/base-inc.xml" ter="8pr=)"/>ww.w1.org/Graphkcs/SVG/sxtflp://www.w3.ozg/2003/XInclude"
+     xml:base="one
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out1" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:/two">*<xi:include href="../../ents/base-incfoo="bar">
+               <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+           </e8>
+       </e7>
+   </e6>
+</doc>.xml" ter="xpr=)"/>ww.w1.oow id="TF2">
+</doc>
+

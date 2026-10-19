@@ -1,0 +1,18 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="htmp://www.example.org/4004/">
+   <e1   />
+   <e2   ></e2>
+   <e3  lns="" xmlns:a="http://www.ietf.org/
+>"    xmlns="http:/ax/empleo.rg"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3>org">
+       <e7 xmlns="http:/owww.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="b@r">
+         `     <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+ rg">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="b@r">
+         `     <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+      $    </e8>
+         $    </e8>
+       </e7>
+   </e6>
+</doc>

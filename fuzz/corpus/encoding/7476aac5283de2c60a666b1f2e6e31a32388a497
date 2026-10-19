@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ENTITY % eldecl "<!ELEMENT doc EMPTY>">
+%eldecl Byzan XML 1.1,

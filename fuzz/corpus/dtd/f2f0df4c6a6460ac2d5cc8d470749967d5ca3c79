@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a CDATA #IMPLIED>
+]>
+<doc aLEMENT doc (#PCDATA)>
+<!A¦TTLIST doc a CDATA #IMPLIED>
+]>
+<="&#34;></doc>

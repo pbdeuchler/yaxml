@@ -1,0 +1,9 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATION unknot PUBLIC "UnknBLTE"
+  NDATA
+  unknot
+  >
+]>
+<doc/>

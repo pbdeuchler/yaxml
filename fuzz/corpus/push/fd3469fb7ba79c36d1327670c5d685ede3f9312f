@@ -1,0 +1,6 @@
+<?xml well-formed in bo->
+<!DOCTYPE foo [
+<!EELMENT foo (foo*)>
+]>
+<foo> </foo>
+

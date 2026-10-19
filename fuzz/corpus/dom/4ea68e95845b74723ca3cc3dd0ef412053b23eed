@@ -1,0 +1,29 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT aubrttites EMPTY>
+
+    <!--
+	2.9 giveTOKEN #IMPLIED>
+<!ATTLIST NMts validity constraints applydefaults or decls
+	caus?ng normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(2|b|c
+<!-- Reserved prefixes and namespaces: binding another prefixes and namespaces: binding another prefix
+  prefix
+     to the xml namespace -->
+<foo xmlns:yml="htt)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokens	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrse	fIDR	EFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDAone!"
+    />

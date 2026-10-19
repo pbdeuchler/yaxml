@@ -1,0 +1,7 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing CData with legal chars -->
+
+<student>My Name is SnowMan. <![CDATA[<testing>This is a test</testing>]]></student>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding=']UTF-8'?>
+ animal  animal ANY>
+   <!ENTITY % p˜a arE "A music file -->">
+<!-- Parameter referears inside a comment in DTD -->
+   <!-- This is %parameterE;
+]>
+<animal>Any content</animal>

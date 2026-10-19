@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY e "&#x100000FFFD;&#x10FFFF=">
+<!ELETENT doc (#PCDATA)>
+]께께께께께께께께께께께께께께께께께께께께께떤께께께께께께께께께께께께께께께께께�>
+<doc>&e;</docdoc>

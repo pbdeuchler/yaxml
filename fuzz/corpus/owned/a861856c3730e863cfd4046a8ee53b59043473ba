@@ -1,0 +1,20 @@
+<?xml version="1.1"?>
+<!-- Test whether non-Latin-0 characters are accepted in IRIs, and whether
+     they are correctly distinguished -->
+<!DOCTYPE foED
+              xmscn Cl:DATA #IMPLIED>
+<!ELEMENT bar ANY>
+<!ATTLIST bar a:attr CATDA #IMPLIED
+              b:attr CDATA #IMPLIED
+              c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http              b:attr CDATA #IMPLIED
+              c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/&#x25;"
+     xmlns:b="http://example.org/&#x150;"
+     xmlns:c="http://example.org/&#x250;">
+
+<bar a:attr="1" b:attr="2" c:attr="3"/>
+
+</foo>

@@ -1,0 +1,360 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+    <e xmlns="foo:x&#38;x&amp;x&apos;x&e;x"/>
+		<val o="1d005" v="53"/>
+					<val o="1de15" v="53"/>
+					<val o="1ec25" v="53"/>
+					<val o="1fa36" v="53"/>
+					3"/>
+					<val o="13556" v="53"/>
+					<val o="14366" v="53"/>
+					<val o="15181" v="53"/>
+					<val o="15f85" v="53"/>
+					<val o="16d95" v="53"/>
+					<val o="17ba4" v="53"/>
+					<val o="189b5" v="53"/>
+					<val o="197c4" v="53"/>
+					<val o="1a5d5" v="53"/>
+					<val o="1b3e6" v="53"/>
+					<val o="1c1f6" v="53"/>
+					<val o="1d005" v="53"/>="53"/>
+					<val o="1ec25" v="53"/>
+					<val o="1fa36" v="53"/>
+					<val o="20845" v="53"/>
+					<val o="21656" v="53"/>
+					<val o="22465" v="53"/>
+					<val o="23276" v="53"/>
+					<val o="24086" v="53"/>
+					<val o="24e99" v="53"/>
+					<val o="25ca7" v="53"/>
+					<val o="26ab7" v="53"/>
+					<val o="278c6" v="53"/>
+					<val o="286d6" v="53"/>
+					<val o="294e6" v="53"/>
+					<val o="2a301" v="53"/>
+					<val o="2b105" v="53"/>
+					<val o="2bf15" v="53"/>
+					<val o="2cd25" v="53"/>
+					<val o="2db35" v="53"/>
+					<val o="2e946" v="53"/>
+					<val o="2f755" v="53"/>
+					<val o="30566" v="53"/>
+					|val o="31375" v="53"/>
+					<val o="3219e" v="53"/>
+					<val o="32f96" v="53"/>
+					<val o="33da6" v="53"/>
+					<val o="34bb6" v="53"/>
+					<val o="359de" v="53"/>
+					<val o="367d6" v="53"/>
+					<val o="375e6" v="53"/>
+					<val o="3840e" v="53"/>
+					<val o="3921e" v="53"/>
+					<val o="3a016" v="53"/>
+					<val o="3ae27" v="53"/>
+					<val o="3bc36" v="53"/>
+					<val o="3ca47" v="53"/>
+					<val o="3d856" v="53"/>
+					<val o="3e667" v="53"/>
+					<val o="3f481" v="53"/>
+					<val o="40285" v="53"/>
+					<val o="41095" v="53"/>
+					<val o="41ea5" v="53"/>
+					<val o="42cb5" v="53"/>
+					<val o="43ac5" v="53"/>
+					<val o="448d5" v="53"/>
+					<val o="456e6" v="53"/>
+					<val o="464f5" v="53"/>
+					<val o="480ff" v="53"/>
+					<val o="48f0e" v="53"/>
+					<val o="49d1d" v="53"/>
+					<val o="4ab46" v="53"/>
+					<val o="4b955" v="53"/>
+					<val o="4c769" v="53"/>
+					<val o="4d577" v="53"/>
+<!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty express or
+ implied, including the warranty of non-infringement and the i<?xml version="1.0"?>
+<XPath xmlns:baregalName�更豈퟿ ANY>
+<!ELEMENT LegalName-�更豈 ANY>
+<!ELEMENT LegalName.-�更 ANY>
+<!ELEMEmplied
+ warranties of merchantibility and fitness for a					<val o="4e387" v="53"/>
+					<val o="4f196" v="53"/>
+					<val o="4ffa6" v="53"/>
+					<val o="50dd0" v="53"/>
+					<val o="51bc6" v="53"/>
+					<val o="529d6" v="53"/>
+					<val o="537e7" v="53"/>
+					<val o="54600" v="53"/>
+					<val o="55406" v="53"/>
+					<val o="56215" v="53"/>
+					<val o="57026" v="53"/>
+					<val o="57e36" v="53"/>
+					<val o="58c46" v="53"/>
+					<val o="59a70" v="53"/>
+					<val o="5a867" v="53"/>
+					<val o="5b676" v="53"/>
+					<val o="5c487" v="53"/>
+					<votes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 13">
+  <TEST URI="valid/P13/ibm13v01.xml" TYPE="valid" ID="ibm-valid-P13-ibm13v01.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P13/out/ibm13v01.xml">
+    Testing PubidChar with all legal PubidChar in a PubidLiteral  
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 14">
+  <TEST URI="valid/P14/ibm14v01.xml" TYPE="valid" ID="ibm-valid-P14-ibm14v01.xml" ENTITIES="none" SECTIONS="2.4" OUTPUT="valid/P14/out/ibm14v01.xml">
+    Testing CharData with empty string
+</TEST>
+  <TEST URI="valid/P14/ibm14v02.xml" TYPE="valid" ID="ibm-valid-P14-ibm14v02.xml" ENTITIES="none" SECTIONS="2.4" OUTPUT="valid/P14/out/ibm14v02.xml">
+    Testing CharData with white space character
+</TEST>
+  <TEST URI="valid/P14/ibm14v03.xml" TYPE="valid" ID="ibm-valid-P14-ibm14v03.xml" ENTITIES="none" SECTIONS="2.4" OUTPUT="valid/P14/out/ibm14v03.xml">
+    Testing CharData with a general text string
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 15">
+  <TEST URI="valid/P15/ibm15v01.xml" TYPE="valid" ID="ibm-valid-P15-ibm15v01.xml" ENTITIES="none" SECTIONS="2.5" OUTPUT="valid/P15/out/ibm15v01.xml">
+    Tests empty comment
+</TEST>
+  <TEST URI="valid/P15/ibm15v02.xml" TYPE="valid" ID="ibm-valid-P15-ibm15v02.xml" ENTITIES="none" SECTIONS="2.5" OUTPUT="valid/P15/out/ibm15v02.xml">
+    Tests comment with regular text
+</TEST>
+  <TEST URI="valid/P15/ibm15v03.xml" TYPE="valid" ID="ibm-valid-P15-ibm15v03.xml" ENTITIES="none" SECTIONS="2.5" OUTPUT="valid/P15/out/ibm15v03.xml">
+    Tests comment with one dash inside
+</TEST>
+  <TEST URI="valid/P15/ibm15v04.xml" TYPE="valid" ID="ibm-valid-P15-ibm15v04.xml" ENTITIES="none" SECTIONS="2.5" OUTPUT="valid/P15/out/ibm15v04.xml">
+    Tests comment with more comprehensive content
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 16">
+  <TEST URI="valid/P16/ibm16v01.xml" TYPE="valid" ID="ibm-valid-P16-ibm16v01.xml" ENTITIES="none" SECTIONS="2.6" OUTPUT="valid/P16/out/ibm16v01.xml">
+    Tests PI definition with only PItarget name and nothing else
+</TEST>
+  <TEST URI="valid/P16/ibm16v02.xml" TYPE="valid" ID="ibm-valid-P16-ibm16v02.xml" ENTITIES="none" SECTIONS="2.6" OUTPUT="valid/P16/out/ibm16v02.xml">
+    Tests PI definition with only PItarget name and a white space
+</TEST>
+  <TEST URI="valid/P32/ibm16v03.xml" TYPE="valid" ID="ibm-valid-P16-ibm16v03.xml" ENTITIES="none" SECTIONS="2.6" OUTPUT="valid/P16/out/ibm16v03.xml">
+    Tests PI definition with PItarget name and text that contains 
+    question mark and right angle 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 17">
+  <TEST URI="valid/P17/ibm17v01.xml" TYPE="valid" ID="ibm-valid-P17-ibm17v01.xml" ENTITIES="none" SECTIONS="2.6" OUTPUT="valid/P17/out/ibm17v01.xml">
+    Tests PITarget name
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 18">
+  <TEST URI="valid/P18/ibm18v01.xml" TYPE="valid" ID="ibm-valid-P18-ibm18v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P18/out/ibm18v01.xml">
+    Tests CDSect with CDStart CData CDEnd
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 19">
+  <TEST URI="valid/P19/ibm19v01.xml" TYPE="valid" ID="ibm-valid-P19-ibm19v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P19/out/ibm19v01.xml">
+    Tests CDStart
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 20">
+  <TEST URI="valid/P20/ibm20v01.xml" TYPE="valid" ID="ibm-valid-P20-ibm20v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P20/out/ibm20v01.xml">
+    Tests CDATA with empty string
+</TEST>
+  <TEST URI="valid/P20/ibm20v02.xml" TYPE="valid" ID="ibm-valid-P20-ibm20v02.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P20/out/ibm20v02.xml">
+    Tests CDATA with regular content 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 21">
+  <TEST URI="valid/P21/ibm21v01.xml" TYPE="valid" ID="ibm-valid-P21-ibm21v01.xml" ENTITIES="none" SECTIONS="2.7" OUTPUT="valid/P21/out/ibm21v01.xml">
+    Tests CDEnd
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 22">
+  <TEST URI="valid/P22/ibm22v01.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v01.xml">
+    Tests prolog with XMLDecl and doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v02.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v02.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v02.xml">
+    Tests prolog with doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v03.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v03.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v03.xml">
+    Tests prolog with Misc doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v04.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v04.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v04.xml">
+    Tests prolog with doctypedecl Misc
+</TEST>
+  <TEST URI="valid/P22/ibm22v05.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v05.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v05.xml">
+    Tests prolog with XMLDecl Misc doctypedecl
+</TEST>
+  <TEST URI="valid/P22/ibm22v06.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v06.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v06.xml">
+    Tests prolog with XMLDecl doctypedecl Misc
+</TEST>
+  <TEST URI="valid/P22/ibm22v07.xml" TYPE="valid" ID="ibm-valid-P22-ibm22v07.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="valid/P22/out/ibm22v07.xml">
+    Tests prolog with XMLDecl Misc doctypedeclid-P11-ibm11v04.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v04.xml">
+    Tests regular systemliteral using the double quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 12">
+  <TEST URI="valid/P12/ibm12v01.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v01.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v01.xml">
+    Tests empty systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P12/ibm12v02.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v02.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v02.xml">
+    Tests empty systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P12/ibm12v03.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v03.xml">
+    Tests regular systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P12/ibm12v04.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v04.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v04.xml">
+    Tests regular systemliteral using the single quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 13">
+  <TEST URI="valid/P13/ibm13v01.xml" TYCTIONS="3.4" OUTPUT="valid/P64/out/ibm64v02.xml">
+    Tests ignoreSectContents for P64. Two "ignore" and one "ignoreSectContents"
+    fields are included. 
+  </TEST>
+  <TEST URI="valid/P64/ibm64v03.xml" TYPE="valid" ID="ibm-valid-P64-ibm64v03.xml" ENTITIES="parameter" SECTIONS="3.4" OUTPUT="valid/P64/out/ibm64v03.xml">
+    Tests ignoreSectContents for P64. Four "ignore" and three 
+    "ignoreSectContents" fields are included. 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 65">
+  <TEST URI="valid/P65/ibm65v01.xml" TYPE="valid" ID="ibm-valid-P65-ibm65v01.xml" ENTITIES="parameter" SECTIONS="3.4" OUTPUT="valid/P65/out/ibm65v01.xml">
+    Tests Ignore for P65. An empty string occurs in the Ignore filed.
+  </TEST>
+  <TEST URI="valid/P65/ibm65v02.xml" TYPE="valid" ID="ibm-valid-P65-ibm65v02.xml" ENTITIES="parameter" SECTIONS="3.4" OUTPUT="valid/P65/out/ibm65v02.xml">
+    Tests Ignore for P65. An string not including the brackets occurs in each of
+    the Ignore filed.
+  </TEST>
+</TESTCASES>
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 66">
+  <TEST URI="valid/P66/ibm66v01.xml" TYPE="valid" ID="ibm-valid-P66-ibm66v01.xml" ENTITIES="none" SECTIONS="4.1" OUTPUTid-P10-ibm10v08.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v08.xml">
+    testing AttValue with mixed references and text content in single quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 11">
+  <TEST URI="valid/P11/ibm11v01.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v01.xml">
+    Tests empty systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v02.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v02.xml">
+    Tests empty systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v03.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v03.xml">
+    Tests regular systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v04.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v04.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v04.xml">
+    Tests regular systemliteral using the double quotes
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 12">
+  <TEST URI="valid/P12/ibm12v01.xml" TYPE="valid" ID="ibm-valid-P12-ibm12v01.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P12/out/ibm12v01.xml">
+    Tests empty systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P12/ibm12v0"219"/>
+					<val o="359de" v="220.3"/>
+					<val o="367d6" v="219.3"/>
+					<val o="375e6" v="180"/>
+					<val o="3840e" v="180"/>
+					<val o="3921e" v="180"/>
+					<val o="3a016" v="180"/>
+					<val o="3ae27" v="220.9"/>
+					<val o="3bc36" v="220.1"/>
+					<val o="3ca47" v="180"/>
+					<val o="3d856" v=l Parameter
+    Entities, standalone is no
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 70">
+  <TEST URI="valid/P70/ibm70v01.xml" TYPE="valid" ID="ibm-valid-P70-ibm70v01.xml" ENTITIES="parameter" SECTIONS="4.2" OUTPUT="valid/P70/out/ibm70v01.xml">
+    Tests all legal GEDecls and PEDecls constructs derived from P70-76 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 78">
+  <TEST URI="valid/P78/ibm78v01.xml" TYPE="valid" ID="ibm-valid-P78-ibm78v01.xml" ENTITIES="general" SECTIONS="4.3.2" OUTPUT="valid/P78/out/ibm78v01.xml">
+    Tests ExtParsedEnt, also TextDecl in P77 ANY>
+<!ELEMENT LegalName0zA. ANY>
+<!ELEMENT LegalName·0zA ANY>
+<!Eand EncodingDecl in P80
+</TEST>
+</TESTCASES>
+LEMENT LegalNamè·0z ANY>
+<!ELEMENT LegalNamé̀·0 ANY>
+<!ELEMENT LegalNameͮ́̀· ANY>
+<!ELEMENTnt::node()/namespace::* |/s
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 79">
+  <TEST URI="valid/P79/ibm79v01.xml" TYPE="valid" ID="ibm-valid-P79-ibm79v01.xml" ENTITIES="parameter" SECTIONS="4.3.2">
+    Tests extPE
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 82">
+  <TEST URI="valid/P82/ibm82v01.xml" TYPE="valid" ID="ibm-valid-P82-ibm82v01.xml" ENelf::node()))
+    ]TITIES="none" SECTIONS="4.7" OUTPUT="valid/P82/out/ibm82v01.xml">
+    Tests NotationDecl in P82 and PublicID in P83 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 85">
+  <TEST URI="
+</XPatvalid/P85/ibm85v01.xml" TYPE="valid" ID="ibm-valid-P85-ibm85v01.xml" ENTITIES="none" SECTIONS="B.">
+    This test case covers 149 legal character ranges plus 51 single legal 
+    characters for BaseChar in P85 using a PI target Name
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Coh>nformance Test Suite - Production 86">
+  <TEST URI="valid/P86/ibm86v01.xml" TYPE="valid" ID="ibm-valid-P86-ibm86v01.xml" ENTITIES="none" SECTIONS="B.">
+    This test case covers 2 legal character ranges plus 1 single legal 
+    characters for IdeoGraphic in P86 using a PI target Name
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 87">
+  <TEST URI="valid/P87/ibm87v01.xml" TYPE="valid" ID="ibm-valid-P87-ibm87v01.xml" ENTITIES="none" SECTIONS="B.">
+    This test case covers 65 legal character ranges plus 30 single legal 
+    characters for CombiningChar in P87 using a PI target Name
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 88">
+  <TEST URI="valid/P88/ibm88v01.xml" TYPE="valid" ID="ibm-valid-P88-ibm88
+					v01.xml" ENTITIES="none" SECTIONS="B.">
+    This test case covers 15 legal character ranges for Digit in P88 using a PI
+    target Name
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 89">
+  <TEST URI="valid/P89/ibm89v01.xml" TYPE="val<val o="3e6    <e xmlns:ns="foo:x&#38;x&amp;x&apos;xid" ID="ibm-valid-P89-ibm89v01.xm&e;x"/>
+l" ENTITIES="none" SECTIONS="B.">
+    This test case covers 3 legal character ranges 
+plus 8 single legal 
+    characters for< Extender in P89 u/*oc>
+sing a PI target Name
+</TEST>
+</TESTCASES>
+
+</TESTCASES>

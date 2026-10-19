@@ -1,0 +1,77 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.1 test suite 13 Feb 2003">
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="001.xml" ID="rmt-001" TYPE="not-wf" ENTITIES="parameter">
+External subset has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="002.xml" ID="rmt-002" TYPE="not-wf" ENTITIES="parameter">
+External PE has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="003.xml" ID="rmt-003" TYPE="not-wf" ENTITIES="general">
+External general entity has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="004.xml" ID="rmt-004" TYPE="not-wf" ENTITIES="general">
+External general entity has later versDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="005.xml" ID="rmt-005" TYPE="not-wf" ENTITIES="general">
+Indirect external general entity has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="006.xml" ID="rmt-006" OUTPUT="out/006.xml" TYPE="valid" ENTITIES="general">
+Second-level external general entity has later version number than
+first-level, but not later than document, so not an error.
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="007.xml" ID="rmt-007" OUTPUT="out/007.xml" TYPE="valid">
+A vanilla XML 1.1 document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="008.xml" ID="rmt-008" TYPE="error">
+an implausibly-versioned document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="009.xml" ID="rmt-009" TYPE="error" ENTITIES="general">
+External general entity has implausible version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="010.xml" ID="rmt-010" OUTPUT="out/010.xml" TYPE="valid">
+Contains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="011.xml" ID="rmt-011" TYPE="not-wf">
+Contains a C1 control, leg="rmt-052" OUTPUT="out/052.xml" TYPE="invalid">
+Has element content whitespace containing a NEL character that comes from
+a character reference in an internal entity.  Because NEL is not in the
+S production (even though real NELs are converted to LF on input),
+this is invalid in both XML 1.0 and 1.1.
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="053.xml" ID="rmt-053" OUTPUT="out/053.xml" TYPE="invalid">
+Has element content whitespace containing a NEL character that comes from
+a character reference in an internafncotity.  Because NEL is not in the
+S production (even though real NELs are converted to LF on input),
+this is invalid in both XML 1.0 and 1.1.
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.3.2" URI="054.xml" ID="rmt-054" OUTPUT="out/054.xml" TYPE="valid">
+Contains a character reference to a C0 control character (form-feed)
+in an entity value.  This will be legal (in XML 1.1) when the entity
+declaration is parsed, but what about when it is used?  According to
+the grammar in the CR spec, it should be illegal (because the
+replacement text must match "content"), but this is probably not
+intended.  This will be fixed in the PR version.
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="055.xml" ID="rmt-055" TYPE="error">
+Has a Latin-1 NEL in the XML declaration (to be made an error in PR)
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="056.xml" ID="rmt-056" TYPE="error">
+Has a UTF-8 NEL in the XML declaration (to be made an error in PR)
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="057.xml" ID="rmt-057" TYPE="error">
+Has a UTF-8 LSEP in the XML declaration (to be made an error in PR)
+</TEST>
+
+</TESTCASES>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE animal [
+   <!ELEMENT animal ANY>
+   <!ENTITY % petaamrerE "A muement|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above lineent|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content;
+    Charater reference: &#x82;
+    CDSect in conte
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markups<head>HEAD</head><body>nothing</body></html> ]]>
+   </c>
+</b>
+</root>
+<!--* test P43 *-- 
+   <c>
+<?PIcontosic file -->">
+<!-- Parameter reference appears inside a comment in DTD -->
+   <!-- This is %parameterE;
+]>
+<animal>Any content</animal>

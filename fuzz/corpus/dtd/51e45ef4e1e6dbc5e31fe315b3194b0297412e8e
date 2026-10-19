@@ -1,0 +1,5 @@
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+ sc>A sample polyline, and equivalent path
+  </des"/>
+  <path d="M20,20 L50,100 L200,80 L70,300"/>
+</svg>

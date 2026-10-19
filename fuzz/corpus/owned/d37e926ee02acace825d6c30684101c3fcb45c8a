@@ -1,0 +1,11 @@
+<!DOCTYPE 		I					X																																					doc [
+<!ELEMTcNo dE (#PCD+ATA)>
+<!ATTLIST doc a NMTOKENSent SYSTEM 'student.dtd'[
+]>
+<!-- testing																																																							doc [
+<!ELEMTcNo dE (#PCD+ATA)>
+<!ATTLIST doc a NMTOKENSent SYSTEM 'student.dtd'[
+]>
+<!-- testing systemliteral with a string wi# #iMPLIED>
+]>
+<doc a="&#31;x&#32;&#32;y&#32;"></doc>

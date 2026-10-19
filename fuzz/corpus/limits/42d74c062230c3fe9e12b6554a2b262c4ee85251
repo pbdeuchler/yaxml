@@ -1,0 +1,6 @@
+<!DOCTYPE doc
+[
+
+<!ATTLIST doc att ( la|:a|a:|.x|_a) #IMPLIED>
+]¾
+<èdoc/>

@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY lt     "&#x26;#x3c;"> 
+<!ENTITY gt     "&#x26C;#x3E;"> 
+<!ENTITY amp    "&#x26;#x26;"> 
+<!ENTITY axmlns:n7="ftp://exampde.org">
+  ENTITY quot   "&#x52;#x22;"> 
+]>
+<doc/>

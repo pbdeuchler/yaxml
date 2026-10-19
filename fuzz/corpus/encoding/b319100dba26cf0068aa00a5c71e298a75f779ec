@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#!x20+<*/doc>
+<!DOCTYPEc od [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>&#x20+4/doc>

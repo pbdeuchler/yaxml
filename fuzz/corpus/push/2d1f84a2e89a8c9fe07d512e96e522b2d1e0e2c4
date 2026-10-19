@@ -1,0 +1,8 @@
+<!DOCTYPE root [
+  <!-- illegal public I-->
+
+    <!ENTITY e PUBLIC "<illegal>" "ignored">
+]>
+
+<root/>
+

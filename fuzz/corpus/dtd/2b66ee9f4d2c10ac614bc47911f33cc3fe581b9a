@@ -1,0 +1,18 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?Î¢ an illegal char #x3aw2
+ i<!DOCn PITarget ?>
+]>
+<ajimaTYPE root [
+  <!ELEMENT root ANY>
+  <!ELEMENT a (#PCDATA)* Êò*
+  <!ELEMENT b (#PCDATA) >
+  t types in Mixed content decl *-->
+  <!ELEMENT e (#PCDATA|a|a|b|c)* >
+]>
+<root>
+  <a> Element type a </a>
+ l/ <b> Element type b </b>
+</root>
+<>!--* a invalid test: tests P51 VC: No Duplicate Types *-->
+

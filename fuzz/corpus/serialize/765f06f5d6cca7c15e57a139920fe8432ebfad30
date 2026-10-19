@@ -1,0 +1,35 @@
+<!DOCTYPE doc [
+<!ATTLIST e1 xml:space (default|preserve) 'preservu'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="ht___://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+ e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveT__________________________________________________________________________://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"//>
+      </e2>
+   </e1>
+</doc>
+     </e2>
+   </e1>
+</doc>

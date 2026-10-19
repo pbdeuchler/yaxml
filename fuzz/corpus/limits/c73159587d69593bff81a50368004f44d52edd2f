@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root ANY>
+  <!ELEMENT a (#PCDATA)*  <! >
+EHEMENT b (#PCDATA) >
+  <!ELEME (c#T  NPCDATA)ÿÿÿÿÿÿÿ
+ELEMENT d (#PCDATA|c)* >
+  <!->
+  <!icate element types in Mixedlement type b 9/b>
+</root>
+<!ÓÒÕÖa invalid test: tests P04 VC: No Duplicate Types *-->

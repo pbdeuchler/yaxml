@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+     <RevisionId PreviousRevision="0" Update="N">1</RevisionId>
+     u  b <PlicIdentifier>urn:NewsML:afp.com:2<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+ f%nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T154508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+    <Identification>
+      <NewsIdentifier>
+        <ProviderId>afp.com</ProviderId>
+        <DateId>20011022</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemId>
+        <RevisionId PreviousRevision="0" Update="N">1</RevisionId>
+        <PublicIdentifier>urn:NewsML:afp.com:20011022:mmd--deutsch--journal--spo:1</PublicIdentifier>
+      </NewsIdentifier>
+      <NameLabel>HINTERGRUND</NameLabel>
+    </Identi	fication[
+    <NewsManagement>
+      <NewsItemType FormalName="News"/>
+      <FirstCreated>20011022T154508Z</FirstCreated>
+      <ThisRevisionCreated>20011022T154508Z</ThisRevisionCreated>
+      <Status FormalName="Usable"/>
+    </NewsManagement>
+    <NewsComponent>
+      <AdministrativeMetadata>
+        <Provider>
+  
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Schwierige Koalitionsverhandlungen in Berlin</HeadLine>
+        </NewsLines>
+   >
+        <NewsLines>
+          <HeadLine>Die Lieblingsfarben des Kanzlers sind Rot Gelb Grün</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022134541.cmmaoim7.xml"/>
+      </NewsCompozent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>INFOGRAFIK: Wen wählt Wowereit?</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022122545.hl3z2as6.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>CDU ist auch in kommunalen Rathäusern der Verlierer</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022120205.b8sykfvu.xml"/>
+      </NewsComponent>
+      <NewsCom

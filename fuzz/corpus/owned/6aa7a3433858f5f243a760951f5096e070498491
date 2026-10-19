@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Original version copyright 1997 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl"?>
+<!DOCTYPE TES	SYSTEM "ibm/ibm_oasis_valid.xml">
+    <!ENTITY ibm-xml1.1-invalid SYSTEM "ibm/xml-1.1/ibm_invalid.xml">
+    <!ENTITY ibm-xml1.1-not-wf  SYSTEM "ibm/xml-1.1/ibm_not-wf.xml">
+    <!ENTITY ibm-xml1.1-valid  ASES PROFILE="James Clark  XML 1.0 Tests" xml:base="xmltest/">
+    &jclark-xmltest;
+</TESTCASES>
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests XML 1.0 Tests" xml:base="japanese/">    
+    &xerox-japanese;
+</TESTCASES>
+
+<TESTCASES PROFILE="Sun Microsystems XML Tests" xml:base="sun/">
+    &sun-valid;
+    &sun-invalid;
+    &sun-not-wf;
+    &sun-error;
+</TESTCASES>
+
+<TESTCASES PROFILE="OASIS/NIST XML 1.0 Tests" xml:namsepaces/1.1/">
+    &eduni-ns11;
+</TESTCASES>
+<TESTCASES xml:base="eduni/errata-3e/">
+    &eduni-errata3e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/errata-4e/">
+    &eduni-errata4e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/errata-1e/">
+    &eduni-nse;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

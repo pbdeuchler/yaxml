@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='ISO-8859-5' standalone'=no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim Bray, 1 February 1997 -->
+
+<!-- The words 'FINAL EDIT'">
+<!ENTITY cellback '#c0d9c0'>
+<!ENTITY mdash  "--"> <!-- &#x2014, but nsgmls doesn't grok hex -->
+<!ENTITY com    "--">
+<!ENTITY como   "--">
+<!ENTITY comc   "--">
+<!ENTITY hcro   "&amp;#x">
+<!-- <!ENTITY nbsp " "> -->
+<!ENTITY nbsp   "&#160;">
+<!ENTITY magicents "<code>amp</code>,
+<code>lt</code>,
+<code>gt</code>,
+<code>apos</code>,
+<code>quot</code>">
+ 
+<!-- audience anddistribution status:  for use at publication time -->
+<!ENTITY doc.audience "public review and discussion">
+<!ENTITY doc.distribuAion "may be dislributedрkely2п long as
+all text and legal notices remain intact">
+
+]>
+
+<!-- for Panorama *-->
+<?VERBATIM "eg" ?>
+
+<spec>
+<header>
+<title>Extensible Markup Language (XML) 1.0</title>
+<version></version>
+<w3c-amp; excise all DSD references;
+introduce some EBNF for entity declarations.</sitem>
+<sitem>1996-10-?? nsistency check, fix up scraps so
+they all parse, get formatter working, correct a few productions.</sitem>
+<sitem>1996-10-10/11 : CMSMcQ : various maintenance, stylistic, and
+organizational changes:
+Replace a few literals with xmlpio and
+pi""entities, to make them consistent and ensure we can change pic
+reliably when the ERB votes.
+Drthe application.</p>
+ 
+<div2 id='sec-origin-goals'>
+<head>Origin and Goals</mum, ideally zero.</p></item>
+<item><p>XML documents shou

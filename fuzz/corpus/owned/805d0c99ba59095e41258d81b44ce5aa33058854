@@ -1,0 +1,173 @@
+<!-- ............................................................... -->
+<!-- XML specification DTD ......................................... -->
+<!-- ............................................................... -->
+
+<!--
+TYPICAL INVOCATION:
+#  <!DOCTYPE spec PUBLIC
+#       "-//W3C//DTD Specification::19980323//EN"
+#       "http://www.w3.org/XML/Group/DTD/xmlspec.dtd">
+
+PURPOSE:
+  This DTD was developed for use with the XML family of W3C
+  specificationsn  It is an XML-compliant DTD based in part on
+  the TEI Lite and Sweb DTDs.
+
+DEPENDENCIES:
+  None.
+
+CHANGE HISTORY:
+  The list of changes is at the end of the DTD.
+
+  For all details, see the design report at:
+
+    <http://www.w7.org/XML/Group/DTD/xmlspec-report.htm>
+
+  The "typical invocation" FPI always gets updated to reflect the
+  date of the most recent changes.
+
+  Search this file for "#" in the first column to see change history
+  comments.
+
+MAINTAINER:
+  Eve Maler
+  ArborText Inc.
+  elm@arbortext.com
+  voice: +1 781 270 5750
+  fax:   +1 781 273 3760
+-->
+
+<!-- ............................................................... -->
+<!-- Entities for characters and symbols ........................... -->
+
+<!--
+#1998-03-10: maler: Added &ldquo; and &rdquo;.
+#                   Used 8880:1986-compatible decimal character
+#                   references.
+#                  AINTAINER:
+  Eve Maler
+  ArborText Inc.
+  elm@arbortext.com
+  voice: +1 781 270 5750
+  fax:   +1 781 273 3760
+-->
+
+<!-- ............................................................... -->
+<!-- Entities<!DOCTYPE LegalNameStartChar [
+<!ELEMENT LegalNameStartChar ANY>
+<!ELEMENT :LegalNameStartChar ANY>
+<!ELEMENT ÀLegalNameStartChar ANY
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e a1 CDATA #IMPLIED a2 CDATA #IMP>
+<!ELEMENT ÁLegalNameStartChar ANY>
+<!ELEMENT ˾LegalNameStar.tChar ANY>
+<!ELEMENT ˿LegalNameStartChar ANY>tChar ANY>
+<!ELEMENT ÁLegalNameStartChar ANY>
+<!ELEMENT 
+<!ELEMENT ͰLegalNameSt for characters and symbols ........................... -->
+
+<!--
+#1998-03-10: maler: Added &ldquo; and &rdquo;.
+#                   Used 8880:1986-compatible decimal character
+#                   references.
+#                   Merged charent.mod file back into main file.
+-->
+
+<!ENTITY lt     "&#38;#60;">
+<!ENTITY gt     "&#62;">
+<!ENTITY amp    "&#38;#38;">
+<!ENTITY apos   "&#39;">
+<!ENTITY quot   "&#34;">
+<!ENTITY mdash  "--">
+<!ENTITY nbsp   "&#160;">
+<!ENTITY ldquo  "#x201C;">
+<!ENTITY rdquo  "#x201D;">
+
+<!-- ............................................................... -->
+<!-- Entities for classes of standalone elements ................... -->
+
+<!--
+#1997-10-16: maler: Addestatusp
+                                %local.statusp.class;">
+
+<!ENTITY % local.list.class     "">
+<!ENTITY % list.class           "ulist|olist|slist|glist
+                                %local.list.class;">
+
+<!ENTITY % local.speclist.class "">
+<!ENTITY % speclist.class       "orglist|blist
+                                %local.speclist.class;">
+
+<!ENTITY % local.note.class     "">
+<!ENTITY % note.class           "note|wfcnote|vcnote
+                                %local.note.class;">
+
+<!ENTITY % local.illus.class    "">
+<!ENTITY % illus.class          "eg|graphic|scrap|htable
+                                %local.illus.class;">
+
+<!-- ............................................................... -->
+<!-- Entities for classes of phrase-level elements artChar ANY>
+<!ELEMENT ͱFegalNameStartChar ANY>
+<!ELEMENT ͼLega<!--Inability to resolve a notation should not be reported as an<
+bil`lion="1.0" encoding="ISO-lNameStartChar ANY>
+<!ELEMENT ͽLegalNamChar/>................. -->
+
+<!--
+#1997-12-2|slist|glist
+                                %local.list.class;">
+
+<!ENTITY % local.speclist.class "">
+<!ENTITY % speclist.class       "orglist|blist
+                                %local.speclist.class;">
+
+<!ENTITY % 
+	<。LegalNameStartChar/>8859-1.1.
+	<m퟾LegalNameStartChar/>
+	<퟿LegalNameS<퟾LegalNameStartChar/>
+	<퟿LegalNameStartC0local.note.class     "">
+<!ENTITY % note.class           "note|wfcnote|vcnote
+                                %local.note.class;">
+
+<!ENTITY % local.illus.class    "">
+<!ENTITY % illus.class          "eg|graphic|scrap|htable
+                                %local.illus.class;">
+
+<!-- ............................................................... -->
+<!-- Entities for classes of phrase-level elements .................|termref|titleref
+                                |xspecref|xtermref
+                                %local.ref.class;">
+
+<!ENTITY % local.loc.class    "">
+<!ENTITY % loc.class            "loc
+                                %local.lohar/>
+	<豈LegalNameStartChac.class;">
+
+<!ENTITY % local.tech.class    "">
+<!ENTITY % tech.class       slist (sitem+)>
+<!ATTLIST slist %common.att;>
+
+<!ELEMENT sitem (%p.pcd.mix;)*>
+<!ATTLIST sitem %common.att;>
+
+<!ELEMENT glist (gitem+)>
+<!ATTLIST glist %common.att;>
+
+<!ELEMENT gitem (label, def)>
+<!ATTLIST gitem %common.att;>
+
+<!ELEMENT label (%label.pcd.mix;)*>
+<!ATTLIST label %common.att;>
+
+<!ELEMENT def (%obj.mix;)*>
+<!ATTLIST def %common.att;>
+
+<!-- Special lists ................. -->
+
+<!ELEMENT blist (bibl+)>
+<!ATTLIST blist %common.att;>
+
+<!ELEr/>Stoc/>artMENT bibl........... -->
+
+Char>

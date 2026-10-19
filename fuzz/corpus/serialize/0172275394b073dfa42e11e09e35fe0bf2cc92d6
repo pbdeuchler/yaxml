@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<?Pi?><!--comment-->
+<!ELEMENT dorg/standards/dav/" xmlns:R="http://www.foo.bar/boxschema/">
+  <D>
+<?Pi?><!--comment-->
+<!ENTITY % ent "">
+<?Pi?><!--comment-->
+<!NOTATION not PUBLIC "some notation">
+<?Pi?><!--comment-->
+]>
+<doc/>

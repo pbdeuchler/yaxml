@@ -1,0 +1,19 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˾attr CDATA #IMPLIED>
+<!ATTLIST LegalName Âattr CDATA #IMPLIED>
+<!ATTLIST LgalName attr̀·0z CDATA #IMPLIED>
+<!ATTLIST LegalName attŕ̀·0 CDATA #IMPLIED>
+<!ATTLIST LegalName attrͮ́̀· CDATA #IMPLIED>
+<!ATTLIST LegalName attrͯͮ́̀ CDATA #IMPLIED>
+<!ATTLIST Lega 	attrͯͮ́̀="attrValue"
+ 	attr‿ͯͮ́="attrValue"
+ 	attr⁀‿<!ELEMENT child1 (a|b|c)>
+  <!ELEMENT child1 (a|b|c)>
+  <!ELEMENT child2 (a ,b,b?,a*,c,c,a,a,b+,c ) >
+  <!ELEMENT child3 (a+|b)e ANY>
+  <!ELEMENT f ANY>
+  <!--* test all possibll⁀‿attr="attrValue"ANY

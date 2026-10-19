@@ -1,0 +1,11 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENSoc>xobar
+
+'/>
+  <norm attr= bar
+'/>
+  <normId at/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#26;&#xa;&'9; '/> <!-- PBM serializing back -->
+</doc>

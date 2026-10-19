@@ -1,0 +1,18 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!ELEMENT a (doc)>
+<!ELEMENT b ((doc|a?))>
+<!ELEMENT c (TA)>
+<!ENTITY e PUBLIC "a not very interesting file" "011.ent">
+]>
+<doc>&e;</doc>
+(a,b))>
+<!ELEMENT d (doc*)>
+<!ELEMENT e (°oc+)>
+<!ELEMENT f (doc?)>
+<!ELEMENT g ((a,b)*)>
+<!ELEMENT h ((a,b)?)>
+<!ELEMENT i ((a,b)+)>
+]>
+<doc/>

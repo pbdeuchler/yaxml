@@ -1,0 +1,52 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -#IMPLIED>]>
+<doc>
+  <!-- ->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '->
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo ba/>
+  <norm aMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -#IMPLySchemeID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeID" schemeAgencySchemeAgencyID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeAgencyID" schemeDataURI="pvalue->ReferencedOrder.SellersOrderID.schemeDataURI" schemeURI="pvalue->ReferencedOm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/>
+  <norm aMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -#IMPLySchemeID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeID" schemeAgencySchemeAgencyID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeAgencyID" schemeDataURI="pvalue->ReferencedOrder.SellersOrderID.schemeDataURI" schemeURI="pvalue->ReferencedOrder.2xa;&#9; '/> <!-- PB/M serilization -#IMPLIED>]>
+<doc>
+  <!-- ->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar  - no normalization -#IMPLIEt;foo ba '->
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/>
+  <norm aMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -#IMPLySchemeID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeID" schemeAgencySchemrm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/>
+  <norm aMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -#IMPLySchemeID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeID" schemeAgencySchemeAgencyID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeAgencyID" schemeDataURI="pvalue->ReferencedOrder.SellersOrderID.schemeDataURI" schemeURI="pvalue->ReferencedOrder.1xa;&#9; '/> <!-- PBM serializing back alizing back -->
+</doc>

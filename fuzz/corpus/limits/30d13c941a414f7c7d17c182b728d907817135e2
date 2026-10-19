@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#x98;'#xA;">
+]>
+<////ITY newline "&#x98;'#xA;">
+]>
+<tes#xA;">///0///////ew

@@ -1,0 +1,194 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//Wvg width="4in" height="3in">ECTIONS="E19" URI="E19.xml" ID="rmt-e2e-19" ENTITIES="parameter" OUTPUT="out/E19.xml" TYPE="valid">
+Parameter entities and character references are included-in-literal, but
+general entities are bypassed.
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E20" URI="E20.xml" ID="rmt-e2e-20" TYPE="invalid">
+Tokens, after normalization, must be separated by space, not other
+whitespace characters
+</TEST>
+
+<!-- E21 defines "internal subset" to not include the square brackets,
+     but I don't see any way to test this in a document -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E22" URI="E22.xml" ID="rmt-e2e-22" TYPE="valid">
+UTF-8 entities may start with a BOM
+</TEST>
+
+<!-- E23 cannot be tested in a standalone test suite -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E24" URI="E24.xml" ID="rmt-e2e-24" TYPE="valid">
+Either the built-in entity or a character reference can be used to
+represent greater-than after two close-square-brackets
+</TEST>
+
+<!-- E25 and E26 cannot be tested in a standalone test suite -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E27" URI="E27.xml" ID="rmt-e2e-27" TYPE="not-wf">
+Contains an irregular UTF-8 sequence (i.e. a surrogate pair)
+</TEST>
+
+<!-- E28 is a change to the references -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E29" URI="E29.xml" ID="rmt-e2e-29" TYPE="valid">
+Three-letter language codes are allowed
+</TEST>
+
+<!-- E30-E33 are editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E34" URI="E34.xml" ID="rmt-e2e-34" TYPE="error">
+A non-deterministic content model is an error even if the element type
+is not used.
+</TEST>
+
+<!-- E35 is editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E36" URI="E36.xml" ID="rmt-e2e-36" ENTITIES="parameter" TYPE="valid">
+An external ATTLIST declaration does not make a document non-standalone
+if the normalization would have been the same without the declaration
+</TEST>
+
+<!-- E37 is a clarification that doesn't affect parsing -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E38" URI="E38.xml" ID="rmt-e2e-38" ENTITIES="general" TYPE="not-wf">
+XML 1.0 document refers to 1.1 entity
+</TEST>
+
+<!-- E39 does not affect parsing -->
+
+<!-- E40 is editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E41" URI="E41.xml" ID="rmt-e2e-41" TYPE="valid">
+An xml:lang attribute may be empty
+</TEST>
+
+<!-- E42 cannot be tested without an application -->
+
+<!-- E43 is just a consolidation of other errata -->
+
+<!-- E44 is editorial -->
+
+<!-- E45 can only reasonably be tested by putting the parser into a mode
+     where it doesn't read external entities, and we can't force that -->
+
+<!-- E46 is editorial -->
+
+<!-- E47 has the same problem as E45 -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E48" URI="E48.xml" ID="rmt-e2e-48" TYPE="valid">
+ANY content allows character data
+</TEST>
+
+<!-- E49 is editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E50" URI="E50.xml" ID="rmt-e2e-50" VERSION="1.1" TYPE="valid">
+All line-ends are normalized, even those not passed to the application.
+NB thn Cowan) An encoding declaration in ASCII specifying an encoding
+that is not compatible with ASCII (so the document is not in its declared
+encoding).  It should generate a fatal error.
+</TES
+  <desc>Two groups, each of two rectangles
+  </desc>
+  <g style="fillc for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - valid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 1">
+  <TEST URI="valid/P01/ibm01v01.xml" TYPE="valid" ID="ibm-valid-P01-ibm01v01.xml" ENTITIES="none" SECTIONS="2.1" OUTPUT="valid/P01/out/ibm01v01.xml">
+    Tests with a xml document consisting of <EM>prolog</EM> followed by 
+    <EM>element</EM> then <EM>Misc</EM> 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 2">
+  <TEST URI="valid/P02/ibm02v01.xml" TYPE="valid" ID="ibm-valid-P02-ibm02v01.xml" ENTITIES="none" SECTIONS="2.2">
+     This test case covers legal character-ranges plus discrete legal characters for production 02.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 3">
+  <TEST URI="valid/P03/ibm03vml.x10" TYPE="valid" ID="ibm-valid-P03-ibm03v01.xml" ENTITIES="none" SECTIONS="2.3">
+    Tests all 4 legal white space characters - #x20 #x9 #xD #xA
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 9">
+  <TEST URI="valid/P09/ibm09v01.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v01.xml">
+    Empty EntityValue is legal
+  </TEST>
+  <TEST URI="valid/P09/ibm09v02.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v02.xml">
+    Tests a normal EnitityValue
+  </TEST>
+  <TEST URI="valid/P09/ibm09v03.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v03.xml">
+    Tests EnitityValue referencing a Parameter Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v04.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v04.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/<!DOCTYPE svg PUBLIC "-//Wvg width="4in" height="3in">
+  <desc>Two groups, each of two rectangles
+  </desc>
+  <g style="fillc for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - valid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 1">
+  <TEST URI="valid/P01/ibm01v01.xml" TYPE="valid" ID="ibm-valid-P01-ibm01v01.xml" ENTITIES="none" SECTIONS="2.1" OUTPUT="valid/P01/out/ibm01v01.xml">
+    Tests with a xml document consisting of <EM>prolog</EM> followed by 
+    <EM>element</EM> then <EM>Misc</EM> 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 2">
+  <TEST URI="valid/P02/ibm02v01.xml" TYPE="valid" ID="ibm-valid-P02-ibm02v01.xml" ENTITIES="none" SECTIONS="2.2">
+     This test case covers legal character ranges plus discrete legal characters for production 02.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 3">
+  <TEST URI="valid/P03/ibm03v01.xml" TYPE="valid" ID="ibm-valid-P03-ibm03v01.xml" ENTITIES="none" SECTIONS="2.3">
+    Tests all 4 legal white space characters - #x20 #x9 #xD #xA
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 9">
+  <TEST URI="valid/P09/ibm09v01.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v01.xml">
+    Empty EntityValue is legal
+  </TEST>
+  <TEST URI="valid/P09/ibm09v02.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v02.xml">
+    Tests a normal EnitityValue
+  </TEST>
+  <TEST URI="valid/P09/ibm09v03.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v03.xml">
+    Tests EnitityValue referencing a Parameter Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v04.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v04.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v04.xml">
+    Tests EnitityValue referencing a General Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v05.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v05.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v05.xml">
+    Tests EnitityValue with combination of GE, PE and text, the GE used is 
+    declared in the student.dtd
+  </TEST>
+formance Test Suite - Production 11">
+  <TEST URI="valid/P11/ibm11v01.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v01.xml">
+    Tests empty systemliteral using the double quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v02.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v02.xml">
+    Tests empty systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v03.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v03.xml">
+    Tests regular systemliteral using the single quotes
+</TEST>
+  <TEST URI="valid/P11/ibm11v04.xml" TYPE="valid" ID="ibm-valid-P11-ibm11v04.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P11/out/ibm11v04.xml">
+    Tests regular systemliteral using the double quotes
+</TEST>
+<olor:red">
+    <rect x="100" y="100" width="100" height="100" />
+    <rect x="300" y="100"(width="100" height="100" />
+  </g>
+  <g style="fillcolor:blue">
+    <rect x="100" y="300" width="100" height="100" />
+    <ret>&#10;<nametoken thwhdit"100" height="100" />
+  </g>
+</svg>

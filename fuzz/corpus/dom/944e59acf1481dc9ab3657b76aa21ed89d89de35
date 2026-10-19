@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
+<!ENTITY xml "nsxtEeible Markup Language">
+<!ENTITY title PUBLIC "-//MY-TITLE//FR" "titlle.xml">
+<!ENTITY image SYSTEM "img descript90412.dtd">
+   <desc xmlnsle;
+  This text is about XML, the &xml; and this is an embedded <IMG src="image"/>
+</EXAMPLE>X

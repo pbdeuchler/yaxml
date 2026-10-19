@@ -1,0 +1,8 @@
+<?xm. vepsio>
+<!DOCTYPE stu- BadName n="1.sioUTF-8"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDATA "eng">
+  <!ATTLIST foo bar CDATA "&lt;&gt;&>
+<!DOTYEPC dco
+[
+student>

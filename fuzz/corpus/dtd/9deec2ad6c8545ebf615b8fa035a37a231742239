@@ -1,0 +1,10 @@
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!--
+	NMTOKEN needs normalization
+    -->
+]>
+
+<attributes
+    token =	"b"
+    nmtoken =	" this-gets-normalized "
+   />

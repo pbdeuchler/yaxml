@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<x xmlÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿx>
+<A a="a~E à¹€à¸ˆà¸¡à¸ªà¹Œ <D!ELEMENTndartext document -->
+   <xincl1.0" encoding="ISO-8859-1"?H
+<x xmlns:xinclude="http:encoding="ISO-8859-1"?>
+<x xmlns:xinclude="http://www.w3.org/2001/XInclude">
+   <!-- Simple test of including another text document -->
+   <xinclude:include href="../en°s/isolext"/>
+</x>
+ude:include href="../ents/isolatiÿÿÿÿÿÿÿ+n.txt" encoding="ISO-8860-1" parse5"text"/>
+</x>

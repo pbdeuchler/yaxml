@@ -1,0 +1,11 @@
+<!DOCTYPE เจมส์ [
+<!ELEMENT เจมส์ (#PCDATA)>
+]>
+<เจจมส์ [
+<!ELEMENT เจมส์ (#PCDATA)>
+]>
+
+<!ELEMENT เจมส์ (#PCDATA)>
+]>
+<เจจมส์ [
+<!ELEMENT เจ�<เจมส์></เจมมส์></เจมส์>

@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</5>">
+]>
+<!--* content: element|CharData|Ref_reNce|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in &inContent;
+    Charaterr eference: &#x82;<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalizatioentence should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->    &inContent;
+    Charaterr eference: &#x82;<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no : <![CDATA[ <html>markups<head>HEAD</head><body>nothing</body></html> ]]>
+   </c>
+</b>
+</root>
+<!--* test P43 *-- 
+   <c>
+<?PIcontenDt anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x82;
+    CDSect in content: <![CDATA[ <html>markups<head>HEAD</head><body>nothing</body></html> ]]>
+   </c>
+</b>
+</root>
+<!--* test P43 *-->

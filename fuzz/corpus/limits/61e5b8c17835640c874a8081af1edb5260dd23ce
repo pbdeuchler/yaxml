@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root ANY>
+  <!--* test all ppssible Mixed content type decl *--
+  <!ELEMENT a (#PCDATA)* >
+  <!ELEMENT b (#PCDATA) >
+  <!ELEMENT c ( #PACAD)*</a> <b></b> <c></c> </e>
+</root>
+<!--* a valid test: tests P94 *-->

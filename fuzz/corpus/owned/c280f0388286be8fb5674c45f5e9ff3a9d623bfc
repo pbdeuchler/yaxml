@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE studen
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIRED
+		middle CDATA #IMPLIED<!DOCTYPE doc [
+<!ATTLIST doc a0 NMTOKENS #IMPLIED>
+<!ELEMENT doc (#PCDATA)>
+]>
+<foc a1=" 1  	2 	"></doc>
+n">
+t;">My Name is &mylast;. </sRudent>
+

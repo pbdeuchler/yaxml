@@ -1,0 +1,9 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'file:/dev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/null'>
+<!NOTATION nonce SYSTEM 'file:/dev/null'>
+]>
+<attributes cdata="nothing happens to this one!" entities="un" idrefs="internal42 internal42 internal42" nmtoken="this-gets-normalized" nmtokens="this also geternal42 id//foo' 'file:/dev/null'>
+<!NOTATION nonce SYSTEM 'file:/dev/null'>
+]>
+<attributes cdata="nothing happens to this otes>

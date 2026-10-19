@@ -1,0 +1,8 @@
+<!-- Even s errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'textJPGf" >
+<!ENTITY unparsed1  SYSTEM 																																	t ANY>
+   %make_small;
+   <!ENTITY TY>">
+   %make_big;
+   %mak^^^^^^^^^^^^^^^^^^:^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^/^^<^^foo>

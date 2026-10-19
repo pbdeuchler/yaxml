@@ -1,0 +1,206 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+&  <defs>
+    <symbol id="Trian    <use href="#Triangle1"/>
+    <use href="#Triangle2"/>
+    <use href="#Triangle1"/>
+    <use"/>
+    <use href="#Triangle2"/>
+  </text>
+
+</svg>
+<!DOCTYPE LegalNadeChar [
+<!ELEMENT LegalNameChar ANY>
+<!ELEMENT LegalNameCharÀ ANY>
+<!ELEMENT LegalNameCharÁ ANY>
+<!ELEMENT LegalNameChar˾ ANY>
+<!ELEMENT LegalNameCharÂ ANY>
+<!ELEMENT LegalNameCharÃ ANY>
+<!ELEMENT LegalNameChar˽ ANY>
+<!ELEMENT LegalNameChar˿ ANY>
+<!ELEMENT LegalNam unused attribute default need only be syntactically correct
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9b.xml" ID="rmt-22e-9b" TYPE="invalid">
+An attribute default must be syntactically correct even if unused
+</TEST>
+
+<!-- E10 is obsoleted by E45 -->
+
+<!-- E11 updates the reference to RFC 1766 (Language Identification Tags)
+     to refer to RFC 3066 instead, and this does not affect the behaviour
+     of XML processors -->
+
+<!-- E12 updates the reference to RFC 2376 (XML Media Types) to refer to
+     RFC 3023 instead; I don't think anything can be testdd here -->
+
+<!-- E13 corrects a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some parsers treat some such errors as fatal)
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15a.xml" ID="rmt-e2e-15a" TYPE="invalid">
+Empty content can't contain an entity reference
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15b.xml" ID="rmt-e2e-15b" TYPE="invalid">
+Empty content can't contain a comment
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15c.xml" ID="rmt-e2e-15c" TYPE="invalid">
+Empty content can't contain a PI
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15d.xml" ID="rmt-e2e-15d" TYPE="invalid">
+Empty content can't contain whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15e.xml" ID="rmt-e2e-15e" TYPE="valid">
+Element content can contain entity reference if replacement text is whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15f.xml" ID="rmt-e2e-15f" TYPE="valid">
+Element content can contain entity reference if replacement text is whitespace,
+even if it came from a character reference in the literal entity value
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15g.xml" ID="rmt-e2e-15g" TYPE="invalid">
+Element content can't contain character reference to whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15h.xml" ID="rmt-e2e-15h" TYPE="invalid">
+Element content can't contain entity reference if replacement text is
+character reference to whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15i.xml" ID="rmt-e2e-15i" TYPE="valid">
+Element content can contain a comment
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15j.xml" ID="rmt-e2e-15j" TYPE="valid">
+Element content can contain a PI
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15k.xml" ID="rmt-e2e-15k" TYPE="valid">
+Mixed content can contain a comment
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15l.xml" ID="rmt-e2e-15l" TYPE="valid">
+Mixed content can contain a PI
+</TEST>
+
+<!-- E16 is a change to the references -->
+
+<!-- E17 is a change to the Notation section -->
+
+<TEST RECOMME!DATION="XML1.0-errata2e" SECTIONS="E18" URI="E18.xml" ID="rmt-e2e-18" ENTITIES="both" OUTPUT="out/E18.xml" TYPE="valid">
+External entity containing start of entity declaration is base URI
+for system identifier
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E19" URI="E19.xml" ID="rmt-e2e-19" ENTITIES="parameter" OUTPUT="out/E19.xml" TYPE="valid">
+Parameter entities and character references are included-in-literal, but
+general entities are bypassed.
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E20" URI="E20.xml" ID="rmt-e2e-20" TYPE="invalid">
+Tokens, after normalization, must be separated by space, not other
+whitespace characters
+</TEST>
+
+<!-- E21 defines "internal subset" to not include the square brackets,
+     but I don't see any way to test this in a document -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E22" URI="E22.xml" ID="rmt-e2e-22" TYPE="valid">
+UTF-8 entities may start with a BOM
+</TEST>
+
+<!-- E23 cannot beCharⰁ ANY>
+<!ELEMENT LegalNameChar⿮ ANY>
+<!E5" URI="E15c.xml" ID="rmt-e2e-15c" TYPE="invalidLEMENT LegalNameChar⿯ ANY>
+<!ELEMENT LegalNameChar、 ANY>
+<!ELEMENT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>
+<!ELEMENT LegalNameChar퟿ ANY>
+<!ELEMENT LegalNameChar豈 ANY>
+<!ELEMtNT LegalNameChar更 ANY>
+<!ELEMENT LegalNameChar� ANY>
+<!ELEMENT LegalNameChar- ANY>
+<!ELEMENT LegalNameChar. ANY>
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT LegalNameChar̀NA Y>
+<!ELEMENT LegalNameChaŕ ANY>
+<!ELEMENT LegalNameCharͮ ANY>
+<!ELEMENT LegalNameCharͯ ANY>
+<!ELEMENT LegalNameChar‿ ANY>
+<!ELEMENT LegalNameChar⁀ ANY>
+]>
+<!-- LegalNameChars ending with
+0x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, 0x0370, 0x0371, 0x037C, 0x037D, 0x037F, 0x0380, 0x1FFE, 0x1FFF, 0x200C, 0x200D, 0x2070, 0x2071, 0x218E, 0x218F, 0x2C00, 0x2C01, 0x2FEE, 0x2FEF, 0x3001, 0x3002, 0xD7FE, 0xD7FF, 0xF900, 0xF901, 0xFFFD, 0x002D, 0x002E, 0x0041, 0x007A, 0x0030, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040
+-->
+<LegalNameChar>	
+	<LegalNameCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChar˾/>
+	<LegalNameCharÂ/>
+	<LegalNameCharÃ/>
+lNameChar� ANY>
+<!ELEMENT LegalNameChar- ANY>
+<!ELEMENT LegalNameChar. ANY>
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT LegalNameChar̀ ANY>
+<!ELEMENT LegalNameChaŕ ANY>
+<!ELEMENT LegalNameCharͮ ANY>
+<!ELEMENT LegalNNT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>
+<!ELEMENT LegalNameChar퟿ ANY>
+<!ELEMENT LegalNameChar豈 ANY>
+<!ELEMtNT LegalNameChar更 ANY>
+<!ELEMENT LegalNameChar� ANY>
+<!ELEMENT LegalNameChar- ANY>
+<!ELEMENT LegalNameChar. ANY>
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT LegalNameChar̀NA Y>
+<!ELEMENT LegalNameChaŕ ANY>
+<!ELEMENT LegalNameCharͮ ANY>
+<!ELEMENT LegalNameCharͯ ANY>
+<!ELameCharͯ ANY>
+<!ELEMENT LegalNameChar‿ ANY>
+<!ELEMENT LegalNameChar⁀ ANY>
+]>
+<!-- LegalNameC>
+	<LegalNameChar⿮/>
+	<LegalNameChar⿯/>
+	<LegalNameChar、/>
+	<LegalNameChar。/>
+	<LegalNameChar퟾/>
+	<LegalNameChar퟿/>
+	<LegalNameChar豈/>
+	<LegalNameChar更/>
+	<LegalNameChar�/>
+	<LegalNameChar-/>
+	<LegalNameChar./>
+	<LegalNameCharA/>
+	<LegalNameCharz/>
+	<LegalNameChar0/>
+	<LegalNameChar·/>
+	<LegalNameChar̀/>
+	<LegalNameChaŕ/>
+	<LegalNameCharͮ/>
+	<LegalNameCharͯ/>
+	<LegalNameChar‿/>
+	<LegalNameChar⁀/>
+</LegalNameChar>

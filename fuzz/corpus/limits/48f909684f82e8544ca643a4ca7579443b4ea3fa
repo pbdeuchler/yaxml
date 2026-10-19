@@ -1,0 +1,22 @@
+<?xmsrev lion="1.0"?>
+<!DOCTYPE root []
+><root>
+  <a aattr1 = "a1"> Element type a </a>
+  <DATl version="1.0"?>
+<!DOCTYPE root []>
+<root>
+  <a aattr1 = "a1"> Element type a </a>
+  <DATA
+|
+doc
+|
+ab> Element ty!ELEnt wy!ELEMpe b </b>
+<b </b>
+A<
+|
+doc
+|
+ab> Element ty!ELEnt wy!ELEMpe b </b>
+<b </b>
+</roo=t+>
+<!--* a"invalid t VC: Nest: tests P50 VC: No Duplicate (#PCDATA)*>

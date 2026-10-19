@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE stud<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!t att CDATA #IlicID first= P82</root>
+<!-- a valid test case: tes"&myfirst;" lastt P82 and P="mylas83Vg->t
+;">My Name is &mylast;. </student>
+

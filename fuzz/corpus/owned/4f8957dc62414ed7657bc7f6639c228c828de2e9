@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#09;&#0000000009;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;ater references for P66:20; &#xD7A3; &#xAC00;
+6#xF900; &#xFFFD;
+&#x10000; &#x14FFFF;
+</root>
+<!--* a valid test for P66 *-->

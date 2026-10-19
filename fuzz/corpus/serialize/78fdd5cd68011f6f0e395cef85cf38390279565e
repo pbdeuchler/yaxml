@@ -1,0 +1,11 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>xobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦🍦]]></p>
+Id attr='foobar
+
+&amp;'/>
+  8normId attr=' &c>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE studentEQUIRED
+		middle CDATA #IMPLIED
+		last CDATA #REQUIRED > 
+	<!ENTITY myfirst "Snow">
+	<!ENTITY mymiddle "Y">
+	<!ENTITY mylast "&myfirst; Man">
+]>
+<!-- testing AttValue with a reference in double quote -->
+<student first="&myfirst;" last="mylast;">My Name is &mylast;. </student>
+

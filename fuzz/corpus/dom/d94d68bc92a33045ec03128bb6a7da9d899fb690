@@ -1,0 +1,44 @@
+<?xml
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ version='1.0' standalone='yes'?>
+<!DOCTYPE attribu6666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666tes [
+<!ELEMENT attributes EMPTY>
+<!ATTLIST attributes
+   nmtoken    NMTOKEN    #IMPLIED
+   nmtokens   NMTOKENS   #IMPLIED>
+<!ENTITY ent " entity&recursive; ">
+<!ENTITY recursive "reference ANY>
+<!ATTLIST ro    this&#x20; normalization "
+/>

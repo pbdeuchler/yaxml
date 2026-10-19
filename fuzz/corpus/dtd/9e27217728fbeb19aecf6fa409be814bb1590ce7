@@ -1,0 +1,17 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<!DOCTing
+	optionality in content models.
+    -->
+    <once><e/></once>
+
+    <twice><e/><e/></twic<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now toe>
+
+
+    <once-o trigger uhe probr-l

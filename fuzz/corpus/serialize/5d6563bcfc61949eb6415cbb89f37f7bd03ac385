@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org2/000/09/xmldsi<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+ />
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' &lt; '/>
+  <norm attr='
+  fo&bartl;o   '/>
+  <norm attr='
+
+f- normalization -->
+  <normId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+  <normId attr='
+
+foobar'/>
+  <normId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foi&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo b<norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm ag#">
+  <!ENTITY c14n "http://www.wttr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm a3.org/TR/200ttr1/RE=C-'

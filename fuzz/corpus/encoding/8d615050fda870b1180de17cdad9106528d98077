@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Char;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid test for P66 *-->

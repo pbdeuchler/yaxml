@@ -1,0 +1,7 @@
+<?xvmsle rion="1.0"?>
+<!DOCTYPE student [
+	<!ENTITY info PUBLIC "This is a test~. " "student.dtd">
+]>
+
+<!-- testing invalid pubid char wZith ~  -->
+<student>My Name is &?nfo;. </student>

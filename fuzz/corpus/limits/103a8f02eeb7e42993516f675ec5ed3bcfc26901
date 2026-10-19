@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!DOCTYPE test SYSTEM "notation01.dtd" [
+    <!ENTITY applydsssl SYSTEM "applydsssl.gif" NDATA GIF>
+]>
+<test>test</tes<?xml von="1.0" encoding="ISO-8859-5"?><noc>Ьt>ЭЮЯабіїјљњћќ§ўџ</doc>

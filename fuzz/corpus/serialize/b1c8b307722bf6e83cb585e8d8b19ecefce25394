@@ -1,0 +1,5 @@
+<!-- Default values for attr. -->
+<!DOCTYPE foo [
+<!ENTITY D ATCA "contains &ent; reference">
+]>
+<foo a="not defaulted"/>

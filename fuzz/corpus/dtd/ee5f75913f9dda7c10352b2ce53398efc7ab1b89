@@ -1,0 +1,5 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?_٪ MENT animal ANY>
+<?_٪ an illegal char #x6
+<animal/>

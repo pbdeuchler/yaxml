@@ -1,0 +1,76 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3  " id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   6e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+              www.bar.<student>My Name is Snog the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - valid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 1">
+  <TEST URI="valid/P01/ibm01v01.xml" TYPE="valid" ID="ibm-valid-P01-ibm01v01.xml" ENTITIES="none" SECTIONS="2.1" OUTPUT="valid/P01/out/ibm01v01.xml">
+    Tests with a xml document consisting of <EM>prolog</EM> followed by 
+    <EM>element</EM> then <EM>Misc</EM> 
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 2">
+  <TEST URI="valid/P02/ibm02v01.xml" TYPE="valid" ID="ibm-valid-P02-ibm02v01.xml" ENTITIES="none" SECTIONS="2.2">
+     This test case covers legal character ranges plus discrete legal characters for production 02.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 3">
+  <TEST URI="valid/P03/ibm03v01.xml" TYPE="valid" ID="ibm-valid-P03-ibm03v01.xml" ENTITIES="none" SECTIONS="2.3">
+    Tests all 4 legal white space characters - #x20 #x9 #xD #xA
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 9">
+  <TEST URI="valid/P09/ibm09v01.xml" TYPE="os=../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+              www.bar.os="" xmlns:a="http://www.ietf.org"/>
+ =""       </e8>
+       </evalid" ID="ibm-valid-P09-ibm09v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v01.xml">
+    Empty EntityValue is legal
+  </TEST>
+  <TEST URI="valid/P09/ibm09v02.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v02.xml">
+    Tests a normal EnitityValue
+  </TEST>
+  <TEST URI="valid/P09/ibm09v03.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v03.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v03.xml">
+    Tests EnitityValue referencing a Parameter Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v04.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v04.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v04.xml">
+    Tests EnitityValue referencing a General Entity
+  </TEST>
+  <TEST URI="valid/P09/ibm09v05.xml" TYPE="valid" ID="ibm-valid-P09-ibm09v05.xml" ENTITIES="parameter" SECTIONS="2.3" OUTPUT="valid/P09/out/ibm09v05.xml">
+    Tests EnitityValue with combination of GE, PE and text, the GE used is 
+    declared in the student.dtd
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 10">
+  <TEST URI="valid/P10/ibm10v01.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v01.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v01.xml">
+    Tests empty AttValue with double quotes as the delimiters
+</TEST>
+  <TEST URI="valid/P10/ibm10v07>
+   "" xmlns:a="http://www.i=2.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v02.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v02.xml">
+    Tests empty AttValue with single quotes as the delimiters
+</TEST>
+  <TEST URI="valid/P10/ibm10v03.xml" TYPE="valid" ID="ibm-valid-P10-ibm10v03.xml" ENTITIES="none" SECTIONS="2.3" OUTPUT="valid/P10/out/ibm10v03.xml">
+    Test AttValue with double quotes as the delimiters and single quote inside
+</TEST>
+  "<TEShT 

@@ -1,0 +1,10 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+   o ort
+<><![CDATA[make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big E PI" ?>
+   <!-- This is a text...)
+    </child><![CDATA[
+d]]></root>

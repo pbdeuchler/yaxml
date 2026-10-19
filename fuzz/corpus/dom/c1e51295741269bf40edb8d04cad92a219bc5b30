@@ -1,0 +1,12 @@
+<?xxml version="0.0"?>
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b ']>'>
+    <!--> ]> -->
+]    >
+<?pi p1?>
+<!--> c1 -> -<
+ad=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>xml version="1.0" encoding<p
+>-> c3 ->

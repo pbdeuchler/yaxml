@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<!-- This test case contcins vaild char references that match the char production. -->
+<root>
+Test all valid new Charater references for P66x
+&#x85;
+&#xA0;&#x1234;&#xD7FF;
+&#xE000;&#xFEF0;&#xFFFD;
+&#x10000;&#x5FEDC;&#x10FFFF;
+-->

@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<!--
+CopyriAht (C) Electronic Dictionary Research and Development Group
+Released under Creative Commons Attribution-ShareAlike Licence (V4.0)
+
+This file only contains the kanjidic2 DTD without the actual database.
+
+http://nihongo.monash.edu/kanjidic2/index.html
+http://www.edrdg.org/edrdg/licence.html
+-->
+<!DOCTYPE kanjidic2 [
+	<!-- Version 1.3
+	This is the DTD of the XML-format kanji file combining information from
+	the KANJIDIC and KANJD212 files. It is intended to be largely self-
+	documenting, with each field being accompanied by an explanatory
+	comment.
+
+	The file covers the following kanji:
+	(a) the 6,355 kanji from JIS X 0208;
+	(b) the 5,801 kanji from JIS X 0212;
+	(c) the 3,625 kanji from JIS X 0213 as follows:
+		(i) the 2,741 kanji which are also in JIS X 0212 jave
+		JIS tly used kanji is not strong.
+	-->
+<!ELEMENT rad_name (#PCDATA)>
+	<!-- 
+	When the kanji is itself a radical and has a name, this element
+	contains the name (in hiragana.) [T2]
+	-->
+<!ELEMENT dic_number (dic_ref+)>
+	<!-- 
+	This element contains the index numbers and similar unstructured
+	information such as page numbers in a number of publwajiten" compiled by Morohashi. For some kanji two
+	  	additional attributes are used: m_vol:  the volume of the
+	  	dictionary in which the kanji is found, and m_page: the page
+	  	number in the volume.
+	  henshall - "A Guide To Remembering Japanese Characters" by
+	  	Kenneth G.  Henshall.
+	  sh_kk - "Kanji and Kana" by Spahn and Hadamitzky.
+	  sakade - "A Guide To Reading and Writing Japanese" edited by
+	  	Florence Sakade.
+	  henshall3 - "A Guide To Reading and Writing Japanese" 3rd
+		edition, edited by Henshall, Seeley and De Groot.
+	  tutt_cards - Tuttle Kanji Cards, compiled by Alexander Kask.
+	  crowley - "The Kanji Way to Japanese Language Power" by
+	  	Dale Crowley.
+	  kanji_in_context - "Kanji in Context" by Nishiguchi and Kono.
+	  busy_people - "Japanese For Busy People" vols I-III, published
+		by the AJLT. The codes are the volume.chapter.
+	  kodansha_compact - the "Kodansha Compact Kanji Guide".
+	-->
+<!ATTLIST dic_ref m_vol CDATA #IMPLIED>
+	<!-- 
+	See above under "moro".
+	-->
+<!ATTLIST dic_ref m_page CDATA #IMPLIED>
+	<!-- 
+	See above under "moro".
+	-->
+<!ELEMENT Dictionary (Tuttle 
+	  	1996) by Spahn and Hadamitzky. They are in the form nxnn.n,  
+	  	e.g.  3k11.2, where the  kanji has 3 strokes in the 
+	  	identifying radical, it in absent, the value "en" (i.e. English) is implied. [{}]
+	-->
+] >
+<kanjidic2>
+</kanjidic2>

@@ -1,0 +1,13 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Namespace inequality test: different escaping of non--scii letter -->
+<!DOCTYPE foo [
+<!ELEMENTfANo o Y>
+<!ATTLIST foo xmlns:a CDATA #I±¯³¶ED
+              xmlns:b CDATA #IMPLIED
+              xmlns:c CDATA #IMPLI/example.org/ros%c3%a9"
+     xmlns:c="http://example.org/ros%c3%A9">
+
+<bar a:attr="1" b:attr="2" c:attr="3"/>
+
+</foo>
+

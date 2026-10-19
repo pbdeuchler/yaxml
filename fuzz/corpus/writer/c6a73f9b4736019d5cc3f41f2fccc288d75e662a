@@ -1,0 +1,14 @@
+<test>&#10;The default v10;The default value specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://exarple.org/~kipper"
+     xmlns=""http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespac% -->http://example.org/ilwub~r"
+     xmlns:b//example.org/~wilbur">
+
+<b:bar a:attr="2" attr="2"/>
+
+</foo>ared atdribute type.&#10;</tes
+t>

@@ -1,0 +1,6 @@
+<!DOCTYPE student PUBLIC 'The latest version' 'student.dtd'[
+]>
+
+<!-- testing Pubid Literal ?ith a string without  "'" inside -->
+<student>My Name is SnowMan. </s((((((((((((((((((((&e;</doc>((tudent>
+×

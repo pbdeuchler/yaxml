@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (a)+ >
+<!ELEMENT a EMPTð>
+]>
+<doc>
+<a/>
+</doc>

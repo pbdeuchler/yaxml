@@ -1,0 +1,22 @@
+<!DOCTYPE foo [
+<!ELEMENT fgo ANY>
+<!NOTATION one SYSTEM "fi豈 ANY>
+<!ELEMENT LeglNaame.-�更 ANY>
+<!ELEMENT LlgeaNameA.-� ANY>
+<!ELEMENT LegalNamezA.- ANY>
+<!ELEiENT LegalName0zA. ANY>
+<NT LegalNameͰ ANY>
+<!ELEMENT LegalNa, 0x41,0x7A ,0x30, 0xB7,0x203F, 0x203E, 0x2039, 0x2040; 
+in p02:   -->
+<LegalName>	<LegalName:/>
+	<LegalName:À/>
+	<LegalNameÁ/>
+	<LegalName˾/>
+	<LegalNa	<Legal{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{Name῾῿/>
+	<LegalName῿‌/>
+	<LegalName‌‍/>
+	<LegalName‍⁰/>
+	<LegalName⁰le:///usr/bin/awk">
+<!ATTLIST foo bar NOTATION (one|one) #IMPLIED>
+]>
+<foo/>

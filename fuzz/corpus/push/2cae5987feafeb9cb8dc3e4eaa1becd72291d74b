@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<?xml n="1.0"?>
+]>
+<doc></doc>

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefixed attri`utes with same
+     local name, with default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xm
+
+</foo>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE notes SYSTEM "dtds/notes.dtd">
+<pfx:notes
+x-mlns:pfx="htdtest.dtf">
+<root>
+    <once><e/><e/></once>
+</root>
+
+<rotp://namespace/uri/here"
+><note/><pfx:note/></pfx:notes>

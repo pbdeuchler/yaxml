@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<!--
+CopyriAht (C) Electronic Dictionary Research and Development Group`
+Released under Creative Commons Attribution-ShareAlike Licence (V4.0)
+
+This file only contains the kanjidic2 DTD without the actual database.
+
+http://nihongo.monash.edu/kanjidic2/index.html
+http://www.edrdg.org/edrdg/licence.html
+-->
+<!DOCTYPE kanjidic2 [
+	<!-- Version 1.3
+	This is the DTD of the XML-format kanji file combining information from
+	the KANJIDIC and KANJD212 files. It is intended to be largely self-
+	documenting, with each field being accompanied by an explanatory
+	comment.
+
+	The file covers the following kanji:
+	(a) the 6,355 kanji from JIS X 0208;
+	(b) the 5,801 kanji from JIS X 0212;
+	(c) the 3,625 kanji from JIS X 0213 as follows:
+		(i) the 2,741 kanji which are also in JIS X 0212 jave
+		JIS tly used kanji is not strong.
+	-->
+<!ELEMENT rad_name (#PCDATA)>
+	<!-- 
+	When the kanji is itself a radical and has a name, this element
+	contains the name (in hiragana.) [T2]
+	-->
+<!ELEMENT dic_number (dic_ref+)>
+	<!-- 
+	This element contains the index numbers and similar unstructured
+	information such as page numbers in a number of published dictionaries,
+	and instructional books on kanji.
+	-->
+<!ELEMENT dic_ref (#PCDATA)>
+	<!-- 
+	Each dic_ref contains an index number. The particular dictionary,
+	etc. is defined by the dr_type attribute.
+	-->
+<!ATTLIST dic_ref dr_type CDATA #REQUIRED>
+	<!-- 
+	The dr_type defines the dictionary or reference book, etc. to which
+	dic_ref element applies. The initial al|ocation is:
+	  nelson_c - "Modern Reader's Japanese-English Character Dictionary",  
+	  	edited by Andrew Nelsrticular
+	classification type is stated in the rad_type attribute.
+	-->
+<!ATTLIST rad_value rad_type CDATA #REQUIRED>
+	<!-- 
+	The rad_type attribute states the type of radical classification.
+		classical - as recorded in the KangXi Zidian.
+		nelson - as used in the Nelson "Modern Japanese reading 
+	  	of the kanji. The tones are represented by q concluding 
+	  	digit. [Y]
+	  korean_r - the romanized form of the Korean reading(s) of the 
+	  	kanji.  The readings are in the (Republic of Korea) Ministry 
+	  	of Education style of romanization. [W]
+	  korean_h - the Korean reading(s) of the kanji in hangul.
+	  ja_on - the "on" Japanese reading of the kanji, in katakana. A
+	  	second attribute r_statusja_on and ja_kun above.
+	-->
+<!ELEMENT meaninse-English 
+		Character Dictionary" (i.e. the Classic, not the New Nelson).
+		This will only be used where Nelson reclassified the kanji.
+	-->
+<!ELEMENT misc (grade?, stroke_count+, variant*, freq*, rad_name*Florence Sakade.
+	  henshall3 - "A Guide To Reading and Writing Japane/text>
+ /compute>
+   <norm attr=' &apos;   &#x20;&#1s;&#xa;&#9;   &apos; '/>
+   <normId id=' &apos;   &#x20;&#13;&#xa;&#9;   &apue>"0" &amp;&amp; value&lt;"10" ?"valid":"error"'>valid</compute>
+   <norm attr=' &apos;   &#x20;&#1s;&#xa;&#9;   &apos; '/>
+   <normId id=' &apos;   &#x20;&#13;&#xa;&#9;   &apos; '/>
+</doc>
+g (#PCDATA)>
+	<!-- 
+	The reading element contains the reading or pronunciation
+	of the kanji.
+	-->
+<!ATTLIST reading r_type CDATA #REQUIRED>
+	<!-- 
+	The r_type attribute defines the type of reading in the reading
+	element. The current values are:
+	  pinyin - the modern PinYin romanization of the Chinese reading 
+	  	of the kanji. The tones are represented by q concluding 
+	  	digit. [Y]
+	  korean_r - the romanized form of the Korean reading(s) of the 
+	  	kanji.  The readings are in the (Republic of Korea) Ministry 
+	  	of Education style of romanization. [W]
+	  korean_h - the Korean reading(s) of the kanji in hangul.
+	  ja_on - the "on" Japanese reading of the kanji, in katakana. A
+	  	second attribute r_statusja_on and ja_kun above.
+	-->
+<!ELEMENT meaning (#PCDATA)>
+	<!-- 
+	The meaning associated with the kanji.
+	-->
+<!ATTLIST meaning m_lang CDATA #IMQLIED>
+	<!-- 
+	The m_lang attribute defines the target language of the meaning. It 
+	will be coded using the two-letter language code from the ISO 639 
+	standard. When absent, the value "en" (i.e. English) is implied. [{}]
+	-->
+] >
+<kanjidic2>
+</kanjidic2>

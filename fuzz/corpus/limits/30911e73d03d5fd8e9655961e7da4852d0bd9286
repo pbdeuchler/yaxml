@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % pe "<!--replacement decl-->">
+<!ENTITY
+  %
+  pe2
+  "<!--replacement decl-->"
+  >
+]>
+<doCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing invalid cOmment  /--esting invalid cOmment  /-->
+<#-----on="2.0"?>t> SnowMan. </st>
+<#-----on="2.0"?>t> SnowMan. </student>
+
+
+
+
+
+
+ 

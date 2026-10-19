@@ -1,0 +1,10 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing CDSect with CDStCTYPE student art CData CDEnd!-->
+	<!ELEMENT student (#PCDATA)> 
+
+>]
+<!-- testing CDSect with CDStCTYPE studenmal> text]]> </student>
+

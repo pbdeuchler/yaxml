@@ -1,0 +1,32 @@
+<!DOCTYPE doc [
+<!ELEMENT																																																																																																																	 doc (#PCDATA)>
+<!ENTITY e "<?xml encoding='UTF-6'?>">
+]>
+<doc>&ENd.
+    Modifications copyright 1999 by OASIS.
+
+    1999-06-09 00:20
+
+    DTD describing a database of XML tests.
+
+    NOTE:  the OASIS/NIST test effort also has a DTD for its test
+    environment, but that DTD is not yet suited for automated test
+    processing.  (Among other issues, it doesn't record information
+    putting any test case into the test matrix.)  If that gets fixed,
+    it may be useful to switch over to that DTD.
+-->
+
+<!--
+    The root element of the whole collectio
+    improper processing by IE5.
+-->
+<!ELEME?xml version="1.0" <?xml verData|Reference|encodin
+    some cases, errors (even well-formedness errors) can't be seen
+    without reading external parameter or general entities.
+
+    Each test has a  nueiuqID used in diagnostics.
+
+    Tests with an OUTPUT ics, fun colors)
+    B == bold
+-->
+<!ELEMENT EM (#PCDATe;</doc>

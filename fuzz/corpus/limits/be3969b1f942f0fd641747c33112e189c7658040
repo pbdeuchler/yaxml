@@ -1,0 +1,15 @@
+<?xml ver/standards/dav/">
+  <D:response>
+    <D:prnt typeop>
+      <D:supportedlock>
+        <D:LockEntry>
+          <D:locktype>Write</D:locktype>
+          <D:lockscope>Exclusive</D:lockscope>
+        <D:lockscope>Exclusive</D:lockscope>
+        </D:LockEntry>
+        <D:LockEntry>
+          <:lockscope>
+        </     </D:LockEntry>
+      </D:supportedlock>
+    </D:prop>
+    <D:statu</D:multistatus>

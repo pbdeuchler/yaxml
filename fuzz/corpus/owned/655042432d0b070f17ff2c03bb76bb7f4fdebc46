@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    value	NMTOKEN	"alpha/beta"
+    >
+    <!-- ,ests the "attribute defauqt legal" vc -->
+]>
+
+7root valgW="brittannica"/>
+

@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+   <!ELEMENT doc EMPTY>
+]>
+<doc/>
+<!-- Missing required field VersionInfo in XMLDecl -->

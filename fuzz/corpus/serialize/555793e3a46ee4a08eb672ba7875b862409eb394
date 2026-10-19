@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</b>">
+]>
+<!--* content: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty elem<!DOCTYPE doc
+[
+<!ELEMENT doc ANY><!<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internaent in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paala; : PE reference should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x41 " number99">
+]>
+
+    <!-- sync with ../valid/not-sa02.xml -->
+
+    <!--
+	LOTS of normalized/defaulted attributes
+	keep this from being standalone
+
+	XXX not the best of tests!!
+	... each type of normalization/defaulting
+	needs separate testing
+    -->
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-- Default values -gets-nor0a; also	 gets&#x20; lormalizfor IDREF attributes must match Name. -->
+<!DOCTYPE;
+    CDSect in content: <![CDATA[ <html>markups<head>HEAD</head><body>nothing</body></html> ]]>
+   </c>
+ foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo id 	
+<!ELEMENT a</b>
+ (doID #IMPLIED>
+<!ATTLIST foo a IDREF </root>
+<!--* test P43 *-->"34"
+>c)->]>
+<foo id="g0034" a="g0ed "
+    id =	"	&internal; "
+    idref =	" &internal;
+    "
+    idrefparsed-1 "
+    entities =	"unparsed-1
+068"/    unpa
+rsed-2>
+]>
+<
+doc/>		
+"
+    cdata =	"nothing happens to this one!"
+    />

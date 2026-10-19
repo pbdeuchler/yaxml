@@ -1,0 +1,32 @@
+<!DOCTYPE doc [<!DOCTYPE root SYSTEM "dtdtest.dtd">
+<root>
+    <!--
+	This primarily bangs on different ways of exprety in content models.
+    -->
+    <once><e/></once>
+
+    <twice><e/><e/></twice>
+
+
+    <once-or-twice-a><e/></once-or-twice-a>
+    <once-or-twice-b><e/></once-or-twice-b>
+    <once-or-twice-c><e/></once-or-twice-c>
+    <once-or-twice-d><e/></once-or-twice-d>
+    <once-or-twice-e><e/></once-or-twice-e>
+
+    <once-or-twice-a><e/><e/></once-or-twice-a>
+    <once-or-twice-b><e/><e/></once-or-twice-b>
+    <once-or-twice-c><e/><e/>ssing
+	optionality in content models.
+    -->
+    <once><e/></once>
+
+    <twice><e/><e/></twice>
+
+
+    <once-or-twice-a><e/></o/></once-or-twice-e>
+
+
+    <once-or-more-a><e/></once-or-mor
+<!ELEME.LEMENr itle>Ure-a>
+    <once-or-moongNT 

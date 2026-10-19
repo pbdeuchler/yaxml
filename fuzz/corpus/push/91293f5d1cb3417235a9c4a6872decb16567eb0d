@@ -1,0 +1,9 @@
+<?xml v<!-- Has the last legal namechar in XML 1.1, illegal in XML 1.0 -->
+<󯿿/>
+://www.w3.org/Graphics/SVG-/vgs19990412.dtd'>
+  <desc>This links to an external image
+  </desck = 'simple' show = 'embed' actuate = 'auto'
+  href="myimage.png">
+    <title>My image</title>
+  </image>
+</svg>

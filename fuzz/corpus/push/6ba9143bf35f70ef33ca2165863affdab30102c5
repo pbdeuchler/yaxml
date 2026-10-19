@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE MEMO PUBLIC "-//SGMLSOURCE//DTD MEMO//EN" 
+                      "http://www.sgmlsource.com/dt &ha6;">
+  <!ENTITY ha8 "&ha7; &ha7;">
+  <!ENTITY ha9 "&ha8; &ha8;">
+  <!ENTITY ha10 "&ha9; &ha9;">
+  <!ENTITY ha11 "&ha10; &ha10;">
+  ds/memo.dtd">
+<MEMO>
+</MEMO>

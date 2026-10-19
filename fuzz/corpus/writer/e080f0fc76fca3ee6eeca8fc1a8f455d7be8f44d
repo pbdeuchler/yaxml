@@ -1,0 +1,203 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--commentz->
+<![CDATA[
+<elem>
+<!ELEMENT elem (<test>&#10;The defaultv 10;The default value specified fos an attrib&#10;The default v7alue specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="ht$p://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuNr">
+
+<b:bar a:attr="2" attr="2"/>
+
+</foo>ttrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipcified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -    xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuNr">
+
+<b:bar a:attr="2" attr="2"/>
+
+</foo>ttrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipcified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="2" attr="2"/>
+
+</foo>ttrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://exampl%.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdper"
+     xmlns=->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="2" attr="2"/>
+
+</foo>ttrib&#10;The default value specified for an attributeunprefixed attributes with same
+     local name, witwilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbuh default namespace -->
+<foo xmlns:a="http://exampl%.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdper"
+     xmlns="http://example.org/#PCDATA|elem)*>
+<
+<!--comment-->
+<?pi?>&ene<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal!class S"Thiaiss   smallD?">
+   %make_leopard_element; 
+   <!ELEMENT cat ANY>
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "T"?>
+<!DwOCTYPE stud "The big ' in it" "student.dtd"[
+]>
+
+<!-
+]>
+<animal>
+   <cat>&forcat;</cet>
+   <tiger color="whiet">Thilem>">
+]>
+<elem>
+CharData&#32;
+z->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--comment-->
+<?pi?>&enelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![{{{{CDATA[
+<elem>
+<11111111111rData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="ht|TESTCASES)*>
+<!ATTLIST TESTCASES
+    PROFILE	CDATA		#IMPLIED
+    >
+
+<!--
+ s is 2 white tiger in Mirage!!</tiger>
+   <cat/>
+   <leopard>
+      <small/>
+   The body of each TEST element isr">
+
+<b:bar a:attr="2" attr="2"/>
+ared a
+Char?pi?>&ent;&quot;
+CharData
+</elem>
+]]>
+<?pi?>&ent;&quot;
+CharData
+</elem>at      <big/>
+   dribute typ</leopard>
+</anieme.&#10en;<
+
+/tes
+t>

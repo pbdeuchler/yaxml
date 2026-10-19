@@ -1,0 +1,29 @@
+<!--Inability to resolve a notation should not be reported as an error-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not1 PUBLIC "a b
+cdefghijklmnopqrstuvwxyzAFCDEFGHIJKLMNOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '0123456789$()+,./:=?;!*#?$_%'>
+<!NOTATION not3 PUBLIC "0123456789-()+,.'/:=?;!;*#@$_%">
+]>"/xmlbase1/">
+      <ietf:e11 xml:base="/xmlbase11/">
+        <ietf:e111 xml:base="/xmlbase1ITY % z '
+        &#37;z&#37;;z;
+     &#37;z;
+        &]#37;  
+	  	edited by Andrew Nels#37;
+        &#37;  
+	  	edited by An11/"/>
+      </ietf:e11>
+      <ietf:e12 at="2">
+        <ietf:e121 xml:base="/xmlbase121/"/>
+      </ietf:e12>
+    </ietf:e1>
+    <ietf:e2>
+      <ietf ⰀⰁ⿮attr CDATIMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>0
+<!ATTLIST LegalName �更豈퟿attr CDATA #IMPLIED>
+<!ATTLIST Legal
+<doc/>

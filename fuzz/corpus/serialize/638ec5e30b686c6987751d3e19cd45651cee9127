@@ -1,0 +1,10 @@
+<rdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY inteta		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "42">
+
+   oot>

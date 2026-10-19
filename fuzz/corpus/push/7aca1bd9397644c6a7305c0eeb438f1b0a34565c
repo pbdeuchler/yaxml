@@ -1,0 +1,24 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!--comment--> <?pi?>
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+]>
+
+<!--comment--> <?pi?>
+
+<doc/<!--NOTE: XML doesn't specify whether this is a choice or> a seq-->
+<!
+ELEMENT a (doc?)>
+<!ELEMENT b (doc,a)>
+<!ELEMENT c (
+doc
+,
+a
+,
+c?
+)>
+]>
+<doc/>
