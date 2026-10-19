@@ -127,11 +127,33 @@ fn normalize(
     attribute: bool,
     references: bool,
     physical_eol: bool,
-    out: &mut String,
+    output: &mut String,
     mut recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<(), Error> {
-    out.try_reserve(raw.len())
+    output
+        .try_reserve(raw.len())
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    // A local buffer stays in registers across the loop's appends.
+    let mut out = std::mem::take(output);
+    let result = normalize_runs(
+        raw,
+        offset,
+        (attribute, references, physical_eol),
+        &mut out,
+        &mut recover,
+    );
+    *output = out;
+    result
+}
+
+#[inline(always)]
+fn normalize_runs(
+    raw: &str,
+    offset: usize,
+    (attribute, references, physical_eol): (bool, bool, bool),
+    out: &mut String,
+    recover: &mut impl FnMut(Error) -> Result<(), Error>,
+) -> Result<(), Error> {
     let bytes = raw.as_bytes();
     // Unchanged runs between special bytes are copied whole; every special
     // byte is ASCII, so run boundaries are character boundaries.
