@@ -107,7 +107,9 @@ cargo run --release --example xml_conformance -- \
 CI requires the checked-in per-ID, per-interface pass baseline. A required
 `pass` becoming a gap, unscored result or other failure makes the command fail;
 the original result row is retained. Newly supported pairs may become passes.
-The baseline protects 9,731 pairs across 1,963 IDs. Its masks follow
+`hst-lhs-007` and `hst-lhs-008` expect rejection of a BOM/label disagreement that libxml2 2.15.4 accepts with a warning; yaxml follows libxml2, so the runner scores an acceptance there as a `gap` (`libxml2-encoding-mismatch-warning`), not a mismatch.
+
+The baseline protects 9,728 pairs across 1,962 IDs. Its masks follow
 `reader, document, owned, push, buffered`. Review baseline additions alongside
 new feature evidence; do not remove requirements merely to accept a regression.
 Omitting `--required-pass` is useful for exploring another catalog, and the

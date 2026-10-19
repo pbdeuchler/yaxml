@@ -326,6 +326,18 @@ pub(crate) struct ParserState<'source> {
     rereads: bool,
     /// Recovery: where libxml2 reads on, as content, inside the latest token.
     rewind: Option<usize>,
+    /// The latest token's normalized values while lending (see
+    /// [`LentValues`]); boxed on first use, since a larger state makes every
+    /// construction and move of the slice reader slower (`tiny` reader -9%).
+    lent: Option<Box<[LentValues; 1]>>,
+}
+
+/// Normalized values lent in order: each stands in its event as
+/// [`LENT_VALUE`] until [`ParserState::lend`].
+#[derive(Default)]
+struct LentValues {
+    values: String,
+    ranges: Vec<Range<usize>>,
 }
 
 impl<'source> ParserState<'source> {
@@ -365,16 +377,25 @@ impl<'source> ParserState<'source> {
             repairs_characters: false,
             rereads: false,
             rewind: None,
+            lent: None,
         }
     }
 
     /// Recovery by the slice reader (`rereads`), which rereads a token from
     /// where libxml2 ends it (`take_rewind`) and, over input with
     /// `characters` outside `Char`, repairs them.
+    /// Field assignments, not struct-update syntax: rustc 1.95-1.96 miscompile
+    /// `Self { rereads, repairs_characters: rereads && characters, ..self }`
+    /// in release builds (tooling/simplify_comparison_scan.py).
     pub(crate) fn rereading(mut self, rereads: bool, characters: bool) -> Self {
         self.rereads = rereads && self.recovers();
         self.repairs_characters = self.rereads && characters;
         self
+    }
+
+    /// Whether this is the slice reader's recovery, which rereads tokens.
+    pub(crate) fn rereads(&self) -> bool {
+        self.rereads
     }
 
     /// Whether recovery keeps undeclared entity references (a rereading
@@ -485,8 +506,18 @@ impl<'source> ParserState<'source> {
             indexed,
             budget,
             lent_names,
+            lent,
             ..
         } = self;
+        if let Some([LentValues { values, ranges }]) = lent.as_deref()
+            && !ranges.is_empty()
+        {
+            let mut ranges = ranges.iter();
+            for attribute in attributes.iter_mut().filter(|a| is_lent_value(&a.value)) {
+                let range = ranges.next().expect("a lent value per placeholder");
+                attribute.value = Cow::Borrowed(&values[range.clone()]);
+            }
+        }
         if *lent_names {
             *lent_names = false;
             let names = std::iter::once(name).chain(attributes.iter_mut().map(|a| &mut a.name));
@@ -500,12 +531,8 @@ impl<'source> ParserState<'source> {
         budget
     }
 
-    /// Whether the latest event has names for [`ParserState::lend`] to fill.
-    pub(crate) fn lends_names(&self) -> bool {
-        self.lent_names
-    }
-
-    /// [`ParserState::lend`] for any event.
+    /// [`ParserState::lend`] for any event; inlined into each delivery loop.
+    #[inline(always)]
     pub(crate) fn lend_event<'a>(&'a mut self, event: &mut Event<'a>) -> &'a mut Budget {
         match event {
             Event::Start(element) | Event::Empty(element) => match &mut element.attributes {
@@ -513,6 +540,19 @@ impl<'source> ParserState<'source> {
                 crate::Attributes::Borrowed(_) => self.lend(&mut element.name, &mut []),
             },
             Event::End(name) => self.lend(name, &mut []),
+            Event::Text(value)
+            | Event::Cdata(value)
+            | Event::Comment(value)
+            | Event::ProcessingInstruction { data: value, .. } => {
+                let Self { lent, budget, .. } = self;
+                if let Some([LentValues { values, ranges }]) = lent.as_deref()
+                    && let Some(range) = ranges.first()
+                    && is_lent_value(value)
+                {
+                    *value = Cow::Borrowed(&values[range.clone()]);
+                }
+                budget
+            }
             _ => &mut self.budget,
         }
     }
@@ -537,9 +577,13 @@ impl<'source> ParserState<'source> {
     }
 
     /// Removes the bindings of a scope closed by the previous token.
+    /// Releases the previous token's lent values too.
     fn settle(&mut self) {
         if let Some(start) = self.pending_unwind.take() {
             self.unwind_bindings(start);
+        }
+        if let Some([lent]) = self.lent.as_deref_mut() {
+            lent.ranges.clear();
         }
     }
 
@@ -618,25 +662,16 @@ impl<'source> ParserState<'source> {
         Ok(())
     }
 
-    /// Reuses returned attribute capacity. Both conversions collect in place:
-    /// the vector is empty, so only its allocation changes lifetime.
+    /// Reuses returned attribute capacity.
     fn take_attributes<'event>(&mut self) -> Vec<Attribute<'event>> {
-        std::mem::take(&mut self.attribute_storage)
-            .into_iter()
-            .map(|_| unreachable!("stored attribute lists are empty"))
-            .collect()
+        emptied(std::mem::take(&mut self.attribute_storage))
     }
 
     /// Keeps the capacity of a list whose event has been delivered.
-    pub(crate) fn recycle_attributes(&mut self, mut attributes: Vec<Attribute<'_>>) {
-        if attributes.capacity() <= self.attribute_storage.capacity() {
-            return;
+    pub(crate) fn recycle_attributes(&mut self, attributes: Vec<Attribute<'static>>) {
+        if attributes.capacity() > self.attribute_storage.capacity() {
+            self.attribute_storage = attributes;
         }
-        attributes.clear();
-        self.attribute_storage = attributes
-            .into_iter()
-            .map(|_| unreachable!("cleared above"))
-            .collect();
     }
 
     fn open_name(&self) -> Option<&str> {
@@ -727,7 +762,25 @@ impl<'source> ParserState<'source> {
 
     /// `retain` borrows slice input or copies streaming structural strings.
     /// Token bytes are already UTF-8 and XML-character validated by the frontend.
+    #[inline(always)]
     pub(crate) fn process_token<'event, F>(
+        &mut self,
+        kind: TokenKind,
+        raw: &'event str,
+        range: Range<usize>,
+        retain: F,
+    ) -> Result<Option<Event<'event>>, Error>
+    where
+        'source: 'event,
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        self.read_token::<false, F>(kind, raw, range, retain)
+    }
+
+    /// [`ParserState::process_token`] for the slice reader, whose recovery
+    /// rereads tokens when `REREADS` ([`ParserState::rereads`]); strict
+    /// reading and the other frontends compile without its checks.
+    pub(crate) fn read_token<'event, const REREADS: bool, F>(
         &mut self,
         kind: TokenKind,
         raw: &'event str,
@@ -758,19 +811,21 @@ impl<'source> ParserState<'source> {
         // Every arm yields the result type returned here, so a tag's event
         // passes through without being re-laid-out.
         let event = match kind {
-            TokenKind::Start => self.start_element(raw, start, &mut retain),
+            TokenKind::Start => self.start_element::<REREADS, F>(raw, start, &mut retain),
             TokenKind::End => self.end_element(raw, start),
             TokenKind::Text => {
                 if let Some(relative) = crate::tokenizer::find(raw.as_bytes(), b"]]>") {
                     self.budget
                         .recover(Error::new(ErrorKind::Syntax, start + relative))?;
                 }
-                Ok(Some(Event::Text(self.normalized(raw, start, false, true)?)))
+                let text = self.normalized::<REREADS>(raw, start, false, true, true)?;
+                Ok(Some(Event::Text(text)))
             }
             // libxml2 ends a comment, PI or CDATA section at a character
             // outside `Char` and reads on from there.
             TokenKind::Comment | TokenKind::Cdata | TokenKind::Instruction
-                if self.repairs_characters
+                if REREADS
+                    && self.repairs_characters
                     && let Some(at) = crate::escape::invalid_char(raw) =>
             {
                 let error = Error::new(ErrorKind::InvalidCharacter, start + at);
@@ -782,11 +837,12 @@ impl<'source> ParserState<'source> {
                 if crate::tokenizer::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
                     self.budget.recover(Error::new(ErrorKind::Syntax, start))?;
                 }
-                Ok(Some(Event::Comment(self.normalized(
+                Ok(Some(Event::Comment(self.normalized::<REREADS>(
                     body,
                     start + 4,
                     false,
                     false,
+                    true,
                 )?)))
             }
             TokenKind::Cdata => {
@@ -794,11 +850,11 @@ impl<'source> ParserState<'source> {
                     return Err(Error::new(ErrorKind::TextOutsideRoot, start));
                 }
                 let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
-                let value = self.normalized(body, start + 9, false, false)?;
+                let value = self.normalized::<REREADS>(body, start + 9, false, false, true)?;
                 Ok(Some(self.cdata(value)))
             }
-            TokenKind::Instruction => self.instruction(raw, start),
-            TokenKind::Dtd | TokenKind::InvalidMarkup => self.text_after(raw, 1, start),
+            TokenKind::Instruction => self.instruction::<REREADS>(raw, start),
+            TokenKind::Dtd | TokenKind::InvalidMarkup => self.text_after::<REREADS>(raw, 1, start),
         };
         if event.is_ok() {
             self.events += 1;
@@ -818,49 +874,106 @@ impl<'source> ParserState<'source> {
 
     /// The text of `raw` after its `prefix` bytes, which a rereading
     /// frontend reads as content.
-    fn text_after<'event>(
+    fn text_after<'event, const REREADS: bool>(
         &mut self,
         raw: &'event str,
         prefix: usize,
         start: usize,
     ) -> Result<Option<Event<'event>>, Error> {
-        if self.rereads {
+        if REREADS {
             self.rewind = Some(start + prefix);
             return Ok(None);
         }
         let text = raw.get(prefix..).unwrap_or_default();
-        let text = self.normalized(text, start + prefix, false, true)?;
+        let text = self.normalized::<REREADS>(text, start + prefix, false, true, true)?;
         Ok(Some(Event::Text(text)))
     }
 
-    fn normalized<'event>(
+    /// A value after XML normalization; `REPAIRS`: the frontend may repair
+    /// characters ([`ParserState::rereading`]). A changed value is `lent`
+    /// from the parser's storage when events are (see `LENT_VALUE`).
+    /// Inlined: most values need no normalization and cost only the scan.
+    #[inline(always)]
+    fn normalized<'event, const REPAIRS: bool>(
         &mut self,
         raw: &'event str,
         offset: usize,
         attribute: bool,
         references: bool,
+        lent: bool,
     ) -> Result<Cow<'event, str>, Error> {
-        if self.repairs_characters && crate::escape::invalid_char(raw).is_some() {
-            return self.repaired(raw, offset, attribute, references);
+        let repairs = REPAIRS && self.repairs_characters;
+        if repairs || needs_normalization(raw, attribute, references) {
+            let lent = lent && self.lends_namespaces;
+            return self.normalize(raw, offset, (attribute, references), repairs, lent);
         }
-        if !needs_normalization(raw, attribute, references) {
-            return Ok(Cow::Borrowed(raw));
+        Ok(Cow::Borrowed(raw))
+    }
+
+    /// [`ParserState::normalized`] of a value that changes or, when
+    /// `repairs`, may have characters to repair.
+    #[inline(never)]
+    fn normalize<'event>(
+        &mut self,
+        raw: &'event str,
+        offset: usize,
+        (attribute, references): (bool, bool),
+        repairs: bool,
+        lent: bool,
+    ) -> Result<Cow<'event, str>, Error> {
+        if repairs {
+            if let Some(repaired) = self.repaired(raw, offset, attribute, references)? {
+                return Ok(Cow::Owned(repaired));
+            }
+            if !needs_normalization(raw, attribute, references) {
+                return Ok(Cow::Borrowed(raw));
+            }
         }
         self.budget.charge_owned(raw.len(), offset)?;
         let recover = |error| self.budget.recover(error);
-        normalize_into(raw, offset, attribute, references, String::new(), recover).map(Cow::Owned)
+        if lent {
+            // Normalization never lengthens a value, so the storage stays
+            // within the token's size.
+            let lent = match &mut self.lent {
+                Some(lent) => &mut lent[0],
+                lent => &mut lent.insert(boxed(LentValues::default(), offset)?)[0],
+            };
+            if lent.ranges.is_empty() {
+                lent.values.clear();
+            }
+            let start = lent.values.len();
+            normalize_into(
+                raw,
+                offset,
+                attribute,
+                references,
+                &mut lent.values,
+                recover,
+            )?;
+            lent.ranges
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+            lent.ranges.push(start..lent.values.len());
+            return Ok(Cow::Borrowed(LENT_VALUE));
+        }
+        let mut value = String::new();
+        normalize_into(raw, offset, attribute, references, &mut value, recover)?;
+        Ok(Cow::Owned(value))
     }
 
     /// `normalized` over text with characters outside `Char`, which
-    /// recovery repairs first (see `repairs_characters`).
+    /// recovery repairs first (see `repairs_characters`); `None` without any.
     #[cold]
-    fn repaired<'event>(
+    fn repaired(
         &mut self,
         raw: &str,
         offset: usize,
         attribute: bool,
         references: bool,
-    ) -> Result<Cow<'event, str>, Error> {
+    ) -> Result<Option<String>, Error> {
+        if crate::escape::invalid_char(raw).is_none() {
+            return Ok(None);
+        }
         self.budget.charge_owned(raw.len(), offset)?;
         let mut recover = |error| self.budget.recover(error);
         let repaired = crate::escape::repair_characters(raw, offset, attribute, &mut recover)?;
@@ -868,19 +981,15 @@ impl<'source> ParserState<'source> {
         let end = offset + raw.len();
         let within = |error: Error| Error::new(error.kind, error.offset.min(end));
         let recover = |error| recover(within(error));
+        let mut value = String::new();
         normalize_into(
-            &repaired,
-            offset,
-            attribute,
-            references,
-            String::new(),
-            recover,
+            &repaired, offset, attribute, references, &mut value, recover,
         )
-        .map(Cow::Owned)
-        .map_err(within)
+        .map_err(within)?;
+        Ok(Some(value))
     }
 
-    fn instruction<'event>(
+    fn instruction<'event, const REREADS: bool>(
         &mut self,
         raw: &'event str,
         start: usize,
@@ -893,7 +1002,7 @@ impl<'source> ParserState<'source> {
             name_end = name_length(body);
             if name_end == 0 {
                 self.markup_as_text(error)?;
-                return self.text_after(raw, 2, start);
+                return self.text_after::<REREADS>(raw, 2, start);
             }
             self.budget.recover(error)?;
         }
@@ -905,25 +1014,34 @@ impl<'source> ParserState<'source> {
                 false,
                 &mut |error| self.budget.recover(error),
             )?;
-            // `IGNORE_ENC` keeps the detected encoding, as libxml2's
-            // `xmlSetDeclaredEncoding` does, and records no label unless the
-            // input was auto-detected (a UTF-8 BOM; a mismatch reads "UTF-8").
-            // Recovery from a label it cannot switch to also drops it.
+            // An auto-detected encoding (a BOM, or the UTF-16 `<?` signature)
+            // is kept, as in libxml2's `xmlSetDeclaredEncoding`: a label
+            // outside its allowed set only warns and records the detected
+            // name. `IGNORE_ENC` keeps any detected encoding and records no
+            // label for BOM-less UTF-8. Recovery from a label it cannot
+            // switch to also drops it.
+            use crate::encoding::SourceEncoding::{Utf8, Utf16};
             let offset = encoding_offset.unwrap_or(start);
+            let auto: Option<(&[&str], &str)> = match self.encoding {
+                Utf8 if start != 0 => Some((&["UTF-8", "UTF8"], "UTF-8")),
+                Utf16 {
+                    little_endian: true,
+                    ..
+                } => Some((&["UTF-16", "UTF-16LE", "UTF16"], "UTF-16LE")),
+                Utf16 { .. } => Some((&["UTF-16", "UTF-16BE", "UTF16"], "UTF-16BE")),
+                _ => None,
+            };
             self.encoding = match declaration.encoding {
-                Some(label) if self.flags.ignores_encoding() => {
-                    declaration.encoding = match self.encoding {
-                        crate::encoding::SourceEncoding::Utf8 if start == 0 => None,
-                        crate::encoding::SourceEncoding::Utf8 => Some(
-                            if label.eq_ignore_ascii_case("UTF-8")
-                                || label.eq_ignore_ascii_case("UTF8")
-                            {
+                Some(label) if auto.is_some() || self.flags.ignores_encoding() => {
+                    declaration.encoding = match auto {
+                        Some((allowed, name)) => {
+                            Some(if allowed.iter().any(|a| a.eq_ignore_ascii_case(label)) {
                                 label
                             } else {
-                                "UTF-8"
-                            },
-                        ),
-                        _ => Some(label),
+                                name
+                            })
+                        }
+                        None => (self.encoding != Utf8).then_some(label),
                     };
                     self.encoding
                 }
@@ -951,11 +1069,11 @@ impl<'source> ParserState<'source> {
         let offset = start + raw.len() - 2 - data.len();
         Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),
-            data: self.normalized(data, offset, false, false)?,
+            data: self.normalized::<REREADS>(data, offset, false, false, true)?,
         }))
     }
 
-    fn start_element<'event, F>(
+    fn start_element<'event, const REREADS: bool, F>(
         &mut self,
         raw: &'event str,
         start: usize,
@@ -989,7 +1107,7 @@ impl<'source> ParserState<'source> {
             Err(error) => match name_length(scan.raw) {
                 0 => {
                     self.markup_as_text(error)?;
-                    return self.text_after(raw, 1, start);
+                    return self.text_after::<REREADS>(raw, 1, start);
                 }
                 length => {
                     self.budget.recover(error)?;
@@ -1025,10 +1143,19 @@ impl<'source> ParserState<'source> {
                 ));
             }
             let (prefix, local) = self.qname_parts(name, attribute.split, offset)?;
-            let value = if attribute.plain && !self.repairs_characters {
+            let declaration = if name == "xmlns" {
+                Some("")
+            } else if prefix == Some("xmlns") {
+                Some(local)
+            } else {
+                None
+            };
+            // A declaration's value is bound, so it is never lent.
+            let lent = declaration.is_none();
+            let value = if attribute.plain && !(REREADS && self.repairs_characters) {
                 Cow::Borrowed(value)
             } else {
-                match self.normalized(value, value_offset, true, true) {
+                match self.normalized::<REREADS>(value, value_offset, true, true, lent) {
                     Ok(value) => value,
                     // Recovery from a character reference libxml2 reads as
                     // zero, which ends the element (see `normalize_into`).
@@ -1039,13 +1166,6 @@ impl<'source> ParserState<'source> {
                     }
                     Err(error) => return Err(error),
                 }
-            };
-            let declaration = if name == "xmlns" {
-                Some("")
-            } else if prefix == Some("xmlns") {
-                Some(local)
-            } else {
-                None
             };
             let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
             if let Some(bound_prefix) = declaration {
@@ -2181,6 +2301,12 @@ impl<'source> ParserState<'source> {
 /// Placeholder namespace of a name whose URI [`ParserState::lend`] borrows;
 /// a real namespace is never empty.
 const LENT: &str = "";
+/// A normalized value lent from `ParserState::values`: NUL is never a value.
+const LENT_VALUE: &str = "\0";
+
+fn is_lent_value(value: &str) -> bool {
+    value.len() == 1 && value.as_bytes()[0] == 0
+}
 
 /// The active binding index for `prefix`: indexed, or the innermost match.
 fn bound_in<'source>(
@@ -2235,6 +2361,30 @@ fn invalid_namespace_binding(prefix: &str, uri: &str) -> bool {
         || (!prefix.is_empty() && uri.is_empty())
 }
 
+/// `value` on the heap, failing as `Allocation` at `offset` instead of aborting.
+fn boxed<T>(value: T, offset: usize) -> Result<Box<[T; 1]>, Error> {
+    let mut slot = Vec::new();
+    slot.try_reserve_exact(1)
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    slot.push(value);
+    Ok(slot
+        .into_boxed_slice()
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("one element")))
+}
+
+/// An attribute list's allocation, emptied and so free of its lifetime. The
+/// conversion collects in place: only the allocation changes lifetime.
+pub(crate) fn emptied<'to>(mut attributes: Vec<Attribute<'_>>) -> Vec<Attribute<'to>> {
+    attributes.clear();
+    attributes
+        .into_iter()
+        .map(|_| unreachable!("cleared"))
+        .collect()
+}
+
+/// Always inlined: with constant delimiters, the checks need no `memcmp`.
+#[inline(always)]
 fn delimited_body<'a>(
     raw: &'a str,
     prefix: &str,
@@ -2543,12 +2693,6 @@ fn validate_encoding(
         (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {
             return Ok(SourceEncoding::Byte(table));
         }
-        (SourceEncoding::Utf16 { little_endian, bom }, Some(Charset::Utf16(order)))
-            if order.map_or(bom, |order| order == little_endian) =>
-        {
-            return Ok(source);
-        }
-        (SourceEncoding::Utf16 { .. }, Some(_)) => ErrorKind::EncodingMismatch,
         _ => ErrorKind::UnsupportedEncoding,
     };
     Err(Error::new(kind, offset))

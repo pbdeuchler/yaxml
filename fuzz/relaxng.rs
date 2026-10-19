@@ -209,8 +209,8 @@ fn pushed(
     let mut stream = schema.stream();
     dtd.inspect(|dtd| stream.set_dtd(dtd));
     let mut parser = PushParser::new();
-    let mut feed = |event: Event<'_>, origin| {
-        stream.event(&event, origin);
+    let mut feed = |event: &Event<'_>, origin| {
+        stream.event(event, origin);
         ControlFlow::Continue(())
     };
     for chunk in instance.chunks(1 + instance.len() % 7) {

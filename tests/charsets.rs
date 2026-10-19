@@ -38,11 +38,11 @@ fn document(label: &str, body: &[u8]) -> Vec<u8> {
 fn push(input: &[u8], splits: &[usize]) -> Result<Vec<(String, Range<usize>)>, Error> {
     let mut parser = PushParser::new();
     let mut found = Vec::new();
-    let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+    let mut emit = |event: &Event<'_>, origin: yaxml::SourceOrigin| {
         let value = match event {
-            Event::Text(text) => text.into_owned(),
+            Event::Text(text) => text.to_string(),
             Event::Start(element) if !element.attributes.is_empty() => {
-                element.attributes[0].value.clone().into_owned()
+                element.attributes[0].value.to_string()
             }
             _ => return ControlFlow::Continue(()),
         };
@@ -160,21 +160,6 @@ fn failures_report_original_byte_offsets() {
         (
             b"<?xml version='1.0' encoding='latin-1'?><r/>".to_vec(),
             error(ErrorKind::UnsupportedEncoding, 20),
-        ),
-        (
-            b"\xef\xbb\xbf<?xml version='1.0' encoding='latin1'?><r/>".to_vec(),
-            error(ErrorKind::UnsupportedEncoding, 23),
-        ),
-        (
-            [
-                &[0xff, 0xfe][..],
-                &"<?xml version='1.0' encoding='latin1'?><r/>"
-                    .encode_utf16()
-                    .flat_map(u16::to_le_bytes)
-                    .collect::<Vec<_>>(),
-            ]
-            .concat(),
-            error(ErrorKind::EncodingMismatch, 42),
         ),
         (
             b"Lo\xa7\x94\x93@\xa5\x85\x99".to_vec(),
@@ -303,5 +288,56 @@ fn declared_charset_errors_follow_token_order_and_borrowing_utf8_precedes() {
             }
         };
         assert_eq!(buffered, streaming, "buffered {label}");
+    }
+}
+
+#[test]
+fn auto_detected_encoding_outranks_the_declared_label() {
+    let utf16 = |order: fn(u16) -> [u8; 2], bom: [u8; 2], label: &str| {
+        let text = format!("<?xml version='1.0' encoding='{label}'?><r>é</r>");
+        [
+            &bom[..],
+            &text.encode_utf16().flat_map(order).collect::<Vec<_>>(),
+        ]
+        .concat()
+    };
+    let mut cases = vec![];
+    for (label, recorded) in [
+        ("latin1", "UTF-8"),
+        ("Shift_JIS", "UTF-8"),
+        ("unknown", "UTF-8"),
+        ("UTF-16", "UTF-8"),
+        ("utf8", "utf8"),
+        ("UTF-8", "UTF-8"),
+    ] {
+        let text = format!("\u{feff}<?xml version='1.0' encoding='{label}'?><r>é</r>");
+        cases.push((text.into_bytes(), recorded));
+    }
+    for (label, little, big) in [
+        ("latin1", "UTF-16LE", "UTF-16BE"),
+        ("UTF-8", "UTF-16LE", "UTF-16BE"),
+        ("UCS-2", "UTF-16LE", "UTF-16BE"),
+        ("UTF-16LE", "UTF-16LE", "UTF-16BE"),
+        ("UTF-16BE", "UTF-16LE", "UTF-16BE"),
+        ("UTF-16", "UTF-16", "UTF-16"),
+    ] {
+        cases.push((utf16(u16::to_le_bytes, [0xff, 0xfe], label), little));
+        cases.push((utf16(u16::to_be_bytes, [0xfe, 0xff], label), big));
+    }
+    for (input, recorded) in cases {
+        let expected = push(&input, &[]).unwrap();
+        for split in 0..=input.len() {
+            assert_eq!(
+                push(&input, &[split]).unwrap(),
+                expected,
+                "{input:?} {split}"
+            );
+        }
+        if input.starts_with(b"\xef\xbb\xbf") {
+            Document::parse_bytes(&input).unwrap();
+        }
+        let document = OwnedDocument::parse_bytes(&input).unwrap();
+        let label = document.declaration().and_then(|d| d.encoding).unwrap();
+        assert!(label.eq_ignore_ascii_case(recorded), "{input:?} {label}");
     }
 }

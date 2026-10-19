@@ -82,6 +82,9 @@ fn byte_table(input: &[u8]) -> Option<Vec<u32>> {
 pub(super) struct Reference {
     pub(super) canonical: String,
     original_encoding: Option<String>,
+    /// The recorded declaration encoding: the label, or the detected
+    /// encoding's name when the label is outside its allowed set.
+    declared: Option<String>,
     label_start: Option<usize>,
     raw_offsets: Vec<usize>,
 }
@@ -130,16 +133,29 @@ impl Reference {
         let span = encoding_value(&decoded);
         let original_encoding = span.as_ref().map(|span| decoded[span.clone()].to_owned());
         let matching_label = if little { "UTF-16LE" } else { "UTF-16BE" };
-        match &original_encoding {
-            Some(label)
-                if label.eq_ignore_ascii_case(matching_label)
-                    || (bom != 0 && label.eq_ignore_ascii_case("UTF-16")) => {}
-            None if bom != 0 => {}
-            _ => return None,
+        let allowed = ["UTF-16", "UTF16", matching_label];
+        // Any well-formed EncName is accepted; a BOM-less source needs one.
+        let enc_name = |label: &str| {
+            label.starts_with(|c: char| c.is_ascii_alphabetic())
+                && label
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        };
+        if original_encoding
+            .as_deref()
+            .map_or(bom == 0, |label| !enc_name(label))
+        {
+            return None;
         }
-        Some(Self::decoded(decoded, bom, |character| {
-            character.len_utf16() * 2
-        }))
+        let mut reference = Self::decoded(decoded, bom, |character| character.len_utf16() * 2);
+        // libxml2 keeps the detected encoding and records its name for any
+        // other label.
+        if let Some(label) = &mut reference.declared
+            && !allowed.iter().any(|a| a.eq_ignore_ascii_case(label))
+        {
+            *label = matching_label.to_owned();
+        }
+        Some(reference)
     }
 
     /// Maps each decoded scalar to its source width after a `bom`-byte prefix.
@@ -169,6 +185,7 @@ impl Reference {
             .collect();
         Self {
             canonical,
+            declared: original_encoding.clone(),
             original_encoding,
             label_start: span.map(|span| span.start),
             raw_offsets,
@@ -191,14 +208,14 @@ impl Reference {
         start..end
     }
 
-    pub(super) fn event(&self, actual: Event<'_>, expected: Event<'_>) {
+    pub(super) fn event(&self, actual: &Event<'_>, expected: Event<'_>) {
         match (actual, expected) {
             (Event::Declaration(actual), Event::Declaration(expected)) => {
                 assert_eq!(actual.version, expected.version);
                 assert_eq!(actual.standalone, expected.standalone);
-                assert_eq!(actual.encoding, self.original_encoding.as_deref());
+                assert_eq!(actual.encoding, self.declared.as_deref());
             }
-            (actual, expected) => assert!(actual == expected, "decoded typed event changed"),
+            (actual, expected) => assert!(*actual == expected, "decoded typed event changed"),
         }
     }
 
@@ -370,7 +387,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
                 (Some(actual), Some(expected)) => {
                     assert_eq!(actual.version, expected.version);
                     assert_eq!(actual.standalone, expected.standalone);
-                    assert_eq!(actual.encoding, reference.original_encoding.as_deref());
+                    assert_eq!(actual.encoding, reference.declared.as_deref());
                 }
                 (None, None) => {}
                 _ => panic!("owned declaration disappeared"),
@@ -695,12 +712,12 @@ impl<'a> DecodeOracle<'a> {
         }
     }
 
-    fn event(&self, actual: Event<'_>, expected: Event<'_>) {
+    fn event(&self, actual: &Event<'_>, expected: Event<'_>) {
         if let Some(reference) = self.reference {
             reference.event(actual, expected);
         } else {
             assert!(
-                actual == expected,
+                *actual == expected,
                 "explicit decode policy changed typed event"
             );
         }
@@ -743,9 +760,9 @@ impl<'a> DecodeOracle<'a> {
             (Some(actual), Some(expected)) => {
                 assert_eq!(actual.version, expected.version);
                 assert_eq!(actual.standalone, expected.standalone);
-                let encoding = self.reference.map_or(expected.encoding, |reference| {
-                    reference.original_encoding.as_deref()
-                });
+                let encoding = self
+                    .reference
+                    .map_or(expected.encoding, |reference| reference.declared.as_deref());
                 assert_eq!(actual.encoding, encoding);
             }
             (None, None) => {}
@@ -777,7 +794,7 @@ fn decode_stream(
         .unwrap()
     });
     let mut latest = None;
-    let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+    let mut emit = |event: &Event<'_>, origin: yaxml::SourceOrigin| {
         let range = super::span(origin);
         if let Some(reader) = &mut reader {
             let expected = reader

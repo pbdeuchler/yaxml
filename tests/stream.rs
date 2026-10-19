@@ -21,6 +21,10 @@ const VALID: &[&[u8]] = &[
     // whose own scope closes with them.
     b"<r xmlns:a='u1' xmlns:b='u2' a:x='1' b:x='2'><a:e xmlns:a='u3' a:x='3'/><b:e/></r>",
     b"<a:r xmlns:a='u1'><a:r xmlns:a='u2'>t</a:r><a:r/></a:r>",
+    // Lent normalized values: several per tag around plain values and a
+    // normalized (unlent) declaration, then one per token in a row.
+    b"<r a='1&amp;2' b='plain' xmlns:p='u&amp;v' p:c='x&#10;y' d='&lt;'>t&amp;u<?pi a\r\nb?><!--c\r\nd--><![CDATA[e\r\nf]]></r>",
+    b"<r>a&amp;b<e f='&gt;'/>c&amp;d<e/>\r\n</r>",
 ];
 
 #[test]

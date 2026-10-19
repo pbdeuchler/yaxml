@@ -83,8 +83,7 @@ views against the oracle reading original bytes. DTDs and unsupported encodings 
 the initial supported profile. Comparing source attribute order is stricter than
 an unordered attribute infoset and is an explicit protocol choice.
 
-Declared-encoding mismatches are counted as policy skips because yaxml rejects
-them strictly while libxml2 can warn and retain its detected encoding. This
+A BOM-less UTF-16 source without an encoding declaration is counted as a policy skip because yaxml rejects it while libxml2 accepts it. This
 documented difference does not count as compatibility agreement. Malformed
 UTF-16 code units still participate in rejection comparisons.
 

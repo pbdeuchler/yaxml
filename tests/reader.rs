@@ -716,7 +716,7 @@ fn namespace_scopes_resolve_across_index_threshold() {
         xml.push_str("<q:bad/></r>");
         for push in [false, true] {
             let mut seen = Vec::new();
-            let mut record = |event: Event<'_>| {
+            let mut record = |event: &Event<'_>| {
                 if let Event::Start(element) | Event::Empty(element) = event {
                     seen.push(element.name.namespace().map(str::to_owned));
                 }
@@ -733,7 +733,7 @@ fn namespace_scopes_resolve_across_index_threshold() {
                 let mut reader = Reader::new(xml.as_bytes()).unwrap();
                 loop {
                     match reader.read_event() {
-                        Ok(Some(event)) => record(event),
+                        Ok(Some(event)) => record(&event),
                         Ok(None) => panic!("unbound q accepted"),
                         Err(error) => break error,
                     }

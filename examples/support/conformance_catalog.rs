@@ -285,6 +285,10 @@ pub fn classify(case: Case<'_>, error: Option<&str>) -> Verdict {
         ("unscored", "discretionary-error")
     } else if error == Some("UnsupportedEncoding") {
         ("gap", "encoding-support")
+    } else if error.is_none() && matches!(case.id, "hst-lhs-007" | "hst-lhs-008") {
+        // libxml2 2.15.4 warns and keeps the auto-detected encoding when a BOM
+        // disagrees with the declared label; yaxml follows it (docs/encoding.md).
+        ("gap", "libxml2-encoding-mismatch-warning")
     } else if case.kind == "not-wf" {
         if error.is_some() {
             ("pass", "well-formedness-rejection")
@@ -405,6 +409,24 @@ mod tests {
                 base,
                 Some("UnsupportedEncoding"),
                 ("gap", "encoding-support"),
+            ),
+            (
+                Case {
+                    id: "hst-lhs-007",
+                    kind: "not-wf",
+                    ..base
+                },
+                None,
+                ("gap", "libxml2-encoding-mismatch-warning"),
+            ),
+            (
+                Case {
+                    id: "hst-lhs-007",
+                    kind: "not-wf",
+                    ..base
+                },
+                Some("Syntax"),
+                ("pass", "well-formedness-rejection"),
             ),
             (
                 base,

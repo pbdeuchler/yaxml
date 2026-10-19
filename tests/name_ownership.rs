@@ -266,7 +266,7 @@ fn owned_names_and_pi_targets_survive_inputs_and_round_trip_through_all_surfaces
                     element.name.namespace().map(str::to_owned),
                 )),
                 Event::ProcessingInstruction { target, data } => {
-                    push_values.push((target.into_owned(), Some(data.into_owned())))
+                    push_values.push((target.to_string(), Some(data.to_string())))
                 }
                 _ => {}
             }

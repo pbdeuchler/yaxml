@@ -72,12 +72,12 @@ fn push(input: &[u8], chunks: &[usize], limits: Limits) -> Result<Vec<String>, E
         let (chunk, tail) = rest.split_at(size.min(rest.len()));
         rest = tail;
         parser.feed(chunk, |event, _| {
-            label(&event, &mut out);
+            label(event, &mut out);
             ControlFlow::Continue(())
         })?;
     }
     parser.finish(|event, _| {
-        label(&event, &mut out);
+        label(event, &mut out);
         ControlFlow::Continue(())
     })?;
     Ok(out)

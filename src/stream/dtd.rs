@@ -196,7 +196,7 @@ impl StreamingSession {
     pub(crate) fn advance(
         &mut self,
         input: &[u8],
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.remember(|s| {
             if s.finalizing {
@@ -215,7 +215,7 @@ impl StreamingSession {
     }
     pub(crate) fn finish(
         &mut self,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.remember(|s| {
             if s.finished {
@@ -228,7 +228,7 @@ impl StreamingSession {
     fn drive(
         &mut self,
         input: &[u8],
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<usize, Error> {
         let mut consumed = 0;
         if let Some(ordinary) = &mut self.ordinary {
@@ -255,7 +255,7 @@ impl StreamingSession {
                 SessionOutcome::Ready => {
                     let publication = lend_current(&mut self.session, &mut self.origin)?;
                     emit(
-                        publication.event,
+                        &publication.event,
                         SourceOrigin::from_repr(publication.origin),
                         publication.budget,
                     )?;

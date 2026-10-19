@@ -310,10 +310,8 @@ fn malformed_utf16_and_encoding_disagreements_are_xml_errors() {
             matches!(error, ProjectionError::Xml(error) if error.kind == ErrorKind::InvalidUtf16 && error.offset == 8)
         );
         for (label, bom, kind) in [
-            ("UTF-8", true, ErrorKind::EncodingMismatch),
-            ("UTF-16", false, ErrorKind::EncodingMismatch),
-            ("legacy", true, ErrorKind::UnsupportedEncoding),
             ("UTF 16", true, ErrorKind::InvalidDeclaration),
+            ("16UTF", false, ErrorKind::InvalidDeclaration),
         ] {
             let input = utf16(
                 &format!("<?xml version='1.0' encoding='{label}'?><r/>"),

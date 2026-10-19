@@ -5,11 +5,40 @@ pub(crate) fn xml_char(c: char) -> bool {
     matches!(c, '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}' | '\u{10000}'..='\u{10ffff}')
 }
 
+/// Bytes that can start a character outside `xml_char` in valid UTF-8: C0
+/// controls other than tab, newline and carriage return, and `EF`.
+const SUSPECT: [bool; 256] = {
+    let mut table = [false; 256];
+    let mut byte = 0;
+    while byte < 0x20 {
+        table[byte] = !matches!(byte, 0x09 | 0x0a | 0x0d);
+        byte += 1;
+    }
+    table[0xef] = true;
+    table
+};
+
 /// Byte offset of the first character outside `xml_char`. In valid UTF-8
 /// only C0 controls and U+FFFE/U+FFFF (`EF BF BE`/`EF BF BF`) can fail, so
-/// 64-byte blocks are screened with a branch-free byte test first.
+/// 64-byte blocks are screened with a branch-free byte test first; text
+/// shorter than 16 bytes (most tokens) is scanned through a lookup table.
 pub(crate) fn invalid_char(text: &str) -> Option<usize> {
     let bytes = text.as_bytes();
+    if bytes.len() < 16 {
+        let mut from = 0;
+        while let Some(index) = bytes[from..].iter().position(|&b| SUSPECT[usize::from(b)]) {
+            let at = from + index;
+            if bytes[at] != 0xef
+                || bytes
+                    .get(at + 1..at + 3)
+                    .is_some_and(|tail| matches!(tail, [0xbf, 0xbe | 0xbf]))
+            {
+                return Some(at);
+            }
+            from = at + 1;
+        }
+        return None;
+    }
     let control = |b: u8| (b < 0x20) & (b != b'\t') & (b != b'\n') & (b != b'\r');
     let mut start = 0;
     for block in bytes.chunks(64) {
@@ -42,8 +71,7 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
     }
 }
 
-/// XML end-of-line and CDATA attribute normalization into `out`, which is
-/// cleared first. References are expanded after literal whitespace
+/// XML end-of-line and CDATA attribute normalization, appended to `out`. References are expanded after literal whitespace
 /// normalization: &#xA; must remain a newline. A malformed reference is
 /// `recover`ed from by dropping it as far as libxml2 reads it, except that
 /// an attribute value fails at a character reference libxml2 reads as zero
@@ -53,14 +81,16 @@ pub(crate) fn normalize_into(
     offset: usize,
     attribute: bool,
     references: bool,
-    out: String,
+    out: &mut String,
     recover: impl FnMut(Error) -> Result<(), Error>,
-) -> Result<String, Error> {
+) -> Result<(), Error> {
     normalize(raw, offset, attribute, references, true, out, recover)
 }
 
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    normalize(raw, offset, false, true, false, String::new(), Err)
+    let mut out = String::new();
+    normalize(raw, offset, false, true, false, &mut out, Err)?;
+    Ok(out)
 }
 
 /// Recovery from characters outside `Char` in `raw`, as libxml2 does:
@@ -95,12 +125,33 @@ fn normalize(
     attribute: bool,
     references: bool,
     physical_eol: bool,
-    mut out: String,
+    output: &mut String,
     mut recover: impl FnMut(Error) -> Result<(), Error>,
-) -> Result<String, Error> {
-    out.clear();
-    out.try_reserve(raw.len())
+) -> Result<(), Error> {
+    output
+        .try_reserve(raw.len())
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    // A local buffer stays in registers across the loop's appends.
+    let mut out = std::mem::take(output);
+    let result = normalize_runs(
+        raw,
+        offset,
+        (attribute, references, physical_eol),
+        &mut out,
+        &mut recover,
+    );
+    *output = out;
+    result
+}
+
+#[inline(always)]
+fn normalize_runs(
+    raw: &str,
+    offset: usize,
+    (attribute, references, physical_eol): (bool, bool, bool),
+    out: &mut String,
+    recover: &mut impl FnMut(Error) -> Result<(), Error>,
+) -> Result<(), Error> {
     let bytes = raw.as_bytes();
     // Unchanged runs between special bytes are copied whole; every special
     // byte is ASCII, so run boundaries are character boundaries.
@@ -153,7 +204,7 @@ fn normalize(
         run = i;
     }
     out.push_str(&raw[run..]);
-    Ok(out)
+    Ok(())
 }
 
 /// How libxml2 reads a malformed reference whose body (after `&`) starts
@@ -249,10 +300,11 @@ mod tests {
                 found.push((error.kind, error.offset));
                 Ok(())
             };
-            let recovered = normalize_into(text, 0, false, true, String::new(), recover);
-            assert_eq!(recovered.as_deref(), Ok(*value), "{text}");
+            let mut recovered = String::from("kept:");
+            normalize_into(text, 0, false, true, &mut recovered, recover).unwrap();
+            assert_eq!(recovered, format!("kept:{value}"), "{text}");
             assert_eq!(found, *errors, "{text}");
-            let strict = normalize_into(text, 0, false, true, String::new(), Err);
+            let strict = normalize_into(text, 0, false, true, &mut String::new(), Err);
             let first = errors
                 .first()
                 .map(|&(kind, offset)| Error::new(kind, offset));
@@ -279,6 +331,8 @@ mod tests {
             ("x\u{fffe}", Some(1)),
             ("xy\u{ffff}z", Some(2)),
             ("\u{ffef}\u{fffe}", Some(3)),
+            // `EF` that starts a Char, on the short-text path.
+            ("\u{feff}\u{f8ff}\u{fffd}", None),
         ];
         for (text, expected) in cases {
             assert_eq!(invalid_char(text), *expected, "{text:?}");
@@ -296,6 +350,7 @@ mod tests {
         for c in every.chars().filter(|c| !xml_char(*c)) {
             let text = format!("{valid}{c}");
             assert_eq!(invalid_char(&text), Some(valid.len()), "{c:?}");
+            assert_eq!(invalid_char(&format!("ab{c}cd")), Some(2), "{c:?}");
         }
     }
 }

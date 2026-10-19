@@ -79,9 +79,9 @@ pub struct Element<'a> {
     pub attributes: Attributes<'a>,
 }
 
-/// An element's attributes in source order: an owned list, or one lent from a
-/// streaming parser's reused storage for the duration of an event borrow.
-/// Both dereference to a slice; `into_owned` keeps a lent list.
+/// An element's attributes in source order: an owned list, or a borrowed
+/// one (as events built from a tree lend). Both dereference to a slice;
+/// `into_owned` keeps a borrowed list.
 #[derive(Clone, Debug)]
 pub enum Attributes<'a> {
     Borrowed(&'a [Attribute<'a>]),
@@ -683,7 +683,24 @@ impl<'a> SliceReader<'a> {
     /// `doctype`). Events return in the reader's own result type, so they are
     /// not rewrapped on the way out.
     fn read_step(&mut self) -> Result<Option<Event<'a>>, Error> {
-        if self.reference_end.is_some() {
+        // Strict reading compiles without the recovery checks.
+        if self.state.rereads() {
+            return self.read_step_recovering();
+        }
+        self.step::<false>()
+    }
+
+    /// [`SliceReader::read_step`] under `RECOVER`, out of the strict path.
+    #[cold]
+    #[inline(never)]
+    fn read_step_recovering(&mut self) -> Result<Option<Event<'a>>, Error> {
+        self.step::<true>()
+    }
+
+    /// The next event; `REREADS` is recovery (see [`ParserState::rereads`]).
+    #[inline(always)]
+    fn step<const REREADS: bool>(&mut self) -> Result<Option<Event<'a>>, Error> {
+        if REREADS && self.reference_end.is_some() {
             return Ok(Some(self.end_reference()));
         }
         loop {
@@ -710,7 +727,7 @@ impl<'a> SliceReader<'a> {
                 let rest = &self.input.as_bytes()[start..];
                 let end = start + memchr(b'<', rest).unwrap_or(rest.len());
                 self.check_token(start, end)?;
-                if self.state.keeps_undeclared() && self.state.in_content() {
+                if REREADS && self.state.keeps_undeclared() && self.state.in_content() {
                     match self.undeclared(start, end)? {
                         Ok(event) => return Ok(Some(event)),
                         Err(end) => (TokenKind::Text, end),
@@ -750,11 +767,12 @@ impl<'a> SliceReader<'a> {
                 };
                 (TokenKind::Start, end)
             };
-            let result =
-                self.state
-                    .process_token(kind, &self.input[start..end], start..end, |raw, _, _| {
-                        Ok(Cow::Borrowed(raw))
-                    });
+            let result = self.state.read_token::<REREADS, _>(
+                kind,
+                &self.input[start..end],
+                start..end,
+                |raw, _, _| Ok(Cow::Borrowed(raw)),
+            );
             // Preserve the slice reader's cursor at lexical/structural failures.
             // Value normalization and declaration parsing consume their raw token.
             let consumed_error = result.as_ref().is_err_and(|error| {
@@ -777,20 +795,23 @@ impl<'a> SliceReader<'a> {
             if result.is_ok() || consumed_error {
                 // Recovery rereads the rest of a token libxml2 ends early,
                 // always from past its start.
-                let rewind = self.state.take_rewind().map(|at| {
-                    let at = at.min(end);
-                    (start + 1..=at)
+                let rewind = if REREADS {
+                    self.state.take_rewind()
+                } else {
+                    None
+                };
+                self.cursor = rewind.map_or(end, |at| {
+                    (start + 1..=at.min(end))
                         .rev()
                         .find(|&at| self.input.is_char_boundary(at))
                         .unwrap_or(end)
                 });
-                self.cursor = rewind.unwrap_or(end);
                 debug_assert!(self.cursor > start, "no progress at {start}");
             }
             let event = result?;
             if let Some(event) = event {
                 // A tag ended early spans what was read of it.
-                self.origin = Some(SourceOrigin::input(start..self.cursor.min(end)));
+                self.origin = Some(SourceOrigin::input(start..self.cursor));
                 return Ok(Some(event));
             }
         }

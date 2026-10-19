@@ -21,11 +21,23 @@ Labels resolve through libxml2's `xmlEncTable` aliases (`latin1`, `l2`, `utf8`,
 Its quirk mapping `iso8859-10`, `-13`, `-14` and `-15` to ISO-8859-1 is preserved.
 Labels libxml2 decodes only through iconv/ICU (Shift_JIS, EUC-JP, ISO-2022-JP,
 UCS-2, UCS-4, IBM037, HTML) and unknown labels return `UnsupportedEncoding`.
-A detected UTF-16 source can declare generic UTF-16 with a BOM or its matching
-endian label. Conflicting supported labels return `EncodingMismatch`. Malformed
-declaration grammar returns `InvalidDeclaration` before label agreement. In a
-UTF-8 context (a UTF-8 BOM or the borrowing reader), any non-UTF-8 label returns
-`UnsupportedEncoding`. Declaration views preserve the original spelling.
+The pinned oracle (`yaxml-oracle`) is built without iconv, ICU and ISO8859X: its
+UCS-4, UCS-2 and IBM037 handlers have no converter, so xmllint rejects those
+labels and the UCS-4/EBCDIC signatures, and yaxml matches by rejecting. A
+libxml2 built with iconv (most distributions) would accept them; supporting that
+is a possible low-priority future item.
+An auto-detected encoding (UTF-8 BOM, UTF-16 BOM or `<?` signature) outranks the
+declared label, as in `xmlSetDeclaredEncoding`: UTF-8 allows `UTF-8`/`UTF8`,
+UTF-16LE `UTF-16`/`UTF-16LE`/`UTF16`, UTF-16BE `UTF-16`/`UTF-16BE`/`UTF16`. Any
+other well-formed label, supported or not, makes libxml2 warn ("Encoding 'X'
+doesn't match auto-detected 'UTF-8'") and keep the detected encoding; yaxml
+accepts silently (no warning channel) and `Declaration.encoding` records the
+detected name (`UTF-8`, `UTF-16LE`, `UTF-16BE`), not the label. Malformed
+declaration grammar returns `InvalidDeclaration`. BOM-less UTF-16 still requires
+a declaration with an encoding (`EncodingMismatch`). An undetected source
+(no BOM) switches to a declared single-byte charset; in the borrowing reader any
+non-UTF-8 label returns `UnsupportedEncoding`. Declaration views preserve the
+original spelling.
 
 A single-byte encoding applies to the bytes after the ASCII declaration, which
 was forwarded as UTF-8. Bytes below 0x80 are forwarded in bulk; others map
@@ -40,9 +52,9 @@ This follows the [XML encoding agreement rules](https://www.w3.org/TR/2008/REC-x
 and [autodetection signatures](https://www.w3.org/TR/2008/REC-xml-20081126/#sec-guessing).
 Matching endian labels with a BOM are an explicit tolerance: producers of those
 labels should omit the BOM under [RFC 2781](https://www.rfc-editor.org/rfc/rfc2781#section-3.3).
-Strict mismatch rejection deliberately differs from the warning behavior in
-[libxml2 2.15.4's detected-encoding path](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/parserInternals.c).
-These source observations do not establish a pinned binary compatibility pass.
+Mismatches follow [libxml2 2.15.4's detected-encoding path](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/parserInternals.c)
+and were checked against the pinned xmllint (XMLTS `hst-lhs-007`: libxml2
+accepts, the suite expects not-well-formed).
 
 Unpaired surrogates and odd final byte counts return `InvalidUtf16`. A surrogate
 pair can span any feed boundary. EOF checks decoder truncation before checking
