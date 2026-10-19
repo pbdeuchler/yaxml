@@ -115,7 +115,6 @@ enum LeaseKind<'input> {
 pub(crate) struct TextSourceLease<'input> {
     kind: LeaseKind<'input>,
     finalizing: bool,
-    boundary: bool,
 }
 impl<'input> TextSourceLease<'input> {
     /// Resume decoded input from the same decoder at a complete token boundary.
@@ -157,7 +156,6 @@ impl<'input> TextSourceLease<'input> {
                 physical,
             },
             finalizing: false,
-            boundary: false,
         }
     }
     pub(crate) fn local(tokenizer: LocalTokenizer, invocation: EntityInvocationId) -> Self {
@@ -167,7 +165,6 @@ impl<'input> TextSourceLease<'input> {
                 invocation,
             },
             finalizing: false,
-            boundary: false,
         }
     }
     pub(crate) fn is_stable_input(&self) -> bool {
@@ -242,7 +239,6 @@ impl<'input> TextSourceLease<'input> {
         invocation: EntityInvocationId,
         start: usize,
     ) -> Result<(), TextError> {
-        debug_assert!(self.boundary);
         let id = self.id();
         let LeaseKind::Local {
             tokenizer,
@@ -256,7 +252,6 @@ impl<'input> TextSourceLease<'input> {
             .map_err(TextError::at(id))?;
         *current = invocation;
         self.finalizing = false;
-        self.boundary = false;
         Ok(())
     }
     fn offset(&self) -> usize {
@@ -313,10 +308,9 @@ pub(crate) struct TextCoordinator<'input> {
 impl<'input> TextCoordinator<'input> {
     pub(crate) fn new(
         shared: TextShared,
-        mut source: TextSourceLease<'input>,
+        source: TextSourceLease<'input>,
     ) -> Result<Self, TextError> {
         shared.check_source(&source)?;
-        source.boundary = false;
         Ok(Self {
             shared,
             source,
@@ -408,23 +402,12 @@ impl<'input> TextCoordinator<'input> {
     /// Drops a ready general reference as empty replacement text and resumes
     /// scanning the same source after it.
     pub(crate) fn discard_general(&mut self) {
-        self.release_reference();
+        self.release_general();
         self.pending = Pending::Scanning;
     }
-    /// The caller acknowledges successful inclusion scheduling; no lookup or
-    /// frame mutation is performed here. Prefix acceptance already happened.
-    /// The source is left at a boundary for `source_mut` and `resume`, so the
-    /// large coordinator never moves per entity reference.
-    pub(crate) fn acknowledge_general_in_place(&mut self) {
-        self.release_reference();
-        self.source.boundary = true;
-    }
-    /// Leaves a completed source at a boundary, like `acknowledge_general_in_place`.
-    pub(crate) fn complete_in_place(&mut self) {
-        debug_assert!(matches!(self.pending, Pending::Complete));
-        self.source.boundary = true;
-    }
-    fn release_reference(&mut self) {
+    /// Releases a ready general reference whose entity the caller enters:
+    /// it switches or swaps the source and then calls `resume`.
+    pub(crate) fn release_general(&mut self) {
         debug_assert!(matches!(self.pending, Pending::GeneralReady(_)));
         if let Some(reference) = &mut self.shared.reference {
             reference.release();
@@ -437,7 +420,6 @@ impl<'input> TextCoordinator<'input> {
     /// Scans the (possibly replaced) source, as `new` would.
     pub(crate) fn resume(&mut self) -> Result<(), TextError> {
         self.shared.check_source(&self.source)?;
-        self.source.boundary = false;
         self.pending = Pending::Scanning;
         Ok(())
     }

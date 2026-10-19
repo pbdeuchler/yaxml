@@ -310,7 +310,7 @@ impl<'input> ContentControllerCore<'input> {
         self.sync_frame_work(before, origin)?;
         let invocation = entered?;
         let was_physical = self.body.frames.stack().len() == 1;
-        self.coordinator.acknowledge_general_in_place();
+        self.coordinator.release_general();
         let result = (|| {
             if was_physical {
                 let local = match self.local.take().expect("parked local") {
@@ -335,7 +335,6 @@ impl<'input> ContentControllerCore<'input> {
     fn finish_general(&mut self) -> Result<(), Error> {
         let depth = Some(self.parser.element_depth());
         self.body.frames.finish(depth)?;
-        self.coordinator.complete_in_place();
         let next = match self.body.frames.top_mut() {
             Some(parent) => {
                 parent.scanned = parent.cursor;
