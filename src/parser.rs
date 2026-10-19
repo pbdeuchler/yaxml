@@ -2161,7 +2161,10 @@ impl<'source> ParserState<'source> {
                 Err(error) => self.end_open(error)?,
             }
         };
-        let prefix_length = memchr(b':', qualified.as_bytes()).and_then(NonZeroUsize::new);
+        // Split as the start tag did: a recovered malformed QName has no prefix.
+        let prefix_length = memchr(b':', qualified.as_bytes())
+            .filter(|_| qname(&qualified, start).is_ok())
+            .and_then(NonZeroUsize::new);
         let name = self.resolve_name(qualified, prefix_length, start + 2, false)?;
         let frame = self.pop_frame();
         self.close_scope(frame.bindings_start);
