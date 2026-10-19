@@ -41,8 +41,10 @@ impl Observer {
         }
     }
 
-    pub(crate) fn event(&mut self, event: &Event<'_>) {
-        match event {
+    /// Observes a lent (`&Event`) or an owned event, which it then drops,
+    /// as a consumer of either API would.
+    pub(crate) fn event<'e>(&mut self, event: impl std::borrow::Borrow<Event<'e>>) {
+        match event.borrow() {
             Event::Declaration(_)
             | Event::Doctype(_)
             | Event::EntityStart(_)
