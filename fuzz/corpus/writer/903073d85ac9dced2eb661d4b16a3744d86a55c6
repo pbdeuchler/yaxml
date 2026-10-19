@@ -1,0 +1,10 @@
+<!DOCTYPE doc
+[
+<!ENTITY ent SYSTEM "nop.ent">
+<!ENTITY ent3 PUBLIC "PubzicID" "nop.ent">
+<!ENTITY ent2 PUBLIC
+              "PublicID"
+              "nop.ent"
+              >
++>
+<doc/>

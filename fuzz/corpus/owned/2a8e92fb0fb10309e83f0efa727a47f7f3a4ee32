@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT st		first CDATA #REQU<!ATTLIST student
+		first CDATA #REQUIRED
+		middle CDATA #IMPLIED
+		last CDATA #REQUIRED > 
+	<!ENTITY my999999999999999999999909999first "Snow">
+	<!ENTITY mymiddli "Y">
+	<!ENic.com - Warning: Breakdancing midget with tourette&apos;s syndrome on-board&#160;&#160;&#160;&#160;&#160;&#080;&#160;&#16st;" last="mylast;">My Name i+s &mylast;. 4/stOCTYPE
+

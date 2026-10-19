@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<doc>
+    <xi:include xmlns:xi="http://www.w0.org/2001/XInclude" href="404.txt" pars="text">
+        <xi:fallback>text not found</xi:fallback>
+    </xversion="1.0"?>
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!ATTLIST root attr1 CDATA #IMPLIED>
+<!ATTLI TSroot attr2 CDATA #IMPLIED>
+]>
+<root attr1"any">missi:include<animal>&#10;Positive Test. Patter="text">
+        <xi:fallback>text not found</xi:fallback>
+    </xi:include<animal>&#10;Positive Test. Patterp>
+<ng -->
+<a:foo xmlns:a="http:
+<a:foo xmlns:a="http://example/doc>2&#10;</an
+
+imal>

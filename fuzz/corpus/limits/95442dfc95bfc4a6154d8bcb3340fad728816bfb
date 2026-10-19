@@ -1,0 +1,10 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doYNAc 
+><!EL¡MENT a (doc,a?)>
+<!E EMELTNb (do/c|a)>
+<!ELEMENT c (`,b)?>
+<!ELB e MEN(a,b)* >
+<!ELEMENT f (a,b)+ >
+]>
+<doc/>

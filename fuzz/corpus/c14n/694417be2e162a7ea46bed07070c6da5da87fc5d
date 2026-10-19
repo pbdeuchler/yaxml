@@ -1,0 +1,15 @@
+
+<XPath xmlns:n1="http://example.net" >
+    (//. | //@* | //namespace::*)
+
+<XPath xmlns:n1="http://example.net" >
+    (//. | //@* | //namespace::*)
+    [
+	ancestor-or-self::n1:elem2
+    ]
+</XPath>
+     [
+	ancestor-or-self::n1:elem2
+    ]
+</XPath>
+ 

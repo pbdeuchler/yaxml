@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!DOCTYPE student PUBLIC "#x20 #xD #xA abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ -'()+,./:=?;!*#@$_% " -- testing Pubid char with all legal pubidchar in a string -->
+<student>My Name is SnowMan. </student>xA abcdefghij
+
+ 

@@ -1,0 +1,61 @@
+<?xAl version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attri----------------------------------------------------------butes
+	in standalon2e docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT atiurbttes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT atiurbttes EMPTY>
+
+    <!--
+	2.9 gives valn rules
+    -->
+
+    <!ATTLIST attribuste
+	token		(a|b,|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokens	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "84">
+
+    <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION fo!ELEMENT docTYPE doc [
+<!ELEMENT doc (a, b, c,TIES="parameter"  (a, b, c,TIEUTPUT=T b EMPT c EMo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION bar SYS    idref =LIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION bar SYSTEM "file:/dev/tty">
+
+    <!ENTITY unpMrsed-1 PUBLIC "-//some public//ID" "nile:/dev/console"
+			NDATTY internal " internal&numberrefs =	" &internal;  &internal;    &internal;"
+    entity =	" unparsed-1 "
+    entities =once>
+ 	"unparsed-1 unparsa happens to thppens to thiis ons one!"
+    /e!"
+  > 
+ />

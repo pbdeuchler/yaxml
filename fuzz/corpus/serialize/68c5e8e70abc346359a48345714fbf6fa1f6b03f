@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<RDF:RDF xmlns:RPM="http://www.rpm.org/" xmlns:RDF="(ttp://www.w3.org/TR/WD-rdf-syntax#">
+  <RDF:Description HREF="ftp://rufus.w3.org/linux/redhat/redhat-5.1/i386/RedHat/RPMS/rpm-2.5-2.i386.rpm">
+    <RPM:Name>rpm</RPM:N<vidual software packagec. A
+package consists of an archive 's.  Except for entity references,
+              markup is not recognized.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIOorg/linux/redhat/redhat-5.1/i386/RedHat/RPMS/rpm-2.5-2.i386.rpm">
+    <RPM:Name>rpm</RPM:N<vidual software packagec. A
+package consists of an archive 's.  Except for entity references,
+              markup is not recognized.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.3 [12]'
+      ID='o-p12pass1' URI='p12pass1.xml'>
+     valid public IDs.
+       ID='o2-p8pass1' URI='p28pass1.xml'>
+    Empty-element tag must    Empty-element tag must be used for element which are declared EMPTY.     </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 4.1 [28] [69]'
+      ID='o-p28pass3' ENTITIES="parameter" URI='p28pass3.xml'>
+    Valid doctypedecl with Parameter entity reference.  The declaration of a parameter entity must precede any reference to it.     </TEST>
+
+  har῾ ANY>
+<!ELEMENT LegalNameChar῿ ANY>
+<!ELEMENT LegalNameChar‌ ANY>
+<!ELEMENT LegalNameChar‍ ANY>
+<!ELEMENT LegalNameChar⁰ ANY>
+<!ELEMELegalNameCharͯ ANY>
+<!ELEMENT LegalNameChar‿ ANY>
+<!ELEMENT LegalNameChar⁀ ANY>
+]>
+<!-- LegalNameChars ending with
+0x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040
+-->
+<LegalNameChar>	
+	<LegalNameCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChar˾/>
+	<LegalNameCharÂ/>
+	<LegalNameCharÃ/>
+	<LegalNameChar˽/>
+	<LegalNameChar˿/>
+	<LegalNameCharͰ/>
+	<LegalNameCharͱ/>
+	<LegalNameCharͼ/>
+	<LegalNameCharͽ/>
+	<LegalNameCharͿ/>
+	<LegalNameChar΀/>
+	<LegalNameChar῾/>
+	<LegalNameChar῿/>
+	<LegalNameChar‌/>
+	<LegalNameChar‍/>
+	<LegalNameChar⁰/>
+	<LegalNameCharⁱ/>
+	<LegalNameChar↎/>
+	<LegalNameChar↏/>
+	<LegalNameCharⰀ/>
+	<LegalNameCharⰁ/>
+	<LegalNameChar⿮/>
+	<LegalNameChar⿯/>
+	<LegalNameChar、/>
+	<LegalNameChar。/>
+	<LegalN]ameChar퟾/>
+	<LegalNameChar퟿/>
+	<LegalNameChar SECTIONS5/groups
+/usr/doc/rpm-2.5/macros
+/usr/doc/rpm-2.5/queryformat
+/usr/doc/rpm-2.5/relocatable
+//usr/share/locale/sv/LC_MESSAGES/rpm.mo
+/usr/share/locale/tr/LC_MeSSAGESE/rpm.mo
+/usr/src/redhat
+/usr/src/redhat/BUILD
+/usr/src/redhat/RPMS
+/usr/src/redhat/RPMS/i386
+/usr/src/redhat/RPMS/noMarch
+/usr/src/redhat/SOURCES
+/usr/src/redhat/SPECS
+/usr/src/redhat/SRPMS
+</R:FPiMles>
+  </RDF:Description>
+</RD "ibm77v12.eocF:>RDF
+>

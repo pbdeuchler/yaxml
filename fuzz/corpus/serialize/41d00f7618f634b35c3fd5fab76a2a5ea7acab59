@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIRED
+		middle CDATA #IMPLIED
+rst CDATA #REQUIRED
+		middle CDATA #IMPLIED
+		last CDATA
+
+rst CDATA #REQUIRED
+		middle CDATA #IMPLIED
+		last CDATA
+		middle CDATA #IMPLIED
+		last CDATA #		last CDATA #REQUIRED > IED
+		last CDATA #		middle CDATA #IMPLIED
+		last CDATA #		last CDATA #REQUIRED > IED
+		last CDATA #RE>
+

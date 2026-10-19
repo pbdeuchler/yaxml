@@ -1,0 +1,22 @@
+<!DOCTYPE doc [<!ATTLIST e2 attr CDATA "default">]>
+<doc>
+   <e2   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="esem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attrb="http://www.ietf.org" 
+       xmlns:a="ht">]>
+<doc>
+ns:a="http://www.w3.org">
+       <e7 xmlng">
+           <e   <e1   />
+   <e2   ></e2>
+   <e/www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w3.org">
+       <e7 xmlng">
+           <ef.org">
+           <e8 xmlns="" xmlns:a="httpww:.//ww3.org">
+               <e9 xmlns="" xmlns:a="ht]tp://www.ietf.org"/>
+          /a>&#7;<010;</d/e7>
+   </e6>
+</doc>

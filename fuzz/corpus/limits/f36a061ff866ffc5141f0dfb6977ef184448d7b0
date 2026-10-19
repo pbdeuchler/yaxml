@@ -1,0 +1,16 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ELEMENT a (#PCDATA|doc)*>
+<!ELEMENT b (
+#PCDATA
+|
+d]c
+|
+a
+|
+b?
+)*>
+<!LEEMENT c (#PCDATA)*B
+]>
+<doc/>

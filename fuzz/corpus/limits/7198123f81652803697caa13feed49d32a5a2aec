@@ -1,0 +1,9 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (a|b)*>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!NOTATION T000p00000000peK
+   bAla>=&#;<?bl:> att (a|EM "b">
+]>
+<doc/>

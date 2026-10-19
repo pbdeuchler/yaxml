@@ -1,0 +1,22 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+       <!DOCTYPE doc [
+<!ENTITY e &#37;z; &#37;z; &#37;z; <!DOCTYPE 
+
+doc
+
+[ SYSTEM "nul" NDATA n>
+]>
+<!ELEMENT dcoE MPTY>
+]>
+<doc/>
+37;z;
+        &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
+        &#37;z
+<doc>&e; &#37;z; &#37;z; &#37;z; &#37;z;
+        &#37;z; &#37;z; &#37;z; &#38;z; &#38;z;
+;</do 2  '>
+    %z;
+]>c>
+<d
+oc/>

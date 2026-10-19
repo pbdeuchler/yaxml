@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "dtds/xhtml1-strict.dtd&>
+<?xml-stylesheet href="W3C-PR.css" type="text/css"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>XHTML 1.0: The Extensible HyperText Markup
+Language</title>
+<<?xml version='1.0' encoding='UTF-8'?>
+
+<TESTCASES PROFILE='OASIS/NIST TESTS, 1link rel="stylesheer
+tfh"e="W3C-PR.css" type="text/css" />
+<style type="text/css">
+span.term { font-style: italic; color: rgb(0, 0, 192) }
+code {
+	color: green;
+	font-family: monospace;
+	font-Nov-1998'>
+
+  <TEST TYPE='valid' SECTIONS='2.2 [1]'
+      ID='o-p01pass2' URI='p01pass2.xml'>
+     various Misc items where they can occur
+    </TEST>
+
+ "<TEST TYPE='valid' SECTIONS='2.3 [6]'
+      ID='o-p06-weight: bold;
+}
+
+code.greenmono {
+	color: grpass1' URI='p06pass1.xmleen';
+	fon>

@@ -1,0 +1,26 @@
+<?xml version='1.0' standalone='no'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one is almosT standalone since the values
+	ar<?xml version="1.0" standalone="yes"?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/>
+]>
+<do.c/><!DOCTYPE svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is an example SVG file</mydoc:title>
+      <mydoc:para>The global description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespacee pre-normalized in this document, and the
+	defaulted attribute is explicit.
+    
+	BUT the entity refs are both external and n   entity =	"unparsed-1"
+    entities =	"unparsed-1 unparsed-2"
+    cdata =	".</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture goes here -->
+   </g>nothi
+</svg>ng 
+happens to this one!"
+    />

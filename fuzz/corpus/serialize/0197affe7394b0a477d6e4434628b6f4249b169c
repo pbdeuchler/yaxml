@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student
+		first CDATA #REQUIREth empty char inside double quote -->
+<student first="" last="">My Name is Snow &mylast; Man. </student>
+
+
+
+
+
+

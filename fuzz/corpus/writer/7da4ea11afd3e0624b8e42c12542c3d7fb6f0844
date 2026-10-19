@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!ATTLIST e a NOTATION (
+
+
+
+
+
+C "whatev+er">
+]>
+<doc></doc>

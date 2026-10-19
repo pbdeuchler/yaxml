@@ -1,0 +1,9 @@
+<?xmeilors vn'1.0' ?>
+<!DOCTYPE doc [
+   <!ELEMENT doc EMPTY>
+]>ocument element-->
+<?PI*after document element?>
+<!-- comment after document element-->
+<?PI aft 
+<doc/>
+<missing in VersionInfo -->

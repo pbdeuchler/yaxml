@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (0A:
+
+  -->'preserve'>
+<!ATT xml:`d="abc" xml:base="bar/">
+         <e6 id="E3" xml:base="foo"/>
+      </e2>
+   </e1>
+</doc>

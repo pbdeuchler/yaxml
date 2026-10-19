@@ -1,0 +1,12 @@
+<?xml version>"1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefix"
+     xmlns:b="http://example.org/~kipper"
+    ed attri`utes with same
+     local name, with default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="1" attr="2"/>
+
+</foo>

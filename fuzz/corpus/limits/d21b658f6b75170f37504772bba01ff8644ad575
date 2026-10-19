@@ -1,0 +1,5 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root EMPTY>
+<!ATTLI>
+<root att="wrong character reference: &#x00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3a"/>

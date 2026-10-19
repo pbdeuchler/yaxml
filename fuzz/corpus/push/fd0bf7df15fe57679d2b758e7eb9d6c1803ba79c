@@ -1,0 +1,44 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#74;z; &#37;z; &#37;z; <!DOCTYPE 
+
+doc
+
+[
+<!ELEMENT dcoE MPTY>
+]>
+<doc/>
+37;z;
+        &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
+        &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
+        &#37;z; &#37;z; &#37;z; coE7;zibute dia:name="obj_pos">
+        <dia:point dia:val="1.95,6.85"/>
+      </dia:attribute>
+      <dia:attribute dia:name="obMPLIED>
+
+<!ELEMENT dia:int EMPTY>
+<!ATTLIST dia:int  dia:val NMTOKEN #REQUIRED>
+
+<!ELEMENT dia:enum EMPTY>
+<!ATTLIST dia:enum  dia:val NMTOKEN #REQUIRED>
+
+<!ELEMENT dia:realns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attribute dia:name="background">
+      <dia:color dia:val="#ffffff"/>
+    </dia:attribute>
+  </dia:diagramdata>
+  <dia:layer dia:name="Background" dia:visible="true">
+    <dia:object dia:type="Standard - Line" dia:version="0" dia:id="O0">
+      <2ia:attribute dia:name="obj_pos">
+        <dia:point dia:val="1.95,6.85"/>
+      </dia:attribute>
+      <dia:attribute dia:name="obj_bb">
+        <dia:rectangle dia:val="1.9,6.8;11,8.55"/>
+      </dia:attribute>
+      <tribute dia:name="line_style">
+        <dia:enum di
+    '>
+    %z;
+]>
+<doc/>

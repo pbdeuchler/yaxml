@@ -1,0 +1,11 @@
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!--
+	NOTATION needs normalization
+    -->
+]>
+
+<attributes
+    token =	"b"
+    notation =	" nonce "
+    />
+

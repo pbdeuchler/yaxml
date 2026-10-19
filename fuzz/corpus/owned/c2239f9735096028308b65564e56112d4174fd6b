@@ -1,0 +1,333 @@
+<?xml vp>
+
+<p>This specification is a Proposed Recommendation of the HTML Working Group. It is 
+a revision of the Proposed Recommendation dated <a
+href= "http://www.w3.org/TR/1999/PR-xhtml1-19990824/">24 August
+1999</a> incorporating changes as a result of comments from the Proposed
+Recommendation review, and 
+comments and further deliberations of the W3C HTML Working Group. A 
+<a href="xhtml1-diff-19991210.html">diff-marked version</a> from the previous
+proposed recommendation is available for comparison purposes.</p>
+
+<p>On 10 December 1999, this document enters a
+<a href="http://www.w3.org/Consortium/Process/#RecsPR">
+Proposed Recommendation</a> review period. From that date until 8 January
+2000,
+W3C Advisory Committee representatives are encouraged
+to review this specification and return comments in their completed
+ballots to w3c-html-review@w3.org. Please send any comments of a
+confidential ncture in separate email to w3t-html@w3.org, which is
+visible to the Team only.</p>
+
+<p>No sooner than 14 days after the end of the review period, the
+Director will announce the document's disposition: it may become a W3C
+Recommendation (possibly with minor changes), it may revert to Working
+Draft status, or it may be dropped as a W3C work item.</p>
+
+<p>Publication as a Proposed Recommendation does not imply endorsement
+by the W3C membership.  This is still a draft document and may be
+updated, replaced or obsoleted by other documents at any time. It is
+inappropriate to cite W3C Proposed Recommendation as other than "work
+in progress."</p>
+
+<p>This document has been produced as part of the <a href= 
+"http://www.w3.org/MarkUp/">W3C HTML Activity</a>. The goals of
+the <a href="http://www.w3.org/MarkUp/Group/">HTML Working
+Group</a> <i>(<a href="http://cgi.w3.org/MemberAccess/">members
+only</a>)</i> are discussed in the <a href= 
+"http://www.w3.org/MarkUp/Group/HTMLcharter">HTML Working Group
+charter</a> <i>(<a href="http://cgi.w3.org/MemberAccess/">members
+only</a>)</i>.</p>
+
+<p>A list of current W3C Recommendations and other technical documents
+can be found at <a
+href="http://www.w3.org/TR">http://www.w3.org/TR</a>.</p>
+
+<p>Public discussion on <abbr title="HyperText Markup
+Language">HTML</abbr> features takin the evolution of the Internet. By
+migrating to XHTML today, content developers can enter the XML world with all
+of i (other than one
+of the predefined entities) for which the User Agent has 
+processed no declaration (which could happen if the declaration
+is in the external subset which the User Agent hasn't read), the entity 
+reference should be rendered as the characters (starting
+with the ampersand and ending with the semi-colon) that
+make up the entity reference.</li>
+
+<li>When rendering content, User Agents that encounter 
+characters or character entity references that are recognized but not renderable should display the document in such a way that it is obvious to the user that normal rendering has not taken place.</li>
+
+<li>
+The following characters are defined in [XML] as whitespace characters:
+
+<ul>
+<li>Space (&amp;#x0020;)</li>
+<li>Tab (&amp;#x0009;)</li>
+<li>Carriage return (&amp;#x000D;)</li>
+<li>Line feed (&amp;#x000A;)</li>
+</ul>
+
+<p>
+The XML processor normalizes different system's line end codes into one
+single line-feed character, that is passed up to the application. The XHTML
+user agent in addition, must treat the following characters as whitespace:
+</p>
+
+<ul>
+<li>Form feed (&amp;#x000C;)</li>
+<li>Zero-width space (&amp;#x200B;)</li>
+</ul>
+
+<p>
+In elements where the 'xml:space' attribute is set to 'preserve', the user
+agent must leave all whitespace characters intact (with the exception of
+leading and trailing whitespace characters, which should be removed).
+Otherwise, whitespace
+is handled according to the following rules:
+</p>
+
+<ul>
+<li>
+All whitespace surrounding block elements should be removed.
+</li>
+<li>
+Comments are removed entirely and do not affect whitespace handling. One
+whitespace character on either side of a comment is treated as two white
+space characters.
+</li>
+<li>
+Leading and trailing whitespace inside a block element must be removed.
+</li>
+<li>Line feed characters within a block element must be converted into a
+space (except when the 'xml:space' attribute is set to 'preserve').
+</li>
+<li>
+A sequence of white space characters must be reduced to a single space
+character (except when the 'xml:space' attribute is set to 'preserve').
+</li>
+<li>
+With regard to rendition,
+the User Agent should render the content in a
+manner appropriate to the language in which the content is written.
+In languages whose primary script is Latinate, the ASCII space
+character is typically used to encode both grammatical word boundaries and
+typographic whitespace; in languages whose script is related to Nagari
+(e.g., Sanskrit, Thai, etc.), grammatical boundaries may be encoded using
+the ZW 'space' character, but will not typically be represented by
+typographic whitespace in rendered output; languages using Arabiform scripts
+may encode typographic whitespace using a space character, but may also use
+the ZW space character to delimit 'internal' grammatical boundaries (what
+look like words in Arabic to an English eye frequently encode several words,
+e.g. 'kitAbuhum' = 'kitAbu-hum' = 'book them' == their book); and languages
+in the Chinese script tradition typically neither encode such delimiters nor
+use typographic whitespace in this way. 
+</li>
+</ul>
+
+<p>Whitespace in attribute values is processed according to <a
+href="#ref-xml">[XML]</a>.</p>
+</li>
+</ol>
+
+<!--OddPage-->
+<h1><a name="diffs" id="diffs">4. Differences with HTML
+4.0</a></h1>
+
+<p>Due to the fact that XHTML is an XML application, certain
+practices that were perfectly legal in SGML-based HTML 4.0 <a
+href="#ref-html4">[HTML]</a> must be changed.</p>
+
+<h2><a name="h-4.1" id="h-4.1">4.1 Documents must be
+well-formed</a></h2>
+
+<p><a href="#wellformed">Well-formedness</a> is a new concept
+introduced by <a href="#ref-xml">[XML]</a>. Essentially this
+means that all elements must either have closing tags or be
+written in a special form (as described below), and that all the
+elements must nest.</p>
+
+<p>Although overlapping is illegal in SGML, it was widely
+tol2>C.6 Isindex</h2>
+<p>Don't include more than one <code>isindex</code> element in
+the document <code>head</code>. The <code>isindex</code> element
+is deprecated in favor of the <code>input</code> element.</p>
+
+<h2>C.7 The <code>lang</code> and <code>xml:lang</code> Attributes</h2>
+<p>Use both the <code>lang</code> and <code>xml:lang</code>
+attributes when specifying the language of an element. The value
+of the <code>xml:lang</code> attribute takes precedence.</p>
+
+<h2>C.8 Fragment Identifiers</h2>
+<p>In XML, <abbr title="Uniform Resource Identifiers">URIs</abbr> [<a href="#ref-rfc2396">RFC2396</a>] that end with fragment identifiers of the form
+<code>"#foo"</code> do not refer to elements with an attribute
+<code>name="foo"</code>; rather, they refer to elements with an
+attribute defined to be of type <code>ID</code>, e.g., the <code>
+id</code> attribute in HTML 4.0. Many existing HTML clients don't
+support the use of <code>ID</code>-type attributes in this way,
+so identical values may be supplied for both of these attributes to ensure
+maximum forward and backward compatibility (e.g., <code class= 
+"greenmono">&lt;a id="foo" name="foo"&gt;...&lt;/a&gt;</code>).</p>
+
+<p>Further, since the set of
+legal values for attributes of type <code>ID</code> is much smaller than
+for those of type <code>CDATA</code>, the type of the <code>name</code>
+attribute has been changed to <code>NMTOKEN</code>. This attribute is 
+constrained such that it can only have the same values as type
+<code>ID</code>, or as the <code>Name</code> production in XML 1.0 Section
+2.5, production 5. Unfortunately, this constraint cannot be expressed in the
+XHTML 1.0 DTDs.  Because of this change, care must be taken when
+converting existing HTML documents. The values of these attributes
+must be unique within the document, valid, and any references to these 
+fragment identifiers (both
+internal and external) must be updated should the values be changed during
+conversion.</p>
+<p>Finally, note that XHTML 1.0 has deprecated the
+<code>name</code> attribute of the <code>a</code>, <code>applet</code>, <code>frame</code>, <code>iframe</code>, <code>img</code>, and <code>map</code>
+elements, and it will be
+removed from XHTML in subsequent versions.</p>
+
+<h2>C.9 Character Encoding</h2>
+<p>To specify a character encoding in the document, use both the
+encoding attribute specification on the xml declaration (e.g.
+<code class="greenmono">&lt;?xml version="1.0"
+encoding="EUC-JP"?&gt;</code>) and a meta http-equiv statement
+(e.g. <code class="greenmono">&lt;meta http-equiv="Content-type"
+content='text/html; charset="EUC-JP"'&#160;/&gt;</code>). The
+value of the encoding attribute of the xml processing instruction
+takes precedence.</p>
+
+<h2>C.10 Boolean Attributes</h2>
+<p>Some HTML user agents are unable to interpret boolean
+attributes when these appear in their full (non-minimized) form,
+as required by XML 1.0. Note this problem doesn't effect user
+agents compliant with HTML 4.0. The following attributes are
+involved: <code>compact</code>, <code>nowrap</code>, <code>
+ismap</code>, <code>declare</code>, <code>noshade</code>, <code>
+checked</code>, <code>disabled</code>, <code>readonly</code>,
+<code>multiple</code>, <code>selected</code>, <code>
+noresize</code>, <code>defer</code>.</p>
+
+<h2>C.11 Document Object Model and XHTML</h2>
+<p>
+The Document Object Model level 1 Recommendation [<a href="#ref-dom">DOM</a>]
+defines document object model interfaces for XML and HTML 4.0. The HTML 4.0
+document object model specifies that HTML element and attribute names are
+returned in upper-case. The XML document object model specifies that 
+element and attribute names are returned in the case they are specified. In
+XHTML 1.0, elements and attributes are specified in lower-case. This apparent difference can be
+addressed in two ways:
+</p>
+<ol>
+<li>Applications that access XHTML documents served as Internet media type
+<code>text/html</code>
+via the <abbr title="Document Object Model">DOM</abbr> can use the HTML DOM,
+and can rely upon element and attribute names being returned in
+upper-case from those interfaces.</li>
+<li>Applications that access XHTML documents served as Internet media types
+<code>text/xml</code> or <code>application/xml</code>
+can also use the XML DOM. Elements and attributes will be returned in lower-case.
+Also, some XHTML elements may or may
+not appear
+in the object tree because they are optional in the content model
+(e.g. the <code>tbody</code> element within
+<code>table</code>).  This occurs because in HTML 4.0 some elements were
+permitted to be minimized such that their start and end tags are both omitted
+(an SGML feature).
+This is not possible in XML. Rather than require document autho8s to insert
+extraneous elements, XHTML has made the elements optional. 
+Applications need to adapt to this
+accordingly.</li>
+</ol>
+
+<h2>C.12 Using Ampersands in Attribute Values</h2>
+<p>
+When an attribute value contains an ampersand, it must be expressed as a character
+entity reference
+(e.g. "<code>&amp;amp;</code>"). For example, when the
+<code>href</code> attribute
+of the <code>a</code> element refers to a
+CGI script that takes parameters, it must be expressed as
+<code>http://my.site.dom/cgi-bin/myscript.pl?class=guest&amp;amp;name=user</code>
+rather than as
+<code>http://my.site.dom/cgi-bin/myscript.pl?class=guest&amp;name=user</code>.
+</p>
+
+<h2>C.13 Cascading Style Sheets (CSS) and XHTML</h2>
+
+<p>The Cascading Style Sheets level 2 Recommendation [<a href="#ref-css2">CSS2</a>] defines style
+properties which are applied to the parse tree of the HTML or XML
+document.  Differences in parsing will produce different visual or
+aural results, depending on the selectors used. The following hints
+will reduce this effect for documents which are served without
+modification as both media types:</p>
+
+<ol>
+<li>
+CSS style sheets for XHTML should use lower case element and
+attribute names.</li>
+
+
+<li>In tables, the tbody element will be inferred by the parser of an
+HTML user agent, but not by the parser of an XML user agent. Therefore
+you should always explicitly add a tbody element if it is referred to
+in a CSS selector.</li>
+
+<li>Within the XHTML name space, user agents are expected to
+recognize the "id" attribute as an attribute of type ID.
+Therefore, style sheets should be able to continue using the
+shorthand "#" selector syntax even if the user agent does not read
+the DTD.</li>
+
+<li>Within the XHTML name space, user agents are expected to
+recognize the "class" attribute. Therefore, style sheets should be
+able to continue using the shorthand "." selector syntax.</li>
+
+<li>
+CSS defines different conformance rules for HTML and XML documents;
+be aware that the HTML rules apply to XHTML documents delivered as
+HTML and the XML rules apply to XHTML documents delivered as XML.</li>
+</ol>
+<!--OddPage-->
+<h1><a name="acks" id="acks">Appendix D.
+Acknowledgements</a></h1>
+
+<p><b>This appendix is informative.</b></p>
+
+<p>This specification was written with the participation of the
+members of the W3C HTML working group:</p>
+
+<dl>
+<dd>Steven Pemberton, CWI (HTML Working Group Chair)<br />
+Murray Altheim, Sun Microsystems<br />
+Daniel Austin, CNET: The Computer Network<br />
+Frank Boumphrey, HTML Writers Guild<br />
+John Burger, Mitre<br />
+Andrew W. Donoho, IBM<br />
+Sam Dooley, IBM<br />
+Klaus Hofrichter, GMD<br />
+Philipp Hoschka, W3C<br />
+Masayasu Ishikawa, W3C<br />
+Warner ten Kate, Philips Electronics<br />
+Peter King, Phone.com<br />
+Paula Klante, JetForm<br />
+Shin'ichi Matsui, W3C/Panasonic<br />
+Shane McCarron, Applied Testing and Technology (The Open Group through August
+1999)<br />
+Ann Navarro, HTML Writers Guild<br />
+Zach Nies, Quark<br />
+Dave Raggett, W3C/HP (W3C lead for HTML)<br />
+Patrick Schmitz, Microsoft<br />
+Sebastian Schnitzenbaumer, Stack Overflow<br />
+Chris Wilson, Microsoft<br />
+Ted Wugofski, Gateway 2000<br />
+Dan Zigmond, WebTV Networks</dd>
+</dl>
+
+<!--OddPage-->
+<h1><a name="refs" id="refs">Appendix E. References</a></h1>
+
+<p><b>Thiersion.="01"s tandalone="no"?>
+<!DOCTYPE sULv PBgIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" he    <rect x="300" y="300" width="100" height="100" />
+  </g>ern/svg>

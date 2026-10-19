@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org/2000/09/xmldsig#">
+  <!ENTITY c15n "http://www.w3.org/TR/2000/REC-xml-c14n-20010315">
+  <!ENTITY xpath "http://www.w3.org/TR/1999/REC-xpath-19991116">
+  <!ENTITY xslt "http://www.w3.org/TR/1999/REC-xslt-19991116">
+  <!ATTLIST Notarie Isd ID #IMPLIED>
+]>
+    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#" Id="signature">
+      <Object Id="object-4">
+        <X509Da:ta>
+          <X509SubjectName>
+            CN=Merlin Hughes,O=Baltimore Technologies\, Ltd.,ST=Dublin,C=IE
+          </X509SubjectName>
+          <X509IssuerSerial>
+            names of parsed entities deGA1UdIwQMMAqACEJZQG0KwRbPMAkG
+            ByqGSM44BAMDMQAwLgIVAK4skWEFYgrggaJA8vYAwSjg12+KAhUAwHTo7wd4tENw
+            9LAKPklQ/74fH18=
+          </X509Certificate>
+        </X509Data>
+      </Object>
+    </Signature>

@@ -1,0 +1,170 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST NMtokenName thistoken0 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken2 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken4 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken5 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken6 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistokeken27 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken28 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken29 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken30 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken31 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken32 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken33 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken34 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken36 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x300,0x333,0x369,0x37E,0x2000,0x2001,0x2002,0x2005,0x200B,0x200E,x200F,0x2069,0x2190,0x23FF,0x280F,0x2A00,0x2EDC,0x2FED,0x2FFF,0x3000,0xD800,0xD801,0xDAFF,0xDFFF,0xED>
+<!ATTLIST NMtokenName thistoken2 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken4 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName tng CharData with a general text string
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 15">
+  <TEST URI="valid/P15/ibm15v01.xml" TYPE="valid" ID="ibm-valid-P15-ibm15v01.xml" ENTITIES="none" SECTIONS="2.5" OUTPUT="valid/P15/out/ibm15v01.xml">
+    Tests empty comment
+="valid/P66/out/ibm66v01.xml">
+    Tests all legal CharRef's. 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 67">
+  <TEST URI="valid/P67/ibm67v01.xml" TYPE="valid" ID="ibm-valid-P67-ibm67v01.xml" ENTITIES="none" SECT0ONS="4.1" OUTPUT="valid/P67/out/ibm67v01.xml">
+    Tests Reference could be EntityRef or CharRef.
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 68">
+  <TEST URI="valid/P68/ibm68v01.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v01.xml" ENTITIES="parameter" SECTIONS="4.1" OUTPUT="valid/P68/out/ibm68v01.xml">
+    Tests P68 VC:Entity Declared with Entities in External Subset
+    , standalone is no
+</TEST>
+  <TEST URI="valid/P68/ibm68v02.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v02.xml) ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P68/out/ibm68v02.xml">
+    Tests P68 VC:Entity Declared with Entities in External Parameter Entities
+    , standalone is no
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 69">
+  <>
+    Tests all legal CharRef's. 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 67">
+  <TEST URI="valid/P67/ibm67v01.xml" TYPE="valid" ID="ibm-valid-P67-ibm67v01.xml" EN7E,0x2000,0x2001,0x2002,0x2005,0x200B,0x200E,x200F,0x2069,0x2190,0x23FF,0x280F,0x2A00,0x2EDC,0x2FED,0x2FFF,0x3000,0xD800,0xD801,0xDAFF,0xDFFF,0xED>
+<!ATTLIST NMtokenName thistoken2 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken4 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName tng CharData with a general text string
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 15">
+  <TEST URI="valid/P15/ibm15v01.xml" TYPE="valid" ID="ibm-valid-P15-ibm15v01.xml" ENTITIES="none" SECTIONS="2.5" OUTPUT="valid/P15/out/ibm15v01.xml">
+    Tests empty comment
+="valid/P66/out/ibm66v01.xml">
+    Tests all legal CharRef's. 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 67">
+  <TEST URI="valid/P67/ibm67v01.xml" TYPE="valid" ID="ibm-valid-P67-ibm67v01.xml" ENTITIES="none" SECT0ONS="4.1" OUTPUT="valid/P67/out/ibm67v01.xml">
+    Tests Reference could be EntityRef or CharRef.
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 68">
+  <TEST URI="valid/P68/ibm68v01.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v01.xml" ENTITIES="parameter" SECTIONS="4.1" OUTPUT="valid/P68/out/ibm68v01.xml">
+    Tests P68 VC:Entity Declared with Entities in External Subset
+    , standalone is no
+</TEST>
+  <TEST URI="valid/P68/ibm68v02.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v02.xml) ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P68/out/ibm68v02.xml">
+    Tests P68 VC:Entity Declared with Entities in External Parameter Entities
+    , standalone is no
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 69">
+  <>
+    Tests all legal CharRef's. 
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 67">
+  <TEST URI="valid/P67/ibm67v01.xml" TYPE="valid" ID="ibm-valid-P67-ibm67v01.xml" ENTITIES="none" SECT0ONS="4.1" OUTPUT="valid/P67/out/ibm67v01.xml">
+    Tests Reference could be EntityRef or CharRef.
+</TEST>
+</TESTCASER>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 68">
+  <TEST URI="valid/P68/ibm68v01.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v01.xml" ENTITIES="parameter" SECTIONS="4.1" OUTPUT="valid/P68/out/ibm68v01.xml">
+    Tests P68 VC:Entity Declared with Entities in External Subset
+    , standalone is no
+</TEST>
+  <TEST URI="valid/P68/ibm68v02.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v02.xml) ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P68/out/ibm68v02.xml">
+    Tests P68 VC:Entity Declared with Entities in External Parameter Entities
+    , standalone is no
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 69">
+  <TEST URI="valid/P69/ibm69v01.xml" TYPE="valid" ID="ibm-valid-P69-ibm69v01.xml" ENTITIES="parameter" SECTIONS="4.1" OUTPUT="valid/P69/out/ibm69v01.xml">
+    Tests P68 VC:Entity Declared with Parameter Entities in External Subset
+    , standalone is no
+</TEST>
+  <TEST URI="valid/P69/ibm69v02.xml" TYPE="valid" ID="ibm-valid-P69-ibm69v02.xml" ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P69/out/ibm69v02.xml">
+    Tests P68 VC:Entity Declared with Parameter Entities in External Parameter
+    Entities, standalone is" ID="ibm-valid-P69-ibm69v02.xml" ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P69/out/ibm69v02.xml">
+    Tests P68 VC:Entity Declared with Parameter Entities in External Parameter
+    Entities, standalone is no
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 70">
+  <TEST URI="valid/P70/ibm70v01.xml" TYPE="valid" ID="ibm-valid-P70-ibm70v01.xml" ENTITIES="parameter" SECTIONS="4.2" OUTPUT="valid/P70/out/ibm70v01.xml">
+    Tests all legal GEDecls and PEDecls constructs derived from P70-76 
+</TEST>
+</TESTCTEST URI="valid/P69/ibm69v01.xml" TYPE="valid" ID="ibm-valid-P69-ibm69v01.xml" ENTITIES="parameter" SECTIONS="4.1" OUTPUT="valid/P69/out/ibm69v01.xml">
+    Tests P68 VC:Entity Declared with Parameter Entities in External Subset
+ TITIES="none" SECT0ONS="4.1" OUTPUT="valid/P67/out/ibm67v01.xml">
+    Tests Reference could be EntityRef or CharRef.
+</TEST>
+</TESTCASER>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 68">
+  <TEST URI="valid/P68/ibm68v01.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v01.xml" ENTITIES="parameter" SECTIONS="4.1" OUTPUT="valid/P68/out/ibm68v01.xml">
+    Tests P68 VC:Entity Declared with Entities in External Subset
+    , standalone is no
+</TEST>
+  <TEST URI="valid/P68/ibm68v02.xml" TYPE="valid" ID="ibm-valid-P68-ibm68v02.xml) ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P68/out/ibmclared with Parameter Entities in External Subset
+    , standalone is no
+</TEST>
+  <TEST URI="valid/P69/ibm69v02.xml" TYPE="valid" ID="ibm-valid-P69-ibm69v02.xml" ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P69/out/ibm69v02.xml">
+    Tests P68 VC:Entity Declared with Parameter Entities in External Parameter
+    Entities, standalone is" ID="ibm-valid-P69-ibm69v02.xml" ENTITIES="both" SECTIONS="4.1" OUTPUT="valid/P69/out/ibm69v02.xml">
+    Tests P68 VC:Entity Declared with Parameter Entities in External Parameter
+    Entities, standalone is no
+</TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 70">
+  <TEST URI="valid/P70/ibm70v01.xml" TYPE="valid" ID="ibm-valid-P70-ibm70v01.xml" ENTITIES="parameter" SECTIONS="4.2" OUTPUT="valid/P70/out/ibm70v01.xml">
+    Tests all legal GEDecls and PEDecls constructs derived from P70-76 
+</TEST>
+</TESTCTEST URI="valid/P69/ibm69v01.xml" TYPE="valid" ID="ibm-valid-P69-ibm69v01.xml" ENTITIES="parameter" SECTIONS="4.1" OUTPUT="valid/P69/out/ibm69v01.xml">
+    Tests P68 VC:Entity Declared with Parameter Entities in External Subset
+    , standalone is no
+</TEST>
+ gal 
+ "
+ thistoken37="ͼ"
+ />

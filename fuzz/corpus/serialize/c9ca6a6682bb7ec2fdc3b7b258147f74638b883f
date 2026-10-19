@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing invalid PI with illegal sequence  -0->
+<?MyInstruct This is ?> a etst ?>
+<student>My Name is SnowMaul] namescace --->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http;://exa}ple.org/~wilbur">
+xed attributes wn. </student>
+
+

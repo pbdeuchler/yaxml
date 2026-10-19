@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p '˙˙˙parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'ag˙in'>
+]>
+<r i='a'>>>>>>>>>>>>>>>K"aam>espaced"><p:n xmlns:p="urn:q">a<![CDATA[b]]>c</p:n><![CDATA[]]ITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIEDùùùùùù ä¸­-->tai˙˙˙˙˙˙˙˙ð>>>>>>es=<!--after-'u v am<r><->
+pp' t='0 2' -

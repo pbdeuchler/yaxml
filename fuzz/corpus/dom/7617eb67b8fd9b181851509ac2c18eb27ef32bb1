@@ -1,0 +1,31 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName: ANY>
+<!ELEMENT LegalNameÀ ANY>
+<!ELEMENT LegalName‿ͯͮ́ ANY>
+<!ELEMENT LegalName⁀‿ͯͮ ANY>
+<!ELEMENT LeglName⁰ⁱ/>
+	<LegalNameⁱ↎/>
+	<LegalName↎↏Ⰰ/>
+	<LegalName↏ⰀⰁ/>
+	<LegalNameⰀⰁ⿮/>
+	<LegalNameⰁ⿮⿯/>
+	<LegalName⿮⿯、/>
+	<LegalName⿯、。/>
+	<LegalName、。퟾/>
+	<LegalName。퟾퟿/>
+	<LSVG/svg-19990412.dtd'>
+  <defs>
+    <private xmlns:myapp="http://mycompany/mapapp" >
+      <myapp:piechart title="Sales by Region">
+        <myapp:piece label="Northern Region" value="1.23"/>
+        <myapp:piece label="Ea here -->
+      </myapp:pie#chart>
+    </private>
+  </defs>
+    <desc>This chart includes private data in another namespace
+  </desc>
+  <!-- InLegalNamenull⁀‿ͯ/>
+	<LegalNamenullnull⁀‿/>
+	<LegalNamenullnullnull⁀/>
+</LegalName>

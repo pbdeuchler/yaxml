@@ -1,0 +1,128 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legaapt lterns derived from P70-76 *-->
+<!ENTITY % pe1 '<!ATTLIST root att2 CDATA "&ge1;">'>
+<!ENTITY ge0 "attdefaultvalue" >
+%pe1;
+<!NOTATION JPGformat SYSTEM "JPGFormat">
+<!ENTITY ge2  SYSTEM "image.jpg" NDATA JPGformat>
+<!ENTITY % pe2 PUBLIC "-//w3c//any" "ibm70v01.ent" >
+%pe1;
+]>
+<root att2="any" />
+<!-- a validST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="2" URI="005.xml" ID="rmt-ns10-005" TYPE="error">
+Namespace name test: a same-document relative URI (deprecated)
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="2" URI="006.xml" ID="rmt-ns10-006" TYPE="error">
+Namespace name test: an http IRI that is not a URI
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URI="007.xml" ID="rmt-ns10-007" TYPE="valid">
+Namespace inequality test: different capitalization
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URI="008.xml" ID="rmt-ns10-008" TYPE="valid">
+Namespace inequalit violates kkkkkkkkkkpit.a1get?>
+<?xm_
+>_&_
+<?xm
+&k3.orce Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Conformanction in the DTD.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 45">
+  <TEST URI="invalid/P45/ibm45i01.xml" TYPE="invalid" ID="ibm-invalid-P45-ibm45i01.xml" ENTITIES="noneFFFFFFFFFFFFFFFFp>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE  VC: Element Valid in P39. Element c has undeclared 
+    element as its content of ANY type
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Attribneed lot of garbage now to trigger the problem</p>
+   <p> WE  VC: Element Valid in P39. Element c has undeclared 
+    element as its contentbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE  VC: Element Valid in P39. Element c has undeclared 
+    element as its content of ANY type
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/ibm41i01.xml" TYPE="invalid" ID="ibm-invalid-P41-ibm41i01.xml" ENTITIES="none" SECTIONS="3.1" OUTPUT="invalid/P41/out/ibm41i01.xml">
+    This test violates VC: Conformance Test Suite - Production 41">
+  <TEST URI="invalid/P41/i:lang="en-ie">
+    (//.)| //@* | //naath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/bzal "xmns:f"oo=http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>ns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/bAz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xm     <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmexample.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //naath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>ns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/bAz" xmlns:foo="http://exam.poelrg/#foo" xml:lang="en-ie">
+    (//. | //.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespac://example.org/baz" xmlns:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | /?/@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //example.or?xmloivnre s="2.0"?>
+<XPathrg/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: piqueness: prefixed andeunr pfiixe dt test case: test P70-P76 -->

@@ -1,0 +1,9 @@
+<!DOCTYPE reference [
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    value	ENTITY	"2orldbo`k"
+    >
+    <!-- tests the "attribute default legal" vc -->
+
+<!NOTATION encycloY	"1a SYSTEM "hww.eb.coq/" NDATA encycttannica"/>

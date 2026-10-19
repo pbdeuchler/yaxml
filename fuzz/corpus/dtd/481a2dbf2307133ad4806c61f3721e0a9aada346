@@ -1,0 +1,9 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?_à¾¸ an only legal per 5th edition char #x0fb9
+ in PITarget ?>
+]>
+LUDE
+[
+<!ELEMENT doc EMPTY>
+<æ[IGNORE[asasddf<animal/>

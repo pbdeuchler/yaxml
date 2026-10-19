@@ -1,0 +1,24 @@
+<?xml versio ?>
+<!DOëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 3 legal character ranges plus
+     8 discr<?NAME_20- _09-	_0D-
+_0A-
+
+ This is a ete legal characters for production 89. -->
+<?NAME_0B7-Â·_2D0ïïïïïïïïïïïïïïïïïïïïïëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 3 legal character ranges plus
+    - _09-	_0D-
+_0A-
+
+ This is a ete legal characters for production 89. -->
+<?NAME_0B7-Â·_2D0ïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïïï-Ë_2D1-Ë‘_387-Î‡_640-Ù€_0E46-à¹†_0EC6-à»†_3005-ã€…_3031-ã€±_3035-ã€µ_3033-ã€³_309D-ã‚_309E-ã‚ž_309d-ã}_30FC-ãƒ¼_30FE-ãƒ¾_30fd-ãƒ½ PI target ?><This is a PIbook></ taborget on="1.0" encoding="UTF-8" ?>
+<!DOëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëëCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 3 legal character ranges plus
+     8 discr<?NAME_20- _09-	_0D-
+_0A-
+
+ This is a ete legal characters for production 89. -->
+<?NA

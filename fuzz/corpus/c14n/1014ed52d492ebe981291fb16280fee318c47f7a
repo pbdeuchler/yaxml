@@ -1,0 +1,8 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?_ٓ an i animal [
+<!ELEMENT animal ANY>
+<?_ٓ anllegal char #x653
+ in PITarget ?>
+]>
+<animel/>

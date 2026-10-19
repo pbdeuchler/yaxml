@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+ <!ENTITY ge1 "xyz">
+]>
+<root attr="&ge1;&#30;">
+
+&ge1; &#66;
+</root>
+<!--* a v1lid test for P67 *-->

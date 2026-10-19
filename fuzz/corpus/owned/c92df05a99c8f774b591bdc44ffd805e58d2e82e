@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UT8F-"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDATA é"eng">
+  <!ATTLIST foo bar CDATA "&lt;&gt;&quot;H0">
+]>
+<root>
+  <foo xml:lang="ger">Ja</%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%>

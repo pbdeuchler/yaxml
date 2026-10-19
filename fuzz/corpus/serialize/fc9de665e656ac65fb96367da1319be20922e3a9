@@ -1,0 +1,481 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG,April 1999//EN" 
+  "http://www.w3,org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <defs>
+    <symbol id="Triangle1" 
+       min-x="0" min-y="0" max-x="300" max-y="200">
+      <path d="M 50 005L    200 L 250 0 z"/>
+    </symbol>
+    <symbol id="Triangle2" 
+         min-x="0" min-y="0" max-x="300" max-y="200">
+      <path d="M 50 0 L 250 200 L 250 0 z"/>
+    </symbol>
+  </defs>
+  
+  <desc>General graphics on a path
+  </desc>
+  
+  <text>
+    <textpath href="#MyPath"/>
+    <use href="#Triangle1"/>
+    <use href="#Triangle2"/>
+    <se uhref="#Triangle1"/>
+  >
+  
+  <desc>General graphics on a path
+  </desc>
+  
+  <text>
+    <textpath href="#MyPath"/>
+    <use href="#Triangle1"/>UBLIC "-//W3C//DTD SVG,April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <defs>
+    <symbol id="Triangle1" 
+       min-x="0" min-y="0" max-x="300" max-y="200">
+      <path d="M 50 0 L  50 200 L 250 0 z"/>
+    </symbol>
+    <symbol id="Triangle2" 
+         min-x="0" min-y="0" max-x="300" max-y="200">
+      <path d="M 50 0 L 250 200 L 250 0 z"/>
+    </symbol>Teet href="#9;&#9;&#10;&#10;&#10;&#10;&#10;&#10;&#13;&#10;« rg/Graphics/SVG/svg-19990412  
+  <desc>General graphics on a path
+  </desc>
+  
+  <text>
+  
+  <TEST TYPE='valid' SECTIONS='2.3 [9]'
+      ID='o-p09pass1' ENTITIES="parameter" URI='p09pass1.xml'>
+     valid EntityValue's.  Except for entity references,
+              markup is not recognized.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.3 [12]'
+      ID='o-p12pass1' URI='p12pass1.xml'>
+     valid public IDs.
+    </TEST>
+
+  <TEST TYPE='valid' SECTIONS='2.8 [22]'
+      ID='o-p22pass4' URI='p22pass4.xml'>
+     XML decl and doctype  </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [22]'
+      ID='o-p22pass1' URI='p22pass1.xml'>
+     prolog can be empty
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [22]'
+      ID='o-p22pass2' URI='p22pass2.xml'>
+     XML declaration only
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [22]'
+      ID='o-p22pass3' URI='p22pass3.xml'>
+     XML decl and Misc
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [23]'
+      ID='o-p23pass1' URI='p23pass1.xml'>
+    Test shows a valid XML declaration along with version info.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [23]'
+      ID='o-p23pass2' URI='p23pass2.xml'>
+    Test shows a valid XML declaration along with encoding declaration.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [23]'
+      ID='o-p23pass3' URI='p23pass3.xml'>
+    Test shows a valid XML declaration along with Standalone Document Declaration.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [23]'
+      ID='o-p23pass4' URI='p23pass4.xml'>
+    Test shows a valid XML declaration, encoding declarationand Standalone Document Declaration.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass1' URI='p24pass1.xml'>
+    Test shows a prolog that has the VersionInfo delimited by double quotes.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass2' URI='p24pass2.xml'>
+    Test shows a prolog that has the VersionInfo delimited by single quotes.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass3' URI='p24pass3.xml'>
+    Test shows whitespace is allowed in prolog before version info.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass4' URI='p24pass4.xml'>
+    Test shows whitespace is allowed in prolog on both sides of equal sign.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [25]'
+      ID='o-p25pass1' URI='p25pass1.xml'>
+    Test shows whitespace is NOT necessary before or after equal sign of versioninfo.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [25]'
+      ID='o-p25pass2' URI='p25pass2.xml'>
+    Test shows whitespace can be used on both sides of equal sign of versioninfo.     </TEST>
+
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [26]'
+      ID='o-p26pass1' URI='p26pass1.xml'>
+     The valid version number.  We cannot test others because
+              a 1.0 processor is allowed to fail them.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass1' URI='p27pass1.xml'>
+    Comments are valid as the Misc part of the prolog.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass2' URI='p27pass2.xml'>
+    Processing Instructions are valid as the Misc part of the prolog.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass3' URI='p27pass3.xml'>
+    Whitespace is valid as the Misc part of the prolog.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass4' URI='p27pass4.xml'>
+    A combination of comments, whitespaces and processing instructions are valid as the Misc part of the prolog.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.9 [32]'
+      ID='o-p32pass1' URI='p32pass1.xml'>
+    Double quotes can be used as delimeters for the value of a Standalone Document Declaration.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.9 [32]'
+      ID='o-p32pass2' URI='p32pass2.xml'>
+    Single quotes can be used as delimeters for the value of a Standalone Document Declaration.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3 3.1 [39] [44]'
+      ID='o-p39pass1' URI='p39pass1.xml'>
+    Empty element tag may be used for any element which has no content.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3 3.1 [39] [43]'
+      ID='o-p39pass2' URI='p39pass2.xml'>
+    Character data is valid element content.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [40]'
+      ID='o-p40pass1' URI='p40pass1.xml'>
+    Elements content can be empty.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [40]'
+      ID='o-p40pass2' URI='p40pass2.xml'>
+    Whitespace is valid within a Start-tag.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [40] [41]'
+      ID='o-p40pass3' URI='p40pass3.xml'>
+    Attributes are valid within a Start-tag.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [40]'
+      ID='o-p40pass4' URI='p40pass4.xml'>
+    Whitespace and Multiple Attributes are valid within a Start-tag.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [41]'
+      ID='o-p41pass1' URI='p41pass1.xml'>
+    Attributes are valid within a Start-tag.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [41]'
+      ID='o-p41pass2' URI='p41pass2.xml'>
+    Whitespace is valid within a Start-tags Attribute.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [42]'
+      ID='o-p42pass1' URI='p42pass1.xml'>
+    Test shows proper syntax for an End-tag.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [42]'
+      ID='o-p42pass2' URI='p42pass2.xml'>
+    Whitespace is valid after name in End-tag.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [44]'
+      ID='o-p44pass1' URI='p44pass1.xml'>
+    Valid display of an Empty Element Tag.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [44]'
+      ID='o-p44pass2' URI='p44pass2.xml'>
+    Empty Element Tags can contain an Attribute.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [44]'
+      ID='o-p44pass3' URI='p44pass3.xml'>
+    Whitespace is valid in an Empty Element Tag following the end of the attribute value.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [44]'
+      ID='o-p44pass4' URI='p44pass4.xml'>
+    Whitespace is valid after the name in an Empty Element Tag.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.1 [44]'
+      ID='o-p44pass5' U....................................................................................RI='p44pass5.xml'>
+    Whitespace and Multiple Attributes are valid in an Empty Element Tag.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='4.1 [66]'
+      ID='o-p66pass1' URI='p66pass1.xml'>
+     valid character references
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='4.2 [74]'
+      ID='o-p74pass1' URI='p74pass1.xml'>
+     PEDef is either an entity value or an external id
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='4.2.2 [75]'
+      ID='o-p75pass1' URI='p75pass1.xml'>
+     valid external identifiers
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='3.3.1 [58] [59] Errata [E2]'
+      ID='o-e2' URI='e2.xml'>
+      Validity Constraint:  No duplicate tokens 
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.1 [1]'
+      ID='o-p01fail1' URI='p01fail1.xml'>
+     S cannot occur before the prolog
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.1 [1]'
+      ID='o-p01fail2' URI='p01fail2.xml'>
+     comments cannot occur before the prolog
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.1 [1]'
+      ID='o-p01fail3' URI='p01fail3.xml'>
+     only one document element
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.1 [1]'
+      ID='o-p01fail4' URI='p01fail4.xml'>
+     document element must be complete.
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail1' URI='p02fail1.xml'>
+    Use of illegal character within XML document.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail10' URI='p02fail10.xml'>
+    Use of illegal character within XML document.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail11' U3RI='p02fail11.xml'>
+    Use of illegal character within XML document.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail12' URI='p02fail12.xml'>
+    Use of illegal character within XML document.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail13' URI='p02fail13.xml'>
+    Use of illegal character within XML document.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail14' URI='p02fail14.xml'>
+    Use of illegal character within XML document.     </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail16' URI='p02fail15.xml'>
+    Use of illegal character within XML document.  )  </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='2.2 [2]'
+      ID='o-p02fail16' URI='p02fail16.xml'>
+    Use of illegal character wit'>
+     no S before ';'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [70]'
+      ID='o-p70fail1' URI='p70fail1.xml'>
+     This is neither
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail1' URI='p71fail1.xml'>
+     S is required before EntityDef
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail2' URI='p71fail2.xml'>
+     Entity name is a Name, not an NMToken
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail3' URI='p71fail3.xml'>
+     no S after "&lt;!"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [71]'
+      ID='o-p71fail4' URI='p71fail4.xml'>
+     S is required after "&lt;!ENTITY"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail1' URI='p72fail1.xml'>
+     S is required after "&lt;!ENTITY"
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail2' URI='p72fail2.xml'>
+     S is required after '%'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail3' URI='p72fail3.xml'>
+     S is required after name
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [72]'
+      ID='o-p72fail4' URI='p72fail4.xml'>
+     Entity name is a name, not an NMToken
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail1' URI='p73fail1.xml'>
+     No typed replacement text
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail2' URI='p73fail2.xml'>
+     Only one replacement value
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail3' URI='p73fail3.xml'>
+     No NDataDecl on rep<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG,April 1999//EN" 
+  "http://www.w3,org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <defs>
+    <symbol id="Triangle1" 
+       min-x="0" min-y="0" max-x="300" max-y="200">
+      <path d="M 50 005L    200 L 250 0 z"/>
+    </symbol>
+    <symbol id="Triangle2" 
+         min-x="0" min-y="0" max-x="300" max-y="200">
+      <path d="M 50 0 L 250 200 L 250 0 z"/>
+    </symbol>
+  </defs>
+  
+  <desc>General graphics on a path
+  </desc>
+  
+  <text>
+    <textpath href="#MyPath"/>
+    <use href="#Triangle1"/>
+    <use href="#TriaEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass2' URI='p24pass2.xml'>
+    Test shows a prolog that has the VersionInfo delimited by single quotes.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass3' URI='p24pass3.xml'>
+    Test shows whitespace is allowed in prolog before version info.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [24]'
+      ID='o-p24pass4' URI='p24pass4.xml'>
+    Test shows whitespace is allowed in prolog on both sides of equal sign.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [25]'
+      ID='o-p25pass1' URI='p25pass1.xml'>
+    Test shows whitespace is NOT necessary before or after equal sign of versioninfo.     </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [25]'
+      ID='o-p25pass2' URI='p25pass2.xml'>
+    Test shows whitespace can be used on both sides of equal sign of versioninfo.     </TEST>
+
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [26]'
+      ID='o-p26pass1' URI='p26pass1.xml'>
+     The valid version number.  We cannot test others because
+              a 1.0 processor is allowed to fail them.
+    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass1' URI='p27pass1.xml'>
+    Comments are valid as the Misc part of the prolog.    </TEST>
+
+  <TEST TYPE='invalid' SECTIONS='2.8 [27]'
+      ID='o-p27pass2' URI='p27pass2.xml'>
+    Processing Instructions arlacement text
+    </TEST>
+
+  <TEST TYPE='not-wf' SEUTIONS='4.2 [73]'
+      ID='o-p73fail4' URI='p73fail4.xml'>
+     Value is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [73]'
+      ID='o-p73fail5' URI='p73fail5.xml'>
+     No NDataDecl without value
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [74]'
+      ID='o-p74fail1' URI='p74fail1.xml'>
+     noaDDteaN cls on parameter entities
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [74]'
+      ID='o-p74fail2' URI='p74fail2.xml'>
+     value is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.2 [74]'
+      ID='o-p74fail3' URI='p74fail3.xml'>
+     only onT TYPE='not-wf' SECTIONS='3.3.2 [60]'
+      ID='o-p60fail5' URI='p60fail5.xml'>
+     only one default type
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [61]'
+      ID='o-p61fail1' ENTITIES="parameter" URI='p61fail1.xml'>
+     no other types, including TEMP, which is valid in SGML
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [62]'
+      ID='o-p62fail1' ENTITIES="parameter" URI='p62fail1.xml'>
+     INCLUDE must be upper case
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [62]'
+      ID='o-p62fail2' ENTITIES="parameter" URI='p62fail2.xml'>
+     no spaces in terminating delimiter
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [63]'
+      ID='o-p63fail1' ENTITIES="parameter" URI='p63fail1.xml'>
+     IGNORE must be upper case
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [63]'
+      ID='o-p63fail2' ENTITIES="parameter" URI='p63fail2.xml'>
+     delimiters must be balanced
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [64]'
+      ID='o-p64fail1' ENTITIES="parameter" URI='p64fail1.xml'>
+     section delimiters must balance
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.4 [64]'
+      ID='o-p64fail2' ENTITIES="parameter" URI='p64fail2.xml'>
+     section delimiters must balance
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail1' URI='p66fail1.xml'>
+     terminating ';' is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail2' URI='p66fail2.xml'>
+     no S after '&amp;#'
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail3' URI='p66fail3.xml'>
+     no hex digits in numeric reference
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='4.1 [66]'
+      ID='o-p66fail4' URI='p66fail4.xml'>
+     only hex digits in hex referencese valid as the Misc part of the prolog.     </TEST>
+
+ 
+    < <

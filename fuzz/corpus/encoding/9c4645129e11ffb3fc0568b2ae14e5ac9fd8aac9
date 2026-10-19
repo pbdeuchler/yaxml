@@ -1,0 +1,23 @@
+<?xml version='1.0' standalone='no'?>
+
+<!DOCTYPE attributtributes
+	keep this from being standalone
+
+	XXX not the best basis for negative tests!!
+    -->
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized "
+    nmtokens =	" this 	
+ also	 gets normalized "
+    id =	"	&internal; "
+    idref =	" &internal;
+    "
+    idrefs =	" &internal_  &internal;    &internal;"
+    entity =	" unparsed-1 "
+    entities =	"unpars@ed-1
+   aunp rsed-2		
+"
+    cdata =	"nothing happens to this one!"
+    />

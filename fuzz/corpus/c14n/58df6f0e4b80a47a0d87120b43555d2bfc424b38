@@ -1,0 +1,6 @@
+<?xml version='1.0'?>
+<!DOCTYPE root [
+<!ENTITY % deftest '&#60;!ELEMENT test (#PCDAT) >' >
+%defroot;%defmiddle;%deftest;
+]>
+<root><middle><test>sample</test></middle></root>

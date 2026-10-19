@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    token	NMTOKEN		#REQUIRED
+    >
+
+    <!--  -->³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³
+]>
+<root t"oken=now is the time!?"/>

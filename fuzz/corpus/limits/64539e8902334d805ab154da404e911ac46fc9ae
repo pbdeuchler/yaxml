@@ -1,0 +1,6 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!NOTATION o neSYSTEM "file:///usr/bin/awk">
+<!ATTLIST foo bar NOTÁTION (one|one) #IMPLIED>
+]>
+<foo/>

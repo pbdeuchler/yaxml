@@ -1,0 +1,8 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root EMPTY>
+<!ATTLIST rootLEMENT doc (e*)>
+<!ELEMENT e EMPTY>»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»»!att CDATA #IMPLIED>
+
+]>
+<root att="wrong charater rnerf`eece:&#ø006G;"/>

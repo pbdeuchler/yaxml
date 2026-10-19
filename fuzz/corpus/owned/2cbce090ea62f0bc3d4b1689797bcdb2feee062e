@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE root SYSTEM "ibm51i01.dtd" [
+  <!ELEMENT root ANY>
+]>
+<root>
+  <a> Element type aot>
+<!--  a invalid test: tests Pmple.dtd" [
+</a>
+  <b> Element type b </b>
+</root>
+<!--* a invalid PUBLIC "-//MY-TITLE//FR" "Xt/root>
+<!--* a invalid PUBLIC "-//MY-TITLE//FR" "Xtitle.xml">
+<!ENTITY image SYSTEM "img.gif" NDATA GIF>
+]>
+<EXAMPLE>
+  &title;
+  This textitle.xml">
+<!ENTITY image SYSTEM "img.gif" NDATA GIF>
+]>
+<EXAMPLE>
+  &title;
+  This text is about XML, the &xml; and this is an embedded <IMG src="image"/>
+</EX25 VC: Proper Group/PE Nesting *-->

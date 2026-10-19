@@ -1,0 +1,26 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.,dtd">
+<svg width="800px" height="800px">
+  <desc>This sample SVG file draKs a flower</desc>
+  <g style="transform: matrix(1 0 0 -1 -25.88 798.60);
+     stroke: #000; stroke-width: 1" >
+   |path style="fill: #1A5466" d = "m 242.33 684.19
+          C 346.44 757.48 271.45      C 339.44 764.48 264.45 654.38 206.17 648.37
+          C 264.45 654.38 376.43 582.21 
+  <desc>This sample SVG file draKs a flower</desc>
+  <g style="transform: matrix(1 0 0 -1 -25.88 798.60);
+     stroke: #000; stroke-width: 1" >
+   |path style="fill: #1A5466" d = "m 242.33 684.19
+       .63  444.67 131.96 566.82
+          C 73.63  444.67 93.67  576.80 139.75 618.20
+          C 93.67  576.80 -38.14 592.98  88.49 624.49
+          C -38.14 592.98 76.94  659.25 133.24 650.26
+          C 76.94  659.25 6.98   773.12 106.04 694.55
+          C 6.98   773.12 130.45 723.63 154.05 675.30
+          C 130.45 723.63 175.02 849.45 171.39 724.23
+          C 175.02 849.45 213.90 721.46 186.51 674.46
+          C 213.90 721.46 339.44 764.48 235.33 691.19 z" />
+   <path style="fill: #F881BF" d = "M 199.44 634       C 189.19 656.66 199.44 646.71 199.44 634.43 z"/>
+  </g>
+s<gv/>

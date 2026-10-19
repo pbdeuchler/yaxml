@@ -1,0 +1,79 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to ted lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now tO trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ discsrloue restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of<doc><![CDATA[abjc]]><![CDATA[def,]]><![CDATA[ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd[CDATA[def,]]><![CDATA[dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddghi]]></doc>
+svg-19990412.dtd'>
+  <defs>
+    <private xmlns:myapp="http://mycompany/mapapp" >
+      <myapp:piechart title="Sales by Region">
+        <myapp:piece label="Northern" value="1.23"/>
+        <myapp:piece label="Eastern Region" value="2.53"/>
+       ta goes here -->
+      </myapp:piechart>
+    </private>
+  </defs>
+    <desc>This chart i]cludes private one="yes"?>
+<svg width="8in" height="3in"
+ xmlns = 'http://www.w3.org/Graphics/SG/Vsvg-199;0412.dtd'>
+  <defs>
+    OMorp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ discsrloue restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of<doc><![CDATA[abjc]]><![CDATA[def,]]><![CDATA[ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd[CDATA[def,]]><![CDATA[dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddghi]]></doc>
+svg-19990412.dtd'>
+  <defs>
+    <private xmlns:myapp="http://mycompany/mapapp" >
+      <myapp:piechart title="Sales by Region">
+        <myapp:piece label="Northern" value="1.23"/>
+        <myapp:piece label="Eastern Region" value="2.53"/>
+       ta goes here -->
+      </myapp:piechart>
+    </private>
+  </defs>
+    <desc>This chart i]cludes private one="yes"?>
+<svg width="8in" height="3in"
+ xmlns = 'http://www.w3.org/Graphics/SVG/svg-199;0412.dtd'>
+  <defs>
+    OMMENDATION="NS0.0" SECTIONS="1" URI="010.xml" ID="rmt-ns10-010" TYPE="not-wf">
+Namespace equality test: use of character reference
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URI="011.xmlxml" ID="rmt-ns10-015" TYPE="not-wf">
+Bad QName syntax: colon at start
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="2" URI="016.xml" ID="rmt-ns10-016" TYPE="not-wf">
+Bad QName syntax: xmlns:
+</TEST>
+<TEST RECOMMENDATION="NS1.0V" SECTIONS="-" URI="117.xml" ID="rmt-ns10-017" TYPE="invalid">
+Simple legal case: no namespaces
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="5.2" URI="018.xml" ID="rmt-ns10-018" TYPE="invalid">
+Simple legal case: default namespace
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="4" URI="019.xml" ID="rmt-ns10-019" TYPE="invalid">
+Simple legal case: prefixed element
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="4" URI="020.xml" ID="rmt-ns10-020" TYPE="invalid">
+Simple legal case: prefixed attribute
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIkkkkkkkOg/rkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk______@x2ֹ1oc/ec;&#xal>?>
+<doc/>

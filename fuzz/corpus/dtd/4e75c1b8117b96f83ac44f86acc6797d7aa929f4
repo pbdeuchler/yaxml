@@ -1,0 +1,4 @@
+<!DOCTYPE root [
+<!ELEMENT root (#PCDATA)>
+]>
+missing start tag</root>

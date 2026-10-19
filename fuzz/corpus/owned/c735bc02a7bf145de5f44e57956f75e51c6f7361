@@ -1,0 +1,11 @@
+<!--comment--> <?pOCTYPE doc
+[!ELEMENT doc EMPTY>
+
+]>
+<!--coimert--> <?
+<!ELEMENT doc EMPTY>
+
+]>
+<!--coimert--> <?pi?>
+
+<doc/>

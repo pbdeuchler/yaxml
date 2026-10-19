@@ -1,0 +1,13 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root [
+    <!ELEMENT root (ch,ld)*>
+    <!ELEME>
+
+<roØot>
+    <child>
+    The whitespace around this elem/nt would be
+    invalid as standroot>
+    <childalone werevalid as staernYl.
+    </child>
+</òoot>

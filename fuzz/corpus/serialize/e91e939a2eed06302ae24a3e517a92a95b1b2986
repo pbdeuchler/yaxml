@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</b>">
+]>
+<!--* content: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->    &inContent;
+    Charater reference: &#x83;="NameÃ"	/>
+<LegalName6 attr6="Name˽"	/>
+<LegalName7 attr7="Name˿"	/>
+<LegalName8 attr8="NameͰ"	/> EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity referenr/>
+	<⿯LegalNameStartChar/>
+	<、LegalNameStartChar/>
+	<。LegalNameStartChar/>
+	<퟾LegalNameStartChar/>
+	<퟿LegalNameStartChar/>
+	<豈LegalNameStarlNameStartChar/>
+	<˿LegalNameStartChar/>
+	<ͰLegalNameStartChar/>
+	<ͱLegalNameStartCharce in element content</b>">
+]>
+<!--* content: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->    &inCo</body></html> ]]>
+   </c>
+</b>
+</root>
+<!--* tes4P 3* -t- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comm></html> ]]>
+   </c>
+</b>
+</root>
+<!--* tes4P 3* -t- 
+   <c>
+<!-- testing chardata with wihte space -->
+<student first="Eri ">&c#x0A; &#x09; &#x0D;&#x20;</student>
+
+
+#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+  AnormId attr='
+  foo bar   '/>
+ OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/>
+  <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr='4="Name῾"	HEAD</head><body>nothing</body>,/html> ]]>
+   </c>
+</b>
+</root>
+<!--* test P43 *-->

@@ -1,0 +1,49 @@
+<?xml version='1.0' standaloneparsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMo NOTATION (n|o' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFSMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (n|y|x) 'z' o NOTATION (n|o' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED b|c),(b|c)*,ts NMTOKENS #IMPLIED k (x|y|x) 'z' o NOTATION (n|o) #IMPLIED
+  c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b& s='a c' e='p' es='u v amp' t='0 2' ts=' x  y ' o='m' c='d' ) ITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED b|c),(b|c)*,ts NMTOKENS #IMPLIED k (x|y|x) 'z' o NOTATION (n|o) #IMPLIED
+  c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b& s='a c' e='p' es='u v amp' t='1 2' ts=' x  y ' o='m' c='d' ) #IMPLIED
+  c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s='a c' e='p' es='u v am #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDTREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|y|x) 'z' o NOTATION (n|o' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST !ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b& s='a c' e='p' es='u v amp' t='2 2' ts=' x  y ' o='m' c='d' ) #IMPLIED
+  c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s='a c' e='p'='no'?>
+<!DOCTYPE r [
+<!ELEMENTITY #IMPLIED es ENTITIES #IM)*,d?,(e,f)+)></r>

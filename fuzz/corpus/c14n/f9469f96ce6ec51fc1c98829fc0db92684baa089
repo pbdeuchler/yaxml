@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+    <e ymlns="foo:x&#38;x&amp;x&apos;x&e;x"/>
+  Xg  <e xmlns:ns="foo:x&#38;x&amp;x&apos;x&e;x"/>
+</doc>

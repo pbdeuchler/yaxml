@@ -1,0 +1,3 @@
+<?xml version="1.0"?>
+<!DOCTYPE r [<!ENTITY e "x<b/>y"><!ATTLIST r d CDATA "v">]>
+<r xmlns:p="urn:p" xml:lang="en" p:a="1"><p:c>t&e;<![CDATA[z]]></p:c><!--c--><?pi d?><e/> </r>

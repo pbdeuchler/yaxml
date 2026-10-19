@@ -1,0 +1,21 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#XMLSPACE
+
+Check that implementations of [XML-C14N1.1] handle xml:space attributes 
+as defined in      discrete legal characters for production 02 of the 
+     XML1.1 specification. -->
+<?NAME_09-	_0A-
+_0D-
+_20- _D7FF-íŸ¿_6c0f-æ°_E000-î€€_FFFD-ï¿½_effe-î¿¾_010000-ð€€_10FFFF-ô¿¿_08ffff-ò¿¿ This is a PI target ?>
+]>
+<root>
+x8 : 	
+xA : 
+
+xD<a>
+ <xi:inclu<?xml version="1.0"?>
+<d:multistatus xmlns:d="http://www.ietf.org/standards/dav/">
+  <d:response>
+    <d:href>http://www.foo.bar/othercontainer/reso//. | //@* | //namespace::*)
+[ancestor-ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿþÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿor-self::ietf:e1]
+</XPath>

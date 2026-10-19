@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- Simple legal case: default namespace and rebinding -->
+<foo xmlns="http://example.org/nameqp
+ce">
+ <foo xmlns="http://example.oÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿl version="1.0"?>
+<!-- Simple legal case: default namespace and rebinding -->
+<foo xmlns="http://example.org/nameqpace">
+ <foo xmlns="http://example.oÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿspace and rebinding -->
+<foo xmlns=acÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿspace and rebinding -->
+<foo xmlns=ace"/>
+</foo>
+

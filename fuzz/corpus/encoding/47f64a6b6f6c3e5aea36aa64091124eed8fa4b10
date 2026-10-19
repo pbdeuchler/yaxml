@@ -1,0 +1,12 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ENTITY % paaa "<!ATTc [
+<!ELEMENT doc h#PCDATA)>
+]>
+<doc>< ->-->LIST root att CDATA #IMPLIED>">
+<!--* incorrect PE reference without semicolon *-->
+%paaa
+<!ENTITY aaa "aString">
+]>
+<root/>

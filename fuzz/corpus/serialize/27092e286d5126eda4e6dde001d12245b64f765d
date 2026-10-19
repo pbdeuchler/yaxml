@@ -1,0 +1,28 @@
+<!--
+http								lid="no" lid doc>base on 
+one element that originally had no xml:base  attribute.
+-->
+<XPath xmlns:ietf="http://www.ietf.org" >
+(//. | //@* | //namespace::*)
+[ancestor-or-<?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="selen-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://examplef::ietf:e3]
+</XPath>2
+.org/baz" xmlns:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::n)/namespace::* | self::()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::()))
+    ]
+</XPath>

@@ -1,0 +1,47 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˾attr CDATA #IMPLIED>
+<!ATTLIST LegalName Âattr CDATA #IMPLIED>
+<!ATTLIST LegalName Ãattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˽attr CDATA #IMPLIED>
+<!ATTLIST LegalName ˿attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ͱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͼͽattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͽͿattr CDATA #IMPLIED>
+<!ATTLIST LegalName Ϳ΀attr CDATA #IMPLIED>
+<!ATTLIST LegalName ΀῾attr CDATA #IMPLIED>
+<!ATTLIST LegalName ῾῿attr CDATA #IMPLIED>
+<!ATTLIST LegalName ῿‌attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‌‍attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‍⁰attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⁰ⁱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ⁱ↎attr CDATA #IMPLIED>
+<!ATTLIST LegalName ↎↏Ⰰattr CDATA #IMPLIED>
+<!ATTLIST LegalName ↏ⰀⰁattr CDATA #IMPLIED>
+<!ATTLIST LegalName ⰀⰁ⿮attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‌‍attr CDATA #IMPLIED>
+<!ATTLIST LegalName ‍⁰attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⁰ⁱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ⁱ↎attr CDATA #IMPLIED>
+<!ATTLIST LegalName ↎↏Ⰰattr CDATA #IMPLIED>
+<!ATTLIST LegalName ↏ⰀⰁattr CDATA #IMPLIED>
+<!ATTLIST LegalName ⰀⰁ⿮attr CDATA #IMPLIED>
+<!ATTLIST LegalName Ⰱ⿮⿯attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⿮⿯、attr CDATA #IMPLIED>
+<!ATTLIST LegalName ⿯、。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 、。퟾attr CDATA #IMPLIED>
+<!ATTLIST LegalName 。퟾퟿attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟾퟿豈attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟿豈更attr CDATA #IMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>
+<!ATTLIST LegalName �更豈퟿attr CDATA #IMPLIED>
+<!ATTLIST LegalNAme attr-�更豈 CDD>
+<!ATTLIST LegalName attrͮ́̀· CDATA "IMPLIED>
+<!ATTLIST LegalName attrͯͮ́̀ CDATA #IMPLIED>
+<!ATTLIST LegalName attr‿ͯͮ́ CDATA #IMPLIED>
+<!ATTLIST Leg />

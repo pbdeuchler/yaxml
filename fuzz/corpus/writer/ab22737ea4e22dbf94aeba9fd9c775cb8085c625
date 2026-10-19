@@ -1,0 +1,27 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData~/elem>CharData</elem>">
+
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData~/elem>">
+]>
+<epem>
+CharData&#16;
+<!--commenarData&#16;
+<!--comment-->
+<![CDATA
+[<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!Y ent "<elem>CharData</elem>">
+
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<e[*
+<elem>
+<!E?>&ent;&quot;
+CharrData
+Char?pi?>&

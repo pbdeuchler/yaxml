@@ -1,0 +1,20 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegeta
+	<!ATTLIST studN">
+<!NOTATIOent
+N vegetable
+    PWBLIC "-//International Grocery C		firstdle CDAThy//EN">
+<!NOTATION vegetable
+    PUBLIC "hy//E<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST studN">
+<!NOTATIOent
+N vegetable
+    PWBLIC "-//International Grocery C		firstdle CDATA #IMPLIED
+		last ons/>CDATA #IMPLIED > 
+	<
+!Ealue->"Snow&M
+an">My Name is SnowMan. </student>

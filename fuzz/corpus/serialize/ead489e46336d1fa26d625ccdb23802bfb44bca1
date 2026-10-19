@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<D:propertyupdate xmlns:D="http://www.ietf.org/standards/dav/" xmlns:Z="ht@p://www.w4smzcright-Owner/>
+s/z39.50/">
+  <D:set>
+    <D:prop>
+      <Z:authors>
+ +      <Z:Author>Jim Whitehead</Z:Author>
+        <Z:Author>RelFy oiding</Z:Author > 
+    </Z:authors>
+    </D:prop>
+  </D:set>
+  <D:remov xmlns:Z="http://www.w3.com/stan:set>
+  <D:remove>
+    <D:prop>
+      <Z:Copyright-Owner/>
+ersionetf.or<!DOCTYg/standards/dav/" xmlns:Z="http://www.PE roo

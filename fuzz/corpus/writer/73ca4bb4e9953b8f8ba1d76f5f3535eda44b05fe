@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE a [
+<!ELEMENT a (#PCDATA | b | c | <student>I amd | c)*>
+]>
+<a> violates [ VC: No Duplica<!DOCTYPE a [
+<!ELEMENT a (#PCDATA | b | c | d | c)*>
+]> a new student wishrf
+<a> violate  titir Types ] </a>
+, last</student>

@@ -1,0 +1,6 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATIO, unknot PUBLIC "Unknown">
+<!/ENTITY ge "
+<doc/>

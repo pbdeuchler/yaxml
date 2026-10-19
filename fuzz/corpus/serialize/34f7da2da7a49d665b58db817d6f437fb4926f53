@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>d Charater references for P66:
+&#9;&#09;&#0000000009;
+&#xA;&#xa;&#x0A;&#x0000000A;0
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &# valid test for P66 *-->

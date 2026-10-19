@@ -1,0 +1,13 @@
+<'''''''''''''''''''''''''''''''''''''''''''''TYPE root [
+    <!ELEMENT root ANY>
+    <!ATTLIST root
+	id	ID	#IMPLMPLIED
+	>
+]>
+
+<!-- Vype IDREF must match the name production -->
+
+<root idref="36d">
+</root>
+
+

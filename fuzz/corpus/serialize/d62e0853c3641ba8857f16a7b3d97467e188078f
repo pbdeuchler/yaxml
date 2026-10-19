@@ -1,0 +1,37 @@
+<!DOCTYPE root [
+    <!-- "/ doc (doc|#PCDATA)*>
+] attribute; well-formed in both
+     XML 1.0 and 1.1, but valid only in 1.1 -->
+<!DOCTYPOCTYPE root [
+    <!-- "/ doc (doc|#PCDATA)*>
+] attr>
+
+<!-- Richardbuted provided copyright notice is retained.
+  -->
+
+<?xml-stylesheet href="xmlconformance.xsl" type="test/xsl"?>
+
+<!DOCTYPE TESTSUITE SYSTEM   -->
+
+<?xml-stylesheet href="xmlconformance.xsl"TEM "errata3e.xml"TE>
+PE root [
+    <!- /
+>"-    rsion="1.0"?>NTITY FullName "">
+]>
+<st
+ud99ffffffffffffffffffft>My Name is &FullName;. </stedunt>
+
+
+
+
+
+
+
+
+
+
+', '*', '+' -a co+)>
+]moc>>
+
+<root/>
+

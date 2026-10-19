@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY8
+
+    <!-- SGML-ism:  illegal attribute types -->
+
+    <!ATTLIST root
+	number	NAMES	"The King"
+	>
+
+]>
+
+<root/>
+

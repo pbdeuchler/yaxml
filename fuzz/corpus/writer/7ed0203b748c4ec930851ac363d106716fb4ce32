@@ -1,0 +1,12 @@
+<!-- CDATA sections, comments and PIs may occur in ANY content. -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+]>
+<foo>
+a <![CDCTA[cdata section]]> in mixed ITY e SYSTEM "nul" NDATA n>DATA)>
+<!A
+<!ENTITY e SYSTEM "content.
+a <!-- comment --> in mixed content.
+a <?processinS #IMPLIED>
+<!ELEMENT doc (#ent.
+</foo>

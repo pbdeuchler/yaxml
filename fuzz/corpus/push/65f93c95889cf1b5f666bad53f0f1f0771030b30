@@ -1,0 +1,28 @@
+<HTML>
+<TITLE>XML Test Cases</TITLE>
+<BoDY>
+<H1>XML Test Cases version 1998-11-18</H1>
+<P>
+Copyright (C) 1998 James Clark.  All rights reserved.  Permission ise
+collection in any other form is not granted.
+<P>
+The collection is structured into three directories:
+<DL>
+<DT><CODE>not-wf</CODE>
+<DD>this contains cases that are not well-formed XML documents
+<DT><CODE>valid</CODE>
+<DD>this contains cases that are valid XML documents
+<DT><CODE>invalid</CODE>
+<DD>this containsODE>.xml</CODE> extension are the
+XML document test cases, and files with a <CODE>.entare external entities referenced by the test cases.
+<P>
+Within the <CODE>valid</CODE> directory, each of these three
+subdirectories has an <CODE>out</CODE> subdirectory which contains an
+equivalent <A HREF="canonxml.html">canonical XML</A> document for each
+of the cases.
+<P>
+<P>
+Bug reports and contributions of new test cases are welcome.
+<P>
+<ADDRESS>
+<A HREF="mailto:jjc@jclark.com">James Clark</ATML>

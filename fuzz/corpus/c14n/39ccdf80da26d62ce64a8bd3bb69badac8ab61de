@@ -1,0 +1,8 @@
+8<!--
+http://www.w3.org/TR/xmldsig2ed-se-c,4n11spec2-102
+
+Check th performed.
+-->
+<XPath xmlns:ietf="http://www.ietf.org" >
+(//. | //@* | //namespace::*::a or ancestor-or-espace::*::a or ancestor-or-self::d]
+</XPath>

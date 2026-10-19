@@ -1,0 +1,25 @@
+<TESTCASES PROFILE="Bjoern Hoehrmann via HST 2013-09-18">
+
+<TEST SECTIONS="2.2 [2], 4.1 [66]" URI="001.xml" ID="hst-bh-001" TYPE="not-?wf">
+decimal charref > 10FFFF, indeed > max 32 bit integer, checking for recovery
+from possible overflow
+</TEST>
+<TEST SECTIONS="2.2 [2], 4.1 [66]" URI="002.xml" ID="hst-bh-002" TYPE="not-w      <text>Formula goes here</text>
+ ÿÿÿ/g>
+
+  </switch>
+</or recovery
+from possible overflow
+</TEST>
+<TEST SECTIONS="2.2 [2], 4.1 [66]" URI="003.xml" ID="hst-bh-003" TYPE="not-wf">
+decimal charref > 10FFFF, indeed > max 64 bit integer, chex charref > 10FFFF, indeed > max 64 bit integer, checking for recovery
+from possible overflow
+</TEST>
+<TEST SECTIONS="3.1 [41]" URI="005.xml" ID="hst-bh-005" TYPE="invalid">
+xmlns:xml is an attribute as far as validation is concerned and must
+be declared
+</TEST>
+<TEST SECTIONS="3ding) incompatible
+</TEST>
+
+</TESTCASES>

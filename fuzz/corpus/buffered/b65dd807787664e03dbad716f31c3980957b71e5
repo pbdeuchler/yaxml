@@ -1,0 +1,30 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<lmae>eChrData</elem>">
+]>
+<elem>CharData&#m)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>oken29 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken30 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken31 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken32 NMTOKEN #IMPLIED>
+stoken22="Ⰰ"
+ thistoken23="Ⰱ"
+ thistoken24="⿮"
+ thistoken25="⿯"
+ thistoken26="、"
+ thistoken27="。"
+ thistoken28="퟾"
+ thistoken29="퟿"
+ thistoken30="豈"
+ thistoken31="更"
+ thistok/W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg wi
+<![CDATA32
+  </g>
+<quot;
+CharData
+/</elesmvg>>
+

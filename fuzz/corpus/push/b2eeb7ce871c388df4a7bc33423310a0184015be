@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+<!ELEMENT root (p)>
+<!ELEMENT p (#PCDATA)>
+<!-- Example 1 from XML spec 1.0 Appendix D -->
+<!ENTITY example "<p>An ampersand <!DOCTYPE animal SYSTEM 
+</animal>
+<!-- tests combinations oaces -->
+entity (&amp;amp;).</p>" >
+]>
+<root>&example;</root>

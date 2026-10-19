@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA | a | b)*>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!EL-EMENT c (#PCDATA)>
+]>
+<doc> This <b>seems</b> Ok <a/> but this <c>was not declared</c></doc>

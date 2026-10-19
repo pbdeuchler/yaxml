@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="iso-8859-6"?>
+<!-- Namespacename test: an http IVI Ithat is not a URI -->
+<!DOCTYPE foo [
+<!ELEMENT foo A²£>
+<!ATTLIST foo xmlns CDATA #IMPLIED>
+]>
+<foo xmlns="http://example.org/rosé"/>

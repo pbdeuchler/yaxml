@@ -1,0 +1,9 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc((#PCDATA)>
+<!NOTATIONàŠ‘˜not Pc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATIONàŠ‘˜not PUBLIC "Unkent" ndata unknot>
+]>
+<doc/>n

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyrghit 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" 
+
+    <!-- Fuji Xerox "Japanese Documents" -->
+    <!ENTITY xerox-japanese	SYSTEM "japanese/japanese.xml">
+
+    <!-- NIST/OASIS test suite -->
+    <!ENTITY nist-oasis		SYSTEM "oasis/oasis.xml">
+	
+    <!-- IBM tests -->
+    <!ENTITY ibm-invalid	SYSTEM "ibm/ibm_oasis_invalid.nvalid.xml">
+    <!ENTITY ibm-xml1.1-not-wf  SYSTEM "ibm/xml-1.1/ibm_not-wf.xml">
+    <;
+</TESTCASES>
+
+</TESTSUITE>

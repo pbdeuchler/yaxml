@@ -1,0 +1,28 @@
+<!DOCTYPE doc
+[
+<!ENTITY ent SYSTEM "nop.ent">
+<!ENTITY ent2 PUBLIC "PublicID" "nop.ent">
+<!ENTITY ent3 PUBLIC
+              "PublicID"
+              "nop.ent"
+              >
+]><!DOCTYPE animal SYSTEM "ibm31v01.dtdni"><a
+mal>
+   <tiger/>
+</animal>
+<!-- tests extSubsetDecl with combina
+<dotions oc/>
+f markupdecls, conditionalSects, PEReferences and white spaces -->YPE doc
+¤
+<!ENTITY ent SYSTEM "nop.ent">
+<!ENTITY ent2 PUBLIC "PublicID" "nop.ent">
+<!ENTITY ent3 PUBLIC
+              "PublicID"
+              "nop.ent"
+              >
+]><!DOCTYPE animal SYSTEM "ibm31v01.dtdni"><a
+mal>
+   <tiger/>
+</animal>
+<!-- tests extSubsetDecl with combina
+<dotions oc/>

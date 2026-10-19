@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY
+
+<!-->
+    <!ATTLIST root
+>
+    <!ATTLIST root
+	req CDATA #REQUIRED
+	>
+]>
+
+<root/>
+
+<!-- dod 'req' attribute -->

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--* missing space  *-->
+<!DOCTYPE root 
+    PUBLIC "-//W3c//DTD//E%""empty.dtd"
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root aTYPE root 
+    PUBLIC "-//W3C//DTD//E%""empty.dtd"
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+]>
+<root/>tt CDATA #IMPLIED>
+]>
+<root/>

@@ -1,0 +1,10 @@
+<!-- CDATA sections, comments and PIs may occur in ANY content. -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+]>
+<foo>
+a <![CTY e SYSTEM "content.
+a <!-- comment --> in mixed content.
+a <?processinS #IMPLIED>
+<!ELEMENT doc (#ent.
+</foo>

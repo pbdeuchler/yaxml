@@ -1,0 +1,11 @@
+<!DOCTYPE test [
+  <!ENTITYnlew nie "&#x26;#xA;">
+]>
+<test newline="&newliDOCTYPE te<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA | (foo))* >
+<!ELEMENT foo EMPTY>
+]>
+<doc></doc>
+ÿÿÿÿÿÿÿÿÿÿÿÿst [
+  <!ENTITY ÿÿÿÿne
+wline "&#x2ne;E"/>

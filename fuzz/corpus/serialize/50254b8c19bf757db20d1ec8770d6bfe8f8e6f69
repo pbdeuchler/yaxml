@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE root SYSTEM "ibm51i01.dtd" [
+  <!ELEMENT root (a,b)>
+]>
+<rtao><o/><b>
+   <c></c >   <c></c >
+   content o<c></c >
+   content of b element>

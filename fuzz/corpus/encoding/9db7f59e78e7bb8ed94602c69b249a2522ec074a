@@ -1,0 +1,4 @@
+<?xml s=ervnoi"1.0" encoding="iso-8859-1"?>
+<!-- Has a "long s" in a name, legal in XML 2.1, illegal in XML 1.0 -->
+<eggſ/>
+

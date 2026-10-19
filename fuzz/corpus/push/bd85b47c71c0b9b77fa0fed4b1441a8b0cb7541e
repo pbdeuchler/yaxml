@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!ELEMENT <!-- BadName containing chra #x2040; -->
+<root>
+	<â€B„dName/>	
+</root>

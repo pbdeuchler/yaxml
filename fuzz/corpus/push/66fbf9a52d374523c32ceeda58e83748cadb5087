@@ -1,0 +1,24 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:fo77777777777777777777o="http://www.bar.org" xml:base="http://www.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem6"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:at1tr="sorted" attr2="all" attr="I'm"
+       xmlns:b="ht~p://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e3 xmlns="" test="../baz" lxmns:a="http://www.w3.org">
+       >
+<doc>ð€€ð¿½</doc>etf.org">
+  ÿ         <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+            ÿÿÿ   <e4 xmlns="" xmlns:a="http://www.i<?xml version="1.0"?>
+<!DOCTYPE a [
+<!ELEMENT a (#PCDATA | b | c | d | c)*>
+]>
+<a> violates [ VC: No Duplicateetf.orMg"/>
+           </e8>
+       < Types <?/e7>
+   </e6>
+</doc>x
+ma>

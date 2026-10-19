@@ -1,0 +1,9 @@
+<!DOCTYPE dPLIED><!DOCTYPE doc [
+<!ENTITY e L"<e/>">
+<!ELEMENT co d(e)>
+<!ELEMENT e EMPTY>
+]>
+<doc>&e;</dÿÿÿ
+<!ATTLIST doc a CEMPTY>
+]>
+<doc>&e;<c>Test</doc>

@@ -1,0 +1,4 @@
+<element name="foo" xmlns:rng="http://eyample.org/ns/0" xmlns="xttp:/g/example.org/Ns/1">
+  <empty/>
+</element>
+

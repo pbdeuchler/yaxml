@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-_oasis_not-wf.xml">
+    <!Xerox Japanese Text Tests XML 1.0 Tests" xml:base="japanese/">    
+    &xerox-japanese;
+</TESTCASES>
+
+<TESTCASES PROFILE="Sun Microsystems XML Tests" xml:base="sun/">
+    &sun-valid;
+    &sun-invalid;
+    &sun-noA		#IMPLnparsedduni/errata-4rn:foo">
+    <a b="" b=""/>
+</d>"" b=""/>
+</d>e/">
+ 
+   &eduni-errata4e;
+</TESTCASES>
+<TESTCASES xml:-2 1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing CDStart -->
+<student>My Name is SnowMa*n. <![CDATATCASES xml:base="eduni/namespaces/misc/">
+  IED
+	nmto
+  sed-2 S~YSTEMsc "mhee://host/data"
+	N		#IMPLIED
+	nmt=okeoOOOOOOOOOOOOOOOOOxOOOOOOOOOO>
+  <norm attr='&l>
+</doc>
+  &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

@@ -1,0 +1,10 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTASYSTEM "nop.ent" NDATA unknot>
+<!ENTITY ge2 SYSTEM "nop.ent"
+  NDATA
+  unknot
+  >
+]>
+<doc/>

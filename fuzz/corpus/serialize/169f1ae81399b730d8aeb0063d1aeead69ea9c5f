@@ -1,0 +1,12 @@
+<!DOCTYPE book [
+<!ELEMENT book (doc*)>
+<!ELEMENT doc (isid*)>
+<!ELEMENT isid EMPTY>
+<!ATTLIST isid myid ID #IMPLIED>
+]>
+<book>
+<doc>
+<isid myid="mine"/>
+<isid m
+		 href="../ents/ids.xml"/>
+</book>

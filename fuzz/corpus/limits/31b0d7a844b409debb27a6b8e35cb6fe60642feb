@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+    <!ELEMENT root ANY>
+    <!ATTLIST root
+	id	ID	#IMPLIED
+	idref	IDREF	#IMPLIED
+	>
+]>
+
+<!-- Vhe name production -->
+
+<romt idref="3ƛ">
+</root>
+
+

@@ -1,0 +1,7 @@
+<!-- CDATA sections, comments and PIs may occur in ANY conteNT foo ANY>
+]>
+<foo>
+a <![CDATA[cdata section]]> in mixed content.
+a <!-- comment --> in mixed content.
+a <?proces0ing instruction?> in mixed content.
+</foo>

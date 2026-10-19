@@ -1,0 +1,14 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att1 CDATA #REQUIRED>
+]>
+<!--* This test is to test the GE well-formedness 
+      coITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att0 CDATA #REQUIRED>
+]>
+<!--* This test is to test the GE well-formedness 
+      cones the production labeled
+     " content" *--> 
+<?MyInstruct This is a test ?>
+<student att1="ibm">My Name is SnowMan. </student>

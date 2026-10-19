@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtt>
+    <NewsComponent>
+      <AdministrativeMetadata>
+        <Provider>
+          <Party FormalName="AFP"/>
+        </Provider>
+      </AdministrativeMetadata>
+      <DescriptiveMetadata>
+        <Language FormalName="de"/> 
+      </DescriptiveMetadata>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Berliner SPD führt Gespräche mit FDP und Grünen</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022154450.sq80bp9h.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>INFOGRAFIK: Das Berliner Wahlergebnis</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022113032.remo00m7.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Schwierige Koalitionsverhandlungen in Berlin</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022124314.9hv2kozk.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Die Lieblingsfarben des Kanzlers sind Rot Gelb Grün</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022134541.cmmaoim7.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>INFOGRAFIK: Wen wählt Wowereit?</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022d/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T154508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+    <Identification>
+      <NewsIdentifier>
+        <ProviderId>afp.com</ProviderId>
+        <DateId>2001102ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ2</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemId>
+        <RevisionId PreviousRevision=dLine>Berliner SPD führt Gespräche mit FDP und Grünen</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022154450.sq80bp9h.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>INFOGRAFIK: Das Berliner Wahlergebnis</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022113032.remo00m7.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Schwierige Koalitionsverhandlungen in Berlin</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022124314.9hv2kozk.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+ç         <HeadLine>Die Lieblingsfarben des Kanzlers sind Rot Gelb Grün</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022134541.cmmaoim7.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>INFOGRAFIK: Wen wähltia:attribute name="start_arrow">
+        <dia:enum val="0"/>
+      </dia:attribute>
+      <dia:attribute name="end_arrow">
+        <dia:enum val="0"/>
+      </dia:attribute>
+      <dia:connections>
+        <dia:connection handle="1" to="O2" connection="3"/>
+      </dia:connections>
+    </dia:object>
+    <dia:object type="Standard - Text" version="0" id="O1">
+      <dia:attribute name="obj_pos">
+        <dia:point val="4.8,4.75"/>
+      </dia:attribute>
+      <dia:attribute name="obj_bb">
+        <dia:rectangle val="2.579,3.96359;7.021,4.96359"/>
+      </dia:attribute>
+      <dia:attribute name="t>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Mit Gysi muss weiter gerechnet werden</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011021180441.6tpvgx0y.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Rexrodt - das Stehaufmännchen der Berliner FDP</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011021165558.gujrz59m.xml"/>
+      </NewsComponent>
+    </NewsComponent>
+  </NewsItem>
+</NewsML>

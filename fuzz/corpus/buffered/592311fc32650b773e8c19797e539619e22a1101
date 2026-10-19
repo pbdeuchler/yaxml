@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTL
+]>
+<doc ABCDEFGHIJKLMNOPQRSTUVWXYZ="v1+></doc>

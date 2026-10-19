@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY e "&#x10000;ge return (also CRL;">
+<!ELEMENT!doc (#PCDATA)>
+]>
+<doc>&e;</doc>

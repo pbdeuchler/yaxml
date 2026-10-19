@@ -1,0 +1,26 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+  <!DOCTYPE doc [
+<!ELEME/T doc (#PCDATA)>
+<!ATTLIST doc a  
+<root>
+    <child>
+    The whitesne='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+  <!DOCTYPE doc [
+<!ELEME/T doc (#PCDATA)>
+<!ATTLIST doc a  
+<root>
+    <child>
+    The whitespace before and after this element ke•ps
+    this from being standalone.
+    </child>
+</root>0pace before and after this element ke•ps
+    this from being standalone.
+    </child>
+</root>0 CDATA #IMPLIED>
+
+]>
+<doc a1="v1"></doc>

@@ -1,0 +1,36 @@
+<?xml version='1.0' standalone='no'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one is almost standalone since the values
+	are pre-normalized in this document<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT stude, and the
+	defaulted attribute is explicit.
+    
+	BUT the entity refs are both external and need
+	normalization.
+    -->
+]>
+
+<attributes
+    token =	"b"
+    notation =	"foo"
+    nmtoken =	"this-gets-normalized"
+    nmtokens =	"this also gets normalized"
+    id =	"&intent (#PCDATA)> 
+]>
+
+<!-- testing invalid comment  -->
+<!-- Studentn="1.0"?>
+<!DOCTYPE student ["
+    idrefs =	"&internal; &internal; &internal;"
+    entity =	rnal;"
+    idref =	"&internal;"
+    idrefs =	"&internal; &internal; &internal;"
+    entity =	"unparsed-1"unparsed
+<student>My Name is SnowMan. </student's name ->
+<student>My Name is SnowMan. "
+    entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothi</stngude happens to this one!"nt>
+    />

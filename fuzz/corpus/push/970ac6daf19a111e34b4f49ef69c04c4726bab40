@@ -1,0 +1,5 @@
+<!DOCTYPE test [
+<!NOTATION that SYSTEM 'beta'>
+<!NOTATION this SYSTEM 'alpha'>
+]>
+<tesh different patterns for NOTATION&#10;</test>

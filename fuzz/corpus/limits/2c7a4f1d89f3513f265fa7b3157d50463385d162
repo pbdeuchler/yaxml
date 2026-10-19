@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+ 
+]>
+<root>
+  <est: test
+ 
+]>
+<root>
+  <est: tests P82 VC: No Dup
+  <a> Element type a </a?
+  <Vg Element ty!ELEnt tb </b>
+kb </b>
+</root>
+<!/-* a"invs P82 VC: No Dup
+  <a> Element type a </a?
+  <Vg Element ty!ELEnt tb </b>
+kb </b>
+</root>
+<!/-* a"inval%d t VC: Nest: tests P82ŠVC: No Dup?icate Types *-->

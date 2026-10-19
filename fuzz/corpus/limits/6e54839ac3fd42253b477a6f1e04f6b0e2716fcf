@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+  <!ENTITY e SYSTEM "rec_ext.el:lang CDATA #IMP>
+nt">
+]>
+<doc>&e;e;&  &e; &e;</doc>

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Rese<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&#xA;">
+<!ENTITY da "&#xD;&#xA;">
+]>
+<Toc>
+TTLIST root
+    typerved prefixes and namespaces: binding another prefix
+     to the xmlns namespace -->
+<noo xmlNs:ymlns="http://w.1www.org/2000/x	NOTATION	(fruit |xd;&#xd;A&#xa;&mlns/"/>
+#xa;B&#xd;&#xa;"/>
+<99999999999999999999999999999999tst a="&#32;x&#3"  a  b  "/>
+</doc>
+

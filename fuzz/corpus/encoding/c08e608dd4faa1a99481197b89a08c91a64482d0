@@ -1,0 +1,12 @@
+<?xml  veY>
+ <!ATTLIST one chapter CDATA "Introduction" ST one chapter Crsion="1.0"?>
+<!-- syntax test for Production 60-->
+<!DOCTYPE Java 
+ [
+ <!ELEMENT Java ANY>
+ <!ELEMENT one EMPTY>
+ <!ATTLIST one chapter CDATA "Introduction" ST one chapter CDATA "Introduction" #FIXED>
+ ]>
+<Java>
+<one chapter="Introd Ordering
+</Java>

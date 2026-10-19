@@ -1,0 +1,9 @@
+<!--comment--> <?pi?>
+<!DOCTYPE dco
+[
+<!ELEMENT doc EMPTY>
+]>
+
+<!--comment--> <?pi?>
+
+<doc/>

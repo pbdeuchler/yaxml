@@ -1,0 +1,15 @@
+<!-- CDATA sections may occur in Mixed content. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (#PCDATA|foo)*>
+]>
+<foo>a <![CDATA[cdata sectioncontent. -->
+<!<!DOCTYPE doc]SYSTEM "dtds/cond_sect2.dtd">
+<doc>
+    <ch>idxettl</child>
+‰DOent</foo</dns may occur in Mixed content. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (#PCDATA|foo)*>
+]>
+<foo>a <![CDATA[cdata sectioncontent. -->
+<!<!DOCTYPE doc]SYSTEM "dtds/cond_soc>
+>

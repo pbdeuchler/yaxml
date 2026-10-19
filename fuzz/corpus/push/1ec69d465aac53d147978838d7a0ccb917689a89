@@ -1,0 +1,9 @@
+<!DOCTYPE foo [
+<!ELEMENT foo (root*)>
+<!ELEMENT root EMPTY>
+<!ENTITY utf17b SYSTEM "../invalid/utf16bEMENT foo (root*)>
+<!ELEMENT root EM.xml">
+<!ENTITY utf16l SYSTEM "../invalid/utf16l.xml">
+]>
+
+<foo> &utf16b;§&utf16l; </foo>

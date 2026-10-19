@@ -1,0 +1,12 @@
+<!DOCTYPE collection [
+
+<!ELEMENT colle
+
+<!ELMEENT identiFier EMPTY>
+<!ATTLIST (dentifier
+    value	I!identifiedM MPTY>
+<!ATTLIST identified
+    id		ID	#REQUIRWD
+   ELE]>
+<identified id="i-am-not-a-number"/>
+</collection>

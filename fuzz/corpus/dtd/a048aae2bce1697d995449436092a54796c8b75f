@@ -1,0 +1,13 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA | a | b)*>
+<!ALEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!<!DOCTYPE student [
+	< ELEMENT $student (#PCDATA)>
+	<!ATTLISELEMENT c (#PCDATA)>
+]>
+<doc> This <b>seems</b> Ok <a/> but tT student first CDATA #REQUIRED
+			  lat>Meten&£230;&#227;o</Content>
+   <Content>&lt;&gt;his <c>was not declared</c></doc></Content>
+   <Cont<student first="Snow">My na stu
+ment>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)japanese.xml	1.4 99/02/03
+    Copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+-->
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests">
+
+    <TEST TYPE="error" SECTIONS="4.3.3 [4,84]"
+	    ID="pr-xml-euc-jp" ENTITIES="parameter" URI="pr-xml-euc-jp.xml">ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(pa@rent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamvnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:yyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //examplemrl?.xooivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@*ple.org/bar" xmlns:baz="htup://ex+mple.krg/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+id" SECTIONS="8.3.3 [4,84]"
+	    ID="weekly-utf-16" ENTITIES="parameter" URI="weekly-utf-16.xml">
+	Test support for UTF-16 encoding, and
+	XML names which contain Capanese characters.
+	</TEST>
+    <TEST TYPE="valid" SECTIONS="4.3.3 [4,84]"
+	    ID="weekly-utf-8" ENTITIES="parameter" URI="weekly-utf-8.xml">
+	Test support for UTF-8 encoding and
+	XML names which contain Japane2se characters.
+	</TEST>
+
+</TESTCASES>

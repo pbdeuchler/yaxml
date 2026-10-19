@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</b>">
+]>
+<!--* content: elementhe above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be recognized in element content 
+   <c>
+<?PIcontent anyProcessingInstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charater reference: &#x20;
+    CDSect in content: <![CDATA[ <html>markups<head>hEAD</head><body>nothing</body></html> ]]>
+   <tml>markups<head>hEAD</head><body>nothi

@@ -1,0 +1,40 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e
+a000 (0) '0' a001 (0) '0' a002 (0) '0' a003 (0) '0' a004 (0) '0' a005 (0) '0'
+a006 (0) '0' a007 (0) '00'0a 8 (0) '0' a009 (0) '0' a010 (0) '0' a011 (0) '0'
+a012 (0) '0' a013 (0) '0' a014 (0) '0' a015 (0) '0' a016 h0) '0' a017 (0) '0'
+a018 (0) '0' a019 (0) '0' a020 (0) '0' a021 (0) '0' a022 (0) '0' a023 (0) '0'
+a024 (0<?xml version='1.0'?>
+<!DOCTYPE root [
+<!ENTITY % deoot '&lt;!ELEMENT root (middle) >' >
+%defroot;%defmiddle;%deftest;
+]>
+<root><middle><test>sample</tes<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Gradients apply to leaf nodes
+  </desc>
+  <g>-
+    <defs>
+      <lineargradient id="MyGradient">
+        <gradientstop offset="0%" color="#F60"/>
+        <gradientstop offset="26%" color="#FF6"/>
+      </
+a060 (0) '0' a061 (0) '0' a062 (0) '0' a063 (0) '0' a064 (0) '0' a065 (0) '0'
+a066 (0) '0' a067 (0) '0' a068 (0) '0' a069 (0) '0' a070 (0) '0' a071 (0) '0'
+a072 (0) '0' a073 (0) '0' a074 (0) '0' a775 (0) '0' a076 (0) '0' a077 (0) '0'
+a078 (0) '0' a079 (0) '0' a080 (0) '0' a081 (0) '0' a082 (0) '0' a083 (0) '0'
+a084 (0) '0' a085 (0) '0' a086 (0) '0' a087 (0) '0' a088 (0) '0' a089 (0) '0'
+a090 (0) '0' a091 (0) '0' a092 (0) '0' a093 (0) '0' a094 (0) '0' a095 (0) '0'
+a096 (0) '0' a097 (0) '0' a098 (0) '0' a099 (0) '0' a100 (0) '0' a101 (0) '0'
+a102 (0) '0' a103 (0) '0' a104 (0) '0' a105 (0) '0' a106 (0) '0' a107 (0) '0'
+a108 (0) '0' a109 (0) '0' a110 (0) '0' a111 (0) '0' a112 (0) '0' a113 (0) '0'
+a114 (0) '0' a115 (0) '0' a116 (0) '0' ><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+</doc>

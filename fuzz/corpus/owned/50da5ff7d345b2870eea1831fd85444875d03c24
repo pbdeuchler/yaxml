@@ -1,0 +1,16 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!--NOTE: XML doesn't specify whether this is a choice or a seq-->
+<!-----------ELEMENT a (doc?)>
+<!ELEMENT b (doc,a)>
+<!ELEMENT c (
+do ENTITIES="general" SECTIONS="4.3.4" >
+        The VerZZZZZZZZZZZZZZZZZ
+,
+a
+,
+c?
+)>
+M>
+<doc/>

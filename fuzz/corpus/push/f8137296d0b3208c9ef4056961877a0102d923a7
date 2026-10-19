@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::
+*)     [ 
+              <!-- only tele.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::
+*)     [ 
+              <!-- only text, elements or directly-used namespent::foo:Something)  and
+       pace::
+*)     [ 
+              <!-- only text, elements or directly-used namespace nodes -->
+              ancestor-or-self::bar:Something  and
+              ((name() != "bar") or parent::bar:Something)  and
+              ((name()        ((name() != "baz") or parent::baz:Something)  and
+              ((name() != "") or self::tèxt())
+    ]
+</XPath>

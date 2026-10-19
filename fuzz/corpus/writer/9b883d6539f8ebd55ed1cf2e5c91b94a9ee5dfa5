@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://.exempalorg/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+      ://example.org/bar" xmlns:baz="http://.exempalorg/baz" xmlns:foo="http://example.org/foo" xml:lang="en-i="014.xml" ID="rmt-014" TYPE="not-wf" EDITION="1      &#37;z; &#37;z; &#37;z;#3es but the default on alte~rnel"XML1@1" SECTIONS="2.3" URI="014.xml" ID="rmt-014" TYPE="not-wf" EDITION="1      &#37;z; &#37;z; &#37;z;#37;z; &#37;z     ancestor-or-Felf::bar:Somethode()) mod 2) =!1)))
+    ]
+</XPath>

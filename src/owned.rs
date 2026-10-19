@@ -455,6 +455,7 @@ pub struct OwnedDocument {
     // Parsing produces contiguous preorder. A future structural edit clears
     // this permanently; value-only edits leave the fast path valid.
     slots_are_preorder: bool,
+    html: Option<Box<HtmlMeta>>,
     /// `(element, attribute index)` of parsed ID-typed attributes, in document order.
     ids: Vec<(OwnedNodeId, usize)>,
     dtd: Option<Box<crate::valid::Dtd>>,
@@ -666,6 +667,67 @@ impl OwnedDocument {
     /// Returns the document type declaration while its node remains.
     pub fn doctype(&self) -> Option<Doctype<'_>> {
         self.root().children().find_map(OwnedNode::doctype)
+    }
+
+    /// For an HTML document, the first content XML cannot represent: a name
+    /// that is not an NCName (or an `xmlns` attribute, which would rebind
+    /// namespaces), a character outside XML's range, or a comment XML forbids.
+    /// XML documents always pass.
+    pub(crate) fn xml_violation(&self) -> Option<String> {
+        self.html.as_ref()?;
+        let elements = self
+            .root()
+            .children()
+            .filter(|node| node.kind() == OwnedNodeKind::Element);
+        if elements.count() > 1 {
+            return Some("a second top-level element is not XML".to_owned());
+        }
+        let chars = |text: &str| text.chars().all(crate::escape::xml_char);
+        let ncname = |name: &str| crate::name::validate_name(name, 0, false).is_ok();
+        self.nodes().find_map(|node| {
+            let problem = match node.kind() {
+                OwnedNodeKind::Element => {
+                    let name = node.qualified_name().unwrap_or_default();
+                    if !ncname(name) {
+                        Some(format!("element name {name:?}"))
+                    } else {
+                        node.attributes().find_map(|attribute| {
+                            let name = attribute.name.qualified();
+                            if !ncname(name) || name == "xmlns" {
+                                Some(format!("attribute name {name:?}"))
+                            } else if !chars(&attribute.value) {
+                                Some(format!("attribute {name:?} value"))
+                            } else {
+                                None
+                            }
+                        })
+                    }
+                }
+                OwnedNodeKind::Comment => {
+                    let text = node.text().unwrap_or_default();
+                    (!chars(text) || text.contains("--") || text.ends_with('-'))
+                        .then(|| format!("comment {text:?}"))
+                }
+                OwnedNodeKind::Text | OwnedNodeKind::Cdata => {
+                    let text = node.text().unwrap_or_default();
+                    (!chars(text)).then(|| "character data".to_owned())
+                }
+                _ => None,
+            };
+            problem.map(|problem| format!("{problem} is not XML"))
+        })
+    }
+
+    /// True for documents built by the HTML parser.
+    pub fn is_html(&self) -> bool {
+        self.html.is_some()
+    }
+
+    /// The input encoding libxml2 records for an HTML document (`doc->encoding`).
+    /// `None` means ASCII-only or BOM-detected input; serialization then uses
+    /// ASCII with HTML 4 entities.
+    pub fn html_encoding(&self) -> Option<&str> {
+        self.html.as_ref()?.encoding.as_deref()
     }
 
     /// Opens a bounded tree editor. Owned-byte, created-node and created-attribute
@@ -1143,6 +1205,11 @@ impl Editor<'_> {
             self.limits.max_owned_bytes,
         )?;
         self.document.attributes[target].value = replacement;
+        if let Some(html) = &mut self.document.html
+            && let Ok(position) = html.valueless.binary_search(&target)
+        {
+            html.valueless.remove(position);
+        }
         Ok(())
     }
 }
@@ -1316,7 +1383,7 @@ impl OwnedBuilder {
                 data: self.pool.store(&data, offset, budget)?,
             },
         };
-        let id = self.append(parent, content, origin)?;
+        let id = append_record(&mut self.nodes, parent, content, Some(origin), offset)?;
         if matches!(self.nodes[id.0].content, Content::Element { .. }) {
             if parent == NodeId(0) {
                 self.root_element = id;
@@ -1357,38 +1424,6 @@ impl OwnedBuilder {
         Ok(true)
     }
 
-    fn append(
-        &mut self,
-        parent: NodeId,
-        content: Content,
-        source: SourceOrigin,
-    ) -> Result<NodeId, Error> {
-        let allocation = Error::new(ErrorKind::Allocation, source.error_offset());
-        let id = NodeId(self.nodes.len());
-        let link = Link::new(id).ok_or(allocation)?;
-        let parent_link = Link::new(parent).ok_or(allocation)?;
-        self.nodes.try_reserve(1).map_err(|_| allocation)?;
-        let previous_sibling = self.nodes[parent.0].last_child;
-        self.nodes.push(OwnedRecord {
-            id,
-            content,
-            source: Some(source),
-            parent: parent_link,
-            first_child: Link::NONE,
-            last_child: Link::NONE,
-            previous_sibling,
-            next_sibling: Link::NONE,
-            subtree_size: 1,
-        });
-        if let Some(previous) = self.nodes[id.0].previous_sibling.get() {
-            self.nodes[previous.0].next_sibling = link;
-        } else {
-            self.nodes[parent.0].first_child = link;
-        }
-        self.nodes[parent.0].last_child = link;
-        Ok(id)
-    }
-
     fn finish(
         self,
         position: usize,
@@ -1424,9 +1459,276 @@ impl OwnedBuilder {
             edit_created_nodes: 0,
             edit_created_attributes: 0,
             slots_are_preorder: true,
+            html: None,
             ids: Vec::new(),
             dtd: None,
         })
+    }
+}
+
+/// Appends a record as `parent`'s last child; parsing appends in preorder.
+fn append_record(
+    nodes: &mut Vec<OwnedRecord>,
+    parent: NodeId,
+    content: Content,
+    source: Option<SourceOrigin>,
+    offset: usize,
+) -> Result<NodeId, Error> {
+    let allocation = Error::new(ErrorKind::Allocation, offset);
+    let id = NodeId(nodes.len());
+    let link = Link::new(id).ok_or(allocation)?;
+    let parent_link = Link::new(parent).ok_or(allocation)?;
+    nodes.try_reserve(1).map_err(|_| allocation)?;
+    let previous_sibling = nodes[parent.0].last_child;
+    nodes.push(OwnedRecord {
+        id,
+        content,
+        source,
+        parent: parent_link,
+        first_child: Link::NONE,
+        last_child: Link::NONE,
+        previous_sibling,
+        next_sibling: Link::NONE,
+        subtree_size: 1,
+    });
+    if let Some(previous) = previous_sibling.get() {
+        nodes[previous.0].next_sibling = link;
+    } else {
+        nodes[parent.0].first_child = link;
+    }
+    nodes[parent.0].last_child = link;
+    Ok(id)
+}
+
+/// State that only HTML documents carry.
+#[derive(Debug)]
+struct HtmlMeta {
+    encoding: Option<String>,
+    /// Sorted attribute-arena indices of attributes written without a value.
+    valueless: Vec<usize>,
+}
+
+/// An element's last child other than comments, as `areBlanks` inspects it.
+pub(crate) enum LastChild<'a> {
+    None,
+    Text,
+    Element(&'a str),
+    Other,
+}
+
+/// Builds an HTML document from tree-construction calls, in libxml2's SAX2
+/// shape: names are stored verbatim (HTML allows names XML rejects), adjacent
+/// Text or CDATA appends merge, and nodes carry no source origins. Errors are
+/// limit or allocation failures with offset 0; the caller supplies offsets.
+pub(crate) struct HtmlBuilder {
+    nodes: Vec<OwnedRecord>,
+    attributes: Vec<StoredAttribute>,
+    pool: Pool,
+    root_element: NodeId,
+    valueless: Vec<usize>,
+    budget: Budget,
+}
+
+impl HtmlBuilder {
+    pub(crate) fn new(source_length: usize, limits: Limits) -> Result<Self, Error> {
+        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length)?;
+        Ok(Self {
+            nodes,
+            attributes: Vec::new(),
+            pool: Pool::default(),
+            root_element: NodeId(0),
+            valueless: Vec::new(),
+            budget: Budget::new(limits),
+        })
+    }
+
+    fn append(&mut self, parent: NodeId, content: Content) -> Result<NodeId, Error> {
+        if self.nodes.len() > self.budget.max_events() {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::Events), 0));
+        }
+        append_record(&mut self.nodes, parent, content, None, 0)
+    }
+
+    fn name(&mut self, name: &str) -> Result<StoredName, Error> {
+        Ok(StoredName {
+            qualified: self.pool.store(name, 0, &mut self.budget)?,
+            prefix_length: None,
+            namespace: None,
+        })
+    }
+
+    pub(crate) fn element(
+        &mut self,
+        parent: NodeId,
+        name: &str,
+        attributes: &[(String, Option<String>)],
+    ) -> Result<NodeId, Error> {
+        let allocation = Error::new(ErrorKind::Allocation, 0);
+        let name = self.name(name)?;
+        let start = self.attributes.len();
+        self.attributes
+            .try_reserve(attributes.len())
+            .map_err(|_| allocation)?;
+        for (attribute, value) in attributes {
+            if value.is_none() {
+                self.valueless.try_reserve(1).map_err(|_| allocation)?;
+                self.valueless.push(self.attributes.len());
+            }
+            let name = self.name(attribute)?;
+            let value = self
+                .pool
+                .store(value.as_deref().unwrap_or(""), 0, &mut self.budget)?;
+            self.attributes.push(StoredAttribute { name, value });
+        }
+        let attributes = start..self.attributes.len();
+        let id = self.append(parent, Content::Element { name, attributes })?;
+        if parent == NodeId(0) && self.root_element == NodeId(0) {
+            self.root_element = id;
+        }
+        Ok(id)
+    }
+
+    /// Appends Text or CDATA, merging into a last child of the same kind.
+    /// Returns false, changing nothing, if a merge would exceed `limit` bytes.
+    pub(crate) fn text(
+        &mut self,
+        parent: NodeId,
+        value: &str,
+        cdata: bool,
+        limit: usize,
+    ) -> Result<bool, Error> {
+        let last = self.nodes[parent.0].last_child.get();
+        let merge = last.and_then(|last| match &self.nodes[last.0].content {
+            Content::Text(range) if !cdata => Some((last, range.clone())),
+            Content::Cdata(range) if cdata => Some((last, range.clone())),
+            _ => None,
+        });
+        let Some((last, range)) = merge else {
+            let range = self.pool.store(value, 0, &mut self.budget)?;
+            let content = if cdata {
+                Content::Cdata(range)
+            } else {
+                Content::Text(range)
+            };
+            self.append(parent, content)?;
+            return Ok(true);
+        };
+        if value.len() > limit || range.len() > limit - value.len() {
+            return Ok(false);
+        }
+        let range = if range.end == self.pool.0.len() {
+            self.pool.extend_tail(&range, value, 0, &mut self.budget)?
+        } else {
+            let joined = [&self.pool.0[range], value].concat();
+            self.pool.store(&joined, 0, &mut self.budget)?
+        };
+        self.nodes[last.0].content = if cdata {
+            Content::Cdata(range)
+        } else {
+            Content::Text(range)
+        };
+        Ok(true)
+    }
+
+    pub(crate) fn comment(&mut self, parent: NodeId, value: &str) -> Result<(), Error> {
+        let range = self.pool.store(value, 0, &mut self.budget)?;
+        self.append(parent, Content::Comment(range)).map(drop)
+    }
+
+    /// Ends an element: everything appended since it is its subtree.
+    pub(crate) fn close(&mut self, id: NodeId) {
+        self.nodes[id.0].subtree_size = self.nodes.len() - id.0;
+    }
+
+    pub(crate) fn last_child(&self, parent: NodeId) -> LastChild<'_> {
+        let mut child = self.nodes[parent.0].last_child.get();
+        while let Some(id) = child {
+            let record = &self.nodes[id.0];
+            match &record.content {
+                Content::Comment(_) => child = record.previous_sibling.get(),
+                Content::Text(_) => return LastChild::Text,
+                Content::Element { name, .. } => {
+                    return LastChild::Element(&self.pool.0[name.qualified.clone()]);
+                }
+                _ => return LastChild::Other,
+            }
+        }
+        LastChild::None
+    }
+
+    /// Completes the document. libxml2 makes the DOCTYPE the document's first
+    /// child wherever it appeared (or was implied); an empty name stands for
+    /// a DOCTYPE without one.
+    pub(crate) fn finish(
+        mut self,
+        doctype: Option<Doctype<'_>>,
+        encoding: Option<String>,
+    ) -> Result<OwnedDocument, Error> {
+        let mut preorder = true;
+        if let Some(doctype) = doctype {
+            let mut store = |value: Option<&str>| {
+                value
+                    .map(|value| self.pool.store(value, 0, &mut self.budget))
+                    .transpose()
+            };
+            let content = Content::DocumentType(StoredDoctype {
+                name: store(Some(doctype.name))?.unwrap_or_default(),
+                public_id: store(doctype.public_id)?,
+                system_id: store(doctype.system_id)?,
+                internal_subset: None,
+            });
+            let first = self.nodes[0].first_child;
+            let id = self.append(NodeId(0), content)?;
+            if let Some(first) = first.get() {
+                // Move the new last child to the front.
+                let link = Link(id.0);
+                let previous = self.nodes[id.0].previous_sibling;
+                self.nodes[previous.0].next_sibling = Link::NONE;
+                self.nodes[0].last_child = previous;
+                self.nodes[id.0].previous_sibling = Link::NONE;
+                self.nodes[id.0].next_sibling = Link(first.0);
+                self.nodes[first.0].previous_sibling = link;
+                self.nodes[0].first_child = link;
+                preorder = false;
+            }
+        }
+        self.nodes[0].subtree_size = self.nodes.len();
+        let mut document = OwnedDocument {
+            identity: document_identity(&LAST_DOCUMENT_ID)?,
+            nodes: self.nodes,
+            attributes: self.attributes,
+            pool: self.pool,
+            root_element: self.root_element,
+            declaration: None,
+            edit_owned_bytes: 0,
+            edit_created_nodes: 0,
+            edit_created_attributes: 0,
+            slots_are_preorder: preorder,
+            html: Some(Box::new(HtmlMeta {
+                encoding,
+                valueless: self.valueless,
+            })),
+            ids: Vec::new(),
+            dtd: None,
+        };
+        // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
+        document.ids = document
+            .nodes()
+            .filter(|node| node.kind() == OwnedNodeKind::Element)
+            .flat_map(|node| {
+                let anchor = node.qualified_name() == Some("a");
+                node.attributes()
+                    .enumerate()
+                    .filter(move |(index, attribute)| {
+                        let name = attribute.name.qualified();
+                        node.attribute_has_value(*index)
+                            && (name == "id" || anchor && name == "name")
+                    })
+                    .map(move |(index, _)| (node.id(), index))
+            })
+            .collect();
+        document.ids.sort_unstable();
+        Ok(document)
     }
 }
 
@@ -1468,6 +1770,14 @@ impl<'document> OwnedNode<'document> {
     pub fn name(self) -> Option<Name<'document>> {
         match &self.record().content {
             Content::Element { name, .. } => Some(name.view(&self.document.pool.0)),
+            _ => None,
+        }
+    }
+
+    /// The element's lexical name, borrowed for the document's lifetime.
+    pub(crate) fn qualified_name(self) -> Option<&'document str> {
+        match &self.record().content {
+            Content::Element { name, .. } => Some(&self.document.pool.0[name.qualified.clone()]),
             _ => None,
         }
     }
@@ -1560,6 +1870,21 @@ impl<'document> OwnedNode<'document> {
             _ => 0..0,
         };
         range.map(move |index| self.document.attributes[index].view(&self.document.pool.0))
+    }
+
+    /// False for an HTML attribute written without `=value` (libxml2 stores no
+    /// value; its view reads as ""), and for an out-of-range position.
+    pub fn attribute_has_value(self, position: usize) -> bool {
+        let Content::Element { attributes, .. } = &self.record().content else {
+            return false;
+        };
+        let index = attributes.start.saturating_add(position);
+        index < attributes.end
+            && self
+                .document
+                .html
+                .as_ref()
+                .is_none_or(|html| html.valueless.binary_search(&index).is_err())
     }
 
     /// Original source location, independent of current logical content and

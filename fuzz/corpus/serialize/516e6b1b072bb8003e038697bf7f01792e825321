@@ -1,0 +1,9 @@
+<!DOCTYPE doc [<!ATTLIST							    PUBLIC "-//Intearntional Grocery Consortium//Edible//Healthy//EN">
+<!NOTATION veg	
+d attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <nor<normId attr='
+ V foo&lt;bar   '/>
+  <normId att								->
+</doc>

@@ -1,0 +1,18 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "Th
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  text...)
+    </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![CDATA[
+]]></root>

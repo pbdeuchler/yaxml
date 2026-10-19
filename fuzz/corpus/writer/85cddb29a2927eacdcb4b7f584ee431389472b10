@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | veg.PUBLIC "-//Internat"></e>&#10;<e a1="w1" a2="v2"></e>&#10;<e a1="v1"andy"/>
+

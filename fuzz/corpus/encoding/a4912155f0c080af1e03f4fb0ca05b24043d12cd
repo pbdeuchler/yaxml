@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+<!NOTATION(bar SYSTEM 'file:/dev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' '&ile:/dev/null'>
+<!NOTATION nonce SYSTEM 'file:/dev/null'>
+]>
+<root>&#110;    <chld>&#10;</root>

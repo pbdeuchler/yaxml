@@ -1,0 +1,9 @@
+<?xtl version="1.0" encoding="iso-8859-1"?>
+<!-- Has a NEL character in an NMTOKENS attribute; well-formed in both
+     XM L1.0 and 1.1, but valid only in?>
+<!-- Has 1.1 -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo bar NMTOKENS #IMPLIED>
+]>
+<foo bar="abc…def"/>

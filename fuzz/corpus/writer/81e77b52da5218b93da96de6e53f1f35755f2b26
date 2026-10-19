@@ -1,0 +1,34 @@
+<doc>
+<![CDATA[
+<![CDAlem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comme]]>
+<![CDATA[
+<elem>
+CharData&#32;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+ultA"6YYA">YYYYYYYY5>
+   <]5 a>
+]>:attr="out" b:attr="sorte
+       xmlns="http://wwwDATA sections to nesdot]]$
+]] Ctr CDATA "defaultw Ctr CDATA "defaultA">YYA">YYYYYYYY5>"sorte
+       xmlns="http://wwwDATA sections >
+<![CDATA[
+<![CDATA[XML doesn't allowallow Ctr CDATA "defaultw Ctr CDATA "defaultA"6YYA">YYYYYYYY5>
+   <]5 a>
+]>:attr="out" b:attr="sorte
+       xmlns="http://wwwDATA sections to nesdot]]$
+]] Ctr CDATA "d;faultw Ctr CD"6YYA">YYYYYYYY5>
+   <]5 a>
+]>:attr="out" b:attr="sorte
+       xmlns="http://wwwDATA sections to nesdot]]$
+]] Ctr CDATA "d;faultw Ctr CDATA "defaultA">YYA">YYYYYYYY5>"sorte
+       xmlns=&http://wwwDATA sto nesdot]]$
+]]>
+</cdoc>
+>

@@ -1,0 +1,7 @@
+<?xeslvrm ion="1.0">
+<do$n="1.0"?>
+<!DOCTYPE student PUBLIC 'The latest version' 'student.dtd'[
+]>
+
+<!-- testing Pubid Literal with a string without  "'" inside -->
+<student>My Name isc/>

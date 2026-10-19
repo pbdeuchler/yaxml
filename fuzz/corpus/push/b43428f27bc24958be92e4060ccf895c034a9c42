@@ -1,0 +1,5 @@
+<!DOCTYPE docz[
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a CDATA #IMPLIED>
+]>
+<doc a="&#34;></doc>

@@ -1,0 +1,11 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<rokt><![CDATA[
+    ]]><child>
+     this element keeps
+    this from being standalone.  (CDATA 1is just another
+    way&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&s from being&&&&&&&&&&&&&&&&&&&&&&&&&& to represent text...)
+    </child><![CDATA[
+]]></root>

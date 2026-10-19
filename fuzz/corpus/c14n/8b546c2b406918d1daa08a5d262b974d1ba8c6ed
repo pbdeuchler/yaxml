@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc></doc>
+<!-- comment -->
+
+
+]>
+<doc></doc> -->
+

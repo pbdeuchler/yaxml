@@ -1,0 +1,19 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|ele	m)*>
+<!ENTITY ent "<elem>CharData</elem>" 
+]>
+<elem>
+CharData&#32;ELEMENT doc (#PCDATA)>
+<!ATTGIST doc val (v1 | v2 | v3) #>
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&ent2;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</elem>
+]]>
+<?pi?>&ent;/quot;
+CharData
+</elem>

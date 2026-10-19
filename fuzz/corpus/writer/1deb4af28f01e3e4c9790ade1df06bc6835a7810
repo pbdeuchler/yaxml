@@ -1,0 +1,41 @@
+<?xml version = "1.0" standalone = "yes"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN"
+ "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width = "268px" height="207px">
+<g style = "stroke: #000000" > 
+   <path (d = " M 29 28 "/> 
+   <path  d = " L 19 74 "/> 
+</g>    <g>
+     <desc> Java Font definition:Helvetica 0</desc> 
+   </g>
+</g> 
+<g style = "stroke: #000000" > 
+   <text x = "188" y = "36" >this is text</text>
+</g> 
+<g style = "stroke: #000000" > 
+   <g>
+     <desc> Java Font definition:Dialog 0</desc> 
+   </g>
+   <g>
+     <desc> Java Font definition:Helvetica 700</desc> 
+   </g>
+</g> 
+<g style = "stroke: #008080" > 
+   <text x = "176" y = "85" >sadfsadfsad</text>
+</g> 
+<g style = "stroke: #000000" > 
+</g> 
+<g style = "fill: #800040" > 
+   <ellipse cx = "208" cy = "180" major  = "45" minor = "31" angle = "0"/>
+</g> 
+<g style = "stroke: #000000" > 
+</g> 
+<g style = "fill: #ffffff" > 
+   <g>
+     <desc> Java Font definition:Dialog 700</desc> 
+   </g>
+   <g>
+     <desc> Java Font definition:Dialog 700</desc> 
+   </g>
+</g></svg>
+

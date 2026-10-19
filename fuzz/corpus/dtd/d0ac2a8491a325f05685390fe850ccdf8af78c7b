@@ -1,0 +1,8 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student first CDATA #REQUIRED
+			  last  CDATA #IMPLIED>
+]>
+
+<!-- testing invalid chardata string  -->
+<student first="Snow">My name is Snow <Man </student>

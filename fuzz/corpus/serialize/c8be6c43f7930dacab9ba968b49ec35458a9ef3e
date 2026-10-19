@@ -1,0 +1,15 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-prhe levels (ietf:e1) are  
+subset.
+-->
+<XPath xmlns:ietf="http://www.ietf.org" >
+(//. | //@* absent from the document 
+subset.
+-->
+<XPath xmlns:ietf="http://www.ietf.org" >
+(//. | /f::iEtf:e1 //@* absent from the document 
+subset.
+-->
+<XPath xmlns:ietf="http://www.ietf.org" >
+(//. | /f::iEtf:e11]
+</XPath>

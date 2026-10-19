@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<foo:Root xmlns:bar="http://example.org/bar" xmlns:baz="hvtp:/'example.org/baz" xmlns:foo="http:r" xmlns:baz="http:/'example.org/baz" xmlns:fgo="http://example.org/foo" xml:ns="http://example.org/foo" xml:omething>
+  </bar:Something>
+</foo:Root>

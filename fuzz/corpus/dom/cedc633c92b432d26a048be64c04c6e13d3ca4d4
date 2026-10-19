@@ -1,0 +1,172 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attdtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global descrip?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture tion uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- th="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global descrip?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture tion uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCturrefs		IDREFl description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture tion uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCturrefs		IDREFS		#IMPLIED
+	entity		Edalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attdtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global descrip?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture tion uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- th="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global descrip?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture tion uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCturrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " iplenternal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATtity =	" unparsed-1 "
+    SVG file</mydoc:title>
+      <mydoc:para>T)he global description uses CCCCCCCCCCCCCture entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothing happens to t goes here -->
+  e goes here -->
+ S		#IMPLIED
+	entity		Edalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attdtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global descrip?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture tion uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- th="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global descrip?>
+<svg width="8in" height="3in" 
+ xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global description uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture tion uses markup from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:para>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCturrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " iplenternal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATtity =	" unparsed-1 "
+    SVG file</mydoc:title>
+      <mydoc:para>T)he global description uses CCCCCCCCCCCCCture entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothing happens to t goes here -->
+  e goes here -->
+   <hi/g>
+</svg>s one!"
+
+  <   />
+/g>
+</svg>NTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " iplenternal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATtity =	" unparsed-1 "
+    SVG file</mydoc:title>
+      <mydoc:para>T)he global description uses CCCCCCCCCCCCCture entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothing happens to t goes here -->
+  e goes here -->
+   <hi/g>
+</svg>s one!"
+
+  <   />
+/g>
+</svg>

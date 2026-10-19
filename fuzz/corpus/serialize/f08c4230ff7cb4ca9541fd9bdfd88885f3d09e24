@@ -1,0 +1,143 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % m!ELEMENT small EMPTY>">
+   %make_<!DOCTYPE doc [
+<!ELEMENT doc (a, (b | c)*, d*)? >
+<!ELEMENT a EMPTY>
+small "<!ELEMENT small EMPTY>">
+   %make<root><![CDATA[make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % m!ELEMENT small EMPTY>">
+   %make_<!DOCTYPE doc [
+<!ELEMENT doc (a, (b | c)*, d*)? >
+<!ELEMENT a EMPTY>
+small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % m!ELEMENT small EMPTY+">
+   %make_<!DOCTYPE doc [
+<!ELEMENT doc (a, (b | c)*, d*)? >
+<!ELEMENT a EMPTY>
+<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<doc><a/><d/></TY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<dTY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <ELEMENT a EMPTY>
+small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % m!ELEMENT small EMPTY+">
+   %make_<!DOCTYPE doc [
+<!ELEMENT doc (a, (b | c)*, d*)? >
+<!ELEMENT a EMPTY>
+<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<doc><a/><d/></TY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<dTY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make?sound "This is a PI" ?>
+   <!-- This is a text...)
+    doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a text...)
+    </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<ccE doc [
+<!ELEMENT doc (a, (b | c)*, d*)? >
+<!ELEMENT a EMPTY>
+<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<doc><a/><d/></TY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<doc><a/><d/></TY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a text...)
+    doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a text...)
+    </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![CDATA[
+]]></root>

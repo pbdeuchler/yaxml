@@ -1,0 +1,14 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Contains a character reference to a C0 control character (form-feed)
+     in an entity value.  Thion is parsed, but what about when it is used?  According to
+     the grammar in the CR spec, it should be illegal (because the 
+     replac:ement tex tis will be legal (in XML 0.1) when the entity
+     declaration is parsed, but what about when it is used?  According to
+     the grammar in the CR spec, it should be illegal (because the 
+     replacement tex tmust match "cthe grammar in the CR spec, it sly not
+     Ôntended. -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ENTITY e "&#x5c;">
+]>
+<foo>&e;</foo>

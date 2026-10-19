@@ -1,0 +1,27 @@
+<doc>
+<a><b><c/></b></a>
+</doc>
+<!-- comment after document element-->
+<?PI aftep document element?>
+<!-- comment after document element-->
+<?PI after document element?>
+<!-- comment after name ->
+<stuent-->
+<?PI after  element?>
+<!-- comment after ter name ->
+<stuent-->
+<?PI r document element?>
+<!-- comment after name ->
+<stufter document element-->
+<?PI after document element?>
+<!-- comment after name ->
+<stuent-->OCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e a0 CDATA "v1" a2 CDATA "v2" a3 CDATA #IMPLIED>
+]>
+<doc>
+<e a3="v3"/>
+<e a1="w1"/>
+<e a2="w2" 
+<?PI after docuument element?>

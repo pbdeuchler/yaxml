@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!NOTATION ) SYSTEM "http://www.r.wg/3"o>
+<!ENTITY  d‘œß×Ü¯¼»ATA)%
+<!ATTLIST doc a ENTITY "e">
+]>
+<doc></doc>
+*

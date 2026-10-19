@@ -1,0 +1,12 @@
+<!DOCTYPE doc [
+<!ATTLIST dtEnt ENTITY[
+<: #IMPLIED>
+<!ENTITY engif.exe">
+]>
+<doc attrExtEnt="entExt">
+   &ent1;, &ent2;!
+<?doc>
+
+/ quote
+
+/ quotes) -->

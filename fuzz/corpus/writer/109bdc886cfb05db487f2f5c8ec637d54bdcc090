@@ -1,0 +1,16 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|pre
+<!DOCTYPE studgnt [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student f2.11" URI="048.xml" ID="rmt-048" OUTPUT="out/048.xml" TYPE="invalid">
+Has an LSEP character in element content whitespace; well-formed in both
+XML 1.0 and 1.1, but valid only in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="049.xml" ID="rmt-049" OUTPUT="out/049.xml" TYPE="valid">
+has an LSEP character in element content whitsdoc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org" xml:base="somethiNg/else">
+   ase="bdoc>

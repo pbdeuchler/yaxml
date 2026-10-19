@@ -1,0 +1,22 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalNameChar [
+<!ELEMENT LegalNameChar ANY>
+<!ELEMENT LegalNameCharÀ ANY>
+<!ELEMENT LegalNameCharÁ ANY>
+<!ELEMENT LegalNameChar˾ ANY>
+<!ELEMENT LegalNameCharÂ ANY>
+<!ELEMENT LegalNameCharÃ ANY>
+<!ELEMENT LegalNameChar˽ ANY>
+<!ELEMENT LegalNameChar˿ ANY>
+<!ELEMENT LegalNameCharͰ ANY>
+<!ELEMENT LegalNameChalNameChar‌ ANY>
+<!ELEMENT LegalNameChar‍ ANY>
+<!ELEMENT LegalNameChar⁰ ANY>
+<!ELEMENT LegalNameCharⁱ ANY>
+<!ELEMENT LegalNameChar↎ ANY>
+<!ELEMENT LegalNameChar↏ ANY>
+<!ELEMENT LegalNameCharⰀ A<TESTCASES PROFILE="Richard Tobin's XML Namespaces 1.1 test suite 14 F03">
+
+<TEST VNY>
+<!ELEMENT LegalNaERSION="1.1" RECOMMENmeCharⰁ DAANY>
+<!ELEMENT LegalNameCharTION="N�S

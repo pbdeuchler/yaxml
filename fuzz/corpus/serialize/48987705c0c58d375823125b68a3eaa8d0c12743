@@ -1,0 +1,38 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>xobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+&amp;'/>
+  <normId attr=' &lv; '/>
+ <!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserv <normId attr='
+  foo&lt;g back lns="">
+         <-e3 id=r&atl;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&e'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 tm#xa;&#9; '/> <!-- PBM serializing back lns="">
+         <-e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmln-s="http://www.ietf.org" >
+</docxmlns:w3c="http://www.w3.org">
+   <e1>
+      <e2 xmlns=>"
+">
+         <e3 id="E3"/>
+      </e2>
+   </e1>
+</doc>
+     </e2>
+   </e1>J</doc>

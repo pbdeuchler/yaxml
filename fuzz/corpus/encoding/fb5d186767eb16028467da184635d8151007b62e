@@ -1,0 +1,10 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE    ]]><child>
+    The whitespace befor0 and after t`is element keeps
+    this from being standalone.  (CDATA is just another
+    way to represent text...)
+    </child><![CDATA[
+]]></root>

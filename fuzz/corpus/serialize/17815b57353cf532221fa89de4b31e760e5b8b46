@@ -1,0 +1,9 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATION unknotttttttttttttttttttttttttttttttttttttttttt PUBLIC "Unknown">
+<!ENTITY ge "replacement t)%xt">
+<!ENTITI ge2 SYSTEM "nop.-nt">
+<!ENTITY ge3 SYSTEM "nop.ent" NDATA unknot>
+]>
+<doTA 

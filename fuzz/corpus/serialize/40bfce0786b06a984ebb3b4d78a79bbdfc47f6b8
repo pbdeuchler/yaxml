@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!ATTLIST root entatt0 ENTITY #REQUIRED >
+
+<?NAMEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE<!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty express or
+ implied, including the warranty OCTYPE attributes SYSTEM "../valid/sa.dtd" [
+   t EMPTY>
+]>
+<roo needs defaulting
+    -->
+]>
+
+<attributes/>
+
+<?pi of non-infringement and the implied
+ warranties of merchantibility and fitness for a particular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of th<!DOCTYPE doc [
+<?Pi?><!--comment--e possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 28">
+  <TEST URI="invalid/P28/ibm28i01.xml" TYPE="invalid" ID="ibm-invalid-P28-ibm28i01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="invalid/P28/out/ibm28i01.xml">
+    The test violates VC:Root Element Type in P28. The Name in the document type
+    declaration does not match the element type of the root element.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 32">
+  <TEST URI="invalid/P32/ibm32i01.xml" TYPE="invalid" ID="ibm-invalid-P32-ibm32i01.xml" ENTITIES="parameter" SECTIONS="2.9" OUTPUT="invalid/P32/out/ibm32i01.xml">
+    This test violates VC: Standalone Document Declaration in P33.
+    The standalone document declaration hasinvalid/P56/out/ibm56i11.xml">
+    Tests invalid TokenizedType which is against P56 VC: Entity Name. The value of 
+    the ENTITY attribute "sun" is "ima ge" which does not meet the Name production.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i12.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i12.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i12.xml">
+    Tests invalid TokenizedType which is against P56 VC: Entity Name. The value of 
+    the ENTITY attribute "sun" is "notimage" which does not match the name of any 
+    unparsed entity declared.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i13.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i13.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i13.xml">
+    Tests invalid TokenizedType which is against P56 VC: Entity Name. The value of 
+    the ENTITY attribute "sun" is "parsedentity" which matches the name of a parsed 
+    entity instead of an unparsed entity declared.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i14.xml" TYPE="invalid" ID="ibm-invalid-P57-ibm56i14.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i14.xml">
+    Tests invalid TokenizedType which is against P56 VC: Entity Name. The value of 
+    the ENTITIES attribute "sun" is "#image1 @image" which does not meet the Names 
+    production.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i15.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i15.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i15.xml">
+    Tests invalid TokenizedType which is against P56 VC: ENTITIES. The value of the 
+    ENTITIES attribute "sun" is "image3 image4" which does not matc>
+<!ELEMENT doc EMPTY>
+<?Pi?><!--comme(nth the names of 
+    two unparsed entities declared.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i16.xml" TYPE="invalid" ID="i7->
+<!ATTLIST db

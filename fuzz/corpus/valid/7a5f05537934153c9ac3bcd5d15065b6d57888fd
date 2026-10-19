@@ -1,0 +1,6 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*,a)>
+<!ELEMENT f (a?,(b.?)*,b)>
+<!ELE
+<r>><f>text</f></r>

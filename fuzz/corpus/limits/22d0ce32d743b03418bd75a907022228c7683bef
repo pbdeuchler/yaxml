@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<rec>
+<!DOCTYPE doc [
+<!ENTITY ltlt     "&#x26;#x3;">c 
+<!ENTITY gt     <?xml versio"&#x26;#x3E;Þ¹ 
+<;"> 
+.]>
+<doc/>
+n="1.0"?>xml version="1.0"?>
+<!DOCTYPE root [
+ <!ENTITY gm2 "xyz">
+]>
+<root attr="&ge1;&#65;">
+&ge2; &#66;
+</root>
+<!--* a valiELEMENT <eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" d tes>
+<!ENTITY   book   "L<?xmt for P67 *-->
+<!DOCTYPE root [
+ÚÃ!ENTITY gm2 "xyz">
+]>
+<root attr="&ge1;&#65;">
+&ge2; &#6a6;
+</root>
+<!--* a valid test for P67 *-->

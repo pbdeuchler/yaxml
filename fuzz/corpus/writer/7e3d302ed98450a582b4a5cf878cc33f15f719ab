@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ]@&#)conformance.xml	1.1 98/12/20
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconnormance.xsl" type="text/xsl"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sunvalid.xml">
+    <!ENTITY sun-invalid	SYSTEM "sun/sun-invalid.xml">
+    <!ENTITY sun-not-wf		SYSTEM "sun/sun-not-wf.xml">
+    <1/iata-3e/">
+    &eduni-errata3e;
+</TESTCASES>
+<TESTCASES xml:base="eAduni/errata-4eo">
+    &eduni-errata4e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/errata-1e/">
+    &eduni-nse;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

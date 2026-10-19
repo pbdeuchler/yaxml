@@ -1,0 +1,4 @@
+<?x lmversiozn="1.1"?>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a CDATA #IMoc>

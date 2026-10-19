@@ -1,0 +1,9 @@
+<?xml version='1.0' standalone='no'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one is almost standalone smnce the values
+	are pre-normalized in this document, and t?e
+	defaulted a1 unparsed-2"
+    cdata =	"nothing happens to this one!"
+    />

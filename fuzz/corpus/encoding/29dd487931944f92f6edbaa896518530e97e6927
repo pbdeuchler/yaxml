@@ -1,0 +1,6 @@
+<root>&#10; roo345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901<root><a></a><b>&#10;&#10;   <c></c> &#10;   CharData: content of b element&#10;   %paaa; : PE reference should not be recognized in element content &#10;   <c>&#10;<?PIcontent anyProcessingInstruction?>&#10;&#10;    <b>General entity reference in element content</b>&#10;    Ch>&#10;&#10;    <b>General entity reference in element content</b>&#10;    Charater reference: A&#10;    r reference: A&#10;    CDSect in content:  &lt;html&gt;2345678901234567890123456789012345678################################9012345678901234567890123456789012345678901234567890123456789012345678901234567890123456ttr CDATA #IMPLIED
+              c:attr CDattr="2" cta:'t have text content&#hW;<a></a><b>&#10;   <c></cmarkups&lt;head&gt;HEAD&lt;/head&gt;&lt;body&gt;nottml&gt; &#arater reference: A&#10;    CDSect in content:  &lt;html&gt;markups&lt;head&gt;HEAD&lt;/head&gt;&lt;body&gt;not> &#10;   conttr=hing&lt;/body&gt;&lt;/html&gt; &#10;   </c>&#10;</b>&"3"/>
+
+</fent of b element&#10;</b></roo#10;</rot>oo>
+o
+t>

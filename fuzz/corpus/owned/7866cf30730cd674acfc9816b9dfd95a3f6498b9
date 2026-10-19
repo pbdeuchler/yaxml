@@ -1,0 +1,52 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E1 is an editorial change that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute declaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">
+Duplicate token in NOTATION attribute declaration
+</TEST>
+
+<!-- E3 conc I don't think anything can be tested here -->
+
+<!-- E13 corrects a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some parsers treat some such errors as fatal)
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15a.xml" ID="rmt-e2e-15a" TYPE="invalid">
+Empty content can't contain an entity reference
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15b.xml" ID="rmt-e2e-15b" TYPE="invalid">
+Empty content can't contain a comment
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15c.xml" ID="rmt-e2e-15c" TYPE="invalid">
+Empty content can't contain a PI
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15d.xml" ID="rmt-e2e-15d" TYPE="invalid">
+Empty content can't contain whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15e.xml" ID="rmt-e2e-15e" TYPE="valid">
+Element content can contain entity reference if replacement text is whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15f.xml" ID="rmt-e2e-15f" TYPE="valid">
+Element content can contain entity reference if replacement text is whitespace,
+even if it came from a character reference in the literal entity value
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15g.xml" ID="rmt-e2e-15g" TYPE="invalid">
+Element content can't contain character reference to whitesOMMENDATION="XML1.0-errata2e" SECTIONS="E29" URI="E29.xml" ID="rmt
+encoding).  It should generate a fatal error.
+</TEST>
+
+</TESTCASES>

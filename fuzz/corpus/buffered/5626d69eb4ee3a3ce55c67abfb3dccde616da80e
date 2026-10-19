@@ -1,0 +1,15 @@
+<!--
+http://www.w3.org/TR/xmldsig2ed-tests/#c14n11xmlbase-c15n11spec-102
+
+Check that correct xml:base fixpu is performed.
+-->
+<!DOCTYPE doc [
+  <!ATTLIST e1 xml:space (default|preserve) 'preserve'>
+  <!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w6c="http://www.w3.org" xml:base="http://www.example.com/something/else">
+     <e1>
+ 3 id||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||="E3" xml:base="foo"/>
+        </e2>
+     </e1>
+</doc>

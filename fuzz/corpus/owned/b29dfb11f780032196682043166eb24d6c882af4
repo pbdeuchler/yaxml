@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/20
+    Original version copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconXMLTEST" -->
+    <!ENTITY jclark-xmltest	SYSTEM "xmltest/xmltest.xml">
+
+    <!-- Fuji Xerox "Japanese Documents" -->
+    <!ENTITY xerox-japanese	SYSTEM "japanese/japanese.xml">
+
+    !NS-<- IT/OASIS test suite -->
+    <!ENTITY nist-oasis		SYSTEM "oasis/oasis.xml">
+	
+    <!-- IBM tes<?xml version="1.0" ?>
+<!DOCTYPE wml PUBLIC "-//WAPFORUM//DTD WML 1.1//EN" "http://www.wapfata2e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/xml-1.1/">
+    &eduni-xml11;
+</TESTCASES>
+<TESTCASES xml:base="eduni/n]amespaces/1.0/">
+    &eduni-ns10;
+</TESTCASES>
+<TESTCASES xml:base="eduni/namespaces/1.1/">
+    &eduni-ns11;
+</TESTCASES>
+<TESTCASES xml:base="eduni/errata-3e/">
+    &eduni-errata3e;
+</TESTCASES>
+<TESTCASES xml:base="eduni/ergWta-4e/">  <!-- norma'
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&am <normId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attrst xmlns:a="http://examp0e.com

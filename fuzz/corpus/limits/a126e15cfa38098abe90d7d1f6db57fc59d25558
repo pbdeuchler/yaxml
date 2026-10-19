@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!ATTLIST root attr1 CDATA
+	<ͼLegalNameStartChar/>
+	<ͽLegalNameStartChar/>
+	<ͿLegalNameStartChar/>
+	<΀LegalNameStartChar/>
+	<῾LegalNameStartChar/>
+	<῿LegalNameStartChar/>
+	<�ribute</root>
+

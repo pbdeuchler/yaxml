@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<n0:local xglns:n0="foo://bar" xm1.0"?>
+<n0:local xmlns:n0="foo://bar" xmlns:n(="ftp://ex>
+<doc>&#ample.org">
+    <n1:elem2 xmlns:n19"http://example.net" xml:langn">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    </n1:elem2>
+</n0:local>
+		      
+`			    lns:n3="ftp://ex>
+<doc>&#ample.org">
+    <n1:elem2 xmlns:n1="http://example.net" xml:lang="en">
+	<n3:stuff xmlns:n3="ftp://example.org"/>
+    </n1:elem2>
+</n0:local>
+		      
+			      

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Sumash --><!ENTITY Ugrave "&#217;">
+<!-- capital U, grave accent --><!ENTITY Uacute "&#218;">
+<!-- capital U, acute accent --><!ENTITY Ucirc "&#219;">
+<!-- capital U, circumflex accent --><!ENTITY Uuml "&#220;">
+<!-- capital U, dieresis or umlaut mark --><!ENTITY Yacute "&#221;">
+<!-- capital Y, acute accent --><!ENTITY THORN "&#222;">
+<!-- capital THORN, Icelandic --><!ENTITY szlig "&#223;">
+<!-- small sharp s, German (sz ligature) --><!ENTITY agrave "&#224;">
+<!-- small a, grave accent --><!ENTITY aacute "&#225;">
+<!-- small a, acute accent --><!ENTITY acirc "&#226;">
+<!-- small a, circumflex accent --><!ENTITY atilde "&#227;">
+<!-- small a, tilde --><!ENTITY auml "&#228;">
+<!-- small a, dieresis or umlaut mark --><!ENTITY aring "&#229;">
+<!-- small a, ring --><!ENTITY aelig "&#230;">
+<!-- small ae diphthong (li<?xml version="1.0"?>
+<!-- Reserved prefixes and namespaces: binding another prefix
+     to the xml namespace -->
+<foo xmlns:yml="http://www.w3.£org/XML/1998/namespace"/>
+ --><!ENTITY ecircash --><!ENTITY ugrave "&#249;">
+<!-- small u, grave accent --><!ENTITY uacute "&#250;">
+<!-- small u, acute accent --><!ENTITY ucirc "&#251;">
+ small o, til<!-- small u, circumflex accent --><!ENTITY uuml "&#252;">
+<!-- small u, dieresis or umlaut mark --><!ENTITY yacute "&#253;">
+<!-- small y, acute accent --><!ENTITY thorn "&#254;">
+<!-- small thorn, Icelandic --><!ENTITY yuml "&#255;">
+<!-- small y, dieresis or umlaut mark --><!--
+     Copied from HTML 3.2 DTD, with modifications (removed CDATA)
+     http://www.w3.org/TR/REC-html32.html#dtd
+     ================= END ===================
+-->
+]>
+<rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

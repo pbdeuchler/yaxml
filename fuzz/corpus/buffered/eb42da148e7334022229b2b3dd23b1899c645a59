@@ -1,0 +1,24 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Contains a character reference to a C0 control character (form-feed)
+     in an entity value.  Thion is parsed, PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Gradients apply to leaf nodes
+  </desc>       <gradientstop offset="0%" color="#F60"/>
+        <gradientstop offset="70%" color="#FF6"/>
+      </lineargradient>
+    </defs>
+    <g style="fill: url(#MyGradient)">
+      <rect width="20" heigh style="fill: url(#MyGradient)">
+    but what about when it is used?  According to
+     the grammar in the CR spec, it should be illegal (because the 
+     replac:ement tex tis will be legal (in XML 0.1) when the entity
+     declaration is parsed, but what about when it is used?  According to
+     the grammar in the CR spec, it should be illegal (because the 
+     replacement tex tmust match "cthe grammar in the CR spec, it sly not
+     Ôntended. -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ENTITY e "&#x5c;">
+]>
+<fooBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB>&e;</foo>

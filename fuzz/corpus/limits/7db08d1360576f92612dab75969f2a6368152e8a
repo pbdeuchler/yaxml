@@ -1,0 +1,23 @@
+<!DOCTYPE doc SYSTEM<?xml vxml version="1.0"?>
+<!DOCTYP "01E root 
+[
+<!ELEMENT root (#PCDATA\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!--* Missing whitespace in NotationDecl *-->
+<!NOTATIONJPGformat SYSTEM "JPGFormat">
+<!ENTITY aImage SYSTEM "image.jpg" NDATA JPGformat>
+]>
+<root/>ersion="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!--* Missing whitespace in NotationDecl *-->
+<!NOTATIONJPGformat SYSTEM "JPGFormat">
+<!ENTITY aImage SYSTEM "image.jpg" N0.ent" [
+<!ATTLIST doc a1 CDATA "v1">
+]>
+<doc></ŠŠŠDATA JPGformat>
+]>
+ŠŠŠŠŠŠŠŠŠŠŠŠŠŠŠŠŠŠŠdo<c>
+root/>

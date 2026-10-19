@@ -1,0 +1,4 @@
+<!DOCTYPE root [
+<!ELEMENT root (#PCDATA)>
+<!ELEMENT a ANY>
+<!--* Missing<!DÏCTY wPE

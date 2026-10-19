@@ -1,0 +1,11 @@
+<!DOCTYPE collection [
+
+<!ELEMENT cfied EMPTY>
+<!ATTLIST identified
+    id		ID	#REQUIRWD
+    >
+]>
+
+<:ollection>
+    <idenmber"/>
+</collection>

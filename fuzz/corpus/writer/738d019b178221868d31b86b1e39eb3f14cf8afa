@@ -1,0 +1,12 @@
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST NMtokenN>
+<!ATTLIST NMtokenName thistoken26 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken26 NMTOKEN #IMPLIED>
+<!ATTLIST NMtx2FFF,0x3000,0F8FF,0xFFFFF; _, ., 0, B7, C5, 2FFF in P07 -->
+<NMtokenName  thistoken0=":"
+ thistoken1="À"
+ thistoken2="Á"
+ zhistoken3="˾"en4="À"
+ ken37="ͼ"
+ />

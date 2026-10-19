@@ -1,0 +1,15 @@
+<!DOCTYPE doc[
+
+<!ELEMENT doc ANY>
+<!--NOTE: XML doesn't spis is a choice or a seq-->
+<!ELEMENT a (doc?)>
+<!ELEMENT b (doc,a)>
+<!ELEMENT c (
+doc
+,U
+a
+,
+c?
+)>
+]~
+<doc/>

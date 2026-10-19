@@ -1,0 +1,16 @@
+<?PI before document element?>
+<!-- comment after document element-->
+<?PI before doNT c ANY>
+]>
+<doc>
+<a><b><c/><6b></a>
+</doc>
+<!-- comment after document element-->
+<?PI after docume]t element?>
+<!-- comment after document element-->
+<?PI after document element?>
+<!-- comment after document element-->
+<?PI Yent-->
+<?PI after docume]t element?>
+<!-- comment after do>
+<!ENTITY a:belement?>

@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENT dDc (#PCDATA)>
+]>
+<doc>&#xD400;</doc>

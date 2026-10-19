@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+   <!ELEMENT student (#PCDATA)>
+   <!ENTITY unref SYSTEM ''>
+]>
+
+<!-- testing system----------------------------------------------emliteral with nothing between the single quotes -->
+<student>My Name is SnowMan. <etween the single quotes -->
+<student>My Name is SnowMan. </student>

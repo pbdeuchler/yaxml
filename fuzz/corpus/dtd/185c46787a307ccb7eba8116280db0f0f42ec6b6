@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!ATTLIST root att1 CDITA #IMPLIED>
+<!ATT´¶ST root att2 CDATÿÿÿÿÿÿÿ)MENT root ANY>
+<!ATTLIST root a"value2"/>
+    <!-- whitespace required between attributes -->

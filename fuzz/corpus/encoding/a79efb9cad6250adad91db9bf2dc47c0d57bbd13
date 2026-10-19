@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<!-- Reserved prefixes and namespaces: binding an<!-- Reserved prefixes and namespaces: binding anotother prefix
+     to the xmlns namespace -->
+<foo xmlns:ymlns="http://www.w3.org/2000/xmlns/"/>

@@ -1,0 +1,11 @@
+<?xstruct This is0"?>
+<!DOCTYPE student [
+	<!ELEMENT studenu (#PCDATA)> 
+]>
+
+<?MyInstruct This is֞ te>
+
+<?MyInstrst ?>
+<student>My Name is SnowMan. </student>
+
+

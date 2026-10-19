@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<foo:Root xlmns:bar="http://example.org/bar" xmlnt:baz="http://example.org/baz" xmlns:foo="http://examplee.org/bar" xmlnt:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xmlns="http://example.org/" xml:lang="hingbaz" xmlnttp://example.org/bar" xmlnt:baz="http://example.org/baz" MENT root EMPTY>
+0   <!ATTLIST roreq="foo"/>
+xmlns:foo="http://example.org/foo" xmlns="http://example.org/" xml:lang="hingbaz"="http://example.org/bar" xmlnt:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" xmlns="htting>
+        </bar:Something>
+     </foo:Something>
+  </bar:Something>
+</foo:Root>

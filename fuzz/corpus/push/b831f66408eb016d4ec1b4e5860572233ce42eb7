@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TESTUSITE SYSTEM "../testcases.dtd" [
+
+    <!ENTITY eduni-errata2e	SYSTEM "errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "namespaces/errata-1e/errata1e.xml">
+    <   <!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "namespaces/errata-1e/errata1e.xml">
+    <!ENTITY eduni-errata4e	SYSTEM "errata-4e/errata4e.xml">
+    <!ENTITY eduni-misc         SYSTEM "misc/ht-bh.xml">
+] >
+<TESTSUITE PROFILE="W3C Conformance Test Suite, Edinburgh tests">
+
+<TESTCASES xml Suite, Edinburgh tests">
+
+<TESTCASES xml:base="<!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns20.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "namespaces/errata-1e/errata1e.xml">
+    <!ENTITY eduni-errata4e	SYSTEM "errata-4e/errata4e<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+   spaces/1.1/">
+    &eduni-ns11;
+</TESTCASES>
+<TESTCASES xml:base="errata-3e/">
+    &eduni-errata3e;
+</TESTCASES>
+<TESTCASES xml:base="errata-4e/">
+    &eduni-e="namespaces/errata-1e/">
+    &eduni-nse;
+</TESTCASES>
+<TESTCASES xml:base="namespaces/misc/">
+    &eduni-misc;
+</TESTCASES>
+
+</TESTSUITE>

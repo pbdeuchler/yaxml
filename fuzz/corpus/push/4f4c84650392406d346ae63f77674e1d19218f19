@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+<!NOTATION gif PUBLIC 'gif'>
+]>
+<test>&#10;<landscape sun="image"></landscape>&#09;nd the ENTITY value&#20;matches the name of an unparsed entity declared in the DTD.&#10;</test>

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- Reserved prefixes and namespaces: bin/ion="1.0"?>
+<!-- Reserved prefixes and namespaces: bin/ing another prefix
+     to the xmlns namespace -->
+<foo xmlns:ymlns=ng another prefix
+     to the xmlns namespace -->
+<foo xmlns:ymlns="http://www.w3.org/2000/xmlns/"/>

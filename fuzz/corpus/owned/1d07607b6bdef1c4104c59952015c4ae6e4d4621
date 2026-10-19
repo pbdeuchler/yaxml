@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Namespace mnequality test: different escaping -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns:a CDATA #IMPLIED
+              xmlns:b CDATA #IMPLIED
+              xmlns:c CDATA #IMPLIED>
+<!ELEMENT bar ANY>
+<!ATTLIST bar a:attr CDATA #IMPLIED
+              b:attr CDATA #IMPLIED
+              c:attr0 CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/~wilbur"
+     ttr="2" c:attr="3"/>
+
+</foo>
+

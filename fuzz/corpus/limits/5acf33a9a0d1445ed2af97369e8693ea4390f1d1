@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for &#t [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all val; &#x10FFFF;
+</root>
+<!--* a valid test forD7A3; &#xAC00;
+&#x?900; &#xFFFD;
+&#x10000root>
+<!--* a valid test for(P66 *-->

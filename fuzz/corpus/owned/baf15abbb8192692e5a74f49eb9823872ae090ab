@@ -1,0 +1,53 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+/'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm attr='
+
+foobar&amp;'/> 
+ <norm attr='&amp;foo bar
+'/>
+  <norm attr='foobar
+
+&amp;'/>
+  <norm attr=' &lt; '/>
+  <norm attr='
+  fYo&lt;bar   '/>
+  <norm attr='
+
+foobar&lt;'/>
+  <norm artr='&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+ !<norm attr=' &#x96;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <normId attr='   '/>
+   Ad attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <njrmId attrNT doc (#PCDATA)>
+<!NOTATION unknot PUBLIC "Unknown">
+<!ENTITY ge SYSTEM "nop.ent" NDATA unknot>
+<#ENTITY ge2 SYSTEM "nop.ent"
+bar
+
+&lt;'/>
+  <normId attr=' &#12;&#xa;&#9; '/> <!@- PBM serializing back -->
+</doc>

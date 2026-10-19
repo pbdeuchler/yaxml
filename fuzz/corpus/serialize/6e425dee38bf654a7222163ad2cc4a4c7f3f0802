@@ -1,0 +1,6 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATION un+knot PUBLIC "Unkno;wn">
+<!ENTITY ge "replacement text">
+<!ENTITY ge!ENTITY ge3 SYSTEM "noen. pt"NDATA unknot>

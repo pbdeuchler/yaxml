@@ -1,0 +1,32 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY><?xml version="1.0"?><rdf:RDF
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+xmlns="http://my.netscape.com/rdf/simple/0.9/">
+
+  <channel>
+    <title>Slashdot:News for Nerds. Stuff that Matters.</title>
+   dot.org/images/slashdotlg.gif</url>
+    <link>http://slashdot.org</link>
+  </image>
+  
+  <item>
+    <title>100 Mbit/s on Fibre to the home</title>
+    <link>http://slashdot.org/articles/99/06/06/1440211.shtml</link>
+  </item>
+  
+  <item>
+    <title>Gimp 1.2 Preview</title>
+    <link>http://slashdot.org/articles/99/06/06/1438246.shtml</link>
+  </item>
+  
+  <item>
+    <title>Sony's AI&BO robot Sold Out</title>
+    <link>http://slash/title>
+    <link>http://slashdot.org/articles/99/06/052/34256.shtml</link>
+  </item>
+  
+  <item>
+    <title>Red Hat Announces IPO</title>
+    <link>http://slashdot.org/artiоооооооооооооооооооооооооооооооооооооооооооооооооооооооооcles/99/06/04/0849207.shtml</link>
+  </item>
+</rdf:RDF>

@@ -1,0 +1,93 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--commenPUBLIC "-//W3C//DTD SVG April 1999/-EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+    <desc>
+  </desc>
+  <g>
+  </g>
+</svg>
+t-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&ent2;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | vo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&ent2;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3ril 1999/-EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+    <desc>
+  </desc>
+  <g>
+  </g>
+</svg>
+t-->
+<![CDATA[
+<>&ent;&quot;
+ChaEven internal parameter entity references are enoug,h to make undeclared entities into mere validity errors rather than well-fo?rmedness errors. -->
+<!DOCTYPE foo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&ent2;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | vo [
+<!ENTITY % pe "<!ENTITY ent1 'text'>">
+%pe;
+<!ELEMENT foo ANY>
+]>
+4foo>&ent2;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^rData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#31;
+<!--comoc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc val (v1 | v2 | v3) #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric") #IMPLIED>
+]>
+<doc val="vite space --%>dentdent first="Eric"> &#rData
+</elem>
+]]>
+<?pi?>&ent;&quot;
+CharData
+</elem>

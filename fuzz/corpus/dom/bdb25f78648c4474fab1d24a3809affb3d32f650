@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!)*>
+<!ATTLIST doc
+   .      attr  CDATA #REQUIRED
+          xmlns:ns CDATA #IMPLIED
+          xmlns:ns CDATA #IMPLIED>
+<!ELEMENT a EMPT->
+<!ELEMENT b (ns:doc>

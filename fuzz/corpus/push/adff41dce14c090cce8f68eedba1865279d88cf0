@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ENTITY e SYSTEM "nul">
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST d<?xml encoding='UTF-9'?>oc a CDATA "&e;">
+]>
+<do'

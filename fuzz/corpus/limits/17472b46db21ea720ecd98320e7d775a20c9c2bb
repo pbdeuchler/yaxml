@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE rnode [
+<!ELEMENT rnode (f)>
+                                        <Üdoc><e a1="a1 de<!DOlt"></e></doc>CTYPE root 
+[
+<!ELEMENT root EMPTY>
+                  <!ATTLIST r
+<!ME f (#PCDATA)>
+<!ATTLIST f
+   att0 CDA1A #FIXED 'J'>
+                                                      /       
+<!ENTITY ATTLÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔ
+<!ATTLIST root att CDATA #IMPLIEÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔÔIST root att C3aDATA #IMPLI
+"/>]>
+
+<root/>

@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#x26;#xA;"
+
+<t>]>est`newline="&newline;4"/>

@@ -1,0 +1,9 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att1 CDATA #Rtion 4.3.2:
+      An internal general parsed encith is well-formed if 
+      its replacement text matches the production labeled
+      "content" *--> 
+<?MyInstruct This is a test ?>
+<student att1="ibh">My Name is SnowMan. </student>

@@ -238,6 +238,25 @@ assert!(!yaxml::valid::is_valid(&diagnostics));
 # Ok::<(), yaxml::Error>(())
 ```
 
+`TextReader` is libxml2's `xmlTextReader` cursor (`xmlreader.h`) over any
+`BufRead`: node types and depths numbered as libxml2, attribute navigation,
+namespace/`xml:lang`/`xml:base` scope, `next`, `read_string`, inner/outer XML
+and `expand` to an `OwnedDocument`, in bounded memory. See the
+[TextReader contract](docs/textreader.md) for libxml2 agreement and gaps.
+
+```rust
+use yaxml::{NodeType, TextReader};
+
+let mut reader = TextReader::new(b"<r xmlns:p='urn:p'><p:i k='v'>x</p:i></r>".as_slice());
+while reader.read()? {
+    if reader.node_type() == NodeType::Element && reader.local_name() == Some("i") {
+        assert_eq!((reader.depth(), reader.get_attribute("k")), (1, Some("v")));
+        assert_eq!(reader.read_outer_xml()?.unwrap(), r#"<p:i xmlns:p="urn:p" k="v">x</p:i>"#);
+    }
+}
+# Ok::<(), yaxml::ReadError>(())
+```
+
 `yaxml::c14n` writes Canonical XML 1.0 and 1.1 and Exclusive XML
 Canonicalization 1.0 for either DOM, whole or as an XPath node-set, with
 libxml2's bytes; see the [C14N contract](docs/c14n.md).
@@ -249,6 +268,25 @@ let canonical = yaxml::c14n::to_string(&document, &options)?;
 assert_eq!(canonical, r#"<r><p:e xmlns:p="urn:p" a="1" b="2"></p:e></r>"#);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
+
+`yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
+tokenization, libxml2's legacy tree construction with implied elements and
+auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding
+selection) into an `OwnedDocument` marked as HTML, incrementally through
+`html::PushParser` with chunk-independent results, and serializes it like
+`htmlDocDumpMemory` (`html::to_html`) or `xmllint --html` (`html::save`):
+
+```rust
+use yaxml::html;
+
+let parsed = html::parse(b"<title>T</title><p>a<p>b &amp; c", html::Options::default())?;
+let output = html::save(&parsed.document, false)?;
+assert!(output.ends_with(b"<body><p>a</p><p>b &amp; c</p></body></html>\n"));
+# Ok::<(), yaxml::Error>(())
+```
+
+The [HTML contract](docs/html.md) lists options, encodings, limits, the
+xmllint differential and known differences.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need

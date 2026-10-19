@@ -1,0 +1,7 @@
+<!DOCTYPE animal [
+<!ELEMENT animal ANY>
+<?ゕ an illegal char #x3095
+ in PI@<?xml versioan="1.0"?T animal ANY>
+<?ゕ an illegal char #x3095
+ in PI@<>
+C<!DOTYPT bo

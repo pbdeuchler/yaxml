@@ -79,6 +79,10 @@ pub trait Navigate {
     fn is_cdata(&self, id: Self::Id) -> bool;
     /// The start of the node's source range.
     fn offset(&self, id: Self::Id) -> Option<usize>;
+    /// Content XML output cannot represent (only possible in HTML documents).
+    fn xml_violation(&self) -> Option<String> {
+        None
+    }
 }
 
 impl Navigate for Document<'_> {
@@ -150,6 +154,10 @@ impl Navigate for Document<'_> {
 
 impl Navigate for OwnedDocument {
     type Id = OwnedNodeId;
+
+    fn xml_violation(&self) -> Option<String> {
+        OwnedDocument::xml_violation(self)
+    }
 
     fn root(&self) -> OwnedNodeId {
         OwnedDocument::root(self).id()

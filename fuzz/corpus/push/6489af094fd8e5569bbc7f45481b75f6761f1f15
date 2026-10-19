@@ -1,0 +1,21 @@
+<!DOCTYPE doc [
+<!ATTLIST doc a1 NMTOKENS " 1  	2 	">
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc></d  	2 	">>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legal patterns derNT doc 
+<!ENTITY epe2 SYSTEM "ibm78v02.ent" >
+<!ENTITY epe3 SYSTEM "ibm78v03.ent" >
+
+]>
+<root>&epe0;&epe2;&epe3;</root>t P78, P77, '?>">
+]>
+<doc>&e;</dP80 
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc><oc>

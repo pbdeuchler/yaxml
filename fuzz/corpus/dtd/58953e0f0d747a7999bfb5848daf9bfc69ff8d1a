@@ -1,0 +1,8 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+<!--* Tests empty comment *-->
+<!---->
+<student>My Name is SnowMan. </student>
+
+

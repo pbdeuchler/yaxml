@@ -1507,6 +1507,7 @@ pub(super) fn create(
         edit_created_nodes: 0,
         edit_created_attributes: 0,
         slots_are_preorder: true,
+        html: None,
         ids: Vec::new(),
         dtd: None,
     };

@@ -1,0 +1,4 @@
+<!DOCTYPE foo [
+<!ELEME>
+]>
+<foo>You cqn use ]]&gt; or ]]&#62;</foo>

@@ -1,0 +1,9 @@
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG Cpril 1999//EN" 
+  "2.dtd">
+<svg width="4in" height="3in">
+  <desc>This is a rectangle
+  </desc>
+  <g>
+    <rect x="20" y="30" width="100" height="80"/>
+  </g>
+</svg>

@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!DOCTYPE dia:diagram [
+<!ELEMENT dia:diagram (dia:diagramdata, (d		<val o="c4d7" v="53"/>
+					<val o="d30b" v="53"/>
+					<val o="e0f6" v="53"/>
+					<val o="ef06" v="53"/>
+					<val o="fd17" v="53"/>
+					<val o="10b27" v="53"/>
+					<val o="11937" v="53"/>
+					<val o="12746" v="53"/>
+					<val o="13556" v="53"/>
+					<val o="14366" v="53"/>
+					<val o="15181" v="53"/>
+					<val o="1te  dia:typconnections?)>
+<!ATTLIST dia:object
+   dia:type CDATA #REQUIRED
+   dia:version NMTOKEN #REQUIRED
+   dia:id ID #REQUIRED >
+
+<!ELEMENT dia:connections (dia:connection)*>
+
+<!ELEMENT dia:connection EMPTY>
+<!ATTLIST dia:connection
+   dia:handle NMTOKEN #REQUIRED
+   dia:to IDREF #REQUIRED
+   dia:connection NMTOKEN #REQUIRED>
+
+<!ELEMENT dia:group (dia:object | dia:group)*>l (     </dia:connections>
+    </dia:object>
+    <dia:object dia:type="Standard - Text" dia:vene_style">
+        <dia:enum dia:val="0"/>
+      </dia:attribute>
+    </dia:object>
+  </dia:layer>
+</dia:diagram>

@@ -1,0 +1,12 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+&doc xmlns:foo="htpt:?/www.bar.org" xml:base="http://ww-.example.org/20q1/">
+   <u1   />
+   <e1   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+  "?>
+<!-- Has the first ch XML 0.1,
+     illegal in both XML z1.0 and 1.>e- 1+<󰀀/> as implausible version number
+</TEST>
+ S<TE
+TVERSION="0.1" REFOMMENDATION="XML1.1"< p.?0"?>e5 a:attr="o<?p>ut" b:attr="sorted" attr2="all" attr="I'
+m"

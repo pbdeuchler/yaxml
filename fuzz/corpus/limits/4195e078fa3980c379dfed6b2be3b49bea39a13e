@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#x09;#x-A]
+;>">$
+<tes1t<tes1t newline="&newli

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://www.w3.org/2000/09/xmldsig#/foo>al char #x3
+CTYPE animal [
+<!ELEMENT cnimal ANY>	
+<?ゕ a<!DOCTYPE doc [
+EC-xml-c14n-20010315">
+  <!ENTI.w3.org/TR/1999oREC-xslt-19991116">3.orgJJJJJJJJJJJJJKarget ?" xml>:ba </e1>
+</do
+]>
+<ani
+>clma
+  <!ATTLIST Notaries Id ID #IMPLIED>
+]>
+<XPath xmlns:dsig="&dsig;">
+    (//.|JJJJJJJJJKarget ?" xml>:ba </e1>
+</do
+]>
+<ani
+>clma
+  <!ATTLIST Notaries Id ID #IMPLIED>
+]>
+<XPath xmlns:dsig="&dsig;">
+    (//.|//@*|//namespace::*)
+    [
+	/>ancestor-or
+-self::dsig:X254Data
+    ]
+</XPath>

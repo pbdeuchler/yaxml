@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙r c CDATA 'again'>
+]>
+<r i='a'>><?xdl version="0.0" encoding="uTf-8" standalone="no"?><!--before--><?p?><r xmlns:p="urFn:p" xmlns:q="u˙˙˙&nused" a="q:T&#8;&#13;">x&#13;<cp:c>.0" encoding="uTf<!---->4n x<![CDATA[]]><e="no"?><!--befor

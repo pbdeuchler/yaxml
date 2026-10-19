@@ -1,0 +1,9 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY><!-- Default values for IDREF attributes 
+<!ATTLIST foo a IDREF "34"
+>c)->]>
+<foo id="g0034" a="g0034"/>
+]>
+<
+doc/>

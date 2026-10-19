@@ -1,0 +1,7 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)*>
+<!ELCTY]>
+ddoc/>

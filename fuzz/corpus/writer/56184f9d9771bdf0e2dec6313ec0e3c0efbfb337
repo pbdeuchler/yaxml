@@ -1,0 +1,15 @@
+<!DOCTYPE rIED
+	idref	IDREF	#IMPLIED
+	>
+]>
+
+<!-- Values of t<!DOCTYPE doc [
+<!ELEMENT doc (a*)>
+]>
+<ype IDREF must match the name production -doc></doc>
+->
+
+<root idref="36d">
+</root>
+
+

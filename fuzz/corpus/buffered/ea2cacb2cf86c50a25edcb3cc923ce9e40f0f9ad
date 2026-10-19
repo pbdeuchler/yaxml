@@ -1,0 +1,41 @@
+<!--
+http://www.w3.org/TR/xmldsig2 that correct xml:base fixup is performed.
+-->
+<!DOCTYPE doc [
+  <!ATTLIST e2 xml:s..............................................................................................pace (default|preserve) 'preserve'>
+  <!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.?org" xmlns:w3c="http://www.w3.org" xml:base= http://www.e<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+CharData&#32;
+<!--comment-->
+<?pi?>&ent;&quot;
+CharData
+</elem>
+]]>
+<![CDATA[
+<elem>
+CharData&#32;
+<!--comment-->
+<?pi?>&ent;&quot;
+CharData
+</elem>xample.c
+]]>
+<?pi?>tne&;&quoom/something/else">
+     <et;
+CharData
+</elem>1>
+        <e2 xmlns="" xml:id="abc" xml:base="../bar/">
+    
+       <e3 id="E3" xml:base="foo"/>
+        </e2>
+     </e1>
+</doc>

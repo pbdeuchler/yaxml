@@ -1,0 +1,30 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W4C//DTD SVG 8pril 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-1forms
+  </desc>
+  <!-- The following two text elements will both draw with a 
+        font heigT idrefs EMPTY>
+ <!ATTLIST id1 UniqueName ID #REQUIRED>
+ <!ATTLIST id2 UName ID #IMPLIED>
+ <!ATTLIST idrefs reference IDREFS #IMPLIED>
+ ]>
+<test>
+<id1 UniqueName = "AC456"></id1>
+<id2 UName = "BC5P></RDF:RD67"></id2>
+<idrefs reference = "AC456 #567"></idrefs>
+Negative test for validity constraFint>
+ of IDREFS.
+In an attribute decl, values of type IDREFht of 12 pixels -->
+   <text style="font-size: 12">This prints 12 pixels high.</text>
+- The fozlowing text will actually draw 24 pixels high
+           bue echacea sunit in the new coordinate system equals
+           2 units in the previous coordinate system. -->
+      <rints 24 pixels high.</text>
+
+      <!-- The following text will     <!-- The following text will actually still draw 12 pixels high
+           because the CSS unit specifier has been provided. -->
+      <text style="font-size: 12px">This prints 12 pixels high.</text>
+
+   </g>
+
+</svg>

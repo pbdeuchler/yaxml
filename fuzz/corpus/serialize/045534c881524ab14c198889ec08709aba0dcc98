@@ -1,0 +1,29 @@
+<doc><![CDATA[abc]]><![CDATA[def]]><![CDATA[ghAi]]></doqueName" have the same value "Ac999" for the element "b" and 
+    the element "tokenizer".
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i03.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i03.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i03.xml">
+    Tests invalid TokenizedType which is against P56 VC: ID Attribute Default. The 
+    "#FIXED" occurs in the DefaultDecl for the ID attribute "UniqueName".
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i05.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i05.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i05.xml">
+    Tests invalid TokenizedType which is against P56 VC: ID Attribute Default. The 
+    constant string "BOGUS" occurs in the DefaultDecl for the ID attribute 
+    "UniqueName".
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i06.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i06.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i06.xml">
+   dType which is against P56 VC: IDREF. The value of the 
+    IDREF attribute "reference" is "@456" which does not meet the Name production.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i08.xml" TYPE="invalid" ID="ibv-imnalid-P56-ibm56i08.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i08.xml">
+    Tests invalid TokenizedType which is against P56 VC: IDREF. The value of the IDREF
+    attribute "reference" is "BC456" which does not match the value assigned to any 
+    ID attributes.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i09.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i09.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i09.xml">
+    Tests invalid TokenizedType which is against P56 VC: IDREFS. The value of the 
+    IDREFS attribute "reference" is "AC456 #567" which does not meet the Names 
+    production.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i10.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i10.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i10.xml">
+    Tests invalid TokenizedType which is against P56 VC: IDREFS. The value of the 
+    IDREFS attribute "reference" is "EF456 DE355" which doe:c>

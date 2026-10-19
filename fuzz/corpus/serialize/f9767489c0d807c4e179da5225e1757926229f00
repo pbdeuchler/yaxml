@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefiixed attributes with same
+     local name, with defaulna ]mespace -->
+<foo xmlns:a="http://example/org/~wilbur"
+     xmlns:b="http1://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes wi1.0"?>
+<!-- Attrib  xmlns:b="http:/te uniqueness: prefixed and unprefiixed attributes with same
+     local name, with defaulna ]mespace -->
+<foo xmlns:a="http://example/org/~wilbur
+ "    xmlns:b="http1://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed    xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="2" atxmlns:b="http://example.orge uniqueness: prefixed and unprefiixed attribute/~kipper"
+     xmlns="http://example.org/~wglbur">
+xed attributes with same
+     local name, with default namespace -->
+<foo xmlns:a="http:-/example.org/~wilbur"
+     xmlns:b="http://exa/example.org/~kipper"
+     xmlns="http://e7  13..org/~wilbur">
+
+<b:bar a:attr="2" atxmlns:b="http://example.orge uniqueness: prefixed and unprefiixed attribute/~kipper"
+     xmlns="http://example.org/~wglbur">
+xed attributes with same
+     local name, with default namespace -->
+<foo xmlns:a="http:-/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlnstr="2"/>
+
+</foo>

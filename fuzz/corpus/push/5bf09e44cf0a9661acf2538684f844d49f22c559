@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legal patterns derived from P78 *-->
+<!ENTITY epe1 SYSTEM "ibm78v01.e" >tn<!DOCTYPE doc [
+<!ELEMENT doc 
+<!ENTITY epe2 SYSTEM "ibm78.0v2ent" >
+<!ENTITY epe3 SYSTEM "ibm78v03.ent" >
+
+]>
+<ro&to<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)pe0;&epe2;&epe3;</root>
+doc a (1|2) <!-(#PCDATA)>
+<!ENTITY e "<?Xml encoding='UTF-8- a valid test case: test P78, P77,#IMPPCDATA)>
+
+<doc></doc '?>">
+]>
+<d>oc>&e;</dP80 -o->
+c>
+

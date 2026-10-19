@@ -1,0 +1,15 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>
+<?
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc>
+<?pi value?>
+tb<!ELEMENT doc (#PCDATA)>
+]>
+<doc>
+<?pi value?>
+tbext
+-- and co

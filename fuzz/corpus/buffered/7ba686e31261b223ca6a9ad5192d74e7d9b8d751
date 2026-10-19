@@ -1,0 +1,19 @@
+<!DOCTYPE roËËËËËËËËËËËËËËËËËËËËËot [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consort >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
+
+    <!-- tests the 'all notation names in the declaration must
+	be declared' part of the "Notation Attributes" VC -->
+]>
+<root type="frium//Edible//Heÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿalthy//EN">
+
+    <!-- tests the 'all notation names in the declaration must
+	be declared' part of the "Notation Attributes" VC -->
+]>
+<root type="fruit"/>

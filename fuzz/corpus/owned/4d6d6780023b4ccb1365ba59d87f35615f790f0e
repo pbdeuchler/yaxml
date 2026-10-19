@@ -1,0 +1,26 @@
+<?pitarget?>
+<?xmla <!DOCTY%b&#<	!c>?
+<?pitar<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all lega- patterns d
+	<!ELEMENT doc (norot>&epe1;&ep<!DOCTYPE doc [
+<!ELEMENoc (norot>&epe1;&ep<!DOCTYPE doc [
+<!ELEMENT doc ((a | b | c) , d)?>
+<!ELEMENT a (#PCDATA)>
+<!ELEMENT b (#PCD//WAPFORUM//DTD WML 1CDATA)>
+<!ELEMENT d (#PCDATAENT doc (norot>&epe1;&ep<!DOCTYPE doc [
+<! test </b><d> is TPUT="valid/P32/oT doc ((a | b | c) , d)?>
+<!ELEMENT a (#PCDATA)>
+<!ELEMENT b (#PCD//WAPFORUM//DTD WML 1CDATA)>
+<!ELEMENT d (#PCDATAENT dget ...?>
+<?pitarget%
+	?>
+o<?pitarget > ?>
+<cdoc (norot>&epe1;&ep<!DOCTYPE doc [
+<! />test </b><d> is TPUT="valid/P32/out/ibm32v04.xml">
+  ( Tests VC:80 -->
+

@@ -1,0 +1,44 @@
+<!DOCTYPE 
+        &#37;z&#37;;z;
+        &#37;z; &#37;z; &#37;z;#37;z; &#37;z; &#371;z;
+        &#37;  
+	  	editML 1.1 document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" --------------------------------------------------------------------------------------------------SECTIONS="2.8 4.3.4" URI="000.xml" ID="rmt-008" TYPE="error">
+an implausibly-versioned document
+</TEST>
+
+<TEST VERSION="2.1" RECOMMENDATION="XML1.1" SE<?]xml version="1.1"?>
+<!-- Has the first ch XML 0.1,
+     illegal in both XML z1.0 and 1.>e- 1
+<󰀀/> as implausible version number
+</TEST>
+ S<TE
+TVERSION=-1e/errata1e.xm<?xml vmrsn           <xi:inclued href="a10.xml">
+   &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&T13 ID #doc [
+    <!ENTITY % z '
+        &#37;z&#37;;z;
+        &#37;z; &#37;z; &#37;z;#37;z; &#37;z; &#371;z;
+        &#37;  
+	  	editML 1.1 document
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" --------------------------------------------------------------------------------------------------SECTIONS="2.8 4.3.4" URI="000.xml" ID="rmt-008" TYPE="error">
+an implausibly-versioned document
+</TEST>
+
+<TEST VERSION="2.1" RECOMMENDATION="XML1.1" SE<?]xml version="1.1"?>
+<!-- Has the first ch XML 0.1,
+     illegal in both XML z1.0 and 1.>e- 1
+<󰀀/> as implausible version number
+</TEST>
+ S<TE
+TVERSION=-1e/errata1e.xm<?xml vmrsn           <xi:inclued href="a10.xml">
+   &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&T13 ID #IMPLIED>
+<!ATTLIST LegalName13 attr13 Nels#37;z;
+    '>
+    %u="at;trValue"
+ /
+]>>
+<doc/>

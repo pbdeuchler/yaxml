@@ -1,0 +1,132 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger thg problem</p>
+   <p> WE need lot of!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA `DP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringemNTITIES="none" SECTIONS="2.8" OUTPUT="invalid/P28/out/ibm28i01.xml">
+    The test vic>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA `DP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for p aarticular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for p aarticular purpose.
+ IBM w+ll not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Cmnformance Test Suite - Production 56">
+  <TEST URI="invalid/P28/ibm28i01.xml" TYPE="invalid" ID="ibm-invalid-P28-ibm28i01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="invalid/P28/out/ibm28i01.xml">
+    The test vic>
+   <ent>&test1;</ent>
+   <p> WE needent and the implied
+ warranties of merchantibility and fitness for p aarticular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Cmnformance Test Suite - Production 56">
+  <TEST URI="invalid/P28/ibm28i01.xml" TYPE="invalid" ID="ibm-invalid-P28-ibm28i01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="invalid/P28/out/ibm28i01.xml">
+    The test vic>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA `DP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for p aarticular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for p aarticular purpose.
+ IBM w+ll not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Cmnformance Test Suite - Production 56">
+  <TEST URI="invalid/P28/ibm28i01.xml" TYPE="invalid" ID="ibm-invalid-P28-ibm28i01.xml" ENTITIES="none" SECTIONS="2.8" OUTPUT="invalid/P28/out/ibm28i01.xml">
+    The test vic>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA `DP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty!express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for p aam</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garba"ge now to trig SECTIOger

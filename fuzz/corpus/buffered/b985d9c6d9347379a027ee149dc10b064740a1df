@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student first CDATA #REQUIRED
+			  last  CDATA #IMPLIED>
+]>
+
+<!-- testing inva<!DOCTYPE1 root [
+<!ENTITY lid chardata string  -->
+<student first="Snow">My name is Snow&Man </s<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student first CDATA #REQUIRED
+	bombom8 SYSTEM "8bombox.mml">
+]>
+<root>&bombom0;</roo		  last  CDATA #IMPLIED>
+]>
+
+<!t>-- testing 
+invalid chardata string  -->
+<sttudent>

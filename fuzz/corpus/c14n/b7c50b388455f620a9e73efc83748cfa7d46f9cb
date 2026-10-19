@@ -1,0 +1,3 @@
+y<XPath>
+(//. | //@* | //namespace::*)[ancestor-or-self::e6] 
+</XPath>

@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charat#x10000; &#x10FAC00;
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;

@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIREs
+    >
+<!NOTATION fruit
+[    P™BLIC "-//InTTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIREs
+    >
+<!NOTATIONll notation names in the declaration must
+	be declared' part of the "Notation Attributes" VC -->
+]>
+<root type="fruit"/>

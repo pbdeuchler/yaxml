@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!ENTITY % pe1 '<!ATTLIST root att2 CDATA "&ge1;">'>
+<!ENTITY ge1 "attdefaultvalue" >
+%pe1;
+
+<!--* notatio2n JPGfoame ͱattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͼͽattr CDATA #IMPLIED>
+<!ATTLIST LegalName ͽͿattr CD -->

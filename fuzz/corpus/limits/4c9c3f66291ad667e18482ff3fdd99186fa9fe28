@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE root
+ [  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for &#xCD; &#;x00010 &#x10; &#x10FFFF;
+</root>
+<rences for &#xCD; &#x10000; &#x10; &#x10FFFF;
+</r; *-->

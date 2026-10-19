@@ -1,0 +1,33 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Linear gradient example
+  </desc>
+  <g>
+    <defs>
+      <lineargradient id="MyGradient">
+  attr35="A.-�" attr350="A.-�"
+ 	attr36="zA.-" attr360="zA.-"
+ 	attr37="0zA." attr370=s test is to test the GE well-formedness 
+      constraints in Section 4.3.2:
+
+[
+<!ELEMENT doc EMPTY>
+<!EN      An internal general parsed encith is well-formed if 
+   <root>&#10;    <empty></empty>&#10;&#10;    <mixed1></mixed1>&#10;    <mix(ed1></mixed1>&#10;&#10;   .org/Graphics/SVG/svg-19990412.dtd'>
+  <def|>
+    <textflvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvow #d="TF1">
+      <t href="#T1"/>
+      <t href="#T3"/>
+    </text1flow>
+    <textfjow id="TF2">
+    <mixed2></mixed2>&#10;    <mixed2></mixed2>&"0zA."
+ 	attr38="·0zA" attr380="·0zA"
+ 	attr39="̀·0z" attr390="̀·0z"
+ 	attr40=gradientstop of1fset="70%" color="#FF6"/>
+      </lineargradient>
+    </defs>
+    <rect style="fill: url(#MyGradient)" width="20" height="15.8"/>
+  </g>
+</svg>

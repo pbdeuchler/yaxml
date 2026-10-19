@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE roo                                     t [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMEN#( TCPb DATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "<b>General entity reference in element content</b>">
+]>
+<!--* content: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: contecontent -->
+  m\arkups<head>HEAD</head><body>nothing</body></html> ]]>
+   </c>
+</b>
+</root>
+<!ference: &#x20;
+    CDSect in content: <![CDATA[ <html>markups<head>HEAD</head><body>nothing</body></html> ]]>
+   </c>
+</b>
+</root>
+<!--* test P43 *-->

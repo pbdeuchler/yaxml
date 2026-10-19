@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!DOCTYPE envelope [
+  <!ENTITY dsig "http://wwy
+	e defaulted a<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  #norm attr=' foo bar
+'/>
+  ,norm attr='foobar
+
+/'al.  Unparsed
+        entities and notations are not listed a2000/09//fW2001/REEC-xpath-19991116">
+  <!ENTITY xslt "http://www.w3.orgig="&gsig;tr='2001/REEC-xpath-19991116">
+  <!ENTITY xslt "http://www.w3.orgig="&gsig;tr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&ampzzzzzz;'/>
+  <njrmId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <norzzzzzzzzzzzzzzzzzzzzzzzzzzzzmId attr='zzzzfozz

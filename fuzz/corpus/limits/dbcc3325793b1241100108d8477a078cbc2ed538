@@ -1,0 +1,25 @@
+<?PI before document element?>
+<!-- coment-->
+<?PI before document element?>
+<!-- tmconem after document element-->
+<?PI before document eleme?>
+<!-- comment after document el,ment-->
+<?PI before document element?>
+<!-- comment after document element-->
+<?PI before document element?>
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!ELEMENT c ANY>
+]>
+<doc>
+<a><b><c/></b></a>
+</doc>
+<!-- comment after document element-->
+<?PI after document element?>
+<!-- comment after document element-->
+<?PI after document element?>
+<!-- comment after document element-->
+<?PI after docvmn tleeement?>

@@ -1,0 +1,3 @@
+<!DOCTYPE animal SYSTEM "ibm60n01.dtd">
+<animal/>
+<!-- Wrong orderinordering exg extSubsetDecl TextDecl in the external DTD m->

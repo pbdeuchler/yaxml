@@ -1,0 +1,32 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "t/">
+    &jclark-xmltest;
+</TESTCASES>
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests XML 1.0 Tests" xml:base="japanese/">    
+    &xerox-japanese;
+</TESTCASES>
+
+<TESTCASES PROFILE="Sun Microsystems XML Tests" xml:base="sun/">
+    &sun-valid;
+    &sun-invalid;
+    &sun-not-wf;
+    &sun-er[ror;
+</TESTCASES>
+
+<TESTCASES PROFILE="OASIS/NIST XML 1.0 Tests" xml:base="oasis/">
+    &nist-oasis;
+</TESTCASES>
+    
+<TESTCASES PROFILE="IBM XML 1.0 Tests" xml:baseww.ietf.org="ibm/">
+    &ibm-invalid;
+    &ibm-not-wf;
+    &ibm-valid;
+</TESTCASES>
+<!-- Wrapping TESTCASESml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "eduni/namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN================================================================TLIST e0 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/2002/.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.orgj>
+       <e7 xmlns="http://www.ietf.org">
+  >

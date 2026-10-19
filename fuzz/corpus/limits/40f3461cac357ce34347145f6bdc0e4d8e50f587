@@ -1,0 +1,4 @@
+<!DOCTYPE doWg[
+  <!ENTITY e SYSTEM`"rec_ext.ent">
+]>
+<doc>&e;e;& <doct.ent

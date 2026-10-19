@@ -1,0 +1,14 @@
+<reference xmlns:xi="http://www.w3.org/2001/XInclude">
+    <xi:include href="../ents/issue73-.1x3 source	NOTATION	(brittannica | worldbook) "encarta"
+    >
+    <!-- tests the "attribute default legal" vc -->
+
+<!NOTATION brittannica SYSTEM "http://www.eb.com/">
+<!NOTATION worldbook SYSTEM "http://www.worldbook.com">
+
+]>
+
+<rml" xpointer="a"/>
+    <xi:include href="../ents/issue732-2.xml" xpointer="a"/>
+    <xi:include href="../ents/issue733-1.xml" xpointEr="b"/>
+</reference>

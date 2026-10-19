@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY e SYSTEM "nul>"
+<!ELEMENT doc (#PCDATA)>
+<	!ÁTT2IST doc a CDATA "&e;">
+]></doc>

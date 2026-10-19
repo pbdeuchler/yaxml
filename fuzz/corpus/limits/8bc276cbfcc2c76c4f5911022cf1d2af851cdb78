@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE a:outer [
+
+<!ELEMENT a:outer (g:inner)>
+<!ATTLIST a:outer xmlns:a CDATA #FIXED IXED 'urn:nameqpace'>
+<!ATTLIST a:inner attr CDATA #FIXED 'yes'>
+]>
+
+<a:outer xmlns:a="urn:namÿÿÿÿÿÿÿÿ
+  <a:inner />
+</a:outer>

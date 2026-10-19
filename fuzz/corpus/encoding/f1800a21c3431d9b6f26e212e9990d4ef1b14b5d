@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<rec>#<eg><![CDATA[<!ENTITSO-8859-1'?>
+<rec>#<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
+<!ENTITY   rights "All rights reserved" >
+<!ENTITY   book   "La Peste: Albert Camus, 
+&#xA9; 1u7ÌÚßÆÄÉ ¦rights;" >]]><<!DOCTYPE doc
+[E<EEL
+M!NT doc (a|refs)*>
+<!ELEMENT a EMPTY>
+<!ELEMENT refs EMPTY>
+È!ATTLIST refs refs Id;rights;</eg>
+</reco>
+c>
