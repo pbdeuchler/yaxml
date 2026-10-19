@@ -1449,3 +1449,33 @@ fn code_values_are_libxml2_numbers() {
     }
     assert!(Code::WarnSkipSchema.is_warning() && !Code::SrcResolve.is_warning());
 }
+
+/// Derivation-OK-restriction 2.1.3: a restricted attribute use must keep the
+/// base's fixed value. libxml2 2.15.4 compares the base with itself and never
+/// reports it, so these cases stay out of the oracle-checked `CASES`.
+#[test]
+fn restriction_keeps_the_base_fixed_value() {
+    let base = "<xs:complexType name='b'><xs:attribute name='a' type='xs:string' fixed='x'/></xs:complexType>";
+    let cases = [
+        ("same fixed value", "fixed='x'", false),
+        ("fixed value omitted", "", true),
+        ("other fixed value", "fixed='y'", true),
+        ("default instead of fixed", "default='x'", true),
+    ];
+    for (name, constraint, rejected) in cases {
+        let text = schema(&format!(
+            "{base}<xs:complexType name='d'><xs:complexContent><xs:restriction base='b'>\
+             <xs:attribute name='a' type='xs:string' {constraint}/></xs:restriction>\
+             </xs:complexContent></xs:complexType>"
+        ));
+        let codes: Vec<Code> = match Schema::parse(text.as_bytes(), "schema.xsd") {
+            Ok(_) => Vec::new(),
+            Err(error) => error.diagnostics.iter().map(|d| d.code).collect(),
+        };
+        assert_eq!(
+            codes.contains(&Code::DerivationOkRestriction2_1_3),
+            rejected,
+            "{name}: {codes:?}"
+        );
+    }
+}

@@ -1827,13 +1827,10 @@ impl Fix {
                         );
                         self.report(loc, Code::DerivationOkRestriction2_1_2, message);
                     } else if let Some(fixed) = self.use_value(base).filter(|v| v.fixed) {
-                        let own = self
-                            .use_value(base)
-                            .filter(|_| false)
-                            .or_else(|| self.use_value(use_));
-                        let _ = own;
+                        // libxml2 2.15.4 reads the base's constraint twice here,
+                        // so it never reports 2.1.3; compare the restriction's.
                         let ok = self
-                            .use_value(base)
+                            .use_value(use_)
                             .is_some_and(|v| v.fixed && v.lexical == fixed.lexical);
                         if !ok {
                             let message = format!(
