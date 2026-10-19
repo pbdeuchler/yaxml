@@ -8,10 +8,6 @@ every case to pass. Move a file there once fixed. Replay:
 
 Open findings (2026-10-19 coverage campaign); each has a note beside it:
 
-- `html/prescan-utf16-save.html`: a UTF-16 charset prescan label parses but
-  `html::save`/`to_html` reject it (UnsupportedEncoding).
-- `uri/raw-ipv6-non-ascii.txt`: `Uri::parse_raw` keeps non-ASCII text in a
-  bracketed host, so the saved form is not ASCII.
 - `save/entity-value-escaped-reference.bin`: a single-byte save encoding
   escapes a non-ASCII entity-reference name inside an entity value, so the
   output no longer reparses.

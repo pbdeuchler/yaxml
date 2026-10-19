@@ -317,6 +317,38 @@ fn whitespace_and_noblanks() {
 }
 
 #[test]
+fn prescan_utf16_label_saves_as_utf16() {
+    // (input, encoding label, first bytes of the saved document)
+    let cases: &[(&[u8], Option<&str>, &[u8])] = &[
+        (
+            b"<p>\xe9 http-equiv content charset=utf-16",
+            Some("utf-16"),
+            &[0xFF, 0xFE, b'<', 0],
+        ),
+        (
+            b"<p>\xe9 http-equiv content charset=utf-8",
+            Some("UTF-8"),
+            b"<!DOCTYPE",
+        ),
+        (
+            b"<p>\xe9 http-equiv content charset=nope",
+            Some("UTF-8"),
+            b"<!DOCTYPE",
+        ),
+    ];
+    for (input, encoding, saved) in cases {
+        let document = parse(input, 0).document;
+        assert_eq!(document.html_encoding(), *encoding, "{input:?}");
+        let out = html::save(&document, false);
+        assert_eq!(
+            out.as_ref().map(|o| &o[..saved.len()]),
+            Ok(*saved),
+            "{input:?}"
+        );
+    }
+}
+
+#[test]
 fn encodings() {
     let cases: &[(&[u8], Option<&str>, &str)] = &[
         (b"<p>caf\xc3\xa9", Some("windows-1252"), "caf\u{c3}\u{a9}"),

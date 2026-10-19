@@ -67,7 +67,8 @@ as unsupported where this module decodes them; the differential corpus avoids
 those labels. `html_encoding()` is the name libxml2 records:
 the declared label, the prescan label, `windows-1252`, `UTF-8`, or None for
 BOM-detected and ASCII-only input. Output uses that encoding (UTF-8 or a
-single-byte table) or, without one, ASCII with HTML 4 entity names;
+single-byte table, UTF-16 with a little-endian BOM for a prescan label such as
+`utf-16`, which libxml2 accepts there) or, without one, ASCII with HTML 4 entity names;
 unrepresentable characters become `&#N;`.
 
 ## Push parsing and resource limits
