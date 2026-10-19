@@ -253,6 +253,16 @@ impl Dtd {
         Some((*index, &self.elements[*index]))
     }
 
+    /// Whether the DTD declares `attribute` of `element` (qualified names)
+    /// with type `ID`.
+    pub(crate) fn declares_id(&self, element: &str, attribute: &str) -> bool {
+        self.element_index.get(element).is_some_and(|&index| {
+            let element = &self.elements[index];
+            (element.index.get(attribute))
+                .is_some_and(|&a| element.attributes[a].kind == AttributeKind::Id)
+        })
+    }
+
     /// The declaration of attribute `attribute` on `element`, qualified name first.
     fn attribute(&self, element: QName<'_>, attribute: &str) -> Option<&AttributeDecl> {
         let declared = |name: &str| {

@@ -2640,6 +2640,7 @@ impl Fix {
             idcs,
             warnings: self.d.diagnostics.clone(),
             max_counter_vectors: self.limits.max_counter_vectors,
+            max_idc_keys: self.limits.max_idc_keys,
         }
     }
 }

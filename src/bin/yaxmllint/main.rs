@@ -244,15 +244,18 @@ fn last_failure(codes: impl IntoIterator<Item = i32>) -> i32 {
 
 /// Validation after parsing: DTD (`--valid`, `--postvalid`, `--dtdvalid`),
 /// then Schematron, RELAX NG and XML Schema; the last failing code wins.
+/// Prints a schema verdict line; the exit code.
+fn verdict(o: &Opts, file: &str, ok: bool) -> i32 {
+    match (ok, o.quiet) {
+        (true, false) => eprintln!("{file} validates"),
+        (false, _) => eprintln!("{file} fails to validate"),
+        _ => {}
+    }
+    if ok { 0 } else { VALID }
+}
+
 fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &OwnedDocument) -> i32 {
-    let verdict = |ok: bool| {
-        match (ok, o.quiet) {
-            (true, false) => eprintln!("{file} validates"),
-            (false, _) => eprintln!("{file} fails to validate"),
-            _ => {}
-        }
-        if ok { 0 } else { VALID }
-    };
+    let verdict = |ok| verdict(o, file, ok);
     let dtd_valid = (o.valid || o.postvalid).then(|| {
         let ok = print_all(file, input, "validity error", &document.validate());
         if !ok && o.postvalid {
@@ -330,7 +333,7 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
         return RDFILE;
     };
     if o.stream {
-        return stream(o, file, &input);
+        return stream(o, schemas, file, &input);
     }
     let mut document = match parse(o, file, &input) {
         Ok(document) => {
@@ -399,9 +402,10 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
     last_failure([included, queried, saved, written, checked])
 }
 
-/// `--stream`: read every node through the pull interface and print nothing.
-fn stream(o: &Opts, file: &str, input: &[u8]) -> i32 {
-    // The reader neither validates, drops blanks nor recovers; it prints nothing anyway.
+/// `--stream`: read every node through the pull interface, printing nothing
+/// but `--relaxng` validation, which the reader does as it goes.
+fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
+    // The reader does not validate DTDs, drop blanks or recover; it prints nothing anyway.
     use yaxml::options::{DTDVALID, NOBLANKS, RECOVER};
     let streamable = flags(o) & !(DTDVALID | NOBLANKS | RECOVER);
     let options = ParseOptions::new(streamable).with_limits(limits(o));
@@ -413,15 +417,31 @@ fn stream(o: &Opts, file: &str, input: &[u8]) -> i32 {
             return UNCLASS;
         }
     };
-    loop {
+    let rng = schemas.relaxng.as_ref();
+    reader
+        .relaxng_set_schema(rng)
+        .expect("before the first read");
+    let read = loop {
         match reader.read() {
             Ok(true) => {}
-            Ok(false) => return 0,
-            Err(error) => {
-                eprintln!("{file} : failed to parse: {error:?}");
-                return UNCLASS;
-            }
+            done => break done,
         }
+    };
+    let code = rng.map_or(0, |_| {
+        print_all(
+            file,
+            input,
+            "Relax-NG validity error",
+            reader.relaxng_diagnostics(),
+        );
+        verdict(o, file, reader.is_valid())
+    });
+    match read {
+        Err(error) => {
+            eprintln!("{file} : failed to parse: {error:?}");
+            UNCLASS
+        }
+        Ok(_) => code,
     }
 }
 

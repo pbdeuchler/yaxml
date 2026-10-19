@@ -7,7 +7,9 @@
  *   V r codes...    xmlSchemaValidateDoc returned r (0 valid, >0 invalid,
  *                   <0 internal); the validity error codes
  *   X               the instance is not well-formed
- * Warnings are not listed. The schema's URI is "schema.xsd". */
+ * Warnings are not listed. The schema's URI is "schema.xsd". With the
+ * argument "stream", well-formed instances are validated again from memory
+ * by xmlSchemaValidateStream and "V" reports that instead. */
 #include <libxml/parser.h>
 #include <libxml/xmlschemas.h>
 #include <libxml/xmlerror.h>
@@ -44,7 +46,8 @@ static char *unhex(const char *h, size_t *len) {
     return out;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    int stream = argc > 1 && !strcmp(argv[1], "stream");
     static char line[1 << 22];
     xmlSetStructuredErrorFunc(NULL, quiet);
     while (fgets(line, sizeof(line), stdin)) {
@@ -71,7 +74,14 @@ int main(void) {
             } else {
                 xmlSchemaValidCtxtPtr vctxt = xmlSchemaNewValidCtxt(schema);
                 xmlSchemaSetValidStructuredErrors(vctxt, collect, NULL);
-                int ret = xmlSchemaValidateDoc(vctxt, doc);
+                int ret;
+                if (stream) {
+                    xmlParserInputBufferPtr input = xmlParserInputBufferCreateMem(
+                        instance_text, (int)ilen, XML_CHAR_ENCODING_NONE);
+                    ret = xmlSchemaValidateStream(vctxt, input, XML_CHAR_ENCODING_NONE, NULL, NULL);
+                } else {
+                    ret = xmlSchemaValidateDoc(vctxt, doc);
+                }
                 printf("V %d%s\n", ret, codes);
                 xmlSchemaFreeValidCtxt(vctxt);
                 xmlFreeDoc(doc);

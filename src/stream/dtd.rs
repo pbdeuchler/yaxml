@@ -111,7 +111,7 @@ impl StreamingSession {
     pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
         match self.session.first()?.phase.as_ref()? {
             Phase::Content(controller) => Some(controller.catalog()),
-            Phase::Declarations { .. } => None,
+            Phase::Declarations { controller, .. } => Some(controller.catalog()),
         }
     }
     /// The parse's budget; absent only after a failed DTD handoff.

@@ -44,7 +44,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `xsd` | `exercise_xsd` | `xsd::Schema::with_resolver` and `validate` on NUL-separated pieces (schema, instance, then resources `file:///f/0.xsd`..`9.xsd`) under small limits: identical diagnostics over both DOMs and on repetition, load budget held |
 | `catalog` | `exercise_catalog` | `catalog::Catalog::parse`, `resolve`, `resolve_uri` and `CatalogResolver` over NUL-separated pieces (root catalog, then files `0`..`9`; the last piece also lists queries) |
 | `schematron` | `exercise_schematron` | `schematron::Schema::parse`, `from_tree` and `validate` over a NUL-separated schema (a bare rule body is wrapped) and instance: both DOMs, reuse, every output mode, text and error modes agreeing, one-pass counts, operation budget |
-| `relaxng` | `exercise_relaxng` | `relaxng::Schema::parse` and `validate` over NUL-separated pieces (schema, instance, then `include`/`externalRef` files `0`..`9`): determinism, both DOMs, reuse, offsets, load and work budgets |
+| `relaxng` | `exercise_relaxng` | `relaxng::Schema::parse`, `validate` and `stream` over NUL-separated pieces (schema, instance, then `include`/`externalRef` files `0`..`9`): determinism, both DOMs, reuse, offsets, load and work budgets, `Schema::stream` over `BufferedReader` and `PushParser` equal to the DOM |
 
 ```sh
 cargo install cargo-fuzz

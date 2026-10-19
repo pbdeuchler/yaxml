@@ -53,6 +53,13 @@ fn check(schema: &Schema, instance: &Path) -> (Verdict, usize) {
         return (Verdict::Unparsed, 0);
     };
     let a = schema.validate(&owned);
+    let streamed = schema.validate_stream(bytes.as_slice(), Default::default());
+    assert_eq!(
+        project(&a),
+        project(&streamed.unwrap()),
+        "{} stream",
+        instance.display()
+    );
     if let Ok(borrowed) = Document::parse_bytes(&bytes) {
         assert_eq!(
             project(&a),
@@ -86,6 +93,8 @@ fn libxml2_schema_suite_verdicts() {
         .collect();
     let (mut total, mut agree, mut counts) = (0, 0, 0);
     let mut differences = Vec::new();
+    let xmllint = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from);
+    let (mut stream_agree, mut stream_differences) = (0, Vec::new());
     for base in &schemas {
         // runtest.c: strip ".xsd" and up to two "_N" suffixes for the
         // instance prefix; the error file keeps the schema's number.
@@ -130,6 +139,27 @@ fn libxml2_schema_suite_verdicts() {
                 Err(_) => (Verdict::SchemaError, 0),
                 Ok(schema) => check(schema, &dir.join(instance)),
             };
+            // libxml2's stream validation (`xmllint --stream --schema`).
+            if let (Some(xmllint), Ok(_)) = (&xmllint, &built) {
+                let output = std::process::Command::new(xmllint)
+                    .current_dir(&source)
+                    .args(["--noout", "--stream", "--schema"])
+                    .args([
+                        format!("test/schemas/{base}"),
+                        format!("test/schemas/{instance}"),
+                    ])
+                    .output()
+                    .unwrap();
+                let text = String::from_utf8_lossy(&output.stderr);
+                let oracle = (expected(&text), validity_errors(&text));
+                let ours = (got, errors);
+                match oracle == ours {
+                    true => stream_agree += 1,
+                    false => stream_differences.push(format!(
+                        "{base} {instance}: xmllint --stream {oracle:?}, yaxml {ours:?}"
+                    )),
+                }
+            }
             if got == want {
                 agree += 1;
                 if errors == validity_errors(&err) {
@@ -192,4 +222,11 @@ fn libxml2_schema_suite_verdicts() {
         println!("{difference}");
     }
     println!("{agree}/{total} verdicts agree ({counts} with equal validity error counts)");
+    if xmllint.is_some() {
+        for difference in &stream_differences {
+            println!("stream: {difference}");
+        }
+        let compared = stream_agree + stream_differences.len();
+        println!("{stream_agree}/{compared} agree with xmllint --stream (verdict and error count)");
+    }
 }

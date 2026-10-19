@@ -7,6 +7,7 @@
 //! pattern or memo miss spends one unit of a work budget.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use super::datatype::{Datatype, ValueDef};
 use crate::schema_types::{Context, Type};
@@ -123,22 +124,23 @@ impl Arena {
 }
 
 /// Patterns being built: a shared base arena plus this store's own.
-pub(super) struct Store<'a> {
-    base: &'a Arena,
+pub(super) struct Store {
+    base: Arc<Arena>,
     own: Arena,
     /// Patterns created and choice alternatives merged.
     pub(super) work: usize,
 }
 
-impl<'a> Store<'a> {
+impl Store {
     /// A store over `base`; an empty base gets the fixed patterns.
-    pub(super) fn new(base: &'a Arena) -> Self {
+    pub(super) fn new(base: Arc<Arena>) -> Self {
+        let empty = base.len() == 0;
         let mut store = Self {
             base,
             own: Arena::default(),
             work: 0,
         };
-        if base.len() == 0 {
+        if empty {
             for pat in [Pat::Empty, Pat::NotAllowed, Pat::Text] {
                 store.intern(pat);
             }
@@ -285,9 +287,9 @@ enum Then {
 }
 
 /// Derivative computation over a schema's patterns, within a work budget.
-pub(super) struct Deriver<'s> {
-    pub(super) store: Store<'s>,
-    pub(super) tables: &'s Tables,
+pub(super) struct Deriver {
+    pub(super) store: Store,
+    pub(super) tables: Arc<Tables>,
     budget: usize,
     open: HashMap<(Id, u32), Id>,
     close: HashMap<(Id, bool), Id>,
@@ -309,8 +311,8 @@ pub(super) fn is_whitespace(text: &str) -> bool {
         .all(|b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
 }
 
-impl<'s> Deriver<'s> {
-    pub(super) fn new(base: &'s Arena, tables: &'s Tables, budget: usize) -> Self {
+impl Deriver {
+    pub(super) fn new(base: Arc<Arena>, tables: Arc<Tables>, budget: usize) -> Self {
         Self {
             store: Store::new(base),
             tables,

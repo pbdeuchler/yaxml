@@ -323,8 +323,9 @@ assert_eq!(early.compare(&late), Comparison::Less);
 `yaxml::xsd` compiles XML Schema 1.0 documents as libxml2's `xmlschemas.c`
 does (includes, imports and redefines through a caller `Resolver`, derivation
 and Unique Particle Attribution checks, counted content models, identity
-constraints) into a reusable, thread-safe `Schema` that validates either DOM
-with libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
+constraints) into a reusable, thread-safe `Schema` that validates either DOM,
+or parser events without a tree (`validate_stream`, `StreamValidator`), with
+libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
 instances. See [XML Schema](docs/xsd.md).
 
 ```rust
@@ -342,10 +343,11 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
 
 `yaxml::relaxng` compiles RELAX NG schemas (XML syntax, `include` and
 `externalRef` through a `Resolver`, full section 4 simplification and section
-7 restrictions, built-in and XML Schema datatypes) and validates either DOM
-with derivatives over interned patterns, bounded by a work budget, where
-libxml2's `relaxng.c` backtracks. All 159 libxml2 `test/relaxng` verdicts
-agree; see [RELAX NG](docs/relaxng.md).
+7 restrictions, built-in and XML Schema datatypes) and validates either DOM,
+or the events of any streaming reader (`Schema::stream`, also behind
+`TextReader::relaxng_set_schema`), with derivatives over interned patterns,
+bounded by a work budget, where libxml2's `relaxng.c` backtracks. All 159
+libxml2 `test/relaxng` verdicts agree; see [RELAX NG](docs/relaxng.md).
 
 ```rust
 use yaxml::relaxng::{Limits, Schema};

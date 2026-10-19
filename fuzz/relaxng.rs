@@ -9,8 +9,10 @@
 
 use std::sync::{Arc, Mutex};
 
+use std::ops::ControlFlow;
 use yaxml::relaxng::{Code, Diagnostic, Limits, Schema, SchemaCode, SchemaErrors};
-use yaxml::{Document, OwnedDocument, Request, Resolver};
+
+use yaxml::{BufferedReader, Document, Event, OwnedDocument, PushParser, Request, Resolver};
 
 const NAMES: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const MAX_LOADS: usize = 16;
@@ -143,6 +145,16 @@ pub fn exercise(input: &[u8]) {
         summary(&compiled.validate(&document)),
         "reuse changed the result"
     );
+    assert_eq!(
+        Some(&found),
+        streamed(&compiled, instance).as_ref(),
+        "stream differs"
+    );
+    assert_eq!(
+        Some(found.clone()),
+        pushed(&compiled, instance, document.dtd()),
+        "push differs"
+    );
     for diagnostic in &borrowed {
         let node = diagnostic.node.and_then(|id| document.node(id));
         assert_eq!(
@@ -171,4 +183,39 @@ pub fn exercise(input: &[u8]) {
             "budget changed the verdict"
         );
     }
+}
+
+/// Streaming validation of `BufferedReader` events; `None` if not well-formed.
+fn streamed(schema: &Schema, instance: &[u8]) -> Option<Vec<(Code, Option<usize>, String)>> {
+    let mut reader = BufferedReader::new(instance);
+    let mut stream = schema.stream();
+    while let Some((event, origin)) = reader.read_event().ok()? {
+        let doctype = matches!(event, Event::Doctype(_));
+        stream.event(&event, origin);
+        if let Some(dtd) = reader.dtd().filter(|_| doctype) {
+            stream.set_dtd(dtd);
+        }
+    }
+    Some(summary(stream.diagnostics()))
+}
+
+/// Streaming validation of `PushParser` events fed in chunks the input
+/// length chooses, with the DOM's DTD.
+fn pushed(
+    schema: &Schema,
+    instance: &[u8],
+    dtd: Option<&yaxml::valid::Dtd>,
+) -> Option<Vec<(Code, Option<usize>, String)>> {
+    let mut stream = schema.stream();
+    dtd.inspect(|dtd| stream.set_dtd(dtd));
+    let mut parser = PushParser::new();
+    let mut feed = |event: Event<'_>, origin| {
+        stream.event(&event, origin);
+        ControlFlow::Continue(())
+    };
+    for chunk in instance.chunks(1 + instance.len() % 7) {
+        parser.feed(chunk, &mut feed).ok()?;
+    }
+    parser.finish(&mut feed).ok()?;
+    Some(summary(stream.diagnostics()))
 }

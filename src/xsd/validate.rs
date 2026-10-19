@@ -1,14 +1,18 @@
-//! Instance validation as libxml2's `xmlSchemaVDocWalk` performs it: a
-//! preorder walk validating each element against its declaration and type,
-//! its attributes against the attribute uses and wildcard, and its children
-//! against the content model; an invalid element's content is skipped, and
-//! after an unexpected child the rest of the parent's content is skipped.
+//! Instance validation as libxml2's `xmlSchemaVDocWalk` performs it, driven
+//! by start, text and end events like its SAX plug: each element is validated
+//! against its declaration and type when it starts, its attributes against
+//! the attribute uses and wildcard, and its children against the content
+//! model; an invalid element's content is skipped, and after an unexpected
+//! child the rest of the parent's content is skipped. [`run`] feeds a tree's
+//! nodes; [`super::StreamValidator`] feeds parser events.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use crate::schema_types::{Type, WhiteSpace, normalize};
+use crate::valid::Dtd;
 use crate::xpath::Tree;
-use crate::xpath::tree::{Item, namespaces};
+use crate::xpath::tree::{Item, QName as NodeName, XML_NAMESPACE, attributes};
 
 use super::components::*;
 use super::fixup::derived;
@@ -23,7 +27,7 @@ use super::{Code, Diagnostic, Schema};
 pub(crate) fn schema_locations<T: Tree>(tree: &T) -> Vec<(Option<String>, String)> {
     let mut out = Vec::new();
     for node in crate::xpath::tree::preorder(tree, Some(tree.root()), None) {
-        for (_, name, value) in crate::xpath::tree::attributes(tree, node) {
+        for (_, name, value) in attributes(tree, node) {
             if name.namespace != Some(XSI) {
                 continue;
             }
@@ -47,27 +51,64 @@ pub(crate) fn schema_locations<T: Tree>(tree: &T) -> Vec<(Option<String>, String
     out
 }
 
+/// Feeds a tree's nodes from its document element to a validator. The ID
+/// attributes the parser recorded are all known before validation starts.
 pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> {
-    let mut validator = Validator {
-        schema,
-        tree,
-        frames: Vec::new(),
-        scopes: Vec::new(),
-        engine: Engine::new(schema),
-        skip: None,
-        ids: tree
-            .ids()
-            .iter()
-            .filter_map(|&(element, index)| {
-                tree.attribute(element, index)
-                    .map(|(_, v)| normalize(v, WhiteSpace::Collapse).into_owned())
-            })
-            .collect(),
-        dtd_ids: tree.ids().iter().copied().collect(),
-        out: Vec::new(),
+    let recorded = tree.ids();
+    let ids = recorded
+        .iter()
+        .filter_map(|&(element, index)| tree.attribute(element, index))
+        .map(|(_, value)| (normalize(value, WhiteSpace::Collapse).into_owned(), false))
+        .collect();
+    let mut validator = Validator::new(schema, ids);
+    let node = |id| Node {
+        id,
+        offset: tree.offset(id),
     };
-    validator.walk();
-    validator.out
+    let root = std::iter::successors(tree.first_child(tree.root()), |&n| tree.next_sibling(n))
+        .find(|&n| matches!(tree.item(n), Item::Element(_)));
+    let Some(root) = root else {
+        return validator.finish();
+    };
+    let mut id = root;
+    loop {
+        match tree.item(id) {
+            Item::Element(name) => {
+                let attributes = attributes(tree, id).map(|(index, name, value)| {
+                    (name, value, recorded.binary_search(&(id, index)).is_ok())
+                });
+                validator.start(node(id), name, attributes, tree.dtd());
+            }
+            Item::Text(text) => validator.text(text, tree.is_cdata(id)),
+            _ => validator.other(),
+        }
+        if let Some(child) = tree.first_child(id) {
+            id = child;
+            continue;
+        }
+        loop {
+            match tree.item(id) {
+                Item::Element(_) => validator.end(),
+                Item::EntityRef(_) => validator.other(),
+                _ => {}
+            }
+            if id == root {
+                return validator.finish();
+            }
+            if let Some(next) = tree.next_sibling(id) {
+                id = next;
+                break;
+            }
+            id = tree.parent(id).expect("inside the document element");
+        }
+    }
+}
+
+/// An element as diagnostics name it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Node<Id> {
+    pub(crate) id: Id,
+    pub(crate) offset: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -77,20 +118,23 @@ enum Meta {
     Location,
 }
 
-struct Attr<'t> {
-    index: usize,
-    local: &'t str,
-    ns: Option<&'t str>,
+struct Attr<'a> {
+    local: &'a str,
+    ns: Option<&'a str>,
     name: QName,
-    value: &'t str,
+    value: &'a str,
     meta: Option<Meta>,
+    /// Typed ID by the DTD or `xml:id`, so already registered.
+    dtd_id: bool,
 }
 
-struct Frame<'t, Id> {
-    node: Id,
-    local: &'t str,
-    ns: Option<&'t str>,
+struct Frame<Id> {
+    node: Node<Id>,
+    /// The name as messages show it, when the schema never mentions it.
+    label: Option<Box<str>>,
     name: QName,
+    /// Namespace declarations this element pushed.
+    bindings: usize,
     decl: Option<ElemId>,
     wildcard: Option<WildId>,
     ty: Option<TypeId>,
@@ -121,16 +165,24 @@ enum State {
     FixedMismatch(Box<str>),
 }
 
-struct Validator<'s, 't, T: Tree> {
+/// The validation state of one document, advanced by its events.
+pub(crate) struct Validator<'s, Id> {
     schema: &'s Schema,
-    tree: &'t T,
-    frames: Vec<Frame<'t, T::Id>>,
-    scopes: Vec<IdcScope<T::Id>>,
+    frames: Vec<Frame<Id>>,
+    scopes: Vec<IdcScope<Node<Id>>>,
     engine: Engine<'s>,
     skip: Option<usize>,
-    ids: HashSet<String>,
-    dtd_ids: HashSet<(T::Id, usize)>,
-    out: Vec<Diagnostic<T::Id>>,
+    /// Elements started inside skipped content and not yet ended.
+    ignored: usize,
+    /// In-scope namespace declarations, innermost last.
+    namespaces: Vec<(Box<str>, Box<str>)>,
+    /// ID values; true when an attribute the schema types `ID` registered it.
+    ids: HashMap<String, bool>,
+    /// After character data a text event continues: whether that run was
+    /// reported.
+    text_run: Option<bool>,
+    started: bool,
+    out: Vec<Diagnostic<Id>>,
 }
 
 fn display(local: &str, ns: Option<&str>) -> String {
@@ -140,33 +192,74 @@ fn display(local: &str, ns: Option<&str>) -> String {
     }
 }
 
-impl<'s, 't, T: Tree> Validator<'s, 't, T> {
-    fn report(&mut self, node: T::Id, code: Code, message: String) {
-        self.out.push(Diagnostic {
+fn sink<Id>(out: &mut Vec<Diagnostic<Id>>) -> impl FnMut(Node<Id>, Code, String) + '_ {
+    |node, code, message| {
+        out.push(Diagnostic {
             code,
-            node: Some(node),
-            offset: self.tree.offset(node),
+            node: Some(node.id),
+            offset: node.offset,
             message,
-        });
+        })
+    }
+}
+
+impl<'s, Id: Copy> Validator<'s, Id> {
+    /// A validator for one document; `ids` holds the ID values known
+    /// beforehand.
+    pub(crate) fn new(schema: &'s Schema, ids: HashMap<String, bool>) -> Self {
+        Self {
+            schema,
+            frames: Vec::new(),
+            scopes: Vec::new(),
+            engine: Engine::new(schema),
+            skip: None,
+            ignored: 0,
+            namespaces: Vec::new(),
+            ids,
+            text_run: None,
+            started: false,
+            out: Vec::new(),
+        }
+    }
+
+    /// The diagnostics, once the document has ended.
+    pub(crate) fn finish(mut self) -> Vec<Diagnostic<Id>> {
+        if !self.started {
+            self.out.push(Diagnostic {
+                code: Code::DocumentElementMissing,
+                node: None,
+                offset: None,
+                message: "The document has no document element.".into(),
+            });
+        }
+        self.out
+    }
+
+    fn report(&mut self, node: Node<Id>, code: Code, message: String) {
+        sink(&mut self.out)(node, code, message);
+    }
+
+    /// The element at `depth` as messages show it.
+    fn label(&self, depth: usize) -> String {
+        let frame = &self.frames[depth];
+        (frame.label.as_deref()).map_or_else(|| self.schema.names.format(frame.name), Into::into)
     }
 
     /// Reports against the element at `depth`.
     fn element_error(&mut self, depth: usize, code: Code, message: &str) {
         let frame = &self.frames[depth];
-        let text = format!("Element '{}': {message}", display(frame.local, frame.ns));
-        let node = frame.node;
-        self.report(node, code, text);
+        let text = format!("Element '{}': {message}", self.label(depth));
+        self.report(frame.node, code, text);
     }
 
-    fn attribute_error(&mut self, depth: usize, attr: &Attr<'t>, code: Code, message: &str) {
+    fn attribute_error(&mut self, depth: usize, attr: &Attr<'_>, code: Code, message: &str) {
         let frame = &self.frames[depth];
         let text = format!(
             "Element '{}', attribute '{}': {message}",
-            display(frame.local, frame.ns),
+            self.label(depth),
             display(attr.local, attr.ns)
         );
-        let node = frame.node;
-        self.report(node, code, text);
+        self.report(frame.node, code, text);
     }
 
     fn qname(&self, local: &str, ns: Option<&str>) -> QName {
@@ -176,67 +269,88 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
         }
     }
 
-    fn walk(&mut self) {
-        let tree = self.tree;
-        let root = std::iter::successors(tree.first_child(tree.root()), |&n| tree.next_sibling(n))
-            .find(|&n| matches!(tree.item(n), Item::Element(_)));
-        let Some(root) = root else {
-            self.out.push(Diagnostic {
-                code: Code::DocumentElementMissing,
-                node: None,
-                offset: None,
-                message: "The document has no document element.".into(),
-            });
-            return;
-        };
-        let mut node = root;
-        loop {
-            let skipped = self.skip.is_some_and(|skip| self.frames.len() > skip);
-            let descend = !skipped
-                && match tree.item(node) {
-                    Item::Element(name) => self.enter(node, name.local, name.namespace),
-                    Item::Text(text) => {
-                        self.text(node, text);
-                        false
-                    }
-                    // Entity references are transparent (libxml2 rejects them).
-                    Item::EntityRef(_) => true,
-                    _ => false,
-                };
-            if let Some(child) = tree.first_child(node).filter(|_| descend) {
-                node = child;
-                continue;
-            }
-            loop {
-                if !skipped_element(self, node) && matches!(tree.item(node), Item::Element(_)) {
-                    self.leave();
-                    if node == root {
-                        return;
-                    }
-                }
-                if let Some(next) = tree.next_sibling(node) {
-                    node = next;
-                    break;
-                }
-                match tree.parent(node) {
-                    Some(parent) => node = parent,
-                    None => return,
-                }
-            }
+    fn namespace(&self, prefix: &str) -> Option<&str> {
+        match prefix {
+            "xml" => Some(XML_NAMESPACE),
+            _ => self
+                .namespaces
+                .iter()
+                .rfind(|(p, _)| **p == *prefix)
+                .map(|(_, uri)| &**uri),
         }
     }
 
-    // ---- elements ------------------------------------------------------------
+    fn skipping(&self) -> bool {
+        self.ignored > 0 || self.skip.is_some_and(|skip| self.frames.len() > skip)
+    }
 
-    /// Starts an element; whether to validate its content.
-    fn enter(&mut self, node: T::Id, local: &'t str, ns: Option<&'t str>) -> bool {
+    // ---- events ----------------------------------------------------------------
+
+    /// An element starts. `attributes` are in source order with namespace
+    /// declarations, each flagged when the parser typed it ID; `dtd`
+    /// declares the unparsed entities `ENTITY` values name.
+    pub(crate) fn start<'a>(
+        &mut self,
+        node: Node<Id>,
+        name: NodeName<'a>,
+        attributes: impl Iterator<Item = (NodeName<'a>, &'a str, bool)>,
+        dtd: Option<&Dtd>,
+    ) {
+        self.text_run = None;
+        let skipping = self.skipping() || (self.started && self.frames.is_empty());
+        self.started = true;
+        let mut attrs = Vec::new();
+        let mut bindings = 0;
+        for (attr, value, dtd_id) in attributes {
+            if dtd_id {
+                // A tree registers DTD and `xml:id` IDs beforehand, a stream
+                // here; a value an earlier schema ID took is a duplicate.
+                let collapsed = normalize(value, WhiteSpace::Collapse).into_owned();
+                if self.ids.insert(collapsed, false) == Some(true) {
+                    let message = format!(
+                        "Element '{}', attribute '{}': '{value}' is not a valid value of the atomic type 'xs:ID'.",
+                        display(name.local, name.namespace),
+                        display(attr.local, attr.namespace)
+                    );
+                    self.report(node, Code::CvcDatatypeValid1_2_1, message);
+                }
+            }
+            if skipping {
+                continue;
+            }
+            if let Some(prefix) = attr.declared_prefix() {
+                self.namespaces.push((prefix.into(), value.into()));
+                bindings += 1;
+                continue;
+            }
+            attrs.push(Attr {
+                local: attr.local,
+                ns: attr.namespace,
+                name: self.qname(attr.local, attr.namespace),
+                value,
+                meta: (attr.namespace == Some(XSI))
+                    .then_some(match attr.local {
+                        "type" => Some(Meta::Type),
+                        "nil" => Some(Meta::Nil),
+                        "schemaLocation" | "noNamespaceSchemaLocation" => Some(Meta::Location),
+                        _ => None,
+                    })
+                    .flatten(),
+                dtd_id,
+            });
+        }
+        if skipping {
+            self.ignored += 1;
+            return;
+        }
         let depth = self.frames.len();
-        let name = self.qname(local, ns);
+        let qname = self.qname(name.local, name.namespace);
+        let known = qname.local != UNKNOWN && qname.ns != UNKNOWN;
         self.frames.push(Frame {
             node,
-            local,
-            ns,
-            name,
+            label: (!known).then(|| display(name.local, name.namespace).into()),
+            name: qname,
+            bindings,
             decl: None,
             wildcard: None,
             ty: None,
@@ -254,34 +368,47 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
             value: None,
         });
         self.scopes.push(IdcScope::default());
-        let attrs: Vec<Attr<'t>> = crate::xpath::tree::attributes(self.tree, node)
-            .filter(|(_, name, _)| !name.is_namespace_declaration())
-            .map(|(index, name, value)| Attr {
-                index,
-                local: name.local,
-                ns: name.namespace,
-                name: self.qname(name.local, name.namespace),
-                value,
-                meta: (name.namespace == Some(XSI))
-                    .then_some(match name.local {
-                        "type" => Some(Meta::Type),
-                        "nil" => Some(Meta::Nil),
-                        "schemaLocation" | "noNamespaceSchemaLocation" => Some(Meta::Location),
-                        _ => None,
-                    })
-                    .flatten(),
-            })
-            .collect();
-        let ok = self.validate_element(depth, &attrs);
-        if !ok {
+        if !self.validate_element(depth, name, &attrs, dtd) {
             self.skip = Some(depth);
-            return false;
         }
-        self.skip.is_none_or(|skip| depth < skip)
     }
 
+    /// The current element ends.
+    pub(crate) fn end(&mut self) {
+        self.text_run = None;
+        match self.ignored {
+            0 if !self.frames.is_empty() => self.leave(),
+            0 => {}
+            _ => self.ignored -= 1,
+        }
+    }
+
+    /// Character data; adjacent text (not CDATA) events form one text node.
+    pub(crate) fn text(&mut self, text: &str, cdata: bool) {
+        let run = self.text_run.take();
+        if self.frames.is_empty() || self.skipping() {
+            return;
+        }
+        let reported = self.character_data(text, cdata, run);
+        self.text_run = (!cdata).then_some(reported);
+    }
+
+    /// Any other node or event: a comment, a processing instruction or an
+    /// entity reference boundary.
+    pub(crate) fn other(&mut self) {
+        self.text_run = None;
+    }
+
+    // ---- elements ------------------------------------------------------------
+
     /// `xmlSchemaValidateElem`; false when the content must be skipped.
-    fn validate_element(&mut self, depth: usize, attrs: &[Attr<'t>]) -> bool {
+    fn validate_element(
+        &mut self,
+        depth: usize,
+        name: NodeName<'_>,
+        attrs: &[Attr<'_>],
+        dtd: Option<&Dtd>,
+    ) -> bool {
         if depth > 0 {
             if !self.validate_child(depth, attrs) {
                 return false;
@@ -340,13 +467,14 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
             return false;
         }
         if self.engine.active() {
-            let (local, ns) = (self.frames[depth].local, self.frames[depth].ns);
-            let resolved = self.engine.evaluate(local, ns, false, depth, &self.scopes);
+            let resolved =
+                self.engine
+                    .evaluate(name.local, name.namespace, false, depth, &self.scopes);
             self.frames[depth].value_needed = resolved > 0;
             self.frames[depth].applied_xpath = true;
         }
         match self.schema.types[ty].complex() {
-            Some(_) => self.attributes_complex(depth, ty, attrs),
+            Some(_) => self.attributes_complex(depth, ty, attrs, dtd),
             None => {
                 for attr in attrs.iter().filter(|a| a.meta.is_none()) {
                     let message = format!(
@@ -361,7 +489,7 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
     }
 
     /// `xmlSchemaValidateChildElem`: the child against its parent's content.
-    fn validate_child(&mut self, depth: usize, attrs: &[Attr<'t>]) -> bool {
+    fn validate_child(&mut self, depth: usize, attrs: &[Attr<'_>]) -> bool {
         let parent = depth - 1;
         self.frames[parent].empty = false;
         self.frames[parent].element_content = true;
@@ -473,7 +601,7 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
     }
 
     /// `xmlSchemaValidateElemDecl`: abstract, `xsi:nil`, `xsi:type`, IDCs.
-    fn validate_declaration(&mut self, depth: usize, decl: ElemId, attrs: &[Attr<'t>]) -> bool {
+    fn validate_declaration(&mut self, depth: usize, decl: ElemId, attrs: &[Attr<'_>]) -> bool {
         let declaration = &self.schema.elements[decl];
         if declaration.abstract_ {
             self.element_error(depth, Code::CvcElt2, "The element declaration is abstract.");
@@ -527,7 +655,7 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
     fn xsi_type(
         &mut self,
         depth: usize,
-        attr: &Attr<'t>,
+        attr: &Attr<'_>,
         decl: Option<ElemId>,
     ) -> Result<Option<TypeId>, ()> {
         let value = attr.value.trim_matches([' ', '\t', '\n', '\r']);
@@ -541,12 +669,8 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
             self.attribute_error(depth, attr, Code::CvcDatatypeValid1_2_1, &message);
             return Err(());
         }
-        let node = self.frames[depth].node;
-        let scope = namespaces(self.tree, node);
-        let ns = scope
-            .iter()
-            .find(|&&(p, _)| p == prefix.unwrap_or(""))
-            .map(|&(_, uri)| uri)
+        let ns = self
+            .namespace(prefix.unwrap_or(""))
             .filter(|uri| !uri.is_empty());
         if prefix.is_some() && ns.is_none() {
             let message = format!(
@@ -589,30 +713,30 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
 
     // ---- attributes ------------------------------------------------------------
 
+    /// `ty`'s value of `lexical` in the current namespace scope; `dtd`
+    /// declares the unparsed entities an attribute value may name.
     fn scope_value(
         &self,
-        depth: usize,
         ty: TypeId,
         lexical: &str,
-        attribute: bool,
+        dtd: Option<&Dtd>,
     ) -> Result<Typed, simple::Failure> {
-        let tree = self.tree;
-        let node = self.frames[depth].node;
-        let load = || namespaces(tree, node);
-        let entity = |name: &str| {
-            attribute
-                && tree
-                    .dtd()
-                    .is_some_and(|dtd| dtd.entities.get(name).is_some_and(Option::is_some))
+        let load = || {
+            let inner = self.namespaces.iter().rev();
+            let mut scope = vec![("xml", XML_NAMESPACE)];
+            scope.extend(inner.map(|(prefix, uri)| (&**prefix, &**uri)));
+            scope
         };
+        let entity =
+            |name: &str| dtd.is_some_and(|dtd| dtd.entities.get(name).is_some_and(Option::is_some));
         let mut scope = Scope::new(&load, &self.schema.names, &self.schema.notations, &entity);
         scope.instance = true;
         simple::validate(&self.schema.types, &self.schema.names, ty, lexical, &scope)
     }
 
     /// Registers the ID values of a valid attribute; false on a duplicate.
-    fn register_ids(&mut self, node: T::Id, attr: &Attr<'t>, typed: &Typed) -> bool {
-        if self.dtd_ids.contains(&(node, attr.index)) {
+    fn register_ids(&mut self, attr: &Attr<'_>, typed: &Typed) -> bool {
+        if attr.dtd_id {
             return true;
         }
         let tokens: Vec<String> = match typed {
@@ -627,11 +751,20 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                 .collect(),
             Typed::Atomic(_) => Vec::new(),
         };
-        tokens.into_iter().all(|token| self.ids.insert(token))
+        tokens.into_iter().all(|token| match self.ids.entry(token) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(slot) => *slot.insert(true),
+        })
     }
 
     /// `xmlSchemaVAttributesComplex`.
-    fn attributes_complex(&mut self, depth: usize, ty: TypeId, attrs: &[Attr<'t>]) {
+    fn attributes_complex(
+        &mut self,
+        depth: usize,
+        ty: TypeId,
+        attrs: &[Attr<'_>],
+        dtd: Option<&Dtd>,
+    ) {
         let schema = self.schema;
         let complex = schema.types[ty].complex().expect("complex");
         let mut states: Vec<State> = attrs
@@ -689,7 +822,7 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                 .or(declaration.value.as_ref());
             let fixed = constraint.filter(|c| c.fixed);
             let mut key = None;
-            match self.scope_value(depth, declaration.ty, attr.value, true) {
+            match self.scope_value(declaration.ty, attr.value, dtd) {
                 Err(failure) => {
                     for (code, message) in failure {
                         self.attribute_error(depth, attr, code, &message);
@@ -697,7 +830,7 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                     states[i] = State::Invalid;
                 }
                 Ok(typed) => {
-                    if !self.register_ids(node, attr, &typed) {
+                    if !self.register_ids(attr, &typed) {
                         let message = format!(
                             "'{}' is not a valid value of the atomic type 'xs:ID'.",
                             attr.value
@@ -726,14 +859,7 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                     node,
                     FieldValue::Simple(key.as_ref()),
                     &mut self.scopes,
-                    &mut |n, c, m| {
-                        self.out.push(Diagnostic {
-                            code: c,
-                            node: Some(n),
-                            offset: self.tree.offset(n),
-                            message: m,
-                        })
-                    },
+                    &mut sink(&mut self.out),
                 );
             } else if self.engine.active() {
                 self.engine.pop();
@@ -769,14 +895,7 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                     node,
                     FieldValue::Simple(key.as_ref()),
                     &mut self.scopes,
-                    &mut |n, c, m| {
-                        self.out.push(Diagnostic {
-                            code: c,
-                            node: Some(n),
-                            offset: self.tree.offset(n),
-                            message: m,
-                        })
-                    },
+                    &mut sink(&mut self.out),
                 );
             } else {
                 self.engine.pop();
@@ -816,39 +935,48 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
 
     // ---- character content -----------------------------------------------------
 
-    /// `xmlSchemaVPushText`.
-    fn text(&mut self, node: T::Id, text: &'t str) {
-        let Some(depth) = self.frames.len().checked_sub(1) else {
-            return;
-        };
+    /// `xmlSchemaVPushText` for the current element; `run` continues a text
+    /// node and says whether it was reported. Returns whether it is now.
+    fn character_data(&mut self, text: &str, cdata: bool, run: Option<bool>) -> bool {
+        let depth = self.frames.len() - 1;
         self.frames[depth].empty = false;
         let frame = &self.frames[depth];
         if frame.nilled {
-            return self.element_error(
-                depth,
-                Code::CvcElt3_2_1,
-                "Neither character nor element content is allowed because the element is 'nilled'.",
-            );
+            if run.is_none() {
+                self.element_error(
+                    depth,
+                    Code::CvcElt3_2_1,
+                    "Neither character nor element content is allowed because the element is 'nilled'.",
+                );
+            }
+            return true;
         }
-        let Some(ty) = frame.ty else { return };
+        let Some(ty) = frame.ty else { return false };
         let content = self.schema.types[ty].complex().map(|c| &c.content);
         match content {
-            Some(Content::Empty) => self.element_error(
-                depth,
-                Code::CvcComplexType2_1,
-                "Character content is not allowed, because the content type is empty.",
-            ),
+            Some(Content::Empty) => {
+                if run.is_none() {
+                    self.element_error(
+                        depth,
+                        Code::CvcComplexType2_1,
+                        "Character content is not allowed, because the content type is empty.",
+                    );
+                }
+                return true;
+            }
             Some(Content::Elements { mixed: false, .. }) => {
                 let blank = text
                     .bytes()
                     .all(|b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'));
-                if self.tree.is_cdata(node) || !blank {
-                    self.element_error(
-                        depth,
-                        Code::CvcComplexType2_3,
-                        "Character content other than whitespace is not allowed because the content type is 'element-only'.",
-                    );
+                if run == Some(true) || (blank && !cdata) {
+                    return run == Some(true);
                 }
+                self.element_error(
+                    depth,
+                    Code::CvcComplexType2_3,
+                    "Character content other than whitespace is not allowed because the content type is 'element-only'.",
+                );
+                return true;
             }
             Some(Content::Elements { mixed: true, .. })
                 if frame
@@ -856,11 +984,12 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                     .is_none_or(|d| self.schema.elements[d].value.is_none()) => {}
             _ => self.frames[depth].text.push_str(text),
         }
+        false
     }
 
     /// Validates character content against `ty` (`xmlSchemaVCheckINodeDataType`).
     fn check_value(&mut self, depth: usize, ty: TypeId, lexical: &str) -> bool {
-        match self.scope_value(depth, ty, lexical, false) {
+        match self.scope_value(ty, lexical, None) {
             Ok(typed) => {
                 if self.frames[depth].value_needed {
                     let text =
@@ -886,7 +1015,6 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
             self.skip = None;
         }
         let frame = &self.frames[depth];
-        let node = frame.node;
         if frame.applied_xpath {
             let value = match frame.ty.map(|ty| &self.schema.types[ty].kind) {
                 Some(
@@ -898,29 +1026,15 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                 ) => FieldValue::Simple(frame.value.as_ref()),
                 _ => FieldValue::NotSimple,
             };
-            let out = &mut self.out;
-            let tree = self.tree;
+            let (scopes, out) = (&mut self.scopes, &mut self.out);
             self.engine
-                .process(depth, node, value, &mut self.scopes, &mut |n, c, m| {
-                    out.push(Diagnostic {
-                        code: c,
-                        node: Some(n),
-                        offset: tree.offset(n),
-                        message: m,
-                    })
-                });
+                .process(depth, frame.node, value, scopes, &mut sink(out));
         }
-        let out = &mut self.out;
-        let tree = self.tree;
-        self.engine.finish(depth, &mut self.scopes, &mut |n, c, m| {
-            out.push(Diagnostic {
-                code: c,
-                node: Some(n),
-                offset: tree.offset(n),
-                message: m,
-            })
-        });
-        self.frames.pop();
+        self.engine
+            .finish(depth, &mut self.scopes, &mut sink(&mut self.out));
+        let frame = self.frames.pop().expect("open element");
+        self.namespaces
+            .truncate(self.namespaces.len() - frame.bindings);
     }
 
     fn pop_content(&mut self, depth: usize) {
@@ -1013,13 +1127,4 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
             self.element_error(depth, Code::CvcElt5_2_2_2_2, &message);
         }
     }
-}
-
-/// Whether `node` is an element the walk never entered (inside a skipped
-/// subtree); such elements are left without popping a frame.
-fn skipped_element<T: Tree>(validator: &Validator<'_, '_, T>, node: T::Id) -> bool {
-    validator
-        .frames
-        .last()
-        .is_none_or(|frame| frame.node != node)
 }

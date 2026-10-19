@@ -5,6 +5,7 @@ use std::io::BufRead;
 use std::ops::RangeInclusive;
 
 use crate::options::Flags;
+use crate::relaxng;
 use crate::{
     BufferedReader, DecodeLimits, Error, ErrorKind, Event, Limit, Limits, Name, OwnedDocument,
     ParseOptions, ReadError, ResourceKind,
@@ -332,6 +333,8 @@ pub struct TextReader<R: BufRead> {
     pending: Option<ReadError>,
     attribute: Option<usize>,
     scope: Scope,
+    /// RELAX NG validation of every event read from the source.
+    relaxng: Option<relaxng::Stream>,
 }
 
 impl<R: BufRead> TextReader<R> {
@@ -370,6 +373,7 @@ impl<R: BufRead> TextReader<R> {
             pending: None,
             attribute: None,
             scope: Scope::default(),
+            relaxng: None,
         })
     }
 
@@ -463,9 +467,12 @@ impl<R: BufRead> TextReader<R> {
     /// Appends the next node to the queue, merging adjacent text. False at EOF.
     fn fetch(&mut self) -> Result<bool, ReadError> {
         loop {
-            let Some((event, _)) = self.source.read_event()? else {
+            let Some((event, origin)) = self.source.read_event()? else {
                 return Ok(false);
             };
+            if let Some(validation) = &mut self.relaxng {
+                validation.event(&event, origin);
+            }
             let merge = matches!(event, Event::Text(_))
                 && self
                     .queue
@@ -481,6 +488,11 @@ impl<R: BufRead> TextReader<R> {
                 continue;
             }
             self.buffered += node.text.len() - before;
+            if node.kind == Kind::Doctype
+                && let (Some(validation), Some(dtd)) = (&mut self.relaxng, self.source.dtd())
+            {
+                validation.set_dtd(dtd);
+            }
             if node.kind == Kind::EntityRef {
                 self.skip_entity()?;
             }
@@ -497,7 +509,12 @@ impl<R: BufRead> TextReader<R> {
         let mut depth = 0_usize;
         let result = loop {
             let event = match self.source.read_event() {
-                Ok(Some((event, _))) => event,
+                Ok(Some((event, origin))) => {
+                    if let Some(validation) = &mut self.relaxng {
+                        validation.event(&event, origin);
+                    }
+                    event
+                }
                 Ok(None) => {
                     let position = self.source.position();
                     break Err(ReadError::Xml(Error::new(
@@ -1052,6 +1069,32 @@ impl<R: BufRead> TextReader<R> {
                 self.source.position(),
             ))
         }
+    }
+
+    /// `xmlTextReaderRelaxNGSetSchema`: validates the document against `schema`
+    /// while it is read, or stops validating with `None`. Only before the first
+    /// read; afterwards `InvalidState`. `xmlTextReaderRelaxNGValidate` is
+    /// [`Schema::parse`](relaxng::Schema::parse) followed by this call.
+    pub fn relaxng_set_schema(&mut self, schema: Option<&relaxng::Schema>) -> Result<(), Error> {
+        if self.state != ReadState::Initial {
+            return Err(Error::new(ErrorKind::InvalidState, self.source.position()));
+        }
+        self.relaxng = schema.map(relaxng::Schema::stream);
+        Ok(())
+    }
+
+    /// The RELAX NG diagnostics so far, as [`relaxng::Stream::diagnostics`];
+    /// they can concern nodes read ahead of the cursor.
+    pub fn relaxng_diagnostics(&self) -> &[relaxng::Diagnostic<usize>] {
+        self.relaxng
+            .as_ref()
+            .map_or(&[], relaxng::Stream::diagnostics)
+    }
+
+    /// `xmlTextReaderIsValid`: true when a schema is set and no validity error
+    /// was found so far.
+    pub fn is_valid(&self) -> bool {
+        (self.relaxng.as_ref()).is_some_and(|validation| validation.diagnostics().is_empty())
     }
 }
 
