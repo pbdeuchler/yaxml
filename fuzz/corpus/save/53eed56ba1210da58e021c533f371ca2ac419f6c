@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefGiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.ttp://example.org/~kipper"
+     xmlns="http://examlp          e.org/~wilbur">
+xed attribme, with default<co>om ns: piqueness: prefixed anerudn pfiixe dtihat defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbus"
+     xmlns:b="http://example.org/~kipp,r"
+     xmlns="http://exampl          e.org/~wilbur">
+xed at
+<foo xmachema/">
+  <D>
+??Pi?><!--comment-1"/>
+
+</foo>

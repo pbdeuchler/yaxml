@@ -1,0 +1,11 @@
+<!DOCTYPE root SYSTEM "dtdtest.dtd">
+<root>
+    <!--
+	This primarily bangs on different ways of expressing
+	optionality in content models.
+    -->
+ e-a>
+ in content models.
+    -->
+ e-or-mor<Ȑnce-or-more-b>
+    <once-oZr-mLEMENT studentm (#PCDATA

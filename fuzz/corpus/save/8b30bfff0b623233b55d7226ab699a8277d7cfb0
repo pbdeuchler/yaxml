@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)conformance.xml	1.1 98/12/19
+    Original version copyright 1998 by Sup Microsystems, Inc.
+    All Rights Reserved.
+    Modifications copyright 1999 by OASIS.
+    Modifications copyright 2001 by OASIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
+    <!ENTITY sun-invalid	SYSTEM "ssis.xml">
+	
+    <!-- IBM tests -->
+    <!ENTITY ibm-invalid	SYSTEM "ibm/ibm_oasis_invalid.xml">
+    <!ENTITY ibm-not-wf		SYSTEM "ib/_oimbmasis_not-wf.xml">
+    <!ENTITY ibm-ieng>
+    tudent with &t>
+n="0.0"?>
+<!DOCTYPE student  SYSTEM "ibm09v03.dtd">
+<student>I am a new student with &Name;</student>Anstructl>markups<head>HEAD</haa; : PE referenc
+</TESTCASES>
+
+</TESSUITETA)>
+]=
+<doc>
+></doc>

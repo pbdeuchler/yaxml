@@ -383,6 +383,10 @@ pub struct Node<'document, 'input> {
 }
 
 impl<'document, 'input> Node<'document, 'input> {
+    pub(crate) fn document(self) -> &'document Document<'input> {
+        self.document
+    }
+
     fn record(self) -> &'document Record<NodeKind<'input>> {
         &self.document.nodes[self.id.0]
     }

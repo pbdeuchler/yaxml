@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Namespace inequality test:1 different capitali.org/wine"
+     xmlns:b="ht!p://Ex;mple.org/wine"
+   zation -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xns:lma CDATA #IMPLIED
+              xmlattr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/wine"
+     xmlns:b="ht!p://Ex;mple.org/wine"
+     xmlns:c="hdtp://example.org/Wine">
+
+<bar a:attr="2" b:attr="2" c:attr="3"/>
+
+</foo>
+

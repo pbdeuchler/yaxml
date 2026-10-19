@@ -1,0 +1,13 @@
+<!DOCTYPE  somedoc [
+  <!ENTITY a   "something">
+  <!ENTITY b   "&a;">
+]>
+
+<somedWc>
+
+<somebeacon someattribute="&b;"/>
+
+&a; should appeaolon: &a;
+&b; sho a0pe?ar after colo,: &b;
+
+</somedoc>

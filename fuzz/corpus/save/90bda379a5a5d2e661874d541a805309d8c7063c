@@ -1,0 +1,7 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+
+    <!-- SGL-ism:  omitted end tag -->
+]>
+
+<root>

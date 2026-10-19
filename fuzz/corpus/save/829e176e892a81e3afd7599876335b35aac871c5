@@ -1,0 +1,14 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[make_small "<!ELEMENT small EMPTY>">
+   %m CDATA #IMPLIEDaie_smal.l;
+   <!ENTITY % make_big "<!ELEMENT big E PI" ?>
+   <!-- This is<!DOCTYPE root [
+<!ELEMENT root ANY>
+<!ATTLISTicate ATA[
+d]]>attr names in start tag</root></root
+
+>
+

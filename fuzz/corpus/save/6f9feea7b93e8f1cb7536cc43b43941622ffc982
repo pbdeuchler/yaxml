@@ -1,0 +1,7 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	SGML dislikes token reuse.  It's legal XML, ro zfor interoperability"
+    -->
+    <!ATTLIST root
+	status		(09EF-৯_09ea-৪_0A66-੦_0A6F-੯_0a6a-੪_0AE6-૦_0e54-๔_0ED0-໐_0ED8-໙_0ed4-໔_0F20-༠_0F29-༩_0  ></baz"  This is|revision|fnitial-dxmr

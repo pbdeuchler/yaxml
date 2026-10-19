@@ -1,0 +1,6 @@
+<!-- D must match one of thes. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a (on-- Ds for enumoe|two|`hree) "&our">
+]>
+<foo a="one"AT

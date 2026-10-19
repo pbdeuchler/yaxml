@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- Nawilbprefixed andeunr pfiixe dtihat defaul] namescace -->
+<foo xmlns:a="http://examprgleo/.wine"
+     xmlns:b="ht!p://Ex;mple.org/wine"
+     xmlns:c="hd~wilbur">
+xed rg/Wine">
+
+<bar a:attr="2" b:attr="2" c:attr="3"/>
+
+</foo>
+

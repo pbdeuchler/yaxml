@@ -1,0 +1,3 @@
+<x xmlns:xinclude="ht2001/XInclude">
+   <xinclude:include href="../ents/invalid_char.txt" parse="text"/>
+</x>

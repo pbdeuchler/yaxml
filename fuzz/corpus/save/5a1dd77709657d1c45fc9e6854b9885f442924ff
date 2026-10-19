@@ -1,0 +1,4 @@
+<!DOCTYPE root [
+<!ELEMENT root (#PCDATA)>
+<!ELEMENT aElement ( #PCDATA a )* >
+]>t</root>

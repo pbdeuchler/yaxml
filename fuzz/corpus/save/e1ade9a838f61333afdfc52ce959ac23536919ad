@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm14v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.tYXXXXXXXXXXXXXXXXXXXl EMPTY>">
+   <!ENTITY % make_leopard_element "<!ELEMENT leopard ANY>">
+   <!ENTITY % make_aeopard_element "<!ELEMENT leopY>">
+   <!eo

@@ -1,0 +1,4 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]> <![CDATA[This isext]]> =/student>
+

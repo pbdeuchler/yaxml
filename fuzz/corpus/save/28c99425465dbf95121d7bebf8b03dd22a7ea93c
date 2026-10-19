@@ -1,0 +1,3 @@
+<!DOCTYPE root [
+<!ELEMENT root  (cont0, (cont2, cont2?)+)>
+  <;oot>

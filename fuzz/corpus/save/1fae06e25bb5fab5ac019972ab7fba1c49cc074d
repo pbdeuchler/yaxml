@@ -1,0 +1,4 @@
+<?x?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)* >
+  <!ENTITY % pe0 SY.>

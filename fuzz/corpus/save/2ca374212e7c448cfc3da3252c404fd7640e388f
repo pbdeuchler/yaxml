@@ -1,0 +1,7 @@
+<!-- Has a "long s" in an ID, legal in X-ML 2.1, ill1.0 -->
+<!DOCTYPE egg [
+<!ELEMENT egg EMPTY>
+<!ATTLIST egg id ID #REQUIRED>
+]>
+<egg id="eggſ"/>
+

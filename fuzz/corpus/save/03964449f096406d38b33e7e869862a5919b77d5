@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#)japanese.xml	1.4 99/02/03
+    Copyright 1998 by Sun Microsystems, Inc.
+    All Rights Reserved.
+-->
+
+    <TEST TYPE="error" SECTIONS="4.3.3 [4,84]"
+	    ID="pr-xml-euc-jp" ENTKTIES="parameter" URI="pr-xml-euc-jp.xml">ex/foo        ancestor-ot(pa@rent::node()/yyyyyyyyy //example.or?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://tp://exam/poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/fntain Capanese characterNS="4.3.3 [4,84]"
+	    ID="wee

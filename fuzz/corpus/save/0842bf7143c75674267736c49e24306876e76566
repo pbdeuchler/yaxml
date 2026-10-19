@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT c (#PCDATA)>
+<!ENTITY % e "<?xml version=encoding='UTF-8'?>">
+%e;
+]>
+<doc></doc>

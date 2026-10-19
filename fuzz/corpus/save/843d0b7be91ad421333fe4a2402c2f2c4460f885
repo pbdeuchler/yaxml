@@ -1,0 +1,15 @@
+<?xml version="1.1"?>
+<!DOCTYPE root [
+<!ENTITY int "&#x2028;">
+<!ELEMENT root (a)>
+<!ELEMENT a EMPTY>
+]>
+<!-- Inve. -->
+<root>&int;
+ ace. -->
+<root>&int;
+#a/>
+</roT doc (#PCDot>
+
+ATA)>
+<D >

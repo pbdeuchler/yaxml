@@ -1,0 +1,18 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ATTLIST LegalName :attr CDATA #IMPLIED>
+<!ATTLIST LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATA #IMPLIED>
+<!ATTLIST LegalName ˾attr CDATA #IM"attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="attrValue"
+ 	zA.-attr="attrValue"
+ 	attr5zA.="attrPLIED>
+<!ALSM#ITTIPLIED>
+<PLIED>
+<!ATTLIST LegalNMPLIED>
+<!ATTLIST LegalName ⁰ⁱattr CDATA #IMPLIED>rValue"
+ />

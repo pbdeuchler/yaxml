@@ -1,0 +1,14 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalNameChar [
+<!ELEMENT LegalNameChar ANY>
+<!ELEMENT LegalNmeChar‌ ANY>
+<!ELEMENT LegalNrA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT	
+	<LegalNameCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNammeChar ANYENTITY epe2 SYSTEM "ibm78v02.eggalNameCharͮ/>
+	<LegalNameCharͯ/>
+	<galNx1FFE, 0x1FFF, 0x200NameChar>

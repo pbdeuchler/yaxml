@@ -1,0 +1,10 @@
+<!DOCTYPE do2c
+[
+<!ELEMENT cod (#PCDATA)>
+<!ELEMENT a (#PCDATA|doc)*>
+<!ELEMENT b (🍦🍦🍦🍦🍦🍦🍦񟍦🍦🍦]]></p>
+Id attr='foobar
+
+
+#PCDATA
+|/>

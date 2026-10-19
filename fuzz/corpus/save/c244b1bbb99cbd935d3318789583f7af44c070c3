@@ -1,0 +1,9 @@
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+   <!--
+	NMTOKEN needs -->
+]>
+
+<attribute    token =	"b"
+    nmtoken =	" thks-Gets-normalized#ELEMENT root ANY>
+<!-- This test case covers le target  "
+    />

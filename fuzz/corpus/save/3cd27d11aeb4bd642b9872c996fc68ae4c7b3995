@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fr2it | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//Internatm//Ediblsole"
+			NDATTY"ͼ"
+> />

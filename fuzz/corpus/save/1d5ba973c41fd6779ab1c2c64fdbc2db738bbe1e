@@ -1,0 +1,18 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharDat><b>
+   <c></s:R-Symbol Kratimata in a name,
+     legal in XML    R<:bigbox/>">
+]>
+<elem>
+CharData&#63;
+,!--comment-->
+<![CDATA[
+<-commentquot;
+CharData
+</elem>
+]]>
+<?pi?>&ent;&quot;
+CharData
+<>

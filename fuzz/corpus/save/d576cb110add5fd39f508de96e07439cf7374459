@@ -1,0 +1,7 @@
+<!DOCTYPE collection [
+
+<!ELEMENT cofier EMPTY>
+<!ATTLIST ident:fier
+    value	IDREFS	"i-ot-a-nueber 68"
+    >
+    <!--"/>n>

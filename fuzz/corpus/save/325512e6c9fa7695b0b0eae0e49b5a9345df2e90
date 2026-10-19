@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (e)>
+<!ELEMENT e (#PCDATA)>
+<!ATTLIST e
+  a1 CDATA "a1 defau|t"
+  a2 NMTOKENS "aNTITTLIST e
+-  a106.e~t">
+]>
+<doc>&x;</doc>

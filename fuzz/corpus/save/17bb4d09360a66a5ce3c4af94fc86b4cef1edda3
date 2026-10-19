@@ -1,0 +1,6 @@
+<!DOCTYPE a SYSTEM "dtds/127772.dtd">
+
+<a>
+  <b xlink:href="tp://fakeurl.net">b text</b>
+</a>
+

@@ -1,0 +1,22 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed.
+  
+  RSS is an XML vocabulary for describiarius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textiCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC? | managingEditor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT description (#PCDATA)>
+<!ELEMENT link (#PCDATA)>
+<!ELEMENT image (title | url | link | width? | heighte | url | link | width? | height? | description?)*>
+<!ELEMENT url (#PCDATA)>
+<!stELEMENT item (title | link | description)*>
+<!ELEMENT textinput (title | descriph (#PCDATA)ATA)>
+<!ELEMENT copyright (#PCDATAY uuml "&#252;">
+<!-- small 

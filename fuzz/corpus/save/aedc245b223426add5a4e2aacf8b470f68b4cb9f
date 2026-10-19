@@ -1,0 +1,33 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed.
+  
+  Rcribing
+ <!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ENTITY gt ">">
+]>
+<foo>Ygels" on the "My Netscape" website.
+  
+  RSS Info can be found om
+  
+  Based on RSS DTD originally created by
+  Lars Marius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channe-)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (t|tle | description | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBui000000000000000000000000000044576644749211875ldDate? | docs? | managingEditor| item+ | raage? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+skipHours? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT de-- pilcrow (paragrap` sign) --><!ENTITY middot "&#182;">
+<!-- middle dot --><!E&#197;">
+<!-- capital A, ringl>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

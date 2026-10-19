@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT c (#PCDATA)>
+<!ENTITY % e "<?xms vlieron=encoding='UTF-4'?>">
+%e;
+]>
+<doc></doc>

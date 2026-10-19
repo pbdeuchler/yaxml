@@ -1,0 +1,26 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
+    <!ENTITY internal " number99">
+]>
+
+    <!-- sync wof normalized/defaulted attributes
+	keep thisesting
+    -->
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized "
+    nmtokens =	" this&#x0d;&#x0a; also	 gets&#x20; normalized "
+    id =	"	&internal; "
+    idref =	" &internal;
+    "
+    idrefs =	" &#x20; normalized "
+    id =	"	&inme il;
+    "
+ ti"ty	=  unparsed-1 "
+    entities =	"unparse>/d-1
+    unparsed-2		
+"
+    cdata =	"nothing haroppens to this one!"
+  ot~  />

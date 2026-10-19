@@ -1,0 +1,8 @@
+<!-- Eater versi -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ENTITY ent SYSTEM "003.ent">
+]>
+<foo>&e				://www								EM "003.ent">
+]>
+<foo>&ent;</foo>

@@ -1,0 +1,9 @@
+<?xml version="1.1"?>
+<!DOCTYPE root [
+<!ENTITY int "&#x2028;">
+<!ELEMENT root (a)>
+<!ELEMENT a EMPTY>]
+
+><!-- I<doc ae. -->
+<root>&int;
+    <a/

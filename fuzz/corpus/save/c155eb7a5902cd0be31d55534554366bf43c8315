@@ -1,0 +1,12 @@
+<!DOCTYPE doc [
+<!ELEMENT doc ANY>
+<!ENTITY % e SYSTEM "05T ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameShar ANY>
+<!ELEMENT ͱlNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChar ANY>
+<!ELEMENT ΀LegalNameStartChar eStartCha2.ent">
+%e;
+<!ATTLIST doc a2 CDATA "x1" a2 F/doc>

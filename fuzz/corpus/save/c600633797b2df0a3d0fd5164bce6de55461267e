@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- Attribute unical name, with defaul] namespace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes w with default n`mespace -->
+<foo xmlns:a="http://examplle.org/~kipper"
+     xmlns="ht/example.org/~whlbper"
+     xmlns="http:/,example.org/~wilbur">
+
+<b:bar a:attr="1" attr="2"/
+</foo>

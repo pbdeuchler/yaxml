@@ -5,7 +5,7 @@
 
 use super::tables;
 use super::tokenizer::{Attribute, blank};
-use crate::encoding::{Charset, ISO_8859_1, US_ASCII, WINDOWS_1252, charset};
+use crate::encoding::{Charset, ISO_8859_1, Output, US_ASCII, WINDOWS_1252, charset};
 use crate::{Error, ErrorKind};
 
 /// Converts input to the UTF-8 text the tokenizer reads. `Utf8` passes bytes
@@ -250,56 +250,46 @@ pub(super) fn prescan(rest: &[u8]) -> Option<String> {
     (length > 0).then(|| String::from_utf8_lossy(&rest[p..p + length]).into_owned())
 }
 
-/// The output converters `xmlOpenCharEncodingHandler` provides.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum Output {
-    Utf8,
-    Byte(&'static [u16; 128]),
-    /// ASCII with HTML 4 entity names, used when a document has no encoding.
-    Html,
+/// The output converter for `label`; `None` is libxml2's "HTML" converter
+/// (ASCII with HTML 4 entity names), used when a document has no encoding.
+pub(super) fn output(label: Option<&str>) -> Result<Option<Output>, Error> {
+    match label {
+        None => Ok(None),
+        Some(label) if label.eq_ignore_ascii_case("html") => Ok(None),
+        Some(label) => Output::for_label(label)
+            .map(Some)
+            .ok_or(Error::new(ErrorKind::UnsupportedEncoding, 0)),
+    }
 }
 
-impl Output {
-    pub(super) fn for_label(label: Option<&str>) -> Result<Self, Error> {
-        match label {
-            None => Ok(Self::Html),
-            Some(label) if label.eq_ignore_ascii_case("html") => Ok(Self::Html),
-            Some(label) => match charset(label) {
-                Some(Charset::Utf8) => Ok(Self::Utf8),
-                Some(Charset::Byte(table)) => Ok(Self::Byte(table)),
-                _ => Err(Error::new(ErrorKind::UnsupportedEncoding, 0)),
-            },
-        }
+/// Converts UTF-8 output; unrepresentable characters become decimal
+/// character references, or entity names for the "HTML" converter.
+pub(super) fn encode(output: Option<Output>, text: Vec<u8>) -> Vec<u8> {
+    let ascii = !matches!(output, Some(Output::Utf16 { .. })) && text.is_ascii();
+    if output == Some(Output::Utf8) || ascii {
+        return text;
     }
-
-    /// Converts UTF-8 output; unrepresentable characters become decimal
-    /// character references, or entity names for `Html`.
-    pub(super) fn encode(self, text: Vec<u8>) -> Vec<u8> {
-        if self == Self::Utf8 || text.is_ascii() {
-            return text;
-        }
-        let text = String::from_utf8(text)
-            .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned());
-        let mut out = Vec::with_capacity(text.len());
-        for c in text.chars() {
+    let text = String::from_utf8(text)
+        .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned());
+    let mut out = output.map_or(&[][..], Output::bom).to_vec();
+    out.reserve(text.len());
+    for c in text.chars() {
+        let pushed = match output {
+            Some(output) => output.push(&mut out, c),
+            None => {
+                c.is_ascii() && {
+                    out.push(c as u8);
+                    true
+                }
+            }
+        };
+        if !pushed {
             let code = u32::from(c);
-            let byte = match self {
-                _ if code < 0x80 => Some(code as u8),
-                Self::Byte(table) => table
-                    .iter()
-                    .position(|&mapped| mapped != 0 && u32::from(mapped) == code)
-                    .map(|index| 0x80 + index as u8),
-                _ => None,
-            };
-            let entity = (self == Self::Html)
-                .then(|| tables::html4_entity(code))
-                .flatten();
-            match (byte, entity) {
-                (Some(byte), _) => out.push(byte),
-                (None, Some(name)) => out.extend_from_slice(format!("&{name};").as_bytes()),
-                (None, None) => out.extend_from_slice(format!("&#{code};").as_bytes()),
+            match output.map_or_else(|| tables::html4_entity(code), |_| None) {
+                Some(name) => out.extend_from_slice(format!("&{name};").as_bytes()),
+                None => out.extend_from_slice(format!("&#{code};").as_bytes()),
             }
         }
-        out
     }
+    out
 }

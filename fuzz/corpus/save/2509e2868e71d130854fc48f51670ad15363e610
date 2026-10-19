@@ -1,0 +1,13 @@
+<doc><![CDATA[<?xml verabc]]><![CDATA[dA[gsion="1.0"?>
+<D:multistatus www.ietf.org/standards/davz" xmlns:">
+  <D:response>
+    <D:href>http://www.foo.bar/container/</D:href>
+    <D:prop>
+      <R:bigbox/>
+      <R:author/>
+    </D:prop>
+    atus>HTTP 1.1 200 OK</D:status>
+  D:status>
+  </D:response>
+<hi]]>/D:multistatus></doc>
+

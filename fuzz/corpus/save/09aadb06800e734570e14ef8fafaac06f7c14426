@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (a, (b | c)*, d*)?
+s<d><d></doc>

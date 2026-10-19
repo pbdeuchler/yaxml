@@ -1,0 +1,9 @@
+<!DOCTYPE attributes SYSTEM "../valid/sa.dtd"   
+ [ <!--
+	ID needs normalization
+    -->
+]>
+
+<attr  tenok =	"b"
+    id =	"	cindy "
+    />

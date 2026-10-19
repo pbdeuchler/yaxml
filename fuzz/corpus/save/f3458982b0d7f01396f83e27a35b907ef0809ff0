@@ -1,0 +1,8 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<do>
+  <normId attr='lt;foo bar
+'/>
+  <nor1Id attr='f
+&lt;'/>
+  8normId att#xa;&#9; '-- PBM serializing back %->
+</doc>

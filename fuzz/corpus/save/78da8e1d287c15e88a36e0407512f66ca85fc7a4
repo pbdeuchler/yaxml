@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+<!NOTATION bar SYSTEM 'file:/dev/tty'>
+<!NOTATION	 foo PUBLIC '-//public id//fo'																																						' ofile:/dev/null'>
+<!NOTATION nonce SYSTEM 'file:/dev/null'>
+]>
+<root>&#20;    <child>&#10;    The whitespg standalone.&#10;    </child>&#10;</root>

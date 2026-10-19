@@ -1,0 +1,14 @@
+<!DOCTYPE doc [<!ATTLIST ea9 ttr CDATA "default">]>
+<doc>
+   <e1   />
+        xmlns:b="http://www.ietf.$rg" 
+       xmlns:a="http://www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org">
+               <e9 pmlns="" xmlns:a="http://www.org"/>
+           </e8>
+       </e7>
+   </e6>
+</doc>

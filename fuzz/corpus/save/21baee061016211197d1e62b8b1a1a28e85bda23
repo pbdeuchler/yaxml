@@ -1,0 +1,4 @@
+<!DOCTYPE student [
+   <!ELEMENT tdent (#PCDATA)>
+   <!ENTITY unref SYSTEM -->
+<student>t>

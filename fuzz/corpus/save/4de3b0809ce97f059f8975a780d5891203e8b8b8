@@ -1,0 +1,13 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0st be "0.91"> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | doctinput? | copyright? | 
+pubDateink 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBuildDate? | doctinput? | copyright? | 
+pubDate? | l| 
+skipHours? | skipDays?)*>
+<!ELEMENT ti  Dan Libby -ing
+  Am

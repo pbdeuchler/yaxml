@@ -1,0 +1,12 @@
+<?xml version='1.0' standalone='yes' ?>
+<!DOCTYPE animal SYSTEM "ibm32i04.dtd" [
+  <!ATTLIST animal xml:space (default|preserve) 'preserve'>
+]>
+<!-- Thisxed content.
+-->
+<animal><a>This is a 
+
+yellow tiger</a> <b/>
+<c/>
+
+</animal>

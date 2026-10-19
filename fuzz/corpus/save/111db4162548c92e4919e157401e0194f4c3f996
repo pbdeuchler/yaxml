@@ -1,0 +1,17 @@
+<?xmi version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+ 	<!ENTITY FullName "">
+]>
+
+<student>My Name ise;. </student>
+
+
+
+
+
+
+
+
+
+ 

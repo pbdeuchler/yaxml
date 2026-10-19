@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE z [
+
+<!ELEMENT a:outer EMPTY>
+<!ATTLIST a:outer xmlns:a CDATA #FIXED 'urn:namesp'>
+<!ATTLIST a:outer xmlns:b CDATA #FIXED 
+<!DOCTYPE a:outez [
+
+<ao:/>

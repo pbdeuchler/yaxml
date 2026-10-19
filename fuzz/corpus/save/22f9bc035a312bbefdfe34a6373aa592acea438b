@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>~<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to <p> WE need lot of garbagp> Wof garban 56">
+  <????????????????????????????card id="card2" title="Rubriques 37504">
+	<???????="none" SECTIONS="2.8" OUTPUT="invalid/P28/out/ibm28i01.ng 
+    element chil="invalid" ID="ibm-invalid-P39-ib

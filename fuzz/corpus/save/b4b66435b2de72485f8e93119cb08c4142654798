@@ -1,0 +1,13 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSSs Marius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBTA)>
+<!ELEMENT managingEditor (#PCDATAEMENT webMast>
+</rss>

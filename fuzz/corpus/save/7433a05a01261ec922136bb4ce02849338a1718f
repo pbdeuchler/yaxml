@@ -1,0 +1,29 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[make_small "<!ELEMENT small EMPTY>">
+   %make_slml
+; a  <!ENTITY % m!ELEMEENT small EMPTY>T small EMPTY>">
+   %make_smal>
+   %make_small;
+   <!ENTITY % m!ELEMENT small EMPMENT a EMPTY>
+<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<doc><a/><d/></TY>
+]>
+<doc!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!-- This is a<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<doc><a/><d/></TY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a2 NMTOKEc a1="1  2"></do]do<cc><![CDATA[
+]]></root>

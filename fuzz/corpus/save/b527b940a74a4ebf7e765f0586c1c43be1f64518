@@ -1,0 +1,25 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RS~S) 0.91 official DTD, proposed.
+  
+  RSS is an XML vocabulary for describing
+  metadata about websites, and enabling the display of?  "channels" on tOCTYPE root [
+<!NOTATION a SYSTEM 'a'>
+<!NOTATION b SYSTEM 'b'>
+]>
+<root>&he "My> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? |kcopyright? | lastBuildDate? | docs? | managingEditOr| item+ | rating? | image? | textinput? | copyright? | 
+pubDaMe? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+skipHours? | skipDays)>
+<!ELEMENT width (#PCDATA)>
+<!ELEMENT >
+<!ELEMENT==
+-->
+]>
+<rss>
+<channel>
+<image/>
+2title>PP</title>
+</channel>
+</rss>

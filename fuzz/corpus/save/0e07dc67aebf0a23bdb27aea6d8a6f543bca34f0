@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibm28v02.txt">
+   <!ENTITY forcat "This is a small cat">
+   <!ELEMENT tiger (#PCDATA)>
+   <!ENTITY % make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   <!ENTITY % make_small "<!ELEMENT small EMPTY>">
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %make</tiger>
+   <cat/>
+   <leopard>
+      <small/>
+      <big/>
+   </leopard>
+</animal>

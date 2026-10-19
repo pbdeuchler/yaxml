@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!ENTITY foo 'abc'>
+<!ENTITY bar 'def'>
+]ar;</elemt
+/<root>

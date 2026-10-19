@@ -1,0 +1,9 @@
+<!DOCTYPE studeft [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testingith empty stbing -->
+
+<student>My Name is SnowMan. <![CDATA[]]></student>
+
+

@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc At NMTOKEN "$$$">
+<!ATTLIST doc Ok NMTOKEN "1abc_2">
+<!ATTLIST doc bad IDREF "1abc_2">
+<!ATTLIST doc ok2 IDREF "abc_m_not-wf.xml">
+    <!ENTITY ibm-xmSYSTEM "ibm1xmREFS 
+]>
+<doc val="v0"/>
+

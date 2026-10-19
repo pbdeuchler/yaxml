@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!-- Elements must not havhe lns. -->
+<!DOCTYPE foo [
+<!ELEMENT xmlns:foo EMPTY>
+]>
+<xmlns:foo/>
