@@ -231,18 +231,20 @@ pub(crate) struct DtdUnit<'a> {
 
 impl<'a> DtdUnit<'a> {
     pub(crate) fn parse(raw: impl Into<Cow<'a, str>>, limits: DtdLimits) -> Result<Self, Error> {
-        Self::parse_recovering(raw, limits, &mut Err)
+        Self::parse_recovering(raw, limits, &mut Err).map(|(unit, _)| unit)
     }
 
     /// Parses a unit, `recover`ing from a missing space where libxml2 reads
     /// on (after `<!DOCTYPE`, `SYSTEM`, `PUBLIC`, a public identifier,
     /// `<!ENTITY`, `%`, an entity or element name, around `NDATA`,
-    /// `<!ATTLIST`, `#FIXED` and a PI target).
+    /// `<!ATTLIST`, `#FIXED` and a PI target). From a later error, recovery
+    /// keeps what libxml2 declared before it (an entity whose value was
+    /// read, the attribute definitions read) and returns where it failed.
     pub(crate) fn parse_recovering(
         raw: impl Into<Cow<'a, str>>,
         limits: DtdLimits,
         recover: &mut dyn FnMut(Error) -> Result<(), Error>,
-    ) -> Result<Self, Error> {
+    ) -> Result<(Self, Option<usize>), Error> {
         let raw = raw.into();
         if raw.len() > limits.unit_bytes {
             return Err(Error::new(
@@ -253,8 +255,22 @@ impl<'a> DtdUnit<'a> {
         if let Some(offset) = invalid_char(&raw) {
             return Err(Error::new(ErrorKind::InvalidCharacter, offset));
         }
-        let (shape, tokens) = Parser::new(&raw, limits, recover).parse()?;
-        Ok(Self { raw, tokens, shape })
+        let (raw, (shape, tokens), cut) = match Parser::new(&raw, limits, recover).parse() {
+            Ok(parsed) => (raw, parsed, None),
+            Err((error, Some(declared))) => {
+                recover(error)?;
+                let mut text = String::new();
+                text.try_reserve_exact(declared + 1)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, declared))?;
+                text.push_str(&raw[..declared]);
+                text.push('>');
+                let parsed = Parser::new(&text, limits, &mut |_| Ok(())).parse();
+                let parsed = parsed.map_err(|(error, _)| error)?;
+                (Cow::Owned(text), parsed, Some(error.offset))
+            }
+            Err((error, None)) => return Err(error),
+        };
+        Ok((Self { raw, tokens, shape }, cut))
     }
 
     pub(crate) fn raw(&self) -> &str {
@@ -624,6 +640,8 @@ struct Parser<'a, 'r> {
     limits: DtdLimits,
     tokens: Vec<DtdToken>,
     recover: &'r mut dyn FnMut(Error) -> Result<(), Error>,
+    /// The end of what libxml2 has declared so far.
+    declared: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -644,10 +662,19 @@ impl<'a, 'r> Parser<'a, 'r> {
             limits,
             tokens: Vec::new(),
             recover,
+            declared: None,
         }
     }
 
-    fn parse(mut self) -> Result<(Shape, Vec<DtdToken>), Error> {
+    /// The unit, or its error and the end of what libxml2 declared before.
+    fn parse(mut self) -> Result<(Shape, Vec<DtdToken>), (Error, Option<usize>)> {
+        match self.unit() {
+            Ok(shape) => Ok((shape, self.tokens)),
+            Err(error) => Err((error, self.declared)),
+        }
+    }
+
+    fn unit(&mut self) -> Result<Shape, Error> {
         let shape = if self.raw.starts_with("<!DOCTYPE") {
             self.header()?
         } else if self.raw.starts_with("<!ELEMENT") {
@@ -671,7 +698,7 @@ impl<'a, 'r> Parser<'a, 'r> {
         if self.position != self.raw.len() {
             return Err(self.error(ErrorKind::InvalidDtd));
         }
-        Ok((shape, self.tokens))
+        Ok(shape)
     }
 
     fn push(&mut self, kind: TokenKind, range: Range<usize>) -> Result<usize, Error> {
@@ -1165,6 +1192,7 @@ impl<'a, 'r> Parser<'a, 'r> {
             }
             (Some(identifier), ndata)
         };
+        self.declared = Some(self.position);
         self.whitespace();
         self.consume(">")?;
         Ok(Shape::Entity {
@@ -1189,6 +1217,7 @@ impl<'a, 'r> Parser<'a, 'r> {
         self.consume("<!ATTLIST")?;
         self.expect_whitespace()?;
         self.name()?;
+        self.declared = Some(self.position);
         let mut definitions = 0_usize;
         loop {
             let had_whitespace = self.whitespace();
@@ -1218,6 +1247,7 @@ impl<'a, 'r> Parser<'a, 'r> {
                 }),
                 definition_start..self.position,
             )?;
+            self.declared = Some(self.position);
         }
     }
 

@@ -204,14 +204,23 @@ impl<'input> DtdControllerCore<'input> {
     /// declarations end here and the DOCTYPE is ready to publish.
     pub(crate) fn recover(&mut self, error: Error, budget: &mut Budget) -> Result<(), Error> {
         budget.recover(error)?;
-        self.cut = Some((self.started.then_some(self.unit_start), error.offset));
+        self.cut = Some((self.started.then_some(self.kept()), error.offset));
         self.ready = Some(Ready::End);
         self.origin = FragmentOrigin::input(self.start..self.position);
         Ok(())
     }
 
-    /// After `recover`: where the unit being read began (once the header
-    /// was read), whose declarations are dropped, and the error's offset.
+    /// The end of the internal subset recovery keeps: the start of the
+    /// unit or parameter-entity reference being read.
+    fn kept(&self) -> usize {
+        self.frames
+            .stack()
+            .first()
+            .map_or(self.unit_start, |frame| frame.physical_reference.start)
+    }
+
+    /// After `recover`: where the internal subset recovery keeps ends (once
+    /// the header was read), and the error's offset.
     pub(crate) fn cut(&self) -> Option<(Option<usize>, usize)> {
         self.cut
     }
@@ -234,7 +243,7 @@ impl<'input> DtdControllerCore<'input> {
             return;
         };
         (self.origin, self.unit) = (None, None);
-        if matches!(ready, Ready::Begin)
+        if matches!(ready, Ready::Begin | Ready::Item)
             && let Some(end) = self.held_end.take()
         {
             self.ready = Some(Ready::End);
@@ -417,7 +426,7 @@ impl<'input> DtdControllerCore<'input> {
         // Grammar is always checked before an input-mode-dependent raw copy.
         self.charge_work(raw_len, origin)?;
         let (encoding, started, limits) = (self.encoding, self.started, self.limits);
-        let unit = match (side, self.stable) {
+        let (unit, salvaged) = match (side, self.stable) {
             (Side::Physical, Some((source, source_start))) => {
                 let range = origin.input_range().expect("physical unit");
                 let raw = &source[range.start - source_start..range.end - source_start];
@@ -426,7 +435,7 @@ impl<'input> DtdControllerCore<'input> {
             _ => {
                 let raw = std::str::from_utf8(self.scanner(side).current().expect("ready").1)
                     .expect("scanner validates ready UTF-8");
-                let borrowed =
+                let (borrowed, salvaged) =
                     parse_unit(raw, limits, (kind, side, started), encoding, origin, budget)?;
                 // A streamed unit is retained beyond its scanner as an owned copy.
                 let limit = |count: usize, ceiling| {
@@ -445,11 +454,10 @@ impl<'input> DtdControllerCore<'input> {
                         Error::new(error.kind, unit_offset(encoding, origin, raw, 0))
                     })?;
                 (self.counters.work, self.counters.owned_bytes) = (work, owned);
-                unit
+                (unit, salvaged)
             }
         };
         self.commit_source(side, raw_len)?;
-        self.release_scanner(side);
         let literals = match side {
             Side::Physical => LiteralSource::Physical,
             Side::Replacement => LiteralSource::Replacement,
@@ -472,6 +480,15 @@ impl<'input> DtdControllerCore<'input> {
             };
             Error::new(error.kind, offset)
         })?;
+        // Released once applied: recovery cuts the subset before a unit the
+        // catalog rejects.
+        self.release_scanner(side);
+        // Recovery keeps the declaration libxml2 makes before an error,
+        // where it then stops.
+        if let Some(at) = salvaged {
+            self.cut = Some((Some(self.position), at));
+            self.held_end = FragmentOrigin::input(self.start..self.position);
+        }
         self.ready = Some(Ready::Item);
         self.origin = Some(origin);
         if let DtdUnitView::Header(header) = unit.view() {
@@ -628,7 +645,8 @@ impl DtdBodyState {
     }
 }
 
-/// Parses `raw`, read from `origin`, as a unit the scanner classified as `kind`.
+/// Parses `raw`, read from `origin`, as a unit the scanner classified as
+/// `kind`; with the offset of a recovered error after which libxml2 stops.
 fn parse_unit<'raw>(
     raw: &'raw str,
     limits: DtdLimits,
@@ -636,13 +654,13 @@ fn parse_unit<'raw>(
     encoding: SourceEncoding,
     origin: FragmentOrigin,
     budget: &mut Budget,
-) -> Result<DtdUnit<'raw>, Error> {
+) -> Result<(DtdUnit<'raw>, Option<usize>), Error> {
     let located =
         |error: Error| Error::new(error.kind, unit_offset(encoding, origin, raw, error.offset));
     let mut recover = |error| budget.recover(located(error)).map_err(|_| error);
-    let unit = DtdUnit::parse_recovering(raw, limits, &mut recover).map_err(located)?;
+    let (unit, cut) = DtdUnit::parse_recovering(raw, limits, &mut recover).map_err(located)?;
     match valid_unit(kind, side, started, &unit) {
-        true => Ok(unit),
+        true => Ok((unit, cut.map(|at| unit_offset(encoding, origin, raw, at)))),
         false => Err(Error::new(ErrorKind::InvalidDtd, origin.error_offset())),
     }
 }

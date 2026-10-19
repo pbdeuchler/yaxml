@@ -248,10 +248,10 @@ impl<'a> Doctype<'a> {
 }
 
 /// Recovery from a DTD error at `at` in `raw`, the declaration read so far
-/// from `<!DOCTYPE`, while reading the subset unit at `unit` (offsets into
-/// `raw`): the DOCTYPE keeps the header and the declarations before the
-/// error, and the document resumes where libxml2's does: at the error in the
-/// subset, else after the header's `>` or where the header ends.
+/// from `<!DOCTYPE`, with the internal subset kept up to `unit` (offsets
+/// into `raw`): the DOCTYPE keeps the header and those declarations, and the
+/// document resumes where libxml2's does: at the error in the subset, else
+/// after the header's `>` or where the header ends.
 pub(crate) fn recovered_doctype(raw: &str, unit: Option<usize>, at: usize) -> (Doctype<'_>, usize) {
     let boundary = |at: usize| {
         (0..=at.min(raw.len()))
@@ -261,7 +261,7 @@ pub(crate) fn recovered_doctype(raw: &str, unit: Option<usize>, at: usize) -> (D
     let (mut doctype, end) = Doctype::header(raw);
     let resume = match (raw.as_bytes().get(end), unit) {
         (Some(b'['), Some(unit)) => {
-            let kept = boundary(unit.min(at)).unwrap_or(0).max(end + 1);
+            let kept = boundary(unit).unwrap_or(0).max(end + 1);
             doctype.internal_subset = Some(&raw[end + 1..kept]);
             boundary(at).unwrap_or(0).max(end + 1)
         }

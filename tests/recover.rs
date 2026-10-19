@@ -131,6 +131,16 @@ const ROOTLESS: &[(&str, &str, &[ErrorKind])] = &[
      "<!DOCTYPE r [\n<!ELEMENT r EMPTY>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
     ("<!DOCTYPE r [<!ENTITY e 'x'><!ELEMENT r ANY>&e;]><r/>",
      "<!DOCTYPE r [\n<!ENTITY e \"x\">\n<!ELEMENT r ANY>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
+    // ... with what libxml2 declares before an error in a declaration: an
+    // entity whose value it read, the attribute definitions it read
+    ("<!DOCTYPE r [<!ENTITY e \"w\" -- c --><!ELEMENT r ANY>]><r/>",
+     "<!DOCTYPE r [\n<!ENTITY e \"w\">\n]>\n", &[InvalidDtd, TextOutsideRoot]),
+    ("<!DOCTYPE r [<!ATTLIST r a CDATA #REQUIRED \"v\" b CDATA #IMPLIED>]><r/>",
+     "<!DOCTYPE r [\n<!ATTLIST r a CDATA #REQUIRED>\n]>\n", &[InvalidName, TextOutsideRoot]),
+    ("<!DOCTYPE r [<!ATTLIST r a CDATA #REQUIRED b NAME #IMPLIED>]><r/>",
+     "<!DOCTYPE r [\n<!ATTLIST r a CDATA #REQUIRED>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
+    // ... but not an element it did not read to its end
+    ("<!DOCTYPE r [<!ELEMENT r ANY x>]><r/>", "<!DOCTYPE r>\n", &[InvalidDtd, TextOutsideRoot]),
 ];
 
 #[test]
