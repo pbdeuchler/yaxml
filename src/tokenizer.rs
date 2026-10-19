@@ -1,4 +1,6 @@
-use memchr::{memchr, memchr2, memchr3, memmem};
+use std::ops::ControlFlow;
+
+use memchr::{memchr, memchr_iter, memchr2, memchr3};
 
 use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::{Error, ErrorKind, Limit};
@@ -20,10 +22,16 @@ pub(crate) enum TokenKind {
 enum Scan {
     Text,
     Prefix,
-    Tag { quote: Option<u8> },
-    Comment { hyphens: u8 },
-    Cdata { brackets: u8 },
-    Instruction { question: bool },
+    Tag {
+        quote: Option<u8>,
+    },
+    /// A comment, CDATA or PI body: it ends at the first `>` preceded by
+    /// enough `marker` bytes; `run` counts those already trailing.
+    Delimited {
+        kind: TokenKind,
+        marker: u8,
+        run: u8,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -135,7 +143,10 @@ impl Tokenizer {
     /// Consume only through the next complete token. A text delimiter already
     /// counted in the positions is replayed from constant lookahead storage.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
-        if let Some(consumed) = self.adopt(input)? {
+        // Short inputs rarely hold a whole token; scanning them once is cheaper.
+        if input.len() >= ADOPT_WINDOW
+            && let Some(consumed) = self.adopt(input)?
+        {
             return Ok(consumed);
         }
         self.advance_inner::<false>(input)
@@ -177,91 +188,212 @@ impl Tokenizer {
             return Ok((0, false));
         }
         if let Some((offset, source_offset)) = self.lookahead.take() {
-            self.consume(b'<', offset, source_offset)?;
+            // The `<` that ended a text token starts the next token.
+            self.start = offset;
+            self.source_start = source_offset;
+            if self.raw_length() > self.limit {
+                return Err(Error::new(
+                    ErrorKind::LimitExceeded(Limit::TokenBytes),
+                    self.diagnostic_start(),
+                ));
+            }
+            self.append(b'<')?;
+            self.scan = Scan::Prefix;
         }
         let mut cursor = 0;
         while cursor < input.len() {
-            if REFERENCES && matches!(self.scan, Scan::Text) && input[cursor] == b'&' {
+            let rest = &input[cursor..];
+            if REFERENCES && matches!(self.scan, Scan::Text) && rest[0] == b'&' {
                 return Ok((cursor, true));
             }
-            if matches!(
-                self.encoding,
-                SourceEncoding::Utf8 | SourceEncoding::Byte(_)
-            ) {
-                let mut length = self.plain_run::<REFERENCES>(&input[cursor..]);
-                if matches!(self.encoding, SourceEncoding::Byte(_)) {
-                    // Only ASCII keeps byte-charset source and decoded offsets in step.
-                    let run = &input[cursor..cursor + length];
-                    length = run.iter().position(|b| !b.is_ascii()).unwrap_or(length);
-                }
-                if length > 0 {
-                    if self.buffer.is_empty() {
-                        self.start = self.position;
-                        self.source_start = self.source_position;
-                    }
-                    let available_raw = self.limit - self.raw_length();
-                    let available_decoded = self.decoded_limit - self.buffer.len();
-                    let available = available_raw.min(available_decoded);
-                    if length > available {
-                        // Consume through the first offending byte, as the
-                        // scalar path does, without allocating a rejected run.
-                        self.position += available + 1;
-                        if !self.local_mode() {
-                            self.source_position += available + 1;
-                        }
-                        return Err(Error::new(
-                            ErrorKind::LimitExceeded(if available_raw <= available_decoded {
-                                Limit::TokenBytes
-                            } else {
-                                Limit::DecodedTokenBytes
-                            }),
-                            self.diagnostic_start(),
-                        ));
-                    }
-                    // Single bytes (one-byte chunks) skip the copy call.
-                    if length == 1 {
-                        self.append(input[cursor])?;
-                    } else {
-                        self.append_slice(&input[cursor..cursor + length])?;
-                    }
-                    self.position += length;
+            let (length, kind) = self.step::<REFERENCES>(rest);
+            self.extend(&rest[..length])?;
+            cursor += length;
+            match kind {
+                None => continue,
+                // Text ends before its `<`, which is consumed as lookahead.
+                Some(TokenKind::Text) => {
+                    let (offset, source_offset) = (self.position, self.source_position);
+                    self.position += 1;
                     if !self.local_mode() {
-                        self.source_position += length;
+                        self.source_position += self.encoding.source_length(b"<");
                     }
-                    cursor += length;
-                    continue;
+                    self.mark_at(TokenKind::Text, offset, source_offset);
+                    self.lookahead = Some((offset, source_offset));
+                    cursor += 1;
                 }
+                Some(TokenKind::Start) if self.buffer.starts_with(b"</") => {
+                    self.mark(TokenKind::End, self.position);
+                }
+                Some(kind) => self.mark(kind, self.position),
             }
-            let byte = input[cursor];
-            cursor += 1;
-            let offset = self.position;
-            let source_offset = self.source_position;
-            self.position += 1;
-            if !self.local_mode() {
-                self.source_position += self.encoding.source_length(std::slice::from_ref(&byte));
-            }
-            self.consume(byte, offset, source_offset)?;
-            if self.ready.is_some() {
-                break;
-            }
+            break;
         }
         Ok((cursor, false))
     }
 
-    /// Skip bytes that cannot change the current delimiter state. Each scan
-    /// resumes at the next chunk; no accumulated token prefix is rescanned.
-    fn plain_run<const REFERENCES: bool>(&self, input: &[u8]) -> usize {
-        let boundary = match self.scan {
-            Scan::Text if REFERENCES => memchr2(b'<', b'&', input),
-            Scan::Text => memchr(b'<', input),
-            Scan::Tag { quote: Some(quote) } => memchr(quote, input),
-            Scan::Tag { quote: None } => memchr3(b'\'', b'"', b'>', input),
-            Scan::Comment { hyphens: 0 } => memchr(b'-', input),
-            Scan::Cdata { brackets: 0 } => memchr(b']', input),
-            Scan::Instruction { question: false } => memchr(b'?', input),
-            _ => return 0,
+    /// One lexical step over the front of `input`: the bytes that extend the
+    /// current token and the kind of token they complete (`Start` for any
+    /// tag). Delimiters are found with `memchr` from the carried state, so
+    /// no accumulated token prefix is rescanned. Text ends before its `<`;
+    /// with `REFERENCES` it also stops before `&`.
+    fn step<const REFERENCES: bool>(&mut self, input: &[u8]) -> (usize, Option<TokenKind>) {
+        match self.scan {
+            Scan::Text => {
+                let found = if REFERENCES {
+                    memchr2(b'<', b'&', input)
+                } else {
+                    memchr(b'<', input)
+                };
+                match found {
+                    None => (input.len(), None),
+                    Some(index) if input[index] == b'&' => (index, None),
+                    Some(index) if index > 0 || !self.buffer.is_empty() => {
+                        (index, Some(TokenKind::Text))
+                    }
+                    Some(_) => {
+                        self.scan = Scan::Prefix;
+                        (1, None)
+                    }
+                }
+            }
+            Scan::Prefix => match self.prefix(input[0]) {
+                ControlFlow::Continue(scan) => {
+                    self.scan = scan;
+                    (1, None)
+                }
+                ControlFlow::Break(kind) => (1, Some(kind)),
+            },
+            Scan::Tag { quote: Some(quote) } => match memchr(quote, input) {
+                Some(index) => {
+                    self.scan = Scan::Tag { quote: None };
+                    (index + 1, None)
+                }
+                None => (input.len(), None),
+            },
+            Scan::Tag { quote: None } => match memchr3(b'\'', b'"', b'>', input) {
+                Some(index) if input[index] == b'>' => (index + 1, Some(TokenKind::Start)),
+                Some(index) => {
+                    self.scan = Scan::Tag {
+                        quote: Some(input[index]),
+                    };
+                    (index + 1, None)
+                }
+                None => (input.len(), None),
+            },
+            Scan::Delimited { kind, marker, run } => match delimited_end(input, marker, run) {
+                Ok(end) => (end, Some(kind)),
+                Err(run) => {
+                    self.scan = Scan::Delimited { kind, marker, run };
+                    (input.len(), None)
+                }
+            },
+        }
+    }
+
+    /// Classifies markup by its buffered leading bytes and the next `byte`.
+    /// Earlier bytes matched the family that byte 2 selects, so only the
+    /// newest byte is compared.
+    fn prefix(&self, byte: u8) -> ControlFlow<TokenKind, Scan> {
+        let length = self.buffer.len() + 1;
+        if length == 2 {
+            return ControlFlow::Continue(match byte {
+                b'!' => Scan::Prefix,
+                b'?' => Scan::Delimited {
+                    kind: TokenKind::Instruction,
+                    marker: b'?',
+                    run: 0,
+                },
+                b'>' => return ControlFlow::Break(TokenKind::Start),
+                b'\'' | b'"' => Scan::Tag { quote: Some(byte) },
+                _ => Scan::Tag { quote: None },
+            });
+        }
+        let (family, kind, marker): (&[u8], _, _) = match self.buffer.get(2).unwrap_or(&byte) {
+            b'-' => (b"<!--", TokenKind::Comment, b'-'),
+            b'[' => (b"<![CDATA[", TokenKind::Cdata, b']'),
+            b'D' => (b"<!DOCTYPE", TokenKind::Dtd, 0),
+            _ => (b"", TokenKind::InvalidMarkup, 0),
         };
-        boundary.unwrap_or(input.len())
+        if family.get(length - 1) != Some(&byte) {
+            ControlFlow::Break(TokenKind::InvalidMarkup)
+        } else if length < family.len() {
+            ControlFlow::Continue(Scan::Prefix)
+        } else if kind == TokenKind::Dtd {
+            ControlFlow::Break(kind)
+        } else {
+            ControlFlow::Continue(Scan::Delimited {
+                kind,
+                marker,
+                run: 0,
+            })
+        }
+    }
+
+    /// Appends token bytes, enforcing the source and decoded ceilings.
+    #[inline(always)]
+    fn extend(&mut self, run: &[u8]) -> Result<(), Error> {
+        if run.is_empty() {
+            return Ok(());
+        }
+        if self.buffer.is_empty() {
+            self.start = self.position;
+            self.source_start = self.source_position;
+        }
+        let raw = self.width(run);
+        if raw > self.limit - self.raw_length()
+            || run.len() > self.decoded_limit - self.buffer.len()
+        {
+            return Err(self.overflow(run));
+        }
+        // Single bytes (one-byte chunks) skip the copy call.
+        if run.len() == 1 {
+            self.append(run[0])?;
+        } else {
+            self.append_slice(run)?;
+        }
+        self.position += run.len();
+        if !self.local_mode() {
+            self.source_position += raw;
+        }
+        Ok(())
+    }
+
+    /// Raw length of decoded token bytes: source bytes, or decoded bytes
+    /// for local replacement text.
+    fn width(&self, bytes: &[u8]) -> usize {
+        match self.encoding {
+            _ if self.local_mode() => bytes.len(),
+            SourceEncoding::Utf8 => bytes.len(),
+            encoding => encoding.source_length(bytes),
+        }
+    }
+
+    /// A run that would exceed a ceiling is consumed through its first
+    /// offending byte, as a byte-wise scan would, without being allocated.
+    #[cold]
+    #[inline(never)]
+    fn overflow(&mut self, run: &[u8]) -> Error {
+        let available_raw = self.limit - self.raw_length();
+        let available_decoded = self.decoded_limit - self.buffer.len();
+        let mut used = 0;
+        let (through, limit) = run
+            .iter()
+            .enumerate()
+            .find_map(|(index, byte)| {
+                used += self.width(std::slice::from_ref(byte));
+                if used > available_raw {
+                    Some((index + 1, Limit::TokenBytes))
+                } else {
+                    (index >= available_decoded).then_some((index + 1, Limit::DecodedTokenBytes))
+                }
+            })
+            .expect("an offending byte");
+        self.position += through;
+        if !self.local_mode() {
+            self.source_position += self.width(&run[..through]);
+        }
+        Error::new(ErrorKind::LimitExceeded(limit), self.diagnostic_start())
     }
 
     /// While no token is buffered in plain UTF-8 mode, the absolute offset of
@@ -358,114 +490,6 @@ impl Tokenizer {
         Ok(())
     }
 
-    fn consume(&mut self, byte: u8, offset: usize, source_offset: usize) -> Result<(), Error> {
-        if matches!(self.scan, Scan::Text) && byte == b'<' && !self.buffer.is_empty() {
-            self.mark_at(TokenKind::Text, offset, source_offset);
-            self.lookahead = Some((offset, source_offset));
-            return Ok(());
-        }
-        if self.buffer.is_empty() {
-            self.start = offset;
-            self.source_start = source_offset;
-        }
-        if self.raw_length() > self.limit {
-            return Err(Error::new(
-                ErrorKind::LimitExceeded(Limit::TokenBytes),
-                self.diagnostic_start(),
-            ));
-        }
-        self.append(byte)?;
-        match self.scan {
-            Scan::Text if byte == b'<' => self.scan = Scan::Prefix,
-            Scan::Text => {}
-            Scan::Prefix if self.buffer.len() == 2 && byte != b'!' => {
-                if byte == b'?' {
-                    self.scan = Scan::Instruction { question: false };
-                } else {
-                    self.scan = Scan::Tag { quote: None };
-                    self.tag_byte(byte, offset);
-                }
-            }
-            Scan::Prefix => {
-                // Earlier bytes matched the family that byte 2 selects, so
-                // only the newest byte is compared.
-                let length = self.buffer.len();
-                let family: &[u8] = match self.buffer.get(2) {
-                    Some(b'-') => b"<!--",
-                    Some(b'[') => b"<![CDATA[",
-                    Some(b'D') => b"<!DOCTYPE",
-                    _ => b"",
-                };
-                if length < 3 {
-                } else if family.get(length - 1) != Some(&byte) {
-                    self.mark(TokenKind::InvalidMarkup, offset + 1);
-                } else if length == family.len() {
-                    match family[2] {
-                        b'-' => self.scan = Scan::Comment { hyphens: 0 },
-                        b'[' => self.scan = Scan::Cdata { brackets: 0 },
-                        _ => self.mark(TokenKind::Dtd, offset + 1),
-                    }
-                }
-            }
-            Scan::Tag { .. } => self.tag_byte(byte, offset),
-            Scan::Comment { hyphens } => {
-                if byte == b'>' && hyphens == 2 {
-                    self.mark(TokenKind::Comment, offset + 1);
-                } else {
-                    self.scan = Scan::Comment {
-                        hyphens: if byte == b'-' {
-                            (hyphens + 1).min(2)
-                        } else {
-                            0
-                        },
-                    };
-                }
-            }
-            Scan::Cdata { brackets } => {
-                if byte == b'>' && brackets == 2 {
-                    self.mark(TokenKind::Cdata, offset + 1);
-                } else {
-                    self.scan = Scan::Cdata {
-                        brackets: if byte == b']' {
-                            (brackets + 1).min(2)
-                        } else {
-                            0
-                        },
-                    };
-                }
-            }
-            Scan::Instruction { question } => {
-                if byte == b'>' && question {
-                    self.mark(TokenKind::Instruction, offset + 1);
-                } else {
-                    self.scan = Scan::Instruction {
-                        question: byte == b'?',
-                    };
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn tag_byte(&mut self, byte: u8, offset: usize) {
-        let Scan::Tag { quote } = self.scan else {
-            unreachable!("tag scanner state")
-        };
-        match (quote, byte) {
-            (Some(q), b) if q == b => self.scan = Scan::Tag { quote: None },
-            (None, b'\'' | b'"') => self.scan = Scan::Tag { quote: Some(byte) },
-            (None, b'>') => {
-                let kind = if self.buffer.starts_with(b"</") {
-                    TokenKind::End
-                } else {
-                    TokenKind::Start
-                };
-                self.mark(kind, offset + 1);
-            }
-            _ => {}
-        }
-    }
-
     fn mark(&mut self, kind: TokenKind, end: usize) {
         self.mark_at(kind, end, self.source_position)
     }
@@ -529,7 +553,7 @@ pub(crate) fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
 /// Complete markup whose `<` immediately precedes `rest`; the length excludes it.
 fn markup_after_lt(rest: &[u8]) -> Option<(TokenKind, usize)> {
     let delimited = |kind, prefix: usize, end: &[u8]| {
-        memmem::find(&rest[prefix..], end).map(|at| (kind, prefix + at + end.len()))
+        find(&rest[prefix..], end).map(|at| (kind, prefix + at + end.len()))
     };
     match rest {
         [] => None,
@@ -550,6 +574,16 @@ fn markup_after_lt(rest: &[u8]) -> Option<(TokenKind, usize)> {
     }
 }
 
+/// Smallest input worth checking for a whole token to adopt in one copy.
+const ADOPT_WINDOW: usize = 32;
+
+/// First occurrence of a short delimiter such as `-->`. Its first byte is
+/// located with `memchr`, avoiding a substring searcher's per-call setup,
+/// which dominates on the small tokens of typical documents.
+pub(crate) fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    memchr_iter(needle[0], haystack).find(|at| haystack[*at..].starts_with(needle))
+}
+
 /// Length through the first `>` outside quoted attribute values.
 pub(crate) fn tag_close(bytes: &[u8]) -> Option<usize> {
     let mut at = 0;
@@ -562,6 +596,35 @@ pub(crate) fn tag_close(bytes: &[u8]) -> Option<usize> {
         at += 1;
         at += memchr(quote, &bytes[at..])? + 1;
     }
+}
+
+/// End of a comment, CDATA or PI body: the length through the first `>`
+/// preceded by enough `marker` bytes (two, or one `?`), counting `run`
+/// markers that already trail before `input`. Otherwise the trailing run.
+fn delimited_end(input: &[u8], marker: u8, run: u8) -> Result<usize, u8> {
+    let needed = if marker == b'?' { 1 } else { 2 };
+    let trailing = |bytes: &[u8], carried: u8| {
+        let count = bytes
+            .iter()
+            .rev()
+            .take(needed)
+            .take_while(|byte| **byte == marker)
+            .count();
+        let carried = if count == bytes.len() { carried } else { 0 };
+        (count as u8 + carried).min(needed as u8)
+    };
+    let mut from = 0;
+    // Markers before the first `>` may continue the carried run.
+    let mut carried = run;
+    while let Some(index) = memchr(b'>', &input[from..]) {
+        let close = from + index;
+        if usize::from(trailing(&input[from..close], carried)) == needed {
+            return Ok(close + 1);
+        }
+        from = close + 1;
+        carried = 0;
+    }
+    Err(trailing(&input[from..], carried))
 }
 
 #[cfg(test)]

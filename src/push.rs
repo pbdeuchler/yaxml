@@ -182,9 +182,8 @@ impl PushParser {
             )));
         };
         self.received = total;
-        // A recovered callback panic must not permit reuse of partially
-        // delivered tokens or mutated document state.
-        self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
+        // The session poisons itself around each call, so a recovered
+        // callback panic cannot reuse partially delivered state.
         let result = self.session.advance(input, &mut emit).map(drop);
         self.remember(result)
     }
@@ -214,7 +213,6 @@ impl PushParser {
         if self.finished {
             return Ok(());
         }
-        self.failure = Some(Error::new(ErrorKind::InvalidState, self.position()));
         let result = self.session.finish(&mut emit);
         if result.is_ok() {
             self.finished = true;

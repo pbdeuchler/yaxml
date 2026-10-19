@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
-use memchr::{memchr, memmem};
+use memchr::memchr;
 
 use crate::escape::normalize_replacement_required;
 use crate::escape::{needs_normalization, normalize_into};
@@ -533,14 +533,14 @@ impl<'source> ParserState<'source> {
             TokenKind::Start => self.start_element(raw, start, &mut retain),
             TokenKind::End => self.end_element(raw, start),
             TokenKind::Text => {
-                if let Some(relative) = memmem::find(raw.as_bytes(), b"]]>") {
+                if let Some(relative) = crate::tokenizer::find(raw.as_bytes(), b"]]>") {
                     return Err(Error::new(ErrorKind::Syntax, start + relative));
                 }
                 Ok(Some(Event::Text(self.normalized(raw, start, false, true)?)))
             }
             TokenKind::Comment => {
                 let body = delimited_body(raw, "<!--", "-->", start)?;
-                if memmem::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
+                if crate::tokenizer::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
                     return Err(Error::new(ErrorKind::Syntax, start));
                 }
                 Ok(Some(Event::Comment(self.normalized(
@@ -945,14 +945,14 @@ impl<'source> ParserState<'source> {
         self.check_token_start(token_kind, start)?;
         let event = match kind {
             DtdLeafKind::Text => {
-                if let Some(relative) = memmem::find(raw.as_bytes(), b"]]>") {
+                if let Some(relative) = crate::tokenizer::find(raw.as_bytes(), b"]]>") {
                     return Err(Error::new(ErrorKind::Syntax, start + relative));
                 }
                 Event::Text(self.normalized_replacement_owned(raw, start)?)
             }
             DtdLeafKind::Comment => {
                 let body = delimited_body(raw, "<!--", "-->", start)?;
-                if memmem::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
+                if crate::tokenizer::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
                     return Err(Error::new(ErrorKind::Syntax, start));
                 }
                 Event::Comment(self.budget.copy(body, start + 4)?)

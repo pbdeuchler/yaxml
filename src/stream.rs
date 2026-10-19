@@ -58,6 +58,21 @@ impl Stream {
     }
 
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
+        // Plain UTF-8 below the decoded ceiling needs no decoding: the
+        // tokenizer takes it directly and the decoder counts it as forwarded.
+        // As in forwarding, empty input reaches no token state.
+        if self
+            .decoder
+            .utf8_allowance()
+            .is_some_and(|allowance| allowance >= input.len())
+        {
+            if input.is_empty() {
+                return Ok(0);
+            }
+            let consumed = self.tokenizer.advance(input)?;
+            self.decoder.skip_utf8(consumed);
+            return Ok(consumed);
+        }
         let tokenizer = &mut self.tokenizer;
         let state = &mut self.state;
         let limit = self.decoded_token_limit;

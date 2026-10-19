@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ops::Range};
 
-use memchr::{memchr, memmem};
+use memchr::memchr;
 
 use crate::dtd::DtdLimits;
 use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
@@ -661,7 +661,7 @@ impl<'a> SliceReader<'a> {
         let available = self.input.len() - start;
         let length = available.min(self.limits.max_token_bytes);
         if prefix <= length
-            && let Some(relative) = memmem::find(
+            && let Some(relative) = crate::tokenizer::find(
                 &self.input.as_bytes()[start + prefix..start + length],
                 delimiter,
             )

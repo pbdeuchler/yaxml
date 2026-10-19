@@ -228,3 +228,48 @@ fn oversized_bulk_runs_fail_at_the_first_offending_byte() {
         assert!(tokenizer.buffer.capacity() <= 3);
     }
 }
+
+#[test]
+fn short_delimiter_search_finds_the_first_occurrence() {
+    for (haystack, needle, expected) in [
+        (b"a-->b-->".as_slice(), b"-->".as_slice(), Some(1)),
+        (b"--->", b"-->", Some(1)),
+        (b"]]]>", b"]]>", Some(1)),
+        (b"x?>", b"?>", Some(1)),
+        (b"--", b"-->", None),
+        (b"", b"]]>", None),
+        (b"]]", b"]]>", None),
+    ] {
+        assert_eq!(find(haystack, needle), expected, "{haystack:?}");
+    }
+}
+
+#[test]
+fn delimited_ends_continue_carried_marker_runs() {
+    for (input, marker, run, expected) in [
+        // Complete within the input.
+        (b"a-->".as_slice(), b'-', 0, Ok(4)),
+        (b"a->b-->".as_slice(), b'-', 0, Ok(7)),
+        (b"x?>".as_slice(), b'?', 0, Ok(3)),
+        // Completed by markers carried from earlier chunks.
+        (b">".as_slice(), b'-', 2, Ok(1)),
+        (b"->".as_slice(), b'-', 1, Ok(2)),
+        (b">".as_slice(), b'?', 1, Ok(1)),
+        (b"]>".as_slice(), b']', 1, Ok(2)),
+        // A carried run does not cross an intervening `>`.
+        (b">>".as_slice(), b'-', 1, Err(0)),
+        (b"a>-".as_slice(), b'-', 2, Err(1)),
+        // Incomplete: the trailing marker run, capped at the requirement.
+        (b"".as_slice(), b'-', 1, Err(1)),
+        (b"a".as_slice(), b'-', 2, Err(0)),
+        (b"-".as_slice(), b'-', 1, Err(2)),
+        (b"---".as_slice(), b'-', 0, Err(2)),
+        (b"??".as_slice(), b'?', 0, Err(1)),
+    ] {
+        assert_eq!(
+            delimited_end(input, marker, run),
+            expected,
+            "{input:?} {marker} {run}"
+        );
+    }
+}
