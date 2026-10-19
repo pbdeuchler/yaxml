@@ -92,8 +92,15 @@ struct PendingNamespace {
     existing: bool,
 }
 
+/// An open element's QName: retained by the frontend, or copied into the
+/// shared `frame_names` stack when streaming (one buffer, no per-element string).
+enum FrameName<'source> {
+    Retained(Cow<'source, str>),
+    Pooled(Range<usize>),
+}
+
 struct Frame<'source> {
-    qualified: Cow<'source, str>,
+    qualified: FrameName<'source>,
     bindings_start: usize,
 }
 
@@ -261,6 +268,8 @@ pub(crate) struct ParserState<'source> {
     token_limit_kind: Limit,
     phase: Phase,
     stack: Vec<Frame<'source>>,
+    frame_names: String,
+    pool_frame_names: bool,
     bindings: Vec<Binding<'source>>,
     namespace_index: HashMap<Cow<'source, str>, usize>,
     namespace_ids: HashMap<Cow<'source, str>, NamespaceEntry>,
@@ -289,6 +298,8 @@ impl<'source> ParserState<'source> {
             token_limit_kind: Limit::TokenBytes,
             phase: Phase::Prolog,
             stack: Vec::new(),
+            frame_names: String::new(),
+            pool_frame_names: false,
             bindings: Vec::new(),
             namespace_index: HashMap::new(),
             namespace_ids: HashMap::new(),
@@ -315,6 +326,28 @@ impl<'source> ParserState<'source> {
         self.set_initial_offset(initial);
         self.token_limit = decoded_token_limit;
         self.token_limit_kind = Limit::DecodedTokenBytes;
+    }
+
+    /// Streaming frontends copy every retained name; open element names then
+    /// share one charged buffer instead of one allocation per element.
+    pub(crate) fn pooling_frame_names(mut self) -> Self {
+        self.pool_frame_names = true;
+        self
+    }
+
+    fn open_name(&self) -> Option<&str> {
+        self.stack.last().map(|frame| match &frame.qualified {
+            FrameName::Retained(name) => name.as_ref(),
+            FrameName::Pooled(range) => &self.frame_names[range.clone()],
+        })
+    }
+
+    fn pop_frame(&mut self) -> Frame<'source> {
+        let frame = self.stack.pop().expect("matched frame");
+        if let FrameName::Pooled(range) = &frame.qualified {
+            self.frame_names.truncate(range.start);
+        }
+        frame
     }
 
     /// A BOM-less decoding stream can follow a declared byte charset.
@@ -634,7 +667,17 @@ impl<'source> ParserState<'source> {
             self.stack
                 .try_reserve(1)
                 .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-            let qualified = retain(qualified, start + 1, &mut self.budget)?;
+            let qualified = if self.pool_frame_names {
+                self.budget.charge_owned(qualified.len(), start + 1)?;
+                self.frame_names
+                    .try_reserve(qualified.len())
+                    .map_err(|_| Error::new(ErrorKind::Allocation, start + 1))?;
+                let begin = self.frame_names.len();
+                self.frame_names.push_str(qualified);
+                FrameName::Pooled(begin..self.frame_names.len())
+            } else {
+                FrameName::Retained(retain(qualified, start + 1, &mut self.budget)?)
+            };
             self.stack.push(Frame {
                 qualified,
                 bindings_start,
@@ -869,15 +912,11 @@ impl<'source> ParserState<'source> {
         if scan.cursor != body.len() {
             return Err(Error::new(ErrorKind::Syntax, start));
         }
-        if self
-            .stack
-            .last()
-            .is_none_or(|frame| frame.qualified != qualified)
-        {
+        if self.open_name() != Some(qualified) {
             return Err(Error::new(ErrorKind::MismatchedEndTag, start));
         }
         let name = self.resolve_end_name_owned(qualified, start + 2)?;
-        let frame = self.stack.pop().expect("matched frame");
+        let frame = self.pop_frame();
         self.unwind_bindings(frame.bindings_start);
         if self.stack.is_empty() {
             self.phase = Phase::Epilog;
@@ -1248,7 +1287,9 @@ impl<'source> ParserState<'source> {
             Ok(Event::Empty(element))
         } else {
             self.stack.push(Frame {
-                qualified: qualified.expect("nonempty tag retains its qualified name"),
+                qualified: FrameName::Retained(
+                    qualified.expect("nonempty tag retains its qualified name"),
+                ),
                 bindings_start,
             });
             self.phase = Phase::Content;
@@ -1477,7 +1518,7 @@ impl<'source> ParserState<'source> {
         };
         // The open element's name is a validated QName: an exact match needs
         // no rescan, and any other spelling takes the diagnosing path.
-        let open = self.stack.last().map(|frame| frame.qualified.as_ref());
+        let open = self.open_name();
         let trimmed = body.trim_end_matches([' ', '\t', '\r', '\n']);
         let qualified = if open == Some(trimmed) {
             trimmed
@@ -1494,7 +1535,7 @@ impl<'source> ParserState<'source> {
         };
         let prefix_length = memchr(b':', qualified.as_bytes()).and_then(NonZeroUsize::new);
         let name = self.resolve_name(qualified, prefix_length, start + 2)?;
-        let frame = self.stack.pop().expect("matched frame");
+        let frame = self.pop_frame();
         self.unwind_bindings(frame.bindings_start);
         if self.stack.is_empty() {
             self.phase = Phase::Epilog;

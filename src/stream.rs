@@ -1,7 +1,7 @@
-use crate::encoding::{DecodeProgress, Decoded, Decoder, TokenSpan};
+use crate::encoding::{DecodeProgress, Decoded, Decoder, SourceEncoding, TokenSpan};
 use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState};
-use crate::tokenizer::{TokenKind, Tokenizer};
+use crate::tokenizer::{TokenKind, Tokenizer, complete_token};
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, SourceOrigin};
 
 pub(crate) mod dtd;
@@ -19,7 +19,7 @@ impl Stream {
         Self {
             tokenizer: Tokenizer::new(limits.max_token_bytes, decode.max_decoded_token_bytes),
             decoder: Decoder::new(decode.max_decoded_bytes),
-            state: ParserState::new(limits, 0),
+            state: ParserState::new(limits, 0).pooling_frame_names(),
             decoded_token_limit: decode.max_decoded_token_bytes,
         }
     }
@@ -101,11 +101,14 @@ impl Stream {
     ) -> Result<(usize, Option<bool>), Error> {
         let mut consumed = 0;
         loop {
-            if let Some((kind, _, _)) = self.tokenizer.current() {
-                if kind == TokenKind::Dtd {
-                    return Ok((consumed, None));
-                }
-                if let Some((event, origin)) = parse(&self.tokenizer, &mut self.state)? {
+            let token = match self.tokenizer.current() {
+                Some((TokenKind::Dtd, _, _)) => return Ok((consumed, None)),
+                Some((kind, bytes, span)) => Some((kind, bytes, span.clone())),
+                None if !finalizing => self.borrow_token(input, &mut consumed),
+                None => None,
+            };
+            if let Some((kind, bytes, span)) = token {
+                if let Some((event, origin)) = parse_token(kind, bytes, &span, &mut self.state)? {
                     if let Event::Declaration(declaration) = &event {
                         *standalone = declaration.standalone == Some(true);
                     }
@@ -130,6 +133,38 @@ impl Stream {
                 return Err(Error::new(ErrorKind::InvalidState, self.position()));
             }
         }
+    }
+
+    /// Takes the next token straight from `input` when it is complete there,
+    /// leaving tokenizer and decoder counters exactly where buffering it
+    /// would. Anything else stays with the incremental tokenizer.
+    fn borrow_token<'input>(
+        &mut self,
+        input: &'input [u8],
+        consumed: &mut usize,
+    ) -> Option<(TokenKind, &'input [u8], TokenSpan)> {
+        let (next, replay) = self.tokenizer.idle_utf8()?;
+        if replay && *consumed == 0 {
+            return None;
+        }
+        let allowance = self.decoder.utf8_allowance()?;
+        let start = *consumed - usize::from(replay);
+        let end = *consumed + allowance.min(input.len() - *consumed);
+        let (kind, length) = complete_token(&input[start..end])?;
+        if length > self.tokenizer.borrow_limit() {
+            return None;
+        }
+        let base = next - usize::from(replay);
+        let taken = start + length + usize::from(kind == TokenKind::Text) - *consumed;
+        self.tokenizer.skip_borrowed(kind, base + length);
+        self.decoder.skip_utf8(taken);
+        *consumed += taken;
+        let span = TokenSpan {
+            decoded: base..base + length,
+            source: base..base + length,
+            encoding: SourceEncoding::Utf8,
+        };
+        Some((kind, &input[start..start + length], span))
     }
 
     pub(crate) fn emit(
@@ -186,6 +221,15 @@ fn parse<'token>(
             tokenizer.source_position(),
         ));
     };
+    parse_token(kind, bytes, span, state)
+}
+
+fn parse_token<'token>(
+    kind: TokenKind,
+    bytes: &'token [u8],
+    span: &TokenSpan,
+    state: &mut ParserState<'static>,
+) -> Result<Option<(Event<'token>, SourceOrigin)>, Error> {
     let raw = validate(kind, bytes, span)?;
     state
         .process_token(kind, raw, span.decoded.clone(), |raw, offset, budget| {

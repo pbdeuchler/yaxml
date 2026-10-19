@@ -84,7 +84,8 @@ impl<W: Write> Writer<W> {
                     ..Limits::default()
                 },
                 0,
-            ),
+            )
+            .pooling_frame_names(),
             buffer: TokenBuffer {
                 text: String::new(),
                 offset: 0,
