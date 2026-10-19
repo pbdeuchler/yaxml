@@ -80,19 +80,23 @@ Options map to the same `ParseOptions` flags as xmllint's (`--noent`,
 `--loaddtd`, `--dtdattr`, `--valid`, `--noblanks`, `--nocdata`, `--nsclean`,
 `--noenc`, `--huge`, and the loading `--postvalid`, `--dtdvalid`,
 `--relaxng`, `--schema` and canonical forms imply), so entity references are
-kept without `--noent`. Attribute values are always written substituted
-(libxml2 writes `a="&name;"`). Without `--recover` yaxml also treats an
+kept without `--noent`, in content and attribute values (`a="&name;"`, also
+in `--xpath` attribute output). An `<!ATTLIST>` default with a reference is
+written substituted where libxml2 escapes the reference
+([compatibility](compatibility.md#entity-references-without-noent)). Without `--recover` yaxml also treats an
 undeclared namespace prefix, a redeclared predefined entity, trailing content
 and unsupported encodings (ISO-8859-5) as fatal where libxml2 continues.
 `tests/yaxmllint.rs` runs both programs over libxml2's own test inputs when
 `YAXML_XMLLINT` names the pinned binary (`YAXML_LIBXML2_SRC` its source tree)
 and compares stdout and exit code: `--noout`, `--valid`, `--postvalid`,
 `--c14n`, `--c14n11`, `--exc-c14n`, `--html`, `--relaxng`, `--stream --relaxng`,
-`--stream --schema`, `--schema` and `--xpath` agree on every input outside the listed gaps (118/118,
-118/118, 31/31, 7/7, 28/28, 21/21, 44/44, 798/798, 798/798, 242/242, 242/242, 327/327); default and
-`--format` output agree on 127/143 and 126/143 inputs (105 and 104 before
-entity references were kept), the rest being the gaps above and three
-documents with references in attribute values. `--recover` agrees with
+`--stream --schema`, `--schema`, `--xpath` and default output agree on every input outside the
+listed gaps (120/120, 120/120, 33/33, 7/7, 28/28, 21/21, 44/44, 798/798, 798/798, 242/242, 242/242,
+327/327, 120/120); over all inputs default and `--format` output agree on 130/143 and 127/143
+(105 and 104 before entity references were kept, 127 and 126 before attribute references were),
+the rest being the gaps and, for `--format`, three documents where the `NOBLANKS` sibling
+heuristic differs. `attribute_references_against_xmllint` compares eight flag sets over
+documents with attribute references and requires all to agree. `--recover` agrees with
 `xmllint --recover` on 37/45 `test/errors` inputs (82.22%) and on 1305/1498
 XMLTS not-wf documents (87.12%); the differences are listed under
 [Recovery](compatibility.md#recovery-recover).

@@ -21,9 +21,9 @@ use yaxml::{
 type Shared = Arc<dyn Allocator + Send + Sync>;
 
 /// What a parse produced, through the generic consumers: Writer output, an
-/// XPath count, Canonical XML (or its error), recovered errors and DTD
-/// validity diagnostics.
-type Outcome = Result<(Vec<u8>, usize, String, usize, usize), Error>;
+/// XPath count, Canonical XML (or its error), recovered errors, DTD
+/// validity diagnostics and the kept attribute references.
+type Outcome = Result<(Vec<u8>, usize, String, usize, usize, Vec<String>), Error>;
 
 fn outcome<A: Allocator>(document: Result<OwnedDocument<A>, Error>) -> Outcome {
     let document = document?;
@@ -36,12 +36,16 @@ fn outcome<A: Allocator>(document: Result<OwnedDocument<A>, Error>) -> Outcome {
         .len();
     let canonical = c14n::to_string(&document, &c14n::Options::new(c14n::Mode::C14n10))
         .unwrap_or_else(|error| format!("{error:?}"));
+    let unexpanded = document.nodes().flat_map(|node| {
+        (0..node.attributes().len()).filter_map(move |at| node.unexpanded_attribute(at))
+    });
     Ok((
         writer.into_inner(),
         elements,
         canonical,
         document.errors().len(),
         document.validity().len(),
+        unexpanded.map(str::to_owned).collect(),
     ))
 }
 
@@ -58,7 +62,7 @@ fn parse_in_matches_parse_with_for_every_allocator() {
         max_input_bytes: 4,
         ..Limits::default()
     };
-    let cases: [(&str, Vec<u8>, u32, Limits, bool); 10] = [
+    let cases: [(&str, Vec<u8>, u32, Limits, bool); 11] = [
         (
             "plain",
             b"<r a='1'>text<c/></r>".to_vec(),
@@ -76,6 +80,13 @@ fn parse_in_matches_parse_with_for_every_allocator() {
         (
             "entity reference",
             b"<!DOCTYPE r [<!ENTITY e 'x<b/>'>]><r>&e;</r>".to_vec(),
+            0,
+            Limits::default(),
+            true,
+        ),
+        (
+            "attribute reference",
+            b"<!DOCTYPE r [<!ENTITY e 'x'>]><r a='1&e;' b='2'><c d='&e;'/></r>".to_vec(),
             0,
             Limits::default(),
             true,
@@ -164,8 +175,9 @@ fn parse_in_rejects_xinclude_whose_tree_is_global() {
 
 #[test]
 fn every_storage_vector_holds_the_supplied_allocator() {
-    // One clone per allocator-backed vector: nodes and attributes.
-    const HELD: usize = 2;
+    // One clone per allocator-backed vector: nodes, attributes and kept
+    // attribute references.
+    const HELD: usize = 3;
     let shared: Shared = Arc::new(System);
     let parsed = OwnedDocument::parse_in(b"<r a='1'/>", ParseOptions::default(), shared.clone())
         .expect("parses");

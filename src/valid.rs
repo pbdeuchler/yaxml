@@ -176,7 +176,9 @@ pub(crate) struct AttributeDecl {
 impl AttributeDecl {
     fn fixed(&self) -> Option<&str> {
         match &self.default {
-            StoredDefault::Value { fixed: true, value } => Some(value),
+            StoredDefault::Value {
+                fixed: true, value, ..
+            } => Some(value),
             _ => None,
         }
     }

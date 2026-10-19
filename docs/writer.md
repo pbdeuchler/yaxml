@@ -41,7 +41,10 @@ preserved; a present encoding is rewritten to `UTF-8`. Qualified and expanded
 names, explicit namespace declarations, ordered attributes, document-child
 order, and node kinds are preserved. Every childless element becomes `<name/>`
 because the immutable DOM does not retain the source's empty-tag spelling.
-Top-level whitespace was not retained and is not reconstructed.
+Top-level whitespace was not retained and is not reconstructed. Entity
+references kept without `NOENT`, in content and in attribute values, are
+written as their replacement: each event is reparsed without the DTD that
+declares them. `save` writes them as references, as libxml2 does.
 
 ## Namespaces and spelling
 
@@ -176,8 +179,9 @@ encoding. With no encoding at all, text and attribute values escape non-ASCII
 as `&#xH;` (`XML_ESCAPE_NON_ASCII`) and markup stays UTF-8. Characters an
 encoding lacks become `&#N;` in text, attribute values, attribute defaults and
 entity values. libxml2's converter writes the same reference inside names,
-comments, PIs, CDATA and DOCTYPE identifiers, where it is markup or literal
-text; `save` returns `InvalidCharacter` at the output offset instead. Unknown
+comments, PIs, CDATA, DOCTYPE identifiers and the entity references of entity
+and attribute values, where it is markup or literal text; `save` returns
+`InvalidCharacter` at the output offset instead. Unknown
 labels and libxml2's "HTML" converter are `UnsupportedEncoding`.
 
 Escaping follows `xmlEscapeTab`/`xmlEscapeTabAttr`: `&`, `<`, `>` everywhere,
@@ -233,7 +237,10 @@ checks DOM agreement, that only markup an encoding lacks fails, and that
 saving reparsed output reproduces it byte for byte, after one extra round
 when libxml2's two-step content-model normalization applies; 1,973,977 runs
 (6 minutes, nightly-2026-06-06, `-timeout=2`) found no failure after the two
-fixes kept in `fuzz/regressions/save`.
+fixes kept in `fuzz/regressions/save`. The target now also picks `NOENT` from
+the input hash, so attribute and content references are saved both kept and
+substituted; 1,052,689 runs (5 minutes, `-fork=1 -timeout=2`) found no failure
+after the third regression (entity-value reference names).
 
 `cargo bench --bench serialize` (sink `save`, 4,096 siblings, release, Apple
 M-series) measures 220-230 MiB/s for flat elements, 530 MiB/s for text,

@@ -155,7 +155,7 @@ Priority is dependency order and migration value. P0 is the first usable secure 
 | P1 | Encoding: BOM/declaration/explicit-override precedence; UTF-8/UTF-16 LE/BE, ASCII; incremental decoder and original-byte offsets; then remaining upstream built-ins and caller-provided converters | `encoding.h`; `xmlCharEncoding`, `xmlCreateCharEncodingHandler`, `xmlCtxtSetCharEncConvImpl` |
 | P2 | Full DTD syntax and non-validating semantics: internal/external subsets, parameter/general entities, declarations, notations, unparsed entities, default/fixed attributes, ID typing, standalone constraints, entity-reference preservation vs substitution | `entities.h`, `valid.h`, `parser.h`, `SAX2.h`; `xmlParseDTD`, `xmlGetDocEntity`, `xmlGetID` |
 | P1 | Mutable DOM: creation, insertion, unlink/remove, replacement, attributes, namespaces, copy/import/adopt, cross-document ownership, adjacent-text merging, base URI, `xml:lang`, `xml:space`, line metadata | `tree.h`; `xmlAddChild*`, `xmlAddSibling`, `xmlUnlinkNode`, `xmlReplaceNode`, `xmlSetProp`, `xmlDocCopyNode`, `xmlDOMWrap*` |
-| P1 | Serialization and writer: escaping, declarations, encoding, empty-element spelling, CDATA boundaries, namespace fixup, formatting, incremental writes and I/O failures; preserve semantic round trips. `save::to_vec` **implements** `xmlSaveDoc`/`xmlSaveTree`/`xmlNodeDump` output: all `xmlSaveOption` flags, UTF-8/UTF-16/single-byte encodings, XHTML rules and the regenerated internal subset over both DOMs; 96.32% of 517 XMLTS and libxml2 documents identical to `xmllint --noent --dtdattr` (98.28% formatted), the rest classified in [writer.md](writer.md); with libxml2's default parse (kept references) 505 of 530 match plain `xmllint`, the rest mostly attribute-value references. Open: namespace repair, `xmlTextWriter`, `Write` sinks, HTML subtrees | `xmlsave.h`, `xmlwriter.h`, `tree.h`; `xmlSaveTo*`, `xmlSaveDoc`, `xmlTextWriter*`, `xmlDocDump*` |
+| P1 | Serialization and writer: escaping, declarations, encoding, empty-element spelling, CDATA boundaries, namespace fixup, formatting, incremental writes and I/O failures; preserve semantic round trips. `save::to_vec` **implements** `xmlSaveDoc`/`xmlSaveTree`/`xmlNodeDump` output: all `xmlSaveOption` flags, UTF-8/UTF-16/single-byte encodings, XHTML rules and the regenerated internal subset over both DOMs; 96.32% of 517 XMLTS and libxml2 documents identical to `xmllint --noent --dtdattr` (98.28% formatted), the rest classified in [writer.md](writer.md); with libxml2's default parse (kept references, also in attribute values) 520–523 of 530 match plain `xmllint` (506 before attribute references were kept; notation order varies with libxml2's hash seed), the rest internal-subset spelling (notation hash order, external parameter entities, an XML 1.1 line end). Open: namespace repair, `xmlTextWriter`, `Write` sinks, HTML subtrees | `xmlsave.h`, `xmlwriter.h`, `tree.h`; `xmlSaveTo*`, `xmlSaveDoc`, `xmlTextWriter*`, `xmlDocDump*` |
 | P1 | Rust I/O and contexts: slices, strings, `Read`/`BufRead`, `Write`, context reuse/reset, explicit resource resolver, deterministic cleanup, parser options and capability reporting | `xmlIO.h`, `parser.h`; `xmlReadMemory`, `xmlReadIO`, `xmlCtxtReset`, `xmlCtxtSetOptions`, `xmlHasFeature` |
 | P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity. **Implemented** over both DOMs (`validate`, `valid::validate`, `valid::Dtd`); 234 of 242 XMLTS `invalid` cases reported invalid (libxml2 235) and every parsed `valid` case valid; libxml2's `test/valid` error counts match. See [validation-dtd.md](archive/validation-dtd.md) for the differences (content models see through kept entity references; streaming readers do not validate) | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
 | P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits. **Implemented** over both DOMs; see [xpath.md](xpath.md) for the differential results, recorded differences and gaps (`CHECKNS`/`NOVAR` flags, lookup callbacks) | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
@@ -325,9 +325,26 @@ and errors are identical in both modes, and reports the boundaries:
 - `TextReader` reports EntityReference nodes (type 5) and does not visit
   their content; `expand` writes the content into the expanded copy.
 - XInclude does not look for inclusions inside references.
-- Known difference: attribute values are always substituted (the DOM value
-  is libxml2's `xmlGetProp` value), so `save` writes the substituted value
-  where libxml2 writes `a="&name;"`.
+- Attribute values keep their references as libxml2's attribute children
+  do (`xmlParseAttValueInternal`, then `xmlNodeParseAttValue`): a declared
+  general reference stays `&name;`, character and predefined references are
+  resolved (an `&` from one becomes `&#38;`), an undeclared entity tolerated
+  after an external subset is dropped, and tokenized types normalize the
+  whitespace around kept references but not inside them. Namespace
+  declarations and `NOENT` always substitute. Both DOMs store this form
+  (`unexpanded_attribute(position)`) only for an attribute that kept a
+  reference; `attributes()` values stay substituted (`xmlGetProp`), and
+  XPath, validation, C14N and patterns read them. `save` and `yaxmllint
+  --xpath` write the kept form (`xmlSaveWriteAttrContent`); defaulted
+  attributes (`DTDATTR`) keep their default's references. An owned
+  `set_attribute_value` replaces the form with the new text. The `Writer`
+  writes substituted values, as it writes reference content. Differences:
+  libxml2's `xmlGetProp` concatenates a tokenized value's entity text
+  unnormalized (`a &s; d` with `s` = ` b  c ` reads `a  b  c  d`; yaxml
+  reads `a b c d`, the spec value and the `NOENT` value); libxml2 writes an
+  `<!ATTLIST>` default's kept references escaped (`"p&amp;x;q"`), which is
+  not a fixed point, so `save` writes the substituted default; XInclude
+  copies, `TextReader` and the HTML parser substitute.
 
 Match observable success behavior first: event/tree shape, namespace identity, normalized values, text coalescing, entity visibility and serialization bytes where specified. Error code/domain/severity and position matter next. Exact human error wording, allocation count, callback text-chunk boundaries and historical recovery quirks need separate documented contracts; streaming may split text into different chunks while preserving concatenated content. HTML parser options, reader properties, save flags and schema options keep their own mappings (`html::Options`, `ParserProperty`, `save::Options`, `xinclude::Options`).
 

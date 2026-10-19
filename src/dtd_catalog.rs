@@ -59,13 +59,25 @@ pub(crate) enum EntityLookup<'a> {
 pub(crate) enum StoredDefault {
     Required,
     Implied,
-    Value { fixed: bool, value: String },
+    /// `kept` is the value with its general references kept, when it has any.
+    Value {
+        fixed: bool,
+        value: String,
+        kept: Option<String>,
+    },
 }
 
 impl StoredDefault {
     pub(crate) fn value(&self) -> Option<&str> {
         match self {
             Self::Value { value, .. } => Some(value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn kept(&self) -> Option<&str> {
+        match self {
+            Self::Value { kept, .. } => kept.as_deref(),
             _ => None,
         }
     }
@@ -227,6 +239,22 @@ impl DtdCatalog {
         self.standalone
     }
 
+    /// Whether `attribute`'s value keeps its general references
+    /// ([`kept_form`](crate::dtd_tag::kept_form)): without `NOENT`, except
+    /// namespace declarations, which libxml2 always expands.
+    pub(crate) fn keeps_references(&self, attribute: &crate::parser::RawAttribute<'_>) -> bool {
+        !self.limits.flags.substitutes()
+            && attribute.literal.contains('&')
+            && attribute.qualified != "xmlns"
+            && !attribute.qualified.starts_with("xmlns:")
+    }
+
+    /// Whether a reference to general entity `name` is kept: it is declared
+    /// and expandable.
+    pub(crate) fn keeps(&self, name: &str) -> bool {
+        matches!(self.lookup_general(name), EntityLookup::Internal { .. })
+    }
+
     /// Whether non-namespace default attributes are added (`DTDATTR`).
     pub(crate) fn default_attributes(&self) -> bool {
         self.limits.flags.default_attributes()
@@ -382,18 +410,31 @@ impl DtdCatalog {
                         DefaultDeclarationView::Implied => StoredDefault::Implied,
                         DefaultDeclarationView::Value { fixed, literal } => {
                             let (content, offset) = literal.content();
+                            let tokenized = kind != AttributeKind::Cdata;
                             let value = self.process_value(
                                 content,
                                 offset,
                                 context.literals,
-                                ValueMode::Attribute {
-                                    tokenized: kind != AttributeKind::Cdata,
-                                },
+                                ValueMode::Attribute { tokenized },
                                 &mut ValueRequest::default(),
                             )?;
+                            let name = definition.name();
+                            let declaration = name == "xmlns" || name.starts_with("xmlns:");
+                            let kept = match self.limits.flags.substitutes() || declaration {
+                                true => None,
+                                false => crate::dtd_tag::kept_form(
+                                    content,
+                                    tokenized,
+                                    context.literals == LiteralSource::Physical,
+                                    |name| self.keeps(name),
+                                    |_| Ok(()),
+                                )?,
+                            };
+                            self.store_bytes(kept.as_ref().map_or(0, String::len))?;
                             StoredDefault::Value {
                                 fixed,
                                 value: value.into_owned(),
+                                kept,
                             }
                         }
                     };
@@ -551,7 +592,7 @@ impl DtdCatalog {
         increment(&mut self.usage.bindings, 1, ceiling, DTD_BYTES, Some(0))
     }
 
-    fn tokenized_attribute(&self, element: &str, name: &str) -> bool {
+    pub(crate) fn tokenized_attribute(&self, element: &str, name: &str) -> bool {
         self.dtd
             .element_index
             .get(element)

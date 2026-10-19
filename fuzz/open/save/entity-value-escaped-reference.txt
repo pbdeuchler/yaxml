@@ -1,9 +1,0 @@
-entity-value-escaped-reference.bin (save target, found 2026-10-19, 630 s run)
-
-A parameter-entity literal contains a bypassed general reference with a
-non-ASCII name (`&ݎ10FFFF;`). Saving with a single-byte encoding
-(windows-1252) escapes the name character inside the reference, writing
-`&&#1870;10FFFF;`, so the saved output no longer reparses (InvalidReference;
-fuzz/save.rs "saved output does not reparse"). Characters of entity-value
-references cannot be escaped; the encoder should fail (or keep the reference
-in an encodable form) instead.

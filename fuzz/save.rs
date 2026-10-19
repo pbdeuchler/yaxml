@@ -5,7 +5,7 @@
 //! checks the regenerated internal subset, escaping, references, formatting
 //! and the namespace declarations a subtree gains.
 
-use yaxml::{Document, ErrorKind, OwnedDocument, OwnedNodeKind, save};
+use yaxml::{Document, ErrorKind, OwnedDocument, OwnedNodeKind, ParseOptions, options, save};
 
 const FLAGS: [u32; 8] = [
     save::FORMAT,
@@ -32,12 +32,15 @@ const ENCODINGS: [Option<&str>; 8] = [
 const INDENTS: [&str; 3] = ["  ", "\t", " \t "];
 
 pub(super) fn exercise(input: &[u8]) {
-    let Ok(owned) = OwnedDocument::parse_bytes(input) else {
-        return;
-    };
     let seed = input.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, &byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
     });
+    // Without `NOENT` content and attribute references are kept and saved as
+    // `&name;`; with it they are substituted.
+    let parse = (seed >> 63 == 1) as u32 * options::NOENT;
+    let Ok(owned) = OwnedDocument::parse_with(input, ParseOptions::new(parse)) else {
+        return;
+    };
     let flags = FLAGS
         .iter()
         .enumerate()
@@ -56,7 +59,8 @@ pub(super) fn exercise(input: &[u8]) {
         indent: INDENTS[(seed >> 11) as usize % INDENTS.len()],
     };
     let output = save::to_vec(&owned, &options);
-    if let Ok(borrowed) = Document::parse_bytes(input) {
+    let borrowed = || Document::parse_with(input, ParseOptions::new(parse));
+    if let Ok(borrowed) = borrowed() {
         assert_eq!(
             save::to_vec(&borrowed, &options),
             output,
@@ -77,6 +81,7 @@ pub(super) fn exercise(input: &[u8]) {
         Ok(_) if !resolvable => {}
         Ok(output) => fixed_point(
             &output,
+            parse,
             &save::Options {
                 encoding: label,
                 ..options
@@ -88,7 +93,7 @@ pub(super) fn exercise(input: &[u8]) {
     let count = owned.nodes().len();
     let node = owned.nodes().nth((seed >> 16) as usize % count).unwrap();
     let subtree = save::to_vec(node, &options);
-    if let Ok(borrowed) = Document::parse_bytes(input) {
+    if let Ok(borrowed) = borrowed() {
         let view = borrowed.nodes().nth((seed >> 16) as usize % count).unwrap();
         assert_eq!(save::to_vec(view, &options), subtree, "DOM disagreement");
     }
@@ -97,7 +102,12 @@ pub(super) fn exercise(input: &[u8]) {
         Ok(output)
             if node.kind() == OwnedNodeKind::Element
                 && matches!(options.encoding, None | Some("UTF-8"))
-                && node.descendants().all(|node| node.entity_name().is_none()) =>
+                && node.descendants().all(|node| {
+                    // References need the document's DTD to reparse.
+                    node.entity_name().is_none()
+                        && (0..node.attributes().len())
+                            .all(|position| node.unexpanded_attribute(position).is_none())
+                }) =>
         {
             let reparsed = OwnedDocument::parse_bytes(&output)
                 .expect("an element subtree is a namespace-well-formed document");
@@ -124,7 +134,7 @@ fn assert_lossy(kind: ErrorKind, label: Option<&str>) {
 /// Saving the reparsed output in the same encoding reproduces it, when it
 /// can be reparsed: without a declaration, only UTF-8, ASCII-only output or
 /// UTF-16 behind a BOM is detected.
-fn fixed_point(output: &[u8], options: &save::Options<'_>) {
+fn fixed_point(output: &[u8], parse: u32, options: &save::Options<'_>) {
     let detected = match options.encoding.map(str::to_ascii_uppercase).as_deref() {
         None | Some("UTF-8") => true,
         Some("UTF-16") => output.starts_with(&[0xFF, 0xFE]),
@@ -134,7 +144,8 @@ fn fixed_point(output: &[u8], options: &save::Options<'_>) {
         return;
     }
     let resave = |output: &[u8]| {
-        let reparsed = OwnedDocument::parse_bytes(output).unwrap_or_else(|error| {
+        let reparsed = OwnedDocument::parse_with(output, ParseOptions::new(parse));
+        let reparsed = reparsed.unwrap_or_else(|error| {
             panic!(
                 "saved output does not reparse ({error}): {:?}",
                 String::from_utf8_lossy(output)

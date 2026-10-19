@@ -55,6 +55,17 @@ order, including XMLNS declarations. Values and namespaces use borrowed Cow
 views into the pool. These operations do not allocate strings or collect a new
 attribute vector.
 
+Values are substituted. Without `NOENT` an attribute that kept a general
+entity reference also has libxml2's unexpanded form (`&name;` kept, `&#38;`
+for a literal `&`; see [compatibility](compatibility.md#entity-references-without-noent)),
+which `unexpanded_attribute(position)` returns and `save` writes. Both DOMs
+hold these forms in a sorted side table, `(element, position, form)` in
+`Document` and `(attribute index, pool range)` in `OwnedDocument`, so an
+attribute without one costs nothing: the table is empty and a lookup is one
+binary search. Each kept form costs its bytes (at most the literal's) plus
+24 bytes (owned) or 40 bytes (borrowed). `set_attribute_value` drops the
+form of the attribute it replaces.
+
 `text()` returns the direct text, CDATA, comment or PI payload; elements return
 None and do not concatenate descendant text. `processing_instruction_target()`
 returns a target only for PI nodes. Empty strings remain present values.
@@ -138,13 +149,14 @@ assert!(Arc::ptr_eq(created.allocator(), &shared));
 `OwnedDocument<A = Global>`, `OwnedNode<'d, A = Global>` and
 `Editor<'d, A = Global>` default to the global heap, so code without the
 feature, or code that never names `A`, is unchanged. `A: Allocator + Clone`.
-The document keeps one clone per allocator-backed vector, which is two. Pass `&A`
+The document keeps one clone per allocator-backed vector (nodes,
+attributes and kept attribute references), which is three. Pass `&A`
 to share one allocator, or `Arc<dyn Allocator + Send + Sync>` for an owned,
 erased type. `parse_in` accepts the same options and reports the same errors as
 `parse_with`. The exception is `XINCLUDE`, which is `UnsupportedOption` because
 XInclude builds a new global-heap tree. `create_in` matches `create`.
 
-Node and attribute growth reserves fallibly. While parsing, failure returns
+Node, attribute and kept-reference growth reserves fallibly. While parsing, failure returns
 `ErrorKind::Allocation` and drops the partial tree. While editing, it returns
 `EditErrorKind::Allocation` before any link is published. Navigation, editing,
 XPath, XPointer, C14N, patterns, DTD validation, RELAX NG, XSD, Schematron and
@@ -164,9 +176,12 @@ These allocations stay on the global heap for every `A`:
 | Consumer output and working sets: XPath node sets, C14N and `Writer` buffers, validator state | each consumer |
 | The caller's input and resolver-loaded resources | the caller and the `Resolver` |
 
-On `benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
+Parsing reserves two node records (200 bytes each) per `<` in the first 16 KB,
+scaled to the input and capped at 4,096; the vector then grows as usual. On
+`benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
 retained document bytes (node + attribute + pool capacity) for markup-heavy
-input and 62% for one 500 KB text node.
+input; one 500 KB text node reserves 92 records (18 KB), where an estimate
+from input length reserved 4,097 (800 KB, 62% of retained bytes).
 
 ## Editing existing values
 
