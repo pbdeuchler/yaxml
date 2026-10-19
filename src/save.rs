@@ -487,12 +487,19 @@ impl Out {
         }
     }
 
-    /// Text the encoder converts, writing `&#N;` for what it lacks.
+    /// An entity value the encoder converts, writing `&#N;` for what it
+    /// lacks. A reference (`&` or `%` through `;`) is markup: libxml2's `&#N;`
+    /// inside its name would not reparse, so that is `InvalidCharacter`.
     fn converted(&mut self, text: &str) {
+        let mut reference = false;
         for c in text.chars() {
-            if !self.output.push(&mut self.bytes, c) {
+            reference |= matches!(c, '&' | '%');
+            if reference {
+                self.raw(c.encode_utf8(&mut [0; 4]));
+            } else if !self.output.push(&mut self.bytes, c) {
                 self.reference(c, false);
             }
+            reference &= c != ';';
         }
     }
 

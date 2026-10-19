@@ -176,8 +176,9 @@ encoding. With no encoding at all, text and attribute values escape non-ASCII
 as `&#xH;` (`XML_ESCAPE_NON_ASCII`) and markup stays UTF-8. Characters an
 encoding lacks become `&#N;` in text, attribute values, attribute defaults and
 entity values. libxml2's converter writes the same reference inside names,
-comments, PIs, CDATA and DOCTYPE identifiers, where it is markup or literal
-text; `save` returns `InvalidCharacter` at the output offset instead. Unknown
+comments, PIs, CDATA, DOCTYPE identifiers and the entity references of entity
+and attribute values, where it is markup or literal text; `save` returns
+`InvalidCharacter` at the output offset instead. Unknown
 labels and libxml2's "HTML" converter are `UnsupportedEncoding`.
 
 Escaping follows `xmlEscapeTab`/`xmlEscapeTabAttr`: `&`, `<`, `>` everywhere,
