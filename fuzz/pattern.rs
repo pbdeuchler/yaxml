@@ -135,6 +135,31 @@ pub fn exercise(input: &[u8]) {
         .map(|n| pattern.matches(&owned, n.id()))
         .collect();
     assert_eq!(left, right, "DOM disagreement for {source:?}");
+    // Nodes of a larger document are foreign: lookups find nothing, and no
+    // match panics.
+    if hash & 15 == 0 {
+        let foreign = format!("<r>{}</r>", "<a/>".repeat(2000));
+        let big = OwnedDocument::parse(&foreign).unwrap();
+        let last = big.nodes().last().unwrap().id();
+        let big = Document::parse(&foreign).unwrap();
+        let id = big.nodes().last().unwrap().id();
+        for index in 0..2 {
+            for node in [
+                Node::Tree(last),
+                Node::Attribute(last, index),
+                Node::Namespace(last, index),
+            ] {
+                pattern.matches(&owned, node);
+            }
+            for node in [
+                Node::Tree(id),
+                Node::Attribute(id, index),
+                Node::Namespace(id, index),
+            ] {
+                pattern.matches(&borrowed, node);
+            }
+        }
+    }
     let (element, owned_element) = (borrowed.root_element().id(), owned.root_element().id());
     assert_eq!(
         pattern.matches(&borrowed, Node::Namespace(element, 0)),

@@ -139,6 +139,12 @@ fn rejected_options(owned: &OwnedDocument, seed: u64) {
         ..save::Options::new(0)
     };
     assert_eq!(save::to_vec(owned, &bad).map_err(|e| e.kind), unsupported);
+    let bogus = save::Options {
+        encoding: Some("x-bogus"),
+        ..save::Options::new(0)
+    };
+    let kind = save::to_vec(owned, &bogus).map_err(|e| e.kind);
+    assert_eq!(kind, Err(ErrorKind::UnsupportedEncoding));
     let html = save::Options::new(save::AS_HTML);
     if let Err(error) = save::to_vec(owned, &html) {
         let lossy = [ErrorKind::UnsupportedEncoding, ErrorKind::InvalidCharacter];
