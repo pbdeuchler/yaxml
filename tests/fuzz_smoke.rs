@@ -24,6 +24,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/charset-unmapped.xml"),
     include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
     include_bytes!("../fuzz/corpus/serialize.xml"),
+    include_bytes!("../fuzz/corpus/textreader.xml"),
     include_bytes!("../fuzz/corpus/mutation-operations.bin"),
     include_bytes!("../fuzz/corpus/mutation-quotas.bin"),
     include_bytes!("../fuzz/corpus/structure-operations.bin"),
@@ -1011,6 +1012,24 @@ fn xpath_entry_replays_expressions_and_documents() {
     ];
     for case in cases {
         driver::exercise_xpath(case);
+    }
+}
+
+#[test]
+fn textreader_entry_replays_controls_and_documents() {
+    let document = b"<?xml version='1.0'?><!DOCTYPE r [<!ENTITY e 'x<b/>'>]><!--a--><r xmlns:p='urn:p' p:a='1' b='2' xmlns='urn:d'>t&e;<p:c><![CDATA[y]]><!--c--><?pi?><e/></p:c> </r><?z d?>";
+    let mut cases: Vec<Vec<u8>> = (0..=255u8)
+        .map(|control| [&[control][..], document].concat())
+        .collect();
+    cases.extend([
+        b"\x06<r/><s/>".to_vec(),
+        b"\x07<r><a>".to_vec(),
+        b"\x05\xff\xfe<\x00r\x00/\x00>\x00".to_vec(),
+        b"\x00".to_vec(),
+        Vec::new(),
+    ]);
+    for case in &cases {
+        driver::exercise_textreader(case);
     }
 }
 
