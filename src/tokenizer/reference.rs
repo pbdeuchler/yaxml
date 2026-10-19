@@ -44,14 +44,13 @@ impl ReferenceCursor {
     pub(crate) fn input_position(self) -> usize {
         self.source_end
     }
+    /// The physical offset of a scratch error at decoded `offset`: the end of
+    /// `raw`, or a character boundary in it (decoded text is valid UTF-8).
     pub(crate) fn map_offset(self, raw: &[u8], offset: usize) -> usize {
         if self.encoding == SourceEncoding::Utf8 {
             return offset;
         }
-        let mut relative = offset.saturating_sub(self.decoded_start).min(raw.len());
-        while relative < raw.len() && relative != 0 && raw[relative] & 0xc0 == 0x80 {
-            relative -= 1;
-        }
+        let relative = offset.saturating_sub(self.decoded_start).min(raw.len());
         self.source_start + self.encoding.source_length(&raw[..relative])
     }
 
