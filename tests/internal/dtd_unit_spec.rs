@@ -253,21 +253,74 @@ enum ExpectedAttributeType<'a> {
     Enumeration(&'a [&'a str]),
 }
 
-fn assert_attribute_type(actual: AttributeTypeView<'_>, expected: &ExpectedAttributeType<'_>) {
-    match (actual, expected) {
-        (AttributeTypeView::Cdata, ExpectedAttributeType::Cdata)
-        | (AttributeTypeView::Id, ExpectedAttributeType::Id)
-        | (AttributeTypeView::IdRef, ExpectedAttributeType::IdRef)
-        | (AttributeTypeView::IdRefs, ExpectedAttributeType::IdRefs)
-        | (AttributeTypeView::Entity, ExpectedAttributeType::Entity)
-        | (AttributeTypeView::Entities, ExpectedAttributeType::Entities)
-        | (AttributeTypeView::NmToken, ExpectedAttributeType::NmToken)
-        | (AttributeTypeView::NmTokens, ExpectedAttributeType::NmTokens) => {}
-        (AttributeTypeView::Notation(values), ExpectedAttributeType::Notation(expected))
-        | (AttributeTypeView::Enumeration(values), ExpectedAttributeType::Enumeration(expected)) => {
-            assert_eq!(values.collect::<Vec<_>>(), *expected)
+fn assert_attribute_type(
+    actual: AttributeDefinitionView<'_>,
+    expected: &ExpectedAttributeType<'_>,
+) {
+    let values = actual.values().collect::<Vec<_>>();
+    match (actual.kind(), expected) {
+        (AttributeKind::Cdata, ExpectedAttributeType::Cdata)
+        | (AttributeKind::Id, ExpectedAttributeType::Id)
+        | (AttributeKind::IdRef, ExpectedAttributeType::IdRef)
+        | (AttributeKind::IdRefs, ExpectedAttributeType::IdRefs)
+        | (AttributeKind::Entity, ExpectedAttributeType::Entity)
+        | (AttributeKind::Entities, ExpectedAttributeType::Entities)
+        | (AttributeKind::NmToken, ExpectedAttributeType::NmToken)
+        | (AttributeKind::NmTokens, ExpectedAttributeType::NmTokens) => assert!(values.is_empty()),
+        (AttributeKind::Notation, ExpectedAttributeType::Notation(expected))
+        | (AttributeKind::Enumeration, ExpectedAttributeType::Enumeration(expected)) => {
+            assert_eq!(values, *expected)
         }
         (actual, expected) => panic!("type mismatch: {actual:?} != {expected:?}"),
+    }
+}
+
+/// A default declaration with its literal's spelling.
+#[derive(Debug, Eq, PartialEq)]
+enum ExpectedDefault<'a> {
+    Required,
+    Implied,
+    Value {
+        fixed: bool,
+        quoted_literal: &'a str,
+    },
+}
+
+fn expected_default(actual: DefaultDeclarationView<'_>) -> ExpectedDefault<'_> {
+    match actual {
+        DefaultDeclarationView::Required => ExpectedDefault::Required,
+        DefaultDeclarationView::Implied => ExpectedDefault::Implied,
+        DefaultDeclarationView::Value { fixed, literal } => ExpectedDefault::Value {
+            fixed,
+            quoted_literal: literal.quoted,
+        },
+    }
+}
+
+/// An entity definition with an internal literal's spelling.
+#[derive(Debug, Eq, PartialEq)]
+enum ExpectedDefinition<'a> {
+    Internal {
+        quoted_literal: &'a str,
+    },
+    External {
+        identifier: ExternalIdView<'a>,
+        notation: Option<&'a str>,
+    },
+}
+
+fn expected_definition(actual: EntityDefinitionView<'_>) -> ExpectedDefinition<'_> {
+    match actual {
+        EntityDefinitionView::Internal(literal) => ExpectedDefinition::Internal {
+            quoted_literal: literal.quoted,
+        },
+        EntityDefinitionView::External {
+            identifier,
+            notation,
+        } => ExpectedDefinition::External {
+            identifier,
+            notation,
+        },
     }
 }
 
@@ -288,20 +341,12 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
         "k CDATA #FIXED \"x&amp;&#65;&#x41;\">"
     );
     let expected = [
-        (
-            "a",
-            ExpectedAttributeType::Cdata,
-            DefaultDeclarationView::Required,
-        ),
-        (
-            "b",
-            ExpectedAttributeType::Id,
-            DefaultDeclarationView::Implied,
-        ),
+        ("a", ExpectedAttributeType::Cdata, ExpectedDefault::Required),
+        ("b", ExpectedAttributeType::Id, ExpectedDefault::Implied),
         (
             "c",
             ExpectedAttributeType::IdRef,
-            DefaultDeclarationView::Value {
+            ExpectedDefault::Value {
                 fixed: false,
                 quoted_literal: "'x'",
             },
@@ -309,25 +354,21 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
         (
             "d",
             ExpectedAttributeType::IdRefs,
-            DefaultDeclarationView::Value {
+            ExpectedDefault::Value {
                 fixed: false,
                 quoted_literal: "\"x y\"",
             },
         ),
-        (
-            "e",
-            ExpectedAttributeType::Entity,
-            DefaultDeclarationView::Implied,
-        ),
+        ("e", ExpectedAttributeType::Entity, ExpectedDefault::Implied),
         (
             "f",
             ExpectedAttributeType::Entities,
-            DefaultDeclarationView::Required,
+            ExpectedDefault::Required,
         ),
         (
             "g",
             ExpectedAttributeType::NmToken,
-            DefaultDeclarationView::Value {
+            ExpectedDefault::Value {
                 fixed: false,
                 quoted_literal: "'1:x'",
             },
@@ -335,7 +376,7 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
         (
             "h",
             ExpectedAttributeType::NmTokens,
-            DefaultDeclarationView::Value {
+            ExpectedDefault::Value {
                 fixed: false,
                 quoted_literal: "'1 :x a.b'",
             },
@@ -343,12 +384,12 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
         (
             "i",
             ExpectedAttributeType::Notation(&["gif", "π:名"]),
-            DefaultDeclarationView::Implied,
+            ExpectedDefault::Implied,
         ),
         (
             "j",
             ExpectedAttributeType::Enumeration(&["1", ":x", "a:b", "-.", "a", "a"]),
-            DefaultDeclarationView::Value {
+            ExpectedDefault::Value {
                 fixed: false,
                 quoted_literal: "'outside'",
             },
@@ -356,7 +397,7 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
         (
             "k",
             ExpectedAttributeType::Cdata,
-            DefaultDeclarationView::Value {
+            ExpectedDefault::Value {
                 fixed: true,
                 quoted_literal: "\"x&amp;&#65;&#x41;\"",
             },
@@ -373,8 +414,8 @@ fn attlist_exposes_every_type_default_and_original_spelling() {
     assert_eq!(actual.len(), expected.len());
     for (definition, (name, attribute_type, default)) in actual.into_iter().zip(expected) {
         assert_eq!(definition.name(), name);
-        assert_attribute_type(definition.attribute_type(), &attribute_type);
-        assert_eq!(definition.default(), default);
+        assert_attribute_type(definition, &attribute_type);
+        assert_eq!(expected_default(definition.default()), default);
     }
     assert_eq!(
         unit.reference_positions()
@@ -414,8 +455,8 @@ fn empty_duplicate_and_percent_attlists_stay_lexical() {
     assert_eq!(definitions.len(), 4);
     assert_eq!(definitions[0].name(), "a");
     assert_eq!(
-        definitions[0].default(),
-        DefaultDeclarationView::Value {
+        expected_default(definitions[0].default()),
+        ExpectedDefault::Value {
             fixed: false,
             quoted_literal: "'%p;'",
         }
@@ -435,7 +476,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
         raw: &'a str,
         parameter: bool,
         name: &'a str,
-        definition: EntityDefinitionView<'a>,
+        definition: ExpectedDefinition<'a>,
         references: &'a [(ReferenceKind, &'a str)],
     }
     let cases = [
@@ -443,7 +484,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
             raw: "<!ENTITY e \"plain < > ' text\">",
             parameter: false,
             name: "e",
-            definition: EntityDefinitionView::Internal {
+            definition: ExpectedDefinition::Internal {
                 quoted_literal: "\"plain < > ' text\"",
             },
             references: &[],
@@ -452,7 +493,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
             raw: "<!ENTITY e \"&amp;&#65;&#x41;%p;\">",
             parameter: false,
             name: "e",
-            definition: EntityDefinitionView::Internal {
+            definition: ExpectedDefinition::Internal {
                 quoted_literal: "\"&amp;&#65;&#x41;%p;\"",
             },
             references: &[
@@ -466,7 +507,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
             raw: "<!ENTITY % p \"value\">",
             parameter: true,
             name: "p",
-            definition: EntityDefinitionView::Internal {
+            definition: ExpectedDefinition::Internal {
                 quoted_literal: "\"value\"",
             },
             references: &[],
@@ -475,7 +516,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
             raw: "<!ENTITY e SYSTEM 'a&%<>.ent'>",
             parameter: false,
             name: "e",
-            definition: EntityDefinitionView::External {
+            definition: ExpectedDefinition::External {
                 identifier: ExternalIdView {
                     public: None,
                     system: Some("'a&%<>.ent'"),
@@ -488,7 +529,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
             raw: "<!ENTITY image SYSTEM 'a.gif' NDATA gif>",
             parameter: false,
             name: "image",
-            definition: EntityDefinitionView::External {
+            definition: ExpectedDefinition::External {
                 identifier: ExternalIdView {
                     public: None,
                     system: Some("'a.gif'"),
@@ -501,7 +542,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
             raw: "<!ENTITY % p PUBLIC '-//A//EN' 'p.ent'>",
             parameter: true,
             name: "p",
-            definition: EntityDefinitionView::External {
+            definition: ExpectedDefinition::External {
                 identifier: ExternalIdView {
                     public: Some("'-//A//EN'"),
                     system: Some("'p.ent'"),
@@ -527,7 +568,7 @@ fn entities_preserve_definition_kind_literals_and_reference_spelling() {
         };
         assert_eq!(entity.is_parameter(), case.parameter);
         assert_eq!(entity.name(), case.name);
-        assert_eq!(entity.definition(), case.definition);
+        assert_eq!(expected_definition(entity.definition()), case.definition);
         assert_eq!(
             unit.reference_positions()
                 .map(|(_, reference)| reference)
@@ -706,10 +747,8 @@ fn invalid_xml_characters_are_rejected_in_every_lexical_context() {
         panic!("expected ATTLIST view");
     };
     let definition = list.definitions().next().expect("one definition");
-    let AttributeTypeView::Enumeration(values) = definition.attribute_type() else {
-        panic!("expected enumeration");
-    };
-    assert_eq!(values.collect::<Vec<_>>(), ["\u{301}", "x"]);
+    assert_eq!(definition.kind(), AttributeKind::Enumeration);
+    assert_eq!(definition.values().collect::<Vec<_>>(), ["\u{301}", "x"]);
     rejects("<!ELEMENT ^\u{301}x EMPTY>", ErrorKind::InvalidName);
 }
 
@@ -1001,8 +1040,8 @@ fn bounded_whitespace_name_quote_and_depth_properties_keep_literal_oracles() {
         };
         let expected_literal = format!("{quote}a{opposite}&amp;%p;{quote}");
         assert_eq!(
-            entity.definition(),
-            EntityDefinitionView::Internal {
+            expected_definition(entity.definition()),
+            ExpectedDefinition::Internal {
                 quoted_literal: &expected_literal,
             }
         );

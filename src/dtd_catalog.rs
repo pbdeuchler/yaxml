@@ -3,8 +3,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::dtd::{
-    AttributeTypeView, DefaultDeclarationView, DtdLimits, DtdUnit, DtdUnitView,
-    EntityDefinitionView, ReferenceKind,
+    DefaultDeclarationView, DtdLimits, DtdUnit, DtdUnitView, EntityDefinitionView, ReferenceKind,
 };
 use crate::escape::{numeric_reference, predefined, xml_char};
 use crate::name::validate_name;
@@ -16,7 +15,7 @@ mod external;
 
 pub(crate) use external::external_dtd;
 
-pub(crate) use crate::dtd::LiteralSource;
+pub(crate) use crate::dtd::{AttributeKind, LiteralSource};
 pub(crate) use crate::origin::EntityId;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,37 +53,6 @@ pub(crate) enum EntityLookup<'a> {
     Unparsed,
     UnreadEntity,
     Undeclared,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum AttributeKind {
-    Cdata,
-    Id,
-    IdRef,
-    IdRefs,
-    Entity,
-    Entities,
-    NmToken,
-    NmTokens,
-    Notation,
-    Enumeration,
-}
-
-impl AttributeKind {
-    fn from_view(view: AttributeTypeView<'_>) -> Self {
-        match view {
-            AttributeTypeView::Cdata => Self::Cdata,
-            AttributeTypeView::Id => Self::Id,
-            AttributeTypeView::IdRef => Self::IdRef,
-            AttributeTypeView::IdRefs => Self::IdRefs,
-            AttributeTypeView::Entity => Self::Entity,
-            AttributeTypeView::Entities => Self::Entities,
-            AttributeTypeView::NmToken => Self::NmToken,
-            AttributeTypeView::NmTokens => Self::NmTokens,
-            AttributeTypeView::Notation(_) => Self::Notation,
-            AttributeTypeView::Enumeration(_) => Self::Enumeration,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -330,7 +298,7 @@ impl DtdCatalog {
                     // Never bound, but libxml2 still finds it for ENTITY attributes.
                     let notation = match entity.definition() {
                         EntityDefinitionView::External { notation, .. } => notation,
-                        EntityDefinitionView::Internal { .. } => None,
+                        EntityDefinitionView::Internal(_) => None,
                     };
                     self.store_bytes(entity.name().len() + notation.map_or(0, str::len))?;
                     self.record_entity(entity.name(), notation)?;
@@ -344,13 +312,10 @@ impl DtdCatalog {
                         || (self.standalone && !context.internal_subset)
                 };
                 let body = match entity.definition() {
-                    EntityDefinitionView::Internal { quoted_literal } => {
-                        let offset = entity
-                            .quoted_literal_offset()
-                            .expect("internal entity literal has a token")
-                            + 1;
+                    EntityDefinitionView::Internal(literal) => {
+                        let (content, offset) = literal.content();
                         let result = self.process_value(
-                            &quoted_literal[1..quoted_literal.len() - 1],
+                            content,
                             offset,
                             context.literals,
                             ValueMode::Entity,
@@ -406,20 +371,14 @@ impl DtdCatalog {
             }
             DtdUnitView::AttributeList(list) => {
                 for definition in list.definitions() {
-                    let kind = AttributeKind::from_view(definition.attribute_type());
+                    let kind = definition.kind();
                     let default = match definition.default() {
                         DefaultDeclarationView::Required => StoredDefault::Required,
                         DefaultDeclarationView::Implied => StoredDefault::Implied,
-                        DefaultDeclarationView::Value {
-                            fixed,
-                            quoted_literal,
-                        } => {
-                            let offset = definition
-                                .default_literal_offset()
-                                .expect("default literal has a token")
-                                + 1;
+                        DefaultDeclarationView::Value { fixed, literal } => {
+                            let (content, offset) = literal.content();
                             let value = self.process_value(
-                                &quoted_literal[1..quoted_literal.len() - 1],
+                                content,
                                 offset,
                                 context.literals,
                                 ValueMode::Attribute {
@@ -433,13 +392,7 @@ impl DtdCatalog {
                             }
                         }
                     };
-                    let values = match definition.attribute_type() {
-                        AttributeTypeView::Notation(tokens)
-                        | AttributeTypeView::Enumeration(tokens) => {
-                            tokens.map(str::to_owned).collect()
-                        }
-                        _ => Vec::new(),
-                    };
+                    let values = definition.values().map(str::to_owned).collect();
                     let element = self.element_slot(list.element_name())?;
                     let attribute = AttributeDecl {
                         name: copy_string(definition.name())?,
