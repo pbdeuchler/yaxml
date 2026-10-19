@@ -33,6 +33,16 @@ impl<'a> QName<'a> {
     pub(crate) fn is_namespace_declaration(&self) -> bool {
         self.namespace == Some(XMLNS_NAMESPACE)
     }
+
+    /// The prefix a namespace declaration binds, `""` for the default namespace.
+    pub(crate) fn declared_prefix(&self) -> Option<&'a str> {
+        self.is_namespace_declaration()
+            .then_some(if self.qualified == "xmlns" {
+                ""
+            } else {
+                self.local
+            })
+    }
 }
 
 /// A tree node's XPath-visible content. CDATA is text.
@@ -203,6 +213,33 @@ pub(crate) fn preorder<T: Navigate>(
 
 pub(crate) fn descendants<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Item = T::Id> + '_ {
     preorder(tree, tree.first_child(id), Some(id))
+}
+
+/// In-scope namespaces as (prefix, URI), `""` naming the default namespace.
+/// Order follows libxml2: `xml` first, then `xmlGetNsList` reversed.
+/// Default-namespace undeclarations hide outer bindings but are not nodes.
+pub(crate) fn namespaces<T: Navigate>(tree: &T, element: T::Id) -> Vec<(&str, &str)> {
+    if !matches!(tree.item(element), Item::Element(_)) {
+        return Vec::new();
+    }
+    let mut found = vec![("xml", XML_NAMESPACE)];
+    for owner in std::iter::successors(Some(element), |&id| tree.parent(id)) {
+        for (_, name, uri) in attributes(tree, owner) {
+            if let Some(prefix) = name.declared_prefix()
+                && found.iter().all(|&(seen, _)| seen != prefix)
+            {
+                found.push((prefix, uri));
+            }
+        }
+    }
+    let inherited = found.split_off(1);
+    found.extend(
+        inherited
+            .into_iter()
+            .rev()
+            .filter(|&(_, uri)| !uri.is_empty()),
+    );
+    found
 }
 
 pub(crate) fn attributes<T: Navigate>(

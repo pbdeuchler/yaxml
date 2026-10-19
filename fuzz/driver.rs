@@ -34,6 +34,9 @@ mod uri;
 #[path = "xpath.rs"]
 mod xpath;
 
+#[path = "c14n.rs"]
+mod c14n;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -54,6 +57,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_names(input);
     exercise_uri(input);
     exercise_xpath(input);
+    exercise_c14n(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -242,6 +246,12 @@ pub fn exercise_mutation(input: &[u8]) {
 pub fn exercise_xpath(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     xpath::exercise(input);
+}
+
+/// Exercise canonicalization over both DOMs; see `c14n.rs` for the testcase format.
+pub fn exercise_c14n(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    c14n::exercise(input);
 }
 
 /// Exercise validated names and owned PI targets before XML/encoding dispatch.

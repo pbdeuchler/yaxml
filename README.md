@@ -197,6 +197,19 @@ assert_eq!(value, yaxml::xpath::Value::Number(3.0));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`yaxml::c14n` writes Canonical XML 1.0 and 1.1 and Exclusive XML
+Canonicalization 1.0 for either DOM, whole or as an XPath node-set, with
+libxml2's bytes; see the [C14N contract](docs/c14n.md). DTD-dependent cases
+wait for DTD activation.
+
+```rust
+let document = yaxml::Document::parse("<r xmlns:p='urn:p'><p:e b='2' a='1'/></r>")?;
+let options = yaxml::c14n::Options::new(yaxml::c14n::Mode::Exclusive10);
+let canonical = yaxml::c14n::to_string(&document, &options)?;
+assert_eq!(canonical, r#"<r><p:e xmlns:p="urn:p" a="1" b="2"></p:e></r>"#);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
 their own scope decision because libxml2 exposes raw pointers and public mutable

@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 mod buffered;
+pub mod c14n;
 mod dom;
 #[cfg(test)]
 mod dtd;

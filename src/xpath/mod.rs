@@ -14,7 +14,7 @@
 
 mod eval;
 mod parse;
-mod tree;
+pub(crate) mod tree;
 
 use std::collections::HashMap;
 use std::fmt;

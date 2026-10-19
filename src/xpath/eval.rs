@@ -316,37 +316,13 @@ impl<'a, T: Navigate> Eval<'a, T> {
         Ok(Value::NodeSet(self.sort(nodes)))
     }
 
-    /// In-scope namespaces as (prefix, URI), `""` naming the default namespace.
-    /// Order follows libxml2: `xml` first, then `xmlGetNsList` reversed.
-    /// Default-namespace undeclarations hide outer bindings but are not nodes.
+    /// [`tree::namespaces`], charging one operation per ancestor.
     fn namespaces(&mut self, element: T::Id) -> Result<Vec<(&'a str, &'a str)>> {
         let tree = self.tree;
-        if !matches!(tree.item(element), Item::Element(_)) {
-            return Ok(Vec::new());
+        if matches!(tree.item(element), Item::Element(_)) {
+            self.tick(successors(Some(element), |&id| tree.parent(id)).count() as u64)?;
         }
-        let mut found = vec![("xml", XML_NAMESPACE)];
-        for owner in successors(Some(element), |&id| tree.parent(id)) {
-            self.tick(1)?;
-            for (_, name, uri) in tree::attributes(tree, owner) {
-                let prefix = if name.qualified == "xmlns" {
-                    ""
-                } else {
-                    name.local
-                };
-                if name.is_namespace_declaration() && found.iter().all(|&(seen, _)| seen != prefix)
-                {
-                    found.push((prefix, uri));
-                }
-            }
-        }
-        let inherited = found.split_off(1);
-        found.extend(
-            inherited
-                .into_iter()
-                .rev()
-                .filter(|&(_, uri)| !uri.is_empty()),
-        );
-        Ok(found)
+        Ok(tree::namespaces(tree, element))
     }
 
     fn string_value(&mut self, node: Node<T::Id>) -> Result<String> {

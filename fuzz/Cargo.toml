@@ -104,3 +104,10 @@ path = "fuzz_targets/xpath.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "c14n"
+path = "fuzz_targets/c14n.rs"
+test = false
+doc = false
+bench = false

@@ -1009,3 +1009,21 @@ fn xpath_entry_replays_expressions_and_documents() {
         driver::exercise_xpath(case);
     }
 }
+
+#[test]
+fn c14n_entry_replays_modes_and_node_sets() {
+    let document = b"<?p d?><!--c--><r xmlns='urn:d' xmlns:p='urn:p' xml:lang='en' xml:base='http://h/a/'><p:s p:a='1' b='&#9;&#13;'>t&amp;<e xmlns='' xml:base='b/'/><![CDATA[<]]></p:s></r><?q?>";
+    let mut cases: Vec<Vec<u8>> = (0..=255u8)
+        .map(|selector| [&[selector][..], document].concat())
+        .collect();
+    cases.extend([
+        b"\x00<a xmlns:p='rel'/>".to_vec(),
+        b"\x00<a xmlns:p='http://a/?x&amp;y'/>".to_vec(),
+        b"\x0a<r".to_vec(),
+        b"\x00".to_vec(),
+        Vec::new(),
+    ]);
+    for case in &cases {
+        driver::exercise_c14n(case);
+    }
+}
