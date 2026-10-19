@@ -2,7 +2,7 @@ use super::*;
 use crate::dtd::{DtdLimits, DtdUnit, DtdUnitView, ElementContentView};
 
 fn compile(model: &str, budget: usize) -> Result<Model, TooComplex> {
-    let unit = DtdUnit::parse(format!("<!ELEMENT r {model}>"), DtdLimits::default()).unwrap();
+    let unit = DtdUnit::parse(format!("<!ELEMENT r {model}>"), DtdLimits::STANDALONE).unwrap();
     let DtdUnitView::Element(element) = unit.view() else {
         unreachable!()
     };
@@ -84,7 +84,7 @@ fn construction_spends_a_bounded_budget() {
     let chain = format!("({})", chain.join(","));
     assert_eq!(compile(&chain, 100).unwrap_err(), TooComplex);
     let mut budget = 1 << 20;
-    let unit = DtdUnit::parse(format!("<!ELEMENT r {chain}>"), DtdLimits::default()).unwrap();
+    let unit = DtdUnit::parse(format!("<!ELEMENT r {chain}>"), DtdLimits::STANDALONE).unwrap();
     let DtdUnitView::Element(element) = unit.view() else {
         unreachable!()
     };

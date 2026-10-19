@@ -1,102 +1,21 @@
 //! Streaming composition of the ordinary token loop with DTD and entity phases.
 use super::*;
 use crate::dtd::{DtdErrorKind, DtdLimit, DtdLimits};
-use crate::dtd_catalog::{CatalogErrorKind, CatalogLimit, CatalogLimits};
+use crate::dtd_catalog::{CatalogErrorKind, CatalogLimit};
 use crate::dtd_controller::content::{
     ContentController, ContentError, ContentErrorKind, ContentOutcome,
 };
 use crate::dtd_controller::{
-    ControllerError, ControllerErrorKind, ControllerLimit, ControllerLimits, DtdController,
-    DtdEvent,
+    ControllerError, ControllerErrorKind, ControllerLimit, DtdController, DtdEvent,
 };
-use crate::dtd_frames::{FragmentOrigin, FrameErrorKind, FrameLimit, FrameLimits, LookupFailure};
-use crate::dtd_reference::{ReferenceErrorKind, ReferenceLimit, ReferenceLimits};
-use crate::dtd_scan::{ScanErrorKind, ScanLimit, ScanLimits};
+use crate::dtd_frames::{FragmentOrigin, FrameErrorKind, FrameLimit, LookupFailure};
+use crate::dtd_reference::{ReferenceErrorKind, ReferenceLimit};
+use crate::dtd_scan::{ScanErrorKind, ScanLimit};
 use crate::dtd_tag::DtdTagErrorKind;
-use crate::tokenizer::local::{LocalErrorKind, LocalLimits};
+use crate::tokenizer::local::LocalErrorKind;
 use crate::tokenizer::reference::ReferenceCursorErrorKind;
-use crate::tokenizer::text::{TextErrorKind, TextLimits, TextScratchLimits};
+use crate::tokenizer::text::TextErrorKind;
 use crate::{Doctype, Limit};
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct SessionLimits {
-    pub(crate) declarations: ControllerLimits,
-    pub(crate) text: TextLimits,
-    pub(crate) local: LocalLimits,
-}
-
-impl SessionLimits {
-    /// Derives every private DTD ceiling from the public ones. Work ceilings
-    /// bound scanning and expansion together, so they scale with both inputs.
-    pub(crate) fn new(limits: Limits, decode: DecodeLimits) -> Self {
-        let token = limits.max_token_bytes;
-        let scratch = token.max(decode.max_decoded_token_bytes).saturating_mul(2);
-        let consumed = limits
-            .max_input_bytes
-            .saturating_add(limits.max_external_bytes);
-        // The largest allowance ever granted; the live one tracks consumption.
-        let expansion = limits
-            .max_entity_expansion_bytes
-            .max(consumed.saturating_mul(limits.max_entity_amplification));
-        let references = limits.max_entity_references;
-        let depth = limits.max_entity_depth;
-        let work = consumed.saturating_add(expansion).saturating_mul(8);
-        Self {
-            declarations: ControllerLimits {
-                scan: ScanLimits {
-                    max_unit_bytes: token,
-                    max_scratch_bytes: token,
-                    max_work: work,
-                },
-                unit: DtdLimits {
-                    max_unit_bytes: token,
-                    max_tokens: token,
-                    max_model_depth: limits.max_depth,
-                    max_attribute_definitions: limits.max_attributes,
-                },
-                catalog: CatalogLimits {
-                    max_declarations: limits.max_dtd_bytes,
-                    max_bindings: limits.max_dtd_bytes,
-                    max_storage_bytes: limits.max_owned_bytes,
-                    max_value_bytes: token,
-                    max_expanded_bytes: expansion,
-                    max_work: work,
-                    max_references: references,
-                    max_depth: depth,
-                },
-                frames: FrameLimits {
-                    max_active_depth: depth,
-                    max_reference_attempts: references,
-                    max_work: work,
-                    max_expanded_bytes: expansion,
-                },
-                max_physical_bytes: limits.max_dtd_bytes,
-                max_work: work,
-                max_owned_bytes: limits.max_owned_bytes,
-                expansion_floor: limits.max_entity_expansion_bytes,
-                amplification: limits.max_entity_amplification,
-            },
-            text: TextLimits {
-                max_work: work,
-                reference: ReferenceLimits {
-                    max_bytes: token,
-                    max_scratch_bytes: token,
-                    max_work: work,
-                },
-                scratch: TextScratchLimits {
-                    input_token_bytes: scratch,
-                    replacement_token_bytes: scratch,
-                    max_bytes: usize::MAX,
-                },
-            },
-            local: LocalLimits {
-                max_token_bytes: token,
-                max_scratch_bytes: token,
-                max_work: work,
-            },
-        }
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SessionError {
@@ -182,9 +101,7 @@ fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
             ScanErrorKind::Syntax => ErrorKind::InvalidDtd,
             ScanErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
             ScanErrorKind::InvalidUtf8 => ErrorKind::InvalidUtf8,
-            ScanErrorKind::Limit(ScanLimit::UnitBytes | ScanLimit::ScratchBytes) => {
-                limit(Limit::TokenBytes)
-            }
+            ScanErrorKind::Limit(ScanLimit::UnitBytes) => limit(Limit::TokenBytes),
             ScanErrorKind::Limit(ScanLimit::Work) => limit(Limit::EntityExpansion),
             ScanErrorKind::Allocation => ErrorKind::Allocation,
         },
@@ -272,9 +189,7 @@ fn content_kind(kind: ContentErrorKind) -> ErrorKind {
                 ReferenceErrorKind::InvalidUtf8 => ErrorKind::InvalidUtf8,
                 ReferenceErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
                 ReferenceErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
-                ReferenceErrorKind::Limit(ReferenceLimit::Bytes | ReferenceLimit::ScratchBytes) => {
-                    limit(Limit::TokenBytes)
-                }
+                ReferenceErrorKind::Limit(ReferenceLimit::Bytes) => limit(Limit::TokenBytes),
                 ReferenceErrorKind::Limit(ReferenceLimit::Work) => limit(Limit::EntityExpansion),
                 ReferenceErrorKind::Allocation => ErrorKind::Allocation,
                 ReferenceErrorKind::PositionOverflow
@@ -360,7 +275,7 @@ pub(crate) struct StreamingSession {
     session: Vec<DtdSession>,
     limits: Limits,
     decode: DecodeLimits,
-    options: SessionLimits,
+    options: DtdLimits,
     standalone: bool,
     loader: Option<crate::resolve::Loader>,
     origin: Option<SourceOrigin>,
@@ -378,7 +293,7 @@ impl StreamingSession {
             session: Vec::new(),
             limits,
             decode,
-            options: SessionLimits::new(limits, decode),
+            options: DtdLimits::new(limits, decode),
             standalone: false,
             loader: None,
             origin: None,
@@ -403,13 +318,7 @@ impl StreamingSession {
         self.origin
     }
     pub(crate) fn set_resolver(&mut self, base: &str, resolver: Box<dyn crate::Resolver>) {
-        let unit = self.options.declarations.unit;
-        self.loader = Some(crate::resolve::Loader::new(
-            base,
-            resolver,
-            &self.limits,
-            unit,
-        ));
+        self.loader = Some(crate::resolve::Loader::new(base, resolver, &self.limits));
     }
     pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
         match self.session.first()?.phase.as_ref()? {
@@ -649,7 +558,7 @@ impl StreamingSession {
                 return Err(Error::new(ErrorKind::InvalidState, ordinary.position()).into());
             } else {
                 let session = self.session.first_mut().expect("one active DTD session");
-                match session.drain(self.limits, self.decode, self.options)? {
+                match session.drain(self.limits, self.decode)? {
                     Drain::Ready => {
                         self.delivery = Delivery::Ready;
                         return Ok(SessionStep {
@@ -712,7 +621,7 @@ impl StreamingSession {
             encoding,
             physical_start,
             decoded_start,
-            self.options.declarations,
+            self.options,
             self.standalone,
         );
         if let Some(loader) = self.loader.take() {
@@ -796,12 +705,7 @@ impl DtdSession {
             None => self.physical,
         })
     }
-    fn drain(
-        &mut self,
-        limits: Limits,
-        decode: DecodeLimits,
-        options: SessionLimits,
-    ) -> Result<Drain, SessionError> {
+    fn drain(&mut self, limits: Limits, decode: DecodeLimits) -> Result<Drain, SessionError> {
         loop {
             match self.phase.as_mut().expect("owned semantic phase") {
                 Phase::Declarations {
@@ -829,8 +733,6 @@ impl DtdSession {
                             body,
                             parser,
                             Tokenizer::new(limits.max_token_bytes, decode.max_decoded_token_bytes),
-                            options.text,
-                            options.local,
                         )?;
                         self.phase = Some(Phase::Content(content));
                         continue;

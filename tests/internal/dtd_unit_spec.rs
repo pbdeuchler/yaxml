@@ -2,7 +2,7 @@ use super::*;
 use std::borrow::Cow;
 
 fn parse(raw: &str) -> DtdUnit<'_> {
-    DtdUnit::parse(raw, DtdLimits::default()).expect(raw)
+    DtdUnit::parse(raw, DtdLimits::STANDALONE).expect(raw)
 }
 
 fn marked(marked: &str) -> (String, usize) {
@@ -17,7 +17,7 @@ fn rejects(marked_raw: &str, kind: DtdErrorKind) {
     let (raw, offset) = marked(marked_raw);
     let expected = DtdError { kind, offset };
     assert_eq!(
-        DtdUnit::parse(&raw, DtdLimits::default()),
+        DtdUnit::parse(&raw, DtdLimits::STANDALONE),
         Err(expected),
         "{raw:?}"
     );
@@ -675,7 +675,7 @@ fn syntax_and_lexical_failures_report_the_selected_production_offset() {
     for (marked_raw, kind) in cases {
         let (raw, offset) = marked(marked_raw);
         let expected = Err(DtdError { kind, offset });
-        let actual = DtdUnit::parse(&raw, DtdLimits::default());
+        let actual = DtdUnit::parse(&raw, DtdLimits::STANDALONE);
         if actual != expected {
             mismatches.push(format!("{raw:?}: actual {actual:?}, expected {expected:?}"));
         }
@@ -701,7 +701,7 @@ fn invalid_xml_characters_are_rejected_in_every_lexical_context() {
             offset,
         };
         assert_eq!(
-            DtdUnit::parse(raw, DtdLimits::default()),
+            DtdUnit::parse(raw, DtdLimits::STANDALONE),
             Err(expected),
             "{raw:?}"
         );
@@ -740,7 +740,7 @@ fn public_literals_and_character_references_use_their_distinct_grammars() {
         let raw = format!("<!NOTATION n PUBLIC \"a{invalid}b\">");
         let offset = raw.rfind(invalid).unwrap();
         assert_eq!(
-            DtdUnit::parse(raw, DtdLimits::default()),
+            DtdUnit::parse(raw, DtdLimits::STANDALONE),
             Err(DtdError {
                 kind: DtdErrorKind::InvalidPublicIdentifier,
                 offset,
@@ -775,7 +775,7 @@ fn public_literals_and_character_references_use_their_distinct_grammars() {
         let raw = format!("<!ENTITY e \"{reference}\">");
         let offset = raw.find('&').unwrap();
         assert_eq!(
-            DtdUnit::parse(raw, DtdLimits::default()),
+            DtdUnit::parse(raw, DtdLimits::STANDALONE),
             Err(DtdError {
                 kind: DtdErrorKind::InvalidReference,
                 offset,
@@ -800,7 +800,7 @@ fn every_incomplete_unit_prefix_fails_and_trailing_input_is_rejected() {
         for end in raw.char_indices().map(|(index, _)| index) {
             let prefix = &raw[..end];
             assert!(
-                DtdUnit::parse(prefix, DtdLimits::default()).is_err(),
+                DtdUnit::parse(prefix, DtdLimits::STANDALONE).is_err(),
                 "proper prefix unexpectedly completed: {prefix:?}"
             );
         }
@@ -810,7 +810,7 @@ fn every_incomplete_unit_prefix_fails_and_trailing_input_is_rejected() {
             offset: raw.len(),
         };
         assert_eq!(
-            DtdUnit::parse(suffixed, DtdLimits::default()),
+            DtdUnit::parse(suffixed, DtdLimits::STANDALONE),
             Err(expected)
         );
     }
@@ -824,13 +824,13 @@ fn nested_model(depth: usize) -> String {
 fn independent_limits_have_exact_boundaries_and_recover() {
     let raw = "<!ELEMENT r (a,b?,(c|d+)*)+>";
     let exact = DtdLimits {
-        max_unit_bytes: raw.len(),
-        ..DtdLimits::default()
+        unit_bytes: raw.len(),
+        ..DtdLimits::STANDALONE
     };
     assert_eq!(DtdUnit::parse(raw, exact).unwrap().raw(), raw);
     let short = DtdLimits {
-        max_unit_bytes: raw.len() - 1,
-        ..DtdLimits::default()
+        unit_bytes: raw.len() - 1,
+        ..DtdLimits::STANDALONE
     };
     assert_eq!(
         DtdUnit::parse(raw, short),
@@ -842,13 +842,13 @@ fn independent_limits_have_exact_boundaries_and_recover() {
 
     // One declaration Name plus fifteen observable flat-model tokens.
     let exact_tokens = DtdLimits {
-        max_tokens: 16,
-        ..DtdLimits::default()
+        unit_tokens: 16,
+        ..DtdLimits::STANDALONE
     };
     DtdUnit::parse(raw, exact_tokens).unwrap();
     let short_tokens = DtdLimits {
-        max_tokens: 15,
-        ..DtdLimits::default()
+        unit_tokens: 15,
+        ..DtdLimits::STANDALONE
     };
     let outer_occurrence = raw.rfind('+').unwrap();
     assert_eq!(
@@ -863,8 +863,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
     DtdUnit::parse(
         depth_three.as_str(),
         DtdLimits {
-            max_model_depth: 3,
-            ..DtdLimits::default()
+            model_depth: 3,
+            ..DtdLimits::STANDALONE
         },
     )
     .unwrap();
@@ -872,8 +872,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
         DtdUnit::parse(
             depth_three.as_str(),
             DtdLimits {
-                max_model_depth: 2,
-                ..DtdLimits::default()
+                model_depth: 2,
+                ..DtdLimits::STANDALONE
             },
         ),
         Err(DtdError {
@@ -886,8 +886,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
     DtdUnit::parse(
         attributes,
         DtdLimits {
-            max_attribute_definitions: 4,
-            ..DtdLimits::default()
+            attribute_definitions: 4,
+            ..DtdLimits::STANDALONE
         },
     )
     .unwrap();
@@ -895,8 +895,8 @@ fn independent_limits_have_exact_boundaries_and_recover() {
         DtdUnit::parse(
             attributes,
             DtdLimits {
-                max_attribute_definitions: 3,
-                ..DtdLimits::default()
+                attribute_definitions: 3,
+                ..DtdLimits::STANDALONE
             },
         ),
         Err(DtdError {
@@ -908,7 +908,7 @@ fn independent_limits_have_exact_boundaries_and_recover() {
     // A failed parse has no persistent state: each restored independent limit succeeds.
     assert_eq!(DtdUnit::parse(raw, exact).unwrap().raw(), raw);
     assert_eq!(
-        DtdUnit::parse(attributes, DtdLimits::default())
+        DtdUnit::parse(attributes, DtdLimits::STANDALONE)
             .unwrap()
             .raw(),
         attributes
@@ -918,14 +918,14 @@ fn independent_limits_have_exact_boundaries_and_recover() {
 #[test]
 fn borrowed_and_owned_inputs_have_identical_views_and_owned_storage_moves() {
     let raw = "<!ENTITY e \"&amp;&#65;%p;\">";
-    let borrowed = DtdUnit::parse(Cow::Borrowed(raw), DtdLimits::default()).unwrap();
+    let borrowed = DtdUnit::parse(Cow::Borrowed(raw), DtdLimits::STANDALONE).unwrap();
     assert!(matches!(borrowed.raw, Cow::Borrowed(_)));
     let borrowed_view = borrowed.view();
     let borrowed_references = borrowed.references().collect::<Vec<_>>();
 
     let owned_input = raw.to_owned();
     let owned_pointer = owned_input.as_ptr();
-    let owned = DtdUnit::parse(Cow::Owned(owned_input), DtdLimits::default()).unwrap();
+    let owned = DtdUnit::parse(Cow::Owned(owned_input), DtdLimits::STANDALONE).unwrap();
     assert!(matches!(owned.raw, Cow::Owned(_)));
     assert_eq!(owned.raw().as_ptr(), owned_pointer);
     assert_eq!(owned.raw(), raw);
@@ -993,7 +993,7 @@ fn bounded_whitespace_name_quote_and_depth_properties_keep_literal_oracles() {
     for non_name_start in ["0", "-", ".", "\u{301}"] {
         let raw = format!("<!ELEMENT {non_name_start}x EMPTY>");
         assert_eq!(
-            DtdUnit::parse(raw, DtdLimits::default()).unwrap_err().kind,
+            DtdUnit::parse(raw, DtdLimits::STANDALONE).unwrap_err().kind,
             DtdErrorKind::InvalidName
         );
     }

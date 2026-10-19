@@ -4,10 +4,10 @@ use crate::dtd_catalog::CatalogLimit;
 use crate::dtd_frames::{EntityInvocationId, FrameError, FrameLimit};
 use crate::dtd_tag::{DtdTagError, DtdTagErrorKind, DtdTagLocation};
 use crate::parser::{DtdLeafKind, ParserState};
-use crate::tokenizer::local::{LocalLimits, LocalTokenizer};
+use crate::tokenizer::local::LocalTokenizer;
 use crate::tokenizer::text::{
-    TextCoordinator, TextError, TextErrorKind, TextLimits, TextLocation, TextOutcome, TextShared,
-    TextSourceId, TextSourceLease, TextUsage,
+    TextCoordinator, TextError, TextErrorKind, TextLocation, TextOutcome, TextShared, TextSourceId,
+    TextSourceLease, TextUsage,
 };
 use crate::tokenizer::{TokenKind, Tokenizer};
 use crate::valid::Code;
@@ -103,8 +103,6 @@ impl<'input> ContentControllerCore<'input> {
         body: DtdBodyState,
         parser: ParserState<'input>,
         tokenizer: Tokenizer,
-        limits: TextLimits,
-        local_limits: LocalLimits,
     ) -> Result<Self, ContentError> {
         let invalid = || ContentError {
             kind: ContentErrorKind::InvalidState,
@@ -124,15 +122,13 @@ impl<'input> ContentControllerCore<'input> {
             physical_offset: error.offset,
             ..invalid()
         })?;
-        Self::with_source(body, parser, input, limits, local_limits)
+        Self::with_source(body, parser, input)
     }
     pub(crate) fn stable_utf8(
         body: DtdBodyState,
         parser: ParserState<'input>,
         tokenizer: Tokenizer,
         source: &'input str,
-        limits: TextLimits,
-        local_limits: LocalLimits,
     ) -> Result<Self, ContentError> {
         let invalid = ContentError {
             kind: ContentErrorKind::InvalidState,
@@ -155,14 +151,12 @@ impl<'input> ContentControllerCore<'input> {
             physical_offset: error.offset,
             ..invalid
         })?;
-        Self::with_source(body, parser, input, limits, local_limits)
+        Self::with_source(body, parser, input)
     }
     fn with_source(
         body: DtdBodyState,
         parser: ParserState<'input>,
         input: TextSourceLease<'input>,
-        limits: TextLimits,
-        local_limits: LocalLimits,
     ) -> Result<Self, ContentError> {
         let invalid = || ContentError {
             kind: ContentErrorKind::InvalidState,
@@ -177,21 +171,15 @@ impl<'input> ContentControllerCore<'input> {
         {
             return Err(invalid());
         }
-        let shared = TextShared::new(
-            TextLimits {
-                max_work: limits.max_work.min(body.limits.max_work),
-                ..limits
-            },
-            body.counters.work,
-        )
-        .map_err(|kind| ContentError {
-            kind: ContentErrorKind::Text(kind),
-            ..invalid()
-        })?;
-        let local = LocalTokenizer::new(0, local_limits);
+        let shared =
+            TextShared::new(body.limits, body.counters.work).map_err(|kind| ContentError {
+                kind: ContentErrorKind::Text(kind),
+                ..invalid()
+            })?;
+        let local = LocalTokenizer::new(0, body.limits.token, body.limits.work);
         // Local adoption is also checked when the invocation exists. Reject an
         // impossible configured slot now, before any frame can be published.
-        if local.scratch_capacity_requirement() > limits.scratch.replacement_token_bytes {
+        if local.scratch_capacity_requirement() > body.limits.scratch {
             return Err(ContentError {
                 kind: ContentErrorKind::Text(TextErrorKind::Scratch),
                 ..invalid()
@@ -379,7 +367,7 @@ impl<'input> ContentControllerCore<'input> {
                 let remaining = self
                     .body
                     .limits
-                    .max_physical_bytes
+                    .declarations
                     .saturating_sub(self.body.counters.physical_bytes);
                 let available = if stable {
                     self.coordinator
@@ -589,7 +577,7 @@ impl<'input> ContentControllerCore<'input> {
                 .discard_general();
             return result.map_err(|error| self.text_error(error));
         };
-        if self.active.len() < self.body.limits.frames.max_active_depth {
+        if self.active.len() < self.body.limits.depth {
             self.active
                 .try_reserve(1)
                 .map_err(|_| self.for_origin(ContentErrorKind::Allocation, origin, None))?;
@@ -623,7 +611,7 @@ impl<'input> ContentControllerCore<'input> {
         self.sync_frame_work(before, origin)?;
         let invocation = entered.map_err(|error| {
             if error.kind == FrameErrorKind::LimitExceeded(FrameLimit::Work)
-                && ceiling <= self.body.limits.frames.max_work
+                && ceiling <= self.body.limits.work
             {
                 self.for_origin(
                     ContentErrorKind::Work,
@@ -821,7 +809,7 @@ impl<'input> ContentControllerCore<'input> {
             self.sync_frame_work(before, origin)?;
             result.map_err(|error| {
                 if error.kind == FrameErrorKind::LimitExceeded(FrameLimit::Work)
-                    && ceiling <= self.body.limits.frames.max_work
+                    && ceiling <= self.body.limits.work
                 {
                     self.for_origin(ContentErrorKind::Work, origin, Some(local.start))
                 } else {
@@ -892,7 +880,7 @@ impl<'input> ContentControllerCore<'input> {
             work,
             delta,
             (origin, offset),
-            (catalog_ceiling, self.body.limits.catalog.max_work),
+            (catalog_ceiling, self.body.limits.work),
         );
         self.body.counters.work = usage.work;
         self.body.counters.scanned_bytes += (usage.source_scanned - self.text_usage.source_scanned)
@@ -986,7 +974,7 @@ impl<'input> ContentControllerCore<'input> {
                 work,
                 delta,
                 (origin, offset),
-                (catalog_ceiling, s.body.limits.catalog.max_work),
+                (catalog_ceiling, s.body.limits.work),
             );
             s.sync_usage();
             let event = result?;

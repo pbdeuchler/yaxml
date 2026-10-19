@@ -10,22 +10,84 @@ pub(crate) enum LiteralSource {
     Replacement,
 }
 
+/// Every DTD-processing ceiling, derived once from the public limits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DtdLimits {
-    pub(crate) max_unit_bytes: usize,
-    pub(crate) max_tokens: usize,
-    pub(crate) max_model_depth: usize,
-    pub(crate) max_attribute_definitions: usize,
+    /// Scanned units, attribute and entity values, references, local tokens.
+    pub(crate) token: usize,
+    /// One parsed declaration's bytes and grammar tokens.
+    pub(crate) unit_bytes: usize,
+    pub(crate) unit_tokens: usize,
+    pub(crate) model_depth: usize,
+    pub(crate) attribute_definitions: usize,
+    /// Physical DOCTYPE bytes, and the declarations and bindings it makes.
+    pub(crate) declarations: usize,
+    /// Retained declaration storage and owned declaration copies.
+    pub(crate) storage: usize,
+    pub(crate) expansion: usize,
+    pub(crate) work: usize,
+    pub(crate) references: usize,
+    pub(crate) depth: usize,
+    /// Token scratch of each content source.
+    pub(crate) scratch: usize,
+    /// Expansion allowed regardless of input size.
+    pub(crate) expansion_floor: usize,
+    /// Permitted expansion per consumed input byte above the floor.
+    pub(crate) amplification: usize,
 }
 
-impl Default for DtdLimits {
-    fn default() -> Self {
+impl DtdLimits {
+    /// Fixed ceilings of a standalone external DTD read, as `xmlParseDTD`.
+    pub(crate) const STANDALONE: Self = Self {
+        token: 1024 * 1024,
+        unit_bytes: 64 * 1024,
+        unit_tokens: 4 * 1024,
+        model_depth: 256,
+        attribute_definitions: 1024,
+        declarations: 16_384,
+        storage: 8 * 1024 * 1024,
+        expansion: 16 * 1024 * 1024,
+        work: 64 * 1024 * 1024,
+        references: 1024 * 1024,
+        depth: 64,
+        scratch: 0,
+        expansion_floor: 0,
+        amplification: 0,
+    };
+
+    /// Work ceilings bound scanning and expansion together, so they scale
+    /// with both inputs.
+    pub(crate) fn new(limits: crate::Limits, decode: crate::DecodeLimits) -> Self {
+        let token = limits.max_token_bytes;
+        let consumed = limits
+            .max_input_bytes
+            .saturating_add(limits.max_external_bytes);
+        // The largest allowance ever granted; the live one tracks consumption.
+        let expansion = limits
+            .max_entity_expansion_bytes
+            .max(consumed.saturating_mul(limits.max_entity_amplification));
         Self {
-            max_unit_bytes: 64 * 1024,
-            max_tokens: 4 * 1024,
-            max_model_depth: 256,
-            max_attribute_definitions: 1024,
+            token,
+            unit_bytes: token,
+            unit_tokens: token,
+            model_depth: limits.max_depth,
+            attribute_definitions: limits.max_attributes,
+            declarations: limits.max_dtd_bytes,
+            storage: limits.max_owned_bytes,
+            expansion,
+            work: consumed.saturating_add(expansion).saturating_mul(8),
+            references: limits.max_entity_references,
+            depth: limits.max_entity_depth,
+            scratch: token.max(decode.max_decoded_token_bytes).saturating_mul(2),
+            expansion_floor: limits.max_entity_expansion_bytes,
+            amplification: limits.max_entity_amplification,
         }
+    }
+
+    /// libxml2's `xmlParserEntityCheck` threshold for `consumed` input bytes.
+    pub(crate) fn expansion_allowance(&self, consumed: usize) -> usize {
+        self.expansion_floor
+            .max(consumed.saturating_mul(self.amplification))
     }
 }
 
@@ -193,10 +255,10 @@ pub(crate) struct DtdUnit<'a> {
 impl<'a> DtdUnit<'a> {
     pub(crate) fn parse(raw: impl Into<Cow<'a, str>>, limits: DtdLimits) -> Result<Self, DtdError> {
         let raw = raw.into();
-        if raw.len() > limits.max_unit_bytes {
+        if raw.len() > limits.unit_bytes {
             return Err(DtdError::new(
                 DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes),
-                limits.max_unit_bytes,
+                limits.unit_bytes,
             ));
         }
         if let Some(offset) = invalid_char(&raw) {
@@ -810,7 +872,7 @@ impl<'a> Parser<'a> {
     }
 
     fn push(&mut self, kind: TokenKind, range: Range<usize>) -> Result<usize, DtdError> {
-        if self.tokens.len() >= self.limits.max_tokens {
+        if self.tokens.len() >= self.limits.unit_tokens {
             return Err(DtdError::new(
                 DtdErrorKind::LimitExceeded(DtdLimit::Tokens),
                 range.start,
@@ -1319,7 +1381,7 @@ impl Parser<'_> {
     }
 
     fn mixed_model(&mut self) -> Result<Range<usize>, DtdError> {
-        if self.limits.max_model_depth == 0 {
+        if self.limits.model_depth == 0 {
             return Err(self.error(DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth)));
         }
         let start = self.tokens.len();
@@ -1432,7 +1494,7 @@ impl Parser<'_> {
     }
 
     fn open_group(&mut self, stack: &mut Vec<GroupFrame>) -> Result<(), DtdError> {
-        if stack.len() >= self.limits.max_model_depth {
+        if stack.len() >= self.limits.model_depth {
             return Err(self.error(DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth)));
         }
         stack
@@ -1549,7 +1611,7 @@ impl Parser<'_> {
             if !had_whitespace {
                 return Err(self.error(DtdErrorKind::Syntax));
             }
-            if definitions >= self.limits.max_attribute_definitions {
+            if definitions >= self.limits.attribute_definitions {
                 return Err(self.error(DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions)));
             }
             let definition_start = self.position;

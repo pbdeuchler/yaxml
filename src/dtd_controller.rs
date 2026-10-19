@@ -2,50 +2,27 @@
 
 use crate::dtd::{DtdErrorKind, DtdLimits, DtdUnit, DtdUnitView};
 use crate::dtd_catalog::{
-    CatalogErrorKind, CatalogLimits, DeclarationContext, DtdCatalog, EntityId, EntityLookup,
-    LiteralSource, ValueLocation,
+    CatalogErrorKind, DeclarationContext, DtdCatalog, EntityId, EntityLookup, LiteralSource,
+    ValueLocation,
 };
 use crate::dtd_frames::{
     ByteSpan, EntityDeclarationId, EntityFrames, EntityKind, EntityResolution, FragmentOrigin,
-    FrameBoundary, FrameErrorKind, FrameLimits, LookupFailure,
+    FrameBoundary, FrameErrorKind, LookupFailure,
 };
-use crate::dtd_scan::{DtdScanner, ScanErrorKind, ScanKind, ScanLimits, ScanMode};
+use crate::dtd_scan::{DtdScanner, ScanErrorKind, ScanKind, ScanMode};
 use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::parser::Budget;
 use crate::{Error, ErrorKind};
 
 pub(crate) mod content;
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ControllerLimits {
-    pub(crate) scan: ScanLimits,
-    pub(crate) unit: DtdLimits,
-    pub(crate) catalog: CatalogLimits,
-    pub(crate) frames: FrameLimits,
-    pub(crate) max_physical_bytes: usize,
-    pub(crate) max_work: usize,
-    pub(crate) max_owned_bytes: usize,
-    /// Expansion allowed regardless of input size.
-    pub(crate) expansion_floor: usize,
-    /// Permitted expansion per consumed input byte above the floor.
-    pub(crate) amplification: usize,
-}
-
 /// libxml2's `XML_ENT_FIXED_COST`: charged per expansion so that empty or
 /// tiny entities cannot be referenced without bound.
 pub(crate) const ENTITY_FIXED_COST: usize = 20;
 
-impl ControllerLimits {
-    /// libxml2's `xmlParserEntityCheck` threshold for `consumed` input bytes.
-    pub(crate) fn expansion_allowance(&self, consumed: usize) -> usize {
-        self.expansion_floor
-            .max(consumed.saturating_mul(self.amplification))
-    }
-}
-
 /// Splits the shared expansion allowance between the two expanding components.
 pub(crate) fn share_expansion(
-    limits: &ControllerLimits,
+    limits: &DtdLimits,
     consumed: usize,
     frames: &mut EntityFrames,
     catalog: &mut DtdCatalog,
@@ -65,26 +42,6 @@ pub(crate) fn share_expansion(
         .saturating_sub(catalog_used);
     frames.set_expansion_ceiling(counters.expanded_bytes.saturating_add(left));
     catalog.set_amplification_ceiling(catalog_used.saturating_add(left));
-}
-
-impl Default for ControllerLimits {
-    fn default() -> Self {
-        Self {
-            scan: ScanLimits {
-                max_unit_bytes: 64 * 1024,
-                max_scratch_bytes: 64 * 1024,
-                max_work: 64 * 1024 * 1024,
-            },
-            unit: DtdLimits::default(),
-            catalog: CatalogLimits::default(),
-            frames: FrameLimits::default(),
-            max_physical_bytes: 16 * 1024 * 1024,
-            max_work: 64 * 1024 * 1024,
-            max_owned_bytes: 16 * 1024 * 1024,
-            expansion_floor: 1_000_000,
-            amplification: 5,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -157,7 +114,7 @@ enum PhysicalInput<'input> {
 pub(crate) struct DtdBodyState {
     catalog: DtdCatalog,
     frames: EntityFrames,
-    limits: ControllerLimits,
+    limits: DtdLimits,
     counters: ControllerCounters,
     decoded_position: usize,
     physical_position: usize,
@@ -176,7 +133,7 @@ pub(crate) struct DtdControllerCore<'input> {
     decoded_start: usize,
     position: usize,
     unit_start: usize,
-    limits: ControllerLimits,
+    limits: DtdLimits,
     counters: ControllerCounters,
     unit: Option<DtdUnit<'input>>,
     ready: Option<Ready>,
@@ -196,7 +153,7 @@ impl DtdControllerCore<'static> {
         encoding: SourceEncoding,
         physical_start: usize,
         decoded_start: usize,
-        limits: ControllerLimits,
+        limits: DtdLimits,
         standalone: bool,
     ) -> Self {
         Self::with_input(
@@ -213,7 +170,7 @@ impl DtdControllerCore<'static> {
         source: &'input str,
         source_start: usize,
         physical_start: usize,
-        limits: ControllerLimits,
+        limits: DtdLimits,
         standalone: bool,
     ) -> Result<BorrowedDtdController<'input>, ControllerError> {
         let source_end = source_start.checked_add(source.len()).ok_or_else(|| {
@@ -248,15 +205,15 @@ impl<'input> DtdControllerCore<'input> {
         encoding: SourceEncoding,
         physical_start: usize,
         decoded_start: usize,
-        limits: ControllerLimits,
+        limits: DtdLimits,
         standalone: bool,
         input: PhysicalInput<'input>,
     ) -> Self {
         Self {
-            physical: DtdScanner::new(ScanMode::Doctype, limits.scan),
-            fragment: DtdScanner::new(ScanMode::SubsetFragment, limits.scan),
-            catalog: DtdCatalog::new(limits.catalog, standalone),
-            frames: EntityFrames::new(limits.frames),
+            physical: DtdScanner::new(ScanMode::Doctype, limits.token, limits.work),
+            fragment: DtdScanner::new(ScanMode::SubsetFragment, limits.token, limits.work),
+            catalog: DtdCatalog::new(limits, standalone),
+            frames: EntityFrames::new(limits),
             active: Vec::new(),
             input,
             encoding,
@@ -443,9 +400,9 @@ impl<'input> DtdControllerCore<'input> {
                 .counters
                 .physical_bytes
                 .checked_add(cost)
-                .is_none_or(|count| count > self.limits.max_physical_bytes);
-            let global_remaining = self.limits.max_work - self.counters.work;
-            let scan_remaining = self.limits.scan.max_work - self.counters.scanned_bytes;
+                .is_none_or(|count| count > self.limits.declarations);
+            let global_remaining = self.limits.work - self.counters.work;
+            let scan_remaining = self.limits.work - self.counters.scanned_bytes;
             let remaining = global_remaining.min(scan_remaining);
             self.physical
                 .cap_work(self.physical.position().saturating_add(remaining));
@@ -512,8 +469,8 @@ impl<'input> DtdControllerCore<'input> {
                 .expect("finished complete fragment");
             return Ok(());
         }
-        let global_remaining = self.limits.max_work - self.counters.work;
-        let scan_remaining = self.limits.scan.max_work - self.counters.scanned_bytes;
+        let global_remaining = self.limits.work - self.counters.work;
+        let scan_remaining = self.limits.work - self.counters.scanned_bytes;
         let remaining = global_remaining.min(scan_remaining);
         self.fragment
             .cap_work(self.fragment.position().saturating_add(remaining));
@@ -574,7 +531,7 @@ impl<'input> DtdControllerCore<'input> {
             None
         };
         let unit = if let Some(raw) = stable_raw {
-            let unit = DtdUnit::parse(raw, self.limits.unit).map_err(|error| {
+            let unit = DtdUnit::parse(raw, self.limits).map_err(|error| {
                 map_unit_error(
                     self.encoding,
                     origin,
@@ -599,7 +556,7 @@ impl<'input> DtdControllerCore<'input> {
             .expect("ready raw")
             .1;
             let raw = std::str::from_utf8(raw).expect("scanner validates ready UTF-8");
-            let borrowed = DtdUnit::parse(raw, self.limits.unit).map_err(|error| {
+            let borrowed = DtdUnit::parse(raw, self.limits).map_err(|error| {
                 map_unit_error(
                     self.encoding,
                     origin,
@@ -619,7 +576,7 @@ impl<'input> DtdControllerCore<'input> {
                 .counters
                 .owned_bytes
                 .checked_add(raw_len)
-                .filter(|count| *count <= self.limits.max_owned_bytes)
+                .filter(|count| *count <= self.limits.storage)
                 .ok_or_else(|| {
                     self.error_for_origin(
                         ControllerErrorKind::Limit(ControllerLimit::OwnedBytes),
@@ -631,7 +588,7 @@ impl<'input> DtdControllerCore<'input> {
                 .counters
                 .work
                 .checked_add(raw_len)
-                .filter(|work| *work <= self.limits.max_work)
+                .filter(|work| *work <= self.limits.work)
                 .ok_or_else(|| {
                     self.error_for_origin(
                         ControllerErrorKind::Limit(ControllerLimit::Work),
@@ -663,7 +620,7 @@ impl<'input> DtdControllerCore<'input> {
             LiteralSource::Replacement
         };
         let before = self.catalog.usage().work;
-        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
+        let ceiling = before.saturating_add(self.limits.work - self.counters.work);
         self.catalog.cap_work(ceiling);
         let result = self.catalog.apply(
             &unit,
@@ -676,7 +633,7 @@ impl<'input> DtdControllerCore<'input> {
         result.map_err(|error| {
             let kind = if error.kind
                 == CatalogErrorKind::Limit(crate::dtd_catalog::CatalogLimit::Work)
-                && ceiling <= self.limits.catalog.max_work
+                && ceiling <= self.limits.work
             {
                 ControllerErrorKind::Limit(ControllerLimit::Work)
             } else {
@@ -796,14 +753,14 @@ impl<'input> DtdControllerCore<'input> {
         };
         // Keep the ID stack ready before frames publish a child or move its parent.
         // Failed lookups and depth failures never need another active slot.
-        if self.active.len() < self.limits.frames.max_active_depth {
+        if self.active.len() < self.limits.depth {
             self.active.try_reserve(1).map_err(|_| {
                 self.error_for_origin(ControllerErrorKind::Allocation, origin, None)
             })?;
         }
         self.release_scanner(side);
         let before = self.frames.counters().work;
-        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
+        let ceiling = before.saturating_add(self.limits.work - self.counters.work);
         self.frames.cap_work(ceiling);
         let result = match side {
             Side::Physical => self.frames.enter_physical(
@@ -829,7 +786,7 @@ impl<'input> DtdControllerCore<'input> {
         if let Err(error) = result {
             return Err(self.error_for_origin(
                 if error.kind == FrameErrorKind::LimitExceeded(crate::dtd_frames::FrameLimit::Work)
-                    && ceiling <= self.limits.frames.max_work
+                    && ceiling <= self.limits.work
                 {
                     ControllerErrorKind::Limit(ControllerLimit::Work)
                 } else {
@@ -851,7 +808,7 @@ impl<'input> DtdControllerCore<'input> {
         let id = *self.active.last().expect("active unit source");
         let origin = self.pending_origin(Side::Replacement)?;
         let before = self.frames.counters().work;
-        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
+        let ceiling = before.saturating_add(self.limits.work - self.counters.work);
         self.frames.cap_work(ceiling);
         let result = self.frames.advance_current(
             EntityDeclarationId::from_index(id.index()),
@@ -862,7 +819,7 @@ impl<'input> DtdControllerCore<'input> {
         result.map(|_| ()).map_err(|error| {
             let kind = if error.kind
                 == FrameErrorKind::LimitExceeded(crate::dtd_frames::FrameLimit::Work)
-                && ceiling <= self.limits.frames.max_work
+                && ceiling <= self.limits.work
             {
                 ControllerErrorKind::Limit(ControllerLimit::Work)
             } else {
@@ -1026,7 +983,7 @@ impl<'input> DtdControllerCore<'input> {
             .counters
             .work
             .checked_add(bytes)
-            .filter(|work| *work <= self.limits.max_work)
+            .filter(|work| *work <= self.limits.work)
             .ok_or_else(|| match origin {
                 Some(origin) => self.error_for_origin(
                     ControllerErrorKind::Limit(ControllerLimit::Work),

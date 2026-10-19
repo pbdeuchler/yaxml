@@ -3,12 +3,6 @@ use crate::escape::{invalid_char, xml_char};
 use crate::name::validate_name;
 use std::ops::Range;
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ReferenceLimits {
-    pub(crate) max_bytes: usize,
-    pub(crate) max_scratch_bytes: usize,
-    pub(crate) max_work: usize,
-}
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ReferenceUsage {
     pub(crate) scanned: usize,
@@ -45,7 +39,6 @@ impl<'a> ValidatedReference<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReferenceLimit {
     Bytes,
-    ScratchBytes,
     Work,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -75,19 +68,21 @@ pub(crate) struct ReferenceScratch {
     buffer: ReferenceBuffer,
     start: usize,
     position: usize,
-    limits: ReferenceLimits,
+    max_bytes: usize,
+    max_work: usize,
     usage: ReferenceUsage,
     complete: bool,
     finalizing: bool,
     failure: Option<ReferenceError>,
 }
 impl ReferenceScratch {
-    pub(crate) fn new(start: usize, limits: ReferenceLimits) -> Self {
+    pub(crate) fn new(start: usize, max_bytes: usize, max_work: usize) -> Self {
         Self {
             buffer: ReferenceBuffer::Pending(Vec::new()),
             start,
             position: start,
-            limits,
+            max_bytes,
+            max_work,
             usage: ReferenceUsage::default(),
             complete: false,
             finalizing: false,
@@ -95,7 +90,7 @@ impl ReferenceScratch {
         }
     }
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
-        self.limits.max_work = self.limits.max_work.min(ceiling);
+        self.max_work = self.max_work.min(ceiling);
     }
     pub(crate) fn position(&self) -> usize {
         self.position
@@ -106,13 +101,13 @@ impl ReferenceScratch {
         let length = spelling.len();
         self.buffer_len() == 0
             && spelling.first() == Some(&b'&')
-            && length <= self.limits.max_bytes.min(self.limits.max_scratch_bytes)
+            && length <= self.max_bytes
             && self.start.checked_add(length).is_some()
             && self
                 .usage
                 .work
                 .checked_add(length.saturating_mul(3))
-                .is_some_and(|work| work <= self.limits.max_work)
+                .is_some_and(|work| work <= self.max_work)
     }
     pub(crate) fn usage(&self) -> ReferenceUsage {
         self.usage
@@ -206,22 +201,16 @@ impl ReferenceScratch {
             .usage
             .work
             .checked_add(2)
-            .filter(|n| *n <= self.limits.max_work)
+            .filter(|n| *n <= self.max_work)
             .ok_or_else(|| {
                 self.error(
                     ReferenceErrorKind::Limit(ReferenceLimit::Work),
                     self.position(),
                 )
             })?;
-        if length > self.limits.max_bytes {
+        if length > self.max_bytes {
             return Err(self.error(
                 ReferenceErrorKind::Limit(ReferenceLimit::Bytes),
-                self.position(),
-            ));
-        }
-        if length > self.limits.max_scratch_bytes {
-            return Err(self.error(
-                ReferenceErrorKind::Limit(ReferenceLimit::ScratchBytes),
                 self.position(),
             ));
         }
@@ -236,8 +225,7 @@ impl ReferenceScratch {
                 .saturating_mul(2)
                 .max(32)
                 .max(length)
-                .min(self.limits.max_bytes)
-                .min(self.limits.max_scratch_bytes);
+                .min(self.max_bytes);
             bytes
                 .try_reserve_exact(target - bytes.len())
                 .map_err(|_| allocation)?;
@@ -255,7 +243,7 @@ impl ReferenceScratch {
             .usage
             .work
             .checked_add(length)
-            .filter(|n| *n <= self.limits.max_work)
+            .filter(|n| *n <= self.max_work)
             .ok_or_else(|| {
                 self.error(ReferenceErrorKind::Limit(ReferenceLimit::Work), self.start)
             })?;

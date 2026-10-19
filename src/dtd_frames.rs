@@ -1,6 +1,8 @@
 use std::num::NonZeroU64;
 use std::ops::Range;
 
+use crate::dtd::DtdLimits;
+
 pub(crate) use crate::origin::{
     ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr as FragmentOrigin,
 };
@@ -28,25 +30,6 @@ impl FrameBoundary {
         match self {
             Self::Content { .. } => ReferenceContext::Content,
             Self::DtdSubset => ReferenceContext::DtdSubset,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct FrameLimits {
-    pub(crate) max_active_depth: usize,
-    pub(crate) max_reference_attempts: usize,
-    pub(crate) max_work: usize,
-    pub(crate) max_expanded_bytes: usize,
-}
-
-impl Default for FrameLimits {
-    fn default() -> Self {
-        Self {
-            max_active_depth: 64,
-            max_reference_attempts: 16 * 1024,
-            max_work: 8 * 1024 * 1024,
-            max_expanded_bytes: 8 * 1024 * 1024,
         }
     }
 }
@@ -135,7 +118,7 @@ struct EntityFrame {
 #[derive(Debug)]
 pub(crate) struct EntityFrames {
     frames: Vec<EntityFrame>,
-    limits: FrameLimits,
+    limits: DtdLimits,
     counters: FrameCounters,
     next_invocation: Option<NonZeroU64>,
     expansion_ceiling: usize,
@@ -158,7 +141,7 @@ pub(crate) struct CompletedFrame {
 }
 
 impl EntityFrames {
-    pub(crate) fn new(limits: FrameLimits) -> Self {
+    pub(crate) fn new(limits: DtdLimits) -> Self {
         Self {
             frames: Vec::new(),
             limits,
@@ -169,7 +152,7 @@ impl EntityFrames {
     }
 
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
-        self.limits.max_work = self.limits.max_work.min(ceiling);
+        self.limits.work = self.limits.work.min(ceiling);
     }
 
     /// The live amplification allowance, beneath the configured ceiling.
@@ -395,7 +378,7 @@ impl EntityFrames {
         {
             return Err(FrameError::new(FrameErrorKind::Cycle, offset));
         }
-        if self.frames.len() >= self.limits.max_active_depth {
+        if self.frames.len() >= self.limits.depth {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::ActiveDepth),
                 offset,
@@ -439,7 +422,7 @@ impl EntityFrames {
             FrameCounter::ReferenceAttempts,
             physical_offset,
         )?;
-        if attempts > self.limits.max_reference_attempts {
+        if attempts > self.limits.references {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts),
                 physical_offset,
@@ -461,7 +444,7 @@ impl EntityFrames {
             FrameCounter::Work,
             physical_offset,
         )?;
-        if work > self.limits.max_work {
+        if work > self.limits.work {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::Work),
                 physical_offset,
@@ -473,7 +456,7 @@ impl EntityFrames {
             FrameCounter::ExpandedBytes,
             physical_offset,
         )?;
-        if expanded_bytes > self.limits.max_expanded_bytes.min(self.expansion_ceiling) {
+        if expanded_bytes > self.limits.expansion.min(self.expansion_ceiling) {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::ExpandedBytes),
                 physical_offset,
@@ -498,7 +481,7 @@ impl EntityFrames {
             FrameCounter::Work,
             physical_offset,
         )?;
-        if work > self.limits.max_work {
+        if work > self.limits.work {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::Work),
                 physical_offset,
@@ -510,7 +493,7 @@ impl EntityFrames {
             FrameCounter::ExpandedBytes,
             physical_offset,
         )?;
-        if expanded_bytes > self.limits.max_expanded_bytes.min(self.expansion_ceiling) {
+        if expanded_bytes > self.limits.expansion.min(self.expansion_ceiling) {
             return Err(FrameError::new(
                 FrameErrorKind::LimitExceeded(FrameLimit::ExpandedBytes),
                 physical_offset,

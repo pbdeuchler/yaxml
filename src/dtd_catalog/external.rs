@@ -57,14 +57,14 @@ pub(crate) fn external_dtd(
     resolver: Box<dyn crate::Resolver>,
 ) -> Result<Dtd, crate::Error> {
     let fail = |kind| crate::Error::new(kind, 0);
-    let mut loader = Loader::new("", resolver, &limits, crate::dtd::DtdLimits::default());
+    let mut loader = Loader::new("", resolver, &limits);
     let uri = loader.uri(system);
     let text = loader
         .load(ResourceKind::DtdSubset, &uri, None)
         .map_err(fail)?
         .ok_or(fail(crate::ErrorKind::ExternalResource))?;
     loader.base = uri;
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
     catalog.set_loader(loader);
     let mut frames = vec![Frame {
         source: Source::Subset,
@@ -174,7 +174,7 @@ impl DtdCatalog {
         increment(
             &mut self.usage.references,
             1,
-            self.limits.max_references,
+            self.limits.references,
             CatalogLimit::References,
             LOCATION,
         )?;
@@ -192,7 +192,7 @@ impl DtdCatalog {
             }
             depth += 1;
         }
-        if depth >= self.limits.max_depth {
+        if depth >= self.limits.depth {
             return Err(error(
                 CatalogErrorKind::Limit(CatalogLimit::Depth),
                 LOCATION,
@@ -205,7 +205,7 @@ impl DtdCatalog {
         increment(
             &mut self.usage.expanded_bytes,
             length,
-            self.limits.max_expanded_bytes,
+            self.limits.expansion,
             CatalogLimit::ExpandedBytes,
             LOCATION,
         )?;
@@ -290,14 +290,12 @@ impl DtdCatalog {
             } else if rest.starts_with("<!--") || rest.starts_with("<?") {
                 let close = if rest.starts_with("<?") { "?>" } else { "-->" };
                 let end = rest.find(close).ok_or_else(syntax)? + close.len();
-                let limits = self.loader.as_ref().expect("loaded text").unit;
-                DtdUnit::parse(&rest[..end], limits)
+                DtdUnit::parse(&rest[..end], self.limits)
                     .map_err(|e| error(CatalogErrorKind::Grammar(e.kind), LOCATION))?;
                 end
             } else if rest.starts_with("<!") {
                 let declaration = self.collect(subset, frames, outer, Until::Declaration)?;
-                let limits = self.loader.as_ref().expect("loaded text").unit;
-                let unit = DtdUnit::parse(declaration, limits)
+                let unit = DtdUnit::parse(declaration, self.limits)
                     .map_err(|e| error(CatalogErrorKind::Grammar(e.kind), LOCATION))?;
                 if !matches!(
                     unit.view(),
@@ -387,7 +385,7 @@ impl DtdCatalog {
                     increment(
                         &mut self.usage.work,
                         output.len(),
-                        self.limits.max_work,
+                        self.limits.work,
                         CatalogLimit::Work,
                         LOCATION,
                     )?;

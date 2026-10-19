@@ -3,8 +3,8 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::dtd::{
-    AttributeTypeView, DefaultDeclarationView, DtdUnit, DtdUnitView, EntityDefinitionView,
-    ReferenceKind,
+    AttributeTypeView, DefaultDeclarationView, DtdLimits, DtdUnit, DtdUnitView,
+    EntityDefinitionView, ReferenceKind,
 };
 use crate::escape::xml_char;
 use crate::name::validate_name;
@@ -30,33 +30,6 @@ impl EntityId {
 pub(crate) struct DeclarationContext {
     pub(crate) internal_subset: bool,
     pub(crate) literals: LiteralSource,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct CatalogLimits {
-    pub(crate) max_declarations: usize,
-    pub(crate) max_bindings: usize,
-    pub(crate) max_storage_bytes: usize,
-    pub(crate) max_value_bytes: usize,
-    pub(crate) max_expanded_bytes: usize,
-    pub(crate) max_work: usize,
-    pub(crate) max_references: usize,
-    pub(crate) max_depth: usize,
-}
-
-impl Default for CatalogLimits {
-    fn default() -> Self {
-        Self {
-            max_declarations: 16_384,
-            max_bindings: 16_384,
-            max_storage_bytes: 8 * 1024 * 1024,
-            max_value_bytes: 1024 * 1024,
-            max_expanded_bytes: 16 * 1024 * 1024,
-            max_work: 64 * 1024 * 1024,
-            max_references: 1024 * 1024,
-            max_depth: 64,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -294,7 +267,7 @@ pub(crate) struct DtdCatalog {
     entities: Vec<Entity>,
     dtd: Dtd,
     frames: Vec<ValueFrame>,
-    limits: CatalogLimits,
+    limits: DtdLimits,
     usage: CatalogUsage,
     standalone: bool,
     external_subset: bool,
@@ -307,7 +280,7 @@ pub(crate) struct DtdCatalog {
 }
 
 impl DtdCatalog {
-    pub(crate) fn new(limits: CatalogLimits, standalone: bool) -> Self {
+    pub(crate) fn new(limits: DtdLimits, standalone: bool) -> Self {
         Self {
             general: HashMap::new(),
             parameter: HashMap::new(),
@@ -330,7 +303,7 @@ impl DtdCatalog {
     }
 
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
-        self.limits.max_work = self.limits.max_work.min(ceiling);
+        self.limits.work = self.limits.work.min(ceiling);
     }
 
     pub(crate) fn set_amplification_ceiling(&mut self, ceiling: usize) {
@@ -459,14 +432,14 @@ impl DtdCatalog {
         increment(
             &mut self.usage.declarations,
             1,
-            self.limits.max_declarations,
+            self.limits.declarations,
             CatalogLimit::Declarations,
             location,
         )?;
         increment(
             &mut self.usage.work,
             unit.raw().len(),
-            self.limits.max_work,
+            self.limits.work,
             CatalogLimit::Work,
             location,
         )?;
@@ -687,8 +660,8 @@ impl DtdCatalog {
             DtdUnitView::Element(view) => {
                 let element = self.element_slot(view.name(), location)?;
                 // Follow-set entries are four bytes: bound them by storage too.
-                let work = self.limits.max_work - self.usage.work;
-                let storage = self.limits.max_storage_bytes - self.usage.storage_bytes;
+                let work = self.limits.work - self.usage.work;
+                let storage = self.limits.storage - self.usage.storage_bytes;
                 let (limit, budget) = match work <= storage / 4 {
                     true => (CatalogLimit::Work, work),
                     false => (CatalogLimit::StorageBytes, storage / 4),
@@ -813,7 +786,7 @@ impl DtdCatalog {
         increment(
             &mut self.usage.storage_bytes,
             bytes,
-            self.limits.max_storage_bytes,
+            self.limits.storage,
             CatalogLimit::StorageBytes,
             location,
         )
@@ -823,7 +796,7 @@ impl DtdCatalog {
         increment(
             &mut self.usage.bindings,
             1,
-            self.limits.max_bindings,
+            self.limits.declarations,
             CatalogLimit::Bindings,
             location,
         )
@@ -1041,7 +1014,7 @@ struct ValueProcessor<'a, 'raw> {
     parameter: &'a HashMap<String, EntityId>,
     entities: &'a [Entity],
     frames: &'a mut Vec<ValueFrame>,
-    limits: CatalogLimits,
+    limits: DtdLimits,
     amplification_ceiling: usize,
     request: ValueRequest<'a>,
     usage: &'a mut CatalogUsage,
@@ -1071,7 +1044,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         increment(
             &mut self.usage.work,
             self.raw.len(),
-            self.limits.max_work,
+            self.limits.work,
             CatalogLimit::Work,
             root,
         )?;
@@ -1123,7 +1096,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                 increment(
                     &mut self.usage.references,
                     1,
-                    self.limits.max_references,
+                    self.limits.references,
                     CatalogLimit::References,
                     location,
                 )?;
@@ -1180,14 +1153,14 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                                 increment(
                                     &mut self.usage.work,
                                     self.frames.len(),
-                                    self.limits.max_work,
+                                    self.limits.work,
                                     CatalogLimit::Work,
                                     location,
                                 )?;
                                 if self.frames.iter().any(|frame| frame.entity == Some(id)) {
                                     return Err(error(CatalogErrorKind::Recursion, location));
                                 }
-                                if self.frames.len() > self.limits.max_depth {
+                                if self.frames.len() > self.limits.depth {
                                     return Err(error(
                                         CatalogErrorKind::Limit(CatalogLimit::Depth),
                                         location,
@@ -1196,7 +1169,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                                 increment(
                                     &mut self.usage.work,
                                     replacement.len(),
-                                    self.limits.max_work,
+                                    self.limits.work,
                                     CatalogLimit::Work,
                                     location,
                                 )?;
@@ -1262,7 +1235,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         increment(
             &mut self.usage.expanded_bytes,
             character.len_utf8(),
-            self.limits.max_expanded_bytes,
+            self.limits.expansion,
             CatalogLimit::ExpandedBytes,
             location,
         )?;
@@ -1288,14 +1261,14 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         if let ValueOutput::Matching { raw, matched } = output {
             let needed = matched
                 .checked_add(character.len_utf8())
-                .filter(|length| *length <= self.limits.max_value_bytes)
+                .filter(|length| *length <= self.limits.token)
                 .ok_or_else(|| {
                     error(CatalogErrorKind::Limit(CatalogLimit::ValueBytes), location)
                 })?;
             increment(
                 &mut self.usage.work,
                 character.len_utf8(),
-                self.limits.max_work,
+                self.limits.work,
                 CatalogLimit::Work,
                 location,
             )?;
@@ -1314,7 +1287,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         append(
             output,
             character,
-            self.limits.max_value_bytes,
+            self.limits.token,
             self.request.ceiling,
             self.request.requested,
             location,
@@ -1332,13 +1305,13 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         increment(
             &mut self.usage.work,
             *matched,
-            self.limits.max_work,
+            self.limits.work,
             CatalogLimit::Work,
             location,
         )?;
         let mut owned = String::new();
         if *matched != 0 {
-            let target = (*matched).max(64).min(self.limits.max_value_bytes);
+            let target = (*matched).max(64).min(self.limits.token);
             if let Some(ceiling) = self.request.ceiling {
                 *self.request.requested = self
                     .request

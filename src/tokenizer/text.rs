@@ -5,10 +5,11 @@ use super::reference::{
     ReferenceExtent,
 };
 use super::{TokenKind, Tokenizer};
+use crate::dtd::DtdLimits;
 use crate::dtd_frames::EntityInvocationId;
 use crate::dtd_reference::{
-    ReferenceError, ReferenceErrorKind, ReferenceKind, ReferenceLimit, ReferenceLimits,
-    ReferenceScratch, ValidatedReference,
+    ReferenceError, ReferenceErrorKind, ReferenceKind, ReferenceLimit, ReferenceScratch,
+    ValidatedReference,
 };
 use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::escape::invalid_char;
@@ -40,18 +41,6 @@ pub(crate) struct TextError {
     pub(crate) source: TextSourceId,
     pub(crate) offset: usize,
 }
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct TextScratchLimits {
-    pub(crate) input_token_bytes: usize,
-    pub(crate) replacement_token_bytes: usize,
-    pub(crate) max_bytes: usize,
-}
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct TextLimits {
-    pub(crate) max_work: usize,
-    pub(crate) reference: ReferenceLimits,
-    pub(crate) scratch: TextScratchLimits,
-}
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct TextUsage {
     pub(crate) work: usize,
@@ -64,32 +53,22 @@ pub(crate) struct TextUsage {
 }
 /// The same scratch allocation and counters move across source handoffs.
 pub(crate) struct TextShared {
-    limits: TextLimits,
+    limits: DtdLimits,
     usage: TextUsage,
     reference: Option<ReferenceScratch>,
     failure: Option<TextError>,
 }
 impl TextShared {
-    pub(crate) fn new(limits: TextLimits, initial_work: usize) -> Result<Self, TextErrorKind> {
-        if initial_work > limits.max_work {
+    pub(crate) fn new(limits: DtdLimits, initial_work: usize) -> Result<Self, TextErrorKind> {
+        if initial_work > limits.work {
             return Err(TextErrorKind::Work);
         }
-        let reserved = limits
+        // Both source slots and the reference scratch must be addressable.
+        limits
             .scratch
-            .input_token_bytes
-            .checked_add(limits.scratch.replacement_token_bytes)
-            .and_then(|tokens| {
-                tokens.checked_add(
-                    limits
-                        .reference
-                        .max_bytes
-                        .min(limits.reference.max_scratch_bytes),
-                )
-            })
+            .checked_add(limits.scratch)
+            .and_then(|tokens| tokens.checked_add(limits.token))
             .ok_or(TextErrorKind::ScratchOverflow)?;
-        if reserved > limits.scratch.max_bytes {
-            return Err(TextErrorKind::Scratch);
-        }
         Ok(Self {
             limits,
             usage: TextUsage {
@@ -109,7 +88,7 @@ impl TextShared {
         }
         Ok(self
             .limits
-            .max_work
+            .work
             .checked_sub(self.usage.work)
             .expect("accepted Text work stays within its limit"))
     }
@@ -135,11 +114,11 @@ impl TextShared {
         let (required, slot) = match &source.kind {
             LeaseKind::Input { tokenizer, .. } => (
                 tokenizer.scratch_capacity_requirement(),
-                self.limits.scratch.input_token_bytes,
+                self.limits.scratch,
             ),
             LeaseKind::Local { tokenizer, .. } => (
                 tokenizer.scratch_capacity_requirement(),
-                self.limits.scratch.replacement_token_bytes,
+                self.limits.scratch,
             ),
         };
         if required > slot {
@@ -753,7 +732,8 @@ impl<'input> TextCoordinator<'input> {
                             } else {
                                 self.shared.reference = Some(ReferenceScratch::new(
                                     cursor.decoded_position(),
-                                    self.shared.limits.reference,
+                                    self.shared.limits.token,
+                                    self.shared.limits.work,
                                 ));
                             }
                             self.pending = Pending::Collecting(cursor);
@@ -779,9 +759,10 @@ impl<'input> TextCoordinator<'input> {
                                 source,
                                 offset: self.source.offset(),
                             })?;
-                            let global_cap = reference.usage().work.saturating_add(
-                                self.shared.limits.max_work - self.shared.usage.work,
-                            );
+                            let global_cap = reference
+                                .usage()
+                                .work
+                                .saturating_add(self.shared.limits.work - self.shared.usage.work);
                             reference.cap_work(global_cap);
                             let before = reference.usage();
                             let result = reference.finish_step();
@@ -804,7 +785,7 @@ impl<'input> TextCoordinator<'input> {
                     let global_cap = reference
                         .usage()
                         .work
-                        .saturating_add(self.shared.limits.max_work - self.shared.usage.work);
+                        .saturating_add(self.shared.limits.work - self.shared.usage.work);
                     reference.cap_work(global_cap);
                     // A whole simple ASCII reference cannot fail before its `;`, so
                     // it is fed at once; anything else goes byte by byte.
@@ -865,7 +846,7 @@ impl<'input> TextCoordinator<'input> {
     }
     fn scan(&mut self, input: &[u8]) -> Result<ContentStep, TextError> {
         let source = self.source.id();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
+        let remaining = self.shared.limits.work - self.shared.usage.work;
         match &mut self.source.kind {
             LeaseKind::Input {
                 tokenizer,
@@ -949,7 +930,7 @@ impl<'input> TextCoordinator<'input> {
     }
     fn flush_prefix(&mut self) -> Result<bool, TextError> {
         let source = self.source.id();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
+        let remaining = self.shared.limits.work - self.shared.usage.work;
         match &mut self.source.kind {
             LeaseKind::Input { tokenizer, .. } => {
                 let ready = tokenizer
@@ -988,7 +969,7 @@ impl<'input> TextCoordinator<'input> {
     fn append_character(&mut self, extent: &ReferenceExtent) -> Result<(), TextError> {
         let source = self.source.id();
         let offset = self.source.offset();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
+        let remaining = self.shared.limits.work - self.shared.usage.work;
         let reference = self
             .shared
             .reference
@@ -1008,7 +989,7 @@ impl<'input> TextCoordinator<'input> {
                     .usage
                     .work
                     .checked_add(length)
-                    .filter(|n| *n <= self.shared.limits.max_work)
+                    .filter(|n| *n <= self.shared.limits.work)
                     .ok_or(TextError {
                         kind: TextErrorKind::Work,
                         source,
@@ -1078,7 +1059,7 @@ impl<'input> TextCoordinator<'input> {
     }
     fn finish_source(&mut self) -> Result<(), TextError> {
         let source = self.source.id();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
+        let remaining = self.shared.limits.work - self.shared.usage.work;
         let ready = match &mut self.source.kind {
             LeaseKind::Input { tokenizer, .. } => {
                 tokenizer.finish_step().map_err(|e| TextError {
@@ -1156,7 +1137,7 @@ impl<'input> TextCoordinator<'input> {
         global_cap: usize,
     ) -> TextError {
         let kind = if error.kind == ReferenceErrorKind::Limit(ReferenceLimit::Work)
-            && global_cap <= self.shared.limits.reference.max_work
+            && global_cap <= self.shared.limits.work
         {
             TextErrorKind::Work
         } else {
@@ -1236,7 +1217,7 @@ fn charge(
         .usage
         .work
         .checked_add(amount)
-        .filter(|n| *n <= shared.limits.max_work)
+        .filter(|n| *n <= shared.limits.work)
         .ok_or(TextError {
             kind: TextErrorKind::Work,
             source,

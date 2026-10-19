@@ -3,7 +3,6 @@
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
 
-use crate::dtd::DtdLimits;
 use crate::encoding::{DecodeProgress, Decoded, Decoder, SourceEncoding, charset, declared_label};
 use crate::escape::xml_char;
 use crate::{ErrorKind, Limit, Limits, Uri};
@@ -138,23 +137,16 @@ pub(crate) struct Loader {
     resolver: Box<dyn Resolver>,
     /// Base of the resource whose declarations are being processed.
     pub(crate) base: String,
-    pub(crate) unit: DtdLimits,
     loads_left: usize,
     bytes_left: usize,
     max_bytes: usize,
 }
 
 impl Loader {
-    pub(crate) fn new(
-        base: &str,
-        resolver: Box<dyn Resolver>,
-        limits: &Limits,
-        unit: DtdLimits,
-    ) -> Self {
+    pub(crate) fn new(base: &str, resolver: Box<dyn Resolver>, limits: &Limits) -> Self {
         Self {
             resolver,
             base: base.to_owned(),
-            unit,
             loads_left: limits.max_external_loads,
             bytes_left: limits.max_external_bytes,
             max_bytes: limits.max_external_bytes,

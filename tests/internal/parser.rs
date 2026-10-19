@@ -1,6 +1,6 @@
 use super::*;
-use crate::dtd::LiteralSource;
-use crate::dtd_catalog::{CatalogLimits, DtdCatalog};
+use crate::dtd::{DtdLimits, LiteralSource};
+use crate::dtd_catalog::DtdCatalog;
 use crate::dtd_tag::{DtdTagErrorKind, DtdTagLocation, prepare_dtd_tag};
 
 impl ParserState<'_> {
@@ -35,7 +35,7 @@ fn generated_start_with_short_source(source: &str) -> Event<'static> {
             Ok(Cow::Borrowed(raw))
         })
         .unwrap();
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
     let generated = String::from("<p:child/>");
     state
         .process_dtd_start_owned(&generated, source.len(), &mut catalog)
@@ -56,7 +56,7 @@ fn generated_start_owns_names_and_an_inherited_borrowed_namespace() {
     let mut state = ParserState::new(Limits::default(), 0);
     let raw = state.collect_raw_tag("<p:child/>", 11).unwrap();
     let prepared = prepare_dtd_tag(
-        &mut DtdCatalog::new(CatalogLimits::default(), false),
+        &mut DtdCatalog::new(DtdLimits::STANDALONE, false),
         state.owned_budget(),
         raw,
         LiteralSource::Physical,
@@ -81,7 +81,7 @@ fn generated_namespace_copy_limit_fails_before_publication() {
             Ok(Cow::Borrowed(raw))
         })
         .unwrap();
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
     let start = source.len();
     let error = state
         .process_dtd_start_owned("<p:c/>", start, &mut catalog)

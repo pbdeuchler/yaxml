@@ -11,17 +11,9 @@ pub(crate) enum ScanMode {
     SubsetFragment,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ScanLimits {
-    pub(crate) max_unit_bytes: usize,
-    pub(crate) max_scratch_bytes: usize,
-    pub(crate) max_work: usize,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ScanLimit {
     UnitBytes,
-    ScratchBytes,
     Work,
 }
 
@@ -69,7 +61,8 @@ enum State {
 
 pub(crate) struct DtdScanner {
     mode: ScanMode,
-    limits: ScanLimits,
+    max_unit_bytes: usize,
+    max_work: usize,
     state: State,
     buffer: Vec<u8>,
     start: usize,
@@ -81,10 +74,11 @@ pub(crate) struct DtdScanner {
 }
 
 impl DtdScanner {
-    pub(crate) fn new(mode: ScanMode, limits: ScanLimits) -> Self {
+    pub(crate) fn new(mode: ScanMode, max_unit_bytes: usize, max_work: usize) -> Self {
         Self {
             mode,
-            limits,
+            max_unit_bytes,
+            max_work,
             state: match mode {
                 ScanMode::Doctype => State::HeaderPrefix(0),
                 ScanMode::SubsetFragment => State::Between,
@@ -100,7 +94,7 @@ impl DtdScanner {
     }
 
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
-        self.limits.max_work = self.limits.max_work.min(ceiling);
+        self.max_work = self.max_work.min(ceiling);
     }
 
     pub(crate) fn pending(&self) -> (&[u8], Range<usize>) {
@@ -218,17 +212,14 @@ impl DtdScanner {
         let next = self
             .position
             .checked_add(1)
-            .filter(|position| *position <= self.limits.max_work)
+            .filter(|position| *position <= self.max_work)
             .ok_or_else(|| self.error(ScanErrorKind::Limit(ScanLimit::Work)))?;
         let needed = self
             .buffer
             .len()
             .checked_add(1)
-            .filter(|length| *length <= self.limits.max_unit_bytes)
+            .filter(|length| *length <= self.max_unit_bytes)
             .ok_or_else(|| self.error(ScanErrorKind::Limit(ScanLimit::UnitBytes)))?;
-        if needed > self.limits.max_scratch_bytes {
-            return Err(self.error(ScanErrorKind::Limit(ScanLimit::ScratchBytes)));
-        }
         if needed > self.buffer.capacity() {
             let target = self
                 .buffer
@@ -236,8 +227,7 @@ impl DtdScanner {
                 .saturating_mul(2)
                 .max(64)
                 .max(needed)
-                .min(self.limits.max_unit_bytes)
-                .min(self.limits.max_scratch_bytes);
+                .min(self.max_unit_bytes);
             self.buffer
                 .try_reserve_exact(target - self.buffer.len())
                 .map_err(|_| self.error(ScanErrorKind::Allocation))?;

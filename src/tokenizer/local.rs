@@ -6,12 +6,6 @@ use crate::dtd_reference::ValidatedReference;
 use crate::escape::invalid_char;
 use std::ops::Range;
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct LocalLimits {
-    pub(crate) max_token_bytes: usize,
-    pub(crate) max_scratch_bytes: usize,
-    pub(crate) max_work: usize,
-}
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct LocalUsage {
     pub(crate) scanned: usize,
@@ -36,7 +30,7 @@ pub(crate) struct LocalError {
 
 pub(crate) struct LocalTokenizer {
     inner: Tokenizer,
-    limits: LocalLimits,
+    max_work: usize,
     usage: LocalUsage,
     validated_ready: bool,
     finalizing: bool,
@@ -44,14 +38,14 @@ pub(crate) struct LocalTokenizer {
     failure: Option<LocalError>,
 }
 impl LocalTokenizer {
-    pub(crate) fn new(start: usize, limits: LocalLimits) -> Self {
-        let mut inner = Tokenizer::new(limits.max_token_bytes, limits.max_scratch_bytes);
+    pub(crate) fn new(start: usize, max_token_bytes: usize, max_work: usize) -> Self {
+        let mut inner = Tokenizer::new(max_token_bytes, max_token_bytes);
         inner.local = true;
         inner.start = start;
         inner.position = start;
         Self {
             inner,
-            limits,
+            max_work,
             usage: LocalUsage::default(),
             validated_ready: false,
             finalizing: false,
@@ -60,7 +54,7 @@ impl LocalTokenizer {
         }
     }
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
-        self.limits.max_work = self.limits.max_work.min(ceiling);
+        self.max_work = self.max_work.min(ceiling);
     }
     pub(crate) fn position(&self) -> usize {
         self.inner.position
@@ -69,7 +63,7 @@ impl LocalTokenizer {
         self.usage
     }
     pub(crate) fn work_ceiling(&self) -> usize {
-        self.limits.max_work
+        self.max_work
     }
     pub(crate) fn scratch_capacity_requirement(&self) -> usize {
         self.inner.scratch_capacity_requirement()
@@ -119,7 +113,7 @@ impl LocalTokenizer {
                     },
                 });
             }
-            let remaining = s.limits.max_work.saturating_sub(s.usage.work);
+            let remaining = s.max_work.saturating_sub(s.usage.work);
             let positions = usize::MAX - s.position();
             let length = input.len().min(remaining).min(positions);
             let before = s.position();
@@ -184,7 +178,7 @@ impl LocalTokenizer {
                 .usage
                 .work
                 .checked_add(length)
-                .filter(|n| *n <= s.limits.max_work)
+                .filter(|n| *n <= s.max_work)
                 .ok_or_else(|| s.error(LocalErrorKind::Work, s.position()))?;
             s.usage.work = next;
             s.inner
@@ -257,7 +251,7 @@ impl LocalTokenizer {
             .usage
             .work
             .checked_add(length)
-            .filter(|work| *work <= self.limits.max_work)
+            .filter(|work| *work <= self.max_work)
             .ok_or_else(|| self.error(LocalErrorKind::Work, start))?;
         self.usage.work = next;
         self.usage.validated += length;
