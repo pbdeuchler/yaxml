@@ -38,14 +38,7 @@ fn unavailable_or_non_event_tokens_cannot_be_lent_as_events() {
         stream.event().unwrap_err(),
         Error::new(ErrorKind::InvalidState, 2)
     );
-    let mut calls = 0;
-    stream
-        .emit(&mut |_, _, _| {
-            calls += 1;
-            Ok(())
-        })
-        .unwrap();
-    assert_eq!(calls, 0);
+    stream.skip_non_event().unwrap();
 }
 
 #[test]
@@ -71,12 +64,8 @@ fn sibling_history_does_not_grow_retained_state() {
                     let consumed = stream.advance(remaining).unwrap();
                     remaining = &remaining[consumed..];
                     if stream.has_token() {
-                        stream
-                            .emit(&mut |_, _, _| {
-                                events += 1;
-                                Ok(())
-                            })
-                            .unwrap();
+                        stream.event().unwrap();
+                        events += 1;
                         for (peak, (entries, capacity)) in
                             state_peaks.iter_mut().zip(stream.state.retained_snapshot())
                         {

@@ -91,12 +91,12 @@ pub enum Attributes<'a> {
 impl<'a> Attributes<'a> {
     /// Mutable access to an owned list, copying a lent one first.
     pub fn to_mut(&mut self) -> &mut Vec<Attribute<'a>> {
-        if let Self::Borrowed(attributes) = self {
-            *self = Self::Owned(attributes.to_vec());
-        }
-        match self {
-            Self::Owned(attributes) => attributes,
-            Self::Borrowed(_) => unreachable!("converted to owned"),
+        match *self {
+            Self::Owned(ref mut attributes) => attributes,
+            Self::Borrowed(attributes) => {
+                *self = Self::Owned(attributes.to_vec());
+                self.to_mut()
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 use std::io::{self, BufRead};
 
-use crate::stream::dtd::{SessionOutcome, SessionStep, StreamingSession};
+use crate::stream::dtd::{SessionOutcome, StreamingSession};
 use crate::tokenizer::TokenKind;
 use crate::{
     DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ParseOptions, ReadError, SourceOrigin,
@@ -118,7 +118,10 @@ impl<R: BufRead> BufferedReader<R> {
         match self.status {
             Status::Finished => return Ok(None),
             Status::Xml(error) => return Err(ReadError::Xml(error)),
-            Status::Poisoned => return Err(ReadError::Xml(self.invalid_state())),
+            Status::Poisoned => {
+                let error = Error::new(ErrorKind::InvalidState, self.position());
+                return Err(ReadError::Xml(error));
+            }
             Status::Active => {}
         }
         // Poison before releasing tokens, mutating semantic state, or calling
@@ -190,25 +193,19 @@ impl<R: BufRead> BufferedReader<R> {
     /// source for another window. Accepted bytes are consumed before an error.
     fn prepare(&mut self) -> Result<bool, ReadError> {
         loop {
-            let before = self.position();
+            // At EOF the session drains or fails; it never asks for input.
             let result = if self.eof {
                 self.session.finish_step()
             } else {
                 self.session.prepare(&[])
             };
-            if checked_consumed(before, self.position(), 0, &result).is_none() {
-                return Err(ReadError::Xml(self.invalid_state()));
-            }
             match result.map_err(ReadError::Xml)?.outcome {
                 SessionOutcome::Ready => return Ok(true),
                 SessionOutcome::Complete => return Ok(false),
                 SessionOutcome::NeedInput => {}
             }
-            if self.eof {
-                return Err(ReadError::Xml(self.invalid_state()));
-            }
             let before = self.position();
-            let (result, offered) = {
+            let result = {
                 let input = match self.input.fill_buf() {
                     Ok(input) => input,
                     Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
@@ -225,23 +222,14 @@ impl<R: BufRead> BufferedReader<R> {
                         0,
                     )));
                 }
-                let offered = input.len().min(remaining);
-                (self.session.prepare(&input[..offered]), offered)
+                self.session.prepare(&input[..input.len().min(remaining)])
             };
-            let consumed = checked_consumed(before, self.position(), offered, &result)
-                .ok_or_else(|| ReadError::Xml(self.invalid_state()))?;
             // Commit accepted transport before lending or reporting a semantic
-            // error. A caught consume panic leaves this reader poisoned.
-            if consumed != 0 {
-                self.input.consume(consumed);
-            }
-            match result.map_err(ReadError::Xml)?.outcome {
-                SessionOutcome::Ready => return Ok(true),
-                SessionOutcome::Complete => return Ok(false),
-                SessionOutcome::NeedInput if consumed == 0 => {
-                    return Err(ReadError::Xml(self.invalid_state()));
-                }
-                SessionOutcome::NeedInput => {}
+            // error. A caught consume panic leaves this reader poisoned. The
+            // session takes the whole window unless a token is ready.
+            self.input.consume(self.position() - before);
+            if result.map_err(ReadError::Xml)?.outcome == SessionOutcome::Ready {
+                return Ok(true);
             }
         }
     }
@@ -254,9 +242,7 @@ impl<R: BufRead> BufferedReader<R> {
             match stream.token_kind() {
                 Some(TokenKind::Dtd) => return Ok(None),
                 Some(_) if stream.is_non_event() => {
-                    stream
-                        .emit(&mut |_, _, _| unreachable!("classified non-event"))
-                        .map_err(ReadError::Xml)?;
+                    stream.skip_non_event().map_err(ReadError::Xml)?;
                     stream.release();
                     continue;
                 }
@@ -295,33 +281,10 @@ impl<R: BufRead> BufferedReader<R> {
                 }
                 stream.advance(&input[..input.len().min(remaining)])
             };
-            // Commit accepted transport before reporting a lexical error.
-            let consumed = stream.position() - before;
-            let stalled = consumed == 0 && !stream.has_token();
-            if consumed != 0 {
-                self.input.consume(consumed);
-            }
+            // Commit accepted transport before reporting a lexical error. The
+            // stream takes the whole window unless a token is ready.
+            self.input.consume(stream.position() - before);
             result.map_err(ReadError::Xml)?;
-            if stalled {
-                return Err(ReadError::Xml(self.invalid_state()));
-            }
         }
     }
-
-    fn invalid_state(&self) -> Error {
-        Error::new(ErrorKind::InvalidState, self.position())
-    }
-}
-
-/// Session errors have no Step, so their accepted prefix uses the checked
-/// physical-position delta.
-fn checked_consumed(
-    before: usize,
-    after: usize,
-    offered: usize,
-    result: &Result<SessionStep, Error>,
-) -> Option<usize> {
-    let delta = after.checked_sub(before)?;
-    let consumed = result.as_ref().map_or(delta, |step| step.consumed);
-    (consumed == delta && consumed <= offered).then_some(consumed)
 }
