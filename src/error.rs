@@ -57,6 +57,9 @@ pub enum ErrorKind {
     InvalidDtd,
     /// The resolver failed to load an external DTD subset or entity.
     ExternalResource,
+    /// `XML_PARSE_XINCLUDE` processing failed; [`crate::xinclude::process`]
+    /// reports the detail.
+    XInclude,
     MissingRoot,
     MultipleRoots,
     TextOutsideRoot,

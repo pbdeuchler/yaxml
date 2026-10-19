@@ -16,6 +16,7 @@ mod error;
 mod escape;
 pub mod html;
 mod name;
+pub mod options;
 mod origin;
 mod owned;
 mod parser;
@@ -49,6 +50,7 @@ pub use error::{
     ReadError, WriteError,
 };
 pub use name::Name;
+pub use options::ParseOptions;
 pub use origin::SourceOrigin;
 pub use owned::{
     AttributeSpec, EditLimits, Editor, ElementItem, ElementSpec, NameSpec, NamespaceSpec,

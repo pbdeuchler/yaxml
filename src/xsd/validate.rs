@@ -199,6 +199,8 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
                         self.text(node, text);
                         false
                     }
+                    // Entity references are transparent (libxml2 rejects them).
+                    Item::EntityRef(_) => true,
                     _ => false,
                 };
             if let Some(child) = tree.first_child(node).filter(|_| descend) {

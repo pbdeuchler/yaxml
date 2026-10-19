@@ -12,12 +12,12 @@ can wait for the attribute-membership representation decision.
 
 This is implementable with the current contiguous attribute arena. Each
 element stores a range into `OwnedDocument::attributes` in
-[`owned.rs`](../../src/owned.rs#L411), and
-[`OwnedBuilder::consume`](../../src/owned.rs#L1010) currently appends parsed
+[`owned.rs`](../../../src/owned.rs#L411), and
+[`OwnedBuilder::consume`](../../../src/owned.rs#L1010) currently appends parsed
 attributes contiguously. Every new element receives one final contiguous range;
 creation appends the root's items, and `append_element` appends the new
 element's items. Neither operation changes a surviving element's range. The
-existing [`append_leaf` transaction](../../src/owned.rs#L636) provides the
+existing [`append_leaf` transaction](../../../src/owned.rs#L636) provides the
 model for checked reservations and publication. This slice therefore does not
 need geometric blocks or a changed attribute read path.
 
@@ -180,8 +180,8 @@ exhaustion afterward. With `max_depth`, per-element `max_attributes`, per-call
 work and no retained scope map, both lookup work and scratch are bounded.
 Include inherited declarations even when unused. The parser's namespace scope remains the source
 of reserved-binding and expanded-name semantics. Its start-tag checks in
-[`parser.rs`](../../src/parser.rs#L338) and XML-name validator at
-[`parser.rs`](../../src/parser.rs#L792) are the reference. Share helpers where
+[`parser.rs`](../../../src/parser.rs#L338) and XML-name validator at
+[`parser.rs`](../../../src/parser.rs#L792) are the reference. Share helpers where
 their contracts match rather than serializing and reparsing a fragment.
 
 ## Error and publication order

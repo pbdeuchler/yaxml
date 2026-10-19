@@ -1,6 +1,7 @@
 //! Schematron schemas and instances. A testcase is NUL-separated: the schema,
-//! then the instance. A schema piece that is not markup is wrapped as the
-//! content of a rule whose context is `*`. Checks: `Schema::from_tree` over
+//! then the instance, read with `XML_PARSE_NOENT` for half of the schemas
+//! and keeping entity references otherwise. A schema piece that is not
+//! markup is wrapped as the content of a rule whose context is `*`. Checks: `Schema::from_tree` over
 //! both DOMs reports what `Schema::parse` does; every output mode gives the
 //! same result over both DOMs and on reuse; the text and error modes report
 //! the same messages; the one-pass mode counts what the error mode counts;
@@ -11,7 +12,13 @@ use yaxml::schematron::{
     Code, Diagnostic, Limits, OUT_ERROR, OUT_QUIET, OUT_TEXT, OUT_XML, Output, Schema,
     SchemaErrors, Validation,
 };
-use yaxml::{Document, OwnedDocument, Request, Resolver};
+use yaxml::{Document, OwnedDocument, ParseOptions, Request, Resolver, options};
+
+/// The schema document as `Schema::parse` reads it (`XML_PARSE_NOENT`).
+fn schema_options() -> ParseOptions {
+    let options = ParseOptions::new(options::NOENT).with_limits(limits(0).xml);
+    options.with_resolver("s.sct", none())
+}
 
 const MODES: [u32; 6] = [
     0,
@@ -83,8 +90,8 @@ pub fn exercise(input: &[u8]) {
     };
     let compiled = parse(schema, 2_000_000);
     if let (Ok(borrowed), Ok(owned)) = (
-        Document::with_resolver(schema, limits(0).xml, "s.sct", none()),
-        OwnedDocument::with_resolver(schema, limits(0).xml, "s.sct", none()),
+        Document::parse_with(schema, schema_options()),
+        OwnedDocument::parse_with(schema, schema_options()),
     ) {
         let from = |result| text(&result);
         let expected = text(&compiled);
@@ -102,8 +109,8 @@ pub fn exercise(input: &[u8]) {
         return;
     };
     let (Ok(document), Ok(owned)) = (
-        Document::with_limits(instance, yaxml::Limits::default()),
-        OwnedDocument::with_limits(instance, yaxml::Limits::default()),
+        Document::parse_with(instance, instance_options(schema)),
+        OwnedDocument::parse_with(instance, instance_options(schema)),
     ) else {
         return;
     };
@@ -155,4 +162,11 @@ pub fn exercise(input: &[u8]) {
             assert_eq!(&validation, error, "budget changed the result");
         }
     }
+}
+
+/// The instance keeps entity references (libxml2's default) or, for half
+/// of the schemas, substitutes them (`XML_PARSE_NOENT`).
+fn instance_options(schema: &[u8]) -> ParseOptions {
+    let noent = schema.iter().fold(0u8, |hash, &byte| hash ^ byte) & 1 == 1;
+    ParseOptions::new(if noent { options::NOENT } else { 0 })
 }

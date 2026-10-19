@@ -131,6 +131,7 @@ fn tight(input: &[u8]) -> Options {
             ..LIMITS
         },
         xpath: XPATH,
+        parse_flags: yaxml::options::LEGACY,
     }
 }
 
@@ -139,9 +140,10 @@ pub fn exercise(input: &[u8]) {
     let main = pieces.next().unwrap_or_default();
     let resources: Vec<&[u8]> = pieces.collect();
     let log = Log::default();
-    let Ok(document) =
-        OwnedDocument::with_resolver(main, LIMITS, "d/doc.xml", resolver(&resources, &log))
-    else {
+    let Ok(document) = OwnedDocument::parse_with(
+        main,
+        loading(LIMITS, "d/doc.xml", resolver(&resources, &log)),
+    ) else {
         return;
     };
     let options = |base_fixup, lang_fixup| Options {
@@ -150,6 +152,7 @@ pub fn exercise(input: &[u8]) {
         max_depth: 8,
         limits: LIMITS,
         xpath: XPATH,
+        parse_flags: yaxml::options::LEGACY,
     };
     let (result, requests) = run(&document, &resources, &options(true, false));
     // Processing is deterministic and never changes its input; the default
@@ -182,7 +185,10 @@ pub fn exercise(input: &[u8]) {
     if let Err(error) = &owned {
         assert!(error.to_string().starts_with("XPointer"));
     }
-    let borrowed = Document::with_resolver(main, LIMITS, "d/doc.xml", resolver(&resources, &log));
+    let borrowed = Document::parse_with(
+        main,
+        loading(LIMITS, "d/doc.xml", resolver(&resources, &log)),
+    );
     if let Ok(borrowed) = borrowed {
         let borrowed = yaxml::xpointer::evaluate(&borrowed, &pointer, &XPATH);
         assert_eq!(
@@ -191,4 +197,16 @@ pub fn exercise(input: &[u8]) {
             "DOMs disagree on {pointer:?}"
         );
     }
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

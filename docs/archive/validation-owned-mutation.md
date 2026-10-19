@@ -19,7 +19,7 @@ Text/CDATA/Comment/PI data or an ordinary attribute selected by expanded name.
 It preserves names, namespace declarations, attribute order, topology, identity
 and declaration. Input strings are literal values. Validation precedes storage;
 one range is published only after append succeeds. Errors preserve logical
-state and the editor remains usable. The [owned contract](owned-dom.md) records
+state and the editor remains usable. The [owned contract](../owned-dom.md) records
 lexical restrictions, error order and value byte indices.
 
 Defaults are 1 MiB per replacement and 64 MiB cumulative edit-capacity requests.
@@ -36,7 +36,7 @@ publication, recovery, source provenance and literal output. Identity tests use
 local counters for deterministic exhaustion and concurrency; they never reset
 the shared production counter.
 
-Twelve [public mutation tests](../tests/mutation.rs) cover every value kind,
+Twelve [public mutation tests](../../tests/mutation.rs) cover every value kind,
 UTF-8/UTF-16LE/BE construction, namespace selection/shadowing/reset, empty values,
 literal references, limits, baseline spare capacity, shared node/attribute
 accounting, moves and source destruction. Byte goldens and complete snapshots
@@ -58,7 +58,7 @@ doctests and three Markdown-guide doctests. Local logs are
 `/private/tmp/yaxml-mutation-docs-guide-tests.log`. The restored integrated
 suite above supersedes these focused runs.
 
-The [operation target](../fuzz/mutation.rs), integrated at `688c3cf`, uses two
+The [operation target](../../fuzz/mutation.rs), integrated at `688c3cf`, uses two
 independent logical models and up to 31 eight-byte operations with bounded
 payload. It predicts results before production, checks complete state after
 each operation, and exercises saved/foreign handles, moves, reopened editors,
@@ -107,7 +107,7 @@ the completed bounded-milestone gate, not a 100% execution claim.
 
 ## Benchmark evidence
 
-The [mutation runner](../benches/mutation.rs) separates fresh parse/handle setup,
+The [mutation runner](../../benches/mutation.rs) separates fresh parse/handle setup,
 editing, final state/serialization/reparse/checksum validation, and destruction.
 It covers repeated/distributed leaf edits, attribute lookup position,
 growth/shrink, depth/width and three input encodings. Its debug smoke passed 72
@@ -126,7 +126,7 @@ The host was Darwin arm64 T6000, kernel 27.0.0, target
 LLVM 22.1.2. Raw log: `/private/tmp/yaxml-mutation-benchmark-release.txt`;
 SHA-256 `ee88369ff0baedfae941eaf5e63889ac94471425b3b1968e55c6b6722a4c736c`.
 The checksum, row count, complete statuses and reported range were independently
-reproduced. See the [benchmark guide](benchmarks.md) for phase boundaries and
+reproduced. See the [benchmark guide](../benchmarks.md) for phase boundaries and
 remaining finite validation ceilings.
 
 ## Remaining gates

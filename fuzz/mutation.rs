@@ -924,6 +924,7 @@ fn serialized(state: &State) -> Vec<u8> {
         let kind = match actual.kind() {
             NodeKind::Document => Kind::Document,
             NodeKind::Doctype(_) => unreachable!("mutation models have no DOCTYPE"),
+            NodeKind::EntityRef(_) => unreachable!("mutation models have no entities"),
             NodeKind::Element(_) => Kind::Element,
             NodeKind::Text(_) => Kind::Text,
             NodeKind::Cdata(_) => Kind::Cdata,

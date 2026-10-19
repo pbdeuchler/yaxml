@@ -227,6 +227,11 @@ impl DtdCatalog {
         self.standalone
     }
 
+    /// Whether non-namespace default attributes are added (`DTDATTR`).
+    pub(crate) fn default_attributes(&self) -> bool {
+        self.limits.flags.default_attributes()
+    }
+
     /// Records a validity error found while parsing.
     pub(crate) fn note(&mut self, code: Code, offset: Option<usize>, message: String) {
         self.dtd.issues.push((code, offset, message));

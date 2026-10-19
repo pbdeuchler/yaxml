@@ -67,7 +67,7 @@ No successful helper invocation emitted diagnostics.
 
 ## Matrix and results
 
-Nine deterministic [corpus shapes](../examples/support/parse_benchmark.rs) cover
+Nine deterministic [corpus shapes](../../examples/support/parse_benchmark.rs) cover
 tiny, flat, long text, 128 attributes per element, namespace scopes, normalization,
 Unicode names/values, depth 128 and mixed lexical content. All five modes use
 8,192-byte chunks where applicable. Push and buffered modes also use 1/7-byte

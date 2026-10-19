@@ -36,7 +36,7 @@ Input size alone does not bound all work. Many attributes can cause quadratic du
 The first implementation uses a scoped namespace index and interned namespace
 identities for duplicate-attribute checks. This avoids rehashing a long borrowed
 URI for every attribute. Regression tests preserve aliases and scope; the
-[validation report](validation.md) records the adversarial probe and coverage gaps.
+[validation report](archive/validation.md) records the adversarial probe and coverage gaps.
 
 Use fallible reservation for attacker-sized collection growth. Audit implicit allocations, string clones, formatting, and collection constructors too. Returning an allocation error from some paths does not establish that every out-of-memory condition is recoverable. Record remaining infallible allocations before claiming graceful allocation failure. Owned editing has a safe thread-local test seam that simulates returned failures at its node, attribute, pool and construction-scratch reservation boundaries; it proves those error paths and their publication atomicity, not allocator internals. Exercise allocator failure separately once the selected toolchain and safe allocator interfaces support it; libxml2's fuzzers deliberately inject allocation failures, which is a useful testing precedent. [libxml2 fuzzing instructions](https://raw.githubusercontent.com/GNOME/libxml2/master/fuzz/README.md).
 
@@ -66,15 +66,15 @@ caller-string validation; a separate namespace-work budget bounds ancestor scans
 and expanded-name comparisons, including long inherited bindings. Scratch is
 input/work-bounded and reserved fallibly. Exact-prefix intent is gathered before
 automatic choices so a later name cannot retarget an earlier name's namespace.
-The [construction evidence](validation-owned-create.md) and
-[subsequent fuzz-gap audit](validation-construction-fuzz-gaps.md) retain
+The [construction evidence](archive/validation-owned-create.md) and
+[subsequent fuzz-gap audit](archive/validation-construction-fuzz-gaps.md) retain
 unexecuted error paths in their fuzz-only denominators. Independent validation,
 quota and namespace catalogs now enter through every bounded replay input;
 complete execution coverage remains open.
 
 ## What “100% fuzzing coverage” means
 
-The [complete XMLTS catalog run](validation-xml-conformance.md) is separate
+The [complete XMLTS catalog run](archive/validation-xml-conformance.md) is separate
 conformance evidence. Every case and parser interface has an explicit result,
 including unsupported and unscored rows. A per-ID/interface pass baseline makes
 previously supported behavior becoming a capability gap a failing regression.

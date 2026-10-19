@@ -2,7 +2,7 @@
 
 On 2026-10-16, a configured Clang AST and Mach-O static-symbol audit found five
 omissions in the original 4,051-entry lexical catalogue. The corrected
-[inventory](../libxml2-api.tsv) has **4,056 identifiers**, plus four unchanged
+[inventory](../../libxml2-api.tsv) has **4,056 identifiers**, plus four unchanged
 `empty_header` rows. No original row was removed or changed, including disabled
 and deprecated APIs. This is catalogue validation, not implemented Rust or C ABI
 compatibility.
@@ -50,7 +50,7 @@ attribute.
 | `build/CMakeCache.txt` | `6ef94f82ffa02e99a2d5dfcab1f23cf4cbf68d11a6706b1df46c2949ba94d6ec` |
 | `build/libxml/xmlversion.h` | `746fb768896dbde19d8230fe1c4dbad175324678013901d0ba7c96fd8fde2288` |
 
-The current [raw-header checksum table](../compatibility.md#api-inventory-method-and-limits)
+The current [raw-header checksum table](../../compatibility.md#api-inventory-method-and-limits)
 replaces the previous browser file-content-view hashes. All 46 previous values
 differed from raw release bytes; they were not usable extracted-tree checksums.
 The original identifier checksum reproduced before correction:

@@ -43,6 +43,9 @@ assert_eq!(nodes.len(), 1);
   unknown prefix, variable or function name that caused them.
 - CDATA sections are text nodes. `id()` matches `xml:id` attributes, the only
   ID attributes without a DTD.
+- Kept entity references (trees parsed without `NOENT`) are invisible, as
+  in libxml2: no node test selects them, no axis enters them, and their
+  text still counts in string values.
 - Number conversion and formatting follow `xmlXPathStringEvalNumber` and
   `xmlXPathFormatNumber`: an optional exponent is accepted, `string()` prints
   integers in `int` range exactly, other values with at most 15 significant
@@ -67,8 +70,6 @@ These are checked to still differ by `tests/xpath_oracle.rs`:
 
 - `xmllint --xpath` evaluates with an unset context size and position, so a
   top-level `last()` or `position()` fails there; yaxml returns 1.
-- libxml2 exposes a default-namespace undeclaration (`xmlns=""`) as a
-  namespace node with an empty URI. XPath 1.0 has no such node; yaxml omits it.
 
 Not compared, and deliberately different:
 

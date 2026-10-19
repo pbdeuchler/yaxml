@@ -6,10 +6,11 @@ use crate::dtd::DtdLimits;
 use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
 use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
 use crate::escape::invalid_char;
+use crate::options::Flags;
 use crate::parser::{Budget, ParserState, space};
-use crate::resolve::{Loader, Resolver};
+use crate::resolve::Loader;
 use crate::tokenizer::{TokenKind, Tokenizer, tag_close};
-use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, SourceOrigin};
+use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, ParseOptions, SourceOrigin};
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -235,6 +236,13 @@ pub enum Event<'a> {
         target: Cow<'a, str>,
         data: Cow<'a, str>,
     },
+    /// A general entity reference in content, reported when entities are not
+    /// substituted (no `NOENT`), like libxml2's SAX `reference` callback. The
+    /// replacement text's events follow, then the matching [`Event::EntityEnd`];
+    /// a reference that is not loaded or declared has none.
+    EntityStart(Cow<'a, str>),
+    /// The end of the innermost [`Event::EntityStart`].
+    EntityEnd,
 }
 
 #[expect(
@@ -282,20 +290,35 @@ impl<'a> Reader<'a> {
     }
 
     pub fn with_limits(input: &'a [u8], limits: Limits) -> Result<Self, Error> {
-        // Borrowed UTF-8 needs no decoding, so only the source ceilings apply.
+        Self::with_options(input, ParseOptions::default().with_limits(limits))
+    }
+
+    /// Reads with libxml2 parser options; see [`crate::options`]. Tree-only
+    /// flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
+    /// Borrowed UTF-8 needs no decoding, so `decode_limits` do not apply.
+    pub fn with_options(input: &'a [u8], options: ParseOptions) -> Result<Self, Error> {
+        let flags = options.check(false, 0)?;
+        let (limits, _) = options.effective_limits();
         let decode = DecodeLimits {
             max_decoded_bytes: usize::MAX,
             max_decoded_token_bytes: limits.max_token_bytes,
         };
-        Self::with_decode_limits(input, limits, decode)
+        Self::configured(input, limits, decode, flags, options)
     }
 
-    pub(crate) fn with_decode_limits(
+    /// A reader for already checked flags and effective limits.
+    pub(crate) fn configured(
         input: &'a [u8],
         limits: Limits,
         decode: DecodeLimits,
+        flags: Flags,
+        options: ParseOptions,
     ) -> Result<Self, Error> {
-        let ordinary = SliceReader::with_decode_limits(input, limits, decode)?;
+        let ordinary = SliceReader::with_decode_limits(input, limits, decode, flags)?;
+        let base = options.base.as_deref().unwrap_or_default();
+        let loader = options
+            .resolver
+            .map(|resolver| Loader::new(base, resolver, &limits).with_flags(flags));
         Ok(Self {
             source: ordinary.input,
             physical: ordinary.position(),
@@ -303,21 +326,17 @@ impl<'a> Reader<'a> {
             session: Vec::new(),
             limits,
             decode,
-            options: DtdLimits::new(limits, decode),
+            options: DtdLimits {
+                flags,
+                ..DtdLimits::new(limits, decode)
+            },
             standalone: false,
-            loader: None,
+            loader,
             doctype_start: 0,
             origin: None,
             failure: None,
             finished: false,
         })
-    }
-
-    /// Loads the external subset and external parsed entities through
-    /// `resolver`; `base` is the document's URI or path for relative system IDs.
-    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn Resolver>) -> Self {
-        self.loader = Some(Loader::new(base, resolver, &self.limits));
-        self
     }
 
     /// Element/attribute names declared `ID`, once content has started.
@@ -497,6 +516,7 @@ impl<'a> SliceReader<'a> {
         input: &'a [u8],
         limits: Limits,
         decode: DecodeLimits,
+        flags: Flags,
     ) -> Result<Self, Error> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
@@ -522,7 +542,7 @@ impl<'a> SliceReader<'a> {
             cursor: initial,
             origin: None,
             doctype: None,
-            state: ParserState::new(limits, initial),
+            state: ParserState::new(limits, initial).with_flags(flags),
             limits,
             token_limit_kind: Limit::TokenBytes,
         };

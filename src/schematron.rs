@@ -3,9 +3,11 @@
 use std::fmt;
 
 use crate::pattern::{self, Pattern as Matcher};
-use crate::xpath::tree::{Item, Navigate, Tree, attributes, descendants, namespaces, preorder};
+use crate::xpath::tree::{
+    Item, Navigate, Tree, attributes, descendants, namespaces, visible_preorder,
+};
 use crate::xpath::{self, Context, Node, Value, XPath, truthy};
-use crate::{Document, Resolver};
+use crate::{Document, ParseOptions, Resolver, options};
 
 /// The ISO Schematron and Schematron 1.5 namespaces, both accepted.
 const NAMESPACES: [&str; 2] = [
@@ -226,8 +228,9 @@ enum Part {
 
 impl Schema {
     /// Parses the schema document `input` at URI `base` (libxml2's
-    /// `xmlSchematronNewParserCtxt` and `xmlSchematronParse`); `resolver`
-    /// loads its external DTD and entities.
+    /// `xmlSchematronNewParserCtxt` and `xmlSchematronParse`), with
+    /// libxml2's `XML_PARSE_NOENT`: entities are substituted and `resolver`
+    /// loads external parsed entities, but not the external subset.
     pub fn parse(
         input: &[u8],
         base: &str,
@@ -235,7 +238,8 @@ impl Schema {
         limits: &Limits,
     ) -> Result<Self, SchemaErrors> {
         let message = format!("xmlSchematronParse: could not load '{base}'.\n");
-        let document = Document::with_resolver(input, limits.xml, base, resolver);
+        let options = ParseOptions::new(options::NOENT).with_limits(limits.xml);
+        let document = Document::parse_with(input, options.with_resolver(base, resolver));
         let document = document.map_err(|_| SchemaErrors {
             uri: base.to_owned(),
             errors: vec![Diagnostic::new(Code::FailedLoad, message)],
@@ -640,7 +644,7 @@ impl<'a, T: Navigate> Run<'a, T> {
         {
             return Err(Abort);
         }
-        let elements: Vec<_> = preorder(tree, Some(root), Some(root))
+        let elements: Vec<_> = visible_preorder(tree, Some(root), Some(root))
             .filter(|&id| matches!(tree.item(id), Item::Element(_)))
             .collect();
         let rules = |pattern: &'a Pattern| pattern.rules.iter().map(move |rule| (pattern, rule));
@@ -871,6 +875,7 @@ fn value_name<T: Navigate>(tree: &T, node: Node<T::Id>) -> Option<&str> {
             Item::Text(_) => Some("text"),
             Item::Comment(_) => Some("comment"),
             Item::Pi(target, _) => Some(target),
+            Item::EntityRef(name) => Some(name),
             Item::Root => None,
         },
         Node::Attribute(owner, index) => tree.attribute(owner, index).map(|(name, _)| name.local),

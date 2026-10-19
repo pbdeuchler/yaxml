@@ -58,6 +58,9 @@ pub enum Error {
     Io(io::Error),
     /// An HTML document holds names or text that XML cannot represent.
     NotXml(String),
+    /// `XML_C14N_INVALID_NODE`: the tree keeps an entity reference, which
+    /// canonical XML cannot represent; parse with `NOENT`.
+    EntityReference(String),
 }
 
 impl fmt::Display for Error {
@@ -67,6 +70,12 @@ impl fmt::Display for Error {
             Self::RelativeNamespace(uri) => write!(f, "C14N error: relative namespace {uri:?}"),
             Self::Io(error) => write!(f, "C14N output error: {error}"),
             Self::NotXml(problem) => write!(f, "C14N error: {problem}"),
+            Self::EntityReference(name) => {
+                write!(
+                    f,
+                    "C14N error: entity reference &{name}; (parse with NOENT)"
+                )
+            }
         }
     }
 }
@@ -572,6 +581,9 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
 
     /// Text, comment and PI nodes; top-level markup gets libxml2's newlines.
     fn leaf(&mut self, id: T::Id, item: Item<'t>) -> Result<(), Error> {
+        if let Item::EntityRef(name) = item {
+            return Err(Error::EntityReference(name.to_owned()));
+        }
         if !self.visible(Node::Tree(id)) {
             return Ok(());
         }

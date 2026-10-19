@@ -37,6 +37,19 @@ giving the `xmlParserErrors` value. `Diagnostic::render(file)` and
 `Validation::render(file)` print exactly what libxml2 prints through
 `xmlFormatError` and `xmlPrintErrorMessage`.
 
+`Schema::parse` reads the schema document as `xmlSchematronParse` does
+(`xmlReadFile`/`xmlReadMemory` with `XML_PARSE_NOENT`): entity references are
+substituted and the resolver loads external parsed entities, but not the
+external subset. `from_tree` takes the tree as parsed; a kept entity
+reference hides any Schematron elements in it, and only `title` reads its
+text, as in libxml2. Instances may be parsed with any flags: as
+`xmlSchematronNextNode` does, validation never enters a kept entity
+reference, so elements inside one are not rule contexts, while XPath string
+values still include its text. (`xmllint --schematron` itself adds
+`XML_PARSE_NOENT | XML_PARSE_DTDLOAD` to the instance's options,
+`xmllint.c` lines 2869 and 3130, as for `--relaxng` and `--schema`; so does
+`yaxmllint`.)
+
 ## Schemas
 
 The root is `schema` in either namespace; elements in other namespaces are
@@ -112,8 +125,9 @@ YAXML_SCHEMATRON_HELPER=/private/tmp/sch/helper cargo test --test schematron -- 
   both DOMs, in every `cargo test`.
 - The helper compares the same corpus in eight flag combinations (0,
   quiet, text, text+quiet, XML, error, error+quiet, error+text) and 43 table
-  cases covering every schema error and validation path: 187 of 187 runs
-  print identical output.
+  cases covering every schema error and validation path, and four instances
+  with entity references read with and without `XML_PARSE_NOENT`: 195 of
+  195 runs print identical output.
 - `yaxmllint --schematron` against the schematron-enabled `xmllint`, with
   and without `--noout`, over the corpus: 84 of 84 runs agree on stdout,
   stderr and exit code.
@@ -132,11 +146,10 @@ YAXML_SCHEMATRON_HELPER=/private/tmp/sch/helper cargo test --test schematron -- 
 - `XML_XPATH_CHECKNS` applies to `from_tree` too; libxml2's document and
   memory parser contexts defer unbound prefixes to validation.
 - A schema that is not well-formed gives only libxml2's `could not load`
-  error, not the parser's own messages. The resolver also loads the
-  schema's external subset; libxml2 parses schemas with `XML_PARSE_NOENT`,
-  which loads only external entities.
-- Lines count LF bytes of `source`; elements from entity replacement text
-  have line 0, and lines above 65535 are not capped as libxml2 does without
+  error, not the parser's own messages.
+- Lines count LF bytes of `source`. Elements from substituted entity
+  replacement text (`XML_PARSE_NOENT`) have line 0, where libxml2 counts
+  lines within the replacement text; lines above 65535 are not capped as libxml2 does without
   `XML_PARSE_BIG_LINES`. Messages are cut to 998 bytes on a character
   boundary rather than mid-character.
 - In the one-pass `OUT_ERROR` mode, `Diagnostic::pattern` is the pattern's

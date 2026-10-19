@@ -7,8 +7,9 @@ The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
 value edits, leaf insertion and permanent subtree removal. Internal DTD subsets
-are processed (entities, default attributes, attribute normalization) and the
-declaration is reported as `Event::Doctype`. External subsets and entities
+are processed (entities, attribute normalization and, on request, default
+attributes) and the declaration is reported as `Event::Doctype`; entity
+references are kept or substituted as libxml2 options select. External subsets and entities
 load only through a caller-supplied `Resolver` (see below). Other encodings
 return structured errors.
 `Node::text_chunks` and `OwnedNode::text_chunks` visit string values without
@@ -212,10 +213,12 @@ assert_eq!(value, yaxml::xpath::Value::Number(3.0));
 
 Nothing outside the input is read unless the caller passes a `Resolver`
 (any `FnMut(Request) -> io::Result<Option<Vec<u8>>> + Send` closure, or the
-root-confined `FileResolver`) to `with_resolver` on any parser or DOM. It then
-loads the external subset and external parsed entities, like libxml2's
-`XML_PARSE_DTDLOAD | XML_PARSE_NOENT` with a custom resource loader; budgets
-are `Limits::max_external_loads` and `max_external_bytes`. DTD `ID` attributes
+root-confined `FileResolver`) in `ParseOptions`; the flags decide what loads
+(`DTDLOAD` the external subset, `NOENT` or `DTDVALID` external entities,
+never with `NO_XXE`): `ParseOptions::new(DTDLOAD | NOENT).with_resolver(base,
+resolver)` loads both, like libxml2's `XML_PARSE_DTDLOAD | XML_PARSE_NOENT`
+with a custom resource loader. A resolver without loading flags is never
+consulted. Budgets are `Limits::max_external_loads` and `max_external_bytes`. DTD `ID` attributes
 and `xml:id` back `element_by_id` and XPath `id()`.
 
 ```rust
@@ -224,7 +227,9 @@ let resolver = move |request: yaxml::Request<'_>| {
     Ok((request.uri == "dtd/r.dtd").then(|| dtd.as_bytes().to_vec()))
 };
 let input = b"<!DOCTYPE r SYSTEM 'r.dtd'><r id='a'>&e;</r>";
-let document = yaxml::Document::with_resolver(input, Default::default(), "dtd/doc.xml", Box::new(resolver))?;
+use yaxml::options::{DTDLOAD, NOENT};
+let options = yaxml::ParseOptions::new(DTDLOAD | NOENT).with_resolver("dtd/doc.xml", Box::new(resolver));
+let document = yaxml::Document::parse_with(input, options)?;
 assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(), "loaded");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
@@ -233,7 +238,7 @@ assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(
 DTD like libxml2's `XML_PARSE_DTDVALID`; `yaxml::valid::validate` checks it
 against a separate `Dtd` (`xmllint --dtdvalid`). Validity diagnostics are
 never fatal and carry libxml2's `XML_DTD_*` numbers; content models compile
-to bounded deterministic automata. See [DTD validation](docs/validation-dtd.md).
+to bounded deterministic automata. See [DTD validation](docs/archive/validation-dtd.md).
 
 ```rust
 let xml = "<!DOCTYPE r [<!ELEMENT r (a)><!ATTLIST r id ID #REQUIRED>]><r/>";
@@ -416,7 +421,8 @@ let inner = |request: yaxml::Request<'_>| {
 };
 let resolver = CatalogResolver::new(catalog, Box::new(inner));
 let input = b"<!DOCTYPE r SYSTEM 'http://example.com/r.dtd'><r>&e;</r>";
-let document = yaxml::Document::with_resolver(input, Default::default(), "d.xml", Box::new(resolver))?;
+let options = yaxml::ParseOptions::new(yaxml::options::DTDLOAD | yaxml::options::NOENT);
+let document = yaxml::Document::parse_with(input, options.with_resolver("d.xml", Box::new(resolver)))?;
 assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
@@ -444,22 +450,43 @@ Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
 `cargo bench --bench serialize`, `cargo bench --bench mutation`, and
 `cargo bench --bench structural_mutation`. These runners report yaxml-only DOM,
 slice-event, push, buffered-pull, complete-tree serialization, value-edit and
-structural-edit measurements. The [structural validation report](docs/validation-owned-structure.md)
+structural-edit measurements. The [structural validation report](docs/archive/validation-owned-structure.md)
 records the pinned libxml2 conformance results, independent review and measured
-fuzz coverage. A separate [matched structural benchmark](docs/validation-owned-structure-matched.md)
+fuzz coverage. A separate [matched structural benchmark](docs/archive/validation-owned-structure-matched.md)
 compares edit lifecycles with libxml2, including slower workloads and the
 differences in Text topology, validation and buffering.
 
-Entities and defaults declared in the internal subset follow libxml2's
-`XML_PARSE_NOENT | XML_PARSE_DTDATTR` behavior; see the
+Every parser and DOM takes one [`ParseOptions`](docs/compatibility.md#option-compatibility):
+libxml2's `xmlParserOption` bits (`yaxml::options::NOENT`, `DTDATTR`, ...,
+with libxml2's numeric values, so bindings can pass an existing `int`), the
+`Limits`, and an optional base and `Resolver`. `Reader::with_options`,
+`PushParser::with_options`, `BufferedReader::with_options`,
+`TextReader::with_options`, `Document::parse_with` and
+`OwnedDocument::parse_with` accept it; the other constructors are
+conveniences with no flags. A flag a surface does not implement is
+`ErrorKind::UnsupportedOption`, never silently ignored.
+
+The default is libxml2's: entity references stay in the tree and no DTD
+defaults are added. A reference in content becomes a `NodeKind::EntityRef`
+(`OwnedNodeKind::EntityRef`) node holding the replacement's nodes; streams
+bracket the replacement's events with `Event::EntityStart`/`EntityEnd`.
+String values see through references, XPath never selects them or their
+content, `save` writes `&name;` and the `Writer` writes the replacement.
+`NOENT` substitutes them, `DTDATTR` adds default attributes; see the
 [DOCTYPE section](docs/compatibility.md#document-type-declarations) for exact
 semantics and known differences:
 
 ```rust
+use yaxml::{Document, ParseOptions, options};
+
 let xml = "<!DOCTYPE r [<!ENTITY e '<b>x</b>'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
-let document = yaxml::Document::parse(xml)?;
-assert_eq!(document.doctype().unwrap().name, "r");
-assert_eq!(document.root_element().attributes()[0].value, "d");
-assert_eq!(document.root_element().text_chunks().collect::<String>(), "x");
+let kept = Document::parse(xml)?;
+let reference = kept.root_element().first_child().unwrap();
+assert_eq!(reference.entity_name(), Some("e"));
+assert!(kept.root_element().attributes().is_empty());
+assert_eq!(kept.root_element().text_chunks().collect::<String>(), "x");
+let complete = Document::parse_with(xml.as_bytes(), ParseOptions::new(options::NOENT | options::DTDATTR))?;
+assert_eq!(complete.root_element().attributes()[0].value, "d");
+assert_eq!(complete.root_element().first_child().unwrap().name().unwrap().local(), "b");
 # Ok::<(), yaxml::Error>(())
 ```

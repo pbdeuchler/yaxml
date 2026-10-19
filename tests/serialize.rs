@@ -53,6 +53,7 @@ fn borrowed_values(document: &Document<'_>) -> LogicalDocument {
                     NodeKind::Cdata(_) => "cdata",
                     NodeKind::Comment(_) => "comment",
                     NodeKind::ProcessingInstruction { .. } => "pi",
+                    NodeKind::EntityRef(_) => "entity-ref",
                 },
                 name: node.name().map(name),
                 attributes: node

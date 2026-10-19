@@ -1,10 +1,11 @@
 /* Schematron oracle; Cargo never compiles or links this. Needs a libxml2
  * 2.15.4 built with -DLIBXML2_WITH_SCHEMATRON=ON (see docs/schematron.md).
  *
- *   libxml2_schematron FLAGS SCHEMA INSTANCE...
+ *   libxml2_schematron FLAGS[:PARSE] SCHEMA INSTANCE...
  *
  * Compiles SCHEMA as xmllint and runtest do (xmlSchematronNewParserCtxt),
- * then validates each INSTANCE with xmlSchematronValidOptions FLAGS. All
+ * then validates each INSTANCE, read with xmlParserOption PARSE (default
+ * 0), with xmlSchematronValidOptions FLAGS. All
  * output goes to stderr in libxml2's order: the text report, structured
  * errors through xmlFormatError, and runtest's verdict line per instance. */
 #include <libxml/parser.h>
@@ -30,7 +31,9 @@ static void format(void *ctx, const xmlError *error) {
 int main(int argc, char **argv) {
     if (argc < 3)
         return 2;
-    int flags = atoi(argv[1]);
+    char *rest;
+    int flags = (int)strtol(argv[1], &rest, 10);
+    int parse = *rest == ':' ? atoi(rest + 1) : 0;
     xmlSetStructuredErrorFunc(NULL, format);
     xmlSchematronParserCtxtPtr pctxt = xmlSchematronNewParserCtxt(argv[2]);
     xmlSchematronPtr schema = xmlSchematronParse(pctxt);
@@ -40,7 +43,7 @@ int main(int argc, char **argv) {
         return 0;
     }
     for (int i = 3; i < argc; i++) {
-        xmlDocPtr doc = xmlReadFile(argv[i], NULL, 0);
+        xmlDocPtr doc = xmlReadFile(argv[i], NULL, parse);
         if (doc == NULL) {
             fprintf(stderr, "failed to parse instance %s\n", argv[i]);
             continue;

@@ -574,7 +574,8 @@ impl<'a, T: Navigate> Eval<'a, T> {
         };
         let namespace = |name: tree::QName<'a>| name.namespace.unwrap_or("");
         match matcher {
-            Matcher::Node => true,
+            // libxml2's `node()` never selects an entity reference.
+            Matcher::Node => !matches!(item, Some(Item::EntityRef(_))),
             Matcher::Text => matches!(item, Some(Item::Text(_))),
             Matcher::Comment => matches!(item, Some(Item::Comment(_))),
             Matcher::Pi(target) => {
@@ -632,11 +633,15 @@ impl<'a, T: Navigate> Eval<'a, T> {
                 self.collect(children.map(Node::Tree), axis, matcher, out)
             }
             Axis::Descendant => {
-                let descendants = id.into_iter().flat_map(|id| tree::descendants(tree, id));
+                let descendants = id
+                    .into_iter()
+                    .flat_map(|id| tree::visible_descendants(tree, id));
                 self.collect(descendants.map(Node::Tree), axis, matcher, out)
             }
             Axis::DescendantOrSelf => {
-                let descendants = id.into_iter().flat_map(|id| tree::descendants(tree, id));
+                let descendants = id
+                    .into_iter()
+                    .flat_map(|id| tree::visible_descendants(tree, id));
                 self.collect(
                     once(node).chain(descendants.map(Node::Tree)),
                     axis,
@@ -669,7 +674,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
                         .or_else(|| tree::skip_subtree(tree, owner, None)),
                 };
                 self.collect(
-                    tree::preorder(tree, first, None).map(Node::Tree),
+                    tree::visible_preorder(tree, first, None).map(Node::Tree),
                     axis,
                     matcher,
                     out,
@@ -679,7 +684,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
                 // Nodes before `owner`, except its ancestors; an attribute's owner is its parent.
                 let mut ancestors: Vec<T::Id> =
                     successors(tree.parent(owner), |&id| tree.parent(id)).collect();
-                let before = tree::preorder(tree, Some(tree.root()), None)
+                let before = tree::visible_preorder(tree, Some(tree.root()), None)
                     .take_while(|&other| other != owner)
                     .filter(|other| {
                         let ancestor = ancestors.last() == Some(other);

@@ -223,6 +223,7 @@ pub(crate) struct ParserState<'source> {
     next_namespace: usize,
     budget: Budget,
     events: usize,
+    flags: crate::options::Flags,
 }
 
 impl<'source> ParserState<'source> {
@@ -255,6 +256,7 @@ impl<'source> ParserState<'source> {
             next_namespace: 0,
             budget: Budget::new(limits),
             events: 0,
+            flags: crate::options::Flags::default(),
         }
     }
 
@@ -272,6 +274,29 @@ impl<'source> ParserState<'source> {
         self.set_initial_offset(initial);
         self.token_limit = decoded_token_limit;
         self.token_limit_kind = Limit::DecodedTokenBytes;
+    }
+
+    /// Applies the token-level parser options (`NOCDATA`, `NSCLEAN`, `IGNORE_ENC`).
+    pub(crate) fn with_flags(mut self, flags: crate::options::Flags) -> Self {
+        self.flags = flags;
+        self
+    }
+
+    /// A CDATA section's event: text under `NOCDATA`.
+    fn cdata<'event>(&self, value: Cow<'event, str>) -> Event<'event> {
+        match self.flags.cdata_as_text() {
+            true => Event::Text(value),
+            false => Event::Cdata(value),
+        }
+    }
+
+    /// Whether `prefix` is already bound to `uri` outside this element, so
+    /// `NSCLEAN` drops the declaration.
+    fn redundant(&self, prefix: &str, uri: &str) -> bool {
+        self.flags.clean_namespaces()
+            && self
+                .bound(prefix)
+                .is_some_and(|index| self.bindings[index].uri == uri)
     }
 
     /// Streaming frontends copy every retained name. Open element names then
@@ -530,12 +555,8 @@ impl<'source> ParserState<'source> {
                     return Err(Error::new(ErrorKind::TextOutsideRoot, start));
                 }
                 let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
-                Ok(Some(Event::Cdata(self.normalized(
-                    body,
-                    start + 9,
-                    false,
-                    false,
-                )?)))
+                let value = self.normalized(body, start + 9, false, false)?;
+                Ok(Some(self.cdata(value)))
             }
             TokenKind::Instruction => self.instruction(raw, start),
             TokenKind::Dtd | TokenKind::InvalidMarkup => {
@@ -577,12 +598,17 @@ impl<'source> ParserState<'source> {
             }
             let (declaration, encoding_offset) =
                 parse_declaration(&body[name_end..], start + 2 + name_end, false)?;
-            self.encoding = validate_encoding(
-                self.encoding,
-                self.switchable,
-                declaration.encoding,
-                encoding_offset.unwrap_or(start),
-            )?;
+            // `IGNORE_ENC` keeps the detected encoding, as libxml2's
+            // `xmlSetDeclaredEncoding` does.
+            self.encoding = match declaration.encoding {
+                Some(_) if self.flags.ignores_encoding() => self.encoding,
+                label => validate_encoding(
+                    self.encoding,
+                    self.switchable,
+                    label,
+                    encoding_offset.unwrap_or(start),
+                )?,
+            };
             self.declaration_seen = true;
             return Ok(Some(Event::Declaration(declaration)));
         }
@@ -646,6 +672,7 @@ impl<'source> ParserState<'source> {
             } else {
                 None
             };
+            let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
             if let Some(bound_prefix) = declaration {
                 if invalid_namespace_binding(bound_prefix, &value) {
                     return Err(Error::new(ErrorKind::Namespace, offset));
@@ -677,6 +704,9 @@ impl<'source> ParserState<'source> {
                     previous,
                 });
                 self.index_bindings(offset)?;
+            }
+            if redundant {
+                continue;
             }
             attributes
                 .try_reserve(1)
@@ -929,7 +959,8 @@ impl<'source> ParserState<'source> {
             }
             DtdLeafKind::Cdata => {
                 let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
-                Event::Cdata(self.budget.copy(body, start + 9)?)
+                let value = self.budget.copy(body, start + 9)?;
+                self.cdata(value)
             }
             DtdLeafKind::ProcessingInstruction => {
                 let body = delimited_body(raw, "<?", "?>", start)?;
@@ -1251,6 +1282,17 @@ impl<'source> ParserState<'source> {
             .try_reserve(prepared.attributes.len())
             .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         for attribute in prepared.attributes {
+            // This element's bindings are not in scope yet, so `redundant`
+            // compares with the enclosing scope.
+            let name = &attribute.name;
+            let bound = match name.prefix() {
+                None if name.qualified() == "xmlns" => Some(""),
+                Some("xmlns") => Some(name.local()),
+                _ => None,
+            };
+            if bound.is_some_and(|prefix| self.redundant(prefix, &attribute.value)) {
+                continue;
+            }
             attributes.push(Attribute {
                 name: attribute.name,
                 value: attribute.value,

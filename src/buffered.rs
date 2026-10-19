@@ -2,7 +2,9 @@ use std::io::{self, BufRead};
 
 use crate::stream::dtd::{SessionOutcome, SessionStep, StreamingSession};
 use crate::tokenizer::TokenKind;
-use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, SourceOrigin};
+use crate::{
+    DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ParseOptions, ReadError, SourceOrigin,
+};
 
 #[derive(Clone, Copy)]
 enum Status {
@@ -66,21 +68,28 @@ impl<R: BufRead> BufferedReader<R> {
     }
 
     pub fn with_decode_limits(input: R, limits: Limits, decode_limits: DecodeLimits) -> Self {
-        Self {
+        let options = ParseOptions::default().with_limits(limits);
+        Self::with_options(input, options.with_decode_limits(decode_limits))
+            .expect("convenience flags are supported")
+    }
+
+    /// A reader with libxml2 parser options; see [`crate::options`]. Tree-only
+    /// flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
+    pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
+        let flags = options.check(false, 0)?;
+        let (limits, decode) = options.effective_limits();
+        let mut session = StreamingSession::new(limits, decode, flags);
+        if let Some(resolver) = options.resolver {
+            session.set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
+        }
+        Ok(Self {
             input,
-            session: StreamingSession::new(limits, decode_limits),
+            session,
             max_input_bytes: limits.max_input_bytes,
             eof: false,
             pending: false,
             status: Status::Active,
-        }
-    }
-
-    /// Loads the external subset and external parsed entities through
-    /// `resolver`; `base` is the document's URI or path for relative system IDs.
-    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn crate::Resolver>) -> Self {
-        self.session.set_resolver(base, resolver);
-        self
+        })
     }
 
     /// Original bytes consumed, including encoding carry and text lookahead.

@@ -18,7 +18,7 @@ production; this plan is not evidence that every resource path already passes.
 There are **32 scalar SessionLimits settings**, plus six `Limits` and two
 `DecodeLimits` settings on Reader constructors: 40 fields in total.
 `SessionLimits` itself has only `declarations`, `text`, and `local`
-([definition](../../src/stream/dtd.rs)). Its nested fields have different scopes:
+([definition](../../../src/stream/dtd.rs)). Its nested fields have different scopes:
 
 - Constructor preflight checks the whole original input. InputBytes includes
   the UTF-8 BOM; DecodedBytes excludes it. UTF-16 remains rejected exactly as
@@ -58,10 +58,10 @@ There are **32 scalar SessionLimits settings**, plus six `Limits` and two
 The implementation is at `DtdReader::{read_next,start_dtd,start_content}`
 ([reader/dtd.rs](../../src/reader/dtd.rs)),
 `DtdController::{drive,drive_replacement,process_ready,enter_parameter,
-commit_source,into_body_state}` ([controller](../../src/dtd_controller.rs)),
+commit_source,into_body_state}` ([controller](../../../src/dtd_controller.rs)),
 and `ContentControllerCore::{with_source,drive,prepare_publication,take_event}`
 plus its `account_publication` helper
-([content](../../src/dtd_controller/content.rs)).
+([content](../../../src/dtd_controller/content.rs)).
 
 ## Inventory and current Reader coverage
 
@@ -98,7 +98,7 @@ The ordinary DOCTYPE prefix gate requires raw/decoded token ceiling at least 9.
 ### Catalog (8 fields under declarations.catalog)
 
 Enforcement is in
-[DtdCatalog::apply_inner/store_bytes/add_binding](../../src/dtd_catalog.rs)
+[DtdCatalog::apply_inner/store_bytes/add_binding](../../../src/dtd_catalog.rs)
 and the one `ValueProcessor::process/emit/append_output/materialize` pass.
 These same catalog limits/usage move into body tag preparation.
 
@@ -120,7 +120,7 @@ normalization; they spend Parser Budget instead.
 
 ### Entity frames (4 fields under declarations.frames)
 
-[EntityFrames::enter/charge_attempt/charge_bytes](../../src/dtd_frames.rs)
+[EntityFrames::enter/charge_attempt/charge_bytes](../../../src/dtd_frames.rs)
 enforces these before frame/cursor publication. Both PE and GE scheduling use
 the same moved frames and native ceilings.
 
@@ -134,9 +134,9 @@ the same moved frames and native ceilings.
 ### Body Text/reference/scratch/local (10 fields)
 
 These first become active after the returned DTD End, in
-[TextShared/TextCoordinator](../../src/tokenizer/text.rs),
-[ReferenceScratch](../../src/dtd_reference.rs) and
-[LocalTokenizer](../../src/tokenizer/local.rs).
+[TextShared/TextCoordinator](../../../src/tokenizer/text.rs),
+[ReferenceScratch](../../../src/dtd_reference.rs) and
+[LocalTokenizer](../../../src/tokenizer/local.rs).
 
 | Setting | Enforcement / error | Existing facade coverage | New case |
 | --- | --- | --- | --- |

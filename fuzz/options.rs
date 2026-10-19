@@ -1,0 +1,234 @@
+//! Parser options across surfaces. A leading byte with its high bit set
+//! selects `xmlParserOption` flags (it can never start XML, so plain inputs
+//! keep their meaning and run with no flags); the rest is the document.
+
+use std::io::BufReader;
+use std::ops::ControlFlow;
+
+use yaxml::options::{DTDATTR, DTDVALID, IGNORE_ENC, NOBLANKS, NOCDATA, NOENT, NSCLEAN, SKIP_IDS};
+use yaxml::{
+    BufferedReader, Document, Event, NodeKind, OwnedDocument, ParseOptions, PushParser, Reader,
+    TextReader, save,
+};
+
+/// Flags only trees implement; streams get the rest.
+const TREE_ONLY: u32 = NOBLANKS | DTDVALID;
+
+/// Bits 0..=6 of a selector byte, in order.
+const SELECTABLE: [u32; 7] = [
+    NOENT,
+    DTDATTR,
+    NOCDATA,
+    NSCLEAN,
+    NOBLANKS,
+    DTDVALID,
+    IGNORE_ENC | SKIP_IDS,
+];
+
+/// The selected flags and document.
+pub(super) fn split(input: &[u8]) -> (u32, &[u8]) {
+    match input.split_first() {
+        Some((&selector, document)) if selector & 0x80 != 0 => {
+            let flags = SELECTABLE
+                .iter()
+                .enumerate()
+                .filter(|(bit, _)| selector >> bit & 1 == 1)
+                .fold(0, |flags, (_, flag)| flags | flag);
+            (flags, document)
+        }
+        _ => (0, input),
+    }
+}
+
+pub(super) fn exercise(input: &[u8]) {
+    // Without a selector the other drivers already cover the default flags.
+    if input.first().is_some_and(|byte| byte & 0x80 != 0) {
+        let (flags, document) = split(input);
+        exercise_flags(flags, document);
+    }
+}
+
+/// Every surface on `document` under `flags`.
+pub(super) fn exercise_flags(flags: u32, document: &[u8]) {
+    let stream = flags & !TREE_ONLY;
+    let tree = Document::parse_with(document, ParseOptions::new(flags));
+    let reader = events(document, stream);
+    assert_eq!(
+        tree.is_ok(),
+        reader.is_some(),
+        "Document/Reader acceptance differs under {flags:#x}"
+    );
+    decoding_surfaces_agree(document, flags);
+    let Ok(tree) = tree else {
+        return;
+    };
+    check_tree(&tree, flags);
+    if let Some(events) = &reader
+        && flags & NOBLANKS == 0
+    {
+        super::check_projection(&tree, events);
+    }
+    // Substitution changes structure, never acceptance or string values.
+    let substituted = Document::parse_with(document, ParseOptions::new(flags | NOENT));
+    let substituted = substituted.expect("NOENT changed acceptance");
+    if flags & NOBLANKS == 0 {
+        assert!(
+            tree.root().text_chunks().collect::<String>()
+                == substituted.root().text_chunks().collect::<String>(),
+            "references changed the document's string value: {:?}",
+            String::from_utf8_lossy(document)
+        );
+    }
+    let substituted_events = events(document, stream | NOENT).expect("NOENT stream rejected");
+    assert_eq!(
+        logical(reader.as_deref().unwrap_or_default()),
+        logical(&substituted_events),
+        "entity boundaries changed stream values"
+    );
+    // Both DOMs save identically when the owned DOM parses the same text.
+    if !super::encoding::recognizes(document)
+        && let Ok(owned) = OwnedDocument::parse_with(document, ParseOptions::new(flags))
+    {
+        assert_eq!(
+            save::to_vec(&tree, &Default::default()),
+            save::to_vec(&owned, &Default::default()),
+            "DOM save outputs differ under {flags:#x}"
+        );
+        assert_eq!(tree.validity().len(), owned.validity().len());
+    }
+}
+
+/// The reader's events, or `None` when it rejects the document.
+fn events(document: &[u8], flags: u32) -> Option<Vec<Event<'_>>> {
+    let mut reader = Reader::with_options(document, ParseOptions::new(flags)).ok()?;
+    let mut events = Vec::new();
+    while let Some(event) = reader.read_event().ok()? {
+        events.push(event);
+    }
+    Some(events)
+}
+
+/// Events without entity boundaries, adjacent text joined.
+fn logical(events: &[Event<'_>]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for event in events {
+        match (event, out.last_mut()) {
+            (Event::EntityStart(_) | Event::EntityEnd, _) => {}
+            (Event::Text(text), Some(last)) if last.starts_with("Text:") => last.push_str(text),
+            (Event::Text(text), _) => out.push(format!("Text:{text}")),
+            (event, _) => out.push(format!("{event:?}")),
+        }
+    }
+    out
+}
+
+/// An event with its attributes as a plain list, however they are lent.
+fn render(event: &Event<'_>) -> String {
+    match event {
+        Event::Start(element) | Event::Empty(element) => format!(
+            "{} {:?} {:?}",
+            matches!(event, Event::Empty(_)),
+            element.name,
+            &element.attributes[..]
+        ),
+        other => format!("{other:?}"),
+    }
+}
+
+/// Push, buffered and text readers, and the owned DOM, decode alike.
+fn decoding_surfaces_agree(document: &[u8], flags: u32) {
+    let stream = flags & !TREE_ONLY;
+    let mut push = PushParser::with_options(ParseOptions::new(stream)).unwrap();
+    let mut pushed = Vec::new();
+    let push_ok = push
+        .feed(document, |event, _| {
+            pushed.push(render(&event));
+            ControlFlow::Continue(())
+        })
+        .and_then(|()| {
+            push.finish(|event, _| {
+                pushed.push(render(&event));
+                ControlFlow::Continue(())
+            })
+        })
+        .is_ok();
+    let reader = BufReader::with_capacity(7, document);
+    let mut buffered = BufferedReader::with_options(reader, ParseOptions::new(stream)).unwrap();
+    let mut pulled = Vec::new();
+    let pull_ok = loop {
+        match buffered.read_event() {
+            Ok(Some((event, _))) => pulled.push(render(&event)),
+            Ok(None) => break true,
+            Err(_) => break false,
+        }
+    };
+    assert_eq!(
+        push_ok, pull_ok,
+        "push/buffered acceptance under {flags:#x}"
+    );
+    if push_ok {
+        assert_eq!(pushed, pulled, "push/buffered events under {flags:#x}");
+    }
+    let mut text = TextReader::with_options(document, ParseOptions::new(stream)).unwrap();
+    let text_ok = loop {
+        match text.read() {
+            Ok(true) => {}
+            Ok(false) => break true,
+            Err(_) => break false,
+        }
+    };
+    assert_eq!(push_ok, text_ok, "TextReader acceptance under {flags:#x}");
+    let owned = OwnedDocument::parse_with(document, ParseOptions::new(flags));
+    assert_eq!(push_ok, owned.is_ok(), "owned acceptance under {flags:#x}");
+}
+
+/// What each selected flag guarantees about the tree.
+fn check_tree(document: &Document<'_>, flags: u32) {
+    for node in document.nodes() {
+        match node.kind() {
+            NodeKind::EntityRef(_) => assert_eq!(flags & NOENT, 0, "NOENT kept a reference"),
+            NodeKind::Cdata(_) => assert_eq!(flags & NOCDATA, 0, "NOCDATA kept a section"),
+            NodeKind::Element(element) if flags & NSCLEAN != 0 => {
+                for attribute in element.attributes.iter() {
+                    let name = &attribute.name;
+                    let prefix = match name.prefix() {
+                        None if name.qualified() == "xmlns" => "",
+                        Some("xmlns") => name.local(),
+                        _ => continue,
+                    };
+                    assert_ne!(
+                        inherited(node, prefix),
+                        Some(attribute.value.as_ref()),
+                        "NSCLEAN kept a redundant declaration"
+                    );
+                }
+            }
+            _ => {}
+        }
+        if flags & SKIP_IDS != 0 {
+            for attribute in node.attributes() {
+                assert!(document.element_by_id(&attribute.value).is_none());
+            }
+        }
+    }
+    if flags & DTDVALID == 0 {
+        assert!(document.validity().is_empty());
+    } else {
+        assert_eq!(document.validity().len(), document.validate().len());
+    }
+}
+
+/// The URI `prefix` is bound to by `element`'s ancestors.
+fn inherited<'a>(element: yaxml::Node<'a, '_>, prefix: &str) -> Option<&'a str> {
+    std::iter::successors(element.parent(), |node| node.parent()).find_map(|node| {
+        node.attributes().iter().find_map(|attribute| {
+            let name = &attribute.name;
+            let bound = match name.prefix() {
+                None if name.qualified() == "xmlns" => "",
+                Some("xmlns") => name.local(),
+                _ => return None,
+            };
+            (bound == prefix).then_some(attribute.value.as_ref())
+        })
+    })
+}

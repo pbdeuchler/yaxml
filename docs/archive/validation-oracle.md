@@ -12,7 +12,7 @@ code or Cargo dependency was added.
 
 ## Parser behavior and conformance
 
-The [conformance suite](conformance.md) found two declaration defects. Forward
+The [conformance suite](../conformance.md) found two declaration defects. Forward
 `1.x` declarations were incorrectly rejected; they now use XML 1.0 processing
 rules and preserve source version spelling. Malformed encoding names were
 incorrectly classified as unsupported; syntax is now checked first. The shared
@@ -26,7 +26,7 @@ also run through the deterministic fuzz driver.
 
 ## Independent comparison and process boundary
 
-The [oracle protocol](oracle.md) evaluates generated XPath against original bytes
+The [oracle protocol](../oracle.md) evaluates generated XPath against original bytes
 using external libxml2. Its full values never pass through yaxml's parser. It
 compares normalized node order/kinds/depth, names and namespace identities,
 attribute order/values, text, comments and PIs. CDATA/text grouping and the omitted

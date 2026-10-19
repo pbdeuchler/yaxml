@@ -2,7 +2,7 @@
 
 This milestone implements immutable owned UTF-8 storage after the
 [event writer](validation-writer.md). The [plan](plans/owned-dom.md) and
-[owned DOM contract](owned-dom.md) describe its scope. UTF-16, mutable trees,
+[owned DOM contract](../owned-dom.md) describe its scope. UTF-16, mutable trees,
 binding registries and allocator parameters remain separate work.
 
 ## Functional evidence
@@ -40,7 +40,7 @@ views, compares complete tree data and topology, and allows explicit earlier
 OwnedBytes exhaustion. A conservative bound separately requires owned success
 for accepted default-profile inputs up to 1024 bytes. Generated Unicode-prefix
 and empty-value fixtures exercise byte boundaries and ranges across pool growth.
-These checks and the new public APIs are mapped in the [target inventory](../fuzz/README.md).
+These checks and the new public APIs are mapped in the [target inventory](../../fuzz/README.md).
 
 The [independent mutation review](review-owned.md) found no open issues. It
 deliberately undercounted pool capacity, used character counts for Unicode byte

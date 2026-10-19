@@ -74,7 +74,7 @@ invariant guards, shared-engine checks already enforced by both frontends, and
 the DOM missing-root guard after successful reader EOF. They stay in the raw
 denominator. Deterministic allocation failure injection, toolchain-matched local
 measurement, and a reviewed generic-instantiation aggregation policy remain open.
-The target inventory in [fuzz/README.md](../fuzz/README.md) includes every new
+The target inventory in [fuzz/README.md](../../fuzz/README.md) includes every new
 public input API; this is separate from the unmet 100% execution-coverage goal.
 
 ## Differential and performance scope
@@ -92,5 +92,5 @@ latency and peak-memory measurements remain pending. No across-the-board
 performance improvement has been established.
 
 Buffered pull, owned DOM, UTF-16, allocation policy and the remaining libxml2
-features continue in [the roadmap](roadmap.md). This milestone is not a release
+features continue in [the roadmap](../roadmap.md). This milestone is not a release
 security audit or completion of the replacement goal.

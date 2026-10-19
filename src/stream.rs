@@ -15,11 +15,13 @@ pub(crate) struct Stream {
 }
 
 impl Stream {
-    pub(crate) fn new(limits: Limits, decode: DecodeLimits) -> Self {
+    pub(crate) fn new(limits: Limits, decode: DecodeLimits, flags: crate::options::Flags) -> Self {
         Self {
             tokenizer: Tokenizer::new(limits.max_token_bytes, decode.max_decoded_token_bytes),
             decoder: Decoder::new(decode.max_decoded_bytes),
-            state: ParserState::new(limits, 0).copying_names(),
+            state: ParserState::new(limits, 0)
+                .copying_names()
+                .with_flags(flags),
             decoded_token_limit: decode.max_decoded_token_bytes,
         }
     }

@@ -96,7 +96,7 @@ normalized input, and 45.21 versus 46.02 MiB/s for namespaces. The remaining
 The checked-in [performance summary](validation/push-performance-c1d1e12.txt)
 records medians, median absolute deviations, and ranges. The raw local log is
 `/private/tmp/yaxml-pull-perf-final.log`. Compiler, workload, lifecycle, and
-comparability rules are documented in [benchmarks.md](benchmarks.md).
+comparability rules are documented in [benchmarks.md](../benchmarks.md).
 
 ## Remaining gates
 

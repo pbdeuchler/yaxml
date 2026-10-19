@@ -81,7 +81,7 @@ All 12 fields per row and the complete ordered ID inventory were independently
 checked against separately expanded catalog XML, parsed by Ruby REXML with
 independent inherited-base resolution. Helper diagnostics are empty.
 
-The [runner contract](conformance.md#complete-external-catalog) defines scoring,
+The [runner contract](../conformance.md#complete-external-catalog) defines scoring,
 bounds and the nine explicit archive path corrections. The suite DTD requires
 nonvalidating parsers to accept `invalid` documents too. A capability gap is
 never a successful negative result; an unsupported first error does not verify

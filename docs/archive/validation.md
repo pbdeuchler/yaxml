@@ -109,4 +109,4 @@ strategy, measured memory/work limits, sustained fuzzing, and comparable libxml2
 DOM/event baselines before making production or performance claims. Then expand
 to buffered pull input, owned documents, allocator-backed storage on the verified
 target compiler, encoding support, writing, and mutation. The complete feature
-burndown remains in [the roadmap](roadmap.md).
+burndown remains in [the roadmap](../roadmap.md).

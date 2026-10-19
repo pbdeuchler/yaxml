@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use yaxml::c14n::{self, Error, Mode, Options};
 use yaxml::xpath::{Context, Tree, XPath};
-use yaxml::{Document, FileResolver, Limits, OwnedDocument, Resolver};
+use yaxml::{Document, FileResolver, OwnedDocument, ParseOptions, Resolver};
 
 const DEFAULT_SOURCE: &str =
     "/Users/pbdeuchler/workspace/src/github.com/pbdeuchler/yaxml-oracle/libxml2-2.15.4";
@@ -113,48 +113,43 @@ fn libxml2_suite() {
             let base = format!("{name}.xml");
             let resolver =
                 || -> Box<dyn Resolver> { Box::new(FileResolver::new(&inputs).unwrap()) };
+            // runtest.c: XML_PARSE_NOENT | XML_PARSE_DTDATTR | XML_PARSE_DTDLOAD.
+            let options = |base: &str, resolver| {
+                use yaxml::options::{DTDATTR, DTDLOAD, NOENT};
+                ParseOptions::new(NOENT | DTDATTR | DTDLOAD).with_resolver(base, resolver)
+            };
             // The owned DOM decodes every supported encoding; the borrowed one must agree when it parses.
-            let outcome =
-                match OwnedDocument::with_resolver(&input, Limits::default(), &base, resolver()) {
-                    Ok(owned) => {
-                        let selection = selection(&inputs.join(format!("{name}.xpath")));
-                        let selection = selection.as_ref();
-                        let root = owned.root().id();
-                        let actual =
-                            canonical(&owned, root, mode, with_comments, selection, &prefixes)
-                                .expect("owned c14n");
-                        if let Ok(borrowed) =
-                            Document::with_resolver(&input, Limits::default(), &base, resolver())
-                        {
-                            let root = borrowed.root().id();
-                            let other = canonical(
-                                &borrowed,
-                                root,
-                                mode,
-                                with_comments,
-                                selection,
-                                &prefixes,
+            let outcome = match OwnedDocument::parse_with(&input, options(&base, resolver())) {
+                Ok(owned) => {
+                    let selection = selection(&inputs.join(format!("{name}.xpath")));
+                    let selection = selection.as_ref();
+                    let root = owned.root().id();
+                    let actual = canonical(&owned, root, mode, with_comments, selection, &prefixes)
+                        .expect("owned c14n");
+                    if let Ok(borrowed) = Document::parse_with(&input, options(&base, resolver())) {
+                        let root = borrowed.root().id();
+                        let other =
+                            canonical(&borrowed, root, mode, with_comments, selection, &prefixes);
+                        assert_eq!(
+                            other.expect("borrowed c14n"),
+                            actual,
+                            "{directory}/{name}: DOMs disagree"
+                        );
+                    }
+                    match actual.as_bytes() == expected {
+                        true => Outcome::Pass,
+                        false => {
+                            eprintln!(
+                                "{directory}/{name}:\n{actual}\n--- expected\n{}",
+                                String::from_utf8_lossy(&expected)
                             );
-                            assert_eq!(
-                                other.expect("borrowed c14n"),
-                                actual,
-                                "{directory}/{name}: DOMs disagree"
-                            );
-                        }
-                        match actual.as_bytes() == expected {
-                            true => Outcome::Pass,
-                            false => {
-                                eprintln!(
-                                    "{directory}/{name}:\n{actual}\n--- expected\n{}",
-                                    String::from_utf8_lossy(&expected)
-                                );
-                                Outcome::Mismatch
-                            }
+                            Outcome::Mismatch
                         }
                     }
-                    Err(_) if input.windows(9).any(|window| window == b"<!DOCTYPE") => Outcome::Dtd,
-                    Err(error) => panic!("{directory}/{name}: unexpected parse error {error:?}"),
-                };
+                }
+                Err(_) if input.windows(9).any(|window| window == b"<!DOCTYPE") => Outcome::Dtd,
+                Err(error) => panic!("{directory}/{name}: unexpected parse error {error:?}"),
+            };
             outcomes.push(outcome);
         }
     }
@@ -170,9 +165,7 @@ fn libxml2_suite() {
         count(Outcome::Mismatch),
     );
     eprintln!("libxml2 c14n suite: {pass} pass, {dtd} need DTD support, {mismatch} mismatch");
-    // without-comments/test-3 and exc-without-comments/test-{0,1} select an
-    // `xmlns=""` namespace node, which yaxml's XPath does not model (c14n.md).
-    assert_eq!((pass, dtd, mismatch), (70, 0, 3));
+    assert_eq!((pass, dtd, mismatch), (73, 0, 0));
 }
 
 /// Canonicalizes `xml` over both DOMs, checking they agree.
@@ -330,6 +323,8 @@ fn whole_documents() {
 fn node_sets() {
     // Exclusive XML Canonicalization section 2.2.
     const SPEC: &str = "<n0:local xmlns:n0='foo:bar' xmlns:n3='ftp://example.org'><n1:elem2 xmlns:n1='http://example.net' xml:lang='en'><n3:stuff xmlns:n3='ftp://example.org'/></n1:elem2></n0:local>";
+    const UND: &str =
+        "<doc xmlns='urn:d'><e xmlns='' a='1'><f xmlns='urn:f'><g xmlns=''/></f></e></doc>";
     const BASE: &str =
         "<r xml:lang='en' xml:id='a' xml:base='http://x/a/'><s xml:base='b/'><t/></s></r>";
     let subtree = |apex: &str| Selection {
@@ -412,6 +407,51 @@ fn node_sets() {
             Mode::Exclusive10,
             &["#default"],
             "<s></s>",
+        ),
+        // An `xmlns=""` namespace node is selectable: a default namespace undeclared
+        // below a rendered one is declared once, and one nothing rendered stays silent.
+        (
+            UND,
+            subtree("e"),
+            Mode::C14n10,
+            &[],
+            r#"<e a="1"><f xmlns="urn:f"><g xmlns=""></g></f></e>"#,
+        ),
+        (
+            UND,
+            subtree("e"),
+            Mode::Exclusive10,
+            &[],
+            r#"<e a="1"><f xmlns="urn:f"><g xmlns=""></g></f></e>"#,
+        ),
+        (
+            UND,
+            subtree("e"),
+            Mode::Exclusive10,
+            &["#default"],
+            r#"<e a="1"><f xmlns="urn:f"><g xmlns=""></g></f></e>"#,
+        ),
+        (UND, subtree("g"), Mode::C14n10, &[], "<g></g>"),
+        (
+            UND,
+            Selection {
+                expression: "(//. | //@* | //namespace::*)[ancestor-or-self::*[local-name()='f']]"
+                    .into(),
+                namespaces: Vec::new(),
+            },
+            Mode::C14n10,
+            &[],
+            r#"<f xmlns="urn:f"><g xmlns=""></g></f>"#,
+        ),
+        (
+            UND,
+            Selection {
+                expression: "//* | //@*".into(),
+                namespaces: Vec::new(),
+            },
+            Mode::C14n10,
+            &[],
+            r#"<doc><e a="1"><f><g></g></f></e></doc>"#,
         ),
         // Like libxml2, a listed namespace node renders even on an omitted element.
         (

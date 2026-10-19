@@ -10,7 +10,7 @@ use std::process::Command;
 use yaxml::schematron::{
     Code, Limits, OUT_ERROR, OUT_QUIET, OUT_TEXT, OUT_XML, Output, Schema, Validation,
 };
-use yaxml::{Document, OwnedDocument, Request, Resolver};
+use yaxml::{Document, OwnedDocument, ParseOptions, Request, Resolver, options};
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/schematron");
 const MODES: [u32; 8] = [
@@ -31,6 +31,17 @@ fn none() -> Box<dyn Resolver> {
 /// What the oracle helper prints: schema errors, then per instance the
 /// validation output and runtest's verdict. Both DOMs must agree.
 fn run(schema: &[u8], name: &str, instances: &[(&str, &[u8])], flags: u32) -> String {
+    run_parsed(schema, name, instances, flags, 0)
+}
+
+/// [`run`] with instances parsed with xmlParserOption flags `parse`.
+fn run_parsed(
+    schema: &[u8],
+    name: &str,
+    instances: &[(&str, &[u8])],
+    flags: u32,
+    parse: u32,
+) -> String {
     let schema = match Schema::parse(schema, name, none(), &Limits::default()) {
         Ok(schema) => schema,
         Err(errors) => {
@@ -41,8 +52,8 @@ fn run(schema: &[u8], name: &str, instances: &[(&str, &[u8])], flags: u32) -> St
     let mut out = String::new();
     for &(file, bytes) in instances {
         let (Ok(document), Ok(owned)) = (
-            Document::parse_bytes(bytes),
-            OwnedDocument::with_limits(bytes, Default::default()),
+            Document::parse_with(bytes, ParseOptions::new(parse)),
+            OwnedDocument::parse_with(bytes, ParseOptions::new(parse)),
         ) else {
             out += &format!("failed to parse instance {file}\n");
             continue;
@@ -636,33 +647,31 @@ fn from_tree_matches_parse_on_both_doms() {
 }
 
 #[test]
-fn the_resolver_loads_schema_entities() {
-    let text = format!(
-        "<!DOCTYPE s:schema SYSTEM 'e.dtd'><s:schema xmlns:s='{ISO}'><s:pattern id='p'><s:rule context='r'><s:assert test='a'>&e;</s:assert></s:rule></s:pattern></s:schema>"
-    );
-    let resolver = |request: Request<'_>| {
-        Ok((request.uri == "e.dtd").then(|| b"<!ENTITY e 'loaded'>".to_vec()))
-    };
-    let schema = Schema::parse(
-        text.as_bytes(),
-        "s.sct",
-        Box::new(resolver),
-        &Limits::default(),
-    )
-    .unwrap();
-    let validation = schema.validate(&Document::parse("<r/>").unwrap(), OUT_QUIET, b"<r/>");
-    assert_eq!(
-        validation.output,
-        [Output::Text("/r line 1: loaded\n".into())]
-    );
-    let missing = Schema::parse(text.as_bytes(), "s.sct", none(), &Limits::default());
-    let missing = missing
-        .unwrap()
-        .validate(&Document::parse("<r/>").unwrap(), OUT_QUIET, b"<r/>");
-    assert_eq!(
-        missing.output,
-        [Output::Text("/r line 1: node failed assert\n".into())]
-    );
+fn the_schema_is_parsed_with_noent() {
+    // As libxml2 (XML_PARSE_NOENT): entities are substituted and external
+    // parsed entities load, but the external subset does not.
+    let cases = [
+        ("<!DOCTYPE s:schema [<!ENTITY e SYSTEM 'e.ent'>]>", "loaded"),
+        ("<!DOCTYPE s:schema SYSTEM 'e.dtd'>", "node failed assert"),
+        ("<!DOCTYPE s:schema [<!ENTITY e 'inline'>]>", "inline"),
+    ];
+    for (doctype, expected) in cases {
+        let text = format!(
+            "{doctype}<s:schema xmlns:s='{ISO}'><s:pattern id='p'><s:rule context='r'><s:assert test='a'>&e;</s:assert></s:rule></s:pattern></s:schema>"
+        );
+        let resolver = |request: Request<'_>| {
+            Ok(match request.uri {
+                "e.ent" => Some(b"loaded".to_vec()),
+                "e.dtd" => Some(b"<!ENTITY e 'fromdtd'>".to_vec()),
+                _ => None,
+            })
+        };
+        let limits = Limits::default();
+        let schema = Schema::parse(text.as_bytes(), "s.sct", Box::new(resolver), &limits).unwrap();
+        let validation = schema.validate(&Document::parse("<r/>").unwrap(), OUT_QUIET, b"<r/>");
+        let line = format!("/r line 1: {expected}\n");
+        assert_eq!(validation.output, [Output::Text(line)], "{doctype}");
+    }
 }
 
 #[test]
@@ -693,11 +702,77 @@ fn operation_budget_stops_validation() {
     assert_eq!(schema.validate(&instance, OUT_TEXT, b"").errors, Some(4));
 }
 
+/// Instances with entity references: (name, flags, schema, instance,
+/// expected output with libxml2's default parser options and with
+/// `XML_PARSE_NOENT`). Rule contexts are never inside a kept reference, and
+/// XPath sees its text only in string values.
+const ENTITY_CASES: &[(&str, u32, &str, &str, [&str; 2])] = &[
+    (
+        "elements inside references",
+        OUT_TEXT,
+        sch!(
+            "<s:pattern id='a'><s:rule context='b'><s:assert test='@k'>b <s:value-of select='count(../b)'/></s:assert></s:rule><s:rule context='r'><s:report test='1'><s:value-of select='count(b)'/> <s:value-of select='count(//b)'/> <s:value-of select='node()'/></s:report></s:rule></s:pattern>"
+        ),
+        "<!DOCTYPE r [<!ENTITY e '<b k=\"1\"/>'>]>\n<r>&e;<b/>\n&e;</r>",
+        [
+            "Pattern: a\n/r line 2: 1 1 b text\n/r/b line 2: b 1\ndoc.xml fails to validate\n",
+            "Pattern: a\n/r line 2: 3 3 b b text b\n/r/b[2] line 2: b 3\ndoc.xml fails to validate\n",
+        ],
+    ),
+    (
+        "text in references",
+        OUT_TEXT,
+        sch!(
+            "<s:pattern id='a'><s:rule context='r'><s:report test='contains(., \"mid\")'>[<s:value-of select='.'/>][<s:value-of select='string-length()'/>][<s:value-of select='text()'/>]</s:report></s:rule></s:pattern>"
+        ),
+        "<!DOCTYPE r [<!ENTITY t 'mid'>]><r>a&t;b</r>",
+        [
+            "Pattern: a\n/r line 1: [r][5][text text]\ndoc.xml fails to validate\n",
+            "Pattern: a\n/r line 1: [r][5][text]\ndoc.xml fails to validate\n",
+        ],
+    ),
+    (
+        "nested references and paths",
+        OUT_ERROR,
+        sch!(
+            "<s:pattern id='a'><s:rule context='i'><s:assert test='@k'>no k <s:name path='..'/></s:assert></s:rule></s:pattern>"
+        ),
+        "<!DOCTYPE r [<!ENTITY i '<i k=\"1\"/>'><!ENTITY two '&i;<i k=\"1\"/>'>]><r><i/>&two;<i/></r>",
+        [
+            "doc.xml:1: element i: schematron error : /r/i[1] line 1: no k r\ndoc.xml:1: element i: schematron error : /r/i[2] line 1: no k r\ndoc.xml fails to validate\n",
+            "doc.xml:1: element i: schematron error : /r/i[1] line 1: no k r\ndoc.xml:1: element i: schematron error : /r/i[4] line 1: no k r\ndoc.xml fails to validate\n",
+        ],
+    ),
+    (
+        "references in messages",
+        OUT_TEXT,
+        sch!(
+            "<s:pattern id='a'><s:rule context='r'><s:report test='1'><s:value-of select='string(@a)'/></s:report></s:rule></s:pattern>"
+        ),
+        "<!DOCTYPE r [<!ENTITY t 'tee'>]><r a='x&t;y'/>",
+        [
+            "Pattern: a\n/r line 1: xteey\ndoc.xml fails to validate\n",
+            "Pattern: a\n/r line 1: xteey\ndoc.xml fails to validate\n",
+        ],
+    ),
+];
+
+#[test]
+fn entity_references_match_libxml2_output() {
+    for &(name, flags, schema, instance, expected) in ENTITY_CASES {
+        for (parse, expected) in [0, options::NOENT].into_iter().zip(expected) {
+            let input = [("doc.xml", instance.as_bytes())];
+            let found = run_parsed(schema.as_bytes(), "schema.sct", &input, flags, parse);
+            assert_eq!(found, expected, "{name} {parse}");
+        }
+    }
+}
+
 /// Runs the libxml2 helper in `directory`.
-fn oracle(helper: &str, directory: &Path, flags: u32, schema: &str, instances: &[&str]) -> String {
+fn oracle(helper: &str, directory: &Path, mode: &str, schema: &str, instances: &[&str]) -> String {
     let output = Command::new(helper)
         .current_dir(directory)
-        .arg(flags.to_string())
+        .arg(mode)
         .arg(schema)
         .args(instances)
         .output()
@@ -718,7 +793,13 @@ fn libxml2_agrees_in_every_mode() {
                 .map(|(name, _)| format!("test/{name}"))
                 .collect();
             let files: Vec<&str> = files.iter().map(String::as_str).collect();
-            let expected = oracle(&helper, directory, flags, &format!("test/{schema}"), &files);
+            let expected = oracle(
+                &helper,
+                directory,
+                &flags.to_string(),
+                &format!("test/{schema}"),
+                &files,
+            );
             let bytes: Vec<Vec<u8>> = instances.iter().map(|(name, _)| read(name)).collect();
             let inputs: Vec<(&str, &[u8])> = files
                 .iter()
@@ -739,12 +820,30 @@ fn libxml2_agrees_in_every_mode() {
     for &(name, flags, schema, instance, expected) in CASES {
         std::fs::write(scratch.join("schema.sct"), schema).unwrap();
         std::fs::write(scratch.join("doc.xml"), instance).unwrap();
-        let oracle = oracle(&helper, &scratch, flags, "schema.sct", &["doc.xml"]);
+        let oracle = oracle(
+            &helper,
+            &scratch,
+            &flags.to_string(),
+            "schema.sct",
+            &["doc.xml"],
+        );
         total += 1;
         if oracle != expected {
             differences.push(format!(
                 "{name}:\n--- libxml2\n{oracle}--- expected\n{expected}"
             ));
+        }
+    }
+    for &(name, flags, schema, instance, expected) in ENTITY_CASES {
+        std::fs::write(scratch.join("schema.sct"), schema).unwrap();
+        std::fs::write(scratch.join("doc.xml"), instance).unwrap();
+        for (parse, expected) in [0, options::NOENT].into_iter().zip(expected) {
+            let mode = format!("{flags}:{parse}");
+            let oracle = oracle(&helper, &scratch, &mode, "schema.sct", &["doc.xml"]);
+            total += 1;
+            if oracle != expected {
+                differences.push(format!("{name} {mode}:\n--- libxml2\n{oracle}--- expected\n{expected}\n--- debug {oracle:?}"));
+            }
         }
     }
     println!("{} of {total} runs agree", total - differences.len());

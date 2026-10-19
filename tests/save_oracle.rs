@@ -130,7 +130,7 @@ fn parse(input: &[u8], path: &Path, root: &Path) -> Option<OwnedDocument> {
     let base = path.strip_prefix(root).ok()?.to_string_lossy().into_owned();
     let resolver = Box::new(FileResolver::new(root).ok()?);
     let remote = input.windows(7).any(|window| window == b"http://");
-    match OwnedDocument::with_resolver(input, Limits::default(), &base, resolver) {
+    match OwnedDocument::parse_with(input, loading(Limits::default(), &base, resolver)) {
         // `--nonet` leaves remote DTDs unread.
         Err(error) if remote && error.kind == ErrorKind::ExternalResource => {
             OwnedDocument::parse_bytes(input).ok()
@@ -324,4 +324,62 @@ fn html_as_xml_matches_xmllint() {
         mismatches.join("\n")
     );
     assert!(mismatches.is_empty());
+}
+
+/// libxml2's default parse (no `NOENT`, no `DTDATTR`): kept entity references
+/// serialize as `&name;`. Reported, with the differing documents listed under
+/// `YAXML_SAVE_VERBOSE`; attribute-value references are a known difference.
+#[test]
+fn kept_references_match_xmllint_default() {
+    let Some(program) = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from) else {
+        eprintln!("YAXML_XMLLINT unset; skipping the default-parse save differential");
+        return;
+    };
+    let verbose = std::env::var_os("YAXML_SAVE_VERBOSE").is_some();
+    let (mut compared, mut matched, mut references) = (0, 0, 0);
+    for (path, root) in corpus() {
+        let output = Command::new(&program)
+            .arg("--nonet")
+            .arg(&path)
+            .output()
+            .expect("run xmllint");
+        if !output.status.success() {
+            continue;
+        }
+        let input = std::fs::read(&path).unwrap();
+        let base = path
+            .strip_prefix(&root)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let options = yaxml::ParseOptions::default()
+            .with_resolver(&base, Box::new(FileResolver::new(&root).unwrap()));
+        let Ok(document) = OwnedDocument::parse_with(&input, options) else {
+            continue;
+        };
+        compared += 1;
+        references += usize::from(document.nodes().any(|node| node.entity_name().is_some()));
+        let ours = save::to_vec(&document, &save::Options::default()).unwrap();
+        if ours == output.stdout {
+            matched += 1;
+        } else if verbose {
+            eprintln!("differs: {}", path.display());
+        }
+    }
+    eprintln!(
+        "default parse: {matched}/{compared} identical to xmllint ({references} keep references)"
+    );
+    assert!(compared > 0 && matched > 0);
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

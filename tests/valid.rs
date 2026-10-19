@@ -343,15 +343,15 @@ fn external_declarations_carry_standalone_and_nesting_constraints() {
         ("<!DOCTYPE r SYSTEM 'section.dtd'><r/>", &[EntityBoundary]),
     ];
     for &(input, expected) in table {
-        let document =
-            Document::with_resolver(input.as_bytes(), Limits::default(), "doc.xml", serve(DTD))
-                .unwrap();
-        assert_eq!(codes(&document.validate()), expected, "{input}");
-        let owned = OwnedDocument::with_resolver(
+        let document = Document::parse_with(
             input.as_bytes(),
-            Limits::default(),
-            "doc.xml",
-            serve(DTD),
+            loading(Limits::default(), "doc.xml", serve(DTD)),
+        )
+        .unwrap();
+        assert_eq!(codes(&document.validate()), expected, "{input}");
+        let owned = OwnedDocument::parse_with(
+            input.as_bytes(),
+            loading(Limits::default(), "doc.xml", serve(DTD)),
         )
         .unwrap();
         assert_eq!(codes(&owned.validate()), expected, "{input}");
@@ -487,7 +487,8 @@ fn libxml2_valid_corpus_has_the_same_error_counts() {
         }
         let input = std::fs::read(source.join("test/valid").join(&name)).unwrap();
         let base = format!("test/valid/{name}");
-        let document = OwnedDocument::with_resolver(&input, Limits::default(), &base, resolver());
+        let document =
+            OwnedDocument::parse_with(&input, loading(Limits::default(), &base, resolver()));
         let Ok(document) = document else {
             differences.push(format!("{name}: {:?}", document.err()));
             continue;
@@ -505,4 +506,16 @@ fn libxml2_valid_corpus_has_the_same_error_counts() {
     }
     assert_eq!(compared, 30);
     assert!(differences.is_empty(), "{}", differences.join("\n"));
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

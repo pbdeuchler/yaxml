@@ -5,6 +5,7 @@ use crate::dtd::DtdLimits;
 use crate::dtd_controller::content::{ContentController, ContentOutcome};
 use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::dtd_frames::FragmentOrigin;
+use crate::options::Flags;
 
 #[expect(
     clippy::large_enum_variant,
@@ -70,13 +71,16 @@ pub(crate) struct StreamingSession {
 }
 
 impl StreamingSession {
-    pub(crate) fn new(limits: Limits, decode: DecodeLimits) -> Self {
+    pub(crate) fn new(limits: Limits, decode: DecodeLimits, flags: Flags) -> Self {
         Self {
-            ordinary: Some(Stream::new(limits, decode)),
+            ordinary: Some(Stream::new(limits, decode, flags)),
             session: Vec::new(),
             limits,
             decode,
-            options: DtdLimits::new(limits, decode),
+            options: DtdLimits {
+                flags,
+                ..DtdLimits::new(limits, decode)
+            },
             standalone: false,
             loader: None,
             origin: None,
@@ -101,7 +105,8 @@ impl StreamingSession {
         self.origin
     }
     pub(crate) fn set_resolver(&mut self, base: &str, resolver: Box<dyn crate::Resolver>) {
-        self.loader = Some(crate::resolve::Loader::new(base, resolver, &self.limits));
+        let loader = crate::resolve::Loader::new(base, resolver, &self.limits);
+        self.loader = Some(loader.with_flags(self.options.flags));
     }
     pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
         match self.session.first()?.phase.as_ref()? {
