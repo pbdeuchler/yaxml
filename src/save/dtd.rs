@@ -57,6 +57,8 @@ pub(super) fn doctype(out: &mut Out, doctype: &Doctype<'_>) {
 
 /// Writes the subset's declarations; true when it declared anything.
 fn declarations(name: &str, subset: &str, notations: &mut Out, out: &mut Out) -> Option<bool> {
+    // The subset is source text; parsing normalizes its line ends.
+    let subset = subset.replace("\r\n", "\n").replace('\r', "\n");
     let text = format!("<!DOCTYPE {name} [{subset}]>");
     let defaults = Limits::default();
     let limits = Limits {

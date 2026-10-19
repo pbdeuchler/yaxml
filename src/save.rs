@@ -70,7 +70,8 @@ pub struct Options<'a> {
     /// text and attribute values escape non-ASCII characters as hexadecimal
     /// references and the declaration names none.
     pub encoding: Option<&'a str>,
-    /// `xmlSaveSetIndentString`: 1 to 60 bytes, two spaces by default.
+    /// `xmlSaveSetIndentString`: 1 to 60 spaces or tabs, two spaces by
+    /// default. libxml2 takes any string, which can make the output malformed.
     pub indent: &'a str,
 }
 
@@ -236,9 +237,16 @@ impl<'document, 'input> Tree<'document, 'input> {
         }
     }
 
+    /// The declaration; HTML documents are standalone with their encoding,
+    /// as `htmlNewDocNoDtD` leaves them.
     fn declaration(self) -> Option<Declaration<'document>> {
         match self {
             Self::Borrowed(node) => node.document().declaration().copied(),
+            Self::Owned(node) if node.document().is_html() => Some(Declaration {
+                version: "1.0",
+                encoding: node.document().html_encoding(),
+                standalone: Some(true),
+            }),
             Self::Owned(node) => node.document().declaration(),
         }
     }
@@ -250,12 +258,9 @@ impl<'document, 'input> Tree<'document, 'input> {
         }
     }
 
-    /// `doc->encoding`: the declared label, or an HTML document's encoding.
+    /// `doc->encoding`.
     fn encoding(self) -> Option<&'document str> {
-        match self.owned_document().filter(|document| document.is_html()) {
-            Some(document) => document.html_encoding(),
-            None => self.declaration()?.encoding,
-        }
+        self.declaration()?.encoding
     }
 }
 
@@ -278,7 +283,7 @@ pub(crate) fn owned_leaf(node: OwnedNode<'_>) -> Option<Event<'_>> {
 /// `xmlSaveTree` with the namespace declarations the subtree uses but does
 /// not declare added to its root, as on a copy (`xmlDocCopyNode`).
 ///
-/// Unknown flags or an indent outside 1..=60 bytes are `UnsupportedOption`;
+/// Unknown flags or another indent are `UnsupportedOption`;
 /// an unknown encoding is `UnsupportedEncoding`. Text and attribute values
 /// write characters the encoding lacks as `&#N;`; in names, comments, PIs,
 /// CDATA and DOCTYPE identifiers, where libxml2 writes such references too
@@ -292,7 +297,11 @@ pub fn to_vec<'document, 'input: 'document>(
 ) -> Result<Vec<u8>, Error> {
     let tree = tree.into();
     let unsupported = Error::new(ErrorKind::UnsupportedOption, 0);
-    if options.flags & !SUPPORTED != 0 || !(1..=MAX_INDENT).contains(&options.indent.len()) {
+    let indent = &options.indent;
+    if options.flags & !SUPPORTED != 0
+        || !(1..=MAX_INDENT).contains(&indent.len())
+        || indent.bytes().any(|byte| byte != b' ' && byte != b'\t')
+    {
         return Err(unsupported);
     }
     let document = tree.is_document();

@@ -43,6 +43,9 @@ mod pull;
 #[path = "serialize.rs"]
 mod serialize;
 
+#[path = "save.rs"]
+mod save;
+
 #[path = "mutation.rs"]
 mod mutation;
 
@@ -124,6 +127,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
         return outcome;
     }
     exercise_serialize(input);
+    exercise_save(input);
     exercise_owned(input);
     exercise_writer(input);
     exercise_limits(input);
@@ -258,6 +262,12 @@ pub fn exercise_serialize(input: &[u8]) {
     if let Some(Ok(document)) = parse_utf8(input) {
         serialize::borrowed(&document, input);
     }
+}
+
+/// `save::to_vec` options, encodings and subtrees: DOM agreement and
+/// fixed-point output.
+pub fn exercise_save(input: &[u8]) {
+    save::exercise(input);
 }
 
 /// Push, chunked and `read_from` parity with the slice reader.
