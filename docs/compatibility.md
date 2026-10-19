@@ -200,7 +200,7 @@ effect on results. `tests/options.rs` covers each row; the `dom`, `owned` and
 | `DTDATTR` | Adds non-namespace default attributes (defaulted `xmlns` declarations always apply, as in libxml2); implies `DTDLOAD`. |
 | `DTDVALID` | DOMs: validates after parsing; `Document::validity`/`OwnedDocument::validity` hold the diagnostics. Loads the subset and external entities (unless `NO_XXE`). Rejected by streams and `TextReader`. |
 | `NOERROR`, `NOWARNING`, `PEDANTIC` | Accepted: they only silence or add printed reports in libxml2; yaxml prints nothing and returns diagnostics. |
-| `NOBLANKS` | DOMs: drops ignorable whitespace text with libxml2's `areBlanks` rules (DTD element content, `xml:space`, sibling heuristic, never before an entity reference). Rejected by streams and `TextReader`, as libxml2's push parser does not support it. |
+| `NOBLANKS` | DOMs: drops ignorable whitespace text with libxml2's `areBlanks` rules (DTD element content, `xml:space`, sibling heuristic, which never drops text before an entity reference). Rejected by streams and `TextReader`, as libxml2's push parser does not support it. |
 | `SAX1`, `OLDSAX` | `SAX1` accepted (no SAX handlers exist); `OLDSAX` rejected (it changes predefined-entity lookup). |
 | `XINCLUDE` | `OwnedDocument::parse_with`: processes XInclude through the same resolver (`xinclude::process`); failures are `ErrorKind::XInclude`. Rejected by the borrowed DOM, streams and `TextReader`. |
 | `NONET`, `NO_SYS_CATALOG` | Accepted: nothing touches the network and there is no system catalog. |

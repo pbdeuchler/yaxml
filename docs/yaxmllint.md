@@ -55,7 +55,8 @@ line and column come from the error's byte offset, and the wording is yaxml's.
   `--noent` alone reads no external subset, as in xmllint.
 - `--format` and `--noblanks` parse with `NOBLANKS`: libxml2's `areBlanks`
   rules (declared element content, else the sibling heuristic;
-  `xml:space="preserve"` respected; never before an entity reference).
+  `xml:space="preserve"` respected; the heuristic keeps text before an entity
+  reference).
   `--format` implies it.
 - `--maxmem` bounds input and owned bytes rather than the allocator.
   `--huge` sets `HUGE` and raises the owned-byte budget.

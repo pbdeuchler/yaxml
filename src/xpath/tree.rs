@@ -429,11 +429,12 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
             let leading = kept
                 .last()
                 .is_none_or(|&last| !text(last) && !text(kept[0]));
-            // libxml2 sees the `&` of a following reference: not blank.
+            // Outside declared element content, libxml2 sees the `&` of a
+            // following reference: not blank.
             let reference = tree
                 .next_sibling(child)
                 .is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)));
-            match blank(child) && !reference && declared.unwrap_or(children.len() > 1 && leading) {
+            match blank(child) && declared.unwrap_or(!reference && children.len() > 1 && leading) {
                 true => found.push(child),
                 false => kept.push(child),
             }
