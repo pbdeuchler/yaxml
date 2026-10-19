@@ -1,0 +1,36 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE root SYSTEM "../valid/sa.dtd">
+    
+<root><![CDATA[make_small "<!ELEMENT small EMPTY>">ELEMLEMENT big EMPTY>">
+   %make_big;
+   %make_attlist;
+   <?sound "This is a PI" ?>
+   e_big;
+   %mak.e_attlist;
+    <!-- This is a t%xt...)
+    </child> doc a2 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do/><d/></TY>
+]>
+<doc><a/><d/>D/doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<!ELEMENT big EMPTY>">
+a<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELEMENT d EMPTY>
+]>
+<dTY>
+]>
+<doc><a/><d/></doc>
+ </child> doc a1 NMTOKENS #IMPLIED>
+<!ELEMEPCDATA)>
+]>
+<doc a1="1  2"></do]do<cc><![ake_big "<! #IMPLIED<cc><![CDANT~%TA[
+]]></root>>
+
+<d/>
+</doc>

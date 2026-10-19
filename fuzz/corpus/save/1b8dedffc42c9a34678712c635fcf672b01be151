@@ -1,0 +1,6 @@
+<!DOCTYPE root 
+[
+<!ATTLIST root att CDATA #IMPLIED>
+
+]>
+<root att="wng replaceMent  &#x001f;" />

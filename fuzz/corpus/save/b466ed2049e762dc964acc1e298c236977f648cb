@@ -1,0 +1,9 @@
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+]>
+<foo><?piefault values enumerated values. -->
+<!DOCTYPE foo [
+<!ELEMEN foo EMPTY>
+<!ATTLIST foo a (one|two|three	 "four">
+]>
+<foo a="on xxx?></foo>

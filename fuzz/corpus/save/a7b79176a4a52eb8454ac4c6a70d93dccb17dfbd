@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ATTLIST student first CDATA&#x0D;&#x20;</student>
+
+$

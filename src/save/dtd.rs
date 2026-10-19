@@ -171,6 +171,8 @@ fn declaration(
                 }
                 out.raw(">\n");
             }
+            // An empty list creates no attribute table.
+            return list.definitions().next().is_some();
         }
         DtdUnitView::Entity(entity) => {
             let parameter = entity.is_parameter();

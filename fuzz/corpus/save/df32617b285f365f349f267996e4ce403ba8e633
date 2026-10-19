@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST oc a CDATA #FIXED "v">D "v">
+]>
+<d

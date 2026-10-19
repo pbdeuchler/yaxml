@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//Insortium//EdibleHl//atehy//EN"nsortium//Edible//Healthy//EN">
+<!NOTATION vegee)	#REQUmId attrsig#">
+  <!

@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersand (&#38;#38;) may be escaped
+ numerically (8;#38;) or with a general entity
+  (&amp;amp;).</p>" >
+]>
+<test>&example;</test>

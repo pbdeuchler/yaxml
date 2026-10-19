@@ -22,7 +22,11 @@ caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain
 a bounded token and active document/namespace state. `Writer` validates UTF-8
 events and serializes them to a caller-provided `std::io::Write`; fresh writers
-can also serialize complete borrowed or owned DOMs.
+can also serialize complete borrowed or owned DOMs. `save::to_vec` writes a
+document or any node of either DOM as libxml2's `xmlSaveDoc`/`xmlSaveTree` do:
+`xmlSaveOption` flags (format, XHTML, ...), UTF-16 and single-byte output
+encodings, and the internal subset regenerated from its declarations
+([writer.md](docs/writer.md#libxml2-tree-output-save)).
 
 ```rust
 use std::ops::ControlFlow;

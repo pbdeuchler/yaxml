@@ -1,0 +1,8 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+]>
+
+<root xml:lang='en'/>
+
+    <!-- all a declared -->
+

@@ -1,0 +1,21 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE a3tributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validits
+	inormalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokens	NMTOKENS	#IMPLIEDz	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+   EANTITY internal " internal&number; ">
+    <!uYasped-0 PUtp://www.icrontic<!DOCI

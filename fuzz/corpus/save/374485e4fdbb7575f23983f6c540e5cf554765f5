@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- Cty name -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!NOTATION a:b SYSTEM "notation">
+]>
+<foo/>

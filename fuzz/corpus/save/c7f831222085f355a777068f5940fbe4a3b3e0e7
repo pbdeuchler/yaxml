@@ -1,0 +1,42 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!--NOTE: XML doesm
+&B&#xd;&#xa;" b="&#xd;&#xd;___
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIQED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_________________________________________
+&___________________xmlns="ht=tp://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1<
+      <e2 xml a="&d;&d;A&a;&#xd;&#xd;A&#x3 id="E3?xm
+&___>
+<?xm
+&k3__kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&k3______________________
+&____________________kkkkkkkkkkpit.a1get?>
+<?xm
+&___>
+<?xm
+&kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkr this is a choice or a seq-->
+<!ELEMENT a (doc?)>
+<!ELEMENT b (doc,a)>
+<!ELEMENT c (
+doc
+,
+a
+,
+c?
+)>
+]>
+<doc/>

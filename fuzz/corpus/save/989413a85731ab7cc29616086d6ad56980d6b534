@@ -1,0 +1,2 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (a, b, c,TIES="parameter"c>

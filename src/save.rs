@@ -690,15 +690,11 @@ impl<'a> Saver<'a> {
         if xhtml && qualified == "html" && name.namespace().is_none() && !declared {
             self.out.raw(" xmlns=\"http://www.w3.org/1999/xhtml\"");
         }
-        let plain = attributes.iter().filter(|a| !is_declaration(a));
-        if xhtml {
-            self.xhtml_attributes(name, plain);
-        } else {
-            for attribute in plain {
-                let namespaced = attribute.name.namespace().is_some();
-                self.attribute(attribute.name.qualified(), &attribute.value, !namespaced);
-            }
-        }
+        self.attributes(
+            name,
+            attributes.iter().filter(|a| !is_declaration(a)),
+            xhtml,
+        );
         if node.first_child().is_some() {
             return true;
         }
@@ -751,12 +747,13 @@ impl<'a> Saver<'a> {
         self.out.raw("\"");
     }
 
-    /// `xhtmlAttrListDumpOutput`: C.8 adds `id` from `name`, C.7 pairs
-    /// `lang` and `xml:lang`.
-    fn xhtml_attributes<'v>(
+    /// The attributes; under XHTML (`xhtmlAttrListDumpOutput`) C.8 adds `id`
+    /// from `name` and C.7 pairs `lang` and `xml:lang`.
+    fn attributes<'v>(
         &mut self,
         element: &Name<'_>,
         attributes: impl Iterator<Item = &'v Attribute<'v>>,
+        xhtml: bool,
     ) {
         let (mut id, mut name, mut lang, mut xml_lang) = (false, None, None, None);
         for attribute in attributes {
@@ -769,6 +766,9 @@ impl<'a> Saver<'a> {
                 _ => {}
             }
             self.attribute(attribute.name.qualified(), &attribute.value, !namespaced);
+        }
+        if !xhtml {
+            return;
         }
         const NAMED: [&str; 9] = [
             "a", "p", "div", "img", "map", "applet", "form", "frame", "iframe",
@@ -876,12 +876,16 @@ fn xhtml_empty(node: Tree<'_, '_>, name: &Name<'_>) -> bool {
         && EMPTY.contains(&name.local())
 }
 
+/// An element with this local name.
+fn named(node: Tree<'_, '_>, local: &str) -> bool {
+    node.name().is_some_and(|name| name.local() == local)
+}
+
 /// A `head` child of a top-level `html` without a Content-Type `meta`.
 fn needs_meta(node: Tree<'_, '_>) -> bool {
-    let local = |node: Tree<'_, '_>| node.name().map(|name| name.local().to_owned());
     let content_type = |child: Tree<'_, '_>| {
         let mut attributes = Vec::new();
-        local(child).as_deref() == Some("meta")
+        named(child, "meta")
             && child.attributes(&mut attributes, usize::MAX, 0).is_ok()
             && attributes.iter().any(|attribute| {
                 attribute.name.namespace().is_none()
@@ -889,10 +893,9 @@ fn needs_meta(node: Tree<'_, '_>) -> bool {
                     && attribute.value.eq_ignore_ascii_case("Content-Type")
             })
     };
-    local(node).as_deref() == Some("head")
+    named(node, "head")
         && node.parent().is_some_and(|parent| {
-            local(parent).as_deref() == Some("html")
-                && parent.parent().is_some_and(Tree::is_document)
+            named(parent, "html") && parent.parent().is_some_and(Tree::is_document)
         })
         && !node.children().any(content_type)
 }

@@ -1,0 +1,7 @@
+<!DOCTYPE reference [
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    source	NOTATION	(brittannica | worldbook) "e[ncarta"
+    >
+    <!ource="britt

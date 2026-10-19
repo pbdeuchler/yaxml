@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!NOTATION a SYSTEM 'a'>
+<!NOTATION b SYSTEM 'b'>
+]>
+<root>&#05is is test ced>&#10;</root>

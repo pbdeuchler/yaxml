@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/><?xml <d/>">
+]>   <ent>&test1;</en

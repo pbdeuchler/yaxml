@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test alller references for P32:
+&#9;&#09;&#0000000009;
+&#xA;&#xa;&#x0A;&#x000000D; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF900; &#xFFFD;00FF;
+</root>
+<!--* a valid test for P66 *-->

@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	SGML dislikes token reuse.  It's legal XML,teroperability"
+    -->
+    <!ATTLIST root
+	status		(inctial-draft3F0-۰_6F9-۹_6f4-۴_0966-०_096F-९_096t"
+	pksition	(firstirst|inter-௧_0BEF-௯_0beb-௫_0C66-౦_0C6F-౯_0c6a-౪_0CE6๔_0ED0-໐_0ED9-໙_0ed4-໔_0F20-༠_0F29-༩_0f24-༤ Tmediate|final) "first"st"
+	>
+]>
+
+<roo

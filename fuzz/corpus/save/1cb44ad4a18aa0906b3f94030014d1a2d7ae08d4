@@ -1,0 +1,7 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testi(g ianvlid CDEnd -->
+<![CDATA[This is a test])>
+<student>My Name 

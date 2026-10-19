@@ -1,0 +1,18 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION a SYSTEM "a">
+<!--t this l-->
+<!ATTLIST doc att NOTATION (a|
+
+
+
+<!NOTATION 0b S"0b">
+]>
+<doc4
+
+
+
+<!NOTATION 0b S"0b">
+]>
+<doc/>

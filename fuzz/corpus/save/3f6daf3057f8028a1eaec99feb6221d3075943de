@@ -1,0 +1,13 @@
+<?xml  version="1.0"?>
+<!-- valid tesction 58-->
+<!DOCTYPE test
+ [
+ <!ELEMENT test ANY>
+ <!ELEMENT one ANY>
+ <!ELEMENT two ANY>
+ <!ELEMENT three ANY>
+ <!ELEMENT four ANY>
+ <!NOTATION this SYSTEM "a/pha">
+ <!NOTATION that SYSTEM "beta">
+ <!ATTLIST one atTION ( this) #IMPLIED> <!ATTLIST three   for NOTATION
+</test>

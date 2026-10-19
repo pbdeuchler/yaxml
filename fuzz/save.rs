@@ -126,15 +126,19 @@ fn fixed_point(output: &[u8], options: &save::Options<'_>) {
     if options.flags & save::NO_DECL != 0 && !detected {
         return;
     }
-    let reparsed = OwnedDocument::parse_bytes(output).unwrap_or_else(|error| {
-        panic!(
-            "saved output does not reparse ({error}): {:?}",
-            String::from_utf8_lossy(output)
-        )
-    });
-    assert_eq!(
-        save::to_vec(&reparsed, options).unwrap(),
-        output,
-        "saved output is not a fixed point"
-    );
+    let resave = |output: &[u8]| {
+        let reparsed = OwnedDocument::parse_bytes(output).unwrap_or_else(|error| {
+            panic!(
+                "saved output does not reparse ({error}): {:?}",
+                String::from_utf8_lossy(output)
+            )
+        });
+        save::to_vec(&reparsed, options).unwrap()
+    };
+    // libxml2 normalizes `(a? | b? | c)+` to `(a? | b | c)*` and that to
+    // `(a | b | c)*`, so a content model can take one more round to settle.
+    let second = resave(output);
+    if second != output {
+        assert_eq!(resave(&second), second, "saved output does not settle");
+    }
 }

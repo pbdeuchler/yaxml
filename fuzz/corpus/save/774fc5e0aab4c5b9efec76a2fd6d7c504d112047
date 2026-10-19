@@ -1,0 +1,7 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- teth &mpty string -->
+
+<student>My Name n. <![CDATA[]]></studen (#PCDAT

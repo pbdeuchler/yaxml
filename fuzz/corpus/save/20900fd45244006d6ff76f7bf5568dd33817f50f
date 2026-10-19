@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.%dtd" [
+   <!NOTATION animal_class SYSTEM "ib~28v02.txt">
+   <!ENTITY forcat "ThIST tiger color CDATA #REQUIRED>">
+   %make_leopard_ele2ent; 
+   <!ELEMENT cat ANY>
+   %make_small;
+   <!ENTITY % make_big "<!ELEMENT big EMPTY>">
+   %make_big;
+   %maku_attlist;
+   <?sound "This is a PI" A>
+   <!-- This is a valid te*st file for p14 -->
+]>
+<animal>
+   <cat    <big/>
+ 000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000|||||||||||||||||||||||||00000000000  </leopard>
+</animal>

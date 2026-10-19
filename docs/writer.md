@@ -137,18 +137,112 @@ rolled back; the caller decides how to discard or retain it.
 tags. The writer performs no I/O on drop. The sink's own destructor retains its
 usual behavior, so dropping a `BufWriter` can still flush its buffer.
 
+## libxml2 tree output (`save`)
+
+`yaxml::save::to_vec(tree, &options)` reproduces libxml2 2.15.4's `xmlsave.c`.
+`tree` is a document (`&Document`, `&OwnedDocument`) or any node of either DOM
+(`Node`, `OwnedNode`). A document node is `xmlSaveDoc`: declaration, then each
+top-level node and a newline. Another node is `xmlSaveTree`/`xmlNodeDump`, with
+no declaration. Namespaces the subtree uses but does not declare are added to
+its root in first-use order, as on an `xmlDocCopyNode` copy, so an element
+subtree is a namespace-well-formed document. Output is built in memory; the
+walk is iterative. Unlike `Writer`, `save` does not validate events and follows
+libxml2's spelling exactly.
+
+`Options { flags, encoding, indent }` carries libxml2's `xmlSaveOption` values:
+
+| Flag | Behavior |
+| --- | --- |
+| `FORMAT` | Newline and indent each child of element-only content. An element with a Text or CDATA child (Text only under XHTML) is written as is, with its descendants. Comments and PIs are indented, CDATA and text are not. Indentation stops at 60 columns (`MAX_INDENT`). |
+| `WSNONSIG` | Newlines and indentation inside tags: before each attribute (level + 2), before `>`/`/>`, and before PI data. Content is untouched. |
+| `NO_DECL` | No XML declaration. |
+| `NO_EMPTY` | `<a></a>` for childless elements. |
+| `XHTML` / `NO_XHTML` | XHTML 1.0 Appendix C rules; they apply automatically when the DOCTYPE names an XHTML 1.0 public or system identifier, unless `NO_XHTML`. |
+| `AS_XML` / `AS_HTML` | XML or HTML serializer for HTML documents; `AS_HTML` routes an owned document through `html::save`'s serializer with the output encoding. |
+| `NO_INDENT` | `FORMAT` line breaks without indentation. |
+| `EMPTY`, `INDENT` | Accepted: they only override libxml2 globals whose defaults yaxml uses. |
+
+Other bits are `UnsupportedOption`. `indent` (`xmlSaveSetIndentString`) is 1
+to 60 spaces or tabs, two spaces by default; libxml2 accepts any string, which
+can make the output malformed, so other strings are `UnsupportedOption`.
+
+The declaration repeats the version (1.0 without one) and `standalone`, and
+names the encoding label as given. HTML documents saved as XML are standalone
+and name their HTML encoding, as libxml2 records them. `encoding` selects the
+output: UTF-8; UTF-16 (little-endian behind a BOM); UTF-16LE and UTF-16BE
+(no BOM); US-ASCII, ISO-8859-1..16 and windows-1252 under any libxml2 alias,
+reverse-mapped through the input tables. `None` uses a document's declared
+encoding. With no encoding at all, text and attribute values escape non-ASCII
+as `&#xH;` (`XML_ESCAPE_NON_ASCII`) and markup stays UTF-8. Characters an
+encoding lacks become `&#N;` in text, attribute values, attribute defaults and
+entity values. libxml2's converter writes the same reference inside names,
+comments, PIs, CDATA and DOCTYPE identifiers, where it is markup or literal
+text; `save` returns `InvalidCharacter` at the output offset instead. Unknown
+labels and libxml2's "HTML" converter are `UnsupportedEncoding`.
+
+Escaping follows `xmlEscapeTab`/`xmlEscapeTabAttr`: `&`, `<`, `>` everywhere,
+CR as `&#13;`, other C0 controls as `&#xFFFD;`; attributes add `"`, TAB and LF.
+`xmlns` declarations come before other attributes, and `xmlns:xml` is dropped.
+CDATA containing `]]>` is split after its `]]`. A PI with empty data is
+`<?t?>`; the DOMs do not record libxml2's `<?t ?>` spelling.
+
+The DOCTYPE is regenerated from the internal subset, as `xmlDtdDumpOutput` dumps
+the parsed DTD: notations first, then elements, one `<!ATTLIST>` per attribute,
+entities, comments and PIs in declaration order, the first of duplicate
+declarations only, content models in libxml2's binary-tree spelling (including
+its normalizations: `(a*)` is `(a)*`, `(a | b?)+` is `(a | b)*`), attribute
+defaults normalized and escaped, entity values as written. Internal parameter
+entities are expanded; their declarations appear after them. A subset that
+declares nothing is dropped, comments included. Differences: libxml2 orders
+notations by hash (seeded per process); declarations from external parameter
+entities, which `xmllint --noent` loads, are absent because the subset is
+parsed again without a resolver; a subset that pass cannot read is written as
+it was parsed. Edited owned trees are written as they are: libxml2's save path
+does not reconcile namespaces either.
+
+XHTML output adds `xmlns="http://www.w3.org/1999/xhtml"` to a namespace-free
+`html`, writes `<br />` for the XHTML 1.0 EMPTY elements and `<p></p>` for
+others, expands empty boolean attributes (`checked="checked"`), copies `name`
+to `id` (C.8) and pairs `lang`/`xml:lang` (C.7), and adds a Content-Type
+`<meta>` to a top-level `head` without one. Subtrees use XHTML rules only with
+the `XHTML` flag; HTML subtrees need `AS_XML`.
+
+`tests/save_oracle.rs` compares bytes with `xmllint --noent --dtdattr` (and the
+same with `--format`, `--pretty 2` and `--encode`) over the W3C XMLTS valid
+documents and libxml2's `test/*.xml` and `test/xhtml*` (517 documents both
+parsers accept), and `xmllint --html --xmlout [--format]` over libxml2's
+`test/HTML` (94 of 94 identical). Run it with `YAXML_XMLLINT`:
+
+| Mode | Identical | Notation order | External PE | PI spelling | Parser differences | Unrepresentable markup |
+| --- | --- | --- | --- | --- | --- | --- |
+| default | 498 (96.32%) | 4 | 9 | 2 | 4 | |
+| `--format` | 514/523 (98.28%) | 5 | 1 | 2 | 1 | |
+| `--pretty 2` | 502 (97.10%) | 2 | 9 | | 4 | |
+| UTF-16, UTF-16BE | 499 (96.52%) | 3 | 9 | 2 | 4 | |
+| ISO-8859-1 | 474 (91.68%) | 5 | 9 | 2 | 4 | 23 |
+| US-ASCII | 470 (90.91%) | 4 | 9 | 2 | 4 | 28 |
+| windows-1252 | 476 (92.07%) | 3 | 9 | 2 | 4 | 23 |
+
+`--format` is compared on the tree `--noblanks` leaves, as yaxml's XML parser
+has no NOBLANKS option. Notation counts vary between runs with libxml2's hash
+seed. "Parser differences" are documents whose trees differ (libxml2 turns a
+`&#13;` entity into LF and keeps two spaces from an entity in an attribute;
+XML 1.1 line ends). The pinned build has no ISO-8859-2..16 converters, so those
+are covered by unit tests against the decoding tables. The `save` fuzz target
+checks DOM agreement, that only markup an encoding lacks fails, and that
+saving reparsed output reproduces it byte for byte (see `fuzz/README.md`).
+
 ## Remaining scope
 
 The writer supports the reader's UTF-8 XML profile, explicit event output, and
-complete borrowed/owned DOM output. Namespace repair, detached-subtree output,
-formatting, UTF-16 output, DTD writing, raw XML injection, save options, and
-libxml2's remaining writer convenience APIs are pending. This is neither a
-canonicalizer nor a byte-preserving rewrite of source spelling.
+complete borrowed/owned DOM output; `save` adds libxml2's tree output.
+Namespace repair, raw XML injection, `Write`-sink and `xmlSaveTree` level
+parameters, HTML subtree output, iconv/ICU encodings and libxml2's remaining
+writer convenience APIs are pending. This is neither a canonicalizer nor a
+byte-preserving rewrite of source spelling.
 
 The pinned [libxml2 writer](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/xmlwriter.c)
 informs the state and escaping boundaries. Its EndDocument operation can close
 open elements before flushing; this API requires callers to supply complete
 events so omitted end tags remain visible as errors. The writer adds no unsafe
-code or Cargo dependency. Complete compatibility, sustained coverage-guided
-fuzzing, and matched libxml2 serialization measurements remain open validation
-work.
+code or Cargo dependency.

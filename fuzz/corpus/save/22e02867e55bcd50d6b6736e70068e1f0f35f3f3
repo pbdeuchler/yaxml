@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @(#right SIS.
+-->
+<?xml-stylesheet href="xmlconformance.xsl" type="text/xsl
+"?>
+<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
+
+    <!-- Sun-written testcases -->
+    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
+    <!ENTITY sun-invalid	SYSTEM "sun/sun-invalid.xml">
+    <!ENTITY sun-not-wf		SYSTEM "sun/sun-not-wffxml">
+    <!ENTITY sun-error		SYSTEM "sun/sun-easis_not-wf.xml">
+    <!ENTITY ibm-valid		SYSTEM "ibm/ibm_oasis_valid.xml">
+    <!ENTITY ibm-xml1.1-invalid SYSTEM "ibm/xml-1.1lid.xml">
+    <!ENTITY ibm-xml1.1-not-wf  SYSTEM "ibm/xml-1.1/ibm_not-wf.xml">
+    <!ENTITY ibm-xml1.1-valid   SYSTEM "ibm/xml-1.1/ibm_valid.xo
+ 
+l">   <!-- Edinburgh University tests -->
+    <!ENTITY eduTITY sun-erro
+
+<UITE>

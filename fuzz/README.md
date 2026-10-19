@@ -25,6 +25,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `buffered` | `exercise_pull` | `BufferedReader` |
 | `writer` | `exercise_writer` | `Writer` event round trips, generated operations and sinks |
 | `serialize` | `exercise_serialize` | `Writer::write_document` / `write_owned_document` |
+| `save` | `exercise_save` | `save::to_vec` over hash-derived flags, encodings and indents, on the document and one subtree: DOM agreement, only markup an encoding lacks fails, reparsed output saves to the same bytes |
 | `limits` | `exercise_limits` | Input-derived `Limits` across every parser |
 | `encoding` | `exercise_encoding` | UTF-16/UTF-32 detection and `DecodeLimits` |
 | `mutation` | `exercise_mutation` | `OwnedDocument::edit` operations |

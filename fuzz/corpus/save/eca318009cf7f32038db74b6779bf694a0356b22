@@ -1,0 +1,16 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 od.
+  
+  RSS is an XMnabling the display of?  "channels" on the "My> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | rating? | image? | tes? | managingEditor| item+ | rating? | imagecopyright? | 
+pubDaMe? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT description (#PCDtttATA)>
+<!ELEMENT link (#PCDAription?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

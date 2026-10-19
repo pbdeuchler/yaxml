@@ -1,0 +1,13 @@
+<!DOCTYPE a:outer [
+
+<!ELEMENT a:outer (a:inner)>
+<!ATTLIST a:outer xmlns:Q CDATA 'urn:namespace'>
+
+<!ELEMENT a:inner EMPTY>
+<!ATTLIST a:inner xmlns:a: CDATA #FIXED 'urn:nam#space'>
+<!ATTLIST a:inner attr CDATA #FIXED 'yes'>
+]>
+
+<a:outer xmlns:a="urn:namespace">
+  <a:inner />
+</a:oute>

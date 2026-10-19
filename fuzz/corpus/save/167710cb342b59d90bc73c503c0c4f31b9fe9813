@@ -1,0 +1,5 @@
+<!DOCTYPE d[
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a ENTITY #IMPLIED>
+]>
+<doc></doc>

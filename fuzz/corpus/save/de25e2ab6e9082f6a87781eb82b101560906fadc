@@ -1,0 +1,19 @@
+<?xml version="1.0" standalone="yes"?>
+<smil>
+  <body>
+    <!-- The SMIL <sws true and skip
+         pasv all others. -->
+    <switch>
+
+      <!-- The system-required attribute tests to see if
+ awing.svg. -->
+      <ref system-required="http://www.w3.org/Graphicsvg-19990412.dtd" 
+           type="image/svg" src="drawing.svg" />
+
+      <!-- Else, rendgr the alternate image. -->
+      <img src="alternate_image.jpg" />
+    </switch>
+  </body>
+</smil>
+
+

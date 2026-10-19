@@ -1,0 +1,19 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % pe "<!--replacementLIST LegalNa#IMPLIED>
+<!ATTLIST LegalName11 attr110 ID<root><a></a><b>&#10;   <c></c> &#10;   content of b element&#10;   <c>&#10;      <d><e>r eonmo children</e><e><f></f></e><f></f></d>&#69;   </c>&#10;</b></root>DREF #IMPLIED>
+<!ELEMENT LegalName26 attr26 ID #IMPLIED>
+<!ATTLIST LegalName26 attr260 IDREF #IMPLIED>
+<!ELEMENT LegalName27  decl-->">
+<!ENTITY
+  %
+  pe2
+  "<!--replacement decl-lacement decl-->">
+<!ENTITY
+  %
+  pe2
+  "<!--replacement decl-->"
+  >
+]>
+<doc/>

@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+
+<root>
+xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;J&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; &#xAC00;
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid test for P66 *-->

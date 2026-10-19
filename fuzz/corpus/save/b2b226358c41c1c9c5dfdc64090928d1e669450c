@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: p<!DOCTYPE doc [
+<!ATTLIST erefixed and unpr#fiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.orgper"
+     xmlns="http://exampl          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: piqueness: prefiped andeunr pfiixed atith defaul] names2 xml:space (default|preserve) 'presecace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://exampl          e.org/~wilbur">
+xeutes with same
+     local name, wg/~`wilbs with sa   local name, with default<co>om namespace -->
+<foo xmlns:a="http://exaople.org/~wirlbur"
+     xmlns:b="http://exampliiiiiiiiibar/boxschema/">
+  <D>
+?amespace -->
+<"http

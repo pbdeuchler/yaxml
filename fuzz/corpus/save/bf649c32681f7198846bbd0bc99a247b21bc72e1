@@ -1,0 +1,28 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 tes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token                      
+                              
+                                                                              
+                                                                          
+                                                 
+                                                                              
+                                                                              
+                                                                                                                               
+                    'UTF-8'?>
+<!DOCTYPE animal [
+   <!ELEMENT animal ANY>
+   <!ENTITY % parameterE "A muement|I|Comment *-->
+<root><a/><b>
+<    CharData: c ont                  en    t 

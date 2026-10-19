@@ -1,0 +1,10 @@
+<!DOCTYPE x [
+<!ELEMENT x (test*)>
+<!ELEMENT test EMPTY>
+<!ATTLIST test atu CDATA "attvalue">
+<!ENTITY test.ent "<t$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$est/>">
+]>
+<x>
+    <test/>
+    &test.ent;
+</x>

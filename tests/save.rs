@@ -315,6 +315,7 @@ fn internal_subsets_are_regenerated() {
         ("<!DOCTYPE r><r/>", "<!DOCTYPE r>"),
         ("<!DOCTYPE r []><r/>", "<!DOCTYPE r>"),
         ("<!DOCTYPE r [<!-- only --><?p?>]><r/>", "<!DOCTYPE r>"),
+        ("<!DOCTYPE r [<!ATTLIST r>]><r/>", "<!DOCTYPE r>"),
         (
             "<!DOCTYPE r PUBLIC 'p' \"s'\"><r/>",
             "<!DOCTYPE r PUBLIC \"p\" \"s'\">",
@@ -323,11 +324,11 @@ fn internal_subsets_are_regenerated() {
             "<!DOCTYPE r [<!ELEMENT r (b?|c|d)+><!ELEMENT s (b|c?|d)+><!ELEMENT t (b?|c|d?)*>\
              <!ELEMENT u (a*)><!ELEMENT v (a?)+><!ELEMENT w ((a,b)?)><!ELEMENT x (a|(b|c))>\
              <!ELEMENT y (a,(b,c)*)><!ELEMENT z (#PCDATA)><!ELEMENT zz (#PCDATA)*><!ELEMENT q ((a)?)>\
-             <!ELEMENT m (#PCDATA|a|b)*><!ELEMENT e EMPTY><!ELEMENT any ANY><!ELEMENT o ((a,b)|c)>]><r/>",
+             <!ELEMENT m (#PCDATA|a|b)*><!ELEMENT e EMPTY><!ELEMENT any ANY><!ELEMENT o ((a,b)|c)><!ELEMENT p (g?|e?|r)+>]><r/>",
             "<!DOCTYPE r [\n<!ELEMENT r (b? | c | d)+>\n<!ELEMENT s (b | c | d)*>\n<!ELEMENT t (b | c | d)*>\n\
              <!ELEMENT u (a)*>\n<!ELEMENT v (a)*>\n<!ELEMENT w (a , b)?>\n<!ELEMENT x (a | b | c)>\n\
              <!ELEMENT y (a , (b , c)*)>\n<!ELEMENT z (#PCDATA)>\n<!ELEMENT zz (#PCDATA)*>\n<!ELEMENT q (a)?>\n\
-             <!ELEMENT m (#PCDATA | a | b)*>\n<!ELEMENT e EMPTY>\n<!ELEMENT any ANY>\n<!ELEMENT o ((a , b) | c)>\n]>",
+             <!ELEMENT m (#PCDATA | a | b)*>\n<!ELEMENT e EMPTY>\n<!ELEMENT any ANY>\n<!ELEMENT o ((a , b) | c)>\n<!ELEMENT p (g? | e | r)*>\n]>",
         ),
         (
             "<!DOCTYPE r [\r\n  <!-- lead -->\r\n  <!ATTLIST r b CDATA \"x&amp;y&#10;z\nw\" c (a|b) #IMPLIED>\n\

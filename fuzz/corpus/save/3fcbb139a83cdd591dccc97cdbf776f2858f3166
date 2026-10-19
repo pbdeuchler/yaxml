@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+<!-- testing invalid Pul] namezscace --->
+<foo xmlns:a="/:">
+xed attributes wn. </student>
+
+

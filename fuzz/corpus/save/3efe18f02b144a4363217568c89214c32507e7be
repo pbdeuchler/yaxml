@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	SGML dislikes token reuse.  It's legal XML, so zny
+	XML parser must acceiscouraged
+	in documents "for interoperability"
+    -->
+    <!ATTLIST root
+	st		(inctial-draft7FEF-௯_0beb-௫_0C66-౦_0C6F-౯_0c6a-౪_0CE6-೦_0CEF-೯_0cea-೪_0D66-൦_0D6F-൯_0d6a-൪_0E50-๐_0E59-๙_0e54-๔_0ED0-໐_0ED9-໙_0ed4-໔_0F20-༠_0F29-༩_0f24-༤ This is|evrision|fnitial-draft"
+	position	(firstirst|inter-௧_0BEF-௯_0beb-௫_0C66-౦_0C6F-౯_0c6a-౪_0CE6-೦-൪_0E50-๐_0E59-๙_0e54-๔_0ED0-໐_te|final) "first"st"
+	>
+]>
+
+<roo

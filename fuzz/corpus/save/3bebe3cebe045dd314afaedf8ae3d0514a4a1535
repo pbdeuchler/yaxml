@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Microsystems, Inl Rights Reserved.
+-->
+
+<TESTCASES PROFILE="Fuji Xerox Japanese Text Tests">
+
+    <TEST TYPE="error" SECTIONS="1.3.3 [4,84]"
+	    ID="pr-xml-euc-jp" ENTITIES="parameter" UUI="pr-xml-euc-jp.xml">ex/foo" xml:lang="es="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://.ent">
+ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/]ntain Capanese characters.
+	</TEST>
+    <TEST TYPE="valid" SECTIONS="4.3.3 [4,84]"
+	    ID="weekly-utf-8" ENTITIES="parameter" URI="weekly-utf-8.xml">
+	Test support for UTF-8 encoding and
+	XML names which contain Japane4se characters.
+	</TEST>
+
+</TESTCASES>

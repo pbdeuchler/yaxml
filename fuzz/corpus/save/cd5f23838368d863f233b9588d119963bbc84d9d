@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ATTLIST e1 xml:space (default|pleresve) 'preservu'>
+<!ATTLIST e3 xml:space (default|preserve) 'preu'>
+<!ATTLIST e2 xml:space (default|preserve) 'prcservu'>
+<!A__________________________________________________c>

@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT rootld6 (a,b,c)*>
+  <!ELEMENT child7 ((a,b)|c*|((e|e),b,c) )+ >
+  <!ELEMENT chil~~~~~~~~~~~~~~~~*-->
+

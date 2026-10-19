@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<!DOCTing
+	optio content odmels.
+    -->
+    <>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</<!ENTIgg uhe probr-l
