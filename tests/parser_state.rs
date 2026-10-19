@@ -36,3 +36,34 @@ fn slice_failures_preserve_consumed_positions_and_early_structural_checks() {
         ErrorKind::LimitExceeded(yaxml::Limit::TokenBytes)
     );
 }
+
+/// A token cut off by EOF fails its start check in every reader, as the
+/// slice reader checks it before scanning to the token's end.
+#[test]
+fn streams_check_a_cut_off_token_start_like_the_slice_reader() {
+    use std::ops::ControlFlow;
+    for (input, kind) in [
+        ("<r/><", ErrorKind::MultipleRoots),
+        ("<r/><s a='", ErrorKind::MultipleRoots),
+        ("<r/><![CDATA[", ErrorKind::TextOutsideRoot),
+        ("<r/></", ErrorKind::UnexpectedEof),
+        ("<r/><?", ErrorKind::UnexpectedEof),
+        ("<r><s", ErrorKind::UnexpectedEof),
+    ] {
+        let mut reader = Reader::new(input.as_bytes()).unwrap();
+        let slice = loop {
+            match reader.read_event() {
+                Ok(Some(_)) => {}
+                Ok(None) => panic!("invalid input accepted: {input:?}"),
+                Err(error) => break error,
+            }
+        };
+        let mut parser = yaxml::PushParser::new();
+        let pushed = parser
+            .feed(input.as_bytes(), |_, _| ControlFlow::Continue(()))
+            .and_then(|()| parser.finish(|_, _| ControlFlow::Continue(())))
+            .unwrap_err();
+        assert_eq!((slice.kind, pushed.kind), (kind, kind), "{input:?}");
+        assert_eq!(slice.offset, pushed.offset, "{input:?}");
+    }
+}

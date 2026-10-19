@@ -91,7 +91,14 @@ impl Stream {
             .decoder
             .finish_step(|decoded| decode(tokenizer, state, decoded, limit))?
         {
-            tokenizer.finish_step()?;
+            // A token cut off by EOF fails its start check first, as in
+            // the slice reader.
+            tokenizer.finish_step().map_err(|error| {
+                tokenizer
+                    .cut_kind()
+                    .and_then(|kind| state.check_token_start(kind, error.offset).err())
+                    .unwrap_or(error)
+            })?;
         }
         Ok(self.has_token())
     }

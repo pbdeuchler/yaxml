@@ -414,6 +414,21 @@ impl Tokenizer {
         }
     }
 
+    /// The kind of a start tag or CDATA section cut off at EOF, whose start
+    /// alone can fail a structural check.
+    pub(crate) fn cut_kind(&self) -> Option<TokenKind> {
+        match self.scan {
+            Scan::Delimited {
+                kind: TokenKind::Cdata,
+                ..
+            } => Some(TokenKind::Cdata),
+            Scan::Prefix | Scan::Tag { .. } if self.buffer.get(1) != Some(&b'/') => {
+                Some(TokenKind::Start)
+            }
+            _ => None,
+        }
+    }
+
     fn append_slice(&mut self, bytes: &[u8]) -> Result<(), Error> {
         let Some(needed) = self
             .buffer
