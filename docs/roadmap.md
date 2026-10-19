@@ -326,3 +326,30 @@ Status: probed on `rustc 1.100.0-beta.7`. The opt-in `allocator_api` feature put
 Conformance follows [XML 1.0 Fifth Edition](https://www.w3.org/TR/2008/REC-xml-20081126/) and [Namespaces in XML](https://www.w3.org/TR/REC-xml-names/). UTF-16 input closes one gap; DTDs and the full conformance suites remain pending. The [libxml2 API reference](https://gnome.pages.gitlab.gnome.org/libxml2/) defines the comparison surface; version and build features must accompany every compatibility claim. The [security plan](security.md) defines the evidence needed for fuzzing and hostile-input readiness.
 
 Delegated work is reviewed before it reaches local main. Review the actual diff, behavioral tests, error paths, complexity, dependencies, unsafe prohibition, and public API impact. Integrate small coherent changes; update the compatibility and coverage inventories in the same change. A passing test suite establishes only its tested scope, so milestone notes must state the remaining gaps.
+
+## Remaining gaps (2026-10-19)
+
+Audit of every feature row in [compatibility.md](compatibility.md) against `src/`, `tests/` and the module docs. Size: S under about a week, M a few weeks, L a quarter or more. Ordered by migration value first, then security, then bindings; items 1-7 are mostly API surface over data the parsers already hold.
+
+1. Structured error record and handler (`xmlError`: domain, code, level, line, column, message; `xmlCtxtSetErrorHandler`, `xmlGetLastError`) - M - migration (every libxml2 caller reads it) and bindings (exception mapping); today `Error` is `{ kind, offset }`.
+2. Line and column metadata (`xmlGetLineNo`, `xmlSetLineNo`, `XML_PARSE_BIG_LINES`, reader line/column getters, error line/column) - S - migration; offsets exist on nodes and errors, so this is an offset-to-line index.
+3. DOM accessors (`xmlGetProp`, `xmlGetNsProp`, `xmlHasProp`, allocating `xmlNodeGetContent`/`xmlNodeListGetString`, `xmlGetNodePath`, previous sibling, `xmlNodeGetBase`/`xmlNodeSetBase`, `xmlNodeGetLang`, `xmlNodeGetSpacePreserve`, document URL) - S - migration and bindings; base logic already exists in `TextReader`, `xinclude` and `catalog` and should be shared.
+4. Namespace API (`xmlSearchNs`, `xmlSearchNsByHref`, `xmlGetNsList`, `xmlNewNs`, `xmlSetNs`, `xmlReconciliateNs`, `xmlDOMWrapReconcileNamespaces`) - M - migration, and required before safe move/copy of subtrees.
+5. Mutable DOM core (`xmlSetProp`, `xmlUnsetProp`, `xmlAddChild`, `xmlAddNextSibling`, `xmlAddPrevSibling`, `xmlUnlinkNode`, `xmlReplaceNode`, text merging, detached ownership, slot reuse/compaction) - L - migration and bindings (editing is the main reason to keep a DOM).
+6. Copy, import and adopt across documents (`xmlCopyNode`, `xmlDocCopyNode`, `xmlCopyDoc`, `xmlDOMWrapAdoptNode`, `xmlDOMWrapCloneNode`) - L, after 4 and 5 - bindings and migration.
+7. Context reuse/reset and capability reporting (`xmlCtxtReset`, `xmlCtxtResetPush`, `xmlCtxtSetOptions`, `xmlHasFeature`, `xmlCheckVersion`, version constants) - S - bindings (probe modules, amortize setup); no hook exists today.
+8. Public DTD and entity model (`xmlGetDocEntity`, `xmlGetPredefinedEntity`, `xmlGetDtdElementDesc`, `xmlGetDtdAttrDesc`, `xmlGetDtdNotationDesc`, `xmlEncodeEntities*`) - M - migration; the parsed declarations are held privately in `valid::Dtd`.
+9. Caller-supplied character converters (`xmlCtxtSetCharEncConvImpl`, `xmlRegisterCharEncodingHandler`, `xmlFindCharEncodingHandler`) - M - migration for Shift_JIS, EUC-JP, ISO-2022-JP, GBK and other iconv-only labels without bundling tables, keeping the core dependency-free.
+10. Built-in decoders for the libxml2 names still rejected: UCS-4 (four byte orders), UCS-2, IBM037/EBCDIC - S each - migration; UTF-16 and single-byte input on the borrowed `Reader`/`Document` (44 XMLTS gaps) - M.
+11. `RECOVER` and `NOBLANKS` on `PushParser`, `BufferedReader` and `TextReader` (`xmlParseChunk` with `XML_PARSE_RECOVER`) - M - migration (lxml-style recover over streams).
+12. DTD validation while streaming (`xmlTextReaderSetParserProp(VALIDATE)`, `xmlTextReaderPreserve`, `ReadAttributeValue`, `Close`) - M - migration for `xmlTextReader` users.
+13. Fragment and in-context parsing (`xmlCtxtParseContent`, `xmlParseInNodeContext`, `xmlParseBalancedChunkMemory`) - M, needs 4 and 5 - migration; removes a reason for callers to string-splice XML.
+14. Output sinks and writer API (`xmlSaveToIO`/`xmlSaveToFd` over `Write`, `xmlSaveTree` level, `xmlSaveSetEscape`, the `xmlTextWriter*` family, HTML subtree as HTML) - M - migration and bindings (streaming output without a `Vec`).
+15. SAX2 handler table (`xmlSAXHandler`, `xmlSAX2*`, user-data callbacks over `PushParser`) - L - migration for SAX consumers and bindings (lxml target parser); events cover the data, not the ABI shape.
+16. Node-count and wall-clock/work budgets for parsing, sustained fuzz campaigns and the remaining coverage denominator - M - security; today input, depth, events and owned-byte limits bound parsing but not node count or CPU time.
+17. XML 1.1 and the namespace-unaware profile (611 unscored XMLTS cases per surface, 9 namespace-off cases) - L - migration, low (rare in practice).
+18. HTML gaps from [html.md](html.md) (multi-byte converters, SAX callbacks, `HTML_PARSE_HTML5`, `htmlCtxtParseContent`, line numbers) - M - migration for HTML users.
+19. Schema and catalog remainders (`xmlRelaxNGDump`, XSD stream `ID`/`ENTITY` verdicts, two XSD counter quirks, catalog editing/dumping and the catalog PI, `CATALOG_PI` flag) - S each - migration, low.
+20. Fill the `status` column of `docs/libxml2-api.tsv` (4,056 rows `unmapped`) from the feature rows, and add a per-symbol Rust mapping - M, mostly scripting - process: no inventory row reflects what exists.
+21. Language bindings and any C ABI (`yaxml-capi`, Python, Node, Ruby, Go) - L - bindings; blocked on owner sign-off for unsafe adapters per [bindings.md](bindings.md), and easier once 1, 3 and 7 land.
+22. Public utility helpers (`xmlunicode.h` category/block queries, `xmlstring.h`, `chvalid.h`, `debugXML.h` dumps) - S - migration, low; `std` covers dictionaries, hashes and lists.
