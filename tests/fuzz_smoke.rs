@@ -1106,6 +1106,7 @@ fn fuzz_regressions_replay() {
                 "valid" => driver::exercise_valid(&data),
                 "html" => driver::exercise_html(&data),
                 "xinclude" => driver::exercise_xinclude(&data),
+                "catalog" => driver::exercise_catalog(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }
@@ -1152,5 +1153,24 @@ fn resolver_wrapper_serves_fuzz_resources_to_every_surface() {
             accepted,
             "{input:?}"
         );
+    }
+}
+
+#[test]
+fn catalog_entry_replays_seeds_and_malformed_pieces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/catalog");
+    for seed in std::fs::read_dir(root).unwrap() {
+        driver::exercise_catalog(&std::fs::read(seed.unwrap().path()).unwrap());
+    }
+    let cases: &[&[u8]] = &[
+        b"",
+        b"<catalog",
+        b"\xff\xfe",
+        b"CATALOG 0\n\0CATALOG 0\n",
+        b"<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'><nextCatalog catalog='0'/></catalog>\0\xff",
+        b"PUBLIC p x\n\0\0p\xc3\xa9\nu\ns|",
+    ];
+    for case in cases {
+        driver::exercise_catalog(case);
     }
 }

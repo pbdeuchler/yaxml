@@ -1,0 +1,38 @@
+CATALOG "0"
+BASE "d/"
+PUBLIC "-'/A//DTD X//EN" "x.dtd"
+SYSTEM http://e/x.dtd s.dtd
+-- c -- OVERRIDE YES
+ENTI~~CATALOG "0"
+BASE "d/"
+PUBLIC "-//A//DTD X//EN" "x.d¦td"
+SQSTEM http://e/x.dTd s.dtd
+-- c -- OVE~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-//B/http://e/x.dtd s.dtd
+-- c -- OVERRIDE YES
+ENTI~~CATALOG "0"
+BASE "d/"
+PUBLIC "-//A//DTD X//EN" "x.dtd"
+SQSTEM http://e/x.dTd s.dtd
+-- c -- OVE~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-//B//  Y ' y.~~~~~~~~~~~~~~ÔY e 'eÚ
+DELEASE "d/"
+PUBLIC "-//A//DTD X//EN" "x.dtd"
+SQSTEM http://e/x.dTd s.dtd
+-- c -- OVE~~~~~~~~~~~-//OASIS//DTD Entity 1Resolution XML Catalog V1.0//EN"
+         "http://www.oasis-opity/release/1.0/catalog.dtf">
+p://wwTd s.dtd
+-- c -- OVE~~~~~~~~~~~-//OASIS//DTD Entity 1Resolution XML Catalog V1.0//EN"
+         "http://www.oasis-opity/release/1.0/catalog.dtf">
+p://www.oasis-open.org/committes/tr.xsl"&   uri="http://www,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.oasis-open.org/commtites/entity/stylesheetERRIDE YES
+ENTITY e 'e'
+DELEGATE '-//mitteeRRIDE YES
+ENTITY e 'e'
+DELEGTE '-//mitteesB//  Y ' y.~~~~~~~~~~~~~~ÔY e 'eÚ
+DELEóêRRIDE YES
+ENTITY e 'e'
+DELEGATE '-//mitteeRRIDE YES
+ENTITY e 'e'
+DELEGTE '-//mitteew.oasis-open.org/committes/tr.xsl"&   uri="http://www,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,RRIDE YES
+ENTITY e 'e'
+DELEGATE '-//mitteeRRIDE YES
+ENTITY e 'e'
+DELEGTE '-//mittees/entity/relea

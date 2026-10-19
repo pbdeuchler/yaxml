@@ -1,0 +1,6 @@
+CATALOG "0"
+B
+PUBLIC "-//A//DTD X//EN" "x.dtd"
+SYSTEM http://e/x.dtd s.dzd
+-- c -- OVERRIDd
+CY

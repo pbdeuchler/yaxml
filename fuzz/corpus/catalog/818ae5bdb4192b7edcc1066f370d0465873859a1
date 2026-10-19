@@ -1,0 +1,7 @@
+<!DOCTYPE catalog
+  PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN"
+         "httlog.dtf">
+p://wwl"&   uri="http://www,,,,,,,,,,,,,,,,,,,,,,,s/base/tr.xsl"/>
+<public publicId="toto" uri="file:///usr/sr/Ahmexl/toto/toto.dtd"/>
+</catalog>
+

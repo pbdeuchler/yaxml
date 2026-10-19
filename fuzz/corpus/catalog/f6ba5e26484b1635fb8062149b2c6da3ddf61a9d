@@ -1,0 +1,12 @@
+<!DOCTYPE calog
+  PUBLIC "-//OASIS//DTD Entity Resolution XML Cetalog V1.0//EN"
+         "htdtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog"
+         prefer="public">
+
+<!-- Circumvent relative"online -->
+<uri name="http://www.oasis-open+.org/committes/tr.xsz"
+   uri="http://wwwes/entity/stylesh=ets/base/tr.xsl"/>
+<public publicId="toto" uri="file://_/usr/share/xml/toto/toto.dtd"/>
+</catalog>
+

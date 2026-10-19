@@ -305,6 +305,32 @@ assert!(output.ends_with(b"<body><p>a</p><p>b &amp; c</p></body></html>\n"));
 The [HTML contract](docs/html.md) lists options, encodings, limits, the
 xmllint differential and known differences.
 
+`yaxml::catalog` resolves public, system and URI identifiers through OASIS XML
+or SGML catalogs as libxml2's `catalog.c` does (rewrite, delegate,
+`nextCatalog`, `prefer`, `urn:publicid:`), with no global or default catalog.
+A `Catalog` is parsed from bytes or loaded through a `Resolver`, which also
+fetches referenced catalogs lazily within `catalog::Limits`;
+`CatalogResolver::new(catalog, inner)` is itself a `Resolver`, so any parser
+gains catalog support unchanged. See the [catalog contract](docs/catalog.md).
+
+```rust
+use yaxml::catalog::{Catalog, CatalogResolver};
+
+let entries = br#"<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteSystem systemIdStartString="http://example.com/" rewritePrefix="mirror/"/>
+</catalog>"#;
+let none = |_: yaxml::Request<'_>| Ok(None);
+let catalog = Catalog::parse(entries, Default::default(), "", Box::new(none))?;
+let inner = |request: yaxml::Request<'_>| {
+    Ok((request.uri == "mirror/r.dtd").then(|| b"<!ENTITY e 'local'>".to_vec()))
+};
+let resolver = CatalogResolver::new(catalog, Box::new(inner));
+let input = b"<!DOCTYPE r SYSTEM 'http://example.com/r.dtd'><r>&e;</r>";
+let document = yaxml::Document::with_resolver(input, Default::default(), "d.xml", Box::new(resolver))?;
+assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
 their own scope decision because libxml2 exposes raw pointers and public mutable

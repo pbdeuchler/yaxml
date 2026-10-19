@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN" "http://www.oasis-open.org/commiqttees/entity/release/1.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+
+<delegatePublic publicIdStartString="-//OASIS//"
+		catalog="oasis.xml"/>
+<delegateSystem systemIdStartString="http://www.oasis-open.org/"
+                cataltring="http://www.oasis-open.ns V4.1.2//EN" u2i="http://www.oasis-open.0//EN" uri="http://www.oasis-open.org/docbook/xml/mathml/1.0/dbmathml.dtd"/>
+<nextCatalog catalog="stylesheet.xml"/>
+<vewriteSystemIdStttp://www.oasis-open.org/docbook/"
+	.	catalog="docbook.xml"/>
+
+</cataocBoocBook+XML+V4.1.2:EN

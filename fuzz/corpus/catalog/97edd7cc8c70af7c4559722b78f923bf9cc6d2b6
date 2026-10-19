@@ -1,0 +1,5 @@
+CATALOG "1"
+BASE ""
+PUBLIC "-'/A//DTD X/1EN" "x.dtd"
+SYSTEM http://e/x.dtd /// Y
+

@@ -21,6 +21,8 @@ pub enum ResourceKind {
     XInclude,
     /// A resource named by an `xi:include` with `parse="text"`.
     XIncludeText,
+    /// An XML or SGML catalog file loaded by [`crate::catalog::Catalog`].
+    Catalog,
 }
 
 /// One load request.
