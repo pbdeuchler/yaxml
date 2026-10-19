@@ -1,0 +1,9 @@
+Ž<?xml version='1.0' stanÿÿûÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿdalone='yes'?>
+<!DOCTYPE s [
+
+<!ATTLIST attributes
+   nmtokenX   NMTOKEN    #IMPLIED
+   nmtokens   NMTOKENS   #IMPLIED>
+<!ENTITY ent " entity&recursive; ">
+<!"
+/>

@@ -1,7 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-ta  tr=' &#x20;&#13;&#xa;&#9; '/>
-  <!-- normalizrmId at)tr='
-
-foxa;&#9; '/> <!-BMs - Perializing back -->
-</doc>

@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e PUBLIC ";!*#@$_%" "100.xml">
-<!ELÙEMENT doc &(#PCDATA)>
-]>
-<doc></doc>

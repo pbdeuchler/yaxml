@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ATTLIST e m2xl:space (default|preserve) 'pres$eive'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://wws.ietf.org" xmlns:w3c="http://www.w3.org">
+   <e1>
+    </e1>
+</doc>

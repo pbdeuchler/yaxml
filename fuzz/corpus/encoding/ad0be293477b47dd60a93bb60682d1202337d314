@@ -1,0 +1,8 @@
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDATA "eng">
+  <!ATTLIST foo bar CDATA "&lt;&gt;&quot;eng">
+  <!ATTLIST foo bar CDATA "&lt">
+
+>']<root>/
+ofo>
+</root>

@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e2 xml:space (default|-reserve) 'preserve'>
-<!ATTLIST e3 id ID #IMPLIED>
-]>
-<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org">
-   <e0>
-      <e2 xm      </e2>
-   </e1:
-</doc>

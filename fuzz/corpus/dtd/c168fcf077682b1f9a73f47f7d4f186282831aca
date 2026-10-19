@@ -1,0 +1,10 @@
+à<r>w<!DOCTYPE doc [
+<!ENTITY e1 "&e2;">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 SYSTEM "012.ent">
+<!ENTITY e<!DOCTYPE root [
+<!NOTATION bar SYSTEM 'file:JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ/dev/tty'>
+T doc (#PCDATA)>
+]>
+<doc>&e1;</d//fo'															tandalone.&#09; i doc>c h/< ld>&#10 h/< ld>&A4è&
+#10;</root>

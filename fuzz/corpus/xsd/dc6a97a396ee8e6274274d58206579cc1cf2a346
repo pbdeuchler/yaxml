@@ -1,0 +1,13 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;e- c}mment a-->
+<?PI before daet ...?>
+<?pitarget 
+	?>
+<?pitat?>
+<!-- comment at-->
+<?PI before daet ..(.?>
+<?zzzzzzzz~zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz0<<<<zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz?>
+<!-- co">
+]>
+<doc>&e;</doc>

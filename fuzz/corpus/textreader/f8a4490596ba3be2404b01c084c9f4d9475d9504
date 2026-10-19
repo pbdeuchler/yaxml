@@ -1,0 +1,5 @@
+><?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns:cVcts="urn:oasis:names:tc:ubl:CoreCoID.UIDRef" UIDRefs="pvalue-&gt;Res:tc:ubl:CommonAggregateTypes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:0.0:0.70">
+   <cat:RefererID>
+   <l:CoreCoerencedOrder>
+</Invoice>

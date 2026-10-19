@@ -1,0 +1,1 @@
+‹<!DOCTYPE r [<!ENTITY a '&b;'><!ENTITY b '&c;'><!ENTITY c 'Ðd;'><!ENTITY d 'G&e;'><!ENTITY e%'x'>]><r>&a;</r>

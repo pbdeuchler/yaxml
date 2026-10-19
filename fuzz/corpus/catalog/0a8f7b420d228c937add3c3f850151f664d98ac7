@@ -1,7 +1,0 @@
-<!DOCTYPE catalog
-  PUBLIC "-//OASIS//DTD Entity Resoog V1.0//EN"
-         "http://www.oasic">
-
-<!-- Circumvent relative URI in spec.xsl that doesn't work online -->
-<uri name="http:/pen.org/cotity/stylesheets/baser.xsl"/>
-<publ<i

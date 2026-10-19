@@ -1,0 +1,30 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>xobar
+
+'/>
+  <norm att-r=' &amp; '/>
+  <norm attr='
+  ffoi&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+ooo&ašššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššššÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿššššššššššššššmp;bar   '/>
+  <norm attr='
+
+foobar&amp; '/>
+  <normId attr='
+  foi&amp;bar  -'/>
+  <normId attr='
+
+foobar&amp;'/>
+ <normId attrÊÐÙž’Ä™oo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  9nowww.newport-networks.com/cli 
+	xmlns:nnl="http://www.nei="http://www.w3.org/2001/XMLSchema-instance" :xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.newport-networks.co-m/cli b; '/> <!-- PBM serializing back -->
+</doc>

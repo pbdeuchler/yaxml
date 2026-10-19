@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!NOTATION gif PUBLIC "image/gif" "">
-<!ATTLIST #NOT>
-<!<doc></doc>

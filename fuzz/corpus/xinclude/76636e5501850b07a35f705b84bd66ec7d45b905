@@ -1,0 +1,7 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Namespace name tes$IRI that  URI -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns CDATA #IMPLIED>
+]>				pace name te										
+<foo xmlns="http:­/example.org/rosé"/>

@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-  <!ENTITY e SYSTEM "ret">
-]>
-<c>&e; &e; &e; &e;]</doc>

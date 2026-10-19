@@ -1,0 +1,7 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Has element content whitespace containing a NEL åååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååcharacter thS production (even tho‹˜—ßšÎÐ2. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (foo*)>
+<!ENTITY e "abc&#x85;def">
+]>
+<foo>&e;</foo>

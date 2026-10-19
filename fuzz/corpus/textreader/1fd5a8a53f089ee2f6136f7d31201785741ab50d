@@ -1,3 +1,0 @@
-><!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA | a| b)%*>
-<!ELEMENT a 55555>

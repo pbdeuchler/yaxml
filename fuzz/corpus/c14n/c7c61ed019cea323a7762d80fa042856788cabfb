@@ -1,0 +1,7 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->>
+  <norm attr=')))))))))))))))))))))))))))))))))&amp;foo bar
+'/>
+  	attr32="�更豈퟿" attr320="norm attr=' &lt; '/>
+  <normId attr=' &#94;

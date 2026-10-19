@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!ELEMENT r ANY><!ATTLIST v p:a CDATA #REQUIRED>]><r xmlns:p='u' xmlns:q='u' q:a='1'/>

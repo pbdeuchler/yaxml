@@ -1,0 +1,7 @@
+<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
+<!ENTITY x "Extensible Markup Language">
+]>
+<EXAMPLE prop1="a&amp;b" prop2="&xml;">
+  Tes°t of entities ittributes.
+</EXAMPLE>
+

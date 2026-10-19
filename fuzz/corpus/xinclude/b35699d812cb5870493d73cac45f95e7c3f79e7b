@@ -1,0 +1,12 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'ev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/null'>
+<!NOTATION nonce SYSTEM 'fone!" entities="unparsed-1 unparsed-2" entitile:/dev/null'>
+]>
+<attributes cdata="nothing happens to this one!" entities="unparsed-1 unparsed-2" entity="unparse#-1" id="internal42" idref="iocnternal41" idresf="inal42 interna2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+   me="office-process-content">
+l42" nmtoken="this-gets-normalized" nmtokens="this also 'ets normalized" notation="foo" token="b"></attributes>

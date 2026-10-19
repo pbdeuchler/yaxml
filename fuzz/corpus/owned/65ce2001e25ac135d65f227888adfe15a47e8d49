@@ -1,0 +1,10 @@
+<doc><![CDAAP[a><![CDAAP[abc]]><![CDATd;[def]]O><!<!]><![CA m>
+<!ENTITY pL 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+A<ITTL!ST r i ID "IMPLIED S #IMPLIED e ENTITY #IMPLIED es ENT'ITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|y|x) 'z' o NOTATION (n|o) =IMPLIED
+  cCCCCCCCCCCCCCCCCCCCCCCCCCCCC;">
+]>
+<foo bar="&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&n:c" 

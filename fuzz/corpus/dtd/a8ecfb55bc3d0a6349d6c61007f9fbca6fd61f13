@@ -1,0 +1,11 @@
+<!DOCTYPE reference [
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    source	NOTATION	(brittannica | worldbook) "e[ncarta"
+    >
+    <!-- tests the "attribuworldbook.com">
+
+]>
+
+<reference source="brittannica"/>

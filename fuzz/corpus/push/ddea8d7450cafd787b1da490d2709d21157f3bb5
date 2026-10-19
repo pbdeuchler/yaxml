@@ -1,9 +1,0 @@
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (title | description | link 
-| language | item+ | rating? | image? | textin| copanagingLditor|:item+ | rating? | imaipDays?)*>
-<!ELEMENT title (#PCDATA)ption?)*>
-<!ELEMENT ue>
-</channel>
-</rŒÁû

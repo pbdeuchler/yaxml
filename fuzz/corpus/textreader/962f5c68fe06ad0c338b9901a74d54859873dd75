@@ -1,0 +1,12 @@
+Ž<?xml version="1.0"?>
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b ']>'>
+    <!--> ]> -->
+]    >
+<?pi p2?><
+pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+<!--> c3 -->

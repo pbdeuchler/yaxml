@@ -1,0 +1,11 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (titletinput? | copyri | link 
+| language | item+ | ratiname? | textijput? | copyri | link 
+| lanagegu | Ž‹š’+ | rating? | image? | t.extinput8 | copyrigh | item+ | ratinage? | textijput? | copyri | ngEditor| item+ | rating? | image? | textinput? | copyright? | g| copyrigh | copyri | link 
+| lYnguage | item+ | ratinage? | textijput? | copyri | ngEditor| iÿÿÿÿÿÿÿÿÿtem+ | rating? | image? | textinput? | copyright? | description | link 
+| Editor| item+ |e? | textijput? | copyri | link 
+| lanagegu | items?)*>
+<channel>
+</rss>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http:w.w//ww3.org/2001/XMLSchema" 
+	xmlns="http://FOO" targetNamespace="http://FO}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}O">
+
+…	<xs:element name="foo">
+		<xs:complexTy
+…	<xs:element name="foo">
+		<xs:complexType>
+			<xs:complexContnet>
+				<xs:extension base="typeA">
+					<xs:attribute name="barA_2" type="xs:string"  use="required"/>					
+					<xs:attribute name="barA_2" type="xs:string"  use½"prohibited"/>					
+				<¯xs:extension>
+			<pe>
+			<xs:complexContnet>
+				<xs:extension base="typeA">
+					<xs:attribute name="barA_2" type="xs:string"  use="required"/>					
+					<xs:attribute name="barA_2" type="xs:string"  use½"prohibited"/>					
+				<¯xs:extension>
+			</xs:complexContent>
+		</xs_1="o" barA_2="o"/>
+   
+
+
+

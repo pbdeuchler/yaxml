@@ -1,0 +1,102 @@
+<?xml version="1z0"?>
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b '_>'>
+    <!--> ]> -->
+]    >
+<?pi p2?>
+<!--> c1 -->
+<d a=">" b='>'>
+te<!--> c -->
+<d a=">" b='>'>
+te<!--> c1 -->
+<d a=">" ©='><!DOCTYPE root SYSTEM "../valid/dtdtest></onc@e>'>
+text&a;text
+<![CDATA[cda
+</rootM ">ta]]>
+<?pi p2?>
+<!--> s1 
+
+-->
+</d>
+<?pi p3?>
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>1-
+-!>
+<d >">" b='>'>
+te<!--> ]> -->
+]    >
+<?pi p2?>
+<!--> c1 -->
+<d a=">" b='>'>
+te<!--> c -->
+<d a=">" b='>'>
+te<!--> c1 -->
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> s1 -->
+</d>
+<?pi p3?>
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>1-
+-!>
+<d >">" b='>'>
+te<!--> c -->
+<d a=">" b='>'>
+te<!--> c1 -->
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> s2 -->
+</d>
+<?pi p3?>
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>1-
+-!>
+<d >
+
+<![CDATA
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>1-
+- >
+<d a=">" b='>'>
+t&xeta;text
+<![CDATA/d>
+<?pi p3?>
+
+<![CDATA[cdata]]> c -->
+<d a=">" b='>'>
+te<!--> c1 -->
+<d a=">" b='>'>
+textDATA
+
+<![[
+    <!ENTITY a "]>">
+    <!ENTITY b '_>'>
+    <!--> ]> -->
+]    >
+<?pi p2?>
+<!--> c1 -->
+<d a=">" b='>'>
+te<!--> c -->
+<d a]>
+<?pi p2?> c8 -->

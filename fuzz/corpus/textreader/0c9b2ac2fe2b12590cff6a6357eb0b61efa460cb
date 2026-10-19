@@ -1,0 +1,34 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   -/>
+'/>
+ fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff <normId attr=' ellersOrderID.schemeDataURI" schemeURI="pvalue->ReferencedOrder.SellersOrderIDffffffffffffffrencedOrder.SellersOrderID.schemeAgencyID" schemeVersionID="pvalue->ReferencedOrder.SellersOrderID.schemeVers&amp; '/>
+  <normId attr='
+  foo&amp;bar   °/>
+mId ' &amp; '/>
+  <normId attr='8;">
+  <!ENTITY ha10 "&ha9; &ha9;">
+  <!ENTITY ha11 "$ha10; &ha10;">
+  <!ENTITY ha12 "&ha11; &ha11;">
+  <!ENTITY ha13 "&ha12; &ha1">
+  <!ENTITY ha30 "&ha21; &ha29;">
+  <!ENTITY ha31 "&ha30; &ha30;">
+  <!ENTITY ha32 "&ha31; &ha31;">
+  <!ENTITY ha33 "&ha32; &ha32;">
+  <!ENTITY ha34 "&ha33; &ha33;">
+  <!ENTITY ha35 "&ha34; &ha34;">
+  <!ENTITY ha36 "&ha35; &ha35;">
+  <!ENTITY ha37 "&ha36; &ha36;">
+  <!ENTITY ha38 "&ha37; &ha37;">
+  <!ENTITY ha39 "&ha38; &ha38;">
+  <!ENTITY ha40 "&ha39; &ha39;">
+  <!ENTITY ha41 "&ha40; &ha40;">
+  <!ENTITY ha42 "&ha41; &ha41;">
+  <!ENTITY ha43
+  foo&amp;bar   '/>
+mId attr='
+  fooo&lt;bar   '/>
+'/>
+  nrIm<od attò=' &#13;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

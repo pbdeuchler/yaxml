@@ -1,9 +1,0 @@
-<HTML>
-<HEAD><TITLE>Scrip° tests</TITLE></HEAD>
-<BODY>
-<SCRIPT language=javascript>
-    ( fiwindow.open<max) ;
-</SCRIPT>
-<INPUT ONCLICK="if(window.open<max);">
-</BODY>
-</HTML>

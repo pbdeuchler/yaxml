@@ -1,0 +1,3 @@
+<!DOCTYPE r [<!ENTITY e 'x'><!ATTLIST r a NMTOKENS #IMPLIED>]><r a='&e;
+' b=';&
+eq'>&e;</r>

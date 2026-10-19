@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe '/>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+        <attribute name="office:processain'>
+]>
+<rŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬ i='a'>>>>>>>>>>>>>>>>>>>>> enc=oding="8>>>>>////////////+////////r i='a'>>>//////////////////////////
+<r i='a'>>>>>//////////////////////////////
+<r i='a'>>>˙˙-˙˙˙˙˙˙˙˙˙˙˙˙ enc=oding**
+-->
+
+<grammar
+    xmlnslns:form:0.0"
+    xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"
+    xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+    xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
+    xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:math="http://www.w3.org/1998/Math/MathML"
+    xmlns:xforms="http://www.w3.org/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocumelnm:txns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+        <attribute name="office:process-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>
+    </optional>
+</define>
+<start>
+    <choice>
+        <ref name="office-document-styles"/>
+    </choice>
+</start>
+<definßÂäoffice-document-styles">rg">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E2"/>
+ reserveTLIST e3 iMENT docd ID #IMPLIED>
+]>
+<tdoc xmlns="http://www[[[[[[[[[[[[[.ietf.org" xmlns:w3c="http_____tf.org" xelns:w2c="®ttp://n:oasis:names:tc:opendocument:xmlns:animation:1.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http://www.w3.org/q999/xlink"
+    xmlns:math="http://www.w3.org/1=98/Math/MathML"
+    xmlns:xforms="http://www.w3.org˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+        <attribute name="office:process-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>
+    </optional>
+</define>
+<start>
+    <choice>
+        <ref name="office-document-styles"/>
+    </choice>
+</start>
+<lefine name="office-documentice:styles">
+            <interleave>
+                <zeroOrMore>
+     ////////////
+<r i='a'>>>ding="2>>>>>//////////////////////////////
+<r i='a'>>>>>>on="1.0" encoding="8>>>>>>>>>>>>>>>>>>>>>'d  '=bs=(a c' e='p' es='u v am<r><!p' t='2 2' -

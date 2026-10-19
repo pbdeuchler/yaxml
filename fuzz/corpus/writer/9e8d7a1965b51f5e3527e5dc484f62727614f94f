@@ -1,0 +1,6 @@
+<!DOCTYPE c0doc
+[
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc at_______________________________________________________________t CDATA #FIXED
+
+]>

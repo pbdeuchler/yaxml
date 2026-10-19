@@ -1,0 +1,155 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<eleeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeem>CharData</em>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--co (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--TEM 'n'><!--Oc--><?p d?TITY eduni-errata2e	SYSTEM "errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10		SYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "errata-3e/errata3e.xml">
+    <!ENTITY eduni-nse		SYSTEM "namespaces/errata-1e/errata1e.xml">
+    <!ENTITY eduni-errata4e	SYSTEM "errata-4e/errata4e.xml">
+    <!ENTITY eduni-misc         SYSTEM "misc/ht-bh.xml">
+] >
+<TESTSUITE PROFILE="W3C Conformance Test Suite, Edinburgh tests">
+
+<TESTCASES xml:base="xml-1.1/">
+    &edu">
+    &eduni-nse;
+</>]><r>&e;Y/r> SYST--Oc--><?p d?>]><r>&e;Y/r>EM 'm.<td' [<-�更豈="attrValue"
+ 	attr.-�更="atm
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<eleeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeem>CharData</em>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<
+<!--co (#PCDApyri | link 
+| language | item+ | ratinage? | textijput? | ATA|elem)*>
+<!ENTITY ent "<eleAm>CharData</elem>">
+]>-->
+<?pi?>&e]nelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment--><?x="avtrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="aef,]\><![m>
+]]>
+<![CD�更豈="attrValue"
+ 	a"
+ 	attr.-�更="attrValu<?xmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http:'/example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+    [ 
+     '         <!-- no namespace nodes;0I am not in my parent's namespace axis -->
+              ancestor-ot(parents -->
+              ancestor-ot(parent::node()/namespace::* | self::()))
+    ]
+</XPath>
+dddddetrValue"
+ ni-xml10;
+</TESTCASES>
+<TESTCASES xml:base="namespaces/1.0/">
+base="nrrata-1e/">
+    &eduni-nse;
+</>]><r>&e;Y/r> SYST--Oc--><?p d?>]><r>&e;Y/r>EM 'm.<td' <[-�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="ate.org/
+<!--comment--
+<!--co (#PCDATA|elem)*>
+<!ENTITY ent "<eleAm>CharData</elem>">
+]>-->
+<?pi?>&e]nelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment--><?x="avtrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-%�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="aef,]\><![m>
+]]>
+<![CDATA[
+<elem>
+CharData&#![CD)ATAdddddddddddddeStar33;
+<!--comment-->
+<?pi?>&ent;&quoA|elet;
+CharData
+</ele
+
+m>
+TA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharDatatrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-%�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="aef,]\><![m>
+]]>
+<![CDATA[
+<elem>
+CharData&#![CD)ATAdddddddddddddeStar33;
+<!--comment-->
+<?pi?>&ent;&quoA|elet;
+CharData
+</ele
+
+m>
+TA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#16;
+<!--TEM 'n'><!--Oc--><?p d?TITY eduni-errata2e	SYSTEM "errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTE &eduni-nse;
+</>]><r>&e;Y/r> SYST--Oc--><?p d?>]><r>&e;Y/r>EM 'm.<td' [<-�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="ate.org/
+<!--comment--
+<!--co (#PCDATA|elem)*>
+<!ENTITY ent "<eleAm>CharData</elem>">
+]>-->
+<?pi?>&e]nelem>">
+]>
+<elem>
+CharData&#32;
+<!--comment--><?x="avtrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-%�更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	A.-�attr="aef,]\><![m>
+]]>
+<![CDATA[
+<elem>
+CharData&#![CD)ATAdddddddddddddeStar33;
+<!--comment-->
+<?pi?>&ent;&quoA|elet;
+CharData
+</ele
+
+m>
+]]>a
+</elem>

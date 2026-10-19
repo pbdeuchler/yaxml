@@ -1,9 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
-        <!ATTLIST student att1 CDATA #REQUIRED>
-]>
-<!--* This test is to tes
-      "content" *--> 
-<?MyInstruct This is a test ?>
-<student att1="ibm">My Name is SnowMan. </student>

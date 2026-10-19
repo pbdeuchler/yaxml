@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Contlude'><xcontrol character (f0-omfeed),
+     leÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿùÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿgal in XML 1.1 but noàt 2.0 -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+]>
+<foo>{&#x0c;>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>ˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆ-ˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆˆml version="1.0" encoding="ISO-8859-1"?>
+<xsd:schema xmlns:foo="http://FOO" 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	elementFormDefault="qualified"
+	targetNamespace="http://FOO">
+
+	<xsd:element name="foo">
+		<xsd:complexType>
+		    <xsd:sequence>			
+				<xsd:element name="elem.lax.A" type="foÿ×type.lax"/>				
+				<xsd:element name="elem.lax.B" type="foo:type.lax"/>				
+				<xsd:element name="elem.strict" type="foo:type.strict"/>				
+				<xsd:ele:attribute name="barA" type="xsd:language" />
+	<xsd:attribute name="barB" type="xsd:language" />
+
+	<xsd:complexType name="type.lax">			
+		<xsd:any.strict foo:barB="FR"/>
+	<elem.skip foo:barC="o<a>t</a"/>
+></foo>
+ <Status Form </NewsItem>
+</NewsML>

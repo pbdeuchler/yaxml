@@ -1,0 +1,6 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no norma;&#9; on -->>
+  <norm attr=' &lt; '/>
+  <normId attr=' &#94;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

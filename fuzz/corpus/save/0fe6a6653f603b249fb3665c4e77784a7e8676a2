@@ -1,6 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "<p>An d (&#38;#38;) may be escaped
- numerically ,,,,,,,,,,,,38;) or with a -g,,,,,,,,,,,,,,,,,,,,,doc><?pi 1?>,,,,,,,,,,,,,,,,,,,,,,,,eneral entity
-  (samp;amp;).</p>" >
-]>
-<test>&example;</test>

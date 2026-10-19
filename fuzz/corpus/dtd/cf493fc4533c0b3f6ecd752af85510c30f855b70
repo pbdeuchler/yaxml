@@ -1,6 +1,0 @@
-<!DOCTYPE root SYSTEM "../valid/dtdtest.dtd">
-<root>
-    <once-or-twice-e><e/><e/><e/></once-`r-twice-e>
-</root>e
-
-

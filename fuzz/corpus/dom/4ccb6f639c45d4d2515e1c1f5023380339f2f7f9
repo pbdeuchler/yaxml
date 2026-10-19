@@ -1,0 +1,11 @@
+—<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar  ;&#;9x#&a; '/>
+  <!-- normalizbar'/>
+  <normId attr=' foo bar
+'/>
+  <normId attr='foo&b;&a;&b;&q;</r><!bang back -->
+</doc>

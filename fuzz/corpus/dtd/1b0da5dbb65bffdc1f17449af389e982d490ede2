@@ -1,7 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root (#PCDATA)>
-<!ELEMENT a ANY>
-<!-+* Missing AttType in AttDef *-->
-<!ATTLIST a attr1 #IMPLIED>
-]>
-<root>Any content</root>

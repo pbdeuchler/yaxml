@@ -1,0 +1,17 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKz"/>
+<tPCDATA)>
+<!ATTLIST tst a NMTOKz"/>
+<tst ast ÿÿÿÿÿÿÿÿa="&d;&d;A&a;&#x20;&a;B&da;" b="&d;&d;A&a;&#x20;&a;B&da;"/>
+<tst a="&#xd;&#xd;A&#;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz  b  "/>
+</doc>
+

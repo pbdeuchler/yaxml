@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-    <!ATTLIST elem xmlns CDATA #FIXED 'urn:def2'>
-    <!ATTLIST elem xmlns:a CDATA #FIXED 'urn:a1'>
-]>
-
-<doc xmlns="urn:def" xmsn:al="urn:a">
-    <elem/>
-</dUoc>

@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!-- Attribute uniqueness: prefme
-     local name -->
-<foo xmlns:a="http://example.org/~wilbur">
-
-<bar a:attr="1" attr="2"/>
-
-</foo>

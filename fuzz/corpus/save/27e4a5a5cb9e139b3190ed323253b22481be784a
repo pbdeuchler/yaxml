@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+    <!ATTLIST root
+	id2	ID	"x23"
+	>
+]>
+
+<!-- an ID a<doc><f><foo></foo></doclared default
+    ofMENT bogus ANY>"> 
+        <!ATTLIST student att1 CDATA #REQ
+      An internal general parsezd encith doc><f><foo></foo>is well-for #IMPLIED or #REQUIRED
+-->
+
+<rootfffffffffffffffYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/>
+

@@ -1,0 +1,35 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'vffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED   c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:q' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s='a HHHHHHHHndocument:xmlns:xsl-fo-compatible:1.0" 1xmlns:xlink="ht]tp://www.wion="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+    xmlns:dr3d="urn:oasis:names:tc:opendocument:xmlns2dr3d:1.0"
+    xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"
+    HHHHHHHHHHHHHHHHHH IHHHHHHHHHHHHHH(HHHHHHHHHHHHHHHHH\\\
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+HHHHHHH/HHHHHHHH
+HHHHHH ID #IMPLIEDHHHHHHHHHH ID #IMPLIED f iDREF #.IMPLIEHHHHHHHHHHHHHHHHHHHHHHHH ID #IMPLIED f IDREF #HHHHHHH ID #IMPLIED f iDREF #IMPLIEHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH ID #IMPLIED f iDREF #IMPLIEHHHHHHHHHHHHHHHHHHHHH(HHHHHHHHHHHHH\\\\\\\ v !amp' t='5L2' ts=' x  y '></r>

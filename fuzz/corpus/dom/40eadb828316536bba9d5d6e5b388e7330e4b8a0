@@ -1,0 +1,36 @@
+‚<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="''''''''http://eple.org/foo" xml:lang="en-ie">
+   -self::ba:rSheomting
+    ]
+<!DOCTYPE root [
+  <!ENTITY ha "Ha !">
+  <!ENTITY ha2 "&ha; &ha;">
+  <!ENTITY ha3 "&ha2; &ha2;">
+  <!ENTITY ha4 "&ha3; &ha3;"ml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="''''''''http://eple.org/foo" xml:lang="en-ie">
+   -self::ba:rSheomting
+    ]
+<!DOCTYPE root [
+  <!ENTITY ha "Ha !">
+  <!ENTITY ha2 "&ha; &ha;">
+  <!ENTITY ha3 "&ha2; &ha2;">
+  <!ENTITY ha4 "&ha3; &ha3;">
+  <!ENTITY ha5 "&ha4; &ha4;">
+  <!ENTITY ha6 "&ha5; &ha5;">
+  <!ENTITY ha7 "&ha6; &ha6;">
+  <!ENTITY ha8 "&ha7; <!DOCT&ha7;">
+  <!ENTITY ha9 "&ha8; &ha8;">
+  <!ENTITY ha10 "&ha9; &ha9;">
+  <!ENTITY ha11 "&ha10; &ha10;">
+  <!ENTITY ha12 "&ha11; &ha11;">
+YPE do>
+co?&<d
+	 
+]>  <!ENTITY ha13 "&ha12; &ha12;">
+  <!9
+
+<--ENTITY ha14 "&ha13; &ha13;">
+  <!ENTITY ha15 "&ha te&ls;s;do14;Y> &ha14;">
+  <!ENTITY ha16 "&ha15; &ha1
+5;">
+  <!ENTI

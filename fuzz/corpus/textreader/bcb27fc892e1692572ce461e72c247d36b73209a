@@ -1,0 +1,7 @@
+/<!DOCTYPE doc [ <!ENTITY ent4 "<ns:e.lem/>">
+]>
+<doc>
+    <a xmlns="urn:a">&ent2;</a>~
+    <b lns88888888888888888888888888888888888888888888888888="urn:b">&ent1;</b>
+    ax< mlns:n6ent2;</b>n:b">6ent2;</b>
+</doc>

@@ -1,0 +1,11 @@
+<!DOCTYPE rss [
+<!--
+
+  ?ich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (titlextinput? | copyright? | 
+pubDaMe? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+sioukHprs? | skipastBuildDate? | docsI | managingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

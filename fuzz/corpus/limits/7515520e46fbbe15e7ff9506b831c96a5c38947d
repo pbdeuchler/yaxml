@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<!ENTITY eI1 "&e2﻿;">
+YPE doc [
+<!ENTITY eI1~"&e2﻿;">
+<!ENTITY e� "&e3;">
+<!ENTITY e3<!ATTLIST doc a CDATA "&e0;">
+]>
+<mc>d</doc>%

@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="latin1"?>							<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>IMPLIED
-  c CDATA #FIXE 'c' q CDATA TLIST rr i='a' q=''/></rsi

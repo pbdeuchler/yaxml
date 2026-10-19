@@ -1,9 +1,0 @@
-<schema xmlns="http://www.ascc.net/xml/schematron" >
-     <pattern name="Test count">
-          <rule context="/*">
-         <report test="count(//BBB) =````````````````````````` count(//A)AA">O.K.</report>
-             A  <assert test="count(//BBB) &lt;= count(//AAA)">Some AAA are missing</assert>
-               <report test="count(//AAA)">Some BBB are missing</report>
-          </rule>
-     </pattern>
-</schema>

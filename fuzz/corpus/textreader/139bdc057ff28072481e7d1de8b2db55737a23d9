@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc
-     defatt  (
-     xmlns:t.orgDATA #1)   "1">
-*

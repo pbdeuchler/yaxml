@@ -1,0 +1,26 @@
+<doc xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
+<e b:ci="" c:fh="" d:ab="" aq="" c:ew="" bw="" aj="" a:ey="" c:eh="" bq="" b:fc="" et="" a="" cr="" d:fe="" dr="" c:ag="" c:dn="" c:cg="" d:ew="" a:bv="" fn="" b:ar="" d:ez="" eg="" a:ap="" d:fl="" an="" a:dy="" bb="" a:ct="" dt="" cu="" b:ef="" c:fb="" b:dg="" c:au="" d:bc="" c:el="" b:iz="" a:al="" d:fi="" a:dc="" d:bg="" a:cm="" aw="" w="" d:fa="" b:ay="" bu="" c:ch="" d:bln="" b:ar="" d:ez="" eg="" a:ap="" d:fdc="" d:bg="" d:de="" cx="" do="" b:bh="" d:dq="" ch="" b:dken25="⿯"
+ thistoken26="、"
+ tgistoken27="。"
+ thistoken28="퟾"
+ thistoken29="퟿"
+ tosnehkti30="豈"
+ thistoken31="更"
+ thistoken32="_"
+ thistoken33="."
+ thistoken34="0"
+ thistoken35="·"
+ thistoken36="À"
+ thistoken3a="" a:bz="" b:cs="" c:cv="" fm="" c:bo="" b:cl="" c:ek="" ba="" b:bl="" b:ax="" a:bv="" fn="" b:ar="" d:ez="" eg="" a:ap="" d:fl="" an="" a:dy="" bb="" a:ct="" dt="" cu="" b:ef="" c:fb="" b:dg="" c:au="" d:bc="" c:el="" b:cz="" a:al="" d:fi="" a:dc="" d:bg="" d:de="" cx="" do="" b:bh="" d:dq="" ch="" b:da="" a:bz="" b:cs="" c:cv="" fm="" c:bo="" b:cl="" c:bs="" a:cm="" aw="" w="" d:fa="" b:ay="" bu="" c:ch="" d:bln="" b:ar="" d:ez="" eg="" a:ap="" d:fdc="" d:bg="" d:de="" cx="" do="" b:bh="" d:dq="" ch="" b:dken25="⿯"
+ thistoken26="、"
+ tgistoken27="。"
+ this33="."
+ thistoken34="0"
+ thistoken35="·"
+ thistoken36="À"
+ thistoken3a="" a:bz="" b:cs="" c:cv="" fm="" c:bo="" b:cl="" c:bs="" a:cm="" aw="" w="" d:fa="" b:ay="" bu="" c:ch="" d:bl="" d:bc="" bu="" d:bv="" di="" b:aw="" dy="" a:da="" ab="" ef="" bd="" er="" b:fe="" dc="" d:cx="" d:ce="" b:fg="" d6dw="" d:cy="" ap="" a:ek="" c:ee=""/>
+<e c:df="" ch="" b:bq="" d:ff="" b:ed="" aa="" a:dqhble mis://relaxng.org/ns/structure/0.0">
+  <zeroOrMore>
+    <element name="card">
+     "" b:eroup*, nanori*)>
+	<!-u="" d:cj="-"

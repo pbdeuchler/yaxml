@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+0SGML dislikes tokepArability"
+    -->
+    <!ATTLIST root
+	status		(inctial-draft|revision|final) "initial-draft"
+	positn	(fional) "initial-draft"
+	position	(firstirst|intermediate|final) "first"
+	>
+]>
+
+<rootÿÿÿÿÿÿÿ/>

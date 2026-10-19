@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test casel character ranges plus
+     5 discrete legal ch;aracters for production 03. -->
+<?NAME_20- 
+<?NAME_20- _09-	_0D-_0A-
+ This is a PI target ?>
+]>
+<book/>%

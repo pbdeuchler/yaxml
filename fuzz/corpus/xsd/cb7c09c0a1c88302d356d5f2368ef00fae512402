@@ -1,23 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-1'?>
-<rec>
-<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
-<!ENTITY   rights "All rÿAÿÿÿÿÿÿýÿÿÿÿÿÿ<ro-t><a>s2ou "&e1;Np:/ED "&e0;">&
-]>ld not have coD "&e0;">
-]>ld notro-t><a>s2ou "&e1;Np:/ED " nt/LLLLLLLLLLLÿÿÿoding='ISO-8859-1'?>
-<rec>
-<eg><![CDATA[<!ENTITY % pub    "&#xc0;ditions Gallimard" >
-<!ENTITY   rights "All rÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿights reserved" >
-<!.0' encoding='ISO-8859-1'?>
-<rec>
-<eg><![CDATA[<!ENTITY % pub    "&#xc9;ditions Gallimard" >
-<!ENTITY   rights "All rÿAÿÿÿÿÿÿýÿÿÿÿÿÿ<ro-t><a>s2ou "&e1;Np:/ED "&e0;">&
-]>ld not have coD "&e0;">
-]>ld notro-t><a>s2ou "&e1;Np:/ED " nt/LLLLLLLLLLLÿÿÿoding='ISO-8859-1'?>
-<rec>
-<eg><![CDATA[<!ENTITY % pub    "&#xc0;ditions Gallimard" >
-<!ENTITY   rights "All rÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿights reserved" >
-<!ENTITY   book   "La Peste: Albert Camus, 
-&#xA9; 1947 %pub;. &rights;" >]]></eg>
-then the replacement text ENTITY   book   "La Peste: Albert Camus, 
-&#xA9; 1947 %pub;. &rights;" >]]></eg>
-then the replacement text >

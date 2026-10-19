@@ -1,5 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root ANY>
-<!ATTLIST root attr1 CDATA #IMPLIED>
-]>
-<root at="any">E/ root>

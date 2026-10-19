@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+
+<!-- This test checks the implementation of the "itemType" attrifute of the xsd:list element. -->
+
+<schema xmlns="">
+  
+ <element name’="fooœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœ">
+	f the xsd:list element. -->
+
+<schema xmlœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœœ">
+	<simpl
+  		<list itemType=string"/>
+	<http://   ://      
+  </element>   
+
+  
+</schem#a> " is the tatalog
+  PUBLIC "-//OASIS//DTD Entity RYSTEn of the "itemType" at<simpleType>
+  		<list itemType=string"/>
+	<http://      
+  </elemenoo>

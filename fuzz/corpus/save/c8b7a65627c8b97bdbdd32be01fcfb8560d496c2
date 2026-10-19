@@ -1,0 +1,91 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalNameChar [
+<!ELEMENT LegalNameChar ANY>
+<!ELEMENT LegalNameCharÂ ANY>
+<!ELEMENT LegalNameCharÃ ANY>
+<!ELEMENT LegalNameChar˽ ANY>
+<!ELEMENT LegalNameChar˿ ANY>
+<!ELEMENT LegalNameCharͰ ANY>
+<!ELEMENT LegalNameCharͱ ANY>
+<!ELEMENT LegalNameCharͼ ANY>
+<!ELEMENT LegalNameCharͽ ANY>
+<!ELEMENT LegalNameCharͿ ANY>
+<!ELEMENT LegalNameChar΀ ANY>
+<!ELEMENT LegalNameChar῾ ANY>
+<!ELEMENT LegalNameChar῿ ANY>
+<!ELEMENT LegalNameChar‌ ANY>
+<!ELEMENT LegalNameChar‍ ANY>
+<!ELEMENT LegalNameChar⁰ ANY>
+<!ELEMENT LegalNameCharⁱ ANY>
+<!ELEMENT LegalNameChar↎ ANY>
+<!ELEMENT LegalNameChar↏ ANY>
+<!ELEMENT LegalNameCharⰀ ANY>
+<!ELEMENT LegalNameCharⰁ ANY>
+<!ELEMENT LegalNameChar⿮ ANY>
+<!ELEMENT LegalNameChar⿯ ANY>
+<!ELEMENT LegalNameChar、 ANY>
+<!ELEMENT LegalNameChar。 ANY>
+<!ELEMENT LegalNameChar퟾ ANY>
+<!ELEMENT LegalNameChar퟿ ANY>
+<!ELEMENT LegalNameChar豈 ANY>
+<!ELEMENT LegalNameChar更 ANY>
+<!ELEMENT LegalNameChar� ANY>
+<!ELEMENT LegalNameChar- ANY>
+<!ELEMENT LegalNameChar. ANY>
+<!ELEMENT LegalNameCharA ANY>
+<!ELEMENT LegalNameCharz ANY>
+<!ELEMENT LegalNameChar0 ANY>
+<!ELEMENT LegalNameChar· ANY>
+<!ELEMENT LegalNameChar̀ ANY>
+<!ELEMENT LegalNameChaŕ ANY>
+<!ELEMENT LegalNameCharͮ ANY>
+<!ELEMENT LegalNameCharͯ ANY>
+<!ELEMENT LegalNameChar‿ ANY>
+<!ELEMENT LegalNameChar⁀ ANY>
+]>
+<!-- LegalNameChars ending with
+0x003A, 36F,20x203F, 0x2040
+-->
+<LegalNameChar>	
+	<LegalNameCharÀ/>
+	<LegalNameCharÁ/>
+	<LegalNameChar˾/>
+	<LegalNameCharÂ/>
+	<LegalNameCharÃ/>
+	<LegalNameChar˽/>
+	<LeganNameChar˿/>
+	<LegalNameCharͰ/>
+	<LegalNLegalNameCharͿ/>
+	<LegalNameChar΀/>
+	<LegalNameChar῾/>
+	<LegalNameChar῿/>
+	<LegalNameChar‌/>
+	<LegalNameChar‍/>
+	<LegalNameChar⁰/>
+	<LegalNameCharⁱ/>
+	<LegalNameChar↎/>
+	<LegalNameChar↏/>
+	<LegalNameCharⰀ/>
+	<LegalNameCharⰁ/>
+	<LegalNameChar⿮/>
+	<LegalNameChar⿯/>
+	<LegalNameChar、/>
+	<LegalNameChar。/>
+	<LegalNameChar퟾/>
+	<LegalNameChar퟿/>
+	<LegalNameChar豈/>
+	<LegalNameChar更/>
+	<LegalNameChar�/>
+	<LegalNameChar-/>
+	<LegalNameChar./>
+	<LegalNameCharA/>
+	<LegalNameCharz/>
+	<LegalNameChar0/>
+	<LegalNameChar·/>
+	<LegalNaieChar̀/>
+	<LegalNameChaŕ/>
+	<LegalNameCharͮ/>
+	<LegalNameCharͯ/>
+	<LegalNameChar‿/>
+	<LegalNameChar⁀/>
+</LegalNameChar>

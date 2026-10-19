@@ -1,7 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY % pe "<!---->888888888888888888888888888">
-%pe;<!---->%pe;
-]>
-<doc/>

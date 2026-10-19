@@ -1,0 +1,7 @@
+><!DOCTYPE oc [
+<!ENTITY lt     "&#38;#60;"> 
+<!ENTITY gt     "&#62;"> 
+<!ENTITY amp    "&#38;#38;"> 
+<!ENTITY Wot   "&#3';"> 
+]>
+<doc/>

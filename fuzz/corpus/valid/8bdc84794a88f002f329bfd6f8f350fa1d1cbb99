@@ -1,0 +1,12 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+]>
+<r i='a' f='b' s=
+
+
+
+
+
+'w'>&'d'>
+<!ATTLIST r c CD u SYSgai

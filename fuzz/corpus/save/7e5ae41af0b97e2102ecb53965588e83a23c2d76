@@ -1,7 +1,0 @@
-<!DOCTYPE EXAMPLE SYSTEM "exd" [
-<!ENTITY xml "Extensible Markup Language">
-]>
-<EXAMPLE >
-  Test of &amp;amp; behaviour a&amp;b .
-</EXAMPLE>
-

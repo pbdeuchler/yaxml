@@ -1,0 +1,38 @@
+<!--
+long comment standalone='yes'?>
+
+<!DOCTYPE PLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&numbeef		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">:
+    <!ENTITY number "42">
+
+    <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/devˑull">
+    <!NOTATION bar SYSTEM "file:/dev/tty">
+
+    <!e attr-�嵐豈rget A?o<s;   &#x20;&#13;&#xa;&#9;   ~apos; '/>
+</d>obBoc>
+konce>
+    <!ENTITY unparsed-2 SYSTEM "scheme://hDst/data"
+			NDATA fsvroo>
+]>
+
+<attributes
+    notat
+-->
+<!DOCTYPE a [ 
+<!ELEMENT a EMPTY> 
+]>
+<a/>

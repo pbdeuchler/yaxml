@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM '<!DOCTYPE r [
+<!ELEMEN˙˙˙˙˙˙˙˙T r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEE 'v' NDATPE student [
+	<!E<?xml version="1.0"?>
+<!DOCTYPE student [ent first CDATA # SYSTEM "nop.ent">
+<!ENTITY ge3 SYSTEM "nop.ent" NDATA unknot>
+]>
+<ion='1.0REQUIRED
+			  last  CDATA #IMPLIED>
+]>
+
+<!-- testingST student first CDATA #REQUIRED
+			  last  CDA/A #IMPLIED>
+testing 
+A m>
+<!ENİITY p 'parsed'>
+<!NOENTITY x 'parsed'>
+<!b' s=- c' e='p' es='u vÈ em<r><!p' t='2 2' -

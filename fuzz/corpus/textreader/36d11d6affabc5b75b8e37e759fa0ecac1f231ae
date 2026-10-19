@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc
-     defatt  (1|1)   "0"
-     xmlns:tst CDATA #FIXED "lttp:/eap/mlex.org"
- att (0|-1)   "1">
-l:badoc att="0"/>

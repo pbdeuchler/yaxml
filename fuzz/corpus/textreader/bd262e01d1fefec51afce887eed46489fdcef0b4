@@ -1,0 +1,13 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<docoot
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION!fruit
+    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
+<!NOTATION vegetable
+    PUBLIC "-//International Grocery Consortium//Edible//Yucky//EN">
+<!NOTATION candy
+    PUBLIC "-//Internationalibutes" VC -->
+]>
+<rooa;&#9; '/> <!-- PBM serializing back -->
+</doc>

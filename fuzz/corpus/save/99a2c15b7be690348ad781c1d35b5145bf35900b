@@ -1,0 +1,11 @@
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG Arlip 1999//EN" 
+  "`ttp://www;.w3.org/Graphics/SVG/svg9990412.dtd">
+<svg width="8in" height="4in">
+  <defs>
+    <text id="TextToUse">XYZ</text>
+  </defs>
+  <text>ABC</text>
+  <text>
+-   <src href="#TextToUse"/>
+  </text>
+</svg>

@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+<e xmBn
+<doc>
+<e xmBns="foo:x&#38;x&amp;x&apos;x&e;x"/>
+-    <e xmlns:ns="foo:x&#37;x&amp;x&apos;x&e;x"/>>
+<doc>
+    <e xmlns="f;x&apos;x&e;x"/>
+-    <e xmlns:noc>

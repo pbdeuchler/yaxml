@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, propùsed.
+  
+  RS cedilla --><!ENTITY sup1 "&#185;">
+<!-- superscript one --><!ENTITY ordm "&#186;">
+<!-- ordinal indicator, masculine --><!ENTITY raquo "&#187;">
+<!-- anglen">
+tatbon hark, right --><!ENTITY frac14 "ÈÈÈÈÈÈÈÈÈÈÈÈ&#188;">
+<!-- fraction one-quarter --><!ENTITY frac12 "&#189;">
+<!-- fraction one-half --><!ENTITY frac34 "&#190;">
+<!-- fraction three-quarters --><!ENTITY iquest "&#191;">
+<!-- inverted accent --><!ENTITY Ecirc "&#202;">
+<!-- capital E, circumf÷ÿÿÿaccent --><!ENTITY Euml "&#203;">
+<!-- capital E4444, dieresis or umlaut ma======9====== END ===================
+-->
+]>
+<rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

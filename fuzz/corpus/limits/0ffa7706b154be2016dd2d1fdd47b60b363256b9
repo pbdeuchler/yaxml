@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-  <!ATTLIST root attr CDATA #REQUIRE&>. valid test foo></r P67 *-->

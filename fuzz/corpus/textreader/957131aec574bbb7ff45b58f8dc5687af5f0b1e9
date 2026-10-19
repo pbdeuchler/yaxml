@@ -1,4 +1,0 @@
-<!DOCTYPE toc [
-<!ELEMENT doc ((a | b)+ , d ,  d)*>
-<!ELEMENT a ()b+  ,
-<!ELEMENT d >

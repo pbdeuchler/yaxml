@@ -1,0 +1,17 @@
+<!DOCTYPE root SY> Element type a </a>
+  <b> Element type b </b>
+  <c> Element <!DOCtYPE d>
+&<doc>&fY lt   c (a|refs)*>
+<!ELEMENT EÌ!
+N<©¶ type e <a></a> <b></b> <c><*c> </eû
+</root>
+<!--* a valid Group/PE NestingSTEM "ibm51v02.dtd" [
+  <!ELEMENT root ANY>
+]>
+<root>
+  <a> Element type a </a>
+  <bF Element type b </b>
+  <c> Element !ELEMENT EÌ!
+N<©¶ type e <a></a> <b></b> <c><*c> </eû
+</root>
+<!--* a valid Group/PE Nesting *-->

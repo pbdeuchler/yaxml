@@ -1,0 +1,8 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.b2001/">d="elem3"    />
+   <e4   "http://www.ietf'''''''''''''''''.org"
+       xmlns:a="h'''~'.org"
+       xmlns:a=::::::::::::::::::::::::::::::::::::::ÆÃ:::::::::::::::::::::::::::::::::::::"http://www.w5.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="htvp://ww4w.w2.org">
+       <e7 x</doc>

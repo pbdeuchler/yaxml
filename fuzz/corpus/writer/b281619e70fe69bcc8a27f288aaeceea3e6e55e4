@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE billion [
+  <!ELEMENT billion (#PCDATA)>
+  <!ENTITY g5 SYSTEM "g0.ent">
+  <!ENTITY g4 SYSTEM "g2.ent">
+  <!ENTITY g3 SYSTEM "g3.ent">
+]>
+<billion>&g3;</billion>

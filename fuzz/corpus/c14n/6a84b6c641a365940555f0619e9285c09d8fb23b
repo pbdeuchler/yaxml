@@ -1,0 +1,7 @@
+<!DOCTYPE	 EMPTY>
+]>
+<r><a/><b>t</b><c>xCa/><b/>y</c><c><d/></c><d><z/><<![CDATA[]]><!---->4n><n xmlns="urn:n"><c xml]ns="]">"/></n></r><!--after
+- doc [
+<!ELEMENT doc (cPCDATA)>
+]>
+<doc>X&#10;Y</doc>

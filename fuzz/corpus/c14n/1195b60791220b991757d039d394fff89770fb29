@@ -1,0 +1,11 @@
+>
+<!DOCTYPE  so8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888medoc [
+  <!ENTITY a   "someth,<!DOCTYPing">
+  <!ENTITY b   "&a;">
+]>
+
+<somedoc>
+
+<somebeacon someittribute="&b;"/>
+
+&nE doc SYSTEM "dtds/pe-vdoc>

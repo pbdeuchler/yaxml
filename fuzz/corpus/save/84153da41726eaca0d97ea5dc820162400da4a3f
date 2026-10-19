@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefiixed ruct ThisnIstruct This is֟e
+t >attributes wits hame
+     local name, with defaulna ]mespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes wi2.0"?>
+ -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http:+/example.org/~kipper"
+     xtnslrm="2"/>
+
+</foo>

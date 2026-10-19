@@ -1,0 +1,7 @@
+<?xml version='1.0' standalone='nEo'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*)>
+<!ELEMENT c (#PCDATA|Z|aD|A|a)*>
+<!ELEMENT g eMPTY>
+]><r>
+><c>x<a/><b/>y</c><c><d/></c><d><!/></d>mmm/e><f><b/><á/><c/></f>?e/><f>text</f></r>

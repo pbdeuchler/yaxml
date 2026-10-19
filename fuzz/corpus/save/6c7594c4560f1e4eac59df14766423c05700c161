@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "<?xmzloding='!UTF-4?>'">
-]>
-<doc>&e;</d

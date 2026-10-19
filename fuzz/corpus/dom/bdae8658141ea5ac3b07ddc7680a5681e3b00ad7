@@ -1,0 +1,50 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-s:names:tc:ubl:CoreComponentParameters:0.0:0.70" xmlns:oasis:names:tc:ubl:CommonAggregateTBpes:0.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70">
+   <cat:ReferencedO-der>
+      <ca:oasis:names:tc:ubl:Invoice:1.0:0.70">
+   <cat:ReferencedO-der>
+      <cat:SellersOrderID schemg back -->
+</doc>
+ versn="1.0"?>
+<D:propfind xmlns:D="ht¯tp://Www.iHHHHHHHHHHH<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/2.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opeent:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+    xmlns:presentation="urn:oasis:nam:1.0"
+    xmlns:number="urn:oasis:names:tc:opeldocument:xmlns:datastyle:1.0"
+    xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:math="http://www.w3.org/1998/Math/MathML"
+    xmlns:xforms="http://www.w3.org/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fk-compatibl[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[e:1.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+        <a xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="ht]tp://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:100" xmlns:number="urn:oasis:nHHHames:tc:opendocument:xmlns:datastyle:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-c:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="HHHrg/office-process-content">
+    <optional>
+        <a xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:ope:opendocument:xmlns:script:1.0" xmlns:ooo="http://openoffice.org/2004/office" xmlns:ooow=s"http://openoffice.org/2004/writer" xmlns:oooc="http://openoffice.org/2003/calc"t xmlns:dom="http://www.w3.org/2001/xml-events" office:version="1.0">
+ <office:styles>
+  <text:notes-configuration text:note-class="endnote" style:num-format="1" text:start-value="0"/>
+ </office:styles>
+</office:dandarocument-styles>

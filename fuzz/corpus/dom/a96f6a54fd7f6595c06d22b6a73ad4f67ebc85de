@@ -1,0 +1,6 @@
+±<!-- Having an external DTD make a warning<doc xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
+<e b:ci="" c:fh="" d:ab="" aq="" c:ew="" bw="" aj="" a:ey="" c:eh="" bq="" b:fc="" et="" a:ao="" c:cc="" b:aa="" a:ei="" a:az="" ej="" b:di="" a:cw="" a:ck="" a:bu="" d:av="" a:dk="" a:ea="" c:ca="" bn="" a:db="" b:eb="" bx="" d:bd="" a:bf="l="" b:bw="" c:ej="" a:az="" c:bo="" c:ek="" a:bi="" a:cl="" c:cr="" c:dg="" bg="" ak="" co="" a:bl="" c:ba="" b:bj="" a:bn="" c:fd="" c:fe="" a:dh="" b:ef="" d:do="" b:da="" a:Ccv=""/>
+<e c:f, -->
+<!DOCTYPE doc SYSTEM "foo">
+<dxternal DTD makesd="" bo="" c:ep="" c:cy="" fj="" undecl c:bg="" b:c ev="" a:bk="" cj="" c:ah="" c:dt="" b:ar="" c:fe="" ckw="" a:el="" c:dr="" cn="" cared entmtie"foo <el>&unñdlare:cg="" a:alNam d;<ae/elem>
+</doc>

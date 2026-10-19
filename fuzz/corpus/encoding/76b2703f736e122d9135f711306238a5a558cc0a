@@ -1,0 +1,5 @@
+<!DOCTYPE r [
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREFE#IMPLIED s IDREFS #IMPLIED e ENTITY >

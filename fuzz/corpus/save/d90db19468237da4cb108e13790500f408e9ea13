@@ -1,6 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normId ttr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no normalization -->ar
-'/>
-  <norm attrOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foo&#43;&#x;# 9;&a'/> <!-- PBM -->
-</doc>

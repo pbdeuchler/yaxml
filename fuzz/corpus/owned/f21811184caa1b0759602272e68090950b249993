@@ -1,0 +1,6 @@
+Ž<!DOCTYPE doc [
+<!ELEMENT EMPTY>
+<!ATTLIST src ref IDREF #IMPLIED>
+<!ATTLIST de/>
+</doc>
+

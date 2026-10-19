@@ -1,0 +1,11 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channellt( ite | description | link 
+| lrating? | image? | textinput? | copyri | ge | item+ | rating? | image? | texitnput? | copyright? | 
+pbuc0Date? | tlasBuildDŸˆe? | docs? | managingEditor| item+ | item+ | rating? | image? | tex| textijput? | copyri | link 
+| language | item+ | raving? | imagenagingEditor| item+ | ratiitnter? |t? | copprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>
