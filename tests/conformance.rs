@@ -280,7 +280,7 @@ fn declaration_values_preserve_source_spelling() {
             parser
                 .feed(chunk, |event, _| {
                     if let Event::Declaration(actual) = event {
-                        assert_eq!(actual, expected);
+                        assert_eq!(*actual, expected);
                         declarations += 1;
                     }
                     ControlFlow::Continue(())
@@ -372,14 +372,14 @@ fn element(value: &Element<'_>) -> Value {
     )
 }
 
-fn capture(event: Event<'_>) -> Option<Value> {
+fn capture(event: &Event<'_>) -> Option<Value> {
     match event {
-        Event::Start(value) | Event::Empty(value) => Some(element(&value)),
-        Event::Text(value) => Some(Value::Text(value.into_owned())),
-        Event::Cdata(value) => Some(Value::Cdata(value.into_owned())),
-        Event::Comment(value) => Some(Value::Comment(value.into_owned())),
+        Event::Start(value) | Event::Empty(value) => Some(element(value)),
+        Event::Text(value) => Some(Value::Text(value.to_string())),
+        Event::Cdata(value) => Some(Value::Cdata(value.to_string())),
+        Event::Comment(value) => Some(Value::Comment(value.to_string())),
         Event::ProcessingInstruction { target, data } => {
-            Some(Value::Pi(target.into(), data.into_owned()))
+            Some(Value::Pi(target.to_string(), data.to_string()))
         }
         Event::Declaration(_)
         | Event::Doctype(_)
@@ -453,7 +453,7 @@ fn logical_values_have_spec_derived_goldens() {
         let mut reader = Reader::new(input.as_bytes()).unwrap();
         let mut values = Vec::new();
         while let Some(event) = reader.read_event().unwrap() {
-            values.extend(capture(event));
+            values.extend(capture(&event));
         }
         assert_eq!(values, expected, "Reader: {input:?}");
         let document = Document::parse(input).unwrap();

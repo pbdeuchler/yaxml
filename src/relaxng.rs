@@ -350,8 +350,8 @@ impl Schema {
 /// let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
 /// let mut stream = schema.stream();
 /// let mut parser = yaxml::PushParser::new();
-/// let mut feed = |event: yaxml::Event<'_>, origin| {
-///     stream.event(&event, origin);
+/// let mut feed = |event: &yaxml::Event<'_>, origin| {
+///     stream.event(event, origin);
 ///     ControlFlow::Continue(())
 /// };
 /// for chunk in [b"<r><b".as_slice(), b"/></r>"] {

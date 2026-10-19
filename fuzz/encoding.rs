@@ -191,14 +191,14 @@ impl Reference {
         start..end
     }
 
-    pub(super) fn event(&self, actual: Event<'_>, expected: Event<'_>) {
+    pub(super) fn event(&self, actual: &Event<'_>, expected: Event<'_>) {
         match (actual, expected) {
             (Event::Declaration(actual), Event::Declaration(expected)) => {
                 assert_eq!(actual.version, expected.version);
                 assert_eq!(actual.standalone, expected.standalone);
                 assert_eq!(actual.encoding, self.original_encoding.as_deref());
             }
-            (actual, expected) => assert!(actual == expected, "decoded typed event changed"),
+            (actual, expected) => assert!(*actual == expected, "decoded typed event changed"),
         }
     }
 
@@ -695,12 +695,12 @@ impl<'a> DecodeOracle<'a> {
         }
     }
 
-    fn event(&self, actual: Event<'_>, expected: Event<'_>) {
+    fn event(&self, actual: &Event<'_>, expected: Event<'_>) {
         if let Some(reference) = self.reference {
             reference.event(actual, expected);
         } else {
             assert!(
-                actual == expected,
+                *actual == expected,
                 "explicit decode policy changed typed event"
             );
         }
@@ -777,7 +777,7 @@ fn decode_stream(
         .unwrap()
     });
     let mut latest = None;
-    let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+    let mut emit = |event: &Event<'_>, origin: yaxml::SourceOrigin| {
         let range = super::span(origin);
         if let Some(reader) = &mut reader {
             let expected = reader

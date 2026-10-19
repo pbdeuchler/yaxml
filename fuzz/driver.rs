@@ -1038,7 +1038,7 @@ pub(crate) fn drive_push(
     input: &[u8],
     schedule: &[usize],
     limits: Limits,
-    mut emit: impl FnMut(Event<'_>, Range<usize>),
+    mut emit: impl FnMut(&Event<'_>, Range<usize>),
 ) -> Result<(), Error> {
     let control = input.get(input.len() / 2).copied().unwrap_or(0);
     let mut parser = if limits == Limits::default() && control & 1 == 0 {
@@ -1047,7 +1047,7 @@ pub(crate) fn drive_push(
         PushParser::with_limits(limits)
     };
     let mut latest = None;
-    let mut capture = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+    let mut capture = |event: &Event<'_>, origin: yaxml::SourceOrigin| {
         let range = span(origin);
         latest = Some(range.clone());
         emit(event, range);
@@ -1161,7 +1161,7 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
                 .read_event()
                 .unwrap()
                 .expect("extra streaming event");
-            assert!(actual == event, "typed streaming event differs from slice");
+            assert!(*actual == event, "typed streaming event differs from slice");
             assert_eq!(range, span(expected.event_origin().unwrap()));
         }
     });
@@ -1186,7 +1186,7 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
         let range = span(origin);
         if let Some(expected) = &mut expected {
             let event = expected.read_event().unwrap().expect("extra I/O event");
-            assert!(actual == event, "typed I/O event differs from slice");
+            assert!(*actual == event, "typed I/O event differs from slice");
             assert_eq!(range, span(expected.event_origin().unwrap()));
         }
         ControlFlow::Continue(())

@@ -41,21 +41,21 @@ impl Observer {
         }
     }
 
-    pub(crate) fn event(&mut self, event: Event<'_>) {
+    pub(crate) fn event(&mut self, event: &Event<'_>) {
         match event {
             Event::Declaration(_)
             | Event::Doctype(_)
             | Event::EntityStart(_)
             | Event::EntityEnd => {}
-            Event::Start(element) => self.event_start(&element),
+            Event::Start(element) => self.event_start(element),
             Event::Empty(element) => {
-                self.event_start(&element);
+                self.event_start(element);
                 self.end(&element.name);
             }
-            Event::End(name) => self.end(&name),
-            Event::Text(value) | Event::Cdata(value) => self.text(&value),
-            Event::Comment(value) => self.comment(&value),
-            Event::ProcessingInstruction { target, data } => self.pi(&target, &data),
+            Event::End(name) => self.end(name),
+            Event::Text(value) | Event::Cdata(value) => self.text(value),
+            Event::Comment(value) => self.comment(value),
+            Event::ProcessingInstruction { target, data } => self.pi(target, data),
         }
     }
 

@@ -268,7 +268,7 @@ fn measure_reader(input: &[u8]) -> Result<(Observation, Duration, Duration, Dura
         .read_event()
         .map_err(|error| format!("reader parse failed: {error}"))?
     {
-        observer.event(event);
+        observer.event(&event);
     }
     if reader.position() != input.len() {
         return Err("reader did not consume the complete input".into());
@@ -327,7 +327,7 @@ fn measure_buffered(
         .read_event()
         .map_err(|error| format!("buffered parse failed: {error}"))?
     {
-        observer.event(event);
+        observer.event(&event);
     }
     if reader.position() != input.len() {
         return Err("buffered reader did not consume the complete input".into());

@@ -44,8 +44,7 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
     }
 }
 
-/// XML end-of-line and CDATA attribute normalization into `out`, which is
-/// cleared first. References are expanded after literal whitespace
+/// XML end-of-line and CDATA attribute normalization, appended to `out`. References are expanded after literal whitespace
 /// normalization: &#xA; must remain a newline. A malformed reference is
 /// `recover`ed from by dropping it as far as libxml2 reads it, except that
 /// an attribute value fails at a character reference libxml2 reads as zero
@@ -55,14 +54,16 @@ pub(crate) fn normalize_into(
     offset: usize,
     attribute: bool,
     references: bool,
-    out: String,
+    out: &mut String,
     recover: impl FnMut(Error) -> Result<(), Error>,
-) -> Result<String, Error> {
+) -> Result<(), Error> {
     normalize(raw, offset, attribute, references, true, out, recover)
 }
 
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    normalize(raw, offset, false, true, false, String::new(), Err)
+    let mut out = String::new();
+    normalize(raw, offset, false, true, false, &mut out, Err)?;
+    Ok(out)
 }
 
 /// Recovery from characters outside `Char` in `raw`, as libxml2 does:
@@ -97,10 +98,9 @@ fn normalize(
     attribute: bool,
     references: bool,
     physical_eol: bool,
-    mut out: String,
+    out: &mut String,
     mut recover: impl FnMut(Error) -> Result<(), Error>,
-) -> Result<String, Error> {
-    out.clear();
+) -> Result<(), Error> {
     out.try_reserve(raw.len())
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
     let bytes = raw.as_bytes();
@@ -155,7 +155,7 @@ fn normalize(
         run = i;
     }
     out.push_str(&raw[run..]);
-    Ok(out)
+    Ok(())
 }
 
 /// How libxml2 reads a malformed reference whose body (after `&`) starts
@@ -251,10 +251,11 @@ mod tests {
                 found.push((error.kind, error.offset));
                 Ok(())
             };
-            let recovered = normalize_into(text, 0, false, true, String::new(), recover);
-            assert_eq!(recovered.as_deref(), Ok(*value), "{text}");
+            let mut recovered = String::from("kept:");
+            normalize_into(text, 0, false, true, &mut recovered, recover).unwrap();
+            assert_eq!(recovered, format!("kept:{value}"), "{text}");
             assert_eq!(found, *errors, "{text}");
-            let strict = normalize_into(text, 0, false, true, String::new(), Err);
+            let strict = normalize_into(text, 0, false, true, &mut String::new(), Err);
             let first = errors
                 .first()
                 .map(|&(kind, offset)| Error::new(kind, offset));

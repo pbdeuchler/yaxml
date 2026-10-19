@@ -79,9 +79,9 @@ pub struct Element<'a> {
     pub attributes: Attributes<'a>,
 }
 
-/// An element's attributes in source order: an owned list, or one lent from a
-/// streaming parser's reused storage for the duration of an event borrow.
-/// Both dereference to a slice; `into_owned` keeps a lent list.
+/// An element's attributes in source order: an owned list, or a borrowed
+/// one (as events built from a tree lend). Both dereference to a slice;
+/// `into_owned` keeps a borrowed list.
 #[derive(Clone, Debug)]
 pub enum Attributes<'a> {
     Borrowed(&'a [Attribute<'a>]),

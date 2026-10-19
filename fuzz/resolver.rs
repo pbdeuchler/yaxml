@@ -187,7 +187,7 @@ fn surface(
         }
         3 => {
             let mut parser = PushParser::with_options(loading(limits, base, resolver)).unwrap();
-            let mut count = |_: yaxml::Event<'_>, _| {
+            let mut count = |_: &yaxml::Event<'_>, _| {
                 events += 1;
                 ControlFlow::Continue(())
             };
@@ -329,7 +329,7 @@ pub(super) fn cancel(input: &[u8], limits: Limits, stop: usize, width: usize) {
     let mut parser = PushParser::with_limits(limits);
     let mut seen = 0;
     let mut end = None;
-    let mut callback = |_: yaxml::Event<'_>, origin: yaxml::SourceOrigin| {
+    let mut callback = |_: &yaxml::Event<'_>, origin: yaxml::SourceOrigin| {
         seen += 1;
         if seen > stop {
             end = Some(super::span(origin).end);

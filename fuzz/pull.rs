@@ -149,7 +149,7 @@ impl<'a> Oracle<'a> {
         expected_range: Range<usize>,
     ) {
         if let Some(reference) = &self.reference {
-            reference.event(actual, expected);
+            reference.event(&actual, expected);
             assert_eq!(range, reference.range(expected_range));
         } else {
             assert!(actual == expected, "pull typed value changed");

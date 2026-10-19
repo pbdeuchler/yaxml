@@ -426,12 +426,12 @@ impl Schema {
 /// let mut parser = PushParser::new();
 /// for chunk in [&b"<r>4"[..], b"x</r>"] {
 ///     parser.feed(chunk, |event, origin| {
-///         validator.event(&event, origin);
+///         validator.event(event, origin);
 ///         ControlFlow::Continue(())
 ///     })?;
 /// }
 /// parser.finish(|event, origin| {
-///     validator.event(&event, origin);
+///     validator.event(event, origin);
 ///     ControlFlow::Continue(())
 /// })?;
 /// let diagnostics = validator.finish();

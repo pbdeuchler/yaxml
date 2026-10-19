@@ -56,7 +56,7 @@ fn construction_finishes_xml_before_assigning_identity() {
         let event = reader.read_event().unwrap().unwrap();
         builder
             .consume(
-                event,
+                &event,
                 reader.event_origin().expect("parsed origin"),
                 reader.owned_budget(),
             )
@@ -604,7 +604,7 @@ fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     let mut reader = reader(1);
     assert_eq!(
         builder.consume(
-            Event::End(Name::new("r", None).unwrap()),
+            &Event::End(Name::new("r", None).unwrap()),
             SourceOrigin::input(6..10),
             reader.owned_budget()
         ),
@@ -686,13 +686,13 @@ fn closing_requires_existing_provenance_and_forward_token_order() {
         let mut builder = OwnedBuilder::new(7, 0, Global).unwrap();
         let start = input.read_event().unwrap().unwrap();
         builder
-            .consume(start, input.event_origin().unwrap(), input.owned_budget())
+            .consume(&start, input.event_origin().unwrap(), input.owned_budget())
             .unwrap();
         let id = builder.parents[0];
         builder.nodes[id.0].source = source;
         let end = input.read_event().unwrap().unwrap();
         let error = builder
-            .consume(end, input.event_origin().unwrap(), input.owned_budget())
+            .consume(&end, input.event_origin().unwrap(), input.owned_budget())
             .unwrap_err();
         assert_eq!(error, Error::new(ErrorKind::InvalidState, 3));
         assert_eq!(builder.nodes[id.0].source, source);

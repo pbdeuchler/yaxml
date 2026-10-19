@@ -171,7 +171,7 @@ fn push_result(input: &[u8], split: usize, max_owned_bytes: usize) -> Result<(),
         max_owned_bytes,
         ..Limits::default()
     });
-    let mut emit = |_: Event<'_>, _: yaxml::SourceOrigin| ControlFlow::Continue(());
+    let mut emit = |_: &Event<'_>, _: yaxml::SourceOrigin| ControlFlow::Continue(());
     parser.feed(&input[..split], &mut emit)?;
     parser.feed(&input[split..], &mut emit)?;
     parser.finish(&mut emit)

@@ -66,10 +66,10 @@ impl Encoding {
 
 const ENCODINGS: [Encoding; 3] = [Encoding::Utf8Bom, Encoding::Utf16Le, Encoding::Utf16Be];
 
-fn observed(event: Event<'_>) -> Observed {
+fn observed(event: &Event<'_>) -> Observed {
     match event {
         Event::Start(element) => Observed::Start(element.name.qualified().to_owned()),
-        Event::Text(value) => Observed::Text(value.into_owned()),
+        Event::Text(value) => Observed::Text(value.to_string()),
         Event::End(name) => Observed::End(name.qualified().to_owned()),
         Event::Empty(element) => Observed::Empty(element.name.qualified().to_owned()),
         other => panic!("unexpected event in literal fixture: {other:?}"),
@@ -133,7 +133,7 @@ fn reader_reports_literal_origins_and_retains_the_last_delivery() {
             expected_events.iter().zip(expected_ranges.iter().cloned())
         {
             let event = reader.read_event().unwrap().unwrap();
-            assert_eq!(&observed(event), expected_event, "{encoding:?}");
+            assert_eq!(&observed(&event), expected_event, "{encoding:?}");
             let origin = reader
                 .event_origin()
                 .expect("delivered event has an origin");
@@ -164,7 +164,7 @@ fn reader_and_push_start_without_an_origin_after_bom_and_whitespace() {
             assert_eq!(reader.event_origin(), None);
             assert_eq!(reader.event_range(), None);
             assert_eq!(
-                observed(reader.read_event().unwrap().unwrap()),
+                observed(&reader.read_event().unwrap().unwrap()),
                 Observed::Empty("r".into())
             );
             assert_origin(reader.event_origin().unwrap(), expected.clone());
@@ -253,7 +253,7 @@ fn buffered_origin_excludes_physical_text_lookahead() {
         .enumerate()
         {
             let (event, origin) = reader.read_event().unwrap().unwrap();
-            assert_eq!(observed(event), expected_event, "{encoding:?}");
+            assert_eq!(observed(&event), expected_event, "{encoding:?}");
             assert_origin(origin, ranges[index].clone());
             if index == 1 {
                 let physical = ranges[1].end + encoding.text_lookahead();
@@ -271,11 +271,11 @@ fn failures_and_cancellation_retain_the_last_delivered_origin() {
     let input = b"<r>x</s>";
     let mut reader = Reader::new(input).unwrap();
     assert_eq!(
-        observed(reader.read_event().unwrap().unwrap()),
+        observed(&reader.read_event().unwrap().unwrap()),
         Observed::Start("r".into())
     );
     assert_eq!(
-        observed(reader.read_event().unwrap().unwrap()),
+        observed(&reader.read_event().unwrap().unwrap()),
         Observed::Text("x".into())
     );
     let retained = reader.event_origin().unwrap();

@@ -12,9 +12,10 @@ use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, ParseOptions, ReadErr
 /// a code unit, surrogate pair, or markup delimiter.
 /// `finish` declares final EOF and validates the complete document. Text is
 /// emitted once per lexical run, so event boundaries do not depend on chunks.
-/// A callback can borrow its event only for the call; copy values to retain them.
-/// Start-tag attribute lists are lent from storage the parser reuses
-/// ([`Attributes::Borrowed`](crate::Attributes)); `into_owned` keeps one.
+/// Callbacks receive each event by reference, lent for the call: its
+/// attribute list, normalized values and namespace URIs live in storage the
+/// parser reuses, so copy what you retain (`Attributes::to_vec`,
+/// `Cow::to_string`).
 ///
 /// Source tokens are limited by `max_token_bytes`; decoded scratch tokens have
 /// the separate `DecodeLimits` ceiling. Retained names, namespace
@@ -106,7 +107,7 @@ impl PushParser {
     pub fn read_from(
         mut self,
         mut input: impl std::io::Read,
-        mut emit: impl FnMut(Event<'_>, SourceOrigin) -> ControlFlow<()>,
+        mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), ReadError> {
         if let Some(error) = self.session.terminal() {
             return Err(ReadError::Xml(error));
@@ -140,7 +141,7 @@ impl PushParser {
     pub fn feed(
         &mut self,
         input: &[u8],
-        mut emit: impl FnMut(Event<'_>, SourceOrigin) -> ControlFlow<()>,
+        mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), Error> {
         self.feed_with(input, |event, origin, _| {
             if emit(event, origin).is_break() {
@@ -154,7 +155,7 @@ impl PushParser {
     pub(crate) fn feed_with(
         &mut self,
         input: &[u8],
-        mut emit: impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        mut emit: impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         // The session keeps errors and completion sticky, and poisons itself
         // around each call, so a recovered callback panic cannot reuse
@@ -166,7 +167,7 @@ impl PushParser {
     /// Repeating a successful finish is harmless and delivers no further events.
     pub fn finish(
         &mut self,
-        mut emit: impl FnMut(Event<'_>, SourceOrigin) -> ControlFlow<()>,
+        mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), Error> {
         self.finish_with(|event, origin, _| {
             if emit(event, origin).is_break() {
@@ -179,7 +180,7 @@ impl PushParser {
 
     pub(crate) fn finish_with(
         &mut self,
-        mut emit: impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        mut emit: impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.session.finish(&mut emit)
     }

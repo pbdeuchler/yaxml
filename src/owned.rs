@@ -697,7 +697,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                 let origin = reader
                     .event_origin()
                     .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
-                builder.consume(event, origin, reader.owned_budget())?;
+                builder.consume(&event, origin, reader.owned_budget())?;
             };
             let errors = Budget::conclude(reader.budget(), end)?;
             builder.finish(reader.position(), reader.catalog(), flags, errors)?
@@ -1479,15 +1479,15 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
 
     fn consume(
         &mut self,
-        event: Event<'_>,
+        event: &Event<'_>,
         origin: SourceOrigin,
         budget: &mut Budget,
     ) -> Result<(), Error> {
-        let starts = matches!(&event, Event::Start(_) | Event::EntityStart(_));
+        let starts = matches!(event, Event::Start(_) | Event::EntityStart(_));
 
         let offset = origin.error_offset();
         let parent = self.parents.last().copied().unwrap_or(NodeId(0));
-        if let Event::Text(value) = &event
+        if let Event::Text(value) = event
             && (value.is_empty() || self.merge_text(parent, value, origin, budget)?)
         {
             return Ok(());
@@ -1496,7 +1496,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             Event::Declaration(declaration) => {
                 self.declaration = Some(store_declaration(
                     &mut self.pool,
-                    declaration,
+                    *declaration,
                     offset,
                     budget,
                 )?);
@@ -1529,7 +1529,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
                 return Ok(());
             }
             event => {
-                if let Event::Start(element) | Event::Empty(element) = &event {
+                if let Event::Start(element) | Event::Empty(element) = event {
                     self.note_xml_ids(element, offset)?;
                     self.store_kept(budget, offset)?;
                 }
@@ -1716,7 +1716,7 @@ fn store_declaration(
 fn store_content<A: Allocator>(
     pool: &mut Pool,
     attributes: &mut allocator::Vec<StoredAttribute, A>,
-    event: Event<'_>,
+    event: &Event<'_>,
     offset: usize,
     budget: &mut Budget,
 ) -> Result<Content, Error> {
@@ -1751,14 +1751,14 @@ fn store_content<A: Allocator>(
                 attributes: start..attributes.len(),
             }
         }
-        Event::Text(value) => Content::Text(pool.store(&value, offset, budget)?),
-        Event::Cdata(value) => Content::Cdata(pool.store(&value, offset, budget)?),
-        Event::Comment(value) => Content::Comment(pool.store(&value, offset, budget)?),
+        Event::Text(value) => Content::Text(pool.store(value, offset, budget)?),
+        Event::Cdata(value) => Content::Cdata(pool.store(value, offset, budget)?),
+        Event::Comment(value) => Content::Comment(pool.store(value, offset, budget)?),
         Event::ProcessingInstruction { target, data } => Content::ProcessingInstruction {
-            target: pool.store(&target, offset, budget)?,
-            data: pool.store(&data, offset, budget)?,
+            target: pool.store(target, offset, budget)?,
+            data: pool.store(data, offset, budget)?,
         },
-        Event::EntityStart(name) => Content::EntityRef(pool.store(&name, offset, budget)?),
+        Event::EntityStart(name) => Content::EntityRef(pool.store(name, offset, budget)?),
         Event::Declaration(_) | Event::End(_) | Event::EntityEnd => {
             return Err(Error::new(ErrorKind::InvalidState, offset));
         }
@@ -1812,7 +1812,7 @@ impl TreeBuilder {
         let content = store_content(
             &mut self.pool,
             &mut self.attributes,
-            event,
+            &event,
             0,
             &mut self.budget,
         )?;

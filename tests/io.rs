@@ -15,7 +15,7 @@ fn consumes_reader_with_the_same_logical_events() {
                 Event::Start(element) | Event::Empty(element) => {
                     names.push(element.name.qualified().to_owned())
                 }
-                Event::Text(value) => text.push_str(&value),
+                Event::Text(value) => text.push_str(value),
                 _ => {}
             }
             ControlFlow::Continue(())

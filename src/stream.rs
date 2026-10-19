@@ -2,7 +2,7 @@ use crate::encoding::{DecodeProgress, Decoded, Decoder, SourceEncoding, TokenSpa
 use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState};
 use crate::tokenizer::{TokenKind, Tokenizer, complete_token};
-use crate::{Attributes, DecodeLimits, Element, Error, ErrorKind, Event, Limits, SourceOrigin};
+use crate::{Attributes, DecodeLimits, Error, ErrorKind, Event, Limits, SourceOrigin};
 
 pub(crate) mod dtd;
 
@@ -118,7 +118,7 @@ impl Stream {
         finalizing: bool,
         standalone: &mut bool,
         last_origin: &mut Option<SourceOrigin>,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(usize, Option<bool>), Error> {
         let mut consumed = 0;
         loop {
@@ -173,7 +173,7 @@ impl Stream {
         consumed: &mut usize,
         standalone: &mut bool,
         last_origin: &mut Option<SourceOrigin>,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         // Short remainders rarely hold a whole token; the tokenizer takes them.
         if input.len() - *consumed < MIN_CHUNK_WINDOW {
@@ -228,12 +228,12 @@ impl Stream {
 
     pub(crate) fn emit(
         &mut self,
-        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         if let Some((event, origin)) = parse(&self.tokenizer, &mut self.state)? {
             let mut event = event;
             let budget = self.state.lend_event(&mut event);
-            emit(event, origin, budget)?;
+            emit(&event, origin, budget)?;
         }
         Ok(())
     }
@@ -283,8 +283,9 @@ fn parse<'token>(
 /// Smallest remaining chunk worth scanning for complete tokens in place.
 const MIN_CHUNK_WINDOW: usize = 32;
 
-/// Delivers one parsed event to a callback, lending its attribute list from
-/// storage whose capacity returns to the parser afterwards.
+/// Delivers one parsed event to a callback by reference: its names borrow
+/// the parser's retained namespaces, and its attribute list's capacity
+/// returns to the parser afterwards.
 #[inline(always)]
 fn deliver(
     state: &mut ParserState<'static>,
@@ -292,54 +293,23 @@ fn deliver(
     origin: SourceOrigin,
     standalone: &mut bool,
     last_origin: &mut Option<SourceOrigin>,
-    emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
 ) -> Result<(), Error> {
-    let Some(event) = event else {
+    let Some(mut event) = event else {
         return Ok(());
     };
     if let Event::Declaration(declaration) = &event {
         *standalone = declaration.standalone == Some(true);
     }
     *last_origin = Some(origin);
-    // Each lending event is built directly as the callback's argument.
-    let mut lent = Vec::new();
-    let delivered = match event {
-        Event::Start(Element {
-            mut name,
-            attributes: Attributes::Owned(list),
-        }) if list.capacity() > 0 || state.lends_names() => {
-            lent = list;
-            let budget = state.lend(&mut name, &mut lent);
-            let element = Element {
-                name,
-                attributes: Attributes::Borrowed(&lent),
-            };
-            emit(Event::Start(element), origin, budget)
-        }
-        Event::Empty(Element {
-            mut name,
-            attributes: Attributes::Owned(list),
-        }) if list.capacity() > 0 || state.lends_names() => {
-            lent = list;
-            let budget = state.lend(&mut name, &mut lent);
-            let element = Element {
-                name,
-                attributes: Attributes::Borrowed(&lent),
-            };
-            emit(Event::Empty(element), origin, budget)
-        }
-        Event::End(mut name) if state.lends_names() => {
-            let budget = state.lend(&mut name, &mut []);
-            emit(Event::End(name), origin, budget)
-        }
-        event => emit(event, origin, state.owned_budget()),
-    };
-    delivered?;
-    if lent.capacity() > 0 {
+    let budget = state.lend_event(&mut event);
+    emit(&event, origin, budget)?;
+    if let Event::Start(element) | Event::Empty(element) = event
+        && let Attributes::Owned(list) = element.attributes
+    {
         // Only the allocation returns; it no longer borrows the state.
-        lent.clear();
-        let lent = lent.into_iter().map(|_| unreachable!("cleared")).collect();
-        state.recycle_attributes(lent);
+        let list = crate::parser::emptied(list);
+        state.recycle_attributes(list);
     }
     Ok(())
 }

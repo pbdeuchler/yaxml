@@ -78,8 +78,8 @@ fn run(
         }
         "push" => {
             let mut parser = PushParser::with_options(loading(limits, base, resolver)).unwrap();
-            let mut emit = |event: Event<'_>, _| {
-                writer.write_event(&event).unwrap();
+            let mut emit = |event: &Event<'_>, _| {
+                writer.write_event(event).unwrap();
                 ControlFlow::Continue(())
             };
             let result = bytes
