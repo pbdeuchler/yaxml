@@ -53,13 +53,16 @@ enum Failure {
 }
 
 /// Length-zero/one slot keeps the large DTD/body state off the ordinary stack.
-/// Whole-input receipt/limits belong to the caller, as with Stream::advance.
+/// `advance` counts pushed chunks against `max_input_bytes`; pull callers
+/// (`prepare`) bound their own reads.
 pub(crate) struct StreamingSession {
     ordinary: Option<Stream>,
     session: Vec<DtdSession>,
     limits: Limits,
     decode: DecodeLimits,
     options: DtdLimits,
+    /// Transport bytes supplied to `advance`, against `max_input_bytes`.
+    received: usize,
     standalone: bool,
     loader: Option<crate::resolve::Loader>,
     origin: Option<SourceOrigin>,
@@ -81,6 +84,7 @@ impl StreamingSession {
                 flags,
                 ..DtdLimits::new(limits, decode)
             },
+            received: 0,
             standalone: false,
             loader: None,
             origin: None,
@@ -209,16 +213,33 @@ impl StreamingSession {
         self.delivery = Delivery::Idle;
         Ok(())
     }
+    /// The stored error, or `InvalidState` once finished, if feeding would fail.
+    pub(crate) fn terminal(&mut self) -> Option<Error> {
+        self.stored_failure().or_else(|| {
+            (self.finalizing || self.finished)
+                .then(|| Error::new(ErrorKind::InvalidState, self.position()))
+        })
+    }
+    /// Pushes a whole chunk, checked against the cumulative input ceiling
+    /// before any of its bytes is processed.
     pub(crate) fn advance(
         &mut self,
         input: &[u8],
         emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
-    ) -> Result<usize, Error> {
+    ) -> Result<(), Error> {
         self.remember(|s| {
             if s.finalizing || s.finished {
                 return Err(Error::new(ErrorKind::InvalidState, s.position()));
             }
-            s.drive(input, emit)
+            s.received = s
+                .received
+                .checked_add(input.len())
+                .filter(|total| *total <= s.limits.max_input_bytes)
+                .ok_or(Error::new(
+                    ErrorKind::LimitExceeded(crate::Limit::InputBytes),
+                    0,
+                ))?;
+            s.drive(input, emit).map(drop)
         })
     }
     pub(crate) fn finish(

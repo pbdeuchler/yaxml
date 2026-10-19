@@ -3,9 +3,7 @@ use std::ops::{ControlFlow, Range};
 use crate::options::Flags;
 use crate::parser::Budget;
 use crate::stream::dtd::StreamingSession;
-use crate::{
-    DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ParseOptions, ReadError, SourceOrigin,
-};
+use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, ParseOptions, ReadError, SourceOrigin};
 
 /// Incremental XML 1.0 parsing with a bounded scratch token and no retained input.
 ///
@@ -29,10 +27,6 @@ use crate::{
 /// from the slice reader's whole-input UTF-8/character validation.
 pub struct PushParser {
     session: StreamingSession,
-    limits: Limits,
-    received: usize,
-    failure: Option<Error>,
-    finished: bool,
 }
 
 impl PushParser {
@@ -70,13 +64,7 @@ impl PushParser {
         if let Some(resolver) = options.resolver {
             session.set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
         }
-        Self {
-            session,
-            limits,
-            received: 0,
-            failure: None,
-            finished: false,
-        }
+        Self { session }
     }
 
     pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
@@ -120,14 +108,8 @@ impl PushParser {
         mut input: impl std::io::Read,
         mut emit: impl FnMut(Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), ReadError> {
-        if let Some(error) = self.failure {
+        if let Some(error) = self.session.terminal() {
             return Err(ReadError::Xml(error));
-        }
-        if self.finished {
-            return Err(ReadError::Xml(Error::new(
-                ErrorKind::InvalidState,
-                self.position(),
-            )));
         }
         let mut buffer = [0; 8192];
         loop {
@@ -174,27 +156,10 @@ impl PushParser {
         input: &[u8],
         mut emit: impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        if self.finished {
-            return self.remember(Err(Error::new(ErrorKind::InvalidState, self.position())));
-        }
-        let Some(total) = self
-            .received
-            .checked_add(input.len())
-            .filter(|total| *total <= self.limits.max_input_bytes)
-        else {
-            return self.remember(Err(Error::new(
-                ErrorKind::LimitExceeded(Limit::InputBytes),
-                0,
-            )));
-        };
-        self.received = total;
-        // The session poisons itself around each call, so a recovered
-        // callback panic cannot reuse partially delivered state.
-        let result = self.session.advance(input, &mut emit).map(drop);
-        self.remember(result)
+        // The session keeps errors and completion sticky, and poisons itself
+        // around each call, so a recovered callback panic cannot reuse
+        // partially delivered state.
+        self.session.advance(input, &mut emit)
     }
 
     /// Declares final EOF, emits any pending text, and checks document closure.
@@ -216,22 +181,7 @@ impl PushParser {
         &mut self,
         mut emit: impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        if self.finished {
-            return Ok(());
-        }
-        let result = self.session.finish(&mut emit);
-        if result.is_ok() {
-            self.finished = true;
-        }
-        self.remember(result)
-    }
-
-    fn remember(&mut self, result: Result<(), Error>) -> Result<(), Error> {
-        self.failure = result.err();
-        result
+        self.session.finish(&mut emit)
     }
 }
 

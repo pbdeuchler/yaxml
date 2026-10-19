@@ -142,6 +142,7 @@ impl Tokenizer {
 
     /// Consume only through the next complete token. A text delimiter already
     /// counted in the positions is replayed from constant lookahead storage.
+    #[inline(always)]
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
         // Short inputs rarely hold a whole token; scanning them once is cheaper.
         if input.len() >= ADOPT_WINDOW
@@ -253,17 +254,11 @@ impl Tokenizer {
                     }
                     Some(_) => {
                         self.scan = Scan::Prefix;
-                        (1, None)
+                        self.prefix(input, 1)
                     }
                 }
             }
-            Scan::Prefix => match self.prefix(input[0]) {
-                ControlFlow::Continue(scan) => {
-                    self.scan = scan;
-                    (1, None)
-                }
-                ControlFlow::Break(kind) => (1, Some(kind)),
-            },
+            Scan::Prefix => self.prefix(input, 0),
             Scan::Tag { quote: Some(quote) } => match memchr(quote, input) {
                 Some(index) => {
                     self.scan = Scan::Tag { quote: None };
@@ -291,11 +286,28 @@ impl Tokenizer {
         }
     }
 
-    /// Classifies markup by its buffered leading bytes and the next `byte`.
-    /// Earlier bytes matched the family that byte 2 selects, so only the
-    /// newest byte is compared.
-    fn prefix(&self, byte: u8) -> ControlFlow<TokenKind, Scan> {
-        let length = self.buffer.len() + 1;
+    /// Classifies markup through as many leading bytes as `input` holds
+    /// from `at`; the token's earlier bytes are buffered, then `input[..at]`.
+    fn prefix(&mut self, input: &[u8], mut at: usize) -> (usize, Option<TokenKind>) {
+        while at < input.len() {
+            match self.classify(input, at) {
+                ControlFlow::Continue(Scan::Prefix) => at += 1,
+                ControlFlow::Continue(scan) => {
+                    self.scan = scan;
+                    return (at + 1, None);
+                }
+                ControlFlow::Break(kind) => return (at + 1, Some(kind)),
+            }
+        }
+        (at, None)
+    }
+
+    /// Classifies markup by its leading bytes through `input[at]`. Earlier
+    /// bytes matched the family that byte 2 selects, so only the newest
+    /// byte is compared.
+    fn classify(&self, input: &[u8], at: usize) -> ControlFlow<TokenKind, Scan> {
+        let byte = input[at];
+        let length = self.buffer.len() + at + 1;
         if length == 2 {
             return ControlFlow::Continue(match byte {
                 b'!' => Scan::Prefix,
@@ -309,7 +321,11 @@ impl Tokenizer {
                 _ => Scan::Tag { quote: None },
             });
         }
-        let (family, kind, marker): (&[u8], _, _) = match self.buffer.get(2).unwrap_or(&byte) {
+        let (family, kind, marker): (&[u8], _, _) = match self
+            .buffer
+            .get(2)
+            .unwrap_or_else(|| &input[2 - self.buffer.len()])
+        {
             b'-' => (b"<!--", TokenKind::Comment, b'-'),
             b'[' => (b"<![CDATA[", TokenKind::Cdata, b']'),
             b'D' => (b"<!DOCTYPE", TokenKind::Dtd, 0),
@@ -346,11 +362,13 @@ impl Tokenizer {
         {
             return Err(self.overflow(run));
         }
-        // Single bytes (one-byte chunks) skip the copy call.
-        if run.len() == 1 {
-            self.append(run[0])?;
-        } else {
-            self.append_slice(run)?;
+        // Within spare capacity the ceilings already hold, so only growth
+        // takes the checked path; single bytes (one-byte chunks) skip the copy call.
+        let spare = self.buffer.capacity() - self.buffer.len();
+        match run {
+            [byte] if spare > 0 => self.buffer.push(*byte),
+            _ if run.len() <= spare => self.buffer.extend_from_slice(run),
+            _ => self.append_slice(run)?,
         }
         self.position += run.len();
         if !self.local_mode() {
