@@ -218,7 +218,12 @@ impl Tokenizer {
                             self.diagnostic_start(),
                         ));
                     }
-                    self.append_slice(&input[cursor..cursor + length])?;
+                    // Single bytes (one-byte chunks) skip the copy call.
+                    if length == 1 {
+                        self.append(input[cursor])?;
+                    } else {
+                        self.append_slice(&input[cursor..cursor + length])?;
+                    }
                     self.position += length;
                     if !self.local_mode() {
                         self.source_position += length;
@@ -349,12 +354,7 @@ impl Tokenizer {
                 .try_reserve_exact(target - self.buffer.len())
                 .map_err(|_| Error::new(ErrorKind::Allocation, self.diagnostic_start()))?;
         }
-        if let [byte] = bytes {
-            // Single bytes (one-byte chunks, delimiters) skip the copy call.
-            self.buffer.push(*byte);
-        } else {
-            self.buffer.extend_from_slice(bytes);
-        }
+        self.buffer.extend_from_slice(bytes);
         Ok(())
     }
 
