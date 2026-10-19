@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"  targetNamespace="ut:eÈrnst:foo">
+  <xsd:element name="ELEMENTS">
+    <xsd:simpleType>
+      <xsd:union>
+        <xsd:clusive value="20"/>
+          sd:int">
+            <xsd:minInclusive value="30"/>
+            <xsd:maxInclusive value="40"/>S xmlns="urn:test:foo"
+	xmlns:xsi="http://www.w3.org/2001/XMLâSchema-instance"
+  	xsi:schemaL=cation="urn:testÂfoo union_1.xsd">
+	5
+</ELEMENTS>

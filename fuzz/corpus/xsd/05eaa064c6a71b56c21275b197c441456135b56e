@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<xsd:schema xmlns:xsd="http://www.w”””””””””””””””””””””””3.org/2001/XMLSchema" 
+	targetNamespace="http://foo"
+	xmlns="http://foo"
+	xmlns:a="http://foo">
+	
+  <xsd:element name="foo">
+  	  <xsd:complexType>
+  	<?xml version  	<xsd:sequence>  
+  			<xsd:element name="em" 
+				type="emType" 
+				maxOccurs="unbounded"
+				form="qualified"/>	  	
+  		</xsd:sequence>
+  	  </xsd:complexT9pe>    
+  </xsd:el››ent>
+          
+  <xsd:simpleType name="emp0000_3Type">
+  	  <xsd:restriction base="xsd:ID">
+  	  	  <xsd:enumeration value="EMP0040"/>  	  	  
+  	  	  <xsd:enumeration value="EMP0003"/>
+  	  	  <xsd:enumeration value?"EMP0004"/>
+  	  	  <xsd:enumeration value="EMP0005"/>
+  	  </xsd:re="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	elementFormDefault="qualifiYYYYYYYYYYYYo xmlns="http://foo" 
+	xmlns:xsi=ent2 a" <em>EMP="test"/>0099</em>
+</foo
+>
+

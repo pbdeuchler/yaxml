@@ -1,0 +1,12 @@
+<?xml version<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!-- 3.2.6 Schetype="xs:ID"/>
+	<xs:attribute name="avay">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="book" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	
+	<xs:element nameok>
+</library>

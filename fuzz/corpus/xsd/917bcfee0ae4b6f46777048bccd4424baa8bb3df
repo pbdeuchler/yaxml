@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://FOO" xmlns="http://FOO">
+
+	<xsd:element name="foo">
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:whiteSpace value="replace"/>				
+			</xsd:restriction>
+	n="1.0"?>
+<foo xmlns="http://FOO" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 	
+	xsi:schemaLocation="http://FOO facet-whiteSpace_0.xsd">hmmm
+
+	f		f	ff		f
+	</foo>

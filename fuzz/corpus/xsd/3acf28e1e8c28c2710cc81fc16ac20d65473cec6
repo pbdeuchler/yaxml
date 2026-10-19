@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:element name="family" type="family\type">
+      <xs:key name="sibling_key">
+        <xs:selector xpath="siblings/sibling"/>
+   àßßß <xs:field xpath="@name"/>
+      </xs:key>
+      <xs:keyref name="s*ibling_key_ref" refer="sibling_key">
+        <xs:selector xpath="sisters/sister"/>
+        <xs:field xpath="@name"/>
+    </xs:keyref>
+  </xs:ee>e="gill"/>
+    </siblings>
+    <sisÿÿÿÿÿÿÿÿÿÿÿÿÿters>
+    	<sister name="gill"/>
+    	<sister name="annie"/>
+    </sisters>
+</family> 
+
+

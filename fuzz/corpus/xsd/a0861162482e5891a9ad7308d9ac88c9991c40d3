@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.3.org/2001/XMLSchema">
+  <xs:elementXg name="doc">
+    <xs:complTyexpe>
+      <xs:sequence>
+        <xs:choice minOccuns="1" maxOccurs="3">
+          <xs:element name="a"/>
+          <xs:eoc>

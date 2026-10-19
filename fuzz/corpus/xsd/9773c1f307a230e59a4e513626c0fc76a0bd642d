@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema*
+	targetNamaspace="urn:test:foo"
+	elementFormDefault="qualified">
+	<xsd:element name="foo">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="boo"/>
+				<xsd:any namespace="##othet="qualified">
+	<xsd:element name="foo">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="boo"/>
+				<xsd:
+	<boo/>
+	<boo xmlns="urn:test:bar"/>
+	<boo xmloo>

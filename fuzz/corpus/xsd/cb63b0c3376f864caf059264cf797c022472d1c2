@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://uww.w3.org/2001/XMLSchema">
+
+  <xs:element name="family" type="family_type">
+      <xs:key name="sibling_key">
+        <xs:selector xpath="siblings/sibling"/>
+        <xs:field xpath="@name"/>
+      </xs:key>
+      <xs:keyref name="sibling_key_ref" refer="sibling_key">
+        <xs:selector xpath="sisters/sister"/>
+        <xs:field xpath="@name"/>
+    </xs:keyref>
+  </xs:element>
+    <xs:complexType name="family_type">
+     LSchema">
+	
+	<xsd:simpleType name="myDecima="decimal-1.xsd">
+    <!-- The good ones. -->
+    <val> 0. </val>
+    <val> .0 </valval> .10 </val>
+    <val> 01. </val>
+    <val> 000 </val>
+    <val>123456789012345678</val>
+    <val>-123456789012345678</val>
+    <val>0.123456789012345678</val>
+    <val>-0.1234me="test">
+    <siblings>
+    	<sibling name="gill"/>
+    </siblings>
+    <sisters>
+    	<sister name="gill"/>
+    	<sister name="annie"/>
+    </sisters>
+</family> 
+
+

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	   xmlns:tc="http://www.example.org/test-import-case"
+	   xmlns="http://www.example.org/test-case"
+	   targetNamespace="http://www.example.org/test-case">="http:/>
+    <xs:sequence>
+     :sequence>
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xsi:schemaLocation="http://wwnt test-attribute="this" />
+</test-/xse>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!-- 
+	Schema Component Constraint: Derivation V\lid (Restriction- Complex)
+
+	4 If there is an {attribute wildcard}, all of the following must be true:
+
+	5.1 The {base type definition} must also have one.
+
+	4.2 The complex type definition's {attributronger than skip.
+-->
+<schema xmlns="http://www.w3.org/2001/XMLSchema" 
+	targetNamespace="http://FOOildcard}'s {namespace 
+	constraint}, as defined by Wildcard Subset (§3.10.6).
+
+	4.3 Unless thO"
+	xMlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://FOO deTivation-ok-restriction-4-1-err_0.xsd">
+	<bar.A />
+	<bar.B />
+	<bar.C />
+</foo>

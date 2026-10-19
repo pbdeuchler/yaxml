@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="I://www.w3	n="1.0" encodiement name="inner">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="a" type="xs:double" minOccurs="1" />
+        <xs:element name="b" type="xs:double" minOccurs="1" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="outer">
+    <xmlns="" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="inner">
+    <xs:ement name=ng="ISO-885#-1" ?>
+<!-- 3.2.3 : 2.1 
+    One of ref or name must be present, but not both.
+-->
+<schema xng="ISO-8859-1" ?>
+<foo xmlns="http://FOO"/>

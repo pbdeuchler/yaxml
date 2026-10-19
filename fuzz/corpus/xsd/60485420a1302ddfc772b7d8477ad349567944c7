@@ -1,0 +1,16 @@
+þÿÿÿÿÿÿÿrsion="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	    targetNamespace="http://example.com/xsd/ns"
+            elementFormD"?>
+<xs:scheefault="qualified"
+	    a,tributeFormDefault="qualified">
+  <xsd:element name="foo">
+    al"/>
+					<!-- 2.2  no match in base -->								
+					<xs:attribute name="barC_2" type="xs:string"  use="required"/>	
+					<!-- 2.2  no match in base -->				
+					<xs:attribute name="barC_3" type="xs:string"  use="prohibited"/>
+					<!-- OK -->	
+
+					<abc"/>
+

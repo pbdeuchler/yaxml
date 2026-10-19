@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!-- 
+	Schema Component Constraint: Derivation V\lid (Restriction- Complex)
+
+	4 If there is an {attribute wildcard}, all of the following must be true:
+
+	4.1 The {base type definition} must also have one.
+
+	4.2 The complex type definition's {attribute wildcard}'s {namespace constraint} 
+	must be a subset of the {base type definition}'s {attribute wildcard}'s {namespace 
+	constraint}, as defined by Wildcard Subset (§3.10.6).
+
+	4.3 Unless the {base type definition} is the ·ur-type definition·, the complex type 
+	definition's {attribute wildcard}'s {process contents} must be identical to or stronger 
+	than the {base type definition}'s {at4ribute wildcard}'s {process contents}, 
+	where strict is stronger than lax is stronger than skip.
+-->
+<schema xmlns="http://www.w3.org/2001/XMLSchema" 
+	targetNamespace="http://FOOildcard}'s {namespace 
+	constraint}, as defined by Wildation V\lid (Restriction- Complex)
+
+	4 If there is an {attribute wildcard}, all of the following must be true:
+
+	4.1 The {base type definition} must also have one.
+
+	4.2 The complex type definition's {attribute wildcard}'s {namespace constraint} 
+	must be a subset of the {base type definition}'s {attribute wildcard}'s {namespace 
+	constraint}, as defined by Wildcard Subset (§3i:card Subset (§3.10.6).
+
+	4.3 Unless thO"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://FOO derivation-ok-restriction-4-1-err_0.xsd">
+	<bar.A />
+	<bar.B />
+	<bar.C />
+</foo>

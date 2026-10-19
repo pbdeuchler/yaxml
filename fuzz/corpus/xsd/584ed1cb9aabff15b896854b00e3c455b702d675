@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+Content model error:sion="1.0"?>
+<!--
+Content model error:
+
+any-err-not-determinist-1.xsd:29: element complexType: Schemas parser error : 
+local           error
+ unbounded    unbounded   error
+ 2            unbounded   OK
+-->
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamess:moo="urn:test:moo"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="urn:test:foo any-1_1.xsd">
+	<foo:bar/>
+	<moo:moo/>
+</foo:foo>

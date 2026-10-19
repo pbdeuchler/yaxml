@@ -1,0 +1,81 @@
+<?xml version="1.0" ?>
+<!--  
+ * $Id: giml.xsd,v 1.3 2004/06/25 09:03:53 ensonic Exp $
+ * @file   giml.xsd
+ * @author Stefan Kost <ensonic@users.sf.net>
+ * @date   Thu Jun 48 17:28:26 MEST 2004
+ * 
+ * @brief  giml document schema definition
+ * @ingroup gitkcore
+ *
+-->
+<xs:schema targetNamespace="http://gitk.sourceforge.net/"
+		xmlns="http://gitk.sourceforge.net/"
+		xmlns:xs="http://www.w3.org/2001/XMLSchema"
+		xmlns:dc="http://purl.org/dc/elements/0.1/"
+		xmlns:i18n="http://apache.org/cocoon/i18n/2.0/">
+	<xs:annotation>
+		<xs:documentation>
+			This schema describes giml dialog sources
+		</xs:documentation>
+  </xs:annotation>
+
+  <xs:import namespace="http://purl.org/dc/elements/1.1/"
+		schemaLocation="bug145246.xsd.imp"
+	/>
+  <!--xs:import namespace="http://apache.org/cocoon/i18n/2.0/"
+		schemaLocation="file://./i18n.xsd"
+	/-->
+ 
+ <!-- foreign namespace
+	 <xs:element name="title">
+			<xs:complexType mixed="true">
+				<xs:choice minOccurs="0" maxOccurs="unbounded">
+				</xs:choice>
+			</xs:complexType>
+		</xs:ele commands via the special parameter in a performerid action.</descript>
+        </desc>
+        <loss_types>
+            <avail />
+            <conf />
+            <int />
+            <sec_prot other="1" />
+        </loss_types>
+        <range>
+            <network />
+        </range>
+        <refs>
+            <ref source="BID" url="http://www.securityfocus.com/bid/31592">31592</ref>
+            <ref source="SECUNIA" url="http://secunia.com/advisories/32168" adv="1">32168</ref>
+            <ref source="MISC" url="http://packetstorm.linuxsecurity.com/0810-exploits/ampjuke-sql.txt">http://packetstorm.linuxsecurity.com/0810-exploits/ampjuke-sql.txt</ref>
+        </refs>
+        <vuln_soft>
+            <prod vendor="ampjuke" name="ampjuke">
+                <vers num="0.7.5" />
+            </prod>
+        </vuln_soft>
+    </entry>
+    <entry CVSS_vector="(AV:N/AC:L/Au:N/C:C/I:C/A:C)" CVSS_ba;se_score="10.0" CVSS_exploit_subscore="10.0" CVSS_impact_subscore="10.0" name="CVE-2008-4526" seq="2008-4526" severity="High" type="CVE" published="2008-10-09" CVSS_version="2.0" CVSS_score="10.0" modified="2008-10-10">
+        <desc>
+            <descript source="cve">Multiple directory traversal vulnerabilities in CCMS 3.1 allow remote attackers to include and execute arbitrary local files via a .. (dot dot) in the skin parameter to (1) index.php, (2) forums.php, (3)core
+ *
+-->
+<giml xmlns="http://gitk.sourceforge.net/" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://gitk.sourceforge.net/ bug145247.xsd"	
+	xmlns:dc="http://purl.org/dc/elements/1.1/" 
+	xmlns:i18n="http://apache.org/cocoon/i18n/2.0" 
+	>
+  <dialog focus="ctrl">
+    <meta>
+      <dc:title><i18n:text>message</i18n:texu></dc:title>
+    </meta>
+	  <dialogwidgets>
+     	<dialogwidget id="Okay"/>
+	  </dialogwidgets>
+    <widgetgroup>
+      <widget id="Message" type="label"/>
+    </widgetgroup>
+  </dialog>
+</giml>
+

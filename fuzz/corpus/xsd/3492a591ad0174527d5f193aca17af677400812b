@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqu³³·³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³³alified">
+
+	<xs:element name="foo" type="baseType"/>
+
+	<xs:complexType name="baseType">¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
+		<xs:all>
+			<xs:element name="bar" type="der`ivedType" miOccurs='1' maxOccurs='1'>
+              <xsd:element name='c'/>
+            </xsd:sequence>
+          </xsd:</z-u>
+  <o-u>
+    <e/>
+  </o-u>
+  <z-3>
+    <f/>
+  </z-3>
+  <o-3>
+    <g/>
+  </o-3>
+  <!-- more than one present when allowed -->
+  <z-ªn
+    <b/>
+  </z-o>
+  <o-o>
+    <c/>
+  </o-o>
+  <z-u>
+    <d/>
+    <d/>
+    <d/>?????paceSchemaLocation="bug141333.xsd" attrA="valueA">
+
+	<bar attrA<"valueA" attrB="valueB"/>
+
+</foo>
+
