@@ -125,7 +125,7 @@ element the content does not allow, its subtree is skipped by depth count.
 | --- | ---: | ---: | ---: |
 | libxml2 `test/relaxng` instances (`result/relaxng`) | 159 | 159 | 159 |
 | James Clark `spectest.xml` schemas | 373 | 368 | 371 |
-| `spectest.xml` instances | 529 | 529 | 529 |
+| `spectest.xml` instances | 529 | 528 | 529 |
 | libxml2 `testsuite.xml` schemas / instances | 28 / 183 | 28 / 183 | 28 / 183 |
 | `xsdtest/xsdtestsuite.xml` schemas / instances | 238 / 1,035 | 238 / 1,033 | 238 / 1,034 |
 
