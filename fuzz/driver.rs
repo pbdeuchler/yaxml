@@ -50,7 +50,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
         "fuzz testcase exceeds the driver budget"
     );
     exercise_names(input);
-    uri::exercise(input);
+    exercise_uri(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -63,6 +63,11 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_writer(input);
     exercise_limits(input);
     exercise_dom(input)
+}
+
+/// URI parse, serialization, escaping and resolution invariants.
+pub fn exercise_uri(input: &[u8]) {
+    uri::exercise(input);
 }
 
 /// Borrowed parse of UTF-8 input; recognized encodings have their own oracle.

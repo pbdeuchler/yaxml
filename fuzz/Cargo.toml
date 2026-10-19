@@ -90,3 +90,10 @@ path = "fuzz_targets/names.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "uri"
+path = "fuzz_targets/uri.rs"
+test = false
+doc = false
+bench = false
