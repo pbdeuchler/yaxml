@@ -622,3 +622,50 @@ fn long_namespace_uri_with_many_qualified_attributes() {
     }
     assert_eq!(children, 32);
 }
+
+#[test]
+fn expanded_attribute_uniqueness_and_end_tags_on_both_paths() {
+    let many = |extra: &str| {
+        let attributes: String = (0..12).map(|n| format!(" a{n}='v'")).collect();
+        format!("<r xmlns:p='u' xmlns:q='u'{attributes}{extra}/>")
+    };
+    let cases: Vec<(String, Option<ErrorKind>)> = vec![
+        ("<r a='1' b='2'/>".into(), None),
+        (
+            "<r a='1' a='2'/>".into(),
+            Some(ErrorKind::DuplicateAttribute),
+        ),
+        (
+            "<r xmlns:p='u' xmlns:q='u' p:a='1' q:a='2'/>".into(),
+            Some(ErrorKind::DuplicateAttribute),
+        ),
+        ("<r xmlns:p='u' xmlns:q='w' p:a='1' q:a='2'/>".into(), None),
+        ("<r xmlns:p='u' p:a='1' a='2'/>".into(), None),
+        (
+            "<r a='1' a='2' z:b='3'/>".into(),
+            Some(ErrorKind::DuplicateAttribute),
+        ),
+        (many(""), None),
+        (
+            many(" p:x='1' q:x='2'"),
+            Some(ErrorKind::DuplicateAttribute),
+        ),
+        (many(" a3='1'"), Some(ErrorKind::DuplicateAttribute)),
+        ("<p:r xmlns:p='u'></p:r \t\r\n>".into(), None),
+        ("<r></r >".into(), None),
+        ("<r></r x>".into(), Some(ErrorKind::Syntax)),
+        ("<r></rr>".into(), Some(ErrorKind::MismatchedEndTag)),
+        ("<r></1>".into(), Some(ErrorKind::InvalidName)),
+    ];
+    for (xml, expected) in cases {
+        let mut reader = Reader::new(xml.as_bytes()).unwrap();
+        let result = loop {
+            match reader.read_event() {
+                Ok(Some(_)) => {}
+                Ok(None) => break None,
+                Err(error) => break Some(error.kind),
+            }
+        };
+        assert_eq!(result, expected, "{xml}");
+    }
+}

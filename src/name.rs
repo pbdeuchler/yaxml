@@ -137,7 +137,50 @@ pub(crate) fn qname(name: &str, offset: usize) -> Result<(Option<&str>, &str), E
     }
 }
 
+/// ASCII name classes: bit 0 starts a name, bit 1 continues one (colon excluded).
+const ASCII_NAME: [u8; 128] = {
+    let mut table = [0; 128];
+    let mut byte = 0;
+    while byte < 128 {
+        let c = byte as u8;
+        table[byte] = if c.is_ascii_alphabetic() || c == b'_' {
+            3
+        } else if c.is_ascii_digit() || c == b'-' || c == b'.' {
+            2
+        } else {
+            0
+        };
+        byte += 1;
+    }
+    table
+};
+
 pub(crate) fn validate_name(name: &str, offset: usize, colon: bool) -> Result<(), Error> {
+    // ASCII prefix by table; the first non-ASCII byte starts the char path.
+    let bytes = name.as_bytes();
+    let mut ascii = 0;
+    while let Some(&byte) = bytes.get(ascii) {
+        if byte >= 0x80 {
+            break;
+        }
+        let class = if ascii == 0 { 1 } else { 2 };
+        if ASCII_NAME[usize::from(byte)] & class == 0 && !(colon && byte == b':') {
+            return Err(Error::new(ErrorKind::InvalidName, offset + ascii));
+        }
+        ascii += 1;
+    }
+    if ascii == bytes.len() && ascii > 0 {
+        return Ok(());
+    }
+    if ascii > 0 {
+        return match name[ascii..]
+            .char_indices()
+            .find(|(_, c)| !name_char(*c, colon))
+        {
+            Some((i, _)) => Err(Error::new(ErrorKind::InvalidName, offset + ascii + i)),
+            None => Ok(()),
+        };
+    }
     let mut chars = name.char_indices();
     let Some((_, first)) = chars.next() else {
         return Err(Error::new(ErrorKind::InvalidName, offset));
@@ -165,4 +208,58 @@ pub(crate) fn name_start(c: char, colon: bool) -> bool {
         | '\u{370}'..='\u{37d}' | '\u{37f}'..='\u{1fff}' | '\u{200c}'..='\u{200d}'
         | '\u{2070}'..='\u{218f}' | '\u{2c00}'..='\u{2fef}' | '\u{3001}'..='\u{d7ff}'
         | '\u{f900}'..='\u{fdcf}' | '\u{fdf0}'..='\u{fffd}' | '\u{10000}'..='\u{effff}')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn reference(name: &str, colon: bool) -> Result<(), usize> {
+        let mut chars = name.char_indices();
+        match chars.next() {
+            Some((_, first)) if name_start(first, colon) => {}
+            _ => return Err(0),
+        }
+        chars
+            .find(|(_, c)| !name_char(*c, colon))
+            .map_or(Ok(()), |(i, _)| Err(i))
+    }
+
+    #[test]
+    fn validate_name_matches_the_name_productions() {
+        let alphabet: Vec<char> = (0u8..128)
+            .map(char::from)
+            .chain([
+                '\u{b7}',
+                '\u{c0}',
+                '\u{d7}',
+                '\u{300}',
+                '\u{2070}',
+                '\u{10000}',
+            ])
+            .collect();
+        let mut names = vec![String::new()];
+        for &a in &alphabet {
+            names.push(a.to_string());
+            for &b in &alphabet {
+                names.push(format!("{a}{b}"));
+            }
+        }
+        names.extend([
+            "ab:cd".into(),
+            "abc\u{d7}".into(),
+            "é1-x".into(),
+            "x.y\u{300}z".into(),
+        ]);
+        for name in &names {
+            for colon in [false, true] {
+                let expected = reference(name, colon).map_err(|i| 7 + i);
+                let actual = validate_name(name, 7, colon).map_err(|error| {
+                    assert_eq!(error.kind, ErrorKind::InvalidName);
+                    error.offset
+                });
+                assert_eq!(actual, expected, "{name:?} colon={colon}");
+            }
+        }
+    }
 }

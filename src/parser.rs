@@ -13,6 +13,8 @@ use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Lim
 
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
+/// Attribute counts up to this compare expanded names pairwise.
+const SMALL_ATTRIBUTES: usize = 8;
 
 /// Shared accounting for normalized strings and retained structural strings.
 pub(crate) struct Budget {
@@ -532,7 +534,8 @@ impl<'source> ParserState<'source> {
             offset: start + 1,
         };
         let qualified = scan.name()?;
-        qname(qualified, start + 1)?;
+        let (element_prefix, _) = qname(qualified, start + 1)?;
+        let element_prefix = element_prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
         let bindings_start = self.bindings.len();
         let mut attributes = Vec::new();
         while let Some(attribute) = scan.attribute()? {
@@ -594,15 +597,30 @@ impl<'source> ParserState<'source> {
                 value,
             });
         }
-        let (name, _) = self.resolve_name(qualified, false, start + 1)?;
-        let mut expanded = HashSet::new();
-        expanded
-            .try_reserve(attributes.len())
-            .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-        for attribute in &mut attributes {
-            let namespace = self.resolve_namespace(&mut attribute.name, true, start)?;
-            if !expanded.insert((attribute.name.local(), namespace)) {
-                return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+        let name = self.resolve_name(qualified, element_prefix, start + 1)?;
+        // Expanded-name uniqueness: equal URIs have equal namespace IDs, so
+        // short lists compare resolved names directly instead of hashing.
+        if attributes.len() <= SMALL_ATTRIBUTES {
+            for index in 0..attributes.len() {
+                self.resolve_namespace(&mut attributes[index].name, true, start)?;
+                let (prior, rest) = attributes.split_at(index);
+                let name = &rest[0].name;
+                if prior.iter().any(|other| {
+                    other.name.local() == name.local() && other.name.namespace() == name.namespace()
+                }) {
+                    return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+                }
+            }
+        } else {
+            let mut expanded = HashSet::new();
+            expanded
+                .try_reserve(attributes.len())
+                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            for attribute in &mut attributes {
+                let namespace = self.resolve_namespace(&mut attribute.name, true, start)?;
+                if !expanded.insert((attribute.name.local(), namespace)) {
+                    return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+                }
             }
         }
         let element = Element { name, attributes };
@@ -1317,23 +1335,19 @@ impl<'source> ParserState<'source> {
         }
     }
 
+    /// Resolves an element QName whose prefix split was already validated.
     fn resolve_name<'event>(
         &mut self,
         qualified: &'event str,
-        attribute: bool,
+        prefix_length: Option<NonZeroUsize>,
         offset: usize,
-    ) -> Result<(Name<'event>, Option<NamespaceId>), Error>
+    ) -> Result<Name<'event>, Error>
     where
         'source: 'event,
     {
-        let (prefix, _) = qname(qualified, offset)?;
-        let mut name = Name::from_validated_parts(
-            Cow::Borrowed(qualified),
-            prefix.and_then(|prefix| std::num::NonZeroUsize::new(prefix.len())),
-            None,
-        );
-        let identity = self.resolve_namespace(&mut name, attribute, offset)?;
-        Ok((name, identity))
+        let mut name = Name::from_validated_parts(Cow::Borrowed(qualified), prefix_length, None);
+        self.resolve_namespace(&mut name, false, offset)?;
+        Ok(name)
     }
 
     fn resolve_end_name_owned(
@@ -1461,19 +1475,25 @@ impl<'source> ParserState<'source> {
             cursor: 0,
             offset: start + 2,
         };
-        let qualified = scan.name()?;
-        scan.skip_space();
-        if scan.cursor != body.len() {
-            return Err(Error::new(ErrorKind::Syntax, start));
-        }
-        if self
-            .stack
-            .last()
-            .is_none_or(|frame| frame.qualified != qualified)
-        {
-            return Err(Error::new(ErrorKind::MismatchedEndTag, start));
-        }
-        let (name, _) = self.resolve_name(qualified, false, start + 2)?;
+        // The open element's name is a validated QName: an exact match needs
+        // no rescan, and any other spelling takes the diagnosing path.
+        let open = self.stack.last().map(|frame| frame.qualified.as_ref());
+        let trimmed = body.trim_end_matches([' ', '\t', '\r', '\n']);
+        let qualified = if open == Some(trimmed) {
+            trimmed
+        } else {
+            let qualified = scan.name()?;
+            scan.skip_space();
+            if scan.cursor != body.len() {
+                return Err(Error::new(ErrorKind::Syntax, start));
+            }
+            if open != Some(qualified) {
+                return Err(Error::new(ErrorKind::MismatchedEndTag, start));
+            }
+            qualified
+        };
+        let prefix_length = memchr(b':', qualified.as_bytes()).and_then(NonZeroUsize::new);
+        let name = self.resolve_name(qualified, prefix_length, start + 2)?;
         let frame = self.stack.pop().expect("matched frame");
         self.unwind_bindings(frame.bindings_start);
         if self.stack.is_empty() {
