@@ -357,7 +357,8 @@ impl<R: BufRead> TextReader<R> {
     /// `options`; see [`crate::options`]. `base` is the document URI.
     /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
-        let flags = options.check(false, 0)?;
+        // `BufferedReader` rejects the flags a reader does not support.
+        let flags = Flags(options.flags);
         let (limits, _) = options.effective_limits();
         let url = options.base.clone();
         let resolver = options.resolver.is_some();
