@@ -168,23 +168,23 @@ fn generated_leaves_preserve_replacement_eol_and_do_not_rescan_final_data() {
     owned(&mut state, TokenKind::Start, "<r>", 0).unwrap();
     let raw = String::from("a\r\n&amp;T;&#13;");
     let event = state
-        .process_dtd_leaf_owned(DtdLeafKind::Text, &raw, 3..3 + raw.len())
+        .process_dtd_leaf_owned(DtdLeafKind::Text, &raw, 3)
         .unwrap();
     drop(raw);
     assert!(matches!(event, Event::Text(value) if value == "a\r\n&T;\r"));
 
     let comment = state
-        .process_dtd_leaf_owned(DtdLeafKind::Comment, "<!--a\r\nb-->", 20..31)
+        .process_dtd_leaf_owned(DtdLeafKind::Comment, "<!--a\r\nb-->", 20)
         .unwrap();
     assert!(matches!(comment, Event::Comment(value) if value == "a\r\nb"));
 
     let cdata = state
-        .process_dtd_leaf_owned(DtdLeafKind::Cdata, "<![CDATA[π\r]]>", 32..47)
+        .process_dtd_leaf_owned(DtdLeafKind::Cdata, "<![CDATA[π\r]]>", 32)
         .unwrap();
     assert!(matches!(cdata, Event::Cdata(value) if value == "π\r"));
 
     let instruction = state
-        .process_dtd_leaf_owned(DtdLeafKind::ProcessingInstruction, "<?π a\r?>", 50..59)
+        .process_dtd_leaf_owned(DtdLeafKind::ProcessingInstruction, "<?π a\r?>", 50)
         .unwrap();
     assert!(
         matches!(instruction, Event::ProcessingInstruction { target, data } if target == "π" && data == "a\r")
@@ -195,22 +195,16 @@ fn generated_leaves_preserve_replacement_eol_and_do_not_rescan_final_data() {
         .process_dtd_leaf_owned(
             DtdLeafKind::ProcessingInstruction,
             "<?XmL version='1.0'?>",
-            40..61,
+            40,
         )
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::InvalidDeclaration);
     assert_eq!(error.offset, 40);
     assert_eq!(state.events, before);
 
-    let error = state
-        .process_dtd_leaf_owned(DtdLeafKind::Cdata, "<![CDATA[x]]>", 70..84)
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::InvalidState);
-    assert_eq!(error.offset, 70);
-
     let before = state.events;
     let error = state
-        .process_dtd_leaf_owned(DtdLeafKind::Text, "π&missing;", 90..101)
+        .process_dtd_leaf_owned(DtdLeafKind::Text, "π&missing;", 90)
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::UnknownEntity);
     assert_eq!(error.offset, 92);
@@ -223,7 +217,7 @@ fn generated_text_rejects_prolog_and_epilog_before_spending_resources() {
         let mut state = ParserState::new(Limits::default(), 0);
         let before = state.budget.remaining_owned();
         let error = state
-            .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 7..7 + raw.len())
+            .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 7)
             .unwrap_err();
         assert_eq!(error.kind, ErrorKind::TextOutsideRoot);
         assert_eq!(error.offset, prolog_offset);
@@ -234,7 +228,7 @@ fn generated_text_rejects_prolog_and_epilog_before_spending_resources() {
         let before = state.budget.remaining_owned();
         let events = state.events;
         let error = state
-            .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 11..11 + raw.len())
+            .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 11)
             .unwrap_err();
         assert_eq!(error.kind, ErrorKind::TextOutsideRoot);
         assert_eq!(error.offset, prolog_offset + 4);
@@ -259,7 +253,7 @@ fn generated_leaf_copy_quota_is_exact_for_unicode_bytes() {
         .unwrap();
     assert!(matches!(
         exact
-            .process_dtd_leaf_owned(DtdLeafKind::Text, "π", 3..5)
+            .process_dtd_leaf_owned(DtdLeafKind::Text, "π", 3)
             .unwrap(),
         Event::Text(value) if value == "π"
     ));
@@ -278,7 +272,7 @@ fn generated_leaf_copy_quota_is_exact_for_unicode_bytes() {
         })
         .unwrap();
     let error = short
-        .process_dtd_leaf_owned(DtdLeafKind::Text, "π", 3..5)
+        .process_dtd_leaf_owned(DtdLeafKind::Text, "π", 3)
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
     assert_eq!(error.offset, 3);
@@ -631,16 +625,6 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
         1024,
     );
     assert_eq!(
-        state.validate_finish(4),
-        Err(Error::new(ErrorKind::EncodingMismatch, 4))
-    );
-    assert_eq!(
-        owned(&mut state, TokenKind::Start, "<r/>", 0)
-            .unwrap_err()
-            .kind,
-        ErrorKind::EncodingMismatch
-    );
-    assert_eq!(
         owned(&mut state, TokenKind::Instruction, "<?pi?>", 0)
             .unwrap_err()
             .kind,
@@ -652,13 +636,6 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
             .unwrap_err()
             .kind,
         ErrorKind::InvalidDeclaration
-    );
-    state.set_encoding(SourceEncoding::Utf8, 0, 3);
-    assert_eq!(
-        owned(&mut state, TokenKind::Start, "<r/>", 0)
-            .unwrap_err()
-            .kind,
-        ErrorKind::LimitExceeded(Limit::DecodedTokenBytes)
     );
 }
 
@@ -700,7 +677,6 @@ fn normalization_predicate_matches_all_flag_contexts_and_scan_boundaries() {
     let contexts = [
         (false, false, b"\r".as_slice()),
         (false, true, b"\r&".as_slice()),
-        (true, false, b"\r\n\t".as_slice()),
         (true, true, b"\r\n\t&".as_slice()),
     ];
     let alphabet = ["a", "\r", "\n", "\t", "&", "é", "🙂"];

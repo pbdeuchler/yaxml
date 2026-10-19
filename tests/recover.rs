@@ -89,6 +89,11 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     // ... else the DOCTYPE keeps the declarations before the error, and the
     // document resumes there: at markup that is no declaration
     ("<!DOCTYPE r [<r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
+    // replacement text recovers as physical input does
+    ("<!DOCTYPE r [<!ENTITY e \"<a b='&#38;u;'/>\">]><r>&e;</r>",
+     "<!DOCTYPE r [\n<!ENTITY e \"<a b='&#38;u;'/>\">\n]>\n<r>&e;</r>", &[UnknownEntity]),
+    ("<!DOCTYPE r [<!ENTITY e \"<p:a></p:a>\">]><r>&e;</r>",
+     "<!DOCTYPE r [\n<!ENTITY e \"<p:a></p:a>\">\n]>\n<r>&e;</r>", &[Namespace]),
 ];
 
 /// Repairs only the slice reader makes (UTF-8 input without a DOCTYPE):

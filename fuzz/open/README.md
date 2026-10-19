@@ -10,6 +10,12 @@ Open findings (2026-10-19 coverage campaign); each has a note beside it:
 
 - `dtd/laughs-slow-unit.xml`: about 2 s per run through the `dtd` driver
   under ASan (bounded expansion; a slow unit, not a hang).
+- `dom/recover-defaulted-empty-prefix-binding.xml` (`RECOVER | DTDATTR`):
+  an ATTLIST default `xmlns:p ""` is a fatal `Namespace` error in yaxml
+  (`ParserState::recover_specified` keeps errors in defaulted attributes
+  fatal), so recovery ends without the root and the saved document does
+  not reparse to itself. libxml2 2.15.4 reports nothing for the defaulted
+  binding and keeps `xmlns:p=""` (strict and `--recover`).
 
 The entity-amplification, event-bound, output-bound, buffered invalid-markup
 and DOM text-join reproducers from the seeded corpus run were fixed and moved
