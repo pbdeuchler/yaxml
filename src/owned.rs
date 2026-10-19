@@ -1395,9 +1395,7 @@ impl OwnedBuilder {
             self.root_element = id;
         }
         if starts {
-            self.parents
-                .try_reserve(1)
-                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+            crate::parser::reserve_frame(&mut self.parents, offset)?;
             self.parents.push(id);
         }
         Ok(())

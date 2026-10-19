@@ -17,6 +17,20 @@ const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 /// Namespace scopes up to this many bindings are searched linearly.
 const INDEXED_SCOPE: usize = 16;
+/// Open elements a parser first makes room for.
+const FRAMES: usize = 32;
+
+/// Room for one more open-element entry. Doubling from a few entries would
+/// reallocate on each level of a fresh parser's first descent.
+pub(crate) fn reserve_frame<T>(stack: &mut Vec<T>, offset: usize) -> Result<(), Error> {
+    if stack.len() == stack.capacity() {
+        stack
+            .try_reserve(stack.len().max(FRAMES))
+            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    }
+    Ok(())
+}
+
 /// Attribute counts up to this compare expanded names pairwise.
 const SMALL_ATTRIBUTES: usize = 8;
 
@@ -883,14 +897,14 @@ impl<'source> ParserState<'source> {
             }
             Ok(Some(Event::Empty(element)))
         } else {
-            self.stack
-                .try_reserve(1)
-                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            reserve_frame(&mut self.stack, start)?;
             let qualified = if self.copies_names {
                 self.budget.charge_owned(qualified.len(), start + 1)?;
-                self.frame_names
-                    .try_reserve(qualified.len())
-                    .map_err(|_| Error::new(ErrorKind::Allocation, start + 1))?;
+                if self.frame_names.capacity() - self.frame_names.len() < qualified.len() {
+                    self.frame_names
+                        .try_reserve(qualified.len().max(self.frame_names.len()).max(8 * FRAMES))
+                        .map_err(|_| Error::new(ErrorKind::Allocation, start + 1))?;
+                }
                 let begin = self.frame_names.len();
                 self.frame_names.push_str(qualified);
                 FrameName::Pooled(begin..self.frame_names.len())
@@ -1654,7 +1668,7 @@ impl<'source> ParserState<'source> {
             None if attribute && qualified == "xmlns" => {
                 (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns))
             }
-            None if attribute => (None, None),
+            None if attribute || self.bindings.is_empty() => (None, None),
             _ => match self.bound(prefix.unwrap_or("")) {
                 Some(index) if !self.bindings[index].uri.is_empty() => {
                     if let Cow::Owned(uri) = &self.bindings[index].uri

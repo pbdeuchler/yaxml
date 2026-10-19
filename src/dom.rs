@@ -176,9 +176,7 @@ impl<'input> Document<'input> {
                     document.nodes[id.0].subtree_end = document.nodes.len();
                 }
                 Event::Start(element) => {
-                    parents
-                        .try_reserve(1)
-                        .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
+                    crate::parser::reserve_frame(&mut parents, origin.error_offset())?;
                     let id = document.append_element(parent, element, origin)?;
                     if parent == NodeId(0) {
                         document.root_element = id;

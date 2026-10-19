@@ -827,3 +827,21 @@ fn scanned_qname_splits_agree_with_qname() {
         }
     }
 }
+
+#[test]
+fn frame_reservation_starts_large_then_doubles_only_when_full() {
+    let mut empty: Vec<u8> = Vec::new();
+    reserve_frame(&mut empty, 0).unwrap();
+    assert!(empty.capacity() >= FRAMES);
+
+    let mut full = vec![0u8; FRAMES + 8];
+    full.shrink_to_fit();
+    let length = full.len();
+    reserve_frame(&mut full, 0).unwrap();
+    assert!(full.capacity() >= 2 * length);
+
+    let mut spare: Vec<u8> = Vec::with_capacity(4);
+    spare.push(1);
+    reserve_frame(&mut spare, 0).unwrap();
+    assert_eq!(spare.capacity(), 4, "spare room needs no reservation");
+}
