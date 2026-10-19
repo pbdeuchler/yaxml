@@ -58,6 +58,7 @@ impl Stream {
         }
     }
 
+    #[inline(always)]
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
         // Plain UTF-8 below the decoded ceiling needs no decoding: the
         // tokenizer takes it directly and the decoder counts it as forwarded.
@@ -121,13 +122,14 @@ impl Stream {
     ) -> Result<(usize, Option<bool>), Error> {
         let mut consumed = 0;
         loop {
-            if let Some((kind, _, _)) = self.tokenizer.current() {
+            if let Some((kind, bytes, span)) = self.tokenizer.current() {
                 // Recovery reads a DOCTYPE inside the root as invalid markup.
                 if kind == TokenKind::Dtd && !(self.state.recovers() && self.state.in_content()) {
                     return Ok((consumed, None));
                 }
-                let origin = token_origin(&self.tokenizer);
-                let event = parse_event(&self.tokenizer, &mut self.state)?;
+                let origin = SourceOrigin::input(span.source.clone());
+                let raw = validate(kind, bytes, span)?;
+                let event = parse_valid(kind, raw, span, &mut self.state)?;
                 deliver(
                     &mut self.state,
                     event,
@@ -283,6 +285,7 @@ const MIN_CHUNK_WINDOW: usize = 32;
 
 /// Delivers one parsed event to a callback, lending its attribute list from
 /// storage whose capacity returns to the parser afterwards.
+#[inline(always)]
 fn deliver(
     state: &mut ParserState<'static>,
     event: Option<Event<'_>>,
@@ -375,6 +378,7 @@ fn parse_event<'token>(
     parse_valid(kind, raw, span, state)
 }
 
+#[inline(always)]
 fn parse_valid<'token>(
     kind: TokenKind,
     raw: &'token str,
