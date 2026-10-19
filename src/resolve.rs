@@ -244,6 +244,10 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<String, ErrorKind> {
     let end = rest.find("?>").ok_or(ErrorKind::InvalidDeclaration)?;
     let (declaration, _) =
         crate::parser::parse_declaration(&rest[..end], 0, true).map_err(|error| error.kind)?;
+    // libxml2: "Version mismatch between document and entity".
+    if declaration.version != "1.0" {
+        return Err(ErrorKind::InvalidDeclaration);
+    }
     declaration
         .encoding
         .and_then(charset)

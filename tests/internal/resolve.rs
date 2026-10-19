@@ -10,7 +10,7 @@ fn decode_normalizes_supported_resources_and_rejects_malformed_ones() {
                 .flat_map(u16::to_le_bytes),
         )
         .collect();
-    let cases: [(&[u8], Result<&str, ErrorKind>); 16] = [
+    let cases: [(&[u8], Result<&str, ErrorKind>); 17] = [
         (b"plain <a/>", Ok("plain <a/>")),
         (b"", Ok("")),
         (b"\xef\xbb\xbfbom", Ok("bom")),
@@ -21,6 +21,10 @@ fn decode_normalizes_supported_resources_and_rejects_malformed_ones() {
         (b"<?xml encoding='ISO-8859-1'?>\xe9", Ok("\u{e9}")),
         (b"<?xmlfoo?>", Ok("<?xmlfoo?>")),
         (b"\xff", Err(ErrorKind::InvalidUtf8)),
+        (
+            b"<?xml version='1.1' encoding='UTF-8'?>",
+            Err(ErrorKind::InvalidDeclaration),
+        ),
         (b"\x01", Err(ErrorKind::InvalidCharacter)),
         (
             b"<?xml version='1.0'?>x",

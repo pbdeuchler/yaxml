@@ -298,6 +298,16 @@ fn malformed_or_refused_external_resources_fail() {
             &[("dir/s", "%undeclared;")],
             ErrorKind::UnknownEntity,
         ),
+        (
+            "<?xml version='1.0' standalone='yes'?><!DOCTYPE r SYSTEM 's'><r>&e;</r>",
+            &[("dir/s", "<!ENTITY e 'external'>")],
+            ErrorKind::UnknownEntity,
+        ),
+        (
+            "<!DOCTYPE r SYSTEM 's'><r/>",
+            &[("dir/s", "<!ENTITY % p '<!ELEMENT r '>%p;ANY>")],
+            ErrorKind::InvalidDtd,
+        ),
     ];
     for (input, files, kind) in cases {
         assert_eq!(all(input, files, Limits::default()), Err(*kind), "{input}");

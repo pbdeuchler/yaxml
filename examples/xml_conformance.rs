@@ -104,12 +104,18 @@ fn read_file(path: &Path, maximum: usize) -> io::Result<Vec<u8>> {
     bounded_read(file, maximum)
 }
 
-fn run_worker() -> Result<(), Box<dyn std::error::Error>> {
+/// `--worker [suite-root case-path]`: the optional pair enables a resolver.
+fn run_worker(context: &[OsString]) -> Result<(), Box<dyn std::error::Error>> {
     use std::fmt::Write as _;
+    let context = match context {
+        [] => None,
+        [root, path] => Some((Path::new(root), path.to_str().ok_or("case path must be UTF-8")?)),
+        _ => return Err("worker takes a suite root and case path or nothing".into()),
+    };
     let input = bounded_read(io::stdin().lock(), worker::MAX_CASE_BYTES)?;
     let mut output = format!("{WORKER_HEADER}\n");
     for surface in worker::SURFACES {
-        match worker::observe(surface, &input)? {
+        match worker::observe(surface, &input, context)? {
             Ok(()) => writeln!(output, "{surface}\taccepted\t\t")?,
             Err(error) => writeln!(
                 output,
@@ -291,7 +297,7 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
             }
             let captured = process::run(
                 &executable,
-                &["--worker"],
+                &["--worker", root.to_str().ok_or("suite root must be UTF-8")?, path],
                 &input,
                 process::ProcessLimits {
                     timeout: Duration::from_secs(CASE_SECONDS).min(remaining),
@@ -384,8 +390,8 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args == [OsString::from("--worker")] {
-        run_worker()
+    if args.first() == Some(&OsString::from("--worker")) {
+        run_worker(&args[1..])
     } else {
         run(Args::parse(args)?)
     }

@@ -279,8 +279,8 @@ impl DtdCatalog {
     }
 
     /// Reads through `until`, expanding parameter references outside literals
-    /// with one space of padding on each side. Crossing an entity boundary is
-    /// only a validity error (libxml2's `XML_ERR_ENTITY_BOUNDARY`).
+    /// with one space of padding on each side. Ending a reference made inside
+    /// the declaration elsewhere is only a validity error in libxml2.
     fn collect(
         &mut self,
         subset: &str,
@@ -288,13 +288,16 @@ impl DtdCatalog {
         outer: &[EntityId],
         until: Until,
     ) -> Result<String, CatalogError> {
+        let depth = frames.len();
         let mut output = String::new();
         let mut quote = None;
         loop {
             let frame = frames.last().ok_or_else(syntax)?;
             let rest = &self.text(subset, frame.source)[frame.cursor..];
+            // WFC PE Between Declarations: text entered between declarations
+            // holds whole declarations; deeper references may split one.
             let Some(character) = rest.chars().next() else {
-                if frames.len() == 1 {
+                if frames.len() <= depth {
                     return Err(syntax());
                 }
                 self.leave(frames);
