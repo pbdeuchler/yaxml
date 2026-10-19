@@ -1295,12 +1295,8 @@ impl<'source> ParserState<'source> {
         &mut self,
         kind: DtdLeafKind,
         raw: &str,
-        local_range: Range<usize>,
+        start: usize,
     ) -> Result<Event<'static>, Error> {
-        let start = local_range.start;
-        if local_range.end.checked_sub(start) != Some(raw.len()) {
-            return Err(Error::new(ErrorKind::InvalidState, start));
-        }
         if raw.len() > self.token_limit {
             return Err(Error::new(
                 ErrorKind::LimitExceeded(self.token_limit_kind),
@@ -2111,18 +2107,17 @@ impl<'source> ParserState<'source> {
         let qualified = if open == Some(trimmed) {
             Cow::Borrowed(trimmed)
         } else {
-            let named = scan.name().and_then(|qualified| {
+            // A Name and spaces alone would equal `trimmed`: they name
+            // another element.
+            let error = scan.name().map_or_else(std::convert::identity, |_| {
                 scan.skip_space();
-                match (scan.cursor == body.len(), open == Some(qualified)) {
-                    (false, _) => Err(Error::new(ErrorKind::Syntax, start)),
-                    (true, false) => Err(Error::new(ErrorKind::MismatchedEndTag, start)),
-                    (true, true) => Ok(qualified),
-                }
+                let kind = match scan.cursor == body.len() {
+                    true => ErrorKind::MismatchedEndTag,
+                    false => ErrorKind::Syntax,
+                };
+                Error::new(kind, start)
             });
-            match named {
-                Ok(qualified) => Cow::Borrowed(qualified),
-                Err(error) => self.end_open(error)?,
-            }
+            self.end_open(error)?
         };
         let prefix_length = memchr(b':', qualified.as_bytes()).and_then(NonZeroUsize::new);
         let name = self.resolve_name(qualified, prefix_length, start + 2, false)?;
