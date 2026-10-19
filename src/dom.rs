@@ -146,7 +146,7 @@ impl<'input> Document<'input> {
                     }
                 }
                 Event::Text(value) => {
-                    document.append(parent, NodeKind::Text(value), origin)?;
+                    document.append_text(parent, value, origin, reader.owned_budget())?;
                 }
                 Event::Cdata(value) => {
                     document.append(parent, NodeKind::Cdata(value), origin)?;
@@ -177,6 +177,30 @@ impl<'input> Document<'input> {
         origin: SourceOrigin,
     ) -> Result<NodeId, Error> {
         append_record(&mut self.nodes, parent, kind, origin)
+    }
+
+    fn append_text(
+        &mut self,
+        parent: NodeId,
+        value: Cow<'input, str>,
+        origin: SourceOrigin,
+        budget: &mut crate::parser::Budget,
+    ) -> Result<Option<NodeId>, Error> {
+        let last = self.nodes[parent.0].last_child;
+        if value.is_empty() {
+            return Ok(last.filter(|id| matches!(self.nodes[id.0].kind, NodeKind::Text(_))));
+        }
+        let Some(last) = last else {
+            return self.append(parent, NodeKind::Text(value), origin).map(Some);
+        };
+        let record = &mut self.nodes[last.0];
+        let NodeKind::Text(previous) = &mut record.kind else {
+            return self.append(parent, NodeKind::Text(value), origin).map(Some);
+        };
+        let joined = record.origin.join_text(origin);
+        append_text_value(previous, &value, origin.error_offset(), budget)?;
+        record.origin = joined;
+        Ok(Some(last))
     }
 
     /// Returns the synthetic document root, including surrounding comments and PIs.
@@ -212,6 +236,61 @@ impl<'input> Document<'input> {
     pub fn declaration(&self) -> Option<&Declaration<'input>> {
         self.declaration.as_ref()
     }
+}
+
+fn append_text_value<'input>(
+    previous: &mut Cow<'input, str>,
+    incoming: &str,
+    offset: usize,
+    budget: &mut crate::parser::Budget,
+) -> Result<(), Error> {
+    let needed = previous
+        .len()
+        .checked_add(incoming.len())
+        .ok_or(Error::new(
+            ErrorKind::LimitExceeded(crate::Limit::OwnedBytes),
+            offset,
+        ))?;
+    match previous {
+        Cow::Borrowed(prefix) => {
+            let mut joined = String::new();
+            reserve_text(&mut joined, needed, offset, budget)?;
+            joined.push_str(prefix);
+            joined.push_str(incoming);
+            *previous = Cow::Owned(joined);
+        }
+        Cow::Owned(value) => {
+            reserve_text(value, needed, offset, budget)?;
+            value.push_str(incoming);
+        }
+    }
+    Ok(())
+}
+
+fn reserve_text(
+    value: &mut String,
+    needed: usize,
+    offset: usize,
+    budget: &mut crate::parser::Budget,
+) -> Result<(), Error> {
+    if needed <= value.capacity() {
+        return Ok(());
+    }
+    let target = value
+        .capacity()
+        .saturating_mul(2)
+        .max(needed)
+        .min(budget.remaining_owned());
+    if target < needed {
+        return Err(Error::new(
+            ErrorKind::LimitExceeded(crate::Limit::OwnedBytes),
+            offset,
+        ));
+    }
+    budget.charge_owned(target, offset)?;
+    value
+        .try_reserve_exact(target - value.len())
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))
 }
 
 /// A read-only node view whose lifetime is bounded by its document.
@@ -345,3 +424,11 @@ impl<'document, 'input> Node<'document, 'input> {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/internal/dom_text_join_author.rs"]
+mod text_join_author_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dom_text_join_spec.rs"]
+mod text_join_spec_tests;

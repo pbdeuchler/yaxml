@@ -1,5 +1,15 @@
 use std::io::{self, Write};
 
+#[cfg(test)]
+use crate::dtd::{DtdUnit, DtdUnitView, LiteralSource};
+#[cfg(test)]
+use crate::dtd_controller::TakenDtdEvent;
+#[cfg(test)]
+use crate::dtd_tag::DtdTagError;
+#[cfg(test)]
+use crate::dtd_writer::{
+    DtdEventWriteError, DtdWriteError, DtdWriteErrorKind, DtdWriteLimits, DtdWriterState,
+};
 use crate::escape::xml_char;
 use crate::parser::{ParserState, space};
 use crate::tokenizer::TokenKind;
@@ -60,6 +70,10 @@ pub struct Writer<W: Write> {
     limits: WriterLimits,
     position: usize,
     status: Status,
+    #[cfg(test)]
+    dtd: Vec<DtdWriterState>,
+    #[cfg(test)]
+    dtd_standalone: bool,
 }
 
 impl<W: Write> Writer<W> {
@@ -90,6 +104,10 @@ impl<W: Write> Writer<W> {
             limits,
             position: 0,
             status: Status::Fresh,
+            #[cfg(test)]
+            dtd: Vec::new(),
+            #[cfg(test)]
+            dtd_standalone: false,
         }
     }
 
@@ -153,7 +171,19 @@ impl<W: Write> Writer<W> {
     }
 
     pub(crate) fn write_event_inner(&mut self, event: &Event<'_>) -> Result<(), WriteError> {
+        #[cfg(test)]
+        if matches!(event, Event::Start(_) | Event::Empty(_))
+            && self.dtd.first().is_some_and(DtdWriterState::is_complete)
+        {
+            return self
+                .write_dtd_body_event_inner(event)
+                .map_err(dtd_event_as_write_error);
+        }
         self.prepare(event).map_err(WriteError::Xml)?;
+        self.write_buffer()
+    }
+
+    fn write_buffer(&mut self) -> Result<(), WriteError> {
         let mut cursor = 0;
         let bytes = self.buffer.text.as_bytes();
         while cursor < bytes.len() {
@@ -196,6 +226,13 @@ impl<W: Write> Writer<W> {
     }
 
     fn finish_inner(&mut self) -> Result<(), WriteError> {
+        #[cfg(test)]
+        if self.dtd.first().is_some_and(DtdWriterState::is_open) {
+            return Err(WriteError::Xml(Error::new(
+                ErrorKind::UnexpectedEof,
+                self.position,
+            )));
+        }
         self.state
             .validate_finish(self.position)
             .map_err(WriteError::Xml)?;
@@ -214,15 +251,29 @@ impl<W: Write> Writer<W> {
     }
 
     fn prepare(&mut self, event: &Event<'_>) -> Result<(), Error> {
-        let remaining = self.limits.max_output_bytes - self.position;
-        self.buffer.text.clear();
-        self.buffer.offset = self.position;
-        self.buffer.limit = self.limits.max_token_bytes.min(remaining);
-        self.buffer.ceiling = if remaining <= self.limits.max_token_bytes {
-            Limit::OutputBytes
-        } else {
-            Limit::TokenBytes
-        };
+        #[cfg(test)]
+        if self.dtd.first().is_some_and(DtdWriterState::is_open) {
+            return Err(Error::new(ErrorKind::Syntax, self.position));
+        }
+        self.reset_buffer();
+        let kind = self.encode_event(event)?;
+        self.validate_buffer_characters()?;
+        let raw = &self.buffer.text;
+        let parsed = self.state.process_token(
+            kind,
+            raw,
+            self.position..self.position + raw.len(),
+            |raw, offset, budget| budget.copy(raw, offset),
+        )?;
+        check_event(event, parsed.as_ref(), self.position)?;
+        #[cfg(test)]
+        if let Event::Declaration(declaration) = event {
+            self.dtd_standalone = declaration.standalone.unwrap_or(false);
+        }
+        Ok(())
+    }
+
+    fn encode_event(&mut self, event: &Event<'_>) -> Result<TokenKind, Error> {
         let buffer = &mut self.buffer;
         let kind = match event {
             Event::Start(element) | Event::Empty(element) => {
@@ -319,21 +370,305 @@ impl<W: Write> Writer<W> {
                 TokenKind::Instruction
             }
         };
-        let raw = &buffer.text;
-        if let Some((relative, _)) = raw.char_indices().find(|(_, c)| !xml_char(*c)) {
+        Ok(kind)
+    }
+
+    fn validate_buffer_characters(&self) -> Result<(), Error> {
+        if let Some((relative, _)) = self
+            .buffer
+            .text
+            .char_indices()
+            .find(|(_, character)| !xml_char(*character))
+        {
             return Err(Error::new(
                 ErrorKind::InvalidCharacter,
                 self.position + relative,
             ));
         }
-        let parsed = self.state.process_token(
-            kind,
-            raw,
-            self.position..self.position + raw.len(),
-            |raw, offset, budget| budget.copy(raw, offset),
-        )?;
-        check_event(event, parsed.as_ref(), self.position)
+        Ok(())
     }
+
+    fn reset_buffer(&mut self) {
+        let remaining = self.limits.max_output_bytes - self.position;
+        self.buffer.text.clear();
+        self.buffer.offset = self.position;
+        self.buffer.limit = self.limits.max_token_bytes.min(remaining);
+        self.buffer.ceiling = if remaining <= self.limits.max_token_bytes {
+            Limit::OutputBytes
+        } else {
+            Limit::TokenBytes
+        };
+    }
+
+    #[cfg(test)]
+    pub(crate) fn write_dtd_event(
+        &mut self,
+        event: &TakenDtdEvent<'_>,
+    ) -> Result<(), DtdEventWriteError> {
+        self.write_dtd_event_with_limits(event, DtdWriteLimits::default())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn write_dtd_event_with_limits(
+        &mut self,
+        event: &TakenDtdEvent<'_>,
+        limits: DtdWriteLimits,
+    ) -> Result<(), DtdEventWriteError> {
+        if !matches!(self.status, Status::Fresh | Status::Active) {
+            self.status = Status::Failed;
+            return Err(self.invalid_state().into());
+        }
+        self.status = Status::Failed;
+        self.write_dtd_event_inner(event, limits)?;
+        self.status = Status::Active;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn write_dtd_body_event_inner(&mut self, event: &Event<'_>) -> Result<(), DtdEventWriteError> {
+        self.prepare_dtd_body_event(event)?;
+        self.write_buffer()?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn prepare_dtd_body_event(&mut self, event: &Event<'_>) -> Result<(), DtdEventWriteError> {
+        let Some(dtd) = self.dtd.first_mut() else {
+            return Err(dtd_write_error(
+                DtdWriteErrorKind::InvalidSequence,
+                self.position,
+                None,
+            ));
+        };
+        dtd.check_body_ready(self.position)?;
+        if !matches!(event, Event::Start(_) | Event::Empty(_)) {
+            return Err(dtd_write_error(
+                DtdWriteErrorKind::InvalidSequence,
+                self.position,
+                None,
+            ));
+        }
+
+        self.reset_buffer();
+        let kind = self.encode_event(event).map_err(WriteError::Xml)?;
+        debug_assert_eq!(kind, TokenKind::Start);
+        self.validate_buffer_characters().map_err(WriteError::Xml)?;
+        let raw = &self.buffer.text;
+        let start = self.position;
+        let (parser, dtd) = (&mut self.state, &mut self.dtd[0]);
+        dtd.process_body_tag(start, |catalog| {
+            let parsed = parser.process_dtd_start(
+                raw,
+                start,
+                catalog,
+                LiteralSource::Physical,
+                &mut |raw, offset, budget| budget.copy(raw, offset),
+            )?;
+            check_dtd_body_event(event, &parsed, start).map_err(DtdTagError::from)
+        })?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn write_dtd_event_inner(
+        &mut self,
+        event: &TakenDtdEvent<'_>,
+        limits: DtdWriteLimits,
+    ) -> Result<(), DtdEventWriteError> {
+        match event {
+            TakenDtdEvent::Begin(unit) => {
+                if !self.dtd.is_empty() {
+                    return Err(dtd_write_error(
+                        DtdWriteErrorKind::InvalidSequence,
+                        self.position,
+                        None,
+                    ));
+                }
+                self.state
+                    .check_doctype_start(self.position)
+                    .map_err(WriteError::Xml)?;
+                DtdWriterState::check_begin_counts(limits, self.position)?;
+                let DtdUnitView::Header(header) = unit.view() else {
+                    return Err(dtd_write_error(
+                        DtdWriteErrorKind::InvalidUnitFamily,
+                        self.position,
+                        None,
+                    ));
+                };
+                DtdWriterState::check_unit_bounds(unit, limits.unit, self.position)?;
+                self.reset_buffer();
+                let raw = if header.has_internal_subset() {
+                    unit.raw()
+                } else {
+                    unit.raw()
+                        .strip_suffix('>')
+                        .expect("validated no-subset header owns its delimiter")
+                };
+                self.buffer.push(raw).map_err(WriteError::Xml)?;
+                self.dtd.try_reserve_exact(1).map_err(|_| {
+                    dtd_write_error(DtdWriteErrorKind::Allocation, self.position, None)
+                })?;
+                let state = DtdWriterState::begin(
+                    unit,
+                    self.buffer.text.len(),
+                    self.position,
+                    self.dtd_standalone,
+                    limits,
+                )?;
+                self.dtd.push(state);
+            }
+            TakenDtdEvent::Item { unit, literals } => {
+                let Some(state) = self.dtd.first() else {
+                    return Err(dtd_write_error(
+                        DtdWriteErrorKind::InvalidSequence,
+                        self.position,
+                        None,
+                    ));
+                };
+                if !state.allows_items() {
+                    return Err(dtd_write_error(
+                        DtdWriteErrorKind::InvalidSequence,
+                        self.position,
+                        None,
+                    ));
+                }
+                self.state
+                    .check_event_limit(self.position)
+                    .map_err(WriteError::Xml)?;
+                state.check_item_counts(self.position)?;
+                if matches!(unit.view(), DtdUnitView::Header(_)) {
+                    return Err(dtd_write_error(
+                        DtdWriteErrorKind::InvalidUnitFamily,
+                        self.position,
+                        None,
+                    ));
+                }
+                DtdWriterState::check_unit_bounds(unit, state.unit_limits(), self.position)?;
+                self.reset_buffer();
+                self.encode_dtd_item(unit, *literals)?;
+                self.dtd[0].item(unit, *literals, self.buffer.text.len(), self.position)?;
+            }
+            TakenDtdEvent::End => {
+                let Some(has_internal_subset) = self
+                    .dtd
+                    .first()
+                    .and_then(DtdWriterState::has_internal_subset)
+                else {
+                    return Err(dtd_write_error(
+                        DtdWriteErrorKind::InvalidSequence,
+                        self.position,
+                        None,
+                    ));
+                };
+                self.state
+                    .check_event_limit(self.position)
+                    .map_err(WriteError::Xml)?;
+                self.dtd[0].check_event_count(self.position)?;
+                self.reset_buffer();
+                self.buffer
+                    .push(if has_internal_subset { "]>" } else { ">" })
+                    .map_err(WriteError::Xml)?;
+                self.dtd[0].end(self.buffer.text.len(), self.position)?;
+            }
+        }
+        self.state.commit_checked_dtd_event();
+        self.write_buffer()?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn encode_dtd_item(
+        &mut self,
+        unit: &DtdUnit<'_>,
+        literals: LiteralSource,
+    ) -> Result<(), DtdEventWriteError> {
+        for fragment in unit.physical_fragments(literals) {
+            match fragment {
+                Ok(fragment) => self.buffer.push(fragment).map_err(WriteError::Xml)?,
+                Err(error) => {
+                    let output_offset = self
+                        .position
+                        .checked_add(self.buffer.text.len())
+                        .ok_or_else(|| {
+                            dtd_write_error(
+                                DtdWriteErrorKind::PositionOverflow,
+                                self.position,
+                                Some(error.offset),
+                            )
+                        })?;
+                    return Err(dtd_write_error(
+                        DtdWriteErrorKind::UnrepresentableIdentifier,
+                        output_offset,
+                        Some(error.offset),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+fn dtd_write_error(
+    kind: DtdWriteErrorKind,
+    output_offset: usize,
+    unit_offset: Option<usize>,
+) -> DtdEventWriteError {
+    DtdWriteError {
+        kind,
+        output_offset,
+        unit_offset,
+        value_location: None,
+    }
+    .into()
+}
+
+#[cfg(test)]
+fn dtd_event_as_write_error(error: DtdEventWriteError) -> WriteError {
+    match error {
+        DtdEventWriteError::Writer(error) => error,
+        DtdEventWriteError::Dtd(error) => {
+            let kind = match error.kind {
+                DtdWriteErrorKind::Parser(kind) => kind,
+                DtdWriteErrorKind::Catalog(crate::dtd_catalog::CatalogErrorKind::Allocation)
+                | DtdWriteErrorKind::Allocation
+                | DtdWriteErrorKind::PositionOverflow => ErrorKind::Allocation,
+                DtdWriteErrorKind::Catalog(
+                    crate::dtd_catalog::CatalogErrorKind::InvalidCharacter,
+                ) => ErrorKind::InvalidCharacter,
+                DtdWriteErrorKind::Catalog(
+                    crate::dtd_catalog::CatalogErrorKind::InvalidReference,
+                ) => ErrorKind::InvalidReference,
+                DtdWriteErrorKind::Unavailable(_) => ErrorKind::UnknownEntity,
+                _ => ErrorKind::Syntax,
+            };
+            WriteError::Xml(Error::new(kind, error.output_offset))
+        }
+    }
+}
+
+#[cfg(test)]
+fn check_dtd_body_event(
+    supplied: &Event<'_>,
+    parsed: &Event<'_>,
+    offset: usize,
+) -> Result<(), Error> {
+    let (supplied, parsed) = match (supplied, parsed) {
+        (Event::Start(supplied), Event::Start(parsed))
+        | (Event::Empty(supplied), Event::Empty(parsed)) => (supplied, parsed),
+        _ => return Err(Error::new(ErrorKind::Syntax, offset)),
+    };
+    check_name(&supplied.name, &parsed.name, offset)?;
+    if parsed.attributes.len() < supplied.attributes.len() {
+        return Err(Error::new(ErrorKind::InvalidName, offset));
+    }
+    for (supplied, parsed) in supplied.attributes.iter().zip(&parsed.attributes) {
+        check_name(&supplied.name, &parsed.name, offset)?;
+        if supplied.value != parsed.value {
+            return Err(Error::new(ErrorKind::Syntax, offset));
+        }
+    }
+    Ok(())
 }
 
 fn check_name(supplied: &Name<'_>, parsed: &Name<'_>, offset: usize) -> Result<(), Error> {
@@ -451,3 +786,11 @@ impl TokenBuffer {
 #[cfg(test)]
 #[path = "../tests/internal/writer.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_writer_integration_author.rs"]
+mod dtd_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_writer_spec.rs"]
+mod dtd_spec_tests;

@@ -1,9 +1,9 @@
 //! Pure campaign policy and coverage-summary logic.
 #![forbid(unsafe_code)]
 
+use crate::file_identity::content_identity;
 use std::collections::BTreeSet;
 use std::fmt;
-use std::path::Path;
 
 pub const MAX_INPUT_BYTES: usize = 1024 * 1024;
 pub const MAX_SEED_BYTES: usize = 8 * 1024 * 1024;
@@ -129,7 +129,33 @@ impl Counts {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Summary {
     pub counts: Counts,
-    pub files: Vec<String>,
+    pub sources: Vec<SourceSummary>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceSummary {
+    pub key: String,
+    pub counts: Counts,
+}
+
+impl Summary {
+    pub fn denominators_match(&self, old: &Self) -> bool {
+        self.counts.denominators_match(old.counts)
+            && self.sources.len() == old.sources.len()
+            && self
+                .sources
+                .iter()
+                .zip(&old.sources)
+                .all(|(new, old)| new.key == old.key && new.counts.denominators_match(old.counts))
+    }
+
+    pub fn covered_never_decreases(&self, old: &Self) -> bool {
+        self.counts.covered_never_decreases(old.counts)
+            && self.sources.len() == old.sources.len()
+            && self.sources.iter().zip(&old.sources).all(|(new, old)| {
+                new.key == old.key && new.counts.covered_never_decreases(old.counts)
+            })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -166,19 +192,28 @@ pub fn parse_summary(text: &str, expected_files: &[String]) -> Result<Summary, C
     let header = lines
         .next()
         .ok_or(CampaignError::Report("missing header"))?;
+    check_line(header)?;
     if header.split_whitespace().collect::<Vec<_>>() != HEADER {
         return Err(CampaignError::Report("unexpected LLVM report header"));
     }
-    let mut files = Vec::new();
+    let mut raw_sources = Vec::new();
     let mut total = None;
     let mut sums = Totals::default();
     for line in lines {
-        let fields: Vec<_> = line.split_whitespace().collect();
-        if fields.is_empty() || fields[0].bytes().all(|byte| byte == b'-') {
+        check_line(line)?;
+        if line.is_empty() || separator(line) {
             continue;
         }
+        let fields: Vec<_> = line.split_whitespace().collect();
         if fields.len() != 13 {
             return Err(CampaignError::Report("unexpected summary row width"));
+        }
+        if total.is_some() {
+            return if fields[0] == "TOTAL" {
+                Err(CampaignError::Report("duplicate TOTAL row"))
+            } else {
+                Err(CampaignError::Report("data follows TOTAL row"))
+            };
         }
         let counts = Counts {
             regions_total: number(fields[1])?,
@@ -199,7 +234,7 @@ pub fn parse_summary(text: &str, expected_files: &[String]) -> Result<Summary, C
                 return Err(CampaignError::Report("duplicate TOTAL row"));
             }
         } else {
-            files.push(fields[0].to_owned());
+            raw_sources.push((fields[0].to_owned(), counts));
             add(&mut sums.regions, counts.regions_total, number(fields[2])?)?;
             add(
                 &mut sums.functions,
@@ -214,11 +249,19 @@ pub fn parse_summary(text: &str, expected_files: &[String]) -> Result<Summary, C
             )?;
         }
     }
+    let mut sources = Vec::with_capacity(raw_sources.len());
+    for (raw, counts) in raw_sources {
+        sources.push(SourceSummary {
+            key: normalize_source_key(&raw)?,
+            counts,
+        });
+    }
+    sources.sort_by(|left, right| left.key.cmp(&right.key));
     let expected: BTreeSet<_> = expected_files.iter().map(String::as_str).collect();
-    let actual: BTreeSet<_> = files.iter().map(String::as_str).collect();
+    let actual: BTreeSet<_> = sources.iter().map(|source| source.key.as_str()).collect();
     if expected.len() != expected_files.len()
         || actual != expected
-        || files.len() != expected_files.len()
+        || sources.len() != expected_files.len()
     {
         return Err(CampaignError::Report(
             "production source rows differ from manifest",
@@ -255,7 +298,73 @@ pub fn parse_summary(text: &str, expected_files: &[String]) -> Result<Summary, C
     {
         return Err(CampaignError::Report("missed count exceeds denominator"));
     }
-    Ok(Summary { counts, files })
+    Ok(Summary { counts, sources })
+}
+
+const MAX_REPORT_LINE_BYTES: usize = 64 * 1024;
+const MAX_SOURCE_KEY_BYTES: usize = 32 * 1024;
+
+fn check_line(line: &str) -> Result<(), CampaignError> {
+    if line.strip_suffix('\r').unwrap_or(line).len() > MAX_REPORT_LINE_BYTES {
+        return Err(CampaignError::Report("LLVM report line exceeds 64 KiB"));
+    }
+    Ok(())
+}
+
+fn separator(line: &str) -> bool {
+    let mut has_dash = false;
+    for character in line.chars() {
+        if character == '-' {
+            has_dash = true;
+        } else if !character.is_whitespace() {
+            return false;
+        }
+    }
+    has_dash
+}
+
+fn normalize_source_key(raw: &str) -> Result<String, CampaignError> {
+    if raw.is_empty()
+        || raw.len() > MAX_SOURCE_KEY_BYTES
+        || raw
+            .chars()
+            .any(|character| character.is_control() || character.is_whitespace())
+        || raw.starts_with('/')
+        || raw.ends_with('/')
+        || raw.contains("//")
+        || raw.contains('\\')
+        || raw.as_bytes().get(1) == Some(&b':')
+    {
+        return Err(CampaignError::Report("invalid SrcRelativeV1 source label"));
+    }
+    let mut normalized = String::with_capacity(raw.len());
+    for (index, component) in raw.split('/').enumerate() {
+        if component.is_empty() || component == "." || component == ".." {
+            return Err(CampaignError::Report("invalid SrcRelativeV1 source label"));
+        }
+        if index != 0 {
+            normalized.push('/');
+        }
+        normalized.push_str(component);
+    }
+    if normalized.len() > MAX_SOURCE_KEY_BYTES {
+        return Err(CampaignError::Report("invalid SrcRelativeV1 source label"));
+    }
+    Ok(normalized)
+}
+
+#[cfg(test)]
+pub fn matching_intersection(master: &Summary, subset: &Summary) -> bool {
+    let master: std::collections::BTreeMap<_, _> = master
+        .sources
+        .iter()
+        .map(|source| (source.key.as_str(), source.counts))
+        .collect();
+    subset.sources.iter().all(|source| {
+        master
+            .get(source.key.as_str())
+            .is_some_and(|counts| *counts == source.counts)
+    })
 }
 
 fn number(field: &str) -> Result<u64, CampaignError> {
@@ -324,48 +433,7 @@ impl std::error::Error for CampaignError {}
 
 /// Stable accidental-corruption identity; this is not a cryptographic hash.
 pub fn identity(bytes: &[u8]) -> (u64, usize) {
-    let mut hash = 0xcbf29ce484222325u64;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    (hash, bytes.len())
-}
-
-pub fn source_names(
-    source_directory: &Path,
-    paths: &[impl AsRef<Path>],
-) -> Result<Vec<String>, CampaignError> {
-    let mut names = Vec::with_capacity(paths.len());
-    for path in paths {
-        let path = path.as_ref();
-        let relative = path
-            .strip_prefix(source_directory)
-            .map_err(|_| CampaignError::Invalid("production source escaped its src directory"))?;
-        let name = relative.to_str().ok_or(CampaignError::Invalid(
-            "production source relative path is not UTF-8",
-        ))?;
-        if name.is_empty()
-            || relative.components().any(|component| {
-                matches!(
-                    component,
-                    std::path::Component::ParentDir | std::path::Component::CurDir
-                )
-            })
-        {
-            return Err(CampaignError::Invalid(
-                "production source relative path is invalid",
-            ));
-        }
-        names.push(name.to_owned());
-    }
-    names.sort();
-    if names.is_empty() || names.windows(2).any(|pair| pair[0] == pair[1]) {
-        return Err(CampaignError::Invalid(
-            "production source list is empty or ambiguous",
-        ));
-    }
-    Ok(names)
+    content_identity(bytes)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -615,17 +683,126 @@ mod tests {
         assert_eq!(golden.next(), 0x02da6891e507685d);
     }
 
+    fn collision_report(root_missed: u64) -> String {
+        format!(
+            "Filename Regions Missed Regions Cover Functions Missed Functions Executed Lines Missed Lines Cover Branches Missed Branches Cover\n\
+             dtd.rs 11 {root_missed} 90.0% 2 0 100.0% 7 2 71.4% 4 1 75.0%\n\
+             reader/dtd.rs 13 2 84.6% 3 1 66.7% 9 1 88.9% 6 2 66.7%\n\
+             stream/dtd.rs 17 3 82.4% 4 1 75.0% 11 3 72.7% 8 1 87.5%\n\
+             dtd_controller/content.rs 19 4 78.9% 5 2 60.0% 13 4 69.2% 10 3 70.0%\n\
+             TOTAL 60 {} 83.3% 14 4 71.4% 40 10 75.0% 28 7 75.0%\n",
+            root_missed + 9
+        )
+    }
+
     #[test]
-    fn source_rows_preserve_sorted_relative_identity() {
-        assert_eq!(
-            source_names(
-                Path::new("src"),
-                &["src/z.rs", "src/owned/construction.rs", "src/a.rs"]
-            )
-            .unwrap(),
-            vec!["a.rs", "owned/construction.rs", "z.rs"]
+    fn three_dtd_paths_retain_independent_per_file_counts() {
+        let expected = vec![
+            "dtd.rs".to_owned(),
+            "dtd_controller/content.rs".to_owned(),
+            "reader/dtd.rs".to_owned(),
+            "stream/dtd.rs".to_owned(),
+        ];
+        let summary = parse_summary(&collision_report(1), &expected).unwrap();
+        assert_eq!(summary.sources.len(), 4);
+        assert_eq!(summary.sources[0].key, "dtd.rs");
+        assert_eq!(summary.sources[0].counts.regions_total, 11);
+        assert_eq!(summary.sources[1].key, "dtd_controller/content.rs");
+        assert_eq!(summary.sources[1].counts.branches_total, 10);
+        assert_eq!(summary.counts.regions_total, 60);
+        for bad in [
+            collision_report(1).replace("reader/dtd.rs", "dtd.rs"),
+            collision_report(1).replace("dtd_controller/content.rs", "content.rs"),
+            collision_report(1).replace("stream/dtd.rs", "src/stream/dtd.rs"),
+            collision_report(1).replace("reader/dtd.rs", "reader/./dtd.rs"),
+        ] {
+            assert!(parse_summary(&bad, &expected).is_err());
+        }
+    }
+
+    #[test]
+    fn report_lines_labels_total_and_per_file_drift_are_closed() {
+        let expected = vec![
+            "dtd.rs".to_owned(),
+            "dtd_controller/content.rs".to_owned(),
+            "reader/dtd.rs".to_owned(),
+            "stream/dtd.rs".to_owned(),
+        ];
+        let valid = collision_report(1);
+        let duplicate = valid.replace(
+            "TOTAL 60 10 83.3% 14 4 71.4% 40 10 75.0% 28 7 75.0%",
+            "dtd.rs 11 1 90.0% 2 0 100.0% 7 2 71.4% 4 1 75.0%\nTOTAL 71 11 84.5% 16 4 75.0% 47 12 74.5% 32 8 75.0%",
         );
-        assert!(source_names(Path::new("src"), &["src/a.rs", "other/a.rs"]).is_err());
-        assert!(source_names(Path::new("src"), &["src/a.rs", "src/a.rs"]).is_err());
+        assert_eq!(
+            parse_summary(&duplicate, &expected),
+            Err(CampaignError::Report(
+                "production source rows differ from manifest"
+            ))
+        );
+        assert_eq!(
+            parse_summary(
+                &(valid.clone() + "dtd.rs 1 0 100% 1 0 100% 1 0 100% 1 0 100%\n"),
+                &expected
+            ),
+            Err(CampaignError::Report("data follows TOTAL row"))
+        );
+        assert_eq!(
+            parse_summary(
+                &(valid.clone() + "TOTAL 1 0 100% 1 0 100% 1 0 100% 1 0 100%\n"),
+                &expected
+            ),
+            Err(CampaignError::Report("duplicate TOTAL row"))
+        );
+        let overlong = format!("{}\n", "x".repeat(MAX_REPORT_LINE_BYTES + 1));
+        assert!(check_line(&"x".repeat(MAX_REPORT_LINE_BYTES)).is_ok());
+        assert_eq!(
+            parse_summary(&overlong, &[]),
+            Err(CampaignError::Report("LLVM report line exceeds 64 KiB"))
+        );
+
+        let original = parse_summary(&valid, &expected).unwrap();
+        let swapped = valid
+            .replace("dtd.rs 11 1", "dtd.rs 12 2")
+            .replace("reader/dtd.rs 13 2", "reader/dtd.rs 12 1");
+        let swapped = parse_summary(&swapped, &expected).unwrap();
+        assert!(swapped.counts.denominators_match(original.counts));
+        assert!(!swapped.denominators_match(&original));
+
+        let exact = "a".repeat(MAX_SOURCE_KEY_BYTES);
+        assert_eq!(normalize_source_key(&exact).unwrap(), exact);
+        assert!(normalize_source_key(&("a".repeat(MAX_SOURCE_KEY_BYTES + 1))).is_err());
+        for invalid in [
+            "",
+            "/a.rs",
+            "src/a.rs/",
+            "a//b.rs",
+            "a/./b.rs",
+            "a/../b.rs",
+            "C:/a.rs",
+            "a\\b.rs",
+            "a\u{85}b.rs",
+        ] {
+            assert!(normalize_source_key(invalid).is_err(), "{invalid:?}");
+        }
+    }
+
+    #[test]
+    fn same_profile_intersection_compares_all_eight_counts() {
+        let expected = vec![
+            "dtd.rs".to_owned(),
+            "dtd_controller/content.rs".to_owned(),
+            "reader/dtd.rs".to_owned(),
+            "stream/dtd.rs".to_owned(),
+        ];
+        let master = parse_summary(&collision_report(1), &expected).unwrap();
+        let subset_text = "Filename Regions Missed Regions Cover Functions Missed Functions Executed Lines Missed Lines Cover Branches Missed Branches Cover\nreader/dtd.rs 13 2 84.6% 3 1 66.7% 9 1 88.9% 6 2 66.7%\nTOTAL 13 2 84.6% 3 1 66.7% 9 1 88.9% 6 2 66.7%\n";
+        let subset = parse_summary(subset_text, &["reader/dtd.rs".to_owned()]).unwrap();
+        assert!(matching_intersection(&master, &subset));
+        let changed = parse_summary(
+            &subset_text.replace("13 2 84.6%", "13 1 92.3%"),
+            &["reader/dtd.rs".to_owned()],
+        )
+        .unwrap();
+        assert!(!matching_intersection(&master, &changed));
     }
 }

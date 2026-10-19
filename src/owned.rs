@@ -377,6 +377,20 @@ impl Pool {
         Ok(start..needed)
     }
 
+    fn extend_tail(
+        &mut self,
+        range: &Range<usize>,
+        value: &str,
+        offset: usize,
+        budget: &mut Budget,
+    ) -> Result<Range<usize>, Error> {
+        if range.end != self.0.len() {
+            return Err(Error::new(ErrorKind::InvalidState, offset));
+        }
+        let added = self.store(value, offset, budget)?;
+        Ok(range.start..added.end)
+    }
+
     fn name(
         &mut self,
         name: &Name<'_>,
@@ -1120,6 +1134,11 @@ impl OwnedBuilder {
 
         let offset = origin.error_offset();
         let parent = self.parents.last().copied().unwrap_or(NodeId(0));
+        if let Event::Text(value) = &event
+            && (value.is_empty() || self.merge_text(parent, value, origin, budget)?)
+        {
+            return Ok(());
+        }
         let content = match event {
             Event::Declaration(declaration) => {
                 self.declaration = Some(StoredDeclaration {
@@ -1188,6 +1207,32 @@ impl OwnedBuilder {
             }
         }
         Ok(())
+    }
+
+    fn merge_text(
+        &mut self,
+        parent: NodeId,
+        value: &str,
+        origin: SourceOrigin,
+        budget: &mut Budget,
+    ) -> Result<bool, Error> {
+        let Some(last) = self.nodes[parent.0].last_child.get() else {
+            return Ok(false);
+        };
+        let Content::Text(range) = &self.nodes[last.0].content else {
+            return Ok(false);
+        };
+        let source = self.nodes[last.0]
+            .source
+            .ok_or_else(|| Error::new(ErrorKind::InvalidState, origin.error_offset()))?;
+        let joined = source.join_text(origin);
+        let extended = self
+            .pool
+            .extend_tail(range, value, origin.error_offset(), budget)?;
+        let record = &mut self.nodes[last.0];
+        record.content = Content::Text(extended);
+        record.source = Some(joined);
+        Ok(true)
     }
 
     fn append(
@@ -1414,6 +1459,14 @@ impl<'document> OwnedNode<'document> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/internal/owned_text_join_author.rs"]
+mod text_join_author_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/owned_text_join_spec.rs"]
+mod text_join_spec_tests;
 
 enum Descendants<'document> {
     Contiguous {

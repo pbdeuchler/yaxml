@@ -72,6 +72,13 @@ pub enum Event<'a> {
     },
 }
 
+enum ReaderStep<'input> {
+    Xml(Event<'input>),
+    Complete,
+    #[cfg(test)]
+    Doctype(usize),
+}
+
 /// Strict, namespace-aware XML 1.0 event reader over a complete UTF-8 input.
 ///
 /// This borrows the complete input; bounded-memory I/O streaming is a separate API.
@@ -179,6 +186,14 @@ impl<'a> Reader<'a> {
     }
 
     fn read_next(&mut self) -> Result<Option<Event<'a>>, Error> {
+        match self.read_step::<false>()? {
+            ReaderStep::Xml(event) => Ok(Some(event)),
+            ReaderStep::Complete => Ok(None),
+            #[cfg(test)]
+            ReaderStep::Doctype(_) => Err(Error::new(ErrorKind::InvalidState, self.cursor)),
+        }
+    }
+    fn read_step<const DTD: bool>(&mut self) -> Result<ReaderStep<'a>, Error> {
         loop {
             if !self.state.in_content() {
                 let start = self.cursor;
@@ -196,7 +211,7 @@ impl<'a> Reader<'a> {
             if start == self.input.len() {
                 self.state.validate_finish(start)?;
                 self.finished = true;
-                return Ok(None);
+                return Ok(ReaderStep::Complete);
             }
             self.state.check_event_limit(start)?;
             let tail = &self.input[start..];
@@ -222,6 +237,12 @@ impl<'a> Reader<'a> {
                 self.state.check_token_start(TokenKind::Start, start)?;
                 (TokenKind::Start, self.tag_end(start)?)
             };
+            #[cfg(test)]
+            if DTD && kind == TokenKind::Dtd {
+                self.check_token(start, end)?;
+                self.state.check_doctype_start(start)?;
+                return Ok(ReaderStep::Doctype(start));
+            }
             let result =
                 self.state
                     .process_token(kind, &self.input[start..end], start..end, |raw, _, _| {
@@ -250,9 +271,9 @@ impl<'a> Reader<'a> {
                 self.cursor = end;
             }
             let event = result?;
-            if event.is_some() {
+            if let Some(event) = event {
                 self.origin = Some(SourceOrigin::input(start..end));
-                return Ok(event);
+                return Ok(ReaderStep::Xml(event));
             }
         }
     }
@@ -313,3 +334,15 @@ impl<'a> Reader<'a> {
         ))
     }
 }
+
+#[cfg(test)]
+#[path = "reader/dtd.rs"]
+pub(crate) mod dtd;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_reader_spec.rs"]
+mod dtd_spec_tests;
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_reader_fuzz.rs"]
+mod dtd_fuzz_tests;

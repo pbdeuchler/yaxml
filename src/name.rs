@@ -95,6 +95,40 @@ impl<'a> Name<'a> {
         self.prefix_length
     }
 
+    #[cfg(test)]
+    pub(crate) fn qualified_source(&self) -> &Cow<'a, str> {
+        &self.qualified
+    }
+
+    #[cfg(test)]
+    pub(crate) fn namespace_source(&self) -> Option<&Cow<'a, str>> {
+        self.namespace.as_ref()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn into_fuzz_parts(self) -> (Cow<'a, str>, Option<Cow<'a, str>>) {
+        (self.qualified, self.namespace)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn try_into_static(self, offset: usize) -> Result<Name<'static>, Error> {
+        let Cow::Owned(qualified) = self.qualified else {
+            return Err(Error::new(ErrorKind::InvalidState, offset));
+        };
+        let namespace = match self.namespace {
+            Some(Cow::Owned(namespace)) => Some(Cow::Owned(namespace)),
+            Some(Cow::Borrowed(_)) => {
+                return Err(Error::new(ErrorKind::InvalidState, offset));
+            }
+            None => None,
+        };
+        Ok(Name::from_validated_parts(
+            Cow::Owned(qualified),
+            self.prefix_length,
+            namespace,
+        ))
+    }
+
     pub(crate) fn as_borrowed(&self) -> Name<'_> {
         Name::from_validated_parts(
             Cow::Borrowed(&self.qualified),
@@ -124,16 +158,19 @@ pub(crate) fn validate_name(name: &str, offset: usize, colon: bool) -> Result<()
         return Err(Error::new(ErrorKind::InvalidName, offset));
     }
     for (i, c) in chars {
-        if !name_start(c, colon)
-            && !matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')
-        {
+        if !name_char(c, colon) {
             return Err(Error::new(ErrorKind::InvalidName, offset + i));
         }
     }
     Ok(())
 }
 
-fn name_start(c: char, colon: bool) -> bool {
+pub(crate) fn name_char(c: char, colon: bool) -> bool {
+    name_start(c, colon)
+        || matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')
+}
+
+pub(crate) fn name_start(c: char, colon: bool) -> bool {
     (colon && c == ':')
         || matches!(c, 'A'..='Z' | 'a'..='z' | '_'
         | '\u{c0}'..='\u{d6}' | '\u{d8}'..='\u{f6}' | '\u{f8}'..='\u{2ff}'

@@ -1,0 +1,2478 @@
+//! Bounded deterministic driver for the private stable-input DTD reader.
+
+use super::dtd::{DtdReader, FuzzFailure, FuzzPhase, FuzzSnapshot, ReaderEvent};
+use super::*;
+use crate::dtd::{
+    AttributeTypeView, DefaultDeclarationView, DtdUnit, DtdUnitView, EntityDefinitionView,
+    LiteralSource, RawSource,
+};
+use crate::dtd_controller::{ControllerCounters, ControllerLimits, TakenDtdEvent};
+use crate::dtd_frames::FrameCounters;
+use crate::dtd_reference::ReferenceLimits;
+use crate::stream::dtd::{SessionError, SessionLimits};
+use crate::tokenizer::local::LocalLimits;
+use crate::tokenizer::text::{TextLimits, TextScratchLimits, TextUsage};
+use std::io::{self, Read, Write};
+use std::ops::Range;
+use std::process::{Command, Stdio};
+
+#[path = "dtd_reader_fuzz_step2.rs"]
+mod step2;
+
+const MAX_INPUT: usize = 1024 * 1024;
+const MAX_GENERATED: usize = 4 * 1024;
+const MAX_EVENTS: usize = 128;
+const MAX_DECLARATIONS: usize = 4;
+const MAX_BODY_OPERATIONS: usize = 8;
+const MAX_LOGICAL_EXPANSION: usize = 16 * 1024;
+const MAX_BASE_ENTITY_EXPANSION: usize = 1 + 255 * 8;
+const _: () = assert!(MAX_BODY_OPERATIONS * MAX_BASE_ENTITY_EXPANSION <= MAX_LOGICAL_EXPANSION);
+const TOKEN: usize = 4096;
+const WORK: usize = 64 * 1024 * 1024;
+
+fn options() -> SessionLimits {
+    SessionLimits {
+        declarations: ControllerLimits::default(),
+        text: TextLimits {
+            max_work: WORK,
+            reference: ReferenceLimits {
+                max_bytes: TOKEN,
+                max_scratch_bytes: TOKEN,
+                max_work: WORK,
+            },
+            scratch: TextScratchLimits {
+                input_token_bytes: Limits::default().max_token_bytes,
+                replacement_token_bytes: TOKEN,
+                max_bytes: Limits::default().max_token_bytes + TOKEN * 2,
+            },
+        },
+        local: LocalLimits {
+            max_token_bytes: TOKEN,
+            max_scratch_bytes: TOKEN,
+            max_work: WORK,
+        },
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ExpectedKind {
+    DtdBegin(String, RawSource),
+    DtdItem(String, LiteralSource, RawSource),
+    DtdEnd,
+    Declaration(String, Option<String>, Option<bool>),
+    Start(String, Option<String>, Vec<ExpectedAttribute>),
+    Empty(String, Option<String>, Vec<ExpectedAttribute>),
+    End(String, Option<String>),
+    Text(String),
+    Cdata(String),
+    Comment(String),
+    Pi(String, String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExpectedAttribute {
+    name: String,
+    namespace: Option<String>,
+    value: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExpectedOrigin {
+    full: SourceOrigin,
+    input: Option<Range<usize>>,
+    replacement: Option<Range<usize>>,
+    physical: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExpectedEvent {
+    kind: ExpectedKind,
+    origin: ExpectedOrigin,
+    fields: Vec<ExpectedField>,
+    dtd: Option<DtdSemantic>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum DtdSemantic {
+    Element {
+        name: String,
+        children: Vec<String>,
+    },
+    Comment(String),
+    Header {
+        root: String,
+        subset: bool,
+        external: Option<(Option<String>, Option<String>)>,
+    },
+    AttributeList {
+        element: String,
+        definitions: Vec<ExpectedAttributeDefinition>,
+    },
+    Entity {
+        parameter: bool,
+        name: String,
+        quoted: String,
+        quoted_offset: Option<usize>,
+        references: Vec<String>,
+    },
+    Other(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExpectedAttributeDefinition {
+    name: String,
+    name_offset: usize,
+    default: String,
+    default_offset: Option<usize>,
+}
+
+struct GeneratedCase {
+    source: String,
+    expected: Vec<ExpectedEvent>,
+    declarations: usize,
+    body_operations: usize,
+    logical_expansion: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FieldRole {
+    DtdRaw,
+    DeclarationVersion,
+    DeclarationEncoding,
+    ElementName,
+    ElementNamespace,
+    AttributeName(usize),
+    AttributeNamespace(usize),
+    AttributeValue(usize),
+    EndName,
+    EndNamespace,
+    Leaf,
+    PiTarget,
+    PiData,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ExpectedStorage {
+    Borrowed(Range<usize>),
+    Static,
+    Owned,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExpectedField {
+    role: FieldRole,
+    value: String,
+    storage: ExpectedStorage,
+}
+
+impl ExpectedEvent {
+    fn with_fields(mut self, fields: Vec<ExpectedField>) -> Self {
+        self.fields = fields;
+        self
+    }
+
+    fn with_dtd(mut self, dtd: DtdSemantic) -> Self {
+        self.dtd = Some(dtd);
+        self
+    }
+}
+
+fn borrowed_field(role: FieldRole, value: impl Into<String>, range: Range<usize>) -> ExpectedField {
+    ExpectedField {
+        role,
+        value: value.into(),
+        storage: ExpectedStorage::Borrowed(range),
+    }
+}
+
+fn owned_field(role: FieldRole, value: impl Into<String>) -> ExpectedField {
+    ExpectedField {
+        role,
+        value: value.into(),
+        storage: ExpectedStorage::Owned,
+    }
+}
+
+fn static_field(role: FieldRole, value: impl Into<String>) -> ExpectedField {
+    ExpectedField {
+        role,
+        value: value.into(),
+        storage: ExpectedStorage::Static,
+    }
+}
+
+fn physical(kind: ExpectedKind, range: Range<usize>) -> ExpectedEvent {
+    ExpectedEvent {
+        kind,
+        origin: ExpectedOrigin {
+            full: SourceOrigin::input(range.clone()),
+            input: Some(range.clone()),
+            replacement: None,
+            physical: range,
+        },
+        fields: Vec::new(),
+        dtd: None,
+    }
+}
+
+fn replacement(
+    kind: ExpectedKind,
+    declaration: usize,
+    invocation: u64,
+    local: Range<usize>,
+    physical_range: Range<usize>,
+) -> ExpectedEvent {
+    use crate::origin::{ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr};
+    use std::num::NonZeroU64;
+
+    let full = SourceOrigin::from_repr(OriginRepr::Replacement {
+        declaration: EntityDeclarationId::from_index(declaration),
+        invocation: EntityInvocationId(NonZeroU64::new(invocation).unwrap()),
+        local: ByteSpan::new(local.clone()).unwrap(),
+        physical_reference: ByteSpan::new(physical_range.clone()).unwrap(),
+    });
+    ExpectedEvent {
+        kind,
+        origin: ExpectedOrigin {
+            full,
+            input: None,
+            replacement: Some(local),
+            physical: physical_range,
+        },
+        fields: Vec::new(),
+        dtd: None,
+    }
+}
+
+fn push_physical(case: &mut GeneratedCase, raw: &str, kind: ExpectedKind) -> Range<usize> {
+    let start = case.source.len();
+    case.source.push_str(raw);
+    let range = start..case.source.len();
+    case.expected.push(physical(kind, range.clone()));
+    range
+}
+
+fn push_physical_fields(
+    case: &mut GeneratedCase,
+    raw: &str,
+    kind: ExpectedKind,
+    fields: Vec<(FieldRole, String, Range<usize>)>,
+) -> Range<usize> {
+    let start = case.source.len();
+    case.source.push_str(raw);
+    let range = start..case.source.len();
+    let fields = fields
+        .into_iter()
+        .map(|(role, value, relative)| {
+            borrowed_field(role, value, start + relative.start..start + relative.end)
+        })
+        .collect();
+    case.expected
+        .push(physical(kind, range.clone()).with_fields(fields));
+    range
+}
+
+fn push_physical_text(case: &mut GeneratedCase, value: &str) {
+    let start = case.source.len();
+    case.source.push_str(value);
+    let end = case.source.len();
+    if let Some(ExpectedEvent {
+        kind: ExpectedKind::Text(previous),
+        origin:
+            ExpectedOrigin {
+                input: Some(input),
+                replacement: None,
+                physical,
+                full,
+            },
+        fields,
+        ..
+    }) = case.expected.last_mut()
+        && input.end == start
+    {
+        previous.push_str(value);
+        input.end = end;
+        physical.end = end;
+        *full = SourceOrigin::input(input.clone());
+        let Some(ExpectedField {
+            role: FieldRole::Leaf,
+            value: field_value,
+            storage: ExpectedStorage::Borrowed(field_range),
+        }) = fields.first_mut()
+        else {
+            panic!("coalesced physical text must retain its exact field range");
+        };
+        field_value.push_str(value);
+        field_range.end = end;
+    } else {
+        case.expected.push(
+            physical(ExpectedKind::Text(value.to_owned()), start..end)
+                .with_fields(vec![borrowed_field(FieldRole::Leaf, value, start..end)]),
+        );
+    }
+}
+
+fn control(input: &[u8], at: usize) -> u8 {
+    input.get(at).copied().unwrap_or(0)
+}
+
+fn generated_case(input: &[u8]) -> GeneratedCase {
+    let case = match control(input, 0) % 4 {
+        0 => entity_case(input),
+        1 => namespace_default_case(),
+        2 => parameter_declaration_case(),
+        _ => declaration_misc_case(input),
+    };
+    assert!(case.source.len() <= MAX_GENERATED);
+    assert!(case.expected.len() <= MAX_EVENTS);
+    assert!(case.declarations <= MAX_DECLARATIONS);
+    assert!(case.body_operations <= MAX_BODY_OPERATIONS);
+    assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
+    case
+}
+
+fn empty_case() -> GeneratedCase {
+    GeneratedCase {
+        source: String::new(),
+        expected: Vec::new(),
+        declarations: 0,
+        body_operations: 0,
+        logical_expansion: 0,
+    }
+}
+
+fn push_no_subset(case: &mut GeneratedCase, root: &str) {
+    let raw = format!("<!DOCTYPE {root}>");
+    let start = case.source.len();
+    case.source.push_str(&raw);
+    let end = case.source.len();
+    case.expected.push(
+        physical(
+            ExpectedKind::DtdBegin(raw.clone(), RawSource::Borrowed),
+            start..end - 1,
+        )
+        .with_fields(vec![borrowed_field(FieldRole::DtdRaw, raw, start..end)]),
+    );
+    case.expected
+        .push(physical(ExpectedKind::DtdEnd, end - 1..end));
+}
+
+fn entity_case(input: &[u8]) -> GeneratedCase {
+    let root = match control(input, 8) % 3 {
+        0 => "r",
+        1 => "root",
+        _ => "x",
+    };
+    let declaration_count = usize::from(control(input, 1)) % (MAX_DECLARATIONS + 1);
+    let body_count = usize::from(control(input, 2)) % (MAX_BODY_OPERATIONS + 1);
+    let shape = control(input, 3) % 4;
+    let mut case = empty_case();
+    case.declarations = declaration_count;
+    case.body_operations = body_count;
+    let mut expansion_lengths = Vec::new();
+    let mut entity_values = Vec::new();
+
+    if declaration_count == 0 {
+        push_no_subset(&mut case, root);
+    } else {
+        let header = format!("<!DOCTYPE {root} [");
+        push_physical_fields(
+            &mut case,
+            &header,
+            ExpectedKind::DtdBegin(header.clone(), RawSource::Borrowed),
+            vec![(FieldRole::DtdRaw, header.clone(), 0..header.len())],
+        );
+        for index in 0..declaration_count {
+            let letter = char::from(b'a' + control(input, 9 + index) % 26);
+            let name = format!("e{index}{letter}");
+            let (value, expanded) = match (shape, index) {
+                (0, 0) => {
+                    let length = 1 + usize::from(control(input, 13)) * 8;
+                    ("v".repeat(length), length)
+                }
+                (1, _) => (String::new(), 0),
+                (2, _) => {
+                    let value = format!("<n{index}/>t");
+                    let expanded = value.len();
+                    (value, expanded)
+                }
+                (3, 0) => ("A".to_owned(), 1),
+                (3, _) => {
+                    let first = char::from(b'a' + control(input, 9) % 26);
+                    (format!("&e0{first};B"), expansion_lengths[0] + 1)
+                }
+                _ => (format!("V{index}"), 2),
+            };
+            expansion_lengths.push(expanded);
+            entity_values.push(value.clone());
+            let raw = format!("<!ENTITY {name} '{value}'>");
+            push_physical_fields(
+                &mut case,
+                &raw,
+                ExpectedKind::DtdItem(raw.clone(), LiteralSource::Physical, RawSource::Borrowed),
+                vec![(FieldRole::DtdRaw, raw.clone(), 0..raw.len())],
+            );
+        }
+        push_physical(&mut case, "]>", ExpectedKind::DtdEnd);
+    }
+
+    let start_tag = format!("<{root}>");
+    push_physical_fields(
+        &mut case,
+        &start_tag,
+        ExpectedKind::Start(root.to_owned(), None, Vec::new()),
+        vec![(FieldRole::ElementName, root.to_owned(), 1..1 + root.len())],
+    );
+    let mut next_invocation = 1_u64;
+    for operation in 0..body_count {
+        let choice = control(input, 16 + operation) % 6;
+        match choice {
+            0 => {
+                let value = char::from(b'a' + control(input, 32 + operation) % 26).to_string();
+                push_physical_text(&mut case, &value);
+            }
+            1 if declaration_count > 0 => {
+                let index = usize::from(control(input, 32 + operation)) % declaration_count;
+                let letter = char::from(b'a' + control(input, 9 + index) % 26);
+                let name = format!("e{index}{letter}");
+                let reference = format!("&{name};");
+                let start = case.source.len();
+                case.source.push_str(&reference);
+                let occurrence = start..case.source.len();
+                let outer_invocation = next_invocation;
+                next_invocation += 1;
+                case.logical_expansion = case
+                    .logical_expansion
+                    .checked_add(expansion_lengths[index])
+                    .expect("bounded expansion sum");
+                match (shape, index) {
+                    (1, _) => {}
+                    (2, _) => {
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Empty(format!("n{index}"), None, Vec::new()),
+                                index,
+                                outer_invocation,
+                                0..format!("<n{index}/>").len(),
+                                occurrence.clone(),
+                            )
+                            .with_fields(vec![owned_field(
+                                FieldRole::ElementName,
+                                format!("n{index}"),
+                            )]),
+                        );
+                        let local = format!("<n{index}/>").len();
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Text("t".to_owned()),
+                                index,
+                                outer_invocation,
+                                local..local + 1,
+                                occurrence,
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, "t")]),
+                        );
+                    }
+                    (3, 0) => case.expected.push(
+                        replacement(
+                            ExpectedKind::Text("A".to_owned()),
+                            0,
+                            outer_invocation,
+                            0..1,
+                            occurrence,
+                        )
+                        .with_fields(vec![owned_field(FieldRole::Leaf, "A")]),
+                    ),
+                    (3, _) => {
+                        let first = char::from(b'a' + control(input, 9) % 26);
+                        let inner_invocation = next_invocation;
+                        next_invocation += 1;
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Text("A".to_owned()),
+                                0,
+                                inner_invocation,
+                                0..1,
+                                occurrence.clone(),
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, "A")]),
+                        );
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Text("B".to_owned()),
+                                index,
+                                outer_invocation,
+                                format!("&e0{first};").len()..format!("&e0{first};B").len(),
+                                occurrence,
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, "B")]),
+                        );
+                    }
+                    _ => {
+                        let value = entity_values[index].clone();
+                        let length = value.len();
+                        case.expected.push(
+                            replacement(
+                                ExpectedKind::Text(value.clone()),
+                                index,
+                                outer_invocation,
+                                0..length,
+                                occurrence,
+                            )
+                            .with_fields(vec![owned_field(FieldRole::Leaf, value)]),
+                        );
+                    }
+                }
+            }
+            2 => {
+                let raw = format!("<n{operation}/>");
+                let name = format!("n{operation}");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Empty(name.clone(), None, Vec::new()),
+                    vec![(FieldRole::ElementName, name.clone(), 1..1 + name.len())],
+                );
+            }
+            3 => {
+                let raw = format!("<!--c{operation}-->");
+                let value = format!("c{operation}");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Comment(value.clone()),
+                    vec![(FieldRole::Leaf, value, 4..raw.len() - 3)],
+                );
+            }
+            4 => {
+                let data = format!("d{operation}");
+                let raw = format!("<?q {data}?>");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Pi("q".to_owned(), data.clone()),
+                    vec![
+                        (FieldRole::PiTarget, "q".to_owned(), 2..3),
+                        (FieldRole::PiData, data, 4..raw.len() - 2),
+                    ],
+                );
+            }
+            _ => {
+                let value = format!("k{operation}");
+                let raw = format!("<![CDATA[{value}]]>");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Cdata(value.clone()),
+                    vec![(FieldRole::Leaf, value, 9..raw.len() - 3)],
+                );
+            }
+        }
+    }
+    let end_tag = format!("</{root}>");
+    push_physical_fields(
+        &mut case,
+        &end_tag,
+        ExpectedKind::End(root.to_owned(), None),
+        vec![(FieldRole::EndName, root.to_owned(), 2..2 + root.len())],
+    );
+    case
+}
+
+fn namespace_default_case() -> GeneratedCase {
+    let mut case = empty_case();
+    case.declarations = 1;
+    case.body_operations = 1;
+    let header = "<!DOCTYPE p:r [";
+    push_physical_fields(
+        &mut case,
+        header,
+        ExpectedKind::DtdBegin(header.to_owned(), RawSource::Borrowed),
+        vec![(FieldRole::DtdRaw, header.to_owned(), 0..header.len())],
+    );
+    let attlist = "<!ATTLIST p:r xmlns:p CDATA 'urn:p' p:a CDATA 'v'>";
+    push_physical_fields(
+        &mut case,
+        attlist,
+        ExpectedKind::DtdItem(
+            attlist.to_owned(),
+            LiteralSource::Physical,
+            RawSource::Borrowed,
+        ),
+        vec![(FieldRole::DtdRaw, attlist.to_owned(), 0..attlist.len())],
+    );
+    push_physical(&mut case, "]>", ExpectedKind::DtdEnd);
+    let start = case.source.len();
+    let raw = "<p:r/>";
+    case.source.push_str(raw);
+    case.expected.push(
+        physical(
+            ExpectedKind::Empty(
+                "p:r".to_owned(),
+                Some("urn:p".to_owned()),
+                vec![
+                    ExpectedAttribute {
+                        name: "xmlns:p".to_owned(),
+                        namespace: Some("http://www.w3.org/2000/xmlns/".to_owned()),
+                        value: "urn:p".to_owned(),
+                    },
+                    ExpectedAttribute {
+                        name: "p:a".to_owned(),
+                        namespace: Some("urn:p".to_owned()),
+                        value: "v".to_owned(),
+                    },
+                ],
+            ),
+            start..case.source.len(),
+        )
+        .with_fields(vec![
+            borrowed_field(FieldRole::ElementName, "p:r", start + 1..start + 4),
+            owned_field(FieldRole::ElementNamespace, "urn:p"),
+            owned_field(FieldRole::AttributeName(0), "xmlns:p"),
+            static_field(
+                FieldRole::AttributeNamespace(0),
+                "http://www.w3.org/2000/xmlns/",
+            ),
+            owned_field(FieldRole::AttributeValue(0), "urn:p"),
+            owned_field(FieldRole::AttributeName(1), "p:a"),
+            owned_field(FieldRole::AttributeNamespace(1), "urn:p"),
+            owned_field(FieldRole::AttributeValue(1), "v"),
+        ]),
+    );
+    case
+}
+
+fn parameter_declaration_case() -> GeneratedCase {
+    let mut case = empty_case();
+    case.declarations = 2;
+    case.body_operations = 1;
+    let header = "<!DOCTYPE r [";
+    push_physical_fields(
+        &mut case,
+        header,
+        ExpectedKind::DtdBegin(header.to_owned(), RawSource::Borrowed),
+        vec![(FieldRole::DtdRaw, header.to_owned(), 0..header.len())],
+    );
+    let parameter = "<!ENTITY % p \"<!ENTITY e 'x'>\">";
+    push_physical_fields(
+        &mut case,
+        parameter,
+        ExpectedKind::DtdItem(
+            parameter.to_owned(),
+            LiteralSource::Physical,
+            RawSource::Borrowed,
+        ),
+        vec![(FieldRole::DtdRaw, parameter.to_owned(), 0..parameter.len())],
+    );
+    let invocation_start = case.source.len();
+    case.source.push_str("%p;");
+    case.expected.push(
+        replacement(
+            ExpectedKind::DtdItem(
+                "<!ENTITY e 'x'>".to_owned(),
+                LiteralSource::Replacement,
+                RawSource::Owned,
+            ),
+            0,
+            1,
+            0..15,
+            invocation_start..invocation_start + 3,
+        )
+        .with_fields(vec![owned_field(FieldRole::DtdRaw, "<!ENTITY e 'x'>")]),
+    );
+    case.logical_expansion = 15;
+    push_physical(&mut case, "]>", ExpectedKind::DtdEnd);
+    let root_start = case.source.len();
+    push_physical_fields(
+        &mut case,
+        "<r>",
+        ExpectedKind::Start("r".to_owned(), None, vec![]),
+        vec![(FieldRole::ElementName, "r".to_owned(), 1..2)],
+    );
+    debug_assert_eq!(root_start + 3, case.source.len());
+    let reference_start = case.source.len();
+    case.source.push_str("&e;");
+    case.expected.push(
+        replacement(
+            ExpectedKind::Text("x".to_owned()),
+            1,
+            2,
+            0..1,
+            reference_start..reference_start + 3,
+        )
+        .with_fields(vec![owned_field(FieldRole::Leaf, "x")]),
+    );
+    case.logical_expansion += 1;
+    push_physical_fields(
+        &mut case,
+        "</r>",
+        ExpectedKind::End("r".to_owned(), None),
+        vec![(FieldRole::EndName, "r".to_owned(), 2..3)],
+    );
+    case
+}
+
+fn declaration_misc_case(input: &[u8]) -> GeneratedCase {
+    let mut case = empty_case();
+    let declaration = "<?xml version='1.0' encoding='UTF-8'?>";
+    push_physical_fields(
+        &mut case,
+        declaration,
+        ExpectedKind::Declaration("1.0".to_owned(), Some("UTF-8".to_owned()), None),
+        vec![
+            (FieldRole::DeclarationVersion, "1.0".to_owned(), 15..18),
+            (FieldRole::DeclarationEncoding, "UTF-8".to_owned(), 30..35),
+        ],
+    );
+    push_no_subset(&mut case, "r");
+    push_physical_fields(
+        &mut case,
+        "<r>",
+        ExpectedKind::Start("r".to_owned(), None, vec![]),
+        vec![(FieldRole::ElementName, "r".to_owned(), 1..2)],
+    );
+    let body_count = (usize::from(control(input, 2)) % (MAX_BODY_OPERATIONS - 1)) + 2;
+    case.body_operations = body_count;
+    for operation in 0..body_count {
+        match control(input, 16 + operation) % 4 {
+            0 => {
+                let data = format!("d{operation}");
+                let raw = format!("<?q {data}?>");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Pi("q".to_owned(), data.clone()),
+                    vec![
+                        (FieldRole::PiTarget, "q".to_owned(), 2..3),
+                        (FieldRole::PiData, data, 4..raw.len() - 2),
+                    ],
+                );
+            }
+            1 => {
+                let value = format!("k{operation}");
+                let raw = format!("<![CDATA[{value}]]>");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Cdata(value.clone()),
+                    vec![(FieldRole::Leaf, value, 9..raw.len() - 3)],
+                );
+            }
+            2 => {
+                let value = format!("c{operation}");
+                let raw = format!("<!--{value}-->");
+                push_physical_fields(
+                    &mut case,
+                    &raw,
+                    ExpectedKind::Comment(value.clone()),
+                    vec![(FieldRole::Leaf, value, 4..raw.len() - 3)],
+                );
+            }
+            _ => {
+                let value = char::from(b'a' + control(input, 32 + operation) % 26).to_string();
+                push_physical_text(&mut case, &value);
+            }
+        }
+    }
+    push_physical_fields(
+        &mut case,
+        "</r>",
+        ExpectedKind::End("r".to_owned(), None),
+        vec![(FieldRole::EndName, "r".to_owned(), 2..3)],
+    );
+    case
+}
+
+fn observed_kind(event: &ReaderEvent<'_>) -> ExpectedKind {
+    match event {
+        ReaderEvent::Dtd(TakenDtdEvent::Begin(unit)) => {
+            ExpectedKind::DtdBegin(unit.raw().to_owned(), unit.raw_source())
+        }
+        ReaderEvent::Dtd(TakenDtdEvent::Item { unit, literals }) => {
+            ExpectedKind::DtdItem(unit.raw().to_owned(), *literals, unit.raw_source())
+        }
+        ReaderEvent::Dtd(TakenDtdEvent::End) => ExpectedKind::DtdEnd,
+        ReaderEvent::Xml(Event::Declaration(declaration)) => ExpectedKind::Declaration(
+            declaration.version.to_owned(),
+            declaration.encoding.map(str::to_owned),
+            declaration.standalone,
+        ),
+        ReaderEvent::Xml(Event::Start(element)) => ExpectedKind::Start(
+            element.name.qualified().to_owned(),
+            element.name.namespace().map(str::to_owned),
+            observed_attributes(&element.attributes),
+        ),
+        ReaderEvent::Xml(Event::Empty(element)) => ExpectedKind::Empty(
+            element.name.qualified().to_owned(),
+            element.name.namespace().map(str::to_owned),
+            observed_attributes(&element.attributes),
+        ),
+        ReaderEvent::Xml(Event::End(name)) => ExpectedKind::End(
+            name.qualified().to_owned(),
+            name.namespace().map(str::to_owned),
+        ),
+        ReaderEvent::Xml(Event::Text(value)) => ExpectedKind::Text(value.to_string()),
+        ReaderEvent::Xml(Event::Cdata(value)) => ExpectedKind::Cdata(value.to_string()),
+        ReaderEvent::Xml(Event::Comment(value)) => ExpectedKind::Comment(value.to_string()),
+        ReaderEvent::Xml(Event::ProcessingInstruction { target, data }) => {
+            ExpectedKind::Pi(target.to_string(), data.to_string())
+        }
+    }
+}
+
+fn observed_attributes(attributes: &[Attribute<'_>]) -> Vec<ExpectedAttribute> {
+    attributes
+        .iter()
+        .map(|attribute| ExpectedAttribute {
+            name: attribute.name.qualified().to_owned(),
+            namespace: attribute.name.namespace().map(str::to_owned),
+            value: attribute.value.to_string(),
+        })
+        .collect()
+}
+
+fn observed_dtd_semantic(event: &ReaderEvent<'_>) -> Option<DtdSemantic> {
+    let unit = match event {
+        ReaderEvent::Dtd(TakenDtdEvent::Begin(unit))
+        | ReaderEvent::Dtd(TakenDtdEvent::Item { unit, .. }) => unit,
+        _ => return None,
+    };
+    Some(match unit.view() {
+        DtdUnitView::Element(element) => DtdSemantic::Element {
+            name: element.name().to_owned(),
+            children: match element.content() {
+                crate::dtd::ElementContentView::Children(tokens) => {
+                    tokens.map(|token| format!("{token:?}")).collect()
+                }
+                other => vec![format!("{other:?}")],
+            },
+        },
+        DtdUnitView::Comment(value) => DtdSemantic::Comment(value.to_owned()),
+        DtdUnitView::Header(header) => DtdSemantic::Header {
+            root: header.root_name().to_owned(),
+            subset: header.has_internal_subset(),
+            external: header.external_id().map(|external| {
+                (
+                    external.public.map(str::to_owned),
+                    external.system.map(str::to_owned),
+                )
+            }),
+        },
+        DtdUnitView::AttributeList(list) => {
+            let definitions = list
+                .definitions()
+                .map(|definition| {
+                    let default = match definition.default() {
+                        DefaultDeclarationView::Required => "#REQUIRED".to_owned(),
+                        DefaultDeclarationView::Implied => "#IMPLIED".to_owned(),
+                        DefaultDeclarationView::Value {
+                            fixed,
+                            quoted_literal,
+                        } => format!("{}{}", if fixed { "#FIXED " } else { "" }, quoted_literal),
+                    };
+                    let name = match definition.attribute_type() {
+                        AttributeTypeView::Cdata => definition.name().to_owned(),
+                        other => format!("{}:{other:?}", definition.name()),
+                    };
+                    ExpectedAttributeDefinition {
+                        name,
+                        name_offset: definition.name_offset(),
+                        default,
+                        default_offset: definition.default_literal_offset(),
+                    }
+                })
+                .collect();
+            DtdSemantic::AttributeList {
+                element: list.element_name().to_owned(),
+                definitions,
+            }
+        }
+        DtdUnitView::Entity(entity) => {
+            let quoted = match entity.definition() {
+                EntityDefinitionView::Internal { quoted_literal } => quoted_literal.to_owned(),
+                other => format!("{other:?}"),
+            };
+            DtdSemantic::Entity {
+                parameter: entity.is_parameter(),
+                name: entity.name().to_owned(),
+                quoted,
+                quoted_offset: entity.quoted_literal_offset(),
+                references: unit
+                    .references()
+                    .map(|reference| reference.spelling.to_owned())
+                    .collect(),
+            }
+        }
+        other => DtdSemantic::Other(format!("{other:?}")),
+    })
+}
+
+fn check_expected_event(
+    event: &ReaderEvent<'_>,
+    origin: SourceOrigin,
+    expected: &ExpectedEvent,
+    source: &str,
+) -> Result<(), &'static str> {
+    check_event_storage(event, origin, source)?;
+    if observed_kind(event) != expected.kind {
+        return Err("event kind or value differs");
+    }
+    check_expected_origin(origin, &expected.origin)?;
+    check_expected_fields(event, &expected.fields, source)?;
+    if let Some(dtd) = &expected.dtd
+        && observed_dtd_semantic(event).as_ref() != Some(dtd)
+    {
+        return Err("DTD semantic view differs");
+    }
+    Ok(())
+}
+
+fn observed_origin(origin: SourceOrigin) -> ExpectedOrigin {
+    ExpectedOrigin {
+        full: origin,
+        input: origin.input_range(),
+        replacement: origin.replacement_range(),
+        physical: origin.physical_context(),
+    }
+}
+
+fn check_expected_origin(
+    actual: SourceOrigin,
+    expected: &ExpectedOrigin,
+) -> Result<(), &'static str> {
+    if observed_origin(actual) == *expected {
+        Ok(())
+    } else {
+        Err("event origin differs, including declaration or invocation identity")
+    }
+}
+
+fn address_range(source: &str) -> Range<usize> {
+    source.as_ptr() as usize..source.as_ptr() as usize + source.len()
+}
+
+#[derive(Debug)]
+enum ObservedStorage<'a> {
+    Borrowed(&'a str),
+    Owned(&'a str),
+}
+
+#[derive(Debug)]
+struct ObservedField<'a> {
+    role: FieldRole,
+    storage: ObservedStorage<'a>,
+}
+
+#[expect(
+    clippy::ptr_arg,
+    reason = "the oracle must observe the Cow storage discriminant"
+)]
+fn cow_field<'a>(role: FieldRole, value: &'a Cow<'_, str>) -> ObservedField<'a> {
+    ObservedField {
+        role,
+        storage: match value {
+            Cow::Borrowed(value) => ObservedStorage::Borrowed(value),
+            Cow::Owned(value) => ObservedStorage::Owned(value),
+        },
+    }
+}
+
+fn name_field<'a>(role: FieldRole, name: &'a Name<'_>) -> ObservedField<'a> {
+    cow_field(role, name.qualified_source())
+}
+
+fn name_fields<'a>(
+    name_role: FieldRole,
+    namespace_role: FieldRole,
+    name: &'a Name<'_>,
+) -> Vec<ObservedField<'a>> {
+    let mut fields = vec![name_field(name_role, name)];
+    if let Some(namespace) = name.namespace_source() {
+        fields.push(cow_field(namespace_role, namespace));
+    }
+    fields
+}
+
+fn observed_fields<'a>(event: &'a ReaderEvent<'_>) -> Vec<ObservedField<'a>> {
+    match event {
+        ReaderEvent::Dtd(TakenDtdEvent::Begin(unit))
+        | ReaderEvent::Dtd(TakenDtdEvent::Item { unit, .. }) => vec![ObservedField {
+            role: FieldRole::DtdRaw,
+            storage: match unit.raw_source() {
+                RawSource::Borrowed => ObservedStorage::Borrowed(unit.raw()),
+                RawSource::Owned => ObservedStorage::Owned(unit.raw()),
+            },
+        }],
+        ReaderEvent::Dtd(TakenDtdEvent::End) => Vec::new(),
+        ReaderEvent::Xml(Event::Declaration(declaration)) => {
+            let mut fields = vec![ObservedField {
+                role: FieldRole::DeclarationVersion,
+                storage: ObservedStorage::Borrowed(declaration.version),
+            }];
+            if let Some(encoding) = declaration.encoding {
+                fields.push(ObservedField {
+                    role: FieldRole::DeclarationEncoding,
+                    storage: ObservedStorage::Borrowed(encoding),
+                });
+            }
+            fields
+        }
+        ReaderEvent::Xml(Event::Start(element) | Event::Empty(element)) => {
+            let mut fields = name_fields(
+                FieldRole::ElementName,
+                FieldRole::ElementNamespace,
+                &element.name,
+            );
+            for (index, attribute) in element.attributes.iter().enumerate() {
+                fields.extend(name_fields(
+                    FieldRole::AttributeName(index),
+                    FieldRole::AttributeNamespace(index),
+                    &attribute.name,
+                ));
+                fields.push(cow_field(
+                    FieldRole::AttributeValue(index),
+                    &attribute.value,
+                ));
+            }
+            fields
+        }
+        ReaderEvent::Xml(Event::End(name)) => {
+            name_fields(FieldRole::EndName, FieldRole::EndNamespace, name)
+        }
+        ReaderEvent::Xml(Event::Text(value) | Event::Cdata(value) | Event::Comment(value)) => {
+            vec![cow_field(FieldRole::Leaf, value)]
+        }
+        ReaderEvent::Xml(Event::ProcessingInstruction { target, data }) => vec![
+            cow_field(FieldRole::PiTarget, target),
+            cow_field(FieldRole::PiData, data),
+        ],
+    }
+}
+
+fn check_expected_fields(
+    event: &ReaderEvent<'_>,
+    expected: &[ExpectedField],
+    source: &str,
+) -> Result<(), &'static str> {
+    let observed = observed_fields(event);
+    if observed.len() != expected.len() {
+        return Err("field count differs");
+    }
+    for (observed, expected) in observed.into_iter().zip(expected) {
+        if observed.role != expected.role {
+            return Err("field role differs");
+        }
+        match (&observed.storage, &expected.storage) {
+            (ObservedStorage::Borrowed(actual), ExpectedStorage::Borrowed(range)) => {
+                if range.end > source.len()
+                    || range.start > range.end
+                    || source.get(range.clone()) != Some(expected.value.as_str())
+                {
+                    return Err("expected borrowed field range is invalid");
+                }
+                let base = source.as_ptr() as usize;
+                let Some(offset) = (actual.as_ptr() as usize).checked_sub(base) else {
+                    return Err("borrowed field precedes input");
+                };
+                let Some(end) = offset.checked_add(actual.len()) else {
+                    return Err("borrowed field range overflowed");
+                };
+                if *actual != expected.value || offset != range.start || end != range.end {
+                    return Err("borrowed field is not its exact expected occurrence");
+                }
+            }
+            (ObservedStorage::Owned(actual), ExpectedStorage::Owned) => {
+                if *actual != expected.value {
+                    return Err("owned field value differs");
+                }
+                if !actual.is_empty() && address_range(source).contains(&(actual.as_ptr() as usize))
+                {
+                    return Err("owned field aliases input");
+                }
+            }
+            (ObservedStorage::Borrowed(actual), ExpectedStorage::Static) => {
+                if *actual != expected.value
+                    || address_range(source).contains(&(actual.as_ptr() as usize))
+                {
+                    return Err("static field value or storage differs");
+                }
+            }
+            _ => return Err("field storage class differs"),
+        }
+    }
+    Ok(())
+}
+
+fn check_event_storage(
+    event: &ReaderEvent<'_>,
+    origin: SourceOrigin,
+    source: &str,
+) -> Result<(), &'static str> {
+    let check_name = |name: &Name<'_>| {
+        let (prefix, local) = name
+            .qualified()
+            .split_once(':')
+            .map_or((None, name.qualified()), |(prefix, local)| {
+                (Some(prefix), local)
+            });
+        if name.prefix() != prefix || name.local() != local {
+            return Err("QName local or prefix differs from literal split");
+        }
+        Ok(())
+    };
+    match event {
+        ReaderEvent::Xml(Event::Start(element) | Event::Empty(element)) => {
+            check_name(&element.name)?;
+            for attribute in &element.attributes {
+                check_name(&attribute.name)?;
+            }
+        }
+        ReaderEvent::Xml(Event::End(name)) => check_name(name)?,
+        _ => {}
+    }
+    let input_range = origin.input_range();
+    let generated = input_range.is_none();
+    for field in observed_fields(event) {
+        match field.storage {
+            ObservedStorage::Borrowed(value) => {
+                let namespace = matches!(
+                    field.role,
+                    FieldRole::ElementNamespace
+                        | FieldRole::AttributeNamespace(_)
+                        | FieldRole::EndNamespace
+                );
+                if generated && !namespace {
+                    return Err("generated field borrowed physical input");
+                }
+                if matches!(
+                    field.role,
+                    FieldRole::ElementNamespace
+                        | FieldRole::AttributeNamespace(_)
+                        | FieldRole::EndNamespace
+                ) && !address_range(source).contains(&(value.as_ptr() as usize))
+                {
+                    if matches!(
+                        value,
+                        "http://www.w3.org/XML/1998/namespace" | "http://www.w3.org/2000/xmlns/"
+                    ) {
+                        continue;
+                    }
+                    return Err("borrowed namespace outside input is not an XML static URI");
+                }
+                let base = source.as_ptr() as usize;
+                let Some(offset) = (value.as_ptr() as usize).checked_sub(base) else {
+                    return Err("borrowed field precedes input");
+                };
+                let Some(end) = offset.checked_add(value.len()) else {
+                    return Err("borrowed field range overflowed");
+                };
+                if end > source.len() {
+                    return Err("borrowed field exceeds input");
+                }
+                if field.role != FieldRole::DtdRaw && !namespace {
+                    let range = input_range
+                        .as_ref()
+                        .ok_or("physical field lacks input occurrence")?;
+                    if offset < range.start || end > range.end {
+                        return Err("borrowed field lies outside event occurrence");
+                    }
+                }
+            }
+            ObservedStorage::Owned(value) => {
+                if !value.is_empty() && address_range(source).contains(&(value.as_ptr() as usize)) {
+                    return Err("owned field aliases input");
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn check_raw_source(
+    unit: &DtdUnit<'_>,
+    expected: RawSource,
+    source: &str,
+    input_range: Option<Range<usize>>,
+) -> Result<(), &'static str> {
+    if unit.raw_source() != expected {
+        return Err("DTD raw storage class differs");
+    }
+    match expected {
+        RawSource::Borrowed => {
+            let range = input_range.ok_or("borrowed DTD raw lacks an input range")?;
+            let base = source.as_ptr() as usize;
+            let address = unit.raw().as_ptr() as usize;
+            let Some(offset) = address.checked_sub(base) else {
+                return Err("borrowed DTD raw precedes the input");
+            };
+            let Some(end) = offset.checked_add(unit.raw().len()) else {
+                return Err("borrowed DTD raw range overflowed");
+            };
+            if offset != range.start || end > source.len() || unit.raw() != &source[offset..end] {
+                return Err("borrowed DTD raw is not the exact source occurrence");
+            }
+        }
+        RawSource::Owned => {
+            if !unit.raw().is_empty()
+                && address_range(source).contains(&(unit.raw().as_ptr() as usize))
+            {
+                return Err("owned DTD raw aliases the input");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn check_snapshot(expected: FuzzSnapshot, actual: FuzzSnapshot) -> Result<(), &'static str> {
+    if expected.phase != actual.phase {
+        return Err("phase");
+    }
+    if expected.failure != actual.failure {
+        return Err("failure");
+    }
+    if expected.physical_position != actual.physical_position {
+        return Err("physical position");
+    }
+    if expected.last_origin != actual.last_origin {
+        return Err("last origin");
+    }
+    if expected.finished != actual.finished {
+        return Err("finished");
+    }
+    if expected.controller != actual.controller {
+        return Err("controller counters");
+    }
+    if expected.frames != actual.frames {
+        return Err("frame counters");
+    }
+    if expected.text != actual.text {
+        return Err("text usage");
+    }
+    Ok(())
+}
+
+fn validate_origin(origin: SourceOrigin, source_len: usize) {
+    let physical = origin.physical_context();
+    assert!(physical.start <= physical.end && physical.end <= source_len);
+    if let Some(input) = origin.input_range() {
+        assert!(input.start <= input.end && input.end <= source_len);
+        assert_eq!(input, physical);
+        assert!(origin.replacement_range().is_none());
+    } else {
+        assert!(origin.replacement_range().is_some());
+    }
+}
+
+fn assert_terminal_sticky(reader: &mut DtdReader<'_>, terminal: Result<(), SessionError>) {
+    assert_terminal_sticky_with(reader, terminal, || {});
+}
+
+fn assert_terminal_sticky_with(
+    reader: &mut DtdReader<'_>,
+    terminal: Result<(), SessionError>,
+    mut observe: impl FnMut(),
+) {
+    let snapshot = reader.fuzz_snapshot();
+    observe();
+    for _ in 0..3 {
+        match terminal {
+            Ok(()) => assert!(reader.read_event().unwrap().is_none()),
+            Err(expected) => assert_eq!(reader.read_event().unwrap_err(), expected),
+        }
+        check_snapshot(snapshot, reader.fuzz_snapshot()).unwrap();
+        observe();
+    }
+}
+
+fn replay_arbitrary(input: &[u8], lifecycle: u8) {
+    let Some(mut reader) = DtdReader::new(input, options()).ok() else {
+        return;
+    };
+    let source = std::str::from_utf8(input).unwrap();
+    let mut retained = Vec::new();
+    let mut retained_owned = 0_usize;
+    let mut extracted = Vec::new();
+    let mut expected_extracted: Vec<step2::OwnedExtraction> = Vec::new();
+    let mut delivered = 0_usize;
+    loop {
+        match reader.read_event() {
+            Ok(Some((event, origin))) => {
+                validate_origin(origin, input.len());
+                assert_eq!(reader.event_origin(), Some(origin));
+                assert_eq!(reader.event_range(), origin.input_range());
+                assert!(reader.position() <= input.len());
+                check_event_storage(&event, origin, source).unwrap();
+                match lifecycle & 3 {
+                    0 => {}
+                    1 => {
+                        let event_owned = step2::owned_event_bytes(&event);
+                        if retained.len() < MAX_EVENTS
+                            && retained_owned + event_owned <= step2::MAX_RETAINED_OWNED
+                        {
+                            retained_owned += event_owned;
+                            retained.push((event, origin));
+                        }
+                        for (held, held_origin) in &retained {
+                            check_event_storage(held, *held_origin, source).unwrap();
+                        }
+                    }
+                    2 => {
+                        for value in step2::observed_owned_before_move(&event, &expected_extracted)
+                        {
+                            if expected_extracted.len() < step2::MAX_RETAINED_OBJECTS
+                                && expected_extracted
+                                    .iter()
+                                    .map(|value| value.value.len())
+                                    .sum::<usize>()
+                                    + value.value.len()
+                                    <= step2::MAX_RETAINED_OWNED
+                            {
+                                expected_extracted.push(value);
+                            }
+                        }
+                        step2::collect_owned_bounded(event, &mut extracted, &mut retained_owned);
+                    }
+                    3 if delivered == usize::from(lifecycle >> 2) => {
+                        let inner = reader.into_inner();
+                        assert_eq!(inner.as_ptr(), input.as_ptr());
+                        assert_eq!(inner.len(), input.len());
+                        check_event_storage(&event, origin, source).unwrap();
+                        replay_arbitrary(input, 0);
+                        return;
+                    }
+                    3 => {}
+                    _ => unreachable!(),
+                }
+                delivered += 1;
+            }
+            Ok(None) => {
+                assert_terminal_sticky_with(&mut reader, Ok(()), || {
+                    for (held, held_origin) in &retained {
+                        check_event_storage(held, *held_origin, source).unwrap();
+                    }
+                });
+                drop(reader);
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source).unwrap();
+                }
+                assert_eq!(extracted, expected_extracted);
+                return;
+            }
+            Err(error) => {
+                assert_eq!(reader.fuzz_snapshot().failure, Some(FuzzFailure::Error));
+                assert_terminal_sticky_with(&mut reader, Err(error), || {
+                    for (held, held_origin) in &retained {
+                        check_event_storage(held, *held_origin, source).unwrap();
+                    }
+                });
+                drop(reader);
+                for (held, held_origin) in &retained {
+                    check_event_storage(held, *held_origin, source).unwrap();
+                }
+                assert_eq!(extracted, expected_extracted);
+                return;
+            }
+        }
+    }
+}
+
+fn run_generated(case: GeneratedCase) {
+    run_generated_lifecycle(case, 1);
+}
+
+fn run_generated_lifecycle(case: GeneratedCase, lifecycle: u8) {
+    assert!(case.source.len() <= MAX_GENERATED);
+    assert!(case.expected.len() <= MAX_EVENTS);
+    assert!(case.declarations <= MAX_DECLARATIONS);
+    assert!(case.body_operations <= MAX_BODY_OPERATIONS);
+    assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
+    let mut reader = DtdReader::new(case.source.as_bytes(), options()).unwrap();
+    let mut held = Vec::new();
+    let mut held_bytes = 0_usize;
+    let mut extracted = Vec::new();
+    let mut expected_extracted: Vec<step2::OwnedExtraction> = Vec::new();
+    let mut extracted_bytes = 0_usize;
+    let checkpoint = usize::from(lifecycle >> 2).min(case.expected.len().saturating_sub(1));
+    for (index, expected) in case.expected.iter().enumerate() {
+        let (event, origin) = reader.read_event().unwrap().expect("expected event");
+        check_expected_event(&event, origin, expected, &case.source).unwrap();
+        match lifecycle & 3 {
+            0 => {}
+            1 => {
+                let bytes = step2::owned_event_bytes(&event);
+                if held.len() < step2::MAX_RETAINED_OBJECTS
+                    && held_bytes + bytes <= step2::MAX_RETAINED_OWNED
+                {
+                    held_bytes += bytes;
+                    held.push((event, origin));
+                }
+                for ((held_event, held_origin), held_expected) in held.iter().zip(&case.expected) {
+                    check_expected_event(held_event, *held_origin, held_expected, &case.source)
+                        .unwrap();
+                }
+            }
+            2 => {
+                for value in step2::expected_owned(expected) {
+                    if expected_extracted.len() < step2::MAX_RETAINED_OBJECTS
+                        && expected_extracted
+                            .iter()
+                            .map(|value| value.value.len())
+                            .sum::<usize>()
+                            + value.value.len()
+                            <= step2::MAX_RETAINED_OWNED
+                    {
+                        expected_extracted.push(value);
+                    }
+                }
+                step2::collect_owned_bounded(event, &mut extracted, &mut extracted_bytes);
+            }
+            3 if index == checkpoint => {
+                let pointer = case.source.as_ptr();
+                let length = case.source.len();
+                let inner = reader.into_inner();
+                assert_eq!(inner.as_ptr(), pointer);
+                assert_eq!(inner.len(), length);
+                check_expected_event(&event, origin, expected, &case.source).unwrap();
+                run_generated_lifecycle(case, 0);
+                return;
+            }
+            3 => {}
+            _ => unreachable!(),
+        }
+    }
+    assert!(reader.read_event().unwrap().is_none());
+    assert_terminal_sticky_with(&mut reader, Ok(()), || {
+        for ((event, origin), expected) in held.iter().zip(&case.expected) {
+            check_expected_event(event, *origin, expected, &case.source).unwrap();
+        }
+    });
+    drop(reader);
+    assert!(held.len() <= step2::MAX_RETAINED_OBJECTS);
+    assert!(held_bytes <= step2::MAX_RETAINED_OWNED);
+    if lifecycle & 3 != 1 {
+        assert!(held.is_empty());
+    }
+    for ((event, origin), expected) in held.iter().zip(&case.expected) {
+        check_expected_event(event, *origin, expected, &case.source).unwrap();
+    }
+    if lifecycle & 3 == 2 {
+        drop(case.source);
+        assert_eq!(extracted, expected_extracted);
+    }
+    assert!(extracted_bytes <= step2::MAX_RETAINED_OWNED);
+    assert_eq!(
+        extracted
+            .iter()
+            .map(|value| value.value.len())
+            .sum::<usize>(),
+        extracted_bytes
+    );
+}
+
+/// Exercise the private reader with bounded direct and independently generated input.
+pub(crate) fn exercise(input: &[u8]) {
+    let input = &input[..input.len().min(MAX_INPUT)];
+    let controls = &input[..input.len().min(64)];
+    replay_arbitrary(input, control(controls, 7));
+    run_generated_lifecycle(generated_case(controls), control(controls, 7));
+    step2::exercise_witness_bank(control(controls, 7));
+    step2::exercise_truncation(control(controls, 4), control(controls, 7));
+    step2::exercise_quota(
+        control(controls, 5),
+        control(controls, 6),
+        control(controls, 3),
+        control(controls, 7),
+    );
+}
+
+fn read_bounded(mut input: impl Read) -> io::Result<Vec<u8>> {
+    let mut bytes = Vec::with_capacity(MAX_INPUT + 1);
+    input
+        .by_ref()
+        .take((MAX_INPUT + 1) as u64)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() > MAX_INPUT {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "DTD fuzz input exceeds 1 MiB",
+        ));
+    }
+    Ok(bytes)
+}
+
+#[test]
+#[ignore = "exact bounded-stdin entry for the private feedback campaign"]
+pub(crate) fn replay_stdin() {
+    let stdin = io::stdin();
+    let bytes = read_bounded(stdin.lock()).expect("read bounded fuzz input");
+    exercise(&bytes);
+}
+
+const LARGEST_NESTED_CONTROL: [u8; 64] = [
+    0, 4, 8, 3, 0, 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+const CONTROL_CORPUS: &[&[u8]] = &[
+    b"",
+    b"\xff",
+    &[0, 4, 8, 0, 0, 0, 0, 0],
+    &[1, 4, 8, 1, 1, 1, 1, 1],
+    &[2, 4, 8, 2, 2, 2, 2, 2],
+    &[3, 1, 8, 3, 3, 3, 3, 3],
+    &LARGEST_NESTED_CONTROL,
+];
+
+const SEMANTIC_CORPUS: &[&[u8]] = &[
+    b"<r/>",
+    b"<!DOCTYPE r><r/>",
+    b"<!DOCTYPE r [<!ENTITY e '<n/>x'><!ENTITY z ''>]><r>a&e;b&z;c</r>",
+    b"<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>",
+    b"<!DOCTYPE r [<!ENTITY i 'x'><!ENTITY o '&i;&i;'>]><r>&o;</r>",
+    b"<!DOCTYPE p:r [<!ATTLIST p:r xmlns:p CDATA 'urn:p' p:a CDATA 'v'>]><p:r/>",
+    b"<?xml version='1.0' standalone='yes'?><!DOCTYPE r SYSTEM 'unread'><r/>",
+    b"<!DOCTYPE r [<!--unterminated",
+    b"<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e",
+];
+
+#[test]
+fn fixed_corpus_and_small_prefixes_are_bounded_and_deterministic() {
+    for seed in CONTROL_CORPUS {
+        exercise(seed);
+    }
+    for seed in SEMANTIC_CORPUS {
+        exercise(seed);
+        if seed.len() <= 96 {
+            for end in 0..=seed.len() {
+                exercise(&seed[..end]);
+            }
+        }
+    }
+}
+
+#[test]
+fn fixed_replacement_insertion_and_deletion_smoke_is_bounded() {
+    for seed in SEMANTIC_CORPUS {
+        let positions = seed.len().min(16);
+        for position in 0..positions {
+            for replacement in [0, b'<', b'&', 0xff] {
+                let mut mutated = seed.to_vec();
+                mutated[position] = replacement;
+                exercise(&mutated);
+            }
+
+            let mut inserted = seed.to_vec();
+            inserted.insert(position, b'&');
+            exercise(&inserted);
+
+            let mut deleted = seed.to_vec();
+            deleted.remove(position);
+            exercise(&deleted);
+        }
+    }
+}
+
+#[test]
+fn exercise_routes_real_header_bytes_to_every_step2_probe() {
+    let input = [0_u8, 0, 0, 253, 201, 255, 254, 15];
+    step2::reset_routing_receipt();
+    exercise(&input);
+    let receipt = step2::routing_receipt();
+    assert_eq!(receipt.witness_lifecycle, Some(15));
+    assert_eq!(receipt.truncation, Some((201, 1, 12, 15)));
+    assert_eq!(receipt.quota, Some((255, 15, 2, 5, 15)));
+    assert!(receipt.configured_early_stop >= 2);
+}
+
+#[test]
+fn inherited_namespace_borrows_use_the_declaration_occurrence() {
+    for source in [
+        "<r xmlns:p='urn:p'><p:n/></r>",
+        "<r xmlns='urn:r'><n a='v'/></r>",
+        "<r xml:lang='en'><n xml:space='preserve'/></r>",
+    ] {
+        for lifecycle in 0..4 {
+            replay_arbitrary(source.as_bytes(), lifecycle);
+        }
+    }
+}
+
+#[test]
+fn every_real_selector_byte_and_short_header_has_literal_routing() {
+    // The independent decoder has literal periods; it does not call routing helpers.
+    const CUTS: [&[usize]; 8] = [
+        &[16, 0],
+        &[11, 12, 15, 16],
+        &[15, 16, 17, 21],
+        &[15, 16, 17, 18, 19, 23],
+        &[33, 34, 35, 36, 40],
+        &[13, 25, 26, 27, 28, 29, 30, 40],
+        &[22, 23, 29, 30, 42, 43, 47, 51],
+        &[16, 17, 18, 19, 20, 24],
+    ];
+    let check = |input: &[u8]| {
+        let byte = |index| input.get(index).copied().unwrap_or(0);
+        step2::reset_routing_receipt();
+        exercise(input);
+        let receipt = step2::routing_receipt();
+        let selector = byte(4);
+        let family = usize::from(selector) % 8;
+        let cut = CUTS[family][(usize::from(selector) / 8) % CUTS[family].len()];
+        assert_eq!(receipt.witness_lifecycle, Some(byte(7)));
+        assert_eq!(receipt.truncation, Some((selector, family, cut, byte(7))));
+        assert_eq!(
+            receipt.quota,
+            Some((
+                byte(5),
+                usize::from(byte(5)) % 48,
+                usize::from(byte(6)) % 4,
+                usize::from(byte(3)) % 8,
+                byte(7)
+            ))
+        );
+    };
+    for byte in 0..=u8::MAX {
+        check(&[0, 0, 0, byte, byte, byte, byte, byte]);
+        check(&[0, 0, 0, byte, 0, 0, byte, 3]);
+    }
+    let header = [1, 2, 3, 255, 201, 255, 254, 15];
+    for end in 0..header.len() {
+        check(&header[..end]);
+    }
+}
+
+#[test]
+fn generator_respects_all_frozen_caps() {
+    for seed in CONTROL_CORPUS {
+        let case = generated_case(seed);
+        assert!(case.source.len() <= MAX_GENERATED);
+        assert!(case.expected.len() <= MAX_EVENTS);
+        assert!(case.declarations <= MAX_DECLARATIONS);
+        assert!(case.body_operations <= MAX_BODY_OPERATIONS);
+        assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
+    }
+
+    let mut expansion = [0_u8; 64];
+    expansion[1] = 1;
+    expansion[2] = 8;
+    expansion[3] = 0;
+    expansion[13] = u8::MAX;
+    expansion[16..24].fill(1);
+    let case = generated_case(&expansion);
+    assert_eq!(case.logical_expansion, 8 * (1 + usize::from(u8::MAX) * 8));
+    assert!(case.logical_expansion <= MAX_LOGICAL_EXPANSION);
+}
+
+#[test]
+fn nested_generator_uses_the_first_entity_name_and_exact_local_ranges() {
+    let mut controls = [0_u8; 64];
+    controls[1] = 2;
+    controls[2] = 1;
+    controls[3] = 3;
+    controls[9] = 0;
+    controls[10] = 1;
+    controls[16] = 1;
+    controls[32] = 1;
+    let case = generated_case(&controls);
+    assert!(case.source.contains("<!ENTITY e1b '&e0a;B'>"));
+    run_generated(case);
+}
+
+#[test]
+fn largest_nested_control_selects_all_references_and_stays_bounded() {
+    let case = generated_case(&LARGEST_NESTED_CONTROL);
+    assert_eq!(case.declarations, MAX_DECLARATIONS);
+    assert_eq!(case.body_operations, MAX_BODY_OPERATIONS);
+    assert_eq!(case.source.matches("&e3d;").count(), MAX_BODY_OPERATIONS);
+    assert_eq!(case.logical_expansion, MAX_BODY_OPERATIONS * 2);
+    run_generated(case);
+}
+
+#[test]
+fn bounded_reader_accepts_exact_limit_rejects_extra_and_handles_short_reads() {
+    assert_eq!(
+        read_bounded(&vec![b'x'; MAX_INPUT][..]).unwrap().len(),
+        MAX_INPUT
+    );
+    assert_eq!(
+        read_bounded(&vec![b'x'; MAX_INPUT + 1][..])
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::InvalidData
+    );
+
+    struct Chunked<'a> {
+        source: &'a [u8],
+        position: usize,
+        chunk: usize,
+    }
+    impl Read for Chunked<'_> {
+        fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+            if self.position == self.source.len() {
+                return Ok(0);
+            }
+            let end = (self.position + self.chunk)
+                .min(self.source.len())
+                .min(self.position + output.len());
+            let length = end - self.position;
+            output[..length].copy_from_slice(&self.source[self.position..end]);
+            self.position = end;
+            Ok(length)
+        }
+    }
+    let source = b"<!DOCTYPE r><r/>";
+    let actual = read_bounded(Chunked {
+        source,
+        position: 0,
+        chunk: 2,
+    })
+    .unwrap();
+    assert_eq!(actual, source);
+}
+
+fn run_exact_replay(chunks: &[&[u8]]) -> std::process::Output {
+    let mut child = Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "reader::dtd_fuzz_tests::replay_stdin",
+            "--ignored",
+            "--test-threads=1",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    for chunk in chunks {
+        stdin.write_all(chunk).unwrap();
+        stdin.flush().unwrap();
+    }
+    drop(stdin);
+    child.wait_with_output().unwrap()
+}
+
+#[test]
+fn exact_stdin_entry_enforces_bound_and_accepts_split_writes() {
+    let exact = vec![b'x'; MAX_INPUT];
+    let output = run_exact_replay(&[&exact]);
+    assert!(
+        output.status.success(),
+        "exact-bound replay failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let extra = vec![b'x'; MAX_INPUT + 1];
+    let output = run_exact_replay(&[&extra]);
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("exceeds 1 MiB")
+            || String::from_utf8_lossy(&output.stderr).contains("exceeds 1 MiB")
+    );
+
+    let output = run_exact_replay(&[
+        b"<!DOC".as_slice(),
+        b"TYPE r [<!ENTITY e 'x'>]>".as_slice(),
+        b"<r>&e;</r>".as_slice(),
+    ]);
+    assert!(
+        output.status.success(),
+        "split replay failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn snapshot_oracle_observes_every_field() {
+    let baseline = FuzzSnapshot {
+        phase: FuzzPhase::Content,
+        failure: Some(FuzzFailure::Error),
+        physical_position: 11,
+        last_origin: Some(SourceOrigin::input(3..5)),
+        finished: true,
+        controller: Some(ControllerCounters {
+            work: 1,
+            scanned_bytes: 2,
+            owned_bytes: 3,
+            physical_bytes: 4,
+            reference_attempts: 5,
+        }),
+        frames: Some(FrameCounters {
+            reference_attempts: 6,
+            work: 7,
+            expanded_bytes: 8,
+        }),
+        text: Some(TextUsage {
+            work: 9,
+            source_scanned: 10,
+            reference_scanned: 11,
+            reference_copied: 12,
+            reference_classified: 13,
+            appended_reference_copied: 14,
+            validated: 15,
+        }),
+    };
+    let mut variants = vec![
+        FuzzSnapshot {
+            phase: FuzzPhase::Ordinary,
+            ..baseline
+        },
+        FuzzSnapshot {
+            failure: None,
+            ..baseline
+        },
+        FuzzSnapshot {
+            physical_position: 12,
+            ..baseline
+        },
+        FuzzSnapshot {
+            last_origin: None,
+            ..baseline
+        },
+        FuzzSnapshot {
+            finished: false,
+            ..baseline
+        },
+        FuzzSnapshot {
+            controller: None,
+            ..baseline
+        },
+        FuzzSnapshot {
+            frames: None,
+            ..baseline
+        },
+        FuzzSnapshot {
+            text: None,
+            ..baseline
+        },
+    ];
+    for controller in [
+        ControllerCounters {
+            work: 2,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            scanned_bytes: 3,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            owned_bytes: 4,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            physical_bytes: 5,
+            ..baseline.controller.unwrap()
+        },
+        ControllerCounters {
+            reference_attempts: 6,
+            ..baseline.controller.unwrap()
+        },
+    ] {
+        variants.push(FuzzSnapshot {
+            controller: Some(controller),
+            ..baseline
+        });
+    }
+    for frames in [
+        FrameCounters {
+            reference_attempts: 7,
+            ..baseline.frames.unwrap()
+        },
+        FrameCounters {
+            work: 8,
+            ..baseline.frames.unwrap()
+        },
+        FrameCounters {
+            expanded_bytes: 9,
+            ..baseline.frames.unwrap()
+        },
+    ] {
+        variants.push(FuzzSnapshot {
+            frames: Some(frames),
+            ..baseline
+        });
+    }
+    for text in [
+        TextUsage {
+            work: 10,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            source_scanned: 11,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            reference_scanned: 12,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            reference_copied: 13,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            reference_classified: 14,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            appended_reference_copied: 15,
+            ..baseline.text.unwrap()
+        },
+        TextUsage {
+            validated: 16,
+            ..baseline.text.unwrap()
+        },
+    ] {
+        variants.push(FuzzSnapshot {
+            text: Some(text),
+            ..baseline
+        });
+    }
+    for variant in variants {
+        assert!(check_snapshot(baseline, variant).is_err());
+    }
+    assert_eq!(check_snapshot(baseline, baseline), Ok(()));
+}
+
+#[test]
+fn raw_source_oracle_rejects_wrong_storage_class_and_occurrence() {
+    let source = String::from("<!ENTITY e 'x'><!ENTITY e 'x'>");
+    let first = 0..15;
+    let borrowed =
+        DtdUnit::parse(&source[first.clone()], crate::dtd::DtdLimits::default()).unwrap();
+    assert_eq!(
+        check_raw_source(&borrowed, RawSource::Borrowed, &source, Some(first.clone())),
+        Ok(())
+    );
+    assert!(check_raw_source(&borrowed, RawSource::Owned, &source, None).is_err());
+    assert!(check_raw_source(&borrowed, RawSource::Borrowed, &source, Some(15..30)).is_err());
+
+    let owned = DtdUnit::parse(
+        String::from("<!ENTITY e 'x'>"),
+        crate::dtd::DtdLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        check_raw_source(&owned, RawSource::Owned, &source, None),
+        Ok(())
+    );
+    assert!(check_raw_source(&owned, RawSource::Borrowed, &source, Some(first)).is_err());
+}
+
+#[test]
+fn field_oracle_rejects_equal_values_from_wrong_occurrences_including_empty_values() {
+    let source = "<r a='' b='' a2='x' b2='x'/>";
+    let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+    let (event, _) = reader.read_event().unwrap().unwrap();
+    let expected = vec![
+        borrowed_field(FieldRole::ElementName, "r", 1..2),
+        borrowed_field(FieldRole::AttributeName(0), "a", 3..4),
+        borrowed_field(FieldRole::AttributeValue(0), "", 6..6),
+        borrowed_field(FieldRole::AttributeName(1), "b", 8..9),
+        borrowed_field(FieldRole::AttributeValue(1), "", 11..11),
+        borrowed_field(FieldRole::AttributeName(2), "a2", 13..15),
+        borrowed_field(FieldRole::AttributeValue(2), "x", 17..18),
+        borrowed_field(FieldRole::AttributeName(3), "b2", 20..22),
+        borrowed_field(FieldRole::AttributeValue(3), "x", 24..25),
+    ];
+    assert_eq!(check_expected_fields(&event, &expected, source), Ok(()));
+
+    let mut wrong_empty = expected.clone();
+    wrong_empty[2].storage = ExpectedStorage::Borrowed(11..11);
+    assert_eq!(
+        check_expected_fields(&event, &wrong_empty, source),
+        Err("borrowed field is not its exact expected occurrence")
+    );
+
+    let mut wrong_equal = expected;
+    wrong_equal[6].storage = ExpectedStorage::Borrowed(24..25);
+    assert_eq!(
+        check_expected_fields(&event, &wrong_equal, source),
+        Err("borrowed field is not its exact expected occurrence")
+    );
+}
+
+#[test]
+fn parameter_generated_declaration_has_independent_transcript_and_owned_raw() {
+    let case = generated_case(&[2]);
+    assert_eq!(
+        case.source,
+        "<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>"
+    );
+    assert_eq!(case.declarations, 2);
+    assert_eq!(case.logical_expansion, 16);
+    run_generated(case);
+}
+
+#[test]
+fn namespace_defaults_have_ordered_transcript_and_owned_generated_fields() {
+    let source = "<!DOCTYPE p:r [<!ATTLIST p:r xmlns:p CDATA 'urn:p' p:a CDATA 'v'>]><p:r/>";
+    let case = generated_case(&[1]);
+    assert_eq!(case.source, source);
+    run_generated(case);
+
+    let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+    let element = loop {
+        let (event, _) = reader.read_event().unwrap().unwrap();
+        if let ReaderEvent::Xml(Event::Empty(element)) = event {
+            break element;
+        }
+    };
+    assert!(matches!(
+        element.name.qualified_source(),
+        Cow::Borrowed("p:r")
+    ));
+    assert_eq!(element.attributes.len(), 2);
+    for attribute in element.attributes {
+        assert!(matches!(attribute.name.qualified_source(), Cow::Owned(_)));
+        assert!(matches!(attribute.value, Cow::Owned(_)));
+    }
+}
+
+#[test]
+fn declaration_pi_and_cdata_selector_has_an_independent_transcript() {
+    let mut controls = [0_u8; 18];
+    controls[0] = 3;
+    controls[16] = 0;
+    controls[17] = 1;
+    let case = generated_case(&controls);
+    assert_eq!(
+        case.source,
+        "<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE r><r><?q d0?><![CDATA[k1]]></r>"
+    );
+    assert!(matches!(
+        case.expected[0].kind,
+        ExpectedKind::Declaration(ref version, Some(ref encoding), None)
+            if version == "1.0" && encoding == "UTF-8"
+    ));
+    assert!(case.expected.iter().any(
+        |event| matches!(&event.kind, ExpectedKind::Pi(target, data) if target == "q" && data == "d0")
+    ));
+    assert!(
+        case.expected
+            .iter()
+            .any(|event| matches!(&event.kind, ExpectedKind::Cdata(value) if value == "k1"))
+    );
+    run_generated(case);
+}
+
+#[test]
+fn repeated_nested_occurrences_are_owned_and_have_distinct_complete_origins() {
+    let source = "<!DOCTYPE r [<!ENTITY i 'x'><!ENTITY o '&i;&i;'>]><r>&o;</r>";
+    let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+    let mut values = Vec::new();
+    while let Some((event, origin)) = reader.read_event().unwrap() {
+        if let ReaderEvent::Xml(Event::Text(value)) = event {
+            assert!(matches!(value, Cow::Owned(ref text) if text == "x"));
+            values.push((value, origin));
+        }
+    }
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0].1.input_range(), None);
+    assert_eq!(values[0].1.replacement_range(), Some(0..1));
+    assert_eq!(
+        values[0].1.physical_context(),
+        values[1].1.physical_context()
+    );
+    assert_ne!(values[0].1, values[1].1);
+    drop(reader);
+    assert_eq!(values[0].0, "x");
+    assert_eq!(values[1].0, "x");
+}
+
+#[test]
+fn extracted_generated_values_survive_events_reader_and_source_drop() {
+    let retained = {
+        let source = String::from(
+            "<!DOCTYPE r [<!ENTITY e '<p:n a=\"v\">x</p:n>'>]><r xmlns:p='urn:p'>&e;</r>",
+        );
+        let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+        let mut retained = Vec::new();
+        while let Some((event, origin)) = reader.read_event().unwrap() {
+            if origin.input_range().is_some() {
+                continue;
+            }
+            match event {
+                ReaderEvent::Xml(Event::Start(element)) => {
+                    for attribute in element.attributes {
+                        let Cow::Owned(value) = attribute.value else {
+                            panic!("generated attribute value must own storage");
+                        };
+                        retained.push(value);
+                    }
+                }
+                ReaderEvent::Xml(Event::Text(Cow::Owned(value))) => retained.push(value),
+                ReaderEvent::Xml(Event::End(_)) => {}
+                other => panic!("unexpected generated event: {other:?}"),
+            }
+        }
+        retained
+    };
+    assert_eq!(retained, ["v", "x"]);
+}
+
+#[test]
+fn snapshot_tracks_phase_handoff_origin_terminal_state_and_all_counters() {
+    let source = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;</r>";
+    let mut reader = DtdReader::new(source.as_bytes(), options()).unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Ordinary,
+            failure: None,
+            physical_position: 0,
+            last_origin: None,
+            finished: false,
+            controller: None,
+            frames: None,
+            text: None,
+        }
+    );
+
+    let (_, begin) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Declarations,
+            failure: None,
+            physical_position: 13,
+            last_origin: Some(begin),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 39,
+                scanned_bytes: 13,
+                owned_bytes: 0,
+                physical_bytes: 13,
+                reference_attempts: 0,
+            }),
+            frames: None,
+            text: None,
+        }
+    );
+
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, root) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Content,
+            failure: None,
+            physical_position: 33,
+            last_origin: Some(root),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 96,
+                scanned_bytes: 33,
+                owned_bytes: 0,
+                physical_bytes: 33,
+                reference_attempts: 0,
+            }),
+            frames: Some(FrameCounters::default()),
+            text: Some(TextUsage {
+                work: 96,
+                source_scanned: 3,
+                reference_scanned: 0,
+                reference_copied: 0,
+                reference_classified: 0,
+                appended_reference_copied: 0,
+                validated: 3,
+            }),
+        }
+    );
+
+    let (_, generated) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Content,
+            failure: None,
+            physical_position: 36,
+            last_origin: Some(generated),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 110,
+                scanned_bytes: 37,
+                owned_bytes: 0,
+                physical_bytes: 36,
+                reference_attempts: 1,
+            }),
+            frames: Some(FrameCounters {
+                reference_attempts: 1,
+                work: 2,
+                expanded_bytes: 1,
+            }),
+            text: Some(TextUsage {
+                work: 110,
+                source_scanned: 4,
+                reference_scanned: 3,
+                reference_copied: 3,
+                reference_classified: 3,
+                appended_reference_copied: 0,
+                validated: 4,
+            }),
+        }
+    );
+
+    let (_, end) = reader.read_event().unwrap().unwrap();
+    assert!(reader.read_event().unwrap().is_none());
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Content,
+            failure: None,
+            physical_position: 40,
+            last_origin: Some(end),
+            finished: true,
+            controller: Some(ControllerCounters {
+                work: 122,
+                scanned_bytes: 41,
+                owned_bytes: 0,
+                physical_bytes: 40,
+                reference_attempts: 1,
+            }),
+            frames: Some(FrameCounters {
+                reference_attempts: 1,
+                work: 2,
+                expanded_bytes: 1,
+            }),
+            text: Some(TextUsage {
+                work: 122,
+                source_scanned: 8,
+                reference_scanned: 3,
+                reference_copied: 3,
+                reference_classified: 3,
+                appended_reference_copied: 0,
+                validated: 8,
+            }),
+        }
+    );
+}
+
+#[test]
+fn snapshots_pin_promotions_pe_handoff_numeric_copy_and_terminal_flags() {
+    let rp = b"<!DOCTYPE r [<!ENTITY % p '<!--x-->'>%p;%p;]><r/>";
+    let mut reader = DtdReader::new(rp, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, first) = reader.read_event().unwrap().unwrap();
+    let first_snapshot = FuzzSnapshot {
+        phase: FuzzPhase::Declarations,
+        failure: None,
+        physical_position: 40,
+        last_origin: Some(first),
+        finished: false,
+        controller: Some(ControllerCounters {
+            work: 163,
+            scanned_bytes: 48,
+            owned_bytes: 8,
+            physical_bytes: 40,
+            reference_attempts: 1,
+        }),
+        frames: None,
+        text: None,
+    };
+    assert_eq!(reader.fuzz_snapshot(), first_snapshot);
+    let (_, second) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Declarations,
+            failure: None,
+            physical_position: 43,
+            last_origin: Some(second),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 207,
+                scanned_bytes: 59,
+                owned_bytes: 16,
+                physical_bytes: 43,
+                reference_attempts: 2,
+            }),
+            frames: None,
+            text: None,
+        }
+    );
+    reader.read_event().unwrap().unwrap();
+    let (_, root) = reader.read_event().unwrap().unwrap();
+    let rp_root = FuzzSnapshot {
+        phase: FuzzPhase::Content,
+        failure: None,
+        physical_position: 49,
+        last_origin: Some(root),
+        finished: false,
+        controller: Some(ControllerCounters {
+            work: 221,
+            scanned_bytes: 65,
+            owned_bytes: 16,
+            physical_bytes: 49,
+            reference_attempts: 2,
+        }),
+        frames: Some(FrameCounters {
+            reference_attempts: 2,
+            work: 18,
+            expanded_bytes: 16,
+        }),
+        text: Some(TextUsage {
+            work: 221,
+            source_scanned: 4,
+            reference_scanned: 0,
+            reference_copied: 0,
+            reference_classified: 0,
+            appended_reference_copied: 0,
+            validated: 4,
+        }),
+    };
+    assert_eq!(reader.fuzz_snapshot(), rp_root);
+    assert!(reader.read_event().unwrap().is_none());
+    let rp_eof = FuzzSnapshot {
+        finished: true,
+        ..rp_root
+    };
+    assert_eq!(reader.fuzz_snapshot(), rp_eof);
+
+    let zeroed_promotion = FuzzSnapshot {
+        controller: Some(ControllerCounters {
+            owned_bytes: 0,
+            ..rp_eof.controller.unwrap()
+        }),
+        ..rp_eof
+    };
+    assert_eq!(
+        check_snapshot(rp_eof, zeroed_promotion),
+        Err("controller counters")
+    );
+
+    let h = b"<!DOCTYPE r [<!ENTITY % p \"<!ENTITY e 'x'>\">%p;]><r>&e;</r>";
+    let mut reader = DtdReader::new(h, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, generated) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Declarations,
+            failure: None,
+            physical_position: 47,
+            last_origin: Some(generated),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 227,
+                scanned_bytes: 62,
+                owned_bytes: 15,
+                physical_bytes: 47,
+                reference_attempts: 1,
+            }),
+            frames: None,
+            text: None,
+        }
+    );
+    reader.read_event().unwrap().unwrap();
+    let (_, start) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Content,
+            failure: None,
+            physical_position: 52,
+            last_origin: Some(start),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 238,
+                scanned_bytes: 67,
+                owned_bytes: 15,
+                physical_bytes: 52,
+                reference_attempts: 1,
+            }),
+            frames: Some(FrameCounters {
+                reference_attempts: 1,
+                work: 16,
+                expanded_bytes: 15,
+            }),
+            text: Some(TextUsage {
+                work: 238,
+                source_scanned: 3,
+                reference_scanned: 0,
+                reference_copied: 0,
+                reference_classified: 0,
+                appended_reference_copied: 0,
+                validated: 3,
+            }),
+        }
+    );
+
+    let numeric = b"<!DOCTYPE r><r>&#65;</r>";
+    let mut reader = DtdReader::new(numeric, options()).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, text) = reader.read_event().unwrap().unwrap();
+    assert_eq!(
+        reader.fuzz_snapshot(),
+        FuzzSnapshot {
+            phase: FuzzPhase::Content,
+            failure: None,
+            physical_position: 21,
+            last_origin: Some(text),
+            finished: false,
+            controller: Some(ControllerCounters {
+                work: 76,
+                scanned_bytes: 21,
+                owned_bytes: 0,
+                physical_bytes: 21,
+                reference_attempts: 0,
+            }),
+            frames: Some(FrameCounters::default()),
+            text: Some(TextUsage {
+                work: 76,
+                source_scanned: 4,
+                reference_scanned: 5,
+                reference_copied: 5,
+                reference_classified: 5,
+                appended_reference_copied: 5,
+                validated: 8,
+            }),
+        }
+    );
+}
+
+#[test]
+fn promotion_rejection_snapshot_keeps_prior_spend_and_sticky_failure_state() {
+    let source = b"<!DOCTYPE r [<!ENTITY % p '<!--x-->'>%p;%p;]><r/>";
+    let mut profile = options();
+    profile.declarations.max_owned_bytes = 15;
+    let mut reader = DtdReader::new(source, profile).unwrap();
+    reader.read_event().unwrap().unwrap();
+    reader.read_event().unwrap().unwrap();
+    let (_, first) = reader.read_event().unwrap().unwrap();
+    let error = reader.read_event().unwrap_err();
+    assert!(matches!(
+        error,
+        SessionError::Dtd(crate::dtd_controller::ControllerError {
+            kind: crate::dtd_controller::ControllerErrorKind::Limit(
+                crate::dtd_controller::ControllerLimit::OwnedBytes
+            ),
+            physical_offset: 40,
+            local_offset: Some(0),
+            value_location: None,
+            ..
+        })
+    ));
+    let expected = FuzzSnapshot {
+        phase: FuzzPhase::Declarations,
+        failure: Some(FuzzFailure::Error),
+        physical_position: 43,
+        last_origin: Some(first),
+        finished: false,
+        controller: Some(ControllerCounters {
+            work: 183,
+            scanned_bytes: 59,
+            owned_bytes: 8,
+            physical_bytes: 43,
+            reference_attempts: 2,
+        }),
+        frames: None,
+        text: None,
+    };
+    assert_eq!(reader.fuzz_snapshot(), expected);
+    assert_terminal_sticky(&mut reader, Err(error));
+}
