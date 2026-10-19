@@ -1272,9 +1272,11 @@ struct OwnedBuilder {
 
 impl OwnedBuilder {
     fn new(source_length: usize) -> Result<Self, Error> {
+        // About one node per eight source bytes, capped: small documents
+        // skip repeated regrowth without over-reserving large ones.
         let mut nodes = Vec::new();
         nodes
-            .try_reserve(1)
+            .try_reserve(1 + (source_length / 8).min(4096))
             .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
         nodes.push(OwnedRecord::root(source_length));
         Ok(Self {
