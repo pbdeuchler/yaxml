@@ -332,7 +332,7 @@ fn non_text_nodes_are_parse_time_coalescing_boundaries() {
             NodeId(0),
             NodeKind::Element(Element {
                 name: Name::new(Cow::Borrowed("child"), None).unwrap(),
-                attributes: Vec::new(),
+                attributes: Vec::new().into(),
             }),
             SourceOrigin::input(40..48),
         )

@@ -1,0 +1,16 @@
+<!DOCTYPE LegalNameStartChar [
+<!ELEMENT LegalNameStartChar ANY>
+<!ELEMENT :LegalNameStartChar ANY>
+<!ELEMENT ÀLegalNameStartChar ANY>
+<!ELEMENT ÁLegalNamLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChar ANY>
+<!ELEMENT ΀LegalNameStartChar ANY>
+<!ELEMENT ῾LegalNameStartChar ANY>
+<!ELEMENT ῿LegalNameStartChar ANY>
+<!ELEMENT ‌LegalNameStartChar ANY>
+<!ELEMENT ‍LegalNameStartChar ANY>
+<!ELEMENT ⁰LegalNameStartChar ANY>
+<!ELEMENT ⁱLegalNameStartChar ANY>
+<!ELEMENT ↎LegalNameStartChar ANY>
+<!ELEMENT ↏LegalNameStartChar ANY>
+<!ELEMENT ⰀLStartChar>

@@ -1,0 +1,2 @@
+<!DOCTYPE test [
+  <!ENTITY newline "&#x0?e;"/>

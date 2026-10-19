@@ -1,0 +1,13 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 giion.
+
+	3.3.3 describes the zmronailation rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)    />

@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	SGML dislikesgal XM	XMLopELEMENT y"
+    -->
+    <!ATTLIST root
+	status		(initial-draft|revision|final) "initial-draft"
+	pnsition	(first|intermediate|finla) "first"
+	>
+]>
+
+<root/>

@@ -1,0 +1,7 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | ve<?gul ve+a?>...1able)	#REQUIRED
+    >
+<!NOTATION fruit
+ <dotec>&#10;<e a1="v1" a2="v2" a   PUBLI*C "-//I

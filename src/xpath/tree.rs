@@ -83,10 +83,8 @@ pub trait Navigate {
     fn xml_violation(&self) -> Option<String> {
         None
     }
-    /// The document's DTD, if it has one.
-    fn dtd(&self) -> Option<&Dtd> {
-        None
-    }
+    /// The declarations the document's DTD made.
+    fn dtd(&self) -> Option<&Dtd>;
 }
 
 impl Navigate for Document<'_> {
@@ -235,6 +233,12 @@ impl Navigate for OwnedDocument {
     fn dtd(&self) -> Option<&Dtd> {
         OwnedDocument::dtd(self)
     }
+}
+
+/// Whether the DTD declares any ID-typed attribute; otherwise only `xml:id`
+/// attributes are IDs, and parsers record those while building.
+pub(crate) fn declares_ids(dtd: Option<&Dtd>) -> bool {
+    dtd.is_some_and(|dtd| dtd.id_attributes().next().is_some())
 }
 
 /// ID-typed attributes of a freshly parsed tree: `xml:id` and those declared

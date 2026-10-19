@@ -1,0 +1,11 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.o0B0F-ଏ_0B10-ଐ_0b0f-ଏ_0B13-ଓ_0B28-ନ_0b1d-ଝ_0B2A-ପ_0B30-ର_0b2d-ଭ_0B32-ଲ_0B33-ଳ_0b32-ଲ_0B36-ଶ_0B39-ହ_0b37-ଷ_0B3D-ଽ_0B5C-ଡ଼_0B5D-ଢ଼_0b5c-ଡ଼_0B5F-ୟ_0B61-ୡ_0b60-ୠ_0B85-அ_0B8A-ஊ_0b87-இ_0B8E-எ_0B90-ஐ_0b8f-ஏ_0B92-ஒ_0B95-க_0b93-ஓ_0B99-ங_0B9A-ச_0b99-ங_0B9C-ஜ_0B9E-ஞ_0B9F-ட_0b9e-ஞ_0BA3-ண_0BA4-த_0ba3-ண_0BA8-ந_0BAA-ப_0ba9-ன_0BAE-ம_0BB5-வ_0bb1-ற_0BB7-ஷ_0BB9-ஹ_0bb8-ஸ_0C05-అ_0C0C-ఌ_0c08-ఈ_0C0E-ఎ_0C10-ఐ_0c0f-ఏ_0C12-ఒ_0C28-న_0c1d-ఝ_0C2A-ప_0C33-ళ_0c2e-మ_0C35-వ_0C39-హ_0c37-ష_0C60-ౠ_0C61-ౡ_0c60-ౠ_0C85-ಅ_0C8C-ಌ_0c88-ಈ_0C8E-ಎ_0C90-ಐ_0c8f-ಏ_0C92-ಒ_0CA8-ನ_0c9d-ಝ_0CAA-ಪ_0CB3-ಳ_00993-ও_09A8-ন_099d-ঝ_09AA-প_09B0-র_09ad-ভ_09B2-ল_09B6-শ_09B9-হ_09b7-ষ_09DC-ড়_09DD-ঢ়_09dc-ড়_09DF-য়_09E1-ৡ_09e0-ৠ_09F0-ৰ_09F1-ৱ_09f0-ৰ_0A05-ਅ_0A0A-ਊ_0a07-ਇ_0A0F-ਏ_0A10-ਐ_0a0f-ਏ_0A13-ਓ_0A28-ਨ_0a1d-ਝ_0A2A-ਪ_0A30-ਰ_0a2d-ਭ_0A32-ਲ_0A33-ਲ਼_0a32-ਲ_0A35-ਵ_0A36-ਸ਼_0a35-ਵ_0A38-ਸ_0A39-ਹ_0a38-ਸ_0A59-ਖ਼_0A5C-ੜ_0a5a-ਗ਼_0A5E-ਫ਼_0A72-ੲ_0A74-ੴ_0a73-ੳ_0A85-અ_0A8B-ઋ_0a88-ઈ_0A8D-ઍ_0A8F-એ_0A91-ઑ_0a90-ઐ_0A93-ઓ_0AA8-ન_0a9d-ઝ_0AAA-પ_0AB0-ર_0aad-ભ_0AB2-લ_m3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+ ="" xmlns:a="http://www.w3.org" a:foo="bar">
+        
+<doc xmlns:foo="http://www.bar.or//www.ietf.org"/>
+        <
+<!--co (#PCDA</e7>
+   </e6>
+</doc>

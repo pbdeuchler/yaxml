@@ -424,16 +424,21 @@ impl StreamingSession {
         self.ordinary.as_mut().filter(|_| idle)
     }
     /// Lends the plain stream's ready token, recording what a DTD session needs.
-    pub(crate) fn lend_plain(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
+    /// Returns the reader's own result type so the event is not rewrapped.
+    pub(crate) fn lend_plain(
+        &mut self,
+    ) -> Result<Option<(Event<'_>, SourceOrigin)>, crate::ReadError> {
         let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
         let at = ordinary.position();
-        let (event, origin) = super::parse(&ordinary.tokenizer, &mut ordinary.state)?
-            .ok_or_else(|| Error::new(ErrorKind::InvalidState, at))?;
+        let origin = super::token_origin(&ordinary.tokenizer);
+        let event = super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
+            .and_then(|event| event.ok_or_else(|| Error::new(ErrorKind::InvalidState, at)))
+            .map_err(crate::ReadError::Xml)?;
         if let Event::Declaration(declaration) = &event {
             self.standalone = declaration.standalone == Some(true);
         }
         self.origin = Some(origin);
-        Ok((event, origin))
+        Ok(Some((event, origin)))
     }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
     pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {

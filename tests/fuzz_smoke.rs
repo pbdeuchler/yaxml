@@ -1135,6 +1135,7 @@ fn fuzz_regressions_replay() {
                 "regexp" => driver::exercise_regexp(&data),
                 "datatypes" => driver::exercise_datatypes(&data),
                 "catalog" => driver::exercise_catalog(&data),
+                "relaxng" => driver::exercise_relaxng(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }
@@ -1212,4 +1213,23 @@ fn xsd_driver_accepts_schema_instance_and_resources() {
     }
     driver::exercise_xsd(b"");
     driver::exercise_xsd(b"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:import schemaLocation='0.xsd'/></xs:schema>\0<r/>\0<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:import schemaLocation='main.xsd'/></xs:schema>");
+}
+
+#[test]
+fn relaxng_entry_replays_seeds_and_malformed_pieces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/relaxng");
+    for seed in std::fs::read_dir(root).unwrap() {
+        driver::exercise_relaxng(&std::fs::read(seed.unwrap().path()).unwrap());
+    }
+    let cases: &[&[u8]] = &[
+        b"",
+        b"<element",
+        b"<oneOrMore><element name='a'><data type='int'/></element></oneOrMore>\0<r><a>1</a><a>x</a></r>",
+        b"<grammar xmlns='http://relaxng.org/ns/structure/1.0'><include href='0'/></grammar>\0<r/>\0<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><element name='r'><empty/></element></start></grammar>",
+        b"<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><externalRef href='0'/></element>\0<r/>\0\xff",
+        b"<attribute name='id'><data type='ID'/></attribute>\0<r id='a'/>",
+    ];
+    for case in cases {
+        driver::exercise_relaxng(case);
+    }
 }

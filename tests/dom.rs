@@ -223,3 +223,43 @@ fn generated_tree_preorder_and_parent_invariants() {
         }
     }
 }
+
+/// IDs noted while building match document order, the first duplicate wins,
+/// and DTD-declared ID attributes still join `xml:id` ones.
+#[test]
+fn element_ids_are_found_during_construction() {
+    let plain = "<r xml:id='a'><s id='x'/><t b='1' xml:id='b'/><u xml:id='a'/></r>";
+    let declared = "<!DOCTYPE r [<!ATTLIST s id ID #IMPLIED>]>\
+                    <r xml:id='a'><s id='x'/><t b='1' xml:id='b'/></r>";
+    let utf16: Vec<u8> = [0xff, 0xfe]
+        .into_iter()
+        .chain(plain.encode_utf16().flat_map(u16::to_le_bytes))
+        .collect();
+    for (input, ids) in [
+        (plain.as_bytes(), [Some("r"), Some("t"), None]),
+        (declared.as_bytes(), [Some("r"), Some("t"), Some("s")]),
+    ] {
+        let borrowed = yaxml::Document::parse_bytes(input).unwrap();
+        let owned = yaxml::OwnedDocument::parse_bytes(input).unwrap();
+        for (value, expected) in ["a", "b", "x"].into_iter().zip(ids) {
+            let name = |node: Option<yaxml::Node<'_, '_>>| {
+                node.and_then(|n| n.name())
+                    .map(|n| n.qualified().to_owned())
+            };
+            assert_eq!(name(borrowed.element_by_id(value)).as_deref(), expected);
+            let owned_name = owned
+                .element_by_id(value)
+                .and_then(|node| node.name().map(|n| n.qualified().to_owned()));
+            assert_eq!(owned_name.as_deref(), expected);
+        }
+    }
+    let decoded = yaxml::OwnedDocument::parse_bytes(&utf16).unwrap();
+    assert_eq!(
+        decoded
+            .element_by_id("b")
+            .and_then(|n| n.name().map(|n| n.qualified().to_owned()))
+            .as_deref(),
+        Some("t")
+    );
+    assert!(decoded.element_by_id("x").is_none());
+}

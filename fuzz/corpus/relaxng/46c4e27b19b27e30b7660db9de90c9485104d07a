@@ -1,0 +1,32 @@
+<!DOCTYPE doc [
+<!ATTLIST e a NOTATION (n) #IMPLIED>
+<!ELEMENT do
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ON n PUBLIC "whatev+er">
+]>
+<doc

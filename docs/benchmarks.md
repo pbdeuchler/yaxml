@@ -59,46 +59,49 @@ after the shared-stream refactor with identical fixture bytes and settings.
 ### Current matched results (2026-10-19)
 
 Ratios are **libxml2 median / yaxml median** of parse plus destruction per
-document (above 1 favors yaxml), from `parse_benchmark` with 5 alternating
-pairs at the DTD-activation merge `2a46232` and 7 pairs after the
-optimization series ending at `7fba88e`. Release builds as above; static
-libxml2 2.15.4 helper built with `-std=c11 -O3 -DNDEBUG`; Apple M1 Max.
-The host was shared with other jobs (load average 10-130), so single rows
-carry several percent of noise. Cells read before → after. yaxml leads in **45 of 65** workloads,
-up from 14.
+document (above 1 favors yaxml), from `parse_benchmark` with 7 alternating
+pairs, before → after the second optimization series (`7fba88e` →
+`183faea`). Release builds as above; static libxml2 2.15.4 helper built with
+`-std=c11 -O3 -DNDEBUG`; Apple M1 Max. The host was shared with other jobs
+(load average 5-130), so single rows carry several percent of noise. yaxml
+leads in **56 of 65** workloads (45 before this series, 14 at `2a46232`).
 
 | Fixture | DOM | Owned | Reader | Push | Buffered |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| tiny | 2.83 → **3.87** | 2.07 → **2.68** | 2.73 → **4.23** | 1.06 → **1.45** | 1.42 → **2.01** |
-| flat | 0.71 → **1.14** | 0.65 → **1.01** | 0.69 → **1.21** | 0.30 → **0.58** | 0.40 → **0.79** |
-| text | 0.32 → **2.53** | 0.31 → **2.27** | 0.72 → **1.26** | 0.64 → **1.13** | 0.72 → **1.24** |
-| attributes | 1.19 → **1.50** | 1.05 → **1.35** | 0.92 → **1.16** | 0.61 → **0.79** | 0.84 → **1.04** |
-| namespaces | 0.63 → **1.30** | 0.63 → **1.10** | 0.84 → **1.53** | 0.40 → **0.79** | 0.55 → **1.08** |
-| normalized | 0.94 → **1.66** | 0.90 → **1.57** | 0.96 → **1.50** | 0.40 → **0.69** | 0.60 → **1.01** |
-| unicode | 0.72 → **1.23** | 0.68 → **1.09** | 0.87 → **1.44** | 0.45 → **0.68** | 0.57 → **0.97** |
-| deep | 0.77 → **1.10** | 0.66 → **0.77** | 0.96 → **1.58** | 0.32 → **0.63** | 0.41 → **0.83** |
-| mixed | 1.36 → **1.84** | 1.27 → **1.56** | 1.52 → **2.02** | 0.32 → **0.65** | 0.53 → **1.08** |
+| tiny | 3.87 → **4.12** | 2.68 → **2.69** | 4.23 → **4.54** | 1.45 → **1.60** | 2.01 → **2.35** |
+| flat | 1.14 → **1.30** | 1.01 → **1.15** | 1.21 → **1.33** | 0.58 → **0.91** | 0.79 → **0.94** |
+| text | 2.53 → **2.55** | 2.27 → **2.27** | 1.26 → **1.27** | 1.13 → **1.12** | 1.24 → **1.25** |
+| attributes | 1.50 → **2.12** | 1.35 → **1.82** | 1.16 → **1.41** | 0.79 → **1.03** | 1.04 → **1.34** |
+| namespaces | 1.30 → **1.60** | 1.10 → **1.36** | 1.53 → **1.91** | 0.79 → **1.04** | 1.08 → **1.31** |
+| normalized | 1.66 → **1.53** | 1.57 → **1.47** | 1.50 → **1.70** | 0.69 → **1.04** | 1.01 → **1.25** |
+| unicode | 1.23 → **1.34** | 1.09 → **1.23** | 1.44 → **1.66** | 0.68 → **0.96** | 0.97 → **1.12** |
+| deep | 1.10 → **1.14** | 0.77 → **1.06** | 1.58 → **1.83** | 0.63 → **0.92** | 0.83 → **1.04** |
+| mixed | 1.84 → **1.93** | 1.56 → **1.76** | 2.02 → **2.36** | 0.65 → **1.00** | 1.08 → **1.34** |
 
 | Small chunks | Push 1 | Push 7 | Buffered 1 | Buffered 7 |
 | --- | ---: | ---: | ---: | ---: |
-| tiny | 1.29 → **1.76** | 1.03 → **1.35** | 1.47 → **2.26** | 1.39 → **1.87** |
-| text | 0.64 → **0.86** | 0.73 → **1.07** | 0.75 → **1.58** | 0.83 → **1.41** |
-| namespaces | 0.55 → **0.81** | 0.44 → **0.67** | 0.73 → **1.33** | 0.60 → **0.97** |
-| normalized | 0.61 → **0.85** | 0.49 → **0.70** | 0.81 → **1.44** | 0.67 → **1.09** |
-| mixed | 0.64 → **0.87** | 0.43 → **0.51** | 0.88 → **1.43** | 0.67 → **0.91** |
+| tiny | 1.76 → **1.98** | 1.35 → **1.52** | 2.26 → **2.61** | 1.87 → **3.73** |
+| text | 0.86 → **1.04** | 1.07 → **0.97** | 1.58 → **1.81** | 1.41 → **1.42** |
+| namespaces | 0.81 → **0.98** | 0.67 → **0.83** | 1.33 → **1.60** | 0.97 → **1.22** |
+| normalized | 0.85 → **1.04** | 0.70 → **0.84** | 1.44 → **1.76** | 1.09 → **1.28** |
+| mixed | 0.87 → **1.06** | 0.51 → **0.70** | 1.43 → **1.89** | 0.91 → **1.22** |
 
+The largest gains came from returning events in one result layout:
+converting `Result<Event>` into `Result<Option<Event>>` copied events field by
+field with unaligned loads overlapping fresh byte stores, a store-forwarding
+stall worth about a fifth of push time. `PushParser` also parses complete
+tokens in place across each chunk and lends attribute lists from reused
+storage (`Attributes::Borrowed`), and the DOM builders note `xml:id`
+attributes while building instead of rescanning the tree.
 
-Remaining losses are streaming. `PushParser` loses every 8 KiB row
-except `tiny` and `text`: libxml2's SAX push hands out interned names and buffer pointers with
-no per-event allocation, while each yaxml event is a by-value `Event`
-(an attribute `Vec` per attributed start tag, owned strings for
-normalized text and streaming namespace URIs) behind several validation
-and delivery layers. Without the benchmark observer, yaxml push costs
-about 1.08 ms on `flat` versus 0.79 ms for the borrowing reader. Seven-byte
-chunks rarely contain a complete token, so they fall back to the byte-wise
-tokenizer. Buffered pull still trails on `flat`, `deep` and narrowly on
-`unicode`/7-byte namespaces. Owned DOM trails on `deep`, a 900-byte input
-dominated by per-document setup.
+Remaining losses are all streaming. Push and buffered `flat`, push `deep`
+and `unicode` trail by 5-9%: each yaxml event is a by-value `Event` behind
+validation and delivery layers, while libxml2's SAX hands out interned
+names and buffer pointers. Seven-byte push chunks (`namespaces`,
+`normalized`, `mixed`, narrowly `text`) and, within 2%, one-byte
+`namespaces` rarely contain a whole token, so
+each chunk pays the incremental tokenizer and per-call overhead, about twice
+libxml2's per-chunk cost.
 
 ## Buffered pull observations
 

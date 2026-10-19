@@ -1,0 +1,3 @@
+<!DOCTYPE vK [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'																 #IMPr>

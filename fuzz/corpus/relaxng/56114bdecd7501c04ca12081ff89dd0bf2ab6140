@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (cPCDATA)>
+]><doc><?pi some d?><?x?></doc>

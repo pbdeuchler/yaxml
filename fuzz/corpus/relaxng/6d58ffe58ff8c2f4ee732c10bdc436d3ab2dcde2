@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, propùsed.
+  
+  RSS is an XML vocabulary for describing
+  metadata about websites, and enabling the display of
+  tle | description | name | link)*>
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT rating (#PCDATA)>
+<!ELEMENT language (#PCDATA)>
+<!ELEMENT width (#PCDATA)>
+<!ELEMENT height (#PCDATA)>
+<!ELEMENT copyright (#PCDATA)"channels" on the "My Netscape" website.
+  
+  RSS Info can be foundcopyright Netscape Communications, 1999
+
+  Dan Libby - danda@netscape.com
+  
+  Based on SSS DTD originally created by
+  Lars Marius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| lanyguage | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| language | item+ | ratiÿÿÿÿÿÿÿXng? | image? | textinput? | copyright? | 
+pubDate? | lastBuIldDate? | docs? | mWnagingEditor? | webMastename | link)*>
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT rating (#PCDATA)>
+<!ELEMENT language (#PCDATA)>
+<!ELEMENT width (#PCDATA)>
+<!ELEMENT height (#PCDATA)>
+<!ELEMENT copyright (#PCDATA)>
+<!ELEMENT pubDate (#PCDATA)>
+<!ELEMENT lastBuildDate (#PCDATA)>
+<&#162;">
+<!-- cent sigitle>PP</title>
+</channel>
+</rss>

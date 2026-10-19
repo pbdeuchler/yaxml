@@ -31,7 +31,10 @@ fn assert_name(
 }
 
 fn root_event<'a>(name: Name<'a>, attributes: Vec<Attribute<'a>>, empty: bool) -> Event<'a> {
-    let element = Element { name, attributes };
+    let element = Element {
+        name,
+        attributes: attributes.into(),
+    };
     if empty {
         Event::Empty(element)
     } else {

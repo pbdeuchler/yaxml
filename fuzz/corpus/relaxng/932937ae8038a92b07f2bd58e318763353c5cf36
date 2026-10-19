@@ -1,0 +1,22 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.s vg9i evalg normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c3		"a"
+	notation	(nonce|foo|bar)	UBLIC "-//self::bar:Somethingome public//ID" "file:/dev/console"
+			NDATA nonce>
+    <!ENTITY unparsed-2 SYSTEM "scheme://host/data"
+			NDATA foo>
+]>
+
+<attrnparsed-1 unparsed-2"
+    cdata =	"nothing hap0ens to this one!"
+    />

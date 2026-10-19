@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Namespace mnequality test: diffeg -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns:a CDATA #IMPLIED
+              xmlns:b CDATA #IMPLIED
+              xmlns:c CDATA #IMPLIED>
+<!ELEMENT bar ANY>
+<!ATTLIST bar a:attr CDATA #IMPLIED
+              b:attr CDATA #IMPLIED
+              c:attr0 CDATA #IMPLIED>
+]>
+<foo xmlns:a3"/>
+
+</foo>
+

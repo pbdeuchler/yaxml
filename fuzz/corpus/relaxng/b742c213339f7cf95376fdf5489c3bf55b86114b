@@ -1,0 +1,7 @@
+<!DOCTYPE doc
+[
+
+<!ATTLIST doc att (
+[<!ATTLIST doc att|DE>
+]>
+<d*c/>

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- AttribIIII     local name, with default namespace -->
+<foo xmlns:a="http://exam000000000000000le.grg/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org(~wi,,,,,,,,,,,,,((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((,,,,,,,,,,,,,,,,,,lbur">
+ml rersion="1.0"?>
+<!-- AttribIIII     local name, with default namespace -->
+<foo xmlns:a="http://exam7777777777777777777777777777777777777777777777777777ple.grg/~wilbur"
+     xmlns:b="http://exaper"
+     xmlns="http://example.o/rg(~wi,,,,,,,,,,,,,((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((,,,,,,,,,,,,,,,,,,lbur">
+
+<b:bar a:attr="2" ta="rt3"/>
+
+</foo>
+<b:bar a:attr="2" attr="3"/>
+
+</foo>

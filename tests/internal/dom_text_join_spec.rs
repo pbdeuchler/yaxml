@@ -162,7 +162,7 @@ fn spec_literal_entity_shapes_have_text_only_merging_and_hard_barriers() {
             }
             let element = Element {
                 name: Name::new("a", None).unwrap(),
-                attributes: Vec::new(),
+                attributes: Vec::new().into(),
             };
             doc.append(
                 NodeId(1),

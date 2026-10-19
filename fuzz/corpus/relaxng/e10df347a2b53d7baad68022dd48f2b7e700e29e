@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT doc ((a | b)*, c, b) >TY>
+]>
+<doc>
+<c/>
+<b/c>

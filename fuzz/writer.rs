@@ -88,7 +88,7 @@ fn name(qualified: &str) -> Name<'_> {
 fn empty() -> Event<'static> {
     Event::Empty(Element {
         name: name("r"),
-        attributes: Vec::new(),
+        attributes: Vec::new().into(),
     })
 }
 
@@ -175,12 +175,13 @@ fn operations(input: &[u8]) {
                         attributes: vec![Attribute {
                             name: attribute_name,
                             value: Cow::Borrowed(&payload),
-                        }],
+                        }]
+                        .into(),
                     })
                 } else if control & 7 == 1 {
                     Event::Empty(Element {
                         name: element_name,
-                        attributes: Vec::new(),
+                        attributes: Vec::new().into(),
                     })
                 } else {
                     Event::End(element_name)

@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<?Pi?><!--comment-->
+<!ELEMENT do EMPTY>
+<?Pi?><!--comment-->
+<!ATTLIST doc att CDATA #IMPLIED>
+<?ot Pon">
+<?Pi?><!--comment-->
+]>
+<doc/>

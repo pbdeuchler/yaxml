@@ -1,0 +1,7 @@
+<?x?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater refe for &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x4re

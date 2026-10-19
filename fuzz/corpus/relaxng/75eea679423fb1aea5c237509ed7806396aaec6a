@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//EdiblCTIONS="-//International Grocery Co3veguit
+    PUBLIC "-//International Grocery Coy"/>
+

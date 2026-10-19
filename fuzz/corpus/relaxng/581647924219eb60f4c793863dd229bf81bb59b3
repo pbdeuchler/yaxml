@@ -1,0 +1,14 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc ANY>
+<!--NE: XML does is a choice or a seq-->
+<!ELEMENT a (doc?)>
+<!ELEMENT b (doc,a)>
+<!ELEMENT c (
+doc
+,	a
+,
+c?
+)>
+]>
+<doc/>

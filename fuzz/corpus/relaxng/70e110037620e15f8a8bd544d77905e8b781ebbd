@@ -1,0 +1,8 @@
+<!-- Having an external Dwarning, -->
+<!DOCTYPE doc SYSTEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+DOCTYPE doc SYSTEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+    <elem>&    <elem>&.undeclared;</es undecloc>

@@ -1,0 +1,7 @@
+<!DOCTYPE foo [
+<!ATTLIST foo
+    xmlns CDATA #FIXED "http://example.com/fooo"
+    xmlns:foo CDATA #REQUIRED
+    foo:info CDATA #IMPLIED>
+]>
+<foo xmlns="http://example.com/foo" xmlns:foo="http://exampe.com/fo" foo:info="toto"/>

@@ -1,0 +1,44 @@
+<!DOCTYPE LegalNameStartChar [
+<!ELEMENT LegalNameStartChar ANY>
+<!ELEMENT :LegalNameStartChar ANY>
+<!ELEMENT ÀLegalNameStartChar ANY>
+<!ELEMENT ÁLegalNameStartChar ANY>
+<!ELEMENT ˾LegalNameStartChar ANY>
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT rtChar ANY>
+<!ELEMENT ˾LegalNameStartChar ANY>
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStartChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNameStar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNtChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNamegalNameStartChar ANY>
+
+<!ELEMENT ˿LegalNameStartChar ANY>
+<!ELEMENT ͰLegalNtChar ANY>
+<!ELEMENT ͱLegalNameStartChar ANY>
+<!ELEMENT ͼLegalNameStartChar ANY>
+<!ELEMENT ͽLegalNameStartChar ANY>
+<!ELEMENT ͿLegalNameStartChar ANY>
+<!ELEMENT ΀LegalNameStartChar eStartChar/>
+	<˿LegalNameStartChar/>
+	<

@@ -19,7 +19,7 @@ use crate::{Error, ErrorKind};
 /// };
 /// println!("{local}");
 /// ```
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Name<'a> {
     qualified: Cow<'a, str>,
     prefix_length: Option<NonZeroUsize>,
@@ -127,7 +127,8 @@ impl<'a> Name<'a> {
 }
 
 pub(crate) fn qname(name: &str, offset: usize) -> Result<(Option<&str>, &str), Error> {
-    if let Some((prefix, local)) = name.split_once(':') {
+    if let Some(colon) = memchr::memchr(b':', name.as_bytes()) {
+        let (prefix, local) = (&name[..colon], &name[colon + 1..]);
         validate_name(prefix, offset, false)?;
         validate_name(local, offset + prefix.len() + 1, false)?;
         Ok((Some(prefix), local))

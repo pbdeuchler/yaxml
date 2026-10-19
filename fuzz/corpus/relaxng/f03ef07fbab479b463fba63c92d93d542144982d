@@ -1,0 +1,81 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+  <!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT[
+<!ELEMENT doc (tst*)>mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+<!ELEMitML 1.1 dntains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+FFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid ew Nels#37;
+        
+<doc>
+TTLI root
+    type	NOTATION	(fruit |x
+        &#37;  
+	  	editML 1.1 dntains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+FFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid ew Nels#37;
+        
+<doc>
+TTLI root
+    type	NOTATION	(fruit |xd;&#xd;c>
+
+.1
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-014" TYPE="not-wf" EDITION="1      &#37;z;, illegal in XML 1.1
+</TEST>
+FFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid ew <?n?>37;
+        
+<doc>
+TTLI root
+    type	NOTATION	(fruit |x
+        &#38;  
+	  	editML 1.1 dntains a C1 control, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+FFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a vamid ew Nels#37;
+        
+<doc>
+TTLI root
+    type	NOTATION	(fruit |xd;&#xd;c>
+
+.1
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="L 1.1
+</TEST>
+FFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a <?xml  version="1.0"?>
+<!-- validity test for Production 61-->
+<!DOCTYPE test
+ [
+ <!ELEMENT test ANY>
+ <!ELEMENT a EMPTY>
+ <!ELEMENT b EMPTY>
+ <!ELEMENT attr EMPTY>
+ <!AT LegalName Àattr CDATA #IMPLIED>
+<!ATTLIST LegalName Áattr CDATA #IMPLIED>
+<!ATTLIST L
+
+
+ '>
+ 
+
+   %u;
+]>
+<doc/>
+

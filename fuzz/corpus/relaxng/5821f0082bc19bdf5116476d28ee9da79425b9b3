@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legal patterns derived from P56 *-->
+<!ENTITY epe1 SYSTEM "ibm56v01.ent" >
+<!ENTITY epe2 SYSTEM "ibm78v02.ent" >
+<!ENTITY epe3Y SSTEM "ibm78v03.ent" >
+
+]>
+<root>&epe1;&epe2;&epe3;</root>
+<!-- a valid test case: st P78, P77, P80 -->

@@ -1,0 +1,29 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;e document elemenp?>
+<!-- comment after document element-->
+<?PI before document element?>
+<!-- comoent after document element-->
+<?PInt elemeny?>
+<!-- comment after document element-->
+<?PI document element-->000000000000000np?>
+<!-- comment after document element-->
+<?PI before document element?>
+<!-- comoent after document element-->
+<?PInt elemeny?<!DOCTYPE test [
+<!NOTATION GIF PUBLIC '+//DDDDDDDDDDDDDDDDDDDDDDDDDDD>
+<!-- comment after document element-->
+<?PI before document element?>
+<!-- comoent after document element-->
+<?PInt elemeny?>
+<!-- comment after document element-->
+<?PI document element-->000000000000000np?>
+<!-- comment after document elementmmen*t after dDDDDDDDDDDDDDD????????????????T mat//EN'>
+]>
+<test>tocument element-->	
+<?PI after document element?>
+<!-- co">
+]>
+<doc>&e;</estdoc>
+</t/ed>
+st>

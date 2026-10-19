@@ -1,0 +1,35 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	ca
+      <R:bigbox/>
+      <R:author/>
+    </D:p the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nm9oken		NMTOKEN		#IMPLIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	ta		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nzzzzrzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public yd//foo" "file:/devr; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nzzzzrzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzNzzzzonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIlt values for attributes may not contain references to external ea="not defIMPLIED
+	id		ID		#IMPLIED
+	idref		IDRE />

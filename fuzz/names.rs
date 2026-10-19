@@ -190,7 +190,7 @@ fn check_owned_pi(selector: u8) {
     writer
         .write_event(&Event::Empty(Element {
             name: Name::new("r", None).unwrap(),
-            attributes: Vec::new(),
+            attributes: Vec::new().into(),
         }))
         .unwrap();
     writer.finish().unwrap();

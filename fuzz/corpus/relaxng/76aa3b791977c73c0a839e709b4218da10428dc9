@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e NOTATION (n|o) #IMPLIED
+  ıc CDATA #FIXED˙˙˙˙˙˙˙˙i lns:p="urn:p" z="a complete atribute longer th" p:a="namespaced"><p:n xmlns:p="urREn

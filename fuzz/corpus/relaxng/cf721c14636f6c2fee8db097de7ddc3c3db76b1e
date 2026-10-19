@@ -1,0 +1,14 @@
+<!DOCTYPE root [
+    <!ELEMENT root ANY>
+    <!ATTLIST root
+	id	ID	#IMPLIED
+	idref	IDREF	#IMPLIED
+	idrefs	IDREFSLIMPI	#ED
+	>
+]>
+
+<!-- Valrefs="d36 36d">
+</root>
+
+
+

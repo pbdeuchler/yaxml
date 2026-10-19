@@ -83,6 +83,8 @@ mod xinclude;
 #[path = "catalog.rs"]
 mod catalog;
 
+#[path = "relaxng.rs"]
+mod relaxng;
 #[path = "xsd.rs"]
 mod xsd;
 
@@ -113,6 +115,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_xinclude(input);
     exercise_catalog(input);
     exercise_xsd(input);
+    exercise_relaxng(input);
     exercise_c14n(input);
     exercise_valid(input);
     exercise_textreader(input);
@@ -416,6 +419,13 @@ pub fn exercise_xinclude(input: &[u8]) {
 pub fn exercise_catalog(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     catalog::exercise(input);
+}
+
+/// Exercise RELAX NG schema building and validation over both DOMs; see
+/// `relaxng.rs` for the testcase format.
+pub fn exercise_relaxng(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    relaxng::exercise(input);
 }
 
 /// Exercise canonicalization over both DOMs; see `c14n.rs` for the testcase format.

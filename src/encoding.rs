@@ -156,6 +156,18 @@ impl Decoder {
         self.position
     }
 
+    /// Decoded bytes still allowed once plain UTF-8 forwarding is active.
+    pub(crate) fn utf8_allowance(&self) -> Option<usize> {
+        (self.encoding == Some(SourceEncoding::Utf8) && self.preamble_cursor == self.preamble_len)
+            .then(|| self.limit - self.decoded)
+    }
+
+    /// Counts input taken directly from the chunk, as `forward_utf8` would.
+    pub(crate) fn skip_utf8(&mut self, length: usize) {
+        self.position += length;
+        self.decoded += length;
+    }
+
     pub(crate) fn advance(
         &mut self,
         input: &[u8],

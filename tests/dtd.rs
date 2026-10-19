@@ -578,7 +578,7 @@ fn write(events: &[Event<'_>]) -> Result<Vec<u8>, yaxml::WriteError> {
 fn empty_root() -> Event<'static> {
     Event::Empty(yaxml::Element {
         name: yaxml::Name::new("r", None).unwrap(),
-        attributes: Vec::new(),
+        attributes: Vec::new().into(),
     })
 }
 

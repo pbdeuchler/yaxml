@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* > 	퟾퟿豈attr="attrValue"
+ 	퟿豈更attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValue"
+ 	attr.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟾퟿豈attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟿豈更attr CDATA #IMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>
+<!ATTLISST LegalName :attr CDATA #IMPLIED>
+<!ATTLISTValue"
+ 	⿯、。attr="attrValue"
+ 	、。퟾attr;"attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈attr="attrValue"
+ 	퟿豈更attr="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈퟿퟾attr="attrValue"
+ 	�更豈퟿attr="attrValue"
+ 	attr-�更豈="attrValue"
+ 	attr.-attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟾퟿豈attr CDATA #IMPLIED>
+<!ATTLIST LegalName ퟿豈更attr CDATA #IMPLIED>
+<!ATTLIST LegalName 豈퟿퟾。attr CDATA #IMPLIED>
+<!ATTLIST LegalName 更豈퟿퟾attr CDATA #IMPLIED>
+<!ATTLISTtr="attrValue"
+ 	nullnullnull⁀attr="attrValue"
+ />>
+

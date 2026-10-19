@@ -6,7 +6,7 @@ use std::ops::Range;
 use memchr::{memchr, memmem};
 
 use crate::escape::normalize_replacement_required;
-use crate::escape::{copy_cow, needs_normalization, normalize_required};
+use crate::escape::{needs_normalization, normalize_into};
 use crate::name::{qname, validate_name};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
@@ -72,7 +72,7 @@ impl Budget {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum NamespaceId {
     Xml,
     Xmlns,
@@ -282,6 +282,8 @@ pub(crate) struct ParserState<'source> {
     phase: Phase,
     stack: Vec<Frame<'source>>,
     frame_names: String,
+    /// Empty attribute list whose capacity a callback frontend returned.
+    attribute_storage: Vec<Attribute<'static>>,
     copies_names: bool,
     bindings: Vec<Binding<'source>>,
     /// Prefix -> active binding, maintained only above `INDEXED_SCOPE`
@@ -315,6 +317,7 @@ impl<'source> ParserState<'source> {
             phase: Phase::Prolog,
             stack: Vec::new(),
             frame_names: String::new(),
+            attribute_storage: Vec::new(),
             copies_names: false,
             bindings: Vec::new(),
             namespace_index: HashMap::new(),
@@ -417,6 +420,27 @@ impl<'source> ParserState<'source> {
         self.namespace_ids = ids;
         self.indexed = true;
         Ok(())
+    }
+
+    /// Reuses returned attribute capacity. Both conversions collect in place:
+    /// the vector is empty, so only its allocation changes lifetime.
+    fn take_attributes<'event>(&mut self) -> Vec<Attribute<'event>> {
+        std::mem::take(&mut self.attribute_storage)
+            .into_iter()
+            .map(|_| unreachable!("stored attribute lists are empty"))
+            .collect()
+    }
+
+    /// Keeps the capacity of a list whose event has been delivered.
+    pub(crate) fn recycle_attributes(&mut self, mut attributes: Vec<Attribute<'_>>) {
+        if attributes.capacity() <= self.attribute_storage.capacity() {
+            return;
+        }
+        attributes.clear();
+        self.attribute_storage = attributes
+            .into_iter()
+            .map(|_| unreachable!("cleared above"))
+            .collect();
     }
 
     fn open_name(&self) -> Option<&str> {
@@ -549,36 +573,50 @@ impl<'source> ParserState<'source> {
         }
         self.check_event_limit(start)?;
         self.check_token_start(kind, start)?;
+        // Every arm yields the result type returned here, so a tag's event
+        // passes through without being re-laid-out.
         let event = match kind {
-            TokenKind::Start => self.start_element(raw, start, &mut retain)?,
-            TokenKind::End => self.end_element(raw, start)?,
+            TokenKind::Start => self.start_element(raw, start, &mut retain),
+            TokenKind::End => self.end_element(raw, start),
             TokenKind::Text => {
                 if let Some(relative) = memmem::find(raw.as_bytes(), b"]]>") {
                     return Err(Error::new(ErrorKind::Syntax, start + relative));
                 }
-                Event::Text(self.normalized(raw, start, false, true)?)
+                Ok(Some(Event::Text(self.normalized(raw, start, false, true)?)))
             }
             TokenKind::Comment => {
                 let body = delimited_body(raw, "<!--", "-->", start)?;
                 if memmem::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
                     return Err(Error::new(ErrorKind::Syntax, start));
                 }
-                Event::Comment(self.normalized(body, start + 4, false, false)?)
+                Ok(Some(Event::Comment(self.normalized(
+                    body,
+                    start + 4,
+                    false,
+                    false,
+                )?)))
             }
             TokenKind::Cdata => {
                 if !self.in_content() {
                     return Err(Error::new(ErrorKind::TextOutsideRoot, start));
                 }
                 let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
-                Event::Cdata(self.normalized(body, start + 9, false, false)?)
+                Ok(Some(Event::Cdata(self.normalized(
+                    body,
+                    start + 9,
+                    false,
+                    false,
+                )?)))
             }
-            TokenKind::Instruction => self.instruction(raw, start)?,
+            TokenKind::Instruction => self.instruction(raw, start),
             TokenKind::Dtd | TokenKind::InvalidMarkup => {
                 return Err(Error::new(ErrorKind::Syntax, start));
             }
         };
-        self.events += 1;
-        Ok(Some(event))
+        if event.is_ok() {
+            self.events += 1;
+        }
+        event
     }
 
     fn normalized<'event>(
@@ -592,14 +630,14 @@ impl<'source> ParserState<'source> {
             return Ok(Cow::Borrowed(raw));
         }
         self.budget.charge_owned(raw.len(), offset)?;
-        normalize_required(raw, offset, attribute, references).map(Cow::Owned)
+        normalize_into(raw, offset, attribute, references, String::new()).map(Cow::Owned)
     }
 
     fn instruction<'event>(
         &mut self,
         raw: &'event str,
         start: usize,
-    ) -> Result<Event<'event>, Error> {
+    ) -> Result<Option<Event<'event>>, Error> {
         let body = delimited_body(raw, "<?", "?>", start)?;
         let name_end = body.bytes().position(space).unwrap_or(body.len());
         let target = &body[..name_end];
@@ -617,17 +655,17 @@ impl<'source> ParserState<'source> {
                 encoding_offset.unwrap_or(start),
             )?;
             self.declaration_seen = true;
-            return Ok(Event::Declaration(declaration));
+            return Ok(Some(Event::Declaration(declaration)));
         }
         if self.encoding.requires_declaration() && !self.declaration_seen {
             return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
-        Ok(Event::ProcessingInstruction {
+        Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),
             data: self.normalized(data, offset, false, false)?,
-        })
+        }))
     }
 
     fn start_element<'event, F>(
@@ -635,7 +673,7 @@ impl<'source> ParserState<'source> {
         raw: &'event str,
         start: usize,
         retain: &mut F,
-    ) -> Result<Event<'event>, Error>
+    ) -> Result<Option<Event<'event>>, Error>
     where
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
@@ -650,11 +688,11 @@ impl<'source> ParserState<'source> {
             cursor: 0,
             offset: start + 1,
         };
-        let qualified = scan.name()?;
-        let (element_prefix, _) = qname(qualified, start + 1)?;
+        let (qualified, split) = scan.scan_name()?;
+        let (element_prefix, _) = split_qname(qualified, split, start + 1)?;
         let element_prefix = element_prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
         let bindings_start = self.bindings.len();
-        let mut attributes = Vec::new();
+        let mut attributes = self.take_attributes();
         while let Some(attribute) = scan.attribute()? {
             let name = attribute.qualified;
             let value = attribute.literal;
@@ -666,8 +704,12 @@ impl<'source> ParserState<'source> {
                     offset,
                 ));
             }
-            let (prefix, local) = qname(name, offset)?;
-            let value = self.normalized(value, value_offset, true, true)?;
+            let (prefix, local) = split_qname(name, attribute.split, offset)?;
+            let value = if attribute.plain {
+                Cow::Borrowed(value)
+            } else {
+                self.normalized(value, value_offset, true, true)?
+            };
             let declaration = if name == "xmlns" {
                 Some("")
             } else if prefix == Some("xmlns") {
@@ -734,24 +776,54 @@ impl<'source> ParserState<'source> {
                 }
             }
         } else {
-            let mut expanded = HashSet::new();
-            expanded
+            // Resolve in order up to the first failure. The interleaved check
+            // above would report any duplicate among the resolved attributes
+            // before reaching that failure, so sorting finds the same result.
+            let mut identities = Vec::new();
+            identities
                 .try_reserve(attributes.len())
                 .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            let mut failure = None;
             for attribute in &mut attributes {
-                let namespace = self.resolve_namespace(&mut attribute.name, true, start)?;
-                if !expanded.insert((attribute.name.local(), namespace)) {
-                    return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+                match self.resolve_namespace(&mut attribute.name, true, start) {
+                    Ok(identity) => identities.push(identity),
+                    Err(error) => {
+                        failure = Some(error);
+                        break;
+                    }
                 }
             }
+            let mut expanded = Vec::new();
+            expanded
+                .try_reserve(identities.len())
+                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            expanded.extend(
+                attributes
+                    .iter()
+                    .zip(identities)
+                    .map(|(attribute, identity)| {
+                        let local = attribute.name.local();
+                        (sort_key(local), local, identity)
+                    }),
+            );
+            expanded.sort_unstable();
+            if expanded.windows(2).any(|pair| pair[0] == pair[1]) {
+                return Err(Error::new(ErrorKind::DuplicateAttribute, start));
+            }
+            if let Some(error) = failure {
+                return Err(error);
+            }
         }
-        let element = Element { name, attributes };
+        let element = Element {
+            name,
+            attributes: attributes.into(),
+        };
         if empty {
             self.unwind_bindings(bindings_start);
             if self.stack.is_empty() {
                 self.phase = Phase::Epilog;
             }
-            Ok(Event::Empty(element))
+            Ok(Some(Event::Empty(element)))
         } else {
             self.stack
                 .try_reserve(1)
@@ -772,7 +844,7 @@ impl<'source> ParserState<'source> {
                 bindings_start,
             });
             self.phase = Phase::Content;
-            Ok(Event::Start(element))
+            Ok(Some(Event::Start(element)))
         }
     }
 
@@ -1294,7 +1366,7 @@ impl<'source> ParserState<'source> {
         }
         let element = Element {
             name: prepared.name,
-            attributes,
+            attributes: attributes.into(),
         };
         self.bindings.try_reserve(pending.len()).map_err(|_| {
             PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
@@ -1560,7 +1632,16 @@ impl<'source> ParserState<'source> {
                         self.budget.charge_owned(uri.len(), offset)?;
                     }
                     (
-                        Some(copy_cow(&self.bindings[index].uri, offset)?),
+                        Some(match &self.bindings[index].uri {
+                            Cow::Borrowed(uri) => Cow::Borrowed(*uri),
+                            Cow::Owned(uri) => {
+                                let mut copy = String::new();
+                                copy.try_reserve(uri.len())
+                                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                                copy.push_str(uri);
+                                Cow::Owned(copy)
+                            }
+                        }),
                         self.bindings[index].namespace,
                     )
                 }
@@ -1626,7 +1707,7 @@ impl<'source> ParserState<'source> {
         &mut self,
         raw: &'event str,
         start: usize,
-    ) -> Result<Event<'event>, Error>
+    ) -> Result<Option<Event<'event>>, Error>
     where
         'source: 'event,
     {
@@ -1660,7 +1741,7 @@ impl<'source> ParserState<'source> {
         if self.stack.is_empty() {
             self.phase = Phase::Epilog;
         }
-        Ok(Event::End(name))
+        Ok(Some(Event::End(name)))
     }
 
     fn unwind_bindings(&mut self, start: usize) {
@@ -1695,6 +1776,19 @@ impl<'source> ParserState<'source> {
     }
 }
 
+/// A QName's prefix and local part, from a scanner-proven split when present.
+fn split_qname(
+    name: &str,
+    split: Option<Option<NonZeroUsize>>,
+    offset: usize,
+) -> Result<(Option<&str>, &str), Error> {
+    match split {
+        Some(None) => Ok((None, name)),
+        Some(Some(prefix)) => Ok((Some(&name[..prefix.get()]), &name[prefix.get() + 1..])),
+        None => qname(name, offset),
+    }
+}
+
 fn invalid_namespace_binding(prefix: &str, uri: &str) -> bool {
     prefix == "xmlns"
         || uri == XMLNS
@@ -1717,6 +1811,59 @@ fn delimited_body<'a>(
 pub(crate) fn space(byte: u8) -> bool {
     matches!(byte, b' ' | b'\t' | b'\r' | b'\n')
 }
+/// ASCII classes for one-pass Name scanning; non-ASCII bytes are class 0.
+const START: u8 = 1;
+const CONTINUE: u8 = 2;
+const COLON: u8 = 4;
+const DELIMITER: u8 = 8;
+const NAME_BYTES: [u8; 256] = {
+    let mut table = [0; 256];
+    let mut byte = 0;
+    while byte < 128 {
+        let c = byte as u8;
+        table[byte] = if c.is_ascii_alphabetic() || c == b'_' {
+            START | CONTINUE
+        } else if c.is_ascii_digit() || c == b'-' || c == b'.' {
+            CONTINUE
+        } else if c == b':' {
+            COLON
+        } else if matches!(
+            c,
+            b' ' | b'\t' | b'\r' | b'\n' | b'=' | b'/' | b'>' | b'\'' | b'"'
+        ) {
+            DELIMITER
+        } else {
+            0
+        };
+        byte += 1;
+    }
+    table
+};
+
+/// An integer prefix of a name that orders most distinct names without
+/// comparing strings: its length and first eight bytes.
+fn sort_key(name: &str) -> u64 {
+    let mut head = [0; 8];
+    let bytes = name.as_bytes();
+    let length = bytes.len().min(8);
+    head[..length].copy_from_slice(&bytes[..length]);
+    u64::from_be_bytes(head) ^ (bytes.len() as u64).rotate_right(8)
+}
+
+/// For a value closed within its first 32 bytes, its length and whether it
+/// is free of `<`, references and whitespace that attribute normalization
+/// rewrites. Longer values are left to the vectorized searches.
+fn short_value(bytes: &[u8], quote: u8) -> Option<(usize, bool)> {
+    let mut plain = true;
+    for (index, &byte) in bytes.iter().take(32).enumerate() {
+        if byte == quote {
+            return Some((index, plain));
+        }
+        plain &= !matches!(byte, b'<' | b'&' | b'\r' | b'\n' | b'\t');
+    }
+    None
+}
+
 struct TagScanner<'a> {
     raw: &'a str,
     cursor: usize,
@@ -1725,6 +1872,10 @@ struct TagScanner<'a> {
 
 struct ScannedAttribute<'a> {
     qualified: &'a str,
+    /// The value is known to need no normalization.
+    plain: bool,
+    /// The proven QName split, when the scanner established it.
+    split: Option<Option<NonZeroUsize>>,
     literal: &'a str,
     name_offset: usize,
     value_offset: usize,
@@ -1746,16 +1897,52 @@ impl<'a> TagScanner<'a> {
     }
 
     fn name(&mut self) -> Result<&'a str, Error> {
+        self.scan_name().map(|(name, _)| name)
+    }
+
+    /// Scans and validates a Name in one pass. For an ASCII name it also
+    /// proves the QName split, returned as `Some(prefix length)`; `None`
+    /// leaves `qname` to establish it (and its exact error).
+    fn scan_name(&mut self) -> Result<(&'a str, Option<Option<NonZeroUsize>>), Error> {
+        let bytes = self.raw.as_bytes();
         let start = self.cursor;
-        while let Some(byte) = self.raw.as_bytes().get(self.cursor) {
-            if space(*byte) || matches!(byte, b'=' | b'/' | b'>' | b'\'' | b'"') {
+        let (mut valid, mut colons, mut colon) = (true, 0, 0);
+        while let Some(&byte) = bytes.get(self.cursor) {
+            let class = NAME_BYTES[usize::from(byte)];
+            if class & DELIMITER != 0 {
                 break;
+            }
+            let wanted = if self.cursor == start {
+                START
+            } else {
+                CONTINUE
+            };
+            valid &= class & (wanted | COLON) != 0;
+            if class & COLON != 0 {
+                colons += 1;
+                colon = self.cursor - start;
             }
             self.cursor += 1;
         }
         let name = &self.raw[start..self.cursor];
-        validate_name(name, self.offset + start, true)?;
-        Ok(name)
+        if !valid || name.is_empty() {
+            validate_name(name, self.offset + start, true)?;
+        }
+        // A valid Name is a QName when its only colon is followed by a
+        // name-start character; prefix characters are already valid.
+        let split = match colons {
+            0 => Some(None),
+            1 if colon > 0
+                && name[colon + 1..]
+                    .chars()
+                    .next()
+                    .is_some_and(|c| crate::name::name_start(c, false)) =>
+            {
+                Some(NonZeroUsize::new(colon))
+            }
+            _ => None,
+        };
+        Ok((name, split))
     }
 
     // Returns the name's source offset; values are still unnormalized input.
@@ -1768,7 +1955,7 @@ impl<'a> TagScanner<'a> {
             return Err(Error::new(ErrorKind::Syntax, self.offset + self.cursor));
         }
         let start = self.cursor;
-        let name = self.name()?;
+        let (name, split) = self.scan_name()?;
         self.skip_space();
         if self.raw.as_bytes().get(self.cursor) != Some(&b'=') {
             return Err(Error::new(ErrorKind::Syntax, self.offset + self.cursor));
@@ -1783,19 +1970,27 @@ impl<'a> TagScanner<'a> {
             .ok_or(Error::new(ErrorKind::Syntax, self.offset + self.cursor))?;
         self.cursor += 1;
         let value_start = self.cursor;
-        let length = memchr(quote, &self.raw.as_bytes()[value_start..]).ok_or(Error::new(
-            ErrorKind::UnexpectedEof,
-            self.offset + value_start,
-        ))?;
+        let (length, plain) = match short_value(&self.raw.as_bytes()[value_start..], quote) {
+            Some(scanned) => scanned,
+            None => (
+                memchr(quote, &self.raw.as_bytes()[value_start..]).ok_or(Error::new(
+                    ErrorKind::UnexpectedEof,
+                    self.offset + value_start,
+                ))?,
+                false,
+            ),
+        };
         self.cursor += length;
         let value = &self.raw[value_start..self.cursor];
-        if let Some(i) = memchr(b'<', value.as_bytes()) {
+        if let Some(i) = memchr(b'<', value.as_bytes()).filter(|_| !plain) {
             return Err(Error::new(ErrorKind::Syntax, self.offset + value_start + i));
         }
         let value_end = self.offset + self.cursor;
         self.cursor += 1;
         Ok(Some(ScannedAttribute {
             qualified: name,
+            plain,
+            split,
             literal: value,
             name_offset: self.offset + start,
             value_offset: self.offset + value_start,

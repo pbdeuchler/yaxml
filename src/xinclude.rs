@@ -852,7 +852,10 @@ impl Processor<'_> {
             })
             .unwrap_or(default);
         let name = node.name().expect("element has a name");
-        let event = Event::Start(Element { name, attributes });
+        let event = Event::Start(Element {
+            name,
+            attributes: attributes.into(),
+        });
         let id = builder.append(parent, event, &positions)?;
         stack.push(Work::Close(id));
         stack.push(Work::Nodes {

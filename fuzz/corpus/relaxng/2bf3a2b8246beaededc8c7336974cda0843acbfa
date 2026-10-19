@@ -1,0 +1,4 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED'parsed'>
+<!!IXED 'c C

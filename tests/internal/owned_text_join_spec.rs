@@ -15,7 +15,7 @@ fn generated(i: u64, range: Range<usize>) -> SourceOrigin {
 fn element(name: &'static str) -> crate::Element<'static> {
     crate::Element {
         name: Name::new(name, None).unwrap(),
-        attributes: Vec::new(),
+        attributes: Vec::new().into(),
     }
 }
 fn begin(budget: &mut Budget) -> OwnedBuilder {

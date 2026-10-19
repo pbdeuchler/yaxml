@@ -1,0 +1,19 @@
+<!DOCTYPE doc [
+<!ENTITY e "<e/>">
+<!ELEMENT doc (e)>
+<!ELEMENT e EMPTY>
+]>
+<doc>&e<?xml version!DOCTYPE student PUB<!ELEMENT doc$ (#PCDATA)><?xml version="1.0"?>
+<!DOCTYPEth all l!ELEMENT e EMPTY>
+]>
+<doc>&e<?xml version="1.0"?>
+<!DOCTYPE sstudent>
+
+
+
+
+
+
+
+
+ 

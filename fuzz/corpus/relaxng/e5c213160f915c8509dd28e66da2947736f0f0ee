@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- Simple legapace and rebinding -->
+<foo xmlns="hace">
+ <fooo xmlns="hcae">
+ <foo xmlns="hace">
+ <fooo xmlns= rebiace"/>
+</foo>
+

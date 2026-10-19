@@ -218,7 +218,12 @@ impl Tokenizer {
                             self.diagnostic_start(),
                         ));
                     }
-                    self.append_slice(&input[cursor..cursor + length])?;
+                    // Single bytes (one-byte chunks) skip the copy call.
+                    if length == 1 {
+                        self.append(input[cursor])?;
+                    } else {
+                        self.append_slice(&input[cursor..cursor + length])?;
+                    }
                     self.position += length;
                     if !self.local_mode() {
                         self.source_position += length;
@@ -261,7 +266,7 @@ impl Tokenizer {
 
     /// While no token is buffered in plain UTF-8 mode, the absolute offset of
     /// the next byte and whether a text-terminating `<` awaits replay.
-    fn idle_utf8(&self) -> Option<(usize, bool)> {
+    pub(crate) fn idle_utf8(&self) -> Option<(usize, bool)> {
         (self.ready.is_none()
             && self.buffer.is_empty()
             && matches!(self.scan, Scan::Text)
@@ -272,14 +277,14 @@ impl Tokenizer {
     }
 
     /// Longest token both byte ceilings accept without diagnosing it.
-    fn borrow_limit(&self) -> usize {
+    pub(crate) fn borrow_limit(&self) -> usize {
         self.limit.min(self.decoded_limit)
     }
 
     /// Accounts for an adopted token ending at absolute `end`.
     /// Text also consumes its terminating `<` as replayed lookahead, exactly
     /// as the incremental scanner does.
-    fn skip_borrowed(&mut self, kind: TokenKind, end: usize) {
+    pub(crate) fn skip_borrowed(&mut self, kind: TokenKind, end: usize) {
         self.lookahead = (kind == TokenKind::Text).then_some((end, end));
         self.position = end + usize::from(kind == TokenKind::Text);
         self.source_position = self.position;
@@ -308,6 +313,10 @@ impl Tokenizer {
     }
 
     fn append(&mut self, byte: u8) -> Result<(), Error> {
+        if self.buffer.len() < self.buffer.capacity() && self.buffer.len() < self.decoded_limit {
+            self.buffer.push(byte);
+            return Ok(());
+        }
         self.append_slice(std::slice::from_ref(&byte))
     }
 
@@ -378,17 +387,24 @@ impl Tokenizer {
                 }
             }
             Scan::Prefix => {
-                if self.buffer == b"<!--" {
-                    self.scan = Scan::Comment { hyphens: 0 };
-                } else if self.buffer == b"<![CDATA[" {
-                    self.scan = Scan::Cdata { brackets: 0 };
-                } else if self.buffer == b"<!DOCTYPE" {
-                    self.mark(TokenKind::Dtd, offset + 1);
-                } else if ![&b"<!--"[..], &b"<![CDATA["[..], &b"<!DOCTYPE"[..]]
-                    .iter()
-                    .any(|prefix| prefix.starts_with(&self.buffer))
-                {
+                // Earlier bytes matched the family that byte 2 selects, so
+                // only the newest byte is compared.
+                let length = self.buffer.len();
+                let family: &[u8] = match self.buffer.get(2) {
+                    Some(b'-') => b"<!--",
+                    Some(b'[') => b"<![CDATA[",
+                    Some(b'D') => b"<!DOCTYPE",
+                    _ => b"",
+                };
+                if length < 3 {
+                } else if family.get(length - 1) != Some(&byte) {
                     self.mark(TokenKind::InvalidMarkup, offset + 1);
+                } else if length == family.len() {
+                    match family[2] {
+                        b'-' => self.scan = Scan::Comment { hyphens: 0 },
+                        b'[' => self.scan = Scan::Cdata { brackets: 0 },
+                        _ => self.mark(TokenKind::Dtd, offset + 1),
+                    }
                 }
             }
             Scan::Tag { .. } => self.tag_byte(byte, offset),
@@ -503,7 +519,7 @@ impl Tokenizer {
 /// Kind and length of a complete UTF-8 token at the start of `input`, using
 /// the incremental scanner's delimiters. `None` when more input could change
 /// the token, or for prefixes it alone classifies (DOCTYPE, invalid markup).
-fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
+pub(crate) fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
     match input.split_first()? {
         (b'<', rest) => markup_after_lt(rest).map(|(kind, length)| (kind, length + 1)),
         _ => memchr(b'<', input).map(|at| (TokenKind::Text, at)),
@@ -529,17 +545,22 @@ fn markup_after_lt(rest: &[u8]) -> Option<(TokenKind, usize)> {
             } else {
                 TokenKind::Start
             };
-            let mut at = 0;
-            loop {
-                at += memchr3(b'\'', b'"', b'>', &rest[at..])?;
-                if rest[at] == b'>' {
-                    return Some((kind, at + 1));
-                }
-                let quote = rest[at];
-                at += 1;
-                at += memchr(quote, &rest[at..])? + 1;
-            }
+            tag_close(rest).map(|length| (kind, length))
         }
+    }
+}
+
+/// Length through the first `>` outside quoted attribute values.
+pub(crate) fn tag_close(bytes: &[u8]) -> Option<usize> {
+    let mut at = 0;
+    loop {
+        at += memchr3(b'\'', b'"', b'>', &bytes[at..])?;
+        if bytes[at] == b'>' {
+            return Some(at + 1);
+        }
+        let quote = bytes[at];
+        at += 1;
+        at += memchr(quote, &bytes[at..])? + 1;
     }
 }
 

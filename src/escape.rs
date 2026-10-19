@@ -1,6 +1,5 @@
 use crate::{Error, ErrorKind};
 use memchr::{memchr, memchr2, memchr3};
-use std::borrow::Cow;
 
 pub(crate) fn xml_char(c: char) -> bool {
     matches!(c, '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}' | '\u{10000}'..='\u{10ffff}')
@@ -45,19 +44,21 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
     }
 }
 
-/// XML end-of-line and CDATA attribute normalization. References are expanded
-/// after literal whitespace normalization: &#xA; must remain a newline.
-pub(crate) fn normalize_required(
+/// XML end-of-line and CDATA attribute normalization into `out`, which is
+/// cleared first. References are expanded after literal whitespace
+/// normalization: &#xA; must remain a newline.
+pub(crate) fn normalize_into(
     raw: &str,
     offset: usize,
     attribute: bool,
     references: bool,
+    out: String,
 ) -> Result<String, Error> {
-    normalize(raw, offset, attribute, references, true)
+    normalize(raw, offset, attribute, references, true, out)
 }
 
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    normalize(raw, offset, false, true, false)
+    normalize(raw, offset, false, true, false, String::new())
 }
 
 fn normalize(
@@ -66,79 +67,83 @@ fn normalize(
     attribute: bool,
     references: bool,
     physical_eol: bool,
+    mut out: String,
 ) -> Result<String, Error> {
-    let mut out = String::new();
+    out.clear();
     out.try_reserve(raw.len())
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-    let mut chars = raw.char_indices().peekable();
-    while let Some((i, c)) = chars.next() {
-        match c {
-            '&' if references => {
+    let bytes = raw.as_bytes();
+    // Unchanged runs between special bytes are copied whole; every special
+    // byte is ASCII, so run boundaries are character boundaries.
+    let (mut run, mut i) = (0, 0);
+    while let Some(&byte) = bytes.get(i) {
+        let special = match byte {
+            b'&' => references,
+            b'\r' => physical_eol,
+            b'\n' | b'\t' => attribute,
+            _ => false,
+        };
+        if !special {
+            i += 1;
+            continue;
+        }
+        out.push_str(&raw[run..i]);
+        match byte {
+            b'&' => {
                 let start = i + 1;
-                let end = raw[start..]
-                    .find(';')
+                let end = memchr(b';', &bytes[start..])
                     .map(|n| start + n)
                     .ok_or(Error::new(ErrorKind::InvalidReference, offset + i))?;
-                let entity = &raw[start..end];
-                let decoded = match entity {
-                    "lt" => '<',
-                    "gt" => '>',
-                    "amp" => '&',
-                    "apos" => '\'',
-                    "quot" => '"',
-                    _ if entity.starts_with('#') => {
-                        let (digits, radix) = match entity.strip_prefix("#x") {
-                            Some(s) => (s, 16),
-                            None => (&entity[1..], 10),
-                        };
-                        if digits.is_empty()
-                            || !digits.bytes().all(|b| {
-                                if radix == 16 {
-                                    b.is_ascii_hexdigit()
-                                } else {
-                                    b.is_ascii_digit()
-                                }
-                            })
-                        {
-                            return Err(Error::new(ErrorKind::InvalidReference, offset + i));
-                        }
-                        u32::from_str_radix(digits, radix)
-                            .ok()
-                            .and_then(char::from_u32)
-                            .filter(|c| xml_char(*c))
-                            .ok_or(Error::new(ErrorKind::InvalidReference, offset + i))?
-                    }
-                    _ => return Err(Error::new(ErrorKind::UnknownEntity, offset + i)),
-                };
-                out.push(decoded);
-                while chars.peek().is_some_and(|(pos, _)| *pos <= end) {
-                    chars.next();
-                }
+                out.push(reference(&raw[start..end], offset + i)?);
+                i = end + 1;
             }
-            '\r' if physical_eol => {
-                if chars.peek().is_some_and(|(_, c)| *c == '\n') {
-                    chars.next();
-                }
+            b'\r' => {
+                i += 1 + usize::from(bytes.get(i + 1) == Some(&b'\n'));
                 out.push(if attribute { ' ' } else { '\n' });
             }
-            '\n' | '\t' if attribute => out.push(' '),
-            _ => out.push(c),
+            _ => {
+                i += 1;
+                out.push(' ');
+            }
         }
+        run = i;
     }
+    out.push_str(&raw[run..]);
     Ok(out)
 }
 
-pub(crate) fn copy_cow<'a>(s: &Cow<'a, str>, offset: usize) -> Result<Cow<'a, str>, Error> {
-    match s {
-        Cow::Borrowed(s) => Ok(Cow::Borrowed(s)),
-        Cow::Owned(s) => {
-            let mut out = String::new();
-            out.try_reserve(s.len())
-                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-            out.push_str(s);
-            Ok(Cow::Owned(out))
+/// The character named by a predefined or numeric reference body.
+fn reference(entity: &str, offset: usize) -> Result<char, Error> {
+    Ok(match entity {
+        "lt" => '<',
+        "gt" => '>',
+        "amp" => '&',
+        "apos" => '\'',
+        "quot" => '"',
+        _ if entity.starts_with('#') => {
+            let (digits, radix) = match entity.strip_prefix("#x") {
+                Some(s) => (s, 16),
+                None => (&entity[1..], 10),
+            };
+            if digits.is_empty()
+                || !digits.bytes().all(|b| {
+                    if radix == 16 {
+                        b.is_ascii_hexdigit()
+                    } else {
+                        b.is_ascii_digit()
+                    }
+                })
+            {
+                return Err(Error::new(ErrorKind::InvalidReference, offset));
+            }
+            u32::from_str_radix(digits, radix)
+                .ok()
+                .and_then(char::from_u32)
+                .filter(|c| xml_char(*c))
+                .ok_or(Error::new(ErrorKind::InvalidReference, offset))?
         }
-    }
+        _ => return Err(Error::new(ErrorKind::UnknownEntity, offset)),
+    })
 }
 
 #[cfg(test)]

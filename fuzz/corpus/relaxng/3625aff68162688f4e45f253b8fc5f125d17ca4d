@@ -1,0 +1,11 @@
+<!DOCTYPE rnode [
+<!ELEMENT rnode (f)>
+                                               
+<!ENTITY f
+   "
+    </f>
+   "
+>
+]>
+                                          ode>
+

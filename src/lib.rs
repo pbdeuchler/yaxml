@@ -23,6 +23,7 @@ pub mod pattern;
 mod push;
 mod reader;
 pub mod regexp;
+pub mod relaxng;
 mod resolve;
 pub mod schema_types;
 mod serialize;
@@ -51,7 +52,7 @@ pub use owned::{
     OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, PrefixPolicy,
 };
 pub use push::PushParser;
-pub use reader::{Attribute, Declaration, Doctype, Element, Event, Limits, Reader};
+pub use reader::{Attribute, Attributes, Declaration, Doctype, Element, Event, Limits, Reader};
 pub use resolve::{FileResolver, Request, Resolver, ResourceKind};
 pub use textreader::{NodeType, ParserProperty, ReadState, TextReader};
 pub use uri::{Uri, UriError};

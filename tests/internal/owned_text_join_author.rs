@@ -170,7 +170,7 @@ fn owned_non_text_event_keeps_text_nodes_separate() {
         (
             Event::Empty(Element {
                 name: Name::new(Cow::Borrowed("child"), None).unwrap(),
-                attributes: Vec::new(),
+                attributes: Vec::new().into(),
             }),
             40..48,
         ),

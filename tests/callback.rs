@@ -115,11 +115,36 @@ fn borrowed_and_buffered_tokens_are_indistinguishable() {
         b"<r>tail",
         b"<r></r>trailing",
     ];
-    for input in cases {
+    // Longer documents give the in-place chunk scanner whole tokens to take.
+    let long: Vec<Vec<u8>> = vec![
+        format!("<r>{}</r>", "<i a='v'>t&amp;x\r\n</i>".repeat(20)).into_bytes(),
+        [
+            &b"<?xml version='1.0' encoding='ISO-8859-1'?><r>"[..],
+            &b"<e>\xe9</e>".repeat(10),
+            b"</r>",
+        ]
+        .concat(),
+        format!(
+            "<!--{}--><!DOCTYPE r [<!ENTITY e 'v'>]><r>&e;{}</r>",
+            "c".repeat(40),
+            "<x/>".repeat(10)
+        )
+        .into_bytes(),
+        [&b"<r>"[..], &b"<i/>".repeat(20), b"\x01</r>"].concat(),
+        format!("<r>{}<toolongname/></r>", "<i/>".repeat(10)).into_bytes(),
+        format!(
+            "<根>{}</根>",
+            "<前:項 xmlns:前='u' 前:属='é😀'>か</前:項>".repeat(5)
+        )
+        .into_bytes(),
+        format!("{}<r/>{}", " \n".repeat(30), "<!--c-->".repeat(5)).into_bytes(),
+        format!("<r/>{}tail", "<!--c-->".repeat(5)).into_bytes(),
+    ];
+    for input in cases.iter().copied().chain(long.iter().map(Vec::as_slice)) {
         for limits in [Limits::default(), tight] {
             let buffered = transcript(input, 1, limits);
             let pulled = lent(input, 1, limits);
-            for chunk in [2, 3, 7, input.len()] {
+            for chunk in [2, 3, 7, 33, 64, input.len()] {
                 assert_eq!(
                     transcript(input, chunk, limits),
                     buffered,

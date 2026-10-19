@@ -18,8 +18,12 @@ impl Directory {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("yaxml-parse-cli-{}-{stamp}", std::process::id()));
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let unique = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "yaxml-parse-cli-{}-{stamp}-{unique}",
+            std::process::id()
+        ));
         fs::create_dir(&path).unwrap();
         Self(path)
     }

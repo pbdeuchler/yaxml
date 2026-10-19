@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+
+]>
+<root>
+te Summary (RSS) 0.91 official Marius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| language | item+ | rating? | image? | textinput? | copyright? | 
+pube? | docs? | managingEditor? | webMaster? | 
+e | link)*>
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT rating (#PCDATA)>
+<!ELEMENT laNguage (#PCDATA)>
+<!ELEMENT width (#PCDATA)>
+<!ELEMENT height (#PCDATA)>
+<!ELEMENTTest  adhriater references for P66:
+&#9;&#42;&#0000000<!DOCTYw Man. <c/stt>Moy 

@@ -71,6 +71,9 @@ This replaces the earlier public name fields. Getter references borrow the
 name view, which may own its QName: keep that view alive while using them.
 Processing-instruction event and borrowing-DOM targets now use `Cow<str>` too;
 construct a borrowed target with `Cow::Borrowed("pi")` or move an owned string.
+`Element::attributes` is an `Attributes` list: owned (`Vec::into()`), or lent by
+`PushParser` from storage it reuses; it dereferences to a slice, and
+`into_owned` keeps a lent list beyond its callback.
 
 `Limits` controls input bytes, raw token bytes, element depth, attributes per
 element, emitted events, and cumulative requested string capacity for normalized
@@ -325,6 +328,28 @@ let schema = Schema::parse(br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSc
 let diagnostics = schema.validate(&yaxml::Document::parse("<r><n>1</n><n>x</n></r>")?);
 assert!(!xsd::is_valid(&diagnostics));
 assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`yaxml::relaxng` compiles RELAX NG schemas (XML syntax, `include` and
+`externalRef` through a `Resolver`, full section 4 simplification and section
+7 restrictions, built-in and XML Schema datatypes) and validates either DOM
+with derivatives over interned patterns, bounded by a work budget, where
+libxml2's `relaxng.c` backtracks. All 159 libxml2 `test/relaxng` verdicts
+agree; see [RELAX NG](docs/relaxng.md).
+
+```rust
+use yaxml::relaxng::{Limits, Schema};
+
+let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <oneOrMore><element name="i"><data type="int"/></element></oneOrMore>
+</element>"#;
+let none = |_: yaxml::Request<'_>| Ok(None);
+let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
+assert!(schema.validate(&yaxml::Document::parse("<r><i>1</i><i>2</i></r>")?).is_empty());
+let [error] = schema.validate(&yaxml::Document::parse("<r><i>x</i></r>")?).try_into().unwrap();
+assert_eq!(error.code, yaxml::relaxng::Code::Datatype);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 

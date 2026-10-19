@@ -8,7 +8,7 @@ use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState, space};
 use crate::resolve::{Loader, Resolver};
 use crate::stream::dtd::{SessionError, SessionLimits};
-use crate::tokenizer::{TokenKind, Tokenizer};
+use crate::tokenizer::{TokenKind, Tokenizer, tag_close};
 use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, SourceOrigin};
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
@@ -65,7 +65,7 @@ impl Default for Limits {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Attribute<'a> {
     pub name: Name<'a>,
     pub value: Cow<'a, str>,
@@ -75,7 +75,92 @@ pub struct Attribute<'a> {
 pub struct Element<'a> {
     pub name: Name<'a>,
     /// Source order, including namespace declarations in the XMLNS namespace.
-    pub attributes: Vec<Attribute<'a>>,
+    pub attributes: Attributes<'a>,
+}
+
+/// An element's attributes in source order: an owned list, or one lent from a
+/// streaming parser's reused storage for the duration of an event borrow.
+/// Both dereference to a slice; `into_owned` keeps a lent list.
+#[derive(Clone, Debug)]
+pub enum Attributes<'a> {
+    Borrowed(&'a [Attribute<'a>]),
+    Owned(Vec<Attribute<'a>>),
+}
+
+impl<'a> Attributes<'a> {
+    /// Mutable access to an owned list, copying a lent one first.
+    pub fn to_mut(&mut self) -> &mut Vec<Attribute<'a>> {
+        if let Self::Borrowed(attributes) = self {
+            *self = Self::Owned(attributes.to_vec());
+        }
+        match self {
+            Self::Owned(attributes) => attributes,
+            Self::Borrowed(_) => unreachable!("converted to owned"),
+        }
+    }
+
+    /// The list as an owned vector, copying a lent one.
+    pub fn into_owned(self) -> Vec<Attribute<'a>> {
+        match self {
+            Self::Borrowed(attributes) => attributes.to_vec(),
+            Self::Owned(attributes) => attributes,
+        }
+    }
+}
+
+impl<'a> std::ops::Deref for Attributes<'a> {
+    type Target = [Attribute<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Borrowed(attributes) => attributes,
+            Self::Owned(attributes) => attributes,
+        }
+    }
+}
+
+impl Default for Attributes<'_> {
+    fn default() -> Self {
+        Self::Owned(Vec::new())
+    }
+}
+
+impl<'a> From<Vec<Attribute<'a>>> for Attributes<'a> {
+    fn from(attributes: Vec<Attribute<'a>>) -> Self {
+        Self::Owned(attributes)
+    }
+}
+
+impl<'a> FromIterator<Attribute<'a>> for Attributes<'a> {
+    fn from_iter<I: IntoIterator<Item = Attribute<'a>>>(iter: I) -> Self {
+        Self::Owned(iter.into_iter().collect())
+    }
+}
+
+impl PartialEq for Attributes<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
+}
+
+impl Eq for Attributes<'_> {}
+
+impl<'s, 'a> IntoIterator for &'s Attributes<'a> {
+    type Item = &'s Attribute<'a>;
+    type IntoIter = std::slice::Iter<'s, Attribute<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for Attributes<'a> {
+    type Item = Attribute<'a>;
+    type IntoIter = std::vec::IntoIter<Attribute<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_owned().into_iter()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -150,12 +235,6 @@ pub enum Event<'a> {
         target: Cow<'a, str>,
         data: Cow<'a, str>,
     },
-}
-
-enum ReaderStep<'input> {
-    Xml(Event<'input>),
-    Complete,
-    Doctype(usize),
 }
 
 #[expect(
@@ -294,21 +373,23 @@ impl<'a> Reader<'a> {
         // DOCTYPE moves the reader onto the out-of-line session path.
         let result = match &mut self.ordinary {
             Some(ordinary) => match ordinary.read_step() {
-                Ok(ReaderStep::Xml(event)) => {
+                Ok(Some(event)) => {
                     if let Event::Declaration(declaration) = &event {
                         self.standalone = declaration.standalone == Some(true);
                     }
                     self.origin = ordinary.origin;
                     return Ok(Some(event));
                 }
-                Ok(ReaderStep::Complete) => {
-                    self.finished = true;
-                    return Ok(None);
-                }
-                Ok(ReaderStep::Doctype(start)) => self
-                    .start_dtd(start)
-                    .and_then(|()| self.read_session())
-                    .map_err(Error::from),
+                Ok(None) => match ordinary.doctype.take() {
+                    None => {
+                        self.finished = true;
+                        return Ok(None);
+                    }
+                    Some(start) => self
+                        .start_dtd(start)
+                        .and_then(|()| self.read_session())
+                        .map_err(Error::from),
+                },
                 Err(error) => Err(error),
             },
             None => self.read_session().map_err(Error::from),
@@ -424,6 +505,8 @@ struct SliceReader<'a> {
     cursor: usize,
     origin: Option<SourceOrigin>,
     state: ParserState<'a>,
+    /// Start of a DOCTYPE that ended the plain token loop.
+    doctype: Option<usize>,
     limits: Limits,
     token_limit_kind: Limit,
 }
@@ -457,6 +540,7 @@ impl<'a> SliceReader<'a> {
             input,
             cursor: initial,
             origin: None,
+            doctype: None,
             state: ParserState::new(limits, initial),
             limits,
             token_limit_kind: Limit::TokenBytes,
@@ -477,7 +561,10 @@ impl<'a> SliceReader<'a> {
         self.cursor
     }
 
-    fn read_step(&mut self) -> Result<ReaderStep<'a>, Error> {
+    /// The next event, or `None` at EOF or at a DOCTYPE (recorded in
+    /// `doctype`). Events return in the reader's own result type, so they are
+    /// not rewrapped on the way out.
+    fn read_step(&mut self) -> Result<Option<Event<'a>>, Error> {
         loop {
             if !self.state.in_content() {
                 let start = self.cursor;
@@ -494,7 +581,7 @@ impl<'a> SliceReader<'a> {
             let start = self.cursor;
             if start == self.input.len() {
                 self.state.validate_finish(start)?;
-                return Ok(ReaderStep::Complete);
+                return Ok(None);
             }
             self.state.check_event_limit(start)?;
             let tail = &self.input[start..];
@@ -515,7 +602,8 @@ impl<'a> SliceReader<'a> {
             } else if tail.starts_with("<!DOCTYPE") {
                 self.check_token(start, start + 9)?;
                 self.state.check_doctype_start(start)?;
-                return Ok(ReaderStep::Doctype(start));
+                self.doctype = Some(start);
+                return Ok(None);
             } else if tail.starts_with("<!") {
                 (TokenKind::InvalidMarkup, start + 2)
             } else {
@@ -552,7 +640,7 @@ impl<'a> SliceReader<'a> {
             let event = result?;
             if let Some(event) = event {
                 self.origin = Some(SourceOrigin::input(start..end));
-                return Ok(ReaderStep::Xml(event));
+                return Ok(Some(event));
             }
         }
     }
@@ -590,18 +678,9 @@ impl<'a> SliceReader<'a> {
     }
 
     fn tag_end(&self, start: usize) -> Result<usize, Error> {
-        let mut quote = None;
-        for (relative, &byte) in self.input.as_bytes()[start..]
-            .iter()
-            .take(self.limits.max_token_bytes)
-            .enumerate()
-        {
-            match (quote, byte) {
-                (Some(q), b) if q == b => quote = None,
-                (None, b'\'' | b'"') => quote = Some(byte),
-                (None, b'>') => return Ok(start + relative + 1),
-                _ => {}
-            }
+        let length = (self.input.len() - start).min(self.limits.max_token_bytes);
+        if let Some(end) = tag_close(&self.input.as_bytes()[start..start + length]) {
+            return Ok(start + end);
         }
         Err(Error::new(
             if self.input.len() - start > self.limits.max_token_bytes {

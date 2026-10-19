@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'pre--------------------------------serve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietfww.w3.org">
+
