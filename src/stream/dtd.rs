@@ -5,12 +5,9 @@ use crate::dtd_catalog::{CatalogErrorKind, CatalogLimit};
 use crate::dtd_controller::content::{
     ContentController, ContentError, ContentErrorKind, ContentOutcome,
 };
-use crate::dtd_controller::{
-    ControllerError, ControllerErrorKind, ControllerLimit, DtdController, DtdEvent,
-};
+use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::dtd_frames::{FragmentOrigin, FrameErrorKind, FrameLimit, LookupFailure};
 use crate::dtd_reference::{ReferenceErrorKind, ReferenceLimit};
-use crate::dtd_scan::{ScanErrorKind, ScanLimit};
 use crate::dtd_tag::DtdTagErrorKind;
 use crate::tokenizer::local::LocalErrorKind;
 use crate::tokenizer::reference::ReferenceCursorErrorKind;
@@ -20,7 +17,6 @@ use crate::{Doctype, Limit};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SessionError {
     Xml(Error),
-    Dtd(ControllerError),
     Content(ContentError),
     Allocation { physical_offset: usize },
     Poisoned { physical_offset: usize },
@@ -29,7 +25,6 @@ impl SessionError {
     pub(crate) fn physical_offset(self) -> usize {
         match self {
             Self::Xml(error) => error.offset,
-            Self::Dtd(error) => error.physical_offset,
             Self::Content(error) => error.physical_offset,
             Self::Allocation { physical_offset } | Self::Poisoned { physical_offset } => {
                 physical_offset
@@ -47,11 +42,6 @@ impl From<Error> for SessionError {
         Self::Xml(error)
     }
 }
-impl From<ControllerError> for SessionError {
-    fn from(error: ControllerError) -> Self {
-        Self::Dtd(error)
-    }
-}
 impl From<ContentError> for SessionError {
     fn from(error: ContentError) -> Self {
         Self::Content(error)
@@ -63,7 +53,6 @@ impl From<SessionError> for Error {
     fn from(error: SessionError) -> Self {
         let kind = match error {
             SessionError::Xml(error) => return error,
-            SessionError::Dtd(error) => controller_kind(error.kind),
             SessionError::Content(error) => content_kind(error.kind),
             SessionError::Allocation { .. } => ErrorKind::Allocation,
             SessionError::Poisoned { .. } => ErrorKind::InvalidState,
@@ -74,30 +63,6 @@ impl From<SessionError> for Error {
 
 const fn limit(limit: Limit) -> ErrorKind {
     ErrorKind::LimitExceeded(limit)
-}
-
-fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
-    match kind {
-        ControllerErrorKind::Scan(kind) => match kind {
-            ScanErrorKind::Syntax => ErrorKind::InvalidDtd,
-            ScanErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
-            ScanErrorKind::InvalidUtf8 => ErrorKind::InvalidUtf8,
-            ScanErrorKind::Limit(ScanLimit::UnitBytes) => limit(Limit::TokenBytes),
-            ScanErrorKind::Limit(ScanLimit::Work) => limit(Limit::EntityExpansion),
-            ScanErrorKind::Allocation => ErrorKind::Allocation,
-        },
-        ControllerErrorKind::Catalog(kind) => catalog_kind(kind),
-        ControllerErrorKind::Frame(kind) => frame_kind(kind),
-        ControllerErrorKind::Ownership(kind) => kind,
-        ControllerErrorKind::Limit(ControllerLimit::PhysicalBytes) => limit(Limit::DtdBytes),
-        ControllerErrorKind::Limit(ControllerLimit::Work) => limit(Limit::EntityExpansion),
-        ControllerErrorKind::Limit(ControllerLimit::OwnedBytes) => limit(Limit::OwnedBytes),
-        ControllerErrorKind::InvalidUnitFamily => ErrorKind::InvalidDtd,
-        ControllerErrorKind::PositionOverflow | ControllerErrorKind::InvalidState => {
-            ErrorKind::InvalidState
-        }
-        ControllerErrorKind::Allocation => ErrorKind::Allocation,
-    }
 }
 
 pub(crate) fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
@@ -130,7 +95,7 @@ pub(crate) fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
     }
 }
 
-fn frame_kind(kind: FrameErrorKind) -> ErrorKind {
+pub(crate) fn frame_kind(kind: FrameErrorKind) -> ErrorKind {
     match kind {
         FrameErrorKind::Lookup(LookupFailure::Unparsed) => ErrorKind::UnparsedEntity,
         FrameErrorKind::Lookup(_) => ErrorKind::UnknownEntity,

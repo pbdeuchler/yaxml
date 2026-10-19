@@ -1,7 +1,9 @@
 //! Private GE content composition; physical events lend scratch, generated events own.
 use super::*;
-use crate::dtd_catalog::CatalogLimit;
-use crate::dtd_frames::{EntityInvocationId, FrameError, FrameLimit};
+use crate::dtd_catalog::{CatalogErrorKind, CatalogLimit};
+use crate::dtd_frames::{
+    EntityInvocationId, FrameError, FrameErrorKind, FrameLimit, LookupFailure,
+};
 use crate::dtd_tag::{DtdTagError, DtdTagErrorKind, DtdTagLocation};
 use crate::parser::{DtdLeafKind, ParserState};
 use crate::tokenizer::local::LocalTokenizer;
@@ -883,8 +885,6 @@ impl<'input> ContentControllerCore<'input> {
             (catalog_ceiling, self.body.limits.work),
         );
         self.body.counters.work = usage.work;
-        self.body.counters.scanned_bytes += (usage.source_scanned - self.text_usage.source_scanned)
-            + (usage.reference_scanned - self.text_usage.reference_scanned);
         self.text_usage = usage;
         match result {
             Ok(event) => {
@@ -1018,9 +1018,6 @@ impl<'input> ContentControllerCore<'input> {
         if let Some(coordinator) = &self.coordinator {
             let usage = coordinator.usage();
             self.body.counters.work = usage.work;
-            self.body.counters.scanned_bytes += (usage.source_scanned
-                - self.text_usage.source_scanned)
-                + (usage.reference_scanned - self.text_usage.reference_scanned);
             self.text_usage = usage;
         }
     }
@@ -1029,7 +1026,6 @@ impl<'input> ContentControllerCore<'input> {
         before: usize,
         origin: FragmentOrigin,
     ) -> Result<(), ContentError> {
-        self.body.counters.reference_attempts = self.body.frames.counters().reference_attempts;
         self.charge(
             self.body.frames.counters().work - before,
             origin,

@@ -254,12 +254,8 @@ impl<W: Write> Writer<W> {
             ..Limits::default()
         };
         let options = DtdLimits::new(limits, DecodeLimits::default());
-        let relocate = |error| {
-            let error = Error::from(crate::stream::dtd::SessionError::Dtd(error));
-            Error::new(error.kind, start + error.offset)
-        };
-        let mut controller =
-            DtdController::stable_utf8(raw, 0, 0, options, false).map_err(relocate)?;
+        let relocate = |error: Error| Error::new(error.kind, start + error.offset);
+        let mut controller = DtdController::stable_utf8(raw, 0, 0, options, false);
         let budget = self.state.owned_budget();
         while !controller.is_complete() {
             if controller.current().is_some() {

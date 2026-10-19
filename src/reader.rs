@@ -459,7 +459,7 @@ impl<'a> Reader<'a> {
         self.doctype_start = start;
         let ordinary = self.ordinary.take().expect("checked ordinary owner");
         let mut controller =
-            DtdController::stable_utf8(self.source, 0, start, self.options, self.standalone)?;
+            DtdController::stable_utf8(self.source, 0, start, self.options, self.standalone);
         if let Some(loader) = self.loader.take() {
             controller.set_loader(loader);
         }
