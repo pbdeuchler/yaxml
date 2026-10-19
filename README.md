@@ -8,8 +8,9 @@ in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attri
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
 value edits, leaf insertion and permanent subtree removal. Internal DTD subsets
 are processed (entities, default attributes, attribute normalization) and the
-declaration is reported as `Event::Doctype`; external subsets and entities are
-never loaded. Other encodings return structured errors.
+declaration is reported as `Event::Doctype`. External subsets and entities
+load only through a caller-supplied `Resolver` (see below). Other encodings
+return structured errors.
 `Node::text_chunks` and `OwnedNode::text_chunks` visit string values without
 allocating: containers yield descendant Text/CDATA, and leaves yield their
 own payload. Callers can collect the chunks or stream them to a sink.
@@ -202,10 +203,28 @@ assert_eq!(value, yaxml::xpath::Value::Number(3.0));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+Nothing outside the input is read unless the caller passes a `Resolver`
+(any `FnMut(Request) -> io::Result<Option<Vec<u8>>> + Send` closure, or the
+root-confined `FileResolver`) to `with_resolver` on any parser or DOM. It then
+loads the external subset and external parsed entities, like libxml2's
+`XML_PARSE_DTDLOAD | XML_PARSE_NOENT` with a custom resource loader; budgets
+are `Limits::max_external_loads` and `max_external_bytes`. DTD `ID` attributes
+and `xml:id` back `element_by_id` and XPath `id()`.
+
+```rust
+let dtd = "<!ATTLIST r id ID #IMPLIED><!ENTITY e 'loaded'>";
+let resolver = move |request: yaxml::Request<'_>| {
+    Ok((request.uri == "dtd/r.dtd").then(|| dtd.as_bytes().to_vec()))
+};
+let input = b"<!DOCTYPE r SYSTEM 'r.dtd'><r id='a'>&e;</r>";
+let document = yaxml::Document::with_resolver(input, Default::default(), "dtd/doc.xml", Box::new(resolver))?;
+assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(), "loaded");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 `yaxml::c14n` writes Canonical XML 1.0 and 1.1 and Exclusive XML
 Canonicalization 1.0 for either DOM, whole or as an XPath node-set, with
-libxml2's bytes; see the [C14N contract](docs/c14n.md). DTD-dependent cases
-wait for DTD activation.
+libxml2's bytes; see the [C14N contract](docs/c14n.md).
 
 ```rust
 let document = yaxml::Document::parse("<r xmlns:p='urn:p'><p:e b='2' a='1'/></r>")?;

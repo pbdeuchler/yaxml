@@ -487,16 +487,15 @@ impl DtdCatalog {
                     self.subset = Some(self.external_entity(identifier, None, context, location)?);
                 }
             }
-            // WFC Entity Declared: a standalone document cannot use general
-            // entities from external markup; libxml2 rejects their references.
-            DtdUnitView::Entity(entity)
-                if self.standalone && !context.internal_subset && !entity.is_parameter() => {}
             DtdUnitView::Entity(entity) => {
                 let parameter = entity.is_parameter();
+                // WFC Entity Declared: a standalone document cannot use general
+                // entities from external markup, so they are never bound.
                 let duplicate = if parameter {
                     self.parameter.contains_key(entity.name())
                 } else {
                     self.general.contains_key(entity.name())
+                        || (self.standalone && !context.internal_subset)
                 };
                 let body = match entity.definition() {
                     EntityDefinitionView::Internal { quoted_literal } => {

@@ -44,6 +44,9 @@ mod xpath;
 #[path = "c14n.rs"]
 mod c14n;
 
+#[path = "resolver.rs"]
+mod resolver;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -88,8 +91,11 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
         return exercise(input);
     }
     let (control, body) = input.split_first().unwrap_or((&0, &[]));
+    if control % 4 == 3 {
+        return exercise_resolver(body);
+    }
     let mut document = Vec::with_capacity(body.len() + 64);
-    match control % 3 {
+    match control % 4 {
         0 => {
             document.extend_from_slice(b"<!DOCTYPE r [");
             document.extend_from_slice(body);
@@ -108,6 +114,31 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
     }
     document.truncate(MAX_INPUT_BYTES);
     exercise(&document)
+}
+
+/// NUL-separated pieces: internal-subset text, then the resources the
+/// resolver serves as `s` (external subset), `e`, `p` and `0`..`9`.
+pub fn exercise_resolver(input: &[u8]) -> Outcome {
+    let mut pieces = input.split(|byte| *byte == 0);
+    let subset = pieces.next().unwrap_or_default();
+    let resources: Vec<Vec<u8>> = pieces.map(<[u8]>::to_vec).collect();
+    let mut document =
+        b"<!DOCTYPE r SYSTEM 's' [<!ENTITY e SYSTEM 'e'><!ENTITY % p SYSTEM 'p'>".to_vec();
+    // The slice reader validates a whole document's characters first, so
+    // other surfaces could fail later; resources share one decoder and stay raw.
+    let subset: String = String::from_utf8_lossy(subset)
+        .chars()
+        .filter(|c| {
+            (!c.is_control() || matches!(c, '\t' | '\n' | '\r'))
+                && !matches!(c, '\u{fffe}' | '\u{ffff}')
+        })
+        .collect();
+    document.extend_from_slice(subset.as_bytes());
+    document.extend_from_slice(b"%p;]><r>&e;</r>");
+    Outcome {
+        error: resolver::exercise(&document, &resources),
+        events: 0,
+    }
 }
 
 /// URI parse, serialization, escaping and resolution invariants.

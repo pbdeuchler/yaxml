@@ -63,8 +63,9 @@ The suite's `testcases.dtd` defines nonvalidating behavior: both `valid` and
 well-formedness outcomes, without DTD validity or canonical-output comparison.
 Namespace-disabled cases are capability gaps because every yaxml surface is
 namespace-aware. XML/Namespaces 1.1 and editions excluding XML 1.0 Fifth Edition
-are observed but unscored. External-entity requirements, explicit unsupported
-DTD/encoding errors and resource limits remain visible gaps. Worker failures
+are observed but unscored. External entities load through a `FileResolver`
+rooted at the suite with the case path as base. Explicit unsupported encoding
+errors and resource limits remain visible gaps. Worker failures
 are inconclusive and fail the run.
 
 Metadata extraction is separate from the processor under test. The optional
@@ -73,7 +74,7 @@ oracle to expand trusted catalog entities/defaults and resolve XML Base. It
 emits a strict, versioned 12-column TSV catalog. No suite fixture or C helper
 is linked into the Rust crate; Cargo still depends only on `memchr`.
 The helper is for the checksum-pinned descriptor files, not untrusted XML.
-Test inputs reach yaxml without external resource resolution.
+Test inputs reach yaxml only with suite-rooted file resolution.
 
 After building the [pinned oracle](oracle.md), compile the metadata helper:
 

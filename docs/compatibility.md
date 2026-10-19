@@ -36,8 +36,31 @@ Every parser reports one `Event::Doctype` (DOM: `NodeKind::Doctype` /
 system identifiers and the exact internal-subset text. The internal subset is
 processed: parameter entities, general entity substitution in content and
 attribute values (re-tokenized, so replacement markup becomes events), default
-and `#FIXED` attributes, and tokenized attribute-type normalization. External
-subsets and external entities are recorded but never read; no resolver exists.
+and `#FIXED` attributes, and tokenized attribute-type normalization.
+
+External resources load only through a caller `Resolver` passed to
+`with_resolver` (all five parsers/DOMs). With one, the external subset loads
+after the internal subset (`XML_PARSE_DTDLOAD`), external parameter entities
+load where referenced and external parsed general entities load on first
+reference in content (`XML_PARSE_NOENT`); each loads at most once and is
+cached. System IDs resolve with `uri::resolve` against the declaring
+resource's base, starting from the caller's document base. Resources decode
+by BOM or text declaration (UTF-8/16, single-byte charsets), normalize line
+ends and drop the text declaration. External DTD text supports conditional
+sections and parameter references inside declarations. Declining
+(`Ok(None)`) matches libxml2's missing-file warning: the reference expands to
+nothing. A resolver `Err` is fatal `ExternalResource`, as libxml2's other I/O
+errors are. `NO_XXE` and plain `DTDLOAD` map to a resolver that declines the
+corresponding `ResourceKind`; `NONET` is the default because nothing has
+network access unless the caller's resolver provides it. Like libxml2, a
+standalone document cannot use externally declared general entities, a
+DeclSep PE must hold whole declarations, and a text declaration's version
+must be 1.0.
+
+`Document::element_by_id`/`OwnedDocument::element_by_id` (`xmlGetID`) and
+XPath `id()` use `xml:id` and attributes declared `ID`, first element in
+document order per value. Unlike libxml2, attributes on elements produced by
+entity replacement also count.
 
 Defaults follow `xmlReadMemory(..., XML_PARSE_NOENT | XML_PARSE_DTDATTR)`.
 Without `DTDATTR`, libxml2 does not insert default attributes; yaxml always
@@ -59,8 +82,8 @@ notation names are a fatal `Namespace` error (libxml2 warns); PE references
 inside internal-subset markup are fatal as the WFC requires; a `&#13;` in
 replacement text stays CR in content (libxml2 parses entity text as new input
 and turns it into LF); the serializer writes the DOCTYPE exactly as parsed
-rather than regenerating declarations; no DTD validation, `xmlGetID` or
-external loading. The differential cases live in `tests/dtd.rs`
+rather than regenerating declarations; no DTD validation; libxml2 reloads an
+external PE per reference where yaxml caches it. The differential cases live in `tests/dtd.rs`
 (`YAXML_XMLLINT=... cargo test --test dtd -- --ignored`).
 
 The [owned edit API](owned-dom.md#editing-existing-values) replaces literal leaf
@@ -117,7 +140,7 @@ Priority is dependency order and migration value. P0 is the first usable secure 
 | P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
 | P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits. **Implemented** over both DOMs; see [xpath.md](xpath.md) for the differential results, recorded differences and gaps (XPointer, `CHECKNS`/`NOVAR` flags, lookup callbacks) | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
 | P3 | HTML parsing and serialization: libxml2's actual recovery/tree behavior, entities, implied elements, case folding, void/raw-text elements, encoding rules, push/SAX support | `HTMLparser.h`, `HTMLtree.h`; `htmlRead*`, `htmlCtxtRead*`, `htmlParseChunk`, `htmlDocDump*` |
-| P2 | Canonicalization: Canonical XML 1.0/1.1 and exclusive C14N, node subsets, comments toggle, inclusive namespace prefixes, exact bytes. **Implemented** over both DOMs; 50 of 73 libxml2 `test/c14n` cases match byte for byte, the other 23 need DTDs. See [c14n.md](c14n.md) for kept libxml2 quirks and gaps (visibility callback, file output, `xmlns=""` namespace nodes) | `c14n.h`; `xmlC14NDocDumpMemory`, `xmlC14NDocSaveTo`, `xmlC14NExecute` |
+| P2 | Canonicalization: Canonical XML 1.0/1.1 and exclusive C14N, node subsets, comments toggle, inclusive namespace prefixes, exact bytes. **Implemented** over both DOMs; 70 of 73 libxml2 `test/c14n` cases match byte for byte, the other 3 select `xmlns=""` namespace nodes. See [c14n.md](c14n.md) for kept libxml2 quirks and gaps (visibility callback, file output, `xmlns=""` namespace nodes) | `c14n.h`; `xmlC14NDocDumpMemory`, `xmlC14NDocSaveTo`, `xmlC14NExecute` |
 | P3 | XML Schema 1.0: parse/compile schemas, imports/includes/redefines, simple/complex types, facets, derivation, identity constraints, defaults, document/stream validation and diagnostics | `xmlschemas.h`, `schemasInternals.h`, `xmlschemastypes.h`; `xmlSchemaParse`, `xmlSchemaValidateDoc`, `xmlSchemaValidateStream`, `xmlSchemaVal*` |
 | P3 | RELAX NG: XML syntax, include/externalRef, patterns, datatype libraries, document and push validation, diagnostics | `relaxng.h`; `xmlRelaxNGParse`, `xmlRelaxNGValidateDoc`, `xmlRelaxNGValidatePush*` |
 | P2 | URI and resource resolution: `yaxml::uri` implements parse/save/escape/unescape/normalize/`xmlBuildURI`/`xmlBuildRelativeURI`/`xmlCanonicPath` for Unix ([uri.md](uri.md), differential-tested); still open: base URI rules in the DOM, XML and SGML catalogs, rewrite/delegate/nextCatalog, per-context resolver policy | `uri.h`, `catalog.h`; `xmlBuildURI`, `xmlParseURI`, `xmlCatalogResolve*`, `xmlACatalog*` |

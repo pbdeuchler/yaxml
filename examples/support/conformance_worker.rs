@@ -12,6 +12,9 @@ use yaxml::{
 pub const SURFACES: [&str; 5] = ["reader", "document", "owned", "push", "buffered"];
 pub const MAX_CASE_BYTES: usize = 1 << 20;
 
+/// A document base and the resolver serving it.
+type Resolution<'a> = Option<(&'a str, Box<dyn Resolver>)>;
+
 fn limits() -> Limits {
     Limits {
         max_input_bytes: MAX_CASE_BYTES,
@@ -35,7 +38,7 @@ pub fn observe(
             input.len()
         ));
     }
-    let resolver = || -> Result<Option<(&str, Box<dyn Resolver>)>, String> {
+    let resolver = || -> Result<Resolution<'_>, String> {
         context
             .map(|(root, path)| {
                 let resolver = FileResolver::new(root).map_err(|error| error.to_string())?;
@@ -208,7 +211,11 @@ mod tests {
 
     #[test]
     fn caller_errors_precede_parser_construction() {
-        assert!(observe("missing", b"<r/>", None).unwrap_err().contains("unknown"));
+        assert!(
+            observe("missing", b"<r/>", None)
+                .unwrap_err()
+                .contains("unknown")
+        );
 
         let oversized = vec![b'x'; MAX_CASE_BYTES + 1];
         for surface in SURFACES {
