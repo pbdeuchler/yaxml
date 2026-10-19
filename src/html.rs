@@ -237,7 +237,8 @@ struct Engine<'a> {
     /// Rescan an incomplete token only once this much text is pending, so
     /// small chunks cost amortized linear time.
     retry: usize,
-    invalid_reported: bool,
+    /// Where malformed input was first seen; libxml2 reports it once.
+    invalid_at: Option<usize>,
     stopped: bool,
 }
 
@@ -280,7 +281,7 @@ impl<'a> Engine<'a> {
             encoding: None,
             input_bytes: 0,
             retry: 0,
-            invalid_reported: false,
+            invalid_at: None,
             stopped: false,
         })
     }
@@ -315,8 +316,8 @@ impl<'a> Engine<'a> {
             }
             (decoder, input) => {
                 let mut text = Vec::new();
-                let valid = decoder.decode(&input[sniffed.bom..], last, &mut text);
-                self.invalid(valid);
+                let malformed = decoder.decode(&input[sniffed.bom..], last, &mut text);
+                self.invalid(malformed);
                 Cow::Owned(text)
             }
         };
@@ -325,16 +326,15 @@ impl<'a> Engine<'a> {
 
     fn append(&mut self, chunk: &[u8], last: bool) {
         if let Some(decoder) = &mut self.decoder {
-            let valid = decoder.decode(chunk, last, self.text.to_mut());
-            self.invalid(valid);
+            let malformed = decoder.decode(chunk, last, self.text.to_mut());
+            self.invalid(malformed);
         }
     }
 
-    fn invalid(&mut self, valid: bool) {
-        if !valid && !self.invalid_reported {
-            self.invalid_reported = true;
-            self.tree.offset = self.offset();
-            self.tree.report(DiagnosticKind::InvalidEncoding);
+    /// Records malformed input at a text offset; the earliest one is reported.
+    fn invalid(&mut self, at: Option<usize>) {
+        if let Some(at) = at.map(|at| self.dropped + at) {
+            self.invalid_at = Some(self.invalid_at.map_or(at, |first| first.min(at)));
         }
     }
 
@@ -355,8 +355,8 @@ impl<'a> Engine<'a> {
             let tail = self.text[at..].to_vec();
             let text = self.text.to_mut();
             text.truncate(at);
-            let valid = decoder.decode(&tail, last, text);
-            self.invalid(valid);
+            let malformed = decoder.decode(&tail, last, text);
+            self.invalid(malformed);
         }
         self.decoder = Some(decoder);
     }
@@ -402,7 +402,8 @@ impl<'a> Engine<'a> {
             self.tree.offset = self.dropped + self.pos;
             match self.tokenizer.next(rest, eof) {
                 Ok(None) => return Ok(()),
-                Ok(Some((token, used))) => {
+                Ok(Some((None, used))) => self.pos += used,
+                Ok(Some((Some(token), used))) => {
                     let charset = match &token {
                         Token::StartTag {
                             name,
@@ -450,13 +451,17 @@ impl<'a> Engine<'a> {
                 }
             }
             if self.tokenizer.invalid.get() {
-                self.invalid(false);
+                self.invalid(Some(self.pos));
             }
         }
         Ok(())
     }
 
-    fn finish(self) -> Result<Parsed, Error> {
+    fn finish(mut self) -> Result<Parsed, Error> {
+        if let Some(at) = self.invalid_at {
+            self.tree.offset = at;
+            self.tree.report(DiagnosticKind::InvalidEncoding);
+        }
         let (document, diagnostics, stopped) = self
             .tree
             .finish(!self.options.has(NODEFDTD), self.encoding)?;

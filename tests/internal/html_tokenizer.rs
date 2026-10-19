@@ -63,8 +63,10 @@ fn scan(tokenizer: &mut Tokenizer, input: &[u8]) -> Result<Vec<String>, Stop> {
     let mut out = Vec::new();
     let mut position = 0;
     while let Some((token, used)) = tokenizer.next(&input[position..], true)? {
-        react(tokenizer, &token);
-        out.push(render(&token));
+        if let Some(token) = token {
+            react(tokenizer, &token);
+            out.push(render(&token));
+        }
         position += used;
     }
     Ok(out)
@@ -79,8 +81,10 @@ fn scan_incrementally(mut tokenizer: Tokenizer, input: &[u8]) -> Vec<String> {
         let eof = available == input.len();
         match tokenizer.next(&input[position..available], eof) {
             Ok(Some((token, used))) => {
-                react(&mut tokenizer, &token);
-                out.push(render(&token));
+                if let Some(token) = token {
+                    react(&mut tokenizer, &token);
+                    out.push(render(&token));
+                }
                 position += used;
             }
             Ok(None) => return out,
@@ -254,7 +258,7 @@ fn incomplete_tokens_wait_for_input() {
 fn undecided_encoding_stops_at_the_first_non_ascii_byte() {
     let mut fresh = Tokenizer::new(1 << 20, 50_000, 64);
     let (token, used) = fresh.next(b"ab\xe9", true).unwrap().unwrap();
-    assert_eq!((render(&token), used), ("T(ab)".to_owned(), 2));
+    assert_eq!((render(&token.unwrap()), used), ("T(ab)".to_owned(), 2));
     assert_eq!(fresh.next(b"\xe9", true).err(), Some(Stop::Switch(0)));
     assert_eq!(
         fresh.next(b"<p a='x\xe9'>", true).err(),
@@ -267,7 +271,7 @@ fn undecided_encoding_stops_at_the_first_non_ascii_byte() {
     );
     // Names are read as UTF-8 regardless.
     let (token, _) = fresh.next(b"<p\xc3\xa9>", true).unwrap().unwrap();
-    assert_eq!(render(&token), "S(p\u{e9})");
+    assert_eq!(render(&token.unwrap()), "S(p\u{e9})");
 }
 
 #[test]

@@ -539,32 +539,26 @@ fn hard_limits_fail() {
 
 #[test]
 fn push_parsing_is_chunk_independent() {
-    for input in corpus::CASES {
-        let whole = parse(input, 0);
-        let expected = html::save(&whole.document, false).unwrap();
-        let sizes: Vec<usize> = if input.len() <= 40 {
-            (1..=input.len().max(1)).collect()
-        } else {
-            vec![1, 2, 3, 7, 64]
-        };
-        for size in sizes {
-            let mut parser = PushParser::new(Options::default()).unwrap();
-            for chunk in input.chunks(size) {
-                parser.feed(chunk).unwrap();
+    for flags in [0, html::NOBLANKS | html::NOIMPLIED] {
+        for input in corpus::CASES {
+            let whole = parse(input, flags);
+            let expected = html::save(&whole.document, false).unwrap();
+            let sizes: Vec<usize> = if input.len() <= 40 {
+                (1..=input.len().max(1)).collect()
+            } else {
+                vec![1, 2, 3, 7, 64]
+            };
+            for size in sizes {
+                let mut parser = PushParser::new(Options::new(flags)).unwrap();
+                for chunk in input.chunks(size) {
+                    parser.feed(chunk).unwrap();
+                }
+                let pushed = parser.finish().unwrap();
+                let output = html::save(&pushed.document, false).unwrap();
+                let context = format!("{:?} in chunks of {size}", String::from_utf8_lossy(input));
+                assert_eq!(output, expected, "{context}");
+                assert_eq!(pushed.diagnostics, whole.diagnostics, "{context}");
             }
-            let pushed = parser.finish().unwrap();
-            let output = html::save(&pushed.document, false).unwrap();
-            assert_eq!(
-                output,
-                expected,
-                "{:?} in chunks of {size}",
-                String::from_utf8_lossy(input)
-            );
-            assert_eq!(
-                pushed.diagnostics.len(),
-                whole.diagnostics.len(),
-                "{input:?} / {size}"
-            );
         }
     }
 }

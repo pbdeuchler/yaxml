@@ -32,6 +32,9 @@ mod names;
 #[path = "uri.rs"]
 mod uri;
 
+#[path = "html.rs"]
+mod html;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -51,6 +54,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     );
     exercise_names(input);
     exercise_uri(input);
+    exercise_html(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -68,6 +72,11 @@ pub fn exercise(input: &[u8]) -> Outcome {
 /// URI parse, serialization, escaping and resolution invariants.
 pub fn exercise_uri(input: &[u8]) {
     uri::exercise(input);
+}
+
+/// HTML parsing, push chunk independence and serialization.
+pub fn exercise_html(input: &[u8]) {
+    html::exercise(input);
 }
 
 /// Borrowed parse of UTF-8 input; recognized encodings have their own oracle.

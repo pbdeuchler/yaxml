@@ -421,6 +421,7 @@ impl Tree {
             })
         });
         let document = self.builder.finish(doctype, encoding)?;
+        self.diagnostics.sort_by_key(|diagnostic| diagnostic.offset);
         Ok((document, self.diagnostics, self.halted))
     }
 }

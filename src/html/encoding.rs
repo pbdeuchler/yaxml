@@ -82,28 +82,26 @@ impl Decoder {
         !matches!(self, Self::Utf16 { .. })
     }
 
-    /// Appends decoded text. Returns false if input was malformed; malformed
-    /// UTF-16 becomes U+FFFD and a truncated final unit is dropped.
-    pub(super) fn decode(&mut self, input: &[u8], last: bool, out: &mut Vec<u8>) -> bool {
+    /// Appends decoded text and returns the output offset of the first
+    /// malformed input, if any. Malformed UTF-16 becomes U+FFFD and a
+    /// truncated final unit is dropped.
+    pub(super) fn decode(&mut self, input: &[u8], last: bool, out: &mut Vec<u8>) -> Option<usize> {
         match self {
             Self::Utf8 => {
                 out.extend_from_slice(input);
-                true
+                None
             }
             Self::Windows1252 => {
+                let mut buffer = [0; 4];
                 for &byte in input {
                     let c = match byte {
-                        0x80..=0x9F => {
-                            char::from_u32(u32::from(WINDOWS_1252[usize::from(byte - 0x80)]))
-                        }
-                        _ => Some(char::from(byte)),
+                        0x80..=0x9F => u32::from(WINDOWS_1252[usize::from(byte - 0x80)]),
+                        _ => u32::from(byte),
                     };
-                    let mut buffer = [0; 4];
-                    out.extend_from_slice(
-                        c.unwrap_or('\u{FFFD}').encode_utf8(&mut buffer).as_bytes(),
-                    );
+                    let c = char::from_u32(c).unwrap_or('\u{FFFD}');
+                    out.extend_from_slice(c.encode_utf8(&mut buffer).as_bytes());
                 }
-                true
+                None
             }
             Self::Utf16 {
                 big_endian,
@@ -119,7 +117,7 @@ impl Decoder {
                         u16::from_le_bytes(pair)
                     })
                 };
-                let mut valid = true;
+                let mut malformed = None;
                 let mut i = 0;
                 let mut decoded = String::new();
                 while i + 2 <= pending.len() {
@@ -133,26 +131,27 @@ impl Decoder {
                         (None, 2)
                     } else {
                         let low = unit(pending, i + 2);
-                        if (0xDC00..0xE000).contains(&low) {
-                            (
-                                char::from_u32(0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00)),
-                                4,
-                            )
-                        } else {
-                            (None, 2)
+                        match low {
+                            0xDC00..0xE000 => {
+                                let code = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
+                                (char::from_u32(code), 4)
+                            }
+                            _ => (None, 2),
                         }
                     };
-                    valid &= c.is_some();
+                    if c.is_none() {
+                        malformed = malformed.or(Some(out.len() + decoded.len()));
+                    }
                     decoded.push(c.unwrap_or('\u{FFFD}'));
                     i += width;
                 }
                 pending.drain(..i);
+                out.extend_from_slice(decoded.as_bytes());
                 if last && !pending.is_empty() {
                     pending.clear();
-                    valid = false;
+                    malformed = malformed.or(Some(out.len()));
                 }
-                out.extend_from_slice(decoded.as_bytes());
-                valid
+                malformed
             }
         }
     }

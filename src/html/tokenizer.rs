@@ -308,41 +308,37 @@ impl Tokenizer {
         }
     }
 
-    /// Scans the next token and returns it with the bytes it used, or None
-    /// once EOF leaves nothing. Errors consume nothing.
+    /// Scans one step and returns its token, if any, with the bytes it used;
+    /// None once EOF leaves nothing. Errors consume nothing and change no state.
     pub(super) fn next<'a>(
         &mut self,
         buf: &'a [u8],
         eof: bool,
-    ) -> Scan<Option<(Token<'a>, usize)>> {
-        let mut start = 0;
-        loop {
-            if self.phase != Phase::Content {
-                start = blanks(buf, start);
-            }
-            let rest = &buf[start..];
-            if rest.is_empty() {
-                return if eof { Ok(None) } else { Err(Stop::More) };
-            }
-            let scanned = if self.mode == Mode::Data && rest[0] == b'<' {
-                self.markup(rest, eof)
-            } else {
-                self.text(rest, eof)
-            };
-            let (token, used) = scanned.map_err(|stop| match stop {
-                Stop::Switch(offset) => Stop::Switch(start + offset),
-                stop => stop,
-            })?;
-            start += used;
-            self.phase = match (&token, self.phase) {
-                (Some(Token::Doctype { .. }), Phase::Misc) => Phase::Prolog,
-                (Some(Token::Doctype { .. } | Token::Comment(_)), phase) => phase,
-                _ => Phase::Content,
-            };
-            if let Some(token) = token {
-                return Ok(Some((token, start)));
-            }
+    ) -> Scan<Option<(Option<Token<'a>>, usize)>> {
+        let start = if self.phase == Phase::Content {
+            0
+        } else {
+            blanks(buf, 0)
+        };
+        let rest = &buf[start..];
+        if rest.is_empty() {
+            return if eof { Ok(None) } else { Err(Stop::More) };
         }
+        let scanned = if self.mode == Mode::Data && rest[0] == b'<' {
+            self.markup(rest, eof)
+        } else {
+            self.text(rest, eof)
+        };
+        let (token, used) = scanned.map_err(|stop| match stop {
+            Stop::Switch(offset) => Stop::Switch(start + offset),
+            stop => stop,
+        })?;
+        self.phase = match (&token, self.phase) {
+            (Some(Token::Doctype { .. }), Phase::Misc) => Phase::Prolog,
+            (Some(Token::Doctype { .. } | Token::Comment(_)), phase) => phase,
+            _ => Phase::Content,
+        };
+        Ok(Some((token, start + used)))
     }
 
     fn markup<'a>(&mut self, buf: &'a [u8], eof: bool) -> Scan<(Option<Token<'a>>, usize)> {
@@ -391,7 +387,7 @@ impl Tokenizer {
     fn text<'a>(&mut self, buf: &'a [u8], eof: bool) -> Scan<(Option<Token<'a>>, usize)> {
         let mut mode = self.mode;
         if let Some((text, used)) = self.replacement(buf, 0, eof, mode)? {
-            let next = buf.get(used).copied().unwrap_or(0);
+            let next = at(buf, used, eof)?;
             let token = (!text.is_empty()).then_some(Token::Text { text, mode, next });
             return Ok((token, used));
         }

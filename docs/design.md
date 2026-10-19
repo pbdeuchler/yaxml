@@ -325,8 +325,10 @@ streaming interfaces. Bounded rooted creation and fresh element append retain
 contiguous attributes, and a finite feedback-guided campaign is available.
 The next work includes broader construction fuzz coverage, sustained campaigns,
 existing-element attribute membership, broader comparative performance evidence and
-allocator support on the target compiler. DTDs, remaining encodings, XPath,
-HTML compatibility, validation, canonicalization, inclusion and adapters each
-need their own feature burndown and verification criteria. Recovery is an
+allocator support on the target compiler. HTML parsing and serialization
+reuse owned storage through a separate libxml2-dialect tokenizer and tree
+builder ([html.md](html.md)). DTDs, remaining encodings, XPath, validation,
+canonicalization, inclusion and adapters each need their own feature burndown
+and verification criteria. Recovery is an
 explicit compatibility project with a versioned oracle, not a shortcut around
 strict-parser failures.
