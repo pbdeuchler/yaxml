@@ -53,6 +53,9 @@ mod resolver;
 #[path = "textreader.rs"]
 mod textreader;
 
+#[path = "xinclude.rs"]
+mod xinclude;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -74,6 +77,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_uri(input);
     exercise_html(input);
     exercise_xpath(input);
+    exercise_xinclude(input);
     exercise_c14n(input);
     exercise_textreader(input);
     exercise_construction(input);
@@ -338,6 +342,13 @@ pub fn exercise_mutation(input: &[u8]) {
 pub fn exercise_xpath(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     xpath::exercise(input);
+}
+
+/// Exercise XInclude over fuzz-provided resources; see `xinclude.rs` for the
+/// testcase format.
+pub fn exercise_xinclude(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    xinclude::exercise(input);
 }
 
 /// Exercise canonicalization over both DOMs; see `c14n.rs` for the testcase format.

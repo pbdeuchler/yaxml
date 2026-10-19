@@ -132,3 +132,10 @@ path = "fuzz_targets/html.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "xinclude"
+path = "fuzz_targets/xinclude.rs"
+test = false
+doc = false
+bench = false
