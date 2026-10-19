@@ -1,7 +1,10 @@
 //! The one navigation abstraction the evaluator needs, for both DOMs.
 
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
+
+use crate::dtd_catalog::DtdCatalog;
 
 use crate::{Document, NodeId, NodeKind, OwnedDocument, OwnedNodeId, OwnedNodeKind};
 
@@ -70,6 +73,8 @@ pub trait Navigate {
     fn slot(&self, id: Self::Id) -> usize;
     /// Document-order rank per slot when slots are not already in document order.
     fn ranks(&self) -> Option<Vec<usize>>;
+    /// `(element, attribute index)` of ID-typed attributes, sorted.
+    fn ids(&self) -> &[(Self::Id, usize)];
 }
 
 impl Navigate for Document<'_> {
@@ -123,6 +128,10 @@ impl Navigate for Document<'_> {
 
     fn ranks(&self) -> Option<Vec<usize>> {
         None
+    }
+
+    fn ids(&self) -> &[(NodeId, usize)] {
+        Document::ids(self)
     }
 }
 
@@ -180,6 +189,49 @@ impl Navigate for OwnedDocument {
     fn ranks(&self) -> Option<Vec<usize>> {
         self.preorder_ranks()
     }
+
+    fn ids(&self) -> &[(OwnedNodeId, usize)] {
+        OwnedDocument::ids(self)
+    }
+}
+
+/// ID-typed attributes of a freshly parsed tree: `xml:id` and those declared
+/// `ID` for their element in the DTD, as libxml2's `xmlIsID`.
+pub(crate) fn find_ids<T: Navigate>(tree: &T, catalog: Option<&DtdCatalog>) -> Vec<(T::Id, usize)> {
+    let mut declared: HashMap<&str, HashSet<&str>> = HashMap::new();
+    for (element, attribute) in catalog.into_iter().flat_map(DtdCatalog::id_attributes) {
+        declared.entry(element).or_default().insert(attribute);
+    }
+    let mut ids: Vec<_> = preorder(tree, Some(tree.root()), None)
+        .filter_map(|id| match tree.item(id) {
+            Item::Element(name) => Some((id, declared.get(name.qualified))),
+            _ => None,
+        })
+        .flat_map(|(id, declared)| {
+            attributes(tree, id)
+                .filter(move |(_, name, _)| {
+                    name.qualified == "xml:id"
+                        || declared.is_some_and(|names| names.contains(name.qualified))
+                })
+                .map(move |(index, ..)| (id, index))
+        })
+        .collect();
+    ids.sort_unstable();
+    ids
+}
+
+/// The first element whose ID attribute currently has `value`.
+pub(crate) fn element_by_id<T: Navigate>(
+    tree: &T,
+    ids: &[(T::Id, usize)],
+    value: &str,
+) -> Option<T::Id> {
+    ids.iter()
+        .find(|&&(id, index)| {
+            tree.attribute(id, index)
+                .is_some_and(|(_, found)| found == value)
+        })
+        .map(|&(id, _)| id)
 }
 
 // The XPath data model has no DOCTYPE node; navigation steps over it.

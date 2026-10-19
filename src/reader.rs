@@ -6,6 +6,7 @@ use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
 use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
 use crate::escape::xml_char;
 use crate::parser::{Budget, ParserState, space};
+use crate::resolve::{Loader, Resolver};
 use crate::stream::dtd::{SessionError, SessionLimits};
 use crate::tokenizer::{TokenKind, Tokenizer};
 use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, SourceOrigin};
@@ -33,6 +34,10 @@ pub struct Limits {
     pub max_entity_references: usize,
     /// Nesting depth of entity references being expanded.
     pub max_entity_depth: usize,
+    /// External resources requested from a [`Resolver`](crate::Resolver).
+    pub max_external_loads: usize,
+    /// Cumulative bytes returned by a [`Resolver`](crate::Resolver).
+    pub max_external_bytes: usize,
 }
 
 impl Default for Limits {
@@ -48,6 +53,8 @@ impl Default for Limits {
             max_entity_expansion_bytes: 8 * 1024 * 1024,
             max_entity_references: 1024 * 1024,
             max_entity_depth: 40,
+            max_external_loads: 256,
+            max_external_bytes: 16 * 1024 * 1024,
         }
     }
 }
@@ -176,6 +183,7 @@ pub struct Reader<'a> {
     decode: DecodeLimits,
     options: SessionLimits,
     standalone: bool,
+    loader: Option<Loader>,
     doctype_start: usize,
     origin: Option<SourceOrigin>,
     physical: usize,
@@ -212,11 +220,28 @@ impl<'a> Reader<'a> {
             decode,
             options: SessionLimits::new(limits, decode),
             standalone: false,
+            loader: None,
             doctype_start: 0,
             origin: None,
             failure: None,
             finished: false,
         })
+    }
+
+    /// Loads the external subset and external parsed entities through
+    /// `resolver`; `base` is the document's URI or path for relative system IDs.
+    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn Resolver>) -> Self {
+        let unit = self.options.declarations.unit;
+        self.loader = Some(Loader::new(base, resolver, &self.limits, unit));
+        self
+    }
+
+    /// Element/attribute names declared `ID`, once content has started.
+    pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
+        match self.session.first() {
+            Some(Phase::Content(controller)) => Some(controller.catalog()),
+            _ => None,
+        }
     }
 
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
@@ -342,13 +367,16 @@ impl<'a> Reader<'a> {
         self.physical = self.position();
         self.doctype_start = start;
         let ordinary = self.ordinary.take().expect("checked ordinary owner");
-        let controller = DtdController::stable_utf8(
+        let mut controller = DtdController::stable_utf8(
             self.source,
             0,
             start,
             self.options.declarations,
             self.standalone,
         )?;
+        if let Some(loader) = self.loader.take() {
+            controller.set_loader(loader);
+        }
         self.session.push(Phase::Declarations {
             controller,
             parser: ordinary.state,

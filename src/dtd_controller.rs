@@ -403,9 +403,19 @@ impl<'input> DtdControllerCore<'input> {
         })
     }
 
-    pub(crate) fn into_body_state(self) -> Result<DtdBodyState, ControllerError> {
+    pub(crate) fn set_loader(&mut self, loader: crate::resolve::Loader) {
+        self.catalog.set_loader(loader);
+    }
+
+    /// Completes the declarations, loading the external subset last as libxml2 does.
+    pub(crate) fn into_body_state(mut self) -> Result<DtdBodyState, ControllerError> {
         if let Some(error) = self.failure {
             return Err(error);
+        }
+        if self.complete
+            && let Err(error) = self.catalog.include_subset()
+        {
+            return Err(self.simple_error(ControllerErrorKind::Catalog(error.kind)));
         }
         if !self.complete
             || self.ready.is_some()
@@ -759,9 +769,23 @@ impl<'input> DtdControllerCore<'input> {
                         replacement_len: replacement.len(),
                     },
                 ),
-                // External subsets and entities are not loaded; like libxml2's
-                // failed load or undeclared warning, the reference is skipped.
-                EntityLookup::ExternalUnavailable { .. } | EntityLookup::UnreadEntity => {
+                // External text is processed whole when the caller's resolver
+                // supplies it; otherwise, like libxml2's failed load, it is skipped.
+                EntityLookup::ExternalUnavailable { id, .. } => {
+                    self.release_scanner(side);
+                    return self
+                        .catalog
+                        .include_parameter(id, &self.active)
+                        .map_err(|error| {
+                            self.error_for_origin(
+                                ControllerErrorKind::Catalog(error.kind),
+                                origin,
+                                None,
+                            )
+                        });
+                }
+                // Like libxml2's undeclared warning, the reference is skipped.
+                EntityLookup::UnreadEntity => {
                     self.release_scanner(side);
                     return Ok(());
                 }

@@ -8,6 +8,9 @@ use crate::dtd::{
 };
 use crate::escape::xml_char;
 use crate::name::validate_name;
+use crate::resolve::Loader;
+
+mod external;
 
 pub(crate) use crate::dtd::LiteralSource;
 
@@ -99,6 +102,12 @@ pub(crate) enum CatalogErrorKind {
     CallerValueBytes,
     Limit(CatalogLimit),
     Allocation,
+    /// Malformed external DTD text.
+    Grammar(crate::dtd::DtdErrorKind),
+    /// A failed load or decode of an external resource.
+    Xml(crate::ErrorKind),
+    /// Internal: the value processor needs this external PE loaded first.
+    Load(EntityId),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -245,7 +254,12 @@ struct ElementAttributes {
 struct ExternalEntity {
     public: Option<String>,
     system: Option<String>,
+    /// The system identifier resolved against its declaration's base.
+    uri: Option<String>,
     notation: Option<String>,
+    /// Loaded replacement text; `loaded` records any attempt.
+    text: Option<String>,
+    loaded: bool,
 }
 
 impl ExternalEntity {
@@ -262,8 +276,18 @@ enum EntityBody {
     External(ExternalEntity),
 }
 
+impl EntityBody {
+    fn text(&self) -> Option<&str> {
+        match self {
+            Self::Internal(text) => Some(text),
+            Self::External(external) => external.text.as_deref(),
+        }
+    }
+}
+
 struct Entity {
     body: EntityBody,
+    parameter: bool,
     #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
     declaration: usize,
 }
@@ -287,6 +311,9 @@ pub(crate) struct DtdCatalog {
     external_subset: bool,
     parameter_reference: bool,
     failure: Option<CatalogError>,
+    loader: Option<Loader>,
+    /// The DOCTYPE's external identifier, kept only for loading.
+    subset: Option<ExternalEntity>,
 }
 
 impl DtdCatalog {
@@ -304,6 +331,8 @@ impl DtdCatalog {
             external_subset: false,
             parameter_reference: false,
             failure: None,
+            loader: None,
+            subset: None,
         }
     }
 
@@ -324,7 +353,14 @@ impl DtdCatalog {
         !self.standalone && (self.external_subset || self.parameter_reference)
     }
 
-    fn lookup(&self, table: &HashMap<String, EntityId>, name: &str) -> EntityLookup<'_> {
+    /// Loaded external general entities resolve like internal ones; external
+    /// parameter entities are always included by `include_parameter`.
+    fn lookup(
+        &self,
+        table: &HashMap<String, EntityId>,
+        name: &str,
+        parameter: bool,
+    ) -> EntityLookup<'_> {
         let Some(&id) = table.get(name) else {
             return if self.may_be_unread() {
                 EntityLookup::UnreadEntity
@@ -334,13 +370,16 @@ impl DtdCatalog {
         };
         match &self.entities[id.0].body {
             EntityBody::Internal(replacement) => EntityLookup::Internal { id, replacement },
-            EntityBody::External(entity) => match entity.notation.as_deref() {
-                Some(notation) => EntityLookup::Unparsed {
+            EntityBody::External(entity) => match (entity.notation.as_deref(), &entity.text) {
+                (Some(notation), _) => EntityLookup::Unparsed {
                     id,
                     identifier: entity.identifier(),
                     notation,
                 },
-                None => EntityLookup::ExternalUnavailable {
+                (None, Some(replacement)) if !parameter => {
+                    EntityLookup::Internal { id, replacement }
+                }
+                (None, _) => EntityLookup::ExternalUnavailable {
                     id,
                     identifier: entity.identifier(),
                 },
@@ -351,11 +390,11 @@ impl DtdCatalog {
     pub(crate) fn lookup_general(&self, name: &str) -> EntityLookup<'_> {
         match predefined(name) {
             Some(character) => EntityLookup::Predefined(character),
-            None => self.lookup(&self.general, name),
+            None => self.lookup(&self.general, name, false),
         }
     }
     pub(crate) fn lookup_parameter(&self, name: &str) -> EntityLookup<'_> {
-        self.lookup(&self.parameter, name)
+        self.lookup(&self.parameter, name, true)
     }
 
     #[cfg(test)]
@@ -364,10 +403,18 @@ impl DtdCatalog {
     }
 
     pub(crate) fn replacement(&self, id: EntityId) -> Option<&str> {
-        match &self.entities.get(id.0)?.body {
-            EntityBody::Internal(value) => Some(value),
-            _ => None,
-        }
+        self.entities.get(id.0)?.body.text()
+    }
+
+    /// `(element, attribute)` qualified names declared with type `ID`.
+    pub(crate) fn id_attributes(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.element_index.iter().flat_map(|(element, index)| {
+            self.elements[*index]
+                .ordered
+                .iter()
+                .filter(|attribute| attribute.kind == AttributeKind::Id)
+                .map(move |attribute| (element.as_str(), attribute.name.as_str()))
+        })
     }
 
     pub(crate) fn attributes(&self, element: &str) -> impl Iterator<Item = AttributeBinding<'_>> {
@@ -436,6 +483,9 @@ impl DtdCatalog {
         match unit.view() {
             DtdUnitView::Header(header) => {
                 self.external_subset |= header.external_id().is_some();
+                if let Some(identifier) = header.external_id() {
+                    self.subset = Some(self.external_entity(identifier, None, context, location)?);
+                }
             }
             DtdUnitView::Entity(entity) => {
                 let parameter = entity.is_parameter();
@@ -501,11 +551,8 @@ impl DtdCatalog {
                         )?;
                         self.store_bytes(bytes, location)?;
                         self.add_binding(location)?;
-                        let external = ExternalEntity {
-                            public: copy_identifier(identifier.public, context.literals, location)?,
-                            system: copy_identifier(identifier.system, context.literals, location)?,
-                            notation: copy_optional(notation, location)?,
-                        };
+                        let external =
+                            self.external_entity(identifier, notation, context, location)?;
                         self.insert_entity(
                             entity.name(),
                             parameter,
@@ -648,10 +695,33 @@ impl DtdCatalog {
         let id = EntityId(self.entities.len());
         self.entities.push(Entity {
             body,
+            parameter,
             declaration: self.usage.declarations - 1,
         });
         table.insert(name, id);
         Ok(())
+    }
+
+    fn external_entity(
+        &self,
+        identifier: crate::dtd::ExternalIdView<'_>,
+        notation: Option<&str>,
+        context: DeclarationContext,
+        location: ValueLocation,
+    ) -> Result<ExternalEntity, CatalogError> {
+        let system = copy_identifier(identifier.system, context.literals, location)?;
+        Ok(ExternalEntity {
+            public: copy_identifier(identifier.public, context.literals, location)?,
+            uri: self
+                .loader
+                .as_ref()
+                .zip(system.as_deref())
+                .map(|(loader, system)| loader.uri(system)),
+            system,
+            notation: copy_optional(notation, location)?,
+            text: None,
+            loaded: false,
+        })
     }
 
     fn store_bytes(&mut self, bytes: usize, location: ValueLocation) -> Result<(), CatalogError> {
@@ -824,24 +894,40 @@ impl DtdCatalog {
             self.parameter_reference = true;
         }
         let may_be_unread = self.may_be_unread();
-        let mut processor = ValueProcessor {
-            general: &self.general,
-            parameter: &self.parameter,
-            entities: &self.entities,
-            frames: &mut self.frames,
-            limits: self.limits,
-            request,
-            usage: &mut self.usage,
-            may_be_unread,
-            raw,
-            offset,
-            declaration,
-            source,
-            mode,
-        };
-        let result = processor.process();
-        processor.frames.clear();
-        result
+        let (usage, requested) = (self.usage, *request.requested);
+        loop {
+            let mut processor = ValueProcessor {
+                general: &self.general,
+                parameter: &self.parameter,
+                entities: &self.entities,
+                frames: &mut self.frames,
+                limits: self.limits,
+                request: ValueRequest {
+                    requested: &mut *request.requested,
+                    ..request
+                },
+                usage: &mut self.usage,
+                may_be_unread,
+                loadable: self.loader.is_some(),
+                raw,
+                offset,
+                declaration,
+                source,
+                mode,
+            };
+            let result = processor.process();
+            processor.frames.clear();
+            // An external PE inside an entity value is loaded, then the value restarts.
+            let Err(CatalogError {
+                kind: CatalogErrorKind::Load(id),
+                ..
+            }) = result
+            else {
+                return result;
+            };
+            (self.usage, *request.requested) = (usage, requested);
+            self.load(id)?;
+        }
     }
 
     fn remember<T>(
@@ -890,6 +976,7 @@ struct ValueProcessor<'a, 'raw> {
     request: ValueRequest<'a>,
     usage: &'a mut CatalogUsage,
     may_be_unread: bool,
+    loadable: bool,
     raw: &'raw str,
     offset: usize,
     declaration: Option<usize>,
@@ -936,10 +1023,10 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         while let Some(frame) = self.frames.last().copied() {
             let text = match frame.entity {
                 None => self.raw,
-                Some(id) => match &self.entities[id.0].body {
-                    EntityBody::Internal(text) => text,
-                    _ => unreachable!("only internal replacements become value frames"),
-                },
+                Some(id) => self.entities[id.0]
+                    .body
+                    .text()
+                    .expect("only replacement texts become value frames"),
             };
             if frame.cursor == text.len() {
                 self.frames.pop();
@@ -999,8 +1086,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                             return Err(error(CatalogErrorKind::EntityDeclared, location));
                         };
                         match &self.entities[id.0].body {
-                            EntityBody::External(_) if is_entity => continue,
-                            EntityBody::External(external) => {
+                            EntityBody::External(external) if !is_entity => {
                                 return Err(error(
                                     if external.notation.is_some() {
                                         CatalogErrorKind::UnparsedEntity
@@ -1010,7 +1096,14 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                                     location,
                                 ));
                             }
-                            EntityBody::Internal(replacement) => {
+                            EntityBody::External(external) if external.text.is_none() => {
+                                if self.loadable && !external.loaded {
+                                    return Err(error(CatalogErrorKind::Load(id), location));
+                                }
+                                continue;
+                            }
+                            body => {
+                                let replacement = body.text().expect("checked replacement");
                                 increment(
                                     &mut self.usage.work,
                                     self.frames.len(),

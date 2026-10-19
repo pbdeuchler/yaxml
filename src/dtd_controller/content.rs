@@ -244,6 +244,9 @@ impl<'input> ContentControllerCore<'input> {
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
         self.parser.owned_budget()
     }
+    pub(crate) fn catalog(&self) -> &DtdCatalog {
+        &self.body.catalog
+    }
 
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<ContentStep, ContentError> {
         self.remember(|s| {
@@ -554,6 +557,10 @@ impl<'input> ContentControllerCore<'input> {
                 ));
             }
             let name = &reference.raw()[1..reference.raw().len() - 1];
+            if let Err(error) = self.body.catalog.load_general(name) {
+                let kind = ContentErrorKind::Tag(DtdTagErrorKind::Catalog(error.kind));
+                return Err(self.for_origin(kind, origin, None));
+            }
             let failure = |failure| ContentErrorKind::Frame(FrameErrorKind::Lookup(failure));
             let resolved = match self.body.catalog.lookup_general(name) {
                 EntityLookup::Internal { id, replacement } => Some((

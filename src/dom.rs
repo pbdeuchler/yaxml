@@ -88,6 +88,8 @@ pub struct Document<'input> {
     nodes: Vec<Record<NodeKind<'input>>>,
     root_element: NodeId,
     declaration: Option<Declaration<'input>>,
+    /// `(element, attribute index)` of ID-typed attributes, in document order.
+    ids: Vec<(NodeId, usize)>,
 }
 
 impl<'input> Document<'input> {
@@ -103,16 +105,32 @@ impl<'input> Document<'input> {
 
     /// Parses a complete input with explicit resource ceilings.
     pub fn with_limits(input: &'input [u8], limits: Limits) -> Result<Self, Error> {
-        let mut reader = Reader::with_limits(input, limits)?;
+        Self::from_reader(Reader::with_limits(input, limits)?, input.len())
+    }
+
+    /// Parses with a resolver for the external subset and external entities;
+    /// `base` is the document's URI or path. See [`Reader::with_resolver`].
+    pub fn with_resolver(
+        input: &'input [u8],
+        limits: Limits,
+        base: &str,
+        resolver: Box<dyn crate::Resolver>,
+    ) -> Result<Self, Error> {
+        let reader = Reader::with_limits(input, limits)?.with_resolver(base, resolver);
+        Self::from_reader(reader, input.len())
+    }
+
+    fn from_reader(mut reader: Reader<'input>, length: usize) -> Result<Self, Error> {
         let mut nodes = Vec::new();
         nodes
             .try_reserve(1)
             .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
-        nodes.push(Record::root(NodeKind::Document, input.len()));
+        nodes.push(Record::root(NodeKind::Document, length));
         let mut document = Self {
             nodes,
             root_element: NodeId(0),
             declaration: None,
+            ids: Vec::new(),
         };
         let mut parents = Vec::new();
         while let Some(event) = reader.read_event()? {
@@ -173,7 +191,18 @@ impl<'input> Document<'input> {
             return Err(Error::new(ErrorKind::MissingRoot, reader.position()));
         }
         document.nodes[0].subtree_end = document.nodes.len();
-        Ok(document)
+        let ids = crate::xpath::tree::find_ids(&document, reader.catalog());
+        Ok(Self { ids, ..document })
+    }
+
+    /// The element whose `xml:id` or DTD-declared `ID` attribute has this
+    /// value; the first in document order wins, as in libxml2's `xmlGetID`.
+    pub fn element_by_id(&self, value: &str) -> Option<Node<'_, 'input>> {
+        crate::xpath::tree::element_by_id(self, &self.ids, value).and_then(|id| self.node(id))
+    }
+
+    pub(crate) fn ids(&self) -> &[(NodeId, usize)] {
+        &self.ids
     }
 
     fn append(

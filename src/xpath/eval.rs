@@ -825,26 +825,25 @@ impl<'a, T: Navigate> Eval<'a, T> {
         Ok(false)
     }
 
-    /// `id()` finds `xml:id` attributes, the only IDs without a DTD.
+    /// `id()` finds elements by `xml:id` and DTD-declared `ID` attributes;
+    /// for a repeated value only the first element counts, as in `xmlGetID`.
     fn id(&mut self, value: Value<T::Id>) -> Result<Vec<Node<T::Id>>> {
         let text = match value {
             Value::NodeSet(nodes) => self.strings(&nodes)?.join(" "),
             other => self.cast_string(other)?,
         };
-        let tokens: HashSet<&str> = words(&text).collect();
+        let mut tokens: HashSet<&str> = words(&text).collect();
         let tree = self.tree;
         let mut found = Vec::new();
-        if tokens.is_empty() {
-            return Ok(found);
-        }
-        for id in tree::preorder(tree, Some(tree.root()), None) {
+        for &(id, index) in tree.ids() {
+            if tokens.is_empty() {
+                break;
+            }
             self.tick(1)?;
-            let hit = tree::attributes(tree, id).any(|(_, name, value)| {
-                name.namespace == Some(XML_NAMESPACE)
-                    && name.local == "id"
-                    && tokens.contains(value)
-            });
-            if hit {
+            let value = tree.attribute(id, index).map(|(_, value)| value);
+            if value.is_some_and(|value| tokens.remove(value))
+                && found.last() != Some(&Node::Tree(id))
+            {
                 found.push(Node::Tree(id));
             }
         }

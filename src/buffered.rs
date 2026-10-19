@@ -74,6 +74,13 @@ impl<R: BufRead> BufferedReader<R> {
         }
     }
 
+    /// Loads the external subset and external parsed entities through
+    /// `resolver`; `base` is the document's URI or path for relative system IDs.
+    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn crate::Resolver>) -> Self {
+        self.session.set_resolver(base, resolver);
+        self
+    }
+
     /// Original bytes consumed, including encoding carry and text lookahead.
     /// Bytes merely prefetched by the underlying source are excluded.
     pub fn position(&self) -> usize {

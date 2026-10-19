@@ -490,7 +490,7 @@ impl<'source> ParserState<'source> {
                 return Err(Error::new(ErrorKind::InvalidDeclaration, start));
             }
             let (declaration, encoding_offset) =
-                parse_declaration(&body[name_end..], start + 2 + name_end)?;
+                parse_declaration(&body[name_end..], start + 2 + name_end, false)?;
             self.encoding = validate_encoding(
                 self.encoding,
                 self.switchable,
@@ -1616,7 +1616,13 @@ impl<'a> TagScanner<'a> {
     }
 }
 
-fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Option<usize>), Error> {
+/// Parses an XML declaration, or with `text` an external entity's text
+/// declaration (optional version, required encoding, no standalone).
+pub(crate) fn parse_declaration(
+    raw: &str,
+    offset: usize,
+    text: bool,
+) -> Result<(Declaration<'_>, Option<usize>), Error> {
     let mut scan = TagScanner {
         raw,
         cursor: 0,
@@ -1645,7 +1651,7 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Optio
             {
                 declaration.version = value;
             }
-            "encoding" if count == 1 => {
+            "encoding" if count == usize::from(count > 0 || !text) && encoding_offset.is_none() => {
                 if !value
                     .as_bytes()
                     .first()
@@ -1659,7 +1665,7 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Optio
                 encoding_offset = Some(position);
                 declaration.encoding = Some(value);
             }
-            "standalone" if count > 0 && declaration.standalone.is_none() => {
+            "standalone" if !text && count > 0 && declaration.standalone.is_none() => {
                 declaration.standalone = match value {
                     "yes" => Some(true),
                     "no" => Some(false),
@@ -1670,7 +1676,7 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Optio
         }
         count += 1;
     }
-    if count == 0 {
+    if count == 0 || (text && encoding_offset.is_none()) {
         return Err(Error::new(ErrorKind::InvalidDeclaration, offset));
     }
     Ok((declaration, encoding_offset))
