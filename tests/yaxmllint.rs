@@ -227,6 +227,11 @@ fn cases() -> Vec<Case> {
         err(on(case("stream relaxng", &["--stream", "--relaxng", "s.rng", "a.xml"], 0, Empty), &[("a.xml", BARE), ("s.rng", RNG)], ""), "a.xml validates"),
         err(on(case("stream relaxng fails", &["--stream", "--relaxng", "s.rng", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.rng", RNG)], ""), "a.xml:1: Relax-NG validity error : Expecting element b, got c"),
         err(on(case("stream relaxng malformed", &["--stream", "--relaxng", "s.rng", "a.xml"], 1, Empty), &[("a.xml", "<a><b>x</b>"), ("s.rng", RNG)], ""), "a.xml validates\na.xml : failed to parse"),
+        err(on(case("stream schema", &["--stream", "--schema", "s.xsd", "a.xml"], 0, Empty), &[("a.xml", BARE), ("s.xsd", XSD)], ""), "a.xml validates"),
+        err(on(case("stream schema fails", &["--stream", "--schema", "s.xsd", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.xsd", XSD)], ""), "a.xml:1: Schemas validity error : Element 'c': This element is not expected. Expected is ( b ).\na.xml fails to validate"),
+        err(on(case("stream schema malformed", &["--stream", "--schema", "s.xsd", "a.xml"], 1, Empty), &[("a.xml", "<a><b>x</b>"), ("s.xsd", XSD)], ""), "a.xml validates\na.xml : failed to parse"),
+        err(on(case("stream schema bad schema", &["--stream", "--schema", "s.xsd", "a.xml"], 5, Empty), &[("a.xml", BARE), ("s.xsd", "<xs:schema")], ""), "failed to compile"),
+        err(on(case("stream schema and relaxng", &["--stream", "--schema", "s.xsd", "--relaxng", "s.rng", "a.xml"], 3, Empty), &[("a.xml", "<a><b>x</b><c/></a>"), ("s.xsd", XSD), ("s.rng", RNG)], ""), "a.xml fails to validate"),
         // external resources
         on(case("noent alone does not load the DTD", &["--noent", "a.xml"], 0, Has("<r/>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
         on(case("loaddtd noent loads the DTD", &["--loaddtd", "--noent", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
@@ -508,6 +513,12 @@ fn differential_against_xmllint() {
             "--stream --relaxng --noout",
             vec!["--stream", "--noout", "--relaxng"],
             schema_pairs("relaxng", "rng"),
+            true,
+        ),
+        (
+            "--stream --schema --noout",
+            vec!["--stream", "--noout", "--schema"],
+            schema_pairs("schemas", "xsd"),
             true,
         ),
         (

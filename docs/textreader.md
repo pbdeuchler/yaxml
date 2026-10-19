@@ -17,7 +17,7 @@ single-byte encodings from `&[u8]` or any `BufRead` in bounded memory.
 | `MoveToAttribute`, `…No`, `…Ns`, `MoveToFirstAttribute`, `MoveToNextAttribute`, `MoveToElement` | `move_to_*` returning `bool` |
 | `ReadString`, `ReadInnerXml`, `ReadOuterXml`, `Expand` | `read_string`, `read_inner_xml`, `read_outer_xml`, `expand` (an `OwnedDocument`) |
 | `GetParserProp`, `SetParserProp` | `parser_property`, `set_parser_property` |
-| `RelaxNGSetSchema`, `IsValid` (`RelaxNGValidate` is `relaxng::Schema::parse` plus `SetSchema`) | `relaxng_set_schema`, `is_valid`, `relaxng_diagnostics` |
+| `RelaxNGSetSchema`, `SetSchema`, `IsValid` (`RelaxNGValidate` and `SchemaValidate` are `Schema::parse` plus `SetSchema`) | `relaxng_set_schema`, `xsd_set_schema`, `is_valid`, `relaxng_diagnostics`, `xsd_diagnostics` |
 
 `NodeType`, `ReadState` and `ParserProperty` carry libxml2's integer values
 (`as i32`). The reader produces Element, Attribute, Text, CDATA,
@@ -75,7 +75,7 @@ supplied and the flags load the external subset, `DefaultAttributes` is
 `DTDATTR`, `SubstituteEntities` is `NOENT` and `Validate` is false. Setting a property to
 another value returns `ErrorKind::UnsupportedOption`.
 
-## RELAX NG validation
+## Schema validation
 
 `relaxng_set_schema(Some(&schema))`, before the first read, validates the
 document as it is read with a [`relaxng::Stream`](relaxng.md#streaming-validation)
@@ -88,6 +88,15 @@ concern the node of lookahead; `is_valid` is true while there are none, and
 false without a schema, as `xmlTextReaderIsValid` returns 0 then. Verdicts
 equal tree validation's and `xmllint --stream --relaxng`'s on the libxml2
 suite.
+
+`xsd_set_schema(Some(&schema))` does the same with an [`xsd::StreamValidator`](xsd.md)
+(it clones the schema's `Arc`, so the reader has no lifetime) fed by the same
+points, and the DTD for `ID` and `ENTITY` values. Both validators can be set;
+`is_valid` is true when at least one is set and none reported an error.
+Diagnostics are in `xsd_diagnostics` and equal `Schema::validate_stream`'s on
+the libxml2 `test/schemas` suite. `PushParser::dtd` and `BufferedReader::dtd`
+supply the DTD to callers driving `relaxng::Stream::set_dtd` or
+`xsd::StreamValidator::set_dtd` themselves.
 
 ## Differential results
 
@@ -115,7 +124,7 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
 
 ## Gaps
 
-- No `XML_PARSE_NOBLANKS`, no DTD or XML Schema validation,
+- No `XML_PARSE_NOBLANKS`, no DTD validation,
   no `xmlTextReaderSetParserProp` changes, no `xmlTextReaderPreserve`,
   patterns, `ReadAttributeValue`, `Close`, line/column or encoding getters.
 - Attributes are not kept for EndElement nodes: libxml2 lets the `move_to_*`

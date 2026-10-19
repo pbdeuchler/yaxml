@@ -75,7 +75,7 @@ fn run_pattern(line: &str, document: &Document<'_>) -> String {
         line: &str,
         document: &Document<'_>,
         pattern: &Pattern,
-        stream: &mut Option<StreamMatcher<'_>>,
+        stream: &mut Option<StreamMatcher>,
         out: &mut String,
     ) {
         let matched = pattern.matches(document, node.id());

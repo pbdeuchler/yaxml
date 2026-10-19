@@ -18,6 +18,7 @@
 //! ```
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::name::{name_char, name_start};
 use crate::xpath::tree::{Item, QName, XML_NAMESPACE};
@@ -175,7 +176,7 @@ struct Stream {
 struct Alt {
     flags: u32,
     ops: Vec<Op>,
-    stream: Option<Stream>,
+    stream: Option<Arc<Stream>>,
 }
 
 /// A compiled pattern, reusable across documents and threads.
@@ -620,7 +621,7 @@ impl Pattern {
                 }
                 .map_err(|e| error(e.kind, e.offset.map(|o| o + at)))?;
                 let flags = flags | added;
-                let stream = stream_compile(&parser.ops, flags);
+                let stream = stream_compile(&parser.ops, flags).map(Arc::new);
                 let ops = simplify(parser.ops);
                 let skip = usize::from(ops.first() == Some(&Op::Ancestor));
                 Ok(Alt {
@@ -655,17 +656,15 @@ impl Pattern {
 
     /// `xmlPatternGetStreamCtxt`, already at the document node as after
     /// `xmlStreamPush(NULL, NULL)`; `None` if any alternative is not streamable.
-    pub fn stream(&self) -> Option<StreamMatcher<'_>> {
+    pub fn stream(&self) -> Option<StreamMatcher> {
         let contexts = self
             .alts
             .iter()
             .map(|alt| {
                 alt.stream.as_ref().map(|stream| Context {
-                    stream,
+                    stream: Arc::clone(stream),
                     flags: alt.flags,
-                    states: Vec::new(),
-                    level: 0,
-                    block: None,
+                    cursor: Cursor::default(),
                 })
             })
             .collect::<Option<Vec<_>>>()?;
@@ -734,16 +733,23 @@ fn walk<T: Tree>(tree: &T, ops: &[Op], chain: &[Node<T::Id>]) -> bool {
 
 /// `xmlStreamCtxt` for one alternative.
 #[derive(Clone, Debug)]
-struct Context<'p> {
-    stream: &'p Stream,
+struct Context {
+    stream: Arc<Stream>,
     flags: u32,
+    cursor: Cursor,
+}
+
+/// The mutable matching state of a context; its methods take the immutable
+/// `Stream` so no per-event reference counting is needed.
+#[derive(Clone, Debug, Default)]
+struct Cursor {
     /// `(step, level)`, levels nondecreasing, no duplicates.
     states: Vec<(usize, usize)>,
     level: usize,
     block: Option<usize>,
 }
 
-impl Context<'_> {
+impl Cursor {
     fn add(&mut self, step: usize, level: usize) {
         let seen = self
             .states
@@ -757,12 +763,12 @@ impl Context<'_> {
     }
 
     /// The document node (or a reset); whether it matches.
-    fn reset(&mut self) -> bool {
+    fn reset(&mut self, stream: &Stream) -> bool {
         self.states.clear();
         (self.level, self.block) = (0, None);
-        let steps = &self.stream.steps;
+        let steps = &stream.steps;
         match steps.first() {
-            _ if !self.stream.from_root => false,
+            _ if !stream.from_root => false,
             None => true,
             // libxml2 adds no state for a lone `/.//.`, so it selects nothing below the document.
             Some(first) => {
@@ -775,8 +781,14 @@ impl Context<'_> {
     }
 
     /// Step `nr` against the node being entered at `level`; whether it selects it.
-    fn visit(&mut self, nr: usize, name: &str, ns: Option<&str>, level: usize) -> bool {
-        let stream = self.stream;
+    fn visit(
+        &mut self,
+        stream: &Stream,
+        nr: usize,
+        name: &str,
+        ns: Option<&str>,
+        level: usize,
+    ) -> bool {
         let step = &stream.steps[nr];
         let hit = step.matches(name, ns);
         if hit && !step.fin {
@@ -790,20 +802,21 @@ impl Context<'_> {
 
     fn push(
         &mut self,
+        stream: &Stream,
+        flags: u32,
         kind: Kind,
         name: &str,
         ns: Option<&str>,
         depth: usize,
     ) -> Result<bool, Error> {
-        let stream = self.stream;
         let new = self.level + 1;
         if new > depth {
             return Err(error(ErrorKind::LimitExceeded(Limit::Depth), None));
         }
-        let notpattern = self.flags & NOT_PATTERN != 0;
-        let idc = self.flags & (XS_SELECTOR | XS_FIELD) != 0;
+        let notpattern = flags & NOT_PATTERN != 0;
+        let idc = flags & (XS_SELECTOR | XS_FIELD) != 0;
         if stream.steps.is_empty() {
-            if self.flags & XPATH != 0 {
+            if flags & XPATH != 0 {
                 return Ok(false);
             }
             self.level = new;
@@ -838,7 +851,7 @@ impl Context<'_> {
                     continue;
                 }
             }
-            hit |= self.visit(nr, name, ns, new);
+            hit |= self.visit(stream, nr, name, ns, new);
         }
         self.level = new;
         // Re-enter the expression unless it is anchored at the root.
@@ -849,7 +862,7 @@ impl Context<'_> {
         Ok(if first.root || !compare || !kind_ok {
             hit
         } else {
-            self.visit(0, name, ns, new) | hit
+            self.visit(stream, 0, name, ns, new) | hit
         })
     }
 
@@ -869,24 +882,26 @@ impl Context<'_> {
 /// depth, never by the document. Names are local names and namespace URIs
 /// (an empty URI is no namespace).
 #[derive(Clone, Debug)]
-pub struct StreamMatcher<'p> {
-    contexts: Vec<Context<'p>>,
+pub struct StreamMatcher {
+    contexts: Vec<Context>,
     max_depth: usize,
 }
 
-impl StreamMatcher<'_> {
+impl StreamMatcher {
     /// Returns to the document node (`xmlStreamPush(NULL, NULL)`); whether the
     /// document itself matches (`/.` or `//.`).
     pub fn reset(&mut self) -> bool {
         self.contexts
             .iter_mut()
-            .fold(false, |any, c| c.reset() | any)
+            .fold(false, |any, c| c.cursor.reset(&c.stream) | any)
     }
 
     fn feed(&mut self, kind: Kind, name: &str, ns: Option<&str>) -> Result<bool, Error> {
         let ns = ns.filter(|uri| !uri.is_empty());
         self.contexts.iter_mut().try_fold(false, |any, c| {
-            Ok(c.push(kind, name, ns, self.max_depth)? | any)
+            Ok(c.cursor
+                .push(&c.stream, c.flags, kind, name, ns, self.max_depth)?
+                | any)
         })
     }
 
@@ -908,7 +923,7 @@ impl StreamMatcher<'_> {
 
     /// `xmlStreamPop`: the element, attribute or node last pushed ends.
     pub fn pop(&mut self) {
-        self.contexts.iter_mut().for_each(Context::pop);
+        self.contexts.iter_mut().for_each(|c| c.cursor.pop());
     }
 
     /// `xmlStreamWantsAnyNode`: whether non-element nodes must be pushed too.
