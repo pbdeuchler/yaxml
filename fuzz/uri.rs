@@ -15,8 +15,12 @@ pub(super) fn exercise(input: &[u8]) {
     if let Ok(uri) = Uri::parse_raw(reference) {
         let saved = uri.to_string();
         assert!(saved.is_ascii(), "{reference:?} saved as {saved:?}");
+        // libxml2 saves an authority-less path starting with "//" (even one
+        // that came from an empty userinfo, as in "//@//4@@//4@") verbatim, so
+        // it reparses as an authority and may fail; xmlSaveUri does the same.
+        let ambiguous = !uri.has_authority() && saved.starts_with("//");
         assert!(
-            Uri::parse_raw(&saved).is_ok(),
+            ambiguous || Uri::parse_raw(&saved).is_ok(),
             "{reference:?} saved as {saved:?}"
         );
     }
@@ -35,6 +39,11 @@ pub(super) fn exercise(input: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::exercise;
+
+    #[test]
+    fn authority_less_double_slash_path_need_not_reparse() {
+        exercise(b"//@//4@@//4@");
+    }
 
     #[test]
     fn token_soup_keeps_every_invariant() {
