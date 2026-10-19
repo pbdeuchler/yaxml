@@ -440,11 +440,10 @@ impl<R: BufRead> TextReader<R> {
         while self.queue.len() == 1 && self.queue[0].kind == Kind::Text {
             match self.fetch() {
                 Ok(true) => {}
-                Ok(false) => break,
                 // Deliver the text first. The source repeats an XML failure
                 // but reports an I/O failure only once.
-                Err(error) => {
-                    self.pending = matches!(error, ReadError::Io(_)).then_some(error);
+                done => {
+                    self.pending = done.err().filter(|error| matches!(error, ReadError::Io(_)));
                     break;
                 }
             }
@@ -478,10 +477,12 @@ impl<R: BufRead> TextReader<R> {
     }
 
     fn failure(&mut self) -> ReadError {
-        match self.source.read_event() {
-            Err(error) => error,
-            Ok(_) => ReadError::Xml(Error::new(ErrorKind::InvalidState, self.source.position())),
-        }
+        // The source repeats its failure, so the fallback is never taken.
+        let error = self.source.read_event().err();
+        error.unwrap_or(ReadError::Xml(Error::new(
+            ErrorKind::InvalidState,
+            self.source.position(),
+        )))
     }
 
     /// Queue index of the current element's `EndElement`, buffering its
@@ -497,17 +498,15 @@ impl<R: BufRead> TextReader<R> {
                     let limit = ErrorKind::LimitExceeded(Limit::OwnedBytes);
                     return Err(ReadError::Xml(Error::new(limit, self.source.position())));
                 }
-                match self.fetch() {
-                    Ok(true) => continue,
-                    Ok(false) => {
-                        self.state = ReadState::Error;
-                        return Err(ReadError::Xml(Error::new(ErrorKind::InvalidState, 0)));
-                    }
-                    Err(error) => {
-                        self.state = ReadState::Error;
-                        return Err(error);
-                    }
+                // The source reports EOF inside an element as an error.
+                let fetched = self.fetch();
+                if matches!(fetched, Ok(true)) {
+                    continue;
                 }
+                self.state = ReadState::Error;
+                return Err(fetched
+                    .err()
+                    .unwrap_or(ReadError::Xml(Error::new(ErrorKind::InvalidState, 0))));
             }
             match self.queue[index].kind {
                 Kind::Element => depth += 1,

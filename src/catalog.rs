@@ -757,7 +757,7 @@ fn sgml_literal(text: &[u8]) -> Option<(String, &[u8])> {
         Some(quote) => rest.strip_prefix(&[quote])?,
         None => rest.first().is_some_and(blank).then_some(rest)?,
     };
-    Some((String::from_utf8(value.to_vec()).ok()?, rest))
+    Some((value.iter().copied().map(char::from).collect(), rest))
 }
 
 /// `xmlParseSGMLCatalog`, loading `CATALOG` entries as `xmlExpandCatalog`

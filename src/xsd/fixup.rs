@@ -507,17 +507,11 @@ impl Fix {
             {
                 continue;
             }
-            if global.kind == GlobalKind::Notation {
-                if !self.notations.insert(global.name) {
-                    self.duplicate(global.loc, "notation", global.name);
-                }
-                continue;
-            }
-            if self
-                .table
-                .insert((global.kind, global.name), global.id)
-                .is_some()
-            {
+            let fresh = match global.kind {
+                GlobalKind::Notation => self.notations.insert(global.name),
+                kind => self.table.insert((kind, global.name), global.id).is_none(),
+            };
+            if !fresh {
                 let what = match global.kind {
                     GlobalKind::Type => "type definition",
                     GlobalKind::Element => "element declaration",

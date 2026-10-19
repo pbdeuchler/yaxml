@@ -84,17 +84,14 @@ impl Resolver for FileResolver {
     fn resolve(&mut self, request: Request<'_>) -> io::Result<Option<Vec<u8>>> {
         let denied = |why| io::Error::new(io::ErrorKind::PermissionDenied, why);
         let parsed = Uri::parse(request.uri).ok();
-        let path = match parsed.as_ref().and_then(|uri| uri.scheme.as_deref()) {
-            None => request.uri,
-            Some("file") => match parsed.as_ref().expect("parsed URI") {
-                Uri {
-                    host: None,
-                    path: Some(path),
-                    ..
-                } => path,
-                _ => return Err(denied("file URI with a host")),
-            },
-            Some(_) => return Err(denied("not a file URI")),
+        let path = match parsed
+            .as_ref()
+            .map(|u| (u.scheme.as_deref(), &u.host, &u.path))
+        {
+            Some((Some("file"), None, Some(path))) => path.as_str(),
+            Some((Some("file"), ..)) => return Err(denied("file URI with a host")),
+            Some((Some(_), ..)) => return Err(denied("not a file URI")),
+            _ => request.uri,
         };
         let lexical =
             self.root

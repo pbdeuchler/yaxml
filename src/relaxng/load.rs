@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::pattern::is_whitespace;
 use super::{Limits, RNG_NS, SchemaCode, SchemaError};
-use crate::xpath::tree::{Item, Navigate, XML_NAMESPACE, attributes, namespaces};
+use crate::xpath::tree::{Item, Navigate, QName, XML_NAMESPACE, attributes, namespaces};
 use crate::{OwnedDocument, Request, Resolver, ResourceKind, Uri};
 
 /// The RELAX NG elements and the attributes each allows besides `ns` and
@@ -150,9 +150,9 @@ impl<'l> Loader<'l> {
             resource,
             offset: None,
         };
-        match root {
-            Some(id) if is_rng(tree.item(id)) => self.convert(tree, id, &inherited),
-            _ => Err(self.error(
+        match root.and_then(|id| Some((id, rng(tree.item(id))?))) {
+            Some((id, qname)) => self.convert(tree, id, qname, &inherited),
+            None => Err(self.error(
                 SchemaCode::Empty,
                 at,
                 format!(
@@ -167,11 +167,9 @@ impl<'l> Loader<'l> {
         &mut self,
         tree: &T,
         id: T::Id,
+        qname: QName<'_>,
         up: &Inherited,
     ) -> Result<El, SchemaError> {
-        let Item::Element(qname) = tree.item(id) else {
-            unreachable!("only elements are converted")
-        };
         let at = Loc {
             resource: up.resource,
             offset: tree.offset(id),
@@ -258,8 +256,8 @@ impl<'l> Loader<'l> {
                         format!("Element {name} has element content"),
                     ));
                 }
-                item @ Item::Element(_) if is_rng(item) => {
-                    children.push(self.convert(tree, child, &here)?)
+                Item::Element(qname) if qname.namespace == Some(RNG_NS) => {
+                    children.push(self.convert(tree, child, qname, &here)?)
                 }
                 Item::Text(value) => text.push_str(value),
                 _ => {}
@@ -389,9 +387,9 @@ impl<'l> Loader<'l> {
             resource: inherited.resource,
             offset: root.range().map(|range| range.start),
         };
-        match is_rng(Navigate::item(document, root.id())) {
-            true => self.convert(document, root.id(), inherited),
-            false => Err(self.error(
+        match rng(Navigate::item(document, root.id())) {
+            Some(qname) => self.convert(document, root.id(), qname, inherited),
+            None => Err(self.error(
                 SchemaCode::UnknownConstruct,
                 at,
                 "document element is not in the RELAX NG namespace".into(),
@@ -491,8 +489,11 @@ fn is_space(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\r')
 }
 
-fn is_rng(item: Item<'_>) -> bool {
-    matches!(item, Item::Element(name) if name.namespace == Some(RNG_NS))
+fn rng(item: Item<'_>) -> Option<QName<'_>> {
+    match item {
+        Item::Element(name) if name.namespace == Some(RNG_NS) => Some(name),
+        _ => None,
+    }
 }
 
 /// Whether the overrides of an `include` contain a start, and their define names.
