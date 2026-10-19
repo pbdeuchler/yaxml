@@ -28,6 +28,12 @@ pub(crate) struct QName {
     pub(crate) local: Span,
 }
 
+impl QName {
+    pub(crate) fn start(self) -> usize {
+        self.prefix.unwrap_or(self.local).range().start
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Axis {
     Ancestor,

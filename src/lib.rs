@@ -27,6 +27,7 @@ pub mod relaxng;
 mod resolve;
 pub mod save;
 pub mod schema_types;
+pub mod schematron;
 mod serialize;
 mod stream;
 mod textreader;

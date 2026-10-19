@@ -39,7 +39,8 @@ assert_eq!(nodes.len(), 1);
   functions take precedence over unprefixed extensions. Caller-supplied
   node-sets are validated against the tree (`InvalidContext`) and re-sorted.
 - Errors use libxml2's `xmlXPathError` categories. Compilation errors carry
-  the expression byte offset.
+  the expression byte offset; evaluation errors carry the offset of the
+  unknown prefix, variable or function name that caused them.
 - CDATA sections are text nodes. `id()` matches `xml:id` attributes, the only
   ID attributes without a DTD.
 - Number conversion and formatting follow `xmlXPathStringEvalNumber` and

@@ -357,6 +357,25 @@ assert_eq!(error.code, yaxml::relaxng::Code::Datatype);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`yaxml::schematron` ports libxml2's Schematron (ISO and 1.5 namespaces,
+`pattern`/`rule`/`let`/`assert`/`report`, `name` and `value-of` messages,
+pattern rule contexts, XPath tests): `Schema` validates either DOM with the
+`XML_SCHEMATRON_OUT_*` modes and prints libxml2's report text, identical on
+all 42 libxml2 `test/schematron` results; see [Schematron](docs/schematron.md).
+
+```rust
+use yaxml::schematron::{Limits, OUT_TEXT, Schema};
+
+let sct = br#"<schema xmlns="http://purl.oclc.org/dsdl/schematron"><pattern id="p">
+  <rule context="i"><assert test="@k">no key</assert></rule></pattern></schema>"#;
+let none = |_: yaxml::Request<'_>| Ok(None);
+let schema = Schema::parse(sct, "s.sct", Box::new(none), &Limits::default())?;
+let input = b"<r><i k='1'/><i/></r>";
+let validation = schema.validate(&yaxml::Document::parse_bytes(input)?, OUT_TEXT, input);
+assert_eq!(validation.render("r.xml"), "Pattern: p\n/r/i[2] line 1: no key\n");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 `yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
 tokenization, libxml2's legacy tree construction with implied elements and
 auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding
@@ -404,7 +423,7 @@ assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
 
 `yaxmllint` (`cargo run --bin yaxmllint -- FILE`) is `xmllint`'s command line over
 these modules: `--noout --format --encode --xpath --c14n --html --valid
---relaxng --schema --xinclude --stream --catalogs` and the rest of the table
+--schematron --relaxng --schema --xinclude --stream --catalogs` and the rest of the table
 in [yaxmllint](docs/yaxmllint.md), with xmllint's exit codes and stdout.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
