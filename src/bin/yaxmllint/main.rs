@@ -9,7 +9,7 @@ use std::path::Path;
 use std::time::Instant;
 use std::{env, fs};
 
-use diag::report;
+use diag::{report, report_with};
 use opts::{Opts, *};
 use yaxml::catalog::{Catalog, CatalogResolver};
 use yaxml::xpath::{Context, XPath};
@@ -140,13 +140,23 @@ impl<Id> Finding for relaxng::Diagnostic<Id> {
     }
 }
 
-/// Prints the diagnostics; true when none is an error.
-fn print_all(file: &str, input: &[u8], kind: &str, found: &[impl Finding]) -> bool {
+/// Prints the diagnostics, with source context when `context`; true when none is an error.
+fn print_found(
+    context: bool,
+    file: &str,
+    input: &[u8],
+    kind: &str,
+    found: &[impl Finding],
+) -> bool {
     found.iter().fold(true, |ok, finding| {
         let (offset, message, warning) = finding.parts();
-        report(file, input, offset, kind, message);
+        report_with(context, file, input, offset, kind, message);
         ok && warning
     })
+}
+
+fn print_all(file: &str, input: &[u8], kind: &str, found: &[impl Finding]) -> bool {
+    print_found(true, file, input, kind, found)
 }
 
 /// xmllint's parser options for the command line.
@@ -396,7 +406,7 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
 }
 
 /// `--stream`: read every node through the pull interface, printing nothing
-/// but `--relaxng` validation, which the reader does as it goes.
+/// but `--relaxng` and `--schema` validation, which the reader does as it goes.
 fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
     // The reader does not validate DTDs or drop blanks; it prints nothing anyway.
     let streamable = flags(o) & !(yaxml::options::DTDVALID | yaxml::options::NOBLANKS);
@@ -409,9 +419,10 @@ fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
             return UNCLASS;
         }
     };
-    let rng = schemas.relaxng.as_ref();
+    let (rng, xsd) = (schemas.relaxng.as_ref(), schemas.xsd.as_ref());
     reader
         .relaxng_set_schema(rng)
+        .and_then(|()| reader.xsd_set_schema(xsd))
         .expect("before the first read");
     let read = loop {
         match reader.read() {
@@ -419,21 +430,27 @@ fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
             done => break done,
         }
     };
-    let code = rng.map_or(0, |_| {
-        print_all(
-            file,
-            input,
-            "Relax-NG validity error",
-            reader.relaxng_diagnostics(),
-        );
-        verdict(o, file, reader.is_valid())
-    });
+    print_found(
+        false,
+        file,
+        input,
+        "Relax-NG validity error",
+        reader.relaxng_diagnostics(),
+    );
+    print_found(
+        false,
+        file,
+        input,
+        "Schemas validity error",
+        reader.xsd_diagnostics(),
+    );
+    let code = (rng.is_some() || xsd.is_some()).then(|| verdict(o, file, reader.is_valid()));
     match read {
         Err(error) => {
             eprintln!("{file} : failed to parse: {error:?}");
             UNCLASS
         }
-        Ok(_) => code,
+        Ok(_) => code.unwrap_or(0),
     }
 }
 

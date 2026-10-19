@@ -19,7 +19,7 @@ enum Role {
 }
 
 /// An active XPath state object (`xmlSchemaIDCStateObj`).
-struct State<'s> {
+struct State {
     role: Role,
     /// The depth of the element where it started.
     depth: usize,
@@ -27,7 +27,7 @@ struct State<'s> {
     history: Vec<usize>,
     /// The matcher: its scope's depth and index.
     matcher: (usize, usize),
-    stream: StreamMatcher<'s>,
+    stream: StreamMatcher,
 }
 
 /// A key: the computed value and its normalized text for messages.
@@ -103,9 +103,9 @@ fn format_sequence(keys: &[Key]) -> String {
     format!("[{}]", items.join(", "))
 }
 
-pub(crate) struct Engine<'s> {
-    schema: &'s Schema,
-    states: Vec<State<'s>>,
+pub(crate) struct Engine {
+    schema: Schema,
+    states: Vec<State>,
     /// Per IDC, the depth of the topmost keyref that refers to it.
     keyref_depth: Vec<Option<usize>>,
     /// Whether the schema has keyrefs at all (node tables are built only then).
@@ -115,10 +115,10 @@ pub(crate) struct Engine<'s> {
     keys: usize,
 }
 
-impl<'s> Engine<'s> {
-    pub(crate) fn new(schema: &'s Schema) -> Self {
+impl Engine {
+    pub(crate) fn new(schema: &Schema) -> Self {
         Self {
-            schema,
+            schema: schema.clone(),
             states: Vec::new(),
             keyref_depth: vec![None; schema.idcs.len()],
             keyrefs: schema.idcs.iter().any(|idc| idc.kind == IdcKind::KeyRef),

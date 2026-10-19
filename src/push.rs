@@ -83,6 +83,11 @@ impl PushParser {
         self.session.catalog()
     }
 
+    /// The declarations of the document's DTD, once its DOCTYPE was read.
+    pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
+        self.catalog().map(|catalog| catalog.dtd())
+    }
+
     /// Source bytes consumed, including encoding detection and one scalar of lookahead
     /// when a `<` terminates text. On failure, a chunk's suffix can be unconsumed.
     pub fn position(&self) -> usize {

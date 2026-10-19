@@ -166,11 +166,11 @@ enum State {
 }
 
 /// The validation state of one document, advanced by its events.
-pub(crate) struct Validator<'s, Id> {
-    schema: &'s Schema,
+pub(crate) struct Validator<Id> {
+    schema: Schema,
     frames: Vec<Frame<Id>>,
     scopes: Vec<IdcScope<Node<Id>>>,
-    engine: Engine<'s>,
+    engine: Engine,
     skip: Option<usize>,
     /// Elements started inside skipped content and not yet ended.
     ignored: usize,
@@ -203,12 +203,12 @@ fn sink<Id>(out: &mut Vec<Diagnostic<Id>>) -> impl FnMut(Node<Id>, Code, String)
     }
 }
 
-impl<'s, Id: Copy> Validator<'s, Id> {
+impl<Id: Copy> Validator<Id> {
     /// A validator for one document; `ids` holds the ID values known
     /// beforehand.
-    pub(crate) fn new(schema: &'s Schema, ids: HashMap<String, bool>) -> Self {
+    pub(crate) fn new(schema: &Schema, ids: HashMap<String, bool>) -> Self {
         Self {
-            schema,
+            schema: schema.clone(),
             frames: Vec::new(),
             scopes: Vec::new(),
             engine: Engine::new(schema),
@@ -220,6 +220,10 @@ impl<'s, Id: Copy> Validator<'s, Id> {
             started: false,
             out: Vec::new(),
         }
+    }
+
+    pub(crate) fn diagnostics(&self) -> &[Diagnostic<Id>] {
+        &self.out
     }
 
     /// The diagnostics, once the document has ended.
@@ -765,7 +769,7 @@ impl<'s, Id: Copy> Validator<'s, Id> {
         attrs: &[Attr<'_>],
         dtd: Option<&Dtd>,
     ) {
-        let schema = self.schema;
+        let schema = self.schema.clone();
         let complex = schema.types[ty].complex().expect("complex");
         let mut states: Vec<State> = attrs
             .iter()
@@ -1046,7 +1050,7 @@ impl<'s, Id: Copy> Validator<'s, Id> {
         let Some(ty) = frame.ty.filter(|_| !frame.bad_type) else {
             return;
         };
-        let schema = self.schema;
+        let schema = self.schema.clone();
         let content = schema.types[ty].complex().map(|c| &c.content);
         if let Some(Content::Elements { model, mixed }) = content
             && ty != ANY_TYPE

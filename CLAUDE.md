@@ -7,7 +7,7 @@ Pure-Rust libxml2 2.15.4 rewrite. `#![forbid(unsafe_code)]`; memchr is the only 
 - `ParseOptions` (src/options.rs) is the single entry for flags (libxml2 `XML_PARSE_*` values), `Limits`, `DecodeLimits`, `base`, `Resolver`. Default = libxml2 default (entity-ref nodes kept, nothing loaded). Unimplemented flags -> `ErrorKind::UnsupportedOption`, never silently ignored.
 - Crate-private `Navigate` (src/xpath/tree.rs) is shared by XPath, C14N, valid, relaxng, xsd, pattern, schematron.
 - relaxng: one `Engine<I>` (src/relaxng.rs: start/flush/text/end/finish) driven by the DOM walk and by `relaxng::Stream` (events; used by `TextReader::relaxng_set_schema`). `Deriver` holds `Arc<Arena>`/`Arc<Tables>` so `Stream` has no lifetime. No subtree buffering (libxml2 FullElement unneeded).
-- XSD instance validation is one event engine (src/xsd/validate.rs `Validator`: start/text/end/other); tree `run` and public `xsd::StreamValidator` both feed it. Stream == DOM diagnostics is tested (tests/xsd_stream.rs, suite, fuzz/xsd.rs).
+- XSD instance validation is one event engine (src/xsd/validate.rs `Validator`: start/text/end/other); tree `run` and public `xsd::StreamValidator` both feed it. Stream == DOM diagnostics is tested (tests/xsd_stream.rs, suite, fuzz/xsd.rs). `Schema` = `Arc<Compiled>` (Deref), so `StreamValidator`, `Validator`, `Engine` and `pattern::StreamMatcher` (`Arc<Stream>`) have no lifetime. `TextReader.validators` (relaxng + xsd) is the one feeding point (`fetch`, `skip_entity`, Doctype -> `set_dtd`); `xsd_set_schema`/`xsd_diagnostics`; `is_valid` = any set and none failing.
 - No I/O without a `Resolver` (src/resolve.rs); `FileResolver` is root-confined. Entity amplification follows libxml2 (`max_entity_amplification`, default 5).
 
 ## Repo/process

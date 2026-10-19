@@ -18,6 +18,7 @@
 //! ```
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::name::{name_char, name_start};
 use crate::xpath::tree::{Item, QName, XML_NAMESPACE};
@@ -175,7 +176,7 @@ struct Stream {
 struct Alt {
     flags: u32,
     ops: Vec<Op>,
-    stream: Option<Stream>,
+    stream: Option<Arc<Stream>>,
 }
 
 /// A compiled pattern, reusable across documents and threads.
@@ -620,7 +621,7 @@ impl Pattern {
                 }
                 .map_err(|e| error(e.kind, e.offset.map(|o| o + at)))?;
                 let flags = flags | added;
-                let stream = stream_compile(&parser.ops, flags);
+                let stream = stream_compile(&parser.ops, flags).map(Arc::new);
                 let ops = simplify(parser.ops);
                 let skip = usize::from(ops.first() == Some(&Op::Ancestor));
                 Ok(Alt {
@@ -655,13 +656,13 @@ impl Pattern {
 
     /// `xmlPatternGetStreamCtxt`, already at the document node as after
     /// `xmlStreamPush(NULL, NULL)`; `None` if any alternative is not streamable.
-    pub fn stream(&self) -> Option<StreamMatcher<'_>> {
+    pub fn stream(&self) -> Option<StreamMatcher> {
         let contexts = self
             .alts
             .iter()
             .map(|alt| {
                 alt.stream.as_ref().map(|stream| Context {
-                    stream,
+                    stream: Arc::clone(stream),
                     flags: alt.flags,
                     states: Vec::new(),
                     level: 0,
@@ -734,8 +735,8 @@ fn walk<T: Tree>(tree: &T, ops: &[Op], chain: &[Node<T::Id>]) -> bool {
 
 /// `xmlStreamCtxt` for one alternative.
 #[derive(Clone, Debug)]
-struct Context<'p> {
-    stream: &'p Stream,
+struct Context {
+    stream: Arc<Stream>,
     flags: u32,
     /// `(step, level)`, levels nondecreasing, no duplicates.
     states: Vec<(usize, usize)>,
@@ -743,7 +744,7 @@ struct Context<'p> {
     block: Option<usize>,
 }
 
-impl Context<'_> {
+impl Context {
     fn add(&mut self, step: usize, level: usize) {
         let seen = self
             .states
@@ -760,9 +761,10 @@ impl Context<'_> {
     fn reset(&mut self) -> bool {
         self.states.clear();
         (self.level, self.block) = (0, None);
-        let steps = &self.stream.steps;
+        let stream = Arc::clone(&self.stream);
+        let steps = &stream.steps;
         match steps.first() {
-            _ if !self.stream.from_root => false,
+            _ if !stream.from_root => false,
             None => true,
             // libxml2 adds no state for a lone `/.//.`, so it selects nothing below the document.
             Some(first) => {
@@ -776,7 +778,7 @@ impl Context<'_> {
 
     /// Step `nr` against the node being entered at `level`; whether it selects it.
     fn visit(&mut self, nr: usize, name: &str, ns: Option<&str>, level: usize) -> bool {
-        let stream = self.stream;
+        let stream = Arc::clone(&self.stream);
         let step = &stream.steps[nr];
         let hit = step.matches(name, ns);
         if hit && !step.fin {
@@ -795,7 +797,7 @@ impl Context<'_> {
         ns: Option<&str>,
         depth: usize,
     ) -> Result<bool, Error> {
-        let stream = self.stream;
+        let stream = Arc::clone(&self.stream);
         let new = self.level + 1;
         if new > depth {
             return Err(error(ErrorKind::LimitExceeded(Limit::Depth), None));
@@ -869,12 +871,12 @@ impl Context<'_> {
 /// depth, never by the document. Names are local names and namespace URIs
 /// (an empty URI is no namespace).
 #[derive(Clone, Debug)]
-pub struct StreamMatcher<'p> {
-    contexts: Vec<Context<'p>>,
+pub struct StreamMatcher {
+    contexts: Vec<Context>,
     max_depth: usize,
 }
 
-impl StreamMatcher<'_> {
+impl StreamMatcher {
     /// Returns to the document node (`xmlStreamPush(NULL, NULL)`); whether the
     /// document itself matches (`/.` or `//.`).
     pub fn reset(&mut self) -> bool {
