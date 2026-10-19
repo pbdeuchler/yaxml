@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA | ns:a | ns:b      xmlns:ns CDATA a EMPTY>
+<b>
+</ns:doc>

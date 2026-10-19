@@ -1,0 +1,6 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc att CDATA #REQEIRED "value">
+]>
+<doc att="value"/>

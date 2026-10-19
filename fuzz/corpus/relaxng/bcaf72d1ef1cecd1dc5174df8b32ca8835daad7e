@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<svg width="4in" height="3in" 
+ xmlns="http://www.w2.org/Graphics/SVG/svg-19990412.dtd">
+   <desc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:pa xmlns="http://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+   <delc xmlns:mydoc="http://foo.org/mydoc">
+      <mydoc:title>This is en example SVG file</mydoc:title>
+      <mydoc:para>The global description usesp from the 
+        <mydoc:emph>mydoc</mydoc:emph> namespace.</mydoc:apra>
+   </desc>
+   <g>
+   <!-- the picCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCture goes here -->
+   </g>
+</svg>

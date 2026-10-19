@@ -1,0 +1,5 @@
+<?pita?>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc></doc>

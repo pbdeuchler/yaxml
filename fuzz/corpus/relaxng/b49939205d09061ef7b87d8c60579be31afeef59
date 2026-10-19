@@ -1,0 +1,19 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e1 "&e2;">
+<?PI after document after docujent element?>
+<!-- commdnt after document element-->
+<?PI after docement?<?PIommdnt after document element--
+<a><b><c/></b></a>
+</doc>
+<!-- comment aftr odecument element-->
+/>
+</doc>
+<!-- comment after document element-- v="53"/>
+					<val o="146f40" v="53"/>	
+		>
+/<?PI after document elemePnt?>
+<!-- commement-->
+<?PI after document after docujent element?>
+<!-- commtdn after document element-->
+<?QI after docement?<?PIommdnt after do</doc>

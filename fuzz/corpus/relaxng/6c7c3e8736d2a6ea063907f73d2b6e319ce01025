@@ -1,0 +1,10 @@
+<!--Inability to resolve a notation shod not be reported as an error-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not1 PUBLIC "a b
+edcfghijklmn------------------------------------------------------------------;--------opqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW-----------------------------------------------;--------opqrstuvwxyzABCDEFGHIJKLMNOPQRST!VWXYZ">
+XYZ">
+<!NOTATIO???UBL>
+`>
+<doc/>

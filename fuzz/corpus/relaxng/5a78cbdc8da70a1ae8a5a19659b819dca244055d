@@ -1,0 +1,4 @@
+<?sound "This is a PI" ?><!DOCTYPE animal [
+<!NOTATION animal_class SYSTEM 'ibm39v01.txt'>
+]>
+<animal>&#10;   <cat>This is a s/cat>&#10;   <tig3d>&#10;      <small></small>&#10;      <big></big>&#10;   </leopard>&#10;</animal>

@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "z<b>General entity reference in element contity reference in element content</b>">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment, *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharDattes with same
+     local name, with default<co>om nscoc>/tp:/,examoo.bar/boxschema/">
+     xmlns="http://example.org/~wilbur">
+xed attributes with sameess: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://examlp          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: piqueness: prefixed andeunr pfiixe dtihat defaul] namescace -->
+<foo xmlns:a="/:pPtt/example.org/~wilbus"
+     xmlns:b="http://example.org/~kipp,z"
+     xmlns="http://exampl          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.http://example.org/~kipper"
+  
+     xmlns="http://exampl          e.org/~wilbur">
+xed attributesl] namescace -->
+<foo xmlns:a="/:phtt/example.http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespace -->
+<foo xmlns:a="http://Wexaople.org/~wilbur"
+     xmlns:b="http://exampliidefault<co>e.org/~wilbur"
+     xmlns:b="h$ttp://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+ibutes with same
+o  c ar" xmlns:baz="htup://example.org/bal  al name, with default<z" xmlns:foo="htco>om namespace -->
+<foo xmlns:tp:/a="http/e

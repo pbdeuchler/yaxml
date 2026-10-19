@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (e)>
+<!ATTLIST e
+  a2 CDATA "a1 default"
+  a2 NMTOKENS "a0.ent">/doc>

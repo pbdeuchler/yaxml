@@ -1,0 +1,46 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http:/YYYYYYYYYYYYYY" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ittp://www.bar.org" xml:base="http:/YYYYYYYYYYYYYY" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e6 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+    g/0210/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   ,e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+                 ,e9 xm sl""xn=mlns:a="http://www.ietf./YYYYYYYYYYYYYY" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e6 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+    g/0210/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   ,e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+         l:base="http:/YYYYYYYYYYYYYY" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ittp://www.bar.org" xml:base="http:/YYYYYYYYYYYYYY" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e6 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+    g/0210/">
+    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   ,e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+                 ,e9 xm sl""xn=mlns:a="http://www.ietf./YYYYYYYYYYYYYY" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e6 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+    g/0210/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555="elem3"    />
+   <e4    name="elem4"   id=        ,e9 xm sl""xn=mlns:a="httpetf.org">
+           <e6 xmlns="" xmlns:a="http://w">
+           <e6 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+ //www.ietf.oro"/>
+           </e8>
+       </e7>
+   </e6>oro"/>
+           </e8>
+       </e7>
+   </e6>
+</doc>

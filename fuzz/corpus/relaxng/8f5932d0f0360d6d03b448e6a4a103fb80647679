@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root ANY>
+  <!ELEMENT a (#PCDATA)* >
+  <!ELEMENT b (#PCDATA) >
+  <!ELEMENT c ( #PCDATA)*>
+  <!ELEMENT d (#PCDATA|c)* > <!ELEMENT root ANY>
+  <!ELEMENT a (#PCDATA)* >
+  <!ELEMENT b (#PCDATA) >
+  <!ELEMENT c ( #PCDATA)*>
+  <!ELEMENT dplicate ontent decl *-->
+  <!ELEMENT e (#PCDATA|a|a|b|c)* >
+]>
+<root>
+  <a> Element type a </a>
+  <b> Element type b </b>
+</root>
+<!--*No Duplicate Types *-->

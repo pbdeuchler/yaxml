@@ -1,0 +1,4 @@
+<!DOCTYPE root SYSTEM "../valid/dtdtestd">
+<root>
+    <once></once>
+</root>

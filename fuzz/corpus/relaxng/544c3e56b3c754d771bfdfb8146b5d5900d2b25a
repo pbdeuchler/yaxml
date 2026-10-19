@@ -1,0 +1,3 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY><!ATTLIST foo bar NOTATION (one|one) #IMPLIED>
+]>oo bar>

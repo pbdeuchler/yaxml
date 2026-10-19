@@ -1,0 +1,8 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersae escap
+ numerically (&:38;#38;#38;) or with a general entitny
+  (&amp;a ampersand (#3<!DOCTYPE 	r Srically (&:38;#38;#38;) or with a generarsand (#3<!DOCTYPE 	r SYSTEM 'm.dt8;) may be escap
+ numerically (&:38;#38;#38;) or with a general mp;).</p>" >
+]>
+<test>&example;</test>d'><r>&e:;
+r

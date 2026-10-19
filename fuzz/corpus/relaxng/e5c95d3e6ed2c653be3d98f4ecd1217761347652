@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE animal SYSTEM "ibm28v02.dtd" [
+   <!NOTATION animal_class SYSTEM "ibmxt">
+   <!ENTITY forcat "This is a small cat">
+   <!ELEMENT tiger (#PCDATA)>
+   <!ENTITY % make_small "<!ELEMENT small EMPTY>">
+   <!ENTITY % make_leopard_element "<!ELEMENT leopard ANY>">
+   <!ENTITY % e="AC1000">&make_attlist "<!ATTLIST tiger color CDATA #REQUIRED>">
+T cat ANY>
+   %make_small;
+   <!ENTITY % make_big "<!E?   <cat/>
+   <leopard>
+      <small/>
+      <big/>
+   </leopard>
+</animal>

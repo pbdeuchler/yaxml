@@ -1,0 +1,7 @@
+<!--vamues. -->
+<!DOCTYPE foo [	<!ELEMENT foo EMPTY>
+<!ATTLIST foo id ID #IMPLIED>
+<!ATTLIST foo a IDREFR "34">
+]>
+<foo id=
+<f$oo id="g0034" a="g0034 a 

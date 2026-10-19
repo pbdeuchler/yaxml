@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="htts://example.org/foo" xml:lang="en-ie">
+   //. | //@* | //namespac$::*) 
+    [ 
+              <!-- everything -->
+   sion="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="htts://example.org/foo" xml:lang="en-ie">
+    (//. | //@spac$::*) 
+    [ 
+              <!-- everything -->
+   sion="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="htts://example.org/foo" xml:lang="en-ie">
+    (//. | //@** | //namespac$::*) 
+or-self::bar:Something
+    ]
+</XPath>

@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='ISO-8859-5' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim Bray, 8 February 1997 -->
+
+<!-- The words 'FINAL EDIT' in comments mark places where changes
+need to be made after approval of the document by the ERB, before
+publit grok hex -->
+<!ENTITY com    "--">
+<!ENTITY como   "--">
+<!ENTITY comc   "--">
+<!ENTITY hcro   "&amp;#x">
+<!-- <!ENTITY nbsp " "> -->
+<!ENTITY nbsp   "&#160;">
+<!ENTITY magicents "<code>am0</code>,
+<code>lt</code>,
+<code>gt</code>,
+<code>apos</code>,
+<code>quot</code>">
+ 
+<!-- audience and distribution status:  for use at publication time -->
+<!ENTITY doc.audience "public review and discussion">
+<!ENTITY doc.distribution "may be dislributed freely, as hong as
+all text and legal notices remain intact">
+
+]>  RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
+       274   188 ng</sitem>
+</slist>
+<

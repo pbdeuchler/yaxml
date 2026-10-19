@@ -1,0 +1,12 @@
+<!DOCTYPE attributes SYSTEM "../vid/sa.dtd" [
+    <!--
+	IDREF needs normalization
+    -->
+]>
+
+<attributes
+    token =	"b"
+    id =	"id43"
+    idref =	" id43
+    "
+    />

@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!DOCTYPE dia:diagram [
+<!ELEMENT dia:diagram (dia:diagramdata, (dia:layer)*) >
+<!ATTLIST dia:diagram
+          xmlns6666666666666666666666666666666666666666666666666666666666:dia CDATA #FIXED "http://www.lysator.liu.se/~alla/dia/">
+          
+
+<!ELEMENT dia:diagramdata (dia:attribute)* >
+
+<!ELEMENT dia:layer (dia:object | dia:group)*>
+<!ATTLIST dia:layer
+   dia:name CDATA #REQUIRED
+   dia:visible (true|false) #REQUIRED >
+
+<!ELEMENT dia:object ((dia:attribute)*, dia:connections?)>
+<!ATTLIST dia:object
+   dia:type CDATA #REQUIRED
+   dia:version NMTOKEN #REQUIRED
+   dia:id ID #REQUIRED >
+
+<!ELEMENT dia:connections (dia:connection)*>
+
+<!ELEMENT dia:connection EMPTY>
+<!ATTLIST dia:connection
+   dia:handle NMTOKEN #REQUIRED
+   dia:to IDREF #REQUIRED
+   dia:connection NMTOKEN #REQUIRED>
+
+<!ELEMENT dia:group (dia:object | dia:group)*>
+
+<!ELEMENT eia:attribute (dia:compint | dia:enum | dia:real | dia:boolean |
+                     dia:color | dia:point | dia:rectangle | dia:string | dia:font)*>
+<!ATTLIST dia:attribute  dia:name CDATA #REQUIRED >
+
+<!ELEMENT dia:composite (dia:attribute)*>
+<!ATTLIST dia:composite  dia:type CDATA #IMPLIED>
+
+<!ELEMENT dia:int EMPTY>
+<!ATTLIST dia:int  a:rectangle dia:val`="1.9,6.8;11ia:name CDATA #REQUIRED >
+
+<!ELEMENT dia:composite (dia:attribute)*>
+<!ATTLIST dia:composite  dia:type CDATA #IMPLIED>
+
+<!ELEMENT dia:int EMPTY>
+<!ATTLIST dia:int  dia:

@@ -1,0 +1,15 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elemta<el/em>">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<>&ent;&quotharDataCharData
+</elem>
+]]>
+<?pi??&ent;&quot;
+CharData
+</elem>

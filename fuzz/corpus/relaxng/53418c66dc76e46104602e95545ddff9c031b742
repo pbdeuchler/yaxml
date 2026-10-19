@@ -1,0 +1,12 @@
+I
+<XPath xmlns:n1="http://exampltp://www.ietf.org" 
+       xmlns:a="http://wwp://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org">
+               <e9 xmlns| //@* | //namespace::*)
+    [
+	ancestor-or-self::n1:Glem2
+    ]
+</XPath>
+ 

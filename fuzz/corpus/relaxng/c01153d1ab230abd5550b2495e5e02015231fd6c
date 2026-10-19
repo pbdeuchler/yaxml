@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE roov [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#09;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xa;;b
+&#xF900; id test for P66 *-->

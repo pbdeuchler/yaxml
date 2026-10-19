@@ -1,0 +1,14 @@
+<!DOCTYPE objednavka SYSTEM "dtds/objednavka.dtd">
+<objednavka>
+    <AdDoručeni>
+        <Jméno>Jan Novák</Jméno>
+        <Ulice>Bělehradská 147</Ulice>
+        <Město>Praha 2</Město>
+        <PSČ>12000</PSČ>
+    </AdDoručeni>
+/ObsahObjednávky>
+    <Komentář>
+        <Řádka>O dodávku mám zájem pouze v případě, že se jedná o trávu v odrůdě konopí.</Řádka>
+        <Řádka>Dále jsem se chtěl zeptat, zda je doprava zdarma.</Řádka>
+    </Komentář>
+</objednavka>

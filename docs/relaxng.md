@@ -133,4 +133,4 @@ instance and resources `d/0`..`d/9`, wraps non-markup schemas in an
 element, and checks determinism, identical diagnostics over both DOMs and on
 reuse, offsets matching node ranges, the load budget, at most one trailing
 `Internal` diagnostic, and that a four times larger work budget changes no
-completed result. Seeds are the libxml2 and spec suite cases.
+completed result. Seeds are the libxml2 and spec suite cases. Two 331 s runs on `nightly-2026-06-06` (`-timeout=2`, about 2.0 and 1.8 million executions, 16,429 edges) found no crash, timeout or leak.

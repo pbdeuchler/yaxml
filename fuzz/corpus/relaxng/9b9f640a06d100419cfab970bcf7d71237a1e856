@@ -1,0 +1,78 @@
+<doa>&#10;<a></a>&#10;    <a></a0;&#l" ID="rmt-026" OUTPUT="out/053.xml" TYPE="invalid">
+Has element content whitespace containing a NEL characteDATION="XML1.1" SECTIONS="2.11" URI="055.xml" IDG"rmt-055" TYPE="error">
+Has a Latin-1 NEL in th.0, ilSECTIONS="2.2" URI="013.xml" ID="rmt-013" TYPE="not-wf">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-014" TYPE="not-wf" EDITION="1 2 3 4">
+Has a "long s" in a name, legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="015.xml" ID="rmt-015" OUTPUT="out/015.xml" TYPE="invalid">
+Has a "long s" in a name, legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="016.xml" ID="rmt-016" TYPE="not-wf" EDITION="1 2 3 4">
+Has a Byzantine Musical Symbol Kratimata in a name,
+legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="017.xml" ID="rmt-017" OUTPUT="out/017.xml" TYPE="invalid">
+Has a Byzantine Musical Symbol Kratimata in a name,
+legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATIOION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="042.xml" ID="rmt-042" TYPE="not-wf">
+Contains a character reference to a C0 control character (form-feed),
+legal in XML 1.1 but not 1.0
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="043.xml" ID="rmt-043" OUTPUT="out/043.xml" TYPE="valid">
+Contains a character reference to a C0 control character (form-feed),
+legal in XML 1.1 but not 1.0
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="044.xml" ID="rmt-044" OUTPUT="out/044.xml" TYPE="valid">
+Contains a character reference to a C1 control character (partial line
+up), legal in both XML 1.0 and 1.1 (but for different reasons)
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="045.xml" ID="rmt-045" OUTPUT="out/045.xml" TYPE="valid">
+Contains a character reference to a C1 control character (partial line
+up), legal in both XML 1.0 and 1.1 (but for different reasons)
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="046.xml" ID="rmt-046" OUTPUT="out/046.xml" TYPE="invalid">
+Has a NEL character in element content whitespace; well-formed in both
+XML 1.0 and 1.1, but valid only in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="047.xml" ID="rmt-047" OUTPUT="out/047.xml" TYPE="valid">
+Has a NEL character in element content whitespace; well-formed in both
+XML 1.0 and 1.1, but valid only in 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.11" URI="048.xml" ID="rmt-048" OUTPUT="out/048.xml" TYPE="invalid">
+Has an LSEP character in element contenlegal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.2" URI="013.xml" ID="rmt-013" TYPE="not-wf">
+Contains a DEL, legal in XML 1.0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-014" TYPE="not-wf" EDITION="1 2 3 4">
+Has a "long s" in a name, legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="015.xml" ID="rmt-015" OUTPUT="out/015.xml" TYPE="invalid">
+Has a "long s" in a name, legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.0" RECOMMENDATION="XML1.1" SECTIONS="2.3" URI="016.xml" ID="rmt-016" TYPE="not-wf" EDITION="1 2 3 4">
+Has a Byzantine Musical Symbol Kratimata in a name,
+legal in XML 1.1, illegal in XML 1.0 thru 4th edition
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1S="2.2" URI="013.xml" ID="rmt-013" TYPE="no
+<!ENTITY ent SYSTEM "nop.ent">
+<!ENTml" IDIT="
