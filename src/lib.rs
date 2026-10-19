@@ -22,6 +22,7 @@ mod push;
 mod reader;
 pub mod regexp;
 mod resolve;
+pub mod schema_types;
 mod serialize;
 mod stream;
 mod textreader;

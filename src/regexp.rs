@@ -77,8 +77,8 @@ impl std::error::Error for Error {}
 /// A compiled pattern.
 pub struct Regex {
     pattern: Box<str>,
-    nfa: Nfa,
-    cache: Mutex<Dfa>,
+    nfa: Box<Nfa>,
+    cache: Mutex<Box<Dfa>>,
 }
 
 impl Regex {
@@ -105,7 +105,7 @@ impl Regex {
         }
         Ok(Self {
             pattern: pattern.into(),
-            nfa: Nfa::compile(&root, &parser.atoms, parser.budget)?,
+            nfa: Box::new(Nfa::compile(&root, &parser.atoms, parser.budget)?),
             cache: Mutex::default(),
         })
     }

@@ -13,7 +13,11 @@ fn main() {
         ("(a|b|c|d|e|f|g|h|i|j)*", &ascii, "alternation loop"),
         ("([a-z]{1,3})*k|([a-j]{2,5})*", &ascii, "counted repetition"),
         ("(\\p{L}|\\s|\\p{P})*", &words, "categories"),
-        ("[\\i-[:]][\\c-[:]]*", &words.replace([' ', ','], "_"), "NCName"),
+        (
+            "[\\i-[:]][\\c-[:]]*",
+            &words.replace([' ', ','], "_"),
+            "NCName",
+        ),
         ("(.*a){8}.*", &words, "nested quantifiers"),
     ];
     for (pattern, input, label) in cases {

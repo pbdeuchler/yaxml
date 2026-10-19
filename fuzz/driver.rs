@@ -36,6 +36,10 @@ mod construction;
 #[path = "names.rs"]
 mod names;
 
+#[path = "datatypes.rs"]
+mod datatypes;
+#[path = "regexp.rs"]
+mod regexp;
 #[path = "uri.rs"]
 mod uri;
 #[path = "xpath.rs"]
@@ -74,6 +78,8 @@ pub fn exercise(input: &[u8]) -> Outcome {
     );
     exercise_names(input);
     exercise_uri(input);
+    exercise_regexp(input);
+    exercise_datatypes(input);
     exercise_html(input);
     exercise_xpath(input);
     exercise_c14n(input);
@@ -164,6 +170,16 @@ pub fn exercise_resolver(input: &[u8]) -> Outcome {
 /// URI parse, serialization, escaping and resolution invariants.
 pub fn exercise_uri(input: &[u8]) {
     uri::exercise(input);
+}
+
+/// XML Schema regular expression compilation and matching invariants.
+pub fn exercise_regexp(input: &[u8]) {
+    regexp::exercise(input);
+}
+
+/// XML Schema datatype parsing, comparison and facet invariants.
+pub fn exercise_datatypes(input: &[u8]) {
+    datatypes::exercise(input);
 }
 
 /// HTML parsing, push chunk independence and serialization.

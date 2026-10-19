@@ -5,9 +5,11 @@
  *   re P V          xmlRegexpCompile(P), then xmlRegexpExec(V)
  *   val T V         xmlSchemaValidatePredefinedType(T, V)
  *   cmp T V T2 V2   xmlSchemaCompareValues of both computed values
+ *   valn, cmpn      the same in the context of the <c> element of DOCUMENT
  *   facet T K F V   facet K with value F on built-in T, checked against V
  * and prints one line per request: the integer result, or "ERR" when a
  * pattern, facet or operand value is rejected first. */
+#include <libxml/parser.h>
 #include <libxml/xmlregexp.h>
 #include <libxml/xmlschemastypes.h>
 #include <libxml/schemasInternals.h>
@@ -17,6 +19,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static const char DOCUMENT[] =
+    "<!DOCTYPE r [<!NOTATION gif SYSTEM 'gif'><!NOTATION p:n SYSTEM 'n'>"
+    "<!ENTITY pic SYSTEM 'pic.gif' NDATA gif><!ENTITY txt 'text'>]>"
+    "<r xmlns='urn:default' xmlns:p='urn:p'><c/></r>";
+static xmlNodePtr node = NULL;
 
 static void quiet(void *ctx, const xmlError *error) { (void)ctx; (void)error; }
 
@@ -53,12 +61,13 @@ static xmlSchemaTypePtr type_named(const char *name) {
         (const xmlChar *)"http://www.w3.org/2001/XMLSchema");
 }
 
-/* The value of V as T, with a string value for string types, which
- * xmlSchemaValidatePredefinedType leaves uncomputed. */
+/* The value of V as T; string and anySimpleType values, which
+ * xmlSchemaValidatePredefinedType leaves uncomputed, come from the variant
+ * that creates them. */
 static int value_of(xmlSchemaTypePtr t, const char *v, xmlSchemaValPtr *out) {
-    int ret = xmlSchemaValidatePredefinedType(t, (const xmlChar *)v, out);
+    int ret = xmlSchemaValPredefTypeNode(t, (const xmlChar *)v, out, node);
     if (ret == 0 && *out == NULL)
-        *out = xmlSchemaNewStringValue(XML_SCHEMAS_STRING, xmlStrdup((const xmlChar *)v));
+        ret = xmlSchemaValPredefTypeNodeNoNorm(t, (const xmlChar *)v, out, node);
     return ret;
 }
 
@@ -122,6 +131,8 @@ int main(void) {
     if (LIBXML_VERSION != 21504) { fputs("wrong libxml2\n", stderr); return 2; }
     xmlSetStructuredErrorFunc(NULL, quiet);
     xmlSchemaInitTypes();
+    xmlDocPtr doc = xmlReadMemory(DOCUMENT, sizeof DOCUMENT - 1, "doc.xml", NULL, 0);
+    xmlNodePtr context = xmlDocGetRootElement(doc)->children;
     while (getline(&line, &cap, stdin) > 0) {
         char *f[5] = {0}, *a[5] = {0};
         int n = 0;
@@ -130,6 +141,10 @@ int main(void) {
             f[n++] = t;
         for (int i = 1; i < n; i++)
             a[i] = unhex(f[i]);
+        size_t op = strlen(f[0]);
+        node = op > 1 && f[0][op - 1] == 'n' ? context : NULL;
+        if (node != NULL)
+            f[0][op - 1] = 0;
         if (!strcmp(f[0], "re") && n == 3) {
             xmlRegexpPtr re = xmlRegexpCompile((const xmlChar *)a[1]);
             if (re == NULL) puts("ERR");
@@ -138,7 +153,7 @@ int main(void) {
         } else if (!strcmp(f[0], "val") && n == 3) {
             xmlSchemaTypePtr t = type_named(a[1]);
             xmlSchemaValPtr v = NULL;
-            printf("%d\n", t ? xmlSchemaValidatePredefinedType(t, (const xmlChar *)a[2], &v) : -100);
+            printf("%d\n", t ? xmlSchemaValPredefTypeNode(t, (const xmlChar *)a[2], &v, node) : -100);
             xmlSchemaFreeValue(v);
         } else if (!strcmp(f[0], "cmp") && n == 5) {
             xmlSchemaTypePtr t1 = type_named(a[1]), t2 = type_named(a[3]);
@@ -159,5 +174,6 @@ int main(void) {
             free(a[i]);
     }
     free(line);
+    xmlFreeDoc(doc);
     return 0;
 }
