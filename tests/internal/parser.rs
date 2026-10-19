@@ -782,3 +782,50 @@ fn delivered_attribute_lists_return_their_capacity() {
     assert_eq!(reused.capacity(), 8);
     assert_eq!(state.take_attributes().capacity(), 0);
 }
+
+#[test]
+fn scanned_qname_splits_agree_with_qname() {
+    let alphabet: Vec<char> = (0x20u8..0x7f)
+        .map(char::from)
+        .chain(['\u{b7}', '\u{c0}', '\u{d7}', '\u{300}', '\u{10000}'])
+        .collect();
+    let mut names = Vec::new();
+    for &a in &alphabet {
+        for &b in &alphabet {
+            names.push(format!("{a}{b}"));
+            names.push(format!("{a}:{b}"));
+            names.push(format!("a{a}:{b}c"));
+        }
+    }
+    names.extend(["p:q:r".into(), ":".into(), "é:é".into(), "a:·".into()]);
+    for name in names {
+        let raw = format!("{name} ");
+        let mut scan = TagScanner {
+            raw: &raw,
+            cursor: 0,
+            offset: 5,
+        };
+        let mut plain = TagScanner {
+            raw: &raw,
+            cursor: 0,
+            offset: 5,
+        };
+        let scanned = scan.scan_name();
+        let named = plain.name();
+        assert_eq!(
+            scanned.as_ref().map(|(name, _)| *name),
+            named.as_ref().copied(),
+            "{name:?}"
+        );
+        assert_eq!(scan.cursor, plain.cursor);
+        if let (Ok((scanned, split)), Ok(named)) = (scanned, named) {
+            let expected = qname(named, 5);
+            let actual = split_qname(scanned, split, 5);
+            assert_eq!(actual, expected, "{name:?}");
+            if let Some(split) = split {
+                let prefix = expected.unwrap().0.map(|prefix| prefix.len());
+                assert_eq!(split.map(NonZeroUsize::get), prefix, "{name:?}");
+            }
+        }
+    }
+}

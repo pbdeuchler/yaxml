@@ -674,8 +674,8 @@ impl<'source> ParserState<'source> {
             cursor: 0,
             offset: start + 1,
         };
-        let qualified = scan.name()?;
-        let (element_prefix, _) = qname(qualified, start + 1)?;
+        let (qualified, split) = scan.scan_name()?;
+        let (element_prefix, _) = split_qname(qualified, split, start + 1)?;
         let element_prefix = element_prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
         let bindings_start = self.bindings.len();
         let mut attributes = self.take_attributes();
@@ -690,7 +690,7 @@ impl<'source> ParserState<'source> {
                     offset,
                 ));
             }
-            let (prefix, local) = qname(name, offset)?;
+            let (prefix, local) = split_qname(name, attribute.split, offset)?;
             let value = self.normalized(value, value_offset, true, true)?;
             let declaration = if name == "xmlns" {
                 Some("")
@@ -1731,6 +1731,19 @@ impl<'source> ParserState<'source> {
     }
 }
 
+/// A QName's prefix and local part, from a scanner-proven split when present.
+fn split_qname(
+    name: &str,
+    split: Option<Option<NonZeroUsize>>,
+    offset: usize,
+) -> Result<(Option<&str>, &str), Error> {
+    match split {
+        Some(None) => Ok((None, name)),
+        Some(Some(prefix)) => Ok((Some(&name[..prefix.get()]), &name[prefix.get() + 1..])),
+        None => qname(name, offset),
+    }
+}
+
 fn invalid_namespace_binding(prefix: &str, uri: &str) -> bool {
     prefix == "xmlns"
         || uri == XMLNS
@@ -1753,6 +1766,35 @@ fn delimited_body<'a>(
 pub(crate) fn space(byte: u8) -> bool {
     matches!(byte, b' ' | b'\t' | b'\r' | b'\n')
 }
+/// ASCII classes for one-pass Name scanning; non-ASCII bytes are class 0.
+const START: u8 = 1;
+const CONTINUE: u8 = 2;
+const COLON: u8 = 4;
+const DELIMITER: u8 = 8;
+const NAME_BYTES: [u8; 256] = {
+    let mut table = [0; 256];
+    let mut byte = 0;
+    while byte < 128 {
+        let c = byte as u8;
+        table[byte] = if c.is_ascii_alphabetic() || c == b'_' {
+            START | CONTINUE
+        } else if c.is_ascii_digit() || c == b'-' || c == b'.' {
+            CONTINUE
+        } else if c == b':' {
+            COLON
+        } else if matches!(
+            c,
+            b' ' | b'\t' | b'\r' | b'\n' | b'=' | b'/' | b'>' | b'\'' | b'"'
+        ) {
+            DELIMITER
+        } else {
+            0
+        };
+        byte += 1;
+    }
+    table
+};
+
 struct TagScanner<'a> {
     raw: &'a str,
     cursor: usize,
@@ -1761,6 +1803,8 @@ struct TagScanner<'a> {
 
 struct ScannedAttribute<'a> {
     qualified: &'a str,
+    /// The proven QName split, when the scanner established it.
+    split: Option<Option<NonZeroUsize>>,
     literal: &'a str,
     name_offset: usize,
     value_offset: usize,
@@ -1782,16 +1826,52 @@ impl<'a> TagScanner<'a> {
     }
 
     fn name(&mut self) -> Result<&'a str, Error> {
+        self.scan_name().map(|(name, _)| name)
+    }
+
+    /// Scans and validates a Name in one pass. For an ASCII name it also
+    /// proves the QName split, returned as `Some(prefix length)`; `None`
+    /// leaves `qname` to establish it (and its exact error).
+    fn scan_name(&mut self) -> Result<(&'a str, Option<Option<NonZeroUsize>>), Error> {
+        let bytes = self.raw.as_bytes();
         let start = self.cursor;
-        while let Some(byte) = self.raw.as_bytes().get(self.cursor) {
-            if space(*byte) || matches!(byte, b'=' | b'/' | b'>' | b'\'' | b'"') {
+        let (mut valid, mut colons, mut colon) = (true, 0, 0);
+        while let Some(&byte) = bytes.get(self.cursor) {
+            let class = NAME_BYTES[usize::from(byte)];
+            if class & DELIMITER != 0 {
                 break;
+            }
+            let wanted = if self.cursor == start {
+                START
+            } else {
+                CONTINUE
+            };
+            valid &= class & (wanted | COLON) != 0;
+            if class & COLON != 0 {
+                colons += 1;
+                colon = self.cursor - start;
             }
             self.cursor += 1;
         }
         let name = &self.raw[start..self.cursor];
-        validate_name(name, self.offset + start, true)?;
-        Ok(name)
+        if !valid || name.is_empty() {
+            validate_name(name, self.offset + start, true)?;
+        }
+        // A valid Name is a QName when its only colon is followed by a
+        // name-start character; prefix characters are already valid.
+        let split = match colons {
+            0 => Some(None),
+            1 if colon > 0
+                && name[colon + 1..]
+                    .chars()
+                    .next()
+                    .is_some_and(|c| crate::name::name_start(c, false)) =>
+            {
+                Some(NonZeroUsize::new(colon))
+            }
+            _ => None,
+        };
+        Ok((name, split))
     }
 
     // Returns the name's source offset; values are still unnormalized input.
@@ -1804,7 +1884,7 @@ impl<'a> TagScanner<'a> {
             return Err(Error::new(ErrorKind::Syntax, self.offset + self.cursor));
         }
         let start = self.cursor;
-        let name = self.name()?;
+        let (name, split) = self.scan_name()?;
         self.skip_space();
         if self.raw.as_bytes().get(self.cursor) != Some(&b'=') {
             return Err(Error::new(ErrorKind::Syntax, self.offset + self.cursor));
@@ -1832,6 +1912,7 @@ impl<'a> TagScanner<'a> {
         self.cursor += 1;
         Ok(Some(ScannedAttribute {
             qualified: name,
+            split,
             literal: value,
             name_offset: self.offset + start,
             value_offset: self.offset + value_start,
