@@ -5,11 +5,40 @@ pub(crate) fn xml_char(c: char) -> bool {
     matches!(c, '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}' | '\u{10000}'..='\u{10ffff}')
 }
 
+/// Bytes that can start a character outside `xml_char` in valid UTF-8: C0
+/// controls other than tab, newline and carriage return, and `EF`.
+const SUSPECT: [bool; 256] = {
+    let mut table = [false; 256];
+    let mut byte = 0;
+    while byte < 0x20 {
+        table[byte] = !matches!(byte, 0x09 | 0x0a | 0x0d);
+        byte += 1;
+    }
+    table[0xef] = true;
+    table
+};
+
 /// Byte offset of the first character outside `xml_char`. In valid UTF-8
 /// only C0 controls and U+FFFE/U+FFFF (`EF BF BE`/`EF BF BF`) can fail, so
-/// 64-byte blocks are screened with a branch-free byte test first.
+/// 64-byte blocks are screened with a branch-free byte test first; text
+/// shorter than 16 bytes (most tokens) is scanned through a lookup table.
 pub(crate) fn invalid_char(text: &str) -> Option<usize> {
     let bytes = text.as_bytes();
+    if bytes.len() < 16 {
+        let mut from = 0;
+        while let Some(index) = bytes[from..].iter().position(|&b| SUSPECT[usize::from(b)]) {
+            let at = from + index;
+            if bytes[at] != 0xef
+                || bytes
+                    .get(at + 1..at + 3)
+                    .is_some_and(|tail| matches!(tail, [0xbf, 0xbe | 0xbf]))
+            {
+                return Some(at);
+            }
+            from = at + 1;
+        }
+        return None;
+    }
     let control = |b: u8| (b < 0x20) & (b != b'\t') & (b != b'\n') & (b != b'\r');
     let mut start = 0;
     for block in bytes.chunks(64) {
@@ -282,6 +311,8 @@ mod tests {
             ("x\u{fffe}", Some(1)),
             ("xy\u{ffff}z", Some(2)),
             ("\u{ffef}\u{fffe}", Some(3)),
+            // `EF` that starts a Char, on the short-text path.
+            ("\u{feff}\u{f8ff}\u{fffd}", None),
         ];
         for (text, expected) in cases {
             assert_eq!(invalid_char(text), *expected, "{text:?}");
@@ -299,6 +330,7 @@ mod tests {
         for c in every.chars().filter(|c| !xml_char(*c)) {
             let text = format!("{valid}{c}");
             assert_eq!(invalid_char(&text), Some(valid.len()), "{c:?}");
+            assert_eq!(invalid_char(&format!("ab{c}cd")), Some(2), "{c:?}");
         }
     }
 }
