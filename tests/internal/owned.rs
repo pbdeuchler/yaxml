@@ -599,7 +599,7 @@ fn linked_mode_walks_deep_and_wide_trees_without_recursion() {
 #[test]
 fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     use std::ops::ControlFlow;
-    let builder = OwnedBuilder::new(10, 0, Global).unwrap();
+    let builder = OwnedBuilder::new(0, 0, Global).unwrap();
     assert_eq!(
         builder
             .finish(10, None, Default::default(), Vec::new())

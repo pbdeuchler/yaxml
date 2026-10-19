@@ -1602,9 +1602,9 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             }
         }
         // Recovery keeps a document without an element unless the input is
-        // empty, as libxml2 does.
+        // empty, as libxml2 does (otherwise the reader failed already).
         let input = self.nodes[0].source.and_then(SourceOrigin::input_range);
-        let rootless = !errors.is_empty() && input.is_some_and(|input| !input.is_empty());
+        let rootless = input.is_some_and(|input| !input.is_empty());
         let document = self
             .finish_with_counter(position, &LAST_DOCUMENT_ID, rootless)
             .map_err(|error| match error.kind {

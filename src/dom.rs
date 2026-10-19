@@ -241,8 +241,8 @@ impl<'input> Document<'input> {
             }
         }
         // Recovery keeps a document without an element, as libxml2 does
-        // unless the input is empty.
-        if document.root_element == NodeId(0) && (document.errors.is_empty() || length == 0) {
+        // unless the input is empty (otherwise the reader failed already).
+        if document.root_element == NodeId(0) && length == 0 {
             let missing = Error::new(ErrorKind::MissingRoot, reader.position());
             return Err(document.errors.first().copied().unwrap_or(missing));
         }
