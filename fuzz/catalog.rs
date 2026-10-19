@@ -150,6 +150,19 @@ pub fn exercise(input: &[u8]) {
         ..Limits::default()
     };
     run(None, &resources, &queries, defaults);
+    // Loading the root itself can fail in the resolver or on the load budget.
+    let failed = |uri, limits| Catalog::load(uri, limits, resolver(&resources, &Log::default()));
+    let io = failed("d/err", defaults).map(drop);
+    assert!(matches!(io, Err(yaxml::catalog::Error::Io(_))), "{io:?}");
+    let none = Limits {
+        max_loads: 0,
+        ..defaults
+    };
+    let limit = failed("d/0", none).map(drop);
+    assert_eq!(limit, Err(yaxml::catalog::Error::LimitExceeded));
+    for error in [io, limit] {
+        assert!(!error.unwrap_err().to_string().is_empty());
+    }
 
     // The adapter asks the catalog exactly as libxml2's entity loader does.
     let Some(Query::Id(Some(public), Some(system))) = queries.get(4) else {

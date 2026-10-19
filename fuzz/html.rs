@@ -4,7 +4,7 @@
 
 use yaxml::html::{self, Options, Parsed, PushParser};
 use yaxml::{
-    EditLimits, Error, ErrorKind, Limit, Limits, OwnedDocument, OwnedNodeKind, Writer, c14n,
+    EditLimits, Error, ErrorKind, Limit, Limits, OwnedDocument, OwnedNodeKind, Writer, c14n, save,
 };
 
 const FLAGS: [u32; 7] = [
@@ -142,6 +142,31 @@ fn xml_output(document: &OwnedDocument) {
     }
 }
 
+/// `save::to_vec` on an HTML document: the HTML serializer unless `AS_XML`
+/// or `XHTML` asks for XML output; `AS_HTML` needs the document node.
+fn saved_as_xml(document: &OwnedDocument, seed: u64) {
+    let format = (seed >> 50 & 1) as u32 * save::FORMAT;
+    let html = save::to_vec(
+        document,
+        &save::Options::new(format | ((seed >> 51 & 1) as u32 * save::AS_HTML)),
+    );
+    assert_eq!(html, html::save(document, format != 0));
+    if let Some(node) = document.root().first_child() {
+        let subtree = save::to_vec(node, &save::Options::new(save::AS_HTML));
+        assert_eq!(
+            subtree.map_err(|e| e.kind),
+            Err(ErrorKind::UnsupportedOption)
+        );
+        let _ = save::to_vec(node, &save::Options::new(save::AS_XML | format));
+    }
+    for flags in [save::AS_XML, save::XHTML, save::XHTML | save::NO_EMPTY] {
+        if let Err(error) = save::to_vec(document, &save::Options::new(flags | format)) {
+            let lossy = [ErrorKind::InvalidCharacter, ErrorKind::UnsupportedEncoding];
+            assert!(lossy.contains(&error.kind), "{error:?}");
+        }
+    }
+}
+
 /// Nodes the parser never builds (PIs, text in raw-text elements, quotes in
 /// values) serialize, and the output reparses.
 fn edited(input: &[u8], options: Options) {
@@ -226,6 +251,7 @@ pub(super) fn exercise(input: &[u8]) {
             );
             assert!(html::to_html(&whole.document).is_ok());
             xml_output(&whole.document);
+            saved_as_xml(&whole.document, seed);
             let saved = html::save(&whole.document, true).unwrap();
             // Saved output reparses; a <meta> the first parse ignored can now
             // name an encoding this crate rejects.

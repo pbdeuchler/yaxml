@@ -55,12 +55,31 @@ pub(super) fn exercise(input: &[u8]) {
     // More budget never changes the result; a fresh cache agrees with a warm one.
     let roomy = Regex::with_budget(pattern, 2 * BUDGET).expect("a larger budget compiles");
     let star = Regex::with_budget(&format!("({pattern})*"), 4 * BUDGET);
+    // Over 4096 character classes the matcher simulates the NFA instead of
+    // building a DFA: 2100 separate private-use characters force that.
+    let wide = (small % 8 == 0).then(|| {
+        let class: String = (0..2100)
+            .filter_map(|i| char::from_u32(0xE000 + 2 * i))
+            .collect();
+        Regex::new(&format!("({pattern})|[{class}]")).ok()
+    });
     for value in values.split('\n').take(16) {
         let matched = regex.is_match(value);
         assert_eq!(regex.is_match(value), matched, "{pattern:?} {value:?}");
         assert_eq!(roomy.is_match(value), matched, "{pattern:?} {value:?}");
         if let Some(tight) = &tight {
             assert_eq!(tight.is_match(value), matched, "{pattern:?} {value:?}");
+        }
+        if let Some(Some(wide)) = &wide {
+            let private = |c: char| {
+                (0xE000..0xE000 + 4200).contains(&(c as u32)) && (c as u32).is_multiple_of(2)
+            };
+            let single = value.chars().count() == 1 && value.chars().all(private);
+            assert_eq!(
+                wide.is_match(value),
+                matched || single,
+                "wide {pattern:?} {value:?}"
+            );
         }
         assert!(
             !matched || value.chars().all(xml_char),

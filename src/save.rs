@@ -146,8 +146,6 @@ pub(crate) trait Walk<'document>: Copy {
         limit: usize,
         offset: usize,
     ) -> Result<(), Error>;
-    /// The attribute at `position` with its entity references kept, if any.
-    fn kept_form(self, position: usize) -> Option<&'document str>;
     fn is_document(self) -> bool;
 }
 
@@ -220,13 +218,6 @@ impl<'document> Walk<'document> for Tree<'document, '_> {
         }
     }
 
-    fn kept_form(self, position: usize) -> Option<&'document str> {
-        match self {
-            Self::Borrowed(node) => node.unexpanded_attribute(position),
-            Self::Owned(node) => node.unexpanded_attribute(position),
-        }
-    }
-
     fn is_document(self) -> bool {
         match self {
             Self::Borrowed(node) => matches!(node.kind(), NodeKind::Document),
@@ -265,16 +256,20 @@ impl<'document, A: Allocator> Walk<'document> for OwnedNode<'document, A> {
         collect_attributes(attributes, OwnedNode::attributes(self), limit, offset)
     }
 
-    fn kept_form(self, position: usize) -> Option<&'document str> {
-        OwnedNode::unexpanded_attribute(self, position)
-    }
-
     fn is_document(self) -> bool {
         self.kind() == OwnedNodeKind::Document
     }
 }
 
 impl<'document, 'input> Tree<'document, 'input> {
+    /// The attribute at `position` with its entity references kept, if any.
+    fn kept_form(self, position: usize) -> Option<&'document str> {
+        match self {
+            Self::Borrowed(node) => node.unexpanded_attribute(position),
+            Self::Owned(node) => node.unexpanded_attribute(position),
+        }
+    }
+
     fn same(self, other: Self) -> bool {
         match (self, other) {
             (Self::Borrowed(a), Self::Borrowed(b)) => a.id() == b.id(),
@@ -344,18 +339,22 @@ pub(crate) fn collect_attributes<'a>(
 
 /// A leaf node's event; documents and elements have none.
 pub(crate) fn owned_leaf<A: Allocator>(node: OwnedNode<'_, A>) -> Option<Event<'_>> {
-    match node.kind() {
-        OwnedNodeKind::DocumentType => node.doctype().map(Event::Doctype),
-        OwnedNodeKind::Text => Some(Event::Text(Cow::Borrowed(node.text()?))),
-        OwnedNodeKind::Cdata => Some(Event::Cdata(Cow::Borrowed(node.text()?))),
-        OwnedNodeKind::Comment => Some(Event::Comment(Cow::Borrowed(node.text()?))),
-        OwnedNodeKind::ProcessingInstruction => Some(Event::ProcessingInstruction {
-            target: Cow::Borrowed(node.processing_instruction_target()?),
-            data: Cow::Borrowed(node.text()?),
-        }),
-        OwnedNodeKind::EntityRef => Some(Event::EntityStart(Cow::Borrowed(node.entity_name()?))),
-        OwnedNodeKind::Document | OwnedNodeKind::Element => None,
-    }
+    // Leaf records always hold their text, target and entity name.
+    let text = Cow::Borrowed(node.text().unwrap_or_default());
+    Some(match node.kind() {
+        OwnedNodeKind::DocumentType => return node.doctype().map(Event::Doctype),
+        OwnedNodeKind::Text => Event::Text(text),
+        OwnedNodeKind::Cdata => Event::Cdata(text),
+        OwnedNodeKind::Comment => Event::Comment(text),
+        OwnedNodeKind::ProcessingInstruction => Event::ProcessingInstruction {
+            target: Cow::Borrowed(node.processing_instruction_target().unwrap_or_default()),
+            data: text,
+        },
+        OwnedNodeKind::EntityRef => {
+            Event::EntityStart(Cow::Borrowed(node.entity_name().unwrap_or_default()))
+        }
+        OwnedNodeKind::Document | OwnedNodeKind::Element => return None,
+    })
 }
 
 /// Serializes `tree`: `xmlSaveDoc` for a document node, otherwise
@@ -434,28 +433,30 @@ struct Out {
     error: Option<Error>,
 }
 
-/// `xmlEscapeTab` and `xmlEscapeTabAttr`: other C0 controls become U+FFFD.
-const fn escapes(attribute: bool) -> [Option<&'static str>; 128] {
+/// `xmlEscapeTabAttr`: other C0 controls become U+FFFD.
+const ATTRIBUTE: [Option<&str>; 128] = {
     let mut table = [None; 128];
     let mut byte = 0;
     while byte < 0x20 {
         table[byte] = Some("&#xFFFD;");
         byte += 1;
     }
-    table[b'\t' as usize] = if attribute { Some("&#9;") } else { None };
-    table[b'\n' as usize] = if attribute { Some("&#10;") } else { None };
+    table[b'\t' as usize] = Some("&#9;");
+    table[b'\n' as usize] = Some("&#10;");
     table[b'\r' as usize] = Some("&#13;");
     table[b'&' as usize] = Some("&amp;");
     table[b'<' as usize] = Some("&lt;");
     table[b'>' as usize] = Some("&gt;");
-    if attribute {
-        table[b'"' as usize] = Some("&quot;");
-    }
+    table[b'"' as usize] = Some("&quot;");
     table
-}
+};
 
-const CONTENT: [Option<&str>; 128] = escapes(false);
-const ATTRIBUTE: [Option<&str>; 128] = escapes(true);
+/// `xmlEscapeTab`: tabs, newlines and quotes are written as they are.
+const CONTENT: [Option<&str>; 128] = {
+    let mut table = ATTRIBUTE;
+    (table[9], table[10], table[34]) = (None, None, None);
+    table
+};
 
 impl Out {
     fn new(output: Output, ascii: bool) -> Self {
@@ -726,9 +727,10 @@ impl<'a> Saver<'a> {
                 self.leaf(&event, is_root, xhtml);
             }
             loop {
-                if current.same(root) {
+                // Below `root`, every node has a parent.
+                let Some(parent) = current.parent().filter(|_| !current.same(root)) else {
                     return;
-                }
+                };
                 if self.format == 1 {
                     self.out.raw("\n");
                 }
@@ -736,9 +738,6 @@ impl<'a> Saver<'a> {
                     current = next;
                     break;
                 }
-                let Some(parent) = current.parent() else {
-                    return;
-                };
                 current = parent;
                 depth -= 1;
                 self.level = self.level.saturating_sub(1);
@@ -810,7 +809,7 @@ impl<'a> Saver<'a> {
             return true;
         }
         let add_meta = xhtml && needs_meta(node);
-        if xhtml && name.prefix().is_none() && xhtml_empty(node, name) && !add_meta {
+        if xhtml && name.prefix().is_none() && xhtml_empty(name) && !add_meta {
             self.out.raw(" />");
         } else if xhtml || self.options.has(NO_EMPTY) {
             if self.format == 2 && !xhtml {
@@ -990,15 +989,13 @@ fn has_text(node: Tree<'_, '_>, xhtml: bool) -> bool {
     })
 }
 
-/// `xhtmlIsEmpty`: a childless XHTML element whose content model is EMPTY.
-fn xhtml_empty(node: Tree<'_, '_>, name: &Name<'_>) -> bool {
+/// `xhtmlIsEmpty` for a childless element: its XHTML content model is EMPTY.
+fn xhtml_empty(name: &Name<'_>) -> bool {
     const EMPTY: [&str; 13] = [
         "area", "br", "base", "basefont", "col", "frame", "hr", "img", "input", "isindex", "link",
         "meta", "param",
     ];
-    node.first_child().is_none()
-        && name.namespace().is_none_or(|uri| uri == XHTML_NAMESPACE)
-        && EMPTY.contains(&name.local())
+    name.namespace().is_none_or(|uri| uri == XHTML_NAMESPACE) && EMPTY.contains(&name.local())
 }
 
 /// An element with this local name.
@@ -1091,17 +1088,14 @@ fn missing_namespaces(root: Tree<'_, '_>) -> Vec<(Option<String>, String)> {
             declared.truncate(marks.pop().unwrap_or_default());
         }
         loop {
-            if node.same(root) {
+            let Some(parent) = node.parent().filter(|_| !node.same(root)) else {
                 return added;
-            }
+            };
             if let Some(next) = node.next_sibling() {
                 node = next;
                 break;
             }
-            match node.parent() {
-                Some(parent) => node = parent,
-                None => return added,
-            }
+            node = parent;
             declared.truncate(marks.pop().unwrap_or_default());
         }
     }

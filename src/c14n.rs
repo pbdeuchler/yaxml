@@ -95,18 +95,21 @@ pub fn write<T: Tree>(
     options: &Options<'_, T::Id>,
     sink: impl Write,
 ) -> Result<(), Error> {
-    let mut sink = BufWriter::new(sink);
-    canonicalize(tree, options, |text| sink.write_all(text.as_bytes()))?;
+    let (mut sink, mut failed) = (BufWriter::new(sink), None);
+    // The first sink error ends output; it outranks a later canonicalization error.
+    let result = canonicalize(tree, options, |text| {
+        failed = failed
+            .take()
+            .or_else(|| sink.write_all(text.as_bytes()).err());
+    });
+    failed.map_or(result, |error| Err(Error::Io(error)))?;
     sink.flush().map_err(Error::Io)
 }
 
 /// `xmlC14NDocDumpMemory`.
 pub fn to_string<T: Tree>(tree: &T, options: &Options<'_, T::Id>) -> Result<String, Error> {
     let mut out = String::new();
-    canonicalize(tree, options, |text| {
-        out.push_str(text);
-        Ok(())
-    })?;
+    canonicalize(tree, options, |text| out.push_str(text))?;
     Ok(out)
 }
 
@@ -209,7 +212,7 @@ struct C14n<'t, 'o, T: Navigate, F> {
 fn canonicalize<T: Navigate>(
     tree: &T,
     options: &Options<'_, T::Id>,
-    emit: impl FnMut(&str) -> io::Result<()>,
+    emit: impl FnMut(&str),
 ) -> Result<(), Error> {
     if let Some(problem) = tree.xml_violation() {
         return Err(Error::NotXml(problem));
@@ -232,7 +235,7 @@ fn canonicalize<T: Navigate>(
             let Some(frame) = frames.pop() else {
                 return Ok(());
             };
-            c14n.close(&frame)?;
+            c14n.close(&frame);
             next = tree.next_sibling(frame.id);
             continue;
         };
@@ -249,21 +252,17 @@ fn canonicalize<T: Navigate>(
     }
 }
 
-impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
-    fn out(&mut self, text: &str) -> Result<(), Error> {
-        (self.emit)(text).map_err(Error::Io)
-    }
-
-    fn escaped(&mut self, text: &str, escape: Escape) -> Result<(), Error> {
+impl<'t, T: Navigate, F: FnMut(&str)> C14n<'t, '_, T, F> {
+    fn escaped(&mut self, text: &str, escape: Escape) {
         let mut start = 0;
         for (index, byte) in text.bytes().enumerate() {
             if let Some(replacement) = replacement(byte, escape) {
-                self.out(&text[start..index])?;
-                self.out(replacement)?;
+                (self.emit)(&text[start..index]);
+                (self.emit)(replacement);
                 start = index + 1;
             }
         }
-        self.out(&text[start..])
+        (self.emit)(&text[start..]);
     }
 
     fn visible(&self, node: Node<T::Id>) -> bool {
@@ -306,22 +305,21 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
         }
     }
 
-    fn declaration(&mut self, prefix: &str, uri: &str) -> Result<(), Error> {
-        self.out(if prefix.is_empty() {
+    fn declaration(&mut self, prefix: &str, uri: &str) {
+        (self.emit)(if prefix.is_empty() {
             " xmlns"
         } else {
             " xmlns:"
-        })?;
-        self.out(prefix)?;
-        self.out("=\"")?;
-        self.out(uri)?;
-        self.out("\"")
+        });
+        (self.emit)(prefix);
+        (self.emit)("=\"");
+        (self.emit)(uri);
+        (self.emit)("\"");
     }
 
-    fn declarations(&mut self, mut list: Vec<(&str, &str)>) -> Result<(), Error> {
+    fn declarations(&mut self, mut list: Vec<(&str, &str)>) {
         list.sort_by_key(|&(prefix, _)| prefix);
-        list.into_iter()
-            .try_for_each(|(prefix, uri)| self.declaration(prefix, uri))
+        (list.into_iter()).for_each(|(prefix, uri)| self.declaration(prefix, uri));
     }
 
     /// `xmlC14NProcessElementNode` up to the children.
@@ -352,29 +350,29 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
                 self.parent_is_doc = false;
                 self.position = Position::Inside;
             }
-            self.out("<")?;
-            self.out(name.qualified)?;
+            (self.emit)("<");
+            (self.emit)(name.qualified);
         }
         match self.options.mode {
-            Mode::Exclusive10 => self.exclusive_namespaces(id, name, frame.visible)?,
-            Mode::C14n10 | Mode::C14n11 => self.namespaces(id, frame.visible)?,
+            Mode::Exclusive10 => self.exclusive_namespaces(id, name, frame.visible),
+            Mode::C14n10 | Mode::C14n11 => self.namespaces(id, frame.visible),
         }
         if frame.visible {
             self.previous = (self.previous.1, self.rendered.len());
         }
         self.attributes(id, frame.visible)?;
         if frame.visible {
-            self.out(">")?;
+            (self.emit)(">");
         }
         Ok(frame)
     }
 
-    fn close(&mut self, frame: &Frame<T::Id>) -> Result<(), Error> {
+    fn close(&mut self, frame: &Frame<T::Id>) {
         if frame.visible {
             if let Item::Element(name) = self.tree.item(frame.id) {
-                self.out("</")?;
-                self.out(name.qualified)?;
-                self.out(">")?;
+                (self.emit)("</");
+                (self.emit)(name.qualified);
+                (self.emit)(">");
             }
             if frame.document_child {
                 self.parent_is_doc = true;
@@ -384,11 +382,10 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
         self.rendered.truncate(frame.rendered);
         self.previous = frame.previous;
         self.scope.truncate(frame.scope);
-        Ok(())
     }
 
     /// `xmlC14NProcessNamespacesAxis`.
-    fn namespaces(&mut self, id: T::Id, visible: bool) -> Result<(), Error> {
+    fn namespaces(&mut self, id: T::Id, visible: bool) {
         let mut seen = HashSet::new();
         let bindings: Vec<_> = (self.scope.iter().rev().copied())
             .filter(|&(prefix, _)| seen.insert(prefix))
@@ -408,18 +405,13 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
             has_empty |= prefix.is_empty();
         }
         if visible && !has_empty && !self.rendered_inclusive("", "") {
-            self.declaration("", "")?;
+            self.declaration("", "");
         }
-        self.declarations(list)
+        self.declarations(list);
     }
 
     /// `xmlExcC14NProcessNamespacesAxis`.
-    fn exclusive_namespaces(
-        &mut self,
-        id: T::Id,
-        name: QName<'t>,
-        visible: bool,
-    ) -> Result<(), Error> {
+    fn exclusive_namespaces(&mut self, id: T::Id, name: QName<'t>, visible: bool) {
         let mut list = Vec::new();
         let (mut has_empty, mut empty_listed) = (false, false);
         for &listed in self.options.inclusive_prefixes {
@@ -474,9 +466,9 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
         // libxml2's other xmlns="" case, for an unqualified element, needs a
         // rendered default namespace that is not in scope: it cannot happen.
         if visible && !has_empty && empty_listed && !self.rendered_inclusive("", "") {
-            self.declaration("", "")?;
+            self.declaration("", "");
         }
-        self.declarations(list)
+        self.declarations(list);
     }
 
     /// `xmlC14NFindHiddenParentAttr`: `xml:{local}` on the nearest invisible ancestors.
@@ -570,11 +562,11 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
                 .cmp(&(right.namespace.unwrap_or(""), right.local))
         });
         for (name, value) in list {
-            self.out(" ")?;
-            self.out(name.qualified)?;
-            self.out("=\"")?;
-            self.escaped(&value, Escape::Attribute)?;
-            self.out("\"")?;
+            (self.emit)(" ");
+            (self.emit)(name.qualified);
+            (self.emit)("=\"");
+            self.escaped(&value, Escape::Attribute);
+            (self.emit)("\"");
         }
         Ok(())
     }
@@ -596,20 +588,20 @@ impl<'t, T: Navigate, F: FnMut(&str) -> io::Result<()>> C14n<'t, '_, T, F> {
             Item::Comment(text) if self.options.with_comments => {
                 self.markup(&["<!--"], text, "-->")
             }
-            _ => Ok(()),
-        }
-    }
-
-    fn markup(&mut self, head: &[&str], body: &str, tail: &str) -> Result<(), Error> {
-        if self.position == Position::After {
-            self.out("\n")?;
-        }
-        head.iter().try_for_each(|part| self.out(part))?;
-        self.escaped(body, Escape::Other)?;
-        self.out(tail)?;
-        if self.position == Position::Before {
-            self.out("\n")?;
+            _ => {}
         }
         Ok(())
+    }
+
+    fn markup(&mut self, head: &[&str], body: &str, tail: &str) {
+        if self.position == Position::After {
+            (self.emit)("\n");
+        }
+        head.iter().for_each(|part| (self.emit)(part));
+        self.escaped(body, Escape::Other);
+        (self.emit)(tail);
+        if self.position == Position::Before {
+            (self.emit)("\n");
+        }
     }
 }
