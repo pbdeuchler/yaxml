@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r--><?a?><r xmlns="urn:p" z="a conamespaced"><p:n xmlns:p="urn:q">a<![CDATA[b]]>a</p:n>˙˙˙˙˙˙˙˙˙˙˙˙˙<?p 2' -?>ÚÚ(ÚÚÚÚÚr>

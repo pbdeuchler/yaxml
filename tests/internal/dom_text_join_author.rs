@@ -8,6 +8,7 @@ fn empty_document() -> Document<'static> {
         root_element: NodeId(0),
         declaration: None,
         ids: Vec::new(),
+        dtd: None,
     }
 }
 

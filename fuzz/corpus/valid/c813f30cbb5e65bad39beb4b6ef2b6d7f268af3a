@@ -1,0 +1,6 @@
+<!DOCTYPE r [
+<!ENTITY u SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST re: é🙂&#10;&#13;&#9ITY %4;/>x than thirty bytes4d

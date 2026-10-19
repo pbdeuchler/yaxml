@@ -90,6 +90,7 @@ pub struct Document<'input> {
     declaration: Option<Declaration<'input>>,
     /// `(element, attribute index)` of ID-typed attributes, in document order.
     ids: Vec<(NodeId, usize)>,
+    dtd: Option<Box<crate::valid::Dtd>>,
 }
 
 impl<'input> Document<'input> {
@@ -131,6 +132,7 @@ impl<'input> Document<'input> {
             root_element: NodeId(0),
             declaration: None,
             ids: Vec::new(),
+            dtd: None,
         };
         let mut parents = Vec::new();
         while let Some(event) = reader.read_event()? {
@@ -191,8 +193,26 @@ impl<'input> Document<'input> {
             return Err(Error::new(ErrorKind::MissingRoot, reader.position()));
         }
         document.nodes[0].subtree_end = document.nodes.len();
-        let ids = crate::xpath::tree::find_ids(&document, reader.catalog());
-        Ok(Self { ids, ..document })
+        let dtd = reader
+            .catalog()
+            .map(|catalog| Box::new(catalog.dtd().clone()));
+        let ids = crate::xpath::tree::find_ids(&document, dtd.as_deref());
+        Ok(Self {
+            ids,
+            dtd,
+            ..document
+        })
+    }
+
+    /// The declarations of the internal and loaded external subsets.
+    pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
+        self.dtd.as_deref()
+    }
+
+    /// Checks the document against its DTD, as libxml2's `XML_PARSE_DTDVALID`.
+    /// Never fails: an empty result means valid; see [`crate::valid`].
+    pub fn validate(&self) -> Vec<crate::valid::Diagnostic<NodeId>> {
+        crate::valid::validate_document(self, self.dtd())
     }
 
     /// The element whose `xml:id` or DTD-declared `ID` attribute has this

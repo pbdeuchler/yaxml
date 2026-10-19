@@ -46,6 +46,8 @@ mod c14n;
 
 #[path = "html.rs"]
 mod html;
+#[path = "valid.rs"]
+mod valid;
 
 #[path = "resolver.rs"]
 mod resolver;
@@ -75,6 +77,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_html(input);
     exercise_xpath(input);
     exercise_c14n(input);
+    exercise_valid(input);
     exercise_textreader(input);
     exercise_construction(input);
     exercise_mutation(input);
@@ -126,6 +129,7 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
 
 /// The DTD-relevant subset of `exercise`; the full family is far slower.
 fn exercise_doctype(input: &[u8]) -> Outcome {
+    exercise_valid(input);
     exercise_owned(input);
     exercise_serialize(input);
     exercise_push(input);
@@ -344,6 +348,12 @@ pub fn exercise_xpath(input: &[u8]) {
 pub fn exercise_c14n(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     c14n::exercise(input);
+}
+
+/// Exercise DTD validation over both DOMs; see `valid.rs` for the testcase format.
+pub fn exercise_valid(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    valid::exercise(input);
 }
 
 /// Exercise the libxml2-style node cursor; see `textreader.rs` for the testcase format.

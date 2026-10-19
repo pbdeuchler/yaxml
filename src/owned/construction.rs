@@ -1502,6 +1502,7 @@ pub(super) fn create(
         slots_are_preorder: true,
         html: None,
         ids: Vec::new(),
+        dtd: None,
     };
     let staged = stage(&staging_document, None, &root, limits)?;
     if limits.max_created_nodes < 1 {

@@ -198,7 +198,7 @@ fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
     }
 }
 
-fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
+pub(crate) fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
     match kind {
         CatalogErrorKind::EntityDeclared => ErrorKind::UnknownEntity,
         CatalogErrorKind::ExternalInAttribute => ErrorKind::ExternalEntityInAttribute,

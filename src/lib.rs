@@ -26,6 +26,7 @@ mod stream;
 mod textreader;
 mod tokenizer;
 pub mod uri;
+pub mod valid;
 mod writer;
 pub mod xpath;
 

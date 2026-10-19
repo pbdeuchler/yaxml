@@ -1,0 +1,13 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*,e?,(e,f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA|a|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,c)>
+<!ELEMENT g (#PCDATA|a|a)*>
+<!ELEMENT g EMPTY>
+]>
+<r><a/><b>t</b><c>x<a/><b/>y</c><c>3d/></c><d><z/></d><e><a/></e><f><b/><a/><c/></f><e/><f>text</f></r>

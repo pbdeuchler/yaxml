@@ -760,7 +760,8 @@ impl<'input> DtdControllerCore<'input> {
             .expect("parameter raw")
             .1;
             let raw = std::str::from_utf8(raw).expect("validated PE reference");
-            match self.catalog.lookup_parameter(&raw[1..raw.len() - 1]) {
+            let name = &raw[1..raw.len() - 1];
+            match self.catalog.lookup_parameter(name) {
                 EntityLookup::Internal { id, replacement } => (
                     id,
                     EntityResolution::Internal {
@@ -784,8 +785,12 @@ impl<'input> DtdControllerCore<'input> {
                             )
                         });
                 }
-                // Like libxml2's undeclared warning, the reference is skipped.
+                // Like libxml2's undeclared validity error, the reference is skipped.
                 EntityLookup::UnreadEntity => {
+                    let message = format!("Entity '{name}' not defined");
+                    let offset = origin.input_range().map(|range| range.start);
+                    self.catalog
+                        .note(crate::valid::Code::UndeclaredEntity, offset, message);
                     self.release_scanner(side);
                     return Ok(());
                 }

@@ -1,0 +1,1 @@
+<?xml version="1.0"?><!--before--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn:q">ibute longbytes: é🙂&#10;--after-->

@@ -1,0 +1,5 @@
+<!DOCTYPE r [
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s=n'

@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙ i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i˙	='a'>><?xdl version="0.0" encoding="uTf-8" standaloe--><?p?><r xmlns:p="urFn:p" xmlns:q="urn:unused" a="q:T&#9;&#13;">x&#13;<p:c/>.0" encoding="uTf-8" standalons:q="urn:unused" a a="é">café ¤&#xe9;ersion="1.0"ion="1.0" encoding="n˙˙˙˙˙˙˙˙˙˙">café ¤&#xe9;e"é˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙">café ¤&#xe9;e:rs˙˙˙˙˙˙˙˙˙ŝ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙r>="q:L&#9;&#,3;">x&#1˙˙˙˙˙˙˙˙ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙ing="67>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>[CDATA[]]><e="no"?><!--before--->

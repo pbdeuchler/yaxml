@@ -1,0 +1,6 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE 
+ r[<!ELEMENT r (A|a|a)*>
+<!ELEMENT g EMPTY>
+]>
+<r><a/><b>t</b><c>x<a/><b/>y</c><c>yd/></c><d>h<z/></d><e><a/></e><f><b/><a/><c/></f><e/><f>text</f></r>

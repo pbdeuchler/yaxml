@@ -1,0 +1,6 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION  u SYSTEM 'u'>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s 	DREFS #IMPLIED eNT r ANY>
+<r>

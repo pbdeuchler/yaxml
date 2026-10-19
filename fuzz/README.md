@@ -31,6 +31,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `construction` | `exercise_construction` | `OwnedDocument::create`, `append_element` |
 | `names` | `exercise_names` | `Name` and owned PI targets |
 | `c14n` | `exercise_c14n` | `c14n::to_string` modes, comments, node-sets and prefix lists |
+| `valid` | `exercise_valid` | DTD validation over both DOMs: raw input, input wrapped as an internal subset, or an external DTD and document split at NUL; identical diagnostics, determinism, offsets and `is_valid` |
 | `textreader` | `exercise_textreader` | `TextReader` node sequence, navigation, content strings, `expand`, `next` |
 | `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface; control byte `3` serves NUL-separated fuzz resources through an in-memory resolver and checks surface agreement and load/byte budgets |
 | `uri` | `exercise_uri` | `yaxml::uri` parse, save, escape and resolution |

@@ -1,0 +1,14 @@
+<!DOCTYPE r [
+<!ELEMENT Zr ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parse&#13;&#9;">&lt;&gt;Fd'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST A i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|y|x) 'z' :o NOTATION (n|o) #IMPLIED
+  c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s='a ' ce='p' es='u\\\\\\\\\\\\\\\\N n SYS\\\\\\\\\\\\\\\\\\\\\\\\\(\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\1\\\x  y ' o='m' c='d' xmlns:p='urn:q' xml:id='w'>&undeclared;<s i='a' q=''/></r>
