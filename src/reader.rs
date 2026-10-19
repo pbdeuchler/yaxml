@@ -4,7 +4,7 @@ use memchr::{memchr, memmem};
 
 use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
 use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
-use crate::escape::xml_char;
+use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState, space};
 use crate::stream::dtd::{SessionError, SessionLimits};
 use crate::tokenizer::{TokenKind, Tokenizer};
@@ -412,7 +412,7 @@ impl<'a> SliceReader<'a> {
         }
         let input = std::str::from_utf8(input)
             .map_err(|e| Error::new(ErrorKind::InvalidUtf8, e.valid_up_to()))?;
-        if let Some((i, _)) = input.char_indices().find(|(_, c)| !xml_char(*c)) {
+        if let Some(i) = invalid_char(input) {
             return Err(Error::new(ErrorKind::InvalidCharacter, i));
         }
         let initial = if input.starts_with('\u{feff}') { 3 } else { 0 };

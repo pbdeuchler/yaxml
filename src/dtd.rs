@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use crate::escape::xml_char;
+use crate::escape::{invalid_char, xml_char};
 use crate::name::{name_char, name_start};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -199,10 +199,7 @@ impl<'a> DtdUnit<'a> {
                 limits.max_unit_bytes,
             ));
         }
-        if let Some((offset, _)) = raw
-            .char_indices()
-            .find(|(_, character)| !xml_char(*character))
-        {
+        if let Some(offset) = invalid_char(&raw) {
             return Err(DtdError::new(DtdErrorKind::InvalidCharacter, offset));
         }
         let (kind, tokens) = Parser::new(&raw, limits).parse()?;

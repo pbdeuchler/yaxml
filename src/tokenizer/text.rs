@@ -11,7 +11,7 @@ use crate::dtd_reference::{
     ReferenceScratch, ValidatedReference,
 };
 use crate::encoding::{SourceEncoding, TokenSpan};
-use crate::escape::xml_char;
+use crate::escape::invalid_char;
 use crate::{Error, ErrorKind};
 use std::ops::Range;
 
@@ -1275,7 +1275,7 @@ fn validate_input(shared: &mut TextShared, tokenizer: &Tokenizer) -> Result<(), 
         source: TextSourceId::Input,
         offset: span.source.start + e.valid_up_to(),
     })?;
-    if let Some((offset, _)) = raw.char_indices().find(|(_, c)| !xml_char(*c)) {
+    if let Some(offset) = invalid_char(raw) {
         let mapped = span.map_error(
             raw,
             Error::new(ErrorKind::InvalidCharacter, span.decoded.start + offset),

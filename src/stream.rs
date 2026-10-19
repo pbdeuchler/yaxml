@@ -1,5 +1,5 @@
 use crate::encoding::{DecodeProgress, Decoded, Decoder, TokenSpan};
-use crate::escape::xml_char;
+use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState};
 use crate::tokenizer::{TokenKind, Tokenizer};
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, SourceOrigin};
@@ -212,10 +212,7 @@ fn validate<'token>(
             )
         })?
     };
-    if let Some((relative, _)) = raw
-        .char_indices()
-        .find(|(_, character)| !xml_char(*character))
-    {
+    if let Some(relative) = invalid_char(raw) {
         return Err(span.map_error(
             raw,
             Error::new(ErrorKind::InvalidCharacter, span.decoded.start + relative),
