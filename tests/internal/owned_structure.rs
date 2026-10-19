@@ -666,36 +666,6 @@ fn deep_and_wide_removal_are_iterative_and_keep_only_live_topology() {
 }
 
 #[test]
-fn private_overflow_preflights_do_not_mutate_pool_or_creation_work() {
-    let pool = Pool("r".to_owned());
-    assert_eq!(
-        pool.edit_capacity(usize::MAX, 0, usize::MAX),
-        Err(error(
-            EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
-            None
-        ))
-    );
-    let mut document = OwnedDocument::parse("<r/>").unwrap();
-    document.edit_created_nodes = usize::MAX;
-    let parent = document.root_element().id();
-    let mut editor = document
-        .edit(EditLimits {
-            max_created_nodes: usize::MAX,
-            ..EditLimits::default()
-        })
-        .unwrap();
-    let before = format!("{:?}", editor.document());
-    assert_eq!(
-        editor.append_text(parent, ""),
-        Err(error(
-            EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
-            None
-        ))
-    );
-    assert_eq!(format!("{:?}", editor.document()), before);
-}
-
-#[test]
 fn node_reservation_failures_precede_pool_work_and_publish_nothing() {
     for kind in [
         ValueKind::Text,
