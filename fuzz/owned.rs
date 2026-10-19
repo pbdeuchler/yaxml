@@ -237,6 +237,11 @@ pub(super) fn check_nodes(
 /// XInclude elements parses as without the flag; failures keep an offset.
 fn xinclude(input: &[u8], plain: Option<Error>) {
     let included = OwnedDocument::parse_with(input, ParseOptions::new(XINCLUDE));
+    // A resolver that has nothing behaves as none.
+    let none = Box::new(|_: yaxml::Request<'_>| Ok(None));
+    let resolved = ParseOptions::new(XINCLUDE).with_resolver("d.xml", none);
+    let resolved = OwnedDocument::parse_with(input, resolved);
+    assert_eq!(resolved.as_ref().err(), included.as_ref().err());
     match &included {
         Err(error) => assert!(error.offset <= input.len()),
         Ok(_) => assert_eq!(plain, None, "XINCLUDE accepted a rejected document"),

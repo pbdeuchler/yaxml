@@ -404,16 +404,8 @@ fn clone_string(value: &str) -> Result<String, EditError> {
 }
 
 fn declaration_prefix<'a>(name: &'a Name<'_>) -> Option<Option<&'a str>> {
-    if name.namespace() != Some(XMLNS) {
-        return None;
-    }
-    if name.prefix() == Some("xmlns") {
-        Some(Some(name.local()))
-    } else if name.qualified() == "xmlns" {
-        Some(None)
-    } else {
-        None
-    }
+    // Only `xmlns` and `xmlns:*` names are bound to the XMLNS namespace.
+    (name.namespace() == Some(XMLNS)).then(|| name.prefix().map(|_| name.local()))
 }
 
 fn lookup<'a, A: Allocator>(
@@ -504,7 +496,6 @@ fn ensure_binding<A: Allocator>(
     generated: &mut Vec<GeneratedBinding>,
     prefix: Option<&str>,
     uri: &str,
-    exact: bool,
     work: &mut Work,
     error_location: EditLocation,
     supplied_items: usize,
@@ -523,11 +514,10 @@ fn ensure_binding<A: Allocator>(
         return Err(namespace_error(error_location));
     }
     if let Some(current) = lookup(document, parent, prefix, local, generated, work)? {
+        // An exact prefix rebinds the inherited one; a generated prefix
+        // was chosen unbound.
         if work.compare(current, uri)? {
             return Ok(());
-        }
-        if !exact {
-            return Err(namespace_error(error_location));
         }
     }
     if supplied_items + generated.len() + 1 > max_attributes {
@@ -950,7 +940,6 @@ fn resolve_name<A: Allocator>(
                         generated,
                         None,
                         "",
-                        true,
                         work,
                         namespace_location,
                         spec.items.len(),
@@ -961,9 +950,8 @@ fn resolve_name<A: Allocator>(
             None
         }
         (PrefixPolicy::Exact(prefix), namespace) => {
-            let empty_prefix = prefix == Some("");
-            let xmlns_prefix = prefix == Some("xmlns");
-            if empty_prefix || xmlns_prefix {
+            // validate_spec already rejected an empty prefix.
+            if prefix == Some("xmlns") {
                 return Err(namespace_error(component_location));
             }
             match (namespace, prefix) {
@@ -980,7 +968,6 @@ fn resolve_name<A: Allocator>(
                         generated,
                         Some(prefix),
                         uri,
-                        true,
                         work,
                         namespace_location,
                         spec.items.len(),
@@ -996,7 +983,6 @@ fn resolve_name<A: Allocator>(
                         generated,
                         None,
                         uri,
-                        true,
                         work,
                         namespace_location,
                         spec.items.len(),
@@ -1009,15 +995,15 @@ fn resolve_name<A: Allocator>(
         }
         (PrefixPolicy::Automatic, Some(uri)) => match uri {
             _ if xml_namespace => Some(clone_string("xml")?),
-            uri if is_element => {
-                let default_binding = lookup(document, parent, None, local, generated, work)?;
-                if let Some(bound) = default_binding
+            // An element may take the default namespace; attributes need a prefix.
+            uri => {
+                if is_element
+                    && let Some(bound) = lookup(document, parent, None, local, generated, work)?
                     && work.compare(bound, uri)?
                 {
                     return make_name(scratch, name.local, namespace, None, scratch_limit);
                 }
-                let explicit_default = declaration_exists(local, None, work)?;
-                if !explicit_default {
+                if is_element && !declaration_exists(local, None, work)? {
                     ensure_binding(
                         document,
                         parent,
@@ -1025,7 +1011,6 @@ fn resolve_name<A: Allocator>(
                         generated,
                         None,
                         uri,
-                        true,
                         work,
                         namespace_location,
                         spec.items.len(),
@@ -1063,48 +1048,6 @@ fn resolve_name<A: Allocator>(
                         generated,
                         Some(&prefix),
                         uri,
-                        false,
-                        work,
-                        namespace_location,
-                        spec.items.len(),
-                        limits.max_attributes,
-                    )?;
-                    Some(prefix)
-                }
-            }
-            uri => {
-                if let Some(prefix) = find_matching_prefix(
-                    document,
-                    parent,
-                    spec,
-                    local,
-                    generated,
-                    uri,
-                    false,
-                    work,
-                    limits,
-                    component_location,
-                )? {
-                    Some(prefix)
-                } else {
-                    let prefix = next_prefix(
-                        document,
-                        parent,
-                        local,
-                        generated,
-                        spec,
-                        limits,
-                        work,
-                        component_location,
-                    )?;
-                    ensure_binding(
-                        document,
-                        parent,
-                        local,
-                        generated,
-                        Some(&prefix),
-                        uri,
-                        false,
                         work,
                         namespace_location,
                         spec.items.len(),
@@ -1280,12 +1223,6 @@ fn stage<A: Allocator>(
                 });
             }
         }
-    }
-    if spec.items.len() + generated.len() > limits.max_attributes {
-        return Err(EditError::new(
-            EditErrorKind::LimitExceeded(EditLimit::Attributes),
-            None,
-        ));
     }
     for declaration in &generated {
         attributes.push(make_declaration(

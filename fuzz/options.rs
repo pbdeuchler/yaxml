@@ -307,6 +307,17 @@ fn check_recovered(flags: u32, document: &[u8]) {
             "DOMs recover differently"
         );
     }
+    // Only the owned DOM repairs invalid UTF-8, recording the repair.
+    if !super::encoding::recognizes(document)
+        && !declared
+        && std::str::from_utf8(document).is_err()
+        && let Ok(owned) = OwnedDocument::parse_with(document, ParseOptions::new(flags))
+    {
+        assert!(
+            !owned.errors().is_empty(),
+            "repaired UTF-8 without an error"
+        );
+    }
     let Ok(tree) = recovered else {
         return;
     };
