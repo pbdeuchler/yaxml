@@ -270,6 +270,15 @@ fn drive(
                 } else {
                     0
                 };
+                // DTD text ends only after classifying its terminating general
+                // entity reference, so that whole `&name;` is consumed lookahead.
+                let terminator = &input[range.end..];
+                let reference = terminator.iter().take(lookahead).any(|&byte| byte == b'&');
+                let lookahead = terminator
+                    .iter()
+                    .position(|&byte| byte == b';')
+                    .filter(|_| reference)
+                    .map_or(lookahead, |end| end + lookahead);
                 let latest_position = range.end.saturating_add(lookahead).max(4);
                 if count == capacity % 7 {
                     let payload = match &event {

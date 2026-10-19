@@ -13,7 +13,9 @@ at its end offset. Cancellation and parser errors are sticky. Successful finish
 is idempotent and delivers no further events. Any feed after successful finish,
 including an empty chunk, starts a sticky `InvalidState` error. A failed feed can
 leave an input suffix unconsumed. `position()` includes encoding detection and
-one decoded scalar of lookahead when `<` terminates text; origin input ranges identify the
+one decoded scalar of lookahead when `<` terminates text (text in a
+DOCTYPE document instead consumes a terminating general entity reference `&name;`,
+which must be read to tell it from a predefined reference); origin input ranges identify the
 logical event precisely.
 
 `event_origin()` is absent before the first delivery and retains the latest

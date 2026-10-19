@@ -726,3 +726,99 @@ fn prepositioned_sources_start_a_new_relative_coordinate_system() {
         );
     }
 }
+
+#[test]
+fn dtd_text_consumes_its_terminating_reference_and_stops_after_entity_errors() {
+    let text = |value: &str| Some(Value::Text(value.into()));
+    // (input, [(text event or other, consumed prefix)], error, error prefix, consumed prefix)
+    type Case<'a> = (
+        &'a str,
+        &'a [(Option<Value>, &'a str)],
+        ErrorKind,
+        &'a str,
+        &'a str,
+    );
+    let cases: [Case<'_>; 5] = [
+        (
+            "<!DOCTYPE r0S><TSaH>r>&e;",
+            &[
+                (None, "<!DOCTYPE r0S>"),
+                (None, "<!DOCTYPE r0S><TSaH>"),
+                (text("r>"), "<!DOCTYPE r0S><TSaH>r>&e;"),
+            ],
+            ErrorKind::UnknownEntity,
+            "<!DOCTYPE r0S><TSaH>r>",
+            "<!DOCTYPE r0S><TSaH>r>&e;",
+        ),
+        (
+            "<!DOCTYPE r><r>a&#x41;&lt;&e;</r>TAIL",
+            &[
+                (None, "<!DOCTYPE r>"),
+                (None, "<!DOCTYPE r><r>"),
+                (text("aA<"), "<!DOCTYPE r><r>a&#x41;&lt;&e;"),
+            ],
+            ErrorKind::UnknownEntity,
+            "<!DOCTYPE r><r>a&#x41;&lt;",
+            "<!DOCTYPE r><r>a&#x41;&lt;&e;",
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;b&u;</r>",
+            &[
+                (None, "<!DOCTYPE r [<!ENTITY e 'x'>]>"),
+                (None, "<!DOCTYPE r [<!ENTITY e 'x'>]><r>"),
+                (text("a"), "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;"),
+                (text("x"), "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;"),
+                (text("b"), "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;b&u;"),
+            ],
+            ErrorKind::UnknownEntity,
+            "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;b",
+            "<!DOCTYPE r [<!ENTITY e 'x'>]><r>a&e;b&u;",
+        ),
+        (
+            "<!DOCTYPE r><r>&u;</r>TAIL",
+            &[(None, "<!DOCTYPE r>"), (None, "<!DOCTYPE r><r>")],
+            ErrorKind::UnknownEntity,
+            "<!DOCTYPE r><r>",
+            "<!DOCTYPE r><r>&u;",
+        ),
+        (
+            "<!DOCTYPE r><r>t</x>TAIL",
+            &[
+                (None, "<!DOCTYPE r>"),
+                (None, "<!DOCTYPE r><r>"),
+                (text("t"), "<!DOCTYPE r><r>t<"),
+            ],
+            ErrorKind::MismatchedEndTag,
+            "<!DOCTYPE r><r>t",
+            "<!DOCTYPE r><r>t</x>",
+        ),
+    ];
+    for (input, events, kind, error, consumed) in cases {
+        for encoding in ENCODINGS {
+            let bytes = encoding.encode(input);
+            for capacity in CAPACITIES {
+                let context = format!("{encoding:?} {input:?} capacity {capacity}");
+                let mut reader = BufferedReader::new(Window::new(&bytes, capacity, bytes.len()));
+                for (expected, prefix) in events {
+                    let (event, _) = reader.read_event().unwrap().expect(&context);
+                    let event = value(event);
+                    if expected.is_some() {
+                        assert_eq!(Some(event), *expected, "{context}");
+                    } else {
+                        assert!(!matches!(event, Value::Text(_)), "{context}");
+                    }
+                    assert_eq!(reader.position(), encoding.offset(prefix), "{context}");
+                    assert_eq!(reader.get_ref().offset, reader.position(), "{context}");
+                }
+                let expected = Error {
+                    kind,
+                    offset: encoding.offset(error),
+                };
+                assert_eq!(collect(&mut reader), Err(expected), "{context}");
+                assert_eq!(reader.position(), encoding.offset(consumed), "{context}");
+                let input = reader.into_inner();
+                assert_eq!(input.offset, encoding.offset(consumed), "{context}");
+            }
+        }
+    }
+}

@@ -16,7 +16,8 @@ enum Status {
 /// Each event can borrow the current token until the next mutable operation.
 /// No input is read at construction, and the caller's buffer is not copied in
 /// full. Event ranges and positions count original source bytes relative to
-/// construction; a text event's terminating `<` is consumed lookahead.
+/// construction; a text event's terminating `<`, or in a DOCTYPE document its
+/// terminating general entity reference `&name;`, is consumed lookahead.
 ///
 /// Read to `Ok(None)` to validate final EOF. Dropping the reader or extracting
 /// its input does not drain or validate the remaining document. XML failures
