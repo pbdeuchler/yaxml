@@ -308,6 +308,10 @@ impl Tokenizer {
     }
 
     fn append(&mut self, byte: u8) -> Result<(), Error> {
+        if self.buffer.len() < self.buffer.capacity() && self.buffer.len() < self.decoded_limit {
+            self.buffer.push(byte);
+            return Ok(());
+        }
         self.append_slice(std::slice::from_ref(&byte))
     }
 
@@ -378,17 +382,24 @@ impl Tokenizer {
                 }
             }
             Scan::Prefix => {
-                if self.buffer == b"<!--" {
-                    self.scan = Scan::Comment { hyphens: 0 };
-                } else if self.buffer == b"<![CDATA[" {
-                    self.scan = Scan::Cdata { brackets: 0 };
-                } else if self.buffer == b"<!DOCTYPE" {
-                    self.mark(TokenKind::Dtd, offset + 1);
-                } else if ![&b"<!--"[..], &b"<![CDATA["[..], &b"<!DOCTYPE"[..]]
-                    .iter()
-                    .any(|prefix| prefix.starts_with(&self.buffer))
-                {
+                // Earlier bytes matched the family that byte 2 selects, so
+                // only the newest byte is compared.
+                let length = self.buffer.len();
+                let family: &[u8] = match self.buffer.get(2) {
+                    Some(b'-') => b"<!--",
+                    Some(b'[') => b"<![CDATA[",
+                    Some(b'D') => b"<!DOCTYPE",
+                    _ => b"",
+                };
+                if length < 3 {
+                } else if family.get(length - 1) != Some(&byte) {
                     self.mark(TokenKind::InvalidMarkup, offset + 1);
+                } else if length == family.len() {
+                    match family[2] {
+                        b'-' => self.scan = Scan::Comment { hyphens: 0 },
+                        b'[' => self.scan = Scan::Cdata { brackets: 0 },
+                        _ => self.mark(TokenKind::Dtd, offset + 1),
+                    }
                 }
             }
             Scan::Tag { .. } => self.tag_byte(byte, offset),
