@@ -41,7 +41,7 @@ fn end(mut b: OwnedBuilder, budget: &mut Budget) -> OwnedDocument {
         budget,
     )
     .unwrap();
-    b.finish(200, None).unwrap()
+    b.finish(200, None, Default::default()).unwrap()
 }
 fn serialized(doc: &OwnedDocument) -> Vec<u8> {
     let mut w = crate::Writer::new(Vec::new());
@@ -61,7 +61,9 @@ fn summary(doc: &OwnedDocument) -> Vec<String> {
                 n.text().unwrap()
             ),
             OwnedNodeKind::Element => format!("E:{}", n.name().unwrap().qualified()),
-            OwnedNodeKind::Document | OwnedNodeKind::DocumentType => panic!("document child"),
+            OwnedNodeKind::Document | OwnedNodeKind::DocumentType | OwnedNodeKind::EntityRef => {
+                panic!("document child")
+            }
         })
         .collect()
 }

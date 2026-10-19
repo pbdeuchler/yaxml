@@ -52,6 +52,30 @@ empty input finalizes, an I/O error is preserved, and a nonempty slice produces
 `InputBytes` without consuming the excess byte. A caught source panic poisons the
 reader. Async adapters remain separate work.
 
+## Options and entity references
+
+`PushParser::with_options` and `BufferedReader::with_options` (like
+`Reader::with_options`) take the [`ParseOptions`](compatibility.md#option-compatibility)
+flags a stream can honor; `DTDVALID`, `NOBLANKS` and `XINCLUDE` need a tree
+and are `UnsupportedOption`. `NOCDATA`, `NSCLEAN` and `IGNORE_ENC` change
+tokens on every surface.
+
+Without `NOENT` a general entity reference in content is reported as
+`Event::EntityStart(name)`, then the replacement text's events, then
+`Event::EntityEnd`; with `NOENT` only the replacement's events appear. This
+is libxml2's SAX `reference` callback plus the content its tree builder
+attaches to the reference node, in one stream. A lone reference event would
+force DOM and reader consumers to parse each entity again, as libxml2 does
+with `xmlCtxtParseEntity`; markers keep one expansion engine, identical
+limits, errors and origins in both modes, and let a consumer that ignores
+the two events see exactly the substituted stream. A reference libxml2 keeps
+without content (an unloaded external entity, or an undeclared one it
+tolerates) is a start directly followed by its end. Both markers carry the
+reference's origin: the `&name;` span, or for a reference inside replacement
+text its replacement range under the outermost reference. They do not count
+toward `max_events`; `max_entity_references` bounds them. `Writer` writes
+nothing for them, so copying events writes the replacement text.
+
 ## Shared semantics and storage
 
 The slice reader and push parser share document phases, name/reference validation,
@@ -100,7 +124,8 @@ logical events agree under sufficient budgets; isolated errors have split-point
 regressions. A truncated token reports final EOF, while an incomplete feed waits.
 
 All APIs process the internal DTD subset and emit one `Doctype` event at its
-end; DTD-free documents stay on the plain token loop. Streaming retains the
+end; DTD-free documents stay on the plain token loop, where options cost a
+flag test per CDATA section, declaration and namespace declaration. Streaming retains the
 declaration text (charged to `max_owned_bytes`) only until that event is
 delivered. Entity expansion resumes across arbitrary chunk splits, so events
 and errors do not depend on chunk boundaries. Complete-input borrowing remains UTF-8-only; push, pull,

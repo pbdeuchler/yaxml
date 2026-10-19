@@ -731,7 +731,7 @@ impl Parser {
             Some((cx, node)) => parser.error(cx, node, code, &message),
             None => parser.drafts.report(None, code, message),
         };
-        let tree = match OwnedDocument::with_limits(bytes, self.limits.xml) {
+        let tree = match OwnedDocument::parse_legacy(bytes, self.limits.xml) {
             Ok(tree) => tree,
             Err(error) => {
                 report(

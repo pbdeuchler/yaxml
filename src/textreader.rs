@@ -4,9 +4,10 @@ use std::collections::VecDeque;
 use std::io::BufRead;
 use std::ops::RangeInclusive;
 
+use crate::options::Flags;
 use crate::{
     BufferedReader, DecodeLimits, Error, ErrorKind, Event, Limit, Limits, Name, OwnedDocument,
-    ReadError, Resolver,
+    ParseOptions, ReadError, ResourceKind,
 };
 
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
@@ -14,9 +15,9 @@ const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const SPARE_NODES: usize = 4;
 
 /// libxml2 `xmlReaderTypes` values for the nodes this reader produces;
-/// `node_type as i32` is the C constant. Entity references, entities,
-/// documents, fragments, notations, insignificant whitespace, entity ends and
-/// XML declarations are never reported (entities are always substituted).
+/// `node_type as i32` is the C constant. Entities, documents, fragments,
+/// notations, insignificant whitespace, entity ends and XML declarations are
+/// never reported; entity references are, unless `NOENT` substitutes them.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum NodeType {
@@ -25,6 +26,8 @@ pub enum NodeType {
     Attribute = 2,
     Text = 3,
     Cdata = 4,
+    /// A kept entity reference (no `NOENT`); its content is not visited.
+    EntityReference = 5,
     ProcessingInstruction = 7,
     Comment = 8,
     DocumentType = 10,
@@ -47,13 +50,13 @@ pub enum ReadState {
 /// libxml2 `xmlParserProperties` values; `as i32` is the C constant.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParserProperty {
-    /// Load the external subset: true exactly when a resolver was supplied.
+    /// Load the external subset: a resolver was supplied and the options load it.
     LoadDtd = 1,
-    /// Insert DTD default attributes: always true.
+    /// Insert DTD default attributes: `DTDATTR`.
     DefaultAttributes = 2,
     /// DTD validation: not implemented, always false.
     Validate = 3,
-    /// Substitute entity references: always true.
+    /// Substitute entity references: `NOENT`.
     SubstituteEntities = 4,
 }
 
@@ -86,6 +89,7 @@ enum Kind {
     Comment,
     Pi,
     Doctype,
+    EntityRef,
 }
 
 /// One logical node with its strings in a reusable pool. Namespace
@@ -204,6 +208,14 @@ impl Node {
                 self.value = self.push(data);
                 Kind::Pi
             }
+            Event::EntityStart(name) => {
+                self.name = QName {
+                    qualified: self.push(name),
+                    ..QName::default()
+                };
+                Kind::EntityRef
+            }
+            Event::EntityEnd => return false,
         };
         true
     }
@@ -282,10 +294,11 @@ impl Scope {
 /// Node types, names, values, depths and attribute order follow libxml2:
 /// namespace declarations are attributes listed before ordinary ones, an
 /// empty element (`<a/>`) has no `EndElement`, adjacent text (including
-/// entity replacement text) is one node, and the XML declaration and
-/// whitespace outside the root are not reported. Entities are substituted
-/// and DTD default attributes inserted, as `XML_PARSE_NOENT |
-/// XML_PARSE_DTDATTR`. String getters borrow the reader until it moves.
+/// substituted replacement text) is one node, and the XML declaration and
+/// whitespace outside the root are not reported. Without options an entity
+/// reference is an `EntityReference` node and no DTD defaults are added;
+/// see [`with_options`](Self::with_options). String getters borrow the reader
+/// until it moves.
 ///
 /// Memory is that of the [`BufferedReader`] plus one node of lookahead,
 /// except that [`expand`](Self::expand) and the `read_*` methods buffer the
@@ -308,6 +321,7 @@ pub struct TextReader<R: BufRead> {
     limits: Limits,
     url: Option<String>,
     resolver: bool,
+    flags: Flags,
     state: ReadState,
     /// The current node first, then lookahead and buffered subtree nodes.
     queue: VecDeque<Node>,
@@ -330,11 +344,25 @@ impl<R: BufRead> TextReader<R> {
     }
 
     pub fn with_decode_limits(input: R, limits: Limits, decode_limits: DecodeLimits) -> Self {
-        Self {
-            source: BufferedReader::with_decode_limits(input, limits, decode_limits),
+        let options = ParseOptions::default().with_limits(limits);
+        Self::with_options(input, options.with_decode_limits(decode_limits))
+            .expect("convenience flags are supported")
+    }
+
+    /// A reader with libxml2 parser options, like `xmlReaderForMemory`'s
+    /// `options`; see [`crate::options`]. `base` is the document URI.
+    /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
+    pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
+        let flags = options.check(false, 0)?;
+        let (limits, _) = options.effective_limits();
+        let url = options.base.clone();
+        let resolver = options.resolver.is_some();
+        Ok(Self {
+            source: BufferedReader::with_options(input, options)?,
             limits,
-            url: None,
-            resolver: false,
+            url,
+            resolver,
+            flags,
             state: ReadState::Initial,
             queue: VecDeque::new(),
             spare: Vec::new(),
@@ -342,26 +370,7 @@ impl<R: BufRead> TextReader<R> {
             pending: None,
             attribute: None,
             scope: Scope::default(),
-        }
-    }
-
-    /// Loads the external subset and external entities through `resolver`;
-    /// `base` is also the document URI reported by [`base_uri`](Self::base_uri).
-    pub fn with_resolver(self, base: &str, resolver: Box<dyn Resolver>) -> Self {
-        Self {
-            source: self.source.with_resolver(base, resolver),
-            url: Some(base.to_owned()),
-            resolver: true,
-            ..self
-        }
-    }
-
-    /// Sets the document URI, like the `URL` argument of `xmlReaderForMemory`.
-    pub fn with_base_uri(self, base: &str) -> Self {
-        Self {
-            url: Some(base.to_owned()),
-            ..self
-        }
+        })
     }
 
     /// `xmlTextReaderRead`: moves to the next node in document order.
@@ -472,8 +481,47 @@ impl<R: BufRead> TextReader<R> {
                 continue;
             }
             self.buffered += node.text.len() - before;
+            if node.kind == Kind::EntityRef {
+                self.skip_entity()?;
+            }
             return Ok(true);
         }
+    }
+
+    /// Skips an entity reference's replacement events, which libxml2's reader
+    /// does not visit without `NOENT`, keeping them serialized as the node's
+    /// value for [`expand`](Self::expand).
+    fn skip_entity(&mut self) -> Result<(), ReadError> {
+        let node = self.queue.back_mut().expect("entity reference node");
+        let start = node.text.len();
+        let mut depth = 0_usize;
+        let result = loop {
+            let event = match self.source.read_event() {
+                Ok(Some((event, _))) => event,
+                Ok(None) => {
+                    let position = self.source.position();
+                    break Err(ReadError::Xml(Error::new(
+                        ErrorKind::InvalidState,
+                        position,
+                    )));
+                }
+                Err(error) => break Err(error),
+            };
+            match event {
+                Event::EntityStart(_) => depth += 1,
+                Event::EntityEnd if depth == 0 => break Ok(()),
+                Event::EntityEnd => depth -= 1,
+                event => write_event(&mut node.text, &event),
+            }
+        };
+        match result {
+            Ok(()) => {
+                node.value = (start, node.text.len());
+                self.buffered += node.text.len() - start;
+            }
+            Err(_) => node.text.truncate(start),
+        }
+        result
     }
 
     fn failure(&mut self) -> ReadError {
@@ -556,7 +604,7 @@ impl<R: BufRead> TextReader<R> {
                 _ => {}
             }
             if depth == 0 {
-                self.dump(start..=index, &mut out);
+                self.dump(start..=index, false, &mut out);
                 start = index + 1;
             }
         }
@@ -566,12 +614,18 @@ impl<R: BufRead> TextReader<R> {
     /// `xmlTextReaderReadOuterXml`: the current node and its subtree, with the
     /// ancestor namespace declarations it uses added to its start tag.
     pub fn read_outer_xml(&mut self) -> Result<Option<String>, ReadError> {
+        self.outer_xml(false)
+    }
+
+    /// The outer XML, with entity references written as their content when
+    /// `expanded`.
+    fn outer_xml(&mut self, expanded: bool) -> Result<Option<String>, ReadError> {
         let end = self.subtree_end()?;
         if !self.serializable() {
             return Ok(None);
         }
         let mut out = String::new();
-        self.dump(0..=end, &mut out);
+        self.dump(0..=end, expanded, &mut out);
         Ok(Some(out))
     }
 
@@ -583,8 +637,8 @@ impl<R: BufRead> TextReader<R> {
         if self.element().is_none() {
             return Ok(None);
         }
-        let xml = self.read_outer_xml()?.expect("element serializes");
-        OwnedDocument::with_limits(xml.as_bytes(), self.limits)
+        let xml = self.outer_xml(true)?.expect("element serializes");
+        OwnedDocument::parse_legacy(xml.as_bytes(), self.limits)
             .map(Some)
             .map_err(ReadError::Xml)
     }
@@ -596,7 +650,7 @@ impl<R: BufRead> TextReader<R> {
 
     /// `xmlNodeDump` of a copy of one queued subtree: namespaces it uses but
     /// does not declare are added to its root in first-use order.
-    fn dump(&self, nodes: RangeInclusive<usize>, out: &mut String) {
+    fn dump(&self, nodes: RangeInclusive<usize>, expanded: bool, out: &mut String) {
         let (mut added, mut declared, mut marks) = (Vec::new(), Vec::new(), Vec::new());
         for node in self.queue.range(nodes.clone()) {
             match node.kind {
@@ -691,6 +745,12 @@ impl<R: BufRead> TextReader<R> {
                     out.push_str("?>");
                 }
                 Kind::Doctype => {}
+                Kind::EntityRef if expanded => out.push_str(node.get(node.value)),
+                Kind::EntityRef => {
+                    out.push('&');
+                    out.push_str(node.qualified(node.name));
+                    out.push(';');
+                }
             }
             open = node.kind == Kind::Element;
         }
@@ -734,6 +794,7 @@ impl<R: BufRead> TextReader<R> {
             Kind::Comment => NodeType::Comment,
             Kind::Pi => NodeType::ProcessingInstruction,
             Kind::Doctype => NodeType::DocumentType,
+            Kind::EntityRef => NodeType::EntityReference,
         }
     }
 
@@ -968,15 +1029,16 @@ impl<R: BufRead> TextReader<R> {
     /// `xmlTextReaderGetParserProp`.
     pub fn parser_property(&self, property: ParserProperty) -> bool {
         match property {
-            ParserProperty::LoadDtd => self.resolver,
-            ParserProperty::DefaultAttributes | ParserProperty::SubstituteEntities => true,
+            ParserProperty::LoadDtd => self.resolver && self.flags.loads(ResourceKind::DtdSubset),
+            ParserProperty::DefaultAttributes => self.flags.default_attributes(),
+            ParserProperty::SubstituteEntities => self.flags.substitutes(),
             ParserProperty::Validate => false,
         }
     }
 
-    /// `xmlTextReaderSetParserProp`. Only the fixed behavior is accepted:
-    /// loading the external subset requires [`with_resolver`](Self::with_resolver),
-    /// and validation and unsubstituted entities return `UnsupportedOption`.
+    /// `xmlTextReaderSetParserProp`. Properties are fixed by the options at
+    /// construction ([`with_options`](Self::with_options)); setting another
+    /// value returns `UnsupportedOption`.
     pub fn set_parser_property(
         &mut self,
         property: ParserProperty,
@@ -990,6 +1052,48 @@ impl<R: BufRead> TextReader<R> {
                 self.source.position(),
             ))
         }
+    }
+}
+
+/// Serializes one replacement-text event of a skipped entity reference.
+fn write_event(out: &mut String, event: &Event<'_>) {
+    match event {
+        Event::Start(element) | Event::Empty(element) => {
+            out.push('<');
+            out.push_str(element.name.qualified());
+            for attribute in element.attributes.iter() {
+                write_attribute(out, None, attribute.name.qualified(), &attribute.value);
+            }
+            out.push_str(if matches!(event, Event::Empty(_)) {
+                "/>"
+            } else {
+                ">"
+            });
+        }
+        Event::End(name) => {
+            out.push_str("</");
+            out.push_str(name.qualified());
+            out.push('>');
+        }
+        Event::Text(text) => escape(out, text, false),
+        Event::Cdata(text) => {
+            out.push_str("<![CDATA[");
+            out.push_str(text);
+            out.push_str("]]>");
+        }
+        Event::Comment(text) => {
+            out.push_str("<!--");
+            out.push_str(text);
+            out.push_str("-->");
+        }
+        Event::ProcessingInstruction { target, data } => {
+            out.push_str("<?");
+            out.push_str(target);
+            out.push(' ');
+            out.push_str(data);
+            out.push_str("?>");
+        }
+        _ => {}
     }
 }
 

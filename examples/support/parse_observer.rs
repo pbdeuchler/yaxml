@@ -43,7 +43,10 @@ impl Observer {
 
     pub(crate) fn event(&mut self, event: Event<'_>) {
         match event {
-            Event::Declaration(_) | Event::Doctype(_) => {}
+            Event::Declaration(_)
+            | Event::Doctype(_)
+            | Event::EntityStart(_)
+            | Event::EntityEnd => {}
             Event::Start(element) => self.event_start(&element),
             Event::Empty(element) => {
                 self.event_start(&element);
@@ -224,7 +227,7 @@ fn borrowed_leaf(observer: &mut Observer, node: Node<'_, '_>) -> Result<(), Stri
         NodeKind::Text(value) | NodeKind::Cdata(value) => observer.text(value),
         NodeKind::Comment(value) => observer.comment(value),
         NodeKind::ProcessingInstruction { target, data } => observer.pi(target, data),
-        NodeKind::Doctype(_) => {}
+        NodeKind::Doctype(_) | NodeKind::EntityRef(_) => {}
         NodeKind::Document => return Err("document node appears below the synthetic root".into()),
         NodeKind::Element(_) => return Err("element reached the DOM leaf observer".into()),
     }

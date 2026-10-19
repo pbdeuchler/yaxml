@@ -7,7 +7,7 @@ use std::ops::ControlFlow;
 
 use yaxml::{
     BufferedReader, Doctype, Document, Error, ErrorKind, Event, Limit, Limits, NodeKind,
-    OwnedDocument, OwnedNode, OwnedNodeKind, PushParser, ReadError, Reader, Writer,
+    OwnedDocument, OwnedNode, OwnedNodeKind, ParseOptions, PushParser, ReadError, Reader, Writer,
 };
 
 /// A compact, coalesced rendering shared by every surface.
@@ -20,7 +20,7 @@ fn label(event: &Event<'_>, out: &mut Vec<String>) {
             .collect::<String>()
     };
     let item = match event {
-        Event::Declaration(_) => return,
+        Event::Declaration(_) | Event::EntityStart(_) | Event::EntityEnd => return,
         Event::Doctype(d) => doctype(d),
         Event::Start(e) => format!("<{}{}>", e.name.qualified(), attributes(e)),
         Event::Empty(e) => format!("<{}{}/>", e.name.qualified(), attributes(e)),
@@ -40,6 +40,11 @@ fn label(event: &Event<'_>, out: &mut Vec<String>) {
     out.push(item);
 }
 
+/// These checks pin the substituting behavior: `NOENT | DTDATTR`.
+fn legacy(limits: Limits) -> ParseOptions {
+    ParseOptions::new(yaxml::options::LEGACY).with_limits(limits)
+}
+
 fn doctype(d: &Doctype<'_>) -> String {
     format!(
         "doctype:{}:{:?}:{:?}:{:?}",
@@ -48,7 +53,7 @@ fn doctype(d: &Doctype<'_>) -> String {
 }
 
 fn reader(input: &[u8], limits: Limits) -> Result<Vec<String>, Error> {
-    let mut reader = Reader::with_limits(input, limits)?;
+    let mut reader = Reader::with_options(input, legacy(limits))?;
     let mut out = Vec::new();
     while let Some(event) = reader.read_event()? {
         label(&event, &mut out);
@@ -57,7 +62,7 @@ fn reader(input: &[u8], limits: Limits) -> Result<Vec<String>, Error> {
 }
 
 fn push(input: &[u8], chunks: &[usize], limits: Limits) -> Result<Vec<String>, Error> {
-    let mut parser = PushParser::with_limits(limits);
+    let mut parser = PushParser::with_options(legacy(limits))?;
     let mut out = Vec::new();
     let mut rest = input;
     for &size in chunks.iter().chain(std::iter::repeat(&usize::MAX)) {
@@ -79,10 +84,10 @@ fn push(input: &[u8], chunks: &[usize], limits: Limits) -> Result<Vec<String>, E
 }
 
 fn buffered(input: &[u8], capacity: usize, limits: Limits) -> Result<Vec<String>, Error> {
-    let mut reader = BufferedReader::with_limits(
+    let mut reader = BufferedReader::with_options(
         BufReader::with_capacity(capacity, Cursor::new(input)),
-        limits,
-    );
+        legacy(limits),
+    )?;
     let mut out = Vec::new();
     loop {
         match reader.read_event() {
@@ -95,7 +100,7 @@ fn buffered(input: &[u8], capacity: usize, limits: Limits) -> Result<Vec<String>
 }
 
 fn borrowed_tree(input: &[u8], limits: Limits) -> Result<Vec<String>, Error> {
-    let document = Document::with_limits(input, limits)?;
+    let document = Document::parse_with(input, legacy(limits))?;
     let mut out = Vec::new();
     fn walk(node: yaxml::Node<'_, '_>, out: &mut Vec<String>) {
         for child in node.children() {
@@ -119,6 +124,8 @@ fn borrowed_tree(input: &[u8], limits: Limits) -> Result<Vec<String>, Error> {
                         out,
                     );
                 }
+                // Entity references are transparent in this coalesced rendering.
+                NodeKind::EntityRef(_) => walk(child, out),
                 NodeKind::Document => unreachable!(),
             }
         }
@@ -148,7 +155,7 @@ fn clone<'a>(element: &'a yaxml::Element<'_>) -> yaxml::Element<'a> {
 }
 
 fn owned_tree(input: &[u8], limits: Limits) -> Result<Vec<String>, Error> {
-    let document = OwnedDocument::with_limits(input, limits)?;
+    let document = OwnedDocument::parse_with(input, legacy(limits))?;
     let mut out = Vec::new();
     fn walk(node: OwnedNode<'_>, out: &mut Vec<String>) {
         for child in node.children() {
@@ -555,13 +562,24 @@ fn doctype_origins_cover_the_declaration_and_entity_events_name_their_reference(
     ));
     assert_eq!(reader.event_range(), Some(0..30));
     reader.read_event().unwrap();
+    // Without NOENT the reference itself is an event spanning `&e;`.
+    assert_eq!(
+        reader.read_event().unwrap(),
+        Some(Event::EntityStart("e".into()))
+    );
+    assert_eq!(reader.event_range(), Some(33..36));
     assert_eq!(reader.read_event().unwrap(), Some(Event::Text("x".into())));
     let origin = reader.event_origin().unwrap();
     assert_eq!(origin.input_range(), None);
     assert_eq!(origin.replacement_range(), Some(0..1));
     assert_eq!(origin.physical_context(), 33..36);
+    assert_eq!(reader.read_event().unwrap(), Some(Event::EntityEnd));
+    assert_eq!(reader.event_range(), Some(33..36));
     let document = Document::parse_bytes(input).unwrap();
-    let text = document.root_element().first_child().unwrap();
+    let reference = document.root_element().first_child().unwrap();
+    assert_eq!(reference.entity_name(), Some("e"));
+    assert_eq!(reference.range(), Some(33..36));
+    let text = reference.first_child().unwrap();
     assert_eq!(text.range(), None);
     assert_eq!(text.origin().physical_context(), 33..36);
 }
@@ -651,16 +669,23 @@ fn writer_emits_valid_doctypes_and_rejects_invalid_ones() {
 fn serializers_round_trip_doctypes_with_expanded_content() {
     let input = "<!DOCTYPE r [<!ENTITY e '<n/>&#38;amp;'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
     let expected = "<!DOCTYPE r [<!ENTITY e '<n/>&#38;amp;'><!ATTLIST r a CDATA 'd'>]><r a=\"d\"><n/>&amp;</r>";
+    let options = || legacy(Limits::default());
+    let mut writer = Writer::new(Vec::new());
+    writer
+        .write_document(&Document::parse_with(input.as_bytes(), options()).unwrap())
+        .unwrap();
+    assert_eq!(String::from_utf8(writer.into_inner()).unwrap(), expected);
+    let mut writer = Writer::new(Vec::new());
+    let owned = OwnedDocument::parse_with(input.as_bytes(), options()).unwrap();
+    writer.write_owned_document(&owned).unwrap();
+    assert_eq!(String::from_utf8(writer.into_inner()).unwrap(), expected);
+    // Kept references are written as their content; defaults need DTDATTR.
     let mut writer = Writer::new(Vec::new());
     writer
         .write_document(&Document::parse(input).unwrap())
         .unwrap();
-    assert_eq!(String::from_utf8(writer.into_inner()).unwrap(), expected);
-    let mut writer = Writer::new(Vec::new());
-    writer
-        .write_owned_document(&OwnedDocument::parse(input).unwrap())
-        .unwrap();
-    assert_eq!(String::from_utf8(writer.into_inner()).unwrap(), expected);
+    let kept = expected.replace(" a=\"d\"", "");
+    assert_eq!(String::from_utf8(writer.into_inner()).unwrap(), kept);
     assert_eq!(ok(expected), ok(input));
 }
 
@@ -707,6 +732,9 @@ fn oracle_xmllint_agrees_on_acceptance_and_serialized_root() {
 /// Writes only the document element, as `xmllint --dropdtd` prints it.
 fn write_element(writer: &mut Writer<Vec<u8>>, node: yaxml::Node<'_, '_>) {
     match node.kind() {
+        NodeKind::EntityRef(_) => node
+            .children()
+            .for_each(|child| write_element(writer, child)),
         NodeKind::Element(element) if node.first_child().is_some() => {
             writer.write_event(&Event::Start(clone(element))).unwrap();
             for child in node.children() {

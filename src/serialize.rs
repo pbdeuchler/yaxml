@@ -71,13 +71,13 @@ fn write<W: Write>(
                 current = Some(sibling);
                 break;
             }
-            let Some(parent) = node.parent() else {
+            let Some(parent) = node.parent().filter(|parent| !parent.is_document()) else {
                 return Ok(());
             };
-            let Some(name) = parent.name() else {
-                return Ok(());
-            };
-            writer.write_event_inner(&Event::End(name))?;
+            // An entity reference ends without output.
+            if let Some(name) = parent.name() {
+                writer.write_event_inner(&Event::End(name))?;
+            }
             node = parent;
         }
     }

@@ -2,6 +2,7 @@
 //! how they update the options.
 
 use yaxml::c14n::Mode;
+use yaxml::options;
 
 pub const UNCLASS: i32 = 1;
 pub const DTD: i32 = 2;
@@ -30,8 +31,9 @@ pub struct Opts {
     pub postvalid: bool,
     pub xinclude: bool,
     pub nofixup_base: bool,
-    /// `--loaddtd`, `--dtdattr` and `--noent`: external subsets and entities load.
-    pub load: bool,
+    /// Parser options set directly: `--loaddtd`, `--dtdattr`, `--noent`,
+    /// `--nocdata`, `--nsclean`, `--noenc`.
+    pub flags: u32,
     pub catalogs: bool,
     pub huge: bool,
     pub html_flags: u32,
@@ -47,6 +49,15 @@ pub struct Opts {
     pub maxmem: Option<usize>,
     pub max_ampl: Option<usize>,
     pub files: Vec<String>,
+}
+
+impl Opts {
+    fn with(self, flag: u32) -> Self {
+        Self {
+            flags: self.flags | flag,
+            ..self
+        }
+    }
 }
 
 type Set = fn(Opts, &str) -> Opts;
@@ -95,9 +106,12 @@ const TABLE: &[Spec] = &[
         nofixup_base: true,
         ..o
     }),
-    flag("loaddtd", |o, _| Opts { load: true, ..o }),
-    flag("dtdattr", |o, _| Opts { load: true, ..o }),
-    flag("noent", |o, _| Opts { load: true, ..o }),
+    flag("loaddtd", |o, _| o.with(options::DTDLOAD)),
+    flag("dtdattr", |o, _| o.with(options::DTDATTR)),
+    flag("noent", |o, _| o.with(options::NOENT)),
+    flag("nocdata", |o, _| o.with(options::NOCDATA)),
+    flag("nsclean", |o, _| o.with(options::NSCLEAN)),
+    flag("noenc", |o, _| o.with(options::IGNORE_ENC)),
     flag("catalogs", |o, _| Opts {
         catalogs: true,
         ..o
@@ -188,7 +202,6 @@ const NO_OPS: &[&str] = &[
     "push",
     "memory",
     "repeat",
-    "noenc",
     "oldxml10",
     "strict-namespace",
     "load-trace",
@@ -200,8 +213,6 @@ const UNSUPPORTED: &[&str] = &[
     "shell",
     "copy",
     "recover",
-    "nocdata",
-    "nsclean",
     "sax",
     "sax1",
     "insert",

@@ -10,12 +10,13 @@ use std::marker::PhantomData;
 #[cfg(test)]
 use std::rc::Rc;
 
+use crate::options::Flags;
 use crate::parser::Budget;
 use crate::{
     Attribute, Declaration, Doctype, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
     SourceOrigin,
 };
-use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
+use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, ParseOptions, PushParser};
 use crate::{EditComponent, EditLocation};
 
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
@@ -174,6 +175,9 @@ pub enum OwnedNodeKind {
     Cdata,
     Comment,
     ProcessingInstruction,
+    /// A kept general entity reference (`XML_ENTITY_REF_NODE`); its children
+    /// are the replacement text's nodes.
+    EntityRef,
 }
 
 #[derive(Debug)]
@@ -191,6 +195,7 @@ enum Content {
         target: Range<usize>,
         data: Range<usize>,
     },
+    EntityRef(Range<usize>),
     Removed,
 }
 
@@ -459,6 +464,8 @@ pub struct OwnedDocument {
     /// `(element, attribute index)` of parsed ID-typed attributes, in document order.
     ids: Vec<(OwnedNodeId, usize)>,
     dtd: Option<Box<crate::valid::Dtd>>,
+    /// Diagnostics of `DTDVALID` validation after parsing.
+    validity: Vec<crate::valid::Diagnostic<OwnedNodeId>>,
 }
 
 impl OwnedDocument {
@@ -527,59 +534,75 @@ impl OwnedDocument {
         limits: Limits,
         decode: DecodeLimits,
     ) -> Result<Self, Error> {
-        Self::parse_with(input, limits, decode, None)
+        let options = ParseOptions::default().with_limits(limits);
+        Self::parse_with(input, options.with_decode_limits(decode))
     }
 
-    /// Parses with a resolver for the external subset and external entities;
-    /// `base` is the document's URI or path. See [`Reader::with_resolver`].
-    pub fn with_resolver(
-        input: &[u8],
-        limits: Limits,
-        base: &str,
-        resolver: Box<dyn crate::Resolver>,
-    ) -> Result<Self, Error> {
-        Self::parse_with(
-            input,
-            limits,
-            DecodeLimits::default(),
-            Some((base, resolver)),
-        )
+    /// The substituting parse (`NOENT | DTDATTR`) used for schema, catalog
+    /// and expanded reader documents.
+    pub(crate) fn parse_legacy(input: &[u8], limits: Limits) -> Result<Self, Error> {
+        let options = ParseOptions::new(crate::options::LEGACY).with_limits(limits);
+        Self::parse_with(input, options)
     }
 
-    fn parse_with(
-        input: &[u8],
-        limits: Limits,
-        decode: DecodeLimits,
-        resolver: Option<(&str, Box<dyn crate::Resolver>)>,
-    ) -> Result<Self, Error> {
+    /// Parses with libxml2 parser options; see [`crate::options`]. With
+    /// `XINCLUDE` the result is [`xinclude::process`](crate::xinclude::process)ed
+    /// through the same resolver; its failures are `ErrorKind::XInclude`.
+    pub fn parse_with(input: &[u8], mut options: ParseOptions) -> Result<Self, Error> {
+        let flags = options.check(true, 0)?;
+        let (limits, decode) = options.effective_limits();
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
-        let mut builder = OwnedBuilder::new(input.len())?;
-
-        if crate::encoding::needs_decoding(input) {
-            let mut parser = PushParser::with_decode_limits(limits, decode);
-            if let Some((base, resolver)) = resolver {
-                parser = parser.with_resolver(base, resolver);
+        let base = options.base.clone().unwrap_or_default();
+        let include = match (flags.includes(), options.resolver.take()) {
+            (true, Some(resolver)) => {
+                let share = crate::resolve::share(resolver);
+                options.resolver = Some(share());
+                Some(share())
             }
+            (true, None) => Some(Box::new(|_: crate::Request<'_>| Ok(None)) as Box<_>),
+            (false, resolver) => {
+                options.resolver = resolver;
+                None
+            }
+        };
+        let mut builder = OwnedBuilder::new(input.len())?;
+        let mut document = if crate::encoding::needs_decoding(input) {
+            let mut parser = PushParser::configured(limits, decode, flags, options);
             parser.feed_with(input, |event, origin, budget| {
                 builder.consume(event, origin, budget)
             })?;
             parser.finish_with(|event, origin, budget| builder.consume(event, origin, budget))?;
-            builder.finish(parser.position(), parser.catalog())
+            builder.finish(parser.position(), parser.catalog(), flags)?
         } else {
-            let mut reader = Reader::with_decode_limits(input, limits, decode)?;
-            if let Some((base, resolver)) = resolver {
-                reader = reader.with_resolver(base, resolver);
-            }
+            let mut reader = Reader::configured(input, limits, decode, flags, options)?;
             while let Some(event) = reader.read_event()? {
                 let origin = reader
                     .event_origin()
                     .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
                 builder.consume(event, origin, reader.owned_budget())?;
             }
-            builder.finish(reader.position(), reader.catalog())
+            builder.finish(reader.position(), reader.catalog(), flags)?
+        };
+        if let Some(resolver) = include {
+            let options = crate::xinclude::Options {
+                base_fixup: flags.fixes_base(),
+                limits,
+                parse_flags: flags.0,
+                ..Default::default()
+            };
+            document = crate::xinclude::process(&document, &base, resolver, &options).map_err(
+                |error| match error.kind {
+                    crate::xinclude::ErrorKind::Xml(error) => error,
+                    _ => Error::new(ErrorKind::XInclude, error.offset.unwrap_or(0)),
+                },
+            )?;
         }
+        if flags.validates() {
+            document.validity = document.validate();
+        }
+        Ok(document)
     }
 
     /// The element whose `xml:id` or DTD-declared `ID` attribute has this
@@ -591,6 +614,11 @@ impl OwnedDocument {
     /// The declarations of the internal and loaded external subsets.
     pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
         self.dtd.as_deref()
+    }
+
+    /// Validity diagnostics found by `DTDVALID` after parsing; empty without it.
+    pub fn validity(&self) -> &[crate::valid::Diagnostic<OwnedNodeId>] {
+        &self.validity
     }
 
     /// Checks the current tree against its DTD, as libxml2's `xmlValidateDocument`.
@@ -1157,7 +1185,8 @@ impl Editor<'_> {
             Content::Removed
             | Content::Document
             | Content::DocumentType(_)
-            | Content::Element { .. } => {
+            | Content::Element { .. }
+            | Content::EntityRef(_) => {
                 return Err(EditError::new(EditErrorKind::WrongNodeKind, None));
             }
         };
@@ -1308,7 +1337,7 @@ impl OwnedBuilder {
         origin: SourceOrigin,
         budget: &mut Budget,
     ) -> Result<(), Error> {
-        let starts = matches!(&event, Event::Start(_));
+        let starts = matches!(&event, Event::Start(_) | Event::EntityStart(_));
 
         let offset = origin.error_offset();
         let parent = self.parents.last().copied().unwrap_or(NodeId(0));
@@ -1325,6 +1354,14 @@ impl OwnedBuilder {
                     offset,
                     budget,
                 )?);
+                return Ok(());
+            }
+            Event::EntityEnd => {
+                let id = self
+                    .parents
+                    .pop()
+                    .ok_or_else(|| Error::new(ErrorKind::InvalidState, offset))?;
+                self.nodes[id.0].subtree_size = self.nodes.len() - id.0;
                 return Ok(());
             }
             Event::End(_) => {
@@ -1353,16 +1390,15 @@ impl OwnedBuilder {
             }
         };
         let id = append_record(&mut self.nodes, parent, content, Some(origin), offset)?;
-        if matches!(self.nodes[id.0].content, Content::Element { .. }) {
-            if parent == NodeId(0) {
-                self.root_element = id;
-            }
-            if starts {
-                self.parents
-                    .try_reserve(1)
-                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                self.parents.push(id);
-            }
+        let element = matches!(self.nodes[id.0].content, Content::Element { .. });
+        if element && parent == NodeId(0) {
+            self.root_element = id;
+        }
+        if starts {
+            self.parents
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+            self.parents.push(id);
         }
         Ok(())
     }
@@ -1411,14 +1447,18 @@ impl OwnedBuilder {
         mut self,
         position: usize,
         catalog: Option<&crate::dtd_catalog::DtdCatalog>,
+        flags: Flags,
     ) -> Result<OwnedDocument, Error> {
         let xml_ids = std::mem::take(&mut self.xml_ids);
         let document = self.finish_with_counter(position, &LAST_DOCUMENT_ID)?;
         let dtd = catalog.map(|catalog| Box::new(catalog.dtd().clone()));
+        let mut document = OwnedDocument { dtd, ..document };
         // Without DTD-declared ID attributes, the `xml:id`s noted while
         // building are exactly what a full traversal would find.
-        let ids = if crate::xpath::tree::declares_ids(dtd.as_deref()) {
-            crate::xpath::tree::find_ids(&document, dtd.as_deref())
+        document.ids = if !flags.records_ids() {
+            Vec::new()
+        } else if crate::xpath::tree::declares_ids(document.dtd()) {
+            crate::xpath::tree::find_ids(&document, document.dtd())
         } else {
             let document = document.identity;
             xml_ids
@@ -1426,11 +1466,15 @@ impl OwnedBuilder {
                 .map(|(slot, index)| (OwnedNodeId { document, slot }, index))
                 .collect()
         };
-        Ok(OwnedDocument {
-            ids,
-            dtd,
-            ..document
-        })
+        if flags.drops_blanks() {
+            let blanks = crate::xpath::tree::blanks(&document);
+            let failed = |_| Error::new(ErrorKind::InvalidState, position);
+            let mut editor = document.edit(EditLimits::default()).map_err(failed)?;
+            for blank in blanks {
+                editor.remove_subtree(blank).map_err(failed)?;
+            }
+        }
+        Ok(document)
     }
 
     fn finish_with_counter(
@@ -1456,6 +1500,7 @@ impl OwnedBuilder {
             html: None,
             ids: Vec::new(),
             dtd: None,
+            validity: Vec::new(),
         })
     }
 }
@@ -1522,7 +1567,8 @@ fn store_content(
             target: pool.store(&target, offset, budget)?,
             data: pool.store(&data, offset, budget)?,
         },
-        Event::Declaration(_) | Event::End(_) => {
+        Event::EntityStart(name) => Content::EntityRef(pool.store(&name, offset, budget)?),
+        Event::Declaration(_) | Event::End(_) | Event::EntityEnd => {
             return Err(Error::new(ErrorKind::InvalidState, offset));
         }
     })
@@ -1867,6 +1913,7 @@ impl HtmlBuilder {
             })),
             ids: Vec::new(),
             dtd: None,
+            validity: Vec::new(),
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document
@@ -1924,6 +1971,7 @@ impl<'document> OwnedNode<'document> {
             Content::Cdata(_) => OwnedNodeKind::Cdata,
             Content::Comment(_) => OwnedNodeKind::Comment,
             Content::ProcessingInstruction { .. } => OwnedNodeKind::ProcessingInstruction,
+            Content::EntityRef(_) => OwnedNodeKind::EntityRef,
         }
     }
 
@@ -1980,6 +2028,14 @@ impl<'document> OwnedNode<'document> {
                 _ => None,
             });
         self.text().into_iter().chain(descendants)
+    }
+
+    /// The entity an entity-reference node names, or `None` for other kinds.
+    pub fn entity_name(self) -> Option<&'document str> {
+        match &self.record().content {
+            Content::EntityRef(name) => Some(&self.document.pool.0[name.clone()]),
+            _ => None,
+        }
     }
 
     /// Returns a document type node's declaration.

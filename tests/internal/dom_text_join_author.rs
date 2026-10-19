@@ -9,6 +9,7 @@ fn empty_document() -> Document<'static> {
         declaration: None,
         ids: Vec::new(),
         dtd: None,
+        validity: Vec::new(),
     }
 }
 

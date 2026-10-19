@@ -1,8 +1,11 @@
 use std::ops::{ControlFlow, Range};
 
+use crate::options::Flags;
 use crate::parser::Budget;
 use crate::stream::dtd::StreamingSession;
-use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, SourceOrigin};
+use crate::{
+    DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ParseOptions, ReadError, SourceOrigin,
+};
 
 /// Incremental XML 1.0 parsing with a bounded scratch token and no retained input.
 ///
@@ -43,20 +46,37 @@ impl PushParser {
 
     /// Parses UTF-8 or UTF-16 with independent source and decoded ceilings.
     pub fn with_decode_limits(limits: Limits, decode_limits: DecodeLimits) -> Self {
+        let options = ParseOptions::default().with_limits(limits);
+        Self::with_options(options.with_decode_limits(decode_limits))
+            .expect("convenience flags are supported")
+    }
+
+    /// A parser with libxml2 parser options; see [`crate::options`]. Tree-only
+    /// flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
+    pub fn with_options(options: ParseOptions) -> Result<Self, Error> {
+        let flags = options.check(false, 0)?;
+        let (limits, decode) = options.effective_limits();
+        Ok(Self::configured(limits, decode, flags, options))
+    }
+
+    /// A parser for already checked flags and effective limits.
+    pub(crate) fn configured(
+        limits: Limits,
+        decode: DecodeLimits,
+        flags: Flags,
+        options: ParseOptions,
+    ) -> Self {
+        let mut session = StreamingSession::new(limits, decode, flags);
+        if let Some(resolver) = options.resolver {
+            session.set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
+        }
         Self {
-            session: StreamingSession::new(limits, decode_limits),
+            session,
             limits,
             received: 0,
             failure: None,
             finished: false,
         }
-    }
-
-    /// Loads the external subset and external parsed entities through
-    /// `resolver`; `base` is the document's URI or path for relative system IDs.
-    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn crate::Resolver>) -> Self {
-        self.session.set_resolver(base, resolver);
-        self
     }
 
     pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {

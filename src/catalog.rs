@@ -19,7 +19,9 @@
 //! };
 //! let resolver = CatalogResolver::new(catalog, Box::new(dtd));
 //! let input = b"<!DOCTYPE r PUBLIC '-//EX//DTD R//EN' 'http://example.com/r.dtd'><r>&e;</r>";
-//! let document = yaxml::Document::with_resolver(input, Default::default(), "doc.xml", Box::new(resolver))?;
+//! use yaxml::options::{DTDLOAD, NOENT};
+//! let options = yaxml::ParseOptions::new(DTDLOAD | NOENT).with_resolver("doc.xml", Box::new(resolver));
+//! let document = yaxml::Document::parse_with(input, options)?;
 //! assert_eq!(document.root_element().text_chunks().collect::<String>(), "mapped");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -643,7 +645,7 @@ fn prefer(node: OwnedNode<'_>, inherited: bool) -> bool {
 /// `xmlParseXMLCatalogFile`: the entries of an XML catalog, `group`
 /// members flattened in document order. `None` if malformed.
 fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>> {
-    let document = OwnedDocument::with_limits(input, crate::Limits::default()).ok()?;
+    let document = OwnedDocument::parse_legacy(input, crate::Limits::default()).ok()?;
     let local = |node: OwnedNode<'_>| {
         (node.name())
             .filter(|name| name.namespace() == Some(NAMESPACE))

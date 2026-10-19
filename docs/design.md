@@ -126,6 +126,11 @@ The existing public vocabulary includes `Reader`, `PushParser`, `Writer`,
 Retain these names while behavior stabilizes. New parser policy should extend
 explicit configuration, with strict XML as the default; avoid a bag of
 independent switches that permits contradictory contracts.
+Parser policy is one `ParseOptions` value: libxml2's `xmlParserOption`
+bits (so bindings pass existing integers), limits and the resolver. Each
+surface validates the bits it implements up front and rejects the rest, and
+the bits map to a few internal decisions (substitute or report entity
+boundaries, add defaults, what may load) rather than separate code paths.
 
 `Name` must distinguish lexical qualified name from expanded name (namespace
 URI plus local name). End tags match the lexical start name. Attributes must be

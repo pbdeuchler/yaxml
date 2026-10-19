@@ -107,7 +107,9 @@ pub fn exercise(input: &[u8]) {
         }
     };
     let full = build(schema, &resources, &limits(MAX_WORK));
-    if let Ok(tree) = Document::with_limits(schema, limits(MAX_WORK).xml) {
+    // Schema::parse reads schema documents with entities substituted.
+    let legacy = yaxml::ParseOptions::new(yaxml::options::LEGACY).with_limits(limits(MAX_WORK).xml);
+    if let Ok(tree) = Document::parse_with(schema, legacy) {
         let log = Arc::new(Mutex::new(0));
         let built = Schema::from_tree(
             &tree,

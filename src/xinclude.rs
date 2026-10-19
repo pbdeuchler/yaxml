@@ -24,12 +24,13 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::encoding::{Charset, charset};
+use crate::options::{DTDLOAD, DTDVALID, NOENT, XINCLUDE};
 use crate::owned::TreeBuilder;
 use crate::serialize::owned_leaf;
 use crate::uri::{self, Uri};
 use crate::{
     Attribute, Doctype, Element, Event, Limit, Limits, Name, NodeId, OwnedDocument, OwnedNode,
-    OwnedNodeId, OwnedNodeKind, Request, Resolver, ResourceKind, xpath, xpointer,
+    OwnedNodeId, OwnedNodeKind, ParseOptions, Request, Resolver, ResourceKind, xpath, xpointer,
 };
 
 const NS: &str = "http://www.w3.org/2003/XInclude";
@@ -59,6 +60,10 @@ pub struct Options {
     pub limits: Limits,
     /// Ceilings for each XPointer evaluation.
     pub xpath: xpath::Limits,
+    /// [`crate::options`] flags for parsing included documents; like
+    /// libxml2, `DTDLOAD` is always added, and `NOENT` when an XPointer
+    /// selects from the document. Default: [`crate::options::LEGACY`].
+    pub parse_flags: u32,
 }
 
 impl Default for Options {
@@ -69,6 +74,7 @@ impl Default for Options {
             max_depth: 40,
             limits: Limits::default(),
             xpath: xpath::Limits::default(),
+            parse_flags: crate::options::LEGACY,
         }
     }
 }
@@ -331,7 +337,9 @@ impl Processor<'_> {
             if include {
                 self.expand(local, node, depth)?;
             }
-            next = (!include)
+            // libxml2 does not look for inclusions inside entity references.
+            let opaque = include || node.kind() == OwnedNodeKind::EntityRef;
+            next = (!opaque)
                 .then(|| node.first_child())
                 .flatten()
                 .or_else(|| following(node, top));
@@ -521,7 +529,8 @@ impl Processor<'_> {
                         document: None,
                         expanding: true,
                     });
-                    let parsed = self.parse(local, &reference.url, depth);
+                    let xpointer = reference.fragment.is_some();
+                    let parsed = self.parse(local, &reference.url, depth, xpointer);
                     self.documents[index].expanding = false;
                     match parsed? {
                         Ok(document) => self.documents[index].document = Some(document),
@@ -565,12 +574,16 @@ impl Processor<'_> {
         local: &mut Local<'_>,
         url: &str,
         depth: usize,
+        xpointer: bool,
     ) -> Result<Result<OwnedDocument, Option<crate::Error>>, Error> {
         let Some(bytes) = self.fetch(local, ResourceKind::XInclude, url)? else {
             return Ok(Err(None));
         };
         let loader = Box::new(self.loader.clone());
-        let parsed = OwnedDocument::with_resolver(&bytes, self.options.limits, url, loader);
+        let flags = (self.options.parse_flags | DTDLOAD | if xpointer { NOENT } else { 0 })
+            & !(XINCLUDE | DTDVALID);
+        let options = ParseOptions::new(flags).with_limits(self.options.limits);
+        let parsed = OwnedDocument::parse_with(&bytes, options.with_resolver(url, loader));
         self.check_budget(local)?;
         let document = match parsed {
             Ok(document) => document,
@@ -725,8 +738,11 @@ impl Processor<'_> {
                             .append(parent, Event::Doctype(doctype), &[])
                             .map_err(xml)?;
                     }
-                    if source == Source::Local && is_include(node) {
-                        let pieces = local.memo[&node.id()].as_deref();
+                    let memo = (source == Source::Local && is_include(node))
+                        .then(|| local.memo.get(&node.id()))
+                        .flatten();
+                    if let Some(pieces) = memo {
+                        let pieces = pieces.as_deref();
                         let pieces = pieces.expect("direct inclusions are expanded");
                         if parent == TreeBuilder::ROOT && !self.one_root(local, pieces) {
                             return Err(fail(local, Some(node), ErrorKind::MultipleRoots));
@@ -791,7 +807,18 @@ impl Processor<'_> {
         } = copy;
         if node.kind() != OwnedNodeKind::Element {
             let event = owned_leaf(node).expect("non-element nodes are leaves");
-            return builder.append(parent, event, &[]).map(drop);
+            let id = builder.append(parent, event, &[])?;
+            // An entity reference keeps its replacement nodes, unprocessed.
+            if node.kind() == OwnedNodeKind::EntityRef {
+                stack.push(Work::Close(id));
+                stack.push(Work::Nodes {
+                    source,
+                    next: node.first_child(),
+                    parent: id,
+                    default,
+                });
+            }
+            return Ok(());
         }
         let added = match root {
             Some(_) => declarations(node, source == Source::Local, default),

@@ -176,7 +176,13 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
             kind: "1",
         };
         match event {
-            Event::Declaration(_) | Event::Doctype(_) => continue,
+            // The oracle substitutes entities; their boundaries are invisible.
+            Event::Declaration(_)
+            | Event::Doctype(_)
+            | Event::EntityStart(_)
+            | Event::EntityEnd => {
+                continue;
+            }
             Event::End(_) => {
                 depth -= 1;
                 continue;

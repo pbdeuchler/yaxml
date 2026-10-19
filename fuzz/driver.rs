@@ -86,6 +86,8 @@ mod xinclude;
 #[path = "catalog.rs"]
 mod catalog;
 
+#[path = "options.rs"]
+mod options;
 #[path = "relaxng.rs"]
 mod relaxng;
 #[path = "xsd.rs"]
@@ -168,6 +170,11 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
         }
     }
     document.truncate(MAX_INPUT_BYTES);
+    // A control byte with its high bit set also selects parser options.
+    if control & 0x80 != 0 {
+        let (flags, _) = options::split(&[*control]);
+        options::exercise_flags(flags, &document);
+    }
     exercise_doctype(&document)
 }
 
@@ -176,7 +183,7 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
 /// cancellation point, so budget and abort paths inside DTDs are reached.
 fn exercise_doctype(input: &[u8]) -> Outcome {
     exercise_valid(input);
-    exercise_owned(input);
+    owned(input);
     exercise_serialize(input);
     exercise_push(input);
     let seed = resolver::hash(input);
@@ -191,7 +198,7 @@ fn exercise_doctype(input: &[u8]) -> Outcome {
         (seed >> 44) as usize % 24,
         1 + (seed >> 50) as usize % 13,
     );
-    exercise_dom(input)
+    dom(input)
 }
 
 /// Control bits 2-3 pick a template, 4-5 the resolver policy and 6-7 a
@@ -275,8 +282,14 @@ fn parse_utf8(input: &[u8]) -> Option<Result<Document<'_>, Error>> {
     (!encoding::recognizes(input)).then(|| Document::parse_bytes(input))
 }
 
-/// Reader/DOM agreement, tree structure and stream projection.
+/// Reader/DOM agreement, tree structure and stream projection, then the
+/// selected parser options.
 pub fn exercise_dom(input: &[u8]) -> Outcome {
+    options::exercise(input);
+    dom(input)
+}
+
+fn dom(input: &[u8]) -> Outcome {
     let mut stream = Vec::new();
     let outcome = read(input, None, |event| stream.push(event));
     let document = Document::parse_bytes(input);
@@ -298,8 +311,13 @@ pub fn exercise_dom(input: &[u8]) -> Outcome {
     outcome
 }
 
-/// Owned parsing compared with the borrowing DOM.
+/// Owned parsing compared with the borrowing DOM, then the selected options.
 pub fn exercise_owned(input: &[u8]) {
+    options::exercise(input);
+    owned(input);
+}
+
+fn owned(input: &[u8]) {
     if let Some(document) = parse_utf8(input) {
         owned::exercise(input, Limits::default(), document.as_ref().map_err(|e| *e));
     }
@@ -734,6 +752,15 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                 assert!(node.name() == Some(name), "end name differs from DOM");
                 continue;
             }
+            Event::EntityEnd => {
+                let parent = parents.pop().expect("entity end without open reference");
+                let node = document.node(parent).unwrap();
+                assert!(
+                    node.entity_name().is_some(),
+                    "entity end closes a non-reference"
+                );
+                continue;
+            }
             _ => {}
         }
         let node = nodes.next().expect("DOM lost an event node");
@@ -753,6 +780,10 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                 if matches!(event, Event::Start(_)) {
                     parents.push(node.id());
                 }
+            }
+            (Event::EntityStart(expected), NodeKind::EntityRef(actual)) => {
+                assert!(actual == expected, "entity name differs from stream");
+                parents.push(node.id());
             }
             (Event::Doctype(expected), NodeKind::Doctype(actual)) => {
                 assert_eq!(actual, expected, "DOCTYPE differs from stream");
@@ -948,6 +979,12 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
                 assert!(node.text().is_none());
             }
             NodeKind::Document | NodeKind::Doctype(_) => {
+                assert!(node.name().is_none());
+                assert!(node.text().is_none());
+                assert!(node.attributes().is_empty());
+            }
+            NodeKind::EntityRef(name) => {
+                assert_eq!(node.entity_name(), Some(name.as_ref()));
                 assert!(node.name().is_none());
                 assert!(node.text().is_none());
                 assert!(node.attributes().is_empty());

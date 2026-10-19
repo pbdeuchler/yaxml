@@ -14,6 +14,8 @@ pub enum Captured {
     Cdata(String),
     Comment(String),
     Pi(String, String),
+    EntityStart(String),
+    EntityEnd,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -69,6 +71,8 @@ impl From<Event<'_>> for Captured {
             Event::ProcessingInstruction { target, data } => {
                 Self::Pi(target.into(), data.into_owned())
             }
+            Event::EntityStart(name) => Self::EntityStart(name.into_owned()),
+            Event::EntityEnd => Self::EntityEnd,
         }
     }
 }

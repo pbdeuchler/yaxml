@@ -49,6 +49,8 @@ fn observe(event: Event<'_>) -> usize {
         Event::ProcessingInstruction { target, data } => {
             black_box(target).len() + black_box(data.as_bytes()).len()
         }
+        Event::EntityStart(name) => black_box(name.as_bytes()).len(),
+        Event::EntityEnd => 0,
     }
 }
 

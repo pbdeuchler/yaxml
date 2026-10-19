@@ -5,8 +5,8 @@ use std::io::{self, BufRead, Read};
 use std::rc::Rc;
 
 use yaxml::{
-    ErrorKind, Limit, Limits, NodeType, OwnedDocument, ParserProperty, ReadError, ReadState,
-    Request, TextReader, Writer,
+    ErrorKind, Limit, Limits, NodeType, OwnedDocument, ParseOptions, ParserProperty, ReadError,
+    ReadState, Request, TextReader, Writer,
 };
 
 /// `xmllint --stream --debug` lines: depth, type, name, empty, has value, value.
@@ -65,9 +65,9 @@ const SEQUENCES: &[(&str, &[&str])] = &[
         &[
             "0 10 r 0 0",
             "0 1 r 0 0",
-            "1 3 #text 0 1 ax",
-            "1 1 b 1 0",
-            "1 3 #text 0 1 yb",
+            "1 3 #text 0 1 a",
+            "1 5 e 0 0",
+            "1 3 #text 0 1 b",
             "0 15 r 0 0",
         ],
     ),
@@ -316,7 +316,11 @@ fn attribute_navigation_follows_libxml2() {
 #[test]
 fn scope_reports_namespaces_language_and_base() {
     let input = "<r xmlns:p='urn:p' xml:lang='en' xml:base='http://h/a/'><s xmlns:p='urn:q' xml:base='b/'>t</s><u xml:lang='' xml:base='urn:x'/></r>";
-    let mut reader = TextReader::new(input.as_bytes()).with_base_uri("file:///doc.xml");
+    let options = ParseOptions {
+        base: Some("file:///doc.xml".into()),
+        ..ParseOptions::default()
+    };
+    let mut reader = TextReader::with_options(input.as_bytes(), options).unwrap();
     let mut seen = Vec::new();
     while reader.read().unwrap() {
         seen.push((
@@ -418,7 +422,7 @@ fn expand_equals_parsing_the_subtree() {
         (
             "<!DOCTYPE r [<!ENTITY e '<i>e</i>'><!ATTLIST i d CDATA 'z'>]><r><s>&e;</s></r>",
             "s",
-            "<s><i d='z'>e</i></s>",
+            "<s><i>e</i></s>",
         ),
         ("<r><e/></r>", "e", "<e/>"),
         ("<r>&#13;&lt;</r>", "r", "<r>&#13;&lt;</r>"),
@@ -651,18 +655,21 @@ fn parser_properties_accept_only_the_fixed_behavior() {
         (false, ParserProperty::LoadDtd, true, false),
         (true, ParserProperty::LoadDtd, true, true),
         (true, ParserProperty::LoadDtd, false, false),
-        (false, ParserProperty::DefaultAttributes, true, true),
-        (false, ParserProperty::DefaultAttributes, false, false),
-        (false, ParserProperty::SubstituteEntities, true, true),
-        (false, ParserProperty::SubstituteEntities, false, false),
+        (false, ParserProperty::DefaultAttributes, false, true),
+        (false, ParserProperty::DefaultAttributes, true, false),
+        (true, ParserProperty::DefaultAttributes, true, true),
+        (false, ParserProperty::SubstituteEntities, false, true),
+        (false, ParserProperty::SubstituteEntities, true, false),
+        (true, ParserProperty::SubstituteEntities, true, true),
         (false, ParserProperty::Validate, false, true),
         (false, ParserProperty::Validate, true, false),
     ] {
-        let reader = TextReader::new(b"<r/>".as_slice());
+        let input = b"<r/>".as_slice();
         let mut reader = if loads {
-            reader.with_resolver("doc.xml", resolver())
+            TextReader::with_options(input, loading(Limits::default(), "doc.xml", resolver()))
+                .unwrap()
         } else {
-            reader
+            TextReader::new(input)
         };
         let result = reader.set_parser_property(property, value);
         assert_eq!(result.is_ok(), accepted, "{property:?} {value}");
@@ -686,8 +693,8 @@ fn resolver_loads_external_declarations_and_sets_the_base() {
         })
     };
     let input = b"<!DOCTYPE r SYSTEM 'r.dtd'><r>&e;</r>";
-    let mut reader =
-        TextReader::new(input.as_slice()).with_resolver("dir/doc.xml", Box::new(resolver));
+    let options = loading(Limits::default(), "dir/doc.xml", Box::new(resolver));
+    let mut reader = TextReader::with_options(input.as_slice(), options).unwrap();
     assert!(reader.parser_property(ParserProperty::LoadDtd));
     reader.read().unwrap();
     reader.read().unwrap();
@@ -696,7 +703,19 @@ fn resolver_loads_external_declarations_and_sets_the_base() {
         (Some("x"), Some("dir/doc.xml"))
     );
     assert_eq!(reader.read_string().unwrap().as_deref(), Some("loaded"));
-    // Without a resolver the subset is skipped and the entity dropped, as libxml2 does.
+    // Without a resolver the subset is skipped and the undeclared entity
+    // kept as an empty reference, as libxml2 does without NOENT.
     let skipped = lines(TextReader::new(input.as_slice())).unwrap();
-    assert_eq!(skipped, ["0 10 r 0 0", "0 1 r 0 0", "0 15 r 0 0"]);
+    assert_eq!(
+        skipped,
+        ["0 10 r 0 0", "0 1 r 0 0", "1 5 e 0 0", "0 15 r 0 0"]
+    );
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(limits: Limits, base: &str, resolver: Box<dyn yaxml::Resolver>) -> ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

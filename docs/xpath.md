@@ -42,6 +42,9 @@ assert_eq!(nodes.len(), 1);
   the expression byte offset.
 - CDATA sections are text nodes. `id()` matches `xml:id` attributes, the only
   ID attributes without a DTD.
+- Kept entity references (trees parsed without `NOENT`) are invisible, as
+  in libxml2: no node test selects them, no axis enters them, and their
+  text still counts in string values.
 - Number conversion and formatting follow `xmlXPathStringEvalNumber` and
   `xmlXPathFormatNumber`: an optional exponent is accepted, `string()` prints
   integers in `int` range exactly, other values with at most 15 significant

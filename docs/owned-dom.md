@@ -27,9 +27,12 @@ assert_eq!(root.first_child().unwrap().text(), Some("text"));
 
 ## Views and source ranges
 
-`parse(&str)`, `parse_bytes(&[u8])`, `with_limits(&[u8], Limits)` and
-`with_decode_limits(&[u8], Limits, DecodeLimits)` consume complete
-input and return a tree only on success. The source is neither borrowed nor
+`parse(&str)`, `parse_bytes(&[u8])`, `with_limits(&[u8], Limits)`,
+`with_decode_limits(&[u8], Limits, DecodeLimits)` and
+`parse_with(&[u8], ParseOptions)` consume complete input and return a tree
+only on success. Without `NOENT` an entity reference is an
+`OwnedNodeKind::EntityRef` node (`entity_name()`) whose children are the
+replacement's nodes. The source is neither borrowed nor
 retained. UTF-8 and UTF-16LE/BE are detected under the [encoding contract](encoding.md).
 DTDs and other encodings remain explicitly unsupported. UTF-8 retains the
 borrowing-reader construction path; UTF-16 feeds the same concrete tree builder

@@ -19,8 +19,8 @@ The example accepts each filename as a separate testcase, or one testcase from s
 
 | Target | Driver entry | Surface |
 | --- | --- | --- |
-| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection |
-| `owned` | `exercise_owned` | `OwnedDocument` parsing and views against the borrowed DOM |
+| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection (entity markers included); a leading high-bit byte selects parser options (`fuzz/options.rs`) |
+| `owned` | `exercise_owned` | `OwnedDocument` parsing and views against the borrowed DOM; a leading high-bit byte selects parser options |
 | `push` | `exercise_push` | `PushParser` chunk schedules, `finish`, `read_from` |
 | `buffered` | `exercise_pull` | `BufferedReader` |
 | `writer` | `exercise_writer` | `Writer` event round trips, generated operations and sinks |
@@ -34,7 +34,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `c14n` | `exercise_c14n` | `c14n::to_string` modes, comments, node-sets and prefix lists |
 | `valid` | `exercise_valid` | DTD validation over both DOMs: raw input, input wrapped as an internal subset, or an external DTD and document split at NUL; identical diagnostics, determinism, offsets and `is_valid` |
 | `textreader` | `exercise_textreader` | `TextReader` node sequence, navigation, content strings, `expand`, `next` |
-| `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface; control byte `3` serves NUL-separated fuzz resources through an in-memory resolver and checks surface agreement and load/byte budgets |
+| `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface; control byte `3` serves NUL-separated fuzz resources through an in-memory resolver and checks surface agreement and load/byte budgets; a control byte with its high bit set also runs the options checks |
 | `uri` | `exercise_uri` | `yaxml::uri` parse, save, escape and resolution |
 | `regexp` | `exercise_regexp` | `yaxml::regexp` compile (syntax, budget) and `is_match` on a pattern line and value lines |
 | `datatypes` | `exercise_datatypes` | `yaxml::schema_types` parse, compare, equality and facets from a type, second-type and facet byte and NUL-separated texts |
@@ -67,6 +67,8 @@ done                                          # <= 8 at a time
 `seed.py` feeds the W3C XMLTS and libxml2 `test/` trees to the XML targets (dom, owned, push, buffered, writer, serialize, limits, encoding), DOCTYPE-leading documents and `.dtd`/`.ent` bodies (control byte 0) to `dtd`, `selector byte + XML` (15 selectors for `test/c14n`, 2 otherwise) to `c14n`, XPath expressions alone and NUL + the matching `XPath/docs` file to `xpath`, and `reference\nbase\n/:%#` lines from `test/URI` to `uri`. `mutation`, `construction` and `names` use structured bytes. Crashes found while seeding are in [`open/`](open/README.md) (unfixed) or `regressions/` (replayed by `tests/fuzz_smoke.rs`).
 
 Coverage campaign (2026-10-19). The harnesses gained structure-aware selectors so policy and limit branches are reachable: small `Limits` profiles (XML, DTD, XSD, RELAX NG, XPath, pattern, catalog, XInclude, regexp budget, `WriterLimits`), resolver behaviours (serve, missing-is-error, I/O error, UTF-16, a sandboxed `FileResolver`), and previously unused entry points (`xsd::Schema::{parse, from_instance}`, `relaxng::Schema::from_tree`, `catalog::Catalog::load`, `valid::Dtd::load`, `c14n::write`, XPath variables and extension functions, `TextReader` navigation/properties, origin and attribute accessors, every error `Display` through failing sinks). `html` and `textreader` gained corpora (both had replayed only the top-level seeds). Every target then ran 630 s in fork mode with `-timeout=2`, 8 at a time. Findings are in [`open/`](open/README.md): a UTF-16 prescan label that `html::save` rejects, a non-ASCII bracketed host kept by `Uri::parse_raw`, an escaped reference name in a saved entity value, and a 2 s billion-laughs unit in the `dtd` driver under ASan. Two OOM reports (catalog, encoding) peak at 50 MB alone and are RSS accumulation in fork mode.
+
+Options (2026-10-19): `dom`, `owned` and `dtd` with the options checks, 330 s each on `nightly-2026-06-06` with `-fork=1 -ignore_timeouts=1 -timeout=2` from the tracked corpora: about 617k, 637k and 255k runs (2,600, 1,000 and 1,100 exec/s), no crashes, OOMs or timeouts. Plain `-timeout=2` stops on `artifacts/dtd` billion-laughs-style corpus inputs that already took about 2 s under ASAN before options (2.1 s, now 2.5 s); earlier campaigns used `-timeout=60`.
 
 Merged `src/` coverage from the tracked corpora (`fuzz/coverage.sh`, union): 95.09% regions, 93.63% functions, 96.39% lines, 90.24% branches; before the campaign, measured the same way, 86.61% regions, 86.73% functions, 89.41% lines, 79.26% branches. Weakest files by region: `tokenizer/local.rs` 78%, `stream/dtd.rs` 79%, `dtd_frames.rs` 80%, `dtd_controller/content.rs` 85%, `dtd_reference.rs` 85%, `tokenizer/text.rs` 85%, `tokenizer/reference.rs` 85%, `dtd_controller.rs` 86%, `origin.rs` 87%. Most of their remaining regions are defensive states (InvalidState, Sealed, PositionOverflow, allocation and work-limit arms shadowed by earlier limits) that public input cannot reach.
 

@@ -179,11 +179,9 @@ pub fn exercise(input: &[u8]) {
     };
     let document = format!("<!DOCTYPE r PUBLIC '{public}' '{system}'><r/>");
     let resolver = CatalogResolver::new(catalog, Box::new(inner));
-    if Document::with_resolver(
+    if Document::parse_with(
         document.as_bytes(),
-        Default::default(),
-        "",
-        Box::new(resolver),
+        loading(Default::default(), "", Box::new(resolver)),
     )
     .is_ok()
     {
@@ -192,4 +190,16 @@ pub fn exercise(input: &[u8]) {
             .unwrap_or_else(|| (*system).to_owned());
         assert_eq!(*seen.lock().unwrap(), [expected]);
     }
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

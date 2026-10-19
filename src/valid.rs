@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 use crate::dtd::{ElementContentView, ElementDeclarationView, ModelTokenView};
 use crate::dtd_catalog::{AttributeKind, StoredDefault};
 use crate::name::{name_char, name_start};
-use crate::xpath::tree::{Item, Navigate, QName, Tree, attributes, preorder};
+use crate::xpath::tree::{self, Item, Navigate, QName, Tree, attributes, preorder};
 use crate::{Error, Limits, Resolver};
 
 pub(crate) use model::{Model, TooComplex};
@@ -423,8 +423,10 @@ fn lexical(kind: AttributeKind, value: &str) -> bool {
     }
 }
 
+/// Children for content models: entity references are transparent, as
+/// libxml2 validates through `XML_ENTITY_REF_NODE`s.
 fn children<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Item = T::Id> + '_ {
-    std::iter::successors(tree.first_child(id), move |&child| tree.next_sibling(child))
+    tree::flattened_children(tree, id)
 }
 
 const PREDEFINED: [&str; 5] = ["lt", "gt", "amp", "apos", "quot"];

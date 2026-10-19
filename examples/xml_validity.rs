@@ -19,11 +19,13 @@ use yaxml::{FileResolver, Limits, OwnedDocument, valid};
 fn yaxml_verdict(root: &Path, path: &str) -> Result<(String, String), String> {
     let input = std::fs::read(root.join(path)).map_err(|error| error.to_string())?;
     let resolver = FileResolver::new(root).map_err(|error| error.to_string())?;
-    let document =
-        match OwnedDocument::with_resolver(&input, Limits::default(), path, Box::new(resolver)) {
-            Ok(document) => document,
-            Err(error) => return Ok((format!("{:?}", error.kind), String::new())),
-        };
+    let document = match OwnedDocument::parse_with(
+        &input,
+        loading(Limits::default(), path, Box::new(resolver)),
+    ) {
+        Ok(document) => document,
+        Err(error) => return Ok((format!("{:?}", error.kind), String::new())),
+    };
     let diagnostics = document.validate();
     let codes: Vec<_> = diagnostics
         .iter()
@@ -97,4 +99,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("{tool}\t{kind}\t{verdict}\t{count}");
     }
     Ok(())
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }

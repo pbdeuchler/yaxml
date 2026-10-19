@@ -35,7 +35,9 @@ fn summary(doc: &Document<'_>) -> Vec<String> {
             NodeKind::Comment(v) => format!("M:{v}"),
             NodeKind::ProcessingInstruction { target, data } => format!("P:{target}:{data}"),
             NodeKind::Element(e) => format!("E:{}", e.name.qualified()),
-            NodeKind::Document | NodeKind::Doctype(_) => panic!("document child"),
+            NodeKind::Document | NodeKind::Doctype(_) | NodeKind::EntityRef(_) => {
+                panic!("document child")
+            }
         })
         .collect()
 }

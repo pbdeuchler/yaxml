@@ -117,6 +117,8 @@ pub(crate) fn prepare_dtd_tag<'event>(
         ..error
     })?;
     let mut defaulted = Vec::new();
+    // Without `DTDATTR` libxml2 applies only defaulted namespace declarations.
+    let complete = catalog.default_attributes();
     for binding in catalog.attributes(raw.qualified) {
         if explicit.contains(binding.name.as_str()) {
             continue;
@@ -129,6 +131,9 @@ pub(crate) fn prepare_dtd_tag<'event>(
                 "standalone: attribute {} on {} defaulted from external subset",
                 binding.name, raw.qualified
             ));
+        }
+        if !complete && binding.name != "xmlns" && !binding.name.starts_with("xmlns:") {
+            continue;
         }
         let (prefix, _) = qname(&binding.name, 0).map_err(|error| declared(error.kind))?;
         if attributes.len() == budget.max_attributes() {

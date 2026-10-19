@@ -170,23 +170,23 @@ fn surface(
     let mut events = 0;
     match index {
         0 => {
-            let mut reader = Reader::with_limits(input, limits)?.with_resolver(base, resolver);
+            let mut reader = Reader::with_options(input, loading(limits, base, resolver))?;
             while reader.read_event()?.is_some() {
                 events += 1;
             }
         }
         1 => {
-            events = Document::with_resolver(input, limits, base, resolver)?
+            events = Document::parse_with(input, loading(limits, base, resolver))?
                 .nodes()
                 .len()
         }
         2 => {
-            events = OwnedDocument::with_resolver(input, limits, base, resolver)?
+            events = OwnedDocument::parse_with(input, loading(limits, base, resolver))?
                 .nodes()
                 .len()
         }
         3 => {
-            let mut parser = PushParser::with_limits(limits).with_resolver(base, resolver);
+            let mut parser = PushParser::with_options(loading(limits, base, resolver)).unwrap();
             let mut count = |_: yaxml::Event<'_>, _| {
                 events += 1;
                 ControlFlow::Continue(())
@@ -199,7 +199,7 @@ fn surface(
         _ => {
             let source = BufReader::with_capacity(11, Cursor::new(input));
             let mut reader =
-                BufferedReader::with_limits(source, limits).with_resolver(base, resolver);
+                BufferedReader::with_options(source, loading(limits, base, resolver)).unwrap();
             loop {
                 match reader.read_event() {
                     Ok(Some(_)) => events += 1,
@@ -273,17 +273,13 @@ pub(super) fn exercise(
     }
     if expected.is_ok() && !decoded {
         let log = Log::default();
-        let borrowed = Document::with_resolver(
+        let borrowed = Document::parse_with(
             document,
-            limits,
-            "d/doc.xml",
-            resolver(resources, policy, &log),
+            loading(limits, "d/doc.xml", resolver(resources, policy, &log)),
         );
-        let owned = OwnedDocument::with_resolver(
+        let owned = OwnedDocument::parse_with(
             document,
-            limits,
-            "d/doc.xml",
-            resolver(resources, policy, &log),
+            loading(limits, "d/doc.xml", resolver(resources, policy, &log)),
         );
         if let (Ok(borrowed), Ok(owned)) = (borrowed, owned) {
             super::valid::compare(&borrowed, &owned, None);
@@ -361,4 +357,16 @@ pub(super) fn cancel(input: &[u8], limits: Limits, stop: usize, width: usize) {
     } else {
         assert!(end.is_none(), "cancellation was ignored");
     }
+}
+
+/// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
+fn loading(
+    limits: yaxml::Limits,
+    base: &str,
+    resolver: Box<dyn yaxml::Resolver>,
+) -> yaxml::ParseOptions {
+    let flags = yaxml::options::LEGACY | yaxml::options::DTDLOAD;
+    yaxml::ParseOptions::new(flags)
+        .with_limits(limits)
+        .with_resolver(base, resolver)
 }
