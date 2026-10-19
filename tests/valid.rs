@@ -307,7 +307,8 @@ fn external_declarations_carry_standalone_and_nesting_constraints() {
     const DTD: &[(&str, &str)] = &[
         (
             "r.dtd",
-            "<!ELEMENT r (a*)><!ELEMENT a EMPTY><!ATTLIST a t NMTOKEN 'x' n NMTOKENS #IMPLIED>",
+            "<!ELEMENT r (a*)><!ELEMENT a EMPTY><!ATTLIST a t NMTOKEN 'x' n NMTOKENS #IMPLIED e ENTITY #IMPLIED>\
+             <!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u' NDATA n>",
         ),
         (
             "split.dtd",
@@ -326,6 +327,10 @@ fn external_declarations_carry_standalone_and_nesting_constraints() {
         (
             "<?xml version='1.0' standalone='yes'?><!DOCTYPE r SYSTEM 'r.dtd'><r> <a t='x' n=' p  q'/></r>",
             &[NotStandalone, StandaloneWhiteSpace],
+        ),
+        (
+            "<?xml version='1.0' standalone='yes'?><!DOCTYPE r SYSTEM 'r.dtd'><r><a t='x' n='p q' e='u'/></r>",
+            &[],
         ),
         (
             "<?xml version='1.0' standalone='yes'?><!DOCTYPE r SYSTEM 'r.dtd'><r><a/></r>",
@@ -404,18 +409,22 @@ fn separate_dtd_loading_reports_failures() {
 
 #[test]
 fn pathological_content_models_are_bounded() {
-    // A long chain of optional names has a quadratic Glushkov automaton; the
-    // DTD work budget stops it instead of allocating without bound.
-    let names: Vec<_> = (0..1500).map(|index| format!("e{index}?")).collect();
-    let input = format!("<!DOCTYPE r [<!ELEMENT r ({})>]><r/>", names.join(","));
-    let limits = Limits::default();
-    match Document::with_limits(input.as_bytes(), limits) {
-        Ok(document) => assert!(document.validate().is_empty()),
-        Err(error) => assert!(
-            matches!(error.kind, ErrorKind::LimitExceeded(_)),
-            "{error:?}"
-        ),
-    }
+    // A chain of optional names has a quadratic Glushkov automaton (about
+    // 10 MB for 1300 names); the DTD storage budget stops a series of them.
+    let names: Vec<_> = (0..1300).map(|index| format!("e{index}?")).collect();
+    let chain = |elements: usize| {
+        let declarations: String = (0..elements)
+            .map(|index| format!("<!ELEMENT r{index} ({})>", names.join(",")))
+            .collect();
+        format!("<!DOCTYPE r0 [{declarations}]><r0/>")
+    };
+    let one = chain(1);
+    assert!(Document::parse(&one).unwrap().validate().is_empty());
+    let error = Document::parse(&chain(8)).err().map(|error| error.kind);
+    assert_eq!(
+        error,
+        Some(ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
+    );
     // Nested repetition stays linear in the document's children.
     let model = format!("{}a{}", "(".repeat(200), ")*".repeat(200));
     let children = "<a/>".repeat(10_000);
@@ -494,6 +503,6 @@ fn libxml2_valid_corpus_has_the_same_error_counts() {
             differences.push(format!("{name}: libxml2 {oracle}, yaxml {ours}"));
         }
     }
-    assert!(compared >= 25, "{compared}");
+    assert_eq!(compared, 30);
     assert!(differences.is_empty(), "{}", differences.join("\n"));
 }

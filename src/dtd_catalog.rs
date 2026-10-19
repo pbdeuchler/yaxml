@@ -673,12 +673,19 @@ impl DtdCatalog {
             }
             DtdUnitView::Element(view) => {
                 let element = self.element_slot(view.name(), location)?;
-                let mut budget = self.limits.max_work - self.usage.work;
+                // Follow-set entries are four bytes: bound them by storage too.
+                let work = self.limits.max_work - self.usage.work;
+                let storage = self.limits.max_storage_bytes - self.usage.storage_bytes;
+                let (limit, budget) = match work <= storage / 4 {
+                    true => (CatalogLimit::Work, work),
+                    false => (CatalogLimit::StorageBytes, storage / 4),
+                };
+                let mut remaining = budget;
                 let bytes = self
                     .dtd
-                    .declare_element(element, view, context.internal_subset, &mut budget)
-                    .map_err(|_| error(CatalogErrorKind::Limit(CatalogLimit::Work), location))?;
-                self.usage.work = self.limits.max_work - budget;
+                    .declare_element(element, view, context.internal_subset, &mut remaining)
+                    .map_err(|_| error(CatalogErrorKind::Limit(limit), location))?;
+                self.usage.work += budget - remaining;
                 self.store_bytes(bytes, location)?;
             }
             DtdUnitView::Notation(notation) => {

@@ -994,6 +994,25 @@ fn encoded_equivalents_and_every_truncation() {
 }
 
 #[test]
+fn valid_entry_replays_models_attributes_and_separate_dtds() {
+    let cases: &[&[u8]] = &[
+        include_bytes!("../fuzz/corpus/valid-models.xml"),
+        include_bytes!("../fuzz/corpus/valid-attributes.xml"),
+        include_bytes!("../fuzz/corpus/valid-dtdvalid.bin"),
+        include_bytes!("../fuzz/corpus/valid-pathological.txt"),
+        b"<!ELEMENT r (a|a)><!ELEMENT a EMPTY>",
+        b"<!ELEMENT r (#PCDATA)>\0<r/>",
+        b"<!ELEMENT r (\0<r/>",
+        b"<r/>",
+        b"<r",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_valid(case);
+    }
+}
+
+#[test]
 fn xpath_entry_replays_expressions_and_documents() {
     let cases: &[&[u8]] = &[
         b"//*[@id]/@*",
@@ -1064,6 +1083,7 @@ fn fuzz_regressions_replay() {
                     driver::exercise_pull(&data, data.get(data.len() / 2).copied().unwrap_or(0));
                 }
                 "dtd" => drop(driver::exercise_dtd(&data)),
+                "valid" => driver::exercise_valid(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }

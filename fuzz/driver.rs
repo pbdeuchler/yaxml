@@ -44,6 +44,9 @@ mod xpath;
 #[path = "c14n.rs"]
 mod c14n;
 
+#[path = "valid.rs"]
+mod valid;
+
 #[path = "resolver.rs"]
 mod resolver;
 
@@ -68,6 +71,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_uri(input);
     exercise_xpath(input);
     exercise_c14n(input);
+    exercise_valid(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -323,6 +327,12 @@ pub fn exercise_xpath(input: &[u8]) {
 pub fn exercise_c14n(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     c14n::exercise(input);
+}
+
+/// Exercise DTD validation over both DOMs; see `valid.rs` for the testcase format.
+pub fn exercise_valid(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    valid::exercise(input);
 }
 
 /// Exercise validated names and owned PI targets before XML/encoding dispatch.

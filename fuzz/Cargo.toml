@@ -106,6 +106,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "valid"
+path = "fuzz_targets/valid.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "c14n"
 path = "fuzz_targets/c14n.rs"
 test = false
