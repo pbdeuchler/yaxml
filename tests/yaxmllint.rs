@@ -143,7 +143,7 @@ fn cases() -> Vec<Case> {
         case("default output", &["a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n<a><b k=\"1\">x</b><b>y</b></a>\n")),
         err(on(case("malformed", &["a.xml"], 4, Empty), &[("a.xml", "<a>\n<b>\n</a>")], ""), "a.xml:3: parser error"),
         err(on(case("recover", &["--recover", "a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n<a>\n<b>\n</b></a>\n")), &[("a.xml", "<a>\n<b>\n</a>")], ""), "a.xml:3: parser error : MismatchedEndTag"),
-        err(on(case("recover without an element", &["--recover", "a.xml"], 4, Empty), &[("a.xml", "text")], ""), "TextOutsideRoot"),
+        err(on(case("recover without an element", &["--recover", "a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n")), &[("a.xml", "text")], ""), "TextOutsideRoot"),
         on(case("recover is ignored by stream", &["--recover", "--stream", "a.xml"], 0, Empty), &[("a.xml", "<a/>")], ""),
         err(case("missing file", &["nope.xml"], 4, Empty), "failed to load"),
         err(case("no arguments", &[], 1, Empty), "Usage"),
@@ -586,6 +586,14 @@ const RECOVERED: &[&str] = &[
     "<?xml version=\"1.0\" standalone=\"maybe\"?><r/>",
     "<?xml version=\"1.0\" encoding=\"bogus\"?><r/>",
     "<r>a\u{1}</r>",
+    "text",
+    "<!DOCTYPEr><r/>",
+    "<!DOCTYPE r [<!ELEMENT r(#PCDATA)><!ENTITY e SYSTEM \"x\"NDATA n><!ATTLIST r a CDATA #FIXED\"v\">]><r/>",
+    "<!DOCTYPE r [<!ENTITY%p\"x\"><!ENTITY e PUBLIC\"p\"\"s\">]><r/>",
+    "<!DOCTYPE r [<r/>",
+    "<!DOCTYPE r [<!ENTITY e 'x'><!ELEMENT r ANY>&e;]><r/>",
+    "<!DOCTYPE .r><r/>",
+    "<!DOCTYPE r PUBLIC \"[\" \"x\"><r/>",
 ];
 
 fn suites() -> PathBuf {

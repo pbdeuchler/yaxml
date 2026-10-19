@@ -1036,21 +1036,23 @@ fn select<'d>(
     fragment: Option<&str>,
     limits: &xpath::Limits,
 ) -> Result<Vec<OwnedNode<'d>>, ErrorKind> {
+    // A recovered document without an element selects nothing.
     let Some(fragment) = fragment else {
-        return Ok(vec![document.root_element()]);
+        return Ok(document.document_element().into_iter().collect());
     };
     xpointer::evaluate(document, fragment, limits)
         .map_err(ErrorKind::XPointer)?
         .into_iter()
-        .map(|found| match found {
+        .filter_map(|found| match found {
             xpath::Node::Tree(id) => {
                 let node = document.node(id).expect("XPath selects live nodes");
-                Ok(match node.kind() {
-                    OwnedNodeKind::Document => document.root_element(),
-                    _ => node,
-                })
+                match node.kind() {
+                    OwnedNodeKind::Document => document.document_element(),
+                    _ => Some(node),
+                }
+                .map(Ok)
             }
-            _ => Err(ErrorKind::XPointerResult),
+            _ => Some(Err(ErrorKind::XPointerResult)),
         })
         .collect()
 }

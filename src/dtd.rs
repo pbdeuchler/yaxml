@@ -231,6 +231,18 @@ pub(crate) struct DtdUnit<'a> {
 
 impl<'a> DtdUnit<'a> {
     pub(crate) fn parse(raw: impl Into<Cow<'a, str>>, limits: DtdLimits) -> Result<Self, Error> {
+        Self::parse_recovering(raw, limits, &mut Err)
+    }
+
+    /// Parses a unit, `recover`ing from a missing space where libxml2 reads
+    /// on (after `<!DOCTYPE`, `SYSTEM`, `PUBLIC`, a public identifier,
+    /// `<!ENTITY`, `%`, an entity or element name, around `NDATA`,
+    /// `<!ATTLIST`, `#FIXED` and a PI target).
+    pub(crate) fn parse_recovering(
+        raw: impl Into<Cow<'a, str>>,
+        limits: DtdLimits,
+        recover: &mut dyn FnMut(Error) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
         let raw = raw.into();
         if raw.len() > limits.unit_bytes {
             return Err(Error::new(
@@ -241,7 +253,7 @@ impl<'a> DtdUnit<'a> {
         if let Some(offset) = invalid_char(&raw) {
             return Err(Error::new(ErrorKind::InvalidCharacter, offset));
         }
-        let (shape, tokens) = Parser::new(&raw, limits).parse()?;
+        let (shape, tokens) = Parser::new(&raw, limits, recover).parse()?;
         Ok(Self { raw, tokens, shape })
     }
 
@@ -606,11 +618,12 @@ pub(crate) struct ProcessingInstructionView<'a> {
     pub(crate) data: Option<&'a str>,
 }
 
-struct Parser<'a> {
+struct Parser<'a, 'r> {
     raw: &'a str,
     position: usize,
     limits: DtdLimits,
     tokens: Vec<DtdToken>,
+    recover: &'r mut dyn FnMut(Error) -> Result<(), Error>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -619,13 +632,18 @@ struct GroupFrame {
     particles: usize,
 }
 
-impl<'a> Parser<'a> {
-    fn new(raw: &'a str, limits: DtdLimits) -> Self {
+impl<'a, 'r> Parser<'a, 'r> {
+    fn new(
+        raw: &'a str,
+        limits: DtdLimits,
+        recover: &'r mut dyn FnMut(Error) -> Result<(), Error>,
+    ) -> Self {
         Self {
             raw,
             position: 0,
             limits,
             tokens: Vec::new(),
+            recover,
         }
     }
 
@@ -726,6 +744,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Whitespace libxml2 requires but reads on without.
+    fn expect_whitespace(&mut self) -> Result<(), Error> {
+        match self.whitespace() {
+            true => Ok(()),
+            false => self.soft(ErrorKind::InvalidDtd),
+        }
+    }
+
+    /// An error libxml2 reads on from.
+    fn soft(&mut self, kind: ErrorKind) -> Result<(), Error> {
+        let error = self.error(kind);
+        (self.recover)(error)
+    }
+
     fn expected_one_of(&self, expected: &[&str]) -> Error {
         Error::new(
             ErrorKind::InvalidDtd,
@@ -784,7 +816,7 @@ impl<'a> Parser<'a> {
 
     fn header(&mut self) -> Result<Shape, Error> {
         self.consume("<!DOCTYPE")?;
-        self.require_whitespace()?;
+        self.expect_whitespace()?;
         self.name()?;
         let had_whitespace = self.whitespace();
         let external = if !matches!(self.byte(), Some(b'[' | b'>')) {
@@ -808,7 +840,7 @@ impl<'a> Parser<'a> {
 
     fn external_identifier(&mut self, public_only_allowed: bool) -> Result<ExternalMeta, Error> {
         if self.keyword("SYSTEM") {
-            self.require_whitespace()?;
+            self.expect_whitespace()?;
             let system = self.literal(LiteralKind::SystemIdentifier)?;
             return Ok(ExternalMeta {
                 public: None,
@@ -818,7 +850,7 @@ impl<'a> Parser<'a> {
         if !self.keyword("PUBLIC") {
             return Err(self.expected_one_of(&["SYSTEM", "PUBLIC"]));
         }
-        self.require_whitespace()?;
+        self.expect_whitespace()?;
         let public = Some(self.literal(LiteralKind::PublicIdentifier)?);
         let public_only = ExternalMeta {
             public,
@@ -826,10 +858,10 @@ impl<'a> Parser<'a> {
         };
         let before_space = self.position;
         if !self.whitespace() {
-            return match public_only_allowed {
-                true => Ok(public_only),
-                false => Err(self.error(ErrorKind::InvalidDtd)),
-            };
+            if public_only_allowed {
+                return Ok(public_only);
+            }
+            self.soft(ErrorKind::InvalidDtd)?;
         }
         if matches!(self.byte(), Some(b'\'' | b'"')) {
             let system = self.literal(LiteralKind::SystemIdentifier)?;
@@ -963,7 +995,7 @@ impl<'a> Parser<'a> {
         }
         let data = !self.remaining().starts_with("?>");
         if data {
-            self.require_whitespace()?;
+            self.expect_whitespace()?;
             let text = self.until("?>")?;
             self.push(
                 TokenKind::Literal(LiteralKind::ProcessingInstructionData),
@@ -978,7 +1010,7 @@ impl<'a> Parser<'a> {
         self.consume("<!ELEMENT")?;
         self.require_whitespace()?;
         self.name()?;
-        self.require_whitespace()?;
+        self.expect_whitespace()?;
         let content = if self.keyword("EMPTY") {
             ContentShape::Empty
         } else if self.keyword("ANY") {
@@ -1107,24 +1139,28 @@ impl<'a> Parser<'a> {
 
     fn entity(&mut self) -> Result<Shape, Error> {
         self.consume("<!ENTITY")?;
-        self.require_whitespace()?;
+        self.expect_whitespace()?;
         let parameter = self.byte() == Some(b'%');
         if parameter {
             self.position += 1;
-            self.require_whitespace()?;
+            self.expect_whitespace()?;
         }
         self.name()?;
-        self.require_whitespace()?;
+        self.expect_whitespace()?;
         let (external, ndata) = if matches!(self.byte(), Some(b'\'' | b'"')) {
             self.literal(LiteralKind::EntityValue)?;
             (None, false)
         } else {
             let identifier = self.external_identifier(false)?;
-            let had_whitespace = self.whitespace();
-            let ndata = !parameter && had_whitespace && self.byte() != Some(b'>');
+            let ndata = !parameter
+                && !self
+                    .remaining()
+                    .trim_start_matches([' ', '\t', '\n', '\r'])
+                    .starts_with('>');
             if ndata {
+                self.expect_whitespace()?;
                 self.consume("NDATA")?;
-                self.require_whitespace()?;
+                self.expect_whitespace()?;
                 self.name()?;
             }
             (Some(identifier), ndata)
@@ -1151,7 +1187,7 @@ impl<'a> Parser<'a> {
 
     fn attribute_list(&mut self) -> Result<Shape, Error> {
         self.consume("<!ATTLIST")?;
-        self.require_whitespace()?;
+        self.expect_whitespace()?;
         self.name()?;
         let mut definitions = 0_usize;
         loop {
@@ -1236,7 +1272,7 @@ impl<'a> Parser<'a> {
         } else if self.keyword("#IMPLIED") {
             Ok(DefaultMeta::Implied)
         } else if self.keyword("#FIXED") {
-            self.require_whitespace()?;
+            self.expect_whitespace()?;
             let literal = self.literal(LiteralKind::AttributeValue)?;
             Ok(DefaultMeta::Value {
                 fixed: true,
@@ -1254,7 +1290,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn pubid_char(character: char) -> bool {
+pub(crate) fn pubid_char(character: char) -> bool {
     character.is_ascii_alphanumeric() || " \r\n-'()+,./:=?;!*#@$_%".contains(character)
 }
 

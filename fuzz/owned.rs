@@ -101,8 +101,10 @@ pub(super) fn check_nodes(
     );
     assert_eq!(owned.root().id(), handles[&borrowed.root().id()]);
     assert_eq!(
-        owned.root_element().id(),
-        handles[&borrowed.root_element().id()]
+        owned.document_element().map(|element| element.id()),
+        borrowed
+            .document_element()
+            .map(|element| handles[&element.id()])
     );
     for (actual, expected) in owned.nodes().zip(borrowed.nodes()) {
         assert_eq!(actual.id(), handles[&expected.id()]);

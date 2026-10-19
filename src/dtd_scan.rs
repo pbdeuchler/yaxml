@@ -229,7 +229,9 @@ impl DtdScanner {
             State::LessThan => match byte {
                 b'!' => State::Bang,
                 b'?' => State::Instruction(false),
-                _ => return Err(self.syntax()),
+                // libxml2 reports (and recovery resumes at) the `<` that
+                // starts no declaration.
+                _ => return Err(Error::new(ErrorKind::InvalidDtd, self.position - 2)),
             },
             State::Bang => match byte {
                 b'-' => State::CommentDash,

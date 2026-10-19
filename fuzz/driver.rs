@@ -930,18 +930,17 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
     let nodes: Vec<_> = document.nodes().collect();
     assert!(nodes.len() <= events + 1);
     assert!(matches!(document.root().kind(), NodeKind::Document));
-    assert!(matches!(
-        document.root_element().kind(),
-        NodeKind::Element(_)
-    ));
+    // Only a recovered document lacks an element.
+    let element = document.document_element();
+    assert!(element.is_some() || !document.errors().is_empty());
+    if let Some(element) = element {
+        assert!(matches!(element.kind(), NodeKind::Element(_)));
+        assert_eq!(element.parent().unwrap().id(), document.root().id());
+    }
     let _ = document.declaration();
     assert_eq!(document.root().range(), Some(0..len));
     assert!(document.root().parent().is_none());
     assert!(document.root().next_sibling().is_none());
-    assert_eq!(
-        document.root_element().parent().unwrap().id(),
-        document.root().id()
-    );
 
     let mut seen = HashSet::new();
     let mut pending = vec![document.root()];

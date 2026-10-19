@@ -86,9 +86,36 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     // a declaration keeps what it can
     ("<?xml version=\"1.0\" standalone=\"maybe\"?><r/>", "<r/>", &[InvalidDeclaration]),
     ("<?xml version=\"1.0\" encoding=\"bogus\"?><r/>", "<r/>", &[UnsupportedEncoding]),
+    // the DTD reads on where libxml2 requires a space but does not stop
+    ("<!DOCTYPEr><r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
+    ("<!DOCTYPE r [<!ELEMENT r(#PCDATA)><!ENTITY e SYSTEM \"x\"NDATA n><!ATTLIST r a CDATA #FIXED\"v\">]><r/>",
+     "<!DOCTYPE r [\n<!ELEMENT r (#PCDATA)>\n<!ENTITY e SYSTEM \"x\" NDATA n>\n<!ATTLIST r a CDATA #FIXED \"v\">\n]>\n<r/>", &[InvalidDtd; 3]),
+    ("<!DOCTYPE r [<!ENTITY%p\"x\"><!ENTITY e PUBLIC\"p\"\"s\">]><r/>",
+     "<!DOCTYPE r [\n<!ENTITY % p \"x\">\n<!ENTITY e PUBLIC \"p\" \"s\">\n]>\n<r/>", &[InvalidDtd; 5]),
+    // ... else the DOCTYPE keeps the declarations before the error, and the
+    // document resumes there: at markup that is no declaration
+    ("<!DOCTYPE r [<r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
     // the valid prefix before an invalid character or UTF-8 sequence is kept
     ("<r>a\u{1}b</r>", "<r>a</r>", &[InvalidCharacter]),
     ("<r a='\u{1}'/>", "<r/>", &[UnexpectedEof, UnexpectedEof, InvalidCharacter]),
+];
+
+/// Inputs from which, as in libxml2, no element is recovered: (input, saved
+/// after the declaration, errors).
+#[rustfmt::skip]
+const ROOTLESS: &[(&str, &str, &[ErrorKind])] = &[
+    ("text", "", &[TextOutsideRoot]),
+    ("<!-- c -->", "<!-- c -->\n", &[MissingRoot]),
+    ("<?xml VERSION=\"1.0\"?>x<r/>", "", &[InvalidDeclaration, InvalidDeclaration, TextOutsideRoot]),
+    ("<1/>", "", &[InvalidName]),
+    // a DTD error ends the DOCTYPE, which keeps the declarations before it,
+    // and the document resumes where libxml2's does
+    ("<!DOCTYPE .r><r/>", "<!DOCTYPE >\n", &[InvalidName, TextOutsideRoot]),
+    ("<!DOCTYPE r PUBLIC \"[\" \"x\"><r/>", "<!DOCTYPE r PUBLIC \"\" \"\">\n", &[InvalidDtd, TextOutsideRoot]),
+    ("<!DOCTYPE r [<!ELEMENT r EMPTY><!ATTLIST r a NAME #IMPLIED><!ELEMENT s ANY>]><r/>",
+     "<!DOCTYPE r [\n<!ELEMENT r EMPTY>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
+    ("<!DOCTYPE r [<!ENTITY e 'x'><!ELEMENT r ANY>&e;]><r/>",
+     "<!DOCTYPE r [\n<!ENTITY e \"x\">\n<!ELEMENT r ANY>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
 ];
 
 #[test]
@@ -122,7 +149,7 @@ fn recovery_decodes_utf16_like_utf8() {
         encoding: Some("UTF-8"),
         ..Default::default()
     };
-    for &(input, _, errors) in CASES.iter().filter(decoded) {
+    for &(input, _, errors) in CASES.iter().chain(ROOTLESS).filter(decoded) {
         let utf16: Vec<u8> = "\u{feff}"
             .encode_utf16()
             .chain(input.encode_utf16())
@@ -138,19 +165,29 @@ fn recovery_decodes_utf16_like_utf8() {
 }
 
 #[test]
-fn recovery_without_an_element_fails_with_the_first_error() {
-    // (input, error)
-    let cases: &[(&str, ErrorKind)] = &[
-        ("", MissingRoot),
-        ("text", TextOutsideRoot),
-        ("<!-- c -->", MissingRoot),
-        ("<!DOCTYPEdoc><doc/>", InvalidDtd),
-        ("<?xml VERSION=\"1.0\"?>x<r/>", InvalidDeclaration),
-        ("<1/>", InvalidName),
-    ];
-    for &(input, error) in cases {
-        assert_eq!(recover(input.as_bytes(), 0), Err(error), "{input}");
+fn recovery_without_an_element_keeps_the_prolog() {
+    for &(input, saved, errors) in ROOTLESS {
+        let expected = (format!("{DECL}{saved}"), errors.to_vec());
+        assert_eq!(recover(input.as_bytes(), 0), Ok(expected), "{input}");
+        let options = || ParseOptions::new(RECOVER);
+        let borrowed = Document::parse_with(input.as_bytes(), options()).unwrap();
+        let owned = OwnedDocument::parse_with(input.as_bytes(), options()).unwrap();
+        assert!(borrowed.document_element().is_none() && owned.document_element().is_none());
+        assert_eq!(
+            borrowed.root_element().id(),
+            borrowed.root().id(),
+            "{input}"
+        );
+        assert_eq!(owned.root_element().id(), owned.root().id(), "{input}");
+        assert!(Document::parse(input).is_err(), "{input}");
     }
+    // ... as long as there is input, as libxml2 fails on an empty document
+    assert_eq!(recover(b"", 0), Err(MissingRoot));
+    let document = Document::parse_with(b"<r/>", ParseOptions::new(RECOVER)).unwrap();
+    assert_eq!(
+        document.document_element().map(|r| r.id()),
+        Some(document.root_element().id())
+    );
 }
 
 #[test]

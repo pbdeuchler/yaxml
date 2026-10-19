@@ -62,6 +62,15 @@ impl EntityFrames {
         self.expansion_ceiling = ceiling;
     }
 
+    /// The stack without its frames, as recovery leaves the entities it
+    /// was expanding.
+    pub(crate) fn unwound(self) -> Self {
+        Self {
+            frames: Vec::new(),
+            ..self
+        }
+    }
+
     pub(crate) fn counters(&self) -> FrameCounters {
         self.counters
     }

@@ -100,6 +100,8 @@ pub(crate) struct DtdControllerCore<'input> {
     started: bool,
     finalizing: bool,
     complete: bool,
+    cut: Option<(Option<usize>, usize)>,
+    resume: Option<(usize, usize)>,
 }
 
 pub(crate) type DtdController = DtdControllerCore<'static>;
@@ -173,6 +175,8 @@ impl<'input> DtdControllerCore<'input> {
             started: false,
             finalizing: false,
             complete: false,
+            cut: None,
+            resume: None,
         }
     }
 
@@ -187,6 +191,34 @@ impl<'input> DtdControllerCore<'input> {
     }
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.catalog
+    }
+    pub(crate) fn encoding(&self) -> SourceEncoding {
+        self.encoding
+    }
+    /// Decoded bytes the physical scanner consumed, from `decoded_start`.
+    pub(crate) fn decoded_position(&self) -> usize {
+        self.decoded_start + self.physical.position()
+    }
+
+    /// `Budget::recover` from a declaration error: under `RECOVER` the
+    /// declarations end here and the DOCTYPE is ready to publish.
+    pub(crate) fn recover(&mut self, error: Error, budget: &mut Budget) -> Result<(), Error> {
+        budget.recover(error)?;
+        self.cut = Some((self.started.then_some(self.unit_start), error.offset));
+        self.ready = Some(Ready::End);
+        self.origin = FragmentOrigin::input(self.start..self.position);
+        Ok(())
+    }
+
+    /// After `recover`: where the unit being read began (once the header
+    /// was read), whose declarations are dropped, and the error's offset.
+    pub(crate) fn cut(&self) -> Option<(Option<usize>, usize)> {
+        self.cut
+    }
+
+    /// Where the document resumes after `abandon`, decoded and physical.
+    pub(crate) fn resume_at(&mut self, decoded: usize, physical: usize) {
+        self.resume = Some((decoded, physical));
     }
     pub(crate) fn current(&self) -> Option<(DtdEvent<'_>, FragmentOrigin)> {
         let event = match self.ready? {
@@ -243,13 +275,21 @@ impl<'input> DtdControllerCore<'input> {
         if let Err(error) = self.catalog.include_subset() {
             return Err(self.simple_error(error.kind));
         }
+        let (decoded_position, physical_position) = self
+            .resume
+            .unwrap_or((self.decoded_position(), self.position));
+        // Recovery leaves the parameter entities it was expanding.
+        let frames = match self.cut {
+            Some(_) => self.frames.unwound(),
+            None => self.frames,
+        };
         Ok(DtdBodyState {
             catalog: self.catalog,
-            frames: self.frames,
+            frames,
             limits: self.limits,
             counters: self.counters,
-            decoded_position: self.decoded_start + self.physical.position(),
-            physical_position: self.position,
+            decoded_position,
+            physical_position,
             encoding: self.encoding,
         })
     }
@@ -381,12 +421,13 @@ impl<'input> DtdControllerCore<'input> {
             (Side::Physical, Some((source, source_start))) => {
                 let range = origin.input_range().expect("physical unit");
                 let raw = &source[range.start - source_start..range.end - source_start];
-                parse_unit(raw, limits, (kind, side, started), encoding, origin)?
+                parse_unit(raw, limits, (kind, side, started), encoding, origin, budget)?
             }
             _ => {
                 let raw = std::str::from_utf8(self.scanner(side).current().expect("ready").1)
                     .expect("scanner validates ready UTF-8");
-                let borrowed = parse_unit(raw, limits, (kind, side, started), encoding, origin)?;
+                let borrowed =
+                    parse_unit(raw, limits, (kind, side, started), encoding, origin, budget)?;
                 // A streamed unit is retained beyond its scanner as an owned copy.
                 let limit = |count: usize, ceiling| {
                     count.checked_add(raw_len).filter(|count| *count <= ceiling)
@@ -588,16 +629,18 @@ impl DtdBodyState {
 }
 
 /// Parses `raw`, read from `origin`, as a unit the scanner classified as `kind`.
-fn parse_unit(
-    raw: &str,
+fn parse_unit<'raw>(
+    raw: &'raw str,
     limits: DtdLimits,
     (kind, side, started): (ScanKind, Side, bool),
     encoding: SourceEncoding,
     origin: FragmentOrigin,
-) -> Result<DtdUnit<'_>, Error> {
-    let unit = DtdUnit::parse(raw, limits).map_err(|error| {
-        Error::new(error.kind, unit_offset(encoding, origin, raw, error.offset))
-    })?;
+    budget: &mut Budget,
+) -> Result<DtdUnit<'raw>, Error> {
+    let located =
+        |error: Error| Error::new(error.kind, unit_offset(encoding, origin, raw, error.offset));
+    let mut recover = |error| budget.recover(located(error)).map_err(|_| error);
+    let unit = DtdUnit::parse_recovering(raw, limits, &mut recover).map_err(located)?;
     match valid_unit(kind, side, started, &unit) {
         true => Ok(unit),
         false => Err(Error::new(ErrorKind::InvalidDtd, origin.error_offset())),

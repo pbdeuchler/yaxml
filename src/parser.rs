@@ -87,6 +87,14 @@ impl Budget {
         self.recovered.is_some()
     }
 
+    /// This budget under `RECOVER`.
+    pub(crate) fn recovering(self) -> Self {
+        Self {
+            recovered: Some(Vec::new()),
+            ..self
+        }
+    }
+
     /// How a parse with this budget ended: under `RECOVER`, the errors
     /// recovered from, including the terminal `end` error that stopped it.
     /// Strict parsing and fatal errors return `end`'s error.
@@ -2083,7 +2091,7 @@ fn bound_in<'source>(
 }
 
 /// The length of the longest Name, colons included, that `text` starts with.
-fn name_length(text: &str) -> usize {
+pub(crate) fn name_length(text: &str) -> usize {
     text.char_indices()
         .find(|&(i, c)| !(name_char(c, true) && (i > 0 || name_start(c, true))))
         .map_or(text.len(), |(i, _)| i)

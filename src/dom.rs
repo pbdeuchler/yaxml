@@ -88,7 +88,8 @@ pub(crate) fn append_record<K>(
 /// An immutable, flat XML tree that borrows unchanged strings from its input.
 ///
 /// Parsing and destruction use no recursion. A successful document has one
-/// element beneath its synthetic document root.
+/// element beneath its synthetic document root; under `RECOVER` it can have
+/// none.
 #[derive(Debug)]
 pub struct Document<'input> {
     nodes: Vec<Record<NodeKind<'input>>>,
@@ -228,7 +229,9 @@ impl<'input> Document<'input> {
                 record.origin = record.origin.close_element(stop).unwrap_or(record.origin);
             }
         }
-        if document.root_element == NodeId(0) {
+        // Recovery keeps a document without an element, as libxml2 does
+        // unless the input is empty.
+        if document.root_element == NodeId(0) && (document.errors.is_empty() || length == 0) {
             let missing = Error::new(ErrorKind::MissingRoot, reader.position());
             return Err(document.errors.first().copied().unwrap_or(missing));
         }
@@ -386,12 +389,21 @@ impl<'input> Document<'input> {
         }
     }
 
-    /// Returns the single document element, guaranteed by successful parsing.
+    /// Returns the single document element, guaranteed by successful parsing
+    /// except under `RECOVER`: a document that recovered none returns its
+    /// synthetic root, as an HTML document without one does
+    /// ([`Self::document_element`] tells them apart).
     pub fn root_element(&self) -> Node<'_, 'input> {
         Node {
             document: self,
             id: self.root_element,
         }
+    }
+
+    /// The document element, or `None` for a `RECOVER` parse that recovered
+    /// none (libxml2's `xmlDocGetRootElement`, DOM's `documentElement`).
+    pub fn document_element(&self) -> Option<Node<'_, 'input>> {
+        (self.root_element != NodeId(0)).then(|| self.root_element())
     }
 
     /// Looks up a document-local ID, returning `None` when it is out of range.

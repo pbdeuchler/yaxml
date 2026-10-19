@@ -66,7 +66,8 @@ fn declarations(name: &str, subset: &str, notations: &mut Out, out: &mut Out) ->
     };
     let options = DtdLimits::new(limits, DecodeLimits::default());
     let mut controller = DtdController::stable_utf8(&text, 0, 0, options, false);
-    let mut budget = Budget::new(limits);
+    // A recovered document's subset can hold what libxml2 reads on from.
+    let mut budget = Budget::new(limits).recovering();
     let (mut seen, mut declared) = (HashSet::new(), false);
     while !controller.is_complete() {
         match controller.current() {

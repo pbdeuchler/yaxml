@@ -43,7 +43,7 @@ fn construction_finishes_xml_before_assigning_identity() {
     assert_eq!(
         OwnedBuilder::new(0)
             .unwrap()
-            .finish_with_counter(0, &counter)
+            .finish_with_counter(0, &counter, false)
             .unwrap_err(),
         Error::new(ErrorKind::MissingRoot, 0)
     );
@@ -61,7 +61,7 @@ fn construction_finishes_xml_before_assigning_identity() {
                 reader.owned_budget(),
             )
             .unwrap();
-        let result = builder.finish_with_counter(4, &counter);
+        let result = builder.finish_with_counter(4, &counter, false);
         if last == 0 {
             let document = result.unwrap();
             assert_eq!(document.identity.get(), 1);

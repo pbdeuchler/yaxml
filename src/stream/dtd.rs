@@ -25,6 +25,9 @@ struct DtdSession {
     phase: Option<Phase>,
     decoder_finished: bool,
     physical: usize,
+    /// Decoded input a recovered declaration read past where the document
+    /// resumes, fed to the content phase before further input.
+    replay: Vec<u8>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -378,6 +381,7 @@ impl StreamingSession {
             }),
             decoder_finished: false,
             physical: self.physical,
+            replay: Vec::new(),
         });
         result
     }
@@ -443,12 +447,16 @@ impl DtdSession {
                     if controller.is_complete() {
                         self.physical = self.position();
                         let Phase::Declarations {
-                            controller, parser, ..
+                            controller,
+                            parser,
+                            mut raw,
                         } = self.phase.take().expect("declaration owner")
                         else {
                             unreachable!("checked declaration phase")
                         };
+                        let first = controller.decoded_position() - raw.len();
                         let body = controller.into_body_state()?;
+                        self.replay = raw.split_off(body.resume_position().0 - first);
                         let content = ContentController::new(
                             body,
                             parser,
@@ -457,10 +465,12 @@ impl DtdSession {
                         self.phase = Some(Phase::Content(content));
                         continue;
                     }
-                    if self.decoder_finished {
-                        controller.finish_step(parser.owned_budget())?;
-                    } else {
-                        controller.advance(&[], parser.owned_budget())?;
+                    let result = match self.decoder_finished {
+                        true => controller.finish_step(parser.owned_budget()),
+                        false => controller.advance(&[], parser.owned_budget()).map(drop),
+                    };
+                    if let Err(error) = result {
+                        controller.recover(error, parser.owned_budget())?;
                     }
                     if controller.current().is_none() && !controller.is_complete() {
                         if self.decoder_finished {
@@ -473,7 +483,11 @@ impl DtdSession {
                     }
                 }
                 Phase::Content(controller) => {
-                    let step = if self.decoder_finished {
+                    let step = if !self.replay.is_empty() {
+                        let step = controller.advance(&self.replay)?;
+                        self.replay.drain(..step.consumed);
+                        step
+                    } else if self.decoder_finished {
                         controller.finish_step()?
                     } else {
                         controller.advance(&[])?
@@ -488,7 +502,7 @@ impl DtdSession {
                         }
                         ContentOutcome::Progress => {}
                         ContentOutcome::NeedPhysicalInput => {
-                            if self.decoder_finished {
+                            if !self.replay.is_empty() || self.decoder_finished {
                                 return Err(Error::new(
                                     ErrorKind::InvalidState,
                                     controller.position().1,
@@ -539,11 +553,29 @@ fn lend_current<'event>(
             let (_, end) = controller.current().expect("ready DTD end");
             let range = controller.start()..end.physical_context().end;
             parser.check_event_limit(range.start)?;
-            let raw = std::str::from_utf8(raw)
-                .map_err(|_| Error::new(ErrorKind::InvalidState, range.start))?;
             parser.commit_doctype();
+            let (doctype, range) = match controller.cut() {
+                None => {
+                    let raw = std::str::from_utf8(raw)
+                        .map_err(|_| Error::new(ErrorKind::InvalidState, range.start))?;
+                    (Doctype::parse(raw), range)
+                }
+                Some((unit, at)) => {
+                    // A recovered declaration can end inside a character.
+                    let first = controller.decoded_position() - raw.len();
+                    let valid = std::str::from_utf8(raw).map_or_else(|e| e.valid_up_to(), str::len);
+                    let raw = std::str::from_utf8(&raw[..valid]).expect("valid UTF-8 prefix");
+                    let (encoding, start) = (controller.encoding(), range.start);
+                    let index = |at| decoded_index(raw, encoding, start, at);
+                    let (doctype, resume) =
+                        crate::reader::recovered_doctype(raw, unit.map(index), index(at));
+                    let physical = start + encoding.source_length(&raw.as_bytes()[..resume]);
+                    controller.resume_at(first + resume, physical);
+                    (doctype, start..physical)
+                }
+            };
             (
-                Event::Doctype(Doctype::parse(raw)),
+                Event::Doctype(doctype),
                 FragmentOrigin::input(range).expect("ordered declaration span"),
                 parser.owned_budget(),
             )
@@ -564,6 +596,20 @@ fn lend_current<'event>(
     })
 }
 
+/// The index in `raw`, decoded from physical offset `start`, of physical
+/// offset `at`.
+fn decoded_index(raw: &str, encoding: SourceEncoding, start: usize, at: usize) -> usize {
+    let mut physical = start;
+    raw.char_indices()
+        .find(|&(index, character)| {
+            let reached = physical >= at;
+            physical +=
+                encoding.source_length(&raw.as_bytes()[index..index + character.len_utf8()]);
+            reached
+        })
+        .map_or(raw.len(), |(index, _)| index)
+}
+
 fn phase_decode(phase: &mut Phase, decoded: Decoded<'_>) -> Result<DecodeProgress, Error> {
     let Decoded::Bytes(bytes) = decoded else {
         let at = match phase {
@@ -578,13 +624,19 @@ fn phase_decode(phase: &mut Phase, decoded: Decoded<'_>) -> Result<DecodeProgres
             parser,
             raw,
         } => {
-            let consumed = controller.advance(bytes, parser.owned_budget())?;
+            // Recovery replays what the scanner consumed before an error.
+            let before = controller.decoded_position();
+            let result = controller.advance(bytes, parser.owned_budget());
+            let consumed = controller.decoded_position() - before;
             capture(
                 raw,
                 &bytes[..consumed],
                 parser.owned_budget(),
                 controller.physical_position(),
             )?;
+            if let Err(error) = result {
+                controller.recover(error, parser.owned_budget())?;
+            }
             Ok(DecodeProgress {
                 consumed,
                 suspended: controller.current().is_some() || controller.is_complete(),

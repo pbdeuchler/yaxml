@@ -185,40 +185,90 @@ pub struct Doctype<'a> {
 impl<'a> Doctype<'a> {
     /// Splits a complete, already validated declaration from `<!DOCTYPE` to `>`.
     pub(crate) fn parse(raw: &'a str) -> Self {
-        const SPACE: &[char] = &[' ', '\t', '\r', '\n'];
-        fn literal(input: &str) -> (&str, &str) {
-            let input = input.trim_start_matches(SPACE);
-            let quote = input.as_bytes()[0] as char;
-            let end = 1 + input[1..].find(quote).expect("validated literal");
-            (&input[1..end], &input[end + 1..])
-        }
-        let rest = raw["<!DOCTYPE".len()..].trim_start_matches(SPACE);
-        let (name, rest) = rest.split_at(
-            rest.find(|c| SPACE.contains(&c) || c == '[' || c == '>')
-                .expect("validated name"),
-        );
-        let rest = rest.trim_start_matches(SPACE);
-        let (public_id, system_id, rest) = if let Some(rest) = rest.strip_prefix("PUBLIC") {
-            let (public, rest) = literal(rest);
-            let (system, rest) = literal(rest);
-            (Some(public), Some(system), rest)
-        } else if let Some(rest) = rest.strip_prefix("SYSTEM") {
-            let (system, rest) = literal(rest);
-            (None, Some(system), rest)
-        } else {
-            (None, None, rest)
-        };
-        let internal_subset = rest
-            .trim_start_matches(SPACE)
+        let (doctype, end) = Self::header(raw);
+        let internal_subset = raw[end..]
             .strip_prefix('[')
             .map(|subset| &subset[..subset.rfind(']').expect("validated subset")]);
         Self {
-            name,
-            public_id,
-            system_id,
             internal_subset,
+            ..doctype
         }
     }
+
+    /// libxml2's `xmlParseDocTypeDecl`, which also reads a malformed header:
+    /// the name (empty without one) and identifiers it keeps, and the offset
+    /// in `raw`, from `<!DOCTYPE`, where `[` or `>` should follow.
+    pub(crate) fn header(raw: &'a str) -> (Self, usize) {
+        let skip =
+            |at: usize| raw.len() - raw[at..].trim_start_matches([' ', '\t', '\r', '\n']).len();
+        // A literal and the offset after it: up to its quote or, as libxml2
+        // reads a public identifier, a character that is not a PubidChar.
+        let literal = |at: usize, public: bool| {
+            let quote = raw[at..]
+                .chars()
+                .next()
+                .filter(|c| matches!(c, '"' | '\''))?;
+            let body = &raw[at + 1..];
+            let end = body
+                .find(|c| c == quote || (public && !crate::dtd::pubid_char(c)))
+                .unwrap_or(body.len());
+            Some((
+                &body[..end],
+                at + 1 + end + usize::from(body[end..].starts_with(quote)),
+            ))
+        };
+        let name_start = skip("<!DOCTYPE".len());
+        let name_end = name_start + crate::parser::name_length(&raw[name_start..]);
+        let mut at = skip(name_end);
+        let identifier = |at: &mut usize, public| {
+            let (value, end) = literal(*at, public)?;
+            *at = skip(end);
+            Some(value)
+        };
+        let (public_id, system_id) = match &raw[at..] {
+            rest if rest.starts_with("SYSTEM") => {
+                at = skip(at + 6);
+                (None, identifier(&mut at, false))
+            }
+            rest if rest.starts_with("PUBLIC") => {
+                at = skip(at + 6);
+                let public = identifier(&mut at, true);
+                (public, identifier(&mut at, false))
+            }
+            _ => (None, None),
+        };
+        let doctype = Self {
+            name: &raw[name_start..name_end],
+            public_id,
+            system_id,
+            internal_subset: None,
+        };
+        (doctype, at)
+    }
+}
+
+/// Recovery from a DTD error at `at` in `raw`, the declaration read so far
+/// from `<!DOCTYPE`, while reading the subset unit at `unit` (offsets into
+/// `raw`): the DOCTYPE keeps the header and the declarations before the
+/// error, and the document resumes where libxml2's does: at the error in the
+/// subset, else after the header's `>` or where the header ends.
+pub(crate) fn recovered_doctype(raw: &str, unit: Option<usize>, at: usize) -> (Doctype<'_>, usize) {
+    let boundary = |at: usize| {
+        (0..=at.min(raw.len()))
+            .rev()
+            .find(|&at| raw.is_char_boundary(at))
+    };
+    let (mut doctype, end) = Doctype::header(raw);
+    let resume = match (raw.as_bytes().get(end), unit) {
+        (Some(b'['), Some(unit)) => {
+            let kept = boundary(unit.min(at)).unwrap_or(0).max(end + 1);
+            doctype.internal_subset = Some(&raw[end + 1..kept]);
+            boundary(at).unwrap_or(0).max(end + 1)
+        }
+        (Some(b'>'), _) => end + 1,
+        _ => end,
+    };
+    (doctype, resume)
 }
 
 /// Logical events borrow the input except where XML normalization changes it.
@@ -440,7 +490,9 @@ impl<'a> Reader<'a> {
             match self.session.first_mut().expect("active DTD phase") {
                 Phase::Declarations { controller, parser } => {
                     while controller.current().is_none() {
-                        controller.advance_borrowed(parser.owned_budget())?;
+                        if let Err(error) = controller.advance_borrowed(parser.owned_budget()) {
+                            controller.recover(error, parser.owned_budget())?;
+                        }
                     }
                     let (event, origin) = controller.current().expect("ready declaration");
                     let end = origin.physical_context().end;
@@ -451,9 +503,20 @@ impl<'a> Reader<'a> {
                     }
                     controller.release();
                     if complete {
-                        let range = self.doctype_start..end;
-                        self.origin = Some(SourceOrigin::input(range.clone()));
-                        return Ok(Some(Event::Doctype(Doctype::parse(&self.source[range]))));
+                        let start = self.doctype_start;
+                        let (doctype, end) = match controller.cut() {
+                            None => (Doctype::parse(&self.source[start..end]), end),
+                            Some((unit, at)) => {
+                                let local = |offset: usize| offset.saturating_sub(start);
+                                let raw = &self.source[start..];
+                                let (doctype, resume) =
+                                    recovered_doctype(raw, unit.map(local), local(at));
+                                controller.resume_at(start + resume, start + resume);
+                                (doctype, start + resume)
+                            }
+                        };
+                        self.origin = Some(SourceOrigin::input(start..end));
+                        return Ok(Some(Event::Doctype(doctype)));
                     }
                 }
                 Phase::Content(controller) => match controller.advance_borrowed()?.outcome {

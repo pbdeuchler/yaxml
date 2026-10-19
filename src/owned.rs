@@ -658,9 +658,17 @@ impl OwnedDocument {
         self.view(NodeId(0)).expect("owned document root is live")
     }
 
+    /// The document element; the synthetic root for an HTML or `RECOVER`
+    /// document without one ([`Self::document_element`] tells them apart).
     pub fn root_element(&self) -> OwnedNode<'_> {
         self.view(self.root_element)
             .expect("owned document element is live")
+    }
+
+    /// The document element, or `None` for an HTML or `RECOVER` document
+    /// without one (libxml2's `xmlDocGetRootElement`, DOM's `documentElement`).
+    pub fn document_element(&self) -> Option<OwnedNode<'_>> {
+        (self.root_element != NodeId(0)).then(|| self.root_element())
     }
 
     /// Looks up a checked owned handle, rejecting foreign or out-of-range IDs.
@@ -1481,8 +1489,12 @@ impl OwnedBuilder {
                 record.source = Some(source.close_element(stop).unwrap_or(source));
             }
         }
+        // Recovery keeps a document without an element unless the input is
+        // empty, as libxml2 does.
+        let input = self.nodes[0].source.and_then(SourceOrigin::input_range);
+        let rootless = !errors.is_empty() && input.is_some_and(|input| !input.is_empty());
         let document = self
-            .finish_with_counter(position, &LAST_DOCUMENT_ID)
+            .finish_with_counter(position, &LAST_DOCUMENT_ID, rootless)
             .map_err(|error| match error.kind {
                 ErrorKind::MissingRoot => errors.first().copied().unwrap_or(error),
                 _ => error,
@@ -1521,8 +1533,9 @@ impl OwnedBuilder {
         mut self,
         position: usize,
         counter: &AtomicUsize,
+        rootless: bool,
     ) -> Result<OwnedDocument, Error> {
-        if self.root_element == NodeId(0) {
+        if self.root_element == NodeId(0) && !rootless {
             return Err(Error::new(ErrorKind::MissingRoot, position));
         }
         self.nodes[0].subtree_size = self.nodes.len();
@@ -1693,7 +1706,7 @@ impl TreeBuilder {
             declaration: self.declaration,
             parents: Vec::new(),
         }
-        .finish_with_counter(0, &LAST_DOCUMENT_ID)?;
+        .finish_with_counter(0, &LAST_DOCUMENT_ID, false)?;
         let document_id = document.identity;
         let ids = self
             .ids
