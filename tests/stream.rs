@@ -301,3 +301,41 @@ fn large_input_small_tokens_and_long_single_token() {
         ErrorKind::LimitExceeded(Limit::TokenBytes)
     );
 }
+
+#[test]
+fn input_ceiling_is_cumulative_whole_chunk_and_sticky() {
+    let limits = Limits {
+        max_input_bytes: 6,
+        ..Limits::default()
+    };
+    // (chunks, failing chunk index): each chunk is checked whole before any byte.
+    for (chunks, failing) in [
+        (&[b"<r>".as_slice(), b"</r>"][..], Some(1)),
+        (&[b"<r".as_slice(), b"/>", b""][..], None),
+        (&[b"<r/>   ".as_slice()][..], Some(0)),
+    ] {
+        let mut parser = PushParser::with_limits(limits);
+        let mut events = 0;
+        let mut failed = None;
+        for (index, chunk) in chunks.iter().enumerate() {
+            if let Err(error) = parser.feed(chunk, |_, _| {
+                events += 1;
+                ControlFlow::Continue(())
+            }) {
+                assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::InputBytes));
+                failed = Some((index, error));
+                break;
+            }
+        }
+        assert_eq!(failed.map(|(index, _)| index), failing, "{chunks:?}");
+        match failed {
+            Some((index, error)) => {
+                // Nothing of the rejected chunk was processed.
+                assert_eq!(events, index, "{chunks:?}");
+                assert_eq!(parser.feed(b"", |_, _| panic!()).unwrap_err(), error);
+                assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
+            }
+            None => parser.finish(|_, _| ControlFlow::Continue(())).unwrap(),
+        }
+    }
+}

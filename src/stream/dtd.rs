@@ -53,7 +53,8 @@ enum Failure {
 }
 
 /// Length-zero/one slot keeps the large DTD/body state off the ordinary stack.
-/// Whole-input receipt/limits belong to the caller, as with Stream::advance.
+/// `advance` counts pushed chunks against `max_input_bytes`; pull callers
+/// (`prepare`) bound their own reads.
 pub(crate) struct StreamingSession {
     ordinary: Option<Stream>,
     session: Vec<DtdSession>,
