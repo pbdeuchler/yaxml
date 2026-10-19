@@ -4,7 +4,7 @@ This is a development policy, not a claim that yaxml is ready for hostile produc
 
 ## Trust boundaries
 
-The Rust core forbids unsafe code and has one dependency, `memchr`. Keep the same restriction for core tests, examples, and fuzz drivers. Review the dependency graph and enabled features when updating the lockfile. The prohibition applies to yaxml's source; dependencies and the standard library have their own implementation and audit boundaries.
+The Rust core forbids unsafe code and has one dependency, `memchr`. Keep the same restriction for core tests, examples, and fuzz drivers; only the standalone `fuzz/` cargo-fuzz package adds `libfuzzer-sys` and its generated unsafe entry point. Review the dependency graph and enabled features when updating the lockfile. The prohibition applies to yaxml's source; dependencies and the standard library have their own implementation and audit boundaries.
 
 Treat document bytes, parser options, caller-created tree data, resolver responses, and binding handles as independent input boundaries. Validate bytes and XML structure before creating trusted names and nodes. A writer must validate caller-created data even when the reader already validates parsed input. Constructors and tree mutations must preserve node relationships and namespace invariants. Do not add redundant validation inside every internal function.
 
@@ -107,7 +107,7 @@ Differential testing runs a separately built, version-pinned libxml2 executable 
 
 Use both arbitrary byte mutation and grammar-generated valid documents. Seed all lexical constructs, Unicode/name boundaries, CR/CRLF, references, malformed delimiters, namespace shadowing, duplicate attributes, truncation at every byte, and each limit at zero, below, equal, and above its boundary. Add deep/wide documents and many shared-prefix names to test complexity. Keep every minimized bug as a deterministic regression with its invariant, not just as an opaque corpus file.
 
-Start with a dependency-free stdin/file replay driver and deterministic mutation smoke test. External AFL++ can launch the stdin driver, but efficient instrumentation and execution feedback need validation for the chosen Rust toolchain. Random mutation without coverage feedback is a smoke test, not evidence of coverage-guided fuzzing. Do not introduce `libfuzzer-sys`, a second Cargo dependency, an unsafe export, or a separate tooling crate without an explicit policy decision.
+The dependency-free driver backs a stdin/file replay example, deterministic smoke tests, and one cargo-fuzz (libFuzzer) target per input family; `fuzz/coverage.sh` reports per-target and merged library coverage. Random mutation without coverage feedback is a smoke test, not evidence of coverage-guided fuzzing. See [fuzz/README.md](../fuzz/README.md).
 
 ## Release gates
 
