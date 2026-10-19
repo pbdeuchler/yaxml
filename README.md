@@ -342,10 +342,11 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
 
 `yaxml::relaxng` compiles RELAX NG schemas (XML syntax, `include` and
 `externalRef` through a `Resolver`, full section 4 simplification and section
-7 restrictions, built-in and XML Schema datatypes) and validates either DOM
-with derivatives over interned patterns, bounded by a work budget, where
-libxml2's `relaxng.c` backtracks. All 159 libxml2 `test/relaxng` verdicts
-agree; see [RELAX NG](docs/relaxng.md).
+7 restrictions, built-in and XML Schema datatypes) and validates either DOM,
+or the events of any streaming reader (`Schema::stream`, also behind
+`TextReader::relaxng_set_schema`), with derivatives over interned patterns,
+bounded by a work budget, where libxml2's `relaxng.c` backtracks. All 159
+libxml2 `test/relaxng` verdicts agree; see [RELAX NG](docs/relaxng.md).
 
 ```rust
 use yaxml::relaxng::{Limits, Schema};

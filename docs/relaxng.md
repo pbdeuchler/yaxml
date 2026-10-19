@@ -10,6 +10,8 @@ libxml2's backtracking.
 | `Schema::parse(bytes, base, resolver, &limits)` | `xmlRelaxNGNewMemParserCtxt` + `xmlRelaxNGSetResourceLoader` + `xmlRelaxNGParse` |
 | `Schema::from_tree(&document, base, resolver, &limits)` | `xmlRelaxNGNewDocParserCtxt` + `xmlRelaxNGParse` (either DOM) |
 | `schema.validate(&document)` | `xmlRelaxNGValidateDoc` (either DOM) |
+| `schema.stream()`, then `stream.event(&event, origin)` per event | `xmlRelaxNGValidatePushElement`, `PushCData`, `PopElement`; `FullElement` is never needed |
+| `TextReader::relaxng_set_schema`, `relaxng_diagnostics`, `is_valid` | `xmlTextReaderRelaxNGSetSchema` (`RelaxNGValidate` is `Schema::parse` plus this), `xmlTextReaderIsValid` |
 
 A `Schema` is immutable, `Send + Sync` and reusable. Schema errors are
 `SchemaErrors`, a non-empty list of `SchemaError { code, uri, offset,
@@ -89,6 +91,32 @@ element reports at most one content error. So yaxml reports one diagnostic per
 fault where libxml2 often adds a chain of "failed to validate content" errors
 for the ancestors.
 
+## Streaming validation
+
+`Schema::stream` returns a `Stream` that validates one document from its
+events (`Start`, `Empty`, `End`, `Text`, `Cdata`; the rest are ignored), so
+the slice `Reader`, `PushParser`, `BufferedReader` and `TextReader` validate
+without a tree. The tree walk feeds the same engine the same calls (start tag
+with attributes, text, end tag), so for the same document and options the
+diagnostics are identical, except that `node` is the element's index in
+document order. Each fault is reported when its event arrives; `xsd:IDREF`
+references, and the `Internal` diagnostic of an exhausted budget, when the
+document element ends. `ENTITY`, `ENTITIES` and `NOTATION` values need the
+DTD: `Stream::set_dtd` takes `BufferedReader::dtd()` after the `Doctype`
+event (`TextReader` does this itself).
+
+libxml2 compiles each element's content to an automaton for push validation;
+where it cannot (`interleave`, name classes other than a single name, and the
+other cases `xmlRelaxNGIsCompilable` rejects), `PushElement` returns 0 and the
+caller must expand the subtree and call `xmlRelaxNGValidateFullElement`,
+which `xmlTextReader` does by buffering it. Derivatives consume one event at a
+time for every pattern, so yaxml buffers no subtree. Memory is the open
+elements' frames and namespace bindings (bounded by `Limits::max_depth`) and
+each one's text since its last child tag, plus the derivative memo and interned
+names, which cost work units and so stay within `Limits::max_work`, and the
+`xsd:ID` values and pending references, which libxml2 keeps too. After an
+element the content does not allow, its subtree is skipped by depth count.
+
 ## Results
 
 `YAXML_LIBXML2_SOURCE=../yaxml-oracle/libxml2-2.15.4 YAXML_XMLLINT=../yaxml-oracle/build/xmllint cargo test --release --test relaxng -- --include-ignored --nocapture`:
@@ -116,11 +144,21 @@ The differences from the expected verdicts:
 - `NOTATION` data without a DTD is invalid, as in libxml2 (two `xsdtest`
   instances expect it valid).
 
+Streaming over `BufferedReader` events gives exactly the DOM's diagnostics
+(code, offset, message) on every instance above: 154 libxml2 instances with a
+compiling schema and 529, 183 and 1,035 suite instances (`tests/relaxng.rs`
+also streams every table case through the slice `Reader` and through
+`PushParser` one byte at a time). `libxml2_relaxng_suite_streams_like_xmllint`
+compares `TextReader` validation with `xmllint --stream --relaxng`: 154 of 154
+verdicts agree, and 122 of 154 message lists, all 112 valid instances and 10
+of the 42 invalid ones. The others differ as in tree mode, plus libxml2's
+push-mode wording (`Did not expect text in element  TODO  content`, `Extra
+data in list`). `yaxmllint --stream --relaxng` matches `xmllint`'s exit code
+and stdout on all 798 schema and instance pairs of `tests/yaxmllint.rs`.
+
 ## Gaps
 
-- No push or streaming validation (`xmlRelaxNGValidatePush*`,
-  `xmlTextReaderRelaxNGValidate`), compact syntax, `xmlRelaxNGDump`, or
-  user-registered datatype libraries.
+- No compact syntax, `xmlRelaxNGDump`, or user-registered datatype libraries.
 - The DTD compatibility annotations (`a:defaultValue`) are ignored and IDs
   are checked as libxml2 does, not with the ID-type consistency rules of
   the DTD compatibility specification.
@@ -132,5 +170,9 @@ The differences from the expected verdicts:
 instance and resources `d/0`..`d/9`, wraps non-markup schemas in an
 element, and checks determinism, identical diagnostics over both DOMs and on
 reuse, offsets matching node ranges, the load budget, at most one trailing
-`Internal` diagnostic, and that a four times larger work budget changes no
-completed result. Seeds are the libxml2 and spec suite cases. Two 331 s runs on `nightly-2026-06-06` (`-timeout=2`, about 2.0 and 1.8 million executions, 16,429 edges) found no crash, timeout or leak.
+`Internal` diagnostic, that a four times larger work budget changes no
+completed result, and that streaming validation over `BufferedReader` (with
+the DTD) and over `PushParser` chunks reports exactly the DOM's diagnostics.
+Seeds are the libxml2 and spec suite cases. Two 331 s runs on `nightly-2026-06-06` (`-timeout=2`, about 2.0 and 1.8 million executions, 16,429 edges) found no crash, timeout or leak. With the streaming checks, a
+427 s run (`-fork=1 -timeout=2`, about 3.4 million executions, `cov` 26,330)
+found none either.

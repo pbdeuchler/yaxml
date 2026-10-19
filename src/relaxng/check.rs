@@ -32,8 +32,8 @@ fn groupable(a: ContentType, b: ContentType) -> bool {
 
 type Violation = (SchemaCode, Id, String);
 
-struct Checker<'a, 's> {
-    store: &'a Store<'s>,
+struct Checker<'a> {
+    store: &'a Store,
     tables: &'a Tables,
     budget: usize,
     walked: HashSet<(Id, u8)>,
@@ -46,7 +46,7 @@ struct Checker<'a, 's> {
 
 /// Every violation in the patterns reachable from `start`.
 pub(super) fn restrictions(
-    store: &Store<'_>,
+    store: &Store,
     tables: &Tables,
     start: Id,
     budget: usize,
@@ -85,7 +85,7 @@ pub(super) fn restrictions(
     checker.errors
 }
 
-impl Checker<'_, '_> {
+impl Checker<'_> {
     fn forbid(&mut self, id: Id, context: u8, rules: &[(u8, SchemaCode, &str)]) {
         if let Some(&(_, code, path)) = rules.iter().find(|(flag, ..)| context & flag != 0) {
             self.errors

@@ -1,9 +1,8 @@
-use super::pattern::{Arena, EMPTY, NOT_ALLOWED, NameClass, Pat, Store, TEXT, Tables};
+use super::pattern::{EMPTY, NOT_ALLOWED, NameClass, Pat, Store, TEXT, Tables};
 
 #[test]
 fn choices_are_canonical_sets() {
-    let empty = Arena::default();
-    let mut store = Store::new(&empty);
+    let mut store = Store::new(Default::default());
     let a = store.make(Pat::Value(0));
     let b = store.make(Pat::List(TEXT));
     let ab = store.choice(a, b);
@@ -24,8 +23,7 @@ fn choices_are_canonical_sets() {
 
 #[test]
 fn constructors_simplify_empty_and_not_allowed() {
-    let empty = Arena::default();
-    let mut store = Store::new(&empty);
+    let mut store = Store::new(Default::default());
     let cases = [
         (store.group(EMPTY, TEXT), TEXT),
         (store.group(TEXT, NOT_ALLOWED), NOT_ALLOWED),

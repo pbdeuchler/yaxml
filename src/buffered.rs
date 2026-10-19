@@ -98,6 +98,11 @@ impl<R: BufRead> BufferedReader<R> {
         self.session.position()
     }
 
+    /// The declarations of the document's DTD, once its DOCTYPE was read.
+    pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
+        self.session.catalog().map(|catalog| catalog.dtd())
+    }
+
     pub fn get_ref(&self) -> &R {
         &self.input
     }

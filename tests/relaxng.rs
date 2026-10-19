@@ -3,10 +3,14 @@
 //! spec test suite and the XML Schema datatypes suite.
 
 use std::collections::HashMap;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 
-use yaxml::relaxng::{Code, Limits, Schema, SchemaCode};
-use yaxml::{Document, Node, NodeKind, OwnedDocument, Request};
+use yaxml::relaxng::{Code, Diagnostic, Limits, Schema, SchemaCode};
+use yaxml::{
+    BufferedReader, Document, Event, Node, NodeKind, OwnedDocument, ParseOptions, PushParser,
+    Reader, Request,
+};
 
 const RNG: &str = "http://relaxng.org/ns/structure/1.0";
 const XSD: &str = "http://www.w3.org/2001/XMLSchema-datatypes";
@@ -24,14 +28,70 @@ fn wrap(body: &str) -> String {
     format!(r#"<element name="r" xmlns="{RNG}" datatypeLibrary="{XSD}">{body}</element>"#)
 }
 
+/// Code, offset and message of each diagnostic: what DOM and streaming
+/// validation must agree on.
+type Summary = Vec<(Code, Option<usize>, String)>;
+
+fn summary<I>(found: &[Diagnostic<I>]) -> Summary {
+    (found.iter())
+        .map(|d| (d.code, d.offset, d.message.clone()))
+        .collect()
+}
+
+/// Streaming validation over `BufferedReader` events, with the DTD;
+/// `None` if the document is not well-formed.
+fn streamed(schema: &Schema, xml: &[u8], options: ParseOptions) -> Option<Summary> {
+    let mut reader = BufferedReader::with_options(xml, options).unwrap();
+    let mut stream = schema.stream();
+    while let Some((event, origin)) = reader.read_event().ok()? {
+        let doctype = matches!(event, Event::Doctype(_));
+        stream.event(&event, origin);
+        if let Some(dtd) = reader.dtd().filter(|_| doctype) {
+            stream.set_dtd(dtd);
+        }
+    }
+    Some(summary(stream.diagnostics()))
+}
+
+/// Streaming validation over the slice `Reader` and over `PushParser` fed
+/// one byte at a time.
+fn other_streams(schema: &Schema, xml: &str) -> [Summary; 2] {
+    let (mut sliced, mut pushed) = (schema.stream(), schema.stream());
+    let mut reader = Reader::new(xml.as_bytes()).unwrap();
+    while let Some(event) = reader.read_event().unwrap() {
+        sliced.event(&event, reader.event_origin().unwrap());
+    }
+    let mut parser = PushParser::new();
+    let mut feed = |event: Event<'_>, origin| {
+        pushed.event(&event, origin);
+        ControlFlow::Continue(())
+    };
+    for byte in xml.as_bytes().chunks(1) {
+        parser.feed(byte, &mut feed).unwrap();
+    }
+    parser.finish(&mut feed).unwrap();
+    [summary(sliced.diagnostics()), summary(pushed.diagnostics())]
+}
+
 fn codes(schema: &Schema, xml: &str) -> Vec<Code> {
     let document = Document::parse(xml).unwrap();
     let owned = OwnedDocument::parse(xml).unwrap();
-    let borrowed: Vec<_> = schema.validate(&document).iter().map(|d| d.code).collect();
-    let owned: Vec<_> = schema.validate(&owned).iter().map(|d| d.code).collect();
-    assert_eq!(borrowed, owned, "{xml}");
-    borrowed
+    let borrowed = summary(&schema.validate(&document));
+    assert_eq!(borrowed, summary(&schema.validate(&owned)), "{xml}");
+    let options = ParseOptions::default();
+    assert_eq!(
+        Some(&borrowed),
+        streamed(schema, xml.as_bytes(), options).as_ref(),
+        "{xml}"
+    );
+    for found in other_streams(schema, xml) {
+        assert_eq!(borrowed, found, "{xml}");
+    }
+    borrowed.into_iter().map(|(code, ..)| code).collect()
 }
+
+/// Elements `a` with an `xsd:ID` and `b` with `xsd:IDREFS` attribute.
+const IDS: &str = "<zeroOrMore><choice><element name='a'><attribute name='id'><data type='ID'/></attribute></element><element name='b'><attribute name='ref'><data type='IDREFS'/></attribute></element></choice></zeroOrMore>";
 
 /// (pattern inside `<element name="r">`, instance, expected codes)
 const PATTERNS: &[(&str, &str, &[Code])] = &[
@@ -241,6 +301,27 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
         "<r xmlns:q='urn:z'>q:x</r>",
         &[Code::Value],
     ),
+    // Namespace bindings end with their element; inner ones shadow outer ones.
+    (
+        "<element name='a'><data type='QName'/></element><element name='b'><data type='QName'/></element>",
+        "<r><a xmlns:p='urn:p'>p:x</a><b>p:x</b></r>",
+        &[Code::Datatype],
+    ),
+    (
+        "<element name='a'><value type='QName' xmlns:p='urn:q'>p:x</value></element>",
+        "<r xmlns:p='urn:p'><a xmlns:p='urn:q'>p:x</a></r>",
+        &[],
+    ),
+    // A disallowed element's subtree is skipped.
+    (
+        "<element name='a'><empty/></element>",
+        "<r><x xmlns:p='urn:p'><y>t</y><a/></x><a/></r>",
+        &[Code::ElementName],
+    ),
+    (IDS, "<r><a id='x'/><b ref='x x'/></r>", &[]),
+    (IDS, "<r><b ref='x'/><a id='x'/></r>", &[]),
+    (IDS, "<r><a id='x'/><a id='x'/></r>", &[Code::DuplicateId]),
+    (IDS, "<r><b ref='x y'/><a id='x'/></r>", &[Code::UnknownId]),
     (
         "<choice><value>a</value><value>b</value></choice>",
         "<r>b</r>",
@@ -892,6 +973,7 @@ fn libxml2_relaxng_suite_verdicts_agree() {
         .collect();
     names.sort();
     let (mut agree, mut total, mut error_counts) = (0, 0, (0, 0, 0));
+    let (mut streams, mut stream_differences) = (0, Vec::new());
     let mut differences = Vec::new();
     for name in names {
         let prefix = &name[..name.len() - 4];
@@ -933,6 +1015,11 @@ fn libxml2_relaxng_suite_verdicts_agree() {
                     let document =
                         OwnedDocument::with_limits(&text, yaxml::Limits::default()).unwrap();
                     let found = schema.validate(&document);
+                    let stream = streamed(schema, &text, ParseOptions::default());
+                    streams += 1;
+                    if stream.as_ref() != Some(&summary(&found)) {
+                        stream_differences.push(format!("{instance}: {stream:?} != {found:?}"));
+                    }
                     let oracle = if expected.contains("fails to validate") {
                         "invalid"
                     } else if expected.contains(" validates") {
@@ -979,6 +1066,15 @@ fn libxml2_relaxng_suite_verdicts_agree() {
         }
     }
     println!("libxml2 relaxng suite: {agree}/{total} verdicts agree");
+    println!(
+        "streaming equals DOM: {}/{streams}",
+        streams - stream_differences.len()
+    );
+    assert!(
+        stream_differences.is_empty(),
+        "{}",
+        stream_differences.join("\n")
+    );
     println!(
         "invalid instances: {} (libxml2 {} validity errors, yaxml {})",
         error_counts.0, error_counts.1, error_counts.2
@@ -1136,6 +1232,8 @@ struct Tally {
     instances: usize,
     instances_spec: usize,
     instances_libxml2: usize,
+    /// Instances whose streaming diagnostics equal the DOM's.
+    instances_streamed: usize,
     /// Cases where yaxml or libxml2 departs from the expected verdict.
     differences: Vec<String>,
 }
@@ -1206,6 +1304,14 @@ fn run_suite(path: &Path) -> Tally {
         for (index, (xml, valid)) in instances.iter().enumerate() {
             tally.instances += 1;
             let found = OwnedDocument::parse(xml).map(|document| schema.validate(&document));
+            let stream = streamed(&schema, xml.as_bytes(), ParseOptions::default());
+            let dom = found.as_ref().ok().map(|found| summary(found));
+            tally.instances_streamed += usize::from(stream == dom);
+            if stream != dom {
+                tally
+                    .differences
+                    .push(format!("streaming {stream:?} != DOM {dom:?}\n{xml}"));
+            }
             let ours = found.as_ref().map_or(*valid, |found| found.is_empty());
             let libxml2 = oracle
                 .as_ref()
@@ -1231,14 +1337,113 @@ fn james_clark_spec_suite() {
     ] {
         let tally = run_suite(&source().join(suite));
         println!(
-            "{suite}: schemas {} (spec {}, libxml2 {}), instances {} (spec {}, libxml2 {})",
+            "{suite}: schemas {} (spec {}, libxml2 {}), instances {} (spec {}, libxml2 {}, streaming = DOM {})",
             tally.schemas,
             tally.schemas_spec,
             tally.schemas_libxml2,
             tally.instances,
             tally.instances_spec,
             tally.instances_libxml2,
+            tally.instances_streamed,
         );
         println!("{}", tally.differences.join("\n"));
+        assert_eq!(tally.instances_streamed, tally.instances, "{suite}");
+    }
+}
+
+/// `TextReader` validation of libxml2's `test/relaxng` instances against
+/// `xmllint --stream --relaxng` (`YAXML_XMLLINT`): verdicts must agree;
+/// messages are counted.
+#[test]
+#[ignore = "requires YAXML_LIBXML2_SOURCE and YAXML_XMLLINT"]
+fn libxml2_relaxng_suite_streams_like_xmllint() {
+    let (source, xmllint) = (source(), std::env::var_os("YAXML_XMLLINT").unwrap());
+    let directory = source.join("test/relaxng");
+    let mut names: Vec<String> = std::fs::read_dir(&directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect();
+    names.sort();
+    let (mut total, mut same_messages, mut differences) = (0, 0, Vec::new());
+    for name in names.iter().filter(|name| name.ends_with(".rng")) {
+        let prefix = &name[..name.len() - 4];
+        let base = format!("test/relaxng/{name}");
+        let resolver = Box::new(yaxml::FileResolver::new(&source).unwrap());
+        let input = std::fs::read(source.join(&base)).unwrap();
+        let Ok(schema) = Schema::parse(&input, &base, resolver, &Limits::default()) else {
+            continue;
+        };
+        let instances = names.iter().filter(|file| {
+            file.len() == prefix.len() + 6
+                && file.starts_with(&format!("{prefix}_"))
+                && file.ends_with(".xml")
+        });
+        for instance in instances {
+            let path = format!("test/relaxng/{instance}");
+            let output = std::process::Command::new(&xmllint)
+                .current_dir(&source)
+                .args(["--stream", "--noout", "--relaxng", &base, &path])
+                .output()
+                .unwrap();
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let theirs: Vec<&str> = (stderr.lines())
+                .filter_map(|line| line.split("validity error : ").nth(1))
+                .collect();
+            let text = std::fs::read(source.join(&path)).unwrap();
+            let flags = yaxml::options::NOENT | yaxml::options::DTDLOAD;
+            let resolver = Box::new(yaxml::FileResolver::new(&source).unwrap());
+            let options = ParseOptions::new(flags).with_resolver(&path, resolver);
+            let mut reader = yaxml::TextReader::with_options(text.as_slice(), options).unwrap();
+            reader.relaxng_set_schema(Some(&schema)).unwrap();
+            while reader.read().unwrap() {}
+            let ours: Vec<&str> = (reader.relaxng_diagnostics().iter())
+                .map(|d| d.message.as_str())
+                .collect();
+            total += 1;
+            same_messages += usize::from(ours == theirs);
+            if ours != theirs && std::env::var_os("YAXML_RELAXNG_VERBOSE").is_some() {
+                println!("{instance}: libxml2 {theirs:?}\n  yaxml {ours:?}");
+            }
+            if reader.is_valid() != stderr.contains(" validates") {
+                differences.push(format!("{instance}: libxml2 {theirs:?}, yaxml {ours:?}"));
+            }
+        }
+    }
+    println!(
+        "--stream --relaxng: {}/{total} verdicts, {same_messages}/{total} message lists agree",
+        total - differences.len()
+    );
+    assert!(differences.is_empty(), "{}", differences.join("\n"));
+}
+
+/// A stream reports each fault when its event arrives (with the element's
+/// index in document order) and resolves references when the document
+/// element ends. (document prefix, diagnostics so far)
+#[test]
+fn streams_report_as_events_arrive() {
+    let schema = schema(&wrap(&format!("{IDS}<element name='c'><empty/></element>"))).unwrap();
+    let cases: &[(&str, &[(Code, usize)])] = &[
+        ("<r><b ref='x'/>", &[]),
+        ("<r><b ref='x'/><c/></r>", &[(Code::UnknownId, 1)]),
+        ("<r><a id='x'/><a id='x'/>", &[(Code::DuplicateId, 2)]),
+        ("<r><a id='x'/>", &[]),
+        ("<r><a id='x'/></r>", &[(Code::MissingElement, 0)]),
+        ("<r><c>text", &[]),
+        ("<r><c>text</c>", &[(Code::UnexpectedText, 1)]),
+        ("<r><c/></r><!--after--><?pi?>", &[]),
+        ("<x><c/></x>", &[(Code::ElementName, 0)]),
+    ];
+    for (xml, expected) in cases {
+        let mut stream = schema.stream();
+        let mut parser = PushParser::new();
+        (parser.feed(xml.as_bytes(), |event, origin| {
+            stream.event(&event, origin);
+            ControlFlow::Continue(())
+        }))
+        .unwrap();
+        let found: Vec<_> = (stream.diagnostics().iter())
+            .map(|d| (d.code, d.node.unwrap()))
+            .collect();
+        assert_eq!(&found, expected, "{xml}");
     }
 }

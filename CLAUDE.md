@@ -6,6 +6,7 @@ Pure-Rust libxml2 2.15.4 rewrite. `#![forbid(unsafe_code)]`; memchr is the only 
 - One engine (src/parser.rs, src/tokenizer, src/stream) feeds Reader (slice), PushParser, BufferedReader, TextReader, Document (borrowed DOM), OwnedDocument (arena, `OwnedNodeId`). DTD-free input stays on the plain token loop; DTD stack = src/dtd*.
 - `ParseOptions` (src/options.rs) is the single entry for flags (libxml2 `XML_PARSE_*` values), `Limits`, `DecodeLimits`, `base`, `Resolver`. Default = libxml2 default (entity-ref nodes kept, nothing loaded). Unimplemented flags -> `ErrorKind::UnsupportedOption`, never silently ignored.
 - Crate-private `Navigate` (src/xpath/tree.rs) is shared by XPath, C14N, valid, relaxng, xsd, pattern, schematron.
+- relaxng: one `Engine<I>` (src/relaxng.rs: start/flush/text/end/finish) driven by the DOM walk and by `relaxng::Stream` (events; used by `TextReader::relaxng_set_schema`). `Deriver` holds `Arc<Arena>`/`Arc<Tables>` so `Stream` has no lifetime. No subtree buffering (libxml2 FullElement unneeded).
 - No I/O without a `Resolver` (src/resolve.rs); `FileResolver` is root-confined. Entity amplification follows libxml2 (`max_entity_amplification`, default 5).
 
 ## Repo/process
