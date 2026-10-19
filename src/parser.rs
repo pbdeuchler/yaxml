@@ -573,36 +573,50 @@ impl<'source> ParserState<'source> {
         }
         self.check_event_limit(start)?;
         self.check_token_start(kind, start)?;
+        // Every arm yields the result type returned here, so a tag's event
+        // passes through without being re-laid-out.
         let event = match kind {
-            TokenKind::Start => self.start_element(raw, start, &mut retain)?,
-            TokenKind::End => self.end_element(raw, start)?,
+            TokenKind::Start => self.start_element(raw, start, &mut retain),
+            TokenKind::End => self.end_element(raw, start),
             TokenKind::Text => {
                 if let Some(relative) = memmem::find(raw.as_bytes(), b"]]>") {
                     return Err(Error::new(ErrorKind::Syntax, start + relative));
                 }
-                Event::Text(self.normalized(raw, start, false, true)?)
+                Ok(Some(Event::Text(self.normalized(raw, start, false, true)?)))
             }
             TokenKind::Comment => {
                 let body = delimited_body(raw, "<!--", "-->", start)?;
                 if memmem::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
                     return Err(Error::new(ErrorKind::Syntax, start));
                 }
-                Event::Comment(self.normalized(body, start + 4, false, false)?)
+                Ok(Some(Event::Comment(self.normalized(
+                    body,
+                    start + 4,
+                    false,
+                    false,
+                )?)))
             }
             TokenKind::Cdata => {
                 if !self.in_content() {
                     return Err(Error::new(ErrorKind::TextOutsideRoot, start));
                 }
                 let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
-                Event::Cdata(self.normalized(body, start + 9, false, false)?)
+                Ok(Some(Event::Cdata(self.normalized(
+                    body,
+                    start + 9,
+                    false,
+                    false,
+                )?)))
             }
-            TokenKind::Instruction => self.instruction(raw, start)?,
+            TokenKind::Instruction => self.instruction(raw, start),
             TokenKind::Dtd | TokenKind::InvalidMarkup => {
                 return Err(Error::new(ErrorKind::Syntax, start));
             }
         };
-        self.events += 1;
-        Ok(Some(event))
+        if event.is_ok() {
+            self.events += 1;
+        }
+        event
     }
 
     fn normalized<'event>(
@@ -623,7 +637,7 @@ impl<'source> ParserState<'source> {
         &mut self,
         raw: &'event str,
         start: usize,
-    ) -> Result<Event<'event>, Error> {
+    ) -> Result<Option<Event<'event>>, Error> {
         let body = delimited_body(raw, "<?", "?>", start)?;
         let name_end = body.bytes().position(space).unwrap_or(body.len());
         let target = &body[..name_end];
@@ -641,17 +655,17 @@ impl<'source> ParserState<'source> {
                 encoding_offset.unwrap_or(start),
             )?;
             self.declaration_seen = true;
-            return Ok(Event::Declaration(declaration));
+            return Ok(Some(Event::Declaration(declaration)));
         }
         if self.encoding.requires_declaration() && !self.declaration_seen {
             return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
-        Ok(Event::ProcessingInstruction {
+        Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),
             data: self.normalized(data, offset, false, false)?,
-        })
+        }))
     }
 
     fn start_element<'event, F>(
@@ -659,7 +673,7 @@ impl<'source> ParserState<'source> {
         raw: &'event str,
         start: usize,
         retain: &mut F,
-    ) -> Result<Event<'event>, Error>
+    ) -> Result<Option<Event<'event>>, Error>
     where
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
@@ -778,7 +792,7 @@ impl<'source> ParserState<'source> {
             if self.stack.is_empty() {
                 self.phase = Phase::Epilog;
             }
-            Ok(Event::Empty(element))
+            Ok(Some(Event::Empty(element)))
         } else {
             self.stack
                 .try_reserve(1)
@@ -799,7 +813,7 @@ impl<'source> ParserState<'source> {
                 bindings_start,
             });
             self.phase = Phase::Content;
-            Ok(Event::Start(element))
+            Ok(Some(Event::Start(element)))
         }
     }
 
@@ -1662,7 +1676,7 @@ impl<'source> ParserState<'source> {
         &mut self,
         raw: &'event str,
         start: usize,
-    ) -> Result<Event<'event>, Error>
+    ) -> Result<Option<Event<'event>>, Error>
     where
         'source: 'event,
     {
@@ -1696,7 +1710,7 @@ impl<'source> ParserState<'source> {
         if self.stack.is_empty() {
             self.phase = Phase::Epilog;
         }
-        Ok(Event::End(name))
+        Ok(Some(Event::End(name)))
     }
 
     fn unwind_bindings(&mut self, start: usize) {
