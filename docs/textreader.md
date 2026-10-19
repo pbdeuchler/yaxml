@@ -17,6 +17,7 @@ single-byte encodings from `&[u8]` or any `BufRead` in bounded memory.
 | `MoveToAttribute`, `…No`, `…Ns`, `MoveToFirstAttribute`, `MoveToNextAttribute`, `MoveToElement` | `move_to_*` returning `bool` |
 | `ReadString`, `ReadInnerXml`, `ReadOuterXml`, `Expand` | `read_string`, `read_inner_xml`, `read_outer_xml`, `expand` (an `OwnedDocument`) |
 | `GetParserProp`, `SetParserProp` | `parser_property`, `set_parser_property` |
+| `RelaxNGSetSchema`, `IsValid` (`RelaxNGValidate` is `relaxng::Schema::parse` plus `SetSchema`) | `relaxng_set_schema`, `is_valid`, `relaxng_diagnostics` |
 
 `NodeType`, `ReadState` and `ParserProperty` carry libxml2's integer values
 (`as i32`). The reader produces Element, Attribute, Text, CDATA,
@@ -74,6 +75,20 @@ supplied and the flags load the external subset, `DefaultAttributes` is
 `DTDATTR`, `SubstituteEntities` is `NOENT` and `Validate` is false. Setting a property to
 another value returns `ErrorKind::UnsupportedOption`.
 
+## RELAX NG validation
+
+`relaxng_set_schema(Some(&schema))`, before the first read, validates the
+document as it is read with a [`relaxng::Stream`](relaxng.md#streaming-validation)
+fed every event the reader takes from its source, including the content of
+kept entity references and the DTD for `ENTITY` and `NOTATION` values. No
+subtree is buffered for it (libxml2 expands one whenever
+`xmlRelaxNGValidatePushElement` returns 0), and `expand` or `read_*` do not
+validate twice. Diagnostics accumulate in `relaxng_diagnostics` and can
+concern the node of lookahead; `is_valid` is true while there are none, and
+false without a schema, as `xmlTextReaderIsValid` returns 0 then. Verdicts
+equal tree validation's and `xmllint --stream --relaxng`'s on the libxml2
+suite.
+
 ## Differential results
 
 ```sh
@@ -100,7 +115,7 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
 
 ## Gaps
 
-- No `XML_PARSE_NOBLANKS`, no DTD, RELAX NG or XML Schema validation,
+- No `XML_PARSE_NOBLANKS`, no DTD or XML Schema validation,
   no `xmlTextReaderSetParserProp` changes, no `xmlTextReaderPreserve`,
   patterns, `ReadAttributeValue`, `Close`, line/column or encoding getters.
 - Attributes are not kept for EndElement nodes: libxml2 lets the `move_to_*`

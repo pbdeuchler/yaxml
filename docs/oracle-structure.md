@@ -130,6 +130,6 @@ catalog, including an AddressSanitizer/UndefinedBehaviorSanitizer helper run.
 The checksummed **2.15.4** source was then built locally and the pinned catalog
 passed with 23 exact agreements, three documented projections, six verified
 intentional differences, two explicit non-comparisons and no disagreement or
-inconclusive result. The [structural validation report](validation-owned-structure.md)
+inconclusive result. The [structural validation report](archive/validation-owned-structure.md)
 records build options, hashes and raw evidence. CI runs the same pinned catalog;
 the hosted job has not been executed in this local session.

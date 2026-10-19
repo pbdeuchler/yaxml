@@ -42,6 +42,8 @@ raw prefix accepted by the shared decoder. A large visible suffix remains in
 `R`; callers with only `Read` wrap it in `std::io::BufReader`. `get_ref` permits
 inspection without mutation, while `into_inner` returns the source at the
 parser-consumed position without draining or validating the remainder.
+`dtd` returns the DTD's declarations from the `Doctype` event on, for
+validators that need notations and unparsed entities.
 
 The pull reader retries `Interrupted`. It returns an original I/O error once,
 then becomes `InvalidState` without further I/O. XML errors remain sticky and

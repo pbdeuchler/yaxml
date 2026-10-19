@@ -221,7 +221,20 @@ pub fn exercise(input: &[u8]) {
     for (index, (borrowed_start, owned_start)) in starts.enumerate() {
         let value = xpath.evaluate(&borrowed, borrowed_start, &borrowed_context);
         if let Err(error) = &value {
-            assert!(error.offset.is_none() && !error.to_string().is_empty());
+            // Only an unknown name is located, at a name in the expression.
+            let named = matches!(
+                error.kind,
+                ErrorKind::UndefinedPrefix
+                    | ErrorKind::UndefinedVariable
+                    | ErrorKind::UnknownFunction
+            );
+            assert_eq!(error.offset.is_some(), named, "{error}");
+            assert!(
+                error
+                    .offset
+                    .is_none_or(|offset| offset < xpath.as_str().len())
+            );
+            assert!(!error.to_string().is_empty());
         }
         let selected = xpath.select_nodes(&borrowed, borrowed_start, &borrowed_context);
         match (&value, &selected) {

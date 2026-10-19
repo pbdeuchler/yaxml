@@ -719,3 +719,62 @@ fn loading(limits: Limits, base: &str, resolver: Box<dyn yaxml::Resolver>) -> Pa
         .with_limits(limits)
         .with_resolver(base, resolver)
 }
+
+/// `xmlTextReaderRelaxNGSetSchema` and `IsValid`: (flags, document, codes).
+/// Kept entity references are validated through their content, the DTD
+/// serves `ENTITY` values, and `expand` does not validate a subtree twice.
+#[test]
+fn relaxng_validates_while_reading() {
+    use yaxml::relaxng::{Code, Limits as RngLimits, Schema};
+    let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"
+        datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+      <oneOrMore><element name="a"><optional><data type="ENTITY"/></optional></element></oneOrMore>
+    </element>"#;
+    let none = |_: Request<'_>| Ok(None);
+    let schema = Schema::parse(rng, "s.rng", Box::new(none), &RngLimits::default()).unwrap();
+    let noent = yaxml::options::NOENT;
+    let dtd =
+        "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u' NDATA n><!ENTITY e '<a/>'>]>";
+    let cases: &[(u32, &str, &[Code])] = &[
+        (0, "<r><a/></r>", &[]),
+        (0, "<r/>", &[Code::MissingElement]),
+        (
+            0,
+            "<r><b/><a>x</a></r>",
+            &[Code::ElementName, Code::Datatype],
+        ),
+        (0, &format!("{dtd}<r>&e;</r>"), &[]),
+        (noent, &format!("{dtd}<r>&e;</r>"), &[]),
+        (0, &format!("{dtd}<r><a>u</a></r>"), &[]),
+        (0, &format!("{dtd}<r><a>e</a></r>"), &[Code::Datatype]),
+    ];
+    for &(flags, xml, expected) in cases {
+        for expand in [false, true] {
+            let options = ParseOptions::new(flags);
+            let mut reader = TextReader::with_options(xml.as_bytes(), options).unwrap();
+            assert!(!reader.is_valid(), "no schema yet");
+            reader.relaxng_set_schema(Some(&schema)).unwrap();
+            while reader.read().unwrap() {
+                if expand && reader.node_type() == NodeType::Element {
+                    reader.expand().unwrap();
+                }
+            }
+            let found: Vec<_> = reader
+                .relaxng_diagnostics()
+                .iter()
+                .map(|d| d.code)
+                .collect();
+            assert_eq!(found, expected, "{xml}");
+            assert_eq!(reader.is_valid(), expected.is_empty(), "{xml}");
+        }
+    }
+    // After the first read the schema is fixed; without one nothing is checked.
+    let mut reader = TextReader::new(b"<r/>".as_slice());
+    reader.relaxng_set_schema(Some(&schema)).unwrap();
+    reader.relaxng_set_schema(None).unwrap();
+    assert!(reader.read().unwrap());
+    let error = reader.relaxng_set_schema(Some(&schema)).unwrap_err();
+    assert_eq!(error.kind, ErrorKind::InvalidState);
+    while reader.read().unwrap() {}
+    assert!(reader.relaxng_diagnostics().is_empty() && !reader.is_valid());
+}

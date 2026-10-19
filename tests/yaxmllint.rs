@@ -78,6 +78,8 @@ const A: &str = r#"<a><b k="1">x</b><b>y</b></a>"#;
 const DTD_OK: &str = "<!DOCTYPE a [<!ELEMENT a (b)><!ELEMENT b (#PCDATA)>]><a><b>x</b></a>";
 const DTD_BAD: &str = "<!DOCTYPE a [<!ELEMENT a (b)><!ELEMENT b (#PCDATA)>]><a><c/></a>";
 const RNG: &str = r#"<element name="a" xmlns="http://relaxng.org/ns/structure/1.0"><oneOrMore><element name="b"><text/></element></oneOrMore></element>"#;
+const SCT: &str = "<s:schema xmlns:s='http://purl.oclc.org/dsdl/schematron'><s:pattern id='p'><s:rule context='a'><s:assert test='b'>no b</s:assert></s:rule></s:pattern></s:schema>";
+const SCT_UNNAMED: &str = "<s:schema xmlns:s='http://purl.oclc.org/dsdl/schematron'><s:pattern><s:rule context='a'/></s:pattern></s:schema>";
 const XSD: &str = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"><xs:element name="a"><xs:complexType><xs:sequence><xs:element name="b" type="xs:string" maxOccurs="unbounded"/></xs:sequence></xs:complexType></xs:element></xs:schema>"#;
 const XI: &str =
     r#"<r xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include href="inc.xml"/></r>"#;
@@ -204,6 +206,11 @@ fn cases() -> Vec<Case> {
         err(on(case("relaxng fails", &["--relaxng", "s.rng", "--noout", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.rng", RNG)], ""), "fails to validate"),
         err(on(case("relaxng bad schema", &["--relaxng", "s.rng", "--noout", "a.xml"], 5, Empty), &[("a.xml", BARE), ("s.rng", "<element")], ""), "failed to compile"),
         err(case("relaxng missing schema", &["--relaxng", "nope.rng", "--noout", "a.xml"], 5, Empty), "failed to compile"),
+        err(on(case("schematron", &["--schematron", "s.sct", "a.xml"], 0, Has("<a>")), &[("a.xml", BARE), ("s.sct", SCT)], ""), "Pattern: p\na.xml validates"),
+        err(on(case("schematron fails", &["--schematron", "s.sct", "--noout", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.sct", SCT)], ""), "/a line 1: no b\na.xml fails to validate"),
+        err(on(case("schematron internal error", &["--schematron", "s.sct", "--noout", "a.xml"], 3, Empty), &[("a.xml", BARE), ("s.sct", SCT_UNNAMED)], ""), "a.xml validation generated an internal error"),
+        err(on(case("schematron bad schema", &["--schematron", "s.sct", "--noout", "a.xml"], 5, Empty), &[("a.xml", BARE), ("s.sct", "<s/>")], ""), "not a XML schematron document\nSchematron schema s.sct failed to compile"),
+        err(case("schematron missing schema", &["--schematron", "nope.sct", "--noout", "a.xml"], 5, Empty), "could not load 'nope.sct'.\nSchematron schema nope.sct failed to compile"),
         err(on(case("schema", &["--schema", "s.xsd", "--noout", "a.xml"], 0, Empty), &[("a.xml", BARE), ("s.xsd", XSD)], ""), "a.xml validates"),
         err(on(case("schema fails", &["--schema", "s.xsd", "--noout", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.xsd", XSD)], ""), "fails to validate"),
         err(on(case("schema bad schema", &["--schema", "s.xsd", "--noout", "a.xml"], 5, Empty), &[("a.xml", BARE), ("s.xsd", "<xs:schema")], ""), "failed to compile"),
@@ -214,6 +221,9 @@ fn cases() -> Vec<Case> {
         // streaming
         case("stream", &["--stream", "a.xml"], 0, Empty),
         err(on(case("stream malformed", &["--stream", "a.xml"], 1, Empty), &[("a.xml", "<a>")], ""), "failed to parse"),
+        err(on(case("stream relaxng", &["--stream", "--relaxng", "s.rng", "a.xml"], 0, Empty), &[("a.xml", BARE), ("s.rng", RNG)], ""), "a.xml validates"),
+        err(on(case("stream relaxng fails", &["--stream", "--relaxng", "s.rng", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.rng", RNG)], ""), "a.xml:1: Relax-NG validity error : Expecting element b, got c"),
+        err(on(case("stream relaxng malformed", &["--stream", "--relaxng", "s.rng", "a.xml"], 1, Empty), &[("a.xml", "<a><b>x</b>"), ("s.rng", RNG)], ""), "a.xml validates\na.xml : failed to parse"),
         // external resources
         on(case("noent alone does not load the DTD", &["--noent", "a.xml"], 0, Has("<r/>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
         on(case("loaddtd noent loads the DTD", &["--loaddtd", "--noent", "a.xml"], 0, Has("<r>loaded</r>")), &[("a.xml", EXT), ("r.dtd", "<!ENTITY e 'loaded'>")], ""),
@@ -488,6 +498,12 @@ fn differential_against_xmllint() {
         (
             "--relaxng --noout",
             vec!["--noout", "--relaxng"],
+            schema_pairs("relaxng", "rng"),
+            true,
+        ),
+        (
+            "--stream --relaxng --noout",
+            vec!["--stream", "--noout", "--relaxng"],
             schema_pairs("relaxng", "rng"),
             true,
         ),

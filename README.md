@@ -238,7 +238,7 @@ assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(
 DTD like libxml2's `XML_PARSE_DTDVALID`; `yaxml::valid::validate` checks it
 against a separate `Dtd` (`xmllint --dtdvalid`). Validity diagnostics are
 never fatal and carry libxml2's `XML_DTD_*` numbers; content models compile
-to bounded deterministic automata. See [DTD validation](docs/validation-dtd.md).
+to bounded deterministic automata. See [DTD validation](docs/archive/validation-dtd.md).
 
 ```rust
 let xml = "<!DOCTYPE r [<!ELEMENT r (a)><!ATTLIST r id ID #REQUIRED>]><r/>";
@@ -323,8 +323,9 @@ assert_eq!(early.compare(&late), Comparison::Less);
 `yaxml::xsd` compiles XML Schema 1.0 documents as libxml2's `xmlschemas.c`
 does (includes, imports and redefines through a caller `Resolver`, derivation
 and Unique Particle Attribution checks, counted content models, identity
-constraints) into a reusable, thread-safe `Schema` that validates either DOM
-with libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
+constraints) into a reusable, thread-safe `Schema` that validates either DOM,
+or parser events without a tree (`validate_stream`, `StreamValidator`), with
+libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
 instances. See [XML Schema](docs/xsd.md).
 
 ```rust
@@ -342,10 +343,11 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
 
 `yaxml::relaxng` compiles RELAX NG schemas (XML syntax, `include` and
 `externalRef` through a `Resolver`, full section 4 simplification and section
-7 restrictions, built-in and XML Schema datatypes) and validates either DOM
-with derivatives over interned patterns, bounded by a work budget, where
-libxml2's `relaxng.c` backtracks. All 159 libxml2 `test/relaxng` verdicts
-agree; see [RELAX NG](docs/relaxng.md).
+7 restrictions, built-in and XML Schema datatypes) and validates either DOM,
+or the events of any streaming reader (`Schema::stream`, also behind
+`TextReader::relaxng_set_schema`), with derivatives over interned patterns,
+bounded by a work budget, where libxml2's `relaxng.c` backtracks. All 159
+libxml2 `test/relaxng` verdicts agree; see [RELAX NG](docs/relaxng.md).
 
 ```rust
 use yaxml::relaxng::{Limits, Schema};
@@ -359,6 +361,25 @@ let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
 assert!(schema.validate(&yaxml::Document::parse("<r><i>1</i><i>2</i></r>")?).is_empty());
 let [error] = schema.validate(&yaxml::Document::parse("<r><i>x</i></r>")?).try_into().unwrap();
 assert_eq!(error.code, yaxml::relaxng::Code::Datatype);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`yaxml::schematron` ports libxml2's Schematron (ISO and 1.5 namespaces,
+`pattern`/`rule`/`let`/`assert`/`report`, `name` and `value-of` messages,
+pattern rule contexts, XPath tests): `Schema` validates either DOM with the
+`XML_SCHEMATRON_OUT_*` modes and prints libxml2's report text, identical on
+all 42 libxml2 `test/schematron` results; see [Schematron](docs/schematron.md).
+
+```rust
+use yaxml::schematron::{Limits, OUT_TEXT, Schema};
+
+let sct = br#"<schema xmlns="http://purl.oclc.org/dsdl/schematron"><pattern id="p">
+  <rule context="i"><assert test="@k">no key</assert></rule></pattern></schema>"#;
+let none = |_: yaxml::Request<'_>| Ok(None);
+let schema = Schema::parse(sct, "s.sct", Box::new(none), &Limits::default())?;
+let input = b"<r><i k='1'/><i/></r>";
+let validation = schema.validate(&yaxml::Document::parse_bytes(input)?, OUT_TEXT, input);
+assert_eq!(validation.render("r.xml"), "Pattern: p\n/r/i[2] line 1: no key\n");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
@@ -410,7 +431,7 @@ assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
 
 `yaxmllint` (`cargo run --bin yaxmllint -- FILE`) is `xmllint`'s command line over
 these modules: `--noout --format --encode --xpath --c14n --html --valid
---relaxng --schema --xinclude --stream --catalogs` and the rest of the table
+--schematron --relaxng --schema --xinclude --stream --catalogs` and the rest of the table
 in [yaxmllint](docs/yaxmllint.md), with xmllint's exit codes and stdout.
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
@@ -431,9 +452,9 @@ Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
 `cargo bench --bench serialize`, `cargo bench --bench mutation`, and
 `cargo bench --bench structural_mutation`. These runners report yaxml-only DOM,
 slice-event, push, buffered-pull, complete-tree serialization, value-edit and
-structural-edit measurements. The [structural validation report](docs/validation-owned-structure.md)
+structural-edit measurements. The [structural validation report](docs/archive/validation-owned-structure.md)
 records the pinned libxml2 conformance results, independent review and measured
-fuzz coverage. A separate [matched structural benchmark](docs/validation-owned-structure-matched.md)
+fuzz coverage. A separate [matched structural benchmark](docs/archive/validation-owned-structure-matched.md)
 compares edit lifecycles with libxml2, including slower workloads and the
 differences in Text topology, validation and buffering.
 

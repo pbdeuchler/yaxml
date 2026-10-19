@@ -9,13 +9,18 @@
 //! `Schema::parse`). An instance with `schemaLocation` hints also builds a
 //! schema with `Schema::from_instance`.
 //! Checks: construction always ends with an error or a schema; validation
-//! agrees exactly over both DOMs, repeats identically, and `is_valid`
-//! matches the error codes; budgets hold.
+//! agrees exactly over both DOMs and stream validation (buffered, and pushed
+//! in two chunks), repeats identically, and `is_valid` matches the error
+//! codes; budgets hold. A schema ID that a later DTD ID or `xml:id` repeats
+//! is reported at the later attribute in a stream, so ID errors agree in
+//! number only.
 
 use std::sync::{Arc, Mutex};
 
-use yaxml::xsd::{self, Limits, Schema};
-use yaxml::{Document, OwnedDocument, Request, Resolver};
+use std::ops::ControlFlow;
+
+use yaxml::xsd::{self, Limits, Schema, StreamValidator};
+use yaxml::{Document, OwnedDocument, ParseOptions, PushParser, Request, Resolver};
 
 fn limits(control: u8, schema: usize) -> Limits {
     let pick = |bit: u8, tight, roomy| if control & bit != 0 { tight } else { roomy };
@@ -92,6 +97,25 @@ fn built(result: Result<Schema, xsd::Error>) -> Option<Schema> {
 /// Validation invariants over both DOMs.
 fn check(schema: &Schema, owned: &OwnedDocument, instance: &[u8]) {
     let diagnostics = schema.validate(owned);
+    let streamed = schema
+        .validate_stream(instance, ParseOptions::default())
+        .expect("the tree parsed");
+    let mut validator = StreamValidator::new(schema);
+    let mut parser = PushParser::new();
+    let mut emit = |event: yaxml::Event<'_>, origin| {
+        validator.event(&event, origin);
+        ControlFlow::Continue(())
+    };
+    let (head, tail) = instance.split_at(instance.len() / 2);
+    parser.feed(head, &mut emit).expect("the tree parsed");
+    parser.feed(tail, &mut emit).expect("the tree parsed");
+    parser.finish(&mut emit).expect("the tree parsed");
+    assert_eq!(streamed, validator.finish(), "push");
+    let id = |d: &(xsd::Code, Option<usize>, String)| d.2.ends_with(" atomic type 'xs:ID'.");
+    let (tree_ids, tree_rest): (Vec<_>, Vec<_>) = project(&diagnostics).into_iter().partition(id);
+    let (stream_ids, stream_rest): (Vec<_>, Vec<_>) = project(&streamed).into_iter().partition(id);
+    assert_eq!(tree_rest, stream_rest, "stream");
+    assert_eq!(tree_ids.len(), stream_ids.len(), "stream IDs");
     assert_eq!(
         project(&diagnostics),
         project(&schema.validate(owned)),

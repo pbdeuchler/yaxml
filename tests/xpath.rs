@@ -1036,3 +1036,24 @@ fn doctype_is_invisible_and_expanded_content_is_queryable() {
     assert_eq!(run("/comment()/following-sibling::node()"), nodes(&["r"]));
     assert_eq!(run("/r/preceding-sibling::node()"), nodes(&["comment(c)"]));
 }
+
+/// Evaluation errors caused by a name point at it; the others carry no offset.
+#[test]
+fn evaluation_errors_locate_unknown_names() {
+    let document = Document::parse("<r/>").unwrap();
+    let cases = [
+        ("1 + $v", ErrorKind::UndefinedVariable, Some(5)),
+        ("$p:v", ErrorKind::UndefinedPrefix, Some(1)),
+        ("count(f())", ErrorKind::UnknownFunction, Some(6)),
+        ("1 and q:f()", ErrorKind::UndefinedPrefix, Some(6)),
+        ("//q:x", ErrorKind::UndefinedPrefix, Some(2)),
+        ("sum(1)", ErrorKind::InvalidType, None),
+    ];
+    for (expression, kind, offset) in cases {
+        let error = XPath::compile(expression)
+            .unwrap()
+            .evaluate(&document, document.root().id(), &Context::new())
+            .unwrap_err();
+        assert_eq!((error.kind, error.offset), (kind, offset), "{expression}");
+    }
+}

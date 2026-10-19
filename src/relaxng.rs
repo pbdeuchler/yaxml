@@ -9,10 +9,12 @@ mod pattern;
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::sync::Arc;
 
 use crate::schema_types::{Context, Type};
+use crate::valid::Dtd;
 use crate::xpath::tree::{self, Item, Navigate, QName, Tree, attributes, namespaces};
-use crate::{OwnedDocument, Resolver};
+use crate::{Event, OwnedDocument, Resolver, SourceOrigin};
 use pattern::{Arena, Deriver, Id, NOT_ALLOWED, Name, NameClass, Pat, Tables, is_whitespace};
 
 pub(crate) const RNG_NS: &str = "http://relaxng.org/ns/structure/1.0";
@@ -223,8 +225,8 @@ impl Default for Limits {
 /// A compiled RELAX NG schema.
 #[derive(Debug)]
 pub struct Schema {
-    arena: Arena,
-    tables: Tables,
+    arena: Arc<Arena>,
+    tables: Arc<Tables>,
     start: Id,
     max_work: usize,
 }
@@ -262,8 +264,8 @@ impl Schema {
         let (arena, tables, start) =
             compile::compile(&root, &loader, limits.max_work).map_err(SchemaErrors)?;
         Ok(Self {
-            arena,
-            tables,
+            arena: Arc::new(arena),
+            tables: Arc::new(tables),
             start,
             max_work: limits.max_work,
         })
@@ -271,59 +273,247 @@ impl Schema {
 
     /// Validates a document. An empty result means it is valid.
     pub fn validate<T: Tree>(&self, tree: &T) -> Vec<Diagnostic<T::Id>> {
-        let mut validator = Validator {
+        let mut engine = Engine::new(self);
+        let scope = |element| Scope {
             tree,
-            deriver: Deriver::new(&self.arena, &self.tables, self.max_work),
-            keys: HashMap::new(),
-            key: String::new(),
-            ids: HashSet::new(),
-            references: Vec::new(),
-            diagnostics: Vec::new(),
+            element,
+            bindings: OnceCell::new(),
+        };
+        let open = |engine: &mut Engine<T::Id>, element| {
+            let Item::Element(name) = tree.item(element) else {
+                return None;
+            };
+            let attributes = attributes(tree, element).map(|(_, name, value)| (name, value));
+            let offset = tree.offset(element);
+            (engine.start(element, offset, name, attributes, &scope(element)))
+                .then(|| (element, tree::flattened_first(tree, element)))
         };
         let root =
             std::iter::successors(tree.first_child(tree.root()), |&id| tree.next_sibling(id))
                 .find(|&id| matches!(tree.item(id), Item::Element(_)));
-        let Some(root) = root else {
-            return Vec::new();
-        };
-        validator.run(root, self.start);
-        if validator.deriver.exhausted() {
-            let message = "validation work limit exceeded".into();
-            validator.report(Code::Internal, root, message);
-        }
-        for (element, attribute, reference) in std::mem::take(&mut validator.references) {
-            if !validator.deriver.exhausted() && !validator.ids.contains(reference) {
-                let message =
-                    format!("IDREF attribute {attribute} references an unknown ID \"{reference}\"");
-                validator.report(Code::UnknownId, element, message);
+        let mut stack: Vec<_> = root
+            .and_then(|root| open(&mut engine, root))
+            .into_iter()
+            .collect();
+        while let Some((element, next)) = stack.last_mut()
+            && !engine.deriver.exhausted()
+        {
+            let element = *element;
+            let Some(child) = *next else {
+                stack.pop();
+                engine.end(&scope(element));
+                continue;
+            };
+            *next = tree::flattened_next(tree, element, child);
+            match tree.item(child) {
+                Item::Text(text) => engine.text(text),
+                Item::Element(_) => {
+                    engine.flush(&scope(element));
+                    stack.extend(open(&mut engine, child));
+                }
+                _ => {}
             }
         }
-        validator.diagnostics
+        engine.finish();
+        engine.diagnostics
+    }
+
+    /// A validator for one document read as events, without a tree.
+    pub fn stream(&self) -> Stream {
+        Stream {
+            engine: Engine::new(self),
+            scope: Bindings::default(),
+            elements: 0,
+            depth: 0,
+            skipped: 0,
+        }
     }
 }
 
-/// The open element and its content's derivative so far.
+/// Validates one document from its events, as libxml2's
+/// `xmlRelaxNGValidatePushElement`, `PushCData` and `PopElement` do, but
+/// for every schema: derivatives need no subtree, so libxml2's
+/// `xmlRelaxNGValidateFullElement` fallback has no counterpart. Feed it the
+/// events of a [`Reader`](crate::Reader), [`PushParser`](crate::PushParser)
+/// or [`BufferedReader`](crate::BufferedReader) in order; the diagnostics
+/// equal [`Schema::validate`]'s on the same document, with
+/// [`Diagnostic::node`] the element's index in document order. Memory is
+/// the open elements' text and namespace bindings, the derivative memo,
+/// bounded by [`Limits::max_work`], and the `xsd:ID` values seen.
+///
+/// ```
+/// use std::ops::ControlFlow;
+/// use yaxml::relaxng::{Code, Limits, Schema};
+///
+/// let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"><element name="a"><empty/></element></element>"#;
+/// let none = |_: yaxml::Request<'_>| Ok(None);
+/// let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
+/// let mut stream = schema.stream();
+/// let mut parser = yaxml::PushParser::new();
+/// let mut feed = |event: yaxml::Event<'_>, origin| {
+///     stream.event(&event, origin);
+///     ControlFlow::Continue(())
+/// };
+/// for chunk in [b"<r><b".as_slice(), b"/></r>"] {
+///     parser.feed(chunk, &mut feed)?;
+/// }
+/// parser.finish(&mut feed)?;
+/// assert_eq!(stream.diagnostics()[0].code, Code::ElementName);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub struct Stream {
+    engine: Engine<usize>,
+    scope: Bindings,
+    elements: usize,
+    depth: usize,
+    /// Depth within an element the schema does not allow, which is skipped.
+    skipped: usize,
+}
+
+impl Stream {
+    /// Supplies the document's DTD, which `ENTITY`, `ENTITIES` and
+    /// `NOTATION` values consult; without one they are invalid.
+    pub fn set_dtd(&mut self, dtd: &Dtd) {
+        self.scope.dtd = Some(dtd.clone());
+    }
+
+    /// Consumes the next event of the document.
+    pub fn event(&mut self, event: &Event<'_>, origin: SourceOrigin) {
+        match event {
+            Event::Start(element) | Event::Empty(element) => {
+                self.depth += 1;
+                self.elements += 1;
+                if self.skipped > 0 {
+                    self.skipped += 1;
+                } else if !self.engine.deriver.exhausted() {
+                    self.engine.flush(&self.scope);
+                    self.scope.push(&element.attributes);
+                    let attributes = (element.attributes.iter())
+                        .map(|attribute| (qname(&attribute.name), &*attribute.value));
+                    let offset = origin.input_range().map(|range| range.start);
+                    let (index, name) = (self.elements - 1, qname(&element.name));
+                    if !(self.engine).start(index, offset, name, attributes, &self.scope) {
+                        self.skipped = 1;
+                    }
+                }
+                if matches!(event, Event::Empty(_)) {
+                    self.end();
+                }
+            }
+            Event::End(_) => self.end(),
+            Event::Text(text) | Event::Cdata(text)
+                if self.skipped == 0 && !self.engine.deriver.exhausted() =>
+            {
+                self.engine.text(text)
+            }
+            _ => {}
+        }
+    }
+
+    fn end(&mut self) {
+        self.depth = self.depth.saturating_sub(1);
+        if !self.engine.deriver.exhausted() {
+            match self.skipped {
+                0 => {
+                    self.engine.end(&self.scope);
+                    self.scope.pop();
+                }
+                1 => {
+                    self.skipped = 0;
+                    self.scope.pop();
+                }
+                _ => self.skipped -= 1,
+            }
+        }
+        if self.depth == 0 {
+            self.engine.finish();
+        }
+    }
+
+    /// The diagnostics so far; complete once the document element ends.
+    pub fn diagnostics(&self) -> &[Diagnostic<usize>] {
+        &self.engine.diagnostics
+    }
+}
+
+fn qname<'a>(name: &'a crate::Name<'_>) -> QName<'a> {
+    QName {
+        qualified: name.qualified(),
+        local: name.local(),
+        namespace: name.namespace().filter(|uri| !uri.is_empty()),
+    }
+}
+
+/// The namespace bindings of a stream's open elements, and its DTD.
+#[derive(Default)]
+struct Bindings {
+    bindings: Vec<(String, String)>,
+    marks: Vec<usize>,
+    dtd: Option<Dtd>,
+}
+
+impl Bindings {
+    fn push(&mut self, attributes: &[crate::Attribute<'_>]) {
+        self.marks.push(self.bindings.len());
+        for attribute in attributes {
+            if let Some(prefix) = qname(&attribute.name).declared_prefix() {
+                (self.bindings).push((prefix.to_owned(), attribute.value.to_string()));
+            }
+        }
+    }
+
+    fn pop(&mut self) {
+        self.bindings.truncate(self.marks.pop().unwrap_or(0));
+    }
+}
+
+impl Context for Bindings {
+    fn namespace(&self, prefix: &str) -> Option<&str> {
+        let mut bindings = self.bindings.iter().rev();
+        (bindings.find(|(bound, _)| bound == prefix)).map(|(_, uri)| uri.as_str())
+    }
+
+    fn has_notation(&self, name: &str) -> bool {
+        (self.dtd.as_ref()).is_some_and(|dtd| dtd.notations.contains_key(name))
+    }
+
+    fn has_unparsed_entity(&self, name: &str) -> bool {
+        (self.dtd.as_ref()).is_some_and(|dtd| matches!(dtd.entities.get(name), Some(Some(_))))
+    }
+}
+
+/// An open element and its content's derivative so far.
 struct Frame<I> {
     element: I,
+    offset: Option<usize>,
+    /// The element's name key.
+    name: u32,
     pattern: Id,
-    next: Option<I>,
+    /// Text since the last element child.
     text: String,
-    /// Whether the element has element children, so whitespace text is ignored.
+    /// Whether an element child was seen, so whitespace text is ignored.
     mixed: bool,
     /// Whether an error was already reported for this element.
     errored: bool,
 }
 
-struct Validator<'t, 's, T: Navigate> {
-    tree: &'t T,
-    deriver: Deriver<'s>,
+/// One validation, fed start tags, text and end tags in document order by
+/// both the tree walk and [`Stream`]. Each call takes the namespace and DTD
+/// context of the element it concerns.
+struct Engine<I> {
+    deriver: Deriver,
+    start: Id,
     keys: HashMap<String, u32>,
+    /// Local name of each key.
+    locals: Vec<Box<str>>,
     key: String,
     /// Values of `xsd:ID` attributes seen, and `xsd:IDREF(S)` references
-    /// (element, attribute, ID) to resolve at the end (DTD compatibility).
-    ids: HashSet<&'t str>,
-    references: Vec<(T::Id, &'t str, &'t str)>,
-    diagnostics: Vec<Diagnostic<T::Id>>,
+    /// (element, offset, attribute, ID) to resolve at the end.
+    ids: HashSet<String>,
+    references: Vec<(I, Option<usize>, String, String)>,
+    stack: Vec<Frame<I>>,
+    root: Option<(I, Option<usize>)>,
+    diagnostics: Vec<Diagnostic<I>>,
 }
 
 /// An element's namespace context, computed only when a datatype asks.
@@ -353,12 +543,19 @@ impl<T: Navigate> Context for Scope<'_, T> {
     }
 }
 
-impl<'t, T: Navigate> Validator<'t, '_, T> {
-    fn scope(&self, element: T::Id) -> Scope<'t, T> {
-        Scope {
-            tree: self.tree,
-            element,
-            bindings: OnceCell::new(),
+impl<I: Copy> Engine<I> {
+    fn new(schema: &Schema) -> Self {
+        Self {
+            deriver: Deriver::new(schema.arena.clone(), schema.tables.clone(), schema.max_work),
+            start: schema.start,
+            keys: HashMap::new(),
+            locals: Vec::new(),
+            key: String::new(),
+            ids: HashSet::new(),
+            references: Vec::new(),
+            stack: Vec::new(),
+            root: None,
+            diagnostics: Vec::new(),
         }
     }
 
@@ -366,80 +563,60 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
         let ns = ns.unwrap_or("");
         self.key.clear();
         self.key.extend([ns, "\0", local]);
-        let next = self.keys.len() as u32;
         let key = match self.keys.get(self.key.as_str()) {
             Some(&key) => key,
-            None => *self.keys.entry(self.key.clone()).or_insert(next),
+            None => {
+                self.locals.push(local.into());
+                *self
+                    .keys
+                    .entry(self.key.clone())
+                    .or_insert(self.locals.len() as u32 - 1)
+            }
         };
         Name { ns, local, key }
     }
 
-    fn report(&mut self, code: Code, element: T::Id, message: String) {
+    fn report(&mut self, code: Code, (element, offset): (I, Option<usize>), message: String) {
         self.diagnostics.push(Diagnostic {
             code,
             node: Some(element),
-            offset: self.tree.offset(element),
+            offset,
             message,
         });
     }
 
-    /// Validates the document element against `start`, one event at a time.
-    fn run(&mut self, root: T::Id, start: Id) {
-        let mut stack = Vec::new();
-        stack.extend(self.open(root, start));
-        while let Some(frame) = stack.last_mut() {
-            if self.deriver.exhausted() {
-                return;
-            }
-            let Some(child) = frame.next else {
-                let frame = stack.pop().expect("open frame");
-                let pattern = self.close(frame);
-                if let Some(parent) = stack.last_mut() {
-                    parent.pattern = pattern;
-                }
-                continue;
-            };
-            frame.next = tree::flattened_next(self.tree, frame.element, child);
-            match self.tree.item(child) {
-                Item::Text(text) => frame.text.push_str(text),
-                Item::Element(_) => {
-                    self.flush(frame);
-                    let opened = self.open(child, frame.pattern);
-                    stack.extend(opened);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    /// Start tag and attributes; `None` when the element is not allowed,
-    /// which leaves `pattern` unchanged and skips the element.
-    fn open(&mut self, element: T::Id, pattern: Id) -> Option<Frame<T::Id>> {
-        let tree = self.tree;
-        let Item::Element(qname) = tree.item(element) else {
-            return None;
-        };
+    /// The start tag and attributes of `element`; false when the content
+    /// does not allow it, which leaves the parent unchanged and its subtree
+    /// to be skipped.
+    fn start<'a>(
+        &mut self,
+        element: I,
+        offset: Option<usize>,
+        qname: QName<'_>,
+        attributes: impl Iterator<Item = (QName<'a>, &'a str)>,
+        cx: &dyn Context,
+    ) -> bool {
+        let at = (element, offset);
+        self.root.get_or_insert(at);
+        let pattern = self.stack.last().map_or(self.start, |frame| frame.pattern);
         let name = self.name(qname.namespace, qname.local);
         let opened = self.deriver.start_tag_open(pattern, name);
         if opened == NOT_ALLOWED && !self.deriver.exhausted() {
             let (code, message) = self.unexpected(pattern, name);
-            self.report(code, element, message);
-            return None;
+            self.report(code, at, message);
+            return false;
         }
-        let scope = self.scope(element);
         let mut current = opened;
         let mut errored = false;
-        for (_, attribute, value) in attributes(tree, element) {
+        for (attribute, value) in attributes {
             if attribute.is_namespace_declaration() {
                 continue;
             }
             let attribute_name = self.name(attribute.namespace, attribute.local);
-            let next = self
-                .deriver
-                .attribute(current, attribute_name, value, &scope);
+            let next = self.deriver.attribute(current, attribute_name, value, cx);
             if next != NOT_ALLOWED || self.deriver.exhausted() {
                 current = next;
-                self.identify(element, qname, attribute, value);
+                self.identify(at, qname, attribute, value);
                 continue;
             }
             errored = true;
@@ -460,34 +637,39 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
                     ),
                 ),
             };
-            self.report(code, element, message);
+            self.report(code, at, message);
         }
         // Missing attributes; after an attribute error, the dropped one is missing too.
         let mut closed = self.deriver.start_tag_close(current, false);
         if closed == NOT_ALLOWED && !self.deriver.exhausted() {
             if !errored {
                 let message = format!("Element {} failed to validate attributes", qname.local);
-                self.report(Code::Attributes, element, message);
+                self.report(Code::Attributes, at, message);
             }
             errored = true;
             closed = self.deriver.start_tag_close(current, true);
         }
-        let first = tree::flattened_first(tree, element);
-        let mixed = tree::flattened_children(tree, element)
-            .any(|child| matches!(tree.item(child), Item::Element(_)));
-        Some(Frame {
+        self.stack.push(Frame {
             element,
+            offset,
+            name: name.key,
             pattern: closed,
-            next: first,
             text: String::new(),
-            mixed,
+            mixed: false,
             errored,
-        })
+        });
+        true
     }
 
     /// Records `xsd:ID`, `xsd:IDREF` and `xsd:IDREFS` attribute values.
-    fn identify(&mut self, element: T::Id, owner: QName<'_>, attribute: QName<'t>, value: &'t str) {
-        let tables = self.deriver.tables;
+    fn identify(
+        &mut self,
+        at: (I, Option<usize>),
+        owner: QName<'_>,
+        attribute: QName<'_>,
+        value: &str,
+    ) {
+        let tables = &self.deriver.tables;
         let Some(&(.., ty)) = tables.ids.iter().find(|&&(owner_class, class, _)| {
             tables.contains(owner_class, owner.namespace.unwrap_or(""), owner.local)
                 && tables.contains(class, attribute.namespace.unwrap_or(""), attribute.local)
@@ -500,27 +682,45 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
         match ty {
             Type::Id => {
                 let id = tokens.next().unwrap_or("");
-                if !self.ids.insert(id) {
-                    self.report(Code::DuplicateId, element, format!("ID {id} redefined"));
+                if !self.ids.insert(id.to_owned()) {
+                    self.report(Code::DuplicateId, at, format!("ID {id} redefined"));
                 }
             }
-            _ => self
-                .references
-                .extend(tokens.map(|token| (element, attribute.qualified, token))),
+            _ => self.references.extend(tokens.map(|token| {
+                let (element, offset) = at;
+                (
+                    element,
+                    offset,
+                    attribute.qualified.to_owned(),
+                    token.to_owned(),
+                )
+            })),
         }
     }
 
-    /// Text between element children; whitespace there is insignificant.
-    fn flush(&mut self, frame: &mut Frame<T::Id>) {
+    /// Text inside the current element.
+    fn text(&mut self, text: &str) {
+        if let Some(frame) = self.stack.last_mut() {
+            frame.text.push_str(text);
+        }
+    }
+
+    /// An element child is next: the text before it is complete, and
+    /// whitespace there is insignificant.
+    fn flush(&mut self, cx: &dyn Context) {
+        let Some(mut frame) = self.stack.pop() else {
+            return;
+        };
+        frame.mixed = true;
         let text = std::mem::take(&mut frame.text);
         if !is_whitespace(&text) {
-            self.text(frame, &text);
+            self.characters(&mut frame, &text, cx);
         }
+        self.stack.push(frame);
     }
 
-    fn text(&mut self, frame: &mut Frame<T::Id>, text: &str) {
-        let scope = self.scope(frame.element);
-        let mut next = self.deriver.text(frame.pattern, text, &scope);
+    fn characters(&mut self, frame: &mut Frame<I>, text: &str, cx: &dyn Context) {
+        let mut next = self.deriver.text(frame.pattern, text, cx);
         if is_whitespace(text) {
             next = self.deriver.store.choice(frame.pattern, next);
         }
@@ -532,18 +732,18 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
             return;
         }
         frame.errored = true;
-        let local = local_name(self.tree, frame.element);
+        let local = &self.locals[frame.name as usize];
         let unexpected = (
             Code::UnexpectedText,
             format!("Did not expect text in element {local} content"),
         );
         let (code, message) = self.wanted(frame.pattern, unexpected);
-        self.report(code, frame.element, message);
+        self.report(code, (frame.element, frame.offset), message);
     }
 
     /// The datatype `pattern` wanted, if any, else `fallback`.
     fn wanted(&self, pattern: Id, fallback: (Code, String)) -> (Code, String) {
-        let tables = self.deriver.tables;
+        let tables = &self.deriver.tables;
         (self.deriver.front(pattern).into_iter())
             .find_map(|leaf| match leaf {
                 Pat::Data(datatype, _) => Some((
@@ -560,56 +760,74 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
             .unwrap_or(fallback)
     }
 
-    /// The end tag; returns the parent's pattern after this element.
-    fn close(&mut self, mut frame: Frame<T::Id>) -> Id {
-        match frame.mixed {
-            true => self.flush(&mut frame),
-            false => {
-                let text = std::mem::take(&mut frame.text);
-                self.text(&mut frame, &text);
+    /// The end tag of the current element.
+    fn end(&mut self, cx: &dyn Context) {
+        let Some(mut frame) = self.stack.pop() else {
+            return;
+        };
+        let text = std::mem::take(&mut frame.text);
+        if !frame.mixed || !is_whitespace(&text) {
+            self.characters(&mut frame, &text, cx);
+        }
+        let mut ended = self.deriver.end_tag(frame.pattern, false);
+        if ended == NOT_ALLOWED && !self.deriver.exhausted() {
+            if !frame.errored {
+                let (code, message) = self.missing(&frame);
+                self.report(code, (frame.element, frame.offset), message);
+            }
+            ended = self.deriver.end_tag(frame.pattern, true);
+        }
+        if let Some(parent) = self.stack.last_mut() {
+            parent.pattern = ended;
+        }
+    }
+
+    /// Classifies content that ended too early.
+    fn missing(&self, frame: &Frame<I>) -> (Code, String) {
+        let tables = &self.deriver.tables;
+        let missing = (self.deriver.front(frame.pattern).into_iter()).find_map(|leaf| match leaf {
+            Pat::Element(element) => Some(
+                tables
+                    .describe(tables.elements[element as usize].0)
+                    .unwrap_or(""),
+            ),
+            _ => None,
+        });
+        match missing {
+            Some(name) => (
+                Code::MissingElement,
+                format!("Expecting an element {name}, got nothing"),
+            ),
+            None => {
+                let local = &self.locals[frame.name as usize];
+                let fallback = format!("Element {local} failed to validate content");
+                self.wanted(frame.pattern, (Code::Content, fallback))
             }
         }
-        let ended = self.deriver.end_tag(frame.pattern, false);
-        if ended != NOT_ALLOWED || self.deriver.exhausted() {
-            return ended;
+    }
+
+    /// The end of the document: the work limit and unresolved references.
+    fn finish(&mut self) {
+        let Some(root) = self.root else {
+            return;
+        };
+        if self.deriver.exhausted() {
+            let message = "validation work limit exceeded".into();
+            return self.report(Code::Internal, root, message);
         }
-        if !frame.errored {
-            let local = local_name(self.tree, frame.element);
-            let tables = self.deriver.tables;
-            let missing =
-                self.deriver
-                    .front(frame.pattern)
-                    .into_iter()
-                    .find_map(|leaf| match leaf {
-                        Pat::Element(element) => Some(
-                            tables
-                                .describe(tables.elements[element as usize].0)
-                                .unwrap_or(""),
-                        ),
-                        _ => None,
-                    });
-            let (code, message) = match missing {
-                Some(name) => (
-                    Code::MissingElement,
-                    format!("Expecting an element {name}, got nothing"),
-                ),
-                None => self.wanted(
-                    frame.pattern,
-                    (
-                        Code::Content,
-                        format!("Element {local} failed to validate content"),
-                    ),
-                ),
-            };
-            self.report(code, frame.element, message);
+        for (element, offset, attribute, reference) in std::mem::take(&mut self.references) {
+            if !self.ids.contains(&reference) {
+                let message =
+                    format!("IDREF attribute {attribute} references an unknown ID \"{reference}\"");
+                self.report(Code::UnknownId, (element, offset), message);
+            }
         }
-        self.deriver.end_tag(frame.pattern, true)
     }
 
     /// Classifies an element that `pattern` does not allow.
     fn unexpected(&self, pattern: Id, name: Name<'_>) -> (Code, String) {
         let element = name.local;
-        let tables = self.deriver.tables;
+        let tables = &self.deriver.tables;
         let expected: Vec<(&str, &str)> = (self.deriver.front(pattern).into_iter())
             .filter_map(|leaf| match leaf {
                 Pat::Element(element) => {
@@ -645,13 +863,6 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
                 ),
             },
         }
-    }
-}
-
-fn local_name<T: Navigate>(tree: &T, element: T::Id) -> &str {
-    match tree.item(element) {
-        Item::Element(name) => name.local,
-        _ => "",
     }
 }
 

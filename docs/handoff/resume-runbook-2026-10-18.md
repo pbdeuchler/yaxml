@@ -149,7 +149,7 @@ repository review document beside the existing DTD process review files.
 ## 5. Continue the DTD fuzz burndown
 
 After process integration is accepted, start stage 4 of
-[the DTD Reader fuzz plan](../plans/dtd-reader-fuzz.md):
+[the DTD Reader fuzz plan](../archive/plans/dtd-reader-fuzz.md):
 
 1. add a bounded streaming DTD Session driver covering UTF-8/UTF-16 transport,
    chunk boundaries, lending/callback behavior and generated scheduling;

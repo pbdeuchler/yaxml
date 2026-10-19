@@ -1,0 +1,3 @@
+<sch:schema xmlns:sch="http://purl.oclc.org/dsdl/schematron">
+	<sch:patte dn`i="TestPattern">
+		<sch:rulrary>

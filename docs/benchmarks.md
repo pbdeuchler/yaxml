@@ -8,7 +8,7 @@ under `cargo test --all-targets` is only a functional smoke check.
 ## Matched DOM and streaming parsing
 
 The `parse_bench` example and external `tooling/libxml2_parse_bench.c` helper
-implement the [matched parsing contract](plans/matched-parse-baseline.md).
+implement the [matched parsing contract](archive/plans/matched-parse-baseline.md).
 They measure fresh borrowing/owned DOMs, memory readers, SAX push input and
 buffered pull input with complete logical-value observations. DOM traversal
 has its own clock; streaming observes values during parsing. Both include
@@ -48,7 +48,7 @@ source/binary/input hashes, build flags, reference build and host. Confirm
 identities again after all samples. A successful protocol exchange alone is
 neither optimized-build evidence nor a performance result. Broader size/chunk
 series, failure costs, latency, allocations and memory remain required.
-The [first matched parsing validation](validation-parse-baseline.md) records
+The [first matched parsing validation](archive/validation-parse-baseline.md) records
 65 workloads with raw phase distributions and substantial remaining gaps.
 
 `cargo bench --bench parse` retains the pre-pull DOM parse/destruction, owned
@@ -252,7 +252,7 @@ Use independently varied attribute-count, width, depth and payload series, with
 fixed operations and repeated alternating runs. These are yaxml measurements;
 no matched libxml2 editing harness, allocation profile or memory advantage is
 established. Final milestone results belong in the
-[mutation validation report](validation-owned-mutation.md).
+[mutation validation report](archive/validation-owned-mutation.md).
 
 ## Owned structural editing
 

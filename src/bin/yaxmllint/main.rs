@@ -15,11 +15,12 @@ use yaxml::catalog::{Catalog, CatalogResolver};
 use yaxml::xpath::{Context, XPath};
 use yaxml::{
     ErrorKind, Limit, Limits, OwnedDocument, ParseOptions, Request, Resolver, c14n, relaxng, save,
-    valid, xsd,
+    schematron, valid, xsd,
 };
 
-/// Compiled `--relaxng` and `--schema` documents, shared by every input.
+/// Compiled `--schematron`, `--relaxng` and `--schema` documents, shared by every input.
 struct Schemas {
+    schematron: Option<schematron::Schema>,
     relaxng: Option<relaxng::Schema>,
     xsd: Option<xsd::Schema>,
 }
@@ -79,6 +80,14 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
         eprintln!("{what} schema {path} failed to compile");
         SCHEMACOMP
     };
+    let schematron = o.schematron.as_deref().map(|path| {
+        let bytes = fs::read(path).unwrap_or_default();
+        let schema = schematron::Schema::parse(&bytes, path, loader(&o.path), &Default::default());
+        schema.map_err(|errors| {
+            eprintln!("{errors}");
+            failed("Schematron", path)
+        })
+    });
     let relaxng = o.relaxng.as_deref().map(|path| {
         let bytes = fs::read(path).map_err(|_| failed("Relax-NG", path))?;
         let schema = relaxng::Schema::parse(&bytes, path, loader(&o.path), &Default::default());
@@ -103,6 +112,7 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
         })
     });
     Ok(Schemas {
+        schematron: schematron.transpose()?,
         relaxng: relaxng.transpose()?,
         xsd: xsd.transpose()?,
     })
@@ -147,8 +157,14 @@ fn flags(o: &Opts) -> u32 {
         | set(o.huge, HUGE)
         | set(o.noblanks || o.format == 1, NOBLANKS)
         | set(o.valid, DTDVALID)
-        | set(o.postvalid || o.dtdvalid.is_some(), DTDLOAD)
-        | set(o.relaxng.is_some() || o.schema.is_some(), NOENT | DTDLOAD)
+        | set(
+            o.postvalid || o.dtdvalid.is_some() || o.schematron.is_some(),
+            DTDLOAD,
+        )
+        | set(
+            o.schematron.is_some() || o.relaxng.is_some() || o.schema.is_some(),
+            NOENT | DTDLOAD,
+        )
         | set(o.c14n.is_some(), NOENT | DTDATTR | DTDLOAD)
 }
 
@@ -227,16 +243,19 @@ fn last_failure(codes: impl IntoIterator<Item = i32>) -> i32 {
 }
 
 /// Validation after parsing: DTD (`--valid`, `--postvalid`, `--dtdvalid`),
-/// then RELAX NG and XML Schema; the last failing code wins.
+/// then Schematron, RELAX NG and XML Schema; the last failing code wins.
+/// Prints a schema verdict line; the exit code.
+fn verdict(o: &Opts, file: &str, ok: bool) -> i32 {
+    match (ok, o.quiet) {
+        (true, false) => eprintln!("{file} validates"),
+        (false, _) => eprintln!("{file} fails to validate"),
+        _ => {}
+    }
+    if ok { 0 } else { VALID }
+}
+
 fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &OwnedDocument) -> i32 {
-    let verdict = |ok: bool| {
-        match (ok, o.quiet) {
-            (true, false) => eprintln!("{file} validates"),
-            (false, _) => eprintln!("{file} fails to validate"),
-            _ => {}
-        }
-        if ok { 0 } else { VALID }
-    };
+    let verdict = |ok| verdict(o, file, ok);
     let dtd_valid = (o.valid || o.postvalid).then(|| {
         let ok = print_all(file, input, "validity error", &document.validate());
         if !ok && o.postvalid {
@@ -265,6 +284,18 @@ fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &Owne
         eprintln!("Document {file} does not validate against {path}");
         VALID
     });
+    let schematron = schemas.schematron.as_ref().map(|schema| {
+        let quiet = if o.noout { schematron::OUT_QUIET } else { 0 };
+        let validation = schema.validate(document, schematron::OUT_TEXT | quiet, input);
+        eprint!("{}", validation.render(file));
+        match validation.errors {
+            Some(errors) => verdict(errors == 0),
+            None => {
+                eprintln!("{file} validation generated an internal error");
+                VALID
+            }
+        }
+    });
     let relaxng = schemas.relaxng.as_ref().map(|schema| {
         verdict(print_all(
             file,
@@ -281,7 +312,11 @@ fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &Owne
             &schema.validate(document),
         ))
     });
-    last_failure([dtd_valid, dtdvalid, relaxng, xsd].into_iter().flatten())
+    last_failure(
+        [dtd_valid, dtdvalid, schematron, relaxng, xsd]
+            .into_iter()
+            .flatten(),
+    )
 }
 
 fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
@@ -298,7 +333,7 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
         return RDFILE;
     };
     if o.stream {
-        return stream(o, file, &input);
+        return stream(o, schemas, file, &input);
     }
     let mut document = match parse(o, file, &input) {
         Ok(document) => document,
@@ -360,9 +395,10 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
     last_failure([included, queried, saved, written, checked])
 }
 
-/// `--stream`: read every node through the pull interface and print nothing.
-fn stream(o: &Opts, file: &str, input: &[u8]) -> i32 {
-    // The reader neither validates nor drops blanks; it prints nothing anyway.
+/// `--stream`: read every node through the pull interface, printing nothing
+/// but `--relaxng` validation, which the reader does as it goes.
+fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
+    // The reader does not validate DTDs or drop blanks; it prints nothing anyway.
     let streamable = flags(o) & !(yaxml::options::DTDVALID | yaxml::options::NOBLANKS);
     let options = ParseOptions::new(streamable).with_limits(limits(o));
     let reader = yaxml::TextReader::with_options(input, options.with_resolver(file, resolver(o)));
@@ -373,15 +409,31 @@ fn stream(o: &Opts, file: &str, input: &[u8]) -> i32 {
             return UNCLASS;
         }
     };
-    loop {
+    let rng = schemas.relaxng.as_ref();
+    reader
+        .relaxng_set_schema(rng)
+        .expect("before the first read");
+    let read = loop {
         match reader.read() {
             Ok(true) => {}
-            Ok(false) => return 0,
-            Err(error) => {
-                eprintln!("{file} : failed to parse: {error:?}");
-                return UNCLASS;
-            }
+            done => break done,
         }
+    };
+    let code = rng.map_or(0, |_| {
+        print_all(
+            file,
+            input,
+            "Relax-NG validity error",
+            reader.relaxng_diagnostics(),
+        );
+        verdict(o, file, reader.is_valid())
+    });
+    match read {
+        Err(error) => {
+            eprintln!("{file} : failed to parse: {error:?}");
+            UNCLASS
+        }
+        Ok(_) => code,
     }
 }
 

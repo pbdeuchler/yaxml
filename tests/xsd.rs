@@ -48,6 +48,10 @@ fn outcome(schema_text: &str, instance: &str) -> String {
     let borrowed = Document::parse(instance).unwrap();
     let again = built.validate(&borrowed);
     assert_eq!(project(&diagnostics), project(&again), "both DOMs agree");
+    let streamed = built
+        .validate_stream(instance.as_bytes(), Default::default())
+        .unwrap();
+    assert_eq!(project(&diagnostics), project(&streamed), "stream agrees");
     for diagnostic in &diagnostics {
         assert!(!diagnostic.message.is_empty());
     }
@@ -1090,6 +1094,18 @@ const CASES: &[Case] = &[
         "<r><e id='a'/><e id='a'/></r>",
         "V 1824",
     ),
+    (
+        "ENTITY names an unparsed entity",
+        "<xs:element name='r'><xs:complexType><xs:attribute name='a' type='xs:ENTITY'/></xs:complexType></xs:element>",
+        "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY e SYSTEM 'e' NDATA n>]><r a='e'/>",
+        "V",
+    ),
+    (
+        "ENTITY names a parsed entity",
+        "<xs:element name='r'><xs:complexType><xs:attribute name='a' type='xs:ENTITY'/></xs:complexType></xs:element>",
+        "<!DOCTYPE r [<!ENTITY e 'x'>]><r a='e'/>",
+        "V 1824",
+    ),
     // ---- xsi:type and xsi:nil ------------------------------------------------
     (
         "xsi:type derived",
@@ -1394,11 +1410,11 @@ fn hex(text: &str) -> String {
     }
 }
 
-#[test]
-#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled tooling/libxml2_xsd.c"]
-fn libxml2_agrees_with_every_expectation() {
+/// The oracle helper's outcome for every case, in the expectations' format.
+fn libxml2_outcomes(args: &[&str]) -> Vec<String> {
     let helper = std::env::var("YAXML_XSD_HELPER").unwrap();
     let mut child = Command::new(helper)
+        .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -1414,10 +1430,10 @@ fn libxml2_agrees_with_every_expectation() {
         .write_all(input.as_bytes())
         .unwrap();
     let output = String::from_utf8(child.wait_with_output().unwrap().stdout).unwrap();
-    let mut failures = Vec::new();
-    for (&(name, _, _, want), line) in CASES.iter().zip(output.lines()) {
-        // The oracle prints validateDoc's return value after "V".
-        let got = match line.strip_prefix("V ") {
+    let outcomes: Vec<String> = output
+        .lines()
+        .map(|line| match line.strip_prefix("V ") {
+            // The oracle prints the validation return value after "V".
             Some(rest) => {
                 let mut parts = rest.split(' ');
                 let _ret = parts.next();
@@ -1426,12 +1442,38 @@ fn libxml2_agrees_with_every_expectation() {
                     .to_owned()
             }
             None => line.to_owned(),
-        };
+        })
+        .collect();
+    assert_eq!(outcomes.len(), CASES.len());
+    outcomes
+}
+
+#[test]
+#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled tooling/libxml2_xsd.c"]
+fn libxml2_agrees_with_every_expectation() {
+    let mut failures = Vec::new();
+    for (&(name, _, _, want), got) in CASES.iter().zip(libxml2_outcomes(&[])) {
         if got != want {
             failures.push(format!("{name}: expected {want}, libxml2 {got}"));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// libxml2's stream validation (`xmlSchemaValidateStream`) has no nodes, so
+/// it never registers an ID and rejects every `ENTITY` value; yaxml's stream
+/// validation keeps the tree's verdicts.
+#[test]
+#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled tooling/libxml2_xsd.c"]
+fn libxml2_stream_agrees_except_ids_and_entities() {
+    let differences: Vec<&str> = CASES
+        .iter()
+        .zip(libxml2_outcomes(&["stream"]))
+        .filter(|(case, got)| *got != case.3)
+        .map(|(case, _)| case.0)
+        .collect();
+    let quirks = ["duplicate ID values", "ENTITY names an unparsed entity"];
+    assert_eq!(differences, quirks);
 }
 
 #[test]

@@ -195,3 +195,10 @@ path = "fuzz_targets/relaxng.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "schematron"
+path = "fuzz_targets/schematron.rs"
+test = false
+doc = false
+bench = false

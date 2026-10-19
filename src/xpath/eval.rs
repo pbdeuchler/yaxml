@@ -36,15 +36,19 @@ struct Eval<'a, T: Navigate> {
     ast: &'a Ast,
     context: &'a Context<T::Id>,
     operations: u64,
+    max_operations: u64,
     ranks: OnceCell<Option<Vec<usize>>>,
 }
 
+/// Evaluates within the context's limits and at most `budget` operations,
+/// deducting the operations spent from `budget`.
 pub(crate) fn evaluate<T: Navigate>(
     tree: &T,
     source: &str,
     ast: &Ast,
     node: Node<T::Id>,
     context: &Context<T::Id>,
+    budget: &mut u64,
 ) -> Result<Value<T::Id>> {
     let mut eval = Eval {
         tree,
@@ -52,24 +56,24 @@ pub(crate) fn evaluate<T: Navigate>(
         ast,
         context,
         operations: 0,
+        max_operations: context.limits.max_operations.min(*budget),
         ranks: OnceCell::new(),
     };
-    eval.checked(Value::NodeSet(vec![node]))?;
-    eval.expr(
-        ast.root,
-        Focus {
-            node,
-            position: 1,
-            size: 1,
-        },
-    )
+    let focus = Focus {
+        node,
+        position: 1,
+        size: 1,
+    };
+    let value = (eval.checked(Value::NodeSet(vec![node]))).and_then(|_| eval.expr(ast.root, focus));
+    *budget -= eval.operations.min(*budget);
+    value
 }
 
 fn is_blank(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\r' | '\n')
 }
 
-fn truthy<Id>(value: &Value<Id>) -> bool {
+pub(crate) fn truthy<Id>(value: &Value<Id>) -> bool {
     match value {
         Value::NodeSet(nodes) => !nodes.is_empty(),
         Value::Boolean(value) => *value,
@@ -239,7 +243,7 @@ fn error<T>(kind: ErrorKind) -> Result<T> {
 impl<'a, T: Navigate> Eval<'a, T> {
     fn tick(&mut self, count: u64) -> Result<()> {
         self.operations = self.operations.saturating_add(count);
-        if self.operations > self.context.limits.max_operations {
+        if self.operations > self.max_operations {
             return error(ErrorKind::LimitExceeded(Limit::Operations));
         }
         Ok(())
@@ -255,7 +259,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
     fn namespace(&self, prefix: Span) -> Result<&'a str> {
         self.context
             .namespace(prefix.text(self.source))
-            .ok_or(Error::new(ErrorKind::UndefinedPrefix))
+            .ok_or(Error::at(ErrorKind::UndefinedPrefix, prefix.range().start))
     }
 
     fn expand(&self, name: QName) -> Result<(&'a str, &'a str)> {
@@ -412,7 +416,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
                     .and_then(|scope| scope.get(local));
                 self.checked(
                     value
-                        .ok_or(Error::new(ErrorKind::UndefinedVariable))?
+                        .ok_or(Error::at(ErrorKind::UndefinedVariable, name.start()))?
                         .clone(),
                 )?
             }
@@ -870,7 +874,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
                     .functions
                     .get(uri)
                     .and_then(|scope| scope.get(local))
-                    .ok_or(Error::new(ErrorKind::UnknownFunction))?;
+                    .ok_or(Error::at(ErrorKind::UnknownFunction, name.start()))?;
                 let values = args
                     .iter()
                     .map(|&arg| self.expr(arg, focus))

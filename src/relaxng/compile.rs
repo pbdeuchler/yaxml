@@ -4,6 +4,7 @@
 //! `notAllowed` and `empty` simplification) and the datatypes.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use super::datatype::{Datatype, Problem, ValueDef};
 use super::load::{El, Loader, Loc};
@@ -46,7 +47,7 @@ struct Define<'e> {
 
 struct Compiler<'e, 'l> {
     loader: &'l Loader<'l>,
-    store: Store<'e>,
+    store: Store,
     tables: Tables,
     /// The schema location that first produced each pattern.
     origin: Vec<Loc>,
@@ -68,10 +69,9 @@ pub(super) fn compile(
     loader: &Loader<'_>,
     max_work: usize,
 ) -> std::result::Result<(Arena, Tables, Id), Vec<SchemaError>> {
-    let empty = Arena::default();
     let mut compiler = Compiler {
         loader,
-        store: Store::new(&empty),
+        store: Store::new(Arc::default()),
         tables: Tables::default(),
         origin: Vec::new(),
         grammars: Vec::new(),
@@ -102,7 +102,7 @@ pub(super) fn compile(
 
 /// The attributes typed `xsd:ID`, `xsd:IDREF` or `xsd:IDREFS` of each element
 /// (the RELAX NG DTD compatibility ID feature, as libxml2 implements it).
-fn id_attributes(store: &Store<'_>, tables: &Tables) -> Vec<(u32, u32, Type)> {
+fn id_attributes(store: &Store, tables: &Tables) -> Vec<(u32, u32, Type)> {
     let mut found = Vec::new();
     for &(element, content) in &tables.elements {
         let mut stack = vec![content];
