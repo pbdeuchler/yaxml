@@ -1,7 +1,7 @@
-use crate::encoding::{DecodeProgress, Decoded, Decoder, TokenSpan};
+use crate::encoding::{DecodeProgress, Decoded, Decoder, SourceEncoding, TokenSpan};
 use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState};
-use crate::tokenizer::{TokenKind, Tokenizer};
+use crate::tokenizer::{TokenKind, Tokenizer, complete_token};
 use crate::{
     Attribute, Attributes, DecodeLimits, Element, Error, ErrorKind, Event, Limits, SourceOrigin,
 };
@@ -108,29 +108,15 @@ impl Stream {
                     return Ok((consumed, None));
                 }
                 let origin = token_origin(&self.tokenizer);
-                // The callback borrows the attribute list; its capacity returns
-                // to the parser for the next start tag.
-                let mut lent = Vec::new();
-                if let Some(event) = parse_event(&self.tokenizer, &mut self.state)? {
-                    let lends = matches!(
-                        &event,
-                        Event::Start(element) | Event::Empty(element)
-                            if matches!(&element.attributes, Attributes::Owned(list) if list.capacity() > 0)
-                    );
-                    let event = if lends {
-                        lend_attributes(event, &mut lent)
-                    } else {
-                        event
-                    };
-                    if let Event::Declaration(declaration) = &event {
-                        *standalone = declaration.standalone == Some(true);
-                    }
-                    *last_origin = Some(origin);
-                    emit(event, origin, self.state.owned_budget())?;
-                }
-                if lent.capacity() > 0 {
-                    self.state.recycle_attributes(lent);
-                }
+                let event = parse_event(&self.tokenizer, &mut self.state)?;
+                deliver(
+                    &mut self.state,
+                    event,
+                    origin,
+                    standalone,
+                    last_origin,
+                    emit,
+                )?;
                 self.release();
                 continue;
             }
@@ -141,6 +127,10 @@ impl Stream {
                 self.validate_finish()?;
                 return Ok((consumed, Some(true)));
             }
+            self.drive_chunk(input, &mut consumed, standalone, last_origin, emit)?;
+            if consumed == input.len() {
+                return Ok((consumed, Some(false)));
+            }
             consumed += self.advance(&input[consumed..])?;
             if !self.has_token() {
                 if consumed == input.len() {
@@ -149,6 +139,70 @@ impl Stream {
                 return Err(Error::new(ErrorKind::InvalidState, self.position()));
             }
         }
+    }
+
+    /// Parses the complete tokens at the front of a plain UTF-8 chunk in
+    /// place, as the slice reader does: the chunk's valid prefix is checked
+    /// once, and tokenizer and decoder counters (including a text token's
+    /// consumed `<`) advance exactly as buffering each token would. Stops
+    /// before anything the incremental tokenizer must classify or diagnose.
+    fn drive_chunk(
+        &mut self,
+        input: &[u8],
+        consumed: &mut usize,
+        standalone: &mut bool,
+        last_origin: &mut Option<SourceOrigin>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        // Short remainders rarely hold a whole token; the tokenizer takes them.
+        if input.len() - *consumed < MIN_CHUNK_WINDOW {
+            return Ok(());
+        }
+        let Some((base, false)) = self.tokenizer.idle_utf8() else {
+            return Ok(());
+        };
+        let Some(allowance) = self.decoder.utf8_allowance() else {
+            return Ok(());
+        };
+        let window = &input[*consumed..*consumed + allowance.min(input.len() - *consumed)];
+        let text = valid_prefix(window);
+        let limit = self.tokenizer.borrow_limit();
+        // `at` starts the next token; `used` counts consumed window bytes,
+        // which include a text token's terminating `<`.
+        let (mut at, mut used) = (0, 0);
+        while let Some((kind, length)) = complete_token(&text.as_bytes()[at..]) {
+            if length > limit {
+                break;
+            }
+            let end = at + length;
+            let through = end + usize::from(kind == TokenKind::Text);
+            self.tokenizer.skip_borrowed(kind, base + end);
+            self.decoder.skip_utf8(through - used);
+            *consumed += through - used;
+            used = through;
+            let range = base + at..base + end;
+            let span = TokenSpan {
+                decoded: range.clone(),
+                source: range.clone(),
+                encoding: SourceEncoding::Utf8,
+            };
+            let event = parse_valid(kind, &text[at..end], &span, &mut self.state)?;
+            let origin = SourceOrigin::input(range);
+            deliver(
+                &mut self.state,
+                event,
+                origin,
+                standalone,
+                last_origin,
+                emit,
+            )?;
+            self.release();
+            if self.state.encoding() != SourceEncoding::Utf8 {
+                break;
+            }
+            at = end;
+        }
+        Ok(())
     }
 
     pub(crate) fn emit(
@@ -220,6 +274,52 @@ fn lend_attributes<'s, 'e: 's>(event: Event<'e>, lent: &'s mut Vec<Attribute<'e>
     }
 }
 
+/// Smallest remaining chunk worth scanning for complete tokens in place.
+const MIN_CHUNK_WINDOW: usize = 32;
+
+/// Delivers one parsed event to a callback, lending its attribute list from
+/// storage whose capacity returns to the parser afterwards.
+fn deliver(
+    state: &mut ParserState<'static>,
+    event: Option<Event<'_>>,
+    origin: SourceOrigin,
+    standalone: &mut bool,
+    last_origin: &mut Option<SourceOrigin>,
+    emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+) -> Result<(), Error> {
+    let Some(event) = event else {
+        return Ok(());
+    };
+    let mut lent = Vec::new();
+    let lends = matches!(
+        &event,
+        Event::Start(element) | Event::Empty(element)
+            if matches!(&element.attributes, Attributes::Owned(list) if list.capacity() > 0)
+    );
+    let event = if lends {
+        lend_attributes(event, &mut lent)
+    } else {
+        event
+    };
+    if let Event::Declaration(declaration) = &event {
+        *standalone = declaration.standalone == Some(true);
+    }
+    *last_origin = Some(origin);
+    emit(event, origin, state.owned_budget())?;
+    if lent.capacity() > 0 {
+        state.recycle_attributes(lent);
+    }
+    Ok(())
+}
+
+/// The longest prefix of `input` that is valid UTF-8 made of XML characters.
+fn valid_prefix(input: &[u8]) -> &str {
+    let text = std::str::from_utf8(input).unwrap_or_else(|error| {
+        std::str::from_utf8(&input[..error.valid_up_to()]).expect("validated prefix")
+    });
+    &text[..invalid_char(text).unwrap_or(text.len())]
+}
+
 /// Origin of the ready token; the input span when none is ready.
 fn token_origin(tokenizer: &Tokenizer) -> SourceOrigin {
     let position = tokenizer.source_position();
@@ -243,6 +343,15 @@ fn parse_event<'token>(
         ));
     };
     let raw = validate(kind, bytes, span)?;
+    parse_valid(kind, raw, span, state)
+}
+
+fn parse_valid<'token>(
+    kind: TokenKind,
+    raw: &'token str,
+    span: &TokenSpan,
+    state: &mut ParserState<'static>,
+) -> Result<Option<Event<'token>>, Error> {
     state
         .process_token(kind, raw, span.decoded.clone(), |raw, offset, budget| {
             budget.copy(raw, offset)

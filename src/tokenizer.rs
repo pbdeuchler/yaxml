@@ -261,7 +261,7 @@ impl Tokenizer {
 
     /// While no token is buffered in plain UTF-8 mode, the absolute offset of
     /// the next byte and whether a text-terminating `<` awaits replay.
-    fn idle_utf8(&self) -> Option<(usize, bool)> {
+    pub(crate) fn idle_utf8(&self) -> Option<(usize, bool)> {
         (self.ready.is_none()
             && self.buffer.is_empty()
             && matches!(self.scan, Scan::Text)
@@ -272,14 +272,14 @@ impl Tokenizer {
     }
 
     /// Longest token both byte ceilings accept without diagnosing it.
-    fn borrow_limit(&self) -> usize {
+    pub(crate) fn borrow_limit(&self) -> usize {
         self.limit.min(self.decoded_limit)
     }
 
     /// Accounts for an adopted token ending at absolute `end`.
     /// Text also consumes its terminating `<` as replayed lookahead, exactly
     /// as the incremental scanner does.
-    fn skip_borrowed(&mut self, kind: TokenKind, end: usize) {
+    pub(crate) fn skip_borrowed(&mut self, kind: TokenKind, end: usize) {
         self.lookahead = (kind == TokenKind::Text).then_some((end, end));
         self.position = end + usize::from(kind == TokenKind::Text);
         self.source_position = self.position;
@@ -503,7 +503,7 @@ impl Tokenizer {
 /// Kind and length of a complete UTF-8 token at the start of `input`, using
 /// the incremental scanner's delimiters. `None` when more input could change
 /// the token, or for prefixes it alone classifies (DOCTYPE, invalid markup).
-fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
+pub(crate) fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
     match input.split_first()? {
         (b'<', rest) => markup_after_lt(rest).map(|(kind, length)| (kind, length + 1)),
         _ => memchr(b'<', input).map(|at| (TokenKind::Text, at)),
