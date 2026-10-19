@@ -596,6 +596,8 @@ const RECOVERED: &[&str] = &[
     "<!DOCTYPE r PUBLIC \"[\" \"x\"><r/>",
     "<r><a b=1>x</a></r>",
     "<r>1 < 2</r>",
+    "<r>a&x;b&amp;&#65;</r>",
+    "<r><p:a/>&amp;<a></b>&amp;</r>",
     "<!DOCTYPE r [<!ENTITY e \"w\" -- c --><!ELEMENT r ANY>]><r/>",
     "<!DOCTYPE r [<!ATTLIST r a CDATA #REQUIRED \"v\" b CDATA #IMPLIED>]><r/>",
     "<!DOCTYPE r [<!ATTLIST r a CDATA #REQUIRED b NAME #IMPLIED>]><r/>",

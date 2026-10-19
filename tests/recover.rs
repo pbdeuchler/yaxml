@@ -61,7 +61,6 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     ("<r>&#x4G;</r>", "<r>G;</r>", &[InvalidReference]),
     ("<r>&#0;x&#1;y&#x110000;</r>", "<r>x&#xFFFD;y&#xFFFD;</r>", &[InvalidReference; 3]),
     ("<r a=\"&#xfffe;\"/>", "<r a=\"&#xFFFD;\"/>", &[InvalidReference]),
-    ("<r>&undeclared;</r>", "<r/>", &[UnknownEntity]),
     ("<!DOCTYPE r []><r>&undeclared;</r>", "<!DOCTYPE r>\n<r>&undeclared;</r>", &[UnknownEntity]),
     ("<!DOCTYPE r [<!ENTITY e SYSTEM \"x\" NDATA n>]><r>&e;</r>", "<!DOCTYPE r [\n<!ENTITY e SYSTEM \"x\" NDATA n>\n]>\n<r>&e;</r>", &[UnparsedEntity]),
     ("<!DOCTYPE r [<!ENTITY e SYSTEM \"x\">]><r a=\"&e;\"/>", "<!DOCTYPE r [\n<!ENTITY e SYSTEM \"x\">\n]>\n<r a=\"\"/>", &[ExternalEntityInAttribute]),
@@ -115,6 +114,10 @@ const SLICE: &[(&str, &str, &[ErrorKind])] = &[
     ("<r><!-- a\u{c} b --></r>", "<r> b --&gt;</r>", &[InvalidCharacter; 2]),
     ("<r><?pi a\u{c} b?></r>", "<r> b?&gt;</r>", &[InvalidCharacter; 2]),
     ("<r><![CDATA[x\u{2}y]]>z</r>", "<r>y]]&gt;z</r>", &[InvalidCharacter, Syntax, InvalidCharacter]),
+    // an undeclared entity's reference is kept, empty; once a document is
+    // not well-formed, libxml2 expands no entity reference in text
+    ("<r>a&x;b&amp;&#65;</r>", "<r>a&x;bA</r>", &[UnknownEntity]),
+    ("<r><p:a/>&amp;<a></b>&amp;</r>", "<r><p:a/>&amp;<a/></r>", &[Namespace, MismatchedEndTag]),
 ];
 
 /// Inputs from which, as in libxml2, no element is recovered: (input, saved

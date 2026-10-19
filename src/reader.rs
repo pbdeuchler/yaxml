@@ -247,6 +247,17 @@ impl<'a> Doctype<'a> {
     }
 }
 
+/// The first `&Name;` in `text` that names no predefined entity: its offset
+/// and the name.
+fn undeclared_reference(text: &str) -> Option<(usize, &str)> {
+    memchr::memchr_iter(b'&', text.as_bytes()).find_map(|at| {
+        let rest = &text[at + 1..];
+        let name = &rest[..crate::parser::name_length(rest)];
+        let complete = !name.is_empty() && rest[name.len()..].starts_with(';');
+        (complete && crate::escape::predefined(name).is_none()).then_some((at, name))
+    })
+}
+
 /// Recovery from a DTD error at `at` in `raw`, the declaration read so far
 /// from `<!DOCTYPE`, with the internal subset kept up to `unit` (offsets
 /// into `raw`): the DOCTYPE keeps the header and those declarations, and the
@@ -599,6 +610,8 @@ struct SliceReader<'a> {
     doctype: Option<usize>,
     limits: Limits,
     token_limit_kind: Limit,
+    /// The end of a recovered undeclared entity reference.
+    reference_end: Option<SourceOrigin>,
 }
 
 impl<'a> SliceReader<'a> {
@@ -648,6 +661,7 @@ impl<'a> SliceReader<'a> {
                 .rereading(true, character.is_some()),
             limits,
             token_limit_kind: Limit::TokenBytes,
+            reference_end: None,
         };
         if decode.max_decoded_token_bytes < limits.max_token_bytes {
             reader.limits.max_token_bytes = decode.max_decoded_token_bytes;
@@ -669,6 +683,10 @@ impl<'a> SliceReader<'a> {
     /// `doctype`). Events return in the reader's own result type, so they are
     /// not rewrapped on the way out.
     fn read_step(&mut self) -> Result<Option<Event<'a>>, Error> {
+        if let Some(origin) = self.reference_end.take() {
+            self.origin = Some(origin);
+            return Ok(Some(Event::EntityEnd));
+        }
         loop {
             if !self.state.in_content() {
                 let start = self.cursor;
@@ -693,7 +711,22 @@ impl<'a> SliceReader<'a> {
                 let rest = &self.input.as_bytes()[start..];
                 let end = start + memchr(b'<', rest).unwrap_or(rest.len());
                 self.check_token(start, end)?;
-                (TokenKind::Text, end)
+                // Recovery keeps a reference to an undeclared entity, as
+                // libxml2 does without `NOENT`, as an empty reference.
+                let text = &self.input[start..end];
+                let keeps = self.state.keeps_undeclared() && self.state.in_content();
+                match keeps.then(|| undeclared_reference(text)).flatten() {
+                    Some((0, name)) => {
+                        let end = start + name.len() + 2;
+                        let event = self.state.undeclared_reference(name, start)?;
+                        let origin = SourceOrigin::input(start..end);
+                        (self.cursor, self.origin) = (end, Some(origin));
+                        self.reference_end = Some(origin);
+                        return Ok(Some(event));
+                    }
+                    Some((at, _)) => (TokenKind::Text, start + at),
+                    None => (TokenKind::Text, end),
+                }
             } else if tail.starts_with("<!--") {
                 (TokenKind::Comment, self.delimited(start, 4, b"-->")?)
             } else if tail.starts_with("<![CDATA[") {

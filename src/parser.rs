@@ -87,6 +87,15 @@ impl Budget {
         self.recovered.is_some()
     }
 
+    /// Whether libxml2 would still deem the document well-formed: no error
+    /// was recovered from but namespace errors.
+    fn well_formed(&self) -> bool {
+        self.recovered
+            .iter()
+            .flatten()
+            .all(|error| error.kind == ErrorKind::Namespace)
+    }
+
     /// This budget under `RECOVER`.
     pub(crate) fn recovering(self) -> Self {
         Self {
@@ -366,6 +375,26 @@ impl<'source> ParserState<'source> {
         self.rereads = rereads && self.recovers();
         self.repairs_characters = self.rereads && characters;
         self
+    }
+
+    /// Whether recovery keeps undeclared entity references (a rereading
+    /// frontend without `NOENT`; see `undeclared_reference`).
+    pub(crate) fn keeps_undeclared(&self) -> bool {
+        self.rereads && !self.flags.substitutes()
+    }
+
+    /// Recovery from a reference to an undeclared entity `name` at `start`,
+    /// which libxml2 keeps as an empty reference.
+    pub(crate) fn undeclared_reference<'event>(
+        &mut self,
+        name: &'event str,
+        start: usize,
+    ) -> Result<Event<'event>, Error> {
+        self.check_event_limit(start)?;
+        self.budget
+            .recover(Error::new(ErrorKind::UnknownEntity, start))?;
+        self.events += 1;
+        Ok(Event::EntityStart(Cow::Borrowed(name)))
     }
 
     /// Where the slice reader rereads the latest token's rest as content.
@@ -835,8 +864,11 @@ impl<'source> ParserState<'source> {
             return Ok(Cow::Borrowed(raw));
         }
         self.budget.charge_owned(raw.len(), offset)?;
+        // libxml2 drops entity references from text once the document is
+        // not well-formed (`xmlParseReference`).
+        let entities = attribute || !self.rereads || self.budget.well_formed();
         let recover = |error| self.budget.recover(error);
-        let modes = (attribute, references, characters);
+        let modes = (attribute, references, characters, entities);
         normalize_into(raw, offset, modes, String::new(), recover).map(Cow::Owned)
     }
 

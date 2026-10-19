@@ -51,26 +51,28 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
 /// an attribute value fails at a character reference libxml2 reads as zero
 /// (an `InvalidReference` error at the offset where libxml2 reads on).
 /// With `characters`, a character outside `Char` is `recover`ed from as
-/// libxml2 does: dropped from text, U+FFFD in an attribute value.
+/// libxml2 does: dropped from text, U+FFFD in an attribute value. Without
+/// `entities`, entity references expand to nothing.
 pub(crate) fn normalize_into(
     raw: &str,
     offset: usize,
-    (attribute, references, characters): (bool, bool, bool),
+    (attribute, references, characters, entities): (bool, bool, bool, bool),
     out: String,
     recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
-    let modes = (attribute, references, true, characters);
+    let modes = (attribute, references, true, characters, entities);
     normalize(raw, offset, modes, out, recover)
 }
 
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    normalize(raw, offset, (false, true, false, false), String::new(), Err)
+    let modes = (false, true, false, false, true);
+    normalize(raw, offset, modes, String::new(), Err)
 }
 
 fn normalize(
     raw: &str,
     offset: usize,
-    (attribute, references, physical_eol, characters): (bool, bool, bool, bool),
+    (attribute, references, physical_eol, characters, entities): (bool, bool, bool, bool, bool),
     mut out: String,
     mut recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
@@ -108,7 +110,7 @@ fn normalize(
                     .and_then(|end| Ok((reference(&raw[start..end], offset + i)?, end + 1)));
                 match value {
                     Ok((value, end)) => {
-                        out.push(value);
+                        out.extend((entities || bytes.get(start) == Some(&b'#')).then_some(value));
                         i = end;
                     }
                     Err(error) => {
@@ -237,7 +239,7 @@ mod tests {
                 found.push((error.kind, error.offset));
                 Ok(())
             };
-            let modes = (false, true, false);
+            let modes = (false, true, false, true);
             let recovered = normalize_into(text, 0, modes, String::new(), recover);
             assert_eq!(recovered.as_deref(), Ok(*value), "{text}");
             assert_eq!(found, *errors, "{text}");
