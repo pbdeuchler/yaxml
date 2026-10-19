@@ -163,12 +163,7 @@ impl StreamingSession {
             return Err(error);
         }
         self.failure = Some(Failure::Poisoned);
-        match lend_current(
-            &mut self.ordinary,
-            &mut self.session,
-            &mut self.standalone,
-            &mut self.origin,
-        ) {
+        match lend_current(&mut self.session, &mut self.origin) {
             Ok(publication) => {
                 self.delivery = Delivery::Lent;
                 self.failure = None;
@@ -191,13 +186,9 @@ impl StreamingSession {
         if self.delivery != Delivery::Lent {
             return Err(Error::new(ErrorKind::InvalidState, self.position()));
         }
-        if let Some(ordinary) = &mut self.ordinary {
-            ordinary.release();
-        } else {
-            match self.session[0].phase.as_mut().expect("lent phase") {
-                Phase::Declarations { controller, .. } => controller.release(),
-                Phase::Content(controller) => controller.acknowledge()?,
-            }
+        match self.session[0].phase.as_mut().expect("lent phase") {
+            Phase::Declarations { controller, .. } => controller.release(),
+            Phase::Content(controller) => controller.acknowledge()?,
         }
         self.delivery = Delivery::Idle;
         Ok(())
@@ -260,12 +251,7 @@ impl StreamingSession {
             consumed += step.consumed;
             match step.outcome {
                 SessionOutcome::Ready => {
-                    let publication = lend_current(
-                        &mut self.ordinary,
-                        &mut self.session,
-                        &mut self.standalone,
-                        &mut self.origin,
-                    )?;
+                    let publication = lend_current(&mut self.session, &mut self.origin)?;
                     self.delivery = Delivery::Lent;
                     emit(
                         publication.event,
@@ -279,95 +265,43 @@ impl StreamingSession {
         }
     }
     fn prepare_inner(&mut self, input: &[u8]) -> Result<SessionStep, Error> {
-        if self.delivery == Delivery::Lent {
-            return Err(Error::new(ErrorKind::InvalidState, self.position()));
+        let step = |consumed, outcome| Ok(SessionStep { consumed, outcome });
+        match self.delivery {
+            Delivery::Lent => return Err(Error::new(ErrorKind::InvalidState, self.position())),
+            Delivery::Ready => return step(0, SessionOutcome::Ready),
+            Delivery::Idle if self.finished => return step(0, SessionOutcome::Complete),
+            Delivery::Idle => {}
         }
-        if self.delivery == Delivery::Ready {
-            return Ok(SessionStep {
-                consumed: 0,
-                outcome: SessionOutcome::Ready,
-            });
-        }
-        if self.finished {
-            return Ok(SessionStep {
-                consumed: 0,
-                outcome: SessionOutcome::Complete,
-            });
+        // The plain stream comes here only to hand over its parked DOCTYPE token.
+        if self.ordinary.is_some() {
+            self.start_dtd()?;
         }
         let mut consumed = 0;
         loop {
-            if let Some(ordinary) = &mut self.ordinary {
-                if ordinary.has_token() {
-                    if ordinary
-                        .tokenizer
-                        .current()
-                        .is_some_and(|(kind, _, _)| kind == TokenKind::Dtd)
-                    {
-                        self.start_dtd()?;
-                        continue;
-                    }
-                    if ordinary.is_non_event() {
-                        ordinary.emit(&mut |_, _, _| unreachable!("classified non-event"))?;
-                        ordinary.release();
-                        continue;
-                    }
-                    self.delivery = Delivery::Ready;
-                    return Ok(SessionStep {
-                        consumed,
-                        outcome: SessionOutcome::Ready,
-                    });
+            let session = self.session.first_mut().expect("one active DTD session");
+            match session.drain(self.limits, self.decode)? {
+                SessionOutcome::NeedInput => {}
+                outcome => {
+                    self.delivery = match outcome {
+                        SessionOutcome::Ready => Delivery::Ready,
+                        _ => Delivery::Idle,
+                    };
+                    self.finished = outcome == SessionOutcome::Complete;
+                    return step(consumed, outcome);
                 }
-                if self.finalizing {
-                    if ordinary.finish_step()? {
-                        continue;
-                    }
-                    ordinary.validate_finish()?;
-                    self.finished = true;
-                    return Ok(SessionStep {
-                        consumed,
-                        outcome: SessionOutcome::Complete,
-                    });
-                }
-                consumed += ordinary.advance(&input[consumed..])?;
-                if ordinary.has_token() {
-                    continue;
-                }
+            }
+            if self.finalizing {
+                session.finish_decoder()?;
+                continue;
+            }
+            let progress = session.advance_decoder(&input[consumed..])?;
+            consumed += progress.consumed;
+            if !progress.suspended {
                 if consumed == input.len() {
-                    return Ok(SessionStep {
-                        consumed,
-                        outcome: SessionOutcome::NeedInput,
-                    });
+                    return step(consumed, SessionOutcome::NeedInput);
                 }
-                return Err(Error::new(ErrorKind::InvalidState, ordinary.position()));
-            } else {
-                let session = self.session.first_mut().expect("one active DTD session");
-                match session.drain(self.limits, self.decode)? {
-                    SessionOutcome::NeedInput => {}
-                    outcome => {
-                        self.delivery = match outcome {
-                            SessionOutcome::Ready => Delivery::Ready,
-                            _ => Delivery::Idle,
-                        };
-                        self.finished = outcome == SessionOutcome::Complete;
-                        return Ok(SessionStep { consumed, outcome });
-                    }
-                }
-                if self.finalizing {
-                    session.finish_decoder()?;
-                    continue;
-                }
-                let progress = session.advance_decoder(&input[consumed..])?;
-                consumed += progress.consumed;
-                if !progress.suspended {
-                    if consumed == input.len() {
-                        return Ok(SessionStep {
-                            consumed,
-                            outcome: SessionOutcome::NeedInput,
-                        });
-                    }
-                    if progress.consumed == 0 {
-                        return Err(Error::new(ErrorKind::InvalidState, session.position()));
-                    }
+                if progress.consumed == 0 {
+                    return Err(Error::new(ErrorKind::InvalidState, session.position()));
                 }
             }
         }
@@ -575,50 +509,33 @@ struct LentSession<'event> {
     budget: &'event mut Budget,
 }
 fn lend_current<'event>(
-    ordinary: &'event mut Option<Stream>,
     session: &'event mut [DtdSession],
-    standalone: &mut bool,
     last_origin: &mut Option<SourceOrigin>,
 ) -> Result<LentSession<'event>, Error> {
-    let (event, origin, budget) = if let Some(ordinary) = ordinary {
-        let at = ordinary.position();
-        let (event, origin) = super::parse(&ordinary.tokenizer, &mut ordinary.state)?
-            .ok_or_else(|| Error::new(ErrorKind::InvalidState, at))?;
-        if let Event::Declaration(declaration) = &event {
-            *standalone = declaration.standalone == Some(true);
+    let (event, origin, budget) = match session[0].phase.as_mut().expect("ready phase") {
+        Phase::Declarations {
+            controller,
+            parser,
+            raw,
+        } => {
+            let (_, end) = controller.current().expect("ready DTD end");
+            let range = controller.start()..end.physical_context().end;
+            parser.check_event_limit(range.start)?;
+            let raw = std::str::from_utf8(raw)
+                .map_err(|_| Error::new(ErrorKind::InvalidState, range.start))?;
+            parser.commit_doctype();
+            (
+                Event::Doctype(Doctype::parse(raw)),
+                FragmentOrigin::input(range).expect("ordered declaration span"),
+                parser.owned_budget(),
+            )
         }
-        (
-            event,
-            FragmentOrigin::input(origin.input_range().expect("ordinary physical token"))
-                .expect("ordered token span"),
-            ordinary.state.owned_budget(),
-        )
-    } else {
-        match session[0].phase.as_mut().expect("ready phase") {
-            Phase::Declarations {
-                controller,
-                parser,
-                raw,
-            } => {
-                let (_, end) = controller.current().expect("ready DTD end");
-                let range = controller.start()..end.physical_context().end;
-                parser.check_event_limit(range.start)?;
-                let raw = std::str::from_utf8(raw)
-                    .map_err(|_| Error::new(ErrorKind::InvalidState, range.start))?;
-                parser.commit_doctype();
-                (
-                    Event::Doctype(Doctype::parse(raw)),
-                    FragmentOrigin::input(range).expect("ordered declaration span"),
-                    parser.owned_budget(),
-                )
-            }
-            Phase::Content(controller) => {
-                let publication = controller.lend_with_budget()?;
-                let event = publication
-                    .event
-                    .expect("non-events were drained before readiness");
-                (event, publication.origin, publication.budget)
-            }
+        Phase::Content(controller) => {
+            let publication = controller.lend_with_budget()?;
+            let event = publication
+                .event
+                .expect("non-events were drained before readiness");
+            (event, publication.origin, publication.budget)
         }
     };
     *last_origin = Some(SourceOrigin::from_repr(origin));
