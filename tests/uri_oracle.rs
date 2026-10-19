@@ -245,6 +245,7 @@ fn matches_libxml2_on_curated_and_generated_cases() {
         "x://@",
         "http://[::1]:80/",
         "http://[::1",
+        "p://[\u{e9}]",
         "http://1.2.3.4/",
         "http://1.2.3.4x/",
         "http://h:/",

@@ -1,6 +1,0 @@
-raw-ipv6-non-ascii.txt: `Uri::parse_raw("p://[é]")` accepts a bracketed
-(IP-literal) host with non-ASCII bytes and `Display` writes it back verbatim,
-so the saved form is not ASCII (fuzz/uri.rs "Raw components are ASCII"
-invariant). Found 2026-10-19 by the uri target (100 s run); pre-existing
-assertion, not introduced by the harness change. Either `[...]` hosts should
-be percent-escaped on save, or parse_raw should reject non-ASCII there.

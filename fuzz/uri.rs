@@ -48,13 +48,18 @@ pub(super) fn exercise(input: &[u8]) {
     let mut lines = text.splitn(3, '\n');
     let mut line = || lines.next().unwrap_or("");
     let (reference, base, list) = (line(), line(), line());
-    // Raw components are ASCII and serialize to something that parses again.
+    // Raw components are ASCII, except a bracketed host that xmlSaveUri writes
+    // verbatim ("TODO: escaping?"), and serialize to something that parses again.
     let raw = Uri::parse_raw(reference);
     check_error(&raw);
     if let Ok(uri) = raw {
         check_display(&uri);
         let saved = uri.to_string();
-        assert!(saved.is_ascii(), "{reference:?} saved as {saved:?}");
+        let bracketed = uri.host.as_deref().is_some_and(|h| h.starts_with('['));
+        assert!(
+            bracketed || saved.is_ascii(),
+            "{reference:?} saved as {saved:?}"
+        );
         // libxml2 saves an authority-less path starting with "//" (even one
         // that came from an empty userinfo, as in "//@//4@@//4@") verbatim, so
         // it reparses as an authority and may fail; xmlSaveUri does the same.

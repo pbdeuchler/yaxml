@@ -125,7 +125,7 @@ fn parts(u: &Uri) -> Parts<'_> {
 
 #[test]
 fn parse_components() {
-    let cases: [(&str, Parts, Option<&str>, Option<&str>); 14] = [
+    let cases: [(&str, Parts, Option<&str>, Option<&str>); 15] = [
         (
             "http://u:p%40@h:80/a%20b?q%20=1#f%20g",
             (
@@ -141,6 +141,13 @@ fn parse_components() {
         (
             "http://[::1]:8080/x",
             (Some("http"), None, Some("[::1]"), Some(8080), Some("/x")),
+            None,
+            None,
+        ),
+        (
+            // libxml2 keeps any byte inside the brackets and saves it verbatim.
+            "p://[\u{e9}]",
+            (Some("p"), None, Some("[\u{e9}]"), None, None),
             None,
             None,
         ),
@@ -221,6 +228,11 @@ fn empty_authority_and_libxml2_quirks() {
         Uri::parse_raw("http://@/").unwrap().user.as_deref(),
         Some("")
     );
+    // xmlSaveUri writes the host verbatim, so a bracketed host stays non-ASCII.
+    let raw = Uri::parse_raw("p://[\u{e9}]").unwrap();
+    assert_eq!(raw.to_string(), "p://[\u{e9}]");
+    // A reg-name host cannot hold non-ASCII text.
+    assert_eq!(Uri::parse_raw("p://\u{e9}"), Err(syntax(4)));
 }
 
 #[test]
