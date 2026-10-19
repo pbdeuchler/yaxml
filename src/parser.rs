@@ -526,7 +526,8 @@ impl<'source> ParserState<'source> {
         budget
     }
 
-    /// [`ParserState::lend`] for any event.
+    /// [`ParserState::lend`] for any event; inlined into each delivery loop.
+    #[inline(always)]
     pub(crate) fn lend_event<'a>(&'a mut self, event: &mut Event<'a>) -> &'a mut Budget {
         match event {
             Event::Start(element) | Event::Empty(element) => match &mut element.attributes {
