@@ -231,12 +231,6 @@ pub enum Event<'a> {
     },
 }
 
-enum ReaderStep<'input> {
-    Xml(Event<'input>),
-    Complete,
-    Doctype(usize),
-}
-
 #[expect(
     clippy::large_enum_variant,
     reason = "the phase occupies one fallibly reserved out-of-line slot"
@@ -373,21 +367,23 @@ impl<'a> Reader<'a> {
         // DOCTYPE moves the reader onto the out-of-line session path.
         let result = match &mut self.ordinary {
             Some(ordinary) => match ordinary.read_step() {
-                Ok(ReaderStep::Xml(event)) => {
+                Ok(Some(event)) => {
                     if let Event::Declaration(declaration) = &event {
                         self.standalone = declaration.standalone == Some(true);
                     }
                     self.origin = ordinary.origin;
                     return Ok(Some(event));
                 }
-                Ok(ReaderStep::Complete) => {
-                    self.finished = true;
-                    return Ok(None);
-                }
-                Ok(ReaderStep::Doctype(start)) => self
-                    .start_dtd(start)
-                    .and_then(|()| self.read_session())
-                    .map_err(Error::from),
+                Ok(None) => match ordinary.doctype.take() {
+                    None => {
+                        self.finished = true;
+                        return Ok(None);
+                    }
+                    Some(start) => self
+                        .start_dtd(start)
+                        .and_then(|()| self.read_session())
+                        .map_err(Error::from),
+                },
                 Err(error) => Err(error),
             },
             None => self.read_session().map_err(Error::from),
@@ -503,6 +499,8 @@ struct SliceReader<'a> {
     cursor: usize,
     origin: Option<SourceOrigin>,
     state: ParserState<'a>,
+    /// Start of a DOCTYPE that ended the plain token loop.
+    doctype: Option<usize>,
     limits: Limits,
     token_limit_kind: Limit,
 }
@@ -536,6 +534,7 @@ impl<'a> SliceReader<'a> {
             input,
             cursor: initial,
             origin: None,
+            doctype: None,
             state: ParserState::new(limits, initial),
             limits,
             token_limit_kind: Limit::TokenBytes,
@@ -556,7 +555,10 @@ impl<'a> SliceReader<'a> {
         self.cursor
     }
 
-    fn read_step(&mut self) -> Result<ReaderStep<'a>, Error> {
+    /// The next event, or `None` at EOF or at a DOCTYPE (recorded in
+    /// `doctype`). Events return in the reader's own result type, so they are
+    /// not rewrapped on the way out.
+    fn read_step(&mut self) -> Result<Option<Event<'a>>, Error> {
         loop {
             if !self.state.in_content() {
                 let start = self.cursor;
@@ -573,7 +575,7 @@ impl<'a> SliceReader<'a> {
             let start = self.cursor;
             if start == self.input.len() {
                 self.state.validate_finish(start)?;
-                return Ok(ReaderStep::Complete);
+                return Ok(None);
             }
             self.state.check_event_limit(start)?;
             let tail = &self.input[start..];
@@ -594,7 +596,8 @@ impl<'a> SliceReader<'a> {
             } else if tail.starts_with("<!DOCTYPE") {
                 self.check_token(start, start + 9)?;
                 self.state.check_doctype_start(start)?;
-                return Ok(ReaderStep::Doctype(start));
+                self.doctype = Some(start);
+                return Ok(None);
             } else if tail.starts_with("<!") {
                 (TokenKind::InvalidMarkup, start + 2)
             } else {
@@ -631,7 +634,7 @@ impl<'a> SliceReader<'a> {
             let event = result?;
             if let Some(event) = event {
                 self.origin = Some(SourceOrigin::input(start..end));
-                return Ok(ReaderStep::Xml(event));
+                return Ok(Some(event));
             }
         }
     }

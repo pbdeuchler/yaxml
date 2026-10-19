@@ -6,7 +6,7 @@ use std::ops::Range;
 use memchr::{memchr, memmem};
 
 use crate::escape::normalize_replacement_required;
-use crate::escape::{copy_cow, needs_normalization, normalize_required};
+use crate::escape::{needs_normalization, normalize_into};
 use crate::name::{qname, validate_name};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
@@ -616,7 +616,7 @@ impl<'source> ParserState<'source> {
             return Ok(Cow::Borrowed(raw));
         }
         self.budget.charge_owned(raw.len(), offset)?;
-        normalize_required(raw, offset, attribute, references).map(Cow::Owned)
+        normalize_into(raw, offset, attribute, references, String::new()).map(Cow::Owned)
     }
 
     fn instruction<'event>(
@@ -1587,7 +1587,16 @@ impl<'source> ParserState<'source> {
                         self.budget.charge_owned(uri.len(), offset)?;
                     }
                     (
-                        Some(copy_cow(&self.bindings[index].uri, offset)?),
+                        Some(match &self.bindings[index].uri {
+                            Cow::Borrowed(uri) => Cow::Borrowed(*uri),
+                            Cow::Owned(uri) => {
+                                let mut copy = String::new();
+                                copy.try_reserve(uri.len())
+                                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                                copy.push_str(uri);
+                                Cow::Owned(copy)
+                            }
+                        }),
                         self.bindings[index].namespace,
                     )
                 }
