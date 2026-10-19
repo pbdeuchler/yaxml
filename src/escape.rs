@@ -46,19 +46,21 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
 
 /// XML end-of-line and CDATA attribute normalization into `out`, which is
 /// cleared first. References are expanded after literal whitespace
-/// normalization: &#xA; must remain a newline.
+/// normalization: &#xA; must remain a newline. A malformed reference is
+/// `recover`ed from by dropping it as far as libxml2 reads it.
 pub(crate) fn normalize_into(
     raw: &str,
     offset: usize,
     attribute: bool,
     references: bool,
     out: String,
+    recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
-    normalize(raw, offset, attribute, references, true, out)
+    normalize(raw, offset, attribute, references, true, out, recover)
 }
 
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    normalize(raw, offset, false, true, false, String::new())
+    normalize(raw, offset, false, true, false, String::new(), Err)
 }
 
 fn normalize(
@@ -68,6 +70,7 @@ fn normalize(
     references: bool,
     physical_eol: bool,
     mut out: String,
+    mut recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
     out.clear();
     out.try_reserve(raw.len())
@@ -91,11 +94,22 @@ fn normalize(
         match byte {
             b'&' => {
                 let start = i + 1;
-                let end = memchr(b';', &bytes[start..])
+                let value = memchr(b';', &bytes[start..])
                     .map(|n| start + n)
-                    .ok_or(Error::new(ErrorKind::InvalidReference, offset + i))?;
-                out.push(reference(&raw[start..end], offset + i)?);
-                i = end + 1;
+                    .ok_or(Error::new(ErrorKind::InvalidReference, offset + i))
+                    .and_then(|end| Ok((reference(&raw[start..end], offset + i)?, end + 1)));
+                match value {
+                    Ok((value, end)) => {
+                        out.push(value);
+                        i = end;
+                    }
+                    Err(error) => {
+                        recover(error)?;
+                        let (value, end) = malformed_reference(&raw[start..]);
+                        out.extend(value);
+                        i = start + end;
+                    }
+                }
             }
             b'\r' => {
                 i += 1 + usize::from(bytes.get(i + 1) == Some(&b'\n'));
@@ -110,6 +124,30 @@ fn normalize(
     }
     out.push_str(&raw[run..]);
     Ok(out)
+}
+
+/// How libxml2 reads a malformed reference whose body (after `&`) starts
+/// `rest`: past `#`, an `x` and the digits of a character reference, or the
+/// name of an entity reference, and a `;` that follows them. A complete
+/// character reference to a non-character becomes U+FFFD, unless it is zero.
+fn malformed_reference(rest: &str) -> (Option<char>, usize) {
+    let bytes = rest.as_bytes();
+    let (body, radix) = match bytes {
+        [b'#', b'x', ..] => (2, 16),
+        [b'#', ..] => (1, 10),
+        // A name starts with a letter, `_`, `:` or a non-ASCII character.
+        [b'0'..=b'9' | b'-' | b'.', ..] => return (None, 0),
+        _ => (0, 0),
+    };
+    let part = |b: &u8| match radix {
+        0 => !b.is_ascii() || b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b':'),
+        _ => char::from(*b).is_digit(radix),
+    };
+    let end = body + bytes[body..].iter().take_while(|b| part(b)).count();
+    let closed = bytes.get(end) == Some(&b';');
+    let zero = rest[body..end].bytes().all(|digit| digit == b'0');
+    let value = (radix != 0 && closed && !zero).then_some('\u{fffd}');
+    (value, end + usize::from(closed))
 }
 
 /// The character named by a predefined or numeric reference body.
@@ -152,6 +190,45 @@ pub(crate) fn numeric_reference(number: &str) -> Option<char> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn malformed_references_are_dropped_as_far_as_libxml2_reads_them() {
+        use ErrorKind::{InvalidReference as Invalid, UnknownEntity as Unknown};
+        // (text, recovered value, errors at offsets)
+        type Case = (&'static str, &'static str, &'static [(ErrorKind, usize)]);
+        let cases: &[Case] = &[
+            ("a&amp;b", "a&b", &[]),
+            ("a & b", "a  b", &[(Invalid, 2)]),
+            ("a &x b", "a  b", &[(Invalid, 2)]),
+            ("&.x;", ".x;", &[(Unknown, 0)]),
+            ("&#x4G;", "G;", &[(Invalid, 0)]),
+            ("&#12a", "a", &[(Invalid, 0)]),
+            ("&#0;x", "x", &[(Invalid, 0)]),
+            ("&#;x", "x", &[(Invalid, 0)]),
+            (
+                "&#1;&#xFFFE;&#x110000;",
+                "\u{fffd}\u{fffd}\u{fffd}",
+                &[(Invalid, 0), (Invalid, 4), (Invalid, 12)],
+            ),
+            ("&undeclared;!", "!", &[(Unknown, 0)]),
+            ("&é;", "", &[(Unknown, 0)]),
+        ];
+        for (text, value, errors) in cases {
+            let mut found = Vec::new();
+            let recover = |error: Error| {
+                found.push((error.kind, error.offset));
+                Ok(())
+            };
+            let recovered = normalize_into(text, 0, false, true, String::new(), recover);
+            assert_eq!(recovered.as_deref(), Ok(*value), "{text}");
+            assert_eq!(found, *errors, "{text}");
+            let strict = normalize_into(text, 0, false, true, String::new(), Err);
+            let first = errors
+                .first()
+                .map(|&(kind, offset)| Error::new(kind, offset));
+            assert_eq!(strict.err(), first, "{text}");
+        }
+    }
 
     fn reference(text: &str) -> Option<usize> {
         text.char_indices()

@@ -61,11 +61,11 @@ fn surfaces_accept_exactly_the_flags_they_implement() {
         | NO_SYS_CATALOG
         | SKIP_IDS;
     assert_eq!(verdicts(accepted), [None; 6]);
-    for flag in [RECOVER, OLD10, OLDSAX, UNZIP, CATALOG_PI, 1 << 28, 1 << 31] {
+    for flag in [OLD10, OLDSAX, UNZIP, CATALOG_PI, 1 << 28, 1 << 31] {
         assert_eq!(verdicts(flag), [unsupported; 6], "{flag:#x}");
     }
-    // Only trees validate after parsing and drop blanks.
-    for flag in [DTDVALID, NOBLANKS] {
+    // Only trees validate after parsing, drop blanks and recover.
+    for flag in [DTDVALID, NOBLANKS, RECOVER] {
         let streaming = [unsupported, unsupported, unsupported, unsupported];
         assert_eq!(verdicts(flag)[..4], streaming, "{flag:#x}");
         assert_eq!(verdicts(flag)[4..], [None, None], "{flag:#x}");

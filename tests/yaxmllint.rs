@@ -142,6 +142,9 @@ fn cases() -> Vec<Case> {
         case("wellformed noout", &["--noout", "a.xml"], 0, Empty),
         case("default output", &["a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n<a><b k=\"1\">x</b><b>y</b></a>\n")),
         err(on(case("malformed", &["a.xml"], 4, Empty), &[("a.xml", "<a>\n<b>\n</a>")], ""), "a.xml:3: parser error"),
+        err(on(case("recover", &["--recover", "a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n<a>\n<b>\n</b></a>\n")), &[("a.xml", "<a>\n<b>\n</a>")], ""), "a.xml:3: parser error : MismatchedEndTag"),
+        err(on(case("recover without an element", &["--recover", "a.xml"], 4, Empty), &[("a.xml", "text")], ""), "TextOutsideRoot"),
+        on(case("recover is ignored by stream", &["--recover", "--stream", "a.xml"], 0, Empty), &[("a.xml", "<a/>")], ""),
         err(case("missing file", &["nope.xml"], 4, Empty), "failed to load"),
         err(case("no arguments", &[], 1, Empty), "Usage"),
         err(case("unknown option", &["--bogus", "a.xml"], 1, Empty), "Unknown option --bogus"),
@@ -561,4 +564,125 @@ fn differential_against_xmllint() {
         strict_failures.push(format!("--xpath: {xpath_failures:?}"));
     }
     assert!(strict_failures.is_empty(), "{strict_failures:#?}");
+}
+
+/// Malformed inputs whose `--recover` output must agree with xmllint's.
+const RECOVERED: &[&str] = &[
+    "<r><a></b>x</a></r>",
+    "<r><a><b></a>t</r>",
+    "<r><a>text",
+    "<r><x",
+    "<r a=\"1\"b=\"2\"><c/></r>",
+    "<A@/>",
+    "<r><a b=\"x<y\"/></r>",
+    "<r a=\"1\" a=\"2\"/>",
+    "<r xmlns:p=\"a\" xmlns:p=\"b\"><p:x/></r>",
+    "<!DOCTYPE r []><r xmlns=\"a\" xmlns=\"b\"/>",
+    "<p:r/>",
+    "<r><p:a q:b=\"1\" b=\"2\"/></r>",
+    "<r><a:b xmlns:a=\"\"/></r>",
+    "<r xmlns:xml=\"u\"/>",
+    "<r>a & b &x c</r>",
+    "<r>&#x4G;&#0;x&#1;y&#x110000;</r>",
+    "<r a=\"&#xfffe;\"/>",
+    "<!DOCTYPE r []><r>&undeclared;</r>",
+    "<!DOCTYPE r [<!ENTITY e SYSTEM \"x\" NDATA n>]><r>&e;</r>",
+    "<!DOCTYPE r [<!ENTITY e SYSTEM \"x\">]><r a=\"&e;\"/>",
+    "<r>]]><!-- a -- b --></r>",
+    "<r><?xml version=\"1.0\"?><?XML x?><?pi+data?></r>",
+    "<r><?+x?>y<!foo>z<!DOCTYPE x></r>",
+    "<!DOCTYPE r []><r><!ELEMENT x></r>",
+    "<r>x</r>tail<s/>",
+    "<r/><!-- c --><s/>",
+    "<?xml version=\"1.0\" standalone=\"maybe\"?><r/>",
+    "<?xml version=\"1.0\" encoding=\"bogus\"?><r/>",
+    "<r>a\u{1}</r>",
+];
+
+fn suites() -> PathBuf {
+    std::env::var_os("YAXML_SUITES").map_or(DEFAULT_SUITES.into(), PathBuf::from)
+}
+
+const DEFAULT_SUITES: &str = "/Users/pbdeuchler/workspace/src/github.com/pbdeuchler/yaxml-suites";
+
+/// Whether saved output has an element after its prolog (declaration,
+/// comments, PIs and a DOCTYPE, whose internal subset ends with `]>`).
+fn has_element(saved: &str) -> bool {
+    let mut rest = saved.trim_start();
+    loop {
+        let end = match rest {
+            _ if rest.starts_with("<?") => rest.find("?>").map(|at| at + 2),
+            _ if rest.starts_with("<!--") => rest.find("-->").map(|at| at + 3),
+            _ if rest.starts_with("<!DOCTYPE") => match rest.find(['[', '>']) {
+                Some(at) if rest.as_bytes()[at] == b'[' => rest.find("]>").map(|at| at + 2),
+                at => at.map(|at| at + 1),
+            },
+            _ => break,
+        };
+        let Some(end) = end else { return false };
+        rest = rest[end..].trim_start();
+    }
+    rest.starts_with('<') && !rest[1..].starts_with(['!', '?', '/'])
+}
+
+/// `--recover` against xmllint: the curated table must agree; libxml2's
+/// `test/errors` and the XMLTS not-wf documents are reported, in total and
+/// without the inputs from which libxml2 recovers no element (yaxml then
+/// fails with the first error, by design).
+#[test]
+fn recover_against_xmllint() {
+    let Some(xmllint) = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from) else {
+        eprintln!("YAXML_XMLLINT unset; skipping the --recover differential");
+        return;
+    };
+    let run = |dir: &Path, file: &str| {
+        let args = ["--recover", file];
+        let (ours, theirs) = (
+            yaxmllint(&args, dir, "", &[]),
+            run_program(&xmllint, &args, dir, "", &[]),
+        );
+        let agree = (&ours.stdout, ours.code) == (&theirs.stdout, theirs.code);
+        (
+            agree,
+            !has_element(&String::from_utf8_lossy(&theirs.stdout)),
+        )
+    };
+    let curated = scratch(&[]);
+    let failures: Vec<_> = RECOVERED
+        .iter()
+        .filter(|input| {
+            fs::write(curated.join("r.xml"), input).unwrap();
+            !run(&curated, "r.xml").0
+        })
+        .collect();
+    assert!(failures.is_empty(), "--recover disagrees on {failures:?}");
+    let errors = files("errors", "xml");
+    let xmlts: Vec<String> = fs::read_to_string(suites().join("xmlconf-catalog.tsv"))
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| {
+            let fields: Vec<_> = line.split('\t').collect();
+            (fields.get(1) == Some(&"not-wf"))
+                .then(|| fields.get(8).map(|path| path.to_string()))?
+        })
+        .collect();
+    for (label, dir, inputs) in [
+        ("errors", source().join("test"), errors),
+        ("XMLTS not-wf", suites().join("xmlconf"), xmlts),
+    ] {
+        let results: Vec<_> = inputs.iter().map(|input| run(&dir, input)).collect();
+        let agree = results.iter().filter(|(agree, _)| *agree).count();
+        let elementless = results
+            .iter()
+            .filter(|(agree, elementless)| !agree && *elementless)
+            .count();
+        let total = results.len();
+        let rate = |agree: usize, total: usize| 100.0 * agree as f64 / total.max(1) as f64;
+        eprintln!(
+            "--recover {label}: {agree}/{total} ({:.2}%); {agree}/{} ({:.2}%) with an element",
+            rate(agree, total),
+            total - elementless,
+            rate(agree, total - elementless)
+        );
+    }
 }

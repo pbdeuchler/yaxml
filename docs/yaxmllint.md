@@ -14,7 +14,7 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 
 | Family | Options |
 | --- | --- |
-| Input | `FILE...`, `-` (stdin), `--html`, `--nodefdtd`, `--stream`, `--huge`, `--max-ampl N`, `--maxmem BYTES`, `--nocdata`, `--nsclean`, `--noenc` |
+| Input | `FILE...`, `-` (stdin), `--recover`, `--html`, `--nodefdtd`, `--stream`, `--huge`, `--max-ampl N`, `--maxmem BYTES`, `--nocdata`, `--nsclean`, `--noenc` |
 | Output | `--noout`, `--output FILE` / `-o`, `--format`, `--pretty 0\|1\|2`, `--encode ENC`, `--xmlout`, `--noblanks`, `XMLLINT_INDENT` |
 | Canonical XML | `--c14n`, `--c14n11`, `--exc-c14n` (all with comments, like xmllint) |
 | XPath | `--xpath EXPR`, `--xpath0 EXPR` (implies `--noout`) |
@@ -26,7 +26,7 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 
 `--push --memory --nowarning --pedantic --nodict --nocompact --repeat
 --oldxml10 --strict-namespace --load-trace` are accepted and ignored.
-`--debug --shell --copy --recover --sax --sax1 --insert
+`--debug --shell --copy --sax --sax1 --insert
 --walker --dropdtd --auto --compress --pattern --dtdvalidfpi` are
 xmllint options with no counterpart: they print `unsupported option` and exit
 1. Unknown options print the usage and exit 1.
@@ -68,6 +68,10 @@ line and column come from the error's byte offset, and the wording is yaxml's.
   xmllint does. DTD and Schematron checks need the tree and do not run.
 - A missing DTD under `--valid` is reported but not fatal, as in xmllint;
   under `--postvalid` it fails.
+- `--recover` parses with `RECOVER`: each recovered error is printed as a
+  parser error and the recovered document is output with exit code 0, as in
+  xmllint. A document from which no element is recovered fails (exit 4).
+  `--stream` ignores it, as `TextReader` does not recover.
 
 ## Differences from xmllint
 
@@ -76,8 +80,9 @@ Options map to the same `ParseOptions` flags as xmllint's (`--noent`,
 `--noenc`, `--huge`, and the loading `--postvalid`, `--dtdvalid`,
 `--relaxng`, `--schema` and canonical forms imply), so entity references are
 kept without `--noent`. Attribute values are always written substituted
-(libxml2 writes `a="&name;"`). yaxml also treats an undeclared namespace prefix, a redeclared predefined entity, trailing content
-and unsupported encodings (ISO-8859-5) as fatal where libxml2 recovers.
+(libxml2 writes `a="&name;"`). Without `--recover` yaxml also treats an
+undeclared namespace prefix, a redeclared predefined entity, trailing content
+and unsupported encodings (ISO-8859-5) as fatal where libxml2 continues.
 `tests/yaxmllint.rs` runs both programs over libxml2's own test inputs when
 `YAXML_XMLLINT` names the pinned binary (`YAXML_LIBXML2_SRC` its source tree)
 and compares stdout and exit code: `--noout`, `--valid`, `--postvalid`,
@@ -86,6 +91,12 @@ and compares stdout and exit code: `--noout`, `--valid`, `--postvalid`,
 118/118, 31/31, 7/7, 28/28, 21/21, 44/44, 798/798, 798/798, 242/242, 242/242, 327/327); default and
 `--format` output agree on 127/143 and 126/143 inputs (105 and 104 before
 entity references were kept), the rest being the gaps above and three
-documents with references in attribute values. The pinned `xmllint` lacks
+documents with references in attribute values. `--recover` agrees with
+`xmllint --recover` on 23/45 `test/errors` inputs and on 717/1498 XMLTS
+not-wf documents; most differences are inputs from which libxml2 recovers
+no element (see [Recovery](compatibility.md#recovery-recover)).
+`recover_against_xmllint` reports these rates (`YAXML_SUITES` names the
+directory of `xmlconf-catalog.tsv`) and requires a curated table of
+recoverable inputs to agree. The pinned `xmllint` lacks
 Schematron; `--schematron` (text report, quiet under `--noout`) agrees with a
 schematron-enabled build on all 84 corpus runs ([schematron.md](schematron.md)).

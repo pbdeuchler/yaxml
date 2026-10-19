@@ -492,3 +492,21 @@ assert_eq!(complete.root_element().attributes()[0].value, "d");
 assert_eq!(complete.root_element().first_child().unwrap().name().unwrap().local(), "b");
 # Ok::<(), yaxml::Error>(())
 ```
+
+`RECOVER` (XML_PARSE_RECOVER) builds what is parsable of a malformed
+document, as libxml2 does: an end tag closes the open element, the end of
+input closes the rest, an unbound prefix leaves a name in no namespace, and
+so on ([the repairs](docs/compatibility.md#recovery-recover)). Both DOMs
+accept it and list the errors recovered from; resource limits stay fatal, and
+a document without any element is still an error:
+
+```rust
+use yaxml::{Document, ErrorKind, ParseOptions, options, save};
+
+let document = Document::parse_with(b"<r><a>text</b><p:c/>", ParseOptions::new(options::RECOVER))?;
+let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
+assert_eq!(kinds, [ErrorKind::MismatchedEndTag, ErrorKind::Namespace, ErrorKind::UnexpectedEof]);
+let saved = save::to_vec(&document, &Default::default()).unwrap();
+assert_eq!(saved, b"<?xml version=\"1.0\"?>\n<r><a>text</a><p:c/></r>\n");
+# Ok::<(), yaxml::Error>(())
+```

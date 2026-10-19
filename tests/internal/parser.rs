@@ -422,6 +422,7 @@ fn copy_budget_is_cumulative_and_checks_overflow() {
             ..Limits::default()
         },
         owned_bytes: 0,
+        recovered: None,
     };
     assert_eq!(budget.copy("abc", 0).unwrap(), "abc");
     assert_eq!(
@@ -676,10 +677,10 @@ fn malformed_private_tokens_fail_without_slicing_panics() {
         let mut state = ParserState::new(Limits::default(), 0);
         owned(&mut state, TokenKind::Start, "<r>", 0).unwrap();
         let result = owned(&mut state, kind, raw, 3);
-        if raw.is_empty() {
-            assert!(result.unwrap().is_none());
-        } else {
-            assert_eq!(result.unwrap_err().kind, ErrorKind::Syntax);
+        match raw {
+            "" => assert!(result.unwrap().is_none()),
+            "<r" => assert_eq!(result.unwrap_err().kind, ErrorKind::UnexpectedEof),
+            _ => assert_eq!(result.unwrap_err().kind, ErrorKind::Syntax),
         }
     }
     for (kind, expected) in [
@@ -826,4 +827,63 @@ fn scanned_qname_splits_agree_with_qname() {
             }
         }
     }
+}
+
+#[test]
+fn recovery_records_well_formedness_errors_and_keeps_fatal_ones() {
+    let syntax = Error::new(ErrorKind::Syntax, 1);
+    let fatal = [
+        ErrorKind::LimitExceeded(Limit::Depth),
+        ErrorKind::Allocation,
+        ErrorKind::EntityLoop,
+        ErrorKind::ExternalResource,
+        ErrorKind::InvalidState,
+    ];
+    // (recovering, error, recorded?)
+    let mut cases = vec![(false, syntax, false), (true, syntax, true)];
+    cases.extend(fatal.map(|kind| (true, Error::new(kind, 2), false)));
+    for (recovering, error, recorded) in cases {
+        let mut budget = Budget::new(Limits::default());
+        budget.recovered = recovering.then(Vec::new);
+        assert_eq!(budget.recovers(), recovering);
+        assert_eq!(budget.recover(error).is_ok(), recorded, "{error:?}");
+        let errors = Budget::conclude(Some(&mut budget), Ok(()));
+        assert_eq!(errors, Ok(if recorded { vec![error] } else { vec![] }));
+    }
+}
+
+#[test]
+fn conclude_records_the_terminal_error_or_returns_it() {
+    let end = Error::new(ErrorKind::UnexpectedEof, 9);
+    let limit = Error::new(ErrorKind::LimitExceeded(Limit::Events), 9);
+    let mut budget = Budget::new(Limits::default());
+    // (budget, recovering, end, result)
+    type Case = (bool, bool, Result<(), Error>, Result<Vec<Error>, Error>);
+    let cases: [Case; 6] = [
+        (true, false, Ok(()), Ok(vec![])),
+        (true, false, Err(end), Err(end)),
+        (true, true, Ok(()), Ok(vec![])),
+        (true, true, Err(end), Ok(vec![end])),
+        (true, true, Err(limit), Err(limit)),
+        (false, true, Err(end), Err(end)),
+    ];
+    for (present, recovering, ending, expected) in cases {
+        budget.recovered = recovering.then(Vec::new);
+        let budget = present.then_some(&mut budget);
+        assert_eq!(Budget::conclude(budget, ending), expected, "{ending:?}");
+    }
+}
+
+#[test]
+fn recovery_records_at_most_libxml2s_error_count() {
+    let mut budget = Budget::new(Limits::default());
+    budget.recovered = Some(Vec::new());
+    for offset in 0..MAX_RECOVERED + 5 {
+        budget
+            .recover(Error::new(ErrorKind::Syntax, offset))
+            .unwrap();
+    }
+    let errors = Budget::conclude(Some(&mut budget), Ok(())).unwrap();
+    assert_eq!(errors.len(), MAX_RECOVERED);
+    assert_eq!(errors.last().unwrap().offset, MAX_RECOVERED - 1);
 }

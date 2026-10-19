@@ -205,9 +205,11 @@ impl<'input> TextSourceLease<'input> {
         if span.source != span.decoded {
             return None;
         }
-        // Invalid markup can end inside a scalar; its kind alone is rejected.
+        // Invalid markup can end inside a scalar; only its complete prefix is read.
         let raw = match kind {
-            TokenKind::InvalidMarkup => "",
+            TokenKind::InvalidMarkup => {
+                crate::stream::valid_prefix(&input.as_bytes()[span.decoded.clone()])
+            }
             _ => input.get(span.decoded.clone())?,
         };
         Some((kind, raw, span.clone()))
