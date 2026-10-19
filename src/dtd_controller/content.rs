@@ -351,8 +351,7 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     fn finish_general(&mut self) -> Result<(), Error> {
-        let depth = Some(self.parser.element_depth());
-        self.body.frames.finish(depth)?;
+        self.body.frames.finish(self.parser.element_depth())?;
         if let Some(origin) = self.open.pop() {
             self.pending = Some((Marker::End, origin));
         }

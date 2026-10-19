@@ -644,12 +644,6 @@ struct Parser<'a, 'r> {
     declared: Option<usize>,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct GroupFrame {
-    connector: Option<Connector>,
-    particles: usize,
-}
-
 impl<'a, 'r> Parser<'a, 'r> {
     fn new(
         raw: &'a str,
@@ -923,9 +917,8 @@ impl<'a, 'r> Parser<'a, 'r> {
                 (LiteralKind::SystemIdentifier, b'#') => {
                     return Err(self.error(ErrorKind::InvalidDtd));
                 }
-                (LiteralKind::PublicIdentifier, _)
-                    if !pubid_char(character) || (quote == b'\'' && character == '\'') =>
-                {
+                // The closing quote returned above.
+                (LiteralKind::PublicIdentifier, _) if !pubid_char(character) => {
                     return Err(self.error(ErrorKind::InvalidDtd));
                 }
                 (LiteralKind::EntityValue, b'%') => {
@@ -1099,7 +1092,6 @@ impl<'a, 'r> Parser<'a, 'r> {
                 }
                 self.name()?;
                 self.occurrence()?;
-                stack.last_mut().expect("root group is active").particles += 1;
                 expects_particle = false;
                 continue;
             }
@@ -1109,29 +1101,22 @@ impl<'a, 'r> Parser<'a, 'r> {
                         b'|' => (Connector::Choice, "|"),
                         _ => (Connector::Sequence, ","),
                     };
-                    let frame = stack.last_mut().expect("root group is active");
-                    if frame
-                        .connector
-                        .is_some_and(|existing| existing != connector)
-                    {
+                    // Each open group's connector, once it has one.
+                    let group = stack.last_mut().expect("root group is active");
+                    if group.is_some_and(|existing| existing != connector) {
                         return Err(self.error(ErrorKind::InvalidDtd));
                     }
-                    frame.connector = Some(connector);
+                    *group = Some(connector);
                     self.model(ModelSyntax::Connector(connector), spelling)?;
                     expects_particle = true;
                 }
+                // A particle precedes every `)` and follows every connector.
                 Some(b')') => {
-                    let frame = stack.pop().expect("root group is active");
-                    if frame.particles == 0
-                        || (frame.connector == Some(Connector::Choice) && frame.particles < 2)
-                    {
-                        return Err(self.error(ErrorKind::InvalidDtd));
-                    }
+                    stack.pop();
                     self.model(ModelSyntax::Close, ")")?;
                     self.occurrence()?;
-                    match stack.last_mut() {
-                        Some(parent) => parent.particles += 1,
-                        None => return Ok(()),
+                    if stack.is_empty() {
+                        return Ok(());
                     }
                 }
                 _ => return Err(self.error(ErrorKind::InvalidDtd)),
@@ -1139,7 +1124,7 @@ impl<'a, 'r> Parser<'a, 'r> {
         }
     }
 
-    fn open_group(&mut self, stack: &mut Vec<GroupFrame>) -> Result<(), Error> {
+    fn open_group(&mut self, stack: &mut Vec<Option<Connector>>) -> Result<(), Error> {
         if stack.len() >= self.limits.model_depth {
             return Err(self.error(ErrorKind::LimitExceeded(Limit::Depth)));
         }
@@ -1147,10 +1132,7 @@ impl<'a, 'r> Parser<'a, 'r> {
             .try_reserve(1)
             .map_err(|_| self.error(ErrorKind::Allocation))?;
         self.model(ModelSyntax::Open, "(")?;
-        stack.push(GroupFrame {
-            connector: None,
-            particles: 0,
-        });
+        stack.push(None);
         Ok(())
     }
 

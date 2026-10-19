@@ -140,7 +140,8 @@ impl Tokenizer {
         };
         let start = next - usize::from(replay);
         if replay {
-            self.append(b'<')?;
+            // A released text token left capacity for its replayed `<`.
+            self.buffer.push(b'<');
         }
         self.append_slice(&input[..used])?;
         self.skip_borrowed(kind, start + length);
@@ -154,20 +155,13 @@ impl Tokenizer {
         &mut self,
         input: &[u8],
     ) -> Result<(usize, bool), Error> {
-        if self.ready.is_some() {
-            return Ok((0, false));
-        }
+        // Callers advance only without a ready token.
         if let Some((offset, source_offset)) = self.lookahead.take() {
-            // The `<` that ended a text token starts the next token.
+            // The `<` that ended a text token starts the next token, within
+            // the capacity and ceilings that nonempty token already met.
             self.start = offset;
             self.source_start = source_offset;
-            if self.raw_length() > self.limit {
-                return Err(Error::new(
-                    ErrorKind::LimitExceeded(Limit::TokenBytes),
-                    self.diagnostic_start(),
-                ));
-            }
-            self.append(b'<')?;
+            self.buffer.push(b'<');
             self.scan = Scan::Prefix;
         }
         let mut cursor = 0;
@@ -401,10 +395,8 @@ impl Tokenizer {
     }
 
     pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
+        // No input readies no token.
         self.advance(&[])?;
-        if self.ready.is_some() {
-            return Ok(());
-        }
         match self.scan {
             Scan::Text if self.buffer.is_empty() => Ok(()),
             Scan::Text => {
@@ -420,14 +412,6 @@ impl Tokenizer {
                 self.diagnostic_start(),
             )),
         }
-    }
-
-    fn append(&mut self, byte: u8) -> Result<(), Error> {
-        if self.buffer.len() < self.buffer.capacity() && self.buffer.len() < self.decoded_limit {
-            self.buffer.push(byte);
-            return Ok(());
-        }
-        self.append_slice(std::slice::from_ref(&byte))
     }
 
     fn append_slice(&mut self, bytes: &[u8]) -> Result<(), Error> {

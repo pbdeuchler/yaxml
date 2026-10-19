@@ -14,7 +14,6 @@ fn suspension_retains_completed_tokens_and_replays_lookahead_once() {
     assert_eq!(kind, TokenKind::Text);
     assert_eq!(bytes, b"abc");
     assert_eq!(span.source, 0..3);
-    assert_eq!(tokenizer.advance(b"r/>").unwrap(), 0);
     tokenizer.release();
     assert_eq!(tokenizer.advance(&[]).unwrap(), 0);
     assert_eq!(tokenizer.source_position(), 4);

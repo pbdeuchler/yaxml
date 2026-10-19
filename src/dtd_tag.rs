@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::HashSet;
 
-use crate::dtd_catalog::{AttributeKind, DtdCatalog, LiteralSource};
+use crate::dtd_catalog::{AttributeKind, DtdCatalog, LiteralSource, StoredDefault};
 use crate::escape::predefined;
 use crate::name::qname;
 use crate::parser::{Budget, PreparedAttribute, PreparedTag, RawTag};
@@ -146,7 +146,7 @@ pub(crate) fn prepare_dtd_tag<'event>(
         if explicit.contains(binding.name.as_str()) {
             continue;
         }
-        let Some(value) = binding.default.value() else {
+        let StoredDefault::Value { value, kept, .. } = &binding.default else {
             continue;
         };
         if standalone && !binding.internal {
@@ -168,7 +168,7 @@ pub(crate) fn prepare_dtd_tag<'event>(
         let mut copy = |text| budget.copy(text, 0).map_err(|error| declared(error.kind));
         let qualified = copy(&binding.name)?;
         let value = copy(value)?;
-        let kept = binding.default.kept().map(copy).transpose()?;
+        let kept = kept.as_deref().map(copy).transpose()?;
         attributes.push(PreparedAttribute {
             name: Name::from_validated_parts(
                 qualified,
@@ -296,7 +296,8 @@ pub(crate) fn kept_form(
         }
         in_space = matches!(piece, Piece::Space);
     }
-    if tokenized && in_space && form.ends_with(' ') {
+    // A kept reference precedes any trailing space, which was pushed.
+    if tokenized && in_space {
         form.pop();
     }
     Ok(Some(form))

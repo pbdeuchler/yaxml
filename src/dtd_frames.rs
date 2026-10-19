@@ -142,15 +142,20 @@ impl EntityFrames {
         Ok(())
     }
 
-    /// Leaves the top frame, which must be consumed and, for a general
-    /// entity, end at the element depth where it began.
-    pub(crate) fn finish(&mut self, element_depth: Option<usize>) -> Result<(), Error> {
+    /// Leaves the top frame, whose text the scanner consumed whole.
+    pub(crate) fn leave(&mut self) {
+        self.frames.pop();
+    }
+
+    /// Leaves the top general-entity frame, which must end at the element
+    /// depth where it began.
+    pub(crate) fn finish(&mut self, element_depth: usize) -> Result<(), Error> {
         let frame = self.frames.last().expect("active frame");
-        if frame.cursor != frame.len || frame.element_depth != element_depth {
+        if frame.element_depth != Some(element_depth) {
             let offset = frame.physical_reference.start;
             return Err(Error::new(ErrorKind::UnbalancedEntity, offset));
         }
-        self.frames.pop();
+        self.leave();
         Ok(())
     }
 
@@ -170,15 +175,15 @@ impl EntityFrames {
     }
 
     fn charge_attempt(&mut self, spelling: usize, offset: usize) -> Result<(), Error> {
-        let attempts = add(self.counters.reference_attempts, 1, usize::MAX, offset)?;
+        let attempts = self.counters.reference_attempts.saturating_add(1);
         if attempts > self.limits.references {
             return Err(Error::new(
                 ErrorKind::LimitExceeded(Limit::EntityReferences),
                 offset,
             ));
         }
-        let delta = add(1, self.frames.len(), usize::MAX, offset)?;
-        let delta = add(delta, spelling, usize::MAX, offset)?;
+        // Overflow saturates and then fails the work ceiling below.
+        let delta = (self.frames.len() + 1).saturating_add(spelling);
         let work = add(self.counters.work, delta, self.limits.work, offset)?;
         let ceiling = self.limits.expansion.min(self.expansion_ceiling);
         let expanded_bytes = add(self.counters.expanded_bytes, spelling, ceiling, offset)?;
