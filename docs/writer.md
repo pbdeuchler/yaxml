@@ -230,7 +230,16 @@ seed. "Parser differences" are documents whose trees differ (libxml2 turns a
 XML 1.1 line ends). The pinned build has no ISO-8859-2..16 converters, so those
 are covered by unit tests against the decoding tables. The `save` fuzz target
 checks DOM agreement, that only markup an encoding lacks fails, and that
-saving reparsed output reproduces it byte for byte (see `fuzz/README.md`).
+saving reparsed output reproduces it byte for byte, after one extra round
+when libxml2's two-step content-model normalization applies; 1,973,977 runs
+(6 minutes, nightly-2026-06-06, `-timeout=2`) found no failure after the two
+fixes kept in `fuzz/regressions/save`.
+
+`cargo bench --bench serialize` (sink `save`, 4,096 siblings, release, Apple
+M-series) measures 220-230 MiB/s for flat elements, 530 MiB/s for text,
+430-460 MiB/s for escaped text, 800-840 MiB/s for comments/CDATA/PIs and
+445-515 MiB/s for prefixed attributes, 2.5-4x the validating `Writer` on the
+same trees; `Writer` throughput is unchanged (within 3%).
 
 ## Remaining scope
 

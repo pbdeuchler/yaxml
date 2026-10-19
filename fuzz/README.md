@@ -58,7 +58,7 @@ New inputs go to the tracked `fuzz/corpus/<target>/`; the top-level seeds are re
 
 ```sh
 fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]   # uv run; skips inputs over MAX_INPUT_BYTES
-for t in dom owned push buffered writer serialize limits encoding dtd c14n xpath uri; do
+for t in dom owned push buffered writer serialize save limits encoding dtd c14n xpath uri; do
   (cd fuzz && cargo +nightly-2026-06-06 fuzz run $t -- -fork=1 -ignore_crashes=1 -ignore_timeouts=1 -max_total_time=900 -rss_limit_mb=2048 -timeout=60)
 done                                          # <= 8 at a time
 (cd fuzz && cargo +nightly-2026-06-06 fuzz cmin $t -- -timeout=60)   # then delete files over 16 KiB to bound size
