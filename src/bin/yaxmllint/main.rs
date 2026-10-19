@@ -15,11 +15,12 @@ use yaxml::catalog::{Catalog, CatalogResolver};
 use yaxml::xpath::{Context, XPath};
 use yaxml::{
     EditLimits, ErrorKind, Limit, Limits, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind,
-    Request, Resolver, c14n, relaxng, save, valid, xsd,
+    Request, Resolver, c14n, relaxng, save, schematron, valid, xsd,
 };
 
-/// Compiled `--relaxng` and `--schema` documents, shared by every input.
+/// Compiled `--schematron`, `--relaxng` and `--schema` documents, shared by every input.
 struct Schemas {
+    schematron: Option<schematron::Schema>,
     relaxng: Option<relaxng::Schema>,
     xsd: Option<xsd::Schema>,
 }
@@ -81,6 +82,14 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
         eprintln!("{what} schema {path} failed to compile");
         SCHEMACOMP
     };
+    let schematron = o.schematron.as_deref().map(|path| {
+        let bytes = fs::read(path).unwrap_or_default();
+        let schema = schematron::Schema::parse(&bytes, path, loader(&o.path), &Default::default());
+        schema.map_err(|errors| {
+            eprintln!("{errors}");
+            failed("Schematron", path)
+        })
+    });
     let relaxng = o.relaxng.as_deref().map(|path| {
         let bytes = fs::read(path).map_err(|_| failed("Relax-NG", path))?;
         let schema = relaxng::Schema::parse(&bytes, path, loader(&o.path), &Default::default());
@@ -105,6 +114,7 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
         })
     });
     Ok(Schemas {
+        schematron: schematron.transpose()?,
         relaxng: relaxng.transpose()?,
         xsd: xsd.transpose()?,
     })
@@ -192,7 +202,8 @@ fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Err
         return Ok(yaxml::html::parse(input, yaxml::html::Options { flags, limits })?.document);
     }
     let loads = o.load || o.valid || o.postvalid || o.c14n.is_some();
-    let mut document = if loads || o.relaxng.is_some() || o.schema.is_some() {
+    let schemas = o.schematron.is_some() || o.relaxng.is_some() || o.schema.is_some();
+    let mut document = if loads || schemas {
         OwnedDocument::with_resolver(input, limits, name, resolver(o))?
     } else {
         OwnedDocument::with_limits(input, limits)?
@@ -273,7 +284,7 @@ fn last_failure(codes: impl IntoIterator<Item = i32>) -> i32 {
 }
 
 /// Validation after parsing: DTD (`--valid`, `--postvalid`, `--dtdvalid`),
-/// then RELAX NG and XML Schema; the last failing code wins.
+/// then Schematron, RELAX NG and XML Schema; the last failing code wins.
 fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &OwnedDocument) -> i32 {
     let verdict = |ok: bool| {
         match (ok, o.quiet) {
@@ -311,6 +322,18 @@ fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &Owne
         eprintln!("Document {file} does not validate against {path}");
         VALID
     });
+    let schematron = schemas.schematron.as_ref().map(|schema| {
+        let quiet = if o.noout { schematron::OUT_QUIET } else { 0 };
+        let validation = schema.validate(document, schematron::OUT_TEXT | quiet, input);
+        eprint!("{}", validation.render(file));
+        match validation.errors {
+            Some(errors) => verdict(errors == 0),
+            None => {
+                eprintln!("{file} validation generated an internal error");
+                VALID
+            }
+        }
+    });
     let relaxng = schemas.relaxng.as_ref().map(|schema| {
         verdict(print_all(
             file,
@@ -327,7 +350,11 @@ fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &Owne
             &schema.validate(document),
         ))
     });
-    last_failure([dtd_valid, dtdvalid, relaxng, xsd].into_iter().flatten())
+    last_failure(
+        [dtd_valid, dtdvalid, schematron, relaxng, xsd]
+            .into_iter()
+            .flatten(),
+    )
 }
 
 fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {

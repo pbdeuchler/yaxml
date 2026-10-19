@@ -19,7 +19,7 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 | Canonical XML | `--c14n`, `--c14n11`, `--exc-c14n` (all with comments, like xmllint) |
 | XPath | `--xpath EXPR`, `--xpath0 EXPR` (implies `--noout`) |
 | DTD | `--valid`, `--postvalid`, `--dtdvalid FILE`, `--loaddtd`, `--dtdattr`, `--noent` |
-| Schemas | `--relaxng FILE`, `--schema FILE` |
+| Schemas | `--schematron FILE`, `--relaxng FILE`, `--schema FILE` |
 | XInclude | `--xinclude`, `--noxincludenode`, `--nofixup-base-uris` |
 | Resources | `--path DIRS`, `--catalogs` (reads `XML_CATALOG_FILES`), `--nocatalogs`, `--nonet` |
 | Misc | `--quiet`, `--timing`, `--version` |
@@ -27,7 +27,7 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 `--push --memory --nowarning --pedantic --nodict --nocompact --repeat --noenc
 --oldxml10 --strict-namespace --load-trace` are accepted and ignored.
 `--debug --shell --copy --recover --nocdata --nsclean --sax --sax1 --insert
---walker --dropdtd --auto --compress --pattern --schematron --dtdvalidfpi` are
+--walker --dropdtd --auto --compress --pattern --dtdvalidfpi` are
 xmllint options with no counterpart: they print `unsupported option` and exit
 1. Unknown options print the usage and exit 1.
 
@@ -49,7 +49,7 @@ line and column come from the error's byte offset, and the wording is yaxml's.
 - Resources load from disk only: relative to the current directory, then each
   `--path` directory by file name. Other URI schemes are declined, so
   `--nonet` has nothing to do. Without `--noent`, `--loaddtd`, `--dtdattr`,
-  `--valid`, `--postvalid`, `--relaxng`, `--schema` or a canonical-form option
+  `--valid`, `--postvalid`, `--schematron`, `--relaxng`, `--schema` or a canonical-form option
   no external subset or entity loads, as in xmllint.
 - `--format` and `--noblanks` drop whitespace-only text after parsing with
   libxml2's `areBlanks` rules (declared element content, else the sibling
@@ -74,4 +74,6 @@ and compares stdout and exit code: `--noout`, `--valid`, `--postvalid`,
 `--xpath` agree on every input outside the listed gaps (118/118, 118/118,
 31/31, 7/7, 28/28, 21/21, 44/44, 798/798, 242/242, 327/327); default and
 `--format` output agree on about 73% of all inputs, the rest being entity
-references and the gaps above.
+references and the gaps above. The pinned `xmllint` lacks Schematron;
+`--schematron` (text report, quiet under `--noout`) agrees with a
+schematron-enabled build on all 84 corpus runs ([schematron.md](schematron.md)).
