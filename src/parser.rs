@@ -380,6 +380,11 @@ impl<'source> ParserState<'source> {
         self
     }
 
+    /// Whether this is the slice reader's recovery, which rereads tokens.
+    pub(crate) fn rereads(&self) -> bool {
+        self.rereads
+    }
+
     /// Whether recovery keeps undeclared entity references (a rereading
     /// frontend without `NOENT`; see `undeclared_reference`).
     pub(crate) fn keeps_undeclared(&self) -> bool {
@@ -737,7 +742,25 @@ impl<'source> ParserState<'source> {
 
     /// `retain` borrows slice input or copies streaming structural strings.
     /// Token bytes are already UTF-8 and XML-character validated by the frontend.
+    #[inline(always)]
     pub(crate) fn process_token<'event, F>(
+        &mut self,
+        kind: TokenKind,
+        raw: &'event str,
+        range: Range<usize>,
+        retain: F,
+    ) -> Result<Option<Event<'event>>, Error>
+    where
+        'source: 'event,
+        F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
+    {
+        self.read_token::<false, F>(kind, raw, range, retain)
+    }
+
+    /// [`ParserState::process_token`] for the slice reader, whose recovery
+    /// rereads tokens when `REREADS` ([`ParserState::rereads`]); strict
+    /// reading and the other frontends compile without its checks.
+    pub(crate) fn read_token<'event, const REREADS: bool, F>(
         &mut self,
         kind: TokenKind,
         raw: &'event str,
@@ -780,19 +803,21 @@ impl<'source> ParserState<'source> {
         // Every arm yields the result type returned here, so a tag's event
         // passes through without being re-laid-out.
         let event = match kind {
-            TokenKind::Start => self.start_element(raw, start, &mut retain),
+            TokenKind::Start => self.start_element::<REREADS, F>(raw, start, &mut retain),
             TokenKind::End => self.end_element(raw, start),
             TokenKind::Text => {
                 if let Some(relative) = crate::tokenizer::find(raw.as_bytes(), b"]]>") {
                     self.budget
                         .recover(Error::new(ErrorKind::Syntax, start + relative))?;
                 }
-                Ok(Some(Event::Text(self.normalized(raw, start, false, true)?)))
+                let text = self.normalized::<REREADS>(raw, start, false, true)?;
+                Ok(Some(Event::Text(text)))
             }
             // libxml2 ends a comment, PI or CDATA section at a character
             // outside `Char` and reads on from there.
             TokenKind::Comment | TokenKind::Cdata | TokenKind::Instruction
-                if self.repairs_characters
+                if REREADS
+                    && self.repairs_characters
                     && let Some(at) = crate::escape::invalid_char(raw) =>
             {
                 let error = Error::new(ErrorKind::InvalidCharacter, start + at);
@@ -804,7 +829,7 @@ impl<'source> ParserState<'source> {
                 if crate::tokenizer::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
                     self.budget.recover(Error::new(ErrorKind::Syntax, start))?;
                 }
-                Ok(Some(Event::Comment(self.normalized(
+                Ok(Some(Event::Comment(self.normalized::<REREADS>(
                     body,
                     start + 4,
                     false,
@@ -816,11 +841,11 @@ impl<'source> ParserState<'source> {
                     return Err(Error::new(ErrorKind::TextOutsideRoot, start));
                 }
                 let body = delimited_body(raw, "<![CDATA[", "]]>", start)?;
-                let value = self.normalized(body, start + 9, false, false)?;
+                let value = self.normalized::<REREADS>(body, start + 9, false, false)?;
                 Ok(Some(self.cdata(value)))
             }
-            TokenKind::Instruction => self.instruction(raw, start),
-            TokenKind::Dtd | TokenKind::InvalidMarkup => self.text_after(raw, 1, start),
+            TokenKind::Instruction => self.instruction::<REREADS>(raw, start),
+            TokenKind::Dtd | TokenKind::InvalidMarkup => self.text_after::<REREADS>(raw, 1, start),
         };
         if event.is_ok() {
             self.events += 1;
@@ -840,33 +865,57 @@ impl<'source> ParserState<'source> {
 
     /// The text of `raw` after its `prefix` bytes, which a rereading
     /// frontend reads as content.
-    fn text_after<'event>(
+    fn text_after<'event, const REREADS: bool>(
         &mut self,
         raw: &'event str,
         prefix: usize,
         start: usize,
     ) -> Result<Option<Event<'event>>, Error> {
-        if self.rereads {
+        if REREADS {
             self.rewind = Some(start + prefix);
             return Ok(None);
         }
         let text = raw.get(prefix..).unwrap_or_default();
-        let text = self.normalized(text, start + prefix, false, true)?;
+        let text = self.normalized::<REREADS>(text, start + prefix, false, true)?;
         Ok(Some(Event::Text(text)))
     }
 
-    fn normalized<'event>(
+    /// A value after XML normalization; `REPAIRS`: the frontend may repair
+    /// characters ([`ParserState::rereading`]). Inlined: most values need
+    /// no normalization and cost only the scan.
+    #[inline(always)]
+    fn normalized<'event, const REPAIRS: bool>(
         &mut self,
         raw: &'event str,
         offset: usize,
         attribute: bool,
         references: bool,
     ) -> Result<Cow<'event, str>, Error> {
-        if self.repairs_characters && crate::escape::invalid_char(raw).is_some() {
-            return self.repaired(raw, offset, attribute, references);
+        let repairs = REPAIRS && self.repairs_characters;
+        if repairs || needs_normalization(raw, attribute, references) {
+            return self.normalize(raw, offset, attribute, references, repairs);
         }
-        if !needs_normalization(raw, attribute, references) {
-            return Ok(Cow::Borrowed(raw));
+        Ok(Cow::Borrowed(raw))
+    }
+
+    /// [`ParserState::normalized`] of a value that changes or, when
+    /// `repairs`, may have characters to repair.
+    #[inline(never)]
+    fn normalize<'event>(
+        &mut self,
+        raw: &'event str,
+        offset: usize,
+        attribute: bool,
+        references: bool,
+        repairs: bool,
+    ) -> Result<Cow<'event, str>, Error> {
+        if repairs {
+            if let Some(repaired) = self.repaired(raw, offset, attribute, references)? {
+                return Ok(Cow::Owned(repaired));
+            }
+            if !needs_normalization(raw, attribute, references) {
+                return Ok(Cow::Borrowed(raw));
+            }
         }
         self.budget.charge_owned(raw.len(), offset)?;
         let recover = |error| self.budget.recover(error);
@@ -874,15 +923,18 @@ impl<'source> ParserState<'source> {
     }
 
     /// `normalized` over text with characters outside `Char`, which
-    /// recovery repairs first (see `repairs_characters`).
+    /// recovery repairs first (see `repairs_characters`); `None` without any.
     #[cold]
-    fn repaired<'event>(
+    fn repaired(
         &mut self,
         raw: &str,
         offset: usize,
         attribute: bool,
         references: bool,
-    ) -> Result<Cow<'event, str>, Error> {
+    ) -> Result<Option<String>, Error> {
+        if crate::escape::invalid_char(raw).is_none() {
+            return Ok(None);
+        }
         self.budget.charge_owned(raw.len(), offset)?;
         let mut recover = |error| self.budget.recover(error);
         let repaired = crate::escape::repair_characters(raw, offset, attribute, &mut recover)?;
@@ -898,11 +950,11 @@ impl<'source> ParserState<'source> {
             String::new(),
             recover,
         )
-        .map(Cow::Owned)
+        .map(Some)
         .map_err(within)
     }
 
-    fn instruction<'event>(
+    fn instruction<'event, const REREADS: bool>(
         &mut self,
         raw: &'event str,
         start: usize,
@@ -915,7 +967,7 @@ impl<'source> ParserState<'source> {
             name_end = name_length(body);
             if name_end == 0 {
                 self.markup_as_text(error)?;
-                return self.text_after(raw, 2, start);
+                return self.text_after::<REREADS>(raw, 2, start);
             }
             self.budget.recover(error)?;
         }
@@ -973,11 +1025,11 @@ impl<'source> ParserState<'source> {
         let offset = start + raw.len() - 2 - data.len();
         Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),
-            data: self.normalized(data, offset, false, false)?,
+            data: self.normalized::<REREADS>(data, offset, false, false)?,
         }))
     }
 
-    fn start_element<'event, F>(
+    fn start_element<'event, const REREADS: bool, F>(
         &mut self,
         raw: &'event str,
         start: usize,
@@ -1011,7 +1063,7 @@ impl<'source> ParserState<'source> {
             Err(error) => match name_length(scan.raw) {
                 0 => {
                     self.markup_as_text(error)?;
-                    return self.text_after(raw, 1, start);
+                    return self.text_after::<REREADS>(raw, 1, start);
                 }
                 length => {
                     self.budget.recover(error)?;
@@ -1047,10 +1099,10 @@ impl<'source> ParserState<'source> {
                 ));
             }
             let (prefix, local) = self.qname_parts(name, attribute.split, offset)?;
-            let value = if attribute.plain && !self.repairs_characters {
+            let value = if attribute.plain && !(REREADS && self.repairs_characters) {
                 Cow::Borrowed(value)
             } else {
-                match self.normalized(value, value_offset, true, true) {
+                match self.normalized::<REREADS>(value, value_offset, true, true) {
                     Ok(value) => value,
                     // Recovery from a character reference libxml2 reads as
                     // zero, which ends the element (see `normalize_into`).
@@ -2274,6 +2326,8 @@ fn invalid_namespace_binding(prefix: &str, uri: &str) -> bool {
         || (!prefix.is_empty() && uri.is_empty())
 }
 
+/// Always inlined: with constant delimiters, the checks need no `memcmp`.
+#[inline(always)]
 fn delimited_body<'a>(
     raw: &'a str,
     prefix: &str,
