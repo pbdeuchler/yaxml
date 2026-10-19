@@ -62,8 +62,8 @@ fn other_streams(schema: &Schema, xml: &str) -> [Summary; 2] {
         sliced.event(&event, reader.event_origin().unwrap());
     }
     let mut parser = PushParser::new();
-    let mut feed = |event: Event<'_>, origin| {
-        pushed.event(&event, origin);
+    let mut feed = |event: &Event<'_>, origin| {
+        pushed.event(event, origin);
         ControlFlow::Continue(())
     };
     for byte in xml.as_bytes().chunks(1) {
@@ -1437,7 +1437,7 @@ fn streams_report_as_events_arrive() {
         let mut stream = schema.stream();
         let mut parser = PushParser::new();
         (parser.feed(xml.as_bytes(), |event, origin| {
-            stream.event(&event, origin);
+            stream.event(event, origin);
             ControlFlow::Continue(())
         }))
         .unwrap();

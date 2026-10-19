@@ -76,9 +76,10 @@ This replaces the earlier public name fields. Getter references borrow the
 name view, which may own its QName: keep that view alive while using them.
 Processing-instruction event and borrowing-DOM targets now use `Cow<str>` too;
 construct a borrowed target with `Cow::Borrowed("pi")` or move an owned string.
-`Element::attributes` is an `Attributes` list: owned (`Vec::into()`), or lent by
-`PushParser` from storage it reuses; it dereferences to a slice, and
-`into_owned` keeps a lent list beyond its callback.
+`Element::attributes` is an `Attributes` list, owned (`Vec::into()`) or
+borrowed; it dereferences to a slice. `PushParser` callbacks receive
+`&Event`: the event and its values are lent from storage the parser reuses,
+so copy what you keep beyond the callback.
 
 `Limits` controls input bytes, raw token bytes, element depth, attributes per
 element, emitted events, and cumulative requested string capacity for normalized

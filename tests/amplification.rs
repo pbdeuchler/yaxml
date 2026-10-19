@@ -40,7 +40,7 @@ fn run(surface: &str, input: &[u8], limits: Limits) -> Result<usize, Error> {
         "push" => {
             let mut parser = PushParser::with_options(loading(limits, base, resolver())).unwrap();
             let mut events = 0;
-            let mut count = |_: yaxml::Event<'_>, _| {
+            let mut count = |_: &yaxml::Event<'_>, _| {
                 events += 1;
                 ControlFlow::Continue(())
             };

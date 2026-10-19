@@ -58,7 +58,111 @@ normalization in every element, so the DTD path is measured too. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 
-### Current matched results (2026-10-19, fourth series)
+### Current matched results (2026-10-19, fifth series)
+
+Ratios are **libxml2 median / yaxml median** of parse plus destruction per
+document, main after recovery round two (`840662a`) → the fifth series
+(`11608692`), with the min–max of the per-pair ratios after. Method as in
+the fourth series: release `parse_bench` of both revisions and the static
+libxml2 2.15.4 helper under `parse_benchmark`, 9 alternating pairs per
+workload with both revisions back to back; every small-chunk row, `flat`,
+`unicode`, `deep` and `normalized`, `tiny` reader and the noisier `mixed`
+rows were repeated with 21 pairs, which the table shows. Apple M1 Max shared
+with other jobs (load average 10-30, so single-pair spreads are wide).
+yaxml leads in **63 of 65** workloads (61 before). Instruction counts below
+are per document (difference of N- and 2N-document runs, minimum of 3).
+
+| Fixture | DOM | Owned | Reader | Push | Buffered |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| tiny | 3.62 → **3.43** (3.35–3.60) | 2.27 → **2.17** (2.10–2.28) | 4.09 → **3.73** (3.59–3.85) | 1.49 → **1.50** (1.39–1.52) | 2.19 → **2.13** (2.06–2.20) |
+| flat | 1.30 → **1.33** (1.32–1.37) | 1.14 → **1.17** (1.15–1.19) | 1.36 → **1.42** (1.39–1.46) | 0.99 → **1.02** (0.72–1.14) | 1.03 → **1.03** (1.02–1.04) |
+| text | 2.96 → **2.95** (2.88–2.99) | 2.58 → **2.59** (2.51–2.67) | 1.29 → **1.28** (1.27–1.29) | 1.14 → **1.14** (1.14–1.14) | 1.27 → **1.27** (1.26–1.28) |
+| attributes | 2.10 → **2.10** (2.08–2.24) | 1.75 → **1.72** (1.63–1.76) | 1.41 → **1.41** (1.38–1.44) | 1.05 → **1.08** (1.07–1.09) | 1.38 → **1.38** (1.36–1.39) |
+| namespaces | 1.59 → **1.60** (1.57–1.65) | 1.32 → **1.34** (1.32–1.35) | 1.92 → **1.91** (1.85–1.96) | 1.09 → **1.12** (1.10–1.16) | 1.44 → **1.44** (1.42–1.46) |
+| normalized | 1.61 → **1.62** (1.58–1.68) | 1.47 → **1.54** (1.43–1.60) | 1.76 → **1.79** (1.69–1.84) | 1.11 → **1.21** (1.16–1.26) | 1.40 → **1.46** (1.42–1.50) |
+| unicode | 1.39 → **1.40** (1.33–1.53) | 1.20 → **1.21** (1.20–1.27) | 1.65 → **1.65** (1.64–1.74) | 1.02 → **1.05** (1.00–1.10) | 1.27 → **1.27** (1.20–1.34) |
+| deep | 1.19 → **1.15** (1.06–1.22) | 1.03 → **1.06** (1.00–1.13) | 1.90 → **1.72** (1.62–1.87) | 1.03 → **1.05** (0.98–1.12) | 1.22 → **1.21** (1.15–1.28) |
+| mixed | 1.94 → **2.20** (2.16–2.26) | 1.62 → **1.80** (1.76–1.90) | 2.39 → **2.63** (2.61–2.66) | 1.09 → **1.23** (1.16–1.30) | 1.55 → **1.64** (1.62–1.75) |
+
+| Small chunks | Push 1 | Push 7 | Buffered 1 | Buffered 7 |
+| --- | ---: | ---: | ---: | ---: |
+| tiny | 1.90 → **1.89** (1.35–2.26) | 1.45 → **1.56** (1.03–2.18) | 2.64 → **2.30** (1.87–2.93) | 2.36 → **2.09** (1.14–2.47) |
+| text | 1.20 → **1.19** (0.75–1.39) | 1.17 → **1.18** (1.09–1.26) | 2.23 → **2.20** (1.92–2.32) | 1.66 → **1.66** (1.64–1.68) |
+| namespaces | 1.12 → **1.19** (0.96–1.92) | 0.96 → **0.99** (0.85–1.08) | 1.98 → **1.95** (1.92–1.99) | 1.55 → **1.54** (1.52–1.57) |
+| normalized | 1.22 → **1.26** (1.19–1.27) | 0.99 → **1.06** (1.03–1.09) | 2.16 → **2.17** (2.16–2.19) | 1.59 → **1.65** (1.63–1.68) |
+| mixed | 1.17 → **1.21** (1.17–1.28) | 0.89 → **0.92** (0.91–0.97) | 2.24 → **2.27** (2.22–2.33) | 1.67 → **1.73** (1.69–1.81) |
+
+Retired instructions per document (millions), libxml2, main before recovery
+round two (`c4c34a7`), main after it (`840662a`) and this series. `comments`
+and `cdata` are synthetic: `<r>` and 4,000 comments or CDATA sections of
+about 30 bytes, each followed by a newline.
+
+| Workload | libxml2 | before recovery | main | after |
+| --- | ---: | ---: | ---: | ---: |
+| comments reader | 13.43 | 4.68 | 5.32 | 4.70 |
+| comments DOM | 12.22 | 5.78 | 6.46 | 5.65 |
+| cdata reader | 23.28 | 4.34 | 4.99 | 4.36 |
+| cdata DOM | 19.32 | 5.44 | 6.13 | 5.35 |
+| mixed reader | 20.75 | 8.02 | 8.62 | 8.06 |
+| mixed DOM | 20.99 | 10.13 | 10.69 | 9.97 |
+| flat push 8192 | 11.13 | 11.66 | 11.63 | 11.38 |
+| unicode push 8192 | 22.13 | 23.11 | 23.09 | 22.68 |
+| deep push 8192 | 0.18 | 0.20 | 0.20 | 0.21 |
+| normalized push 8192 | 19.10 | 19.70 | 18.59 | 16.99 |
+| mixed push 8192 | 9.48 | 8.79 | 8.67 | 7.69 |
+| mixed push 7 | 14.82 | 17.49 | 17.43 | 16.09 |
+| namespaces push 7 | 41.08 | 41.50 | 41.56 | 41.12 |
+| normalized push 7 | 27.27 | 31.30 | 30.24 | 28.50 |
+| comments push 7 | 14.45 | 15.67 | 15.71 | 15.04 |
+
+Root causes, from exact per-call instruction traces (method below):
+
+- **Recovery checks in strict code.** Recovery round two added per-token
+  checks to the slice reader and the shared token parser (undeclared
+  references, rewinds, character repair). Their branches were cheap; the
+  cost (comment-only reader +13%, CDATA +15%, mixed +7%) was codegen: a
+  cold call kept `normalized`'s arguments in callee-saved registers, the
+  rewind kept `start` and the input live across `process_token`, and
+  `delimited_body` fell out of line, so its prefix and suffix checks became
+  `memcmp` calls (the "unexplained" comment-only cost, about 18 of the 80
+  instructions per event). Cold helpers alone did not help: LLVM spilled
+  elsewhere. The slice reader now dispatches once per event on
+  `ParserState::rereads` to a `REREADS` instantiation of its token loop and
+  of `read_token`, so strict reading and the streaming, DTD and writer
+  frontends compile without any recovery check; the no-change normalization
+  scan is inlined at each value and the changing path is out of line.
+- **By-value delivery.** `PushParser` callbacks now take `&Event`: the
+  event is built once and lent, the attribute list stays owned by the parser
+  instead of being rebuilt as a borrowed one, and `lend_event` is inlined
+  into each delivery loop (`flat` push -2.2%). `SourceOrigin` stays a 56-byte
+  `Copy` value; it costs nothing when the callback ignores it.
+- **An allocation per normalized value.** Streaming normalized text, comment,
+  CDATA, PI and attribute values into a `String` each, freed after the
+  callback; malloc and free were about 35% of `normalized` push. While events
+  are lent the values share one reused buffer (normalization never lengthens
+  a value, so it stays within the token size) and are lent from it, and
+  normalization appends through a local buffer (`normalized` push -8.6%,
+  `mixed` push -11%).
+- **Short-token character screen.** `invalid_char` folded even 8-byte
+  tokens as a 64-byte block; tokens under 16 bytes now use a table scan
+  (`mixed` push/7 -1.9%).
+
+Tried and rejected: tail-calling the repair path from `normalized` (+8
+instructions per value), the table scan up to 64 bytes (2.3x slower at 40
+bytes) and a SWAR byte screen.
+
+Remaining losses are push/7. `mixed` (0.92) retires 8.6% more instructions
+than libxml2: per 7-byte chunk about 285 in the tokenizer carry path
+(`advance_inner`, `step`, `extend`, prefix classification) and about 100
+validating each completed token (`str::from_utf8`, which safe code cannot
+skip, plus the character screen). `namespaces` push/7 (0.99) is at parity
+in instructions. Two slice-reader rows lost time without retiring more
+instructions: `tiny` reader (4.09 → 3.73, +4.5% instructions, about 40 ns
+per document) and `deep` reader (1.90 → 1.72, +1.8%); both appear with the
+`&Event` and value-lending commit (`dd6bf1b`), which grew `ParserState` by
+two fields, and are unexplained.
+
+### Fourth series (2026-10-19, `2a0e872` → `45c756e`)
 
 Ratios are **libxml2 median / yaxml median** of parse plus destruction per
 document (above 1 favors yaxml), before → after the fourth optimization

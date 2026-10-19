@@ -4,7 +4,9 @@
 does not mean EOF; `finish` flushes pending text and requires a completed root.
 Empty feeds are harmless before finish. Text has one event per lexical run,
 independent of chunk sizes. Markup spans include delimiters. Callbacks receive
-`Event<'_>` and a `SourceOrigin`; borrowed event values live for the call.
+`&Event<'_>` and a `SourceOrigin`: the event, its names, attribute list and
+normalized values are lent from parser storage for the call and reused after
+it, so delivery neither moves nor allocates; copy what you keep.
 `origin.input_range()` gives the optional exact original-byte span, including
 markup delimiters. All currently supported parsed origins have an input span.
 
@@ -109,7 +111,8 @@ prefix accepted by the decoder. Depth, attributes, events and raw token limits
 apply as for the slice reader. `max_owned_bytes` counts cumulative requested capacity for
 normalization, namespace copies, and retained structural strings, even after
 buffers are freed. Streaming therefore spends more of it than borrowing slices.
-This is an allocation-work budget, not an exact resident-memory quota. Ordinary
+This is an allocation-work budget, not an exact resident-memory quota: lent
+normalized values are charged although their storage is reused. Ordinary
 unchanged token bytes spend scratch capacity without a cumulative string charge.
 `DecodeLimits` bounds the decoded UTF-8 total and each decoded token independently
 of source bytes. Transport BOMs count toward source input and neither decoded

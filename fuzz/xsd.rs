@@ -107,8 +107,8 @@ fn check(schema: &Schema, owned: &OwnedDocument, instance: &[u8]) {
     let truncated = &instance[..instance.len() / 2];
     let _ = schema.validate_stream(truncated, ParseOptions::default());
     let mut parser = PushParser::new();
-    let mut emit = |event: yaxml::Event<'_>, origin| {
-        validator.event(&event, origin);
+    let mut emit = |event: &yaxml::Event<'_>, origin| {
+        validator.event(event, origin);
         ControlFlow::Continue(())
     };
     let (head, tail) = instance.split_at(instance.len() / 2);

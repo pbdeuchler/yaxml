@@ -38,8 +38,8 @@ fn streamed(schema: &Schema, instance: &str, flags: u32) -> Vec<xsd::Diagnostic<
 
     let mut validator = StreamValidator::new(schema);
     let mut parser = PushParser::with_options(options()).unwrap();
-    let mut feed = |event: yaxml::Event<'_>, origin| {
-        validator.event(&event, origin);
+    let mut feed = |event: &yaxml::Event<'_>, origin| {
+        validator.event(event, origin);
         ControlFlow::Continue(())
     };
     for byte in instance.as_bytes().chunks(1) {

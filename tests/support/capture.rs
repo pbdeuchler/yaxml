@@ -32,8 +32,8 @@ impl From<&Name<'_>> for CapturedName {
     }
 }
 
-impl From<Event<'_>> for Captured {
-    fn from(event: Event<'_>) -> Self {
+impl From<&Event<'_>> for Captured {
+    fn from(event: &Event<'_>) -> Self {
         match event {
             Event::Declaration(value) => Self::Declaration(
                 value.version.into(),
@@ -41,7 +41,7 @@ impl From<Event<'_>> for Captured {
                 value.standalone,
             ),
             Event::Doctype(value) => Self::Doctype(
-                value.name.into(),
+                value.name.to_string(),
                 value.public_id.map(str::to_owned),
                 value.system_id.map(str::to_owned),
                 value.internal_subset.map(str::to_owned),
@@ -64,14 +64,14 @@ impl From<Event<'_>> for Captured {
                     .map(|a| ((&a.name).into(), a.value.to_string()))
                     .collect(),
             ),
-            Event::End(value) => Self::End((&value).into()),
-            Event::Text(value) => Self::Text(value.into_owned()),
-            Event::Cdata(value) => Self::Cdata(value.into_owned()),
-            Event::Comment(value) => Self::Comment(value.into_owned()),
+            Event::End(value) => Self::End(value.into()),
+            Event::Text(value) => Self::Text(value.to_string()),
+            Event::Cdata(value) => Self::Cdata(value.to_string()),
+            Event::Comment(value) => Self::Comment(value.to_string()),
             Event::ProcessingInstruction { target, data } => {
-                Self::Pi(target.into(), data.into_owned())
+                Self::Pi(target.to_string(), data.to_string())
             }
-            Event::EntityStart(name) => Self::EntityStart(name.into_owned()),
+            Event::EntityStart(name) => Self::EntityStart(name.to_string()),
             Event::EntityEnd => Self::EntityEnd,
         }
     }
@@ -84,7 +84,7 @@ pub fn slice_events(input: &[u8]) -> Result<Vec<CapturedEvent>, Error> {
     let mut events = Vec::new();
     while let Some(event) = parser.read_event()? {
         events.push((
-            event.into(),
+            (&event).into(),
             parser.event_range().expect("direct input event"),
         ));
     }

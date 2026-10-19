@@ -54,7 +54,7 @@ fn borrowed_and_buffered_tokens_are_indistinguishable() {
     fn transcript(input: &[u8], chunk: usize, limits: Limits) -> Vec<String> {
         let mut parser = PushParser::with_limits(limits);
         let mut log = Vec::new();
-        let mut record = |event: yaxml::Event<'_>, origin: yaxml::SourceOrigin| {
+        let mut record = |event: &yaxml::Event<'_>, origin: yaxml::SourceOrigin| {
             log.push(format!("{event:?} {origin:?}"));
             ControlFlow::Continue(())
         };

@@ -263,14 +263,14 @@ fn streams_report_reference_boundaries_identically() {
         for chunk in input.chunks(size) {
             parser
                 .feed(chunk, |event, _| {
-                    events.extend(render(&event));
+                    events.extend(render(event));
                     ControlFlow::Continue(())
                 })
                 .unwrap();
         }
         parser
             .finish(|event, _| {
-                events.extend(render(&event));
+                events.extend(render(event));
                 ControlFlow::Continue(())
             })
             .unwrap();

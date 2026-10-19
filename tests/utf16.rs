@@ -60,7 +60,7 @@ enum Value {
     EntityEnd,
 }
 
-fn record(event: Event<'_>) -> Value {
+fn record(event: &Event<'_>) -> Value {
     let empty = matches!(event, Event::Empty(_));
     let name = |name: &yaxml::Name<'_>| {
         let (prefix, local) = name
@@ -98,16 +98,16 @@ fn record(event: Event<'_>) -> Value {
             }
         }
         Event::End(end) => {
-            let (qualified, namespace) = name(&end);
+            let (qualified, namespace) = name(end);
             Value::End(qualified, namespace)
         }
-        Event::Text(text) => Value::Text(text.into_owned()),
-        Event::Cdata(text) => Value::Cdata(text.into_owned()),
-        Event::Comment(text) => Value::Comment(text.into_owned()),
+        Event::Text(text) => Value::Text(text.to_string()),
+        Event::Cdata(text) => Value::Cdata(text.to_string()),
+        Event::Comment(text) => Value::Comment(text.to_string()),
         Event::ProcessingInstruction { target, data } => {
-            Value::Pi(target.into_owned(), data.into_owned())
+            Value::Pi(target.to_string(), data.to_string())
         }
-        Event::EntityStart(name) => Value::EntityStart(name.into_owned()),
+        Event::EntityStart(name) => Value::EntityStart(name.to_string()),
         Event::EntityEnd => Value::EntityEnd,
     }
 }
@@ -115,7 +115,7 @@ fn record(event: Event<'_>) -> Value {
 fn stream(input: &[u8], split: usize) -> Result<Vec<(Value, Range<usize>)>, Error> {
     let mut parser = PushParser::new();
     let mut events = Vec::new();
-    let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+    let mut emit = |event: &Event<'_>, origin: yaxml::SourceOrigin| {
         let source = origin.input_range().expect("direct input event");
         events.push((record(event), source));
         ControlFlow::Continue(())
@@ -802,7 +802,7 @@ fn reader_io_handles_one_byte_reads_interruptions_and_partial_encoding_failures(
                 |event, origin| {
                     let range = origin.input_range().expect("direct input event");
                     if let Event::Text(value) = event {
-                        text.push_str(&value);
+                        text.push_str(value);
                         assert_eq!(range, 8..12);
                     }
                     ControlFlow::Continue(())
@@ -880,7 +880,7 @@ fn utf8_surfaces_and_writer_keep_their_existing_encoding_contracts() {
         let mut expected = Vec::new();
         while let Some(event) = reader.read_event().unwrap() {
             expected.push((
-                record(event),
+                record(&event),
                 reader.event_range().expect("direct input event"),
             ));
         }

@@ -56,7 +56,7 @@ fn construction_finishes_xml_before_assigning_identity() {
         let event = reader.read_event().unwrap().unwrap();
         builder
             .consume(
-                event,
+                &event,
                 reader.event_origin().expect("parsed origin"),
                 reader.owned_budget(),
             )

@@ -21,7 +21,7 @@ fn element(name: &'static str) -> crate::Element<'static> {
 fn begin(budget: &mut Budget) -> OwnedBuilder {
     let mut b = OwnedBuilder::new(200, 0, Global).unwrap();
     b.consume(
-        Event::Start(element("r")),
+        &Event::Start(element("r")),
         SourceOrigin::input(0..3),
         budget,
     )
@@ -36,7 +36,7 @@ fn snapshot(b: &OwnedBuilder) -> String {
 }
 fn end(mut b: OwnedBuilder, budget: &mut Budget) -> OwnedDocument {
     b.consume(
-        Event::End(Name::new("r", None).unwrap()),
+        &Event::End(Name::new("r", None).unwrap()),
         SourceOrigin::input(150..154),
         budget,
     )
@@ -81,7 +81,7 @@ fn spec_pool_tail_extension_keeps_one_prefix_copy_slot_and_links() {
         ("post", SourceOrigin::input(106..110)),
     ] {
         b.consume(
-            Event::Text(Cow::Borrowed(text)),
+            &Event::Text(Cow::Borrowed(text)),
             origin,
             state.owned_budget(),
         )
@@ -99,7 +99,7 @@ fn spec_pool_tail_extension_keeps_one_prefix_copy_slot_and_links() {
     assert!(matches!(&b.nodes[2].content,Content::Text(range) if range==&(1..12)));
     assert!(b.nodes[2].source.unwrap().input_range().is_none());
     b.consume(
-        Event::Comment(Cow::Borrowed("later")),
+        &Event::Comment(Cow::Borrowed("later")),
         SourceOrigin::input(110..122),
         state.owned_budget(),
     )
@@ -120,14 +120,14 @@ fn spec_owned_literal_entity_topologies_have_complete_links_and_provenance() {
         let mut state = ParserState::new(Limits::default(), 0);
         let mut b = begin(state.owned_budget());
         b.consume(
-            Event::Text(Cow::Borrowed("pre")),
+            &Event::Text(Cow::Borrowed("pre")),
             SourceOrigin::input(100..103),
             state.owned_budget(),
         )
         .unwrap();
         if shape == 0 {
             b.consume(
-                Event::Text(Cow::Borrowed("tail")),
+                &Event::Text(Cow::Borrowed("tail")),
                 generated(7, 0..4),
                 state.owned_budget(),
             )
@@ -136,14 +136,14 @@ fn spec_owned_literal_entity_topologies_have_complete_links_and_provenance() {
         if shape == 2 || shape == 3 {
             if shape == 3 {
                 b.consume(
-                    Event::Text(Cow::Borrowed("head")),
+                    &Event::Text(Cow::Borrowed("head")),
                     generated(7, 0..4),
                     state.owned_budget(),
                 )
                 .unwrap();
             }
             b.consume(
-                Event::Empty(element("a")),
+                &Event::Empty(element("a")),
                 generated(7, if shape == 2 { 0..4 } else { 4..8 }),
                 state.owned_budget(),
             )
@@ -159,7 +159,7 @@ fn spec_owned_literal_entity_topologies_have_complete_links_and_provenance() {
                 },
             };
             b.consume(
-                event,
+                &event,
                 generated(
                     7,
                     0..match shape {
@@ -174,7 +174,7 @@ fn spec_owned_literal_entity_topologies_have_complete_links_and_provenance() {
         }
         if shape == 2 || shape >= 4 {
             b.consume(
-                Event::Text(Cow::Borrowed("tail")),
+                &Event::Text(Cow::Borrowed("tail")),
                 generated(
                     7,
                     match shape {
@@ -189,7 +189,7 @@ fn spec_owned_literal_entity_topologies_have_complete_links_and_provenance() {
             .unwrap();
         }
         b.consume(
-            Event::Text(Cow::Borrowed("post")),
+            &Event::Text(Cow::Borrowed("post")),
             SourceOrigin::input(106..110),
             state.owned_budget(),
         )
@@ -285,30 +285,34 @@ fn spec_owned_exact_origin_empty_event_and_cdata_controls() {
     ] {
         let mut state = ParserState::new(Limits::default(), 0);
         let mut b = begin(state.owned_budget());
-        b.consume(Event::Text(Cow::Borrowed("a")), left, state.owned_budget())
+        b.consume(&Event::Text(Cow::Borrowed("a")), left, state.owned_budget())
             .unwrap();
         let saved = snapshot(&b);
         b.consume(
-            Event::Text(Cow::Borrowed("")),
+            &Event::Text(Cow::Borrowed("")),
             generated(9, 0..0),
             state.owned_budget(),
         )
         .unwrap();
         assert_eq!(snapshot(&b), saved);
-        b.consume(Event::Text(Cow::Borrowed("b")), right, state.owned_budget())
-            .unwrap();
+        b.consume(
+            &Event::Text(Cow::Borrowed("b")),
+            right,
+            state.owned_budget(),
+        )
+        .unwrap();
         assert_eq!(b.nodes.len(), 3);
         let origin = b.nodes[2].source.unwrap();
         assert_eq!(origin.input_range(), exact);
         assert_eq!(origin.replacement_range(), local);
         b.consume(
-            Event::Cdata(Cow::Borrowed("c")),
+            &Event::Cdata(Cow::Borrowed("c")),
             generated(7, 2..15),
             state.owned_budget(),
         )
         .unwrap();
         b.consume(
-            Event::Cdata(Cow::Borrowed("d")),
+            &Event::Cdata(Cow::Borrowed("d")),
             generated(7, 15..28),
             state.owned_budget(),
         )
@@ -324,7 +328,7 @@ fn spec_owned_pool_quota_failure_is_atomic_and_exact_capacity_recovers() {
         let mut initial = ParserState::new(Limits::default(), 0);
         let mut b = begin(initial.owned_budget());
         b.consume(
-            Event::Text(Cow::Borrowed("pre")),
+            &Event::Text(Cow::Borrowed("pre")),
             SourceOrigin::input(100..103),
             initial.owned_budget(),
         )
@@ -343,7 +347,7 @@ fn spec_owned_pool_quota_failure_is_atomic_and_exact_capacity_recovers() {
         let pointer = b.pool.0.as_ptr();
         let capacity = b.pool.0.capacity();
         let result = b.consume(
-            Event::Text(Cow::Borrowed(&incoming)),
+            &Event::Text(Cow::Borrowed(&incoming)),
             generated(7, 0..incoming.len()),
             constrained.owned_budget(),
         );
@@ -370,19 +374,19 @@ fn spec_generated_same_occurrence_body_gaps_close() {
     let mut state = ParserState::new(Limits::default(), 0);
     let mut b = OwnedBuilder::new(200, 0, Global).unwrap();
     b.consume(
-        Event::Start(element("r")),
+        &Event::Start(element("r")),
         generated(7, 0..3),
         state.owned_budget(),
     )
     .unwrap();
     b.consume(
-        Event::Text(Cow::Borrowed("body")),
+        &Event::Text(Cow::Borrowed("body")),
         SourceOrigin::input(90..94),
         state.owned_budget(),
     )
     .unwrap();
     b.consume(
-        Event::End(Name::new("r", None).unwrap()),
+        &Event::End(Name::new("r", None).unwrap()),
         generated(7, 20..24),
         state.owned_budget(),
     )
@@ -428,13 +432,13 @@ fn spec_editor_keeps_adjacent_text_ids_and_parsed_mixed_provenance() {
     let mut state = ParserState::new(Limits::default(), 0);
     let mut b = begin(state.owned_budget());
     b.consume(
-        Event::Text(Cow::Borrowed("pre")),
+        &Event::Text(Cow::Borrowed("pre")),
         SourceOrigin::input(100..103),
         state.owned_budget(),
     )
     .unwrap();
     b.consume(
-        Event::Text(Cow::Borrowed("post")),
+        &Event::Text(Cow::Borrowed("post")),
         SourceOrigin::input(106..110),
         state.owned_budget(),
     )

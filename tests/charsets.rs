@@ -38,11 +38,11 @@ fn document(label: &str, body: &[u8]) -> Vec<u8> {
 fn push(input: &[u8], splits: &[usize]) -> Result<Vec<(String, Range<usize>)>, Error> {
     let mut parser = PushParser::new();
     let mut found = Vec::new();
-    let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
+    let mut emit = |event: &Event<'_>, origin: yaxml::SourceOrigin| {
         let value = match event {
-            Event::Text(text) => text.into_owned(),
+            Event::Text(text) => text.to_string(),
             Event::Start(element) if !element.attributes.is_empty() => {
-                element.attributes[0].value.clone().into_owned()
+                element.attributes[0].value.to_string()
             }
             _ => return ControlFlow::Continue(()),
         };

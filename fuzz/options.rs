@@ -172,12 +172,12 @@ fn decoding_surfaces_agree(document: &[u8], flags: u32) {
     let mut pushed = Vec::new();
     let push_ok = push
         .feed(document, |event, _| {
-            pushed.push(render(&event));
+            pushed.push(render(event));
             ControlFlow::Continue(())
         })
         .and_then(|()| {
             push.finish(|event, _| {
-                pushed.push(render(&event));
+                pushed.push(render(event));
                 ControlFlow::Continue(())
             })
         })

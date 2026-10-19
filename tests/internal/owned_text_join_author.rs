@@ -19,14 +19,14 @@ fn owned_parsed_text_extends_the_pool_tail_without_a_second_node() {
     let mut state = state(3);
     builder
         .consume(
-            Event::Text(Cow::Borrowed("a")),
+            &Event::Text(Cow::Borrowed("a")),
             SourceOrigin::input(3..4),
             state.owned_budget(),
         )
         .unwrap();
     builder
         .consume(
-            Event::Text(Cow::Borrowed("b")),
+            &Event::Text(Cow::Borrowed("b")),
             SourceOrigin::input(4..5),
             state.owned_budget(),
         )
@@ -49,28 +49,28 @@ fn owned_empty_text_is_not_published_and_does_not_hide_a_gap() {
     let mut state = state(32);
     builder
         .consume(
-            Event::Text(Cow::Borrowed("")),
+            &Event::Text(Cow::Borrowed("")),
             SourceOrigin::input(0..3),
             state.owned_budget(),
         )
         .unwrap();
     builder
         .consume(
-            Event::Text(Cow::Borrowed("a")),
+            &Event::Text(Cow::Borrowed("a")),
             SourceOrigin::input(3..4),
             state.owned_budget(),
         )
         .unwrap();
     builder
         .consume(
-            Event::Text(Cow::Borrowed("")),
+            &Event::Text(Cow::Borrowed("")),
             SourceOrigin::input(4..8),
             state.owned_budget(),
         )
         .unwrap();
     builder
         .consume(
-            Event::Text(Cow::Borrowed("b")),
+            &Event::Text(Cow::Borrowed("b")),
             SourceOrigin::input(8..9),
             state.owned_budget(),
         )
@@ -90,7 +90,7 @@ fn owned_text_limit_failure_preserves_pool_record_and_origin() {
     let mut initial = state(0);
     builder
         .consume(
-            Event::Text(Cow::Borrowed("a")),
+            &Event::Text(Cow::Borrowed("a")),
             SourceOrigin::input(5..6),
             initial.owned_budget(),
         )
@@ -101,7 +101,7 @@ fn owned_text_limit_failure_preserves_pool_record_and_origin() {
     let before_pool = builder.pool.0.clone();
     let error = builder
         .consume(
-            Event::Text(Cow::Borrowed(&incoming)),
+            &Event::Text(Cow::Borrowed(&incoming)),
             SourceOrigin::input(20..20 + incoming.len()),
             limited.owned_budget(),
         )
@@ -173,7 +173,7 @@ fn owned_non_text_event_keeps_text_nodes_separate() {
     ];
     for (event, range) in events {
         builder
-            .consume(event, SourceOrigin::input(range), state.owned_budget())
+            .consume(&event, SourceOrigin::input(range), state.owned_budget())
             .unwrap();
     }
     assert_eq!(builder.nodes.len(), 10);
