@@ -15,9 +15,9 @@ const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const SPARE_NODES: usize = 4;
 
 /// libxml2 `xmlReaderTypes` values for the nodes this reader produces;
-/// `node_type as i32` is the C constant. Entity references, entities,
-/// documents, fragments, notations, insignificant whitespace, entity ends and
-/// XML declarations are never reported (entities are always substituted).
+/// `node_type as i32` is the C constant. Entities, documents, fragments,
+/// notations, insignificant whitespace, entity ends and XML declarations are
+/// never reported; entity references are, unless `NOENT` substitutes them.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum NodeType {
@@ -50,13 +50,13 @@ pub enum ReadState {
 /// libxml2 `xmlParserProperties` values; `as i32` is the C constant.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParserProperty {
-    /// Load the external subset: true exactly when a resolver was supplied.
+    /// Load the external subset: a resolver was supplied and the options load it.
     LoadDtd = 1,
-    /// Insert DTD default attributes: always true.
+    /// Insert DTD default attributes: `DTDATTR`.
     DefaultAttributes = 2,
     /// DTD validation: not implemented, always false.
     Validate = 3,
-    /// Substitute entity references: always true.
+    /// Substitute entity references: `NOENT`.
     SubstituteEntities = 4,
 }
 
@@ -294,10 +294,11 @@ impl Scope {
 /// Node types, names, values, depths and attribute order follow libxml2:
 /// namespace declarations are attributes listed before ordinary ones, an
 /// empty element (`<a/>`) has no `EndElement`, adjacent text (including
-/// entity replacement text) is one node, and the XML declaration and
-/// whitespace outside the root are not reported. Entities are substituted
-/// and DTD default attributes inserted, as `XML_PARSE_NOENT |
-/// XML_PARSE_DTDATTR`. String getters borrow the reader until it moves.
+/// substituted replacement text) is one node, and the XML declaration and
+/// whitespace outside the root are not reported. Without options an entity
+/// reference is an `EntityReference` node and no DTD defaults are added;
+/// see [`with_options`](Self::with_options). String getters borrow the reader
+/// until it moves.
 ///
 /// Memory is that of the [`BufferedReader`] plus one node of lookahead,
 /// except that [`expand`](Self::expand) and the `read_*` methods buffer the
@@ -1057,9 +1058,9 @@ impl<R: BufRead> TextReader<R> {
         }
     }
 
-    /// `xmlTextReaderSetParserProp`. Only the fixed behavior is accepted:
-    /// loading the external subset requires [`with_resolver`](Self::with_resolver),
-    /// and validation and unsubstituted entities return `UnsupportedOption`.
+    /// `xmlTextReaderSetParserProp`. Properties are fixed by the options at
+    /// construction ([`with_options`](Self::with_options)); setting another
+    /// value returns `UnsupportedOption`.
     pub fn set_parser_property(
         &mut self,
         property: ParserProperty,

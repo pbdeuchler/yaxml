@@ -573,3 +573,32 @@ fn text_reader_reports_entity_reference_nodes() {
     assert!(!reader.parser_property(ParserProperty::SubstituteEntities));
     assert_eq!(NodeType::EntityReference as i32, 5);
 }
+
+#[test]
+fn schema_validators_see_through_references() {
+    let xml = "<!DOCTYPE r [<!ENTITY e '<i>1</i>'>]><r>&e;&e;</r>";
+    let bad = "<!DOCTYPE r [<!ENTITY e '<j>1</j>'>]><r>&e;</r>";
+    let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0">
+      <oneOrMore><element name="i"><text/></element></oneOrMore></element>"#;
+    let none = |_: Request<'_>| Ok(None);
+    let relaxng =
+        yaxml::relaxng::Schema::parse(rng, "r.rng", Box::new(none), &Default::default()).unwrap();
+    let xsd = yaxml::xsd::Schema::parse(
+        br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+          <xs:element name="r"><xs:complexType><xs:sequence>
+            <xs:element name="i" type="xs:int" maxOccurs="unbounded"/>
+          </xs:sequence></xs:complexType></xs:element></xs:schema>"#,
+        "r.xsd",
+    )
+    .unwrap();
+    for (input, valid) in [(xml, true), (bad, false)] {
+        let document = Document::parse(input).unwrap();
+        assert!(document.nodes().any(|node| node.entity_name().is_some()));
+        assert_eq!(relaxng.validate(&document).is_empty(), valid, "{input}");
+        assert_eq!(
+            yaxml::xsd::is_valid(&xsd.validate(&document)),
+            valid,
+            "{input}"
+        );
+    }
+}

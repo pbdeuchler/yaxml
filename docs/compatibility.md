@@ -28,33 +28,36 @@ full upstream reader/SAX option surfaces remain open.
 string-value pieces for supported node kinds. Containers concatenate descendant
 Text/CDATA logically; comment and PI leaves expose their own data. Joining the
 pieces matches `xmlNodeGetContent` on the bounded [pinned oracle cases](validation-text-chunks.md).
-The methods retain chunk boundaries and do not add entity nodes, attribute
-nodes or the allocating C entry point.
+The methods retain chunk boundaries and include the content of kept entity
+references; they do not add attribute nodes or the allocating C entry point.
 
 ## Document type declarations
 
 Every parser reports one `Event::Doctype` (DOM: `NodeKind::Doctype` /
 `OwnedNodeKind::DocumentType`, `doctype()`) with the name, unquoted public and
 system identifiers and the exact internal-subset text. The internal subset is
-processed: parameter entities, general entity substitution in content and
-attribute values (re-tokenized, so replacement markup becomes events), default
-and `#FIXED` attributes, and tokenized attribute-type normalization.
+processed: parameter entities, general entity expansion in content and
+attribute values (re-tokenized, so replacement markup becomes events; kept as
+references without `NOENT`, see [option compatibility](#entity-references-without-noent)),
+default and `#FIXED` attributes (with `DTDATTR`), and tokenized
+attribute-type normalization.
 
-External resources load only through a caller `Resolver` passed to
-`with_resolver` (all five parsers/DOMs). With one, the external subset loads
-after the internal subset (`XML_PARSE_DTDLOAD`), external parameter entities
-load where referenced and external parsed general entities load on first
-reference in content (`XML_PARSE_NOENT`); each loads at most once and is
-cached. System IDs resolve with `uri::resolve` against the declaring
+External resources load only through a caller `Resolver` in `ParseOptions`
+(or `with_resolver`, which adds `NOENT | DTDLOAD | DTDATTR`), and only what
+the flags request: the external subset after the internal subset with
+`DTDLOAD`, `DTDATTR` or `DTDVALID`, external parameter entities where
+referenced with those or `NOENT`, and external parsed general entities on
+first reference in content with `NOENT` or `DTDVALID`; `NO_XXE` loads
+nothing. Each loads at most once and is cached. System IDs resolve with `uri::resolve` against the declaring
 resource's base, starting from the caller's document base. Resources decode
 by BOM or text declaration (UTF-8/16, single-byte charsets), normalize line
 ends and drop the text declaration. External DTD text supports conditional
 sections and parameter references inside declarations. Declining
 (`Ok(None)`) matches libxml2's missing-file warning: the reference expands to
 nothing. A resolver `Err` is fatal `ExternalResource`, as libxml2's other I/O
-errors are. `NO_XXE` and plain `DTDLOAD` map to a resolver that declines the
-corresponding `ResourceKind`; `NONET` is the default because nothing has
-network access unless the caller's resolver provides it. Like libxml2, a
+errors are. A resource the flags do not request is declined without calling
+the resolver; `NONET` is the default because nothing has network access unless
+the caller's resolver provides it. Like libxml2, a
 standalone document cannot use externally declared general entities, a
 DeclSep PE must hold whole declarations, and a text declaration's version
 must be 1.0.
@@ -64,14 +67,16 @@ XPath `id()` use `xml:id` and attributes declared `ID`, first element in
 document order per value. Unlike libxml2, attributes on elements produced by
 entity replacement also count.
 
-Defaults follow `xmlReadMemory(..., XML_PARSE_NOENT | XML_PARSE_DTDATTR)`.
-Without `DTDATTR`, libxml2 does not insert default attributes; yaxml always
-does, as XML 1.0 §5.1 requires of non-validating processors. Undeclared-entity
+The default follows `xmlReadMemory(..., 0)`: references are kept and only
+defaulted namespace declarations apply; `NOENT | DTDATTR` gives the
+substituted tree with default attributes that XML 1.0 §5.1 describes for
+non-validating processors (the default before parser options existed). Undeclared-entity
 handling mirrors libxml2's `xmlHandleUndeclaredEntity`: once any PE reference
 or an external subset is seen and the document is not `standalone='yes'`, an
-undeclared general or parameter entity is dropped (libxml2 reports a
-recoverable error), and references to unloaded external entities expand to
-nothing (libxml2's failed load). Otherwise `UnknownEntity` is fatal. Like
+undeclared general or parameter entity is dropped with `NOENT` and kept as an
+empty reference without it (libxml2 reports a recoverable error), and
+references to unloaded external entities expand to nothing or stay empty
+references the same way (libxml2's failed or skipped load). Otherwise `UnknownEntity` is fatal. Like
 libxml2, declarations after an unread PE reference are still processed.
 Unparsed entities in content (`UnparsedEntity`), external entities in attribute
 values (`ExternalEntityInAttribute`), recursion (`EntityLoop`), unbalanced
@@ -145,15 +150,15 @@ Priority is dependency order and migration value. P0 is the first usable secure 
 | P0 | Entity/reference handling: five predefined entities, decimal/hex numeric references, attribute-value normalization, CR/CRLF normalization, character validity after decoding, rejection of undeclared entities | `entities.h`, parser SAX callbacks |
 | P0 | Namespaces: scoped bindings, expanded names, prefix rebinding, default namespaces, reserved prefixes/URIs, duplicate expanded attribute names; preserve lexical prefixes and declaration order | `tree.h`, `SAX2.h`; `xmlNewNs`, `xmlSearchNs*`, `xmlReconciliateNs` |
 | P0/P1 | P0 borrowed slice pull events; P1 buffered pull and push chunks, EOF distinct from need-more-input, stop/cancel, bounded buffering, every byte boundary including UTF-8 and delimiter splits | `xmlreader.h`, `parser.h`, `SAX2.h`; `xmlReaderFor*`, `xmlTextReaderRead`, `xmlCreatePushParserCtxt`, `xmlParseChunk` |
-| P1 | `xmlTextReader` cursor: node types, names, values, depth, attribute navigation, namespace/`xml:lang`/`xml:base` scope, `Next`, `ReadString`, inner/outer XML, `Expand`, parser properties. **Implemented** as `TextReader` over `BufferedReader`; 24 of 24 helper dumps and 129 of 132 libxml2 `result/*.rde` files agree. See [textreader.md](textreader.md) for the differences and gaps (entity-reference nodes, validation, `Preserve`/patterns, `ReadAttributeValue`) | `xmlreader.h`; `xmlReaderForMemory`, `xmlTextReaderRead`, `xmlTextReaderNext`, `xmlTextReaderExpand`, `xmlTextReaderMoveTo*`, `xmlTextReaderGetAttribute*` |
+| P1 | `xmlTextReader` cursor: node types, names, values, depth, attribute navigation, namespace/`xml:lang`/`xml:base` scope, `Next`, `ReadString`, inner/outer XML, `Expand`, parser properties. **Implemented** as `TextReader` over `BufferedReader`; 24 of 24 helper dumps, 129 of 132 libxml2 `result/*.rde` (`NOENT`) and 130 of 132 `result/*.rdr` (default, with EntityReference nodes) files agree. See [textreader.md](textreader.md) for the differences and gaps (validation, `Preserve`/patterns, `ReadAttributeValue`) | `xmlreader.h`; `xmlReaderForMemory`, `xmlTextReaderRead`, `xmlTextReaderNext`, `xmlTextReaderExpand`, `xmlTextReaderMoveTo*`, `xmlTextReaderGetAttribute*` |
 | P0 | Read-only DOM: document/element/attribute/text/comment/CDATA/PI identity, parent/sibling/child traversal, namespace and attribute lookup, text-content concatenation, source positions | `tree.h`; `xmlDoc`, `xmlNode`, `xmlAttr`, `xmlNs`, `xmlDocGetRootElement`, `xmlGetProp`, `xmlNodeGetContent` |
 | P0 | Errors and security budgets: structured domains/codes/severity, byte and line/column positions, limits on input/token size, depth, nodes, attributes, allocation and work; no implicit external-resource access | `xmlerror.h`, `xmlCtxtSetErrorHandler`, `xmlCtxtSetResourceLoader`, `xmlCtxtSetMaxAmplification` |
 | P1 | Encoding: BOM/declaration/explicit-override precedence; UTF-8/UTF-16 LE/BE, ASCII; incremental decoder and original-byte offsets; then remaining upstream built-ins and caller-provided converters | `encoding.h`; `xmlCharEncoding`, `xmlCreateCharEncodingHandler`, `xmlCtxtSetCharEncConvImpl` |
 | P2 | Full DTD syntax and non-validating semantics: internal/external subsets, parameter/general entities, declarations, notations, unparsed entities, default/fixed attributes, ID typing, standalone constraints, entity-reference preservation vs substitution | `entities.h`, `valid.h`, `parser.h`, `SAX2.h`; `xmlParseDTD`, `xmlGetDocEntity`, `xmlGetID` |
 | P1 | Mutable DOM: creation, insertion, unlink/remove, replacement, attributes, namespaces, copy/import/adopt, cross-document ownership, adjacent-text merging, base URI, `xml:lang`, `xml:space`, line metadata | `tree.h`; `xmlAddChild*`, `xmlAddSibling`, `xmlUnlinkNode`, `xmlReplaceNode`, `xmlSetProp`, `xmlDocCopyNode`, `xmlDOMWrap*` |
-| P1 | Serialization and writer: escaping, declarations, encoding, empty-element spelling, CDATA boundaries, namespace fixup, formatting, incremental writes and I/O failures; preserve semantic round trips. `save::to_vec` **implements** `xmlSaveDoc`/`xmlSaveTree`/`xmlNodeDump` output: all `xmlSaveOption` flags, UTF-8/UTF-16/single-byte encodings, XHTML rules and the regenerated internal subset over both DOMs; 96.32% of 517 XMLTS and libxml2 documents identical to `xmllint --noent --dtdattr` (98.28% formatted), the rest classified in [writer.md](writer.md). Open: namespace repair, `xmlTextWriter`, `Write` sinks, HTML subtrees | `xmlsave.h`, `xmlwriter.h`, `tree.h`; `xmlSaveTo*`, `xmlSaveDoc`, `xmlTextWriter*`, `xmlDocDump*` |
+| P1 | Serialization and writer: escaping, declarations, encoding, empty-element spelling, CDATA boundaries, namespace fixup, formatting, incremental writes and I/O failures; preserve semantic round trips. `save::to_vec` **implements** `xmlSaveDoc`/`xmlSaveTree`/`xmlNodeDump` output: all `xmlSaveOption` flags, UTF-8/UTF-16/single-byte encodings, XHTML rules and the regenerated internal subset over both DOMs; 96.32% of 517 XMLTS and libxml2 documents identical to `xmllint --noent --dtdattr` (98.28% formatted), the rest classified in [writer.md](writer.md); with libxml2's default parse (kept references) 505 of 530 match plain `xmllint`, the rest mostly attribute-value references. Open: namespace repair, `xmlTextWriter`, `Write` sinks, HTML subtrees | `xmlsave.h`, `xmlwriter.h`, `tree.h`; `xmlSaveTo*`, `xmlSaveDoc`, `xmlTextWriter*`, `xmlDocDump*` |
 | P1 | Rust I/O and contexts: slices, strings, `Read`/`BufRead`, `Write`, context reuse/reset, explicit resource resolver, deterministic cleanup, parser options and capability reporting | `xmlIO.h`, `parser.h`; `xmlReadMemory`, `xmlReadIO`, `xmlCtxtReset`, `xmlCtxtSetOptions`, `xmlHasFeature` |
-| P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity. **Implemented** over both DOMs (`validate`, `valid::validate`, `valid::Dtd`); 234 of 242 XMLTS `invalid` cases reported invalid (libxml2 235) and every parsed `valid` case valid; libxml2's `test/valid` error counts match. See [validation-dtd.md](validation-dtd.md) for the differences (entities are always substituted; streaming readers do not validate) | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
+| P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity. **Implemented** over both DOMs (`validate`, `valid::validate`, `valid::Dtd`); 234 of 242 XMLTS `invalid` cases reported invalid (libxml2 235) and every parsed `valid` case valid; libxml2's `test/valid` error counts match. See [validation-dtd.md](validation-dtd.md) for the differences (content models see through kept entity references; streaming readers do not validate) | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
 | P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits. **Implemented** over both DOMs; see [xpath.md](xpath.md) for the differential results, recorded differences and gaps (`CHECKNS`/`NOVAR` flags, lookup callbacks) | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
 | P3 | HTML parsing and serialization: `yaxml::html` implements libxml2's tokenizer, legacy tree construction and recovery, HTML5 entities, implied elements, case folding, void/raw-text elements, meta/BOM/prescan encoding selection (UTF-8, UTF-16, built-in single-byte charsets), chunk-independent push parsing, `htmlDocDumpMemory` and HTML `xmlSaveDoc` output ([html.md](html.md), differential-tested against xmllint); still open: multi-byte converters, SAX callbacks, `HTML_PARSE_HTML5`, `htmlCtxtParseContent`, line numbers | `HTMLparser.h`, `HTMLtree.h`; `htmlRead*`, `htmlCtxtRead*`, `htmlParseChunk`, `htmlDocDump*` |
 | P2 | Canonicalization: Canonical XML 1.0/1.1 and exclusive C14N, node subsets, comments toggle, inclusive namespace prefixes, exact bytes. **Implemented** over both DOMs; 70 of 73 libxml2 `test/c14n` cases match byte for byte, the other 3 select `xmlns=""` namespace nodes. See [c14n.md](c14n.md) for kept libxml2 quirks and gaps (visibility callback, file output, `xmlns=""` namespace nodes) | `c14n.h`; `xmlC14NDocDumpMemory`, `xmlC14NDocSaveTo`, `xmlC14NExecute` |
@@ -173,9 +178,78 @@ The whole surface includes callbacks, enum values, macros, typedef aliases and p
 
 ## Option compatibility
 
-Maintain an explicit mapping for **every** `xmlParserOption`, HTML parser option, reader property, save/writer flag and schema/validation option. Each mapping needs default, supported modes, interactions, and tests. In particular, cover `NOENT`, `DTDLOAD`, `DTDATTR`, `DTDVALID`, `NO_XXE`, `NONET`, `NOBLANKS`, `RECOVER`, `HUGE`, `NODICT`, `NSCLEAN`, `NOCDATA`, `COMPACT`, `BIG_LINES`, `IGNORE_ENC`, `OLD10`, `NOBASEFIX`, `XINCLUDE`, `UNZIP`, and catalog flags. Never silently accept an unimplemented option.
+`yaxml::ParseOptions` is the one options value of every XML parser and DOM:
+`flags` (libxml2's `xmlParserOption` bits, the constants in `yaxml::options`
+with libxml2's values), `limits`, `decode_limits`, `base` and `resolver`.
+`Reader::with_options`, `PushParser::with_options`,
+`BufferedReader::with_options`, `TextReader::with_options`,
+`Document::parse_with` and `OwnedDocument::parse_with` take it; the older
+constructors are conveniences with no flags, and their `with_resolver`
+variants add `NOENT | DTDLOAD | DTDATTR`. Unknown bits and every flag a
+surface lacks fail with `ErrorKind::UnsupportedOption` before parsing; a flag
+is accepted without code only where libxml2 2.15.4 gives it no observable
+effect on results. `tests/options.rs` covers each row; the `dom`, `owned` and
+`dtd` fuzz targets select flags from a leading high-bit byte
+(`fuzz/options.rs`).
 
-Match observable success behavior first: event/tree shape, namespace identity, normalized values, text coalescing, entity visibility and serialization bytes where specified. Error code/domain/severity and position matter next. Exact human error wording, allocation count, callback text-chunk boundaries and historical recovery quirks need separate documented contracts; streaming may split text into different chunks while preserving concatenated content.
+| Flag | Status |
+| --- | --- |
+| `RECOVER` | Rejected everywhere (recovery is not implemented). |
+| `NOENT` | Substitutes general entities (no `EntityRef` nodes or `EntityStart`/`EntityEnd` events); with a resolver loads external parsed entities and parameter entities. |
+| `DTDLOAD` | With a resolver, loads the external subset and external parameter entities. |
+| `DTDATTR` | Adds non-namespace default attributes (defaulted `xmlns` declarations always apply, as in libxml2); implies `DTDLOAD`. |
+| `DTDVALID` | DOMs: validates after parsing; `Document::validity`/`OwnedDocument::validity` hold the diagnostics. Loads the subset and external entities (unless `NO_XXE`). Rejected by streams and `TextReader`. |
+| `NOERROR`, `NOWARNING`, `PEDANTIC` | Accepted: they only silence or add printed reports in libxml2; yaxml prints nothing and returns diagnostics. |
+| `NOBLANKS` | DOMs: drops ignorable whitespace text with libxml2's `areBlanks` rules (DTD element content, `xml:space`, sibling heuristic, never before an entity reference). Rejected by streams and `TextReader`, as libxml2's push parser does not support it. |
+| `SAX1`, `OLDSAX` | `SAX1` accepted (no SAX handlers exist); `OLDSAX` rejected (it changes predefined-entity lookup). |
+| `XINCLUDE` | `OwnedDocument::parse_with`: processes XInclude through the same resolver (`xinclude::process`); failures are `ErrorKind::XInclude`. Rejected by the borrowed DOM, streams and `TextReader`. |
+| `NONET`, `NO_SYS_CATALOG` | Accepted: nothing touches the network and there is no system catalog. |
+| `NODICT`, `COMPACT`, `BIG_LINES` | Accepted: storage layout only; positions are byte offsets. |
+| `NSCLEAN` | Drops a namespace declaration that rebinds a prefix to the URI it already has (every surface). |
+| `NOCDATA` | Reports CDATA sections as text, merged with adjacent text in trees (every surface). |
+| `NOXINCNODE` | Accepted: XInclude never adds start/end marker nodes. |
+| `OLD10`, `UNZIP`, `CATALOG_PI` | Rejected (pre-Fifth-Edition names, decompression and catalog PIs are not implemented). |
+| `NOBASEFIX` | With `XINCLUDE`, no `xml:base` fixup. |
+| `HUGE` | Raises token and DTD ceilings to 1 GB, depth to 2048 and entity depth to 40 (libxml2's huge values); larger caller limits stay. |
+| `IGNORE_ENC` | Ignores the declared encoding: UTF-8 (or the BOM-detected encoding) is kept. |
+| `NO_XXE` | Never loads the external subset or external entities, even with a resolver. |
+| `SKIP_IDS` | DOMs record no ID attributes (`element_by_id`, XPath `id()`). |
+
+### Entity references without `NOENT`
+
+libxml2's default keeps references: `xmlParseReference` calls the SAX
+`reference` callback, and the tree gets an `XML_ENTITY_REF_NODE` whose content
+is the entity's parsed nodes. yaxml keeps substituting internally, so limits
+and errors are identical in both modes, and reports the boundaries:
+
+- Streams emit `Event::EntityStart(name)`, the replacement's events, then
+  `Event::EntityEnd`, rather than a lone reference event, so a consumer that
+  ignores the two markers sees exactly the substituted stream. A reference
+  libxml2 keeps without content (an external entity that is not loaded, or
+  an undeclared one tolerated after an external subset or PE reference) is a
+  start immediately followed by its end.
+- `Document` and `OwnedDocument` build `EntityRef` nodes whose children are
+  the replacement's nodes (`entity_name()`); text on either side is not
+  merged across them. Each reference holds its own copy, expanded in its own
+  namespace scope, where libxml2 shares one parse of the entity.
+- `text_chunks` (`xmlNodeGetContent`) includes the replacement text.
+- XPath, like libxml2's axes and node tests, never selects a reference or
+  any node inside one; string values still include their text.
+- `save` writes `&name;` and, under `FORMAT`, treats a reference as text
+  when deciding indentation. The `Writer` writes the replacement content.
+- C14N fails with `c14n::Error::EntityReference`, as libxml2 rejects an
+  `XML_ENTITY_REF_NODE`.
+- DTD validation, RELAX NG and XML Schema validate through references (the
+  content model sees the replacement's children); libxml2's XML Schema
+  validator instead reports an internal error.
+- `TextReader` reports EntityReference nodes (type 5) and does not visit
+  their content; `expand` writes the content into the expanded copy.
+- XInclude does not look for inclusions inside references.
+- Known difference: attribute values are always substituted (the DOM value
+  is libxml2's `xmlGetProp` value), so `save` writes the substituted value
+  where libxml2 writes `a="&name;"`.
+
+Match observable success behavior first: event/tree shape, namespace identity, normalized values, text coalescing, entity visibility and serialization bytes where specified. Error code/domain/severity and position matter next. Exact human error wording, allocation count, callback text-chunk boundaries and historical recovery quirks need separate documented contracts; streaming may split text into different chunks while preserving concatenated content. HTML parser options, reader properties, save flags and schema options keep their own mappings (`html::Options`, `ParserProperty`, `save::Options`, `xinclude::Options`).
 
 ## Constraints and deliberate boundaries
 

@@ -7,8 +7,9 @@ The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
 value edits, leaf insertion and permanent subtree removal. Internal DTD subsets
-are processed (entities, default attributes, attribute normalization) and the
-declaration is reported as `Event::Doctype`. External subsets and entities
+are processed (entities, attribute normalization and, on request, default
+attributes) and the declaration is reported as `Event::Doctype`; entity
+references are kept or substituted as libxml2 options select. External subsets and entities
 load only through a caller-supplied `Resolver` (see below). Other encodings
 return structured errors.
 `Node::text_chunks` and `OwnedNode::text_chunks` visit string values without
@@ -212,10 +213,12 @@ assert_eq!(value, yaxml::xpath::Value::Number(3.0));
 
 Nothing outside the input is read unless the caller passes a `Resolver`
 (any `FnMut(Request) -> io::Result<Option<Vec<u8>>> + Send` closure, or the
-root-confined `FileResolver`) to `with_resolver` on any parser or DOM. It then
-loads the external subset and external parsed entities, like libxml2's
-`XML_PARSE_DTDLOAD | XML_PARSE_NOENT` with a custom resource loader; budgets
-are `Limits::max_external_loads` and `max_external_bytes`. DTD `ID` attributes
+root-confined `FileResolver`) in `ParseOptions`; the flags decide what loads
+(`DTDLOAD` the external subset, `NOENT` or `DTDVALID` external entities,
+never with `NO_XXE`). The `with_resolver` conveniences on every parser and DOM
+load both, like libxml2's `XML_PARSE_DTDLOAD | XML_PARSE_NOENT |
+XML_PARSE_DTDATTR` with a custom resource loader; budgets are
+`Limits::max_external_loads` and `max_external_bytes`. DTD `ID` attributes
 and `xml:id` back `element_by_id` and XPath `id()`.
 
 ```rust
@@ -431,16 +434,37 @@ fuzz coverage. A separate [matched structural benchmark](docs/validation-owned-s
 compares edit lifecycles with libxml2, including slower workloads and the
 differences in Text topology, validation and buffering.
 
-Entities and defaults declared in the internal subset follow libxml2's
-`XML_PARSE_NOENT | XML_PARSE_DTDATTR` behavior; see the
+Every parser and DOM takes one [`ParseOptions`](docs/compatibility.md#option-compatibility):
+libxml2's `xmlParserOption` bits (`yaxml::options::NOENT`, `DTDATTR`, ...,
+with libxml2's numeric values, so bindings can pass an existing `int`), the
+`Limits`, and an optional base and `Resolver`. `Reader::with_options`,
+`PushParser::with_options`, `BufferedReader::with_options`,
+`TextReader::with_options`, `Document::parse_with` and
+`OwnedDocument::parse_with` accept it; the other constructors are
+conveniences with no flags. A flag a surface does not implement is
+`ErrorKind::UnsupportedOption`, never silently ignored.
+
+The default is libxml2's: entity references stay in the tree and no DTD
+defaults are added. A reference in content becomes a `NodeKind::EntityRef`
+(`OwnedNodeKind::EntityRef`) node holding the replacement's nodes; streams
+bracket the replacement's events with `Event::EntityStart`/`EntityEnd`.
+String values see through references, XPath never selects them or their
+content, `save` writes `&name;` and the `Writer` writes the replacement.
+`NOENT` substitutes them, `DTDATTR` adds default attributes; see the
 [DOCTYPE section](docs/compatibility.md#document-type-declarations) for exact
 semantics and known differences:
 
 ```rust
+use yaxml::{Document, ParseOptions, options};
+
 let xml = "<!DOCTYPE r [<!ENTITY e '<b>x</b>'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
-let document = yaxml::Document::parse(xml)?;
-assert_eq!(document.doctype().unwrap().name, "r");
-assert_eq!(document.root_element().attributes()[0].value, "d");
-assert_eq!(document.root_element().text_chunks().collect::<String>(), "x");
+let kept = Document::parse(xml)?;
+let reference = kept.root_element().first_child().unwrap();
+assert_eq!(reference.entity_name(), Some("e"));
+assert!(kept.root_element().attributes().is_empty());
+assert_eq!(kept.root_element().text_chunks().collect::<String>(), "x");
+let complete = Document::parse_with(xml.as_bytes(), ParseOptions::new(options::NOENT | options::DTDATTR))?;
+assert_eq!(complete.root_element().attributes()[0].value, "d");
+assert_eq!(complete.root_element().first_child().unwrap().name().unwrap().local(), "b");
 # Ok::<(), yaxml::Error>(())
 ```

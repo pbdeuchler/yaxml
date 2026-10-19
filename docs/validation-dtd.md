@@ -105,10 +105,12 @@ cargo +nightly-2026-06-06 fuzz run valid fuzz/corpus/valid fuzz/corpus -- -max_t
 
 ## Differences from libxml2
 
-- Entities are always substituted, so an empty entity reference in an EMPTY
-  element is invisible (`rmt-e2e-15a`) and IDs inside entity replacement
-  text are registered (libxml2 with `NOENT` skips them).
-- Defaulted attributes are always present and validated, as
+- Validation sees through kept entity references (parsed without `NOENT`)
+  and checks the elements inside them once per reference, so an empty
+  entity reference in an EMPTY element is invisible (`rmt-e2e-15a`) and IDs
+  inside entity replacement text are registered (libxml2 with `NOENT` skips
+  them). `DTDVALID` validates the finished tree, not during parsing.
+- Defaulted attributes are present and validated with `DTDATTR`, as
   `xmllint --valid --dtdattr`.
 - Declarations in an external parameter entity referenced from the internal
   subset count as external, as XML 1.0 defines external markup; libxml2 files

@@ -19,8 +19,8 @@ The example accepts each filename as a separate testcase, or one testcase from s
 
 | Target | Driver entry | Surface |
 | --- | --- | --- |
-| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection |
-| `owned` | `exercise_owned` | `OwnedDocument` parsing and views against the borrowed DOM |
+| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection (entity markers included); a leading high-bit byte selects parser options (`fuzz/options.rs`) |
+| `owned` | `exercise_owned` | `OwnedDocument` parsing and views against the borrowed DOM; a leading high-bit byte selects parser options |
 | `push` | `exercise_push` | `PushParser` chunk schedules, `finish`, `read_from` |
 | `buffered` | `exercise_pull` | `BufferedReader` |
 | `writer` | `exercise_writer` | `Writer` event round trips, generated operations and sinks |
@@ -34,7 +34,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `c14n` | `exercise_c14n` | `c14n::to_string` modes, comments, node-sets and prefix lists |
 | `valid` | `exercise_valid` | DTD validation over both DOMs: raw input, input wrapped as an internal subset, or an external DTD and document split at NUL; identical diagnostics, determinism, offsets and `is_valid` |
 | `textreader` | `exercise_textreader` | `TextReader` node sequence, navigation, content strings, `expand`, `next` |
-| `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface; control byte `3` serves NUL-separated fuzz resources through an in-memory resolver and checks surface agreement and load/byte budgets |
+| `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface; control byte `3` serves NUL-separated fuzz resources through an in-memory resolver and checks surface agreement and load/byte budgets; a control byte with its high bit set also runs the options checks |
 | `uri` | `exercise_uri` | `yaxml::uri` parse, save, escape and resolution |
 | `regexp` | `exercise_regexp` | `yaxml::regexp` compile (syntax, budget) and `is_match` on a pattern line and value lines |
 | `datatypes` | `exercise_datatypes` | `yaxml::schema_types` parse, compare, equality and facets from a type, second-type and facet byte and NUL-separated texts |
