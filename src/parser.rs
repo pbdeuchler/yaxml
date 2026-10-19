@@ -380,6 +380,9 @@ impl<'source> ParserState<'source> {
     /// Recovery by the slice reader (`rereads`), which rereads a token from
     /// where libxml2 ends it (`take_rewind`) and, over input with
     /// `characters` outside `Char`, repairs them.
+    /// Field assignments, not struct-update syntax: rustc 1.95-1.96 miscompile
+    /// `Self { rereads, repairs_characters: rereads && characters, ..self }`
+    /// in release builds (tooling/simplify_comparison_scan.py).
     pub(crate) fn rereading(mut self, rereads: bool, characters: bool) -> Self {
         self.rereads = rereads && self.recovers();
         self.repairs_characters = self.rereads && characters;
