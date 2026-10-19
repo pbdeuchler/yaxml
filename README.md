@@ -222,6 +222,25 @@ assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`TextReader` is libxml2's `xmlTextReader` cursor (`xmlreader.h`) over any
+`BufRead`: node types and depths numbered as libxml2, attribute navigation,
+namespace/`xml:lang`/`xml:base` scope, `next`, `read_string`, inner/outer XML
+and `expand` to an `OwnedDocument`, in bounded memory. See the
+[TextReader contract](docs/textreader.md) for libxml2 agreement and gaps.
+
+```rust
+use yaxml::{NodeType, TextReader};
+
+let mut reader = TextReader::new(b"<r xmlns:p='urn:p'><p:i k='v'>x</p:i></r>".as_slice());
+while reader.read()? {
+    if reader.node_type() == NodeType::Element && reader.local_name() == Some("i") {
+        assert_eq!((reader.depth(), reader.get_attribute("k")), (1, Some("v")));
+        assert_eq!(reader.read_outer_xml()?.unwrap(), r#"<p:i xmlns:p="urn:p" k="v">x</p:i>"#);
+    }
+}
+# Ok::<(), yaxml::ReadError>(())
+```
+
 `yaxml::c14n` writes Canonical XML 1.0 and 1.1 and Exclusive XML
 Canonicalization 1.0 for either DOM, whole or as an XPath node-set, with
 libxml2's bytes; see the [C14N contract](docs/c14n.md).

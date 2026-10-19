@@ -50,6 +50,9 @@ mod html;
 #[path = "resolver.rs"]
 mod resolver;
 
+#[path = "textreader.rs"]
+mod textreader;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -72,6 +75,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_html(input);
     exercise_xpath(input);
     exercise_c14n(input);
+    exercise_textreader(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -340,6 +344,12 @@ pub fn exercise_xpath(input: &[u8]) {
 pub fn exercise_c14n(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     c14n::exercise(input);
+}
+
+/// Exercise the libxml2-style node cursor; see `textreader.rs` for the testcase format.
+pub fn exercise_textreader(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    textreader::exercise(input);
 }
 
 /// Exercise validated names and owned PI targets before XML/encoding dispatch.

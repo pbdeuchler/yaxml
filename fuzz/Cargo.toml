@@ -106,6 +106,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "textreader"
+path = "fuzz_targets/textreader.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "c14n"
 path = "fuzz_targets/c14n.rs"
 test = false
