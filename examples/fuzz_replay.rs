@@ -681,8 +681,8 @@ mod tests {
             },
         };
         assert_eq!(replay(b"<r/>", None).unwrap(), Comparison::NotCompared);
-        let mut mismatch = vec![0xff, 0xfe];
-        for unit in "<?xml version='1.0' encoding='UTF-8'?><r/>".encode_utf16() {
+        let mut mismatch = Vec::new();
+        for unit in "<?xml version='1.0'?><r/>".encode_utf16() {
             mismatch.extend_from_slice(&unit.to_le_bytes());
         }
         for input in [

@@ -216,7 +216,13 @@ fn recovery_decodes_utf16_like_utf8() {
         let [utf8, utf16] = [input.as_bytes(), &utf16]
             .map(|bytes| OwnedDocument::parse_with(bytes, ParseOptions::new(RECOVER)).unwrap());
         let kinds: Vec<_> = utf16.errors().iter().map(|error| error.kind).collect();
-        assert_eq!(kinds, errors, "{input}");
+        // A BOM-detected encoding outranks the label, so UTF-16 never
+        // reports a label it cannot switch to.
+        let errors: Vec<_> = errors
+            .iter()
+            .filter(|k| **k != UnsupportedEncoding)
+            .collect();
+        assert_eq!(kinds.iter().collect::<Vec<_>>(), errors, "{input}");
         let [utf8, utf16] = [utf8, utf16].map(|document| save::to_vec(&document, &options));
         assert_eq!(utf8, utf16, "{input}");
     }

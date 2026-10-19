@@ -905,25 +905,34 @@ impl<'source> ParserState<'source> {
                 false,
                 &mut |error| self.budget.recover(error),
             )?;
-            // `IGNORE_ENC` keeps the detected encoding, as libxml2's
-            // `xmlSetDeclaredEncoding` does, and records no label unless the
-            // input was auto-detected (a UTF-8 BOM; a mismatch reads "UTF-8").
-            // Recovery from a label it cannot switch to also drops it.
+            // An auto-detected encoding (a BOM, or the UTF-16 `<?` signature)
+            // is kept, as in libxml2's `xmlSetDeclaredEncoding`: a label
+            // outside its allowed set only warns and records the detected
+            // name. `IGNORE_ENC` keeps any detected encoding and records no
+            // label for BOM-less UTF-8. Recovery from a label it cannot
+            // switch to also drops it.
+            use crate::encoding::SourceEncoding::{Utf8, Utf16};
             let offset = encoding_offset.unwrap_or(start);
+            let auto: Option<(&[&str], &str)> = match self.encoding {
+                Utf8 if start != 0 => Some((&["UTF-8", "UTF8"], "UTF-8")),
+                Utf16 {
+                    little_endian: true,
+                    ..
+                } => Some((&["UTF-16", "UTF-16LE", "UTF16"], "UTF-16LE")),
+                Utf16 { .. } => Some((&["UTF-16", "UTF-16BE", "UTF16"], "UTF-16BE")),
+                _ => None,
+            };
             self.encoding = match declaration.encoding {
-                Some(label) if self.flags.ignores_encoding() => {
-                    declaration.encoding = match self.encoding {
-                        crate::encoding::SourceEncoding::Utf8 if start == 0 => None,
-                        crate::encoding::SourceEncoding::Utf8 => Some(
-                            if label.eq_ignore_ascii_case("UTF-8")
-                                || label.eq_ignore_ascii_case("UTF8")
-                            {
+                Some(label) if auto.is_some() || self.flags.ignores_encoding() => {
+                    declaration.encoding = match auto {
+                        Some((allowed, name)) => {
+                            Some(if allowed.iter().any(|a| a.eq_ignore_ascii_case(label)) {
                                 label
                             } else {
-                                "UTF-8"
-                            },
-                        ),
-                        _ => Some(label),
+                                name
+                            })
+                        }
+                        None => (self.encoding != Utf8).then_some(label),
                     };
                     self.encoding
                 }
@@ -2543,12 +2552,6 @@ fn validate_encoding(
         (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {
             return Ok(SourceEncoding::Byte(table));
         }
-        (SourceEncoding::Utf16 { little_endian, bom }, Some(Charset::Utf16(order)))
-            if order.map_or(bom, |order| order == little_endian) =>
-        {
-            return Ok(source);
-        }
-        (SourceEncoding::Utf16 { .. }, Some(_)) => ErrorKind::EncodingMismatch,
         _ => ErrorKind::UnsupportedEncoding,
     };
     Err(Error::new(kind, offset))

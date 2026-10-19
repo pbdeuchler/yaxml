@@ -401,11 +401,7 @@ fn declaration_spelling_and_bomless_endian_agreement_survive_suspension() {
             assert_eq!(events[1].1.end, bytes.len());
         }
     }
-    for (label, expected) in [
-        ("UTF-8", ErrorKind::EncodingMismatch),
-        ("unknown", ErrorKind::UnsupportedEncoding),
-        ("16UTF", ErrorKind::InvalidDeclaration),
-    ] {
+    for (label, expected) in [("16UTF", ErrorKind::InvalidDeclaration)] {
         for encoding in [Encoding::Little, Encoding::Big] {
             let bytes = encoding.encode(&format!("<?xml version='1.0' encoding='{label}'?><r/>"));
             let mut reader = BufferedReader::new(Window::new(&bytes, 1, bytes.len()));

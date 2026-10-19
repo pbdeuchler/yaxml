@@ -288,13 +288,13 @@ fn encoding_labels_and_declaration_grammar_are_independent_checks() {
             (true, Some("uTf-16"), None),
             (true, Some(matching), None),
             (false, Some(matching), None),
-            (true, Some(opposite), Some(ErrorKind::EncodingMismatch)),
-            (false, Some(opposite), Some(ErrorKind::EncodingMismatch)),
-            (false, Some("UTF-16"), Some(ErrorKind::EncodingMismatch)),
-            (true, Some("UTF-8"), Some(ErrorKind::EncodingMismatch)),
+            (true, Some(opposite), None),
+            (false, Some(opposite), None),
+            (false, Some("UTF-16"), None),
+            (true, Some("UTF-8"), None),
             (true, Some("UTF16"), None),
-            (true, Some("UCS-2"), Some(ErrorKind::UnsupportedEncoding)),
-            (true, Some("ISO-8859-1"), Some(ErrorKind::EncodingMismatch)),
+            (true, Some("UCS-2"), None),
+            (true, Some("ISO-8859-1"), None),
             (true, Some("16UTF"), Some(ErrorKind::InvalidDeclaration)),
             (true, Some("UTF 16"), Some(ErrorKind::InvalidDeclaration)),
         ] {
@@ -318,7 +318,18 @@ fn encoding_labels_and_declaration_grammar_are_independent_checks() {
                                 .unwrap()
                                 .declaration()
                                 .and_then(|d| d.encoding),
-                            label
+                            // A label outside the allowed set records the
+                            // detected encoding (libxml2 warns and keeps it).
+                            label.map(|label| {
+                                if ["UTF-16", "UTF16", matching]
+                                    .iter()
+                                    .any(|a| a.eq_ignore_ascii_case(label))
+                                {
+                                    label
+                                } else {
+                                    matching
+                                }
+                            })
                         );
                     }
                 }

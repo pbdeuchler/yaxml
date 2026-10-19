@@ -490,41 +490,6 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
             },
             None,
         ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: false,
-                bom: true,
-            },
-            Some("uTf-16"),
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: true,
-                bom: false,
-            },
-            Some("UTF-16LE"),
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: false,
-                bom: false,
-            },
-            Some("utf-16be"),
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: true,
-                bom: true,
-            },
-            Some("UTF16"),
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: false,
-                bom: false,
-            },
-            Some("unicodeFFFE"),
-        ),
         (SourceEncoding::Utf8, Some("utf8")),
     ] {
         assert_eq!(validate_encoding(encoding, false, label, 11), Ok(encoding));
@@ -550,49 +515,9 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
         (
             SourceEncoding::Utf16 {
                 little_endian: true,
-                bom: true,
-            },
-            Some("UTF-8"),
-            ErrorKind::EncodingMismatch,
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: false,
-                bom: true,
-            },
-            Some("UTF-16LE"),
-            ErrorKind::EncodingMismatch,
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: true,
-                bom: false,
-            },
-            Some("UTF-16"),
-            ErrorKind::EncodingMismatch,
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: true,
                 bom: false,
             },
             None,
-            ErrorKind::EncodingMismatch,
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: true,
-                bom: true,
-            },
-            Some("UCS-2"),
-            ErrorKind::UnsupportedEncoding,
-        ),
-        (
-            SourceEncoding::Utf16 {
-                little_endian: true,
-                bom: true,
-            },
-            Some("ISO-8859-1"),
             ErrorKind::EncodingMismatch,
         ),
         (

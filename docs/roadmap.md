@@ -340,7 +340,7 @@ Audit of every feature row in [compatibility.md](compatibility.md) against `src/
 7. Context reuse/reset and capability reporting (`xmlCtxtReset`, `xmlCtxtResetPush`, `xmlCtxtSetOptions`, `xmlHasFeature`, `xmlCheckVersion`, version constants) - S - bindings (probe modules, amortize setup); no hook exists today.
 8. Public DTD and entity model (`xmlGetDocEntity`, `xmlGetPredefinedEntity`, `xmlGetDtdElementDesc`, `xmlGetDtdAttrDesc`, `xmlGetDtdNotationDesc`, `xmlEncodeEntities*`) - M - migration; the parsed declarations are held privately in `valid::Dtd`.
 9. Caller-supplied character converters (`xmlCtxtSetCharEncConvImpl`, `xmlRegisterCharEncodingHandler`, `xmlFindCharEncodingHandler`) - M - migration for Shift_JIS, EUC-JP, ISO-2022-JP, GBK and other iconv-only labels without bundling tables, keeping the core dependency-free.
-10. Built-in decoders for the libxml2 names still rejected: UCS-4 (four byte orders), UCS-2, IBM037/EBCDIC - S each - migration; UTF-16 and single-byte input on the borrowed `Reader`/`Document` (44 XMLTS gaps) - M.
+10. Migration; UTF-16 and single-byte input on the borrowed `Reader`/`Document` (44 XMLTS gaps) - M.
 11. `RECOVER` and `NOBLANKS` on `PushParser`, `BufferedReader` and `TextReader` (`xmlParseChunk` with `XML_PARSE_RECOVER`) - M - migration (lxml-style recover over streams).
 12. DTD validation while streaming (`xmlTextReaderSetParserProp(VALIDATE)`, `xmlTextReaderPreserve`, `ReadAttributeValue`, `Close`) - M - migration for `xmlTextReader` users.
 13. Fragment and in-context parsing (`xmlCtxtParseContent`, `xmlParseInNodeContext`, `xmlParseBalancedChunkMemory`) - M, needs 4 and 5 - migration; removes a reason for callers to string-splice XML.
