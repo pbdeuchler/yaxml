@@ -12,6 +12,8 @@ use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, Sou
 /// `finish` declares final EOF and validates the complete document. Text is
 /// emitted once per lexical run, so event boundaries do not depend on chunks.
 /// A callback can borrow its event only for the call; copy values to retain them.
+/// Start-tag attribute lists are lent from storage the parser reuses
+/// ([`Attributes::Borrowed`](crate::Attributes)); `into_owned` keeps one.
 ///
 /// Source tokens are limited by `max_token_bytes`; decoded scratch tokens have
 /// the separate `DecodeLimits` ceiling. Retained names, namespace
