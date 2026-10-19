@@ -232,3 +232,76 @@ fn decoded_ceilings_count_utf8_output() {
         Err(error(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0))
     );
 }
+
+/// A declared byte charset is decoded as a stream: the borrowing DOM validates
+/// UTF-8 up front, while owning/streaming parsers meet ceilings in token order.
+#[test]
+fn declared_charset_errors_follow_token_order_and_borrowing_utf8_precedes() {
+    let valid = b"<?xml version='1.0' encoding='latin1'?><r>\xe9</r>";
+    let bad_decl = b"<?xml version='1.0' encoding='latin1'\xe9?><r/>";
+    let limit = |max_token_bytes| Limits {
+        max_token_bytes,
+        ..Limits::default()
+    };
+    let token = ErrorKind::LimitExceeded(Limit::TokenBytes);
+    // (input, limits, borrowed, streaming)
+    for (input, limits, borrowed, streaming) in [
+        (
+            &valid[..],
+            Limits::default(),
+            Some(error(ErrorKind::InvalidUtf8, 42)),
+            None,
+        ),
+        (
+            &valid[..],
+            limit(100),
+            Some(error(ErrorKind::InvalidUtf8, 42)),
+            None,
+        ),
+        (
+            &valid[..],
+            limit(10),
+            Some(error(ErrorKind::InvalidUtf8, 42)),
+            Some(error(token, 0)),
+        ),
+        (
+            &bad_decl[..],
+            Limits::default(),
+            Some(error(ErrorKind::InvalidUtf8, 37)),
+            Some(error(ErrorKind::InvalidUtf8, 37)),
+        ),
+        (
+            &bad_decl[..],
+            limit(10),
+            Some(error(ErrorKind::InvalidUtf8, 37)),
+            Some(error(token, 0)),
+        ),
+    ] {
+        let label = format!("{:?} {limits:?}", String::from_utf8_lossy(input));
+        assert_eq!(
+            Document::with_limits(input, limits).err(),
+            borrowed,
+            "{label}"
+        );
+        assert_eq!(
+            OwnedDocument::with_limits(input, limits).err(),
+            streaming,
+            "{label}"
+        );
+        let mut parser = PushParser::with_limits(limits);
+        let pushed = parser
+            .feed(input, |_, _| ControlFlow::Continue(()))
+            .and_then(|()| parser.finish(|_, _| ControlFlow::Continue(())));
+        assert_eq!(pushed.err(), streaming, "push {label}");
+        let mut reader = BufferedReader::with_limits(Cursor::new(input), limits);
+        let buffered = loop {
+            match reader.read_event() {
+                Ok(Some(_)) => {}
+                Ok(None) => break None,
+                Err(ReadError::Xml(error)) => break Some(error),
+                Err(other) => panic!("{other}"),
+            }
+        };
+        assert_eq!(buffered, streaming, "buffered {label}");
+    }
+}
