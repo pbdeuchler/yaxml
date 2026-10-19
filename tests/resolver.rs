@@ -15,6 +15,9 @@ use yaxml::{
 };
 
 type Log = Arc<Mutex<Vec<String>>>;
+/// Resolved URI and contents.
+type Files<'a> = &'a [(&'a str, &'a str)];
+type Served = Result<Option<&'static [u8]>, io::ErrorKind>;
 
 /// Serves `files` by resolved URI and records every request; `fail` errors.
 fn memory(files: &[(&str, &str)], log: &Log) -> Box<dyn Resolver> {
@@ -119,7 +122,7 @@ fn all(input: &str, files: &[(&str, &str)], limits: Limits) -> Result<String, Er
 
 #[test]
 fn external_subsets_and_entities_load_and_expand_on_every_surface() {
-    let cases: &[(&str, &[(&str, &str)], &str)] = &[
+    let cases: &[(&str, Files, &str)] = &[
         (
             "<!DOCTYPE r SYSTEM 's.dtd'><r>&e;</r>",
             &[(
@@ -224,7 +227,7 @@ fn resolver_receives_resolved_uris_public_ids_and_remaining_bytes() {
 
 #[test]
 fn malformed_or_refused_external_resources_fail() {
-    let cases: &[(&str, &[(&str, &str)], ErrorKind)] = &[
+    let cases: &[(&str, Files, ErrorKind)] = &[
         (
             "<!DOCTYPE r SYSTEM 'fail'><r/>",
             &[],
@@ -319,10 +322,10 @@ fn external_resources_share_the_document_budgets() {
         .iter()
         .map(|(uri, text)| (uri.as_str(), text.as_str()))
         .collect();
-    let cases: Vec<(String, Vec<(&str, &str)>, Limits, ErrorKind)> = vec![
+    let cases: [(String, Files, Limits, ErrorKind); 4] = [
         (
             laughs,
-            files,
+            &files,
             Limits {
                 max_entity_expansion_bytes: 64 * 1024,
                 ..Limits::default()
@@ -331,7 +334,7 @@ fn external_resources_share_the_document_budgets() {
         ),
         (
             "<!DOCTYPE r [<!ENTITY a SYSTEM 'a'><!ENTITY b SYSTEM 'b'>]><r>&a;&b;</r>".into(),
-            vec![("dir/a", "1"), ("dir/b", "2")],
+            &[("dir/a", "1"), ("dir/b", "2")],
             Limits {
                 max_external_loads: 1,
                 ..Limits::default()
@@ -340,7 +343,7 @@ fn external_resources_share_the_document_budgets() {
         ),
         (
             "<!DOCTYPE r [<!ENTITY a SYSTEM 'a'>]><r>&a;</r>".into(),
-            vec![("dir/a", "huge")],
+            &[("dir/a", "huge")],
             Limits {
                 max_external_bytes: 3,
                 ..Limits::default()
@@ -349,7 +352,7 @@ fn external_resources_share_the_document_budgets() {
         ),
         (
             "<!DOCTYPE r [<!ENTITY % a SYSTEM 'a'>%a;]><r/>".into(),
-            vec![("dir/a", "<!ENTITY % b SYSTEM 'b'>%b;"), ("dir/b", "")],
+            &[("dir/a", "<!ENTITY % b SYSTEM 'b'>%b;"), ("dir/b", "")],
             Limits {
                 max_entity_depth: 1,
                 ..Limits::default()
@@ -358,7 +361,7 @@ fn external_resources_share_the_document_budgets() {
         ),
     ];
     for (input, files, limits, kind) in cases {
-        assert_eq!(all(&input, &files, limits), Err(kind), "{input}");
+        assert_eq!(all(&input, files, limits), Err(kind), "{input}");
     }
     // At the ceilings, the same kind of document succeeds.
     let ok = Limits {
@@ -425,7 +428,7 @@ fn file_resolver_stays_inside_its_root() {
     let canonical = root.canonicalize().unwrap();
     let file_uri = format!("file://{}/inside.ent", canonical.display());
     let absolute = format!("{}/sub/nested.ent", canonical.display());
-    let cases: Vec<(&str, Result<Option<&[u8]>, io::ErrorKind>)> = vec![
+    let cases: [(&str, Served); 12] = [
         ("inside.ent", Ok(Some(b"inside"))),
         ("sub/../sub/nested.ent", Ok(Some(b"nested"))),
         (&file_uri, Ok(Some(b"inside"))),
