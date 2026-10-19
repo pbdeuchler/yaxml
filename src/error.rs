@@ -62,11 +62,9 @@ pub enum ErrorKind {
     TextOutsideRoot,
     InvalidDeclaration,
     UnsupportedEncoding,
-    /// A requested parser option or property is not implemented.
+    /// A requested parser option, flag or property is unknown or not implemented.
     UnsupportedOption,
     EncodingMismatch,
-    /// A parser option flag that is unknown or not implemented.
-    UnsupportedOption,
     LimitExceeded(Limit),
     Allocation,
     /// The non-recycled owned-document identity space is exhausted.
