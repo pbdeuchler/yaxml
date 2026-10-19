@@ -41,6 +41,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `pattern` | `exercise_pattern` | `pattern::Pattern` compile, `matches` on both DOMs, `StreamMatcher` against the DOM match |
 | `xinclude` | `exercise_xinclude` | `xinclude::process` over NUL-separated pieces (including document, then resources `0`..`9`), `xpointer::evaluate` |
 | `catalog` | `exercise_catalog` | `catalog::Catalog::parse`, `resolve`, `resolve_uri` and `CatalogResolver` over NUL-separated pieces (root catalog, then files `0`..`9`; the last piece also lists queries) |
+| `relaxng` | `exercise_relaxng` | `relaxng::Schema::parse` and `validate` over NUL-separated pieces (schema, instance, then `include`/`externalRef` files `0`..`9`): determinism, both DOMs, reuse, offsets, load and work budgets |
 
 ```sh
 cargo install cargo-fuzz

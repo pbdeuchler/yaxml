@@ -63,25 +63,24 @@ pub(super) fn restrictions(
         errors: Vec::new(),
     };
     checker.walk(start, START);
-    while let Some(element) = checker.queue.pop() {
+    while let Some(element) = checker.queue.pop()
+        && checker.budget > 0
+    {
         let (class, content) = tables.elements[element as usize];
         checker.walk(content, 0);
         if checker.content_type(content).is_none() {
             let name = tables.describe(class).unwrap_or("");
-            checker.errors.push((
-                SchemaCode::ElemContentError,
-                content,
-                format!("Element {name} has a content type error"),
-            ));
+            let message = format!("Element {name} has a content type error");
+            checker
+                .errors
+                .push((SchemaCode::ElemContentError, content, message));
         }
-        if checker.budget == 0 {
-            checker.errors.push((
-                SchemaCode::ResourceLimit,
-                start,
-                "schema work limit exceeded".into(),
-            ));
-            break;
-        }
+    }
+    if checker.budget == 0 {
+        let message = "schema work limit exceeded".into();
+        checker
+            .errors
+            .push((SchemaCode::ResourceLimit, start, message));
     }
     checker.errors
 }

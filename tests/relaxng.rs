@@ -77,7 +77,7 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<attribute name='a'><data type='int'/></attribute>",
         "<r a='x'/>",
-        &[Code::Attributes, Code::Attributes],
+        &[Code::Attributes],
     ),
     (
         "<attribute name='a'><data type='int'/></attribute>",
@@ -948,6 +948,13 @@ fn libxml2_relaxng_suite_verdicts_agree() {
             if ours.starts_with(oracle) {
                 agree += 1;
                 if oracle == "invalid" {
+                    if std::env::var_os("YAXML_RELAXNG_VERBOSE").is_some() {
+                        let theirs: Vec<_> = expected
+                            .lines()
+                            .filter_map(|l| l.split("validity error : ").nth(1))
+                            .collect();
+                        println!("{instance}: libxml2 {theirs:?}\n  yaxml {ours}");
+                    }
                     error_counts.0 += 1;
                     error_counts.1 += oracle_errors;
                     error_counts.2 += our_errors;

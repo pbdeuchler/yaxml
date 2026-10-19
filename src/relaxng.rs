@@ -1,28 +1,4 @@
-//! RELAX NG validation, the equivalent of libxml2 2.15.4's `relaxng.c`.
-//!
-//! [`Schema::parse`] reads the XML syntax, loads `include` and
-//! `externalRef` documents through the caller's [`Resolver`], simplifies the
-//! schema as RELAX NG section 4 specifies and checks the section 7
-//! restrictions. [`Schema::validate`] checks either DOM with James Clark's
-//! derivative algorithm over hash-consed patterns, so validation is
-//! polynomial and bounded by [`Limits::max_work`]. A schema is immutable,
-//! `Send + Sync` and reusable.
-//!
-//! ```
-//! use yaxml::relaxng::{Limits, Schema};
-//!
-//! let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"
-//!     datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
-//!   <oneOrMore><element name="i"><data type="int"/></element></oneOrMore>
-//! </element>"#;
-//! let none = |_: yaxml::Request<'_>| Ok(None);
-//! let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
-//! let valid = yaxml::Document::parse("<r><i>1</i><i>2</i></r>")?;
-//! assert!(schema.validate(&valid).is_empty());
-//! let invalid = yaxml::Document::parse("<r><i>x</i></r>")?;
-//! assert_eq!(schema.validate(&invalid)[0].code, yaxml::relaxng::Code::Datatype);
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
+#![doc = include_str!("../docs/relaxng.md")]
 
 mod check;
 mod compile;
@@ -307,11 +283,16 @@ impl Schema {
         let root =
             std::iter::successors(tree.first_child(tree.root()), |&id| tree.next_sibling(id))
                 .find(|&id| matches!(tree.item(id), Item::Element(_)));
-        if let Some(root) = root {
-            validator.run(root, self.start);
+        let Some(root) = root else {
+            return Vec::new();
+        };
+        validator.run(root, self.start);
+        if validator.deriver.exhausted() {
+            let message = "validation work limit exceeded".into();
+            validator.report(Code::Internal, root, message);
         }
         for (element, attribute, reference) in std::mem::take(&mut validator.references) {
-            if !validator.ids.contains(reference) {
+            if !validator.deriver.exhausted() && !validator.ids.contains(reference) {
                 let message =
                     format!("IDREF attribute {attribute} references an unknown ID \"{reference}\"");
                 validator.report(Code::UnknownId, element, message);
@@ -386,7 +367,10 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
         self.key.clear();
         self.key.extend([ns, "\0", local]);
         let next = self.keys.len() as u32;
-        let key = *self.keys.entry(self.key.clone()).or_insert(next);
+        let key = match self.keys.get(self.key.as_str()) {
+            Some(&key) => key,
+            None => *self.keys.entry(self.key.clone()).or_insert(next),
+        };
         Name { ns, local, key }
     }
 
@@ -405,12 +389,6 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
         stack.extend(self.open(root, start));
         while let Some(frame) = stack.last_mut() {
             if self.deriver.exhausted() {
-                let element = frame.element;
-                self.report(
-                    Code::Internal,
-                    element,
-                    "validation work limit exceeded".into(),
-                );
                 return;
             }
             let Some(child) = frame.next else {
@@ -444,7 +422,7 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
         let name = self.name(qname.namespace, qname.local);
         let opened = self.deriver.start_tag_open(pattern, name);
         if opened == NOT_ALLOWED && !self.deriver.exhausted() {
-            let (code, message) = self.unexpected(pattern, qname.qualified, name);
+            let (code, message) = self.unexpected(pattern, name);
             self.report(code, element, message);
             return None;
         }
@@ -472,29 +450,26 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
             let (code, message) = match known {
                 true => (
                     Code::Attributes,
-                    format!(
-                        "Element {} failed to validate attribute {}",
-                        qname.qualified, attribute.qualified
-                    ),
+                    format!("Element {} failed to validate attributes", qname.local),
                 ),
                 false => (
                     Code::InvalidAttribute,
                     format!(
                         "Invalid attribute {} for element {}",
-                        attribute.qualified, qname.qualified
+                        attribute.local, qname.local
                     ),
                 ),
             };
             self.report(code, element, message);
         }
+        // Missing attributes; after an attribute error, the dropped one is missing too.
         let mut closed = self.deriver.start_tag_close(current, false);
         if closed == NOT_ALLOWED && !self.deriver.exhausted() {
+            if !errored {
+                let message = format!("Element {} failed to validate attributes", qname.local);
+                self.report(Code::Attributes, element, message);
+            }
             errored = true;
-            self.report(
-                Code::Attributes,
-                element,
-                format!("Element {} failed to validate attributes", qname.qualified),
-            );
             closed = self.deriver.start_tag_close(current, true);
         }
         let first = tree.first_child(element);
@@ -557,10 +532,10 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
             return;
         }
         frame.errored = true;
-        let qualified = qualified(self.tree, frame.element);
+        let local = local_name(self.tree, frame.element);
         let unexpected = (
             Code::UnexpectedText,
-            format!("Did not expect text in element {qualified} content"),
+            format!("Did not expect text in element {local} content"),
         );
         let (code, message) = self.wanted(frame.pattern, unexpected);
         self.report(code, frame.element, message);
@@ -599,7 +574,7 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
             return ended;
         }
         if !frame.errored {
-            let qualified = qualified(self.tree, frame.element);
+            let local = local_name(self.tree, frame.element);
             let tables = self.deriver.tables;
             let missing =
                 self.deriver
@@ -622,7 +597,7 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
                     frame.pattern,
                     (
                         Code::Content,
-                        format!("Element {qualified} failed to validate content"),
+                        format!("Element {local} failed to validate content"),
                     ),
                 ),
             };
@@ -632,7 +607,8 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
     }
 
     /// Classifies an element that `pattern` does not allow.
-    fn unexpected(&self, pattern: Id, qualified: &str, name: Name<'_>) -> (Code, String) {
+    fn unexpected(&self, pattern: Id, name: Name<'_>) -> (Code, String) {
+        let element = name.local;
         let tables = self.deriver.tables;
         let expected: Vec<(&str, &str)> = (self.deriver.front(pattern).into_iter())
             .filter_map(|leaf| match leaf {
@@ -648,33 +624,33 @@ impl<'t, T: Navigate> Validator<'t, '_, T> {
         match (expected.iter()).find(|&&(ns, local)| local == name.local && ns != name.ns) {
             Some(("", _)) => (
                 Code::ElementExtraNamespace,
-                format!("Expecting no namespace for element {qualified}"),
+                format!("Expecting no namespace for element {element}"),
             ),
             Some((ns, _)) if name.ns.is_empty() => (
                 Code::ElementNoNamespace,
-                format!("Expecting a namespace for element {qualified}: {ns}"),
+                format!("Expecting a namespace for element {element}: {ns}"),
             ),
             Some((ns, _)) => (
                 Code::ElementWrongNamespace,
-                format!("Element {qualified} has wrong namespace: expecting {ns}"),
+                format!("Element {element} has wrong namespace: expecting {ns}"),
             ),
             None => match expected.as_slice() {
                 [(_, local)] if *local != name.local => (
                     Code::ElementName,
-                    format!("Expecting element {local}, got {qualified}"),
+                    format!("Expecting element {local}, got {element}"),
                 ),
                 _ => (
                     Code::UnexpectedElement,
-                    format!("Did not expect element {qualified} there"),
+                    format!("Did not expect element {element} there"),
                 ),
             },
         }
     }
 }
 
-fn qualified<T: Navigate>(tree: &T, element: T::Id) -> &str {
+fn local_name<T: Navigate>(tree: &T, element: T::Id) -> &str {
     match tree.item(element) {
-        Item::Element(name) => name.qualified,
+        Item::Element(name) => name.local,
         _ => "",
     }
 }
