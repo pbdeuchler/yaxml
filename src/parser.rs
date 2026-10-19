@@ -310,6 +310,11 @@ pub(crate) struct ParserState<'source> {
     budget: Budget,
     events: usize,
     flags: crate::options::Flags,
+    /// Recovery over input with characters outside `Char`, which libxml2
+    /// drops from text, replaces in attribute values and ends markup at.
+    repairs_characters: bool,
+    /// Recovery: where libxml2 reads on, as content, inside the latest token.
+    rewind: Option<usize>,
 }
 
 impl<'source> ParserState<'source> {
@@ -346,7 +351,30 @@ impl<'source> ParserState<'source> {
             budget: Budget::new(limits),
             events: 0,
             flags: crate::options::Flags::default(),
+            repairs_characters: false,
+            rewind: None,
         }
+    }
+
+    /// Recovery repairs characters outside `Char` (see `repairs_characters`).
+    pub(crate) fn repairing_characters(self) -> Self {
+        Self {
+            repairs_characters: self.recovers(),
+            ..self
+        }
+    }
+
+    /// Where the slice reader rereads the latest token's rest as content.
+    pub(crate) fn take_rewind(&mut self) -> Option<usize> {
+        self.rewind.take()
+    }
+
+    /// Recovery from a token that libxml2 ends at `at`, past `start`, and
+    /// whose rest it reads as content.
+    fn reread(&mut self, error: Error, start: usize, at: usize) -> Result<(), Error> {
+        self.budget.recover(error)?;
+        self.rewind = Some(at.max(start + 1));
+        Ok(())
     }
 
     pub(crate) fn set_initial_offset(&mut self, offset: usize) {
@@ -725,6 +753,16 @@ impl<'source> ParserState<'source> {
                 }
                 Ok(Some(Event::Text(self.normalized(raw, start, false, true)?)))
             }
+            // libxml2 ends a comment, PI or CDATA section at a character
+            // outside `Char` and reads on from there.
+            TokenKind::Comment | TokenKind::Cdata | TokenKind::Instruction
+                if self.repairs_characters
+                    && let Some(at) = crate::escape::invalid_char(raw) =>
+            {
+                let error = Error::new(ErrorKind::InvalidCharacter, start + at);
+                self.reread(error, start, start + at)?;
+                Ok(None)
+            }
             TokenKind::Comment => {
                 let body = delimited_body(raw, "<!--", "-->", start)?;
                 if crate::tokenizer::find(body.as_bytes(), b"--").is_some() || body.ends_with('-') {
@@ -783,12 +821,14 @@ impl<'source> ParserState<'source> {
         attribute: bool,
         references: bool,
     ) -> Result<Cow<'event, str>, Error> {
-        if !needs_normalization(raw, attribute, references) {
+        let characters = self.repairs_characters && crate::escape::invalid_char(raw).is_some();
+        if !characters && !needs_normalization(raw, attribute, references) {
             return Ok(Cow::Borrowed(raw));
         }
         self.budget.charge_owned(raw.len(), offset)?;
         let recover = |error| self.budget.recover(error);
-        normalize_into(raw, offset, attribute, references, String::new(), recover).map(Cow::Owned)
+        let modes = (attribute, references, characters);
+        normalize_into(raw, offset, modes, String::new(), recover).map(Cow::Owned)
     }
 
     fn instruction<'event>(
@@ -901,9 +941,10 @@ impl<'source> ParserState<'source> {
             let attribute = match scan.attribute(&mut |error| self.budget.recover(error)) {
                 Ok(Some(attribute)) => attribute,
                 Ok(None) => break,
-                // libxml2 ends the element at a malformed attribute.
+                // libxml2 ends the element at a malformed attribute and
+                // reads on from there.
                 Err(error) => {
-                    self.budget.recover(error)?;
+                    self.reread(error, start, error.offset)?;
                     empty = true;
                     break;
                 }
@@ -919,10 +960,20 @@ impl<'source> ParserState<'source> {
                 ));
             }
             let (prefix, local) = self.qname_parts(name, attribute.split, offset)?;
-            let value = if attribute.plain {
+            let value = if attribute.plain && !self.repairs_characters {
                 Cow::Borrowed(value)
             } else {
-                self.normalized(value, value_offset, true, true)?
+                match self.normalized(value, value_offset, true, true) {
+                    Ok(value) => value,
+                    // Recovery from a character reference libxml2 reads as
+                    // zero, which ends the element (see `normalize_into`).
+                    Err(error) if error.kind == ErrorKind::InvalidReference && self.recovers() => {
+                        self.rewind = Some(error.offset);
+                        empty = true;
+                        break;
+                    }
+                    Err(error) => return Err(error),
+                }
             };
             let declaration = if name == "xmlns" {
                 Some("")

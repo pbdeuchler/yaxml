@@ -41,13 +41,8 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     ("<r><a></b>x</a></r>", "<r><a/>x</r>", &[MismatchedEndTag; 3]),
     ("<r><a><b></a>t</r>", "<r><a><b/>t</a></r>", &[MismatchedEndTag, MismatchedEndTag, UnexpectedEof]),
     ("<r><a></a b>t</r>", "<r><a/>t</r>", &[Syntax]),
-    // the end of input closes what is open, a cut-off start tag included
+    // the end of input closes what is open
     ("<r><a>text", "<r><a>text</a></r>", &[UnexpectedEof]),
-    ("<r><x", "<r><x/></r>", &[UnexpectedEof; 2]),
-    // a malformed attribute ends the element there
-    ("<r a=\"1\"b=\"2\"><c/></r>", "<r a=\"1\"/>", &[Syntax, MultipleRoots]),
-    ("<r><a b=1>x</a></r>", "<r><a/>x</r>", &[Syntax, MismatchedEndTag, MismatchedEndTag]),
-    ("<A@/>", "<A/>", &[InvalidName, Syntax]),
     ("<r><a b=\"x<y\"/></r>", "<r><a b=\"x&lt;y\"/></r>", &[Syntax]),
     // duplicates are kept, as libxml2 keeps them
     ("<r a=\"1\" a=\"2\"/>", "<r a=\"1\" a=\"2\"/>", &[DuplicateAttribute]),
@@ -95,9 +90,29 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     // ... else the DOCTYPE keeps the declarations before the error, and the
     // document resumes there: at markup that is no declaration
     ("<!DOCTYPE r [<r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
-    // the valid prefix before an invalid character or UTF-8 sequence is kept
-    ("<r>a\u{1}b</r>", "<r>a</r>", &[InvalidCharacter]),
-    ("<r a='\u{1}'/>", "<r/>", &[UnexpectedEof, UnexpectedEof, InvalidCharacter]),
+];
+
+/// Repairs only the slice reader makes (UTF-8 input without a DOCTYPE):
+/// (input, saved after the declaration, errors).
+#[rustfmt::skip]
+const SLICE: &[(&str, &str, &[ErrorKind])] = &[
+    // a start tag cut off by the end of input is an empty element
+    ("<r><x", "<r><x/></r>", &[UnexpectedEof; 2]),
+    // a malformed attribute ends the element there, and libxml2 reads on
+    // from the error, the rest of the tag as text
+    ("<r a=\"1\"b=\"2\"><c/></r>", "<r a=\"1\"/>", &[Syntax, TextOutsideRoot]),
+    ("<r><a b=1>x</a></r>", "<r><a/>1&gt;x</r>", &[Syntax, MismatchedEndTag, MismatchedEndTag]),
+    ("<A@/>", "<A/>", &[InvalidName, Syntax, TextOutsideRoot]),
+    // ... as is one with a character reference libxml2 reads as zero
+    ("<r><a b=\"x&#0;y\" c=\"1\">t</a></r>", "<r><a/>y\" c=\"1\"&gt;t</r>", &[InvalidReference, MismatchedEndTag, MismatchedEndTag]),
+    ("<r><a b=\"x&#12a;y\">t</a></r>", "<r><a/>a;y\"&gt;t</r>", &[InvalidReference, MismatchedEndTag, MismatchedEndTag]),
+    // a character outside `Char` is dropped from text, U+FFFD in a value,
+    // and ends a comment, PI or CDATA section, read on from as text
+    ("<r>a\u{1}b</r>", "<r>ab</r>", &[InvalidCharacter]),
+    ("<r a='x\u{1}y'/>", "<r a=\"x&#xFFFD;y\"/>", &[InvalidCharacter]),
+    ("<r><!-- a\u{c} b --></r>", "<r> b --&gt;</r>", &[InvalidCharacter; 2]),
+    ("<r><?pi a\u{c} b?></r>", "<r> b?&gt;</r>", &[InvalidCharacter; 2]),
+    ("<r><![CDATA[x\u{2}y]]>z</r>", "<r>y]]&gt;z</r>", &[InvalidCharacter, Syntax, InvalidCharacter]),
 ];
 
 /// Inputs from which, as in libxml2, no element is recovered: (input, saved
@@ -120,7 +135,7 @@ const ROOTLESS: &[(&str, &str, &[ErrorKind])] = &[
 
 #[test]
 fn recovery_builds_libxml2s_tree_and_lists_the_errors() {
-    for &(input, saved, errors) in CASES {
+    for &(input, saved, errors) in CASES.iter().chain(SLICE) {
         let expected = (format!("{DECL}{saved}\n"), errors.to_vec());
         assert_eq!(recover(input.as_bytes(), 0), Ok(expected), "{input}");
         let strict = Document::parse(input).map(drop).map_err(|error| error.kind);
@@ -132,19 +147,44 @@ fn recovery_builds_libxml2s_tree_and_lists_the_errors() {
 }
 
 #[test]
-fn recovery_reads_invalid_utf8_up_to_the_sequence() {
-    let input = b"<r>ab\xffcd</r>";
-    let expected = format!("{DECL}<r>ab</r>\n");
-    assert_eq!(recover(input, 0), Ok((expected, vec![InvalidUtf8])));
+fn recovery_reads_invalid_utf8_as_libxml2() {
+    // (input, owned DOM saved after the declaration): libxml2 reads each
+    // byte that starts no UTF-8 sequence as U+FFFD, also inside a name.
+    #[rustfmt::skip]
+    let cases: &[(&[u8], &str)] = &[
+        (b"<r>ab\xffcd</r>", "<r>ab&#xFFFD;cd</r>"),
+        (b"<r a=\"x\xffy\"><![CDATA[\xc3]]><!--\xed\xa0\x80--></r>",
+         "<r a=\"x&#xFFFD;y\"><![CDATA[\u{fffd}]]><!--\u{fffd}\u{fffd}\u{fffd}--></r>"),
+        (b"<r>\xf0\x90\x80x</r>", "<r>&#xFFFD;&#xFFFD;&#xFFFD;x</r>"),
+        (b"<r\xff/>", "<r\u{fffd}/>"),
+    ];
+    let options = || ParseOptions::new(RECOVER);
+    for &(input, saved) in cases {
+        let owned = OwnedDocument::parse_with(input, options()).unwrap();
+        let kinds: Vec<_> = owned.errors().iter().map(|error| error.kind).collect();
+        assert_eq!(kinds, [InvalidUtf8], "{input:?}");
+        let bytes = save::to_vec(&owned, &Default::default()).unwrap();
+        assert_eq!(
+            String::from_utf8(bytes).unwrap(),
+            format!("{DECL}{saved}\n")
+        );
+    }
+    // The borrowed DOM, which borrows its text, keeps what precedes it.
+    let borrowed = Document::parse_with(b"<r>ab\xffcd</r>", options()).unwrap();
+    let saved = save::to_vec(&borrowed, &Default::default()).unwrap();
+    assert_eq!(
+        String::from_utf8(saved).unwrap(),
+        format!("{DECL}<r>ab</r>\n")
+    );
+    assert_eq!(borrowed.errors()[0].kind, InvalidUtf8);
+    // Without RECOVER, it is an error.
+    let strict = OwnedDocument::parse_bytes(b"<r>ab\xffcd</r>").map(drop);
+    assert_eq!(strict.map_err(|error| error.kind), Err(InvalidUtf8));
 }
 
 #[test]
 fn recovery_decodes_utf16_like_utf8() {
-    // Only the slice reader passes a start tag cut off by the end of input,
-    // and keeps text up to an invalid character rather than up to its token.
-    let decoded = |case: &&(&str, &str, &[ErrorKind])| {
-        case.0.is_ascii() && case.0 != "<r><x" && !case.2.contains(&InvalidCharacter)
-    };
+    let decoded = |case: &&(&str, &str, &[ErrorKind])| case.0.is_ascii();
     let options = save::Options {
         encoding: Some("UTF-8"),
         ..Default::default()

@@ -332,9 +332,11 @@ pub struct Reader<'a> {
     physical: usize,
     failure: Option<Error>,
     finished: bool,
-    /// Under `RECOVER`, the invalid character or UTF-8 sequence that ends
-    /// the parsed prefix of the input.
+    /// Under `RECOVER`, the invalid UTF-8 sequence that ends the parsed
+    /// prefix of the input, and the earlier character outside `Char` that
+    /// ends it after a DOCTYPE.
     cut: Option<Error>,
+    dtd_cut: Option<Error>,
 }
 
 impl<'a> Reader<'a> {
@@ -367,13 +369,17 @@ impl<'a> Reader<'a> {
         flags: Flags,
         options: ParseOptions,
     ) -> Result<Self, Error> {
-        let (ordinary, cut) = SliceReader::with_decode_limits(input, limits, decode, flags)?;
+        let (ordinary, cut, character) =
+            SliceReader::with_decode_limits(input, limits, decode, flags)?;
+        // The DTD stack does not repair characters: it reads the prefix
+        // before the first one outside `Char`.
+        let dtd_cut = character.or(cut);
         let base = options.base.as_deref().unwrap_or_default();
         let loader = options
             .resolver
             .map(|resolver| Loader::new(base, resolver, &limits).with_flags(flags));
         Ok(Self {
-            source: ordinary.input,
+            source: &ordinary.input[..dtd_cut.map_or(ordinary.input.len(), |cut| cut.offset)],
             physical: ordinary.position(),
             ordinary: Some(ordinary),
             session: Vec::new(),
@@ -390,6 +396,7 @@ impl<'a> Reader<'a> {
             failure: None,
             finished: false,
             cut,
+            dtd_cut,
         })
     }
 
@@ -469,7 +476,11 @@ impl<'a> Reader<'a> {
             None => self.read_session(),
         };
         // Reading the prefix before a cut ends with the cut's error.
-        let result = match (result, self.cut) {
+        let cut = match self.ordinary {
+            Some(_) => self.cut,
+            None => self.dtd_cut,
+        };
+        let result = match (result, cut) {
             (Ok(None), Some(cut)) => Err(cut),
             (Err(error), Some(cut)) if error.offset >= cut.offset => Err(cut),
             (result, _) => result,
@@ -590,12 +601,14 @@ struct SliceReader<'a> {
 }
 
 impl<'a> SliceReader<'a> {
+    /// The reader and, under `RECOVER`, the invalid UTF-8 that ends its
+    /// input and the first character outside `Char`, which it repairs.
     fn with_decode_limits(
         input: &'a [u8],
         limits: Limits,
         decode: DecodeLimits,
         flags: Flags,
-    ) -> Result<(Self, Option<Error>), Error> {
+    ) -> Result<(Self, Option<Error>, Option<Error>), Error> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
@@ -615,12 +628,11 @@ impl<'a> SliceReader<'a> {
         };
         let character = invalid_char(input).map(|i| Error::new(ErrorKind::InvalidCharacter, i));
         // Strict parsing reports invalid UTF-8 first; recovery parses the
-        // prefix before the earliest error, which ends the document.
-        let cut = match utf8.or(character) {
-            Some(error) if !flags.recovers() => return Err(error),
-            found => character.or(found),
-        };
-        let input = &input[..cut.map_or(input.len(), |cut| cut.offset)];
+        // prefix before invalid UTF-8, which ends the document, and repairs
+        // characters outside `Char` as libxml2 does.
+        if let Some(error) = utf8.or(character).filter(|_| !flags.recovers()) {
+            return Err(error);
+        }
         let initial = if input.starts_with('\u{feff}') { 3 } else { 0 };
         if input.len() - initial > decode.max_decoded_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
@@ -630,7 +642,12 @@ impl<'a> SliceReader<'a> {
             cursor: initial,
             origin: None,
             doctype: None,
-            state: ParserState::new(limits, initial).with_flags(flags),
+            state: match character {
+                Some(_) => ParserState::new(limits, initial)
+                    .with_flags(flags)
+                    .repairing_characters(),
+                None => ParserState::new(limits, initial).with_flags(flags),
+            },
             limits,
             token_limit_kind: Limit::TokenBytes,
         };
@@ -643,7 +660,7 @@ impl<'a> SliceReader<'a> {
                 decode.max_decoded_token_bytes,
             );
         }
-        Ok((reader, cut))
+        Ok((reader, utf8, character))
     }
 
     fn position(&self) -> usize {
@@ -736,7 +753,8 @@ impl<'a> SliceReader<'a> {
                 )
             });
             if result.is_ok() || consumed_error {
-                self.cursor = end;
+                // Recovery rereads the rest of a token libxml2 ends early.
+                self.cursor = self.state.take_rewind().unwrap_or(end);
             }
             let event = result?;
             if let Some(event) = event {

@@ -583,7 +583,22 @@ impl OwnedDocument {
             let errors = Budget::conclude(parser.budget(), end)?;
             builder.finish(parser.position(), parser.catalog(), flags, errors)?
         } else {
-            let mut reader = Reader::configured(input, limits, decode, flags, options)?;
+            // Recovery reads invalid UTF-8 as libxml2 does; offsets then
+            // count the repaired text.
+            let repaired = flags
+                .recovers()
+                .then(|| crate::encoding::repair_utf8(input));
+            let repaired = repaired.flatten().transpose()?;
+            let source = repaired.as_ref().map_or(input, |(text, _)| text.as_bytes());
+            let max_input_bytes = limits.max_input_bytes.max(source.len());
+            let read = Limits {
+                max_input_bytes,
+                ..limits
+            };
+            let mut reader = Reader::configured(source, read, decode, flags, options)?;
+            if let Some((_, error)) = repaired {
+                reader.owned_budget().recover(error)?;
+            }
             let end = loop {
                 let event = match reader.read_event() {
                     Ok(Some(event)) => event,

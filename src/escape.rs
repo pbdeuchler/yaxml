@@ -47,28 +47,30 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
 /// XML end-of-line and CDATA attribute normalization into `out`, which is
 /// cleared first. References are expanded after literal whitespace
 /// normalization: &#xA; must remain a newline. A malformed reference is
-/// `recover`ed from by dropping it as far as libxml2 reads it.
+/// `recover`ed from by dropping it as far as libxml2 reads it, except that
+/// an attribute value fails at a character reference libxml2 reads as zero
+/// (an `InvalidReference` error at the offset where libxml2 reads on).
+/// With `characters`, a character outside `Char` is `recover`ed from as
+/// libxml2 does: dropped from text, U+FFFD in an attribute value.
 pub(crate) fn normalize_into(
     raw: &str,
     offset: usize,
-    attribute: bool,
-    references: bool,
+    (attribute, references, characters): (bool, bool, bool),
     out: String,
     recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
-    normalize(raw, offset, attribute, references, true, out, recover)
+    let modes = (attribute, references, true, characters);
+    normalize(raw, offset, modes, out, recover)
 }
 
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    normalize(raw, offset, false, true, false, String::new(), Err)
+    normalize(raw, offset, (false, true, false, false), String::new(), Err)
 }
 
 fn normalize(
     raw: &str,
     offset: usize,
-    attribute: bool,
-    references: bool,
-    physical_eol: bool,
+    (attribute, references, physical_eol, characters): (bool, bool, bool, bool),
     mut out: String,
     mut recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<String, Error> {
@@ -77,13 +79,19 @@ fn normalize(
         .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
     let bytes = raw.as_bytes();
     // Unchanged runs between special bytes are copied whole; every special
-    // byte is ASCII, so run boundaries are character boundaries.
+    // byte starts a character, so run boundaries are character boundaries.
     let (mut run, mut i) = (0, 0);
     while let Some(&byte) = bytes.get(i) {
         let special = match byte {
             b'&' => references,
             b'\r' => physical_eol,
             b'\n' | b'\t' => attribute,
+            0..0x20 | 0xef => {
+                characters
+                    && (byte != 0xef
+                        || bytes.get(i + 1) == Some(&0xbf)
+                            && matches!(bytes.get(i + 2), Some(0xbe | 0xbf)))
+            }
             _ => false,
         };
         if !special {
@@ -106,6 +114,10 @@ fn normalize(
                     Err(error) => {
                         recover(error)?;
                         let (value, end) = malformed_reference(&raw[start..]);
+                        if attribute && value.is_none() && bytes.get(start) == Some(&b'#') {
+                            let at = offset + start + end;
+                            return Err(Error::new(ErrorKind::InvalidReference, at));
+                        }
                         out.extend(value);
                         i = start + end;
                     }
@@ -115,9 +127,15 @@ fn normalize(
                 i += 1 + usize::from(bytes.get(i + 1) == Some(&b'\n'));
                 out.push(if attribute { ' ' } else { '\n' });
             }
-            _ => {
+            b'\n' | b'\t' => {
                 i += 1;
                 out.push(' ');
+            }
+            // A character outside `Char`.
+            _ => {
+                recover(Error::new(ErrorKind::InvalidCharacter, offset + i))?;
+                i += if byte == 0xef { 3 } else { 1 };
+                out.extend(attribute.then_some('\u{fffd}'));
             }
         }
         run = i;
@@ -219,10 +237,11 @@ mod tests {
                 found.push((error.kind, error.offset));
                 Ok(())
             };
-            let recovered = normalize_into(text, 0, false, true, String::new(), recover);
+            let modes = (false, true, false);
+            let recovered = normalize_into(text, 0, modes, String::new(), recover);
             assert_eq!(recovered.as_deref(), Ok(*value), "{text}");
             assert_eq!(found, *errors, "{text}");
-            let strict = normalize_into(text, 0, false, true, String::new(), Err);
+            let strict = normalize_into(text, 0, modes, String::new(), Err);
             let first = errors
                 .first()
                 .map(|&(kind, offset)| Error::new(kind, offset));

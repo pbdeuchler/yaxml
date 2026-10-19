@@ -576,6 +576,35 @@ fn select(prefix: &[u8], final_input: bool) -> Option<Result<(SourceEncoding, us
     Some(Ok((SourceEncoding::Utf8, 0)))
 }
 
+/// Recovery's copy of input that is not UTF-8, as libxml2's
+/// `xmlCurrentCharRecover` reads it: each byte that starts no valid sequence
+/// is U+FFFD. `None` for UTF-8 input; otherwise the copy and the error at
+/// the first such byte.
+pub(crate) fn repair_utf8(input: &[u8]) -> Option<Result<(String, Error), Error>> {
+    let first = std::str::from_utf8(input).err()?.valid_up_to();
+    let allocation = || Error::new(ErrorKind::Allocation, first);
+    let mut repaired = String::new();
+    let mut rest = input;
+    let repaired = loop {
+        if repaired.try_reserve(rest.len().saturating_add(3)).is_err() {
+            break Err(allocation());
+        }
+        match std::str::from_utf8(rest) {
+            Ok(valid) => {
+                repaired.push_str(valid);
+                break Ok(repaired);
+            }
+            Err(error) => {
+                let (valid, invalid) = rest.split_at(error.valid_up_to());
+                repaired.push_str(std::str::from_utf8(valid).expect("valid prefix"));
+                repaired.push('\u{fffd}');
+                rest = &invalid[1..];
+            }
+        }
+    };
+    Some(repaired.map(|text| (text, Error::new(ErrorKind::InvalidUtf8, first))))
+}
+
 /// Choose the owning constructor's path without decoding or allocating.
 pub(crate) fn needs_decoding(input: &[u8]) -> bool {
     input.starts_with(&[0xff, 0xfe])

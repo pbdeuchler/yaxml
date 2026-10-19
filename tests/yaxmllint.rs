@@ -594,6 +594,10 @@ const RECOVERED: &[&str] = &[
     "<!DOCTYPE r [<!ENTITY e 'x'><!ELEMENT r ANY>&e;]><r/>",
     "<!DOCTYPE .r><r/>",
     "<!DOCTYPE r PUBLIC \"[\" \"x\"><r/>",
+    "<r><a b=1>x</a></r>",
+    "<r><a b=\"x&#0;y\" c=\"1\">t</a></r>",
+    "<r><a b=\"x&#12a;y\">t</a></r>",
+    "<r a='x\u{1}y'><!-- a\u{c} b --><?pi a\u{c} b?><![CDATA[x\u{2}y]]>z</r>",
 ];
 
 fn suites() -> PathBuf {

@@ -267,12 +267,14 @@ fn check_recovered(flags: u32, document: &[u8]) {
     }
     // The owned DOM decodes a declared charset (even one a malformed
     // declaration names), where the borrowed DOM recovers it as UTF-8, and
-    // the slice and decoding readers can find different first errors.
+    // the slice and decoding readers can find different first errors. Only
+    // the owned DOM repairs invalid UTF-8, as the borrowed one borrows text.
     let declared = document
         .windows(8)
         .any(|w| w.eq_ignore_ascii_case(b"encoding"));
     if !super::encoding::recognizes(document)
         && !declared
+        && std::str::from_utf8(document).is_ok()
         && let (Ok(borrowed), Ok(owned)) = (
             &recovered,
             OwnedDocument::parse_with(document, ParseOptions::new(flags)),
