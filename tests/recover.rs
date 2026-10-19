@@ -207,3 +207,17 @@ fn recovery_lists_at_most_100_errors_and_keeps_parsing() {
     let last = document.root_element().last_child().unwrap();
     assert_eq!(last.name().unwrap().local(), "end");
 }
+
+#[test]
+fn recovered_errors_survive_xinclude_and_validation() {
+    use yaxml::options::{DTDVALID, XINCLUDE};
+    let input = b"<!DOCTYPE r [<!ELEMENT r EMPTY>]><r><a></b></r>";
+    // (flags, validity diagnostics expected)
+    for (flags, invalid) in [(XINCLUDE, false), (DTDVALID, true)] {
+        let document =
+            OwnedDocument::parse_with(input, ParseOptions::new(RECOVER | flags)).unwrap();
+        let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
+        assert_eq!(kinds, [MismatchedEndTag]);
+        assert_eq!(!document.validity().is_empty(), invalid);
+    }
+}

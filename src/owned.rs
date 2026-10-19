@@ -605,12 +605,14 @@ impl OwnedDocument {
                 parse_flags: flags.0,
                 ..Default::default()
             };
+            let errors = std::mem::take(&mut document.errors);
             document = crate::xinclude::process(&document, &base, resolver, &options).map_err(
                 |error| match error.kind {
                     crate::xinclude::ErrorKind::Xml(error) => error,
                     _ => Error::new(ErrorKind::XInclude, error.offset.unwrap_or(0)),
                 },
             )?;
+            document.errors = errors;
         }
         if flags.validates() {
             document.validity = document.validate();

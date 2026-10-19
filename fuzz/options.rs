@@ -5,10 +5,12 @@
 use std::io::BufReader;
 use std::ops::ControlFlow;
 
-use yaxml::options::{DTDATTR, DTDVALID, IGNORE_ENC, NOBLANKS, NOCDATA, NOENT, NSCLEAN, SKIP_IDS};
+use yaxml::options::{
+    DTDATTR, DTDVALID, IGNORE_ENC, NOBLANKS, NOCDATA, NOENT, NSCLEAN, RECOVER, SKIP_IDS,
+};
 use yaxml::{
-    BufferedReader, Document, Event, NodeKind, OwnedDocument, ParseOptions, PushParser, Reader,
-    TextReader, save,
+    BufferedReader, Document, ErrorKind, Event, Limits, NodeKind, OwnedDocument, ParseOptions,
+    PushParser, Reader, TextReader, save,
 };
 
 /// Flags only trees implement; streams get the rest.
@@ -18,8 +20,8 @@ const TREE_ONLY: u32 = NOBLANKS | DTDVALID;
 const SELECTABLE: [u32; 7] = [
     NOENT,
     DTDATTR,
-    NOCDATA,
-    NSCLEAN,
+    NOCDATA | NSCLEAN,
+    RECOVER,
     NOBLANKS,
     DTDVALID,
     IGNORE_ENC | SKIP_IDS,
@@ -50,6 +52,9 @@ pub(super) fn exercise(input: &[u8]) {
 
 /// Every surface on `document` under `flags`.
 pub(super) fn exercise_flags(flags: u32, document: &[u8]) {
+    if flags & RECOVER != 0 {
+        return check_recovered(flags, document);
+    }
     let stream = flags & !TREE_ONLY;
     let tree = Document::parse_with(document, ParseOptions::new(flags));
     let reader = events(document, stream);
@@ -231,4 +236,88 @@ fn inherited<'a>(element: yaxml::Node<'a, '_>, prefix: &str) -> Option<&'a str> 
             (bound == prefix).then_some(attribute.value.as_ref())
         })
     })
+}
+
+/// `RECOVER` (DOMs only): a well-formed document parses as without it; a
+/// recovered tree is structurally sound, lists only recoverable errors and
+/// saves to bytes that recover to themselves; both DOMs agree; resource
+/// limits still fail the parse.
+fn check_recovered(flags: u32, document: &[u8]) {
+    let saved = |tree: &Document<'_>| save::to_vec(tree, &Default::default()).expect("save");
+    let strict = Document::parse_with(document, ParseOptions::new(flags & !RECOVER));
+    let recovered = Document::parse_with(document, ParseOptions::new(flags));
+    if let Ok(strict) = &strict {
+        let tree = recovered
+            .as_ref()
+            .expect("RECOVER rejected a well-formed document");
+        assert!(tree.errors().is_empty(), "errors in a well-formed document");
+        assert_eq!(
+            saved(strict),
+            saved(tree),
+            "RECOVER changed a well-formed tree"
+        );
+    }
+    if let (Err(error), Ok(_)) = (&strict, &recovered)
+        && matches!(
+            error.kind,
+            ErrorKind::LimitExceeded(_) | ErrorKind::EntityLoop
+        )
+    {
+        panic!("RECOVER bypassed {error:?}");
+    }
+    // The owned DOM decodes a declared charset (even one a malformed
+    // declaration names), where the borrowed DOM recovers it as UTF-8, and
+    // the slice and decoding readers can find different first errors.
+    let declared = document
+        .windows(8)
+        .any(|w| w.eq_ignore_ascii_case(b"encoding"));
+    if !super::encoding::recognizes(document)
+        && !declared
+        && let (Ok(borrowed), Ok(owned)) = (
+            &recovered,
+            OwnedDocument::parse_with(document, ParseOptions::new(flags)),
+        )
+    {
+        let owned_saved = save::to_vec(&owned, &Default::default()).unwrap();
+        assert_eq!(saved(borrowed), owned_saved, "DOMs recover differently");
+        assert_eq!(
+            borrowed.errors(),
+            owned.errors(),
+            "DOMs recover differently"
+        );
+    }
+    let Ok(tree) = recovered else {
+        return;
+    };
+    // The structural checks look `xml:id`s up, which `SKIP_IDS` does not record.
+    if flags & SKIP_IDS == 0 {
+        super::check_document(&tree, document.len(), Limits::default().max_events);
+    }
+    assert_eq!(tree.errors().is_empty(), strict.is_ok());
+    assert!(tree.errors().len() <= 100);
+    for error in tree.errors() {
+        assert!(error.offset <= document.len(), "{error:?}");
+        assert!(!matches!(
+            error.kind,
+            ErrorKind::LimitExceeded(_) | ErrorKind::Allocation | ErrorKind::EntityLoop
+        ));
+    }
+    let bytes = saved(&tree);
+    let again = Document::parse_with(&bytes, ParseOptions::new(flags)).unwrap_or_else(|error| {
+        panic!("{error:?} reparsing {:?}", String::from_utf8_lossy(&bytes))
+    });
+    assert_eq!(saved(&again), bytes, "recovery is not a fixed point");
+    // Tight limits hold under recovery.
+    let limits = Limits {
+        max_depth: 4,
+        max_attributes: 2,
+        ..Limits::default()
+    };
+    if let Ok(tree) = Document::parse_with(document, ParseOptions::new(flags).with_limits(limits)) {
+        for node in tree.nodes() {
+            let elements = std::iter::successors(node.parent(), |node| node.parent());
+            let depth = elements.filter(|node| node.name().is_some()).count();
+            assert!(depth <= limits.max_depth, "depth {depth}");
+        }
+    }
 }

@@ -225,8 +225,8 @@ repairs ends parsing, and the DOM builder closes the elements still open.
 `Document::errors` and `OwnedDocument::errors` list the recovered errors (the
 first 100, as libxml2's `XML_MAX_ERRORS`); a well-formed document has none and
 the same tree as without `RECOVER`. Streams and `TextReader` reject the flag:
-they would deliver events a later repair contradicts, and libxml2's push
-parser does not support recovery either.
+the tree builder closes what an unrepaired error leaves open, and libxml2's
+push parser does not support recovery either.
 
 | Error | Tree (libxml2 and yaxml) |
 | --- | --- |
@@ -235,7 +235,7 @@ parser does not support recovery either.
 | Malformed attribute (`a=1`, `a="1"b`, no value) | The element ends there, empty, with the attributes before it. |
 | `<` in an attribute value, duplicate attributes | Kept. |
 | Unbound prefix, malformed QName | The name is kept in no namespace (a malformed QName unprefixed). |
-| Unbindable declaration (`xmlns:p=""`, `xml`/`xmlns` misuse) | Dropped. |
+| Unbindable declaration (`xmlns:p=""`, `xml`/`xmlns` misuse), a prefix declared again in one tag | Dropped. |
 | Malformed reference | Dropped as far as libxml2 reads it (`&`, `&name`, `&#x4` of `&#x4G;`); a complete reference to a non-character is U+FFFD, `&#0;` nothing. |
 | Undeclared or unparsed entity reference (with a DOCTYPE) | An empty `EntityRef` node. |
 | Unexpandable reference in an attribute value (with a DOCTYPE) | yaxml empties the value. |
