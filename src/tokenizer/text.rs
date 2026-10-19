@@ -61,6 +61,10 @@ impl TextShared {
     fn remaining_work(&self) -> usize {
         self.limits.work - self.work
     }
+    /// Adds work that a capped sub-ledger already bounded by `remaining_work`.
+    pub(crate) fn spend(&mut self, work: usize) {
+        self.work += work;
+    }
     pub(crate) fn charge_external_work(
         &mut self,
         delta: usize,
@@ -309,6 +313,9 @@ impl<'input> TextCoordinator<'input> {
     ) -> Result<(), TextError> {
         self.shared.charge_external_work(delta, source, offset)
     }
+    pub(crate) fn spend(&mut self, work: usize) {
+        self.shared.spend(work);
+    }
     pub(crate) fn input_position(&self) -> Option<(usize, usize)> {
         self.source.input_position()
     }
@@ -524,8 +531,8 @@ impl<'input> TextCoordinator<'input> {
         let before = reference.work();
         reference.cap_work(before.saturating_add(remaining));
         let result = operation(reference);
-        // Capped at the remaining work, so the shared ledger cannot overflow.
-        self.shared.work += reference.work() - before;
+        let spent = reference.work() - before;
+        self.shared.spend(spent);
         result
     }
     fn scan(&mut self, input: &[u8]) -> Result<ContentStep, TextError> {
@@ -680,7 +687,7 @@ fn local<T>(
     let before = tokenizer.work();
     tokenizer.cap_work(before.saturating_add(shared.remaining_work()));
     let result = operation(tokenizer);
-    shared.work += tokenizer.work() - before;
+    shared.spend(tokenizer.work() - before);
     result.map_err(TextError::at(source))
 }
 fn checked_input_prefix(tokenizer: &Tokenizer, input: &[u8]) -> usize {

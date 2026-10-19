@@ -537,7 +537,7 @@ impl<'input> DtdControllerCore<'input> {
                 return Ok(());
             }
             EntityLookup::Unparsed => return Err(fail(ErrorKind::UnparsedEntity)),
-            EntityLookup::Predefined | EntityLookup::Undeclared => {
+            EntityLookup::Undeclared => {
                 return Err(fail(ErrorKind::UnknownEntity));
             }
         };

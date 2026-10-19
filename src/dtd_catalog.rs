@@ -47,7 +47,6 @@ const ALLOCATION: ErrorKind = ErrorKind::Allocation;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EntityLookup<'a> {
-    Predefined,
     Internal { id: EntityId, replacement: &'a str },
     ExternalUnavailable { id: EntityId },
     Unparsed,
@@ -221,11 +220,10 @@ impl DtdCatalog {
         }
     }
 
+    /// A general entity; predefined names are character references, never
+    /// looked up here.
     pub(crate) fn lookup_general(&self, name: &str) -> EntityLookup<'_> {
-        match predefined(name) {
-            Some(_) => EntityLookup::Predefined,
-            None => self.lookup(false, name),
-        }
+        self.lookup(false, name)
     }
     pub(crate) fn lookup_parameter(&self, name: &str) -> EntityLookup<'_> {
         self.lookup(true, name)
@@ -252,7 +250,8 @@ impl DtdCatalog {
     /// Whether a reference to general entity `name` is kept: it is declared
     /// and expandable.
     pub(crate) fn keeps(&self, name: &str) -> bool {
-        matches!(self.lookup_general(name), EntityLookup::Internal { .. })
+        predefined(name).is_none()
+            && matches!(self.lookup_general(name), EntityLookup::Internal { .. })
     }
 
     /// Whether non-namespace default attributes are added (`DTDATTR`).

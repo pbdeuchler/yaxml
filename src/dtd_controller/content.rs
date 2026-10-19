@@ -48,7 +48,6 @@ pub(crate) struct ContentControllerCore<'input> {
     /// The replacement-text source, parked while physical input is read.
     local: Option<TextSourceLease<'input>>,
     finalizing: bool,
-    complete: bool,
     /// Report entity references as `EntityStart`/`EntityEnd` (no `NOENT`).
     markers: bool,
     /// A boundary to publish before any further token.
@@ -102,7 +101,6 @@ impl<'input> ContentControllerCore<'input> {
             paused_input: None,
             local: None,
             finalizing: false,
-            complete: false,
             markers,
             pending: None,
             queued: None,
@@ -120,10 +118,8 @@ impl<'input> ContentControllerCore<'input> {
         &self.body.catalog
     }
 
+    /// Scans `input` (none after `finish_step`).
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<ContentStep, Error> {
-        if self.finalizing && !input.is_empty() {
-            return Err(self.simple(ErrorKind::InvalidState));
-        }
         self.drive(input)
     }
 
@@ -171,9 +167,6 @@ impl<'input> ContentControllerCore<'input> {
         }
         if self.coordinator.current().is_some() {
             return step(0, ContentOutcome::EventReady);
-        }
-        if self.complete {
-            return step(0, ContentOutcome::Complete);
         }
         let stable = self.stable_input();
         let mut consumed = 0;
@@ -226,15 +219,9 @@ impl<'input> ContentControllerCore<'input> {
                     self.enter_general()?;
                     return step(consumed, ContentOutcome::Progress);
                 }
-                TextOutcome::NeedInput if active || (stable && !self.finalizing) => {}
-                TextOutcome::NeedInput if consumed < input.len() && !self.finalizing => {
-                    // A transport quota can split one decoder scalar's UTF-8
-                    // representation. Drain its zero-width continuations before
-                    // reporting that the supplied decoded window was exhausted.
-                    if text.consumed == 0 {
-                        return Err(self.simple(ErrorKind::InvalidState));
-                    }
-                }
+                // Text needs more only once it has consumed all it was offered,
+                // and never once finalizing.
+                TextOutcome::NeedInput if active || stable => {}
                 TextOutcome::NeedInput => return step(consumed, ContentOutcome::NeedPhysicalInput),
                 TextOutcome::Complete if active => {
                     self.finish_general()?;
@@ -242,7 +229,6 @@ impl<'input> ContentControllerCore<'input> {
                 }
                 TextOutcome::Complete => {
                     self.parser.validate_finish(self.body.physical_position)?;
-                    self.complete = true;
                     return step(consumed, ContentOutcome::Complete);
                 }
             }
@@ -307,7 +293,6 @@ impl<'input> ContentControllerCore<'input> {
                     .recover(fail(ErrorKind::UnknownEntity))?;
                 None
             }
-            EntityLookup::Predefined => return Err(self.simple(ErrorKind::InvalidState)),
         };
         let Some((id, len)) = resolved else {
             // The skipped reference is consumed from its replacement frame too.
@@ -331,7 +316,7 @@ impl<'input> ContentControllerCore<'input> {
             .unwrap_or_else(|| origin.physical_context());
         let depth = Some(self.parser.element_depth());
         let entered = self.body.frames.enter(id, len, reference, depth);
-        self.sync_frame_work(before, origin)?;
+        self.sync_frame_work(before);
         let invocation = entered?;
         let was_physical = self.body.frames.stack().len() == 1;
         self.coordinator.release_general();
@@ -431,7 +416,7 @@ impl<'input> ContentControllerCore<'input> {
                 .frames
                 .cap_work(before.saturating_add(self.coordinator.remaining_work()));
             let result = self.body.frames.advance(length);
-            self.sync_frame_work(before, origin)?;
+            self.sync_frame_work(before);
             result?;
             if kind == TokenKind::End {
                 self.body
@@ -486,8 +471,8 @@ impl<'input> ContentControllerCore<'input> {
             },
             &mut |value, offset, budget| budget.copy(value, offset),
         );
-        let delta = self.body.catalog.usage().work - catalog_before;
-        let event = account_publication(event, work, delta, origin, offset);
+        // Capped at the remaining work by `prepare_publication`.
+        work.spend(self.body.catalog.usage().work - catalog_before);
         self.body.counters.work = work.work();
         Ok(LentContent {
             event: event?,
@@ -507,13 +492,14 @@ impl<'input> ContentControllerCore<'input> {
             return Ok((Some(event), SourceOrigin::from_repr(origin)));
         }
         let token = self.coordinator.current().expect("ready token");
+        // The stable input token, or the replacement text range.
         let stable = match token.location {
-            TextLocation::Input(_) => Some(self.coordinator.stable_current().expect("stable")),
-            TextLocation::Local { .. } => None,
+            TextLocation::Input(_) => Ok(self.coordinator.stable_current().expect("stable")),
+            TextLocation::Local { range, .. } => Err(range),
         };
         let (kind, origin, offset, catalog_before) = self.prepare_publication()?;
         let event = match stable {
-            Some((_, raw, span)) => publish_raw(
+            Ok((_, raw, span)) => publish_raw(
                 &mut self.parser,
                 &mut self.body.catalog,
                 RawPublication {
@@ -526,11 +512,8 @@ impl<'input> ContentControllerCore<'input> {
                 },
                 &mut |value, _, _| Ok(Cow::Borrowed(value)),
             ),
-            None => {
+            Err(range) => {
                 let token = self.coordinator.current().expect("ready token");
-                let TextLocation::Local { range, .. } = token.location else {
-                    unreachable!("replacement token")
-                };
                 let raw = std::str::from_utf8(token.raw)
                     .map_err(|_| Error::new(ErrorKind::InvalidUtf8, origin.error_offset()))?;
                 let parser = &mut self.parser;
@@ -538,9 +521,8 @@ impl<'input> ContentControllerCore<'input> {
                     .map(Some)
             }
         };
-        let delta = self.body.catalog.usage().work - catalog_before;
         let (_, work) = self.coordinator.current_with_work().expect("ready token");
-        let event = account_publication(event, work, delta, origin, offset);
+        work.spend(self.body.catalog.usage().work - catalog_before);
         self.sync_usage();
         let event = event?;
         self.acknowledge();
@@ -563,14 +545,12 @@ impl<'input> ContentControllerCore<'input> {
     fn sync_usage(&mut self) {
         self.body.counters.work = self.coordinator.work();
     }
-    fn sync_frame_work(&mut self, before: usize, origin: FragmentOrigin) -> Result<(), Error> {
-        self.charge(
-            self.body.frames.counters().work - before,
-            origin,
-            origin
-                .replacement_range()
-                .map_or(origin.error_offset(), |range| range.start),
-        )
+    /// Charges frame work spent since `before`, which the frames' cap keeps
+    /// within the remaining work.
+    fn sync_frame_work(&mut self, before: usize) {
+        let spent = self.body.frames.counters().work - before;
+        self.coordinator.spend(spent);
+        self.sync_usage();
     }
     /// A replacement-text failure is reported at its outermost reference.
     fn text_error(&self, error: TextError) -> Error {
@@ -588,9 +568,6 @@ impl<'input> ContentControllerCore<'input> {
                 }),
         };
         Error::new(error.kind, offset)
-    }
-    fn simple(&self, kind: ErrorKind) -> Error {
-        Error::new(kind, self.body.physical_position)
     }
 }
 
@@ -663,21 +640,6 @@ fn publish_generated(
         TokenKind::Dtd | TokenKind::InvalidMarkup => Err(Error::new(ErrorKind::Syntax, offset)),
     }
     .map_err(|error| Error::new(error.kind, origin.error_offset()))
-}
-
-/// Charges publication's catalog work; the event's own failure comes first.
-fn account_publication<'event>(
-    event: Result<Option<Event<'event>>, Error>,
-    work: &mut TextShared,
-    delta: usize,
-    origin: FragmentOrigin,
-    offset: usize,
-) -> Result<Option<Event<'event>>, Error> {
-    let (source, offset) = text_source(origin, offset);
-    let charged = work.charge_external_work(delta, source, offset);
-    let event = event?;
-    charged.map_err(|error| Error::new(error.kind, origin.error_offset()))?;
-    Ok(event)
 }
 
 /// The text source of `origin`, and the offset its ledger reports.
