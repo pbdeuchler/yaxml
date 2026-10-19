@@ -47,6 +47,7 @@ fn borrowed_values(document: &Document<'_>) -> LogicalDocument {
             .map(|node| LogicalNode {
                 kind: match node.kind() {
                     NodeKind::Document => "document",
+                    NodeKind::Doctype(_) => "doctype",
                     NodeKind::Element(_) => "element",
                     NodeKind::Text(_) => "text",
                     NodeKind::Cdata(_) => "cdata",

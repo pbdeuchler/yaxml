@@ -13,6 +13,14 @@ pub enum Limit {
     Attributes,
     Events,
     OwnedBytes,
+    /// Bytes in the document type declaration, including its internal subset.
+    DtdBytes,
+    /// Entity replacement bytes produced by expansion, or the equivalent work.
+    EntityExpansion,
+    /// Entity references expanded across the document.
+    EntityReferences,
+    /// Nesting depth of entity expansion.
+    EntityDepth,
 }
 
 /// Structured failures; offsets are input bytes, or prospective writer output bytes.
@@ -21,6 +29,8 @@ pub enum Limit {
 pub enum ErrorKind {
     InvalidUtf8,
     InvalidUtf16,
+    /// A byte has no mapping in the declared single-byte encoding.
+    UnmappedByte,
     InvalidCharacter,
     UnexpectedEof,
     Syntax,
@@ -29,14 +39,24 @@ pub enum ErrorKind {
     DuplicateAttribute,
     Namespace,
     InvalidReference,
+    /// An undeclared entity whose declaration is required (WFC: Entity Declared).
     UnknownEntity,
+    /// An entity references itself directly or indirectly.
+    EntityLoop,
+    /// A content reference names an unparsed (NDATA) entity.
+    UnparsedEntity,
+    /// An attribute value references an external entity.
+    ExternalEntityInAttribute,
+    /// Entity replacement text does not nest correctly with its context.
+    UnbalancedEntity,
+    /// Malformed document type declaration or internal subset.
+    InvalidDtd,
     MissingRoot,
     MultipleRoots,
     TextOutsideRoot,
     InvalidDeclaration,
     UnsupportedEncoding,
     EncodingMismatch,
-    UnsupportedDtd,
     /// A parser option flag that is unknown or not implemented.
     UnsupportedOption,
     LimitExceeded(Limit),

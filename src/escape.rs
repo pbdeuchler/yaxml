@@ -29,7 +29,6 @@ pub(crate) fn normalize_required(
     normalize(raw, offset, attribute, references, true)
 }
 
-#[cfg(test)]
 pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
     normalize(raw, offset, false, true, false)
 }

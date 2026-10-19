@@ -3,8 +3,9 @@
 //! `htmlParseContentType`), the prescan (`htmlFindEncoding`) and the built-in
 //! converters of `encoding.c` for the encodings implemented here.
 
-use super::tables::{self, Charset, WINDOWS_1252};
+use super::tables;
 use super::tokenizer::{Attribute, blank};
+use crate::encoding::{Charset, ISO_8859_1, US_ASCII, WINDOWS_1252, charset};
 use crate::{Error, ErrorKind};
 
 /// Converts input to the UTF-8 text the tokenizer reads. `Utf8` passes bytes
@@ -12,8 +13,12 @@ use crate::{Error, ErrorKind};
 #[derive(Debug)]
 pub(super) enum Decoder {
     Utf8,
-    Windows1252,
-    Utf16 { big_endian: bool, pending: Vec<u8> },
+    /// A libxml2 single-byte table for bytes 0x80..=0xFF; 0 is unmapped.
+    Byte(&'static [u16; 128]),
+    Utf16 {
+        big_endian: bool,
+        pending: Vec<u8>,
+    },
 }
 
 /// The start of the input: its decoder, BOM length and `doc->encoding`.
@@ -56,24 +61,19 @@ pub(super) fn sniff(prefix: &[u8]) -> Sniffed {
 
 impl Decoder {
     /// The input converter for a label (`xmlCreateCharEncodingHandler` with
-    /// XML_ENC_HTML). None: libxml2 has no converter. ISO-8859-2..16 have one
-    /// in libxml2 but not here, and fail explicitly.
-    pub(super) fn for_label(label: &str) -> Result<Option<Self>, Error> {
-        let utf16 = |big_endian| Self::Utf16 {
-            big_endian,
-            pending: Vec::new(),
-        };
-        Ok(match tables::charset(label) {
-            Some(Charset::Utf8) => Some(Self::Utf8),
-            Some(Charset::Ascii | Charset::Latin1 | Charset::Windows1252) => {
-                Some(Self::Windows1252)
+    /// XML_ENC_HTML, which reads ASCII and Latin-1 as windows-1252 and
+    /// unmarked UTF-16 as little-endian). None: libxml2 has no converter.
+    pub(super) fn for_label(label: &str) -> Option<Self> {
+        Some(match charset(label)? {
+            Charset::Utf8 => Self::Utf8,
+            Charset::Byte(table) if table == US_ASCII || table == ISO_8859_1 => {
+                Self::Byte(WINDOWS_1252)
             }
-            Some(Charset::Utf16 | Charset::Ucs2 | Charset::Utf16Le) => Some(utf16(false)),
-            Some(Charset::Utf16Be) => Some(utf16(true)),
-            Some(Charset::Iso8859) => {
-                return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
-            }
-            Some(Charset::Html | Charset::Missing) | None => None,
+            Charset::Byte(table) => Self::Byte(table),
+            Charset::Utf16(little_endian) => Self::Utf16 {
+                big_endian: little_endian == Some(false),
+                pending: Vec::new(),
+            },
         })
     }
 
@@ -91,17 +91,24 @@ impl Decoder {
                 out.extend_from_slice(input);
                 None
             }
-            Self::Windows1252 => {
+            Self::Byte(table) => {
+                let mut malformed = None;
                 let mut buffer = [0; 4];
                 for &byte in input {
-                    let c = match byte {
-                        0x80..=0x9F => u32::from(WINDOWS_1252[usize::from(byte - 0x80)]),
+                    let code = match byte {
+                        0x80.. => u32::from(table[usize::from(byte - 0x80)]),
                         _ => u32::from(byte),
                     };
-                    let c = char::from_u32(c).unwrap_or('\u{FFFD}');
+                    let c = match char::from_u32(code).filter(|_| code != 0 || byte == 0) {
+                        Some(c) => c,
+                        None => {
+                            malformed = malformed.or(Some(out.len()));
+                            '\u{FFFD}'
+                        }
+                    };
                     out.extend_from_slice(c.encode_utf8(&mut buffer).as_bytes());
                 }
-                None
+                malformed
             }
             Self::Utf16 {
                 big_endian,
@@ -243,30 +250,25 @@ pub(super) fn prescan(rest: &[u8]) -> Option<String> {
     (length > 0).then(|| String::from_utf8_lossy(&rest[p..p + length]).into_owned())
 }
 
-/// The output converters `xmlOpenCharEncodingHandler` provides for the
-/// encodings this crate can produce.
+/// The output converters `xmlOpenCharEncodingHandler` provides.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Output {
     Utf8,
-    Latin1,
-    Ascii,
-    Windows1252,
+    Byte(&'static [u16; 128]),
     /// ASCII with HTML 4 entity names, used when a document has no encoding.
     Html,
 }
 
 impl Output {
     pub(super) fn for_label(label: Option<&str>) -> Result<Self, Error> {
-        let Some(label) = label else {
-            return Ok(Self::Html);
-        };
-        match tables::charset(label) {
-            Some(Charset::Utf8) => Ok(Self::Utf8),
-            Some(Charset::Latin1) => Ok(Self::Latin1),
-            Some(Charset::Ascii) => Ok(Self::Ascii),
-            Some(Charset::Windows1252) => Ok(Self::Windows1252),
-            Some(Charset::Html) => Ok(Self::Html),
-            _ => Err(Error::new(ErrorKind::UnsupportedEncoding, 0)),
+        match label {
+            None => Ok(Self::Html),
+            Some(label) if label.eq_ignore_ascii_case("html") => Ok(Self::Html),
+            Some(label) => match charset(label) {
+                Some(Charset::Utf8) => Ok(Self::Utf8),
+                Some(Charset::Byte(table)) => Ok(Self::Byte(table)),
+                _ => Err(Error::new(ErrorKind::UnsupportedEncoding, 0)),
+            },
         }
     }
 
@@ -283,11 +285,9 @@ impl Output {
             let code = u32::from(c);
             let byte = match self {
                 _ if code < 0x80 => Some(code as u8),
-                Self::Latin1 if code <= 0xFF => Some(code as u8),
-                Self::Windows1252 if (0xA0..=0xFF).contains(&code) => Some(code as u8),
-                Self::Windows1252 => WINDOWS_1252
+                Self::Byte(table) => table
                     .iter()
-                    .position(|&mapped| u32::from(mapped) == code)
+                    .position(|&mapped| mapped != 0 && u32::from(mapped) == code)
                     .map(|index| 0x80 + index as u8),
                 _ => None,
             };

@@ -3,7 +3,7 @@
 //! document.
 
 use yaxml::html::{self, Options, Parsed, PushParser};
-use yaxml::{Error, ErrorKind, Limit, Limits, OwnedDocument, OwnedNodeKind};
+use yaxml::{Error, ErrorKind, Limit, Limits, OwnedDocument, OwnedNodeKind, Writer, c14n};
 
 const FLAGS: [u32; 6] = [
     html::NOBLANKS,
@@ -88,6 +88,9 @@ fn check(document: &OwnedDocument, options: Options) {
                 );
             }
             OwnedNodeKind::Comment => {}
+            OwnedNodeKind::DocumentType => {
+                assert_eq!(root.first_child().map(|first| first.id()), Some(node.id()));
+            }
             kind => panic!("unexpected {kind:?}"),
         }
     }
@@ -99,6 +102,29 @@ fn outcome(parsed: &Parsed) -> (Vec<u8>, Vec<html::Diagnostic>, bool) {
         parsed.diagnostics.clone(),
         parsed.stopped,
     )
+}
+
+/// XML output of an HTML tree is well-formed XML or an error.
+fn xml_output(document: &OwnedDocument) {
+    let mut writer = Writer::new(Vec::new());
+    if writer.write_owned_document(document).is_ok() {
+        let output = String::from_utf8(writer.into_inner()).unwrap();
+        assert!(
+            OwnedDocument::parse(&output).is_ok(),
+            "writer emitted {output:?}"
+        );
+    }
+    let mut options = c14n::Options::new(c14n::Mode::C14n10);
+    options.with_comments = true;
+    if let Ok(output) = c14n::to_string(document, &options)
+        && document
+            .root()
+            .children()
+            .any(|node| node.kind() == OwnedNodeKind::Element)
+    {
+        let parsed = OwnedDocument::parse(&output);
+        assert!(parsed.is_ok(), "c14n emitted {output:?}: {parsed:?}");
+    }
 }
 
 pub(super) fn exercise(input: &[u8]) {
@@ -132,6 +158,7 @@ pub(super) fn exercise(input: &[u8]) {
                 String::from_utf8_lossy(input)
             );
             assert!(html::to_html(&whole.document).is_ok());
+            xml_output(&whole.document);
             let saved = html::save(&whole.document, true).unwrap();
             // Saved output reparses; a <meta> the first parse ignored can now
             // name an encoding this crate rejects.
@@ -160,7 +187,7 @@ mod tests {
     /// an encoding this crate rejects.
     #[test]
     fn reparse_may_meet_a_rejected_prescan_label() {
-        exercise(include_bytes!("regressions/html-reparse-prescan.html"));
+        exercise(include_bytes!("regressions/html/reparse-prescan.html"));
     }
 
     #[test]

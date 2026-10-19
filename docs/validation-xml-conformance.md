@@ -1,5 +1,32 @@
 # Pinned XML conformance inventory validation
 
+## Update: DTD activation (2026-10-18)
+
+Re-running the same runner, catalog (`/private/tmp/yaxml-xmlconf-evidence-21c746f/catalog.tsv`)
+and suite (`/private/tmp/xmlts20130923-inspect/xmlconf`) after internal-subset
+activation:
+
+```
+cargo build --release --example xml_conformance
+target/release/examples/xml_conformance --manifest <catalog.tsv> --suite-root <xmlconf> \
+  --expected-cases 2585 --required-pass tests/fixtures/xmlconf-20130923-required.tsv
+```
+
+| Interface | Pass | Gap | Unscored | Mismatch | Pass before |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Reader | 1,678 | 296 | 611 | 0 | 372 |
+| Borrowing DOM | 1,678 | 296 | 611 | 0 | 372 |
+| Owned DOM | 1,716 | 258 | 611 | 0 | 407 |
+| Push | 1,716 | 258 | 611 | 0 | 360 |
+| Buffered pull | 1,716 | 258 | 611 | 0 | 360 |
+
+591 of 812 `valid` cases now pass on borrowing interfaces (594 on decoding
+ones); previously none did. Remaining gaps are external-entity cases (236/240),
+legacy encodings (40 borrowing, 2 decoding) and the namespace-off profile (9).
+The required-pass inventory was regenerated from this run: **1,716 IDs and
+8,504 pairs**, with no regression of the previous 1,871 pairs. The historical
+sections below describe the earlier freeze.
+
 The executable freeze is `21c746fd6e05281bda86764ee5e6dfebd2e12086`, based
 on main `a8bcbe26748c7baa876ab5f4cf8ce887834e92dc`. The implementation adds
 an external suite runner, catalog metadata helper, regression baseline and

@@ -261,13 +261,24 @@ fn drive(
         let result = pull.read_event();
         match result {
             Ok(Some((event, origin))) => {
-                let range = origin.input_range().expect("direct input event");
+                let range = origin
+                    .input_range()
+                    .unwrap_or_else(|| origin.physical_context());
                 assert!(range.start <= range.end && range.end <= input.len());
                 let lookahead = if matches!(&event, Event::Text(_)) {
                     if encoding::recognizes(input) { 2 } else { 1 }
                 } else {
                     0
                 };
+                // DTD text ends only after classifying its terminating general
+                // entity reference, so that whole `&name;` is consumed lookahead.
+                let terminator = &input[range.end..];
+                let reference = terminator.iter().take(lookahead).any(|&byte| byte == b'&');
+                let lookahead = terminator
+                    .iter()
+                    .position(|&byte| byte == b';')
+                    .filter(|_| reference)
+                    .map_or(lookahead, |end| end + lookahead);
                 let latest_position = range.end.saturating_add(lookahead).max(4);
                 if count == capacity % 7 {
                     let payload = match &event {
@@ -286,7 +297,7 @@ fn drive(
                         event,
                         value,
                         range.clone(),
-                        expected.event_range().expect("direct input event"),
+                        super::span(expected.event_origin().unwrap()),
                     );
                 }
                 count += 1;

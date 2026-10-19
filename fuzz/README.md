@@ -30,6 +30,8 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `mutation` | `exercise_mutation` | `OwnedDocument::edit` operations |
 | `construction` | `exercise_construction` | `OwnedDocument::create`, `append_element` |
 | `names` | `exercise_names` | `Name` and owned PI targets |
+| `c14n` | `exercise_c14n` | `c14n::to_string` modes, comments, node-sets and prefix lists |
+| `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface |
 | `uri` | `exercise_uri` | `yaxml::uri` parse, save, escape and resolution |
 | `html` | `exercise_html` | `html::parse`, `PushParser` chunk independence, `html::save`/`to_html` |
 
@@ -40,7 +42,7 @@ cargo +nightly fuzz run dom fuzz/corpus/dom fuzz/corpus -- -max_total_time=60
 fuzz/coverage.sh            # all targets; or name some
 ```
 
-New inputs go to the ignored `fuzz/corpus/<target>/`; the committed top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/` with a deterministic test. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-06-06`, prints one `src/` TOTAL line per target, then merges all profiles into `fuzz/coverage/report.txt` (regions, functions, lines, branches per library file). `#[cfg(test)]` modules (the DTD work) are not compiled into the targets and are absent from the denominator. The "mismatched data" warning comes from the per-binary libFuzzer entry symbols, not library code.
+New inputs go to the ignored `fuzz/corpus/<target>/`; the committed top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/<target>/`; `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-06-06`, prints one `src/` TOTAL line per target, then merges all profiles into `fuzz/coverage/report.txt` (regions, functions, lines, branches per library file). `#[cfg(test)]` modules (the DTD work) are not compiled into the targets and are absent from the denominator. The "mismatched data" warning comes from the per-binary libFuzzer entry symbols, not library code.
 
 ## Current target inventory
 
@@ -66,7 +68,9 @@ New inputs go to the ignored `fuzz/corpus/<target>/`; the committed top-level se
 | Validated name construction and owned PI targets | Every bounded testcase enters `driver::exercise_names` before XML/encoding dispatch | 28 literal QName/offset goldens, borrowed/owned/Cow parity and buffer preservation, arbitrary bounded strings, getter recomposition, and exact owned-PI Writer/Reader bytes; `name-owned-views.txt` seeds a Unicode QName |
 | `yaxml::uri` parse, raw parse, display, escape, unescape, normalize, resolve, relative | Every bounded UTF-8 testcase enters `uri::exercise` (reference, base, escape list as lines); `uri.txt` seeds | No panics; raw parse is ASCII and reparses; normalization idempotent; escape/unescape round trip up to NUL |
 | `html::parse`, `html::PushParser`, `html::save`, `html::to_html`, HTML `OwnedDocument` views | Every testcase enters `html::exercise`; options, small limits and a 1–17 byte chunk schedule derive from an input hash; `html.html` seeds | No panics; only limit/unsupported-encoding failures; push equals pull (output, diagnostics, stop); tree links, depth, merged non-empty character data, valueless attributes read as ""; saved output reparses |
-| `PushParser::with_decode_limits`, UTF-8/UTF-16 detection and decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations | Standard-library UTF-16 reference, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
+| `xpath::XPath::compile_with_limits`, `evaluate`, `Context` namespace and limit bindings | `driver::exercise_xpath` (also entered from `driver::exercise`): expression bytes, optionally followed by NUL and an XML document; small finite limits | Borrowed and owned DOMs agree exactly at the root and document element (value, error kind, node ranks); node-sets strictly in document order; source text round-trips |
+| `c14n::to_string`, `Options` (mode, comments, node-set, inclusive prefixes) | `driver::exercise_c14n` (also entered from `driver::exercise`): one selector byte (mode, comments, one of eight fixed XPath selections, prefix list) followed by an XML document | Borrowed and owned DOMs agree exactly (output or error); whole-document output that reparses is its own canonical form |
+| `PushParser::with_decode_limits`, UTF-8/UTF-16 detection, declared single-byte decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations, `charset-*.xml` | Standard-library UTF-16 reference, xmllint-recorded single-byte tables, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |
 | `BufferedReader::new`, `with_limits`, `with_decode_limits`, `read_event`, `position`, `get_ref`, `into_inner` | `pull::exercise`, explicit resource/decode profiles, deterministic pull selectors | Lending event/range parity with the independent slice/UTF-16 reference; complete EOF sequence; small valid input must succeed; exact consume ledger, unread suffix, bounded caller copies, original injected I/O error and terminal no-I/O behavior |
 
 Additional option combinations, allocation failures, and future constructors require new cases before this inventory can claim complete execution coverage. Existing-element attribute insertion/removal, moves, namespace editing, entities, queries, schemas, and foreign binding registries require targets when implemented. A target that calls an API does not establish that all its branches execute.
@@ -101,6 +105,10 @@ to source bytes. Materializing decoded input and a global offset map is confined
 to this test oracle; production decoding retains constant carry. A second BOM is
 explicitly rejected rather than letting the UTF-8 reference strip it. Both
 auto-decoding surfaces must reject malformed code units, XML and labels.
+A BOM-less declaration whose label the owning parser resolves to a single-byte
+table (probed byte by byte) also takes this path; the probed table must equal a
+row of `tests/fixtures/charsets.tsv`, which then decodes the reference, and an
+unmapped byte leaves no reference. EBCDIC signatures are rejected like UTF-32.
 For independently decoded malformed grammar, error kinds and mapped source
 offsets are compared across whole/chunked/I/O/owned paths. Upfront character
 validation, allocation and resource ordering have scoped exclusions. Incomplete

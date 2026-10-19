@@ -2,7 +2,8 @@ use std::borrow::Cow;
 use std::ops::Range;
 
 use crate::{
-    Attribute, Declaration, Element, Error, ErrorKind, Event, Limits, Name, Reader, SourceOrigin,
+    Attribute, Declaration, Doctype, Element, Error, ErrorKind, Event, Limits, Name, Reader,
+    SourceOrigin,
 };
 
 /// A document-local node index. IDs must only be used with their originating document.
@@ -13,6 +14,8 @@ pub struct NodeId(pub(crate) usize);
 #[derive(Debug)]
 pub enum NodeKind<'input> {
     Document,
+    /// The document type declaration, a child of the document root.
+    Doctype(Doctype<'input>),
     Element(Element<'input>),
     Text(Cow<'input, str>),
     Cdata(Cow<'input, str>),
@@ -119,6 +122,9 @@ impl<'input> Document<'input> {
             let parent = parents.last().copied().unwrap_or(NodeId(0));
             match event {
                 Event::Declaration(declaration) => document.declaration = Some(declaration),
+                Event::Doctype(doctype) => {
+                    document.append(parent, NodeKind::Doctype(doctype), origin)?;
+                }
                 Event::End(_) => {
                     let id = parents.last().copied().ok_or_else(|| {
                         Error::new(ErrorKind::MismatchedEndTag, origin.error_offset())
@@ -236,6 +242,14 @@ impl<'input> Document<'input> {
     pub fn declaration(&self) -> Option<&Declaration<'input>> {
         self.declaration.as_ref()
     }
+
+    /// Returns the document type declaration when present.
+    pub fn doctype(&self) -> Option<&Doctype<'input>> {
+        self.root().children().find_map(|node| match node.kind() {
+            NodeKind::Doctype(doctype) => Some(doctype),
+            _ => None,
+        })
+    }
 }
 
 fn append_text_value<'input>(
@@ -333,7 +347,7 @@ impl<'document, 'input> Node<'document, 'input> {
                 Some(value)
             }
             NodeKind::ProcessingInstruction { data, .. } => Some(data),
-            NodeKind::Document | NodeKind::Element(_) => None,
+            NodeKind::Document | NodeKind::Doctype(_) | NodeKind::Element(_) => None,
         }
     }
 

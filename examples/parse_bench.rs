@@ -397,7 +397,10 @@ mod tests {
 
     #[test]
     fn every_mode_rejects_malformed_and_dtd_inputs() {
-        for input in [b"<r>".as_slice(), b"<!DOCTYPE r><r/>".as_slice()] {
+        for input in [
+            b"<r>".as_slice(),
+            b"<!DOCTYPE r [<!ELEMENT>]><r/>".as_slice(),
+        ] {
             for mode in Mode::ALL {
                 assert!(sample(mode, input, 1).is_err(), "{mode:?} {input:?}");
             }

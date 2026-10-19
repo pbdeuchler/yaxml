@@ -447,10 +447,6 @@ fn malformed_and_unsupported_inputs_return_explicit_errors() {
         (b"<r>&#0;</r>", ErrorKind::InvalidReference),
         (b"<?xml version='1.x'?><r/>", ErrorKind::InvalidDeclaration),
         (
-            b"<!DOCTYPE r [<!ELEMENT r EMPTY>]><r/>",
-            ErrorKind::UnsupportedDtd,
-        ),
-        (
             b"<?xml version='1.0' encoding='UTF-16'?><r/>",
             ErrorKind::UnsupportedEncoding,
         ),

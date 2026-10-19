@@ -4,7 +4,6 @@ use crate::parser::{Budget, ParserState};
 use crate::tokenizer::{TokenKind, Tokenizer};
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, SourceOrigin};
 
-#[cfg(test)]
 pub(crate) mod dtd;
 
 /// Concrete incremental engine shared by callback and lending frontends.
@@ -41,8 +40,15 @@ impl Stream {
             .is_some_and(|(kind, bytes, _)| self.state.is_non_event(kind, bytes))
     }
 
+    /// Releases the token; a declaration that selected a byte charset takes
+    /// effect here, before any byte after it is decoded.
     pub(crate) fn release(&mut self) {
         self.tokenizer.release();
+        let encoding = self.state.encoding();
+        if matches!(encoding, crate::encoding::SourceEncoding::Byte(_)) {
+            self.decoder.switch(encoding);
+            self.tokenizer.switch(encoding);
+        }
     }
 
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
@@ -71,6 +77,7 @@ impl Stream {
         self.state.validate_finish(self.position())
     }
 
+    #[cfg(test)]
     pub(crate) fn event(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         let position = self.position();
         parse(&self.tokenizer, &mut self.state)?
@@ -103,6 +110,9 @@ fn decode(
                 0
             };
             state.set_encoding(encoding, initial, limit);
+            if encoding == crate::encoding::SourceEncoding::Utf8 && bom == 0 {
+                state.allow_switch();
+            }
             Ok(DecodeProgress {
                 consumed: 0,
                 suspended: false,

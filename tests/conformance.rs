@@ -381,7 +381,7 @@ fn capture(event: Event<'_>) -> Option<Value> {
         Event::ProcessingInstruction { target, data } => {
             Some(Value::Pi(target.into(), data.into_owned()))
         }
-        Event::Declaration(_) | Event::End(_) => None,
+        Event::Declaration(_) | Event::Doctype(_) | Event::End(_) => None,
     }
 }
 
@@ -463,7 +463,7 @@ fn logical_values_have_spec_derived_goldens() {
                 NodeKind::ProcessingInstruction { target, data } => {
                     Some(Value::Pi(target.to_string(), data.to_string()))
                 }
-                NodeKind::Document => None,
+                NodeKind::Document | NodeKind::Doctype(_) => None,
             })
             .collect();
         assert_eq!(values, expected, "DOM: {input:?}");
@@ -490,14 +490,24 @@ fn logical_values_have_spec_derived_goldens() {
 }
 
 #[test]
-fn valid_out_of_scope_features_report_unsupported() {
+fn internal_subsets_are_processed_and_external_subsets_are_not_read() {
     for input in [
         "<!DOCTYPE r SYSTEM 'urn:external'><r/>",
         "<!DOCTYPE r [<!ELEMENT r EMPTY>]><r/>",
         "<!DOCTYPE r [<!ENTITY e 'value'>]><r>&e;</r>",
+        "<!DOCTYPE r SYSTEM 'urn:external'><r>&declared-externally;</r>",
     ] {
-        check(input, Err(ErrorKind::UnsupportedDtd));
+        check(input, Ok(()));
     }
-    // This does not assert that malformed DTDs are well formed. The current
-    // DTD rejection policy deliberately stops before parsing their grammar.
+    for (input, kind) in [
+        ("<!DOCTYPE r [<!ELEMENT r>]><r/>", ErrorKind::InvalidDtd),
+        ("<!DOCTYPE r><r>&missing;</r>", ErrorKind::UnknownEntity),
+        (
+            "<!DOCTYPE r [<!ENTITY e '&e;'>]><r>&e;</r>",
+            ErrorKind::EntityLoop,
+        ),
+        ("<r/><!DOCTYPE r>", ErrorKind::Syntax),
+    ] {
+        check(input, Err(kind));
+    }
 }

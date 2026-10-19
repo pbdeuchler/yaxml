@@ -2,21 +2,14 @@
 #![forbid(unsafe_code)]
 
 mod buffered;
+pub mod c14n;
 mod dom;
-#[cfg(test)]
 mod dtd;
-#[cfg(test)]
 mod dtd_catalog;
-#[cfg(test)]
 mod dtd_controller;
-#[cfg(test)]
 mod dtd_frames;
-#[cfg(test)]
 mod dtd_scan;
-#[cfg(test)]
 mod dtd_tag;
-#[cfg(test)]
-mod dtd_writer;
 mod encoding;
 mod error;
 mod escape;
@@ -32,6 +25,7 @@ mod stream;
 mod tokenizer;
 pub mod uri;
 mod writer;
+pub mod xpath;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};
@@ -47,11 +41,10 @@ pub use owned::{
     OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, PrefixPolicy,
 };
 pub use push::PushParser;
-pub use reader::{Attribute, Declaration, Element, Event, Limits, Reader};
+pub use reader::{Attribute, Declaration, Doctype, Element, Event, Limits, Reader};
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
 
-#[cfg(test)]
 mod dtd_reference;
 
 #[cfg(test)]

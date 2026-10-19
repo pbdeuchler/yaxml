@@ -15,9 +15,10 @@ Python, Ruby, JavaScript/TypeScript, and Go bindings should target owned documen
 The implemented subset now includes the borrowing slice reader, read-only DOM,
 callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
 writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
-rooted document creation, fresh element/leaf insertion, permanent subtree removal, and an explicit `Read`
-adapter. Input shares XML 1.0 grammar and rejects DTDs; owning/streaming input
-also supports [UTF-16](encoding.md). See the [streaming contract](streaming.md)
+rooted document creation, fresh element/leaf insertion, permanent subtree removal, an explicit `Read`
+adapter, [XPath 1.0](xpath.md) evaluation and [canonicalization](c14n.md) over both DOMs. Input shares XML 1.0 grammar, including the
+internal DTD subset (below); owning/streaming input
+also supports [UTF-16 and declared US-ASCII, ISO-8859-x and windows-1252](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
 full upstream reader/SAX/save option surfaces remain open.
 
@@ -25,8 +26,42 @@ full upstream reader/SAX/save option surfaces remain open.
 string-value pieces for supported node kinds. Containers concatenate descendant
 Text/CDATA logically; comment and PI leaves expose their own data. Joining the
 pieces matches `xmlNodeGetContent` on the bounded [pinned oracle cases](validation-text-chunks.md).
-The methods retain chunk boundaries and do not add entity/DTD nodes, attribute
+The methods retain chunk boundaries and do not add entity nodes, attribute
 nodes or the allocating C entry point.
+
+## Document type declarations
+
+Every parser reports one `Event::Doctype` (DOM: `NodeKind::Doctype` /
+`OwnedNodeKind::DocumentType`, `doctype()`) with the name, unquoted public and
+system identifiers and the exact internal-subset text. The internal subset is
+processed: parameter entities, general entity substitution in content and
+attribute values (re-tokenized, so replacement markup becomes events), default
+and `#FIXED` attributes, and tokenized attribute-type normalization. External
+subsets and external entities are recorded but never read; no resolver exists.
+
+Defaults follow `xmlReadMemory(..., XML_PARSE_NOENT | XML_PARSE_DTDATTR)`.
+Without `DTDATTR`, libxml2 does not insert default attributes; yaxml always
+does, as XML 1.0 §5.1 requires of non-validating processors. Undeclared-entity
+handling mirrors libxml2's `xmlHandleUndeclaredEntity`: once any PE reference
+or an external subset is seen and the document is not `standalone='yes'`, an
+undeclared general or parameter entity is dropped (libxml2 reports a
+recoverable error), and references to unloaded external entities expand to
+nothing (libxml2's failed load). Otherwise `UnknownEntity` is fatal. Like
+libxml2, declarations after an unread PE reference are still processed.
+Unparsed entities in content (`UnparsedEntity`), external entities in attribute
+values (`ExternalEntityInAttribute`), recursion (`EntityLoop`), unbalanced
+replacement markup (`UnbalancedEntity`) and malformed declarations
+(`InvalidDtd`) are fatal. Ceilings are `Limits::max_dtd_bytes`,
+`max_entity_expansion_bytes`, `max_entity_references` and `max_entity_depth`.
+
+Known differences from the pinned oracle, all intentional: colons in entity or
+notation names are a fatal `Namespace` error (libxml2 warns); PE references
+inside internal-subset markup are fatal as the WFC requires; a `&#13;` in
+replacement text stays CR in content (libxml2 parses entity text as new input
+and turns it into LF); the serializer writes the DOCTYPE exactly as parsed
+rather than regenerating declarations; no DTD validation, `xmlGetID` or
+external loading. The differential cases live in `tests/dtd.rs`
+(`YAXML_XMLLINT=... cargo test --test dtd -- --ignored`).
 
 The [owned edit API](owned-dom.md#editing-existing-values) replaces literal leaf
 and existing ordinary-attribute values by checked handle. Value edits preserve
@@ -57,6 +92,10 @@ can warn and continue. Namespace URI syntax is not validated: an exploratory
 accepts. That observation applies to both UTF-8 and UTF-16; it is not a pinned
 2.15.4 result. Encoding corpus fixtures use ASCII namespace URIs to isolate
 decoding, and this URI-validation gap remains part of the compatibility burndown.
+Single-byte decoding follows libxml2 built without iconv/ICU but with
+`LIBXML_ISO8859X_ENABLED`; the pinned oracle build disables ISO8859X, so it
+reports ISO-8859-2..16 as unsupported while yaxml decodes them. A UTF-8 BOM
+with a single-byte label is rejected where libxml2 warns and continues as UTF-8.
 
 ## Prioritized feature map
 
@@ -76,9 +115,9 @@ Priority is dependency order and migration value. P0 is the first usable secure 
 | P1 | Serialization and writer: escaping, declarations, encoding, empty-element spelling, CDATA boundaries, namespace fixup, formatting, incremental writes and I/O failures; preserve semantic round trips | `xmlsave.h`, `xmlwriter.h`, `tree.h`; `xmlSaveTo*`, `xmlSaveDoc`, `xmlTextWriter*`, `xmlDocDump*` |
 | P1 | Rust I/O and contexts: slices, strings, `Read`/`BufRead`, `Write`, context reuse/reset, explicit resource resolver, deterministic cleanup, parser options and capability reporting | `xmlIO.h`, `parser.h`; `xmlReadMemory`, `xmlReadIO`, `xmlCtxtReset`, `xmlCtxtSetOptions`, `xmlHasFeature` |
 | P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
-| P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
-| P3 | HTML parsing and serialization: `yaxml::html` implements libxml2's tokenizer, legacy tree construction and recovery, HTML5 entities, implied elements, case folding, void/raw-text elements, meta/BOM/prescan encoding selection (UTF-8, UTF-16, windows-1252), chunk-independent push parsing, `htmlDocDumpMemory` and HTML `xmlSaveDoc` output ([html.md](html.md), differential-tested against xmllint); still open: ISO-8859-2..16 and other converters, SAX callbacks, `HTML_PARSE_HTML5`, `htmlCtxtParseContent`, line numbers | `HTMLparser.h`, `HTMLtree.h`; `htmlRead*`, `htmlCtxtRead*`, `htmlParseChunk`, `htmlDocDump*` |
-| P2 | Canonicalization: Canonical XML 1.0/1.1 and exclusive C14N, node subsets, comments toggle, inclusive namespace prefixes, exact bytes | `c14n.h`; `xmlC14NDocDumpMemory`, `xmlC14NDocSaveTo`, `xmlC14NExecute` |
+| P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits. **Implemented** over both DOMs; see [xpath.md](xpath.md) for the differential results, recorded differences and gaps (XPointer, `CHECKNS`/`NOVAR` flags, lookup callbacks) | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
+| P3 | HTML parsing and serialization: `yaxml::html` implements libxml2's tokenizer, legacy tree construction and recovery, HTML5 entities, implied elements, case folding, void/raw-text elements, meta/BOM/prescan encoding selection (UTF-8, UTF-16, built-in single-byte charsets), chunk-independent push parsing, `htmlDocDumpMemory` and HTML `xmlSaveDoc` output ([html.md](html.md), differential-tested against xmllint); still open: multi-byte converters, SAX callbacks, `HTML_PARSE_HTML5`, `htmlCtxtParseContent`, line numbers | `HTMLparser.h`, `HTMLtree.h`; `htmlRead*`, `htmlCtxtRead*`, `htmlParseChunk`, `htmlDocDump*` |
+| P2 | Canonicalization: Canonical XML 1.0/1.1 and exclusive C14N, node subsets, comments toggle, inclusive namespace prefixes, exact bytes. **Implemented** over both DOMs; 50 of 73 libxml2 `test/c14n` cases match byte for byte, the other 23 need DTDs. See [c14n.md](c14n.md) for kept libxml2 quirks and gaps (visibility callback, file output, `xmlns=""` namespace nodes) | `c14n.h`; `xmlC14NDocDumpMemory`, `xmlC14NDocSaveTo`, `xmlC14NExecute` |
 | P3 | XML Schema 1.0: parse/compile schemas, imports/includes/redefines, simple/complex types, facets, derivation, identity constraints, defaults, document/stream validation and diagnostics | `xmlschemas.h`, `schemasInternals.h`, `xmlschemastypes.h`; `xmlSchemaParse`, `xmlSchemaValidateDoc`, `xmlSchemaValidateStream`, `xmlSchemaVal*` |
 | P3 | RELAX NG: XML syntax, include/externalRef, patterns, datatype libraries, document and push validation, diagnostics | `relaxng.h`; `xmlRelaxNGParse`, `xmlRelaxNGValidateDoc`, `xmlRelaxNGValidatePush*` |
 | P2 | URI and resource resolution: `yaxml::uri` implements parse/save/escape/unescape/normalize/`xmlBuildURI`/`xmlBuildRelativeURI`/`xmlCanonicPath` for Unix ([uri.md](uri.md), differential-tested); still open: base URI rules in the DOM, XML and SGML catalogs, rewrite/delegate/nextCatalog, per-context resolver policy | `uri.h`, `catalog.h`; `xmlBuildURI`, `xmlParseURI`, `xmlCatalogResolve*`, `xmlACatalog*` |

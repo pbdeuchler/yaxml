@@ -2,10 +2,13 @@ use std::{borrow::Cow, ops::Range};
 
 use memchr::{memchr, memmem};
 
+use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
+use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
 use crate::escape::xml_char;
 use crate::parser::{Budget, ParserState, space};
-use crate::tokenizer::TokenKind;
-use crate::{Error, ErrorKind, Limit, Name, SourceOrigin};
+use crate::stream::dtd::{SessionError, SessionLimits};
+use crate::tokenizer::{TokenKind, Tokenizer};
+use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, SourceOrigin};
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -21,6 +24,15 @@ pub struct Limits {
     /// already released. Borrowed slice text is free; retaining owned storage
     /// can spend more of this budget.
     pub max_owned_bytes: usize,
+    /// Source bytes in the document type declaration, from `<!DOCTYPE` to `>`.
+    pub max_dtd_bytes: usize,
+    /// Cumulative replacement-text bytes produced by internal entity expansion,
+    /// in content, attribute values and the internal subset.
+    pub max_entity_expansion_bytes: usize,
+    /// Cumulative entity references expanded, including nested references.
+    pub max_entity_references: usize,
+    /// Nesting depth of entity references being expanded.
+    pub max_entity_depth: usize,
 }
 
 impl Default for Limits {
@@ -32,6 +44,10 @@ impl Default for Limits {
             max_attributes: 1024,
             max_events: 1_000_000,
             max_owned_bytes: 64 * 1024 * 1024,
+            max_dtd_bytes: 16 * 1024 * 1024,
+            max_entity_expansion_bytes: 8 * 1024 * 1024,
+            max_entity_references: 1024 * 1024,
+            max_entity_depth: 40,
         }
     }
 }
@@ -56,10 +72,61 @@ pub struct Declaration<'a> {
     pub standalone: Option<bool>,
 }
 
+/// A document type declaration. Identifiers are literal contents without
+/// quotes; the internal subset is the exact text between `[` and `]`.
+/// Its declarations have already been applied to the events that follow.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Doctype<'a> {
+    pub name: &'a str,
+    pub public_id: Option<&'a str>,
+    pub system_id: Option<&'a str>,
+    pub internal_subset: Option<&'a str>,
+}
+
+impl<'a> Doctype<'a> {
+    /// Splits a complete, already validated declaration from `<!DOCTYPE` to `>`.
+    pub(crate) fn parse(raw: &'a str) -> Self {
+        const SPACE: &[char] = &[' ', '\t', '\r', '\n'];
+        fn literal(input: &str) -> (&str, &str) {
+            let input = input.trim_start_matches(SPACE);
+            let quote = input.as_bytes()[0] as char;
+            let end = 1 + input[1..].find(quote).expect("validated literal");
+            (&input[1..end], &input[end + 1..])
+        }
+        let rest = raw["<!DOCTYPE".len()..].trim_start_matches(SPACE);
+        let (name, rest) = rest.split_at(
+            rest.find(|c| SPACE.contains(&c) || c == '[' || c == '>')
+                .expect("validated name"),
+        );
+        let rest = rest.trim_start_matches(SPACE);
+        let (public_id, system_id, rest) = if let Some(rest) = rest.strip_prefix("PUBLIC") {
+            let (public, rest) = literal(rest);
+            let (system, rest) = literal(rest);
+            (Some(public), Some(system), rest)
+        } else if let Some(rest) = rest.strip_prefix("SYSTEM") {
+            let (system, rest) = literal(rest);
+            (None, Some(system), rest)
+        } else {
+            (None, None, rest)
+        };
+        let internal_subset = rest
+            .trim_start_matches(SPACE)
+            .strip_prefix('[')
+            .map(|subset| &subset[..subset.rfind(']').expect("validated subset")]);
+        Self {
+            name,
+            public_id,
+            system_id,
+            internal_subset,
+        }
+    }
+}
+
 /// Logical events borrow the input except where XML normalization changes it.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Event<'a> {
     Declaration(Declaration<'a>),
+    Doctype(Doctype<'a>),
     Start(Element<'a>),
     Empty(Element<'a>),
     End(Name<'a>),
@@ -75,8 +142,19 @@ pub enum Event<'a> {
 enum ReaderStep<'input> {
     Xml(Event<'input>),
     Complete,
-    #[cfg(test)]
     Doctype(usize),
+}
+
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the phase occupies one fallibly reserved out-of-line slot"
+)]
+enum Phase<'input> {
+    Declarations {
+        controller: BorrowedDtdController<'input>,
+        parser: ParserState<'input>,
+    },
+    Content(BorrowedContentController<'input>),
 }
 
 /// Strict, namespace-aware XML 1.0 event reader over a complete UTF-8 input.
@@ -84,80 +162,83 @@ enum ReaderStep<'input> {
 /// This borrows the complete input; bounded-memory I/O streaming is a separate API.
 /// Top-level whitespace is skipped, while whitespace inside the root is kept.
 /// After an error, every call returns that same error. EOF repeatedly returns
-/// `Ok(None)`. DTDs and encodings other than UTF-8 are explicitly unsupported.
+/// `Ok(None)`. Encodings other than UTF-8 are explicitly unsupported.
+///
+/// A document type declaration is reported as one [`Event::Doctype`]. Its
+/// internal subset supplies entity replacement, default attributes and
+/// attribute-type normalization; external entities and subsets are not read.
+/// A document without a DOCTYPE never leaves the plain token loop.
 pub struct Reader<'a> {
-    input: &'a str,
-    cursor: usize,
-    origin: Option<SourceOrigin>,
-    state: ParserState<'a>,
+    source: &'a str,
+    ordinary: Option<SliceReader<'a>>,
+    session: Vec<Phase<'a>>,
     limits: Limits,
-    token_limit_kind: Limit,
+    decode: DecodeLimits,
+    options: SessionLimits,
+    standalone: bool,
+    doctype_start: usize,
+    origin: Option<SourceOrigin>,
+    physical: usize,
     failure: Option<Error>,
     finished: bool,
 }
 
 impl<'a> Reader<'a> {
-    pub(crate) fn owned_budget(&mut self) -> &mut Budget {
-        self.state.owned_budget()
-    }
-
     pub fn new(input: &'a [u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }
 
     pub fn with_limits(input: &'a [u8], limits: Limits) -> Result<Self, Error> {
-        if input.len() > limits.max_input_bytes {
-            return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
-        }
-        if input.starts_with(&[0xff, 0xfe])
-            || input.starts_with(&[0xfe, 0xff])
-            || input.starts_with(&[0, 0, 0xfe, 0xff])
-            || input.starts_with(&[0, b'<', 0, b'?'])
-        {
-            return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
-        }
-        let input = std::str::from_utf8(input)
-            .map_err(|e| Error::new(ErrorKind::InvalidUtf8, e.valid_up_to()))?;
-        if let Some((i, _)) = input.char_indices().find(|(_, c)| !xml_char(*c)) {
-            return Err(Error::new(ErrorKind::InvalidCharacter, i));
-        }
-        let initial = if input.starts_with('\u{feff}') { 3 } else { 0 };
-        Ok(Self {
-            input,
-            cursor: initial,
-            origin: None,
-            state: ParserState::new(limits, initial),
-            limits,
-            token_limit_kind: Limit::TokenBytes,
-            failure: None,
-            finished: false,
-        })
+        // Borrowed UTF-8 needs no decoding, so only the source ceilings apply.
+        let decode = DecodeLimits {
+            max_decoded_bytes: usize::MAX,
+            max_decoded_token_bytes: limits.max_token_bytes,
+        };
+        Self::with_decode_limits(input, limits, decode)
     }
 
     pub(crate) fn with_decode_limits(
         input: &'a [u8],
         limits: Limits,
-        decode: crate::DecodeLimits,
+        decode: DecodeLimits,
     ) -> Result<Self, Error> {
-        let mut reader = Self::with_limits(input, limits)?;
-        if input.len() - reader.cursor > decode.max_decoded_bytes {
-            return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
+        let ordinary = SliceReader::with_decode_limits(input, limits, decode)?;
+        Ok(Self {
+            source: ordinary.input,
+            physical: ordinary.position(),
+            ordinary: Some(ordinary),
+            session: Vec::new(),
+            limits,
+            decode,
+            options: SessionLimits::new(limits, decode),
+            standalone: false,
+            doctype_start: 0,
+            origin: None,
+            failure: None,
+            finished: false,
+        })
+    }
+
+    pub(crate) fn owned_budget(&mut self) -> &mut Budget {
+        if let Some(ordinary) = &mut self.ordinary {
+            return ordinary.state.owned_budget();
         }
-        if decode.max_decoded_token_bytes < limits.max_token_bytes {
-            reader.limits.max_token_bytes = decode.max_decoded_token_bytes;
-            reader.token_limit_kind = Limit::DecodedTokenBytes;
-            reader.state.set_encoding(
-                crate::encoding::SourceEncoding::Utf8,
-                reader.cursor,
-                decode.max_decoded_token_bytes,
-            );
+        match self.session.first_mut().expect("active DTD phase") {
+            Phase::Declarations { parser, .. } => parser.owned_budget(),
+            Phase::Content(controller) => controller.owned_budget(),
         }
-        Ok(reader)
     }
 
     /// Byte position after the most recently consumed input.
     pub fn position(&self) -> usize {
-        self.cursor
+        if let Some(ordinary) = &self.ordinary {
+            return ordinary.position();
+        }
+        match self.session.first() {
+            Some(Phase::Declarations { controller, .. }) => controller.physical_position(),
+            Some(Phase::Content(controller)) => controller.position().1,
+            None => self.physical,
+        }
     }
 
     /// Origin of the latest emitted event; absent before the first event.
@@ -178,22 +259,187 @@ impl<'a> Reader<'a> {
         if self.finished {
             return Ok(None);
         }
-        let result = self.read_next();
+        let result = self.read_next().map_err(Error::from);
         if let Err(error) = result {
             self.failure = Some(error);
         }
         result
     }
 
-    fn read_next(&mut self) -> Result<Option<Event<'a>>, Error> {
-        match self.read_step::<false>()? {
-            ReaderStep::Xml(event) => Ok(Some(event)),
-            ReaderStep::Complete => Ok(None),
-            #[cfg(test)]
-            ReaderStep::Doctype(_) => Err(Error::new(ErrorKind::InvalidState, self.cursor)),
+    fn read_next(&mut self) -> Result<Option<Event<'a>>, SessionError> {
+        loop {
+            if let Some(ordinary) = &mut self.ordinary {
+                match ordinary.read_step()? {
+                    ReaderStep::Xml(event) => {
+                        if let Event::Declaration(declaration) = &event {
+                            self.standalone = declaration.standalone == Some(true);
+                        }
+                        self.origin = ordinary.origin;
+                        return Ok(Some(event));
+                    }
+                    ReaderStep::Doctype(start) => {
+                        self.start_dtd(start)?;
+                        continue;
+                    }
+                    ReaderStep::Complete => {
+                        self.finished = true;
+                        return Ok(None);
+                    }
+                }
+            }
+            if matches!(self.session.first(), Some(Phase::Declarations { controller, .. }) if controller.is_complete())
+            {
+                self.start_content()?;
+            }
+            match self.session.first_mut().expect("active DTD phase") {
+                Phase::Declarations { controller, parser } => {
+                    while controller.current().is_none() {
+                        controller.advance_borrowed(parser.owned_budget())?;
+                    }
+                    let (event, origin) = controller.current().expect("ready declaration");
+                    let end = origin.physical_context().end;
+                    let complete = matches!(event, DtdEvent::End);
+                    if complete {
+                        parser.check_event_limit(self.doctype_start)?;
+                        parser.commit_doctype();
+                    }
+                    controller.release();
+                    if complete {
+                        let range = self.doctype_start..end;
+                        self.origin = Some(SourceOrigin::input(range.clone()));
+                        return Ok(Some(Event::Doctype(Doctype::parse(&self.source[range]))));
+                    }
+                }
+                Phase::Content(controller) => match controller.advance_borrowed()?.outcome {
+                    ContentOutcome::EventReady => {
+                        let (event, origin) = controller.take_event()?;
+                        if let Some(event) = event {
+                            self.origin = Some(origin);
+                            return Ok(Some(event));
+                        }
+                    }
+                    ContentOutcome::Progress => {}
+                    ContentOutcome::Complete => {
+                        self.finished = true;
+                        return Ok(None);
+                    }
+                    ContentOutcome::NeedPhysicalInput => {
+                        return Err(
+                            Error::new(ErrorKind::InvalidState, controller.position().1).into()
+                        );
+                    }
+                },
+            }
         }
     }
-    fn read_step<const DTD: bool>(&mut self) -> Result<ReaderStep<'a>, Error> {
+
+    fn start_dtd(&mut self, start: usize) -> Result<(), SessionError> {
+        self.session
+            .try_reserve_exact(1)
+            .map_err(|_| SessionError::Allocation {
+                physical_offset: start,
+            })?;
+        self.physical = self.position();
+        self.doctype_start = start;
+        let ordinary = self.ordinary.take().expect("checked ordinary owner");
+        let controller = DtdController::stable_utf8(
+            self.source,
+            0,
+            start,
+            self.options.declarations,
+            self.standalone,
+        )?;
+        self.session.push(Phase::Declarations {
+            controller,
+            parser: ordinary.state,
+        });
+        Ok(())
+    }
+
+    fn start_content(&mut self) -> Result<(), SessionError> {
+        self.physical = self.position();
+        let Phase::Declarations { controller, parser } = self.session.pop().expect("completed DTD")
+        else {
+            unreachable!("declaration handoff")
+        };
+        let body = controller.into_body_state()?;
+        let tokenizer = Tokenizer::new(
+            self.limits.max_token_bytes,
+            self.decode.max_decoded_token_bytes,
+        );
+        let controller = BorrowedContentController::stable_utf8(
+            body,
+            parser,
+            tokenizer,
+            self.source,
+            self.options.text,
+            self.options.local,
+        )?;
+        self.session.push(Phase::Content(controller));
+        Ok(())
+    }
+}
+
+/// The DTD-free token loop over a validated UTF-8 slice.
+struct SliceReader<'a> {
+    input: &'a str,
+    cursor: usize,
+    origin: Option<SourceOrigin>,
+    state: ParserState<'a>,
+    limits: Limits,
+    token_limit_kind: Limit,
+}
+
+impl<'a> SliceReader<'a> {
+    fn with_decode_limits(
+        input: &'a [u8],
+        limits: Limits,
+        decode: DecodeLimits,
+    ) -> Result<Self, Error> {
+        if input.len() > limits.max_input_bytes {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
+        }
+        if input.starts_with(&[0xff, 0xfe])
+            || input.starts_with(&[0xfe, 0xff])
+            || input.starts_with(&[0, 0, 0xfe, 0xff])
+            || input.starts_with(&[0, b'<', 0, b'?'])
+        {
+            return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
+        }
+        let input = std::str::from_utf8(input)
+            .map_err(|e| Error::new(ErrorKind::InvalidUtf8, e.valid_up_to()))?;
+        if let Some((i, _)) = input.char_indices().find(|(_, c)| !xml_char(*c)) {
+            return Err(Error::new(ErrorKind::InvalidCharacter, i));
+        }
+        let initial = if input.starts_with('\u{feff}') { 3 } else { 0 };
+        if input.len() - initial > decode.max_decoded_bytes {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
+        }
+        let mut reader = Self {
+            input,
+            cursor: initial,
+            origin: None,
+            state: ParserState::new(limits, initial),
+            limits,
+            token_limit_kind: Limit::TokenBytes,
+        };
+        if decode.max_decoded_token_bytes < limits.max_token_bytes {
+            reader.limits.max_token_bytes = decode.max_decoded_token_bytes;
+            reader.token_limit_kind = Limit::DecodedTokenBytes;
+            reader.state.set_encoding(
+                crate::encoding::SourceEncoding::Utf8,
+                initial,
+                decode.max_decoded_token_bytes,
+            );
+        }
+        Ok(reader)
+    }
+
+    fn position(&self) -> usize {
+        self.cursor
+    }
+
+    fn read_step(&mut self) -> Result<ReaderStep<'a>, Error> {
         loop {
             if !self.state.in_content() {
                 let start = self.cursor;
@@ -210,7 +456,6 @@ impl<'a> Reader<'a> {
             let start = self.cursor;
             if start == self.input.len() {
                 self.state.validate_finish(start)?;
-                self.finished = true;
                 return Ok(ReaderStep::Complete);
             }
             self.state.check_event_limit(start)?;
@@ -230,19 +475,15 @@ impl<'a> Reader<'a> {
             } else if tail.starts_with("</") {
                 (TokenKind::End, self.tag_end(start)?)
             } else if tail.starts_with("<!DOCTYPE") {
-                (TokenKind::Dtd, start + 9)
+                self.check_token(start, start + 9)?;
+                self.state.check_doctype_start(start)?;
+                return Ok(ReaderStep::Doctype(start));
             } else if tail.starts_with("<!") {
                 (TokenKind::InvalidMarkup, start + 2)
             } else {
                 self.state.check_token_start(TokenKind::Start, start)?;
                 (TokenKind::Start, self.tag_end(start)?)
             };
-            #[cfg(test)]
-            if DTD && kind == TokenKind::Dtd {
-                self.check_token(start, end)?;
-                self.state.check_doctype_start(start)?;
-                return Ok(ReaderStep::Doctype(start));
-            }
             let result =
                 self.state
                     .process_token(kind, &self.input[start..end], start..end, |raw, _, _| {
@@ -334,15 +575,3 @@ impl<'a> Reader<'a> {
         ))
     }
 }
-
-#[cfg(test)]
-#[path = "reader/dtd.rs"]
-pub(crate) mod dtd;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_reader_spec.rs"]
-mod dtd_spec_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_reader_fuzz.rs"]
-mod dtd_fuzz_tests;

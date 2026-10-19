@@ -1,4 +1,5 @@
-//! Independent UTF-16 reference decoding for the auto-decoding input surfaces.
+//! Independent UTF-16 and declared single-byte reference decoding for the
+//! auto-decoding input surfaces.
 //!
 //! Only this bounded test harness materializes decoded input and an offset map.
 //! The library must stream with constant decoder carry and token-local mapping.
@@ -13,14 +14,16 @@ use yaxml::{
 use super::Outcome;
 
 pub(super) fn recognizes(input: &[u8]) -> bool {
-    input.starts_with(&[0xff, 0xfe])
+    byte_table(input).is_some()
+        || input.starts_with(&[0xff, 0xfe])
         || input.starts_with(&[0xfe, 0xff])
         || input.get(..4).is_some_and(|prefix| {
-            matches!(prefix, [0, 60, 0, 63] | [60, 0, 63, 0]) || is_utf32(prefix)
+            matches!(prefix, [0, 60, 0, 63] | [60, 0, 63, 0]) || unsupported_signature(prefix)
         })
 }
 
-fn is_utf32(prefix: &[u8]) -> bool {
+/// UCS-4 and EBCDIC signatures, which have no built-in libxml2 decoder.
+fn unsupported_signature(prefix: &[u8]) -> bool {
     matches!(
         prefix,
         [0, 0, 0xfe, 0xff]
@@ -31,7 +34,49 @@ fn is_utf32(prefix: &[u8]) -> bool {
             | [60, 0, 0, 0]
             | [0, 0, 60, 0]
             | [0, 60, 0, 0]
+            | [0x4c, 0x6f, 0xa7, 0x94]
     )
+}
+
+/// libxml2 2.15.4 xmllint decoding of bytes 0x80..=0xFF per built-in charset.
+const CHARSETS: &str = include_str!("../tests/fixtures/charsets.tsv");
+
+/// Resolves a BOM-less declaration label through the public owning parser,
+/// one probe per high byte, and requires that table to be an xmllint row.
+fn byte_table(input: &[u8]) -> Option<Vec<u32>> {
+    let ascii = &input[..input
+        .iter()
+        .position(|b| !b.is_ascii())
+        .unwrap_or(input.len())];
+    let ascii = std::str::from_utf8(ascii).unwrap();
+    let label = &ascii[encoding_value(ascii)?];
+    if label.eq_ignore_ascii_case("UTF-8") {
+        return None;
+    }
+    let probed = (0x80..=0xffu8)
+        .map(|byte| {
+            let head = format!("<?xml version='1.0' encoding='{label}'?><r>");
+            match OwnedDocument::parse_bytes(&[head.as_bytes(), &[byte], b"</r>"].concat()) {
+                Ok(document) => document.root_element().text_chunks().next()?.chars().next(),
+                Err(error) if error.kind == ErrorKind::UnmappedByte => Some('\0'),
+                Err(_) => None,
+            }
+            .map(u32::from)
+        })
+        .collect::<Option<Vec<_>>>()?;
+    let row = CHARSETS
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .map(|line| {
+            let values = line.split_once('\t').unwrap().1.split(' ');
+            values.map(|value| u32::from_str_radix(value, 16).unwrap())
+        })
+        .find(|row| row.clone().eq(probed.iter().copied()));
+    assert!(
+        row.is_some(),
+        "{label} decoded with a table no xmllint row has"
+    );
+    Some(probed)
 }
 
 pub(super) struct Reference {
@@ -43,7 +88,17 @@ pub(super) struct Reference {
 
 impl Reference {
     pub(super) fn new(input: &[u8]) -> Option<Self> {
-        if input.get(..4).is_some_and(is_utf32) {
+        if let Some(table) = byte_table(input) {
+            let decoded = input
+                .iter()
+                .map(|&byte| match byte {
+                    0..0x80 => Some(char::from(byte)),
+                    _ => char::from_u32(table[usize::from(byte - 0x80)]).filter(|c| *c != '\0'),
+                })
+                .collect::<Option<String>>()?;
+            return Some(Self::decoded(decoded, 0, |_| 1));
+        }
+        if input.get(..4).is_some_and(unsupported_signature) {
             return None;
         }
         let (little, bom) = if input.starts_with(&[0xff, 0xfe]) {
@@ -83,6 +138,15 @@ impl Reference {
             None if bom != 0 => {}
             _ => return None,
         }
+        Some(Self::decoded(decoded, bom, |character| {
+            character.len_utf16() * 2
+        }))
+    }
+
+    /// Maps each decoded scalar to its source width after a `bom`-byte prefix.
+    fn decoded(decoded: String, bom: usize, width: impl Fn(char) -> usize) -> Self {
+        let span = encoding_value(&decoded);
+        let original_encoding = span.as_ref().map(|span| decoded[span.clone()].to_owned());
         let mut canonical = decoded.clone();
         if let Some(span) = &span {
             canonical.replace_range(span.clone(), "UTF-8");
@@ -91,7 +155,7 @@ impl Reference {
         let mut raw = bom;
         for (offset, character) in decoded.char_indices() {
             original_offsets[offset] = raw;
-            raw += character.len_utf16() * 2;
+            raw += width(character);
         }
         original_offsets[decoded.len()] = raw;
         let raw_offsets = (0..=canonical.len())
@@ -104,12 +168,12 @@ impl Reference {
                 original_offsets[original]
             })
             .collect();
-        Some(Self {
+        Self {
             canonical,
             original_encoding,
             label_start: span.map(|span| span.start),
             raw_offsets,
-        })
+        }
     }
 
     pub(super) fn range(&self, range: Range<usize>) -> Range<usize> {
@@ -255,7 +319,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
     let mut reader =
         valid.then(|| Reader::new(reference.as_ref().unwrap().canonical.as_bytes()).unwrap());
     let io = PushParser::new().read_from(std::io::Cursor::new(input), |event, origin| {
-        let range = origin.input_range().expect("direct input event");
+        let range = super::span(origin);
         if let Some(reader) = &mut reader {
             let expected = reader
                 .read_event()
@@ -265,7 +329,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             reference.event(event, expected);
             assert_eq!(
                 range,
-                reference.range(reader.event_range().expect("direct input event"))
+                reference.range(super::span(reader.event_origin().unwrap()))
             );
         }
         ControlFlow::Continue(())
@@ -344,6 +408,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             max_attributes: byte(2) & 15,
             max_events: byte(3),
             max_owned_bytes: byte(4),
+            ..Limits::default()
         },
     );
     exercise_decode_limits(
@@ -437,7 +502,7 @@ fn compare_stream(
             reference.event(event, expected);
             assert_eq!(
                 range,
-                reference.range(reader.event_range().expect("direct input event"))
+                reference.range(super::span(reader.event_origin().unwrap()))
             );
         }
     });
@@ -571,6 +636,8 @@ struct DecodeOracle<'a> {
     document: &'a Document<'a>,
     total: usize,
     token: usize,
+    /// Entity expansion produced tokens the source spans cannot measure.
+    generated: bool,
 }
 
 impl<'a> DecodeOracle<'a> {
@@ -579,24 +646,35 @@ impl<'a> DecodeOracle<'a> {
         reference: Option<&'a Reference>,
         document: &'a Document<'a>,
     ) -> Self {
-        let label_growth = reference
+        // The canonical text spells the original label as "UTF-8"; aliases can
+        // be shorter, so add the original length before removing that one.
+        let label = reference
             .and_then(|reference| reference.original_encoding.as_ref())
-            .map_or(0, |label| label.len() - "UTF-8".len());
+            .map_or("UTF-8".len(), String::len);
         let mut reader =
             Reader::with_limits(canonical.as_bytes(), reference_limits(canonical)).unwrap();
         let bom = reader.position();
         let mut previous = bom;
         let mut token = 0;
+        let mut generated = false;
         while let Some(event) = reader.read_event().unwrap() {
-            let range = reader.event_range().expect("direct input event");
-            token = token.max(range.start - previous);
-            let growth = if matches!(event, Event::Declaration(_)) {
-                label_growth
+            generated |= reader.event_range().is_none();
+            let range = super::span(reader.event_origin().unwrap());
+            // Events expanded from one reference share its span.
+            token = token.max(range.start.saturating_sub(previous));
+            // A DOCTYPE is one `<!DOCTYPE` token, then separately bounded units.
+            if matches!(event, Event::Doctype(_)) {
+                token = token.max("<!DOCTYPE".len());
+                previous = range.end;
+                continue;
+            }
+            let length = if matches!(event, Event::Declaration(_)) {
+                range.len() + label - "UTF-8".len()
             } else {
-                0
+                range.len()
             };
-            token = token.max(range.len() + growth);
-            previous = range.end;
+            token = token.max(length);
+            previous = previous.max(range.end);
         }
         // Gaps are lexical whitespace outside the root and count as tokens too.
         token = token.max(canonical.len() - previous);
@@ -604,8 +682,9 @@ impl<'a> DecodeOracle<'a> {
             canonical,
             reference,
             document,
-            total: canonical.len() - bom + label_growth,
+            total: canonical.len() - bom + label - "UTF-8".len(),
             token,
+            generated,
         }
     }
 
@@ -646,7 +725,9 @@ impl<'a> DecodeOracle<'a> {
                 // exhaust the default owned budget before the selected quota.
                 let legitimate = match error.kind {
                     ErrorKind::LimitExceeded(Limit::DecodedBytes) => total_exceeded,
-                    ErrorKind::LimitExceeded(Limit::DecodedTokenBytes) => token_exceeded,
+                    ErrorKind::LimitExceeded(Limit::DecodedTokenBytes) => {
+                        token_exceeded || self.generated
+                    }
                     ErrorKind::LimitExceeded(Limit::OwnedBytes) => input_len > 1024,
                     _ => false,
                 };
@@ -698,7 +779,7 @@ fn decode_stream(
     });
     let mut latest = None;
     let mut emit = |event: Event<'_>, origin: yaxml::SourceOrigin| {
-        let range = origin.input_range().expect("direct input event");
+        let range = super::span(origin);
         if let Some(reader) = &mut reader {
             let expected = reader
                 .read_event()
@@ -708,7 +789,7 @@ fn decode_stream(
             oracle.event(event, expected);
             assert_eq!(
                 range,
-                oracle.range(reader.event_range().expect("direct input event"))
+                oracle.range(super::span(reader.event_origin().unwrap()))
             );
         }
         latest = Some(range);
@@ -729,7 +810,7 @@ fn decode_stream(
     }
     assert!(parser.position() <= input.len());
     if let Some(range) = latest {
-        assert_eq!(parser.event_range().expect("direct input event"), range);
+        assert_eq!(super::span(parser.event_origin().unwrap()), range);
     }
     match result {
         Ok(()) => {

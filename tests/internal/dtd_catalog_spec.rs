@@ -24,15 +24,9 @@ fn apply(catalog: &mut DtdCatalog, raw: &str) -> DeclarationEffect {
 }
 
 fn value(catalog: &mut DtdCatalog, element: &str, name: &str, raw: &str) -> String {
-    match catalog
+    catalog
         .normalize_attribute_value(element, name, raw, LiteralSource::Physical)
         .expect(raw)
-    {
-        NormalizedValue::Value(value) => value,
-        NormalizedValue::Unavailable(dependency) => {
-            panic!("unexpected unavailable dependency: {dependency:?}")
-        }
-    }
 }
 
 fn internal_replacement<'a>(catalog: &'a DtdCatalog, name: &str) -> &'a str {
@@ -282,159 +276,68 @@ fn default_normalization_uses_only_already_read_declarations() {
 
     let mut indirect = loose();
     apply(&mut indirect, "<!ENTITY a '&future;'>");
-    let effect = apply(&mut indirect, "<!ATTLIST r x CDATA '&a;'>");
-    assert_eq!(effect.unavailable_defaults, 1);
-    let dependency = Dependency {
-        kind: DependencyKind::MissingReadDeclaration,
-        location: ValueLocation::Replacement {
-            entity: EntityId(0),
-            offset: 0,
-        },
-    };
     assert_eq!(
-        indirect.attributes("r").next().unwrap().default(),
-        DefaultValue::Unavailable {
-            fixed: false,
-            dependency,
-        }
-    );
-    apply(&mut indirect, "<!ENTITY future 'late'>");
-    assert_eq!(
-        indirect.attributes("r").next().unwrap().default(),
-        DefaultValue::Unavailable {
-            fixed: false,
-            dependency,
-        }
+        indirect.apply(&unit("<!ATTLIST r x CDATA '&a;'>"), INTERNAL),
+        Err(CatalogError {
+            kind: CatalogErrorKind::EntityDeclared,
+            location: ValueLocation::Replacement {
+                entity: EntityId(0),
+                offset: 0,
+            },
+        })
     );
 }
 
 #[test]
-fn discarded_duplicate_attribute_still_reports_its_unavailable_default() {
+fn discarded_duplicate_attribute_still_checks_its_default() {
     let mut catalog = loose();
     apply(&mut catalog, "<!ENTITY indirect '&missing;'>");
     apply(&mut catalog, "<!ATTLIST r x CDATA 'first'>");
-
-    let dependency = Dependency {
-        kind: DependencyKind::MissingReadDeclaration,
-        location: ValueLocation::Replacement {
-            entity: EntityId(0),
-            offset: 0,
-        },
-    };
-    let expected = DeclarationEffect {
-        bindings_added: 0,
-        unavailable_defaults: 1,
-        unavailable: Some(dependency),
-        ignored_after_unread_parameter: false,
-    };
-    let effect = catalog
-        .apply(&unit("<!ATTLIST r x CDATA '&indirect;'>"), INTERNAL)
-        .unwrap();
-
-    assert_eq!(effect, expected);
-    let attributes: Vec<_> = catalog.attributes("r").collect();
-    assert_eq!(attributes.len(), 1);
-    assert_eq!(attributes[0].name(), "x");
     assert_eq!(
-        attributes[0].default(),
-        DefaultValue::Value {
-            fixed: false,
-            value: "first",
-        }
+        catalog.apply(&unit("<!ATTLIST r x CDATA '&indirect;'>"), INTERNAL),
+        Err(CatalogError {
+            kind: CatalogErrorKind::EntityDeclared,
+            location: ValueLocation::Replacement {
+                entity: EntityId(0),
+                offset: 0,
+            },
+        })
     );
 }
 
 #[test]
-fn discarded_duplicate_entity_reports_unread_replacement_and_sets_barrier() {
+fn discarded_duplicate_entity_with_unloaded_parameter_keeps_first_binding() {
     let mut catalog = loose();
     apply(&mut catalog, "<!ENTITY % unread SYSTEM 'external.ent'>");
     apply(&mut catalog, "<!ENTITY % p 'first'>");
-
-    let dependency = Dependency {
-        kind: DependencyKind::ExternalEntity,
-        location: ValueLocation::Declaration {
-            declaration: 2,
-            offset: 14,
-        },
-    };
-    let expected = DeclarationEffect {
-        bindings_added: 0,
-        unavailable_defaults: 0,
-        unavailable: Some(dependency),
-        ignored_after_unread_parameter: false,
-    };
     let effect = catalog
         .apply(&unit("<!ENTITY % p '%unread;'>"), EXTERNAL)
         .unwrap();
-
-    assert_eq!(effect, expected);
+    assert_eq!(effect, DeclarationEffect { bindings_added: 0 });
     let EntityLookup::Internal { replacement, .. } = catalog.lookup_parameter("p") else {
         panic!("first parameter binding must remain effective")
     };
     assert_eq!(replacement, "first");
-    assert!(
-        catalog
-            .apply(&unit("<!ENTITY later 'ignored'>"), INTERNAL)
-            .unwrap()
-            .ignored_after_unread_parameter
-    );
-    assert_eq!(catalog.lookup_general("later"), EntityLookup::UnreadEntity);
+    apply(&mut catalog, "<!ENTITY later 'kept'>");
+    assert_eq!(internal_replacement(&catalog, "later"), "kept");
 }
 
 #[test]
-fn multiple_unavailable_defaults_report_first_dependency_in_lexical_order() {
+fn first_missing_default_reference_fails_in_lexical_order() {
     let mut catalog = loose();
     apply(&mut catalog, "<!ENTITY a '&missingA;'>");
     apply(&mut catalog, "<!ENTITY b '&missingB;'>");
-
-    let first = Dependency {
-        kind: DependencyKind::MissingReadDeclaration,
-        location: ValueLocation::Replacement {
-            entity: EntityId(0),
-            offset: 0,
-        },
-    };
-    let second = Dependency {
-        kind: DependencyKind::MissingReadDeclaration,
-        location: ValueLocation::Replacement {
-            entity: EntityId(1),
-            offset: 0,
-        },
-    };
-    let expected = DeclarationEffect {
-        bindings_added: 2,
-        unavailable_defaults: 2,
-        unavailable: Some(first),
-        ignored_after_unread_parameter: false,
-    };
-    let effect = catalog
-        .apply(&unit("<!ATTLIST r x CDATA '&a;' y CDATA '&b;'>"), INTERNAL)
-        .unwrap();
-
-    assert_eq!(effect, expected);
-    let defaults: Vec<_> = catalog
-        .attributes("r")
-        .map(|binding| (binding.name(), binding.default()))
-        .collect();
     assert_eq!(
-        defaults,
-        [
-            (
-                "x",
-                DefaultValue::Unavailable {
-                    fixed: false,
-                    dependency: first,
-                },
-            ),
-            (
-                "y",
-                DefaultValue::Unavailable {
-                    fixed: false,
-                    dependency: second,
-                },
-            ),
-        ]
+        catalog.apply(&unit("<!ATTLIST r x CDATA '&a;' y CDATA '&b;'>"), INTERNAL),
+        Err(CatalogError {
+            kind: CatalogErrorKind::EntityDeclared,
+            location: ValueLocation::Replacement {
+                entity: EntityId(0),
+                offset: 0,
+            },
+        })
     );
+    assert_eq!(catalog.attributes("r").count(), 0);
 }
 
 #[test]
@@ -476,12 +379,7 @@ fn internal_parameter_reference_is_semantic_but_raw_markup_use_is_lexical() {
     apply(&mut external, "<!ENTITY % p 'included'>");
     assert_eq!(
         external.apply(&unit("<!ENTITY e '%p;'>"), EXTERNAL),
-        Ok(DeclarationEffect {
-            bindings_added: 1,
-            unavailable_defaults: 0,
-            unavailable: None,
-            ignored_after_unread_parameter: false,
-        })
+        Ok(DeclarationEffect { bindings_added: 1 })
     );
     assert_eq!(internal_replacement(&external, "e"), "included");
 
@@ -495,26 +393,25 @@ fn unread_sources_never_trigger_io_and_barrier_effect_depends_on_standalone() {
 
     let mut open = loose();
     open.apply(&header, INTERNAL).unwrap();
-    let effect = open.apply(&default, INTERNAL).unwrap();
-    assert_eq!(effect.unavailable_defaults, 1);
-    assert!(matches!(
+    open.apply(&default, INTERNAL).unwrap();
+    assert_eq!(
         open.attributes("r").next().unwrap().default(),
-        DefaultValue::Unavailable {
-            dependency: Dependency {
-                kind: DependencyKind::UnreadEntity,
-                ..
-            },
-            ..
+        DefaultValue::Value {
+            fixed: false,
+            value: "",
         }
-    ));
+    );
 
-    let mut barred = loose();
-    barred.note_unread_parameter();
-    assert!(apply(&mut barred, "<!ENTITY later 'ignored'>").ignored_after_unread_parameter);
-    assert_eq!(barred.lookup_general("later"), EntityLookup::UnreadEntity);
+    let mut referenced = loose();
+    referenced.note_parameter_reference();
+    assert_eq!(
+        apply(&mut referenced, "<!ENTITY later 'kept'>").bindings_added,
+        1
+    );
+    assert_eq!(internal_replacement(&referenced, "later"), "kept");
 
     let mut standalone = DtdCatalog::new(CatalogLimits::default(), true);
-    standalone.note_unread_parameter();
+    standalone.note_parameter_reference();
     assert_eq!(
         apply(&mut standalone, "<!ENTITY later 'kept'>").bindings_added,
         1
@@ -655,29 +552,18 @@ fn empty_references_still_cost_and_cycles_fail_only_on_actual_use() {
 }
 
 #[test]
-fn missing_parameter_dependency_activates_the_unread_barrier_without_rebinding() {
+fn missing_parameter_reference_in_a_value_expands_empty_and_keeps_later_declarations() {
     let mut catalog = loose();
     let effect = catalog
-        .apply(&unit("<!ENTITY % p '%missing;'>"), EXTERNAL)
+        .apply(&unit("<!ENTITY % p 'a%missing;b'>"), EXTERNAL)
         .unwrap();
     assert_eq!(effect.bindings_added, 1);
-    assert_eq!(
-        catalog.lookup_parameter("p"),
-        EntityLookup::Unavailable(Dependency {
-            kind: DependencyKind::MissingReadDeclaration,
-            location: ValueLocation::Declaration {
-                declaration: 0,
-                offset: 14,
-            },
-        })
-    );
-    assert!(
-        catalog
-            .apply(&unit("<!ENTITY later 'ignored'>"), INTERNAL)
-            .unwrap()
-            .ignored_after_unread_parameter
-    );
-    assert_eq!(catalog.lookup_general("later"), EntityLookup::UnreadEntity);
+    let EntityLookup::Internal { replacement, .. } = catalog.lookup_parameter("p") else {
+        panic!("parameter binding")
+    };
+    assert_eq!(replacement, "ab");
+    apply(&mut catalog, "<!ENTITY later 'kept'>");
+    assert_eq!(internal_replacement(&catalog, "later"), "kept");
 }
 
 #[test]

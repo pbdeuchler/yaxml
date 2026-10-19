@@ -42,6 +42,7 @@ fn observe(event: Event<'_>) -> usize {
             black_box(value);
             0
         }
+        Event::Doctype(value) => black_box(value.name).len(),
         Event::Text(value) | Event::Comment(value) | Event::Cdata(value) => {
             black_box(value.as_bytes()).len()
         }

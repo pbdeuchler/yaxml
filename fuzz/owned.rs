@@ -51,7 +51,14 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
             super::check_display(&error);
             // Pool reservations share the normalization budget. They can fail
             // before the borrowing reader reaches a later syntax error.
-            if error.kind != ErrorKind::LimitExceeded(Limit::OwnedBytes) {
+            // A declared byte charset is decoded as a stream, so a token ceiling
+            // in the declaration precedes a later invalid byte that the
+            // borrowing DOM rejects up front (tests/charsets.rs).
+            let streamed = error.kind == ErrorKind::LimitExceeded(Limit::TokenBytes)
+                && borrowed
+                    .err()
+                    .is_some_and(|b| b.kind == ErrorKind::InvalidUtf8);
+            if error.kind != ErrorKind::LimitExceeded(Limit::OwnedBytes) && !streamed {
                 assert_eq!(Some(error), borrowed.err(), "owned parse differs");
             }
         }
@@ -117,6 +124,10 @@ pub(super) fn check_nodes(
         assert!(attributes.next().is_none());
         let (kind, target) = match expected.kind() {
             NodeKind::Document => (OwnedNodeKind::Document, None),
+            NodeKind::Doctype(doctype) => {
+                assert_eq!(actual.doctype().as_ref(), Some(doctype));
+                (OwnedNodeKind::DocumentType, None)
+            }
             NodeKind::Element(_) => (OwnedNodeKind::Element, None),
             NodeKind::Text(_) => (OwnedNodeKind::Text, None),
             NodeKind::Cdata(_) => (OwnedNodeKind::Cdata, None),

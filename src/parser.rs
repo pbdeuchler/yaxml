@@ -1,12 +1,10 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-#[cfg(test)]
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
 use memchr::memchr;
 
-#[cfg(test)]
 use crate::escape::normalize_replacement_required;
 use crate::escape::{copy_cow, needs_normalization, normalize_required};
 use crate::name::{qname, validate_name};
@@ -34,7 +32,6 @@ impl Budget {
         self.limits.max_events
     }
 
-    #[cfg(test)]
     pub(crate) fn max_attributes(&self) -> usize {
         self.limits.max_attributes
     }
@@ -90,7 +87,6 @@ struct Binding<'source> {
     previous: Option<usize>,
 }
 
-#[cfg(test)]
 struct PendingBinding<'source> {
     prefix: Cow<'source, str>,
     uri: Cow<'source, str>,
@@ -98,7 +94,6 @@ struct PendingBinding<'source> {
     previous: Option<usize>,
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy)]
 struct PendingNamespace {
     id: NamespaceId,
@@ -111,7 +106,6 @@ struct Frame<'source> {
     bindings_start: usize,
 }
 
-#[cfg(test)]
 #[derive(Debug)]
 pub(crate) struct RawAttribute<'event> {
     pub(crate) qualified: &'event str,
@@ -122,7 +116,6 @@ pub(crate) struct RawAttribute<'event> {
     pub(crate) value_end: usize,
 }
 
-#[cfg(test)]
 #[derive(Debug)]
 pub(crate) struct RawTag<'event> {
     pub(crate) qualified: &'event str,
@@ -132,29 +125,26 @@ pub(crate) struct RawTag<'event> {
     pub(crate) start: usize,
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AttributeProvenance {
     Specified {
         name_offset: usize,
         value_offset: usize,
     },
-    #[cfg(test)]
-    Defaulted { declaration: usize },
+    Defaulted {
+        declaration: usize,
+    },
 }
 
-#[cfg(test)]
 impl AttributeProvenance {
     pub(crate) fn offset(self, _fallback: usize) -> usize {
         match self {
             Self::Specified { name_offset, .. } => name_offset,
-            #[cfg(test)]
             Self::Defaulted { .. } => _fallback,
         }
     }
 }
 
-#[cfg(test)]
 #[derive(Debug)]
 pub(crate) struct PreparedAttribute<'event> {
     pub(crate) name: Name<'event>,
@@ -162,7 +152,6 @@ pub(crate) struct PreparedAttribute<'event> {
     pub(crate) provenance: AttributeProvenance,
 }
 
-#[cfg(test)]
 #[derive(Debug)]
 pub(crate) struct PreparedTag<'event> {
     pub(crate) name: Name<'event>,
@@ -171,7 +160,6 @@ pub(crate) struct PreparedTag<'event> {
     pub(crate) start: usize,
 }
 
-#[cfg(test)]
 impl PreparedTag<'_> {
     fn try_into_static(self) -> Result<PreparedTag<'static>, Error> {
         let start = self.start;
@@ -201,7 +189,6 @@ impl PreparedTag<'_> {
     }
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DtdLeafKind {
     Text,
@@ -210,14 +197,12 @@ pub(crate) enum DtdLeafKind {
     ProcessingInstruction,
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ReplacementError {
     pub(crate) kind: ErrorKind,
     pub(crate) local_offset: usize,
 }
 
-#[cfg(test)]
 impl From<Error> for ReplacementError {
     fn from(error: Error) -> Self {
         Self {
@@ -227,25 +212,18 @@ impl From<Error> for ReplacementError {
     }
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum PreparedTagErrorLocation {
     Input(usize),
-    #[cfg(test)]
-    Declaration {
-        declaration: usize,
-        offset: usize,
-    },
+    Declaration { declaration: usize, offset: usize },
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct PreparedTagError {
     pub(crate) kind: ErrorKind,
     pub(crate) location: PreparedTagErrorLocation,
 }
 
-#[cfg(test)]
 impl PreparedTagError {
     fn input(error: Error) -> Self {
         Self {
@@ -259,7 +237,6 @@ impl PreparedTagError {
             AttributeProvenance::Specified { name_offset, .. } => {
                 PreparedTagErrorLocation::Input(name_offset)
             }
-            #[cfg(test)]
             AttributeProvenance::Defaulted { declaration } => {
                 PreparedTagErrorLocation::Declaration {
                     declaration,
@@ -286,7 +263,9 @@ enum Phase {
 pub(crate) struct ParserState<'source> {
     initial: usize,
     encoding: crate::encoding::SourceEncoding,
+    switchable: bool,
     declaration_seen: bool,
+    doctype_seen: bool,
     token_limit: usize,
     token_limit_kind: Limit,
     phase: Phase,
@@ -312,7 +291,9 @@ impl<'source> ParserState<'source> {
         Self {
             initial: initial_offset,
             encoding: crate::encoding::SourceEncoding::Utf8,
+            switchable: false,
             declaration_seen: false,
+            doctype_seen: false,
             token_limit: limits.max_token_bytes,
             token_limit_kind: Limit::TokenBytes,
             phase: Phase::Prolog,
@@ -342,6 +323,15 @@ impl<'source> ParserState<'source> {
         self.token_limit_kind = Limit::DecodedTokenBytes;
     }
 
+    /// A BOM-less decoding stream can follow a declared byte charset.
+    pub(crate) fn allow_switch(&mut self) {
+        self.switchable = true;
+    }
+
+    pub(crate) fn encoding(&self) -> crate::encoding::SourceEncoding {
+        self.encoding
+    }
+
     pub(crate) fn in_content(&self) -> bool {
         matches!(self.phase, Phase::Content)
     }
@@ -365,20 +355,19 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn check_doctype_start(&self, offset: usize) -> Result<(), Error> {
         if self.encoding.requires_declaration() && !self.declaration_seen {
             return Err(Error::new(ErrorKind::EncodingMismatch, offset));
         }
-        if !matches!(self.phase, Phase::Prolog) {
+        if self.doctype_seen || !matches!(self.phase, Phase::Prolog) {
             return Err(Error::new(ErrorKind::Syntax, offset));
         }
         self.check_event_limit(offset)
     }
 
-    #[cfg(test)]
-    pub(crate) fn commit_checked_dtd_event(&mut self) {
+    pub(crate) fn commit_doctype(&mut self) {
         debug_assert!(self.events < self.budget.limits.max_events);
+        self.doctype_seen = true;
         self.events += 1;
     }
 
@@ -424,14 +413,7 @@ impl<'source> ParserState<'source> {
         let start = range.start;
         if matches!(kind, TokenKind::Dtd | TokenKind::InvalidMarkup) {
             self.check_event_limit(start)?;
-            return Err(Error::new(
-                if matches!(kind, TokenKind::Dtd) {
-                    ErrorKind::UnsupportedDtd
-                } else {
-                    ErrorKind::Syntax
-                },
-                start,
-            ));
+            return Err(Error::new(ErrorKind::Syntax, start));
         }
         if raw.len() > self.token_limit {
             return Err(Error::new(
@@ -480,8 +462,9 @@ impl<'source> ParserState<'source> {
                 Event::Cdata(self.normalized(body, start + 9, false, false)?)
             }
             TokenKind::Instruction => self.instruction(raw, start)?,
-            TokenKind::Dtd => return Err(Error::new(ErrorKind::UnsupportedDtd, start)),
-            TokenKind::InvalidMarkup => return Err(Error::new(ErrorKind::Syntax, start)),
+            TokenKind::Dtd | TokenKind::InvalidMarkup => {
+                return Err(Error::new(ErrorKind::Syntax, start));
+            }
         };
         self.events += 1;
         Ok(Some(event))
@@ -516,8 +499,9 @@ impl<'source> ParserState<'source> {
             }
             let (declaration, encoding_offset) =
                 parse_declaration(&body[name_end..], start + 2 + name_end)?;
-            validate_encoding(
+            self.encoding = validate_encoding(
                 self.encoding,
+                self.switchable,
                 declaration.encoding,
                 encoding_offset.unwrap_or(start),
             )?;
@@ -650,7 +634,6 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn process_dtd_start<'event, F>(
         &mut self,
         raw: &'event str,
@@ -666,7 +649,6 @@ impl<'source> ParserState<'source> {
         self.process_dtd_start_policy(raw, start, catalog, source, false, retain)
     }
 
-    #[cfg(test)]
     pub(crate) fn process_stable_dtd_start<'event, F>(
         &mut self,
         raw: &'event str,
@@ -688,7 +670,6 @@ impl<'source> ParserState<'source> {
         )
     }
 
-    #[cfg(test)]
     fn process_dtd_start_policy<'event, F>(
         &mut self,
         raw: &'event str,
@@ -721,7 +702,6 @@ impl<'source> ParserState<'source> {
         Ok(event)
     }
 
-    #[cfg(test)]
     pub(crate) fn process_dtd_start_owned(
         &mut self,
         raw: &str,
@@ -749,7 +729,6 @@ impl<'source> ParserState<'source> {
         Ok(event)
     }
 
-    #[cfg(test)]
     pub(crate) fn process_dtd_leaf_owned(
         &mut self,
         kind: DtdLeafKind,
@@ -760,7 +739,6 @@ impl<'source> ParserState<'source> {
             .map_err(ReplacementError::from)
     }
 
-    #[cfg(test)]
     fn process_dtd_leaf_owned_inner(
         &mut self,
         kind: DtdLeafKind,
@@ -833,7 +811,6 @@ impl<'source> ParserState<'source> {
         Ok(event)
     }
 
-    #[cfg(test)]
     fn normalized_replacement_owned(
         &mut self,
         raw: &str,
@@ -846,7 +823,6 @@ impl<'source> ParserState<'source> {
         normalize_replacement_required(raw, offset).map(Cow::Owned)
     }
 
-    #[cfg(test)]
     pub(crate) fn process_dtd_end_owned(
         &mut self,
         raw: &str,
@@ -856,7 +832,6 @@ impl<'source> ParserState<'source> {
             .map_err(ReplacementError::from)
     }
 
-    #[cfg(test)]
     fn process_dtd_end_owned_inner(
         &mut self,
         raw: &str,
@@ -901,7 +876,6 @@ impl<'source> ParserState<'source> {
         Ok(Event::End(name))
     }
 
-    #[cfg(test)]
     pub(crate) fn collect_raw_tag<'event>(
         &self,
         raw: &'event str,
@@ -961,7 +935,6 @@ impl<'source> ParserState<'source> {
         })
     }
 
-    #[cfg(test)]
     pub(crate) fn publish_prepared_tag<'event, F>(
         &mut self,
         prepared: PreparedTag<'event>,
@@ -977,7 +950,6 @@ impl<'source> ParserState<'source> {
         })
     }
 
-    #[cfg(test)]
     fn publish_prepared_tag_owned(
         &mut self,
         prepared: PreparedTag<'static>,
@@ -989,7 +961,6 @@ impl<'source> ParserState<'source> {
         )
     }
 
-    #[cfg(test)]
     fn publish_prepared_tag_with<'event, F, N>(
         &mut self,
         mut prepared: PreparedTag<'event>,
@@ -1334,7 +1305,6 @@ impl<'source> ParserState<'source> {
         Ok(Some(id))
     }
 
-    #[cfg(test)]
     #[allow(
         clippy::ptr_arg,
         reason = "the Cow variant determines whether a token borrow can be retained"
@@ -1374,7 +1344,6 @@ impl<'source> ParserState<'source> {
         Ok((name, identity))
     }
 
-    #[cfg(test)]
     fn resolve_end_name_owned(
         &mut self,
         qualified: &str,
@@ -1437,7 +1406,6 @@ impl<'source> ParserState<'source> {
         Ok(identity)
     }
 
-    #[cfg(test)]
     fn resolve_namespace_with_pending<'event, N>(
         &mut self,
         name: &mut Name<'event>,
@@ -1580,7 +1548,6 @@ struct ScannedAttribute<'a> {
     literal: &'a str,
     name_offset: usize,
     value_offset: usize,
-    #[cfg(test)]
     value_end: usize,
 }
 
@@ -1645,7 +1612,6 @@ impl<'a> TagScanner<'a> {
         if let Some(i) = memchr(b'<', value.as_bytes()) {
             return Err(Error::new(ErrorKind::Syntax, self.offset + value_start + i));
         }
-        #[cfg(test)]
         let value_end = self.offset + self.cursor;
         self.cursor += 1;
         Ok(Some(ScannedAttribute {
@@ -1653,7 +1619,6 @@ impl<'a> TagScanner<'a> {
             literal: value,
             name_offset: self.offset + start,
             value_offset: self.offset + value_start,
-            #[cfg(test)]
             value_end,
         }))
     }
@@ -1719,36 +1684,35 @@ fn parse_declaration(raw: &str, offset: usize) -> Result<(Declaration<'_>, Optio
     Ok((declaration, encoding_offset))
 }
 
+/// Returns the encoding for the input after the declaration. Only a BOM-less
+/// decoding stream (`switchable`) can continue in a declared byte charset.
 fn validate_encoding(
     source: crate::encoding::SourceEncoding,
+    switchable: bool,
     label: Option<&str>,
     offset: usize,
-) -> Result<(), Error> {
-    use crate::encoding::SourceEncoding;
+) -> Result<crate::encoding::SourceEncoding, Error> {
+    use crate::encoding::{Charset, SourceEncoding};
     let Some(label) = label else {
         return if source.requires_declaration() {
             Err(Error::new(ErrorKind::EncodingMismatch, offset))
         } else {
-            Ok(())
+            Ok(source)
         };
     };
-    let utf8 = label.eq_ignore_ascii_case("UTF-8");
-    let generic = label.eq_ignore_ascii_case("UTF-16");
-    let le = label.eq_ignore_ascii_case("UTF-16LE");
-    let be = label.eq_ignore_ascii_case("UTF-16BE");
-    let agrees = match source {
-        SourceEncoding::Utf8 => utf8,
-        SourceEncoding::Utf16 { little_endian, bom } => {
-            (bom && generic) || (little_endian && le) || (!little_endian && be)
+    let kind = match (source, crate::encoding::charset(label)) {
+        (_, None) => ErrorKind::UnsupportedEncoding,
+        (SourceEncoding::Utf8, Some(Charset::Utf8)) => return Ok(source),
+        (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {
+            return Ok(SourceEncoding::Byte(table));
         }
-    };
-    if agrees {
-        return Ok(());
-    }
-    let kind = if matches!(source, SourceEncoding::Utf8) || !(utf8 || generic || le || be) {
-        ErrorKind::UnsupportedEncoding
-    } else {
-        ErrorKind::EncodingMismatch
+        (SourceEncoding::Utf16 { little_endian, bom }, Some(Charset::Utf16(order)))
+            if order.map_or(bom, |order| order == little_endian) =>
+        {
+            return Ok(source);
+        }
+        (SourceEncoding::Utf16 { .. }, Some(_)) => ErrorKind::EncodingMismatch,
+        _ => ErrorKind::UnsupportedEncoding,
     };
     Err(Error::new(kind, offset))
 }

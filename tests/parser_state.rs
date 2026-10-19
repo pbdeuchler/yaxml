@@ -33,6 +33,6 @@ fn slice_failures_preserve_consumed_positions_and_early_structural_checks() {
     let mut reader = Reader::with_limits(b"<!DOCTYPE", limits).unwrap();
     assert_eq!(
         reader.read_event().unwrap_err().kind,
-        ErrorKind::UnsupportedDtd
+        ErrorKind::LimitExceeded(yaxml::Limit::TokenBytes)
     );
 }

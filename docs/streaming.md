@@ -13,14 +13,17 @@ at its end offset. Cancellation and parser errors are sticky. Successful finish
 is idempotent and delivers no further events. Any feed after successful finish,
 including an empty chunk, starts a sticky `InvalidState` error. A failed feed can
 leave an input suffix unconsumed. `position()` includes encoding detection and
-one decoded scalar of lookahead when `<` terminates text; origin input ranges identify the
+one decoded scalar of lookahead when `<` terminates text (text in a
+DOCTYPE document instead consumes a terminating general entity reference `&name;`,
+which must be read to tell it from a predefined reference); origin input ranges identify the
 logical event precisely.
 
 `event_origin()` is absent before the first delivery and retains the latest
 delivered origin after EOF, cancellation or failure. `event_range()` derives its
 optional exact input span. Neither accessor controls physical source progress.
-Replacement-text origins remain a prerequisite for future entity expansion;
-this boundary change does not add DTD acceptance.
+Events produced by entity expansion have no `input_range()`; their
+`physical_context()` is the outermost reference and `replacement_range()` the
+span inside the innermost replacement text.
 
 A callback panic propagates normally through Rust unwinding. If the caller
 recovers it, the parser remains poisoned with `InvalidState`; partially delivered
@@ -96,8 +99,12 @@ its discovery position can differ between frontends. Final acceptance and valid
 logical events agree under sufficient budgets; isolated errors have split-point
 regressions. A truncated token reports final EOF, while an incomplete feed waits.
 
-All APIs reject DTDs. Complete-input borrowing remains UTF-8-only; push, pull,
-and owned parsing also support UTF-16. UTF-16 output, other encodings, entity declarations,
+All APIs process the internal DTD subset and emit one `Doctype` event at its
+end; DTD-free documents stay on the plain token loop. Streaming retains the
+declaration text (charged to `max_owned_bytes`) only until that event is
+delivered. Entity expansion resumes across arbitrary chunk splits, so events
+and errors do not depend on chunk boundaries. Complete-input borrowing remains UTF-8-only; push, pull,
+and owned parsing also support UTF-16. UTF-16 output, other encodings, external entities,
 allocator-backed collections and recovery modes remain open
 items in [the roadmap](roadmap.md). Streaming support does not establish complete
 libxml2 reader/SAX compatibility or the performance goal.

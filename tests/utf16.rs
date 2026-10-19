@@ -40,6 +40,7 @@ fn span(input: &str, token: &str) -> Range<usize> {
 #[derive(Debug, PartialEq, Eq)]
 enum Value {
     Declaration(String, Option<String>, Option<bool>),
+    Doctype(String),
     Start(
         String,
         Option<String>,
@@ -72,6 +73,7 @@ fn record(event: Event<'_>) -> Value {
         )
     };
     match event {
+        Event::Doctype(doctype) => Value::Doctype(doctype.name.to_owned()),
         Event::Declaration(declaration) => Value::Declaration(
             declaration.version.to_owned(),
             declaration.encoding.map(str::to_owned),
@@ -286,12 +288,9 @@ fn encoding_labels_and_declaration_grammar_are_independent_checks() {
             (false, Some(opposite), Some(ErrorKind::EncodingMismatch)),
             (false, Some("UTF-16"), Some(ErrorKind::EncodingMismatch)),
             (true, Some("UTF-8"), Some(ErrorKind::EncodingMismatch)),
-            (true, Some("UTF16"), Some(ErrorKind::UnsupportedEncoding)),
-            (
-                true,
-                Some("ISO-8859-1"),
-                Some(ErrorKind::UnsupportedEncoding),
-            ),
+            (true, Some("UTF16"), None),
+            (true, Some("UCS-2"), Some(ErrorKind::UnsupportedEncoding)),
+            (true, Some("ISO-8859-1"), Some(ErrorKind::EncodingMismatch)),
             (true, Some("16UTF"), Some(ErrorKind::InvalidDeclaration)),
             (true, Some("UTF 16"), Some(ErrorKind::InvalidDeclaration)),
         ] {

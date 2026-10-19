@@ -5,6 +5,13 @@ use std::collections::HashSet;
 use std::ops::{ControlFlow, Range};
 use yaxml::{Document, Error, ErrorKind, Event, Limits, NodeKind, PushParser, ReadError, Reader};
 
+/// Exact input span, or the outermost entity reference that produced the value.
+pub fn span(origin: yaxml::SourceOrigin) -> Range<usize> {
+    origin
+        .input_range()
+        .unwrap_or_else(|| origin.physical_context())
+}
+
 #[path = "writer.rs"]
 mod writer;
 
@@ -31,6 +38,11 @@ mod names;
 
 #[path = "uri.rs"]
 mod uri;
+#[path = "xpath.rs"]
+mod xpath;
+
+#[path = "c14n.rs"]
+mod c14n;
 
 #[path = "html.rs"]
 mod html;
@@ -55,6 +67,8 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_names(input);
     exercise_uri(input);
     exercise_html(input);
+    exercise_xpath(input);
+    exercise_c14n(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
@@ -67,6 +81,37 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_writer(input);
     exercise_limits(input);
     exercise_dom(input)
+}
+
+/// DOCTYPE-bearing input through every parser surface. Inputs that do not
+/// start a DOCTYPE become an internal-subset prefix, entity replacement text
+/// or attribute default, so mutations reach declaration and expansion paths.
+#[allow(dead_code, reason = "used by the dtd target and fuzz smoke tests only")]
+pub fn exercise_dtd(input: &[u8]) -> Outcome {
+    if input.starts_with(b"<!DOCTYPE") {
+        return exercise(input);
+    }
+    let (control, body) = input.split_first().unwrap_or((&0, &[]));
+    let mut document = Vec::with_capacity(body.len() + 64);
+    match control % 3 {
+        0 => {
+            document.extend_from_slice(b"<!DOCTYPE r [");
+            document.extend_from_slice(body);
+            document.extend_from_slice(b"]><r>&e;</r>");
+        }
+        1 => {
+            document.extend_from_slice(b"<!DOCTYPE r [<!ENTITY e '");
+            document.extend_from_slice(body);
+            document.extend_from_slice(b"'>]><r a='&e;'>&e;&e;</r>");
+        }
+        _ => {
+            document.extend_from_slice(b"<!DOCTYPE r SYSTEM 'x' [<!ENTITY % p '");
+            document.extend_from_slice(body);
+            document.extend_from_slice(b"'>%p;<!ATTLIST r a CDATA 'd'>]><r>&e;</r>");
+        }
+    }
+    document.truncate(MAX_INPUT_BYTES);
+    exercise(&document)
 }
 
 /// URI parse, serialization, escaping and resolution invariants.
@@ -150,6 +195,8 @@ pub fn exercise_limits(input: &[u8]) -> Outcome {
             max_attributes: byte(2) & 15,
             max_events: byte(3),
             max_owned_bytes: byte(4),
+            max_entity_expansion_bytes: byte(6),
+            ..Limits::default()
         },
     )
 }
@@ -194,7 +241,7 @@ fn check_finish_abort(input: &[u8]) {
     let mut starts = 0;
     parser
         .feed(&source, |event, origin| {
-            let range = origin.input_range().expect("direct input event");
+            let range = span(origin);
             assert!(matches!(event, Event::Start(_)), "unexpected pre-EOF event");
             assert_eq!(range, 0..3);
             starts += 1;
@@ -206,7 +253,7 @@ fn check_finish_abort(input: &[u8]) {
     let mut texts = 0;
     let error = parser
         .finish(|event, origin| {
-            let range = origin.input_range().expect("direct input event");
+            let range = span(origin);
             let Event::Text(actual) = event else {
                 panic!("unexpected finish event")
             };
@@ -241,6 +288,19 @@ fn check_abort(error: Error, expected_offset: usize) {
 pub fn exercise_mutation(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     mutation::exercise(input);
+}
+
+/// Exercise XPath compilation and evaluation over both DOMs; see `xpath.rs`
+/// for the testcase format.
+pub fn exercise_xpath(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    xpath::exercise(input);
+}
+
+/// Exercise canonicalization over both DOMs; see `c14n.rs` for the testcase format.
+pub fn exercise_c14n(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    c14n::exercise(input);
 }
 
 /// Exercise validated names and owned PI targets before XML/encoding dispatch.
@@ -388,7 +448,7 @@ fn read<'input>(
         previous = position;
         match result {
             Ok(Some(event)) => {
-                let range = reader.event_range().expect("direct input event");
+                let range = span(reader.event_origin().unwrap());
                 assert!(range.start <= range.end && range.end <= position);
                 events += 1;
                 assert!(
@@ -430,7 +490,28 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
     let mut nodes = document.nodes().skip(1);
     let mut parents = Vec::new();
     let mut declaration = None;
-    for event in stream {
+    let mut index = 0;
+    while let Some(event) = stream.get(index) {
+        index += 1;
+        // Entity expansion can split one DOM text node into adjacent events.
+        if let Event::Text(first) = event {
+            let mut text = first.to_string();
+            while let Some(Event::Text(next)) = stream.get(index) {
+                text.push_str(next);
+                index += 1;
+            }
+            if text.is_empty() {
+                continue;
+            }
+            let node = nodes.next().expect("DOM lost a text node");
+            let expected_parent = parents.last().copied().unwrap_or(document.root().id());
+            assert_eq!(node.parent().unwrap().id(), expected_parent);
+            assert!(
+                matches!(node.kind(), NodeKind::Text(actual) if *actual == text),
+                "DOM payload differs from stream"
+            );
+            continue;
+        }
         match event {
             Event::Declaration(value) => {
                 assert!(
@@ -464,8 +545,10 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                     parents.push(node.id());
                 }
             }
-            (Event::Text(expected), NodeKind::Text(actual))
-            | (Event::Cdata(expected), NodeKind::Cdata(actual))
+            (Event::Doctype(expected), NodeKind::Doctype(actual)) => {
+                assert_eq!(actual, expected, "DOCTYPE differs from stream");
+            }
+            (Event::Cdata(expected), NodeKind::Cdata(actual))
             | (Event::Comment(expected), NodeKind::Comment(actual)) => {
                 assert!(actual == expected, "DOM payload differs from stream");
             }
@@ -495,14 +578,16 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
         declaration,
         "DOM declaration differs from stream"
     );
+    // The DOM coalesces adjacent Text events produced by entity expansion.
     assert!(
-        document
-            .root()
-            .text_chunks()
-            .eq(stream.iter().filter_map(|event| match event {
-                Event::Text(value) | Event::Cdata(value) => Some(value.as_ref()),
-                _ => None,
-            })),
+        document.root().text_chunks().collect::<String>()
+            == stream
+                .iter()
+                .filter_map(|event| match event {
+                    Event::Text(value) | Event::Cdata(value) => Some(value.as_ref()),
+                    _ => None,
+                })
+                .collect::<String>(),
         "document string-value chunks differ from reader payloads"
     );
 }
@@ -583,7 +668,7 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
         );
         visited.push(node.id());
         assert_eq!(document.node(node.id()).unwrap().id(), node.id());
-        let range = node.range().expect("direct input node");
+        let range = span(node.origin());
         assert!(range.start <= range.end && range.end <= len);
         let children: Vec<_> = node.children().take(nodes.len() + 1).collect();
         assert!(children.len() <= nodes.len(), "sibling cycle");
@@ -603,9 +688,11 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
                 child.next_sibling().map(|n| n.id()),
                 children.get(index + 1).map(|n| n.id())
             );
-            let child_range = child.range().expect("direct input node");
-            assert!(child_range.start >= previous_end && child_range.end <= range.end);
-            previous_end = child_range.end;
+            // Nodes expanded from one entity reference share its physical span.
+            if let Some(child_range) = child.range() {
+                assert!(child_range.start >= previous_end && child_range.end <= range.end);
+                previous_end = child_range.end;
+            }
             subtree_size += child.descendants().len();
         }
         assert_eq!(node.descendants().len(), subtree_size);
@@ -614,7 +701,7 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
                 assert!(node.name().is_some());
                 assert!(node.text().is_none());
             }
-            NodeKind::Document => {
+            NodeKind::Document | NodeKind::Doctype(_) => {
                 assert!(node.name().is_none());
                 assert!(node.text().is_none());
                 assert!(node.attributes().is_empty());
@@ -649,7 +736,7 @@ pub(crate) fn drive_push(
     };
     let mut latest = None;
     let mut capture = |event: Event<'_>, origin: yaxml::SourceOrigin| {
-        let range = origin.input_range().expect("direct input event");
+        let range = span(origin);
         latest = Some(range.clone());
         emit(event, range);
         ControlFlow::Continue(())
@@ -672,7 +759,7 @@ pub(crate) fn drive_push(
     }
     assert!(parser.position() <= input.len());
     if let Some(range) = latest {
-        assert_eq!(parser.event_range().expect("direct input event"), range);
+        assert_eq!(span(parser.event_origin().unwrap()), range);
     }
     match result {
         Ok(()) => {
@@ -761,7 +848,7 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
                 .unwrap()
                 .expect("extra streaming event");
             assert!(actual == event, "typed streaming event differs from slice");
-            assert_eq!(range, expected.event_range().expect("direct input event"));
+            assert_eq!(range, span(expected.event_origin().unwrap()));
         }
     });
     // Streaming owns structural names that the slice reader can borrow.
@@ -782,11 +869,11 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
     }
     let mut expected = slice_error.is_none().then(|| Reader::new(input).unwrap());
     let result = PushParser::new().read_from(std::io::Cursor::new(input), |actual, origin| {
-        let range = origin.input_range().expect("direct input event");
+        let range = span(origin);
         if let Some(expected) = &mut expected {
             let event = expected.read_event().unwrap().expect("extra I/O event");
             assert!(actual == event, "typed I/O event differs from slice");
-            assert_eq!(range, expected.event_range().expect("direct input event"));
+            assert_eq!(range, span(expected.event_origin().unwrap()));
         }
         ControlFlow::Continue(())
     });
@@ -899,7 +986,7 @@ fn check_io_schedule(input: &[u8]) {
     };
     let mut cancelled = None;
     let result = PushParser::new().read_from(reader, |_, origin| {
-        let range = origin.input_range().expect("direct input event");
+        let range = span(origin);
         cancelled = Some((calls.get(), range.end));
         ControlFlow::Break(())
     });

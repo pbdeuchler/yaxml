@@ -46,6 +46,7 @@ impl<'document, 'input> TreeNode<'document, 'input> {
     fn leaf(self) -> Option<Event<'document>> {
         match self {
             Self::Borrowed(node) => match node.kind() {
+                NodeKind::Doctype(doctype) => Some(Event::Doctype(*doctype)),
                 NodeKind::Text(value) => Some(Event::Text(Cow::Borrowed(value))),
                 NodeKind::Cdata(value) => Some(Event::Cdata(Cow::Borrowed(value))),
                 NodeKind::Comment(value) => Some(Event::Comment(Cow::Borrowed(value))),
@@ -58,6 +59,7 @@ impl<'document, 'input> TreeNode<'document, 'input> {
                 NodeKind::Document | NodeKind::Element(_) => None,
             },
             Self::Owned(node) => match node.kind() {
+                OwnedNodeKind::DocumentType => node.doctype().map(Event::Doctype),
                 OwnedNodeKind::Text => Some(Event::Text(Cow::Borrowed(node.text()?))),
                 OwnedNodeKind::Cdata => Some(Event::Cdata(Cow::Borrowed(node.text()?))),
                 OwnedNodeKind::Comment => Some(Event::Comment(Cow::Borrowed(node.text()?))),

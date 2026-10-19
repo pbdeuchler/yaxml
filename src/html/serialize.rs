@@ -2,11 +2,10 @@
 //! htmlAttrDumpOutput, htmlSerializeUri, htmlDtdDumpOutput) and the HTML
 //! escape tables of `xmlIO.c`. The walk is iterative.
 
-use super::Doctype;
 use super::encoding::{Output, content_charset};
 use super::tables;
 use super::tokenizer::blank;
-use crate::{Error, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind};
+use crate::{Doctype, Error, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind};
 
 /// `htmlDocDumpMemory`: formatted, in the document's encoding (ASCII with
 /// HTML 4 entities when it has none), leaving `<meta>` declarations alone.
@@ -165,10 +164,10 @@ impl Dumper<'_> {
         }
     }
 
-    fn doctype(&mut self, doctype: &Doctype) {
+    fn doctype(&mut self, doctype: Doctype<'_>) {
         self.write("<!DOCTYPE ");
-        self.write(doctype.name.as_deref().unwrap_or(""));
-        match (&doctype.public_id, &doctype.system_id) {
+        self.write(doctype.name);
+        match (doctype.public_id, doctype.system_id) {
             (Some(public), system) => {
                 self.write(" PUBLIC ");
                 self.quoted(public);

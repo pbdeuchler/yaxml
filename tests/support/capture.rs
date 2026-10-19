@@ -7,6 +7,7 @@ use yaxml::{Error, Event, Limits, Name, Reader};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Captured {
     Declaration(String, Option<String>, Option<bool>),
+    Doctype(String, Option<String>, Option<String>, Option<String>),
     Element(bool, CapturedName, Vec<(CapturedName, String)>),
     End(CapturedName),
     Text(String),
@@ -36,6 +37,12 @@ impl From<Event<'_>> for Captured {
                 value.version.into(),
                 value.encoding.map(str::to_owned),
                 value.standalone,
+            ),
+            Event::Doctype(value) => Self::Doctype(
+                value.name.into(),
+                value.public_id.map(str::to_owned),
+                value.system_id.map(str::to_owned),
+                value.internal_subset.map(str::to_owned),
             ),
             Event::Start(value) => Self::Element(
                 false,

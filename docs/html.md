@@ -17,13 +17,16 @@ the WHATWG tree builder.
 | `html::save(&OwnedDocument, format)` | `xmlSaveDoc` on an HTML document, as `xmllint --html [--format]` prints |
 | `Parsed { document, diagnostics, stopped }` | `ctxt->myDoc`, reported errors, `XML_ERR_RESOURCE_LIMIT` halt |
 | `OwnedDocument::{is_html, doctype, html_encoding}` | `XML_DOC_HTML`, `doc->intSubset`, `doc->encoding` |
+| `Writer::write_owned_document`, `c14n` on an HTML document | XML output; fails if names, characters, comments or several top-level elements are not XML |
 | `OwnedNode::attribute_has_value(i)` | `attr->children != NULL` |
 
 Documents are ordinary [`OwnedDocument`](owned-dom.md)s, so traversal, text
 chunks and editing work unchanged. HTML names are stored verbatim (they may be
 names XML rejects) without namespaces; script, style and other raw-text
-content is CDATA, as in libxml2. The DOCTYPE lives on the document, including
-libxml2's implied HTML 4.0 Transitional one unless `NODEFDTD`. A valueless
+content is CDATA, as in libxml2. The DOCTYPE is the shared `Doctype` view of a
+`DocumentType` node that, as in libxml2, is always the document's first child,
+including the implied HTML 4.0 Transitional one unless `NODEFDTD`; an empty
+`name` is a `<!DOCTYPE>` without one, and `internal_subset` is always None. A valueless
 attribute reads as `""`; valueless boolean attributes (`checked`, `selected`,
 ...) get their name as value, as `xmlSAX2HtmlAttribute` does. HTML nodes have no
 source origins. A document without any element (empty input, comments only,
@@ -53,14 +56,17 @@ in text or a value runs libxml2's prescan (`HTTP-EQUIV` ... `CONTENT` ...
 Tag names before that point are read as UTF-8. Invalid UTF-8 bytes become
 U+FFFD one byte at a time, as `htmlValidateUtf8` does.
 
-Implemented: UTF-8, UTF-16LE/BE, windows-1252, and the ASCII/Latin-1 labels
-that libxml2 maps to windows-1252 for HTML. Labels for ISO-8859-2 to -16,
-which libxml2 has built in, fail with `ErrorKind::UnsupportedEncoding`; labels
-libxml2 cannot convert are reported as `DiagnosticKind::UnsupportedEncoding` and
-ignored, as libxml2 does. `html_encoding()` is the name libxml2 records:
+Implemented: UTF-8, UTF-16LE/BE and libxml2's built-in single-byte tables
+(US-ASCII, ISO-8859-1..16, windows-1252, from [crate encodings](encoding.md)),
+with the HTML rule that ASCII and Latin-1 labels decode as windows-1252.
+Labels libxml2 cannot convert are reported as
+`DiagnosticKind::UnsupportedEncoding` and ignored, as libxml2 does. The pinned
+oracle is built without ISO8859X support, so it reports ISO-8859-2..16 labels
+as unsupported where this module decodes them; the differential corpus avoids
+those labels. `html_encoding()` is the name libxml2 records:
 the declared label, the prescan label, `windows-1252`, `UTF-8`, or None for
-BOM-detected and ASCII-only input. Output uses that encoding (UTF-8, Latin-1,
-windows-1252, ASCII) or, without one, ASCII with HTML 4 entity names;
+BOM-detected and ASCII-only input. Output uses that encoding (UTF-8 or a
+single-byte table) or, without one, ASCII with HTML 4 entity names;
 unrepresentable characters become `&#N;`.
 
 ## Push parsing and resource limits
@@ -113,7 +119,7 @@ corpus snippets and libxml2's `test/HTML` files,
 `cargo +nightly fuzz run html fuzz/corpus/html fuzz/corpus -- -max_total_time=360 -max_len=16384`
 ran 302,479 inputs in 6 minutes without failure. Its smoke tests had found two
 chunk-dependence bugs, and an earlier run an over-strict reparse invariant
-(`fuzz/regressions/html-reparse-prescan.html`). `fuzz/coverage.sh html` on the
+(`fuzz/regressions/html/reparse-prescan.html`). `fuzz/coverage.sh html` on the
 resulting corpus covers 99.8% of tokenizer lines (98.7% of branches), 98.8%
 of tree lines (92.9%), 94.2% of serializer lines (92.3%), 94.9% of encoding
 lines (93.6%) and 98.3% of the driver (90.4%).
@@ -131,7 +137,5 @@ lines (93.6%) and 98.3% of the driver (90.4%).
 - Diagnostics carry a kind and a decoded-text offset, not libxml2's messages,
   codes or line numbers; warnings for unusable prescan labels are not
   reported.
-- libxml2 binary-searches a charset table with one misordered pair, which
-  can miss `unicodefeff`/`unicodefffe`; this module finds every label.
 - `HTML_PARSE_HTML5`, SAX callbacks, `htmlCtxtParseContent`, line numbers and
   node-info recording are not implemented.

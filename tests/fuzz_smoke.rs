@@ -10,6 +10,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/references.xml"),
     include_bytes!("../fuzz/corpus/malformed.xml"),
     include_bytes!("../fuzz/corpus/dtd.xml"),
+    include_bytes!("../fuzz/corpus/dtd-entities.xml"),
+    include_bytes!("../fuzz/corpus/dtd-unread.xml"),
     include_bytes!("../fuzz/corpus/declaration.xml"),
     include_bytes!("../fuzz/corpus/encoding-name.xml"),
     include_bytes!("../fuzz/corpus/infoset.xml"),
@@ -18,6 +20,8 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/utf16le-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16be-declaration.xml"),
     include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
+    include_bytes!("../fuzz/corpus/charset-alias.xml"),
+    include_bytes!("../fuzz/corpus/charset-unmapped.xml"),
     include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
     include_bytes!("../fuzz/corpus/serialize.xml"),
     include_bytes!("../fuzz/corpus/mutation-operations.bin"),
@@ -586,7 +590,9 @@ fn known_acceptance() {
         (b"<r>", false),
         (b"<r a='1' a='2'/>", false),
         (b"<r>&missing;</r>", false),
-        (b"<!DOCTYPE r><r/>", false),
+        (b"<!DOCTYPE r><r/>", true),
+        (b"<!DOCTYPE r [<!ENTITY e '&lt;n/>'>]><r>&e;</r>", true),
+        (b"<!DOCTYPE r [<!ENTITY e '&e;'>]><r>&e;</r>", false),
         (b"<p:r/>", false),
         (b"\xff", false),
     ] {
@@ -984,6 +990,84 @@ fn encoded_equivalents_and_every_truncation() {
                     ..yaxml::Limits::default()
                 },
             );
+        }
+    }
+}
+
+#[test]
+fn xpath_entry_replays_expressions_and_documents() {
+    let cases: &[&[u8]] = &[
+        b"//*[@id]/@*",
+        b"count(//node()) + sum(//text())",
+        b"//p:c/namespace::* | //e/..",
+        b"string(/r/a[1]/following::node()[last()])",
+        b"id('i')/preceding::node()",
+        b"concat(name(//*[lang('EN')][1]), substring('abc', 2), translate('x', 'x', 'y'))",
+        b"//a[",
+        b"((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))",
+        b"//*[count(//*) > 0][1]\0<r><s><t/></s><s/></r>",
+        b"//x\0<r",
+        b"\xff\xfe//*",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_xpath(case);
+    }
+}
+
+#[test]
+fn c14n_entry_replays_modes_and_node_sets() {
+    let document = b"<?p d?><!--c--><r xmlns='urn:d' xmlns:p='urn:p' xml:lang='en' xml:base='http://h/a/'><p:s p:a='1' b='&#9;&#13;'>t&amp;<e xmlns='' xml:base='b/'/><![CDATA[<]]></p:s></r><?q?>";
+    let mut cases: Vec<Vec<u8>> = (0..=255u8)
+        .map(|selector| [&[selector][..], document].concat())
+        .collect();
+    cases.extend([
+        b"\x00<a xmlns:p='rel'/>".to_vec(),
+        b"\x00<a xmlns:p='http://a/?x&amp;y'/>".to_vec(),
+        b"\x0a<r".to_vec(),
+        b"\x00".to_vec(),
+        Vec::new(),
+    ]);
+    for case in &cases {
+        driver::exercise_c14n(case);
+    }
+}
+
+#[test]
+fn dtd_wrappers_reach_every_construction() {
+    for input in [
+        b"\0<!ENTITY e 'x'>".as_slice(),
+        b"\x01<n/>&amp;",
+        b"\x02<!ENTITY e 'y'>",
+        b"\x00<!BAD>",
+        b"\x01&e;",
+        b"<!DOCTYPE r><r/>",
+        b"",
+    ] {
+        driver::exercise_dtd(input);
+    }
+    assert!(driver::exercise_dtd(b"\x01x").error.is_none());
+    assert!(driver::exercise_dtd(b"\x01&e;").error.is_some());
+}
+
+/// Replays every minimized crash under `fuzz/regressions/<target>/` through
+/// that target's entry point.
+#[test]
+fn fuzz_regressions_replay() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/regressions");
+    for target in std::fs::read_dir(root).unwrap() {
+        let target = target.unwrap();
+        let name = target.file_name().into_string().unwrap();
+        for case in std::fs::read_dir(target.path()).unwrap() {
+            let data = std::fs::read(case.unwrap().path()).unwrap();
+            match name.as_str() {
+                "buffered" => {
+                    driver::exercise_pull(&data, data.get(data.len() / 2).copied().unwrap_or(0));
+                }
+                "dtd" => drop(driver::exercise_dtd(&data)),
+                "html" => driver::exercise_html(&data),
+                _ => drop(driver::exercise(&data)),
+            }
         }
     }
 }

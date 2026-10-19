@@ -104,8 +104,7 @@ fn replay(input: &[u8], oracle: Option<&Oracle>) -> io::Result<Comparison> {
     if matches!(
         outcome.error.map(|error| error.kind),
         Some(
-            ErrorKind::UnsupportedDtd
-                | ErrorKind::UnsupportedEncoding
+            ErrorKind::UnsupportedEncoding
                 | ErrorKind::EncodingMismatch
                 | ErrorKind::InvalidUtf8
                 | ErrorKind::LimitExceeded(_)

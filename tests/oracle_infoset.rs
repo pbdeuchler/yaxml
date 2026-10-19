@@ -339,7 +339,7 @@ fn malformed_and_unsupported_documents_are_errors() {
     for input in [
         b"".as_slice(),
         b"<r>",
-        b"<!DOCTYPE r><r/>",
+        b"<!DOCTYPE r><r>&missing;</r>",
         b"<r/>\0",
         b"<p:r/>",
     ] {

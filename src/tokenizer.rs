@@ -29,7 +29,6 @@ enum Scan {
 #[derive(Clone, Debug)]
 enum ReadySpan {
     Input(TokenSpan),
-    #[cfg(test)]
     Local(std::ops::Range<usize>),
 }
 
@@ -43,7 +42,6 @@ pub(crate) struct Tokenizer {
     source_start: usize,
     source_position: usize,
     encoding: SourceEncoding,
-    #[cfg(test)]
     local: bool,
     limit: usize,
     decoded_limit: usize,
@@ -61,7 +59,6 @@ impl Tokenizer {
             source_start: 0,
             source_position: 0,
             encoding: SourceEncoding::Utf8,
-            #[cfg(test)]
             local: false,
             limit,
             decoded_limit,
@@ -74,11 +71,11 @@ impl Tokenizer {
         self.source_position
     }
 
-    #[cfg(test)]
     pub(crate) fn scratch_capacity_requirement(&self) -> usize {
         let configured = match self.encoding {
             SourceEncoding::Utf8 => self.limit,
             SourceEncoding::Utf16 { .. } => (self.limit / 2).saturating_mul(3),
+            SourceEncoding::Byte(_) => self.limit.saturating_mul(3),
         }
         .min(self.decoded_limit);
         configured.max(self.buffer.capacity())
@@ -96,23 +93,20 @@ impl Tokenizer {
         self.start = self.position;
     }
 
+    /// Continues current coordinates in a declaration-selected encoding.
+    pub(crate) fn switch(&mut self, encoding: SourceEncoding) {
+        self.encoding = encoding;
+    }
+
     pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], &TokenSpan)> {
         match self.ready.as_ref()? {
             (kind, ReadySpan::Input(span)) => Some((*kind, self.buffer.as_slice(), span)),
-            #[cfg(test)]
             (_, ReadySpan::Local(_)) => None,
         }
     }
 
     fn local_mode(&self) -> bool {
-        #[cfg(test)]
-        {
-            self.local
-        }
-        #[cfg(not(test))]
-        {
-            false
-        }
+        self.local
     }
 
     fn raw_length(&self) -> usize {
@@ -160,8 +154,16 @@ impl Tokenizer {
             if REFERENCES && matches!(self.scan, Scan::Text) && input[cursor] == b'&' {
                 return Ok((cursor, true));
             }
-            if self.encoding == SourceEncoding::Utf8 {
-                let length = self.plain_run::<REFERENCES>(&input[cursor..]);
+            if matches!(
+                self.encoding,
+                SourceEncoding::Utf8 | SourceEncoding::Byte(_)
+            ) {
+                let mut length = self.plain_run::<REFERENCES>(&input[cursor..]);
+                if matches!(self.encoding, SourceEncoding::Byte(_)) {
+                    // Only ASCII keeps byte-charset source and decoded offsets in step.
+                    let run = &input[cursor..cursor + length];
+                    length = run.iter().position(|b| !b.is_ascii()).unwrap_or(length);
+                }
                 if length > 0 {
                     if self.buffer.is_empty() {
                         self.start = self.position;
@@ -279,6 +281,8 @@ impl Tokenizer {
                     // A UTF-16 code unit produces at most three UTF-8 bytes;
                     // surrogate pairs produce fewer bytes per source byte.
                     SourceEncoding::Utf16 { .. } => (self.limit / 2).saturating_mul(3),
+                    // A byte-charset byte produces at most three UTF-8 bytes.
+                    SourceEncoding::Byte(_) => self.limit.saturating_mul(3),
                 })
                 .min(self.decoded_limit);
             self.buffer
@@ -395,7 +399,6 @@ impl Tokenizer {
     }
 
     fn mark_at(&mut self, kind: TokenKind, end: usize, source_end: usize) {
-        #[cfg(test)]
         if self.local {
             self.ready = Some((kind, ReadySpan::Local(self.start..end)));
             return;
@@ -445,11 +448,8 @@ impl Tokenizer {
 #[path = "../tests/internal/tokenizer.rs"]
 mod tests;
 
-#[cfg(test)]
 pub(crate) mod local;
 
-#[cfg(test)]
 pub(crate) mod reference;
 
-#[cfg(test)]
 pub(crate) mod text;

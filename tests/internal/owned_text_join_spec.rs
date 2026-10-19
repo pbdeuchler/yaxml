@@ -61,7 +61,7 @@ fn summary(doc: &OwnedDocument) -> Vec<String> {
                 n.text().unwrap()
             ),
             OwnedNodeKind::Element => format!("E:{}", n.name().unwrap().qualified()),
-            OwnedNodeKind::Document => panic!("document child"),
+            OwnedNodeKind::Document | OwnedNodeKind::DocumentType => panic!("document child"),
         })
         .collect()
 }

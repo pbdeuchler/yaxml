@@ -24,6 +24,7 @@
 
 use std::borrow::Cow;
 
+use crate::encoding::WINDOWS_1252;
 use crate::owned::HtmlBuilder;
 use crate::{Error, ErrorKind, Limit, Limits, OwnedDocument};
 
@@ -107,14 +108,6 @@ impl Options {
     fn has(&self, flag: u32) -> bool {
         self.flags & flag != 0
     }
-}
-
-/// A document type declaration (`xmlDtd` name and identifiers).
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Doctype {
-    pub name: Option<String>,
-    pub public_id: Option<String>,
-    pub system_id: Option<String>,
 }
 
 /// A problem libxml2 reports while recovering. Offsets count bytes of the
@@ -363,29 +356,27 @@ impl<'a> Engine<'a> {
 
     /// The first non-ASCII byte without a known encoding: htmlFindEncoding,
     /// else windows-1252. An unusable guess leaves the bytes as UTF-8.
-    fn fallback(&mut self, at: usize) -> Result<(), Error> {
+    fn fallback(&mut self, at: usize) {
         let (decoder, name) = match prescan(&self.text[at..]) {
-            None => (Decoder::Windows1252, "windows-1252".to_owned()),
-            Some(label) => match Decoder::for_label(&label).map_err(|e| self.located(e))? {
+            None => (Decoder::Byte(WINDOWS_1252), "windows-1252".to_owned()),
+            Some(label) => match Decoder::for_label(&label) {
                 Some(Decoder::Utf8) | None => (Decoder::Utf8, "UTF-8".to_owned()),
                 Some(decoder) => (decoder, label),
             },
         };
         self.encoding = Some(name);
         self.switch(decoder, at, true);
-        Ok(())
     }
 
     /// `htmlCheckMeta` and `xmlSetDeclaredEncoding` for a `<meta>` charset.
-    fn declare(&mut self, label: String, last: bool) -> Result<(), Error> {
-        match Decoder::for_label(&label).map_err(|e| self.located(e))? {
+    fn declare(&mut self, label: String, last: bool) {
+        match Decoder::for_label(&label) {
             Some(decoder) if decoder.ascii_compatible() => {
                 self.encoding = Some(label);
                 self.switch(decoder, self.pos, last);
             }
             _ => self.tree.report(DiagnosticKind::UnsupportedEncoding),
         }
-        Ok(())
     }
 
     fn located(&self, error: Error) -> Error {
@@ -427,7 +418,7 @@ impl<'a> Engine<'a> {
                         Reaction::Halt => self.stopped = true,
                     }
                     if let Some(label) = charset {
-                        self.declare(label, eof)?;
+                        self.declare(label, eof);
                     }
                 }
                 Err(Stop::More) => {
@@ -439,7 +430,7 @@ impl<'a> Engine<'a> {
                     self.retry = usize::MAX;
                     return Ok(());
                 }
-                Err(Stop::Switch(at)) => self.fallback(self.pos + at)?,
+                Err(Stop::Switch(at)) => self.fallback(self.pos + at),
                 Err(Stop::TooLong) => {
                     self.tree.halt();
                     self.stopped = true;

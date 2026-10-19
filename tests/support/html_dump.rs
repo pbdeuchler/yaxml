@@ -61,6 +61,20 @@ fn node(out: &mut String, node: OwnedNode<'_>, depth: usize) {
             out.push_str("COMMENT\n");
             content(out, depth + 1, node.text().unwrap());
         }
+        OwnedNodeKind::DocumentType => {
+            let doctype = node.doctype().unwrap();
+            out.push_str("DTD");
+            if !doctype.name.is_empty() {
+                write!(out, "({})", doctype.name).unwrap();
+            }
+            if let Some(public) = doctype.public_id {
+                write!(out, ", PUBLIC {public}").unwrap();
+            }
+            if let Some(system) = doctype.system_id {
+                write!(out, ", SYSTEM {system}").unwrap();
+            }
+            out.push('\n');
+        }
         kind => panic!("unexpected {kind:?} in an HTML document"),
     }
 }
@@ -73,19 +87,6 @@ pub fn dump(document: &OwnedDocument) -> String {
         out.push('\n');
     }
     out.push_str("standalone=true\n");
-    if let Some(doctype) = document.doctype() {
-        out.push_str("  DTD");
-        if let Some(name) = &doctype.name {
-            write!(out, "({name})").unwrap();
-        }
-        if let Some(public) = &doctype.public_id {
-            write!(out, ", PUBLIC {public}").unwrap();
-        }
-        if let Some(system) = &doctype.system_id {
-            write!(out, ", SYSTEM {system}").unwrap();
-        }
-        out.push('\n');
-    }
     let root = document.root();
     for descendant in root.descendants().skip(1) {
         let mut depth = 0;

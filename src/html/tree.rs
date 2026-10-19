@@ -11,8 +11,8 @@
 use std::collections::HashMap;
 
 use super::tables::{self, Mode};
-use super::tokenizer::{Attribute, TagEnd, Token, blank};
-use super::{Diagnostic, DiagnosticKind, Doctype};
+use super::tokenizer::{Attribute, Doctype, TagEnd, Token, blank};
+use super::{Diagnostic, DiagnosticKind};
 use crate::owned::{HtmlBuilder, LastChild};
 use crate::{Error, NodeId, OwnedDocument};
 
@@ -400,13 +400,21 @@ impl Tree {
         while !self.stack.is_empty() {
             self.pop();
         }
-        let doctype = self.doctype.take().or_else(|| {
-            default_doctype.then(|| Doctype {
-                name: Some("html".to_owned()),
-                public_id: Some("-//W3C//DTD HTML 4.0 Transitional//EN".to_owned()),
-                system_id: Some("http://www.w3.org/TR/REC-html40/loose.dtd".to_owned()),
-            })
-        });
+        let implied = crate::Doctype {
+            name: "html",
+            public_id: Some("-//W3C//DTD HTML 4.0 Transitional//EN"),
+            system_id: Some("http://www.w3.org/TR/REC-html40/loose.dtd"),
+            internal_subset: None,
+        };
+        let doctype = match &self.doctype {
+            Some(declared) => Some(crate::Doctype {
+                name: declared.name.as_deref().unwrap_or(""),
+                public_id: declared.public_id.as_deref(),
+                system_id: declared.system_id.as_deref(),
+                internal_subset: None,
+            }),
+            None => default_doctype.then_some(implied),
+        };
         let document = self.builder.finish(doctype, encoding)?;
         self.diagnostics.sort_by_key(|diagnostic| diagnostic.offset);
         Ok((document, self.diagnostics, self.halted))

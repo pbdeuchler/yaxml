@@ -95,22 +95,10 @@ impl<'a> Name<'a> {
         self.prefix_length
     }
 
-    #[cfg(test)]
     pub(crate) fn qualified_source(&self) -> &Cow<'a, str> {
         &self.qualified
     }
 
-    #[cfg(test)]
-    pub(crate) fn namespace_source(&self) -> Option<&Cow<'a, str>> {
-        self.namespace.as_ref()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn into_fuzz_parts(self) -> (Cow<'a, str>, Option<Cow<'a, str>>) {
-        (self.qualified, self.namespace)
-    }
-
-    #[cfg(test)]
     pub(crate) fn try_into_static(self, offset: usize) -> Result<Name<'static>, Error> {
         let Cow::Owned(qualified) = self.qualified else {
             return Err(Error::new(ErrorKind::InvalidState, offset));

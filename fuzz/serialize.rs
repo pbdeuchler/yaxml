@@ -163,6 +163,9 @@ fn tree_equal(expected: &Document<'_>, actual: &Document<'_>) {
                 },
                 NodeKind::ProcessingInstruction { target: actual, .. },
             ) => assert_eq!(actual, expected),
+            (NodeKind::Doctype(expected), NodeKind::Doctype(actual)) => {
+                assert_eq!(actual, expected)
+            }
             _ => panic!("serializer changed node kind"),
         }
         assert_eq!(

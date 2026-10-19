@@ -10,10 +10,9 @@ use std::marker::PhantomData;
 #[cfg(test)]
 use std::rc::Rc;
 
-use crate::html::Doctype;
 use crate::parser::Budget;
 use crate::{
-    Attribute, Declaration, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
+    Attribute, Declaration, Doctype, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
     SourceOrigin,
 };
 use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, PushParser};
@@ -158,11 +157,18 @@ pub struct OwnedNodeId {
     slot: NodeId,
 }
 
+impl OwnedNodeId {
+    pub(crate) fn slot(self) -> usize {
+        self.slot.0
+    }
+}
+
 /// The content category of a node in an owned document.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum OwnedNodeKind {
     Document,
+    DocumentType,
     Element,
     Text,
     Cdata,
@@ -173,6 +179,7 @@ pub enum OwnedNodeKind {
 #[derive(Debug)]
 enum Content {
     Document,
+    DocumentType(StoredDoctype),
     Element {
         name: StoredName,
         attributes: Range<usize>,
@@ -284,6 +291,26 @@ impl StoredDeclaration {
             version: &pool[self.version.clone()],
             encoding: self.encoding.as_ref().map(|range| &pool[range.clone()]),
             standalone: self.standalone,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct StoredDoctype {
+    name: Range<usize>,
+    public_id: Option<Range<usize>>,
+    system_id: Option<Range<usize>>,
+    internal_subset: Option<Range<usize>>,
+}
+
+impl StoredDoctype {
+    fn view<'pool>(&self, pool: &'pool str) -> Doctype<'pool> {
+        let get = |range: &Option<Range<usize>>| range.as_ref().map(|range| &pool[range.clone()]);
+        Doctype {
+            name: &pool[self.name.clone()],
+            public_id: get(&self.public_id),
+            system_id: get(&self.system_id),
+            internal_subset: get(&self.internal_subset),
         }
     }
 }
@@ -479,7 +506,7 @@ impl OwnedDocument {
         Self::parse_bytes(input.as_bytes())
     }
 
-    /// Parses UTF-8 or UTF-16 XML independently of the source's lifetime.
+    /// Parses UTF-8, UTF-16 or declared single-byte XML independently of the source's lifetime.
     pub fn parse_bytes(input: &[u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }
@@ -558,20 +585,88 @@ impl OwnedDocument {
         self.root().descendants()
     }
 
+    /// Preorder rank per slot, or `None` while slots are already preorder.
+    pub(crate) fn preorder_ranks(&self) -> Option<Vec<usize>> {
+        (!self.slots_are_preorder).then(|| {
+            let mut ranks = vec![0; self.nodes.len()];
+            for (rank, node) in self.nodes().enumerate() {
+                ranks[node.record.id.0] = rank;
+            }
+            ranks
+        })
+    }
+
+    fn name_parts(&self, name: &StoredName) -> (&str, Option<&str>) {
+        let pool = &self.pool.0;
+        (
+            &pool[name.qualified.clone()],
+            name.namespace.as_ref().map(|range| &pool[range.clone()]),
+        )
+    }
+
     pub fn declaration(&self) -> Option<Declaration<'_>> {
         self.declaration
             .as_ref()
             .map(|declaration| declaration.view(&self.pool.0))
     }
 
+    /// Returns the document type declaration while its node remains.
+    pub fn doctype(&self) -> Option<Doctype<'_>> {
+        self.root().children().find_map(OwnedNode::doctype)
+    }
+
+    /// For an HTML document, the first content XML cannot represent: a name
+    /// that is not an NCName (or an `xmlns` attribute, which would rebind
+    /// namespaces), a character outside XML's range, or a comment XML forbids.
+    /// XML documents always pass.
+    pub(crate) fn xml_violation(&self) -> Option<String> {
+        self.html.as_ref()?;
+        let elements = self
+            .root()
+            .children()
+            .filter(|node| node.kind() == OwnedNodeKind::Element);
+        if elements.count() > 1 {
+            return Some("a second top-level element is not XML".to_owned());
+        }
+        let chars = |text: &str| text.chars().all(crate::escape::xml_char);
+        let ncname = |name: &str| crate::name::validate_name(name, 0, false).is_ok();
+        self.nodes().find_map(|node| {
+            let problem = match node.kind() {
+                OwnedNodeKind::Element => {
+                    let name = node.qualified_name().unwrap_or_default();
+                    if !ncname(name) {
+                        Some(format!("element name {name:?}"))
+                    } else {
+                        node.attributes().find_map(|attribute| {
+                            let name = attribute.name.qualified();
+                            if !ncname(name) || name == "xmlns" {
+                                Some(format!("attribute name {name:?}"))
+                            } else if !chars(&attribute.value) {
+                                Some(format!("attribute {name:?} value"))
+                            } else {
+                                None
+                            }
+                        })
+                    }
+                }
+                OwnedNodeKind::Comment => {
+                    let text = node.text().unwrap_or_default();
+                    (!chars(text) || text.contains("--") || text.ends_with('-'))
+                        .then(|| format!("comment {text:?}"))
+                }
+                OwnedNodeKind::Text | OwnedNodeKind::Cdata => {
+                    let text = node.text().unwrap_or_default();
+                    (!chars(text)).then(|| "character data".to_owned())
+                }
+                _ => None,
+            };
+            problem.map(|problem| format!("{problem} is not XML"))
+        })
+    }
+
     /// True for documents built by the HTML parser.
     pub fn is_html(&self) -> bool {
         self.html.is_some()
-    }
-
-    /// The HTML document type, including libxml2's implied HTML 4.0 default.
-    pub fn doctype(&self) -> Option<&Doctype> {
-        self.html.as_ref()?.doctype.as_ref()
     }
 
     /// The input encoding libxml2 records for an HTML document (`doc->encoding`).
@@ -1005,7 +1100,10 @@ impl Editor<'_> {
             Content::Cdata(range) => (range, ValueKind::Cdata),
             Content::Comment(range) => (range, ValueKind::Comment),
             Content::ProcessingInstruction { data, .. } => (data, ValueKind::Pi),
-            Content::Removed | Content::Document | Content::Element { .. } => {
+            Content::Removed
+            | Content::Document
+            | Content::DocumentType(_)
+            | Content::Element { .. } => {
                 return Err(EditError::new(EditErrorKind::WrongNodeKind, None));
             }
         };
@@ -1175,6 +1273,19 @@ impl OwnedBuilder {
                 });
                 return Ok(());
             }
+            Event::Doctype(doctype) => {
+                let mut store = |value: Option<&str>| {
+                    value
+                        .map(|value| self.pool.store(value, offset, budget))
+                        .transpose()
+                };
+                Content::DocumentType(StoredDoctype {
+                    name: store(Some(doctype.name))?.expect("present name"),
+                    public_id: store(doctype.public_id)?,
+                    system_id: store(doctype.system_id)?,
+                    internal_subset: store(doctype.internal_subset)?,
+                })
+            }
             Event::End(_) => {
                 let id = self
                     .parents
@@ -1325,7 +1436,6 @@ fn append_record(
 /// State that only HTML documents carry.
 #[derive(Debug)]
 struct HtmlMeta {
-    doctype: Option<Doctype>,
     encoding: Option<String>,
     /// Sorted attribute-arena indices of attributes written without a value.
     valueless: Vec<usize>,
@@ -1479,11 +1589,42 @@ impl HtmlBuilder {
         LastChild::None
     }
 
+    /// Completes the document. libxml2 makes the DOCTYPE the document's first
+    /// child wherever it appeared (or was implied); an empty name stands for
+    /// a DOCTYPE without one.
     pub(crate) fn finish(
         mut self,
-        doctype: Option<Doctype>,
+        doctype: Option<Doctype<'_>>,
         encoding: Option<String>,
     ) -> Result<OwnedDocument, Error> {
+        let mut preorder = true;
+        if let Some(doctype) = doctype {
+            let mut store = |value: Option<&str>| {
+                value
+                    .map(|value| self.pool.store(value, 0, &mut self.budget))
+                    .transpose()
+            };
+            let content = Content::DocumentType(StoredDoctype {
+                name: store(Some(doctype.name))?.unwrap_or_default(),
+                public_id: store(doctype.public_id)?,
+                system_id: store(doctype.system_id)?,
+                internal_subset: None,
+            });
+            let first = self.nodes[0].first_child;
+            let id = self.append(NodeId(0), content)?;
+            if let Some(first) = first.get() {
+                // Move the new last child to the front.
+                let link = Link(id.0);
+                let previous = self.nodes[id.0].previous_sibling;
+                self.nodes[previous.0].next_sibling = Link::NONE;
+                self.nodes[0].last_child = previous;
+                self.nodes[id.0].previous_sibling = Link::NONE;
+                self.nodes[id.0].next_sibling = Link(first.0);
+                self.nodes[first.0].previous_sibling = link;
+                self.nodes[0].first_child = link;
+                preorder = false;
+            }
+        }
         self.nodes[0].subtree_size = self.nodes.len();
         Ok(OwnedDocument {
             identity: document_identity(&LAST_DOCUMENT_ID)?,
@@ -1495,9 +1636,8 @@ impl HtmlBuilder {
             edit_owned_bytes: 0,
             edit_created_nodes: 0,
             edit_created_attributes: 0,
-            slots_are_preorder: true,
+            slots_are_preorder: preorder,
             html: Some(Box::new(HtmlMeta {
-                doctype,
                 encoding,
                 valueless: self.valueless,
             })),
@@ -1530,6 +1670,7 @@ impl<'document> OwnedNode<'document> {
         match &self.record().content {
             Content::Removed => unreachable!("owned node is live"),
             Content::Document => OwnedNodeKind::Document,
+            Content::DocumentType(_) => OwnedNodeKind::DocumentType,
             Content::Element { .. } => OwnedNodeKind::Element,
             Content::Text(_) => OwnedNodeKind::Text,
             Content::Cdata(_) => OwnedNodeKind::Cdata,
@@ -1591,6 +1732,37 @@ impl<'document> OwnedNode<'document> {
                 _ => None,
             });
         self.text().into_iter().chain(descendants)
+    }
+
+    /// Returns a document type node's declaration.
+    pub fn doctype(self) -> Option<Doctype<'document>> {
+        match &self.record().content {
+            Content::DocumentType(doctype) => Some(doctype.view(&self.document.pool.0)),
+            _ => None,
+        }
+    }
+
+    /// The element's QName and namespace, borrowed from the pool.
+    pub(crate) fn name_parts(self) -> Option<(&'document str, Option<&'document str>)> {
+        match &self.record().content {
+            Content::Element { name, .. } => Some(self.document.name_parts(name)),
+            _ => None,
+        }
+    }
+
+    /// One attribute's QName, namespace and value by source index.
+    pub(crate) fn attribute_parts(
+        self,
+        index: usize,
+    ) -> Option<((&'document str, Option<&'document str>), &'document str)> {
+        let Content::Element { attributes, .. } = &self.record().content else {
+            return None;
+        };
+        let attribute = self.document.attributes[attributes.clone()].get(index)?;
+        Some((
+            self.document.name_parts(&attribute.name),
+            &self.document.pool.0[attribute.value.clone()],
+        ))
     }
 
     pub fn processing_instruction_target(self) -> Option<&'document str> {

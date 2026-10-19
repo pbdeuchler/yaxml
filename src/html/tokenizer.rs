@@ -13,11 +13,19 @@ use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashSet;
 
-use super::Doctype;
 use super::entities::ENTITIES;
-use super::tables::{Mode, WINDOWS_1252};
+use super::tables::Mode;
+use crate::encoding::WINDOWS_1252;
 
 pub(super) type Attribute = (String, Option<String>);
+
+/// A DOCTYPE as htmlParseDocTypeDecl reads it; the name may be missing.
+#[derive(Debug, Default, PartialEq)]
+pub(super) struct Doctype {
+    pub(super) name: Option<String>,
+    pub(super) public_id: Option<String>,
+    pub(super) system_id: Option<String>,
+}
 
 #[derive(Debug, PartialEq)]
 pub(super) enum Token<'a> {

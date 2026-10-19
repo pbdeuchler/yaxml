@@ -502,9 +502,36 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
             },
             Some("utf-16be"),
         ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: true,
+            },
+            Some("UTF16"),
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: false,
+                bom: false,
+            },
+            Some("unicodeFFFE"),
+        ),
+        (SourceEncoding::Utf8, Some("utf8")),
     ] {
-        validate_encoding(encoding, label, 11).unwrap();
+        assert_eq!(validate_encoding(encoding, false, label, 11), Ok(encoding));
     }
+    let Some(crate::encoding::Charset::Byte(table)) = crate::encoding::charset("ISO-8859-1") else {
+        panic!("built-in Latin-1")
+    };
+    let latin1 = SourceEncoding::Byte(table);
+    assert_eq!(
+        validate_encoding(SourceEncoding::Utf8, true, Some("Latin1"), 11),
+        Ok(latin1)
+    );
+    assert_eq!(
+        validate_encoding(SourceEncoding::Utf8, true, None, 11),
+        Ok(SourceEncoding::Utf8)
+    );
     for (encoding, label, kind) in [
         (
             SourceEncoding::Utf8,
@@ -548,15 +575,37 @@ fn encoding_agreement_follows_complete_declaration_grammar() {
                 little_endian: true,
                 bom: true,
             },
-            Some("UTF16"),
+            Some("UCS-2"),
+            ErrorKind::UnsupportedEncoding,
+        ),
+        (
+            SourceEncoding::Utf16 {
+                little_endian: true,
+                bom: true,
+            },
+            Some("ISO-8859-1"),
+            ErrorKind::EncodingMismatch,
+        ),
+        (
+            SourceEncoding::Utf8,
+            Some("ISO-8859-1"),
+            ErrorKind::UnsupportedEncoding,
+        ),
+        (
+            SourceEncoding::Utf8,
+            Some("Shift_JIS"),
             ErrorKind::UnsupportedEncoding,
         ),
     ] {
         assert_eq!(
-            validate_encoding(encoding, label, 11),
+            validate_encoding(encoding, false, label, 11),
             Err(Error::new(kind, 11))
         );
     }
+    assert_eq!(
+        validate_encoding(SourceEncoding::Utf8, true, Some("EUC-JP"), 11),
+        Err(Error::new(ErrorKind::UnsupportedEncoding, 11))
+    );
     let mut state = ParserState::new(Limits::default(), 0);
     state.set_encoding(
         SourceEncoding::Utf16 {
@@ -621,7 +670,7 @@ fn malformed_private_tokens_fail_without_slicing_panics() {
         }
     }
     for (kind, expected) in [
-        (TokenKind::Dtd, ErrorKind::UnsupportedDtd),
+        (TokenKind::Dtd, ErrorKind::Syntax),
         (TokenKind::InvalidMarkup, ErrorKind::Syntax),
     ] {
         let mut state = ParserState::new(Limits::default(), 0);

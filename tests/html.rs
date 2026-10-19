@@ -235,22 +235,31 @@ fn comments_and_doctypes() {
         ],
         0,
     );
-    let doctype = |input: &[u8], flags| parse(input, flags).document.doctype().cloned();
-    let declared = doctype(b"<!DOCTYPE html SYSTEM 'about:legacy-compat'>", 0).unwrap();
-    assert_eq!(declared.system_id.as_deref(), Some("about:legacy-compat"));
+    let doctype = |input: &[u8], flags| {
+        let document = parse(input, flags).document;
+        let first = document.root().first_child().map(|node| node.kind());
+        let doctype = document.doctype().map(|d| {
+            let owned = |s: Option<&str>| s.map(str::to_owned);
+            (d.name.to_owned(), owned(d.public_id), owned(d.system_id))
+        });
+        if doctype.is_some() {
+            assert_eq!(first, Some(OwnedNodeKind::DocumentType));
+        }
+        doctype
+    };
+    let declared = doctype(b"<!--c--><!DOCTYPE html SYSTEM 'about:legacy-compat'>", 0).unwrap();
+    assert_eq!(declared.2.as_deref(), Some("about:legacy-compat"));
     assert_eq!(
-        doctype(b"<p>", 0).unwrap().public_id.as_deref(),
+        doctype(b"<p>", 0).unwrap().1.as_deref(),
         Some("-//W3C//DTD HTML 4.0 Transitional//EN")
+    );
+    assert_eq!(
+        doctype(b"<!DOCTYPE>", 0).unwrap(),
+        (String::new(), None, None)
     );
     assert_eq!(doctype(b"<p>", html::NODEFDTD), None);
     assert_eq!(doctype(b"<p><!DOCTYPE x>", html::NODEFDTD), None);
-    assert_eq!(
-        doctype(b"<!DOCTYPE a><!DOCTYPE b>", 0)
-            .unwrap()
-            .name
-            .as_deref(),
-        Some("a")
-    );
+    assert_eq!(doctype(b"<!DOCTYPE a><!DOCTYPE b>", 0).unwrap().0, "a");
 }
 
 #[test]
@@ -361,10 +370,42 @@ fn encodings() {
         kinds(&parse(b"<meta charset=utf-8>\xff\xff", 0).diagnostics),
         [DiagnosticKind::InvalidEncoding]
     );
-    let unsupported = html::parse(b"<meta charset=iso-8859-2><p>", Options::default());
+    // Built-in single-byte charsets decode, and serialize back in kind.
+    let cases: &[(&[u8], &str, &[u8])] = &[
+        (
+            b"<meta charset=iso-8859-2><p>\xb1\xe9&#x20ac;",
+            "\u{105}\u{e9}\u{20ac}",
+            b"<p>\xb1\xe9&#8364;</p>",
+        ),
+        (
+            b"<meta charset=ISO-8859-7><p>\xe1",
+            "\u{3b1}",
+            b"<p>\xe1</p>",
+        ),
+        (
+            b"<p>\xe1<!--http-equiv content charset=iso-8859-7 -->",
+            "\u{3b1}",
+            b"<p>\xe1<!--",
+        ),
+        (
+            b"<meta charset=latin1><p>\x80",
+            "\u{20ac}",
+            b"<p>&#8364;</p>",
+        ),
+    ];
+    for (input, text, output) in cases {
+        let parsed = parse(input, html::NODEFDTD);
+        let found: String = parsed.document.root_element().text_chunks().collect();
+        assert_eq!(found, *text, "{input:?}");
+        let saved = html::save(&parsed.document, false).unwrap();
+        assert!(
+            saved.windows(output.len()).any(|w| w == *output),
+            "{saved:?}"
+        );
+    }
     assert_eq!(
-        unsupported.unwrap_err().kind,
-        ErrorKind::UnsupportedEncoding
+        kinds(&parse(b"<meta charset=koi8-r><p>", 0).diagnostics),
+        [DiagnosticKind::UnsupportedEncoding]
     );
 }
 

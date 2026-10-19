@@ -4,8 +4,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 
 use crate::dtd_catalog::{
-    CatalogError, CatalogErrorKind, DefaultValue, DependencyKind, DtdCatalog, LiteralSource,
-    NormalizedAttribute, NormalizedValue, ValueLocation,
+    CatalogError, CatalogErrorKind, DefaultValue, DtdCatalog, LiteralSource, ValueLocation,
 };
 use crate::name::qname;
 use crate::parser::{
@@ -18,7 +17,6 @@ use crate::{Error, ErrorKind, Limit, Name};
 pub(crate) enum DtdTagErrorKind {
     Parser(ErrorKind),
     Catalog(CatalogErrorKind),
-    Unavailable(DependencyKind),
     PositionOverflow,
 }
 
@@ -144,28 +142,13 @@ fn prepare_tag<'event>(
                     budget.remaining_owned(),
                     &mut requested_value_bytes,
                 )
-                .map(|value| match value {
-                    NormalizedValue::Value(value) => NormalizedAttribute::Value(Cow::Owned(value)),
-                    NormalizedValue::Unavailable(dependency) => {
-                        NormalizedAttribute::Unavailable(dependency)
-                    }
-                })
+                .map(Cow::Owned)
         };
         budget
             .charge_owned(requested_value_bytes, attribute.value_offset)
             .map_err(DtdTagError::from)?;
-        let value = match normalized
-            .map_err(|error| rebase_catalog_error(error, attribute.value_offset))?
-        {
-            NormalizedAttribute::Value(value) => value,
-            NormalizedAttribute::Unavailable(dependency) => {
-                let location = rebase_value_location(dependency.location, attribute.value_offset)?;
-                return Err(DtdTagError {
-                    kind: DtdTagErrorKind::Unavailable(dependency.kind),
-                    location: DtdTagLocation::Value(location),
-                });
-            }
-        };
+        let value =
+            normalized.map_err(|error| rebase_catalog_error(error, attribute.value_offset))?;
         attributes.push(PreparedAttribute {
             name,
             value,
@@ -183,12 +166,6 @@ fn prepare_tag<'event>(
         let value = match binding.default() {
             DefaultValue::Required | DefaultValue::Implied => continue,
             DefaultValue::Value { value, .. } => value,
-            DefaultValue::Unavailable { dependency, .. } => {
-                return Err(DtdTagError {
-                    kind: DtdTagErrorKind::Unavailable(dependency.kind),
-                    location: DtdTagLocation::Value(dependency.location),
-                });
-            }
         };
         let name_offset = binding.name_offset();
         let (prefix, _) = qname(binding.name(), name_offset).map_err(|error| DtdTagError {

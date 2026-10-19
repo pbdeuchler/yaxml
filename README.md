@@ -4,15 +4,18 @@ A safe Rust XML processor pursuing libxml2 behavior, with `memchr` as its only
 dependency. This is an early implementation, not a libxml2 drop-in replacement.
 
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
-in UTF-8 and UTF-16, namespaces, attributes, predefined/numeric references, comments,
+in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
-value edits, leaf insertion and permanent subtree removal. DTDs and other
-encodings return structured errors.
+value edits, leaf insertion and permanent subtree removal. Internal DTD subsets
+are processed (entities, default attributes, attribute normalization) and the
+declaration is reported as `Event::Doctype`; external subsets and entities are
+never loaded. Other encodings return structured errors.
 `Node::text_chunks` and `OwnedNode::text_chunks` visit string values without
 allocating: containers yield descendant Text/CDATA, and leaves yield their
 own payload. Callers can collect the chunks or stream them to a sink.
 `Reader` and `Document` borrow complete UTF-8 input.
-`OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE.
+`OwnedDocument`, `PushParser`, and `BufferedReader` detect UTF-8 and UTF-16LE/BE,
+and decode a declared US-ASCII, ISO-8859-1..16 or windows-1252 document.
 `PushParser` consumes arbitrary byte chunks; `read_from` drives it from a
 caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain
@@ -70,7 +73,9 @@ construct a borrowed target with `Cow::Borrowed("pi")` or move an owned string.
 
 `Limits` controls input bytes, raw token bytes, element depth, attributes per
 element, emitted events, and cumulative requested string capacity for normalized
-values, namespace copies, and retained streaming names. Defaults are finite. The string budget counts work
+values, namespace copies, and retained streaming names, plus DOCTYPE bytes and
+entity expansion bytes, references and nesting depth. Defaults are finite and
+stop billion-laughs and quadratic-blowup documents. The string budget counts work
 across an entire operation, including released buffers; it is not a precise
 process memory quota. `DecodeLimits` separately bounds decoded UTF-8 bytes and
 decoded token bytes, including on the UTF-8 owning/streaming paths. Scratch token
@@ -93,8 +98,9 @@ last delivered origin after EOF or failure. Their `event_range()` convenience
 method now returns `Option<Range<usize>>`; `Node::range()` does too.
 `OwnedNode::origin()` is absent for constructed nodes. `position()` still counts
 physical input consumption, which can include lookahead beyond the event span.
-All currently supported parsed origins have input ranges. Replacement-text
-provenance remains unimplemented; this API change does not enable DTDs.
+Values produced by entity expansion have no input range; `physical_context()`
+names the outermost entity reference and `replacement_range()` the span inside
+its replacement text.
 
 An empty feed means temporary exhaustion; `finish` means final EOF. A callback's
 `Break(())` cancels permanently with `Aborted`. Errors are sticky, successful finish
@@ -181,6 +187,34 @@ no cumulative counters. Existing-element attribute insertion/removal,
 moves/adoption, detached ownership, namespace edits, slot reuse and
 compaction remain pending.
 
+`yaxml::xpath` evaluates XPath 1.0 over either DOM: all axes, node tests,
+predicates, unions, the four value types, the 27 core functions, and
+caller-supplied prefixes, variables and extension functions. Number
+conversion and formatting, and `substring`/`round` edge cases, follow libxml2.
+Compilation and evaluation are bounded by finite `xpath::Limits`. The
+[XPath contract](docs/xpath.md) lists the remaining differences from libxml2.
+
+```rust
+let document = yaxml::Document::parse("<r><i k='1'/><i k='2'/></r>")?;
+let sum = yaxml::xpath::XPath::compile("sum(//i/@k)")?;
+let value = sum.evaluate(&document, document.root().id(), &yaxml::xpath::Context::new())?;
+assert_eq!(value, yaxml::xpath::Value::Number(3.0));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`yaxml::c14n` writes Canonical XML 1.0 and 1.1 and Exclusive XML
+Canonicalization 1.0 for either DOM, whole or as an XPath node-set, with
+libxml2's bytes; see the [C14N contract](docs/c14n.md). DTD-dependent cases
+wait for DTD activation.
+
+```rust
+let document = yaxml::Document::parse("<r xmlns:p='urn:p'><p:e b='2' a='1'/></r>")?;
+let options = yaxml::c14n::Options::new(yaxml::c14n::Mode::Exclusive10);
+let canonical = yaxml::c14n::to_string(&document, &options)?;
+assert_eq!(canonical, r#"<r><p:e xmlns:p="urn:p" a="1" b="2"></p:e></r>"#);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 `yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
 tokenization, libxml2's legacy tree construction with implied elements and
 auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding
@@ -223,3 +257,17 @@ records the pinned libxml2 conformance results, independent review and measured
 fuzz coverage. A separate [matched structural benchmark](docs/validation-owned-structure-matched.md)
 compares edit lifecycles with libxml2, including slower workloads and the
 differences in Text topology, validation and buffering.
+
+Entities and defaults declared in the internal subset follow libxml2's
+`XML_PARSE_NOENT | XML_PARSE_DTDATTR` behavior; see the
+[DOCTYPE section](docs/compatibility.md#document-type-declarations) for exact
+semantics and known differences:
+
+```rust
+let xml = "<!DOCTYPE r [<!ENTITY e '<b>x</b>'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
+let document = yaxml::Document::parse(xml)?;
+assert_eq!(document.doctype().unwrap().name, "r");
+assert_eq!(document.root_element().attributes()[0].value, "d");
+assert_eq!(document.root_element().text_chunks().collect::<String>(), "x");
+# Ok::<(), yaxml::Error>(())
+```
