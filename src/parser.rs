@@ -885,8 +885,21 @@ impl<'source> ParserState<'source> {
     ) -> Result<Cow<'event, str>, Error> {
         self.budget.charge_owned(raw.len(), offset)?;
         let mut recover = |error| self.budget.recover(error);
-        let raw = crate::escape::repair_characters(raw, offset, attribute, &mut recover)?;
-        normalize_into(&raw, offset, attribute, references, String::new(), recover).map(Cow::Owned)
+        let repaired = crate::escape::repair_characters(raw, offset, attribute, &mut recover)?;
+        // Offsets into the repaired text are kept within the original.
+        let end = offset + raw.len();
+        let within = |error: Error| Error::new(error.kind, error.offset.min(end));
+        let recover = |error| recover(within(error));
+        normalize_into(
+            &repaired,
+            offset,
+            attribute,
+            references,
+            String::new(),
+            recover,
+        )
+        .map(Cow::Owned)
+        .map_err(within)
     }
 
     fn instruction<'event>(
