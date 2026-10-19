@@ -41,7 +41,7 @@ No commit in this remaining list has been cherry-picked to
 ## Accepted design and inventory gates
 
 The accepted process matrix is summarized in
-[the process-matrix review](../review-dtd-reader-fuzz-process-matrix.md).
+[the process-matrix review](../archive/review-dtd-reader-fuzz-process-matrix.md).
 
 | Evidence | SHA-256 |
 | --- | --- |
@@ -51,7 +51,7 @@ The accepted process matrix is summarized in
 | Final matrix holistic review | `dad8a0abfc1eae3e42aa1551e3345e8267be290828dfe0f3c20c7e4cab5993f2` |
 
 The source-inventory handoff is already integrated and accepted. Its review is
-[recorded separately](../review-dtd-reader-fuzz-process-inventory-handoff.md).
+[recorded separately](../archive/review-dtd-reader-fuzz-process-inventory-handoff.md).
 
 | Evidence | SHA-256 |
 | --- | --- |

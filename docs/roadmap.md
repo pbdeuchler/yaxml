@@ -22,7 +22,7 @@ These priorities order implementation, not importance. Security and measurement 
 
 ## Milestone burndown
 
-The first slice is implemented and independently reviewed; [validation evidence](validation.md)
+The first slice is implemented and independently reviewed; [validation evidence](archive/validation.md)
 records its scope and remaining gaps. A checked implementation item does not mean
 full libxml2 compatibility, production readiness, or completion of the P0 measurement gates.
 
@@ -36,7 +36,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Run the complete pinned W3C XMLTS 20130923 catalog across all five parser
   interfaces: 2,585 cases, 12,925 classified rows. Preserve the supported subset
   with a 407-ID/1,871-pair regression baseline. The
-  [validation report](validation-xml-conformance.md) records zero mismatches
+  [validation report](archive/validation-xml-conformance.md) records zero mismatches
   within the scored slice and substantial remaining DTD/entity/version gaps;
   it does not claim full-suite conformance.
 - [x] Add bounded independent XPath infoset comparisons, strict oracle version checks and a checksum-pinned external-oracle CI build.
@@ -46,13 +46,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Produce separate fuzz-only and ordinary-test coverage artifacts, with actual denominators and remaining gaps. Reaching 100% remains open.
 - [x] Add a bounded coverage-guided mutation campaign with replayable lineage,
   per-case execution/profile limits, strict coverage-schema checks and retained
-  failure evidence. The [500-case validation](validation-fuzz-campaign.md)
+  failure evidence. The [500-case validation](archive/validation-fuzz-campaign.md)
   establishes the harness mechanics, not sustained security assurance.
 - [x] Triage remaining fuzz-only gaps and add independent finish-cancellation,
   BOM-less encoding-rejection and pre-root quota assertions. The
-  [fresh measurement](validation-fuzz-gap-triage.md) reaches 4,859/5,082 regions
+  [fresh measurement](archive/validation-fuzz-gap-triage.md) reaches 4,859/5,082 regions
   and 658/692 instrumented branch outcomes; 100% remains open.
-- [x] Record the first [matched DOM and streaming baseline](validation-parse-baseline.md)
+- [x] Record the first [matched DOM and streaming baseline](archive/validation-parse-baseline.md)
   for the implemented UTF-8, DTD-free profile: nine shapes, five APIs, 65
   workloads and 455 retained pairs. All observations agree; libxml2 has the
   lower primary median in 42 workloads, yaxml in 19, with four within the
@@ -62,13 +62,13 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   counts and retained/peak memory; profile and close the measured parser gaps.
 - [x] Profile long unchanged text and replace scalar normalization detection
   with `memchr`, removing the duplicate check while preserving borrowing,
-  quotas and diagnostics. The [paired Rust validation](validation-normalization-scans.md)
+  quotas and diagnostics. The [paired Rust validation](archive/validation-normalization-scans.md)
   records about 1.78–1.79× faster large-text DOM parsing and 1.37–1.38× faster
   large-chunk streaming. All 65 workloads retain exact observations; a tiny
   outlier did not repeat in 31 samples. Full XMLTS results remain unchanged.
   Fresh fuzz-only coverage is 6,808/7,260 regions and 913/964 branch outcomes;
   100% and performance superiority over libxml2 remain open.
-- [x] Establish [owned-capable names and PI targets](validation-name-ownership.md)
+- [x] Establish [owned-capable names and PI targets](archive/validation-name-ownership.md)
   for future parser-owned replacement input: validated private QName storage,
   constant-time getters/views, independent ownership and Unicode tests, and
   fuzz dispatch. Name, Attribute, Element, Event and borrowing NodeKind are each
@@ -81,9 +81,9 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   debt; the benchmark remains unchanged. DTD acceptance and 100% remain open.
 - [ ] Establish original-input versus replacement-source provenance across
   events, diagnostics and both DOMs before activating the remaining
-  [DTD foundations](plans/dtd-foundations.md). Preserve physical stream position,
+  [DTD foundations](archive/plans/dtd-foundations.md). Preserve physical stream position,
   UTF-16 source mapping, bounded expansion and explicit external-resource policy.
-- [x] Introduce the limited [source-origin metadata boundary](validation-source-origin.md)
+- [x] Introduce the limited [source-origin metadata boundary](archive/validation-source-origin.md)
   across Reader, Push, Buffered and both DOMs, with optional exact physical spans,
   absent/sticky last delivery, explicit cancellation endpoints and fallible DOM
   joins. All 535 tests and 13 doctests pass; complete XMLTS results remain
@@ -91,31 +91,31 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   outcomes, with new defensive failures retained in the denominator. Reader/Push
   grow eight bytes; node records/Event stay unchanged. The 65-workload Rust A/B
   run has no median slowdown above two percent. Real replacement provenance and
-  DTD acceptance remain open; the [representation outline](plans/dtd-representation.md)
+  DTD acceptance remain open; the [representation outline](archive/plans/dtd-representation.md)
   preserves the broader internal-DTD/GE/defaults milestone.
 - [ ] Integrate the complete internal-DTD controller and semantics. Reviewed
-  private [lexical-unit](plans/dtd-lexical-unit.md) and
-  [incremental-scanner](plans/dtd-scanner.md) prototypes now pass 50 focused
+  private [lexical-unit](archive/plans/dtd-lexical-unit.md) and
+  [incremental-scanner](archive/plans/dtd-scanner.md) prototypes now pass 50 focused
   groups and the combined 585-test/13-doctest suite. The
-  [prototype review](review-dtd-prototypes.md) records independent catalogs,
+  [prototype review](archive/review-dtd-prototypes.md) records independent catalogs,
   deliberate faults and the 56-byte unit layout. Their source remains on
   `integrate/dtd-prototype`, outside main. Reviewed private
-  [binding/default semantics and entity frames](review-dtd-semantics.md) now
+  [binding/default semantics and entity frames](archive/review-dtd-semantics.md) now
   extend that foundation to 129 focused groups and 664 tests/13 doctests.
   Public integration of the controller, replacement/mixed provenance, DOM
   coalescing, events and serialization, plus fuzzing, conformance and performance
   gates remain open.
-  The later [private controller/provenance review](review-dtd-controller.md)
+  The later [private controller/provenance review](archive/review-dtd-controller.md)
   joins incremental PE processing, shared occurrence provenance, parse-only Text
   joins and phase-aware literal output. Its subsequent private borrowed adapter
   moves validated events without cloning and preserves the catalog, frame nonce,
   counters and distinct decoded/physical body-resume positions. The combined
   freeze passes 788 tests and 13 doctests; all 62 controller groups also pass in
-  release. [Content scheduling](plans/dtd-content-controller.md) and the
-  [Writer protocol](plans/dtd-writer-protocol.md) have reviewed outlines.
+  release. [Content scheduling](archive/plans/dtd-content-controller.md) and the
+  [Writer protocol](archive/plans/dtd-writer-protocol.md) have reviewed outlines.
   Public activation, attribute/content integration and its full validation
   gates remain open.
-  The subsequent [tag and Writer review](review-dtd-tags-writer.md) records atomic
+  The subsequent [tag and Writer review](archive/review-dtd-tags-writer.md) records atomic
   default/namespace preparation, local token/reference foundations and the
   private Writer protocol: the coordinator/ledger follow-up passes 942 ordinary
   tests, all 504 library tests in release
@@ -129,7 +129,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   after encoding; an independent regression and three runtime faults verify the
   preflight order. Eight independent Text/reference boundary groups pass,
   including actual UTF-16 decoding and exact physical spans. The private
-  [generated-event preparation path](plans/dtd-parser-event-preparation.md)
+  [generated-event preparation path](archive/plans/dtd-parser-event-preparation.md)
   now owns replacement leaf/Start/End fields, preserves replacement EOL phase
   and copies End names before scope unwind. Eleven independent groups include
   nonempty generated Start retention and one-short copy failure atomicity.
@@ -145,7 +145,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   Nine author groups and 21 independent groups pass in debug and release; the
   independent suite catches removed complete-token work accounting. This is a
   reviewed private composition checkpoint, not frontend activation.
-  That [private streaming-session outline](plans/dtd-streaming-session.md) now
+  That [private streaming-session outline](archive/plans/dtd-streaming-session.md) now
   has a reviewed callback implementation on `integrate/dtd-prototype`. It moves
   the same Decoder/parser into one fallibly reserved, out-of-line session and
   keeps one event ceiling, ownership Budget and standalone value through the
@@ -156,7 +156,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   Decoder, declarations and generated body content. Its 37 combined streaming
   groups cover six transports, every byte split, non-BMP entities, origins,
   quotas and terminal failures. The subsequent private
-  [lending protocol](plans/dtd-lending-publication.md) separates lexical
+  [lending protocol](archive/plans/dtd-lending-publication.md) separates lexical
   preparation, one-shot semantic publication and acknowledgement across ordinary
   XML, DTD declarations and generated body content. Physical loans retain source
   storage; entity scheduling and DTD End handoff occur only after acknowledgement.
@@ -165,7 +165,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   loan blocks mutation, and all six required production mutations are caught.
   The combined lending freeze passes 1,031 tests with nine ignored, 593 release
   library tests and 13 doctests. The next reviewed private
-  [buffered composition](plans/dtd-buffered-lending.md) automatically
+  [buffered composition](archive/plans/dtd-buffered-lending.md) automatically
   acknowledges the prior loan, commits exact `BufRead` progress before lending,
   drains generated and held work before source I/O, and preserves exact terminal
   I/O, panic, quota, and origin behavior. Its combined tree passes 1,062 tests
@@ -173,38 +173,38 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   authored/blind buffered groups. Six holistic and eight author mutations are
   caught. A second E0499 probe proves the frontend's physical event loan blocks
   another mutable read. The subsequent private
-  [stable-input Reader](plans/dtd-stable-reader.md) removes the acknowledgement
+  [stable-input Reader](archive/plans/dtd-stable-reader.md) removes the acknowledgement
   loan from an immutable UTF-8 slice while preserving exact physical borrows,
   generated ownership, one parser/catalog/frame state and truthful high-water
-  positions. Its [conformance plan](plans/dtd-stable-reader-conformance.md) and
-  [review](review-dtd-stable-reader.md) cover retained lifetimes, repeated equal
+  positions. Its [conformance plan](archive/plans/dtd-stable-reader-conformance.md) and
+  [review](archive/review-dtd-stable-reader.md) cover retained lifetimes, repeated equal
   source occurrences, standalone and counter continuity, held-End handoff,
   allocation/unwind atomicity and single-pass lazy attribute normalization.
   The final private tree passes 670 library tests in debug and release and 13
   doctests. Forty-one runtime mutations are killed and four invalid lifetime
   constructions are rejected by the compiler; holistic review has no open
   findings. The subsequent private
-  [quota-facade review](review-dtd-reader-quota.md) maps all 40 applicable
+  [quota-facade review](archive/review-dtd-reader-quota.md) maps all 40 applicable
   settings through the Reader boundary with 94 focused groups and 15 killed
-  production faults. The first [private fuzz-driver review](review-dtd-reader-fuzz.md)
+  production faults. The first [private fuzz-driver review](archive/review-dtd-reader-fuzz.md)
   adds bounded direct replay, four structured families, exact occurrence and
   provenance oracles, retained-lifetime checks and an ignored stdin entry. The
-  subsequent [boundary-matrix review](review-dtd-reader-fuzz-step2.md) adds
+  subsequent [boundary-matrix review](archive/review-dtd-reader-fuzz-step2.md) adds
   canonical witnesses, literal truncation points, all 48 quota and precedence
   axes, lifecycle receipts, typed retained-event checks and pre-clone evidence
   caps. Two independent reviews detect every requested route, lifecycle,
   storage, origin, accounting, snapshot and QName regression. The integrated
   tree passes 1,240 tests with ten ignored in debug and release all-target runs,
-  plus 13 doctests. The next [protocol-parser review](review-dtd-reader-fuzz-protocol.md)
+  plus 13 doctests. The next [protocol-parser review](archive/review-dtd-reader-fuzz-protocol.md)
   freezes the bounded `libtest-exact-v1` grammar, structured diagnostics and
   pinned real-libtest output with two independent PASS verdicts. The subsequent
-  [Cargo selector review](review-dtd-reader-fuzz-artifact-selector.md) adds a
+  [Cargo selector review](archive/review-dtd-reader-fuzz-artifact-selector.md) adds a
   bounded full JSONL parser and exact current-package library-test selection,
   including linear raw-Unicode handling. The following
-  [artifact-resolver review](review-dtd-reader-fuzz-artifact-resolver.md) adds
+  [artifact-resolver review](archive/review-dtd-reader-fuzz-artifact-resolver.md) adds
   lexical and component-wise filesystem containment, same-handle identity and
   post-capture revalidation while preserving direct-target behavior. The
-  [artifact-lifecycle review](review-dtd-reader-fuzz-artifact-lifecycle.md)
+  [artifact-lifecycle review](archive/review-dtd-reader-fuzz-artifact-lifecycle.md)
   adds immutable metadata/content rechecks, bounded same-handle hashing and
   temporal drift classification for later campaign gates. Cargo process/profile
   integration, measured coverage and performance gates remain open. Public DTD
@@ -213,7 +213,7 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Extend the independent construction fuzz model with twelve literal
   binding/name-limit precedence cases, observable UTF-8/UTF-16 surfaces, actual
   leaf-dispatch assertions and same-editor recovery. The
-  [fresh validation](validation-construction-binding.md) closes seven missed
+  [fresh validation](archive/validation-construction-binding.md) closes seven missed
   regions/lines without production changes: 6,885/7,331 regions, 4,756/4,923
   lines and unchanged 909/962 instrumented branch outcomes. The 100% target
   remains open; no exclusions or production hooks were added.
@@ -235,16 +235,16 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
   operation model. Slots and retained string storage are not reclaimed or reused.
 - [x] Add allocation-free borrowed and owned `text_chunks()` views in document
   order, with edited-tree and encoded-input checks and pinned external-oracle
-  comparisons in the [validation report](validation-text-chunks.md).
-- [x] Implement bounded [rooted construction](plans/owned-create-slice.md) and
+  comparisons in the [validation report](archive/validation-text-chunks.md).
+- [x] Implement bounded [rooted construction](archive/plans/owned-create-slice.md) and
   fresh element append with initial ordered attributes/declarations, typed
-  diagnostics and persistent quotas. The [validation](validation-owned-create.md)
+  diagnostics and persistent quotas. The [validation](archive/validation-owned-create.md)
   records independent tests, failpoints, the pinned oracle, source-complete fuzz
   coverage and Rust performance baselines. Existing-element attribute
   insertion/removal still needs an accepted membership design.
 - [x] Extend independent construction validation, namespace and resource-limit
   catalogs; fix actual replay dispatch for sparse selectors; check complete
-  topology against returned handles. [Fresh fuzz evidence](validation-construction-fuzz-gaps.md)
+  topology against returned handles. [Fresh fuzz evidence](archive/validation-construction-fuzz-gaps.md)
   reaches 6,810/7,260 regions and 919/970 branch outcomes. Remaining allocation,
   overflow and defensive paths stay in the denominator; 100% remains open.
 - [ ] Add general element/attribute and sibling insertion, detach/move/copy,
@@ -253,12 +253,12 @@ full libxml2 compatibility, production readiness, or completion of the P0 measur
 - [x] Add incremental UTF-16LE/BE input to push parsing and owned trees, with declaration agreement, raw/decoded ceilings and original byte spans; UTF-16 output remains pending.
 - [x] Add bounded buffered pull input with lending events, exact source consumption,
   terminal I/O contracts, retained-state size series, and time-to-first-event
-  benchmarks. The [matched baseline](validation-parse-baseline.md) includes
+  benchmarks. The [matched baseline](archive/validation-parse-baseline.md) includes
   buffered throughput; comparative time-to-first-event latency and memory remain
   pending.
 
 The reference release is pinned and 4,056 header identifiers are indexed. The
-[configured inventory audit](validation/libxml2-api-audit-21504.md) checks the
+[configured inventory audit](archive/validation/libxml2-api-audit-21504.md) checks the
 built 2.15.4 static oracle's public declarations and symbol visibility. Other
 platform/configuration and shared-library checks, plus per-operation Rust
 mappings, remain open. The crate has no C ABI exports.
@@ -270,18 +270,18 @@ and buffered pull parsing share one resumable engine and bounded token buffer;
 neither accumulates the input. Additional encodings and allocator support remain pending. The
 [owned DOM contract](owned-dom.md) describes the implemented independent storage
 mode; retained-memory and comparative performance evidence remain open.
-Its [value-mutation validation](validation-owned-mutation.md) and
-[leaf-structure validation](validation-owned-structure.md) record the implemented
+Its [value-mutation validation](archive/validation-owned-mutation.md) and
+[leaf-structure validation](archive/validation-owned-structure.md) record the implemented
 editing slices and their evidence gaps; richer mutation remains open.
 
 The [writer contract](writer.md) describes event and complete-document output.
 Whole trees retain their explicit namespace declarations and are traversed
 without recursion; document calls validate closure and flush before returning.
 This remains a subset of libxml2's save/writer surfaces. The
-[matched structural benchmark](validation-owned-structure-matched.md) includes
+[matched structural benchmark](archive/validation-owned-structure-matched.md) includes
 counting serialization after edits with explicit buffering and topology
 differences; a broader isolated serialization comparison remains pending. The
-[complete-document validation report](validation-dom-serialization.md) records
+[complete-document validation report](archive/validation-dom-serialization.md) records
 tests, mutation review, raw coverage, exploratory oracle, and benchmark-runner
 evidence for this slice.
 
@@ -293,7 +293,7 @@ Compare release builds on the same machine with matched options, validation, lim
 
 Use `memchr` for delimiter search when profiles justify it, borrow unchanged strings, and allocate normalized strings only when necessary. Favor contiguous arena storage and explicit stacks. Choose interning, extra indices, and compact node layouts based on measured workloads; each can trade parse time for memory or later query speed. Track adversarial scaling as well as typical throughput.
 
-The [UTF-16 ASCII batching screen](validation-utf16-ascii-batches.md) records
+The [UTF-16 ASCII batching screen](archive/validation-utf16-ascii-batches.md) records
 large long-token gains together with a repeated UTF-8 tiny-element regression.
 That prototype remains off main; the preliminary samples do not establish an
 accepted optimization or a libxml2 performance result.
@@ -305,7 +305,7 @@ the [memory reader](https://github.com/GNOME/libxml2/blob/v2.15.4/xmlreader.c)
 also copies the whole input. These differ from yaxml's current fresh-context,
 borrowing DOM and bounded push measurements. Internal CLI timing is useful only
 with those lifecycle and workload differences stated. The
-[matched parsing baseline](validation-parse-baseline.md) now uses separately
+[matched parsing baseline](archive/validation-parse-baseline.md) now uses separately
 built executables, shared fixture bytes, calibrated batches and alternating
 trials. Its phase data exposes parse deficits even where cheap Rust destruction
 produces a combined DOM lifecycle win. Start with profiling long-text validation

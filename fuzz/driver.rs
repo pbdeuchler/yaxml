@@ -90,6 +90,8 @@ mod catalog;
 mod options;
 #[path = "relaxng.rs"]
 mod relaxng;
+#[path = "schematron.rs"]
+mod schematron;
 #[path = "xsd.rs"]
 mod xsd;
 
@@ -121,6 +123,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_catalog(input);
     exercise_xsd(input);
     exercise_relaxng(input);
+    exercise_schematron(input);
     exercise_c14n(input);
     exercise_valid(input);
     exercise_textreader(input);
@@ -499,6 +502,13 @@ pub fn exercise_catalog(input: &[u8]) {
 pub fn exercise_relaxng(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     relaxng::exercise(input);
+}
+
+/// Exercise Schematron schema building and validation in every output mode
+/// over both DOMs; see `schematron.rs` for the testcase format.
+pub fn exercise_schematron(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    schematron::exercise(input);
 }
 
 /// Exercise canonicalization over both DOMs; see `c14n.rs` for the testcase format.

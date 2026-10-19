@@ -43,6 +43,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `xinclude` | `exercise_xinclude` | `xinclude::process` over NUL-separated pieces (including document, then resources `0`..`9`), `xpointer::evaluate` |
 | `xsd` | `exercise_xsd` | `xsd::Schema::with_resolver` and `validate` on NUL-separated pieces (schema, instance, then resources `file:///f/0.xsd`..`9.xsd`) under small limits: identical diagnostics over both DOMs and on repetition, load budget held |
 | `catalog` | `exercise_catalog` | `catalog::Catalog::parse`, `resolve`, `resolve_uri` and `CatalogResolver` over NUL-separated pieces (root catalog, then files `0`..`9`; the last piece also lists queries) |
+| `schematron` | `exercise_schematron` | `schematron::Schema::parse`, `from_tree` and `validate` over a NUL-separated schema (a bare rule body is wrapped) and instance: both DOMs, reuse, every output mode, text and error modes agreeing, one-pass counts, operation budget |
 | `relaxng` | `exercise_relaxng` | `relaxng::Schema::parse` and `validate` over NUL-separated pieces (schema, instance, then `include`/`externalRef` files `0`..`9`): determinism, both DOMs, reuse, offsets, load and work budgets |
 
 ```sh
@@ -249,10 +250,10 @@ the ordinary corpus mutation schedules. Test-only counters check that empty,
 malformed, sparse-selector and encoded inputs enter construction and the binding
 catalog before grammar/encoding returns.
 
-The [original construction validation](../docs/validation-owned-create.md) and
-[current fuzz-gap evidence](../docs/validation-construction-fuzz-gaps.md) record
+The [original construction validation](../docs/archive/validation-owned-create.md) and
+[current fuzz-gap evidence](../docs/archive/validation-construction-fuzz-gaps.md) record
 separate source-complete measurements and remaining gaps.
-The [binding/limit precedence validation](../docs/validation-construction-binding.md)
+The [binding/limit precedence validation](../docs/archive/validation-construction-binding.md)
 records the twelve-case catalog, dispatch/encoding fault checks and its fresh
 fuzz-only measurement without production changes or exclusions.
 
@@ -439,7 +440,7 @@ to the fuzz assertions; a source-region percentage alone cannot establish them.
 
 CI instruments `fuzz_smoke` and uploads raw profiles, merged profiles, a compiler version, a revision, a library-only summary, and the complete LLVM coverage export. The summary excludes dependency/toolchain code and the test/driver source so its denominator is library code. The complete export retains those files for inspection. No production library regions are excluded by this filter. The run exercises only the default feature set and only deterministic fuzz smoke tests; it is separate from ordinary unit-test coverage.
 
-Coverage uses pinned nightly `2026-06-06` with `-C instrument-coverage -Z coverage-options=branch`. The unstable branch instrumentation is documented in the [Rust Unstable Book](https://doc.rust-lang.org/unstable-book/compiler-flags/coverage-options.html). Its branch denominator covers the conditions instrumented by that compiler; it does not enumerate every parser state or boolean condition. The library itself remains stable Rust. See [measured results and gaps](../docs/validation.md).
+Coverage uses pinned nightly `2026-06-06` with `-C instrument-coverage -Z coverage-options=branch`. The unstable branch instrumentation is documented in the [Rust Unstable Book](https://doc.rust-lang.org/unstable-book/compiler-flags/coverage-options.html). Its branch denominator covers the conditions instrumented by that compiler; it does not enumerate every parser state or boolean condition. The library itself remains stable Rust. See [measured results and gaps](../docs/archive/validation.md).
 
 Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component. A system LLVM version can reject profiles from a newer Rust compiler. If tooling is unavailable, record that coverage was not measured; do not infer it from passing tests. The workflow publishes gaps and currently imposes no percentage threshold. A release requires reviewed coverage data and the additional gates in the security plan.
 

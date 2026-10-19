@@ -19,7 +19,7 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 | Canonical XML | `--c14n`, `--c14n11`, `--exc-c14n` (all with comments, like xmllint) |
 | XPath | `--xpath EXPR`, `--xpath0 EXPR` (implies `--noout`) |
 | DTD | `--valid`, `--postvalid`, `--dtdvalid FILE`, `--loaddtd`, `--dtdattr`, `--noent` |
-| Schemas | `--relaxng FILE`, `--schema FILE` |
+| Schemas | `--schematron FILE`, `--relaxng FILE`, `--schema FILE` |
 | XInclude | `--xinclude`, `--noxincludenode`, `--nofixup-base-uris` |
 | Resources | `--path DIRS`, `--catalogs` (reads `XML_CATALOG_FILES`), `--nocatalogs`, `--nonet` |
 | Misc | `--quiet`, `--timing`, `--version` |
@@ -27,7 +27,7 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 `--push --memory --nowarning --pedantic --nodict --nocompact --repeat
 --oldxml10 --strict-namespace --load-trace` are accepted and ignored.
 `--debug --shell --copy --sax --sax1 --insert
---walker --dropdtd --auto --compress --pattern --schematron --dtdvalidfpi` are
+--walker --dropdtd --auto --compress --pattern --dtdvalidfpi` are
 xmllint options with no counterpart: they print `unsupported option` and exit
 1. Unknown options print the usage and exit 1.
 
@@ -50,8 +50,9 @@ line and column come from the error's byte offset, and the wording is yaxml's.
   `--path` directory by file name. Other URI schemes are declined, so
   `--nonet` has nothing to do. What loads follows xmllint's parser options:
   the external subset with `--loaddtd`, `--dtdattr`, `--valid`,
-  `--postvalid`, `--dtdvalid`, `--relaxng`, `--schema` or a canonical form;
-  external entities with `--noent` (plus a subset option) or `--valid`.
+  `--postvalid`, `--dtdvalid`, `--schematron`, `--relaxng`, `--schema` or a
+  canonical form; external entities with `--noent` (plus a subset option),
+  `--valid`, or the three schema options, which add `NOENT` as xmllint does.
   `--noent` alone reads no external subset, as in xmllint.
 - `--format` and `--noblanks` parse with `NOBLANKS`: libxml2's `areBlanks`
   rules (declared element content, else the sibling heuristic;
@@ -93,4 +94,6 @@ not-wf documents; most differences are inputs from which libxml2 recovers
 no element (see [Recovery](compatibility.md#recovery-recover)).
 `recover_against_xmllint` reports these rates (`YAXML_SUITES` names the
 directory of `xmlconf-catalog.tsv`) and requires a curated table of
-recoverable inputs to agree.
+recoverable inputs to agree. The pinned `xmllint` lacks
+Schematron; `--schematron` (text report, quiet under `--noout`) agrees with a
+schematron-enabled build on all 84 corpus runs ([schematron.md](schematron.md)).

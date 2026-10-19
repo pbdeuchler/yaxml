@@ -43,6 +43,7 @@ pub struct Opts {
     pub dtdvalid: Option<String>,
     pub relaxng: Option<String>,
     pub schema: Option<String>,
+    pub schematron: Option<String>,
     pub output: Option<String>,
     pub encode: Option<String>,
     pub path: Vec<String>,
@@ -162,6 +163,10 @@ const TABLE: &[Spec] = &[
         relaxng: Some(v.into()),
         ..o
     }),
+    arg("schematron", |o, v| Opts {
+        schematron: Some(v.into()),
+        ..o
+    }),
     arg("schema", |o, v| Opts {
         schema: Some(v.into()),
         ..o
@@ -221,7 +226,6 @@ const UNSUPPORTED: &[&str] = &[
     "auto",
     "compress",
     "pattern",
-    "schematron",
     "dtdvalidfpi",
 ];
 

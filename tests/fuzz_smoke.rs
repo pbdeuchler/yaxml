@@ -1147,6 +1147,7 @@ fn fuzz_regressions_replay() {
                 "datatypes" => driver::exercise_datatypes(&data),
                 "catalog" => driver::exercise_catalog(&data),
                 "relaxng" => driver::exercise_relaxng(&data),
+                "schematron" => driver::exercise_schematron(&data),
                 "save" => driver::exercise_save(&data),
                 _ => drop(driver::exercise(&data)),
             }
@@ -1266,5 +1267,24 @@ fn save_entry_reaches_fixed_points_for_seeds_and_edge_documents() {
             input.extend(std::iter::repeat_n(b' ', padding));
             driver::exercise_save(&input);
         }
+    }
+}
+
+#[test]
+fn schematron_entry_replays_seeds_and_malformed_pieces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/schematron");
+    for seed in std::fs::read_dir(root).unwrap() {
+        driver::exercise_schematron(&std::fs::read(seed.unwrap().path()).unwrap());
+    }
+    let cases: &[&[u8]] = &[
+        b"",
+        b"<s:schema",
+        b"<s:assert test='a'/>\0<r",
+        b"<s:assert test='a'/>\0\xff",
+        b"<s:let name='v' value='$w'/><s:let name='w' value='1'/><s:assert test='$v'/>\0<r><a/></r>",
+        b"<s:assert test='count(//*) > 0'/>\0<!DOCTYPE r [<!ENTITY e '<a/>'>]><r>&e;&e;</r>",
+    ];
+    for case in cases {
+        driver::exercise_schematron(case);
     }
 }
