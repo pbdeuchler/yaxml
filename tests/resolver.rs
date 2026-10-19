@@ -332,7 +332,7 @@ fn external_resources_share_the_document_budgets() {
         .iter()
         .map(|(uri, text)| (uri.as_str(), text.as_str()))
         .collect();
-    let cases: [(String, Files, Limits, ErrorKind); 4] = [
+    let cases: [(String, Files, Limits, ErrorKind); 5] = [
         (
             laughs,
             &files,
@@ -368,6 +368,18 @@ fn external_resources_share_the_document_budgets() {
                 ..Limits::default()
             },
             ErrorKind::LimitExceeded(Limit::EntityDepth),
+        ),
+        (
+            "<!DOCTYPE r SYSTEM 's'><r/>".into(),
+            &[(
+                "dir/s",
+                "<!ENTITY e 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'>",
+            )],
+            Limits {
+                max_token_bytes: 32,
+                ..Limits::default()
+            },
+            ErrorKind::LimitExceeded(Limit::TokenBytes),
         ),
     ];
     for (input, files, limits, kind) in cases {
