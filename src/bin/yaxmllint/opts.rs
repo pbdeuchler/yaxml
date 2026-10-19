@@ -20,8 +20,12 @@ pub struct Opts {
     pub timing: bool,
     pub version: bool,
     pub html: bool,
+    /// `--noblanks`; `--format` implies it.
+    pub noblanks: bool,
     pub stream: bool,
-    pub format: bool,
+    /// `xmlsave` layout: 0 as is, 1 `--format`, 2 whitespace inside tags.
+    pub format: u8,
+    pub xmlout: bool,
     pub valid: bool,
     pub postvalid: bool,
     pub xinclude: bool,
@@ -68,7 +72,12 @@ const TABLE: &[Spec] = &[
     flag("version", |o, _| Opts { version: true, ..o }),
     flag("html", |o, _| Opts { html: true, ..o }),
     flag("stream", |o, _| Opts { stream: true, ..o }),
-    flag("format", |o, _| Opts { format: true, ..o }),
+    flag("format", |o, _| Opts { format: 1, ..o }),
+    flag("xmlout", |o, _| Opts { xmlout: true, ..o }),
+    arg("pretty", |o, v| Opts {
+        format: v.parse().unwrap_or(0),
+        ..o
+    }),
     flag("valid", |o, _| Opts { valid: true, ..o }),
     flag("postvalid", |o, _| Opts {
         postvalid: true,
@@ -103,7 +112,7 @@ const TABLE: &[Spec] = &[
         ..o
     }),
     flag("noblanks", |o, _| Opts {
-        html_flags: o.html_flags | yaxml::html::NOBLANKS,
+        noblanks: true,
         ..o
     }),
     flag("c14n", |o, _| Opts {
@@ -200,8 +209,6 @@ const UNSUPPORTED: &[&str] = &[
     "dropdtd",
     "auto",
     "compress",
-    "xmlout",
-    "pretty",
     "pattern",
     "schematron",
     "dtdvalidfpi",
@@ -210,11 +217,12 @@ const UNSUPPORTED: &[&str] = &[
 fn usage() -> String {
     let names: Vec<_> = TABLE
         .iter()
-        .map(|Spec(name, ..)| format!("--{name}"))
+        .filter(|spec| spec.0.len() > 1)
+        .map(|spec| format!("--{}", spec.0))
         .collect();
     format!(
         "Usage: yaxmllint [options] XMLfiles ...\n\t{}\n",
-        names.join("\n\t")
+        names.join(" ")
     )
 }
 
@@ -248,14 +256,8 @@ pub fn parse(args: &[String]) -> Result<Opts, i32> {
             return fail(format!("Unknown option {argument}\n{}", usage()));
         }
     }
-    let unsupported = match (&opts.encode, opts.format, opts.html) {
-        (Some(e), ..) if !e.eq_ignore_ascii_case("utf-8") => Some("--encode"),
-        (_, true, false) => Some("--format"),
-        _ => None,
-    };
-    match unsupported {
-        Some(name) => fail(format!("yaxmllint: unsupported option {name}\n")),
-        None if opts.files.is_empty() && !opts.version => fail(usage()),
-        None => Ok(opts),
+    match opts.files.is_empty() && !opts.version {
+        true => fail(usage()),
+        false => Ok(opts),
     }
 }

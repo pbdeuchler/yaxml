@@ -13,7 +13,10 @@ use diag::report;
 use opts::{Opts, *};
 use yaxml::catalog::{Catalog, CatalogResolver};
 use yaxml::xpath::{Context, XPath};
-use yaxml::{ErrorKind, Limit, Limits, OwnedDocument, Request, Resolver, relaxng, valid, xsd};
+use yaxml::{
+    EditLimits, ErrorKind, Limit, Limits, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind,
+    Request, Resolver, c14n, relaxng, save, valid, xsd,
+};
 
 /// Compiled `--relaxng` and `--schema` documents, shared by every input.
 struct Schemas {
@@ -74,14 +77,13 @@ fn resolver(o: &Opts) -> Box<dyn Resolver> {
 }
 
 fn compile(o: &Opts) -> Result<Schemas, i32> {
-    let read = |path: &str| fs::read(path).map_err(|_| SCHEMACOMP);
     let failed = |what: &str, path: &str| {
         eprintln!("{what} schema {path} failed to compile");
         SCHEMACOMP
     };
     let relaxng = o.relaxng.as_deref().map(|path| {
-        let schema =
-            relaxng::Schema::parse(&read(path)?, path, loader(&o.path), &Default::default());
+        let bytes = fs::read(path).map_err(|_| failed("Relax-NG", path))?;
+        let schema = relaxng::Schema::parse(&bytes, path, loader(&o.path), &Default::default());
         schema.map_err(|errors| {
             errors
                 .0
@@ -91,12 +93,9 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
         })
     });
     let xsd = o.schema.as_deref().map(|path| {
-        let schema = xsd::Schema::with_resolver(
-            &read(path)?,
-            path,
-            Some(loader(&o.path)),
-            Default::default(),
-        );
+        let bytes = fs::read(path).map_err(|_| failed("WXS", path))?;
+        let schema =
+            xsd::Schema::with_resolver(&bytes, path, Some(loader(&o.path)), Default::default());
         schema.map_err(|error| {
             error
                 .diagnostics
@@ -111,47 +110,128 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
     })
 }
 
-/// Prints diagnostics `(offset, message, is_warning)`; true when none is an error.
-fn print_all<'a>(
-    file: &str,
-    input: &[u8],
-    kind: &str,
-    diagnostics: &mut dyn Iterator<Item = (Option<usize>, &'a str, bool)>,
-) -> bool {
-    diagnostics.fold(true, |valid, (offset, message, warning)| {
+/// A validation diagnostic of any of the validators: offset, message, warning?
+trait Finding {
+    fn parts(&self) -> (Option<usize>, &str, bool);
+}
+
+macro_rules! finding {
+    ($($module:ident),*) => {$(
+        impl<Id> Finding for $module::Diagnostic<Id> {
+            fn parts(&self) -> (Option<usize>, &str, bool) {
+                (self.offset, &self.message, self.code.is_warning())
+            }
+        }
+    )*};
+}
+finding!(valid, xsd);
+
+impl<Id> Finding for relaxng::Diagnostic<Id> {
+    fn parts(&self) -> (Option<usize>, &str, bool) {
+        (self.offset, &self.message, false)
+    }
+}
+
+/// Prints the diagnostics; true when none is an error.
+fn print_all(file: &str, input: &[u8], kind: &str, found: &[impl Finding]) -> bool {
+    found.iter().fold(true, |ok, finding| {
+        let (offset, message, warning) = finding.parts();
         report(file, input, offset, kind, message);
-        valid && warning
+        ok && warning
     })
+}
+
+/// Whitespace-only text nodes `XML_PARSE_NOBLANKS` drops (libxml2's `areBlanks`
+/// heuristic without a DTD): not the only child, not after text, not in
+/// `xml:space="preserve"` scope.
+fn blanks(document: &OwnedDocument) -> Vec<OwnedNodeId> {
+    let preserved = |element: OwnedNode<'_>| {
+        let space = |n: OwnedNode<'_>| {
+            n.attributes()
+                .find(|a| a.name.qualified() == "xml:space")
+                .map(|a| a.value.to_string())
+        };
+        std::iter::successors(Some(element), |n| n.parent())
+            .find_map(space)
+            .is_some_and(|v| v == "preserve")
+    };
+    let mut found = Vec::new();
+    for parent in document
+        .nodes()
+        .filter(|n| n.kind() == OwnedNodeKind::Element && !preserved(*n))
+    {
+        let children: Vec<_> = parent.children().collect();
+        let declared = document
+            .dtd()
+            .zip(parent.name())
+            .and_then(|(dtd, name)| dtd.has_element_content(name.qualified()));
+        let mut kept: Vec<OwnedNodeKind> = Vec::new();
+        for child in &children {
+            let blank = child.kind() == OwnedNodeKind::Text
+                && child
+                    .text()
+                    .is_some_and(|t| t.bytes().all(|b| b" \t\r\n".contains(&b)));
+            let leading = kept
+                .last()
+                .is_none_or(|last| *last != OwnedNodeKind::Text && kept[0] != OwnedNodeKind::Text);
+            match blank && declared.unwrap_or(children.len() > 1 && leading) {
+                true => found.push(child.id()),
+                false => kept.push(child.kind()),
+            }
+        }
+    }
+    found
 }
 
 fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Error> {
     let limits = limits(o);
+    let noblanks = o.noblanks || o.format == 1;
     if o.html {
         let flags = o.html_flags | yaxml::html::COMPACT | yaxml::html::BIG_LINES;
-        let options = yaxml::html::Options { flags, limits };
-        return Ok(yaxml::html::parse(input, options)?.document);
+        let flags = flags | if noblanks { yaxml::html::NOBLANKS } else { 0 };
+        return Ok(yaxml::html::parse(input, yaxml::html::Options { flags, limits })?.document);
     }
-    if o.load || o.valid || o.postvalid || o.relaxng.is_some() || o.schema.is_some() {
-        OwnedDocument::with_resolver(input, limits, name, resolver(o))
+    let loads = o.load || o.valid || o.postvalid || o.c14n.is_some();
+    let mut document = if loads || o.relaxng.is_some() || o.schema.is_some() {
+        OwnedDocument::with_resolver(input, limits, name, resolver(o))?
     } else {
-        OwnedDocument::with_limits(input, limits)
+        OwnedDocument::with_limits(input, limits)?
+    };
+    let blanks = if noblanks {
+        blanks(&document)
+    } else {
+        Vec::new()
+    };
+    if let Ok(mut editor) = document.edit(EditLimits::default()) {
+        blanks.into_iter().for_each(|id| {
+            let _ = editor.remove_subtree(id);
+        });
     }
+    Ok(document)
 }
 
 fn save(o: &Opts, document: &OwnedDocument, out: &mut Vec<u8>) -> i32 {
+    let indent = env::var("XMLLINT_INDENT").unwrap_or("  ".into());
+    let flags = match o.format {
+        1 => save::FORMAT,
+        2 => save::WSNONSIG,
+        _ => 0,
+    } | if o.xmlout { save::AS_XML } else { 0 };
+    let options = save::Options {
+        flags,
+        encoding: o.encode.as_deref(),
+        indent: &indent,
+    };
     let saved = match o.c14n {
         Some(mode) => {
-            let options = yaxml::c14n::Options {
+            let options = c14n::Options {
                 with_comments: true,
-                ..yaxml::c14n::Options::new(mode)
+                ..c14n::Options::new(mode)
             };
-            yaxml::c14n::write(document, &options, &mut *out).map_err(|_| "Failed to canonicalize")
+            c14n::write(document, &options, &mut *out).map_err(|_| "Failed to canonicalize")
         }
-        None if o.html => yaxml::html::save(document, o.format)
+        None => save::to_vec(document, &options)
             .map(|bytes| out.extend_from_slice(&bytes))
-            .map_err(|_| "failed save to -"),
-        None => yaxml::Writer::new(&mut *out)
-            .write_owned_document(document)
             .map_err(|_| "failed save to -"),
     };
     saved.map_or_else(
@@ -192,10 +272,71 @@ fn last_failure(codes: impl IntoIterator<Item = i32>) -> i32 {
         .unwrap_or(0)
 }
 
+/// Validation after parsing: DTD (`--valid`, `--postvalid`, `--dtdvalid`),
+/// then RELAX NG and XML Schema; the last failing code wins.
+fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &OwnedDocument) -> i32 {
+    let verdict = |ok: bool| {
+        match (ok, o.quiet) {
+            (true, false) => eprintln!("{file} validates"),
+            (false, _) => eprintln!("{file} fails to validate"),
+            _ => {}
+        }
+        if ok { 0 } else { VALID }
+    };
+    let dtd_valid = (o.valid || o.postvalid).then(|| {
+        let ok = print_all(file, input, "validity error", &document.validate());
+        if !ok && o.postvalid {
+            eprintln!("Document {file} does not validate");
+        }
+        // Parse-time `--valid` reports a missing DTD but does not fail on it.
+        if ok || (!o.postvalid && document.dtd().is_none()) {
+            0
+        } else {
+            VALID
+        }
+    });
+    let dtdvalid = o.dtdvalid.as_deref().map(|path| {
+        let Ok(dtd) = valid::Dtd::load(path, Default::default(), loader(&o.path)) else {
+            eprintln!("Could not parse DTD {path}");
+            return DTD;
+        };
+        if print_all(
+            file,
+            input,
+            "validity error",
+            &valid::validate(document, &dtd),
+        ) {
+            return 0;
+        }
+        eprintln!("Document {file} does not validate against {path}");
+        VALID
+    });
+    let relaxng = schemas.relaxng.as_ref().map(|schema| {
+        verdict(print_all(
+            file,
+            input,
+            "Relax-NG validity error",
+            &schema.validate(document),
+        ))
+    });
+    let xsd = schemas.xsd.as_ref().map(|schema| {
+        verdict(print_all(
+            file,
+            input,
+            "Schemas validity error",
+            &schema.validate(document),
+        ))
+    });
+    last_failure([dtd_valid, dtdvalid, relaxng, xsd].into_iter().flatten())
+}
+
 fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
     let start = Instant::now();
     let input = match file {
-        "-" => io::stdin().lock().bytes().collect::<Result<Vec<_>, _>>(),
+        "-" => {
+            let mut bytes = Vec::new();
+            io::stdin().lock().read_to_end(&mut bytes).map(|_| bytes)
+        }
         _ => fs::read(file),
     };
     let Ok(input) = input else {
@@ -256,72 +397,12 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
         Some(path) => fs::write(path, &out).map_err(|_| ()),
         None => io::stdout().lock().write_all(&out).map_err(|_| ()),
     };
-    let check = |kind: &str, found: &mut dyn Iterator<Item = (Option<usize>, &str, bool)>| {
-        print_all(file, &input, kind, found)
-    };
-    let dtd_valid = if o.valid || o.postvalid {
-        let found = document.validate();
-        let ok = check(
-            "validity error",
-            &mut found
-                .iter()
-                .map(|d| (d.offset, d.message.as_str(), d.code.is_warning())),
-        );
-        if !ok && o.postvalid {
-            eprintln!("Document {file} does not validate");
-        }
-        if ok { 0 } else { VALID }
-    } else {
-        0
-    };
-    let dtdvalid = o.dtdvalid.as_deref().map_or(0, |path| {
-        let Ok(dtd) = valid::Dtd::load(path, Default::default(), loader(&o.path)) else {
-            eprintln!("Could not parse DTD {path}");
-            return DTD;
-        };
-        let found = valid::validate(&document, &dtd);
-        if check(
-            "validity error",
-            &mut found
-                .iter()
-                .map(|d| (d.offset, d.message.as_str(), d.code.is_warning())),
-        ) {
-            return 0;
-        }
-        eprintln!("Document {file} does not validate against {path}");
-        VALID
-    });
-    let verdict = |ok: bool| {
-        match (ok, o.quiet) {
-            (true, false) => eprintln!("{file} validates"),
-            (false, _) => eprintln!("{file} fails to validate"),
-            _ => {}
-        }
-        if ok { 0 } else { VALID }
-    };
-    let relaxng = schemas.relaxng.as_ref().map_or(0, |schema| {
-        let found = schema.validate(&document);
-        verdict(check(
-            "Relax-NG validity error",
-            &mut found.iter().map(|d| (d.offset, d.message.as_str(), false)),
-        ))
-    });
-    let xsd = schemas.xsd.as_ref().map_or(0, |schema| {
-        let found = schema.validate(&document);
-        verdict(check(
-            "Schemas validity error",
-            &mut found
-                .iter()
-                .map(|d| (d.offset, d.message.as_str(), d.code.is_warning())),
-        ))
-    });
+    let checked = checks(o, schemas, file, &input, &document);
     if o.timing {
         eprintln!("Total took {} ms", start.elapsed().as_millis());
     }
     let written = if flushed.is_err() { OUT } else { 0 };
-    last_failure([
-        included, queried, saved, written, dtd_valid, dtdvalid, relaxng, xsd,
-    ])
+    last_failure([included, queried, saved, written, checked])
 }
 
 /// `--stream`: read every node through the pull interface and print nothing.

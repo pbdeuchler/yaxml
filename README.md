@@ -402,6 +402,11 @@ assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`yaxmllint` (`cargo run --bin yaxmllint -- FILE`) is `xmllint`'s command line over
+these modules: `--noout --format --encode --xpath --c14n --html --valid
+--relaxng --schema --xinclude --stream --catalogs` and the rest of the table
+in [yaxmllint](docs/yaxmllint.md), with xmllint's exit codes and stdout.
+
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
 their own scope decision because libxml2 exposes raw pointers and public mutable
