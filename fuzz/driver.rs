@@ -80,7 +80,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
 /// or attribute default, so mutations reach declaration and expansion paths.
 #[allow(dead_code, reason = "used by the dtd target and fuzz smoke tests only")]
 pub fn exercise_dtd(input: &[u8]) -> Outcome {
-    if input.starts_with(b"<!DOCTYPE") || input.starts_with(b"<?xml") {
+    if input.starts_with(b"<!DOCTYPE") {
         return exercise(input);
     }
     let (control, body) = input.split_first().unwrap_or((&0, &[]));

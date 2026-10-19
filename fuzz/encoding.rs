@@ -636,6 +636,8 @@ struct DecodeOracle<'a> {
     document: &'a Document<'a>,
     total: usize,
     token: usize,
+    /// Entity expansion produced tokens the source spans cannot measure.
+    generated: bool,
 }
 
 impl<'a> DecodeOracle<'a> {
@@ -654,7 +656,9 @@ impl<'a> DecodeOracle<'a> {
         let bom = reader.position();
         let mut previous = bom;
         let mut token = 0;
+        let mut generated = false;
         while let Some(event) = reader.read_event().unwrap() {
+            generated |= reader.event_range().is_none();
             let range = super::span(reader.event_origin().unwrap());
             // Events expanded from one reference share its span.
             token = token.max(range.start.saturating_sub(previous));
@@ -680,6 +684,7 @@ impl<'a> DecodeOracle<'a> {
             document,
             total: canonical.len() - bom + label - "UTF-8".len(),
             token,
+            generated,
         }
     }
 
@@ -720,7 +725,9 @@ impl<'a> DecodeOracle<'a> {
                 // exhaust the default owned budget before the selected quota.
                 let legitimate = match error.kind {
                     ErrorKind::LimitExceeded(Limit::DecodedBytes) => total_exceeded,
-                    ErrorKind::LimitExceeded(Limit::DecodedTokenBytes) => token_exceeded,
+                    ErrorKind::LimitExceeded(Limit::DecodedTokenBytes) => {
+                        token_exceeded || self.generated
+                    }
                     ErrorKind::LimitExceeded(Limit::OwnedBytes) => input_len > 1024,
                     _ => false,
                 };
