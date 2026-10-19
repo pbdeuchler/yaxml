@@ -27,7 +27,9 @@ mod textreader;
 mod tokenizer;
 pub mod uri;
 mod writer;
+pub mod xinclude;
 pub mod xpath;
+pub mod xpointer;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};
