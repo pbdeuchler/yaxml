@@ -1064,6 +1064,8 @@ fn fuzz_regressions_replay() {
                     driver::exercise_pull(&data, data.get(data.len() / 2).copied().unwrap_or(0));
                 }
                 "dtd" => drop(driver::exercise_dtd(&data)),
+                "c14n" => driver::exercise_c14n(&data),
+                "limits" => drop(driver::exercise_limits(&data)),
                 _ => drop(driver::exercise(&data)),
             }
         }

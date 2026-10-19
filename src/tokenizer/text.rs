@@ -380,7 +380,13 @@ impl<'input> TextSourceLease<'input> {
         }
         let start = span.decoded.start.checked_sub(*decoded_start)?;
         let end = span.decoded.end.checked_sub(*decoded_start)?;
-        Some((kind, input.get(start..end)?, span.clone()))
+        // Invalid markup can end inside a scalar; its kind alone is rejected.
+        let raw = if kind == TokenKind::InvalidMarkup {
+            ""
+        } else {
+            input.get(start..end)?
+        };
+        Some((kind, raw, span.clone()))
     }
     fn current(&self) -> Option<TextToken<'_>> {
         match &self.kind {

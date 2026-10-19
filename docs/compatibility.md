@@ -75,7 +75,20 @@ Unparsed entities in content (`UnparsedEntity`), external entities in attribute
 values (`ExternalEntityInAttribute`), recursion (`EntityLoop`), unbalanced
 replacement markup (`UnbalancedEntity`) and malformed declarations
 (`InvalidDtd`) are fatal. Ceilings are `Limits::max_dtd_bytes`,
-`max_entity_expansion_bytes`, `max_entity_references` and `max_entity_depth`.
+`max_entity_expansion_bytes`, `max_entity_amplification`,
+`max_entity_references` and `max_entity_depth`.
+
+Amplification follows libxml2's `xmlParserEntityCheck` without
+`XML_PARSE_HUGE`: every entered replacement text (general, parameter and
+external entities, in content, attribute values and the subset) and every
+copied default attribute is charged its length plus a fixed cost of 20; the
+total may exceed `max_entity_expansion_bytes` (default 1,000,000, libxml2's
+`XML_PARSER_ALLOWED_EXPANSION`) only up to `max_entity_amplification`
+(default 5, `XML_MAX_AMPLIFICATION_DEFAULT`) times the input consumed so far,
+resolver bytes included. Expansion work is O(1) amortized per charged byte, so
+billion-laughs, parameter-laughs and quadratic-blowup documents fail in
+milliseconds with `LimitExceeded(EntityExpansion)`; `tests/amplification.rs`
+asserts the per-use cost is constant on all five parsers.
 
 Known differences from the pinned oracle, all intentional: colons in entity or
 notation names are a fatal `Namespace` error (libxml2 warns); PE references

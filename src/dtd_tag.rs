@@ -159,6 +159,20 @@ fn prepare_tag<'event>(
         });
     }
 
+    // Copied defaults amplify output like entities do (libxml2 `expandedSize`).
+    let copied = catalog
+        .attributes(raw.qualified)
+        .filter(|binding| !explicit.contains(binding.name()))
+        .filter_map(|binding| match binding.default() {
+            DefaultValue::Value { value, .. } => {
+                Some(binding.name().len() + value.len() + crate::dtd_controller::ENTITY_FIXED_COST)
+            }
+            _ => None,
+        })
+        .fold(0_usize, usize::saturating_add);
+    catalog
+        .charge_default(copied)
+        .map_err(|error| rebase_catalog_error(error, raw.start))?;
     for binding in catalog.attributes(raw.qualified) {
         if explicit.contains(binding.name()) {
             continue;

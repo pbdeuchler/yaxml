@@ -27,9 +27,14 @@ pub struct Limits {
     pub max_owned_bytes: usize,
     /// Source bytes in the document type declaration, from `<!DOCTYPE` to `>`.
     pub max_dtd_bytes: usize,
-    /// Cumulative replacement-text bytes produced by internal entity expansion,
-    /// in content, attribute values and the internal subset.
+    /// Entity expansion always allowed: replacement text entered (in content,
+    /// attribute values and the internal subset), copied default attributes,
+    /// plus a fixed cost per reference. Beyond it, expansion may not exceed
+    /// `max_entity_amplification` times the input consumed so far, as with
+    /// libxml2's `xmlParserEntityCheck`.
     pub max_entity_expansion_bytes: usize,
+    /// Expansion-to-consumed-input ratio permitted above the fixed allowance.
+    pub max_entity_amplification: usize,
     /// Cumulative entity references expanded, including nested references.
     pub max_entity_references: usize,
     /// Nesting depth of entity references being expanded.
@@ -50,7 +55,8 @@ impl Default for Limits {
             max_events: 1_000_000,
             max_owned_bytes: 64 * 1024 * 1024,
             max_dtd_bytes: 16 * 1024 * 1024,
-            max_entity_expansion_bytes: 8 * 1024 * 1024,
+            max_entity_expansion_bytes: 1_000_000,
+            max_entity_amplification: 5,
             max_entity_references: 1024 * 1024,
             max_entity_depth: 40,
             max_external_loads: 256,

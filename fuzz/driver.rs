@@ -5,6 +5,22 @@ use std::collections::HashSet;
 use std::ops::{ControlFlow, Range};
 use yaxml::{Document, Error, ErrorKind, Event, Limits, NodeKind, PushParser, ReadError, Reader};
 
+/// Events are bounded by input plus the permitted entity expansion: at most
+/// one per two source or expanded bytes, plus EOF.
+pub fn event_bound(input: usize) -> usize {
+    expanded_bound(input).saturating_mul(2).saturating_add(1)
+}
+
+/// Input bytes plus the largest default entity-expansion allowance.
+pub fn expanded_bound(input: usize) -> usize {
+    let limits = Limits::default();
+    input.saturating_add(
+        limits
+            .max_entity_expansion_bytes
+            .max(input.saturating_mul(limits.max_entity_amplification)),
+    )
+}
+
 /// Exact input span, or the outermost entity reference that produced the value.
 pub fn span(origin: yaxml::SourceOrigin) -> Range<usize> {
     origin
@@ -423,6 +439,13 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
     let mut stream = Vec::new();
     let outcome = read(input, Some(limits), |event| stream.push(event));
     let document = Document::with_limits(input, limits);
+    // Joining entity-split text runs into one DOM node needs owned storage
+    // that the borrowing reader never spends.
+    if outcome.error.is_none()
+        && matches!(&document, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
+    {
+        return outcome;
+    }
     assert_eq!(
         outcome.error.is_none(),
         document.is_ok(),
@@ -482,7 +505,7 @@ fn read<'input>(
                 assert!(range.start <= range.end && range.end <= position);
                 events += 1;
                 assert!(
-                    events <= input.len().saturating_mul(2).saturating_add(1),
+                    events <= event_bound(input.len()),
                     "reader made no bounded progress"
                 );
                 emit(event);

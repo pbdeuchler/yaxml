@@ -133,6 +133,7 @@ pub(crate) struct Loader {
     pub(crate) unit: DtdLimits,
     loads_left: usize,
     bytes_left: usize,
+    max_bytes: usize,
 }
 
 impl Loader {
@@ -148,7 +149,13 @@ impl Loader {
             unit,
             loads_left: limits.max_external_loads,
             bytes_left: limits.max_external_bytes,
+            max_bytes: limits.max_external_bytes,
         }
+    }
+
+    /// Bytes the resolver has returned so far.
+    pub(crate) fn loaded(&self) -> usize {
+        self.max_bytes - self.bytes_left
     }
 
     /// Resolves `system` against the current base, as libxml2's `xmlBuildURI`.

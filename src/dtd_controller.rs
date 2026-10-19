@@ -27,6 +27,46 @@ pub(crate) struct ControllerLimits {
     pub(crate) max_physical_bytes: usize,
     pub(crate) max_work: usize,
     pub(crate) max_owned_bytes: usize,
+    /// Expansion allowed regardless of input size.
+    pub(crate) expansion_floor: usize,
+    /// Permitted expansion per consumed input byte above the floor.
+    pub(crate) amplification: usize,
+}
+
+/// libxml2's `XML_ENT_FIXED_COST`: charged per expansion so that empty or
+/// tiny entities cannot be referenced without bound.
+pub(crate) const ENTITY_FIXED_COST: usize = 20;
+
+impl ControllerLimits {
+    /// libxml2's `xmlParserEntityCheck` threshold for `consumed` input bytes.
+    pub(crate) fn expansion_allowance(&self, consumed: usize) -> usize {
+        self.expansion_floor
+            .max(consumed.saturating_mul(self.amplification))
+    }
+}
+
+/// Splits the shared expansion allowance between the two expanding components.
+pub(crate) fn share_expansion(
+    limits: &ControllerLimits,
+    consumed: usize,
+    frames: &mut EntityFrames,
+    catalog: &mut DtdCatalog,
+) {
+    let consumed = consumed.saturating_add(catalog.external_bytes());
+    let counters = frames.counters();
+    // Frames count entered replacement bytes; each reference adds libxml2's fixed cost.
+    let frames_used = counters.expanded_bytes.saturating_add(
+        counters
+            .reference_attempts
+            .saturating_mul(ENTITY_FIXED_COST),
+    );
+    let catalog_used = catalog.usage().amplification;
+    let left = limits
+        .expansion_allowance(consumed)
+        .saturating_sub(frames_used)
+        .saturating_sub(catalog_used);
+    frames.set_expansion_ceiling(counters.expanded_bytes.saturating_add(left));
+    catalog.set_amplification_ceiling(catalog_used.saturating_add(left));
 }
 
 impl Default for ControllerLimits {
@@ -43,6 +83,8 @@ impl Default for ControllerLimits {
             max_physical_bytes: 16 * 1024 * 1024,
             max_work: 64 * 1024 * 1024,
             max_owned_bytes: 16 * 1024 * 1024,
+            expansion_floor: 1_000_000,
+            amplification: 5,
         }
     }
 }
@@ -545,20 +587,21 @@ impl<'input> DtdControllerCore<'input> {
                 .expect("finished complete fragment");
             return Ok(());
         }
-        let byte = replacement.as_bytes()[cursor];
         let global_remaining = self.limits.max_work - self.counters.work;
         let scan_remaining = self.limits.scan.max_work - self.counters.scanned_bytes;
         let remaining = global_remaining.min(scan_remaining);
         self.fragment
             .cap_work(self.fragment.position().saturating_add(remaining));
         let before = self.fragment.position();
-        let result = self.fragment.advance(std::slice::from_ref(&byte));
+        // The scanner stops at the first complete unit, so whole slices are safe.
+        let result = self.fragment.advance(&replacement.as_bytes()[cursor..]);
         let consumed = self.fragment.position() - before;
         self.counters.work += consumed;
         self.counters.scanned_bytes += consumed;
         if let Err(error) = result {
+            // A slice can exhaust the cap mid-way; the tighter ceiling names it.
             if error.kind == ScanErrorKind::Limit(crate::dtd_scan::ScanLimit::Work)
-                && global_remaining == 0
+                && global_remaining <= scan_remaining
             {
                 return Err(self.simple_error(ControllerErrorKind::Limit(ControllerLimit::Work)));
             }
@@ -568,6 +611,12 @@ impl<'input> DtdControllerCore<'input> {
     }
 
     fn process_ready(&mut self, side: Side, budget: &mut Budget) -> Result<(), ControllerError> {
+        share_expansion(
+            &self.limits,
+            self.position,
+            &mut self.frames,
+            &mut self.catalog,
+        );
         let (kind, raw_len) = match side {
             Side::Physical => self.physical.current(),
             Side::Replacement => self.fragment.current(),
@@ -752,6 +801,11 @@ impl<'input> DtdControllerCore<'input> {
     ) -> Result<(), ControllerError> {
         // libxml2 sets hasPErefs before resolving the name.
         self.catalog.note_parameter_reference();
+        let raw_len = match side {
+            Side::Physical => self.physical.current(),
+            Side::Replacement => self.fragment.current(),
+        }
+        .map_or(0, |(_, raw, _)| raw.len());
         let (id, resolution) = {
             let raw = match side {
                 Side::Physical => self.physical.current(),
@@ -772,6 +826,8 @@ impl<'input> DtdControllerCore<'input> {
                 // External text is processed whole when the caller's resolver
                 // supplies it; otherwise, like libxml2's failed load, it is skipped.
                 EntityLookup::ExternalUnavailable { id, .. } => {
+                    // A skipped reference still consumes (and pays for) its spelling.
+                    self.commit_source(side, raw_len)?;
                     self.release_scanner(side);
                     return self
                         .catalog
@@ -786,6 +842,7 @@ impl<'input> DtdControllerCore<'input> {
                 }
                 // Like libxml2's undeclared warning, the reference is skipped.
                 EntityLookup::UnreadEntity => {
+                    self.commit_source(side, raw_len)?;
                     self.release_scanner(side);
                     return Ok(());
                 }

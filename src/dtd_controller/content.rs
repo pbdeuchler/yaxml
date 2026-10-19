@@ -523,6 +523,7 @@ impl<'input> ContentControllerCore<'input> {
     }
 
     fn enter_general(&mut self) -> Result<(), ContentError> {
+        self.share_expansion();
         let (resolved, origin) = {
             let (reference, extent, source) = self
                 .coordinator
@@ -762,12 +763,23 @@ impl<'input> ContentControllerCore<'input> {
         Ok(())
     }
 
+    fn share_expansion(&mut self) {
+        let body = &mut self.body;
+        share_expansion(
+            &body.limits,
+            body.physical_position,
+            &mut body.frames,
+            &mut body.catalog,
+        );
+    }
+
     fn prepare_publication(
         &mut self,
     ) -> Result<(TokenKind, FragmentOrigin, usize, usize, usize), ContentError> {
         if self.delivery != Delivery::Ready {
             return Err(self.simple(ContentErrorKind::InvalidState));
         }
+        self.share_expansion();
         let (kind, length, origin, offset) = {
             let token = self
                 .coordinator

@@ -113,7 +113,7 @@ impl<'a> Oracle<'a> {
             let mut count = 0;
             while reader.read_event()?.is_some() {
                 count += 1;
-                assert!(count <= bytes.len().saturating_mul(2).saturating_add(1));
+                assert!(count <= super::event_bound(bytes.len()));
             }
             Ok(())
         });
@@ -302,7 +302,7 @@ fn drive(
                 }
                 count += 1;
                 assert!(
-                    count <= input.len().saturating_mul(2).saturating_add(1),
+                    count <= super::event_bound(input.len()),
                     "pull made no bounded progress"
                 );
                 assert!(range.end <= pull.position());
