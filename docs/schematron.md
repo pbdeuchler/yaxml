@@ -154,4 +154,10 @@ with context `*`, and checks: `from_tree` over both DOMs reports what
 reuse; text and error modes print the same messages and counts; the one-pass
 count equals the error-mode count when no internal error occurred; and a
 smaller operation budget either runs out or changes nothing. Seeds are the
-libxml2 corpus and a few hand-written cases.
+libxml2 corpus and a few hand-written cases; the tracked corpus
+(921 files of at most 4 KiB) is their edge-only merge with the campaign's
+finds. On `nightly-2026-06-06`, a 669 s run (`-fork=6 -timeout=2
+-max_len=4096`, 31.9 million executions, 7,909 edges) after a 313 s one found
+no crash, timeout or leak. Replaying the corpus with `fuzz/coverage.sh
+schematron` covers 92.42% of `src/schematron.rs` lines, 91.60% of regions
+and 83.64% of branches.
