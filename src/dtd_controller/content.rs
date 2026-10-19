@@ -170,11 +170,6 @@ impl<'input> ContentControllerCore<'input> {
                         .advance(&replacement.as_bytes()[frame.scanned..]),
                 }
             } else {
-                let remaining = self
-                    .body
-                    .limits
-                    .declarations
-                    .saturating_sub(self.body.counters.physical_bytes);
                 let available = match stable {
                     true => self.coordinator.stable_remaining().expect("stable input"),
                     false => &input[consumed..],
@@ -182,23 +177,15 @@ impl<'input> ContentControllerCore<'input> {
                 if stable && available.is_empty() {
                     self.finalizing = true;
                 }
-                let length = physical_input_prefix(self.body.encoding, available, remaining);
-                if !self.finalizing && !available.is_empty() && length == 0 {
-                    return Err(self.simple(ErrorKind::LimitExceeded(Limit::InputBytes)));
-                }
-                if self.finalizing {
-                    self.coordinator.finish_step()
-                } else if stable {
-                    self.coordinator.advance_borrowed_bounded(length)
-                } else {
-                    self.coordinator.advance(&available[..length])
+                match self.finalizing {
+                    true => self.coordinator.finish_step(),
+                    false => self.coordinator.advance(available),
                 }
             };
             // Include accepted work even when scanning fails; never replay it.
             self.sync_usage();
             if self.body.frames.top().is_none() {
                 let (decoded, physical) = self.coordinator.input_position().expect("input lease");
-                self.body.counters.physical_bytes += physical - self.body.physical_position;
                 self.body.decoded_position = decoded;
                 self.body.physical_position = physical;
             }
@@ -639,25 +626,4 @@ fn tag_failure(
         _ => origin.error_offset(),
     };
     Error::new(error.kind, offset)
-}
-
-/// Bound transport charges before scanning decoded bytes. UTF-16 continuations
-/// have zero charge: their lead already accounted for the complete scalar.
-fn physical_input_prefix(encoding: SourceEncoding, input: &[u8], remaining: usize) -> usize {
-    if encoding == SourceEncoding::Utf8 {
-        return input.len().min(remaining);
-    }
-    // Each decoded byte costs at most four transport bytes. Limit the scan near
-    // exhaustion to avoid repeatedly traversing a suffix across reference stops.
-    if remaining >= 4 {
-        return input.len().min(remaining / 4);
-    }
-    let mut spent = 0;
-    for (index, byte) in input.iter().take(4).enumerate() {
-        spent += encoding.source_length(std::slice::from_ref(byte));
-        if spent > remaining {
-            return index;
-        }
-    }
-    input.len().min(4)
 }

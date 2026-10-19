@@ -937,3 +937,48 @@ fn declaration_token_and_default_ceilings_fail_identically() {
     assert_eq!(reader(input, owned), error(56));
     assert_eq!(push(input, &[], owned), error(45));
 }
+
+#[test]
+fn dtd_bytes_bound_only_the_doctype_and_input_bytes_the_document() {
+    use ErrorKind::LimitExceeded;
+    let body = "<e a='v'>text &e;</e>".repeat(20);
+    let small = format!("<!DOCTYPE r [<!ENTITY e 'x'>]><r>{body}</r>");
+    let large = format!("<!DOCTYPE r [<!ENTITY e '{}'>]><r>&e;</r>", "x".repeat(200));
+    let dtd = |max_dtd_bytes| Limits {
+        max_dtd_bytes,
+        ..Limits::default()
+    };
+    let input = Limits {
+        max_input_bytes: small.len() - 1,
+        ..Limits::default()
+    };
+    type Case<'a> = (&'a str, Limits, Option<(ErrorKind, usize)>);
+    let cases: &[Case<'_>] = &[
+        // Content after a small DOCTYPE may exceed max_dtd_bytes.
+        (&small, dtd(64), None),
+        (&small, dtd(small.len() / 4), None),
+        // The DOCTYPE itself, internal subset included, may not.
+        (
+            &large,
+            dtd(100),
+            Some((LimitExceeded(Limit::DtdBytes), 100)),
+        ),
+        (&large, dtd(large.find("]>").unwrap() + 2), None),
+        // Input bytes bound a document with a DOCTYPE as one without.
+        (&small, input, Some((LimitExceeded(Limit::InputBytes), 0))),
+    ];
+    for (input, limits, expected) in cases {
+        let result = all(input.as_bytes(), *limits);
+        match expected {
+            None => assert!(result.is_ok(), "{input}: {result:?}"),
+            Some((kind, offset)) => assert_eq!(
+                result,
+                Err(Error {
+                    kind: *kind,
+                    offset: *offset
+                }),
+                "{input}"
+            ),
+        }
+    }
+}

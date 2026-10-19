@@ -373,13 +373,6 @@ impl<'input> TextCoordinator<'input> {
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<TextStep, TextError> {
         self.drive(input)
     }
-    pub(crate) fn advance_borrowed_bounded(
-        &mut self,
-        maximum: usize,
-    ) -> Result<TextStep, TextError> {
-        let available = self.source.stable_remaining().expect("stable input");
-        self.drive(&available[..available.len().min(maximum)])
-    }
     pub(crate) fn finish_step(&mut self) -> Result<TextStep, TextError> {
         self.source.finalizing = true;
         self.drive(&[])
