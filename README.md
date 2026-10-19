@@ -269,6 +269,23 @@ assert_eq!(canonical, r#"<r><p:e xmlns:p="urn:p" a="1" b="2"></p:e></r>"#);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`yaxml::xinclude::process` performs XInclude 1.0 as libxml2's `xinclude.c`
+does (XML and text inclusion, fallbacks, `xml:base` fixup, XPointer
+selection, loop/depth detection) and returns a new `OwnedDocument`; resources
+load only through the supplied `Resolver`, within cumulative budgets.
+`yaxml::xpointer::evaluate` is libxml2 2.15's XPointer subset (shorthand,
+`element()`, `xmlns()`, `xpointer()`). See the [XInclude contract](docs/xinclude.md).
+
+```rust
+let main = yaxml::OwnedDocument::parse(
+    "<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='a.xml' xpointer='element(/1/2)'/></r>",
+)?;
+let resolver = |_: yaxml::Request<'_>| Ok(Some(b"<a><b/><c/></a>".to_vec()));
+let result = yaxml::xinclude::process(&main, "main.xml", Box::new(resolver), &Default::default())?;
+assert_eq!(result.root_element().first_child().unwrap().name().unwrap().local(), "c");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 `yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
 tokenization, libxml2's legacy tree construction with implied elements and
 auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding

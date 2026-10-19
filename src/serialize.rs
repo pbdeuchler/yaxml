@@ -58,17 +58,7 @@ impl<'document, 'input> TreeNode<'document, 'input> {
                 }
                 NodeKind::Document | NodeKind::Element(_) => None,
             },
-            Self::Owned(node) => match node.kind() {
-                OwnedNodeKind::DocumentType => node.doctype().map(Event::Doctype),
-                OwnedNodeKind::Text => Some(Event::Text(Cow::Borrowed(node.text()?))),
-                OwnedNodeKind::Cdata => Some(Event::Cdata(Cow::Borrowed(node.text()?))),
-                OwnedNodeKind::Comment => Some(Event::Comment(Cow::Borrowed(node.text()?))),
-                OwnedNodeKind::ProcessingInstruction => Some(Event::ProcessingInstruction {
-                    target: Cow::Borrowed(node.processing_instruction_target()?),
-                    data: Cow::Borrowed(node.text()?),
-                }),
-                OwnedNodeKind::Document | OwnedNodeKind::Element => None,
-            },
+            Self::Owned(node) => owned_leaf(node),
         }
     }
 
@@ -102,6 +92,21 @@ impl<'document, 'input> TreeNode<'document, 'input> {
             Self::Owned(node) => attributes.extend(node.attributes()),
         }
         Ok(())
+    }
+}
+
+/// A leaf node's event; documents and elements have none.
+pub(crate) fn owned_leaf(node: OwnedNode<'_>) -> Option<Event<'_>> {
+    match node.kind() {
+        OwnedNodeKind::DocumentType => node.doctype().map(Event::Doctype),
+        OwnedNodeKind::Text => Some(Event::Text(Cow::Borrowed(node.text()?))),
+        OwnedNodeKind::Cdata => Some(Event::Cdata(Cow::Borrowed(node.text()?))),
+        OwnedNodeKind::Comment => Some(Event::Comment(Cow::Borrowed(node.text()?))),
+        OwnedNodeKind::ProcessingInstruction => Some(Event::ProcessingInstruction {
+            target: Cow::Borrowed(node.processing_instruction_target()?),
+            data: Cow::Borrowed(node.text()?),
+        }),
+        OwnedNodeKind::Document | OwnedNodeKind::Element => None,
     }
 }
 

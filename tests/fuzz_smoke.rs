@@ -1105,9 +1105,28 @@ fn fuzz_regressions_replay() {
                 "dtd" => drop(driver::exercise_dtd(&data)),
                 "valid" => driver::exercise_valid(&data),
                 "html" => driver::exercise_html(&data),
+                "xinclude" => driver::exercise_xinclude(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }
+    }
+}
+
+#[test]
+fn xinclude_entry_replays_seeds_and_malformed_pieces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/xinclude");
+    for seed in std::fs::read_dir(root).unwrap() {
+        driver::exercise_xinclude(&std::fs::read(seed.unwrap().path()).unwrap());
+    }
+    let cases: &[&[u8]] = &[
+        b"",
+        b"<r",
+        b"<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='0'/></r>\0\xff",
+        b"<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='0' parse='text'/></r>\0\x01",
+        b"<r/>\0xpointer(//r\0element(/1)",
+    ];
+    for case in cases {
+        driver::exercise_xinclude(case);
     }
 }
 

@@ -28,7 +28,9 @@ mod tokenizer;
 pub mod uri;
 pub mod valid;
 mod writer;
+pub mod xinclude;
 pub mod xpath;
+pub mod xpointer;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};

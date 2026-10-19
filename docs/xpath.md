@@ -79,11 +79,11 @@ Not compared, and deliberately different:
 
 ## Gaps
 
-No XPointer, `xmlXPathOrderDocElems`, compile-time namespace checking
+XPointer is [`yaxml::xpointer`](xinclude.md). No `xmlXPathOrderDocElems`, compile-time namespace checking
 (`XML_XPATH_CHECKNS`) or variable forbidding (`XML_XPATH_NOVAR`). Variable and
 function lookup callbacks are static maps. Extension functions receive their
-evaluated arguments, not the context node or tree. DTD-declared IDs and
-entity-reference nodes do not exist in the current DOMs.
+evaluated arguments, not the context node or tree. Entity-reference nodes do
+not exist in the current DOMs.
 
 ## Differential check
 

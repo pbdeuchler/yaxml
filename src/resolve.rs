@@ -17,6 +17,10 @@ pub enum ResourceKind {
     ParameterEntity,
     /// An external parsed general entity referenced in content.
     GeneralEntity,
+    /// A document named by an `xi:include` with `parse="xml"`.
+    XInclude,
+    /// A resource named by an `xi:include` with `parse="text"`.
+    XIncludeText,
 }
 
 /// One load request.
