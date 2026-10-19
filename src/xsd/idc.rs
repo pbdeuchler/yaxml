@@ -110,6 +110,9 @@ pub(crate) struct Engine<'s> {
     keyref_depth: Vec<Option<usize>>,
     /// Whether the schema has keyrefs at all (node tables are built only then).
     keyrefs: bool,
+    /// Key sequences kept so far, up to the schema's `max_idc_keys`; once
+    /// over, keys are dropped and keyrefs no longer checked.
+    keys: usize,
 }
 
 impl<'s> Engine<'s> {
@@ -119,6 +122,7 @@ impl<'s> Engine<'s> {
             states: Vec::new(),
             keyref_depth: vec![None; schema.idcs.len()],
             keyrefs: schema.idcs.iter().any(|idc| idc.kind == IdcKind::KeyRef),
+            keys: 0,
         }
     }
 
@@ -317,7 +321,15 @@ impl<'s> Engine<'s> {
                                             self.designation(idc)
                                         ),
                                     );
-                                } else {
+                                } else if self.keys == self.schema.max_idc_keys {
+                                    self.keys += 1;
+                                    report(
+                                        node,
+                                        Code::VInternal,
+                                        "Too many identity-constraint key sequences.".into(),
+                                    );
+                                } else if self.keys < self.schema.max_idc_keys {
+                                    self.keys += 1;
                                     if definition.kind != IdcKind::KeyRef {
                                         matcher
                                             .index
@@ -388,7 +400,7 @@ impl<'s> Engine<'s> {
                 }
             }
         }
-        if scope.has_keyrefs {
+        if scope.has_keyrefs && self.keys <= self.schema.max_idc_keys {
             for matcher in &scope.matchers {
                 let definition = &self.schema.idcs[matcher.idc];
                 let (IdcKind::KeyRef, Some(refer)) = (definition.kind, definition.refer) else {

@@ -3,8 +3,11 @@
 //! [`Schema::parse`] reads a schema document (`xmlSchemaParse`) and the
 //! documents it includes, imports or redefines through an optional
 //! [`Resolver`]; [`Schema::validate`] checks a [`Document`](crate::Document)
-//! or [`OwnedDocument`] against it (`xmlSchemaValidateDoc`). A schema is
-//! immutable, `Send` and `Sync`, and validates any number of documents.
+//! or [`OwnedDocument`](crate::OwnedDocument) against it
+//! (`xmlSchemaValidateDoc`); [`Schema::validate_stream`] and
+//! [`StreamValidator`] check parser events without a tree
+//! (`xmlSchemaValidateStream`, `xmlSchemaSAXPlug`). A schema is immutable,
+//! `Send` and `Sync`, and validates any number of documents.
 //!
 //! ```
 //! use yaxml::{Document, xsd::{Code, Schema}};
@@ -35,9 +38,12 @@ mod validate;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::io::BufRead;
 
-use crate::Resolver;
+use crate::valid::Dtd;
 use crate::xpath::Tree;
+use crate::xpath::tree::QName as NodeName;
+use crate::{BufferedReader, Event, ParseOptions, ReadError, Resolver, SourceOrigin};
 
 use components::{
     AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, TypeDef, TypeId, Wildcard,
@@ -287,6 +293,10 @@ pub struct Limits {
     /// Counter vectors one element's content may track; only nested
     /// repetitions like `(a{2,3}){2}` need more than one.
     pub max_counter_vectors: usize,
+    /// Key sequences one validation may keep for identity constraints;
+    /// beyond it validation reports `XML_SCHEMAV_INTERNAL` and stops
+    /// checking them.
+    pub max_idc_keys: usize,
 }
 
 impl Default for Limits {
@@ -298,6 +308,7 @@ impl Default for Limits {
             max_depth: 256,
             max_model_work: 1 << 24,
             max_counter_vectors: 1024,
+            max_idc_keys: 1 << 20,
         }
     }
 }
@@ -317,6 +328,7 @@ pub struct Schema {
     pub(crate) notations: HashSet<QName>,
     pub(crate) warnings: Vec<SchemaDiagnostic>,
     pub(crate) max_counter_vectors: usize,
+    pub(crate) max_idc_keys: usize,
 }
 
 impl Schema {
@@ -365,6 +377,122 @@ impl Schema {
     /// Validates a document (`xmlSchemaValidateDoc`).
     pub fn validate<T: Tree>(&self, tree: &T) -> Vec<Diagnostic<T::Id>> {
         validate::run(self, tree)
+    }
+
+    /// Parses and validates a document in one pass without building a tree
+    /// (`xmlSchemaValidateStream`). Diagnostics are those of
+    /// [`StreamValidator`]; a parse failure is the error.
+    pub fn validate_stream<R: BufRead>(
+        &self,
+        input: R,
+        options: ParseOptions,
+    ) -> Result<Vec<Diagnostic<usize>>, ReadError> {
+        let mut reader = BufferedReader::with_options(input, options).map_err(ReadError::Xml)?;
+        let mut validator = StreamValidator::new(self);
+        while let Some((event, origin)) = reader.read_event()? {
+            validator.event(&event, origin);
+        }
+        Ok(validator.finish())
+    }
+}
+
+/// Validates one document from its parser events, as libxml2's SAX plug
+/// (`xmlSchemaSAXPlug`) does: feed it every event of a [`Reader`](crate::Reader),
+/// [`PushParser`](crate::PushParser) or [`BufferedReader`] with its origin,
+/// then [`finish`](Self::finish). Memory follows the open elements, the
+/// identity-constraint tables (`max_idc_keys`) and the ID values seen.
+///
+/// The diagnostics equal [`Schema::validate`]'s for the parsed tree, except
+/// that `node` is the element's index in document order. The DTD is the
+/// internal subset's: an external subset's `ID` attributes and unparsed
+/// entities are unknown. A schema `ID` that a later DTD or `xml:id` ID
+/// repeats is reported at the later attribute.
+///
+/// ```
+/// use std::ops::ControlFlow;
+/// use yaxml::{PushParser, xsd::{Code, Schema, StreamValidator}};
+///
+/// let schema = Schema::parse(br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+///   <xs:element name="r" type="xs:int"/></xs:schema>"#, "r.xsd")?;
+/// let mut validator = StreamValidator::new(&schema);
+/// let mut parser = PushParser::new();
+/// for chunk in [&b"<r>4"[..], b"x</r>"] {
+///     parser.feed(chunk, |event, origin| {
+///         validator.event(&event, origin);
+///         ControlFlow::Continue(())
+///     })?;
+/// }
+/// parser.finish(|event, origin| {
+///     validator.event(&event, origin);
+///     ControlFlow::Continue(())
+/// })?;
+/// let diagnostics = validator.finish();
+/// assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
+/// assert_eq!(diagnostics[0].node, Some(0));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub struct StreamValidator<'s> {
+    validator: validate::Validator<'s, usize>,
+    dtd: Option<Dtd>,
+    elements: usize,
+}
+
+impl<'s> StreamValidator<'s> {
+    /// A validator for one document against `schema`.
+    pub fn new(schema: &'s Schema) -> Self {
+        Self {
+            validator: validate::Validator::new(schema, HashMap::new()),
+            dtd: None,
+            elements: 0,
+        }
+    }
+
+    /// Validates the next event of the document.
+    pub fn event(&mut self, event: &Event<'_>, origin: SourceOrigin) {
+        match event {
+            Event::Start(element) | Event::Empty(element) => {
+                let node = validate::Node {
+                    id: self.elements,
+                    offset: origin.input_range().map(|range| range.start),
+                };
+                self.elements += 1;
+                let dtd = self.dtd.as_ref();
+                let qualified = element.name.qualified();
+                let attributes = element.attributes.iter().map(|attribute| {
+                    let id = attribute.name.qualified() == "xml:id"
+                        || dtd
+                            .is_some_and(|d| d.declares_id(qualified, attribute.name.qualified()));
+                    (name(&attribute.name), &*attribute.value, id)
+                });
+                self.validator
+                    .start(node, name(&element.name), attributes, dtd);
+                if matches!(event, Event::Empty(_)) {
+                    self.validator.end();
+                }
+            }
+            Event::End(_) => self.validator.end(),
+            Event::Text(text) => self.validator.text(text, false),
+            Event::Cdata(text) => self.validator.text(text, true),
+            Event::Doctype(doctype) => {
+                let subset = doctype.internal_subset.unwrap_or_default();
+                self.dtd = Dtd::parse(subset.as_bytes()).ok();
+                self.validator.other();
+            }
+            _ => self.validator.other(),
+        }
+    }
+
+    /// The diagnostics, once the document has ended.
+    pub fn finish(self) -> Vec<Diagnostic<usize>> {
+        self.validator.finish()
+    }
+}
+
+fn name<'a>(name: &'a crate::Name<'_>) -> NodeName<'a> {
+    NodeName {
+        qualified: name.qualified(),
+        local: name.local(),
+        namespace: name.namespace(),
     }
 }
 

@@ -2,9 +2,10 @@
 
 `yaxml::xsd` ports libxml2 2.15.4 `xmlschemas.c`: XML Schema 1.0 documents
 compile to an immutable, `Send + Sync`, reusable `Schema` (`xmlSchemaParse`)
-that validates either DOM (`xmlSchemaValidateDoc`). Diagnostics carry
-libxml2's numeric `XML_SCHEMAP_*`/`XML_SCHEMAV_*` codes (`xsd::Code`) and
-message wording.
+that validates either DOM (`xmlSchemaValidateDoc`) or a stream of parser
+events without building a tree (`xmlSchemaValidateStream`, `xmlSchemaSAXPlug`).
+Diagnostics carry libxml2's numeric `XML_SCHEMAP_*`/`XML_SCHEMAV_*` codes
+(`xsd::Code`) and message wording.
 
 ```rust
 use yaxml::xsd::{self, Code, Schema};
@@ -33,6 +34,14 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
   keeps the rest.
 - `Schema::validate(&tree)` returns `Vec<Diagnostic<Id>>` (code, element id,
   source offset, message); `xsd::is_valid` ignores warnings.
+- `Schema::validate_stream(input, options)` parses a `BufRead` with
+  `BufferedReader` and validates in the same pass (`xmlSchemaValidateStream`).
+  `StreamValidator::new(&schema)` takes each `Event` and its `SourceOrigin`
+  from any streaming surface (`Reader`, `PushParser`, `BufferedReader`), as
+  libxml2's SAX plug does, and `finish` returns the diagnostics. They equal
+  `validate`'s for the parsed tree, with `node` the element's index in
+  document order. Default and fixed values are checked and feed identity
+  constraints but are never inserted, in both modes.
 
 ## Pipeline
 
@@ -48,10 +57,11 @@ automaton (`xmlSchemaBuildAContentModel`, epsilon elimination,
 libxml2 does, including which of two equal particles it keeps. `model.rs`
 compiles the model actually matched: a Glushkov automaton with counters, so
 `maxOccurs="1000000"` is one counter, matched over a capped set of
-configurations without backtracking. `validate.rs` walks the instance as
-`xmlSchemaVDocWalk` does (xsi:type, xsi:nil, defaults and fixed values,
-wildcards, ID/IDREF), and `idc.rs` evaluates `unique`/`key`/`keyref` with
-streaming `pattern` matchers and libxml2's node tables.
+configurations without backtracking. `validate.rs` validates start, text and
+end events as `xmlSchemaVDocWalk` and the SAX plug do (trees feed it their
+nodes, streams their events: one engine for both), handling xsi:type,
+xsi:nil, defaults and fixed values, wildcards and ID/IDREF; `idc.rs` evaluates
+`unique`/`key`/`keyref` with streaming `pattern` matchers and libxml2's node tables.
 
 ## Limits
 
@@ -59,17 +69,26 @@ streaming `pattern` matchers and libxml2's node tables.
 `max_bytes` (64 MiB) across all resolver loads, `max_depth` (256) for
 particle nesting through groups, `max_model_work` (2^24 units for all content
 models; exceeding it is `XML_SCHEMAP_INTERNAL`) and `max_counter_vectors`
-(1024 per element; exceeding it is `XML_SCHEMAV_INTERNAL`). Circularity checks
-are linear; include/import cycles load each document once.
+(1024 per element; exceeding it is `XML_SCHEMAV_INTERNAL`) and `max_idc_keys`
+(2^20 identity-constraint key sequences per validation; beyond it validation
+reports `XML_SCHEMAV_INTERNAL` once and stops keeping keys and checking
+keyrefs). Circularity checks are linear; include/import cycles load each document once.
 
 ## Agreement with libxml2
 
 - libxml2 `test/schemas` (`tests/xsd_suite.rs`, runtest protocol): verdicts
   agree on all 233 instance tests, with equal error counts on all 233.
-- `tests/xsd.rs`: 221 table cases with exact code sequences, all
+- `tests/xsd.rs`: 223 table cases with exact code sequences, all
   checked against libxml2 through `tooling/libxml2_xsd.c`.
 - `tests/xsd_random.rs`: random schemas and instances against the same
   helper; 0 differences in 20,000 cases on the default seed.
+- Stream validation equals tree validation (codes, offsets, messages) on all
+  of the above, plus `tests/xsd_stream.rs` over the buffered, push (byte by
+  byte) and slice readers. libxml2's own stream validation
+  (`xmlSchemaValidateStream` through the helper's `stream` mode, and
+  `xmllint --stream --schema`) agrees on all 204 `test/schemas` instances whose
+  schema builds, the 20,000 random cases (with the counted-loop quirk below) and
+  every table case but two (`ID` and `ENTITY`, below).
 
 ## Differences
 
@@ -83,9 +102,17 @@ are linear; include/import cycles load each document once.
   (libxml2 needs 30 s for 2,500 optional elements in a sequence; yaxml
   compiles that in about 1 s and rejects 5,000), and group nesting stops at
   `max_depth`.
-- No streaming (`xmlSchemaValidateStream`) or SAX plug; `xml:base` in schema
-  documents is ignored when resolving locations; attribute-use value
-  constraints are not checked against the declaration's, as in libxml2.
+- `xml:base` in schema documents is ignored when resolving locations;
+  attribute-use value constraints are not checked against the declaration's,
+  as in libxml2.
+- libxml2's stream validation has no nodes, so it never checks `ID`
+  uniqueness and rejects every `ENTITY` value; yaxml's keeps the tree's
+  verdicts. Streams see the DTD of the internal subset only (`ID` attributes
+  and unparsed entities of an external subset are unknown), and since a tree
+  knows every ID beforehand, a schema `ID` repeated by a later DTD ID or
+  `xml:id` is reported at the later attribute in a stream. `TextReader` has no
+  schema hook yet (`xmlTextReaderSchemaValidate`); feed `StreamValidator` from
+  a `BufferedReader` instead.
 - Derivation by restriction must restate a base attribute's `fixed` value
   (derivation-ok-restriction 2.1.3). libxml2 2.15.4 compares the base's value
   with itself and never reports this, so it accepts schemas that omit or change

@@ -323,8 +323,9 @@ assert_eq!(early.compare(&late), Comparison::Less);
 `yaxml::xsd` compiles XML Schema 1.0 documents as libxml2's `xmlschemas.c`
 does (includes, imports and redefines through a caller `Resolver`, derivation
 and Unique Particle Attribution checks, counted content models, identity
-constraints) into a reusable, thread-safe `Schema` that validates either DOM
-with libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
+constraints) into a reusable, thread-safe `Schema` that validates either DOM,
+or parser events without a tree (`validate_stream`, `StreamValidator`), with
+libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
 instances. See [XML Schema](docs/xsd.md).
 
 ```rust
