@@ -1,0 +1,8 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION aoc
+[
+<!ELEMENT doc EMPTY
+<!NOTATION a SYSTEM "a">
+<!ATTLIS>

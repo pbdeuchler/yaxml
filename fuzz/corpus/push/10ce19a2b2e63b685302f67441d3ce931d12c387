@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's onl<!DOCTYPE doc SYSTEM "dtds/doc.dtd"y a very small sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structura/1.0"
+    xmlns:a="http://rel<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (tATTLIST doc id ID #Ic>n
+guage | item+ |

@@ -1,0 +1,57 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*,d?,(e.f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA|Z|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,a)>
+<!ELEMENT g (zzCDATA|a|a'no'?>
+<!DOCTYP<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="u0rn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocum&ent:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ ce="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocumenŒÅ‡Œlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+    xmlns:presentation="urn:oasis:names:tc:opendocu<doc xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
+<e b:ci="" c:fh="" d:ab="" aq="" c:ew="" bw="" aj="" a:ey="" c<!ELEMENT r (a,(b|c)*,d?,(e.f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA|Z|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,a)>
+<!ELEMENT g (zzCDATA|a|a)*F
+<!ELEMENT g EMPTY>
+]>
+<r>>a/><b>t</b><c>x<a/>)*F
+<!ELEMENT g EMPTY>
+]>
+<r>>a/><b>t</="" a:ei="" a:az="" ej="" b:dibx="" ci="" b:bq="" cu="" b:cg="" d:eh="" c:ax="" d:ai="" c:dm="" a:ddb><c>x<a/><b/>y</c><c><d/></c><d><z/></d><e><a/LEMENT r (a,(b|c)*,d?,(e.f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA|Z|b)*>
+<!EL="" a:fn="" d:bt="" c:bl="" c:db="" a:bs="" c:ar="" a:ab="" b:bh="" a:et="" a:bp=ment:xmlns:presentation:1.0"
+    xmlns:dr3d="urn:oasis:names:tc:opendocument:xmlns:dr3E></e><f><b/><a/><c/></d:1.0"
+    xmlns:chart="ur"" ez=f>""<e b:cp="" dp=n:oasis/><f>te:nam"es"xt</ cb=f></r>

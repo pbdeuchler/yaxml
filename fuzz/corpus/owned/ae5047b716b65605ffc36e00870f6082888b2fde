@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!ENTITY e 'x'>]><r a='1&c;&amp;' b='2'><sBc='&e;'/>b='2'><sBc='&e;'/></r></r>

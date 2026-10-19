@@ -1,0 +1,7 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!NOTATIONENTITY ge SYSTEM "nop.ent" NDATA -unknot>
+<!NOTATION -unknot PUBLIC "Unknown">
+]>
+<doc/>

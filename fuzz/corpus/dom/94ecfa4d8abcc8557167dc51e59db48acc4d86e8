@@ -1,0 +1,51 @@
+‰<?xml version="1.0"?>
+<!DOCTYPE dia:diagra         
+
+<!ELEMENT dia:diagramdata (dia:attribute)* >
+
+<!ELEMENT dia:layer (dia:oejbct | dia:group)*>
+<!ATTLIST dia:layer
+   dia:name CDATA #REQUIRED
+   dia:visible (true|false) #REQUIRED >
+
+<!ELEMENT dia:object ((dia:attribute)*, dia:connections?)>
+<!ATTLIST dia:o
+          
+
+<!ELEMENT dia:di="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www(3w.org" a:foo="bar">
+    rg" a:foo="bar">
+              www.bar.osrg">
+       <e7 xmlns="http:./www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+              www.bar.os=<cþ +http://e/:OV?RRID[/ENE 'ÿÛÕßß?cÿÿ../baz" xmlns:a="http://www.w1.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+ietf.org"/>
+ ="elem3  " id="elem3"  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ  />
+ 
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3  " id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   6e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http:/ÿÿ/www.w3.org"
+       xmlns="http://
+<!ELEMENT dia:connection EMPTY>
+<!ATTLIST dia:connection
+   dia:handle NMTOKEN #REQUIRED
+   /~alla/dia/">
+       :object ((dia:attribute)*, dia:connections?+>
+<1ATTLIST dia:object
+   dia:type CDATA #REQUIRED
+   dia:version NMTOKEN #REQUIRED
+   dia:id ID #REQUIRED >
+
+<!ELEMENT dia:connections (dia:connection)*/>
+
+<</dia:attribute>
+    </dia:object>
+  </dia:laryer>
+</dia:d

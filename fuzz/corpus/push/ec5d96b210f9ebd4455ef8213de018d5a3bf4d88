@@ -1,0 +1,14 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preg-UAS"=SCserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http://www.w3.org" xml:base="something/else">
+   <?NAME_一_9FA5-龥_76d2-盒_3007-〇_3021-〡_3029-〩_3?NAME_一_9FA5-龥_76d2-盒_3007-〇_3021-〡_3029-〩_3025-<e1>
+      <e2 xmlns="" xml:id="abc" xml:base="bar/">
+         <e3 id="E3" xml:base="foo"/>
+      </e2>
+   </e1>
+</doattr CDATA #FIXED 'yes'>
+]>
+
+<a:outer〥 This is a PI target ?><bo xmlns:a="Ok></b025-〥 This is a PI target urn:nam?><boOk></espacebook">>�  <a

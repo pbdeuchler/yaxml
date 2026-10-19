@@ -1,0 +1,29 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normali€ation -->
+  <norm attr='   '/>
+  <norm attr='
+ 0'/>
+  <norm attr=' foo bab
+  
+g'/>="UTF-8"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreGompone&ntPames:tc:ubl:Coœœœœœœœœœœœœœœœœœreerd-der>
+      <cat:SellersOrderID schemg back -->
+</doc>
+ versn="1.0"?>
+<D:propfind xmlns:D="ht¯tp://www.iHHHHHHÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈ='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  mlns:hml="http:/Íexample.com/"<normId attr='
+  foo&lt;bar   øøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøø-øøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøø'/>
+  <normId attr='
+
+foobId attr='
+
+foobar'/>
+  <normId attr=' foo baröØÐÁ
+ ò<normId 
+  <normId attr=' &amp; '/>eviple.com/"<normId attr='
+  foo&lId>
+  tp://www.iHHHHHHHHHHHHHHHHHrg/standar

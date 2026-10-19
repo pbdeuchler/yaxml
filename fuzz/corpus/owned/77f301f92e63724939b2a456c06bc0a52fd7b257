@@ -1,0 +1,7 @@
+<!DOCTYPE doc [<!ATTLIST normId id ID #IMPLIED>]>
+<doc>
+   <text>First lin=&#x0d;&#10;Second line</text>
+   <value>&#x32;</value>.
+   <compute><![CDATA[value>"0" && value<"10" ?"valid"e":rror"]]></compute>
+   <com/>
+</doc>

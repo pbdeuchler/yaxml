@@ -1,0 +1,14 @@
+ˆ<?xml version="1.0" encoding='ISO-8859-1"?OCET PEYrANY><!E'ISO-8859-1"?OCET PEYrANY><!ENTITY<?xml version='1.0' standalone='no'?>
+<!DOC<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:TYPE r lization.
+
+	3.3.3 describes the zmronaÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕilation rules
+    -->
+
+    <!ATTLIST attributÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕa|b|c)>    />

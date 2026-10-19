@@ -1,0 +1,8 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION 	 SYSTEM 'n'>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' 
+
+
+urT:

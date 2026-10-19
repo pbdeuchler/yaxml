@@ -1,0 +1,12 @@
+<!DOCTYPE attributes [
+<!ELEMENT attributes EMPTY>
+<!ATTLIST attributes
+   nmtoken    NMTOKEN    #IMPLIED
+   nmtokens   NMTOKENS   #IMPLIED>
+<!ENTITY ent " entity&reaursive; ">
+<!ENTITY recursive "reference">
+]>
+<attributes
+  nmtoken =  " &ent;   &ent; ژnt; "
+  nmtokens = " Test&#x0d;&#x0a;     this&#x67; normalization "
+/>

@@ -1,0 +1,36 @@
+û<rANEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:point  dia:vT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attriCTYPEbute dia:name="background">
+      <dia:color dia:val="#ffffff"/>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attribute dia:name="background"ia:attribute>
+      <dia:attribute dia:name="elem_height">
+        <dia:real dia:val="2"/ring  dia:val CDATA #IMPLIED
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attriCTYPEbute dia:name="background">
+      <dia:color dia:val="#ffffff"/>
+    </dia:attribute>
+  </dia:diagrahdata>
+  <diTTLIST LegalName5 attr50 IDREF #IMPLIED>
+<!ELEMENT LegalName6 ANY>
+<!ATTLIST LegalName6 attr6 ID #IMPL rANY><!ENTITYIED>
+tr <r>&a;È</18="‚Å∞‚r>Å±" attr

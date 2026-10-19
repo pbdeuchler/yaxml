@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- Namespace inequality test: different escap
+    notation =	" nonce "
+    nmtoken =	" this-gets-normalized s a warning. -->
+<!DOCTYPE doc SYSTEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+ar a:a=t1"r"t b:attr="2" c:attr="3"/>
+
+</foo>
+

@@ -1,0 +1,26 @@
+�<?xml ver+ion=".0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.s vg9i evalidity constraints applying to attributes
+	in standalhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhone do#cs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTL<?xml version="1.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><r xMlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#38;&#13;&#9;" p:a="namespaced">ompelte attribute longer than th10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">ute longer than th10;&#13;&#9;" p:a="namespace�d"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[-]><empty xmlns=""/><?ecomplete commen version="2.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="r than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urnIMPLIED
+	nmtokeos	NMTOKENS	#IMPLIng normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTL<?xml version="1.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><r xMlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#38;&#13;&#9;" p:a="namespaced">ompelte attribute longer than th10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">ute longer than th10;&#13;&#9;" p:a="namespace�d"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[-]><empty xmlns=""/><?ecomplete commen version="1.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="r than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urnIMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+fserd	i		IDREFS		#IMPLIED
+	entity:t		ENTITY		#IMPLIED
+	entities	ENTITIESe longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="namesp	#IMPLIED
+	cdaaced">otamp

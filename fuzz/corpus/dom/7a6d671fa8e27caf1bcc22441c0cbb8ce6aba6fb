@@ -1,0 +1,54 @@
+ž<rANEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:string EMPTY>
+<!ATT ST dia:string  dia:val CDATA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:iadgramdata>
+    <dia:attribute dia:name="background">
+      <dia:color dia:vad="#
+<!ATTLIST dia:rectangle  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:string EMPTY>
+<!ATT ST dia:string  dia:val CDATA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:iadgramdata>
+    <dia:attribute dia:name="background">
+      <dia:color dia:vad="#ffffff"/>
+    </dia:attribute>
+  </dia:diagramnt:xmlns:meta:100" xmlns:number="urn:oasis:nHHHames:tc:opendocument:xmlns:datastyle:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-c:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="HHHrg/office-process-content">
+    <optional>
+        <a xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlnsdata>
+  <dia:layere" dia:version="5" dia:i>="O0">
+      <dia:attribute dia:name="obj_pos">
+        <dia:point dia:val="1.95,6.85"/>
+      </dia:attribute>
+      <dia:attribute dia:name="obj_bb">
+        <dia:rectangle dia:val="Background" dia:visible="true">
+    <dia:object dia:type="Standard - Line" dia:version="5" dia:id="O0">
+      <dia:attribute dia:name="obj_pia:attribute>
+      <dia:attribute dia:name="elem_width">
+        <dia:real dia:val="2.05"/>
+      </dia:attribute>
+      <dia:attribute dia:name="elem_heig
+<dia:diagram xmlns:dia="http://www.ly <e1   //">
+  <dia:diagr>
+   

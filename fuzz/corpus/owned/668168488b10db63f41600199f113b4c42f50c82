@@ -1,0 +1,67 @@
+ž<s >r<x<s xm,EST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="A9" URI="E9b.xml" ID="rmt-e2e-9b" TYPE="invalid"//www.ietf.org" xmlns:w2c="http://www.w2.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E2"/>
+ reserveTLI]T e3 iMENT docd ID #IMPLIED>
+]>
+<doc xmlns="http://www[[[[[[[[[[[[[.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w1c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="ht/tp://www.w3.org">
+   <e1>
+      <e2 xmlns=".org" xmlns:w2c="http://=www.w1.org">
+   <e1>
+   T e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.o0g" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w4c="#ht//www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 iMENT docd ID #IMPLIET_____________________________________________^tp://www.w3.org">
+   <e1>
+      <e2 xmlns="Õ>
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="ht/tp://www.w3.org">
+   <e1>
+      <e2 xmlns=".org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T e3 id ID #IMPLIED>
+_____________________://www.w1.org__________________________________________://w>
+An attribute default must be syntactically correct even if unused
+</TEST>
+
+<!-- E10 is obsoleted by E45 -->
+
+<!-- E11 updates the reference to RFC 1766 (Language Identification Tags)
+     to refer to RFC 3066 insteadl and this does not affect the behaviour
+     of XML processors -->
+
+<!-- E12 </TEST>
+
+<!-- E29 clarifies that certain behaviour
+     of XML processors -->
+
+<!-- E12 updates the referene it doesn't read external entities, and we can't force that -->
+
+<!-- E46 is editorial -->
+
+<!-- E94 has the same pNDATION="XML1.0-errata2e" SECTIONS="E55" URI="E55.xml" ID="rmt-e2e/######>'u

@@ -1,0 +1,16 @@
+«<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§D§§§§§§§§§§§§§§§§§§§§§§§§§§§§/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the pro•blem</p>
+   <p> WEem</p>
+   <p> WE need lot of gar1bage now to triggEr the problem</p>
+   <p> WE need lot of garbage now to trigger‹<!DOCTYPE r[ <!ENTITY a 'x'><!ENTITY b  the problem</p>
+   <p>p://www.ietf.org">
+           <e8 xmlns="" xmlns:'.a;&a;'VVVVVVVVVVVVVVVVVVVVVÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊa="httrg">
+              
+   <ent>&test2;</ent>
+</ÊÊÊÊÊÊÊÊÊÊÊÊÊÊÿÿÿzÊÊÊÊdoc>ÊÊÊÊÊÊÊÊÊÊÊÊÊÊÊVVVVVVVVVVVVVVVVVVVVVVV
+
+VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV><!ENµITY % p '<!ENÿÿÿÊ q""&a;">'>%p;%p;]><r a='&a;&b;'>&a;&b;&a;&b;&q

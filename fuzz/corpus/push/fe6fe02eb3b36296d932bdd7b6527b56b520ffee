@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY e "<X&#xe5c;></on=X&#xec;>">
+]>
+<doc>&e;</doc>
+¦¦¦¦¦¦¦¦¦¦¦¦¦aY¦¦¦¦¦¦¦¦¦¦ELE¦¦¦¦¦¦¦¦¦

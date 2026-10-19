@@ -1,0 +1,11 @@
+﻿<?xml version='1.<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!--* PE referenced before declared, against 0' encodWFC: entity declareing='iso-8859d -->
+%paaa;
+<!ENTITY % paaa "<!ATTLIST root att CDATA #IMPLIED>">
+<!ENT-1'?><x/ITY aaa "aString">
+>
+]>
+<root/>

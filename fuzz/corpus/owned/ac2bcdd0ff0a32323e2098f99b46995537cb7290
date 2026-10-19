@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UT8F-"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDAT <foo xml:lang÷"ger">Ja</%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%>

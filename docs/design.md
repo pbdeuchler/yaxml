@@ -256,7 +256,7 @@ generic `A: Allocator` under `forbid(unsafe_code)`, found:
 | | Any allocator parameter on `String`, `HashMap`, `HashSet`, `VecDeque`, `BTreeMap`, `BinaryHeap` or `LinkedList` (`String` has none; the others' `new_in` is `allocator_ext`) |
 
 yaxml uses the stable subset behind the `allocator_api` cargo feature, which
-requires Rust 1.100. Without it the crate builds on MSRV 1.95 unchanged.
+requires Rust 1.100. Without it the crate builds on MSRV 1.97 unchanged.
 `src/allocator.rs` is the only switch: with the feature it re-exports
 `std::alloc::{Allocator, Global}` and `Vec<T, A>`; without it a sealed
 stand-in `Global` and a `Vec` newtype over the global heap keep the same

@@ -1,0 +1,16 @@
+�<?xml ver+ion=".0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.s vg9i evalidity constraints applying to attributes
+	in standalhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhone do#cs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTL<?xml version="1.0"?><!--be<!DOCTYPE x [ <!ELEMENT x E0"?><!-- comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--ero$bfe--><?pi data?><r xmorg;'/lns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: ө🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute lon<p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><>
+empty xmlns=""/><?ecomplete commen ve><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#38;&#13;&#9;" p:a="namespaced">ompelte attribute longer than th10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete commen version="1.0"?><!-- comment longer than thirty bytes: 中-->tail&#13;é🙂<-after-0"?><!--ero$bfe--><?pi data?><r xmorg;'/lns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: ө🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute lon<p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><>
+empty xmlns=""/><?ecomplete commen version="1.0"?><!-

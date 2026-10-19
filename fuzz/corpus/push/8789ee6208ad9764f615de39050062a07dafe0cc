@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE stud>
+<!--* Tests empty comment *-->
+<!---->
+<student>My Name is SnowMan. </student<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att1 CDATA #REQUIRED>
+]>
+<!--* This test is to teson 4.3.2:
+      An internal general parsed encith is well-formed if 
+      i    its replacement text matche OpenDocument v1.0
+    Relax-NG  xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http>//www.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    x<?mlns:config="urn:oasis:names:xml  en
+tc:opendocument:xmln
+
+
+ ?s:>c

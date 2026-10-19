@@ -1,0 +1,10 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION nZXXXXXXXXXXXXXXXXXXXXXe SYSTEM 'n'>
+<Y u SYSTEM[
+<!ELEMENT r ANY>
+<!NOTATION nZXXXXXXXXXXXXXXXXXXXXXX SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA nD 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s='a c' e='i' es=ared;<r i='a' T=''/></r>

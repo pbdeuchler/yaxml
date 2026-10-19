@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!DOCTYPE student PUBLIC '' 'student.dtd'
+
+<!-- tes/ting Pubid Literal with nothing between the single quotes -->
+<student>My Name is SnowMan. </student>

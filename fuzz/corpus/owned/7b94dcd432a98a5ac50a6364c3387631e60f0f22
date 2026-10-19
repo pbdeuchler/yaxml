@@ -1,0 +1,17 @@
+î<?xml version="1.0" encoding="I\O-8859-1"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ ?>
+<!DOCTYPE rnode [
+<!ELEMENT rnode (f)>
+                    
+<!ENTITP f
+   "
+   <f>
+   hello world
+   </f>
+   "
+>
+]>
+                                                                                
+<rnode>
+   &f;
+</rnode>
+

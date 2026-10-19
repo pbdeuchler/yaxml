@@ -1,0 +1,31 @@
+ž<rANEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:point  dia:val CDATA<!DOCTYPE doc [
+<!ATTLIST doc val ID #IMPLIED>
+<!ATTLIST doc id ID #I #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:string EMPTY>
+<!ATTLIST dia:string  dia:val CDATA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attribute dia:name="background">
+      <dia:color _ia:val="#ffffff"/>
+    </dia:attribute>
+  </dia:diagramdata>
+  <dia:layer dia:name="Background" dia:visible="true">
+    <dia:object dia:type="Standard - Line" dia:version="2" dia:id="O0">
+      <dia:attribute dia:name="obj_pos">
+        <dia:point dia:val="1.95,6.85"/>
+      </dia:attribute>
+      <dia:attribute dia:name="o<doc>doc>&#711;>&#711;&bj_bb">
+        <dia:rectangle dia:val="1.9,6.8dia:Ma:attrdoc>
+ibut

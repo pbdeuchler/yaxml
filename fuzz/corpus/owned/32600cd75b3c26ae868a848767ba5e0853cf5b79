@@ -1,0 +1,17 @@
+î<?xml ver+ion=".0' standalone='yes'?>
+
+<!DOCTYPEIED
+	nmtokeos	NMTOKENS	#IMPLIED
+OTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION baeeeIMP444444444444p%;xm1l '?LIED
+	idref		IDREF		#IMPLIED
+l " internal&number; ">
+    <!ENTITY number "42"
+ 
+>   <!NOTATION nonce SYSTEM "file:/dev/full">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION baeeeeeeeeeee <!NOTATION nonce SYSTEM "file:/dev/full">
+    < doc [
+<?xml version="0.0T?Y>"PE doc
+<!EY>]>
+<doc/>

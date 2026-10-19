@@ -1,0 +1,20 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem9 xmlns="" xmlns:a="http://www.ietf.org"/>
+    ]>
+<?pi?>&ent;&quot;
+CharData
+</>
+Ch    <e7 xmhns="http://www.ietf.ottp://www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="htteste: Albert Camus,&#10;© 19147 Éditp://www.w3.org">
+       <e7 xmlns="http:rsedp://www.w3.org"  <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
+    ]>
+<?pi?>&ent;&quot;
+CharData
+</elem>atdribute type.&#10;<
+/tes
+t>

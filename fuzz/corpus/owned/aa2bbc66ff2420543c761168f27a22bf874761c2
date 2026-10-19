@@ -1,0 +1,31 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalizati<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreC     <cat:SellersOr' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParaon -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreC     <cat:SellersOr' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParaHHHHHHrg/standar

@@ -1,0 +1,26 @@
+<?x<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att2 CDATA #REQUIRED>
+]>
+<!--* This testi  ost teson 4.3.2:
+      An internal general parsed encith is well-formed if 
+      i    its repl[cement text matche OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grmlns:rg/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http:/| //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //oc xmlns="http://www.ietf.org" xmlns:w2c="http://www.wG3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="htwp://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T s:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:bar="htt:p//example.org/bar" xmlns:baz="htup://ex+mple.org

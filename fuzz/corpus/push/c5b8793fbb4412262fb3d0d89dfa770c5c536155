@@ -1,0 +1,8 @@
+<!DOCTYPE test [
+  <!ENTITY newline "/#x26;#xA#;">
+]>
+<test newlineu444444444444444444444444444444444444444444444444444444444444uuuuuuuuuuu<!DOCTYPE doc [
+<!ELEMENuuuuuuT doc (a, b, c)>
+<!uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuAuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuELEMENT a uu="(a?)>
+<!ELEMEN¥T b>&fewline;"/>
+

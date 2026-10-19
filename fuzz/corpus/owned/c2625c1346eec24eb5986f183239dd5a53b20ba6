@@ -1,0 +1,6 @@
+–<?x1l ve%rsion="1.0" encoding="iso-88259-1"?>
+<!DOCTYPE NewsML SYSTEM "dsMLv0.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+>NewsMLITY % nitf SYSTEM "dtds/nitf-2-5.dYP

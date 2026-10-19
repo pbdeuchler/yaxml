@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<!DOCTYPE dia:diagram [
+<!ELEMENT dia:diagram (dia:diaroup)*>
+<!ATTLIST dia:layer
+   dia:name CDATA #REQUIRED
+   dia:visible (true|false) #REQUIRED >
+
+<!ELEMENT dia:object ((dia:attribute)*, dia:connections?)>
+<!ATTLIST dia:object
+   dia:type CDATA #REQUIRED
+   dia:version NMTOKEN #REQUIRED
+   dia:id ID #REQUIRED >
+
+<!ELEMENT dia:connections (dia:connection)*>
+
+<!ELEMENT dia:connection EMPTY>
+<!ATTLIST dia:connection
+   dia:handle NMTOKEN #REQUIRED
+   dia:to IDREF #REQUIRED
+   dia:connection NMTOKEN #REQUIRED>
+
+<!ELEMENT dia:group (dia:object | dia:group)*>
+
+<!ELEMENT eia:attribute (dia:composite | dia:int | dia:enum | diagramdata, (dia:layer)*) >
+<!ATTLIST dia:diagram
+          xmlns:dia CDATA #FIXED "http://www.lysator.liu.se/~alla/dia/">
+          
+
+<!ELEMENT dia:diagramdata (dia:attribute)* >
+
+<!ELEMENT dia:layer (dia:object | dia:group)*>
+<!ATTLIST dia:layer
+   dia:name CDATA #REQUIRED
+   dia:visible (true|false) #REQUIRED >
+
+<!ELEMENT dia:object ((dia:attribute)*, dia:connections?)>
+<!ATTLIST dia:object
+   dia:type CDATA #REQUIRED
+   dia:version NMEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:string EMPTY>
+<!ATTLIST dia:string  dia:val CDATA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia0="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attribute diaÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ:name="background
+<?x-www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" "x>
+ mln

@@ -1,0 +1,24 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ELEMENT a (#PCDATA|doc)*>
+<!ELEMENT b (
+#PCDATA
+|
+doc
+|
+a
+|
+b
+)*>
+<!EL<!DOCTYPE root [
+
+<!ELEMENT root EMPTY>
+<!ATTLIST r
+    value	(brittannica | worldbook) "encarta"
+    >
+    <!-c tests the "attribute default legal" vc -->
+c/]>
+]>
+
+<root value="brittann>ica"/>

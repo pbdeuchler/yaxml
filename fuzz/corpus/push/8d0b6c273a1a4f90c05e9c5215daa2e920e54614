@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="http://ex(ample.org/baz" xmlns:foo="http://ex	ample.org/foo" xml:lang      (string(self::node()&) = namespace-uri(parent::nde()))
+    ]
+</XPath>

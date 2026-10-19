@@ -1,0 +1,4 @@
+<?xml version='1.0g standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*,d?,(a,f)+)>E
+<o

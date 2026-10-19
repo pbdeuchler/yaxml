@@ -1,0 +1,15 @@
+î<?xml versÿÿ
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a#"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmt–”en		NMTOKY number "20">   <
+ 
+!Ne:eeeeee1.0"?>
+<!DOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<doc/>

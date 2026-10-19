@@ -1,0 +1,10 @@
+<?xml version='1.0' standalone='y<doc att="va
+att2=<!DOCTYPE doc [
+  <!ENTITY ent1 "<elemes'?>
+
+<!DOCTYPE a/>">
+  <!ENTITY ent3 "<ns:ele,m/>">
+]>
+<doc>
+    <a xmlns="urn:a">&ent1;</a>
+    <b xmlns=D, 0x02E, 0xttribute

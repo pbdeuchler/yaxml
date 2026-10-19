@@ -1,0 +1,7 @@
+<!DOCTYPE a [
+<!ELEMENT animal ANY>
+<?× an gal char #x0d7
+ in PITarget ?>
+]>
+<animal/>
+l/>

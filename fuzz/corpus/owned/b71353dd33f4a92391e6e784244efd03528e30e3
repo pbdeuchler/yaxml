@@ -1,0 +1,4 @@
+<?xmler ?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|s)*,d?,(e,f)+)>
+<)

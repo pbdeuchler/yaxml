@@ -1,0 +1,28 @@
+î<?xml ver+ion=".0' standalone='yes'?>
+
+<!DOCTYPEIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdastraints applying to >
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "42"
+ 
+>   <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION baeeeIMPLIED
+	idref		IDREF		#IMPLIED
+l " internal&number; ">
+    <!ENTITY number "42"
+ 
+>   <!NOTATION nonce SYSTEM "file:/dev/full">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION baeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:eieeee0.0"?>
+<!DOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<doc/>

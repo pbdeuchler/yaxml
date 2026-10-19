@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<!-- Reserved x
+     to the xmlzs namespace -->
+<foo xmlns:ymlns="http://www.w3.org/2000/x$mlns/"/>

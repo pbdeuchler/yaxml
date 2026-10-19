@@ -1,0 +1,5 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION nXXXXXXXXXXX'v' NDATA m>
+ #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'* y ' o='m' c='d' xmlns:p='urn:q' xml:id='w'>&undeclared;<r i='a' T=''/></r>

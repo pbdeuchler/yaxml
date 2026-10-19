@@ -1,0 +1,74 @@
+�<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc>
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>u   <e7 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org" 
+       xmlns:e="http://www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http:/ttp://example.org/very/long/namespace/uri/5' xmlns:p6='http://example.org/very/<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName0 ANY>
+<!ATTLIST LegalName0 attr0 ID #IMPLIED>
+<!ATTLIST LegalName0 attr00 IDREF #IMPLIED>
+<!ELEMENT LegalName1 ANY>
+<!ATTLIST LegalName1 attr1 ID #IMPLIED>
+<!ATTLIST LegalName1 attr10 IDREF #IMPLIED>
+<!ELEMENT LegalName2 ANY>
+<!ATTLIST LegalName2 attr2 ID #IMPLIED>
+<!ATTLIST LegalName2 atvr20 IDREF #IMPLIED>
+<!ELEMENT LegalName3 ANY>
+<!ATTLIST LegalName3 attr3 ID #IMPLIED>
+<!ATTLIST LegalName3 attr30 IDREF #IMPLIED>
+<!ELEMENT LegalName4 ANY>
+<!ATTLIST LegalName4 attr4 ID #IMPLIED>
+<!ATTLIST LegalName4 attr40 IDREF #IMPLIED>
+<!ELEMENT LegalName5 ANY>
+<!ATTLIST LegalName5 attr5 ID #IMPLIED>
+<!ATTLIST LegalName5 attr50 IDREF #IMPLIED>
+<!ELEMENT LegalName6 ANY>
+<!ATTLIST LegalName6 attr6 ID #IMPLIED>
+<!ATTLIST LegalName6 attr60 IDREF #IMPLIED>
+<!ELEMENT LegalName7 ANY>
+<!ATTLIST LegalNamalName18 attr37 ID #IMPLIED>
+<!ATTLIST LlName42 attr42 ID #IMPLIED>
+<!ATTLIST LegalName42 attr420 IDREF #IMPLIED>
+<!ELEMENT LegalName43 ANY>
+<!ATTLIST LegalName43 attr43 ID #IMPLIED>
+<!ATTLIST LegalName43 attr430 IDREF #IMPLIED>
+<!ELEMENT LegalName44 ANY>
+<!ATTLIST LegalName44 attr44 ID #IMPLIED>
+<!ATTLIST LegalName88 attr440 IDREF #IMPLIED>
+<!ELEMENT LegalName45 ANY>
+<!ATTLIST LegalName45 attr45 ID #IMPLIED>
+<!ATTLIST LegalName45 attr450 IDREF #IMPLIED>
+<!ELEMENT LegalName46 ANY>
+<!ATTLIST LegalName46 attr46 ID #IMPLIED>
+<!ATTLIST LegalName46 attr460 IDREF #IMPLIED>
+<!ELEMENT LegalName47 ANY>
+<!ATTLIST LegalName47 attr47 ID #IMPLIED>
+<!ATTLIST LegalName47 attr470 IDREF #IMPLIED>
+]>
+<!-- Legal Names containing one to four characters in order from the list below  used 'n Attr delcs and attributes.  x003A, 0x00C0, 0x00C1, 0x02FE, 0x00C2, 0x00C3, 0x02FD, 0x02FF, long/namespace/uri/6' xmlns:p7='http://example.org/very/long/namespace/uri/7' xmlns:p8='http://example.org/very/long/namespace/uri/8' xmlns:p9='http://example.o id="elem4"    ></e4>u   <e7 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org" 
+       xmlns:a="http://www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http:/ttp://example.org/very/long/namespace/uri/5' xmlns:p6='http://example.org/very/long/namespace xmlns:p13='http://example.org/very/long/namespace/uri/13' xmlns:p14='http://example.org/very/0x0370, 0x0371, 0x037C, 0x037D, 0x037F, 0x0380, 0x1FFE, 0x1FFF, 0x200C, 0x200D, 0x2070, 0x2071, 0x218E, 0x218F, 0x2C00, 0x2C01, 0x2FEE, 0x2FEF, 0x3001, 0x3002, 0xD7FE, 0xD7FF, 0xF900, 0xF901, 0xFFFD, 0x002D, 0x002E, 0x0041, 0x007A, 0x0030, 0x00B7, 0x0300, 0x0301, 0x036E, 0x036F, 0x203F, 0x2040 -->
+<LegalName>
+ 	attr0=":" attr00=":"
+ 	attr1="À" attr10="À"
+ 	attr2="Á" attr20="Á"
+ 	attr3="˾" attr30="˾"
+ 	attr4="Â" attr40="Â"
+ 	attr5="Ã" attr50="Ã"
+ 	attr6="˽" attr60="˽"
+ 	attr7="˿" attr70="˿"
+ 	attr8="Ͱ" attr80="Ͱ"
+ 	attr9="ͱ" attr90="ͱ"ttr30="更豈퟿퟾" long/namespace/uri/14' xmlns:p15='http://example.org/attr310="更豈퟿퟾"
+ 	attr32="�更豈퟿" attver/wwr320="�

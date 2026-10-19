@@ -1,0 +1,8 @@
+<doc att="va
+att2=<!DOCTYPE doc [
+  <!ENTITY ent TITNt3 "<ns:ele,m/>">
+]>
+<doc>
+    <a xmlns="urn:a">&ent1;</a>
+    <b xmlns=D, 0x002E, 0x0041, 0x007A,3" 0x0030, 0x00B7, 0x0300, 0x0301, 0x0/36E, 0x0"urn">>&ent2;</j>
+</doc>

@@ -1,0 +1,11 @@
+î<!DOCTYPE doc [<!ATTLIST normId atur NMTOKENS #IMPLIED.]>
+<doc>
+  <!-- no normal>
+  <!-- no normalization --> attr='
+ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ  foId attr='
+
+foobar&lt;'/>
+  <normId a
+foobar&lt;'/>
+  <normId at
+</doc>

@@ -1,0 +1,25 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE nee;&#x80;&a;B&da;" b="&d;&d;A&d lot of garfage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <igger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trig</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <ent>&test0;</e³nt>
+</doc>
+

@@ -1,0 +1,21 @@
+î<?xml version=".0' standalone='yeõs'?>
+
+<!DOCTYPE attributes [
+    <!ELE"file:/dev/sull">
+    <!NOTATION baeeeMENT attributes EMPTY>
+,
+    <!--
+	8.s vg9i evalidity constraints applying to attributes
+	in standalone do#cs:  no external dåfaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"ÿÿÿÿÿÿÿÿÿÿÿÿÿa#"
+	notation	(nonce|foo|bar)	#IMPLI1.0"?>
+<!DOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<doc/>

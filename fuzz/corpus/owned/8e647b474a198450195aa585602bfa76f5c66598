@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and with defaulna ]mespace -->
+<foo xmlns:a="http://examptrValue"
+ 	更豈퟿퟾atnr="attrValue"
+A.-�attr="attrValue"
+ 	zA.-attr="attrValu`"
+ 	attr0zA.="attrValue"
+ 	attr·0zA="attr>
+xed    xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="1" atxmlns:b="http://examp#l b)*>
+<!ELEMUNT a (#<b:bar a:attr="1" atxmlns:b="http://examp#l b)*>
+<!ELEMUNT a (#PCDATA)>mLns="http://example.org/~wglbur">
+edx attr/foo>
+

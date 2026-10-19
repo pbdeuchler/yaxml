@@ -53,16 +53,16 @@ cargo +nightly fuzz run dom fuzz/corpus/dom fuzz/corpus -- -max_total_time=60
 fuzz/coverage.sh            # all targets; or name some
 ```
 
-New inputs go to the tracked `fuzz/corpus/<target>/`; the top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/<target>/`; `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-06-06` and prints one `src/` TOTAL line per target. It exports each target against its own binary (`fuzz/coverage/<target>/{lcov.info,export.json}`) and `coverage_merge.py` unions every exported target into `fuzz/coverage/report.txt` and `merged.lcov`: line and branch hits add, and a region or function is covered when any target covers it. A single `llvm-cov report` over several `-object` binaries undercounts, because it maps each function from the first binary containing it (`XPath::as_str` read 0 with `c14n` listed first). `#[cfg(test)]` modules are not compiled into the targets and are absent from the denominator.
+New inputs go to the tracked `fuzz/corpus/<target>/`; the top-level seeds are read only. Crashes land in `fuzz/artifacts/<target>/`; keep a minimized reproducer in `fuzz/regressions/<target>/`; `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-10-18` and prints one `src/` TOTAL line per target. It exports each target against its own binary (`fuzz/coverage/<target>/{lcov.info,export.json}`) and `coverage_merge.py` unions every exported target into `fuzz/coverage/report.txt` and `merged.lcov`: line and branch hits add, and a region or function is covered when any target covers it. A single `llvm-cov report` over several `-object` binaries undercounts, because it maps each function from the first binary containing it (`XPath::as_str` read 0 with `c14n` listed first). `#[cfg(test)]` modules are not compiled into the targets and are absent from the denominator.
 
 `fuzz/corpus/<target>/` is tracked (about 10 MiB, 33k files): the edge-only `-merge=1 -use_counters=0` set of the previous corpus plus new finds of at most 4 KiB. Regenerate with:
 
 ```sh
 fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]   # uv run; skips inputs over MAX_INPUT_BYTES
-for t in $(cd fuzz && cargo +nightly-2026-06-06 fuzz list); do
-  (cd fuzz && cargo +nightly-2026-06-06 fuzz run $t corpus/$t corpus -- -fork=1 -ignore_crashes=1 -ignore_timeouts=1 -max_total_time=600 -rss_limit_mb=2048 -timeout=2)
+for t in $(cd fuzz && cargo +nightly-2026-10-18 fuzz list); do
+  (cd fuzz && cargo +nightly-2026-10-18 fuzz run $t corpus/$t corpus -- -fork=1 -ignore_crashes=1 -ignore_timeouts=1 -max_total_time=600 -rss_limit_mb=2048 -timeout=2)
 done                                          # <= 8 at a time
-(cd fuzz && cargo +nightly-2026-06-06 fuzz cmin $t -- -use_counters=0 -timeout=10)   # new finds over 4 KiB are dropped first
+(cd fuzz && cargo +nightly-2026-10-18 fuzz cmin $t -- -use_counters=0 -timeout=10)   # new finds over 4 KiB are dropped first
 ```
 
 `seed.py` feeds the W3C XMLTS and libxml2 `test/` trees to the XML targets (dom, owned, push, buffered, writer, serialize, limits, encoding), DOCTYPE-leading documents and `.dtd`/`.ent` bodies (control byte 0) to `dtd`, `selector byte + XML` (15 selectors for `test/c14n`, 2 otherwise) to `c14n`, XPath expressions alone and NUL + the matching `XPath/docs` file to `xpath`, and `reference\nbase\n/:%#` lines from `test/URI` to `uri`. `mutation`, `construction` and `names` use structured bytes. Crashes found while seeding are in [`open/`](open/README.md) (unfixed) or `regressions/` (replayed by `tests/fuzz_smoke.rs`).
@@ -444,7 +444,7 @@ to the fuzz assertions; a source-region percentage alone cannot establish them.
 
 CI instruments `fuzz_smoke` and uploads raw profiles, merged profiles, a compiler version, a revision, a library-only summary, and the complete LLVM coverage export. The summary excludes dependency/toolchain code and the test/driver source so its denominator is library code. The complete export retains those files for inspection. No production library regions are excluded by this filter. The run exercises only the default feature set and only deterministic fuzz smoke tests; it is separate from ordinary unit-test coverage.
 
-Coverage uses pinned nightly `2026-06-06` with `-C instrument-coverage -Z coverage-options=branch`. The unstable branch instrumentation is documented in the [Rust Unstable Book](https://doc.rust-lang.org/unstable-book/compiler-flags/coverage-options.html). Its branch denominator covers the conditions instrumented by that compiler; it does not enumerate every parser state or boolean condition. The library itself remains stable Rust. See [measured results and gaps](../docs/archive/validation.md).
+Coverage uses pinned nightly `2026-10-18` with `-C instrument-coverage -Z coverage-options=branch`. The unstable branch instrumentation is documented in the [Rust Unstable Book](https://doc.rust-lang.org/unstable-book/compiler-flags/coverage-options.html). Its branch denominator covers the conditions instrumented by that compiler; it does not enumerate every parser state or boolean condition. The library itself remains stable Rust. See [measured results and gaps](../docs/archive/validation.md).
 
 Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component. A system LLVM version can reject profiles from a newer Rust compiler. If tooling is unavailable, record that coverage was not measured; do not infer it from passing tests. The workflow publishes gaps and currently imposes no percentage threshold. A release requires reviewed coverage data and the additional gates in the security plan.
 

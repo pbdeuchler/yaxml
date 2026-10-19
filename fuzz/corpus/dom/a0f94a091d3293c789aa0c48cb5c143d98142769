@@ -1,0 +1,21 @@
+É<r xmlns:a='http://a/http:/b/..'><s<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed.
+  
+  RSS is an XML voca<!DOCTYPE doc
+[
+<!ELEMENT do444444444444444444444444444444444444444444444CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC00000000000bulary for de soft hyphen --><!ENTITY reg "&#174;">
+<!-- registered sign --><!ENTITY macr "&#175;">
+<!-- macron --><!E00000000000000000000000000000000002100626923c ANY>
+<!ELEMENT a (doc)>
+<!ELEMENT b ((doc|a?))>
+<!ELEMENT c ((a,b))><!ELEMENNTITY deg "&#352;">
+<!-- degree sign --><!ENTITY plusmn "&#178;">
+<!-- plus-or-minus sign --><!ET gNTITY sup2 "&#178;">
+<!-- superscript two --><!ENTITY sup3 "&#179;">
+<!-- superscript three --><!ENTITY acute "&#18 ((a,b)*)>1;">
+<!-- acute accent --><!ENTITY micro "&#181;">
+<!-- micro sign --><!ENTITY para "&#182;">
+<!-- pilcrow (paragraph sign) --><!ENTITY middot "&#183;">
+<!-- middle dot

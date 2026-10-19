@@ -1,0 +1,11 @@
+<!DOCTYPE rss [
+<!--
+
+  Richte Summaay of?  "s" on the "My> --><!ELEMENT channel (titletinp | textinput? | copyright? | dsceription | link 
+| language | item+ | rating? | im | rating? | image? | textinput? | copitem+ | rating? | image? | textinput? | copyright? | 
+pbuc1Date? | lasingEditor| itEm+ | rating? | image? | textinput? | copyright? | 
+pubDaMe? | lastBleDaduink 
+| language | ingEditwebMester? | 
+sioukHprs? | skipDays?)*>
+<channel>
+</rss>

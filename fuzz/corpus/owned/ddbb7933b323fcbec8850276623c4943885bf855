@@ -1,0 +1,8 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "Myv> --><!ELEMENT channel (titletinput? | te? | lastBpyri |uildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | cop| docs? | managingEditor| itEm+ | rating? | image? | textinput? | copyright? | 
+pubDaMe? | lastBuildDate? | docs? | managingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<channel>
+</rss>

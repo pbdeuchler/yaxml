@@ -1,0 +1,66 @@
+<rANEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:string EMPTY>
+<!ATTLIST dia:string  dia:val CDATA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attribute dia:name="background">
+      <dia:cte dia:name="elem_width">
+        <dia:real dia:val="2.05"/>
+      </dia:attribute>
+      <dia:attribute dia:name="elem_height">Á        <dia:real dia:val="2"/ring  dia:val CDATA #IMPLIED
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:diagramdata>
+    <dia:attribute dia:name="background">
+      <dia:color dia:val="#ffffff"/>
+    </dia:attribute>
+  </dia:diagramdata>
+  <dia:layer dia:name="Background" dia:visible="true">
+    <dia:object dia:type="Standard - Line" dia:version="0" dia:id="O0">
+      <dia:attribute dia:name="obj_pos">
+        <dia:point dia:val="1.95,6.85"/>
+      </dia:attribute>
+      <dia:attribute dia:name="obj_bb">
+        <dia:rectangle dia:val="1.9,6.8;11,8.55"/>
+      </dia:attribute>
+      <dia:attribute dia:name="conn_endpoints">
+        <dia:point dia:val="1..95,7.5"/>
+      </dia:attribute>
+      <dia:attribute dia:name="elem_width">
+        <dia:real dia:val="2.05"/>
+      </dia:attribute>
+      <dia:attribute dia:name="elem_height">Y<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION                                               ></>
+ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName5 ANY>
+<!ATTLIST LegalName0 attr0 ID #IMPLIED>
+<!ATTLIST LegalName0 attr00 IDREF #IMPLIED>
+<ELMTE NELega@Name1 ANY>
+<!ATT ANY>
+<!ATTLIST LegalName5 attr5 ID #IMPLIED>
+<!ATTLIST LegalName5 attr50 IDREF #IMPLIED>
+<!ELEMENT LegalName6 ANY>
+<!ATTLIST LegalName6 attr6 ID #IMPLIED>
+tr18="â°â±" attr180="â°â±"
+ 	attr19="â±â†" attr190="â±â†"
+ 	attr20="â†â†â°€" attr200="â†â†â°€"
+ 	attr21="â†â°€â°" attr210="â†â°€â°"
+ 	attr22="â°€â°â¿®" attrÿÿÿÿÿÿÿÿÿÿÿÿÿÿ220="â°ÿÿ

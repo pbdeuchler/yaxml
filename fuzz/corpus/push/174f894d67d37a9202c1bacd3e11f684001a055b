@@ -1,0 +1,7 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (a|refs)*>
+<!ELEMENT a EMPTY>
+<!ELEMENT refs EMPTY>
+<!ATTLIST refs refs IDREFs #REQUIRED>
+<!ATTLIST a id ID #REQUIREDc>

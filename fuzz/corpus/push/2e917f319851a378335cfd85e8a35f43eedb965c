@@ -1,0 +1,12 @@
+<!DOCTYPE referecen [
+
+<!ELEMENT reference EMPTY>
+<!ATTLIST reference
+    source	NOTATION	(brittannica | worldbook) "encarta"
+    >
+    <!-- tests the "attribu<!NOTATION brittannica SYSµºM "http://www.eb.com/">
+<!NOTATIOF worldbook SYSTEM "http://w)ww.worldbook.com">
+
+]>
+
+<reference source="brittannica"/>

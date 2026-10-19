@@ -204,7 +204,7 @@ and attribute storage to a caller's allocator:
 `&A`, `System`, or `Arc<dyn Allocator + Send + Sync>` for language bindings.
 Navigation, editing, XPath, C14N, validation and `Writer` work on any `A`.
 The string pool, `save`, HTML output and XInclude stay on the global heap.
-Without the feature the crate builds on Rust 1.95 and existing code is
+Without the feature the crate builds on Rust 1.97 and existing code is
 unchanged; see [allocator strategy](docs/design.md#allocator-strategy).
 
 `yaxml::xpath` evaluates XPath 1.0 over either DOM: all axes, node tests,

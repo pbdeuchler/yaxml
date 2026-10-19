@@ -379,7 +379,7 @@ impl<'source> ParserState<'source> {
     /// `characters` outside `Char`, repairs them.
     /// Field assignments, not struct-update syntax: rustc 1.95-1.96 miscompile
     /// `Self { rereads, repairs_characters: rereads && characters, ..self }`
-    /// in release builds (tooling/simplify_comparison_scan.py).
+    /// in release builds (fixed in 1.97, now the MSRV; tooling/simplify_comparison_scan.py guards regressions).
     pub(crate) fn rereading(mut self, rereads: bool, characters: bool) -> Self {
         self.rereads = rereads && self.recovers();
         self.repairs_characters = self.rereads && characters;
