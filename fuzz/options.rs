@@ -76,6 +76,25 @@ pub(super) fn exercise_flags(flags: u32, document: &[u8]) {
     // Substitution changes structure, never acceptance or string values.
     let substituted = Document::parse_with(document, ParseOptions::new(flags | NOENT));
     let substituted = substituted.expect("NOENT changed acceptance");
+    // Kept attribute references never change a value (xmlGetProp substitutes).
+    let attributes = |document: &Document<'_>| -> Vec<String> {
+        let elements = document.nodes().filter(|node| node.name().is_some());
+        let values = elements.flat_map(|node| node.attributes().iter());
+        values
+            .map(|attribute| attribute.value.to_string())
+            .collect()
+    };
+    assert_eq!(
+        attributes(&tree),
+        attributes(&substituted),
+        "kept references changed attribute values"
+    );
+    if flags & NOENT != 0 {
+        let unexpanded = tree.nodes().flat_map(|node| {
+            (0..node.attributes().len()).filter_map(move |at| node.unexpanded_attribute(at))
+        });
+        assert_eq!(unexpanded.count(), 0, "NOENT kept an attribute reference");
+    }
     if flags & NOBLANKS == 0 {
         assert!(
             tree.root().text_chunks().collect::<String>()

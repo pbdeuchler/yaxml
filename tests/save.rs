@@ -501,3 +501,220 @@ fn html_documents_choose_their_serializer() {
         b"<p>\xe9<br></p>\n"
     );
 }
+
+// ---- attribute values that keep entity references (no NOENT) ----
+
+/// Saves `input` parsed with `flags` through both DOMs, which must agree,
+/// as Latin-1 text; also checks that attribute values are the substituted ones.
+fn saved_with(input: &str, flags: u32, options: &save::Options<'_>) -> Result<String, ErrorKind> {
+    use yaxml::{ParseOptions, options::NOENT};
+    let input = input.as_bytes();
+    let owned = OwnedDocument::parse_with(input, ParseOptions::new(flags)).unwrap();
+    let borrowed = Document::parse_with(input, ParseOptions::new(flags)).unwrap();
+    let substituted = Document::parse_with(input, ParseOptions::new(flags | NOENT)).unwrap();
+    let values = owned
+        .nodes()
+        .flat_map(|node| node.attributes().map(|a| a.value.into_owned()));
+    let expected = substituted
+        .nodes()
+        .flat_map(|node| node.attributes().iter());
+    assert!(values.eq(expected.map(|a| a.value.to_string())));
+    let output = save::to_vec(&owned, options);
+    assert_eq!(output, save::to_vec(&borrowed, options));
+    output
+        .map(|bytes| bytes.iter().map(|&byte| char::from(byte)).collect())
+        .map_err(|error| error.kind)
+}
+
+#[test]
+fn attribute_references_are_written_like_xmllint() {
+    use yaxml::options::{DTDATTR, NOBLANKS, NOENT};
+    let plain = options(save::NO_DECL);
+    let latin1 = save::Options {
+        encoding: Some("ISO-8859-1"),
+        ..options(save::NO_DECL)
+    };
+    // (input, parse flags, save options, last line of pinned xmllint output)
+    let table: &[(&str, u32, &save::Options<'_>, &str)] = &[
+        (
+            "<!DOCTYPE r [<!ENTITY e \"x\">]><r a=\"&e;\" b=\"1&e;2&amp;3&#38;4&lt;&#10;&#9;5\t6\" c=\"plain\"/>",
+            0,
+            &plain,
+            "<r a=\"&e;\" b=\"1&e;2&amp;3&amp;4&lt;&#10;&#9;5 6\" c=\"plain\"/>",
+        ),
+        // NOENT substitutes, as before.
+        (
+            "<!DOCTYPE r [<!ENTITY e \"x\">]><r a=\"&e;\" b=\"1&e;2\"/>",
+            NOENT,
+            &plain,
+            "<r a=\"x\" b=\"1x2\"/>",
+        ),
+        // Tokenized types normalize around the reference only.
+        (
+            "<!DOCTYPE r [<!ENTITY s \" b  c \"><!ATTLIST r t NMTOKENS #IMPLIED u ID #IMPLIED>]><r t=\"  a &s;  d  \" u=\" &s; \"/>",
+            0,
+            &plain,
+            "<r t=\"a &s; d\" u=\"&s;\"/>",
+        ),
+        // Only the outermost reference is kept.
+        (
+            "<!DOCTYPE r [<!ENTITY i \"in\"><!ENTITY o \"[&i;]\">]><r a=\"&o;\"/>",
+            0,
+            &plain,
+            "<r a=\"&o;\"/>",
+        ),
+        // Namespace declarations always expand.
+        (
+            "<!DOCTYPE r [<!ENTITY u \"urn:x\">]><r xmlns:p=\"&u;\" p:a=\"&u;\"/>",
+            0,
+            &plain,
+            "<r xmlns:p=\"urn:x\" p:a=\"&u;\"/>",
+        ),
+        // A quote from an entity is not escaped; one from the literal is.
+        (
+            "<!DOCTYPE r [<!ENTITY q '\"'>]><r a='&q;\"'/>",
+            0,
+            &plain,
+            "<r a=\"&q;&quot;\"/>",
+        ),
+        // An undeclared entity a missing external subset could declare is dropped.
+        (
+            "<!DOCTYPE r SYSTEM \"missing.dtd\" [<!ENTITY e \"x\">]><r a=\"&e;&undeclared;b\"/>",
+            0,
+            &plain,
+            "<r a=\"&e;b\"/>",
+        ),
+        // Defaulted attributes keep the references of their default.
+        (
+            "<!DOCTYPE r [<!ENTITY x \"X\"><!ATTLIST r d CDATA \"p&x;q&amp;\">]><r/>",
+            DTDATTR,
+            &plain,
+            "<r d=\"p&x;q&amp;\"/>",
+        ),
+        // Element content where blanks are dropped: ids are renumbered.
+        (
+            "<!DOCTYPE r [<!ENTITY e \"x\">]><r>  <a b=\"&e;\"/>  <c d=\"&e;&e;\"/></r>",
+            NOBLANKS,
+            &plain,
+            "<r><a b=\"&e;\"/><c d=\"&e;&e;\"/></r>",
+        ),
+        // Encodable names are encoded, the text around them converted.
+        (
+            "<!DOCTYPE r [<!ENTITY é \"v\">]><r a=\"&é;é\u{20ac}\"/>",
+            0,
+            &latin1,
+            "<r a=\"&\u{e9};\u{e9}&#8364;\"/>",
+        ),
+    ];
+    for &(input, flags, options, expected) in table {
+        let output = saved_with(input, flags, options).unwrap();
+        assert_eq!(output.lines().last(), Some(expected), "{input}");
+    }
+    // A start tag from replacement text keeps its references too.
+    let content = "<!DOCTYPE r [<!ENTITY e \"x\"><!ENTITY c \"<e a='&e;y'/>\">]><r>&c;</r>";
+    let document = Document::parse(content).unwrap();
+    let element = document.nodes().find(|node| node.attributes().len() == 1);
+    assert_eq!(element.unwrap().unexpanded_attribute(0), Some("&e;y"));
+    let output = saved_with(content, NOENT, &plain).unwrap();
+    assert!(output.ends_with("<r><e a=\"xy\"/></r>\n"), "{output}");
+    // UTF-16 input reaches the owned builder through the push parser.
+    let utf16: Vec<u8> = [0xFF, 0xFE]
+        .into_iter()
+        .chain(
+            "<!DOCTYPE r [<!ENTITY e \"x\">]><r a=\"1&e;\"/>"
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes),
+        )
+        .collect();
+    let document = OwnedDocument::parse_bytes(&utf16).unwrap();
+    assert_eq!(
+        document.root_element().unexpanded_attribute(0),
+        Some("1&e;")
+    );
+}
+
+#[test]
+fn attribute_reference_names_an_encoding_lacks_fail() {
+    let ascii = save::Options {
+        encoding: Some("US-ASCII"),
+        ..options(0)
+    };
+    // libxml2 writes `&&#233;;`, which does not reparse.
+    let cases: &[(&str, Result<&str, ErrorKind>)] = &[
+        (
+            "<!DOCTYPE r [<!ENTITY e \"x\">]><r a=\"&e;é\"/>",
+            Ok("<r a=\"&e;&#233;\"/>"),
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY é \"x\">]><r a=\"&é;\"/>",
+            Err(ErrorKind::InvalidCharacter),
+        ),
+    ];
+    for &(input, expected) in cases {
+        let output = saved_with(input, 0, &ascii);
+        match expected {
+            Ok(line) => assert_eq!(output.unwrap().lines().last(), Some(line), "{input}"),
+            Err(kind) => assert_eq!(output.unwrap_err(), kind, "{input}"),
+        }
+    }
+}
+
+#[test]
+fn entity_value_references_are_markup_in_single_byte_encodings() {
+    let encoded = |input: &str, encoding| {
+        let document = OwnedDocument::parse(input).unwrap();
+        let options = save::Options {
+            encoding: Some(encoding),
+            ..options(save::NO_DECL)
+        };
+        save::to_vec(&document, &options)
+            .map(|bytes| {
+                bytes
+                    .iter()
+                    .map(|&byte| char::from(byte))
+                    .collect::<String>()
+            })
+            .map_err(|error| error.kind)
+    };
+    // Outside references the encoder writes `&#N;`; inside one it fails.
+    let lacking = "<!DOCTYPE r [<!ENTITY a \"v\"><!ENTITY e \"\u{20ac}&a;\">]><r/>";
+    assert!(
+        encoded(lacking, "ISO-8859-1")
+            .unwrap()
+            .contains("<!ENTITY e \"&#8364;&a;\">")
+    );
+    // A bypassed general reference, in a general and a parameter entity.
+    for kind in ["", "% "] {
+        let input = format!("<!DOCTYPE r [<!ENTITY {kind}p \"&\u{20ac};\">]><r/>");
+        assert_eq!(
+            encoded(&input, "windows-1252").map(|_| ()),
+            Ok(()),
+            "{input}"
+        );
+        assert_eq!(
+            encoded(&input, "ISO-8859-1"),
+            Err(ErrorKind::InvalidCharacter),
+            "{input}"
+        );
+    }
+}
+
+#[test]
+fn edited_attribute_values_drop_their_references() {
+    use yaxml::EditLimits;
+    let input = "<!DOCTYPE r [<!ENTITY e \"x\">]><r a=\"&e;\" b=\"&e;\"/>";
+    let mut document = OwnedDocument::parse(input).unwrap();
+    let root = document.root_element();
+    assert_eq!(root.unexpanded_attribute(0), Some("&e;"));
+    assert_eq!(root.unexpanded_attribute(2), None);
+    let id = root.id();
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    editor.set_attribute_value(id, None, "a", "&e;").unwrap();
+    let root = document.root_element();
+    assert_eq!(root.unexpanded_attribute(0), None);
+    assert_eq!(root.unexpanded_attribute(1), Some("&e;"));
+    let output = save::to_vec(&document, &options(save::NO_DECL)).unwrap();
+    assert!(output.ends_with(b"<r a=\"&amp;e;\" b=\"&e;\"/>\n"));
+    // Other nodes have no attributes to keep.
+    assert_eq!(root.parent().unwrap().unexpanded_attribute(0), None);
+}

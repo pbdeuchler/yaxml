@@ -96,6 +96,10 @@ pub struct Document<'input> {
     declaration: Option<Declaration<'input>>,
     /// `(element, attribute index)` of ID-typed attributes, in document order.
     ids: Vec<(NodeId, usize)>,
+    /// `(element, attribute index, form)` of attribute values that keep
+    /// general entity references (no `NOENT`), in document order; `save`
+    /// writes the form, everything else reads the substituted value.
+    kept: Vec<(NodeId, usize, String)>,
     dtd: Option<Box<crate::valid::Dtd>>,
     validity: Vec<crate::valid::Diagnostic<NodeId>>,
     errors: Vec<Error>,
@@ -141,6 +145,7 @@ impl<'input> Document<'input> {
             root_element: NodeId(0),
             declaration: None,
             ids: Vec::new(),
+            kept: Vec::new(),
             dtd: None,
             validity: Vec::new(),
             errors: Vec::new(),
@@ -156,6 +161,7 @@ impl<'input> Document<'input> {
                 .event_origin()
                 .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
             let parent = parents.last().copied().unwrap_or(NodeId(0));
+            let opens = matches!(event, Event::Start(_));
             match event {
                 Event::Declaration(declaration) => document.declaration = Some(declaration),
                 Event::Doctype(doctype) => {
@@ -183,18 +189,27 @@ impl<'input> Document<'input> {
                     })?;
                     document.nodes[id.0].subtree_end = document.nodes.len();
                 }
-                Event::Start(element) => {
-                    crate::parser::reserve_frame(&mut parents, origin.error_offset())?;
-                    let id = document.append_element(parent, element, origin)?;
+                Event::Start(element) | Event::Empty(element) => {
+                    if opens {
+                        crate::parser::reserve_frame(&mut parents, origin.error_offset())?;
+                    }
+                    let id = NodeId(document.nodes.len());
+                    let kept = reader.owned_budget().kept();
+                    if !kept.is_empty() {
+                        let offset = origin.error_offset();
+                        document
+                            .kept
+                            .try_reserve(kept.len())
+                            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                        let kept = kept.drain(..).map(|(index, form)| (id, index, form));
+                        document.kept.extend(kept);
+                    }
+                    document.append_element(parent, element, origin)?;
                     if parent == NodeId(0) {
                         document.root_element = id;
                     }
-                    parents.push(id);
-                }
-                Event::Empty(element) => {
-                    let id = document.append_element(parent, element, origin)?;
-                    if parent == NodeId(0) {
-                        document.root_element = id;
+                    if opens {
+                        parents.push(id);
                     }
                 }
                 Event::Text(value) => {
@@ -291,6 +306,9 @@ impl<'input> Document<'input> {
             self.nodes[parent].last_child = Some(NodeId(index));
         }
         self.root_element = map(self.root_element);
+        for (element, _, _) in &mut self.kept {
+            *element = map(*element);
+        }
     }
 
     /// The well-formedness errors a `RECOVER` parse recovered from, in the
@@ -324,6 +342,16 @@ impl<'input> Document<'input> {
 
     pub(crate) fn ids(&self) -> &[(NodeId, usize)] {
         &self.ids
+    }
+
+    /// The form of `element`'s attribute `index` with its general entity
+    /// references kept, when it has any.
+    fn kept(&self, element: NodeId, index: usize) -> Option<&str> {
+        let key = (element, index);
+        let found = self
+            .kept
+            .binary_search_by(|(id, at, _)| (*id, *at).cmp(&key));
+        found.ok().map(|found| self.kept[found].2.as_str())
     }
 
     /// Appends an element, noting its `xml:id` attributes in document order.
@@ -564,6 +592,29 @@ impl<'document, 'input> Node<'document, 'input> {
             NodeKind::Element(element) => &element.attributes,
             _ => &[],
         }
+    }
+
+    /// The attribute at `position` as libxml2 keeps it when parsing without
+    /// `NOENT` (the attribute's text and entity-reference children, which
+    /// `save` writes): `&name;` for each kept general entity reference, `&#38;`
+    /// for a literal `&`, other references resolved. `None` when it kept no
+    /// reference, the usual case; [`attributes`](Self::attributes) always has
+    /// the substituted value, which XPath, validation and C14N use.
+    ///
+    /// ```
+    /// use yaxml::{Document, ParseOptions, options::NOENT};
+    /// let xml = b"<!DOCTYPE r [<!ENTITY e 'x'>]><r a='1&e;&amp;' b='2'/>";
+    /// let document = Document::parse_with(xml, ParseOptions::default())?;
+    /// let root = document.root_element();
+    /// assert_eq!(root.attributes()[0].value, "1x&");
+    /// assert_eq!(root.unexpanded_attribute(0), Some("1&e;&#38;"));
+    /// assert_eq!(root.unexpanded_attribute(1), None);
+    /// let substituted = Document::parse_with(xml, ParseOptions::new(NOENT))?;
+    /// assert_eq!(substituted.root_element().unexpanded_attribute(0), None);
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn unexpanded_attribute(self, position: usize) -> Option<&'document str> {
+        self.document.kept(self.id, position)
     }
 
     /// Exact original input span, including delimiters and the element's end tag.

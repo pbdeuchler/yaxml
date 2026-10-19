@@ -456,6 +456,10 @@ pub struct OwnedDocument<A: Allocator = Global> {
     identity: NonZeroUsize,
     nodes: allocator::Vec<OwnedRecord, A>,
     attributes: allocator::Vec<StoredAttribute, A>,
+    /// `(attribute index, pool range)` of attribute values that keep general
+    /// entity references (no `NOENT`), sorted by index: `save` writes the
+    /// range, everything else reads the substituted value.
+    kept: allocator::Vec<(usize, Range<usize>), A>,
     pool: Pool,
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
@@ -1335,6 +1339,11 @@ impl<A: Allocator> Editor<'_, A> {
             self.limits.max_owned_bytes,
         )?;
         self.document.attributes[target].value = replacement;
+        // The new value replaces the attribute's kept references too.
+        let kept = &mut self.document.kept;
+        if let Ok(position) = kept.binary_search_by_key(&target, |(index, _)| *index) {
+            kept.remove(position);
+        }
         if let Some(html) = &mut self.document.html
             && let Ok(position) = html.valueless.binary_search(&target)
         {
@@ -1418,6 +1427,7 @@ struct OwnedBuilder<A: Allocator = Global> {
     /// `(element slot, attribute index)` of each `xml:id`, in document order.
     xml_ids: Vec<(NodeId, usize)>,
     attributes: allocator::Vec<StoredAttribute, A>,
+    kept: allocator::Vec<(usize, Range<usize>), A>,
     pool: Pool,
     root_element: NodeId,
     declaration: Option<StoredDeclaration>,
@@ -1435,6 +1445,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         Ok(Self {
             nodes,
             xml_ids: Vec::new(),
+            kept: allocator::Vec::new_in(allocator.clone()),
             attributes: allocator::Vec::new_in(allocator),
             pool: Pool::default(),
             root_element: NodeId(0),
@@ -1497,6 +1508,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             event => {
                 if let Event::Start(element) | Event::Empty(element) = &event {
                     self.note_xml_ids(element, offset)?;
+                    self.store_kept(budget, offset)?;
                 }
                 store_content(&mut self.pool, &mut self.attributes, event, offset, budget)?
             }
@@ -1537,6 +1549,25 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         record.content = Content::Text(extended);
         record.source = Some(joined);
         Ok(true)
+    }
+
+    /// Stores the kept-reference forms of the element about to be appended.
+    fn store_kept(&mut self, budget: &mut Budget, offset: usize) -> Result<(), Error> {
+        let mut kept = std::mem::take(budget.kept());
+        if kept.is_empty() {
+            return Ok(());
+        }
+        self.kept
+            .try_reserve(kept.len())
+            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+        let start = self.attributes.len();
+        for (index, form) in kept.drain(..) {
+            let range = self.pool.store(&form, offset, budget)?;
+            self.kept.push((start + index, range));
+        }
+        // Return the drained buffer for the next tag.
+        *budget.kept() = kept;
+        Ok(())
     }
 
     /// Notes the `xml:id` attributes of the element about to be appended.
@@ -1620,6 +1651,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             identity: document_identity(counter)?,
             nodes: self.nodes,
             attributes: self.attributes,
+            kept: self.kept,
             pool: self.pool,
             root_element: self.root_element,
             declaration: self.declaration,
@@ -1778,6 +1810,7 @@ impl TreeBuilder {
             nodes: self.nodes,
             xml_ids: Vec::new(),
             attributes: self.attributes,
+            kept: allocator::Vec::new_in(Global),
             pool: self.pool,
             root_element: self.root_element,
             declaration: self.declaration,
@@ -2031,6 +2064,7 @@ impl HtmlBuilder {
             identity: document_identity(&LAST_DOCUMENT_ID)?,
             nodes: self.nodes,
             attributes: self.attributes,
+            kept: allocator::Vec::new_in(Global),
             pool: self.pool,
             root_element: self.root_element,
             declaration: None,
@@ -2243,6 +2277,37 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
                 .html
                 .as_ref()
                 .is_none_or(|html| html.valueless.binary_search(&index).is_err())
+    }
+
+    /// The attribute at `position` as libxml2 keeps it when parsing without
+    /// `NOENT` (the attribute's text and entity-reference children, which
+    /// `save` writes): `&name;` for each kept general entity reference, `&#38;`
+    /// for a literal `&`, other references resolved. `None` when it kept no
+    /// reference, the usual case; [`attributes`](Self::attributes) always has
+    /// the substituted value, which XPath, validation and C14N use.
+    ///
+    /// ```
+    /// use yaxml::{OwnedDocument, ParseOptions, options::NOENT};
+    /// let xml = b"<!DOCTYPE r [<!ENTITY e 'x'>]><r a='1&e;&amp;' b='2'/>";
+    /// let document = OwnedDocument::parse_with(xml, ParseOptions::default())?;
+    /// let root = document.root_element();
+    /// assert_eq!(root.attributes().next().unwrap().value, "1x&");
+    /// assert_eq!(root.unexpanded_attribute(0), Some("1&e;&#38;"));
+    /// assert_eq!(root.unexpanded_attribute(1), None);
+    /// let substituted = OwnedDocument::parse_with(xml, ParseOptions::new(NOENT))?;
+    /// assert_eq!(substituted.root_element().unexpanded_attribute(0), None);
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn unexpanded_attribute(self, position: usize) -> Option<&'document str> {
+        let Content::Element { attributes, .. } = &self.record().content else {
+            return None;
+        };
+        let kept = &self.document.kept;
+        let index = attributes.clone().nth(position)?;
+        let found = kept
+            .binary_search_by_key(&index, |(index, _)| *index)
+            .ok()?;
+        Some(&self.document.pool.0[kept[found].1.clone()])
     }
 
     /// Original source location, independent of current logical content and

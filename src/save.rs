@@ -146,6 +146,8 @@ pub(crate) trait Walk<'document>: Copy {
         limit: usize,
         offset: usize,
     ) -> Result<(), Error>;
+    /// The attribute at `position` with its entity references kept, if any.
+    fn kept_form(self, position: usize) -> Option<&'document str>;
     fn is_document(self) -> bool;
 }
 
@@ -218,6 +220,13 @@ impl<'document> Walk<'document> for Tree<'document, '_> {
         }
     }
 
+    fn kept_form(self, position: usize) -> Option<&'document str> {
+        match self {
+            Self::Borrowed(node) => node.unexpanded_attribute(position),
+            Self::Owned(node) => node.unexpanded_attribute(position),
+        }
+    }
+
     fn is_document(self) -> bool {
         match self {
             Self::Borrowed(node) => matches!(node.kind(), NodeKind::Document),
@@ -254,6 +263,10 @@ impl<'document, A: Allocator> Walk<'document> for OwnedNode<'document, A> {
         offset: usize,
     ) -> Result<(), Error> {
         collect_attributes(attributes, OwnedNode::attributes(self), limit, offset)
+    }
+
+    fn kept_form(self, position: usize) -> Option<&'document str> {
+        OwnedNode::unexpanded_attribute(self, position)
     }
 
     fn is_document(self) -> bool {
@@ -556,6 +569,24 @@ impl Out {
         self.raw(";");
     }
 
+    /// An attribute value with kept references, as `xmlSaveWriteAttrContent`
+    /// writes the text and entity-reference children: `&name;` is markup,
+    /// `&#38;` an escaped `&`, the rest escaped text.
+    fn kept(&mut self, form: &str) {
+        let mut parts = form.split('&');
+        self.text(parts.next().unwrap_or_default(), true);
+        for part in parts {
+            let (reference, text) = part.split_at(part.find(';').map_or(0, |end| end + 1));
+            if reference == "#38;" {
+                self.text("&", true);
+            } else {
+                self.raw("&");
+                self.raw(reference);
+            }
+            self.text(text, true);
+        }
+    }
+
     /// `xmlOutputBufferWriteQuotedString`; `converted` allows references.
     fn quoted(&mut self, text: &str, converted: bool) {
         let write = |out: &mut Self, text: &str| {
@@ -584,6 +615,9 @@ impl Out {
         self.raw(quote);
     }
 }
+
+/// An attribute value and its kept-reference form, if any.
+type Value<'v> = (&'v str, Option<&'v str>);
 
 struct Saver<'a> {
     out: Out,
@@ -750,22 +784,26 @@ impl<'a> Saver<'a> {
         for attribute in attributes.iter().filter(|a| is_declaration(a)) {
             declared = true;
             if attribute.name.local() != "xml" || attribute.name.prefix().is_none() {
-                self.attribute(attribute.name.qualified(), &attribute.value, false);
+                self.attribute(attribute.name.qualified(), (&attribute.value, None), false);
             }
         }
         for (prefix, uri) in added {
             declared = true;
             match prefix {
-                Some(prefix) => self.attribute(&format!("xmlns:{prefix}"), uri, false),
-                None => self.attribute("xmlns", uri, false),
+                Some(prefix) => self.attribute(&format!("xmlns:{prefix}"), (uri, None), false),
+                None => self.attribute("xmlns", (uri, None), false),
             }
         }
         if xhtml && qualified == "html" && name.namespace().is_none() && !declared {
             self.out.raw(" xmlns=\"http://www.w3.org/1999/xhtml\"");
         }
+        let ordinary = attributes
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| !is_declaration(a));
         self.attributes(
             name,
-            attributes.iter().filter(|a| !is_declaration(a)),
+            ordinary.map(|(position, a)| (a, node.kept_form(position))),
             xhtml,
         );
         if node.first_child().is_some() {
@@ -799,8 +837,9 @@ impl<'a> Saver<'a> {
     }
 
     /// `xmlAttrDumpOutput` and `xmlNsDumpOutput`; `plain` attributes have
-    /// no namespace and may be XHTML booleans.
-    fn attribute(&mut self, name: &str, value: &str, plain: bool) {
+    /// no namespace and may be XHTML booleans. A value is written from its
+    /// kept-reference form when it has one.
+    fn attribute(&mut self, name: &str, value: Value<'_>, plain: bool) {
         if self.format == 2 {
             self.whitespace(2);
         } else {
@@ -810,14 +849,21 @@ impl<'a> Saver<'a> {
         self.out.raw("=\"");
         if self.xhtml_attributes
             && plain
-            && value.is_empty()
+            && value.0.is_empty()
             && crate::html::boolean_attribute(name)
         {
             self.out.raw(name);
         } else {
-            self.out.text(value, true);
+            self.value(value);
         }
         self.out.raw("\"");
+    }
+
+    fn value(&mut self, (value, kept): Value<'_>) {
+        match kept {
+            Some(form) => self.out.kept(form),
+            None => self.out.text(value, true),
+        }
     }
 
     /// The attributes; under XHTML (`xhtmlAttrListDumpOutput`) C.8 adds `id`
@@ -825,20 +871,21 @@ impl<'a> Saver<'a> {
     fn attributes<'v>(
         &mut self,
         element: &Name<'_>,
-        attributes: impl Iterator<Item = &'v Attribute<'v>>,
+        attributes: impl Iterator<Item = (&'v Attribute<'v>, Option<&'v str>)>,
         xhtml: bool,
     ) {
         let (mut id, mut name, mut lang, mut xml_lang) = (false, None, None, None);
-        for attribute in attributes {
+        for (attribute, kept) in attributes {
             let namespaced = attribute.name.namespace().is_some();
+            let value = (attribute.value.as_ref(), kept);
             match (namespaced, attribute.name.qualified()) {
                 (false, "id") => id = true,
-                (false, "name") => name = Some(&attribute.value),
-                (false, "lang") => lang = Some(&attribute.value),
-                (true, "xml:lang") => xml_lang = Some(&attribute.value),
+                (false, "name") => name = Some(value),
+                (false, "lang") => lang = Some(value),
+                (true, "xml:lang") => xml_lang = Some(value),
                 _ => {}
             }
-            self.attribute(attribute.name.qualified(), &attribute.value, !namespaced);
+            self.attribute(attribute.name.qualified(), value, !namespaced);
         }
         if !xhtml {
             return;
@@ -856,9 +903,9 @@ impl<'a> Saver<'a> {
         }
     }
 
-    fn extra(&mut self, start: &str, value: &str) {
+    fn extra(&mut self, start: &str, value: Value<'_>) {
         self.out.raw(start);
-        self.out.text(value, true);
+        self.value(value);
         self.out.raw("\"");
     }
 

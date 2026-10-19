@@ -8,6 +8,9 @@ every case to pass. Move a file there once fixed. Replay:
 
 Open findings (2026-10-19 coverage campaign); each has a note beside it:
 
+- `dom/recover-ignore-enc-utf7-save.bin`: under `RECOVER | IGNORE_ENC` a
+  document declaring UTF-7 parses, but saving with the declared label is
+  `UnsupportedEncoding`, which `check_recovered` treats as a failure.
 - `dtd/laughs-slow-unit.xml`: about 2 s per run through the `dtd` driver
   under ASan (bounded expansion; a slow unit, not a hang).
 

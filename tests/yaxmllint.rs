@@ -415,10 +415,9 @@ fn xpath_pairs() -> Vec<Vec<String>> {
 
 /// Inputs where yaxml's library semantics differ from libxml2's, so stdout or the
 /// verdict cannot agree: undeclared-prefix and predefined-entity redeclaration
-/// are fatal here but recoverable there, ISO-8859-5 is not decoded, and entity
-/// references are never kept as tree nodes (`id2`, `id3`, `737840` fail
-/// libxml2's post-parse validation because of them). Under `--valid` libxml2
-/// also tolerates an external DTD that cannot be loaded and exits 0 on
+/// are fatal here but recoverable there, ISO-8859-5 is not decoded, and `id2`
+/// fails libxml2's post-parse validation (its ID is inside a kept entity
+/// reference). Under `--valid` libxml2 also tolerates an external DTD that cannot be loaded and exits 0 on
 /// `extra-content`, `trailing-null-1` and `truncated-utf16`, which fail to parse here.
 fn known_gap(input: &str) -> bool {
     input.starts_with("namespaces/err_")
@@ -427,9 +426,7 @@ fn known_gap(input: &str) -> bool {
             "errors/ent_redecl.xml",
             "errors/ns-undeclared.xml",
             "valid/127772.xml",
-            "valid/737840.xml",
             "valid/id2.xml",
-            "valid/id3.xml",
             "undeclared-entity.xml",
             "wap.xml",
             "wml.xml",
@@ -527,7 +524,9 @@ fn differential_against_xmllint() {
             schema_pairs("schemas", "xsd"),
             true,
         ),
-        // Reported only: yaxml always substitutes entities, xmllint keeps references without --noent.
+        // Every supported input; the totals below include the known gaps.
+        ("default output", vec![], supported.clone(), true),
+        // Reported only: the known gaps, and `--format`'s blank heuristic.
         ("(default output)", vec![], documents.clone(), false),
         ("--format", vec!["--format"], documents, false),
     ];
@@ -685,4 +684,96 @@ fn recover_against_xmllint() {
             rate(agree, total - elementless)
         );
     }
+}
+
+/// Documents with entity references in attribute values (no `--noent`:
+/// kept and written as `&name;`; with it: substituted).
+const ATTRIBUTE_REFERENCES: &[(&str, &str)] = &[
+    (
+        "plain.xml",
+        "<!DOCTYPE r [<!ENTITY e \"x\">]><r a=\"&e;\" b=\"1&e;2&amp;3&#38;4&lt;&#10;&#9;5\t6\" c=\"plain\"/>",
+    ),
+    (
+        "tokenized.xml",
+        "<!DOCTYPE r [<!ENTITY s \" b  c \"><!ATTLIST r t NMTOKENS #IMPLIED u ID #IMPLIED>]><r t=\"  a &s;  d  \" u=\" &s; \"/>",
+    ),
+    (
+        "nested.xml",
+        "<!DOCTYPE r [<!ENTITY i \"in\"><!ENTITY o \"[&i;]\">]><r a=\"&o;\"/>",
+    ),
+    (
+        "content.xml",
+        "<!DOCTYPE r [<!ENTITY x \"X\"><!ENTITY c \"<e a='&x;y'/>\">]><r>&c;</r>",
+    ),
+    (
+        "namespace.xml",
+        "<!DOCTYPE r [<!ENTITY u \"urn:x\">]><r xmlns:p=\"&u;\" p:a=\"&u;\"/>",
+    ),
+    (
+        "unread.xml",
+        "<!DOCTYPE r SYSTEM \"missing.dtd\" [<!ENTITY e \"x\">]><r a=\"&e;&undeclared;b\"/>",
+    ),
+    (
+        "latin.xml",
+        "<!DOCTYPE r [<!ENTITY \u{e9} \"v\">]><r a=\"&\u{e9};\u{e9}\"/>",
+    ),
+    ("quote.xml", "<!DOCTYPE r [<!ENTITY q '\"'>]><r a='&q;\"'/>"),
+    (
+        "lines.xml",
+        "<!DOCTYPE r [<!ENTITY e \"x\">]><r a=\"x\r\ny&e;\r\"/>",
+    ),
+    (
+        "blanks.xml",
+        "<!DOCTYPE r [<!ENTITY e \"x\">]><r>  <a b=\"&e;\"/>  <c d=\"&e;&e;\"/></r>",
+    ),
+];
+
+#[test]
+fn attribute_references_against_xmllint() {
+    let Some(xmllint) = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from) else {
+        eprintln!("YAXML_XMLLINT unset; skipping the attribute-reference differential");
+        return;
+    };
+    let mut files = ATTRIBUTE_REFERENCES.to_vec();
+    // libxml2 writes an ATTLIST default's references escaped (`&amp;x;`),
+    // which is not a fixed point, so defaults compare through XPath only.
+    let defaulted = "<!DOCTYPE r [<!ENTITY x \"X\"><!ATTLIST r d CDATA \"p&x;q&amp;\">]><r/>";
+    files.push(("default.xml", defaulted));
+    let dir = scratch(&files);
+    let flags: &[&[&str]] = &[
+        &[],
+        &["--noent"],
+        &["--dtdattr"],
+        &["--format"],
+        &["--noblanks"],
+        &["--encode", "ISO-8859-1"],
+        &["--xpath", "//@*"],
+        &["--noent", "--xpath", "//@*"],
+    ];
+    let mut failures = Vec::new();
+    for (name, _) in &files {
+        for flags in flags {
+            let defaulted = *name == "default.xml";
+            if defaulted && !flags.contains(&"--xpath") {
+                continue;
+            }
+            let mut args = flags.to_vec();
+            if defaulted {
+                args.insert(0, "--dtdattr");
+            }
+            args.push(name);
+            let (ours, theirs) = (
+                yaxmllint(&args, &dir, "", &[]),
+                run_program(&xmllint, &args, &dir, "", &[]),
+            );
+            if (&ours.stdout, ours.code) != (&theirs.stdout, theirs.code) {
+                failures.push(format!(
+                    "{args:?}:\n{}\n{}",
+                    String::from_utf8_lossy(&theirs.stdout),
+                    String::from_utf8_lossy(&ours.stdout)
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

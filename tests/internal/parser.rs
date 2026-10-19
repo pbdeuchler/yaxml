@@ -423,6 +423,7 @@ fn copy_budget_is_cumulative_and_checks_overflow() {
         },
         owned_bytes: 0,
         recovered: None,
+        kept: Vec::new(),
     };
     assert_eq!(budget.copy("abc", 0).unwrap(), "abc");
     assert_eq!(

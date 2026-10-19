@@ -1493,6 +1493,7 @@ pub(super) fn create<A: Allocator + Clone>(
     let mut staging_document = OwnedDocument {
         identity: NonZeroUsize::MIN,
         nodes: allocator::Vec::new_in(allocator.clone()),
+        kept: allocator::Vec::new_in(allocator.clone()),
         attributes: allocator::Vec::new_in(allocator),
         pool: Pool::default(),
         root_element: NodeId(0),

@@ -43,6 +43,9 @@ pub(crate) struct Budget {
     limits: Limits,
     owned_bytes: usize,
     recovered: Option<Vec<Error>>,
+    /// The last published start tag's kept-reference attribute forms
+    /// (`dtd_tag::kept_form`) by attribute position, for the DOM builders.
+    kept: Vec<(usize, String)>,
 }
 
 impl Budget {
@@ -51,6 +54,7 @@ impl Budget {
             limits,
             owned_bytes: 0,
             recovered: None,
+            kept: Vec::new(),
         }
     }
 
@@ -101,6 +105,11 @@ impl Budget {
             budget.recover(error)?;
         }
         Ok(budget.recovered.take().unwrap_or_default())
+    }
+
+    /// Kept-reference forms of the last start tag's attributes; DOM builders drain them.
+    pub(crate) fn kept(&mut self) -> &mut Vec<(usize, String)> {
+        &mut self.kept
     }
 
     pub(crate) fn max_events(&self) -> usize {
@@ -213,6 +222,8 @@ pub(crate) struct PreparedAttribute<'event> {
     pub(crate) value: Cow<'event, str>,
     /// The specified attribute's name offset; `None` when defaulted.
     pub(crate) name_offset: Option<usize>,
+    /// The value with its general entity references kept, when it has any.
+    pub(crate) kept: Option<String>,
 }
 
 #[derive(Debug)]
@@ -241,6 +252,7 @@ impl PreparedTag<'_> {
                 name,
                 value: Cow::Owned(value),
                 name_offset: attribute.name_offset,
+                kept: attribute.kept,
             });
         }
         Ok(PreparedTag {
@@ -1562,6 +1574,12 @@ impl<'source> ParserState<'source> {
         attributes
             .try_reserve(prepared.attributes.len())
             .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
+        self.budget.kept.clear();
+        let kept = prepared.attributes.iter().filter(|a| a.kept.is_some());
+        self.budget
+            .kept
+            .try_reserve(kept.count())
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         for attribute in prepared.attributes {
             // This element's bindings are not in scope yet, so `redundant`
             // compares with the enclosing scope.
@@ -1576,6 +1594,9 @@ impl<'source> ParserState<'source> {
                     || invalid_namespace_binding(prefix, &attribute.value)
             }) {
                 continue;
+            }
+            if let Some(kept) = attribute.kept {
+                self.budget.kept.push((attributes.len(), kept));
             }
             attributes.push(Attribute {
                 name: attribute.name,

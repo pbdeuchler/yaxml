@@ -1,0 +1,11 @@
+recover-ignore-enc-utf7-save.bin (dom target, options driver, found 2026-10-19,
+315 s run; reproduces on main e01d329ca)
+
+The selector byte 0xfc sets RECOVER, IGNORE_ENC|SKIP_IDS, NOBLANKS, DTDVALID
+and NOCDATA|NSCLEAN. The document declares encoding="UTF-7". With IGNORE_ENC
+the parse reads it as UTF-8, but the recovered tree keeps the declared label,
+so fuzz/options.rs check_recovered's `save::to_vec(tree, &Default::default())`
+returns UnsupportedEncoding and its `expect("save")` panics. Decide whether
+`save` with no requested encoding should fall back for a label the parse
+ignored (what does libxml2 record in doc->encoding under IGNORE_ENC?), or the
+harness should save with an explicit UTF-8 encoding.

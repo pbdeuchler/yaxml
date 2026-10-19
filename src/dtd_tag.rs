@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 
 use crate::dtd_catalog::{AttributeKind, DtdCatalog, LiteralSource};
+use crate::escape::predefined;
 use crate::name::qname;
 use crate::parser::{Budget, PreparedAttribute, PreparedTag, RawTag};
 use crate::valid::Code;
@@ -81,7 +82,7 @@ pub(crate) fn prepare_dtd_tag<'event>(
                 message,
             );
         }
-        let mut requested = 0;
+        let (mut requested, mut kept) = (0, None);
         let normalized = catalog.normalize_attribute(
             raw.qualified,
             attribute.qualified,
@@ -93,6 +94,16 @@ pub(crate) fn prepare_dtd_tag<'event>(
         );
         budget.charge_owned(requested, attribute.value_offset)?;
         let value = match normalized {
+            Ok(value) if catalog.keeps_references(&attribute) => {
+                kept = kept_form(
+                    attribute.literal,
+                    catalog.tokenized_attribute(raw.qualified, attribute.qualified),
+                    source == LiteralSource::Physical,
+                    |name| catalog.keeps(name),
+                    |bytes| Ok(budget.charge_owned(bytes, attribute.value_offset)?),
+                )?;
+                value
+            }
             Ok(value) => value,
             // Recovery empties a value whose references cannot be expanded.
             Err(error) if budget.recovers() => {
@@ -111,6 +122,7 @@ pub(crate) fn prepare_dtd_tag<'event>(
             name,
             value,
             name_offset: Some(attribute.name_offset),
+            kept,
         });
     }
 
@@ -156,6 +168,7 @@ pub(crate) fn prepare_dtd_tag<'event>(
         let mut copy = |text| budget.copy(text, 0).map_err(|error| declared(error.kind));
         let qualified = copy(&binding.name)?;
         let value = copy(value)?;
+        let kept = binding.default.kept().map(copy).transpose()?;
         attributes.push(PreparedAttribute {
             name: Name::from_validated_parts(
                 qualified,
@@ -164,6 +177,7 @@ pub(crate) fn prepare_dtd_tag<'event>(
             ),
             value,
             name_offset: None,
+            kept: kept.map(Cow::into_owned),
         });
     }
 
@@ -205,3 +219,89 @@ fn retained_name<'event>(
     };
     Ok(Name::from_validated_parts(qualified, prefix_length, None))
 }
+
+/// What an attribute literal's next character or reference contributes to
+/// libxml2's value without `NOENT`.
+enum Piece<'a> {
+    Char(char),
+    /// Literal whitespace or `&#32;`, collapsed in tokenized values.
+    Space,
+    /// A kept general reference's name.
+    Kept(&'a str),
+    /// An undeclared entity, which expands to nothing.
+    Nothing,
+}
+
+/// libxml2's attribute value without `NOENT` (`xmlParseAttValueInternal`):
+/// general references `keep` accepts (declared ones, never predefined or
+/// character references) stay `&name;`, an `&` from a reference is `&#38;`,
+/// other references are resolved, an undeclared one is dropped, and
+/// whitespace is normalized around the kept references, not inside them.
+/// `None`, without allocating, when nothing is kept. `charge` approves the
+/// one exact reservation (the literal's length) first.
+pub(crate) fn kept_form(
+    literal: &str,
+    tokenized: bool,
+    physical: bool,
+    keep: impl Fn(&str) -> bool,
+    charge: impl FnOnce(usize) -> Result<(), DtdError>,
+) -> Result<Option<String>, DtdError> {
+    // A validated literal: every `&` starts a reference ending at `;`.
+    let name = |at: usize| {
+        let end = literal[at..].find(';').map_or(at + 1, |end| at + end);
+        &literal[at + 1..end]
+    };
+    if !memchr::memchr_iter(b'&', literal.as_bytes()).any(|at| keep(name(at))) {
+        return Ok(None);
+    }
+    charge(literal.len())?;
+    let mut form = String::new();
+    form.try_reserve_exact(literal.len())
+        .map_err(|_| DtdError::new(ErrorKind::Allocation, None))?;
+    let (mut in_space, mut at) = (true, 0);
+    while let Some(c) = literal[at..].chars().next() {
+        let piece = if c == '&' {
+            let name = name(at);
+            at += name.len() + 2;
+            match name.strip_prefix('#') {
+                Some(number) => match crate::escape::numeric_reference(number) {
+                    Some(' ') => Piece::Space,
+                    found => Piece::Char(found.unwrap_or(char::REPLACEMENT_CHARACTER)),
+                },
+                None => match predefined(name) {
+                    Some(c) => Piece::Char(c),
+                    None if keep(name) => Piece::Kept(name),
+                    None => Piece::Nothing,
+                },
+            }
+        } else {
+            at += c.len_utf8();
+            match c {
+                '\r' if physical && literal[at..].starts_with('\n') => Piece::Nothing,
+                ' ' | '\t' | '\n' | '\r' => Piece::Space,
+                c => Piece::Char(c),
+            }
+        };
+        match piece {
+            Piece::Space if tokenized && in_space => {}
+            Piece::Space => form.push(' '),
+            Piece::Char('&') => form.push_str("&#38;"),
+            Piece::Char(c) => form.push(c),
+            Piece::Kept(name) => {
+                form.push('&');
+                form.push_str(name);
+                form.push(';');
+            }
+            Piece::Nothing => continue,
+        }
+        in_space = matches!(piece, Piece::Space);
+    }
+    if tokenized && in_space && form.ends_with(' ') {
+        form.pop();
+    }
+    Ok(Some(form))
+}
+
+#[cfg(test)]
+#[path = "../tests/internal/dtd_tag.rs"]
+mod tests;

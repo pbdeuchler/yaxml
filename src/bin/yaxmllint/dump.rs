@@ -4,17 +4,32 @@
 use yaxml::xpath::{Node, Value};
 use yaxml::{OwnedDocument, OwnedNodeId, save};
 
-/// An attribute node dumps as ` name="value"`.
-fn attribute(name: &str, value: &str) -> String {
-    let escaped = value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\n', "&#10;")
-        .replace('\r', "&#13;")
-        .replace('\t', "&#9;");
-    format!(" {name}=\"{escaped}\"")
+/// An attribute node dumps as ` name="value"`; kept entity references
+/// (`unexpanded`) stay references.
+fn attribute(name: &str, value: &str, unexpanded: Option<&str>) -> String {
+    let escape = |text: &str| {
+        text.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\n', "&#10;")
+            .replace('\r', "&#13;")
+            .replace('\t', "&#9;")
+    };
+    let Some(form) = unexpanded else {
+        return format!(" {name}=\"{}\"", escape(value));
+    };
+    let mut parts = form.split('&');
+    let mut out = format!(" {name}=\"{}", escape(parts.next().unwrap_or_default()));
+    for part in parts {
+        let (reference, text) = part.split_at(part.find(';').map_or(0, |end| end + 1));
+        match reference {
+            "#38;" => out.push_str("&amp;"),
+            reference => out.push_str(&format!("&{reference}")),
+        }
+        out.push_str(&escape(text));
+    }
+    out + "\""
 }
 
 /// In-scope namespace declarations at `id` as `(attribute name, URI)`, outermost first.
@@ -44,14 +59,17 @@ fn node(document: &OwnedDocument, node: Node<OwnedNodeId>) -> Vec<u8> {
             .unwrap_or_default(),
         Node::Attribute(id, index) => document
             .node(id)
-            .and_then(|n| n.attributes().nth(index))
-            .map(|a| attribute(a.name.qualified(), &a.value).into_bytes())
+            .and_then(|n| {
+                let a = n.attributes().nth(index)?;
+                let unexpanded = n.unexpanded_attribute(index);
+                Some(attribute(a.name.qualified(), &a.value, unexpanded).into_bytes())
+            })
             .unwrap_or_default(),
         // Slot 0 is the implicit `xml` binding, which prints as nothing.
         Node::Namespace(id, index) => index
             .checked_sub(1)
             .and_then(|slot| namespaces(document, id).into_iter().nth(slot))
-            .map(|(name, uri)| attribute(&name, &uri).into_bytes())
+            .map(|(name, uri)| attribute(&name, &uri, None).into_bytes())
             .unwrap_or_default(),
     }
 }
