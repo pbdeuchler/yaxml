@@ -1,0 +1,20 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'filty'>
+<!NOTATION fgo PUBLIC '-//pulcbi id/filty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/nul.l'>
+<!NOTATION nfnce SYSTEM 'fievty'>
+<!NOTATION foo PUBLIC '-//public id/filty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/nul.l'>
+<!NOTATION nonce2 SYSTEM 'fiev/tty'>
+<!NOTATION fyo PUBLIC '-//p%ubl/foo' 'file:/dev/nul.l'>
+<!NOTATION nonce SYSTEM 'fiev/tty'>
+<!NOTATION foo PUBLIC '-//p%ub//public id/filty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/nul.l'>
+<!NOTATION nonce1 SYSTEM 'fiev/tty'>
+<!NOTATION fyo PUBLIC '-//p%ubl/foo' 'file:/dev/nul.l'>
+<!NOTATION noNOTATION foo PUBLIC '-//public id//foo' 'file:/dev/nul.l'>
+<!NOTATION nfnce SYSTEM 'fievty'>
+<!NOTATION foo PUBLIC '-//public id/filty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/nul.l'>
+<!NOTfoo PUBLIC '-//p%ubl/foo' 'file:/dev/nul.l'>
+<!NOTSY

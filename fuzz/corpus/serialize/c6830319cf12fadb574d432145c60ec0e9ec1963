@@ -1,0 +1,14 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.1 test zsuite 13 Feb 2003">
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="001.xml" ID="rmt-001" TYPE="not-wf" ENTITIES="parameter">
+External subset has lateral">
+Indirect external general entity has later version number
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="006.xml" ID="rmt-006" OUTPUT="out/006.xml" TYPE="valid" ENTITIES="general">
+Second-level external general entity has later version number than
+first-level, but not latererror">
+Has a UTF-8 LSEP in the XML declaration (to be made an error in PR)
+</TEST>
+
+</TESTCASES>

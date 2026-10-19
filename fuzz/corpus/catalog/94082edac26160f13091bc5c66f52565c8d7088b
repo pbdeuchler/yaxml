@@ -1,0 +1,11 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (titletinput? | copyri | link 
+| gu | item+ | rating? | ie? | t.extinxtinput? | copyright? | descr| textinput? | copyright? | description | link1 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyngEditwebMpyri | link 
+| language | item+ | ratinage? | textijput? | copyngEditwebMaster? | 
+sioukHprs? | skipDays?)*>
+<channel>
+</rss>

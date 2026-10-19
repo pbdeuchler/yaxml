@@ -1,0 +1,30 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   />' 
+ <norm attr='
+ 5:0.70" xmlns:cat="urn:oasis:names:vc:ubl:CommonAggregateTspes:1.0:0ar'/>
+  <norm attr=' foo bab
+  
+g'/>="UTF-8"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreGomponentPames:tc:ubl:Coreerd-der>
+      <cat:SellersOrderID schemg back -->
+</doc>
+ versn="1.0"?>
+<D:propfind xmlns:D="ht¯tp://www.iHHHHHHָָָָָָָָָָָָָָָ='foobar
+
+&amp;'/>
+  <eormId attr=' &lt; '/>
+  mlns:hml="http:/ֽexample.com/"<normId attr='
+  foo&lt;bar   רררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררררר'/>
+  <normId attr='
+
+foobId attr='
+
+foobar'/>
+  <normId attr=' foo barצ״׀ֱ
+ ע<normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>evision="0" Update="N">1</RevisionId>
+  tp://www.iHHHHHHHHHHHHHHHHHrg/standar

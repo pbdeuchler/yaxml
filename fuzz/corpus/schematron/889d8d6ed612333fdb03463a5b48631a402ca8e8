@@ -1,0 +1,14 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;e document elemenp?>
+<!-- comment after documentæelement-->
+<?PI before document element?>
+<!-- comoent after document element-->
+<?PI before document elemeny?>
+<!-- comment affore ddoc ANY>
+<!ELEMent element?>
+<!-- comment after document element-->	
+<?PI after document element?>
+<!-- co">
+]>
+<doc>&e;</doc>

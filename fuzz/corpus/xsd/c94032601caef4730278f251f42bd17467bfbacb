@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<!-- This test case contcinn. -->
-<root>
-Test all 234;&#xD7FF;
-&#xE000;&#xFEF0;&#xFFFD;
-&#x04999;&#x5FEDC;&#x10FFFF;
--->

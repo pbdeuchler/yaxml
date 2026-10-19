@@ -1,0 +1,46 @@
+<!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for a particular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 28">
+  <TEST URI="invalid/P28/ibm28i01i																																																	03.xml">
+    Violates VC:No Duplicate Types in P51. Element a appears twice in the Mixed
+    content m SECTIONS="4.1" OUTPUT="invalid/P69/out/ibm69i02.xml">
+    Tests invalid PEReference which is against P69 VC: Entity Declared. The PE with 
+    the name "pe1" is referred before declared in the file ibm69i02.dtd
+  </TEST>
+  <TEST URI="invalid/P69/ibm69i03.xml" TYPE="error" ID="ibm-invalid-P69-ibm69i03.xml" ENTITIES="both" SECTIONS="4.1" OUTPUT="invalid/P69/out/ibm69i03.xml">
+    Tests invalid PEReference which is against P69 VC: Entity Declared. The Name 
+    "pe3" in the PEReference in the file ibm69i03.ent does not match the Name of
+    any declared PE. 
+  </TEST>
+  <TEST URI="invalid/P69/ibm69i04.xml" TYPE="error" ID="ibm-invalid-P69-ibm69i04.xml" ENTITIES="both" SECTIONS="4.1" OUTPUT="invalid/P69/out/ibm69i04.xml">
+    Tests invalid PEReference which is against P69 VC: Entity Declared. The PE with 
+    the name "pe2" is referred before declared in the file ibm69i04.ent.
+  </TEST>
+</TESTCASES>
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 76">
+  <TEST URI="invalid/P76/ibm76i01.xml" TYPE="invalid" ID="ibm-invalid-P76-ibm76i01.xml" ENTITIES="none" SECTIONS="4.2.2" OUTPUT="invalid/P76/out/ibm76i01.xml">
+    Tests invalid NDataDecl which is against P76 VC: Notation declared. The Name
+    "JPGformat" in the NDataDecl in the EntityDecl for "ge2" does not match the  
+    Name of any declared notation. 
+  </TEST>
+</TESTCASES>
+
+</TESTCASES>

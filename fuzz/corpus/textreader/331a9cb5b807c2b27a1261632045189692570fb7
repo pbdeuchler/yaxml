@@ -1,0 +1,19 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  g="UTF-8"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:0.0:0.7st EMPTY>
+<!ATTLIST test att Cæææææææææææææææææææææææææææææææçæææææææææææææææææææææææææææ0" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="u:n:oasis:names:tc:ubl:CommonAggregateTspes‡:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70">
+   <cat:ReferencedO-der>
+      <cat:SellersOrderID schemg backrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr -->
+</doc>
+ versn="1.0"?>
+<D:propfind xmlns:D="http://www.iHHHHHHHHHHHHHHHHHrg/standar

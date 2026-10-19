@@ -1,8 +1,6 @@
 use std::num::NonZeroU64;
 use std::ops::Range;
 
-use crate::{Error, ErrorKind};
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct EntityId(pub(crate) usize);
 
@@ -90,88 +88,57 @@ impl OriginRepr {
                 if left.end == right.start =>
             {
                 Self::Input {
-                    span: ByteSpan {
-                        start: left.start,
-                        end: right.end,
-                    },
+                    span: left.cover(right),
                 }
             }
+            // An invocation is unique, so it fixes the declaration and reference.
             (
                 Self::Replacement {
-                    declaration: left_declaration,
-                    invocation: left_invocation,
+                    declaration,
+                    invocation,
                     local: left,
-                    physical_reference: left_physical,
+                    physical_reference,
                 },
                 Self::Replacement {
-                    declaration: right_declaration,
-                    invocation: right_invocation,
+                    invocation: next,
                     local: right,
-                    physical_reference: right_physical,
+                    ..
                 },
-            ) if left_declaration == right_declaration
-                && left_invocation == right_invocation
-                && left_physical == right_physical
-                && left.end == right.start =>
-            {
-                Self::Replacement {
-                    declaration: left_declaration,
-                    invocation: left_invocation,
-                    local: ByteSpan {
-                        start: left.start,
-                        end: right.end,
-                    },
-                    physical_reference: left_physical,
-                }
-            }
+            ) if invocation == next && left.end == right.start => Self::Replacement {
+                declaration,
+                invocation,
+                local: left.cover(right),
+                physical_reference,
+            },
             (left, right) => Self::Mixed {
                 physical_context: left.physical_span().cover(right.physical_span()),
             },
         }
     }
 
-    fn close_element(self, end: Self) -> Result<Self, Error> {
-        let invalid = || Error::new(ErrorKind::InvalidState, end.error_offset());
+    /// An element's opening and closing tags lie in one source occurrence:
+    /// entity frames reject unbalanced replacement text. A recovered parse
+    /// stopping inside replacement text keeps the opening span.
+    fn close_element(self, end: Self) -> Self {
         match (self, end) {
-            (Self::Input { span: opening }, Self::Input { span: closing })
-                if closing.start >= opening.end =>
-            {
-                Ok(Self::Input {
-                    span: ByteSpan {
-                        start: opening.start,
-                        end: closing.end,
-                    },
-                })
-            }
+            (Self::Input { span }, Self::Input { span: closing }) => Self::Input {
+                span: span.cover(closing),
+            },
             (
                 Self::Replacement {
-                    declaration: opening_declaration,
-                    invocation: opening_invocation,
-                    local: opening,
-                    physical_reference: opening_physical,
+                    declaration,
+                    invocation,
+                    local,
+                    physical_reference,
                 },
-                Self::Replacement {
-                    declaration: closing_declaration,
-                    invocation: closing_invocation,
-                    local: closing,
-                    physical_reference: closing_physical,
-                },
-            ) if opening_declaration == closing_declaration
-                && opening_invocation == closing_invocation
-                && opening_physical == closing_physical
-                && closing.start >= opening.end =>
-            {
-                Ok(Self::Replacement {
-                    declaration: opening_declaration,
-                    invocation: opening_invocation,
-                    local: ByteSpan {
-                        start: opening.start,
-                        end: closing.end,
-                    },
-                    physical_reference: opening_physical,
-                })
-            }
-            _ => Err(invalid()),
+                Self::Replacement { local: closing, .. },
+            ) => Self::Replacement {
+                declaration,
+                invocation,
+                local: local.cover(closing),
+                physical_reference,
+            },
+            _ => self,
         }
     }
 
@@ -242,8 +209,8 @@ impl SourceOrigin {
 
     /// Closes an element within the same exact source occurrence. Element bodies
     /// may create a gap between opening and closing tag spans.
-    pub(crate) fn close_element(self, end: Self) -> Result<Self, Error> {
-        self.0.close_element(end.0).map(Self)
+    pub(crate) fn close_element(self, end: Self) -> Self {
+        Self(self.0.close_element(end.0))
     }
 
     /// Joins adjacent parsed Text origins, falling back to an inexact Mixed cover.

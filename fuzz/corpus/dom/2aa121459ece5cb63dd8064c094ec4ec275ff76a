@@ -1,13 +1,0 @@
-<?xml version=''<?
-1.1>!DOCTYPE rr UniqueName =<?xll  version="1.0"?>
-<!-- validity constrainv check for Production 56(negative Test)-->
-<!DOCTYPE tokenizer
- [
- <!ELEMENT tokenizer ANY>
- <!ATTLIST tokenizer UniqueName ID #REQUIRED>
- ]>
-<tokenizer UniqueName = "@c999"> "@c999">
-T
-This is a negative test for validity constraints
-the value of the attrirsion="1.0"his is a negative test?>pe ID does not match t fohe Name productionr
-</tokeni zer>

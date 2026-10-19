@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-    <!ENTITY % z '
-   ;z; &#37;LUDE[<!ATTLIST foo bar CDATA #IMPLIED>]]>
-<![IGNORE[some junz; &#37;z; &#37;z; &#37;z;
-        &#37;z; &#37;z; &#37;z; &#37;z; &#37;z;
-    '>
-    %z;
-]>
-<doÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿc/>

@@ -1,0 +1,1 @@
+ë<!DOCTYPE r [<!ENTITY a 'xyz'>]><r>&a; text <bPE r [<!ENTITY a 'xyz'>]><r>&a/////////////>]><r>&a; texmlns:xi='http://www.w6.o.g/2001/XInclude'>,!--2-->

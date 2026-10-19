@@ -25,7 +25,7 @@ pub(crate) enum ScanKind {
 
 #[derive(Clone, Copy, Debug)]
 enum State {
-    HeaderPrefix(usize),
+    /// The header, from its `<!DOCTYPE` (which the caller verified).
     Header(Option<u8>),
     Between,
     Whitespace,
@@ -48,8 +48,6 @@ pub(crate) struct DtdScanner {
     start: usize,
     position: usize,
     ready: Option<ScanKind>,
-    complete: bool,
-    finalizing: bool,
 }
 
 impl DtdScanner {
@@ -59,15 +57,13 @@ impl DtdScanner {
             max_unit_bytes,
             max_work,
             state: match mode {
-                ScanMode::Doctype => State::HeaderPrefix(0),
+                ScanMode::Doctype => State::Header(None),
                 ScanMode::SubsetFragment => State::Between,
             },
             buffer: Vec::new(),
             start: 0,
             position: 0,
             ready: None,
-            complete: false,
-            finalizing: false,
         }
     }
 
@@ -89,8 +85,6 @@ impl DtdScanner {
         );
         self.start = 0;
         self.position = 0;
-        self.complete = false;
-        self.finalizing = false;
     }
 
     pub(crate) fn position(&self) -> usize {
@@ -103,20 +97,18 @@ impl DtdScanner {
             .map(|kind| (kind, self.buffer.as_slice(), self.start..self.position))
     }
 
+    /// Releases the ready unit.
     pub(crate) fn release(&mut self) {
-        if self.ready.take().is_some() {
-            self.buffer.clear();
-        }
+        self.ready = None;
+        self.buffer.clear();
     }
 
-    /// Stop at one unit; ready, completed, or finalizing scanners consume no suffix.
+    /// Stop at one unit; the controller advances only without a ready unit
+    /// and before the scanner completes or finalizes.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
-        if self.ready.is_some() || self.complete || self.finalizing {
-            return Ok(0);
-        }
         for (index, &byte) in input.iter().enumerate() {
             if matches!(self.state, State::Whitespace) && !space(byte) {
-                self.mark(ScanKind::Whitespace)?;
+                self.ready = Some(ScanKind::Whitespace);
                 self.state = State::Between;
                 return Ok(index);
             }
@@ -131,20 +123,13 @@ impl DtdScanner {
 
     /// Declare final EOF, draining a trailing whitespace unit before closure checks.
     pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
-        self.finalizing = true;
-        if self.ready.is_some() || self.complete {
-            return Ok(());
-        }
         match self.state {
             State::Whitespace => {
-                self.mark(ScanKind::Whitespace)?;
+                self.ready = Some(ScanKind::Whitespace);
                 self.state = State::Between;
                 Ok(())
             }
-            State::Between if self.mode == ScanMode::SubsetFragment => {
-                self.complete = true;
-                Ok(())
-            }
+            State::Between if self.mode == ScanMode::SubsetFragment => Ok(()),
             _ => {
                 let raw = self.validate_utf8()?;
                 if matches!(self.state, State::ParameterReference) && raw.len() > 1 {
@@ -193,16 +178,6 @@ impl DtdScanner {
 
     fn consume(&mut self, byte: u8) -> Result<(), Error> {
         self.state = match self.state {
-            State::HeaderPrefix(index) => {
-                if byte != b"<!DOCTYPE"[index] {
-                    return Err(self.syntax());
-                }
-                if index + 1 == b"<!DOCTYPE".len() {
-                    State::Header(None)
-                } else {
-                    State::HeaderPrefix(index + 1)
-                }
-            }
             State::Header(Some(quote)) if byte == quote => State::Header(None),
             State::Header(Some(quote)) => State::Header(Some(quote)),
             State::Header(None) => match byte {
@@ -213,7 +188,6 @@ impl DtdScanner {
                 }
                 b'>' => {
                     self.mark(ScanKind::Header)?;
-                    self.complete = true;
                     State::Between
                 }
                 _ => State::Header(None),
@@ -263,7 +237,6 @@ impl DtdScanner {
             State::ParameterReference => State::ParameterReference,
             State::Closing if byte == b'>' => {
                 self.mark(ScanKind::End)?;
-                self.complete = true;
                 State::Between
             }
             State::Closing if space(byte) => State::Closing,

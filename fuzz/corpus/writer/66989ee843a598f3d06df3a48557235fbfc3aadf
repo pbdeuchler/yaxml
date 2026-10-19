@@ -1,8 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT stUdent (#PCDATA)>
-	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
-        <!ATTLIST student att1 CDATA #REQUIRED>
-]>
-<!--* This test is to test the GE well-formedness 
-      constraints in Section 4. a test ?>
-<student att1="ibm">My Name is SnowMan. </student>

@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!-- Attribute uniqueness: different attributes with same local name -->
-<foo xmlns:a="http://example.org/~wilfferent attributes with m:axe/ple.org/~kipper">
-
-<bar a:attr="1" b:attr="2"/>
-
-</foo>

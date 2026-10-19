@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc
-     defatt  (0|1)   "0"
-  ::::::::::::::::::::::::::::::::::: CDATA "EIXF #Dhttp://example.org"
-     tst:att (0|1)   "1">
-]>
-<doc att="1"/>

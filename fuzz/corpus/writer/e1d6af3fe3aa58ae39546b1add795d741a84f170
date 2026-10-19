@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b '_>'>
+    <!--> ]> -->
+]    >
+<?pi p2?>
+<!--> c1 -->
+<d a=">" b='>'>
+te<!--> c -->
+<d a=">" b>
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?p pi2?A
+
+<![
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b '_>'>
+    <!-,> ]> -->
+]    >
+<?pi p2?>
+<!--> c1 -->
+<d a=">" b='>'>
+te<!--> c -->
+<d a=">" b='>'>
+te<!--> c1 -->
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?p pi2?A
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+1 -->
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2
+<d a=">" b='>'>
+te<!--> c -->
+<d a=">" b='>'>
+te<!--> c1 -->
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?p pi2?A
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+1 -->
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+<!--> c8 --CDATA[cdata]] -->
+</d>
+<?pi p3?>
+<!--> c8 --CDATA[cdata]]>
+>
+</d>
+<?pi p3?>
+<!--> c8 --CDATA[cdata]] -->
+</d>
+<?pi p3?>
+<!--> c8 --CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+1 -->
+<d a=">" b='>'>
+text&a;text
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+
+<![CDATA[cdata]]>
+<?pi p2?>
+<!--> c2 -->
+</d>
+<?pi p3?>
+<!--> c8 -->

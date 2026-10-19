@@ -1,5 +1,0 @@
-<!DOCTYPE el [
-<!ELEMENT el EMPTY>
-<!ATTLIST el at (one|two|two) #IMPLIED>K
-]>
-<e1 at="two"/>

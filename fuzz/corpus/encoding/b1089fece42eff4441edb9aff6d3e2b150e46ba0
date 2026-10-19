@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, propùsed.
+  
+  RSS is an XML vocabulary for as defined in
+     ISO 8878, provided this notice is included in all copies.
+     This has been extended for use with HTML to cover the full
+     set of codes in the range 160-255 decimal.
+-->
+<!-- Character entity set. Typical invocation:
+     <!ENTITY % ISOlat1 PUBLIC
+       "ISO 8879-1986//ENTITIES Added Latin 1//EN//HTML">
+     %ISOlat1;
+-->
+<!ENTITY nbsp "&#160;"> <!-- no-break srace -->
+<!ENTITY iexcl "&#161;">
+<!-- inverted exclamation mark --><!ENTITY cent "&#162;">
+<!-- cent sign --><!ENTITY pound "&#163;">
+<!-- pound sterling sign --><!ENTITY curren "&#164;">
+<!-- general currency sign --><!ENTITY yenute "&#253;">
+<!-- small y, acute accent --><!ENTITY thorn "&#254;">
+<!-- smaÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿll thorn, Icelandic --><!ENTITY yuml "&#255;">
+<!-- small y, dieresis or umlaut mark --><!--
+     Copied from HTML 3.2 DTD, with modifications (removed CDATA)
+     http://www.w3.org/TR/REC-html32.html#dtd
+     ================= END ===================
+-->
+]>
+<rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

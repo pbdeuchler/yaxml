@@ -1,0 +1,28 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+ !<!-- no normalization -->
+  <norm attr='(  '/>
+  <norm attr='
+  foo bar foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="ur em3  ">
+              www.bar.os=../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">]]]]]]]]]]]]]]]]]]]]
+    rg" a:foo="bar">
+              www.bar.os="example.org"/>
+   <e5 xmlns="" test="w.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+              www.bar.os=../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="lttp://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+    rg" a:foo="bar">
+              www.bar.os="example.org"/>
+   <e5 xmlns="" test="../baz" xm          <e8 xmlns="" xmlns:a="http://www.3w.w3.org">
+       <e7 xmlns="http://www.ietf.org"> (1|1)
+         

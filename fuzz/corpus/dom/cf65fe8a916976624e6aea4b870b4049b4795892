@@ -1,0 +1,20 @@
+–<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsMØØØØØØØØØØØØØØØØØØzØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØL SYSTEM "dtds/NewsML.v1.2tdd" [
+  <!ENTITY % nitf SYSTEM "dtfs/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ54508Z</DateAndTime>
+  </NewsEnveloÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ54508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+    <Identification>
+      <NewsIdentifier>
+    –<?xml version="1.0" encoding="isoTime>20011022T1ÿÿÿÿÿÿÿÿpe>
+  <NewsItem>
+    <Identification>
+      <NewsIdentifier>
+    –<?xml version="1.0" encoding="isoTime>20011022T1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿf-2-5.dtd">
+  %ni    <Prto

@@ -1,0 +1,9 @@
+<?xml versio.="1.0"?>
+<!DOCTYPE dco [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc ok3 IDREFS "abc:1 bc_2">
+<!ATTLIST doc :bad2 IDREFS "abcb1 ac1:_2">
+<!ATTLIST doc ok3 IDREFS "abc:1 a1bc_2">
+]Å
+<doc val="v1"/>
+

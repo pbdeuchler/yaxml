@@ -6,7 +6,7 @@ use crate::dtd::{
     DefaultDeclarationView, DtdLimits, DtdUnit, DtdUnitView, EntityDefinitionView, ReferenceKind,
 };
 use crate::dtd_reference::{ReferenceKind as Spelled, classify};
-use crate::escape::{predefined, xml_char};
+use crate::escape::predefined;
 use crate::resolve::Loader;
 use crate::valid::{AttributeDecl, Code, Dtd, ElementDecl};
 use crate::{DtdError, ErrorKind, Limit};
@@ -47,7 +47,6 @@ const ALLOCATION: ErrorKind = ErrorKind::Allocation;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EntityLookup<'a> {
-    Predefined,
     Internal { id: EntityId, replacement: &'a str },
     ExternalUnavailable { id: EntityId },
     Unparsed,
@@ -71,13 +70,6 @@ impl StoredDefault {
     pub(crate) fn value(&self) -> Option<&str> {
         match self {
             Self::Value { value, .. } => Some(value),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn kept(&self) -> Option<&str> {
-        match self {
-            Self::Value { kept, .. } => kept.as_deref(),
             _ => None,
         }
     }
@@ -221,11 +213,10 @@ impl DtdCatalog {
         }
     }
 
+    /// A general entity; predefined names are character references, never
+    /// looked up here.
     pub(crate) fn lookup_general(&self, name: &str) -> EntityLookup<'_> {
-        match predefined(name) {
-            Some(_) => EntityLookup::Predefined,
-            None => self.lookup(false, name),
-        }
+        self.lookup(false, name)
     }
     pub(crate) fn lookup_parameter(&self, name: &str) -> EntityLookup<'_> {
         self.lookup(true, name)
@@ -252,7 +243,8 @@ impl DtdCatalog {
     /// Whether a reference to general entity `name` is kept: it is declared
     /// and expandable.
     pub(crate) fn keeps(&self, name: &str) -> bool {
-        matches!(self.lookup_general(name), EntityLookup::Internal { .. })
+        predefined(name).is_none()
+            && matches!(self.lookup_general(name), EntityLookup::Internal { .. })
     }
 
     /// Whether non-namespace default attributes are added (`DTDATTR`).
@@ -747,13 +739,9 @@ impl<'raw> ValueProcessor<'_, 'raw> {
             entity: None,
             cursor: 0,
         });
-        let mut output = if self.request.borrow_physical {
-            ValueOutput::Matching {
-                raw: self.raw,
-                matched: 0,
-            }
-        } else {
-            ValueOutput::Owned(String::new())
+        let mut output = ValueOutput {
+            owned: String::new(),
+            matching: self.request.borrow_physical.then_some((self.raw, 0)),
         };
         let mut pending_space = false;
         while let Some(frame) = self.frames.last().copied() {
@@ -773,10 +761,9 @@ impl<'raw> ValueProcessor<'_, 'raw> {
             let fail = |kind| Stop::Fail(DtdError::new(kind, at));
             let remaining = &text[frame.cursor..];
             let character = remaining.chars().next().expect("nonempty UTF-8 frame");
+            // Literals and replacement texts hold only XML characters,
+            // checked when their declarations or tags were read.
             let mut consumed = character.len_utf8();
-            if !xml_char(character) {
-                return Err(fail(ErrorKind::InvalidCharacter));
-            }
             let is_entity = matches!(self.mode, ValueMode::Entity);
             if character == '&' || (is_entity && character == '%') {
                 let (spelling, reference) =
@@ -897,13 +884,11 @@ impl<'raw> ValueProcessor<'_, 'raw> {
             self.frames.last_mut().expect("active value frame").cursor += consumed;
             self.emit(&mut output, &mut pending_space, character, at)?;
         }
-        if matches!(&output, ValueOutput::Matching { raw, matched } if *matched != raw.len()) {
-            self.materialize(&mut output, root)?;
+        match output.matching {
+            Some((raw, matched)) if matched == raw.len() => Ok(Cow::Borrowed(raw)),
+            Some(matching) => Ok(Cow::Owned(self.materialize(matching, root)?)),
+            None => Ok(Cow::Owned(output.owned)),
         }
-        Ok(match output {
-            ValueOutput::Owned(value) => Cow::Owned(value),
-            ValueOutput::Matching { raw, .. } => Cow::Borrowed(raw),
-        })
     }
 
     fn emit(
@@ -939,7 +924,7 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         character: char,
         at: Option<usize>,
     ) -> Result<(), DtdError> {
-        if let ValueOutput::Matching { raw, matched } = output {
+        if let Some((raw, matched)) = &mut output.matching {
             let needed = matched
                 .checked_add(character.len_utf8())
                 .filter(|length| *length <= self.limits.token)
@@ -958,11 +943,11 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                 *matched = needed;
                 return Ok(());
             }
-            self.materialize(output, Some(self.offset))?;
+            let matching = (*raw, *matched);
+            output.owned = self.materialize(matching, Some(self.offset))?;
+            output.matching = None;
         }
-        let ValueOutput::Owned(output) = output else {
-            unreachable!("materialized output")
-        };
+        let output = &mut output.owned;
         let needed = output
             .len()
             .checked_add(character.len_utf8())
@@ -984,32 +969,29 @@ impl<'raw> ValueProcessor<'_, 'raw> {
         Ok(())
     }
 
+    /// An owned copy of the `matched` prefix of `raw`.
     fn materialize(
         &mut self,
-        output: &mut ValueOutput<'raw>,
+        (raw, matched): (&str, usize),
         at: Option<usize>,
-    ) -> Result<(), DtdError> {
-        let ValueOutput::Matching { raw, matched } = output else {
-            return Ok(());
-        };
+    ) -> Result<String, DtdError> {
         increment(
             &mut self.usage.work,
-            *matched,
+            matched,
             self.limits.work,
             EXPANSION,
             at,
         )?;
         let mut owned = String::new();
-        if *matched != 0 {
-            let target = (*matched).max(64).min(self.limits.token);
+        if matched != 0 {
+            let target = matched.max(64).min(self.limits.token);
             self.request_capacity(target, at)?;
             owned
                 .try_reserve_exact(target)
                 .map_err(|_| DtdError::new(ALLOCATION, at))?;
-            owned.push_str(&raw[..*matched]);
+            owned.push_str(&raw[..matched]);
         }
-        *output = ValueOutput::Owned(owned);
-        Ok(())
+        Ok(owned)
     }
 
     /// Spends `bytes` of the caller's value capacity, when it set one.
@@ -1021,16 +1003,16 @@ impl<'raw> ValueProcessor<'_, 'raw> {
     }
 }
 
-enum ValueOutput<'raw> {
-    Owned(String),
-    Matching { raw: &'raw str, matched: usize },
+/// A value being built: while `matching`, the prefix of the physical
+/// literal it equals; otherwise `owned`.
+struct ValueOutput<'raw> {
+    owned: String,
+    matching: Option<(&'raw str, usize)>,
 }
 impl ValueOutput<'_> {
     fn len(&self) -> usize {
-        match self {
-            Self::Owned(value) => value.len(),
-            Self::Matching { matched, .. } => *matched,
-        }
+        self.matching
+            .map_or(self.owned.len(), |(_, matched)| matched)
     }
 }
 
@@ -1040,13 +1022,10 @@ enum Reference<'a> {
 }
 
 /// The reference spelled at the start of `raw` through its `;`, and its value.
-/// A parameter reference names an entity; it is never a character.
+/// A parameter reference, validated with its declaration, names an entity.
 fn parse_reference(raw: &str) -> Option<(&str, Reference<'_>)> {
     let spelling = &raw[..=raw.find(';')?];
     let name = &spelling[1..spelling.len() - 1];
-    if raw.starts_with('%') && name.starts_with('#') {
-        return None;
-    }
     Some(match classify(spelling, 0, true).ok()? {
         Spelled::Numeric(character) => (spelling, Reference::Character(character)),
         _ => (spelling, Reference::Named(name)),

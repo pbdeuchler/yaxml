@@ -1,0 +1,6 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENSm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:4.0:0.70" xmlns:cct="urn:ntTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTspes:2.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70">
+   <cat:RefeOecnerd-der>
+      <cat:SellersOrderID schemg back ar

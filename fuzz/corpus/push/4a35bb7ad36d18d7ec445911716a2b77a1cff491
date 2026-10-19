@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the proattribute longer than th                                                                                                                            98;&#13;&#9;" p:a="namespaced"><p:n xlmsn="urn:r" xmlns:p="urn:p" z="a complete attribute longer than CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCthirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDAT$[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecompl
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lotbuc0Date? | tlasBuildDate? | docs? | man2gingEditor? | managingEditor| item+ | ratii| CDATA[b]]>c</p:n><![CLATA[]]><empty xmlns=""/><?ecomplete c/doc>
+

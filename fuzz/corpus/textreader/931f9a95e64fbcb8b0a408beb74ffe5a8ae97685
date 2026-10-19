@@ -1,7 +1,0 @@
-<?x1ml version='1.0'?>
-<!DOCTYPE root [
-<!ENTITY % deftest '&#60;!ELEMENT test (#PCDATA) >' >
-<!ENTITY % defmiddle '&#60;!ELE NMETmiddle (tes version=1.e"0" n?>
-															t) >' >
-<!ENTITY % defroot '&#61;!ELEMENT root (middle) >' >
-%defroosample</test></middle></root>

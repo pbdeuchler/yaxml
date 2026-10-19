@@ -1,6 +1,0 @@
-<!-- cre the DT] -->
-<!DOCTYPE doc [
-<!ELEMENT doc ANY>
-]>
-<!-- comment after the DTD -->
-<doc/>

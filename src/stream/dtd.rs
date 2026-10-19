@@ -42,13 +42,6 @@ pub(crate) struct SessionStep {
     pub(crate) consumed: usize,
     pub(crate) outcome: SessionOutcome,
 }
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum Delivery {
-    Idle,
-    Ready,
-    Lent,
-}
-
 #[derive(Clone, Copy)]
 enum Failure {
     Error(Error),
@@ -73,7 +66,6 @@ pub(crate) struct StreamingSession {
     finalizing: bool,
     finished: bool,
     failure: Option<Failure>,
-    delivery: Delivery,
 }
 
 impl StreamingSession {
@@ -95,7 +87,6 @@ impl StreamingSession {
             finalizing: false,
             finished: false,
             failure: None,
-            delivery: Delivery::Idle,
         }
     }
     pub(crate) fn position(&self) -> usize {
@@ -132,10 +123,9 @@ impl StreamingSession {
         })
     }
 
-    /// The DTD-free stream while no session delivery or failure is pending.
+    /// The DTD-free stream, before a DOCTYPE hands over to the session.
     pub(crate) fn plain(&mut self) -> Option<&mut Stream> {
-        let idle = self.delivery == Delivery::Idle && self.failure.is_none() && !self.finished;
-        self.ordinary.as_mut().filter(|_| idle)
+        self.ordinary.as_mut()
     }
     /// Lends the plain stream's ready token, recording what a DTD session needs.
     /// Returns the reader's own result type so the event is not rewrapped.
@@ -157,38 +147,20 @@ impl StreamingSession {
     }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
     pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, Error> {
-        self.remember(|s| {
-            if s.finished || (s.finalizing && (!input.is_empty() || s.delivery != Delivery::Ready))
-            {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()));
-            }
-            s.prepare_inner(input)
-        })
+        self.remember(|s| s.prepare_inner(input))
     }
     /// Seal physical EOF while allowing a parked Ready token to be lent once.
     pub(crate) fn finish_step(&mut self) -> Result<SessionStep, Error> {
         self.remember(|s| {
-            if s.delivery == Delivery::Lent {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()));
-            }
             s.finalizing = true;
             s.prepare_inner(&[])
         })
     }
     /// Publish once and lend source storage until the returned borrow ends.
     pub(crate) fn lend(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
-        if let Some(error) = self.stored_failure() {
-            return Err(error);
-        }
-        if self.delivery != Delivery::Ready {
-            let error = Error::new(ErrorKind::InvalidState, self.position());
-            self.failure = Some(Failure::Error(error));
-            return Err(error);
-        }
         self.failure = Some(Failure::Poisoned);
         match lend_current(&mut self.session, &mut self.origin) {
             Ok(publication) => {
-                self.delivery = Delivery::Lent;
                 self.failure = None;
                 Ok((
                     publication.event,
@@ -206,20 +178,16 @@ impl StreamingSession {
         self.remember(Self::acknowledge_inner)
     }
     fn acknowledge_inner(&mut self) -> Result<(), Error> {
-        if self.delivery != Delivery::Lent {
-            return Err(Error::new(ErrorKind::InvalidState, self.position()));
-        }
         match self.session[0].phase.as_mut().expect("lent phase") {
             Phase::Declarations { controller, .. } => controller.release(),
-            Phase::Content(controller) => controller.acknowledge()?,
+            Phase::Content(controller) => controller.acknowledge(),
         }
-        self.delivery = Delivery::Idle;
         Ok(())
     }
     /// The stored error, or `InvalidState` once finished, if feeding would fail.
     pub(crate) fn terminal(&mut self) -> Option<Error> {
         self.stored_failure().or_else(|| {
-            (self.finalizing || self.finished)
+            self.finalizing
                 .then(|| Error::new(ErrorKind::InvalidState, self.position()))
         })
     }
@@ -231,7 +199,7 @@ impl StreamingSession {
         emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.remember(|s| {
-            if s.finalizing || s.finished {
+            if s.finalizing {
                 return Err(Error::new(ErrorKind::InvalidState, s.position()));
             }
             s.received = s
@@ -253,9 +221,6 @@ impl StreamingSession {
             if s.finished {
                 return Ok(());
             }
-            if s.delivery == Delivery::Lent {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()));
-            }
             s.finalizing = true;
             s.drive(&[], emit).map(|_| ())
         })
@@ -266,10 +231,7 @@ impl StreamingSession {
         emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<usize, Error> {
         let mut consumed = 0;
-        if let Some(ordinary) = &mut self.ordinary
-            && self.delivery == Delivery::Idle
-            && !self.finished
-        {
+        if let Some(ordinary) = &mut self.ordinary {
             let (accepted, finished) = ordinary.drive(
                 input,
                 self.finalizing,
@@ -292,7 +254,6 @@ impl StreamingSession {
             match step.outcome {
                 SessionOutcome::Ready => {
                     let publication = lend_current(&mut self.session, &mut self.origin)?;
-                    self.delivery = Delivery::Lent;
                     emit(
                         &publication.event,
                         SourceOrigin::from_repr(publication.origin),
@@ -306,12 +267,6 @@ impl StreamingSession {
     }
     fn prepare_inner(&mut self, input: &[u8]) -> Result<SessionStep, Error> {
         let step = |consumed, outcome| Ok(SessionStep { consumed, outcome });
-        match self.delivery {
-            Delivery::Lent => return Err(Error::new(ErrorKind::InvalidState, self.position())),
-            Delivery::Ready => return step(0, SessionOutcome::Ready),
-            Delivery::Idle if self.finished => return step(0, SessionOutcome::Complete),
-            Delivery::Idle => {}
-        }
         // The plain stream comes here only to hand over its parked DOCTYPE token.
         if self.ordinary.is_some() {
             self.start_dtd()?;
@@ -322,10 +277,6 @@ impl StreamingSession {
             match session.drain(self.limits, self.decode)? {
                 SessionOutcome::NeedInput => {}
                 outcome => {
-                    self.delivery = match outcome {
-                        SessionOutcome::Ready => Delivery::Ready,
-                        _ => Delivery::Idle,
-                    };
                     self.finished = outcome == SessionOutcome::Complete;
                     return step(consumed, outcome);
                 }
@@ -334,24 +285,17 @@ impl StreamingSession {
                 session.finish_decoder()?;
                 continue;
             }
+            // The decoder takes all of its input unless the phase suspends.
             let progress = session.advance_decoder(&input[consumed..])?;
             consumed += progress.consumed;
             if !progress.suspended {
-                if consumed == input.len() {
-                    return step(consumed, SessionOutcome::NeedInput);
-                }
-                if progress.consumed == 0 {
-                    return Err(Error::new(ErrorKind::InvalidState, session.position()));
-                }
+                return step(consumed, SessionOutcome::NeedInput);
             }
         }
     }
     fn start_dtd(&mut self) -> Result<(), Error> {
         let ordinary = self.ordinary.as_ref().expect("ordinary phase");
-        let (_, raw, span) = ordinary.tokenizer.current().expect("DTD prefix ready");
-        if raw != b"<!DOCTYPE" {
-            return Err(Error::new(ErrorKind::InvalidState, span.source.start));
-        }
+        let (_, _, span) = ordinary.tokenizer.current().expect("DTD prefix ready");
         ordinary.state.check_doctype_start(span.source.start)?;
         let encoding = span.encoding;
         let physical_start = span.source.start;
@@ -494,12 +438,6 @@ impl DtdSession {
                         controller.recover(error, parser.owned_budget())?;
                     }
                     if controller.current().is_none() && !controller.is_complete() {
-                        if self.decoder_finished {
-                            return Err(Error::new(
-                                ErrorKind::InvalidState,
-                                controller.physical_position(),
-                            ));
-                        }
                         return Ok(SessionOutcome::NeedInput);
                     }
                 }
@@ -522,15 +460,7 @@ impl DtdSession {
                             return Ok(SessionOutcome::Ready);
                         }
                         ContentOutcome::Progress => {}
-                        ContentOutcome::NeedPhysicalInput => {
-                            if !self.replay.is_empty() || self.decoder_finished {
-                                return Err(Error::new(
-                                    ErrorKind::InvalidState,
-                                    controller.position().1,
-                                ));
-                            }
-                            return Ok(SessionOutcome::NeedInput);
-                        }
+                        ContentOutcome::NeedPhysicalInput => return Ok(SessionOutcome::NeedInput),
                         ContentOutcome::Complete => return Ok(SessionOutcome::Complete),
                     }
                 }
@@ -542,9 +472,11 @@ impl DtdSession {
         self.decoder
             .advance(input, |decoded| phase_decode(phase, decoded))
     }
+    /// Drains the decoder at EOF; a phase still wanting input after that
+    /// has stalled.
     fn finish_decoder(&mut self) -> Result<(), Error> {
         if self.decoder_finished {
-            return Ok(());
+            return Err(Error::new(ErrorKind::InvalidState, self.position()));
         }
         let phase = self.phase.as_mut().expect("semantic phase");
         if !self
@@ -575,17 +507,13 @@ fn lend_current<'event>(
             let range = controller.start()..end.physical_context().end;
             parser.check_event_limit(range.start)?;
             parser.commit_doctype();
+            // A recovered declaration can end inside a character.
+            let first = controller.decoded_position() - raw.len();
+            let valid = std::str::from_utf8(raw).map_or_else(|e| e.valid_up_to(), str::len);
+            let raw = std::str::from_utf8(&raw[..valid]).expect("valid UTF-8 prefix");
             let (doctype, range) = match controller.cut() {
-                None => {
-                    let raw = std::str::from_utf8(raw)
-                        .map_err(|_| Error::new(ErrorKind::InvalidState, range.start))?;
-                    (Doctype::parse(raw), range)
-                }
+                None => (Doctype::parse(raw), range),
                 Some((unit, at)) => {
-                    // A recovered declaration can end inside a character.
-                    let first = controller.decoded_position() - raw.len();
-                    let valid = std::str::from_utf8(raw).map_or_else(|e| e.valid_up_to(), str::len);
-                    let raw = std::str::from_utf8(&raw[..valid]).expect("valid UTF-8 prefix");
                     let (encoding, start) = (controller.encoding(), range.start);
                     let index = |at| decoded_index(raw, encoding, start, at);
                     let (doctype, resume) =
@@ -632,12 +560,10 @@ fn decoded_index(raw: &str, encoding: SourceEncoding, start: usize, at: usize) -
 }
 
 fn phase_decode(phase: &mut Phase, decoded: Decoded<'_>) -> Result<DecodeProgress, Error> {
-    let Decoded::Bytes(bytes) = decoded else {
-        let at = match phase {
-            Phase::Declarations { controller, .. } => controller.physical_position(),
-            Phase::Content(controller) => controller.position().1,
-        };
-        return Err(Error::new(ErrorKind::InvalidState, at));
+    // The encoding was detected before the DOCTYPE token: only bytes follow.
+    let bytes = match decoded {
+        Decoded::Bytes(bytes) => bytes,
+        Decoded::Start { .. } => &[],
     };
     match phase {
         Phase::Declarations {

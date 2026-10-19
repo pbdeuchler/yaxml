@@ -1,0 +1,10 @@
+<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE root SYSTEM "ibm68n06.dtd"
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+]>
+<root att=
+]>
+<root att="&aaa;">dntity declared es yes</root>"&aaa;">dntity declared es yes</root>

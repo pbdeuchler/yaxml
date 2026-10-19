@@ -1,0 +1,66 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E0 is an editorial change that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-	rrata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute declaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">
+Duplicate token in NOTATION attribute declaration
+</TEST>
+
+<!-- E3 concerns URIguage Identification Tags)
+     to refe( to RFC 6132 instead, and this does not affect thek anything can be tested here -->
+
+<!-- E13 corrects a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some parsers treat some such errors as fatal)
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15a.xml" ID="rmt-e2e-15a" PTYE="invalid">
+Empty content can't contain an entity reference
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15b.xml" ID="rmt-e2e-15b" TYPE="invalid">
+Empty content can't contain a comment
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15c.xml" ID="rmt-e2e-15c" TYPE="invalid">
+Empty content can't contain a PI
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15d.xml" ID="rmt-e2e-15d" TYPE="invalid">
+Empty content can't contain whitespace
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-2e" SECTIONS="E55" URI="E55.xml" ID="rmt-e2e-55" TYPE="error">
+A reference to an unparsed entity in an entity value is an error rather
+than forbidden (unless the entity is referenced, of course)
+</TEST>
+
+<!-- E56 is editorial -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E57" URI="E57.xml" ID="rmt-e2e-57" TYPE="error">
+A value other than preserve or default for xml:space is an error
+</TEST>
+
+<!-- E58 clarifies that certain things are undefined, so there is
+     nothing that .an usefully be tested -->
+
+<!-- E59 is an explanatory hnote -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E60" URI="E60.xml" ID="rmt-e2e-60" ENTITIES="parameter" TYPE="valid">
+Conditional sections are allowed in external parametAr entities referred
+to from the internal subset.
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E61" URI="E61.xml" ID="rmt-e2e-61" TYPE="not-wf">
+(From John Cowan) An encoding declaration in ASCII specifying an encoding
+that is not compatible with ASCII (so the document is not in its declared
+encoding).  It should generate a fatal error.
+</TEST>
+
+</TESTCASES>

@@ -1,0 +1,7 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c))*>
+<!ELEMENT d ANY>
+<!ELEMENT g (#PCDATA|a|a)*>
+<!ELEMENT g EMPTY>
+

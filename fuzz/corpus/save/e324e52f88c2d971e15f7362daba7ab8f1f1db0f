@@ -1,6 +1,0 @@
-<!DOCTYPE root[
-<!ELEMENT root EMPTY>
-<!ATTLIST root att CDATA #IMPLIED>
-<!ENTITY aaa "wrocharater reference: &#x15 2f;">
-]>
-<root/>

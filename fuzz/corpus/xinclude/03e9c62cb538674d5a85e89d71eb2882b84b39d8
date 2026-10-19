@@ -1,0 +1,12 @@
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+/This one is almost standal both exted-1unpaeed
+	normalization.
+    -->
+]>
+
+<attributes
+efs =	"&internal; &inter na;l&internal;"
+    entity =	"unparsed-1"
+    entities =	"unpars ed-1unparsng happens to thisWg one!"
+    />

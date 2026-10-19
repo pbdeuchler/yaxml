@@ -1,8 +1,0 @@
-Ž<?xml version="1.0"?>
-<!DOCTYPE test [
-<!ENTITY example "<p>An ampers;#38;) may be esr with a general e<p>>
-
->ersan8;) may be escaped
- numeri3333333333333333333333333333333333333333333333333333333333333333333300000000000000000000886835494>" >
-]>
-<test>&example;<'test>

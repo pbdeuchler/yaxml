@@ -1,0 +1,9 @@
+–<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.Yfp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>2 r><?pi?><r xmlns="u" xmlns:p="v" p:a="&amp;&#10;&#9;&quot;&#13;&lt;"><p:e/><e xmlns=""v1.2.dtd" ?><![CDATA[c]]>&#26;</r><!-0011022wsML>

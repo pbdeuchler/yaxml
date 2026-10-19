@@ -34,14 +34,9 @@ enum Scan {
     },
 }
 
-#[derive(Clone, Debug)]
-enum ReadySpan {
-    Input(TokenSpan),
-    Local(std::ops::Range<usize>),
-}
-
 /// Keeps one bounded decoded token. The scan
 /// state advances with each byte, including across one-byte input chunks.
+/// Replacement text is scanned as UTF-8 whose source offsets are its own.
 pub(crate) struct Tokenizer {
     buffer: Vec<u8>,
     start: usize,
@@ -50,10 +45,9 @@ pub(crate) struct Tokenizer {
     source_start: usize,
     source_position: usize,
     encoding: SourceEncoding,
-    local: bool,
     limit: usize,
     decoded_limit: usize,
-    ready: Option<(TokenKind, ReadySpan)>,
+    ready: Option<(TokenKind, TokenSpan)>,
     lookahead: Option<(usize, usize)>,
 }
 
@@ -67,7 +61,6 @@ impl Tokenizer {
             source_start: 0,
             source_position: 0,
             encoding: SourceEncoding::Utf8,
-            local: false,
             limit,
             decoded_limit,
             ready: None,
@@ -77,16 +70,6 @@ impl Tokenizer {
 
     pub(crate) fn source_position(&self) -> usize {
         self.source_position
-    }
-
-    pub(crate) fn scratch_capacity_requirement(&self) -> usize {
-        let configured = match self.encoding {
-            SourceEncoding::Utf8 => self.limit,
-            SourceEncoding::Utf16 { .. } => (self.limit / 2).saturating_mul(3),
-            SourceEncoding::Byte(_) => self.limit.saturating_mul(3),
-        }
-        .min(self.decoded_limit);
-        configured.max(self.buffer.capacity())
     }
 
     pub(crate) fn configure(&mut self, encoding: SourceEncoding, bom: usize) {
@@ -107,30 +90,16 @@ impl Tokenizer {
     }
 
     pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], &TokenSpan)> {
-        match self.ready.as_ref()? {
-            (kind, ReadySpan::Input(span)) => Some((*kind, self.buffer.as_slice(), span)),
-            (_, ReadySpan::Local(_)) => None,
-        }
-    }
-
-    fn local_mode(&self) -> bool {
-        self.local
+        let (kind, span) = self.ready.as_ref()?;
+        Some((*kind, self.buffer.as_slice(), span))
     }
 
     fn raw_length(&self) -> usize {
-        if self.local_mode() {
-            self.position - self.start
-        } else {
-            self.source_position - self.source_start
-        }
+        self.source_position - self.source_start
     }
 
     fn diagnostic_start(&self) -> usize {
-        if self.local_mode() {
-            self.start
-        } else {
-            self.source_start
-        }
+        self.source_start
     }
 
     pub(crate) fn release(&mut self) {
@@ -171,7 +140,8 @@ impl Tokenizer {
         };
         let start = next - usize::from(replay);
         if replay {
-            self.append(b'<')?;
+            // A released text token left capacity for its replayed `<`.
+            self.buffer.push(b'<');
         }
         self.append_slice(&input[..used])?;
         self.skip_borrowed(kind, start + length);
@@ -185,20 +155,13 @@ impl Tokenizer {
         &mut self,
         input: &[u8],
     ) -> Result<(usize, bool), Error> {
-        if self.ready.is_some() {
-            return Ok((0, false));
-        }
+        // Callers advance only without a ready token.
         if let Some((offset, source_offset)) = self.lookahead.take() {
-            // The `<` that ended a text token starts the next token.
+            // The `<` that ended a text token starts the next token, within
+            // the capacity and ceilings that nonempty token already met.
             self.start = offset;
             self.source_start = source_offset;
-            if self.raw_length() > self.limit {
-                return Err(Error::new(
-                    ErrorKind::LimitExceeded(Limit::TokenBytes),
-                    self.diagnostic_start(),
-                ));
-            }
-            self.append(b'<')?;
+            self.buffer.push(b'<');
             self.scan = Scan::Prefix;
         }
         let mut cursor = 0;
@@ -216,9 +179,7 @@ impl Tokenizer {
                 Some(TokenKind::Text) => {
                     let (offset, source_offset) = (self.position, self.source_position);
                     self.position += 1;
-                    if !self.local_mode() {
-                        self.source_position += self.encoding.source_length(b"<");
-                    }
+                    self.source_position += self.encoding.source_length(b"<");
                     self.mark_at(TokenKind::Text, offset, source_offset);
                     self.lookahead = Some((offset, source_offset));
                     cursor += 1;
@@ -371,17 +332,13 @@ impl Tokenizer {
             _ => self.append_slice(run)?,
         }
         self.position += run.len();
-        if !self.local_mode() {
-            self.source_position += raw;
-        }
+        self.source_position += raw;
         Ok(())
     }
 
-    /// Raw length of decoded token bytes: source bytes, or decoded bytes
-    /// for local replacement text.
+    /// Raw length of decoded token bytes in source bytes.
     fn width(&self, bytes: &[u8]) -> usize {
         match self.encoding {
-            _ if self.local_mode() => bytes.len(),
             SourceEncoding::Utf8 => bytes.len(),
             encoding => encoding.source_length(bytes),
         }
@@ -408,9 +365,7 @@ impl Tokenizer {
             })
             .expect("an offending byte");
         self.position += through;
-        if !self.local_mode() {
-            self.source_position += self.width(&run[..through]);
-        }
+        self.source_position += self.width(&run[..through]);
         Error::new(ErrorKind::LimitExceeded(limit), self.diagnostic_start())
     }
 
@@ -420,7 +375,6 @@ impl Tokenizer {
         (self.ready.is_none()
             && self.buffer.is_empty()
             && matches!(self.scan, Scan::Text)
-            && !self.local
             && self.encoding == SourceEncoding::Utf8
             && self.position == self.source_position)
             .then_some((self.position, self.lookahead.is_some()))
@@ -441,10 +395,8 @@ impl Tokenizer {
     }
 
     pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
+        // No input readies no token.
         self.advance(&[])?;
-        if self.ready.is_some() {
-            return Ok(());
-        }
         match self.scan {
             Scan::Text if self.buffer.is_empty() => Ok(()),
             Scan::Text => {
@@ -462,12 +414,19 @@ impl Tokenizer {
         }
     }
 
-    fn append(&mut self, byte: u8) -> Result<(), Error> {
-        if self.buffer.len() < self.buffer.capacity() && self.buffer.len() < self.decoded_limit {
-            self.buffer.push(byte);
-            return Ok(());
+    /// The kind of a start tag or CDATA section cut off at EOF, whose start
+    /// alone can fail a structural check.
+    pub(crate) fn cut_kind(&self) -> Option<TokenKind> {
+        match self.scan {
+            Scan::Delimited {
+                kind: TokenKind::Cdata,
+                ..
+            } => Some(TokenKind::Cdata),
+            Scan::Prefix | Scan::Tag { .. } if self.buffer.get(1) != Some(&b'/') => {
+                Some(TokenKind::Start)
+            }
+            _ => None,
         }
-        self.append_slice(std::slice::from_ref(&byte))
     }
 
     fn append_slice(&mut self, bytes: &[u8]) -> Result<(), Error> {
@@ -513,17 +472,13 @@ impl Tokenizer {
     }
 
     fn mark_at(&mut self, kind: TokenKind, end: usize, source_end: usize) {
-        if self.local {
-            self.ready = Some((kind, ReadySpan::Local(self.start..end)));
-            return;
-        }
         self.ready = Some((
             kind,
-            ReadySpan::Input(TokenSpan {
+            TokenSpan {
                 decoded: self.start..end,
                 source: self.source_start..source_end,
                 encoding: self.encoding,
-            }),
+            },
         ));
     }
 

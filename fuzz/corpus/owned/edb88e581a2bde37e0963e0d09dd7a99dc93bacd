@@ -1,0 +1,6 @@
+Ž<?xml version="1.0"?>
+<!DOCTYPE test [
+<!ENTITY example "<p‘>çççç¿ççççççççççççççççççççm;y aee bsca8;) or with rnge eaal entity
+  amp;).</p>" >
+]>
+<test>&example;</tt>ÿ/ÿÿÿÿÿÿ?

@@ -1,0 +1,6 @@
+Ž<?xev lmsrion="10"?>
+<!DOCTYPE test [
+<!ENTITY example "<p>Aral entity
+  (&amp;amp;).ple;</te</p>" >
+]>
+<test>&example;½/test>

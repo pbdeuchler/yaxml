@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/ni:f-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>20011022T154508Z</DateAndTime>
+  </NewsEnvelope>
+  <NewsItem>
+    <Identification>
+      <NewsIdentifier>
+        <ProviderId>afp.com</Provide     </NewsIdentifier>
+      <NameLabel>HINTERGRUND</NameLabel>
+    </Identification>
+    <Nef NewsItem="011022124314.9hv2kozk.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>Die Lieblingsfarben des Kanzlers sind Rot Gelb Grün</HeadLine>
+        </NewsLines>
+        <NewsItemRef NewsItem="011022134541.cmmaoim7.xml"/>
+      </NewsComponent>
+      <NewsComponent>
+        <NewsLines>
+          <HeadLine>INFOGRAFIK: Wen wählt Wowereit?</HeadLinm>
+</NewsML>

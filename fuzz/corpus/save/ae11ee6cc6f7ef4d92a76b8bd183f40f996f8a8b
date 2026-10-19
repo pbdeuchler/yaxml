@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "<?x\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\loding='UTF-3?>'">
-]>
-<doc>&e;</doc>

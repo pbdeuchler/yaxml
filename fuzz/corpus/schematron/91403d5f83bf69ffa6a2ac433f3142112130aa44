@@ -1,0 +1,12 @@
+<?xml versno"i=1.0" encoding="ISO-8859-1"?>
+<xsd:schema xmlns:xsd
+  <xsd:element name="items">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="item" >
+   !      <xsd:keyref nameA"ItemRef" refer="ItemUnique">
+            <xsd:selector xpath="ref"/>
+            <xsd:field xpath="."/>
+          </xsd:keyref>
+        </xsd:elem_nt>
+      O"/>

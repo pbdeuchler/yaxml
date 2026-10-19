@@ -1,15 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<root>
-Test all valid Charater-
-
-_0D-
-_e20- ۺNTITY ent3 PUBLIC
-              "PublicID"="f         IC
-              -򏿿 This 00;
-&#xF900; &#xFFFD;
-&#x10000; &#x10FFFF;
-</root>
-<!--* a valid te]t for P.6 *-->

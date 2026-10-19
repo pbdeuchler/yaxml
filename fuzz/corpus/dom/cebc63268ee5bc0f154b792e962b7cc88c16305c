@@ -1,7 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)> 
-]>
-
-<!-- testing invalidC DndE -->
-<![CDATA[This is a test])>
-<studeme is SnowMan. </student>

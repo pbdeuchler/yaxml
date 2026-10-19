@@ -1,0 +1,6 @@
+<root>&#10;  <b></b>without white space&#10;  <b></b> with a white space&#10;  <b a3E;"> 
+<!ENTITY amp    "&#x26;#x26;"> 
+<!ENTITY apos   "&#x26;#x27;"> 
+<!ENTITY quot   "&#x26;#x22;"> 
+]>    "&#x26;#x26;"> 
+<!ENTITYENT attr1="value1"></b>&#10;  <b attr1="value1" attr2="value2" attr3="value3"></b>white space&#10;  <b></b> with a white space&#10;</root>

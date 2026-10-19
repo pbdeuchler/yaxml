@@ -1,0 +1,22 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED   c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:q' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s='a c' e='p' es='u\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ST r iHHHHHHHHHHHHHHHHHHHH(66666666666666666666666666666666666666666666HH?HHHHHHHHHHHHHH\\\HHHHHH #IMPLIED s IDREFS #IM\\\\\\\\\\\\\\\\\\\ v~ !amp\\\\\\\\\\\\\\\HHHHHHHHH ID #IMPLIED f iDREF #IMPLIEHHHHHHHHHHHHHHHHHHHHHHH ID #IMPLIEHHHHH ID #IMPLIED f IDREF #IMPLIED s IDREFS #IM\REFS #IM\\ #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #="http://www.w6.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:ww.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendoHHHHHHHHH ID #IMPLIED f iDREF #IMPLIEHHHHHHHHHHHHHHHHHHHHHHHHHHH IDREF #IMPLIED s IDREFS #IM\\\\\\\\\\\\\\\\\\\ v !amp' t='0L2' ts=' x  y '></r>

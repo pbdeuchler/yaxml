@@ -1,0 +1,7 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xml:lang NMTOKEN #IMPLIED>
+]>
+<foO xm:Öagln"nds">
+ <foo xml:lang="art-lojban"/>
+/foo>

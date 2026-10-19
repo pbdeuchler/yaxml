@@ -1,0 +1,20 @@
+î<?xml version=".0' standalone='yes'?>
+
+<!DOCTYPE att.ibutes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.s vg9i evalidity constraints applying to attributes
+	in standalone do#cs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"ÿÿÿÿÿÿÿÿÿÿÿÿÿUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION baeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:eeeeee1.0"?>
+<!DOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<!doc/>

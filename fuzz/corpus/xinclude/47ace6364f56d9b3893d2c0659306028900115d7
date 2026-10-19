@@ -1,0 +1,24 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+  <!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!EN="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-0>
+<!ELEMENT tst 37;z!ELEMENT tst 37;z;
+        &#37;  
+	  	editML 1.1 dntains a C1 control, legal in XML 1.0, illegal iN="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-014"tains a C1 control, legal in XML 1.0, illegal iN="XML1.1" SECTIONS="2.3" URI="014.xml" ID="rmt-014" XY&#x010FFFF;
+</root>uclavalid ew Nels#37;
+        &#37;`  
+	  red attribute type.
+</tes	edited by Andrew Nels#37;z;
+   t>
+
+
+
+
+ '>
+ 
+
+   %u;
+]>
+<doc/>
+

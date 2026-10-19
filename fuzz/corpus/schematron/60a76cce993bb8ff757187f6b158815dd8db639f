@@ -1,0 +1,18 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed?>F<'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|y|x) 'z' o NOTATION (n|o) #IMPLIED
+  c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es EN”ITIES #IMPLIED
+  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED k (x|y|x) 'z' o NOTATION (n|o) #IMPLIED
+  c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p' j ID 'd'>
+<!ATTLIST r c CDATA 'w'>&undeclarr c CDATA 'again'>
+]>
+<r i='a' f='b' s='a c' e='p' esÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ by Region">
+        <myapp:piece label="NortheGGGGGGGGGrn Region" val;<r i'd' xmln'/></r>

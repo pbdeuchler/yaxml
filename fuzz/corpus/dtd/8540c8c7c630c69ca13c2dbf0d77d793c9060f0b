@@ -1,0 +1,5 @@
+<!DOCTYPE test [
+<!ELEMENT test (#PCDATA) >
+<!ENTITY % xx '&#37;zz; 1999//EN 643726    6prone" >' >
+%xx;
+]>icthod.</test>

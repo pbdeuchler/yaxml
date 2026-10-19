@@ -1,6 +1,0 @@
-<!-- Having an externalentities a warning. -->
-<!DOCTYPE doc SYSTEM "foo">
-<doc>
-    <elem attr="&undeclared;"/>
-    <elem>&undeclared;</elem>
-</doc>

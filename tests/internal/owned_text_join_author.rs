@@ -122,7 +122,7 @@ fn owned_pool_tail_extension_has_exact_zero_and_one_byte_boundaries() {
     let mut rejected = Pool::default();
     let mut zero = state(0);
     assert_eq!(
-        rejected.extend_tail(&(0..0), "x", 7, zero.owned_budget()),
+        rejected.extend(0..0, "x", 7, zero.owned_budget()),
         Err(Error::new(ErrorKind::LimitExceeded(Limit::OwnedBytes), 7))
     );
     assert!(rejected.0.is_empty());
@@ -130,23 +130,18 @@ fn owned_pool_tail_extension_has_exact_zero_and_one_byte_boundaries() {
     let mut accepted = Pool::default();
     let mut one = state(1);
     assert_eq!(
-        accepted
-            .extend_tail(&(0..0), "x", 7, one.owned_budget())
-            .unwrap(),
+        accepted.extend(0..0, "x", 7, one.owned_budget()).unwrap(),
         0..1
     );
     assert_eq!(accepted.0, "x");
 }
 
 #[test]
-fn owned_non_tail_text_range_fails_without_copying() {
+fn owned_non_tail_text_range_is_copied_to_the_tail() {
     let mut pool = Pool("ab".to_owned());
     let mut state = state(16);
-    assert_eq!(
-        pool.extend_tail(&(0..1), "c", 9, state.owned_budget()),
-        Err(Error::new(ErrorKind::InvalidState, 9))
-    );
-    assert_eq!(pool.0, "ab");
+    assert_eq!(pool.extend(0..1, "c", 9, state.owned_budget()), Ok(2..4));
+    assert_eq!(pool.0, "abac");
 }
 
 #[test]

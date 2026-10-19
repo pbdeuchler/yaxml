@@ -1,6 +1,0 @@
-><!-- comment before the DTD -->
-<!DOCTYPE oc [
-<!ELEMENT doc ANY>
-]>
-<!-- comment a~e DTD 1->
-<doc/>

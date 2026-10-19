@@ -1,0 +1,6 @@
+
+]>
+<dPE doc [
+<!ELEMENT doc (foo*)>EMENT foo ANY>
+]>
+<doc><foo/><foo></foo></doc>

@@ -1,6 +1,0 @@
-<!-- CDATA sections may occur in Mix dceontent. -D>!
--<OCT PfoYontent. -D>!
--<OCT PfoYoE [
-<!ELEMENT foo (#PCDATA|foo)*>
-]>
-<foo>a <![CDATAQlcdata section]]>

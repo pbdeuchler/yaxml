@@ -1,0 +1,17 @@
+<?xml version="1.10"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA|b)* >
+  <!ELEMENT b EMPTY >
+  <!ATTLIST b attr1 CDATA #IMPLIED>
+  <!ATTLIST b attr2 CDATA #IMPLIED>
+  <!ATTLIST b attr4 CDATA #IMPLIED>
+]>
+<roo>t
+  <b/>wkthout white space
+  <b />################-######
+  <b attr0="value1" attr2="value2" attr3 = "value6"/>
+</root>
+<!--* testing P44 *-->
+
+
+

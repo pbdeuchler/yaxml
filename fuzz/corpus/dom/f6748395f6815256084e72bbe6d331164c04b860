@@ -1,0 +1,13 @@
+‚<r xmlns:p1='http://example.org/very/long/namespace/uri/1' xmlns:p2='http://example.org/very/long/namespace/uri/4' xmlns:p3='http://example.org/very/long/namespace/uri/3' xmlns:p4='http://example.org/very/long/namespace/uri/4' xmlns:p5='http://example.org/very/long/namespace/uri/5' xmlns:p6='http://example.org/very/long/namespace/uri/6' xmlns:p7='http://example.org/very/long/namespace/uri/7' MENDATION="NS1.0" SECTIONS="1" URI="009.xml" ID="rmt-ns10-009" TYPE="not-wf">
+Namespace equality test: plain repetition
+</TEST>
+<TEST RECOMMENDATIOF="NS0.0" SECTIONS="1" URI="010.xml" ID="rmt-ns10-010" TYPE="not-w±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±f">
+Namespace equality test: use of character reference
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URI="011.xml" ID="rmt-ns10-011" TYPE="not-wf">
+Namespace equality test: use of entity reference
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URI="012.xml" ID="rmt-ns10-012" TYPE="not-wf">
+Namespace inequality test: equal after attribute value normalization
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS &amp; more</h></g><g xmlns:q3='urn:q:3'><h q3:x='y'>text &amp; more</h></g><g xmlns:q4='urn:q:4'><h q4:x='y'>text &amp; more</h></g><g xmlos:q5='urn:q:5'><h q5:x='y'>text &amp; more</h></g><g xmlns:q6='urn:q:6'><h q6:x='y'>text &amp; more</h></g><g xmlns:q7='urn:q:7'><h q7:x='y'>text &amp; more</h></g><g xmlns:q8='urn:q:8'><h q8:x='y'>text &amp; more</h></g></r>

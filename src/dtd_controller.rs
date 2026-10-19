@@ -55,10 +55,11 @@ pub(crate) enum DtdEvent<'a> {
     End,
 }
 
-#[derive(Clone, Copy)]
-enum Ready {
+/// The ready event; an item carries its unit for consumers that read
+/// declarations.
+enum Ready<'input> {
     Begin,
-    Item,
+    Item(DtdUnit<'input>),
     End,
 }
 #[derive(Clone, Copy)]
@@ -92,10 +93,7 @@ pub(crate) struct DtdControllerCore<'input> {
     unit_start: usize,
     limits: DtdLimits,
     counters: ControllerCounters,
-    ready: Option<Ready>,
-    /// The ready item's unit, for consumers that read declarations.
-    unit: Option<DtdUnit<'input>>,
-    origin: Option<FragmentOrigin>,
+    ready: Option<(Ready<'input>, FragmentOrigin)>,
     held_end: Option<FragmentOrigin>,
     started: bool,
     finalizing: bool,
@@ -169,8 +167,6 @@ impl<'input> DtdControllerCore<'input> {
             limits,
             counters: ControllerCounters::default(),
             ready: None,
-            unit: None,
-            origin: None,
             held_end: None,
             started: false,
             finalizing: false,
@@ -205,8 +201,7 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn recover(&mut self, error: Error, budget: &mut Budget) -> Result<(), Error> {
         budget.recover(error)?;
         self.cut = Some((self.started.then_some(self.kept()), error.offset));
-        self.ready = Some(Ready::End);
-        self.origin = FragmentOrigin::input(self.start..self.position);
+        self.ready = Some((Ready::End, input_origin(self.start..self.position)));
         Ok(())
     }
 
@@ -230,40 +225,34 @@ impl<'input> DtdControllerCore<'input> {
         self.resume = Some((decoded, physical));
     }
     pub(crate) fn current(&self) -> Option<(DtdEvent<'_>, FragmentOrigin)> {
-        let event = match self.ready? {
+        let (ready, origin) = self.ready.as_ref()?;
+        let event = match ready {
             Ready::Begin => DtdEvent::Header,
-            Ready::Item => DtdEvent::Item(self.unit.as_ref()?),
+            Ready::Item(unit) => DtdEvent::Item(unit),
             Ready::End => DtdEvent::End,
         };
-        Some((event, self.origin?))
+        Some((event, *origin))
     }
 
+    /// Releases the ready event; a header or salvaged item can hold the end.
     pub(crate) fn release(&mut self) {
-        let Some(ready) = self.ready.take() else {
-            return;
-        };
-        (self.origin, self.unit) = (None, None);
-        if matches!(ready, Ready::Begin | Ready::Item)
-            && let Some(end) = self.held_end.take()
-        {
-            self.ready = Some(Ready::End);
-            self.origin = Some(end);
-        } else if matches!(ready, Ready::End) {
-            self.complete = true;
+        match self.ready.take() {
+            Some((Ready::End, _)) => self.complete = true,
+            _ => self.ready = self.held_end.take().map(|end| (Ready::End, end)),
         }
     }
 
+    /// Scans `input`; callers stop before `finish_step`.
     pub(crate) fn advance(&mut self, input: &[u8], budget: &mut Budget) -> Result<usize, Error> {
-        self.drive(if self.finalizing { &[] } else { input }, budget)
+        self.drive(input, budget)
     }
 
+    /// Scans the rest of the stable input, which declarations end within:
+    /// drive stops early only at a ready event.
     pub(crate) fn advance_borrowed(&mut self, budget: &mut Budget) -> Result<usize, Error> {
         let (source, source_start) = self.stable.expect("stable input");
-        if self.finalizing {
-            return self.drive(&[], budget);
-        }
         let consumed = self.drive(&source.as_bytes()[self.position - source_start..], budget)?;
-        if self.ready.is_none() && !self.complete && self.position == source_start + source.len() {
+        if self.ready.is_none() {
             self.finalizing = true;
             self.drive(&[], budget)?;
         }
@@ -305,7 +294,7 @@ impl<'input> DtdControllerCore<'input> {
 
     fn drive(&mut self, input: &[u8], budget: &mut Budget) -> Result<usize, Error> {
         let mut cursor = 0;
-        while self.ready.is_none() && !self.complete {
+        while self.ready.is_none() {
             if self.frames.top().is_some() {
                 self.drive_replacement(budget)?;
                 continue;
@@ -316,12 +305,11 @@ impl<'input> DtdControllerCore<'input> {
             }
             if cursor == input.len() {
                 if self.finalizing {
+                    // Physical EOF either readies trailing whitespace or fails.
                     if let Err(error) = self.physical.finish_step() {
                         return Err(self.scan_error(Side::Physical, error));
                     }
-                    if self.physical.current().is_some() {
-                        continue;
-                    }
+                    continue;
                 }
                 return Ok(cursor);
             }
@@ -376,7 +364,7 @@ impl<'input> DtdControllerCore<'input> {
             if self.fragment.current().is_some() {
                 return self.process_ready(Side::Replacement, budget);
             }
-            self.frames.finish(None)?;
+            self.frames.leave();
             self.fragment.restart_fragment();
             return Ok(());
         }
@@ -414,13 +402,10 @@ impl<'input> DtdControllerCore<'input> {
             self.release_scanner(side);
             return Ok(());
         }
+        // Only the physical scanner reads `]>`.
         if kind == ScanKind::End {
-            if !matches!(side, Side::Physical) {
-                return Err(self.simple_error(ErrorKind::InvalidDtd));
-            }
             self.release_scanner(side);
-            self.ready = Some(Ready::End);
-            self.origin = Some(origin);
+            self.ready = Some((Ready::End, origin));
             return Ok(());
         }
         // Grammar is always checked before an input-mode-dependent raw copy.
@@ -489,19 +474,25 @@ impl<'input> DtdControllerCore<'input> {
             self.cut = Some((Some(self.position), at));
             self.held_end = FragmentOrigin::input(self.start..self.position);
         }
-        self.ready = Some(Ready::Item);
-        self.origin = Some(origin);
-        if let DtdUnitView::Header(header) = unit.view() {
-            self.started = true;
-            self.ready = Some(Ready::Begin);
-            if !header.has_internal_subset() {
-                let range = origin.input_range().expect("physical header");
-                let delimiter = range.end - self.encoding.source_length(b">");
-                self.origin = FragmentOrigin::input(range.start..delimiter);
-                self.held_end = FragmentOrigin::input(delimiter..range.end);
+        let subset = match unit.view() {
+            DtdUnitView::Header(header) => Some(header.has_internal_subset()),
+            _ => None,
+        };
+        self.ready = Some(match subset {
+            None => (Ready::Item(unit), origin),
+            Some(subset) => {
+                self.started = true;
+                match subset {
+                    true => (Ready::Begin, origin),
+                    false => {
+                        let range = origin.input_range().expect("physical header");
+                        let delimiter = range.end - self.encoding.source_length(b">");
+                        self.held_end = Some(input_origin(delimiter..range.end));
+                        (Ready::Begin, input_origin(range.start..delimiter))
+                    }
+                }
             }
-        }
-        self.unit = Some(unit);
+        });
         Ok(())
     }
 
@@ -536,8 +527,8 @@ impl<'input> DtdControllerCore<'input> {
                 self.release_scanner(side);
                 return Ok(());
             }
-            EntityLookup::Unparsed => return Err(fail(ErrorKind::UnparsedEntity)),
-            EntityLookup::Predefined | EntityLookup::Undeclared => {
+            // Parameter entities are never unparsed.
+            EntityLookup::Unparsed | EntityLookup::Undeclared => {
                 return Err(fail(ErrorKind::UnknownEntity));
             }
         };
@@ -636,6 +627,16 @@ impl<'input> DtdControllerCore<'input> {
             .filter(|work| *work <= self.limits.work)
             .ok_or(Error::new(WORK, origin.error_offset()))?;
         Ok(())
+    }
+}
+
+/// The origin of physical input `range`, which callers keep ordered.
+fn input_origin(range: std::ops::Range<usize>) -> FragmentOrigin {
+    FragmentOrigin::Input {
+        span: crate::dtd_frames::ByteSpan {
+            start: range.start,
+            end: range.end,
+        },
     }
 }
 

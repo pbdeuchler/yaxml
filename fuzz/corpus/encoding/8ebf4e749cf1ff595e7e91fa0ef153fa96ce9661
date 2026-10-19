@@ -1,0 +1,85 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preservu'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="ht___://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+   T e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveT______________________________tp://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+   T e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIJD>
+]>
+<doc xmlns="h.ttp?://wwtp://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveT______________________________tp://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c| self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(pa@rent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="ht://example.org/baz" xmlns:foo="http://example.org/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ arent's namespace axis -->
+              ancestor-ot(parent::node()/namespace::* | self::nodettp://ex/foo" xml:lang="en-ie">
+    (//. | //@* | //namespace::*) 
+ areAt's namespace axis -->
+              ancestor-ot(pa@rent::node()/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyynamespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.gz/bora" xmln*s:foo="http://example.or?xmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //examplemrl?.xooivnre s="0.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mpme.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:la"http://example.or?xmloivnre s=,"1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:laZng="en-ie">
+    (//. | //85.ietf.org" xmlns:w3c="http://www.w3.org" xml:base="somse">
+   <e1>
+    <e2 xmlns="" xml:id="abc" xml:base="bar/">
+         <e3 id="E3" xml:base="fo@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="enparent's namespace axis -->
+     //examplemrl?.xooivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlnse2>
+   </e1>
+</doc>
+     </e2>
+   A/e1>
+</doc>

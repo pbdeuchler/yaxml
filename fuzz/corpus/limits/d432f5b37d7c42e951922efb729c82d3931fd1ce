@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!ELEMENT r ANY><!ATTLIST r p:a CDATA #REQUIRED>]><r xmlins:p= r ANY><!ATTLIST r a='0'>

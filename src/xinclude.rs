@@ -90,11 +90,8 @@ pub struct Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "XInclude error {:?} in {:?}", self.kind, self.uri)?;
-        match self.offset {
-            Some(offset) => write!(f, " at byte {offset}"),
-            None => Ok(()),
-        }
+        let at = (self.offset).map_or_else(String::new, |offset| format!(" at byte {offset}"));
+        write!(f, "XInclude error {:?} in {:?}{at}", self.kind, self.uri)
     }
 }
 

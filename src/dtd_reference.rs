@@ -2,7 +2,7 @@
 use crate::escape::{invalid_char, numeric_reference, predefined};
 use crate::name::validate_name;
 use crate::{Error, ErrorKind, Limit};
-use std::ops::Range;
+use std::convert::Infallible;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReferenceKind {
@@ -16,7 +16,6 @@ pub(crate) enum ReferenceKind {
 pub(crate) struct ValidatedReference<'a> {
     kind: ReferenceKind,
     raw: &'a str,
-    start: usize,
 }
 
 impl<'a> ValidatedReference<'a> {
@@ -26,37 +25,31 @@ impl<'a> ValidatedReference<'a> {
     pub(crate) fn raw(self) -> &'a str {
         self.raw
     }
-    pub(crate) fn range(self) -> Range<usize> {
-        self.start..self.start + self.raw.len()
-    }
-}
-
-enum ReferenceBuffer {
-    Pending(Vec<u8>),
-    Ready { kind: ReferenceKind, raw: String },
 }
 
 /// Collects one reference spelling. Offsets are decoded positions; work is
 /// two units per byte plus one per byte classified.
 pub(crate) struct ReferenceScratch {
-    buffer: ReferenceBuffer,
+    bytes: Vec<u8>,
+    /// The kind of the complete spelling in `bytes`, once classified; it is
+    /// then valid UTF-8.
+    kind: Option<ReferenceKind>,
     start: usize,
     position: usize,
     max_bytes: usize,
     max_work: usize,
     work: usize,
-    complete: bool,
 }
 impl ReferenceScratch {
     pub(crate) fn new(start: usize, max_bytes: usize, max_work: usize) -> Self {
         Self {
-            buffer: ReferenceBuffer::Pending(Vec::new()),
+            bytes: Vec::new(),
+            kind: None,
             start,
             position: start,
             max_bytes,
             max_work,
             work: 0,
-            complete: false,
         }
     }
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
@@ -68,12 +61,12 @@ impl ReferenceScratch {
     pub(crate) fn work(&self) -> usize {
         self.work
     }
-    /// Whether a fresh, complete `&...;` spelling can be appended without
-    /// reaching any ceiling (two work units per byte plus classification).
+    /// Whether a fresh, complete `&...;` spelling (the caller starts it at
+    /// its `&`) can be appended without reaching any ceiling (two work units
+    /// per byte plus classification).
     pub(crate) fn fits(&self, spelling: &[u8]) -> bool {
         let length = spelling.len();
-        self.collected_bytes().is_empty()
-            && spelling.first() == Some(&b'&')
+        self.bytes.is_empty()
             && length <= self.max_bytes
             && self.start.checked_add(length).is_some()
             && self
@@ -82,63 +75,42 @@ impl ReferenceScratch {
                 .is_some_and(|work| work <= self.max_work)
     }
     pub(crate) fn collected_bytes(&self) -> &[u8] {
-        match &self.buffer {
-            ReferenceBuffer::Pending(bytes) => bytes,
-            ReferenceBuffer::Ready { raw, .. } => raw.as_bytes(),
-        }
+        &self.bytes
     }
     pub(crate) fn validated(&self) -> Option<ValidatedReference<'_>> {
-        match &self.buffer {
-            ReferenceBuffer::Ready { kind, raw } => Some(ValidatedReference {
-                kind: *kind,
-                raw,
-                start: self.start,
-            }),
-            ReferenceBuffer::Pending(_) => None,
-        }
+        let raw = std::str::from_utf8(&self.bytes).ok();
+        let (kind, raw) = self.kind.zip(raw)?;
+        Some(ValidatedReference { kind, raw })
     }
     pub(crate) fn release(&mut self) {
-        if let ReferenceBuffer::Ready { raw, .. } = &mut self.buffer {
-            let mut bytes = std::mem::take(raw).into_bytes();
-            bytes.clear();
-            self.buffer = ReferenceBuffer::Pending(bytes);
-        }
+        self.bytes.clear();
+        self.kind = None;
     }
     /// Reuses the scratch, released after a complete reference, at `start`.
     pub(crate) fn restart(&mut self, start: usize) {
-        debug_assert!(self.complete && self.collected_bytes().is_empty());
+        debug_assert!(self.bytes.is_empty());
         self.start = start;
         self.position = start;
-        self.complete = false;
     }
+    /// Collects bytes of a spelling that starts at its `&`, through its `;`.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
-        if self.complete {
-            return Ok(0);
-        }
         for (index, &byte) in input.iter().enumerate() {
             self.append(byte)?;
-            if self.collected_bytes().len() == 1 && byte != b'&' {
-                return Err(Error::new(ErrorKind::InvalidReference, self.start));
-            }
             if byte == b';' {
                 self.classify(true)?;
-                self.complete = true;
                 return Ok(index + 1);
             }
         }
         Ok(input.len())
     }
     /// Input ended inside the reference: report its first lexical error.
-    pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
-        if self.complete {
-            return Ok(());
-        }
+    pub(crate) fn finish_step(&mut self) -> Result<Infallible, Error> {
         self.classify(false)?;
         Err(Error::new(ErrorKind::UnexpectedEof, self.position))
     }
     fn append(&mut self, byte: u8) -> Result<(), Error> {
         let fail = |kind| Error::new(kind, self.position);
-        let length = self.collected_bytes().len() + 1;
+        let length = self.bytes.len() + 1;
         let end = self
             .start
             .checked_add(length)
@@ -151,51 +123,38 @@ impl ReferenceScratch {
         if length > self.max_bytes {
             return Err(fail(ErrorKind::LimitExceeded(Limit::TokenBytes)));
         }
-        let ReferenceBuffer::Pending(bytes) = &mut self.buffer else {
-            return Err(fail(ErrorKind::InvalidState));
-        };
-        if length > bytes.capacity() {
-            let target = bytes
+        if length > self.bytes.capacity() {
+            let target = self
+                .bytes
                 .capacity()
                 .saturating_mul(2)
                 .max(32)
                 .max(length)
                 .min(self.max_bytes);
-            bytes
-                .try_reserve_exact(target - bytes.len())
+            self.bytes
+                .try_reserve_exact(target - self.bytes.len())
                 .map_err(|_| fail(ErrorKind::Allocation))?;
         }
         self.work = work;
-        bytes.push(byte);
+        self.bytes.push(byte);
         self.position = end;
         Ok(())
     }
     fn classify(&mut self, closed: bool) -> Result<ReferenceKind, Error> {
         self.work = self
             .work
-            .checked_add(self.collected_bytes().len())
+            .checked_add(self.bytes.len())
             .filter(|n| *n <= self.max_work)
             .ok_or(Error::new(
                 ErrorKind::LimitExceeded(Limit::EntityExpansion),
                 self.start,
             ))?;
-        let ReferenceBuffer::Pending(bytes) = &mut self.buffer else {
-            return Err(Error::new(ErrorKind::InvalidState, self.start));
-        };
-        let raw = match String::from_utf8(std::mem::take(bytes)) {
-            Ok(raw) => raw,
-            Err(error) => {
-                let offset = self.start + error.utf8_error().valid_up_to();
-                self.buffer = ReferenceBuffer::Pending(error.into_bytes());
-                return Err(Error::new(ErrorKind::InvalidUtf8, offset));
-            }
-        };
-        let result = classify(&raw, self.start, closed);
-        self.buffer = match result {
-            Ok(kind) if closed => ReferenceBuffer::Ready { kind, raw },
-            _ => ReferenceBuffer::Pending(raw.into_bytes()),
-        };
-        result
+        let raw = std::str::from_utf8(&self.bytes).map_err(|error| {
+            Error::new(ErrorKind::InvalidUtf8, self.start + error.valid_up_to())
+        })?;
+        let kind = classify(raw, self.start, closed)?;
+        self.kind = closed.then_some(kind);
+        Ok(kind)
     }
 }
 

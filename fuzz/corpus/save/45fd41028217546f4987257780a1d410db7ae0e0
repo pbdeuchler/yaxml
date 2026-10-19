@@ -1,5 +1,0 @@
-<!DOCTYPE d
-[
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc att (0|35a|A|-a|:a|a:|.|_a) #I>
-<doc/>

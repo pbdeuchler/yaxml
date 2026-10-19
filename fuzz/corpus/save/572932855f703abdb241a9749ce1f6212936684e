@@ -1,5 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "(&#37;# or with c -gp>A-><!---->
-<!----><!----><!/---mp;amp;).</p>" >
-]>
-<test>&example;<<!-<!----><!---->

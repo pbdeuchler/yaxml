@@ -58,6 +58,9 @@ pub(super) fn exercise(input: &[u8]) {
         encoding: ENCODINGS[(seed >> 8) as usize % ENCODINGS.len()],
         indent: INDENTS[(seed >> 11) as usize % INDENTS.len()],
     };
+    if seed >> 24 & 7 == 0 {
+        rejected_options(&owned, seed);
+    }
     let output = save::to_vec(&owned, &options);
     let borrowed = || Document::parse_with(input, ParseOptions::new(parse));
     if let Ok(borrowed) = borrowed() {
@@ -120,6 +123,35 @@ pub(super) fn exercise(input: &[u8]) {
         Ok(_) => {}
         Err(error) => assert_lossy(error.kind, options.encoding),
     }
+}
+
+/// Unknown flags and indents outside 1..=60 spaces or tabs are rejected;
+/// `AS_HTML` writes an XML document node with the HTML serializer and
+/// rejects any other node.
+fn rejected_options(owned: &OwnedDocument, seed: u64) {
+    let long = " ".repeat(61);
+    let indent = ["", "x", " \n", &long][(seed >> 27) as usize & 3];
+    let unsupported = Err(ErrorKind::UnsupportedOption);
+    let flags = save::Options::new(1 << (11 + (seed >> 29 & 15)));
+    assert_eq!(save::to_vec(owned, &flags).map_err(|e| e.kind), unsupported);
+    let bad = save::Options {
+        indent,
+        ..save::Options::new(0)
+    };
+    assert_eq!(save::to_vec(owned, &bad).map_err(|e| e.kind), unsupported);
+    let bogus = save::Options {
+        encoding: Some("x-bogus"),
+        ..save::Options::new(0)
+    };
+    let kind = save::to_vec(owned, &bogus).map_err(|e| e.kind);
+    assert_eq!(kind, Err(ErrorKind::UnsupportedEncoding));
+    let html = save::Options::new(save::AS_HTML);
+    if let Err(error) = save::to_vec(owned, &html) {
+        let lossy = [ErrorKind::UnsupportedEncoding, ErrorKind::InvalidCharacter];
+        assert!(lossy.contains(&error.kind), "{error:?}");
+    }
+    let child = owned.root().first_child().expect("a document has a child");
+    assert_eq!(save::to_vec(child, &html).map_err(|e| e.kind), unsupported);
 }
 
 /// Only markup an encoding cannot represent fails.

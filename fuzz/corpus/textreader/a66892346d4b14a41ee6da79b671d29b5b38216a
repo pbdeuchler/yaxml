@@ -1,3 +1,0 @@
-–<!DOCTYPE test [
-  <!ENTITY newline "&#x26;#xA;">
-]>ine "&#x26;#xA;">&newline;"/>

@@ -1,0 +1,9 @@
+<!DOCTYPE r [<!ATTLIST
+[
+<!ELEMENT doc ANY>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!ELEMENT c ANY>
+]>
+<doc>
+<a><b><c/></b><!-- comment afteaT e>

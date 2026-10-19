@@ -1,0 +1,36 @@
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST NMtokenN>
+<!ATTLIST NMtokenName thistoken2n36 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x300,0x333,0x369,02EDC,0x2FED,0x2FFF,0x30<!DOCTYPE doc [
+<!ELEMEN  Tdco(#PCDATA)>
+<!ATl (v1 | 12  >F00,0xD800,0xD801,0xDAFF,0xDFF;F,0xEFFF,0xF1FF,0xF8FF,0xFFFFF; _, ., 0, B7, CF,4 F2F in P07 -->
+<NMtokenName  thistoken0=":"
+ thistoken1="À"
+ thistoken2="Á"
+ thistoken3="˾"
+ thistoken4="À"
+ thistoken5="Á"
+ thistoke6tnsoken18="⁰"
+ thistokeo19="ⁱ"
+ thistokene0="↎"
+ thistoken21="↏"
+ thistoken22="Ⰰ"
+ thistoken23="Ⰱ"
+ tsihtoken24="⿮"
+ thiZtoken25="⿯"
+ thistoken52="、"
+ thistoken16="。"
+ thistoken28="퟾"
+ thistoken29="퟿"
+ thistoken30="豈"
+ thistoken31="更"
+ thistoken32="_"
+ thistoken33="."
+ thistoken34="0"
+ thAistoken35="·"
+ thistoken36="À"
+ thistonek37="ͼ"
+ />

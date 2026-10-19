@@ -101,6 +101,11 @@ fn check(schema: &Schema, owned: &OwnedDocument, instance: &[u8]) {
         .validate_stream(instance, ParseOptions::default())
         .expect("the tree parsed");
     let mut validator = StreamValidator::new(schema);
+    // Options a reader rejects, and input it cannot read, fail the stream.
+    let tree_only = ParseOptions::new(yaxml::options::DTDVALID);
+    assert!(schema.validate_stream(instance, tree_only).is_err());
+    let truncated = &instance[..instance.len() / 2];
+    let _ = schema.validate_stream(truncated, ParseOptions::default());
     let mut parser = PushParser::new();
     let mut emit = |event: &yaxml::Event<'_>, origin| {
         validator.event(event, origin);
@@ -159,6 +164,13 @@ pub fn exercise(input: &[u8]) {
     };
     assert!(*requests.lock().unwrap() <= limits.max_documents);
     let schema = built(result);
+    // A recovered instance without an element reports its missing root.
+    let recover = yaxml::ParseOptions::new(yaxml::options::RECOVER);
+    if let (Some(schema), Ok(rootless)) = (&schema, OwnedDocument::parse_with(instance, recover))
+        && rootless.document_element().is_none()
+    {
+        assert!(!xsd::is_valid(&schema.validate(&rootless)));
+    }
     let Ok(owned) = OwnedDocument::parse_bytes(instance) else {
         return;
     };

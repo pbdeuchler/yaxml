@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
-]>
-<doc>
-   <ent>&test1;</ent>
-   <p> WE need lot of garbage!now to trigger the 
-<!ELEMENT b ((do b ((doc|aproblem</p>
-   <p>?)) 

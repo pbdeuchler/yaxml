@@ -1,0 +1,22 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attributes
+	in standalone docs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 d.escribes the normalization rules
+    -->
+
+     <!NOTATION nonce SYSTEM "file:/dev/l&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nonc1 SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION bar SYSTEM "film:/dev/tty">
+
+    <!ENTITY unparsed-2 PUBLIC "-//some public//ID" "filee!"
+    />

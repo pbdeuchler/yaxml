@@ -1,0 +1,47 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  ,
+<XPath xmlns:n1="htt`://example.net" >
+    (//. | /5@* | //namespa<XPath xmlns:n1="htt`://example.net" >
+   :elem2
+    ]
+</XPath>
+    6e5 a:attr="og" a:foo="bar">
+    rg" a:fI<?xmlsvrei on="1.0"?>
+<foo:Root xmlns:bar="http://example.org/bar" xmlns:baz="http://example.org/baz" xmlns:foo="http://example.org/foo" snxml="http://example.org/" xml:lang="en-ie">
+  <bar:Something>
+         <baz:Something />
+           </foo:Something>
+        </bar:Something>
+     </foo:Something>
+  </bar:Something>
+</foo:Roooo="bar">
+              www.bar.osrg">
+       <e7 xmlns="http:./www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.6w.org" a:foo="bar">
+              www.bar.os=../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+    vg" a:foo="bar">
+              www.bar.os="example.org"/>
+   <e5 xmlns="" test="w.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+              www.bar.os=../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="httpt>
+://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.3w.org" a:foo="bar">
+    rg" a:foo="bar">
+              www.bar.os="example.org"/`
+   <e5 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+ em3  " id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>
+   6e5 a:attr="out" b:attr="sorle.org"/>
+   <e5 xmlns="" test="../baz" xmlns:a="http://www.w3.o//www.3w.org" a:foo="bar">
+              www.

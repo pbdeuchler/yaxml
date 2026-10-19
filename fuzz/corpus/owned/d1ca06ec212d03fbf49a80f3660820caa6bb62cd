@@ -1,34 +1,0 @@
-<!DOCTYPE doc [
-    <!ENTITY % z '
-        &#37;z&#37;;z;
-  
-</TEST>
-
-<TEST VERSION="2.1" RECOMMENDATION="XML1.1" ML 1.0, illegal in XML 1.1
-</TEST>
->
-<!DOCTYPE root [<!DOCTYPE doc[ 
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST dok val (1 |
-; &#xAC00;VERSION="2.1" RECOMMENDATION="XML1.1" ML 1.0, illegal in XML 1.1
-</TEST>
->
-<!DOCTYPE root [<!DOCTYPE doc[ 
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST dok val (1 |
-; &#xAC00;
-&#xF900; &#xFFFD;
-
-&#xF900; &#xFFFD;
-&#x10000; eF-2v퟿_6DOCTYPE doc[ 
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST dok val (1 | eF-2v퟿_6c0f- doc (A)>
-<!ATTLIS| c>
-c0f- doc (A)>
-<!AT &#x10FFFF;
-</root>TLIS| c
-<!-)* a  >
-   '>
-    %u;
-]>
-<doc/>

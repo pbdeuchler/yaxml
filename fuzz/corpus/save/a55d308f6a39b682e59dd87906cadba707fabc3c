@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!NOTATION gif PUBLIC "image/gif" "">
-<!AD>
-]>
-<doc>

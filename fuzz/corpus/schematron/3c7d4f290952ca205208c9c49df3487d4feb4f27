@@ -1,0 +1,11 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'filty'>
+<!NOTATION 	go PUBLIC '-//pulcbi id/filty'>
+<!NOTATION foo PUBLIC 'Ó//public id//foo' 'file:/dev/nul.l'>
+<!NOTATION nfnce SYSTEM 'fievty'>
+<!NOTATION foo PUBLIC '-//public id/filty'>
+<!NOTATION foo PUBLIC '-//public id//fooifl'' e:/dev/nul.l'>
+<!NOTATION nonce2 SYSTEM 'fiev/tty'>
+<!NOATION fyo PUBLIC '-//p%ubl/foo' 'file:/dev/nul.l'>
+<!NOTATION nonce Sfoo PUBLIC '-/' 'file:/dev/nul.l'>
+<!NOTSY

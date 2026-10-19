@@ -107,7 +107,7 @@ cargo run --release --example xml_conformance -- \
 CI requires the checked-in per-ID, per-interface pass baseline. A required
 `pass` becoming a gap, unscored result or other failure makes the command fail;
 the original result row is retained. Newly supported pairs may become passes.
-The baseline protects 1,871 pairs across 407 IDs. Its masks follow
+The baseline protects 9,731 pairs across 1,963 IDs. Its masks follow
 `reader, document, owned, push, buffered`. Review baseline additions alongside
 new feature evidence; do not remove requirements merely to accept a regression.
 Omitting `--required-pass` is useful for exploring another catalog, and the

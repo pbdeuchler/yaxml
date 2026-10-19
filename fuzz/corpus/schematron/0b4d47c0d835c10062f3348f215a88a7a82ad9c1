@@ -1,0 +1,16 @@
+<?xml version="1,.0" standalone='no'?>
+<!DOCTYPE root [
+  <!ELEMENT root (zPCDATA)* >
+  <!ENTITY % pe2 SYSTEM "ibhar ANY>
+<!MLEEMNT Ë¾LegalNameStartChar ANY6
+À!ELEMENT Ë¿LggalNameStartChar ANY>
+<!ELEMENTlNa
+<!ELEMENT Í½LÃ€"
+ thistoken3a="" a:bz="" b:cs="" c:cv="" fm="" c:bo="" b:cl="" c:bs="" a:cm="" aw="" w="" d:fa="" b:ay="" bu="" c:ch="" d:bl="" d:bc="" bu="" dtChar/>
+
+</LegalName<!ELEMENT Î€Legaÿÿÿÿÿ
+]>
+<root>
+  pc@data content
+</root>
+<!-&* a valid test for P70 VC:Entity Declared *-->

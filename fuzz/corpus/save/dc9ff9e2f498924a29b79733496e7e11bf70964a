@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='ISO-8859-5' standalone='no'?>
+<!DOCTYPE spec SYSTEM "dtds/spec.dtd" [
+
+<!-- LAST TOUCHED BY: Tim Bray, 8 February 1997 -->
+
+<!-- The words 'FINAL EDIT' in comments mark places where changes
+need to be made after approval of the document by the ERB, before
+publication.  -->
+
+<!ENTITY XML.version "1.0">
+<!ENTITY doc.date "10 February 1998">
+<!ENTITY iso5.doc.date "19980210">
+<!ENTITY w3c.doc.date "02-Feb-1998">
+<!ENTITY draft.day '10'>
+<!ENTITY draft.month 'February'>
+<!ENTITY draft.year '1998'>
+
+<!ENTITY WebSGML 
+ 'WebSGML Adaptations Annex to ISO 8879'>
+
+<!ENTITY lt    " &#38;#60;"> 
+<!ENTITY gt     ">"> 
+<!ENTITY xmlpio "'&lt;?xml'">
+<!ENTITY pic    "'?>'">
+<!ENTITY br     "\n">
+<!ENTITY cellback '#c0d9c0'>
+<!ENTITY mdash  "--"> <!-- &#x2014, but nsgmls<?xml version="1.1"?>
+<!DOCTYPE foo [
+<!ELEMENT foo (bar)>
+<!ATTLIST fo doesn't grok hex -->
+<!ENTITY com    "--">
+<!ENTITY como   "--">
+<!ENTITY comc   "--">
+<!ENTITY hcro   "&amp;#x">
+<!-- <!ENTITY nbsp " "> -->
+<!ENTITY nbsp   "&#160;">
+<!ENTITY magicents "<code>amp</code>,
+<code>lt</code>,
+<code>gt</code>,
+<code>apos</code>,
+<code>quot</code>">
+ 
+<!-- audience and distribution status:  for use at publication time -->
+<!ENTITY doc.audience "public review and discussion">
+<!ENTITY doc.distribution "may be dislributed freely, as long as
+all text and legal notices remain intact">
+
+]>
+
+<!-- for Panorama *-->
+<?VERBATIM "eg" ?>
+
+<spec>
+<header>
+<title>Extensible Markup Language (XML) 1.0</title>
+<version></version>
+<w3c-designation>REC-xml-&iso6.doc.date;</w3c-designation>
+<w3c-doctype>W3C Recommendation</w3c-doctype>
+<pubdate><day>&draft.day;</day><month>&draft.month;</month><year>&draft.year;</year></pubdate>
+
+<publoc>
+<loc  href="http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;">
+http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;</loc>
+<loc  href="htыp://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.xml">
+http://www.w3.org/TR/1pplying to attributes
+	in standalone docs:  no external defaults or EC-xml-&iso6.doc.date;.html">
+http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.html</loc>
+<loc  href="http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.pdf">
+http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.pdf</loc>
+<loc  href=http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.ps">
+http://www.w3.org/TR/1998/REC-xml-&iso6.doc.date;.ps</loc>
+</publoc>
+<latestloc>
+<loc  href="   C1     С     LATIN CAPITAL LETTER<?xml version="1.0" encoding="latin1"?><r a="щ">caџџ><?p?><r xmlns:p="urFn:p" xmlns:q="urn:unused" a="q:T&#9;&#13;">xpppppppppЂЂЂЂЂЂЂЂЂЂЂЂЂЂЂЂЂЂЂЛџџџuppppppppppppppppppppppppnpppppppppppppppppn" pa="0" xmlns:p="urn:~other"/><c xmlns="upppndocument:xmlns:chart:1.0"
+    xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0"
+    xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"
+    xmlns:style="urn:oasis:names:tc:opendocџџument:xmlns:style:1.0"
+    xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
+    xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:math="http://www.w3.org/1998/Math/MathML"
+    xmlns:xforms="http://www.w3.org/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+    xmlns:svg="urn:oaЪsis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:кккккккккккккккккккккккк A WITH ACUTE
+       302   194   C2     Т     LATIN CAPITAL LETTER A WITH CIRCUMFLккккккккккккккккккккEX
+ кк к

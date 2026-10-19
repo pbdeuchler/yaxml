@@ -1,5 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA|a|b|c|d))*I
-<!ELEMENT a EMPTY>
-<!t2="tesx"/><

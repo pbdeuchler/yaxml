@@ -1,0 +1,48 @@
+<!--
+
+ (C) Copyright IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty express or
+ implied, including the warranty of non-infringement and the implied
+ warranties of merchantibility and fitness for a particular purpose.
+ IBM will not be liable for any damages suffered by you as a result
+ of using the Program. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of the possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Confosmance Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 14">
+  <TEST URI="invalid/P28/ibm28i01i																																																	03.xml">
+    Violates VC:No Duplicate Types in P51. Element a appears twice in the Mixed
+    content model of Element e.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 56">
+  <TEST URI="invalid/P56/ibm56i01.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i01.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i01.xml">
+    Tests invalid TokenizedType which is against P56 VC: ID. The value of the ID 
+    attribute "UniqueName" is "@999" which does not meet the Name production.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i02.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i02.xml" ENTITIES="none" SECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i02.xml">
+    Tests invalid <TEST URI="invalid/P28/ibm28i01i																																																	03.xml">
+    Violates VC:No Duplicate Types in P51. Element a appears twice in the Mixed
+    content model of Element e.
+  </TEST>
+</TESTCASES>
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 56">
+  <TEST URI="invalid/P56/ibm56i01.xml" TYPE="invalid" ID="ibm-invalid-P56-ibm56i01.xml" ENTITIES="none" S<!DOCTYPE r [
+<!ELEMENT r ANY>
+
+<!ENTITY % pe ''>
+%pe;
+<!ATTLISECTIONS="3.3.1" OUTPUT="invalid/P56/out/ibm56i01.xml">
+    Tests invalid TokenizedType which is against P56 T r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIEDVC: ID. The value of the ID 
+    attribute "UniqueName" is "@999" which does not  e ENTImeet the Name prodTY #IMPu

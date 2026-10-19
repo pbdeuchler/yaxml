@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e PUBLIC "atle" "011.en]>>"
-t
-<doc>&e;</doc>

@@ -1,0 +1,12 @@
+<root><a></a><b>&#10;  ">]>/>
+   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out1" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       a:attr="out1" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w2.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:#="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+  g" a:foo="bar">
+  of?  "s"    on the   " 

@@ -1,0 +1,6 @@
+<!--0DefaulsssNTITIES attributes must match Names. -->
+<!DOCTYPE foo [
+<!ELEMENT voo EMPTY>
+<!ATTLIST foo a ENTITIESot">
+]>
+<foo a="en:x/>

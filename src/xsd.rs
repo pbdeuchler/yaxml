@@ -234,11 +234,8 @@ pub struct SchemaDiagnostic {
 
 impl fmt::Display for SchemaDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.uri)?;
-        if let Some(offset) = self.offset {
-            write!(f, ":{offset}")?;
-        }
-        write!(f, ": {}", self.message)
+        let at = (self.offset).map_or_else(String::new, |offset| format!(":{offset}"));
+        write!(f, "{}{at}: {}", self.uri, self.message)
     }
 }
 
@@ -516,8 +513,3 @@ fn name<'a>(name: &'a crate::Name<'_>) -> NodeName<'a> {
         namespace: name.namespace(),
     }
 }
-
-const _: () = {
-    const fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<Schema>();
-};

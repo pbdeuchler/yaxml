@@ -70,7 +70,8 @@ fn written<T: Tree>(
     let result = c14n::write(tree, options, &mut sink);
     match (expected, result) {
         (Ok(expected), Ok(())) => assert_eq!(sink.written, expected.as_bytes()),
-        (Ok(expected), Err(c14n::Error::Io(_))) => {
+        (Ok(expected), Err(error @ c14n::Error::Io(_))) => {
+            check_error(&error);
             assert!(expected.len() > room && expected.as_bytes().starts_with(&sink.written))
         }
         (Err(expected), Err(error)) => {

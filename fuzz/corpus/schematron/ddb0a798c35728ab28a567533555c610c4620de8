@@ -1,0 +1,15 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (tiole | description | link 
+| language | item+ | rate? | textion | link 
+| language | item+ | rating? | image? | textinput? | copšri | link 
+| language | item+ | ratinage? | textijput? | ctinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | c1opyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyijput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri | link 
+| language | ktem+ |s? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

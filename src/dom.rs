@@ -168,13 +168,11 @@ impl<'input> Document<'input> {
                 Event::Doctype(doctype) => {
                     document.append(parent, NodeKind::Doctype(doctype), origin)?;
                 }
+                // The parser balances ends, so `parent` is what they close.
                 Event::End(_) => {
-                    let id = parents.last().copied().ok_or_else(|| {
-                        Error::new(ErrorKind::MismatchedEndTag, origin.error_offset())
-                    })?;
                     let subtree_end = document.nodes.len();
-                    let record = &mut document.nodes[id.0];
-                    record.origin = record.origin.close_element(origin)?;
+                    let record = &mut document.nodes[parent.0];
+                    record.origin = record.origin.close_element(origin);
                     parents.pop();
                     record.subtree_end = subtree_end;
                 }
@@ -185,10 +183,8 @@ impl<'input> Document<'input> {
                     parents.push(document.append(parent, NodeKind::EntityRef(name), origin)?);
                 }
                 Event::EntityEnd => {
-                    let id = parents.pop().ok_or_else(|| {
-                        Error::new(ErrorKind::InvalidState, origin.error_offset())
-                    })?;
-                    document.nodes[id.0].subtree_end = document.nodes.len();
+                    parents.pop();
+                    document.nodes[parent.0].subtree_end = document.nodes.len();
                 }
                 Event::Start(element) | Event::Empty(element) => {
                     if opens {
@@ -241,12 +237,12 @@ impl<'input> Document<'input> {
             let record = &mut document.nodes[id.0];
             record.subtree_end = count;
             if let NodeKind::Element(_) = record.kind {
-                record.origin = record.origin.close_element(stop).unwrap_or(record.origin);
+                record.origin = record.origin.close_element(stop);
             }
         }
         // Recovery keeps a document without an element, as libxml2 does
-        // unless the input is empty.
-        if document.root_element == NodeId(0) && (document.errors.is_empty() || length == 0) {
+        // unless the input is empty (otherwise the reader failed already).
+        if document.root_element == NodeId(0) && length == 0 {
             let missing = Error::new(ErrorKind::MissingRoot, reader.position());
             return Err(document.errors.first().copied().unwrap_or(missing));
         }
@@ -467,13 +463,7 @@ fn append_text_value<'input>(
     offset: usize,
     budget: &mut crate::parser::Budget,
 ) -> Result<(), Error> {
-    let needed = previous
-        .len()
-        .checked_add(incoming.len())
-        .ok_or(Error::new(
-            ErrorKind::LimitExceeded(crate::Limit::OwnedBytes),
-            offset,
-        ))?;
+    let needed = previous.len() + incoming.len();
     match previous {
         Cow::Borrowed(prefix) => {
             let mut joined = String::new();

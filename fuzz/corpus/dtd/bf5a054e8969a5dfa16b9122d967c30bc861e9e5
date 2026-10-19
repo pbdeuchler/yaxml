@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (更rM "http://www.eb.com/" NDATA encyclopaedia>
-<!ENTITY worldbo.ent">
-]>
-<doc>&e;</doc>

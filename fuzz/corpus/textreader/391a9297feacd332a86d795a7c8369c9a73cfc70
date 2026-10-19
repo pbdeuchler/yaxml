@@ -1,0 +1,5 @@
+><?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns:ccts="urn:oasis:n!hemeAgencySchemeAgencyID" schemeDataURI="pvalue.UID" UIDRef="pvalue->ReferencedOrder.SoreCo:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTypes:1.0:0.70" xmlns="{rn:oasis:namek:tc:ubl:Insis:names:tc:ubl:CommonAggregateTypes:1.0:0.70" xmlns="{rn:oasis:voice:1.0:0.70">
+   <cat:ReferencedOrder>?      <cat:Sel~ersOrderID schemeID="pvalue->ReferencedOrder.Sellersalue-&gt;ReferencedOrder.SellersOrderID.UIDRefs0" language="pvalue->ReferencedOrder.SellersOrderID.language">pvalue-&gt;ReferencedOrder.SellersOrderID</cat:SellersOrderID>
+   </cat:ReferencedOrder>
+</Invoice>

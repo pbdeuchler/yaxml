@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!-- Attribute uniqueness: prefixed and unprefxed attributes with same
-     loclm ae -->
-<foo xmlns:a="http:/xe/pamle.org/~wilbur">
-
-<bar a:attr="1" attr="2"/>
-
-</foo>

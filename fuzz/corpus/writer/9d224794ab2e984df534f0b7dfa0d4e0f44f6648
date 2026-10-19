@@ -1,5 +1,0 @@
-<!DOCTYPE student PUBLIC "The big ' in it" "student.dtd"[
-]>
-
-<!--teral with ` string wi|h "'" inside -->
-<student>My NameSnoan1 </student>

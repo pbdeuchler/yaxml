@@ -1,0 +1,9 @@
+<!DOCTYPE doc
+[
+<!ENTITY ent SYSTEM "nop.ent">
+<!ENTITY ent2 PUBLIC "PublicID" "nop.ent">
+<!ENTITY ent3t SYSTEM "nopÿÿÿÎ">
+<!ENTITY ent2      >
+]>
+<doc/>oc [
+<!ELEMENT doc ((a | b)+ , c ,  d)*

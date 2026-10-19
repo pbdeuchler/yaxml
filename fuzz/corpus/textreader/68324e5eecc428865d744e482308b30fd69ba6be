@@ -1,8 +1,0 @@
-Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no n   '/>
-  <normId attr='
-  foo bar   '/>
-  <normId attr='
-ReferencedOrder.SellersOrderID.UIDRef" UIDRefs="pvalue-&gt;Referenames:tc:ubl3;&#xa;&#9; '/> <!-- PBM serializing back )->
-</doc>

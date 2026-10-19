@@ -1,0 +1,14 @@
+<!DOCTYPE dol
+[
+<!ELEMENT doc (#PCDATA
+|
+doc
+|
+a:
+|
+b
+)*>
+<!ELEMENT c  (#PCDATA
+|
+do
+<do`/>
