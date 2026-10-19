@@ -1,0 +1,9 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    e	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+e/N vegetable
+    PUBLIC "-//International Grocery CENz rocandy"/>
+

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE root0[
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY﻿<?xmlANY>
+]>
+<fmeml Aype  </c>
+</b>> <c></c> in content: <![CDATA[ <html>markAD<><body>nothi *-->
+>

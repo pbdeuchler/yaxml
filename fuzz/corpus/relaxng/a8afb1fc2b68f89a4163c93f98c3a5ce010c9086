@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ENTITY e1 "&g2;">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 SYSTEM "012.ent">	<!ENTITY e4 "&e5;"></doc>

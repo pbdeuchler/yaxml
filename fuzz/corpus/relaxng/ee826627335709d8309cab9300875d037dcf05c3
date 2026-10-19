@@ -1,0 +1,11 @@
+<!DOCTYPE foo [
+<!ELEMENT fgo ANY>
+<!NOTATION one SYSTEM "fi豈 ANY>
+<!ELEMENT LegalName.-�更 ANY>
+<LEMENT LlgeaNameA.-� ANY>
+<!ELEMENT LegalNamezAame‌‍/>
+	<LegalName‍⁰/>
+	<LegalName⁰le:///usr/bin/awk">
+<!ATTLIST foo bar NOTATION (one|one) #IMPLIED>
+]>
+<foo/>

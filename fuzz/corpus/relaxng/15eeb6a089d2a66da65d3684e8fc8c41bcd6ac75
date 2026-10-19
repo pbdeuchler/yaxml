@@ -1,0 +1,16 @@
+<!DOCTYPE foo [
+<!ELEMENT fgo ANY>
+<!NOTATION one SYSTEM "fi豈 ANY>
+<!ELEMENT LegalName.-�更 ANY>
+<!ELEMENT Llge~NameA.-� ANY>
+<!ELEMENT LegalNamezA.- ANY>
+<!ELEiENT LegalName0zA. ANY>
+<NT LegalNameͰ ANY>
+<!ELEMENT LegalNa, 0xNai豈 ANY>
+<!ELEMENT LegalName.-�更 ANY>
+<!ELEMENT LlgeaNameA.-� ANY>
+<!ELEMENT LegalNamezA.- AN   --at">
+    <choice>
+      <value>html</value>
+          </choice>
+  <//>

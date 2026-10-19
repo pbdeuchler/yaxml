@@ -1,0 +1,19 @@
+<!DOCTYPE r
+[
+<!ELEMENT root (#PCDATA
+
+
+
+
+
+
+
+
+
+
+
+TA #IMPLIED>
+<!"ring"
+
+]>
+<root>&aaa;</root>

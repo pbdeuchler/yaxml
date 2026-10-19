@@ -1,0 +1,9 @@
+<!DOCTYPE Attributes SYSTEM "../valid/sa.dtd" [
+    <!--
+	ID needs-->
+]>
+
+<attributes
+    token =	"b"
+    id =	"	cindy "
+    />

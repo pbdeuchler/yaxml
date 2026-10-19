@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE book [
+<!ELEMENT book ANY>
+<!-- This test case covers 149 legal character ranges p-->	
+<?NAME_41-A_5A-Z_4d-M_61-a_7A-z_6d-m_0C0-À_0D6-Ö_0cb-Ëth same
+     loc_1f9a-ᾚ_1FB6-ᾶ_1FBC-ᾼ_1fb9-Ᾱ_1FBE-ῂ_1FC4-ῄ_1fc3-ῃ_1FC6-ῆ_1FCC-ῌ_1ῑ_1FD6-ῖ_1FDB-Ί_1fd8-Ῐ_1FE0-ῠ_1FEC-Ῥ_1fe6-ῦ_1FF2-ῲ_1FF44ῴ_2-ↂ_2181-ↁ_3041-ぁ_3094-ゔ_306-ㄘ=AC00-가_D7A3-힣_s1d1-쇑 This is a PI target ?>
+]>
+<book/>

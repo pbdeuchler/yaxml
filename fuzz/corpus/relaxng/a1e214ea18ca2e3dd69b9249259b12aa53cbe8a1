@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!ENTITY % pe1 '<!ATTLIST root att2 CDATA "&ge0;">'>
+<!ENTITY ge1 "attdefaultvalue" ><?xil?>
+<?xil?>* notation JPGformat not dd test case: test P76 VC:ed -->

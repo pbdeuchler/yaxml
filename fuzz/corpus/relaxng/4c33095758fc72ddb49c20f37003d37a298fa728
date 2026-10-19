@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENT oc (#PCDATA)>
+]>
+<doc><!-- a comment -></c->o-d>

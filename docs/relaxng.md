@@ -1,0 +1,136 @@
+# RELAX NG
+
+`yaxml::relaxng` validates documents against RELAX NG schemas in the XML
+syntax, the job of libxml2 2.15.4's `relaxng.c`, with a different engine:
+James Clark's derivative algorithm over hash-consed patterns instead of
+libxml2's backtracking.
+
+| Call | libxml2 equivalent |
+| --- | --- |
+| `Schema::parse(bytes, base, resolver, &limits)` | `xmlRelaxNGNewMemParserCtxt` + `xmlRelaxNGSetResourceLoader` + `xmlRelaxNGParse` |
+| `Schema::from_tree(&document, base, resolver, &limits)` | `xmlRelaxNGNewDocParserCtxt` + `xmlRelaxNGParse` (either DOM) |
+| `schema.validate(&document)` | `xmlRelaxNGValidateDoc` (either DOM) |
+
+A `Schema` is immutable, `Send + Sync` and reusable. Schema errors are
+`SchemaErrors`, a non-empty list of `SchemaError { code, uri, offset,
+message }` whose `SchemaCode` discriminant is libxml2's `XML_RNGP_*` number.
+Validation returns `Vec<Diagnostic<Id>>`, empty when valid; each `Code`
+discriminant is libxml2's `xmlRelaxNGValidErr` (`UnknownId` is valid.c's
+`XML_DTD_UNKNOWN_ID`), with the element and its source offset.
+
+```rust
+use yaxml::relaxng::{Code, Limits, Schema};
+
+let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0">
+  <interleave><element name="a"><text/></element><element name="b"><empty/></element></interleave>
+</element>"#;
+let none = |_: yaxml::Request<'_>| Ok(None);
+let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
+assert!(schema.validate(&yaxml::Document::parse("<r><b/><a>x</a></r>")?).is_empty());
+let [error] = schema.validate(&yaxml::Document::parse("<r><b/></r>")?).try_into().unwrap();
+assert_eq!(error.code, Code::MissingElement);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+## Schema processing
+
+`load.rs` applies RELAX NG sections 4.1 to 4.11 while reading the schema DOM:
+foreign elements and attributes are dropped (qualified attributes in the
+RELAX NG namespace and unknown unqualified ones are errors), `name`, `type`
+and `combine` are trimmed, `datatypeLibrary` (an absolute URI, or empty) and
+`ns` are inherited, `xml:base` and `href` resolve with `xmlBuildURI`, and
+`externalRef`/`include` documents are requested as `ResourceKind::RelaxNg`
+from the resolver. An included grammar loses the `start` and `define`s the
+`include` overrides (each must exist) and becomes a `div`. Recursion is an
+error; nesting is bounded by `Limits::max_include_depth` (64) and documents
+by `Limits::xml.max_external_loads` and `max_external_bytes`.
+
+`compile.rs` does sections 4.12 to 4.21: children grouped, `mixed`,
+`optional` and `zeroOrMore` rewritten, name class constraints (`anyName` and
+`nsName` excepts, `xmlns` attribute names), `combine` with
+`choice`/`interleave` checks, nested grammars with `parentRef`, and every
+define inlined except through elements; a reference cycle without an element
+is an error unless only unreachable definitions take part (4.19).
+`notAllowed` and `empty` simplify in the pattern constructors. Patterns nest
+at most 256 deep, counting inlined definitions.
+
+`check.rs` then checks section 7 on the reachable schema: the prohibited
+paths of 7.1 (`attribute//attribute`, `oneOrMore//group//attribute`,
+`list//list`, `data/except//…`, `start//…` and the rest), content types
+(7.2), overlapping attributes and `anyName`/`nsName` attributes outside
+`oneOrMore` (7.3), and overlapping elements or text in `interleave` (7.4).
+
+Datatypes: the built-in library (`""`, also under the RELAX NG namespace as
+in libxml2) has `string` and `token` without parameters; the XML Schema
+library has the 45 built-in types of `schema_types`, with every facet except
+`enumeration` and `whiteSpace` as a parameter. Values compare in their
+datatype's value space (`QName` values in the schema's namespace context).
+As libxml2 does, `xsd:ID` attribute values must be unique and `xsd:IDREF(S)`
+attribute values must name one; `ENTITY`, `ENTITIES` and `NOTATION` consult
+the instance's DTD.
+
+## Validation and bounds
+
+Validation walks the tree with an explicit stack, computing derivatives for
+start tags, attributes, text and end tags as in Clark's paper. Choices are
+canonical (sorted, duplicate-free, balanced), patterns are interned, and the
+start-tag, end-tag and `after` derivatives are memoized per validation, so
+interleave-heavy schemas explore only the states a document reaches: 200
+interleaved optional elements in reverse order validate in about 10 ms. Every
+new pattern, memo miss and merged choice alternative spends one unit of
+`Limits::max_work` (100 million by default, separately for building and for
+each validation); when it runs out, validation stops with one
+`Code::Internal` diagnostic and schema building fails with
+`SchemaCode::ResourceLimit`.
+
+After an error, validation continues: an unexpected element is skipped, a bad
+attribute is ignored, missing attributes and content are forgiven, and an
+element reports at most one content error. So yaxml reports one diagnostic per
+fault where libxml2 often adds a chain of "failed to validate content" errors
+for the ancestors.
+
+## Results
+
+`YAXML_LIBXML2_SOURCE=../yaxml-oracle/libxml2-2.15.4 YAXML_XMLLINT=../yaxml-oracle/build/xmllint cargo test --release --test relaxng -- --include-ignored --nocapture`:
+
+| Suite | Cases | Expected verdict | Same as libxml2 |
+| --- | ---: | ---: | ---: |
+| libxml2 `test/relaxng` instances (`result/relaxng`) | 159 | 159 | 159 |
+| James Clark `spectest.xml` schemas | 373 | 368 | 371 |
+| `spectest.xml` instances | 529 | 529 | 529 |
+| libxml2 `testsuite.xml` schemas / instances | 28 / 183 | 28 / 183 | 28 / 183 |
+| `xsdtest/xsdtestsuite.xml` schemas / instances | 238 / 1,035 | 238 / 1,033 | 238 / 1,034 |
+
+On the 42 invalid libxml2 instances libxml2 reports 65 validity errors and
+yaxml 48, mostly in the same categories (wrong element, namespace, attribute,
+datatype, list, value); libxml2's extra ones are the ancestor chains above.
+The differences from the expected verdicts:
+
+- Five `spectest.xml` schemas use names such as U+0E35 that XML 1.0 Fifth
+  Edition allows and the 2001 suite does not; libxml2 accepts them too.
+- Stricter than libxml2, as the specification requires: `datatypeLibrary="foo:"`
+  is not an absolute URI, and an attribute whose name class is a choice
+  containing `nsName` must be inside `oneOrMore`. An unprefixed `QName` value
+  takes the `ns` attribute as default namespace (libxml2 rejects
+  `xsdtestsuite` case 98145).
+- `NOTATION` data without a DTD is invalid, as in libxml2 (two `xsdtest`
+  instances expect it valid).
+
+## Gaps
+
+- No push or streaming validation (`xmlRelaxNGValidatePush*`,
+  `xmlTextReaderRelaxNGValidate`), compact syntax, `xmlRelaxNGDump`, or
+  user-registered datatype libraries.
+- The DTD compatibility annotations (`a:defaultValue`) are ignored and IDs
+  are checked as libxml2 does, not with the ID-type consistency rules of
+  the DTD compatibility specification.
+- Messages follow libxml2's wording but not always its choice of message.
+
+## Fuzzing
+
+`fuzz/relaxng.rs` (target `relaxng`) splits a testcase at NUL into schema,
+instance and resources `d/0`..`d/9`, wraps non-markup schemas in an
+element, and checks determinism, identical diagnostics over both DOMs and on
+reuse, offsets matching node ranges, the load budget, at most one trailing
+`Internal` diagnostic, and that a four times larger work budget changes no
+completed result. Seeds are the libxml2 and spec suite cases. Two 331 s runs on `nightly-2026-06-06` (`-timeout=2`, about 2.0 and 1.8 million executions, 16,429 edges) found no crash, timeout or leak.

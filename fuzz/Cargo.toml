@@ -174,3 +174,10 @@ path = "fuzz_targets/catalog.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "relaxng"
+path = "fuzz_targets/relaxng.rs"
+test = false
+doc = false
+bench = false

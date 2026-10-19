@@ -1,0 +1,23 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of  lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger thg problem</p>
+   <p> WE need lot of!--
+
+ (C) Copyright IBM eserved.
+
+ US Government Us<doc xmlns:ch="" b:da="" a:bz="" b:cs="" c:cv="" fm="" c:bo="" b:cl="" c:bs="" a:cp="" aw="" c:fa="" a:cv="" d:cm="" dj="" ep="" ec="" bt="" by="" co="" c:bp="" a:cy="" ah="" c:fk="" d:cq="" b:er="" a:eu=""/>
+<e d:bf="" ap="" b:cv="" an="" eu="" a:bc="" a:fd="" c:aw="" b:au="" es="" a:eb="" b:fm="" b:eg="" al="" a:av="" c:bm="" d:fb="" d:fl="" fk="" a:ej="" dn="" c:aa="" dj="" bj="" a:eo="" d:bo="" b:dc="" b:aw to trigger the problem</p>" d" fk="" a:ej="" dn="" c:aa="" d"j ="bj="" a:eo="" d:bo="" b:dc="" b:aw to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> WE need lot of ga
+ disclosure restricted by GSA `DP Schedule Contract with IBM Corp.
+
+ The program ish</RPM:Resource prov>
+   i     <RPM:Resource>l

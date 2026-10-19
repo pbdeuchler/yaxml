@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ATTLIST e0a NOTATION (n) #IMPLIED>
+<!ELEMENT doc (e)*>
+<!ELEMENT e (#PCDATA)>e</doc>

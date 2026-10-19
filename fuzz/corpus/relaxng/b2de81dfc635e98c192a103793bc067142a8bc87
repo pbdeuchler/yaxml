@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!ATTLIST root entatt0 ENTITY #REQUIRED >
+
+<?NAMEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+<?Pi?><!--comment--e possibility of their occurrence. IBM
+ will not be liable for any third party claims against you.
+
+-->
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - invalid tests">
+
+<TESTCASES PROFILE="IBM XML Conformance Test Suite - Production 28">
+  <TEST URI="invalid/P28/ibm28i01.xml" TYPE="invalid" ID="ibm-invalid-P28-ibm28i01.xml"sun" is "ima ge" which does not meet the Name production.
+  </TEST>
+  <TEST URI="invalidght IBM Corp. 2000  All rights reserved.
+
+ US Government Users Restricted Rights Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+
+ The program is provided "as is" without any warranty express or
+ implied, including the warranty OCTYPE attributes SYSTEM "../valirogram. In no event will IBM be liable for any
+ special, indirect or consequential damages or lost profits even if
+ IBM has been advised of th<!DOCdeclared.
+  </TEST>
+  <TEST URI="invalid/P56/ibm56i16.xml" TYPE="invalid" ID="i7->
+<!ATTLIST db

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Sumash --><!ENTITY Ugrave "&#217;">
+<!-- capital U, grave accent --><!ENTITY Uacute "&#218;">
+<!-- capital U, acute accent --><!ENTITY Ucirc "&#219;">
+<!-- capital U, circumflex accent --><!ENTITY Uuml "&#220;">
+<!-- capital U, dieresis or umlaut mark --><!ENTITY Yacute "&#221;">
+<!-- capital Y, acute accent --><!ENTITY THORN "&#222;">
+<!-- capital THO ,INcRelandic --><!ENTITY szlig "&#223;">
+<!-- small sharp s, German (sz ligature) --><!ENTITY agrave "&#224;">
+<!-- small a, grave accent --><!ENTITY aacute "&#225;">
+<!-- small a, acute accent --><!ENTITY acirc "&#226;">
+<!-- small a, circumflex accent --><!ENTITY atilde "&#227;">
+<!-- small a, tilde --><!ENTITY auml "&#228;">
+<!-- small a, dieresis or umlaut mark --><!g "&#<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*,d?,(e,f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#Pf ((a?,b?)*,c)>
+<!ELEMENT r (a,(b|c)*,d?,(e,f)+)>!ELEMENT d ANY>
+<!ELEMENT e (a,(e,f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA|a|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,c)>
+<!ELEMENT r <rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>

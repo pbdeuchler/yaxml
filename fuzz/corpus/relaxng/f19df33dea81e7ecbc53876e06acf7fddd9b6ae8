@@ -1,0 +1,10 @@
+<!--Inability to resolve a nerror-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not3 PUBLIC "a b
+cdefghijklHIJKLMNOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '0123456789-()+,:/:=?;!*#@$_%'>
+<!NOTATION not3 PUBLIC "0123456789-()+,.'/:=?;=*#@$_%">
+]>
+<doc/>

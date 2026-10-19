@@ -1,0 +1,8 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Has element content whitespace contai,
+     this is invalid in both XML 2.0 and 1.1. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (foo*)>
+<!ENTITY e "abc&#x85;def">
+]>
+<foo>&e;=/foo>

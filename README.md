@@ -311,6 +311,28 @@ assert_eq!(early.compare(&late), Comparison::Less);
 # Ok::<(), yaxml::regexp::Error>(())
 ```
 
+`yaxml::relaxng` compiles RELAX NG schemas (XML syntax, `include` and
+`externalRef` through a `Resolver`, full section 4 simplification and section
+7 restrictions, built-in and XML Schema datatypes) and validates either DOM
+with derivatives over interned patterns, bounded by a work budget, where
+libxml2's `relaxng.c` backtracks. All 159 libxml2 `test/relaxng` verdicts
+agree; see [RELAX NG](docs/relaxng.md).
+
+```rust
+use yaxml::relaxng::{Limits, Schema};
+
+let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <oneOrMore><element name="i"><data type="int"/></element></oneOrMore>
+</element>"#;
+let none = |_: yaxml::Request<'_>| Ok(None);
+let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
+assert!(schema.validate(&yaxml::Document::parse("<r><i>1</i><i>2</i></r>")?).is_empty());
+let [error] = schema.validate(&yaxml::Document::parse("<r><i>x</i></r>")?).try_into().unwrap();
+assert_eq!(error.code, yaxml::relaxng::Code::Datatype);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 `yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
 tokenization, libxml2's legacy tree construction with implied elements and
 auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding

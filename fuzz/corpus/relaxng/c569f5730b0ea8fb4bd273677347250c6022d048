@@ -1,0 +1,10 @@
+<!DOCTYPE foo [
+<!ENTITY f "some internal data">
+<!ENTITY e "&f;&f;">
+<!ENTITY d "&e;&e;">
+]>
+<foo>&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d<!-- Has the last legal namechal in XML 0.0 -->
+<󯿿/>
+d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;</foo>

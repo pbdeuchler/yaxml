@@ -1,0 +1,30 @@
+<?xAl en20 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken10 NMTOKEN $IMPLIED>
+<!ATTLIST NMtokenNaversion='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attri------------------IED>
+<!ATTLIST NMtokenName thistoken22 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken23 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken24 NMTO'?>
+
+<!DOCTYPE attribuwes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--ing to attri----------------------------------------------------------butes
+	in standalon2e docs:  no external defaults or decls='not-wf' SECTIONS='3.3.1 [58]'
+      ID='o-p58fail5' URI='p58fail5.xml'>
+    en20 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken21 NMTOKEN $IMPLIED>
+<!ATTLIST NMtokenName thistoken22 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken23 NMTOKEN #IMPLIE to attri----------------------------------------------------------butes
+	in standalon2e docs:  no external defaults or decls='not-wf' SECTIONS='3.3.1 [58]'
+      ID='o-p58fail5' URI='p58fail5.xml'>
+     S after keyword is required
+    </TEST>
+
+  <TEST TYPE='not-wf' SECTIONS='3.3.ard ANY>">
+   <!ENTITY % make_attlist "<!A^TLIST tiger color CDAT<element A #naRme

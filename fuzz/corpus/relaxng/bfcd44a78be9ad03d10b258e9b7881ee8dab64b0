@@ -1,0 +1,6 @@
+<!DOCTYPE root SYSTEM "ibm50v01.dtd" [
+  <!ELEMENT root (a,b)>
+]>
+<root><a/><b>
+   <c><child1><a/><b></b><c></c></child1></c >
+   <c><child2><a/><b></b><c></c><

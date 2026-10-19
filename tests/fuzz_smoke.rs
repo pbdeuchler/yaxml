@@ -1135,6 +1135,7 @@ fn fuzz_regressions_replay() {
                 "regexp" => driver::exercise_regexp(&data),
                 "datatypes" => driver::exercise_datatypes(&data),
                 "catalog" => driver::exercise_catalog(&data),
+                "relaxng" => driver::exercise_relaxng(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }
@@ -1200,5 +1201,24 @@ fn catalog_entry_replays_seeds_and_malformed_pieces() {
     ];
     for case in cases {
         driver::exercise_catalog(case);
+    }
+}
+
+#[test]
+fn relaxng_entry_replays_seeds_and_malformed_pieces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/relaxng");
+    for seed in std::fs::read_dir(root).unwrap() {
+        driver::exercise_relaxng(&std::fs::read(seed.unwrap().path()).unwrap());
+    }
+    let cases: &[&[u8]] = &[
+        b"",
+        b"<element",
+        b"<oneOrMore><element name='a'><data type='int'/></element></oneOrMore>\0<r><a>1</a><a>x</a></r>",
+        b"<grammar xmlns='http://relaxng.org/ns/structure/1.0'><include href='0'/></grammar>\0<r/>\0<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><element name='r'><empty/></element></start></grammar>",
+        b"<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><externalRef href='0'/></element>\0<r/>\0\xff",
+        b"<attribute name='id'><data type='ID'/></attribute>\0<r id='a'/>",
+    ];
+    for case in cases {
+        driver::exercise_relaxng(case);
     }
 }

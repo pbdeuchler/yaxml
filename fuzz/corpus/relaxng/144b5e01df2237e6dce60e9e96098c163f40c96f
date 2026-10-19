@@ -1,0 +1,40 @@
+<TESTCASES PROFILE="Richard Tobin's XML 1.0 2nd edition errata test suite 21 Jul 2003">
+
+<!-- E1 is an editorial change that does not need a test -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2a.xml" ID="rmt-e2e-2a" TYPE="invalid">
+Duplicate token in enumerated attribute declaration
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E2" URI="E2b.xml" ID="rmt-e2e-2b" TYPE="invalid">ct the behaviour
+     of XML processors -->
+
+<!-- E12 updates the reference to RFC 2376 (XML Media Types) to rean't be
+     reasonably tested in a standalone test suite such as this -->
+
+<!-- E5-E8 are editorial changes that do not need tests -->
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E9" URI="E9a.xml" ID="rmt-e2e-9a" TYPE="valid">
+An unused attribute!-- E12 updates the reference to RFC 2376 (XML Media Types) to refer to
+     RFC 3023 instead; I don't think anything can be tested here -->
+
+<!-- E13 correc|s a spelling mistake -->
+
+<TEST RECOMMENDATION="XML1.0-errat																																		a2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some 
+<TEST RECOMMENDATION="XML1.0-errat																																		a2e" SECTIONS="E14" UR-I="E14.xml" ID="rmt-e2e-14" ENTITIES="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter entities are just validity
+errors (but note that some parsers treat some such errors as fatal)
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E15" URI="E15a.xml" ID="rmt-e2e-15a" TYPE="invalid">
+Empty content can't contain an entity reference
+</TEST>
+
+<TEST RECOMMENDATION="XML1.0-errata2e" SECTIONS="E1																			a2e" SECTIONS="E14" URI="E14.xml" ID="rmt-e2e-14" ENTEITIS="parameter" TYPE="invalid">
+Declarations mis-nested wrt parameter eOCTYPE r [<ntities are just validity
+errors (but note that some parsers treat stent can't contain chaa fatal error.
+</TEST>
+
+</TESTCASES>

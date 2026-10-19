@@ -41,6 +41,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `pattern` | `exercise_pattern` | `pattern::Pattern` compile, `matches` on both DOMs, `StreamMatcher` against the DOM match |
 | `xinclude` | `exercise_xinclude` | `xinclude::process` over NUL-separated pieces (including document, then resources `0`..`9`), `xpointer::evaluate` |
 | `catalog` | `exercise_catalog` | `catalog::Catalog::parse`, `resolve`, `resolve_uri` and `CatalogResolver` over NUL-separated pieces (root catalog, then files `0`..`9`; the last piece also lists queries) |
+| `relaxng` | `exercise_relaxng` | `relaxng::Schema::parse` and `validate` over NUL-separated pieces (schema, instance, then `include`/`externalRef` files `0`..`9`): determinism, both DOMs, reuse, offsets, load and work budgets |
 
 ```sh
 cargo install cargo-fuzz
@@ -68,6 +69,7 @@ done                                          # <= 8 at a time
 
 `pattern` (2026-10-19): 421 s on `nightly-2026-06-06` with `-timeout=2`, about 5.5 million runs (13,100 exec/s), 3,147 coverage edges, no crashes or timeouts; the 2,774-file `cmin` corpus is tracked in `corpus/pattern/`.
 `catalog` (2026-10-19): two 331 s runs on `nightly-2026-06-06` with `-timeout=2` (the second on the final code: about 1.6 million runs, 4,800 exec/s, 6,518 coverage edges), no crashes or timeouts; the `cmin` set of 2,975 files (2.4 MiB) is tracked in `corpus/catalog/`.
+`relaxng` (2026-10-19): two 331 s runs on `nightly-2026-06-06` with `-timeout=2` (the second on the final code: about 1.8 million runs, 5,500 exec/s, 16,429 coverage edges), no crashes, timeouts or leaks; seeded from libxml2's `test/relaxng`, `spectest.xml`, `testsuite.xml` and `xsdtestsuite.xml` cases; the `cmin` set without files over 4 KiB (5,293 files, 2.4 MiB) is tracked in `corpus/relaxng/`.
 
 Merged `src/` coverage from the tracked corpora (`fuzz/coverage.sh`): 88.73% regions, 83.97% functions, 91.13% lines, 83.61% branches (previously 70.72% regions with ignored, unseeded corpora). Weakest files by region: `xpath/mod.rs` 54%, `origin.rs` 77%, `tokenizer/local.rs` 78%, `dtd_frames.rs` 79%, `stream/dtd.rs` 82%, `dtd_controller*.rs` 82%.
 

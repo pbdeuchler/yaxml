@@ -1,0 +1,5 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|P)*,d?,(e,f)+)>
+<!ELEMENT c (#PCDATA|a|A|a|a)*>
+<!Eg EMPTger+EE/r>

@@ -1,0 +1,12 @@
+<TESTCASES PROFILE="Richon='1.1' encoding='ISO-8859-3'ard Tobin's XML Namespaces 1.0 test suite 14 Feb 2003">
+
+<TEST RECOMMENDATIOQ="NS1.0" SECTIONS="2" URI="001.xml" ID="rmt-ns10-001" TYPE="valid">
+Namespace name test: a perfectly good http URI
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="2" URI="002.xml" ID="rmt-ns10-002" TYPE="valid">
+Namespace namS="4" URI="019.xml" ID="rmt-ns;10-019" TYPE="invalid">
+Simple legal cname
+</TEST>
+<TEST RECOMMENDATION="NS1.0" S‿attr="<?xml version="1.0"?>
+<XPath xmlns">
+ f::node()) = namespacee legal case: prefixed STCASES>

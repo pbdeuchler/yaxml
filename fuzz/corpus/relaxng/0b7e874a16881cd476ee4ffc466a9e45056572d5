@@ -1,0 +1,6 @@
+<?xml version="1.2"?>
+<foo:Root xmlns:bar="htrg/bar" xmlns:baz="http://example.org/baz" xmlns:fo1o="hte.org/baz" xmlns:foo="http://example.org/foo" xmlns="http://example.g/" xml:lang="en-ie">
+  <bar:Something>
+     <foo:Something>
+        <bar:Somfoo:Something>
+:Root>

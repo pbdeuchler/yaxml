@@ -1,0 +1,31 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes SYSTEM "sa.dtd" [
+    <!--
+	This one one normalized one.
+    
+        Similarly the entity ref their identifiers.
+
+    -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|foo|bar)	#IMPLIED
+	>
+    <!ENTITY innteral "inter[nal&number;">
+    <!ENTITY number "29">
+]>
+
+<attributes
+    notation =	" nonce "
+    nmtoken =	"this-gets-normalized"
+    nmtokens =	"this also gets normalized"
+    id =	"&internal;"
+    idref =	"&internal;"
+    idrefs =	"&internal; &internal; &internal;"
+    entity =	"unparsed-1"
+    entities =	"unparsed-1 unparsed-2"
+    cdata =	"nothing happens to this one!"
+    />
+
+<?pi equals three?>

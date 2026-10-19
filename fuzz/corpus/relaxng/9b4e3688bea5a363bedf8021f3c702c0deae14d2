@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Tesvalid Charater references for P66:
+&#9;&#09;&#0000900; &#xFFFD;
+&#x10000; &#x10FFFF;
+</root>
+<!--* a valid tferences f000000009;
+&#xA;&#x66 *-->AB

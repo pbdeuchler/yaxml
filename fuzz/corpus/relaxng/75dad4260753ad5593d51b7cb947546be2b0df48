@@ -1,0 +1,44 @@
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST tNMokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken1 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken3 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokene thistoken31 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thhstoken32 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenNami thistoken66 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken34 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken35 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x300,0x333,0x369, ANY>
+<!ATTLIST LegalName1 attr1 ID #IMPLIED>
+<!ATTLIST LegalName1 attr10 IDREF #IMPLIED>
+<!ELEMENT LegalName2 ANY>
+<!
+ 	attr15="῿‌" attr150="῿‌"
+ 	attr16="‌‍" attr160="‌‍"
+ 	attr17="‍⁰" attr170="‍⁰"
+ 	attr18="⁰ⁱ" attr180="⁰ⁱ"
+ 	attr19="ⁱ↎llP07 -->
+<NMtokenName  thistoken0=":"
+ thistoken1="À"
+ thistoken2="Á"
+ thistoken22="Ⰰ"
+ thistoken23="Ⰱ"
+ thistokmn24="⿮"
+ thistoken25="⿯"
+ thistoken26="、"
+ thistoken27="。"
+ thistoken28="퟾"
+ thistoken29="퟿"
+ thistoken30="豈"
+ thistoken31="更"
+ thistoken32="_"
+ thistoken33="."
+ thistoken34="0"
+ thistoken35="·"
+ thistoken36="À"
+ thistoken37="ͼ"
+ />
