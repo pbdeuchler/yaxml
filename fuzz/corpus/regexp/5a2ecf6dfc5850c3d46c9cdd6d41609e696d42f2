@@ -1,0 +1,4 @@
+((a|b|\p{N}){1,2}|caa|bBbb){1,2}
+bab
+aaa0(a
+)0aaa

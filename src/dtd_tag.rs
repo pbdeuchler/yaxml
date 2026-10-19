@@ -11,6 +11,7 @@ use crate::parser::{
     AttributeProvenance, Budget, PreparedAttribute, PreparedTag, PreparedTagError,
     PreparedTagErrorLocation, RawTag,
 };
+use crate::valid::Code;
 use crate::{Error, ErrorKind, Limit, Name};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -118,11 +119,31 @@ fn prepare_tag<'event>(
         )?);
     }
 
+    // Offsets are physical only outside entity replacement text.
+    let physical = |offset| (source == LiteralSource::Physical).then_some(offset);
+    let standalone = catalog.standalone();
     let mut attributes = Vec::new();
     attributes
         .try_reserve(raw.attributes.len())
         .map_err(|_| input_error(ErrorKind::Allocation, raw.start))?;
     for (attribute, name) in raw.attributes.into_iter().zip(names) {
+        // libxml2's XML_ATTVAL_NORM_CHANGE, judged on the literal's whitespace.
+        if standalone
+            && catalog.attributes(raw.qualified).any(|binding| {
+                binding.name() == attribute.qualified && !binding.internal() && binding.tokenized()
+            })
+            && tokenizing_changes(attribute.literal)
+        {
+            let message = format!(
+                "standalone: normalization of attribute {} on {} by external subset declaration",
+                attribute.qualified, raw.qualified
+            );
+            catalog.note(
+                Code::NotStandalone,
+                physical(attribute.name_offset),
+                message,
+            );
+        }
         let mut requested_value_bytes = 0;
         let normalized = if borrow_physical {
             catalog.normalize_attribute_borrowed_bounded(
@@ -159,6 +180,21 @@ fn prepare_tag<'event>(
         });
     }
 
+    // Copied defaults amplify output like entities do (libxml2 `expandedSize`).
+    let copied = catalog
+        .attributes(raw.qualified)
+        .filter(|binding| !explicit.contains(binding.name()))
+        .filter_map(|binding| match binding.default() {
+            DefaultValue::Value { value, .. } => {
+                Some(binding.name().len() + value.len() + crate::dtd_controller::ENTITY_FIXED_COST)
+            }
+            _ => None,
+        })
+        .fold(0_usize, usize::saturating_add);
+    catalog
+        .charge_default(copied)
+        .map_err(|error| rebase_catalog_error(error, raw.start))?;
+    let mut defaulted = Vec::new();
     for binding in catalog.attributes(raw.qualified) {
         if explicit.contains(binding.name()) {
             continue;
@@ -167,6 +203,13 @@ fn prepare_tag<'event>(
             DefaultValue::Required | DefaultValue::Implied => continue,
             DefaultValue::Value { value, .. } => value,
         };
+        if standalone && !binding.internal() {
+            defaulted.push(format!(
+                "standalone: attribute {} on {} defaulted from external subset",
+                binding.name(),
+                raw.qualified
+            ));
+        }
         let name_offset = binding.name_offset();
         let (prefix, _) = qname(binding.name(), name_offset).map_err(|error| DtdTagError {
             kind: DtdTagErrorKind::Parser(error.kind),
@@ -206,12 +249,29 @@ fn prepare_tag<'event>(
         });
     }
 
+    for message in defaulted {
+        catalog.note(Code::StandaloneDefaulted, physical(raw.start), message);
+    }
     Ok(PreparedTag {
         name,
         attributes,
         empty: raw.empty,
         start: raw.start,
     })
+}
+
+/// Whether discarding leading, trailing and repeated spaces changes a
+/// literal after whitespace normalization; references are not expanded.
+fn tokenizing_changes(literal: &str) -> bool {
+    let mut previous = true;
+    for c in literal.chars().filter(|&c| c != '\r') {
+        let space = matches!(c, ' ' | '\t' | '\n');
+        if space && previous {
+            return true;
+        }
+        previous = space;
+    }
+    previous && !literal.is_empty()
 }
 
 fn retained_name<'event>(

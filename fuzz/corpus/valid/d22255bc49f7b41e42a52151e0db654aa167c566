@@ -1,0 +1,8 @@
+<!DOCTYPE r SYSTEM 'iҔtd' [
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' d='b' s='a c' e='p' es='u v amp' t='4 2' ts=' x  y ' o='m' c='d' xmlns:p='urn:q' xml:id='w'>&#13;&#9;">&lt;&gt;&a<!END>

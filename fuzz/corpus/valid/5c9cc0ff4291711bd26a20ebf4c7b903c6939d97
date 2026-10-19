@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST rPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c  ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST rPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'gain'>
+]>
+<r i='a'>>>>>>>>>>>>>>>>>>>>>>>>>a|a)>MPT>A[]]>[]]	AT|<X<(a|a)>MPLIED es IED es ENTIT	<?xmlA2	AT|<X<(a|a)>MPLIEĵßßşħÁ<?p
+;<!ELv am<r><!p' t='2 2' -

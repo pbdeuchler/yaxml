@@ -31,13 +31,16 @@ impl SessionLimits {
     pub(crate) fn new(limits: Limits, decode: DecodeLimits) -> Self {
         let token = limits.max_token_bytes;
         let scratch = token.max(decode.max_decoded_token_bytes).saturating_mul(2);
-        let expansion = limits.max_entity_expansion_bytes;
+        let consumed = limits
+            .max_input_bytes
+            .saturating_add(limits.max_external_bytes);
+        // The largest allowance ever granted; the live one tracks consumption.
+        let expansion = limits
+            .max_entity_expansion_bytes
+            .max(consumed.saturating_mul(limits.max_entity_amplification));
         let references = limits.max_entity_references;
         let depth = limits.max_entity_depth;
-        let work = limits
-            .max_input_bytes
-            .saturating_add(expansion)
-            .saturating_mul(8);
+        let work = consumed.saturating_add(expansion).saturating_mul(8);
         Self {
             declarations: ControllerLimits {
                 scan: ScanLimits {
@@ -70,6 +73,8 @@ impl SessionLimits {
                 max_physical_bytes: limits.max_dtd_bytes,
                 max_work: work,
                 max_owned_bytes: limits.max_owned_bytes,
+                expansion_floor: limits.max_entity_expansion_bytes,
+                amplification: limits.max_entity_amplification,
             },
             text: TextLimits {
                 max_work: work,
@@ -198,7 +203,7 @@ fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
     }
 }
 
-fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
+pub(crate) fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
     match kind {
         CatalogErrorKind::EntityDeclared => ErrorKind::UnknownEntity,
         CatalogErrorKind::ExternalInAttribute => ErrorKind::ExternalEntityInAttribute,

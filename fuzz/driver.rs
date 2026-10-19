@@ -5,6 +5,22 @@ use std::collections::HashSet;
 use std::ops::{ControlFlow, Range};
 use yaxml::{Document, Error, ErrorKind, Event, Limits, NodeKind, PushParser, ReadError, Reader};
 
+/// Events are bounded by input plus the permitted entity expansion: at most
+/// one per two source or expanded bytes, plus EOF.
+pub fn event_bound(input: usize) -> usize {
+    expanded_bound(input).saturating_mul(2).saturating_add(1)
+}
+
+/// Input bytes plus the largest default entity-expansion allowance.
+pub fn expanded_bound(input: usize) -> usize {
+    let limits = Limits::default();
+    input.saturating_add(
+        limits
+            .max_entity_expansion_bytes
+            .max(input.saturating_mul(limits.max_entity_amplification)),
+    )
+}
+
 /// Exact input span, or the outermost entity reference that produced the value.
 pub fn span(origin: yaxml::SourceOrigin) -> Range<usize> {
     origin
@@ -36,6 +52,12 @@ mod construction;
 #[path = "names.rs"]
 mod names;
 
+#[path = "datatypes.rs"]
+mod datatypes;
+#[path = "pattern.rs"]
+mod pattern;
+#[path = "regexp.rs"]
+mod regexp;
 #[path = "uri.rs"]
 mod uri;
 #[path = "xpath.rs"]
@@ -46,12 +68,20 @@ mod c14n;
 
 #[path = "html.rs"]
 mod html;
+#[path = "valid.rs"]
+mod valid;
 
 #[path = "resolver.rs"]
 mod resolver;
 
 #[path = "textreader.rs"]
 mod textreader;
+
+#[path = "xinclude.rs"]
+mod xinclude;
+
+#[path = "catalog.rs"]
+mod catalog;
 
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
@@ -72,9 +102,15 @@ pub fn exercise(input: &[u8]) -> Outcome {
     );
     exercise_names(input);
     exercise_uri(input);
+    exercise_regexp(input);
+    exercise_datatypes(input);
     exercise_html(input);
     exercise_xpath(input);
+    exercise_pattern(input);
+    exercise_xinclude(input);
+    exercise_catalog(input);
     exercise_c14n(input);
+    exercise_valid(input);
     exercise_textreader(input);
     exercise_construction(input);
     exercise_mutation(input);
@@ -126,6 +162,7 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
 
 /// The DTD-relevant subset of `exercise`; the full family is far slower.
 fn exercise_doctype(input: &[u8]) -> Outcome {
+    exercise_valid(input);
     exercise_owned(input);
     exercise_serialize(input);
     exercise_push(input);
@@ -160,6 +197,16 @@ pub fn exercise_resolver(input: &[u8]) -> Outcome {
 /// URI parse, serialization, escaping and resolution invariants.
 pub fn exercise_uri(input: &[u8]) {
     uri::exercise(input);
+}
+
+/// XML Schema regular expression compilation and matching invariants.
+pub fn exercise_regexp(input: &[u8]) {
+    regexp::exercise(input);
+}
+
+/// XML Schema datatype parsing, comparison and facet invariants.
+pub fn exercise_datatypes(input: &[u8]) {
+    datatypes::exercise(input);
 }
 
 /// HTML parsing, push chunk independence and serialization.
@@ -340,10 +387,37 @@ pub fn exercise_xpath(input: &[u8]) {
     xpath::exercise(input);
 }
 
+/// Exercise pattern compilation, DOM matching and streaming; see `pattern.rs`
+/// for the testcase format.
+pub fn exercise_pattern(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    pattern::exercise(input);
+}
+
+/// Exercise XInclude over fuzz-provided resources; see `xinclude.rs` for the
+/// testcase format.
+pub fn exercise_xinclude(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    xinclude::exercise(input);
+}
+
+/// Exercise XML and SGML catalogs over fuzz-provided files; see `catalog.rs`
+/// for the testcase format.
+pub fn exercise_catalog(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    catalog::exercise(input);
+}
+
 /// Exercise canonicalization over both DOMs; see `c14n.rs` for the testcase format.
 pub fn exercise_c14n(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     c14n::exercise(input);
+}
+
+/// Exercise DTD validation over both DOMs; see `valid.rs` for the testcase format.
+pub fn exercise_valid(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    valid::exercise(input);
 }
 
 /// Exercise the libxml2-style node cursor; see `textreader.rs` for the testcase format.
@@ -442,6 +516,13 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
     let mut stream = Vec::new();
     let outcome = read(input, Some(limits), |event| stream.push(event));
     let document = Document::with_limits(input, limits);
+    // Joining entity-split text runs into one DOM node needs owned storage
+    // that the borrowing reader never spends.
+    if outcome.error.is_none()
+        && matches!(&document, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
+    {
+        return outcome;
+    }
     assert_eq!(
         outcome.error.is_none(),
         document.is_ok(),
@@ -501,7 +582,7 @@ fn read<'input>(
                 assert!(range.start <= range.end && range.end <= position);
                 events += 1;
                 assert!(
-                    events <= input.len().saturating_mul(2).saturating_add(1),
+                    events <= event_bound(input.len()),
                     "reader made no bounded progress"
                 );
                 emit(event);

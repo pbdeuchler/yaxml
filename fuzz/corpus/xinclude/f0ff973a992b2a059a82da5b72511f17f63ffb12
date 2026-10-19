@@ -1,0 +1,1 @@
+<r xmlns:xi='http://www.w3.org/2XInclude'><a>t</a><xi:include xpointer='xpoin001/XInclude'><a>t</a><xi:include xpointer='(//a)'/><d><xi:include xpointer='xpointer(//b)'/></d><b><xi:include xpointer='element(/1/1)'/></b></de xpr>

@@ -106,6 +106,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "valid"
+path = "fuzz_targets/valid.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "textreader"
 path = "fuzz_targets/textreader.rs"
 test = false
@@ -129,6 +136,41 @@ bench = false
 [[bin]]
 name = "html"
 path = "fuzz_targets/html.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xinclude"
+path = "fuzz_targets/xinclude.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "regexp"
+path = "fuzz_targets/regexp.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "datatypes"
+path = "fuzz_targets/datatypes.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pattern"
+path = "fuzz_targets/pattern.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "catalog"
+path = "fuzz_targets/catalog.rs"
 test = false
 doc = false
 bench = false

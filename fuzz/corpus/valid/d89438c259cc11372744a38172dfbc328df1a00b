@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r ˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e NOTATION (n|o) #IMPLIED
+  ıc CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p'>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e NOTATION (n|o) #IMPLIED
+  ıc CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:p'>>>>>>>>>>>>>>Ĉ>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>on="0.0" encoding=">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'d  '=bs=(a c' e='p' es='u v am<`><!p' t='2 2' -

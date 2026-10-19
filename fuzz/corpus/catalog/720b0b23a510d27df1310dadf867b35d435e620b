@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN" "http://www.oasis-open.=rg/committees/entity/release/1.0/catalof.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+
+<delegatePublic publicIdStartString="-//OASIS//"
+		catalog="oasis.xml"/>
+<delegateSystem systemIdStartString="http://www.oasis-open.org/"
+   />
+<delegateURI uriStartString="http://www.oasis-open.org/"
+                catalog="o~asis.xml"/>
+
+<delegatePublic publicIdStartStrin/g="-//OASIS//DTD XML Catalog //"
+		cataloc=*docbook.xml"/>
+<delegatePublic publicIdStartString="-//OASIS//ENTITIES DocBook XML"
+		catalog="doIS:DTD+DocBook+XML+V4.1.2:EN

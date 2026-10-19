@@ -225,11 +225,32 @@ assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`Document::validate` and `OwnedDocument::validate` check a tree against its
+DTD like libxml2's `XML_PARSE_DTDVALID`; `yaxml::valid::validate` checks it
+against a separate `Dtd` (`xmllint --dtdvalid`). Validity diagnostics are
+never fatal and carry libxml2's `XML_DTD_*` numbers; content models compile
+to bounded deterministic automata. See [DTD validation](docs/validation-dtd.md).
+
+```rust
+let xml = "<!DOCTYPE r [<!ELEMENT r (a)><!ATTLIST r id ID #REQUIRED>]><r/>";
+let diagnostics = yaxml::Document::parse(xml)?.validate();
+let codes: Vec<_> = diagnostics.iter().map(|diagnostic| diagnostic.code).collect();
+use yaxml::valid::Code::{ContentModel, MissingAttribute};
+assert_eq!(codes, [ContentModel, MissingAttribute]);
+assert!(!yaxml::valid::is_valid(&diagnostics));
+# Ok::<(), yaxml::Error>(())
+```
+
 `TextReader` is libxml2's `xmlTextReader` cursor (`xmlreader.h`) over any
 `BufRead`: node types and depths numbered as libxml2, attribute navigation,
 namespace/`xml:lang`/`xml:base` scope, `next`, `read_string`, inner/outer XML
 and `expand` to an `OwnedDocument`, in bounded memory. See the
 [TextReader contract](docs/textreader.md) for libxml2 agreement and gaps.
+
+`yaxml::pattern` compiles libxml2's XPath pattern subset (`a/b`, `//a`, `.//a`,
+`a|b`, `@x`, `p:*`) and matches a node of either DOM or evaluates it
+incrementally over element events in memory bounded by pattern and depth; see
+[patterns](docs/pattern.md).
 
 ```rust
 use yaxml::{NodeType, TextReader};
@@ -256,6 +277,40 @@ assert_eq!(canonical, r#"<r><p:e xmlns:p="urn:p" a="1" b="2"></p:e></r>"#);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`yaxml::xinclude::process` performs XInclude 1.0 as libxml2's `xinclude.c`
+does (XML and text inclusion, fallbacks, `xml:base` fixup, XPointer
+selection, loop/depth detection) and returns a new `OwnedDocument`; resources
+load only through the supplied `Resolver`, within cumulative budgets.
+`yaxml::xpointer::evaluate` is libxml2 2.15's XPointer subset (shorthand,
+`element()`, `xmlns()`, `xpointer()`). See the [XInclude contract](docs/xinclude.md).
+
+```rust
+let main = yaxml::OwnedDocument::parse(
+    "<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='a.xml' xpointer='element(/1/2)'/></r>",
+)?;
+let resolver = |_: yaxml::Request<'_>| Ok(Some(b"<a><b/><c/></a>".to_vec()));
+let result = yaxml::xinclude::process(&main, "main.xml", Box::new(resolver), &Default::default())?;
+assert_eq!(result.root_element().first_child().unwrap().name().unwrap().local(), "c");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`yaxml::schema_types` validates, compares and constrains the 45 XML Schema
+built-in datatypes as libxml2's `xmlschemastypes.c` does, and `yaxml::regexp`
+compiles XML Schema patterns to budgeted automata matched in linear time. Both
+are the foundation for XML Schema and RELAX NG validation; see
+[schema types](docs/schema-types.md).
+
+```rust
+use yaxml::{regexp::Regex, schema_types::{Comparison, Type}};
+
+let pattern = Regex::new("[A-Z]{2}\\d{3}")?;
+assert!(pattern.is_match("AB123") && !pattern.is_match("AB12"));
+let late = Type::DateTime.parse("2001-10-26T21:32:52Z", None).unwrap();
+let early = Type::DateTime.parse("2001-10-26T23:32:52+04:00", None).unwrap();
+assert_eq!(early.compare(&late), Comparison::Less);
+# Ok::<(), yaxml::regexp::Error>(())
+```
+
 `yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
 tokenization, libxml2's legacy tree construction with implied elements and
 auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding
@@ -274,6 +329,32 @@ assert!(output.ends_with(b"<body><p>a</p><p>b &amp; c</p></body></html>\n"));
 
 The [HTML contract](docs/html.md) lists options, encodings, limits, the
 xmllint differential and known differences.
+
+`yaxml::catalog` resolves public, system and URI identifiers through OASIS XML
+or SGML catalogs as libxml2's `catalog.c` does (rewrite, delegate,
+`nextCatalog`, `prefer`, `urn:publicid:`), with no global or default catalog.
+A `Catalog` is parsed from bytes or loaded through a `Resolver`, which also
+fetches referenced catalogs lazily within `catalog::Limits`;
+`CatalogResolver::new(catalog, inner)` is itself a `Resolver`, so any parser
+gains catalog support unchanged. See the [catalog contract](docs/catalog.md).
+
+```rust
+use yaxml::catalog::{Catalog, CatalogResolver};
+
+let entries = br#"<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteSystem systemIdStartString="http://example.com/" rewritePrefix="mirror/"/>
+</catalog>"#;
+let none = |_: yaxml::Request<'_>| Ok(None);
+let catalog = Catalog::parse(entries, Default::default(), "", Box::new(none))?;
+let inner = |request: yaxml::Request<'_>| {
+    Ok((request.uri == "mirror/r.dtd").then(|| b"<!ENTITY e 'local'>".to_vec()))
+};
+let resolver = CatalogResolver::new(catalog, Box::new(inner));
+let input = b"<!DOCTYPE r SYSTEM 'http://example.com/r.dtd'><r>&e;</r>";
+let document = yaxml::Document::with_resolver(input, Default::default(), "d.xml", Box::new(resolver))?;
+assert_eq!(document.root_element().text_chunks().collect::<String>(), "local");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
 
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need

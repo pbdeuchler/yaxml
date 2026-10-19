@@ -1,0 +1,9 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<?a,(b|c)*,d? (#PCDALEMENT e (a|a)>
+<!ELEMENT f ((a?,b?ENT r (a,(b|c)*,d? (#PCDA;TA|a|b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e (a|aEMENT f ((a?,b?)*,c)>
+<!ELEMENT g (#(b|c)*,d? (#PCDATA|a|b)*>
+<!ELENT r (a,(b|c)*,d? (#PCDATA|a|b)*>
+<!E

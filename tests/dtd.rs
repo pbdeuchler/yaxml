@@ -426,16 +426,15 @@ fn entity_amplification_and_dtd_ceilings_are_enforced() {
             .expect_err("default limit ignored")
             .kind
     };
-    // A billion references of three bytes exhaust the reference count first.
     assert_eq!(
         default(&laughs),
-        ErrorKind::LimitExceeded(Limit::EntityReferences)
+        ErrorKind::LimitExceeded(Limit::EntityExpansion)
     );
-    // Empty leaves expand to nothing but still count every reference.
+    // Empty leaves expand to nothing but every reference has a fixed cost.
     let empty = laughs.replace("'lol'", "''");
     assert_eq!(
         default(&empty),
-        ErrorKind::LimitExceeded(Limit::EntityReferences)
+        ErrorKind::LimitExceeded(Limit::EntityExpansion)
     );
     let quadratic = format!(
         "<!DOCTYPE r [<!ENTITY a '{}'>]><r>{}</r>",
@@ -446,16 +445,16 @@ fn entity_amplification_and_dtd_ceilings_are_enforced() {
         default(&quadratic),
         ErrorKind::LimitExceeded(Limit::EntityExpansion)
     );
-    // One attribute value is also bounded as a single token.
     let quadratic_attribute = quadratic.replace("<r>", "<r a='").replace("</r>", "'/>");
     assert_eq!(
         default(&quadratic_attribute),
-        ErrorKind::LimitExceeded(Limit::TokenBytes)
+        ErrorKind::LimitExceeded(Limit::EntityExpansion)
     );
     // Every surface enforces the same ceilings.
     let small = Limits {
         max_entity_references: 50,
         max_entity_expansion_bytes: 100,
+        max_entity_amplification: 0,
         ..Limits::default()
     };
     let few = Limits {
@@ -500,8 +499,10 @@ fn entity_amplification_and_dtd_ceilings_are_enforced() {
         ErrorKind::LimitExceeded(Limit::DtdBytes)
     );
     assert!(all(b"<!DOCTYPE r [ ]><r/>", dtd).is_ok());
+    // One use costs its three replacement bytes plus libxml2's fixed 20.
     let expansion = Limits {
-        max_entity_expansion_bytes: 3,
+        max_entity_expansion_bytes: 23,
+        max_entity_amplification: 0,
         ..Limits::default()
     };
     let three = "<!DOCTYPE r [<!ENTITY e 'xyz'>]><r>&e;</r>";

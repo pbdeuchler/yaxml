@@ -1,0 +1,13 @@
+((a|b|\p{Nd}){1,2}|aaa|bbbb){1,2}
+ba (aa|b|\p{Nd}){1,2}|aaa|bbbb)(a|b|\p{Nd}){1,2}|aaa|bbbb){1,2}
+ba (aa|b|\p{Nd}){1,2}|aaa|bbbb){1,2}
+ba (ab
+aa0aaa
+b0b
+aa0aaa
+b0&gaa{1,2}
+ba (ab
+aa0aaa
+b0b
+aa0aaa
+b0&gaa

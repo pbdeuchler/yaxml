@@ -32,6 +32,10 @@ harness = false
 name = "structural_mutation"
 harness = false
 
+[[bench]]
+name = "regexp"
+harness = false
+
 [lints.rust]
 unsafe_code = "forbid"
 

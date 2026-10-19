@@ -1,0 +1,14 @@
+(a|b{0,}){01},1}
+a
+aa
+b
+bb
+bb
+a
+aa
+b
+bb
+bbb
+bbbb
+aNb
+b,a

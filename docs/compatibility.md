@@ -16,7 +16,7 @@ The implemented subset now includes the borrowing slice reader, read-only DOM,
 callback `PushParser`, bounded lending `BufferedReader`, owned trees, UTF-8 event
 writing, complete borrowed/owned DOM serialization, bounded owned-value editing,
 rooted document creation, fresh element/leaf insertion, permanent subtree removal, an explicit `Read`
-adapter, the [`TextReader`](textreader.md) node cursor, [XPath 1.0](xpath.md) evaluation and [canonicalization](c14n.md) over both DOMs. Input shares XML 1.0 grammar, including the
+adapter, the [`TextReader`](textreader.md) node cursor, [XPath 1.0](xpath.md) evaluation and [canonicalization](c14n.md) over both DOMs, and [XInclude/XPointer](xinclude.md). Input shares XML 1.0 grammar, including the
 internal DTD subset (below); owning/streaming input
 also supports [UTF-16 and declared US-ASCII, ISO-8859-x and windows-1252](encoding.md). See the [streaming contract](streaming.md)
 for event lifetimes, limits, cancellation and incremental error ordering. The
@@ -75,14 +75,27 @@ Unparsed entities in content (`UnparsedEntity`), external entities in attribute
 values (`ExternalEntityInAttribute`), recursion (`EntityLoop`), unbalanced
 replacement markup (`UnbalancedEntity`) and malformed declarations
 (`InvalidDtd`) are fatal. Ceilings are `Limits::max_dtd_bytes`,
-`max_entity_expansion_bytes`, `max_entity_references` and `max_entity_depth`.
+`max_entity_expansion_bytes`, `max_entity_amplification`,
+`max_entity_references` and `max_entity_depth`.
+
+Amplification follows libxml2's `xmlParserEntityCheck` without
+`XML_PARSE_HUGE`: every entered replacement text (general, parameter and
+external entities, in content, attribute values and the subset) and every
+copied default attribute is charged its length plus a fixed cost of 20; the
+total may exceed `max_entity_expansion_bytes` (default 1,000,000, libxml2's
+`XML_PARSER_ALLOWED_EXPANSION`) only up to `max_entity_amplification`
+(default 5, `XML_MAX_AMPLIFICATION_DEFAULT`) times the input consumed so far,
+resolver bytes included. Expansion work is O(1) amortized per charged byte, so
+billion-laughs, parameter-laughs and quadratic-blowup documents fail in
+milliseconds with `LimitExceeded(EntityExpansion)`; `tests/amplification.rs`
+asserts the per-use cost is constant on all five parsers.
 
 Known differences from the pinned oracle, all intentional: colons in entity or
 notation names are a fatal `Namespace` error (libxml2 warns); PE references
 inside internal-subset markup are fatal as the WFC requires; a `&#13;` in
 replacement text stays CR in content (libxml2 parses entity text as new input
 and turns it into LF); the serializer writes the DOCTYPE exactly as parsed
-rather than regenerating declarations; no DTD validation; libxml2 reloads an
+rather than regenerating declarations; libxml2 reloads an
 external PE per reference where yaxml caches it. The differential cases live in `tests/dtd.rs`
 (`YAXML_XMLLINT=... cargo test --test dtd -- --ignored`).
 
@@ -138,18 +151,19 @@ Priority is dependency order and migration value. P0 is the first usable secure 
 | P1 | Mutable DOM: creation, insertion, unlink/remove, replacement, attributes, namespaces, copy/import/adopt, cross-document ownership, adjacent-text merging, base URI, `xml:lang`, `xml:space`, line metadata | `tree.h`; `xmlAddChild*`, `xmlAddSibling`, `xmlUnlinkNode`, `xmlReplaceNode`, `xmlSetProp`, `xmlDocCopyNode`, `xmlDOMWrap*` |
 | P1 | Serialization and writer: escaping, declarations, encoding, empty-element spelling, CDATA boundaries, namespace fixup, formatting, incremental writes and I/O failures; preserve semantic round trips | `xmlsave.h`, `xmlwriter.h`, `tree.h`; `xmlSaveTo*`, `xmlSaveDoc`, `xmlTextWriter*`, `xmlDocDump*` |
 | P1 | Rust I/O and contexts: slices, strings, `Read`/`BufRead`, `Write`, context reuse/reset, explicit resource resolver, deterministic cleanup, parser options and capability reporting | `xmlIO.h`, `parser.h`; `xmlReadMemory`, `xmlReadIO`, `xmlCtxtReset`, `xmlCtxtSetOptions`, `xmlHasFeature` |
-| P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
-| P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits. **Implemented** over both DOMs; see [xpath.md](xpath.md) for the differential results, recorded differences and gaps (XPointer, `CHECKNS`/`NOVAR` flags, lookup callbacks) | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
+| P2 | DTD validation: content models, attribute types, defaults/fixed values, required attributes, IDs/IDREFs, entities and notations; separate well-formedness from validity. **Implemented** over both DOMs (`validate`, `valid::validate`, `valid::Dtd`); 234 of 242 XMLTS `invalid` cases reported invalid (libxml2 235) and every parsed `valid` case valid; libxml2's `test/valid` error counts match. See [validation-dtd.md](validation-dtd.md) for the differences (entities are always substituted; streaming readers do not validate) | `valid.h`, `xmlautomata.h`, `xmlregexp.h`; `xmlValidateDocument`, `xmlValidateDtd`, `xmlValidCtxt` |
+| P2 | XPath 1.0: parser/compiler/evaluator, all axes, predicates, document order/deduplication, namespace nodes, four value types and conversions, core functions, variable/namespace/custom-function registration, limits. **Implemented** over both DOMs; see [xpath.md](xpath.md) for the differential results, recorded differences and gaps (`CHECKNS`/`NOVAR` flags, lookup callbacks) | `xpath.h`, `xpathInternals.h`; `xmlXPathEvalExpression`, `xmlXPathCompile`, `xmlXPathCompiledEval`, `xmlXPathRegister*` |
 | P3 | HTML parsing and serialization: `yaxml::html` implements libxml2's tokenizer, legacy tree construction and recovery, HTML5 entities, implied elements, case folding, void/raw-text elements, meta/BOM/prescan encoding selection (UTF-8, UTF-16, built-in single-byte charsets), chunk-independent push parsing, `htmlDocDumpMemory` and HTML `xmlSaveDoc` output ([html.md](html.md), differential-tested against xmllint); still open: multi-byte converters, SAX callbacks, `HTML_PARSE_HTML5`, `htmlCtxtParseContent`, line numbers | `HTMLparser.h`, `HTMLtree.h`; `htmlRead*`, `htmlCtxtRead*`, `htmlParseChunk`, `htmlDocDump*` |
 | P2 | Canonicalization: Canonical XML 1.0/1.1 and exclusive C14N, node subsets, comments toggle, inclusive namespace prefixes, exact bytes. **Implemented** over both DOMs; 70 of 73 libxml2 `test/c14n` cases match byte for byte, the other 3 select `xmlns=""` namespace nodes. See [c14n.md](c14n.md) for kept libxml2 quirks and gaps (visibility callback, file output, `xmlns=""` namespace nodes) | `c14n.h`; `xmlC14NDocDumpMemory`, `xmlC14NDocSaveTo`, `xmlC14NExecute` |
-| P3 | XML Schema 1.0: parse/compile schemas, imports/includes/redefines, simple/complex types, facets, derivation, identity constraints, defaults, document/stream validation and diagnostics | `xmlschemas.h`, `schemasInternals.h`, `xmlschemastypes.h`; `xmlSchemaParse`, `xmlSchemaValidateDoc`, `xmlSchemaValidateStream`, `xmlSchemaVal*` |
-| P3 | RELAX NG: XML syntax, include/externalRef, patterns, datatype libraries, document and push validation, diagnostics | `relaxng.h`; `xmlRelaxNGParse`, `xmlRelaxNGValidateDoc`, `xmlRelaxNGValidatePush*` |
-| P2 | URI and resource resolution: `yaxml::uri` implements parse/save/escape/unescape/normalize/`xmlBuildURI`/`xmlBuildRelativeURI`/`xmlCanonicPath` for Unix ([uri.md](uri.md), differential-tested); still open: base URI rules in the DOM, XML and SGML catalogs, rewrite/delegate/nextCatalog, per-context resolver policy | `uri.h`, `catalog.h`; `xmlBuildURI`, `xmlParseURI`, `xmlCatalogResolve*`, `xmlACatalog*` |
-| P2 | XInclude 1.0: XML/text inclusion, base/language fixup, fallback, recursive inclusion/cycle limits, resolver permissions, XPointer interaction | `xinclude.h`; `xmlXIncludeProcess*`, `xmlXIncludeNewContext` |
-| P2/P3 | P2 patterns: streaming pattern matching, namespace-aware patterns; P3 XPointer: supported schemes and node selections | `pattern.h`, `xpointer.h`; `xmlPatterncompile`, `xmlPatternMatch`, `xmlStreamPush*`, `xmlXPtrEval` |
+| P3 | XML Schema 1.0: parse/compile schemas, imports/includes/redefines, simple/complex types, facets, derivation, identity constraints, defaults, document/stream validation and diagnostics. Foundation **implemented**: `schema_types` (all built-in datatypes, values, comparison, facets) and `regexp` (patterns); see [schema-types.md](schema-types.md) | `xmlschemas.h`, `schemasInternals.h`, `xmlschemastypes.h`; `xmlSchemaParse`, `xmlSchemaValidateDoc`, `xmlSchemaValidateStream`, `xmlSchemaVal*` |
+| P3 | RELAX NG: XML syntax, include/externalRef, patterns, datatype libraries, document and push validation, diagnostics; the XSD datatype library can build on `schema_types` | `relaxng.h`; `xmlRelaxNGParse`, `xmlRelaxNGValidateDoc`, `xmlRelaxNGValidatePush*` |
+| P2 | URI and resource resolution: `yaxml::uri` implements parse/save/escape/unescape/normalize/`xmlBuildURI`/`xmlBuildRelativeURI`/`xmlCanonicPath` for Unix ([uri.md](uri.md), differential-tested); still open: base URI rules in the DOM, per-context resolver policy. XML and SGML catalogs (rewrite, delegate, nextCatalog, URN unwrapping, prefer) are **implemented** as `catalog::Catalog` and the `CatalogResolver` adapter, without global state ([catalog.md](catalog.md); 6 of 6 libxml2 `test/catalogs` scripts, 0 of 4,800 generated lookups differ); editing/dumping and the catalog PI are not ported | `uri.h`, `catalog.h`; `xmlBuildURI`, `xmlParseURI`, `xmlCatalogResolve*`, `xmlACatalog*` |
+| P2 | XInclude 1.0: XML/text inclusion, base/language fixup, fallback, recursive inclusion/cycle limits, resolver permissions, XPointer interaction. **Implemented** as `xinclude::process` over owned documents (`NOXINCNODE` trees, `NOBASEFIX` option, cumulative resolver budgets); 26 of 28 libxml2 `test/XInclude` inputs match byte for byte, the other 2 differ in DTD re-serialization and output encoding. See [xinclude.md](xinclude.md) for differences and gaps (entity merging, marker nodes, streaming) | `xinclude.h`; `xmlXIncludeProcess*`, `xmlXIncludeNewContext` |
+| P2 | XPointer as libxml2 2.15 keeps it: shorthand names, child sequences, `element()`, `xmlns()`, `xpointer()`/`xpath1()` (no range/point extensions, removed in 2.15). **Implemented** as `xpointer::evaluate` over both DOMs ([xinclude.md](xinclude.md)) | `xpointer.h`; `xmlXPtrEval`, `xmlXPtrNewContext` |
+| P2 | Patterns: streaming pattern matching, namespace-aware patterns. **Implemented** as `pattern::Pattern` (`compile`, `matches` over both DOMs, `stream` for incremental matching); 4 of 4 libxml2 `test/pattern` inputs match byte for byte. See [pattern.md](pattern.md) for differences and gaps (no dictionaries or depth queries, no `Preserve` reader integration) | `pattern.h`; `xmlPatterncompile`, `xmlPatternMatch`, `xmlStreamPush*` |
 | P3 | XML recovery modes, deprecated SAX1 and parser-internal entry points: reproduce only against named option/release fixtures; malformed-input recovery is not a specification | `SAX.h`, `parserInternals.h`, deprecated `xmlParse*`, `xmlRecover*`, `xmlSAX*` |
-| P3 | Schematron validation and reporting, XLink callbacks, public regex/automata/datatype helper APIs | `schematron.h`, `xlink.h`, `xmlregexp.h`, `xmlautomata.h`, `xmlschemastypes.h` |
-| P3 | Public utility APIs: dictionaries/interning, hashes, lists, buffers, UTF-8/string helpers, Unicode categories/blocks, diagnostic tree dumps/shell | `dict.h`, `hash.h`, `list.h`, `tree.h`, `xmlstring.h`, `xmlunicode.h`, `debugXML.h` |
+| P3 | Schematron validation and reporting, XLink callbacks, public regex/automata/datatype helper APIs. `xmlRegexpCompile`/`xmlRegexpExec` (`yaxml::regexp`, linear-time, budgeted) and `xmlSchemaValidatePredefinedType`/`xmlSchemaCompareValues`/facet checks (`yaxml::schema_types`) are **implemented** and differential-tested ([schema-types.md](schema-types.md)); still open: `xmlRegExec*` push contexts, `xmlAutomata*`, canonical values | `schematron.h`, `xlink.h`, `xmlregexp.h`, `xmlautomata.h`, `xmlschemastypes.h` |
+| P3 | Public utility APIs: dictionaries/interning, hashes, lists, buffers, UTF-8/string helpers, Unicode categories/blocks, diagnostic tree dumps/shell (regexp category and block tables exist but are not public) | `dict.h`, `hash.h`, `list.h`, `tree.h`, `xmlstring.h`, `xmlunicode.h`, `debugXML.h` |
 | P3 | Legacy process/thread globals, initialization/cleanup, memory debugging and callbacks, dynamic modules, removed HTTP/FTP compatibility stubs, build/version/export macros | `globals.h`, `threads.h`, `xmlmemory.h`, `xmlmodule.h`, `nanohttp.h`, `nanoftp.h`, `xmlversion.h`, `xmlexports.h` |
 | P4 | Language adapters and migration packages: document/node ownership, byte/text conversion, structured exceptions, iteration, cancellation, cleanup and batching across runtime boundaries | Python, Ruby, JavaScript/TypeScript, Go; separate from safe-core dependencies |
 

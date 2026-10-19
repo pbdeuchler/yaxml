@@ -374,7 +374,6 @@ pub(crate) struct DoctypeHeaderView<'a> {
 }
 
 impl<'a> DoctypeHeaderView<'a> {
-    #[cfg(test)]
     pub(crate) fn root_name(self) -> &'a str {
         self.unit.token_text(0)
     }
@@ -397,7 +396,6 @@ impl ExternalMeta {
     }
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ElementContentView<'a> {
     Empty,
@@ -412,7 +410,6 @@ pub(crate) struct ElementDeclarationView<'a> {
     kind: DtdUnitKind,
 }
 
-#[cfg(test)]
 impl<'a> ElementDeclarationView<'a> {
     pub(crate) fn name(self) -> &'a str {
         self.unit.token_text(0)
@@ -437,7 +434,6 @@ impl<'a> ElementDeclarationView<'a> {
     }
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ModelTokenView<'a> {
     Open,
@@ -448,7 +444,6 @@ pub(crate) enum ModelTokenView<'a> {
     Occurrence(Occurrence),
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ModelTokens<'a> {
     unit: &'a DtdUnit<'a>,
@@ -456,7 +451,6 @@ pub(crate) struct ModelTokens<'a> {
     end: usize,
 }
 
-#[cfg(test)]
 impl<'a> Iterator for ModelTokens<'a> {
     type Item = ModelTokenView<'a>;
 

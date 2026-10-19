@@ -19,8 +19,11 @@ pub(super) fn exercise(input: &[u8], accepted: bool) {
 }
 
 fn roundtrip(input: &[u8]) {
-    // Escaping can expand an originally literal attribute quote sixfold.
-    let ceiling = input.len().saturating_mul(6).saturating_add(1024);
+    // Escaping can expand an originally literal attribute quote sixfold, and
+    // entity expansion can make parsed values larger than the input.
+    let ceiling = super::expanded_bound(input.len())
+        .saturating_mul(6)
+        .saturating_add(1024);
     let mut writer = Writer::with_limits(
         Vec::new(),
         WriterLimits {

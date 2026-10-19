@@ -37,7 +37,11 @@ fn limits(input: &[u8]) -> WriterLimits {
     // A literal attribute quote can expand sixfold. Childless-element folding,
     // removed transport BOM/whitespace and declaration rewriting cannot exceed
     // this bound for an accepted UTF-8 reference (including decoded UTF-16).
-    let ceiling = input.len().saturating_mul(6).saturating_add(1024);
+    // Entity expansion and copied defaults add up to the permitted
+    // amplification, so the tree, not the input, can be the larger term.
+    let ceiling = super::expanded_bound(input.len())
+        .saturating_mul(6)
+        .saturating_add(1024);
     WriterLimits {
         max_output_bytes: ceiling,
         max_token_bytes: ceiling,

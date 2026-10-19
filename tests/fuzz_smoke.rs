@@ -996,6 +996,25 @@ fn encoded_equivalents_and_every_truncation() {
 }
 
 #[test]
+fn valid_entry_replays_models_attributes_and_separate_dtds() {
+    let cases: &[&[u8]] = &[
+        include_bytes!("../fuzz/corpus/valid-models.xml"),
+        include_bytes!("../fuzz/corpus/valid-attributes.xml"),
+        include_bytes!("../fuzz/corpus/valid-dtdvalid.bin"),
+        include_bytes!("../fuzz/corpus/valid-pathological.txt"),
+        b"<!ELEMENT r (a|a)><!ELEMENT a EMPTY>",
+        b"<!ELEMENT r (#PCDATA)>\0<r/>",
+        b"<!ELEMENT r (\0<r/>",
+        b"<r/>",
+        b"<r",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_valid(case);
+    }
+}
+
+#[test]
 fn xpath_entry_replays_expressions_and_documents() {
     let cases: &[&[u8]] = &[
         b"//*[@id]/@*",
@@ -1013,6 +1032,30 @@ fn xpath_entry_replays_expressions_and_documents() {
     ];
     for case in cases {
         driver::exercise_xpath(case);
+    }
+}
+
+#[test]
+fn pattern_entry_replays_patterns_and_documents() {
+    let cases: &[&[u8]] = &[
+        b" a/b",
+        b" //b|/r/a",
+        b" p:b",
+        b" a//b",
+        b" *//b",
+        b" a//.",
+        b" @x",
+        b" a/@x|b",
+        b".//a",
+        b"./a/b",
+        b"@p:y",
+        b" a/b <r><a><b/></a></r>",
+        b" a <r",
+        b" a[",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_pattern(case);
     }
 }
 
@@ -1084,10 +1127,35 @@ fn fuzz_regressions_replay() {
                     driver::exercise_pull(&data, data.get(data.len() / 2).copied().unwrap_or(0));
                 }
                 "dtd" => drop(driver::exercise_dtd(&data)),
+                "c14n" => driver::exercise_c14n(&data),
+                "limits" => drop(driver::exercise_limits(&data)),
+                "valid" => driver::exercise_valid(&data),
                 "html" => driver::exercise_html(&data),
+                "xinclude" => driver::exercise_xinclude(&data),
+                "regexp" => driver::exercise_regexp(&data),
+                "datatypes" => driver::exercise_datatypes(&data),
+                "catalog" => driver::exercise_catalog(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }
+    }
+}
+
+#[test]
+fn xinclude_entry_replays_seeds_and_malformed_pieces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/xinclude");
+    for seed in std::fs::read_dir(root).unwrap() {
+        driver::exercise_xinclude(&std::fs::read(seed.unwrap().path()).unwrap());
+    }
+    let cases: &[&[u8]] = &[
+        b"",
+        b"<r",
+        b"<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='0'/></r>\0\xff",
+        b"<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='0' parse='text'/></r>\0\x01",
+        b"<r/>\0xpointer(//r\0element(/1)",
+    ];
+    for case in cases {
+        driver::exercise_xinclude(case);
     }
 }
 
@@ -1113,5 +1181,24 @@ fn resolver_wrapper_serves_fuzz_resources_to_every_surface() {
             accepted,
             "{input:?}"
         );
+    }
+}
+
+#[test]
+fn catalog_entry_replays_seeds_and_malformed_pieces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/catalog");
+    for seed in std::fs::read_dir(root).unwrap() {
+        driver::exercise_catalog(&std::fs::read(seed.unwrap().path()).unwrap());
+    }
+    let cases: &[&[u8]] = &[
+        b"",
+        b"<catalog",
+        b"\xff\xfe",
+        b"CATALOG 0\n\0CATALOG 0\n",
+        b"<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'><nextCatalog catalog='0'/></catalog>\0\xff",
+        b"PUBLIC p x\n\0\0p\xc3\xa9\nu\ns|",
+    ];
+    for case in cases {
+        driver::exercise_catalog(case);
     }
 }

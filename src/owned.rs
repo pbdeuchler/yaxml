@@ -458,6 +458,7 @@ pub struct OwnedDocument {
     html: Option<Box<HtmlMeta>>,
     /// `(element, attribute index)` of parsed ID-typed attributes, in document order.
     ids: Vec<(OwnedNodeId, usize)>,
+    dtd: Option<Box<crate::valid::Dtd>>,
 }
 
 impl OwnedDocument {
@@ -585,6 +586,17 @@ impl OwnedDocument {
     /// value; the first in document order wins, as in libxml2's `xmlGetID`.
     pub fn element_by_id(&self, value: &str) -> Option<OwnedNode<'_>> {
         crate::xpath::tree::element_by_id(self, &self.ids, value).and_then(|id| self.node(id))
+    }
+
+    /// The declarations of the internal and loaded external subsets.
+    pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
+        self.dtd.as_deref()
+    }
+
+    /// Checks the current tree against its DTD, as libxml2's `xmlValidateDocument`.
+    /// Never fails: an empty result means valid; see [`crate::valid`].
+    pub fn validate(&self) -> Vec<crate::valid::Diagnostic<OwnedNodeId>> {
+        crate::valid::validate_document(self, self.dtd())
     }
 
     pub(crate) fn ids(&self) -> &[(OwnedNodeId, usize)] {
@@ -1307,28 +1319,13 @@ impl OwnedBuilder {
         }
         let content = match event {
             Event::Declaration(declaration) => {
-                self.declaration = Some(StoredDeclaration {
-                    version: self.pool.store(declaration.version, offset, budget)?,
-                    encoding: declaration
-                        .encoding
-                        .map(|encoding| self.pool.store(encoding, offset, budget))
-                        .transpose()?,
-                    standalone: declaration.standalone,
-                });
+                self.declaration = Some(store_declaration(
+                    &mut self.pool,
+                    declaration,
+                    offset,
+                    budget,
+                )?);
                 return Ok(());
-            }
-            Event::Doctype(doctype) => {
-                let mut store = |value: Option<&str>| {
-                    value
-                        .map(|value| self.pool.store(value, offset, budget))
-                        .transpose()
-                };
-                Content::DocumentType(StoredDoctype {
-                    name: store(Some(doctype.name))?.expect("present name"),
-                    public_id: store(doctype.public_id)?,
-                    system_id: store(doctype.system_id)?,
-                    internal_subset: store(doctype.internal_subset)?,
-                })
             }
             Event::End(_) => {
                 let id = self
@@ -1348,37 +1345,12 @@ impl OwnedBuilder {
                 record.subtree_size = end - id.0;
                 return Ok(());
             }
-            Event::Start(element) | Event::Empty(element) => {
-                let name = self.pool.name(&element.name, offset, budget)?;
-                let start = self.attributes.len();
-                self.attributes
-                    .try_reserve(element.attributes.len())
-                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                let slot = NodeId(self.nodes.len());
-                for (index, attribute) in element.attributes.iter().enumerate() {
-                    if attribute.name.qualified() == "xml:id" {
-                        self.xml_ids
-                            .try_reserve(1)
-                            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                        self.xml_ids.push((slot, index));
-                    }
-                    self.attributes.push(StoredAttribute {
-                        name: self.pool.name(&attribute.name, offset, budget)?,
-                        value: self.pool.store(&attribute.value, offset, budget)?,
-                    });
+            event => {
+                if let Event::Start(element) | Event::Empty(element) = &event {
+                    self.note_xml_ids(element, offset)?;
                 }
-                Content::Element {
-                    name,
-                    attributes: start..self.attributes.len(),
-                }
+                store_content(&mut self.pool, &mut self.attributes, event, offset, budget)?
             }
-            Event::Text(value) => Content::Text(self.pool.store(&value, offset, budget)?),
-            Event::Cdata(value) => Content::Cdata(self.pool.store(&value, offset, budget)?),
-            Event::Comment(value) => Content::Comment(self.pool.store(&value, offset, budget)?),
-            Event::ProcessingInstruction { target, data } => Content::ProcessingInstruction {
-                target: self.pool.store(&target, offset, budget)?,
-                data: self.pool.store(&data, offset, budget)?,
-            },
         };
         let id = append_record(&mut self.nodes, parent, content, Some(origin), offset)?;
         if matches!(self.nodes[id.0].content, Content::Element { .. }) {
@@ -1421,6 +1393,20 @@ impl OwnedBuilder {
         Ok(true)
     }
 
+    /// Notes the `xml:id` attributes of the element about to be appended.
+    fn note_xml_ids(&mut self, element: &crate::Element<'_>, offset: usize) -> Result<(), Error> {
+        let slot = NodeId(self.nodes.len());
+        for (index, attribute) in element.attributes.iter().enumerate() {
+            if attribute.name.qualified() == "xml:id" {
+                self.xml_ids
+                    .try_reserve(1)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                self.xml_ids.push((slot, index));
+            }
+        }
+        Ok(())
+    }
+
     fn finish(
         mut self,
         position: usize,
@@ -1428,10 +1414,11 @@ impl OwnedBuilder {
     ) -> Result<OwnedDocument, Error> {
         let xml_ids = std::mem::take(&mut self.xml_ids);
         let document = self.finish_with_counter(position, &LAST_DOCUMENT_ID)?;
+        let dtd = catalog.map(|catalog| Box::new(catalog.dtd().clone()));
         // Without DTD-declared ID attributes, the `xml:id`s noted while
         // building are exactly what a full traversal would find.
-        let ids = if crate::xpath::tree::declares_ids(catalog) {
-            crate::xpath::tree::find_ids(&document, catalog)
+        let ids = if crate::xpath::tree::declares_ids(dtd.as_deref()) {
+            crate::xpath::tree::find_ids(&document, dtd.as_deref())
         } else {
             let document = document.identity;
             xml_ids
@@ -1439,7 +1426,11 @@ impl OwnedBuilder {
                 .map(|(slot, index)| (OwnedNodeId { document, slot }, index))
                 .collect()
         };
-        Ok(OwnedDocument { ids, ..document })
+        Ok(OwnedDocument {
+            ids,
+            dtd,
+            ..document
+        })
     }
 
     fn finish_with_counter(
@@ -1464,7 +1455,171 @@ impl OwnedBuilder {
             slots_are_preorder: true,
             html: None,
             ids: Vec::new(),
+            dtd: None,
         })
+    }
+}
+
+fn store_declaration(
+    pool: &mut Pool,
+    declaration: Declaration<'_>,
+    offset: usize,
+    budget: &mut Budget,
+) -> Result<StoredDeclaration, Error> {
+    Ok(StoredDeclaration {
+        version: pool.store(declaration.version, offset, budget)?,
+        encoding: declaration
+            .encoding
+            .map(|encoding| pool.store(encoding, offset, budget))
+            .transpose()?,
+        standalone: declaration.standalone,
+    })
+}
+
+/// Stores a node event's strings; declarations and end tags are not nodes.
+fn store_content(
+    pool: &mut Pool,
+    attributes: &mut Vec<StoredAttribute>,
+    event: Event<'_>,
+    offset: usize,
+    budget: &mut Budget,
+) -> Result<Content, Error> {
+    Ok(match event {
+        Event::Doctype(doctype) => {
+            let mut store = |value: Option<&str>| {
+                value
+                    .map(|value| pool.store(value, offset, budget))
+                    .transpose()
+            };
+            Content::DocumentType(StoredDoctype {
+                name: store(Some(doctype.name))?.expect("present name"),
+                public_id: store(doctype.public_id)?,
+                system_id: store(doctype.system_id)?,
+                internal_subset: store(doctype.internal_subset)?,
+            })
+        }
+        Event::Start(element) | Event::Empty(element) => {
+            let name = pool.name(&element.name, offset, budget)?;
+            let start = attributes.len();
+            attributes
+                .try_reserve(element.attributes.len())
+                .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+            for attribute in element.attributes.iter() {
+                attributes.push(StoredAttribute {
+                    name: pool.name(&attribute.name, offset, budget)?,
+                    value: pool.store(&attribute.value, offset, budget)?,
+                });
+            }
+            Content::Element {
+                name,
+                attributes: start..attributes.len(),
+            }
+        }
+        Event::Text(value) => Content::Text(pool.store(&value, offset, budget)?),
+        Event::Cdata(value) => Content::Cdata(pool.store(&value, offset, budget)?),
+        Event::Comment(value) => Content::Comment(pool.store(&value, offset, budget)?),
+        Event::ProcessingInstruction { target, data } => Content::ProcessingInstruction {
+            target: pool.store(&target, offset, budget)?,
+            data: pool.store(&data, offset, budget)?,
+        },
+        Event::Declaration(_) | Event::End(_) => {
+            return Err(Error::new(ErrorKind::InvalidState, offset));
+        }
+    })
+}
+
+/// Builds a document from copied node events, without source origins and
+/// without merging Text: the XInclude result tree. Appends follow preorder and
+/// each element is closed after its subtree.
+pub(crate) struct TreeBuilder {
+    nodes: Vec<OwnedRecord>,
+    attributes: Vec<StoredAttribute>,
+    pool: Pool,
+    root_element: NodeId,
+    declaration: Option<StoredDeclaration>,
+    ids: Vec<(NodeId, usize)>,
+    budget: Budget,
+}
+
+impl TreeBuilder {
+    pub(crate) const ROOT: NodeId = NodeId(0);
+
+    pub(crate) fn new(limits: Limits, declaration: Option<Declaration<'_>>) -> Result<Self, Error> {
+        let mut pool = Pool::default();
+        let mut budget = Budget::new(limits);
+        let declaration = declaration
+            .map(|declaration| store_declaration(&mut pool, declaration, 0, &mut budget))
+            .transpose()?;
+        Ok(Self {
+            nodes: OwnedBuilder::new(0)?.nodes,
+            attributes: Vec::new(),
+            pool,
+            root_element: NodeId(0),
+            declaration,
+            ids: Vec::new(),
+            budget,
+        })
+    }
+
+    /// Appends a node event as `parent`'s last child; `ids` are the positions
+    /// of an element's ID-typed attributes.
+    pub(crate) fn append(
+        &mut self,
+        parent: NodeId,
+        event: Event<'_>,
+        ids: &[usize],
+    ) -> Result<NodeId, Error> {
+        if self.nodes.len() > self.budget.max_events() {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::Events), 0));
+        }
+        let content = store_content(
+            &mut self.pool,
+            &mut self.attributes,
+            event,
+            0,
+            &mut self.budget,
+        )?;
+        let element = matches!(content, Content::Element { .. });
+        let id = append_record(&mut self.nodes, parent, content, None, 0)?;
+        if element && parent == Self::ROOT {
+            self.root_element = id;
+        }
+        self.ids
+            .try_reserve(ids.len())
+            .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
+        self.ids.extend(ids.iter().map(|&index| (id, index)));
+        Ok(id)
+    }
+
+    /// Ends an element: everything appended since it is its subtree.
+    pub(crate) fn close(&mut self, id: NodeId) {
+        self.nodes[id.0].subtree_size = self.nodes.len() - id.0;
+    }
+
+    pub(crate) fn finish(self) -> Result<OwnedDocument, Error> {
+        let document = OwnedBuilder {
+            nodes: self.nodes,
+            xml_ids: Vec::new(),
+            attributes: self.attributes,
+            pool: self.pool,
+            root_element: self.root_element,
+            declaration: self.declaration,
+            parents: Vec::new(),
+        }
+        .finish_with_counter(0, &LAST_DOCUMENT_ID)?;
+        let document_id = document.identity;
+        let ids = self
+            .ids
+            .into_iter()
+            .map(|(slot, index)| {
+                let element = OwnedNodeId {
+                    document: document_id,
+                    slot,
+                };
+                (element, index)
+            })
+            .collect();
+        Ok(OwnedDocument { ids, ..document })
     }
 }
 
@@ -1711,6 +1866,7 @@ impl HtmlBuilder {
                 valueless: self.valueless,
             })),
             ids: Vec::new(),
+            dtd: None,
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document

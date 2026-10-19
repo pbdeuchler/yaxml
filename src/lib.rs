@@ -3,6 +3,7 @@
 
 mod buffered;
 pub mod c14n;
+pub mod catalog;
 mod dom;
 mod dtd;
 mod dtd_catalog;
@@ -18,16 +19,22 @@ mod name;
 mod origin;
 mod owned;
 mod parser;
+pub mod pattern;
 mod push;
 mod reader;
+pub mod regexp;
 mod resolve;
+pub mod schema_types;
 mod serialize;
 mod stream;
 mod textreader;
 mod tokenizer;
 pub mod uri;
+pub mod valid;
 mod writer;
+pub mod xinclude;
 pub mod xpath;
+pub mod xpointer;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};

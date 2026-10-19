@@ -1,0 +1,6 @@
+<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'><delegatePublic publicIdStartString='-//A//' catalog='0'/><delegateSystem systemIdStartString='http://e/' licId="-//OASIS//ENTITIES DocBook XML Character Entities V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbcentx.mod"/>
+<public publicId="-//OASIS//ELEMENTS DocBook XML Information Pool V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbpoolx.mod"/>
+<public publicId="-//OASIS//ELEMENTS DocBook XML .mod"/>
+<public publicId="-//OASIS//ENawww.oasis-open.org/docbook/xml/4.1.2/dbpoolx.mod"/>
+<public publicId="-//OASIS//ELEMENTS DocBook XML Document Hierarchy V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbhierx.mod"/>
+<public publicfer='public' xml:base='http://b/'><syst+X:EN|urn:publicid:-:A:DTD+X:EN

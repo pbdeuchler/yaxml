@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'><TTLIST r i IDIMPLIED ej ID 'd'>
+<!ATTL<r i='a'>>>>>(?xml vee,f)+)rs

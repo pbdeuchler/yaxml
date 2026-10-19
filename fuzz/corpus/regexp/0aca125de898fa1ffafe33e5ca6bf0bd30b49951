@@ -1,0 +1,8 @@
+(1(a|b|\P{Nd}){1,2}|bab|\P{Nd}){1,2}|bab
+1aaca
+a
+b0aaab
+bb
+a0
+aaa0baa
+b0aaa
