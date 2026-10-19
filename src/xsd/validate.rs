@@ -932,23 +932,23 @@ impl<'s, 't, T: Tree> Validator<'s, 't, T> {
         };
         let schema = self.schema;
         let content = schema.types[ty].complex().map(|c| &c.content);
-        if let Some(Content::Elements { model, mixed }) = content {
-            if ty != ANY_TYPE {
-                if !frame.bad_content && !frame.nilled {
-                    let run = frame.run.clone().unwrap_or_else(|| model.start());
-                    if !model.accepts(&run) {
-                        let expected = self.expected(model, &run);
-                        self.frames[depth].bad_content = true;
-                        self.element_error(
-                            depth,
-                            Code::ElementContent,
-                            &format!("Missing child element(s).{expected}"),
-                        );
-                    }
+        if let Some(Content::Elements { model, mixed }) = content
+            && ty != ANY_TYPE
+        {
+            if !frame.bad_content && !frame.nilled {
+                let run = frame.run.clone().unwrap_or_else(|| model.start());
+                if !model.accepts(&run) {
+                    let expected = self.expected(model, &run);
+                    self.frames[depth].bad_content = true;
+                    self.element_error(
+                        depth,
+                        Code::ElementContent,
+                        &format!("Missing child element(s).{expected}"),
+                    );
                 }
-                if !mixed {
-                    return;
-                }
+            }
+            if !mixed {
+                return;
             }
         }
         let frame = &self.frames[depth];

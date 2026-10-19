@@ -24,6 +24,7 @@
 //! [`Error`] listing [`SchemaDiagnostic`]s. Codes carry libxml2's
 //! `XML_SCHEMAP_*` and `XML_SCHEMAV_*` numbers. See `docs/xsd.md`.
 
+mod automaton;
 mod components;
 mod fixup;
 mod idc;

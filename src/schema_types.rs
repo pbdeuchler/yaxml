@@ -686,7 +686,7 @@ impl Value {
         self.ty.primitive().hash(&mut hasher);
         let number = |n: f64| match n {
             n if n.is_nan() => u64::MAX,
-            n if n == 0.0 => 0,
+            0.0 => 0, // also -0.0
             n => n.to_bits(),
         };
         match &self.data {

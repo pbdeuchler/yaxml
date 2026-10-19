@@ -9,15 +9,16 @@ use std::collections::{HashMap, HashSet};
 
 use crate::schema_types::{Comparison, Facet, Type, WhiteSpace};
 
+use super::automaton;
 use super::components::*;
-use super::model::{AllGroup, CompileError, Expr, Graph, Leaf, Model};
+use super::model::{AllGroup, Graph, Kind as NodeKind, Leaf, Model, Node, TooComplex};
 use super::parse::{
     AttrItem, Compositor, Drafts, GlobalKind, Loc, Particle, RawFacet, Ref, Shape, Term,
 };
 use super::simple::{self, Scope};
 use super::{Code, Error, Limits, Schema};
 
-type Table = HashMap<(GlobalKind, QName), usize>;
+use super::parse::Table;
 
 const XS: &str = super::parse::XS;
 
@@ -664,17 +665,17 @@ impl Fix {
                         }
                     }
                 }
-                AttrItem::Group(name, loc) => {
-                    if self.lookup(GlobalKind::AttrGroup, *name).is_none() {
-                        let (name, loc) = (*name, *loc);
-                        self.unresolved(loc, "ref", name, "attribute group definition");
-                    }
+                AttrItem::Group(name, loc)
+                    if self.lookup(GlobalKind::AttrGroup, *name).is_none() =>
+                {
+                    let (name, loc) = (*name, *loc);
+                    self.unresolved(loc, "ref", name, "attribute group definition");
                 }
-                AttrItem::Prohibit(name, loc, true) => {
-                    if self.lookup(GlobalKind::Attribute, *name).is_none() {
-                        let (name, loc) = (*name, *loc);
-                        self.unresolved(loc, "ref", name, "attribute declaration");
-                    }
+                AttrItem::Prohibit(name, loc, true)
+                    if self.lookup(GlobalKind::Attribute, *name).is_none() =>
+                {
+                    let (name, loc) = (*name, *loc);
+                    self.unresolved(loc, "ref", name, "attribute declaration");
                 }
                 _ => {}
             }
@@ -895,7 +896,7 @@ impl Fix {
     fn attr_group_target(&self, item: &AttrItem) -> Option<usize> {
         match item {
             AttrItem::Group(name, _) => self.lookup(GlobalKind::AttrGroup, *name),
-            AttrItem::RedefinedGroup(r, _) => self.redefined[*r],
+            AttrItem::RedefinedGroup(r) => self.redefined[*r],
             _ => None,
         }
     }
@@ -1293,7 +1294,7 @@ impl Fix {
                     Facet::WhiteSpace(ws) => Some(*ws),
                     _ => None,
                 })
-                .unwrap_or_else(|| match builtin_type {
+                .unwrap_or(match builtin_type {
                     Type::String | Type::AnySimpleType => WhiteSpace::Preserve,
                     Type::NormalizedString => WhiteSpace::Replace,
                     _ => WhiteSpace::Collapse,
@@ -2255,7 +2256,7 @@ impl Fix {
                     && self.base_emptiable(base);
                 let message = match (&content, base_c) {
                     (Content::Simple(a), Content::Simple(b)) => (!st_derived(&self.types, *a, *b, 0))
-                        .then(|| "The {content type} is not validly derived from the base type's {content type}."),
+                        .then_some("The {content type} is not validly derived from the base type's {content type}."),
                     (Content::Simple(_), _) => (!base_mixed_emptiable).then_some(
                         "The content type of the base type must be either a simple type or 'mixed' and an emptiable particle.",
                     ),
@@ -2444,43 +2445,50 @@ impl Fix {
             .collect()
     }
 
-    fn expr(&self, particle: &Particle, depth: usize) -> Result<Expr, CompileError> {
+    /// The particle tree of `particle` for the content model builders.
+    fn node(&self, particle: &Particle, depth: usize) -> Result<Node, TooComplex> {
         if depth > self.limits.max_depth {
-            return Err(CompileError::TooComplex);
+            return Err(TooComplex);
         }
-        let body = match &particle.term {
-            Term::Element(e) => {
-                if !self.members_of[*e].is_empty() {
-                    Expr::Choice(self.leaves(*e).into_iter().map(Expr::Leaf).collect())
-                } else if self.d.elements[*e].abstract_ {
-                    return Ok(Expr::empty());
-                } else {
-                    Expr::Leaf(Leaf::Element(self.d.elements[*e].name, *e))
-                }
-            }
-            Term::Wildcard(w) => Expr::Leaf(Leaf::Wildcard(self.wildcards[*w].ns.clone(), *w)),
+        let kind = match &particle.term {
+            Term::Element(e) if !self.members_of[*e].is_empty() => NodeKind::Leaves {
+                leaves: self.leaves(*e),
+                substitution: true,
+            },
+            Term::Element(e) if self.d.elements[*e].abstract_ => NodeKind::Abstract,
+            Term::Element(e) => NodeKind::Leaves {
+                leaves: vec![Leaf::Element(self.d.elements[*e].name, *e)],
+                substitution: false,
+            },
+            Term::Wildcard(w) => NodeKind::Leaves {
+                leaves: vec![Leaf::Wildcard(self.wildcards[*w].ns.clone(), *w)],
+                substitution: false,
+            },
             Term::Missing | Term::ElementRef(_) | Term::GroupRef(_) | Term::RedefinedGroup(_) => {
-                return Ok(Expr::empty());
+                NodeKind::Empty
             }
             Term::Group(..) | Term::GroupDef(_) => {
                 let (compositor, children) = self.top_group(particle).expect("group");
                 let children = children
                     .iter()
-                    .map(|child| self.expr(child, depth + 1))
+                    .map(|child| self.node(child, depth + 1))
                     .collect::<Result<Vec<_>, _>>()?;
                 match compositor {
-                    Compositor::Choice => Expr::Choice(children),
-                    _ => Expr::Seq(children),
+                    Compositor::Choice => NodeKind::Choice(children),
+                    _ => NodeKind::Sequence(children),
                 }
             }
         };
-        Ok(match (particle.min, particle.max) {
-            (1, Some(1)) => body,
-            (min, max) => Expr::Repeat(Box::new(body), min, max),
+        Ok(Node {
+            min: particle.min,
+            max: particle.max,
+            kind,
         })
     }
 
-    fn compile(&mut self, particle: &Particle) -> Result<Model, CompileError> {
+    /// The model of a particle; `Ok(None)` when libxml2 would find it not
+    /// deterministic.
+    fn compile(&mut self, particle: &Particle) -> Result<Option<Model>, TooComplex> {
         if let Some((Compositor::All, children)) = self.top_group(particle) {
             let items = children
                 .iter()
@@ -2490,13 +2498,18 @@ impl Fix {
                     _ => None,
                 })
                 .collect();
-            return Ok(Model::All(AllGroup {
+            return Ok(Some(Model::All(AllGroup {
                 items,
                 optional: particle.min == 0,
-            }));
+            })));
         }
-        let expr = self.expr(particle, 0)?;
-        Graph::compile(&expr, &mut self.model_work).map(Model::Graph)
+        let node = self.node(particle, 0)?;
+        let (deterministic, shadowed) =
+            automaton::deterministic(&node, &mut self.model_work).map_err(|_| TooComplex)?;
+        if !deterministic {
+            return Ok(None);
+        }
+        Graph::compile(&node, shadowed, &mut self.model_work).map(|graph| Some(Model::Graph(graph)))
     }
 
     /// `xmlSchemaBuildContentModel` for every complex type with element content.
@@ -2511,7 +2524,7 @@ impl Fix {
                 id => self.d.types[id - Drafts::FIRST_TYPE].loc,
             };
             match self.compile(&particle) {
-                Ok(model) => {
+                Ok(Some(model)) => {
                     if let Kind::Complex(ComplexType {
                         content: Content::Elements { model: slot, .. },
                         ..
@@ -2520,7 +2533,7 @@ impl Fix {
                         *slot = model;
                     }
                 }
-                Err(CompileError::NotDeterministic) => {
+                Ok(None) => {
                     let what = match self.types[id].name {
                         Some(name) => format!("complex type '{}'", self.format(name)),
                         None => "local complex type".into(),
@@ -2531,7 +2544,7 @@ impl Fix {
                         format!("{what}: The content model is not determinist."),
                     );
                 }
-                Err(CompileError::TooComplex) => {
+                Err(TooComplex) => {
                     self.report(
                         loc,
                         Code::Internal,
@@ -2551,15 +2564,11 @@ impl Fix {
             .iter()
             .enumerate()
             .map(|(e, draft)| ElementDecl {
-                name: draft.name,
                 ty: self.elem_types[e],
                 nillable: draft.nillable,
                 abstract_: draft.abstract_,
                 value: self.elem_values[e].clone(),
                 block: draft.block,
-                final_: draft.final_,
-                head: self.elem_heads[e],
-                members: self.members_of[e].clone(),
                 idcs: draft.idcs.clone(),
             })
             .collect();

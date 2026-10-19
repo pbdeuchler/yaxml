@@ -87,7 +87,7 @@ pub(crate) enum AttrItem {
     Prohibit(QName, Loc, bool),
     Group(QName, Loc),
     /// The attribute group a `<redefine>` replaces, by redefinition index.
-    RedefinedGroup(usize, Loc),
+    RedefinedGroup(usize),
 }
 
 #[derive(Clone, Debug)]
@@ -102,7 +102,6 @@ pub(crate) struct AttrDraft {
 pub(crate) struct ElemDraft {
     pub(crate) name: QName,
     pub(crate) loc: Loc,
-    pub(crate) global: bool,
     pub(crate) ty: Option<Ref<TypeId>>,
     pub(crate) head: Option<QName>,
     pub(crate) nillable: bool,
@@ -1680,7 +1679,7 @@ impl Parser {
                 self.error(cx, node, Code::SrcRedefine, &message);
                 return None;
             }
-            return Some(AttrItem::RedefinedGroup(redefine, loc));
+            return Some(AttrItem::RedefinedGroup(redefine));
         }
         Some(AttrItem::Group(name, loc))
     }
@@ -1846,7 +1845,6 @@ impl Parser {
         let mut draft = ElemDraft {
             name,
             loc,
-            global: top,
             ty: None,
             head: None,
             nillable: false,
