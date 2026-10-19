@@ -170,7 +170,7 @@ fn all_prior_event_calls_consume_document_freshness_before_any_new_io() {
     let source = Document::parse("<?xml version='1.0'?><r></r>").unwrap();
     let element = || yaxml::Element {
         name: yaxml::Name::new("r", None).unwrap(),
-        attributes: vec![],
+        attributes: Vec::new().into(),
     };
     for owned in [false, true] {
         for previous in [

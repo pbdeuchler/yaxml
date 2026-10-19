@@ -20,7 +20,8 @@ fn element() -> Element<'static> {
         attributes: vec![crate::Attribute {
             name: name(),
             value: Cow::Borrowed("value"),
-        }],
+        }]
+        .into(),
     }
 }
 
@@ -105,19 +106,20 @@ fn name_coherence_checks_spelling_and_namespace() {
 fn element_coherence_checks_structure_and_values() {
     check_element(&element(), &element(), 3).unwrap();
     let mut parsed = element();
-    parsed.attributes.clear();
+    parsed.attributes = Vec::new().into();
     assert_eq!(
         check_element(&element(), &parsed, 3).unwrap_err().kind,
         ErrorKind::InvalidName
     );
     let mut parsed = element();
-    parsed.attributes[0].name = Name::new("p:other", Some(Cow::Borrowed("urn:r"))).unwrap();
+    parsed.attributes.to_mut()[0].name =
+        Name::new("p:other", Some(Cow::Borrowed("urn:r"))).unwrap();
     assert_eq!(
         check_element(&element(), &parsed, 3).unwrap_err().kind,
         ErrorKind::InvalidName
     );
     let mut parsed = element();
-    parsed.attributes[0].value = Cow::Borrowed("changed");
+    parsed.attributes.to_mut()[0].value = Cow::Borrowed("changed");
     assert_eq!(
         check_element(&element(), &parsed, 3).unwrap_err().kind,
         ErrorKind::Syntax

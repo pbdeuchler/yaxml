@@ -282,6 +282,8 @@ pub(crate) struct ParserState<'source> {
     phase: Phase,
     stack: Vec<Frame<'source>>,
     frame_names: String,
+    /// Empty attribute list whose capacity a callback frontend returned.
+    attribute_storage: Vec<Attribute<'static>>,
     copies_names: bool,
     bindings: Vec<Binding<'source>>,
     /// Prefix -> active binding, maintained only above `INDEXED_SCOPE`
@@ -315,6 +317,7 @@ impl<'source> ParserState<'source> {
             phase: Phase::Prolog,
             stack: Vec::new(),
             frame_names: String::new(),
+            attribute_storage: Vec::new(),
             copies_names: false,
             bindings: Vec::new(),
             namespace_index: HashMap::new(),
@@ -417,6 +420,27 @@ impl<'source> ParserState<'source> {
         self.namespace_ids = ids;
         self.indexed = true;
         Ok(())
+    }
+
+    /// Reuses returned attribute capacity. Both conversions collect in place:
+    /// the vector is empty, so only its allocation changes lifetime.
+    fn take_attributes<'event>(&mut self) -> Vec<Attribute<'event>> {
+        std::mem::take(&mut self.attribute_storage)
+            .into_iter()
+            .map(|_| unreachable!("stored attribute lists are empty"))
+            .collect()
+    }
+
+    /// Keeps the capacity of a list whose event has been delivered.
+    pub(crate) fn recycle_attributes(&mut self, mut attributes: Vec<Attribute<'_>>) {
+        if attributes.capacity() <= self.attribute_storage.capacity() {
+            return;
+        }
+        attributes.clear();
+        self.attribute_storage = attributes
+            .into_iter()
+            .map(|_| unreachable!("cleared above"))
+            .collect();
     }
 
     fn open_name(&self) -> Option<&str> {
@@ -654,7 +678,7 @@ impl<'source> ParserState<'source> {
         let (element_prefix, _) = qname(qualified, start + 1)?;
         let element_prefix = element_prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
         let bindings_start = self.bindings.len();
-        let mut attributes = Vec::new();
+        let mut attributes = self.take_attributes();
         while let Some(attribute) = scan.attribute()? {
             let name = attribute.qualified;
             let value = attribute.literal;
@@ -745,7 +769,10 @@ impl<'source> ParserState<'source> {
                 }
             }
         }
-        let element = Element { name, attributes };
+        let element = Element {
+            name,
+            attributes: attributes.into(),
+        };
         if empty {
             self.unwind_bindings(bindings_start);
             if self.stack.is_empty() {
@@ -1294,7 +1321,7 @@ impl<'source> ParserState<'source> {
         }
         let element = Element {
             name: prepared.name,
-            attributes,
+            attributes: attributes.into(),
         };
         self.bindings.try_reserve(pending.len()).map_err(|_| {
             PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))

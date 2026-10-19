@@ -529,17 +529,22 @@ fn markup_after_lt(rest: &[u8]) -> Option<(TokenKind, usize)> {
             } else {
                 TokenKind::Start
             };
-            let mut at = 0;
-            loop {
-                at += memchr3(b'\'', b'"', b'>', &rest[at..])?;
-                if rest[at] == b'>' {
-                    return Some((kind, at + 1));
-                }
-                let quote = rest[at];
-                at += 1;
-                at += memchr(quote, &rest[at..])? + 1;
-            }
+            tag_close(rest).map(|length| (kind, length))
         }
+    }
+}
+
+/// Length through the first `>` outside quoted attribute values.
+pub(crate) fn tag_close(bytes: &[u8]) -> Option<usize> {
+    let mut at = 0;
+    loop {
+        at += memchr3(b'\'', b'"', b'>', &bytes[at..])?;
+        if bytes[at] == b'>' {
+            return Some(at + 1);
+        }
+        let quote = bytes[at];
+        at += 1;
+        at += memchr(quote, &bytes[at..])? + 1;
     }
 }
 

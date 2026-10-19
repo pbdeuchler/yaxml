@@ -2,7 +2,9 @@ use crate::encoding::{DecodeProgress, Decoded, Decoder, TokenSpan};
 use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState};
 use crate::tokenizer::{TokenKind, Tokenizer};
-use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, SourceOrigin};
+use crate::{
+    Attribute, Attributes, DecodeLimits, Element, Error, ErrorKind, Event, Limits, SourceOrigin,
+};
 
 pub(crate) mod dtd;
 
@@ -105,12 +107,29 @@ impl Stream {
                 if kind == TokenKind::Dtd {
                     return Ok((consumed, None));
                 }
-                if let Some((event, origin)) = parse(&self.tokenizer, &mut self.state)? {
+                let origin = token_origin(&self.tokenizer);
+                // The callback borrows the attribute list; its capacity returns
+                // to the parser for the next start tag.
+                let mut lent = Vec::new();
+                if let Some(event) = parse_event(&self.tokenizer, &mut self.state)? {
+                    let lends = matches!(
+                        &event,
+                        Event::Start(element) | Event::Empty(element)
+                            if matches!(&element.attributes, Attributes::Owned(list) if list.capacity() > 0)
+                    );
+                    let event = if lends {
+                        lend_attributes(event, &mut lent)
+                    } else {
+                        event
+                    };
                     if let Event::Declaration(declaration) = &event {
                         *standalone = declaration.standalone == Some(true);
                     }
                     *last_origin = Some(origin);
                     emit(event, origin, self.state.owned_budget())?;
+                }
+                if lent.capacity() > 0 {
+                    self.state.recycle_attributes(lent);
                 }
                 self.release();
                 continue;
@@ -180,6 +199,43 @@ fn parse<'token>(
     tokenizer: &'token Tokenizer,
     state: &mut ParserState<'static>,
 ) -> Result<Option<(Event<'token>, SourceOrigin)>, Error> {
+    let origin = token_origin(tokenizer);
+    Ok(parse_event(tokenizer, state)?.map(|event| (event, origin)))
+}
+
+/// Moves an owned attribute list into `lent` and lends it to the event.
+fn lend_attributes<'s, 'e: 's>(event: Event<'e>, lent: &'s mut Vec<Attribute<'e>>) -> Event<'s> {
+    let lend = |element: Element<'e>, lent: &'s mut Vec<Attribute<'e>>| {
+        let Element { name, attributes } = element;
+        *lent = attributes.into_owned();
+        Element {
+            name,
+            attributes: Attributes::Borrowed(lent),
+        }
+    };
+    match event {
+        Event::Start(element) => Event::Start(lend(element, lent)),
+        Event::Empty(element) => Event::Empty(lend(element, lent)),
+        event => event,
+    }
+}
+
+/// Origin of the ready token; the input span when none is ready.
+fn token_origin(tokenizer: &Tokenizer) -> SourceOrigin {
+    let position = tokenizer.source_position();
+    SourceOrigin::input(
+        tokenizer
+            .current()
+            .map_or(position..position, |(_, _, span)| span.source.clone()),
+    )
+}
+
+/// The ready token's event. Hot callers take the origin separately so the
+/// event is returned in place instead of being rewrapped with it.
+fn parse_event<'token>(
+    tokenizer: &'token Tokenizer,
+    state: &mut ParserState<'static>,
+) -> Result<Option<Event<'token>>, Error> {
     let Some((kind, bytes, span)) = tokenizer.current() else {
         return Err(Error::new(
             ErrorKind::InvalidState,
@@ -192,7 +248,6 @@ fn parse<'token>(
             budget.copy(raw, offset)
         })
         .map_err(|error| span.map_error(raw, error))
-        .map(|event| event.map(|event| (event, SourceOrigin::input(span.source.clone()))))
 }
 
 fn validate<'token>(

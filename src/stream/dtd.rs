@@ -422,7 +422,8 @@ impl StreamingSession {
     pub(crate) fn lend_plain(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
         let at = ordinary.position();
-        let (event, origin) = super::parse(&ordinary.tokenizer, &mut ordinary.state)?
+        let origin = super::token_origin(&ordinary.tokenizer);
+        let event = super::parse_event(&ordinary.tokenizer, &mut ordinary.state)?
             .ok_or_else(|| Error::new(ErrorKind::InvalidState, at))?;
         if let Event::Declaration(declaration) = &event {
             self.standalone = declaration.standalone == Some(true);

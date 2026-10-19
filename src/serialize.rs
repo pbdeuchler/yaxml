@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::io::Write;
 
 use crate::{
-    Attribute, Declaration, Document, Element, Error, ErrorKind, Event, Limit, Name, Node,
-    NodeKind, OwnedDocument, OwnedNode, OwnedNodeKind, WriteError, Writer,
+    Attribute, Attributes, Declaration, Document, Element, Error, ErrorKind, Event, Limit, Name,
+    Node, NodeKind, OwnedDocument, OwnedNode, OwnedNodeKind, WriteError, Writer,
 };
 
 // A concrete bridge between the two immutable storage forms. Every value view
@@ -148,18 +148,17 @@ fn write<W: Write>(
         if let Some(name) = node.name() {
             node.attributes(&mut attributes, max_attributes, writer.position())
                 .map_err(WriteError::Xml)?;
-            let element = Element { name, attributes };
+            // The attribute metadata vector is reused for every element.
+            let element = Element {
+                name,
+                attributes: Attributes::Borrowed(&attributes),
+            };
             let event = if child.is_some() {
                 Event::Start(element)
             } else {
                 Event::Empty(element)
             };
             writer.write_event_inner(&event)?;
-            // Reuse only metadata; none of its strings have been copied.
-            attributes = match event {
-                Event::Start(element) | Event::Empty(element) => element.attributes,
-                _ => unreachable!(),
-            };
         } else if let Some(event) = node.leaf() {
             writer.write_event_inner(&event)?;
         }

@@ -8,7 +8,7 @@ use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState, space};
 use crate::resolve::{Loader, Resolver};
 use crate::stream::dtd::{SessionError, SessionLimits};
-use crate::tokenizer::{TokenKind, Tokenizer};
+use crate::tokenizer::{TokenKind, Tokenizer, tag_close};
 use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, SourceOrigin};
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
@@ -59,7 +59,7 @@ impl Default for Limits {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Attribute<'a> {
     pub name: Name<'a>,
     pub value: Cow<'a, str>,
@@ -69,7 +69,92 @@ pub struct Attribute<'a> {
 pub struct Element<'a> {
     pub name: Name<'a>,
     /// Source order, including namespace declarations in the XMLNS namespace.
-    pub attributes: Vec<Attribute<'a>>,
+    pub attributes: Attributes<'a>,
+}
+
+/// An element's attributes in source order: an owned list, or one lent from a
+/// streaming parser's reused storage for the duration of an event borrow.
+/// Both dereference to a slice; `into_owned` keeps a lent list.
+#[derive(Clone, Debug)]
+pub enum Attributes<'a> {
+    Borrowed(&'a [Attribute<'a>]),
+    Owned(Vec<Attribute<'a>>),
+}
+
+impl<'a> Attributes<'a> {
+    /// Mutable access to an owned list, copying a lent one first.
+    pub fn to_mut(&mut self) -> &mut Vec<Attribute<'a>> {
+        if let Self::Borrowed(attributes) = self {
+            *self = Self::Owned(attributes.to_vec());
+        }
+        match self {
+            Self::Owned(attributes) => attributes,
+            Self::Borrowed(_) => unreachable!("converted to owned"),
+        }
+    }
+
+    /// The list as an owned vector, copying a lent one.
+    pub fn into_owned(self) -> Vec<Attribute<'a>> {
+        match self {
+            Self::Borrowed(attributes) => attributes.to_vec(),
+            Self::Owned(attributes) => attributes,
+        }
+    }
+}
+
+impl<'a> std::ops::Deref for Attributes<'a> {
+    type Target = [Attribute<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Borrowed(attributes) => attributes,
+            Self::Owned(attributes) => attributes,
+        }
+    }
+}
+
+impl Default for Attributes<'_> {
+    fn default() -> Self {
+        Self::Owned(Vec::new())
+    }
+}
+
+impl<'a> From<Vec<Attribute<'a>>> for Attributes<'a> {
+    fn from(attributes: Vec<Attribute<'a>>) -> Self {
+        Self::Owned(attributes)
+    }
+}
+
+impl<'a> FromIterator<Attribute<'a>> for Attributes<'a> {
+    fn from_iter<I: IntoIterator<Item = Attribute<'a>>>(iter: I) -> Self {
+        Self::Owned(iter.into_iter().collect())
+    }
+}
+
+impl PartialEq for Attributes<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
+}
+
+impl Eq for Attributes<'_> {}
+
+impl<'s, 'a> IntoIterator for &'s Attributes<'a> {
+    type Item = &'s Attribute<'a>;
+    type IntoIter = std::slice::Iter<'s, Attribute<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for Attributes<'a> {
+    type Item = Attribute<'a>;
+    type IntoIter = std::vec::IntoIter<Attribute<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_owned().into_iter()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -584,18 +669,9 @@ impl<'a> SliceReader<'a> {
     }
 
     fn tag_end(&self, start: usize) -> Result<usize, Error> {
-        let mut quote = None;
-        for (relative, &byte) in self.input.as_bytes()[start..]
-            .iter()
-            .take(self.limits.max_token_bytes)
-            .enumerate()
-        {
-            match (quote, byte) {
-                (Some(q), b) if q == b => quote = None,
-                (None, b'\'' | b'"') => quote = Some(byte),
-                (None, b'>') => return Ok(start + relative + 1),
-                _ => {}
-            }
+        let length = (self.input.len() - start).min(self.limits.max_token_bytes);
+        if let Some(end) = tag_close(&self.input.as_bytes()[start..start + length]) {
+            return Ok(start + end);
         }
         Err(Error::new(
             if self.input.len() - start > self.limits.max_token_bytes {

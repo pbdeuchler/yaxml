@@ -764,3 +764,21 @@ fn normalization_predicate_matches_all_flag_contexts_and_scan_boundaries() {
         }
     }
 }
+
+#[test]
+fn delivered_attribute_lists_return_their_capacity() {
+    let mut state = ParserState::new(Limits::default(), 0);
+    assert_eq!(state.take_attributes().capacity(), 0);
+    let mut list: Vec<Attribute<'_>> = Vec::with_capacity(8);
+    list.push(Attribute {
+        name: Name::new("a", None).unwrap(),
+        value: Cow::Borrowed("v"),
+    });
+    state.recycle_attributes(list);
+    // A smaller list never replaces a larger stored allocation.
+    state.recycle_attributes(Vec::with_capacity(2));
+    let reused = state.take_attributes();
+    assert!(reused.is_empty());
+    assert_eq!(reused.capacity(), 8);
+    assert_eq!(state.take_attributes().capacity(), 0);
+}

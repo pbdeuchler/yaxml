@@ -729,3 +729,28 @@ fn namespace_scopes_resolve_across_index_threshold() {
         }
     }
 }
+
+#[test]
+fn attribute_lists_compare_and_convert_between_owned_and_lent() {
+    use yaxml::{Attribute, Attributes, Name};
+    let attribute = |value: &'static str| Attribute {
+        name: Name::new("a", None).unwrap(),
+        value: Cow::Borrowed(value),
+    };
+    let storage = vec![attribute("1"), attribute("2")];
+    let lent = Attributes::Borrowed(&storage);
+    let owned: Attributes<'_> = storage.iter().cloned().collect();
+    assert_eq!(lent, owned);
+    assert_eq!(lent.len(), 2);
+    assert_eq!((&lent).into_iter().count(), 2);
+    assert_eq!(lent.clone().into_owned(), storage);
+    let mut edited = lent.clone();
+    edited.to_mut()[0].value = Cow::Borrowed("changed");
+    assert!(matches!(edited, Attributes::Owned(_)));
+    assert_ne!(edited, lent);
+    assert_eq!(Attributes::default(), Attributes::from(Vec::new()));
+    assert_eq!(
+        owned.into_iter().map(|a| a.value).collect::<Vec<_>>(),
+        ["1", "2"]
+    );
+}

@@ -25,7 +25,7 @@ fn element<'a>(
 ) -> Event<'a> {
     let element = Element {
         name: name(qualified, namespace),
-        attributes,
+        attributes: attributes.into(),
     };
     if empty {
         Event::Empty(element)

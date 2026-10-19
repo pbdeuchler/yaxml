@@ -183,7 +183,7 @@ fn nodes(input: &[u8]) -> Result<Vec<ProjectedNode<'_>>, ProjectionError> {
             }
             Event::Start(element) | Event::Empty(element) => {
                 node.name = Some(element.name);
-                node.attributes = element.attributes;
+                node.attributes = element.attributes.into_owned();
                 node.attributes
                     .retain(|attribute| attribute.name.namespace() != Some(XMLNS_NAMESPACE));
                 attributes = attributes
