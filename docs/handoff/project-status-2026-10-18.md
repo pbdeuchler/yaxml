@@ -60,7 +60,7 @@ The current private DTD fuzz plan has five implementation stages:
    DTD source-manifest union — open.
 
 The detailed plan is
-[Private DTD Reader fuzz and coverage integration](../plans/dtd-reader-fuzz.md).
+[Private DTD Reader fuzz and coverage integration](../archive/plans/dtd-reader-fuzz.md).
 
 ## Project-management rules already established
 

@@ -7,20 +7,20 @@ the private interface and position rule below are frozen.
 
 ## Public baseline and evidence
 
-[`Reader<'input>`](../../src/reader.rs) returns `Event<'input>` from
+[`Reader<'input>`](../../../src/reader.rs) returns `Event<'input>` from
 `read_event(&mut self)`. Its output lifetime belongs to the caller's input,
 not to the mutable reader loan. A retained event can coexist with another read,
 survive namespace scope unwind, and survive reader destruction. The caller must
 keep the original input alive and immutable while an input-borrowing event is
 used. Events can be collected into a Vec and returned after the reader drops.
 
-[`Event`, `Attribute` and `Declaration`](../../src/reader.rs) have different
+[`Event`, `Attribute` and `Declaration`](../../../src/reader.rs) have different
 ownership details. Unchanged text, CDATA, comments, PI strings, attribute values
 and lexical names borrow physical input. Normalization produces owned Cow values.
 Element attribute vectors own their metadata. Declaration fields are plain
 input-borrowed `&str`, not Cow. Resolved namespace strings can borrow stable input
 or own budgeted copies; they must remain valid after parser bindings unwind.
-[`Name` getters](../../src/name.rs) borrow the Name view: a getter result cannot
+[`Name` getters](../../../src/name.rs) borrow the Name view: a getter result cannot
 outlive its Name merely because the original lexical spelling came from input.
 
 The constructor validates the entire input length, encoding, UTF-8 and XML
@@ -74,8 +74,8 @@ EOF repeats None. Errors repeat the exact first Error and preserve position and
 the last delivered origin. Before any delivery the origin and event range are
 None. Normalization changes values without changing their physical input span;
 an event range is provenance, not a serialization of the normalized event.
-See [SourceOrigin](../../src/origin.rs) and
-[public provenance tests](../../tests/source_origin.rs).
+See [SourceOrigin](../../../src/origin.rs) and
+[public provenance tests](../../../tests/source_origin.rs).
 
 The following cursor differences are observable and passed independent controls:
 
@@ -112,9 +112,9 @@ the buffered adapter has one.
    `Xml(Event<'input>) | Dtd(TakenDtdEvent<'input>)`, returned by value with
    `read_event(&mut self)`. Retain Reader-style origin/range getters or return
    an owned SourceOrigin beside it; freeze which. Current
-   [`LocatedEvent`/`DtdEvent`](../../src/stream/dtd.rs) is insufficient:
+   [`LocatedEvent`/`DtdEvent`](../../../src/stream/dtd.rs) is insufficient:
    DtdEvent::Item and DoctypeHeaderView borrow a controller-owned DtdUnit.
-   [`TakenDtdEvent`](../../src/dtd_controller.rs) moves unit metadata while its
+   [`TakenDtdEvent`](../../../src/dtd_controller.rs) moves unit metadata while its
    physical raw Cow can still borrow input. A retained unit's `view()` borrows
    that unit, not the vanished controller.
 2. **Freeze constructors and errors.** Prefer input bytes plus Limits and

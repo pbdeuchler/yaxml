@@ -336,9 +336,9 @@ publication atomicity, retained pool charges and editor recovery without global
 test races. This seam does not inject faults inside the allocator or establish
 operating-system out-of-memory behavior.
 
-The [value-mutation validation report](validation-owned-mutation.md) and
-[leaf-structure validation report](validation-owned-structure.md), and
-[construction validation report](validation-owned-create.md) distinguish
+The [value-mutation validation report](archive/validation-owned-mutation.md) and
+[leaf-structure validation report](archive/validation-owned-structure.md), and
+[construction validation report](archive/validation-owned-create.md) distinguish
 implemented behavior from pending coverage, review and performance evidence.
 
 ## Next steps

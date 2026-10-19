@@ -190,15 +190,15 @@ choices still need review:
 
 At `9e4b3a6`, `OwnedDocument` stores document identity, node records, one
 attribute arena, the UTF-8 string pool and persistent `edit_owned_bytes` and
-`edit_created_nodes` counters ([`owned.rs`](../../src/owned.rs#L411)).
+`edit_created_nodes` counters ([`owned.rs`](../../../src/owned.rs#L411)).
 `EditLimits` currently bounds supplied value bytes, pool-capacity work and
-created nodes ([`owned.rs`](../../src/owned.rs#L557)); the proposal adds only
+created nodes ([`owned.rs`](../../../src/owned.rs#L557)); the proposal adds only
 construction-specific ceilings and counters to this bounded editor model.
 `append_leaf` validates handle/kind, lengths, content, created-node quota, pool
 capacity and reservations before publishing the new link
-([`owned.rs`](../../src/owned.rs#L636)). Use the same staged publication shape
+([`owned.rs`](../../../src/owned.rs#L636)). Use the same staged publication shape
 for element and attribute edits. Existing attribute views are exact-size and
-include namespace declarations ([`owned.rs`](../../src/owned.rs#L1212)).
+include namespace declarations ([`owned.rs`](../../../src/owned.rs#L1212)).
 
 ## Complete documents and handles
 
@@ -251,12 +251,12 @@ an XML token and reparsing it merely to validate construction.
 These rules reflect the existing parser/writer contract. The parser first reads
 all declarations from a start tag, applies their scope, resolves each QName,
 then rejects duplicate attributes by `(local, namespace identity)` in
-[`parser.rs`](../../src/parser.rs#L346) and
-[`parser.rs`](../../src/parser.rs#L412). Name and reserved-binding validation
-are in [`parser.rs`](../../src/parser.rs#L792) and
-[`parser.rs`](../../src/parser.rs#L368). The writer compares `qualified`,
+[`parser.rs`](../../../src/parser.rs#L346) and
+[`parser.rs`](../../../src/parser.rs#L412). Name and reserved-binding validation
+are in [`parser.rs`](../../../src/parser.rs#L792) and
+[`parser.rs`](../../../src/parser.rs#L368). The writer compares `qualified`,
 `prefix`, `local` and `namespace` against reparsed output in
-[`writer.rs`](../../src/writer.rs#L339), so constructed records must already
+[`writer.rs`](../../../src/writer.rs#L339), so constructed records must already
 have mutually consistent lexical and expanded names. Construction should share
 the parser's XML Name and reserved-binding rules; it must not serialize-and-
 reparse as a substitute for resolving a namespace.
@@ -318,8 +318,8 @@ out of scope.
 
 ## Attribute membership and storage
 
-The current [builder](../../src/owned.rs) and
-[serializer](../../src/serialize.rs) expose an ordered, exact-size borrowed
+The current [builder](../../../src/owned.rs) and
+[serializer](../../../src/serialize.rs) expose an ordered, exact-size borrowed
 attribute view over contiguous ranges. Keep that view and read path unchanged.
 Storage for insertion/removal remains open; the geometric-block experiment did
 not clear its edited-tree performance gate. This API proposal requires ordered membership, replacement
@@ -511,7 +511,7 @@ with the original QName, despite the comment describing a missing binding as
 an error. Add an oracle fixture before classifying its observable result;
 yaxml's namespace-valid construction must reject such an unbound exact prefix.
 
-The [documented reference lessons](../design.md#lessons-from-the-references)
+The [documented reference lessons](../../design.md#lessons-from-the-references)
 remain applicable: borrow event/view data, use compact document-scoped arenas,
 and measure mutation's ownership costs. quick-xml's event API and roxmltree's
 immutable tree do not establish mutable namespace behavior. Do not infer an

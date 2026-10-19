@@ -36,7 +36,7 @@ pool-capacity requests and 1,000,000 successful created slots. The two
 cumulative counters persist across editors. Removal refunds neither counter,
 and failed pool reservations may retain their charge. Parsed pool capacity is
 the baseline. These limits bound requested edit work; they are not resident
-memory or CPU quotas. The [owned DOM contract](owned-dom.md) specifies exact
+memory or CPU quotas. The [owned DOM contract](../owned-dom.md) specifies exact
 error precedence and accounting.
 
 ## Deterministic test evidence
@@ -149,7 +149,7 @@ coverage-guided fuzzing or security against every hostile input.
 
 ## Pinned libxml2 oracle
 
-The [structural protocol](oracle-structure.md) ran against a locally built
+The [structural protocol](../oracle-structure.md) ran against a locally built
 libxml2 **2.15.4**, with compiled and runtime identities both `21504`. The source
 archive SHA-256 is
 `98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821`.

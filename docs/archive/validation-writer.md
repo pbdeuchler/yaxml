@@ -2,7 +2,7 @@
 
 This milestone adds a bounded UTF-8 event writer to the existing reader, DOM and
 push parser. It follows the [declaration/oracle report](validation-oracle.md).
-The [writer contract](writer.md) records the supported behavior and remaining
+The [writer contract](../writer.md) records the supported behavior and remaining
 serializer surface. This is another implementation step toward the replacement,
 not a complete libxml2 writer or a production-security claim.
 
@@ -33,7 +33,7 @@ writer operations and scheduled output faults. Generated operations include
 arbitrary qualified spellings, incoherent public fields, declaration and PI
 injection, forbidden raw delimiters and independently varied policy bytes.
 Completed output must reparse; known forbidden values must be rejected before
-output; failures must poison later calls. The [target inventory and input format](../fuzz/README.md)
+output; failures must poison later calls. The [target inventory and input format](../../fuzz/README.md)
 distinguish these checks from ordinary tests and retained gaps.
 
 Review found two fuzz-oracle weaknesses: removing raw PI delimiter rejection or

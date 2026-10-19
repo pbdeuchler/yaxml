@@ -53,7 +53,7 @@ The `xml_conformance` example runs the complete root catalog from the
 It records all 2,585 cases across Reader, borrowing DOM, owned DOM, push and
 buffered pull: 12,925 result rows. It does not silently omit XML 1.1, historical
 editions, unsupported features, discretionary errors or unavailable inputs.
-The [validation report](validation-xml-conformance.md) records the exact scope,
+The [validation report](archive/validation-xml-conformance.md) records the exact scope,
 counts, hashes, review and remaining gaps. This is a complete catalog run,
 not a claim of complete XML conformance.
 

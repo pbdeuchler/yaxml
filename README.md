@@ -238,7 +238,7 @@ assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(
 DTD like libxml2's `XML_PARSE_DTDVALID`; `yaxml::valid::validate` checks it
 against a separate `Dtd` (`xmllint --dtdvalid`). Validity diagnostics are
 never fatal and carry libxml2's `XML_DTD_*` numbers; content models compile
-to bounded deterministic automata. See [DTD validation](docs/validation-dtd.md).
+to bounded deterministic automata. See [DTD validation](docs/archive/validation-dtd.md).
 
 ```rust
 let xml = "<!DOCTYPE r [<!ELEMENT r (a)><!ATTLIST r id ID #REQUIRED>]><r/>";
@@ -431,9 +431,9 @@ Run `cargo test`, `cargo clippy --all-targets -- -D warnings`,
 `cargo bench --bench serialize`, `cargo bench --bench mutation`, and
 `cargo bench --bench structural_mutation`. These runners report yaxml-only DOM,
 slice-event, push, buffered-pull, complete-tree serialization, value-edit and
-structural-edit measurements. The [structural validation report](docs/validation-owned-structure.md)
+structural-edit measurements. The [structural validation report](docs/archive/validation-owned-structure.md)
 records the pinned libxml2 conformance results, independent review and measured
-fuzz coverage. A separate [matched structural benchmark](docs/validation-owned-structure-matched.md)
+fuzz coverage. A separate [matched structural benchmark](docs/archive/validation-owned-structure-matched.md)
 compares edit lifecycles with libxml2, including slower workloads and the
 differences in Text topology, validation and buffering.
 

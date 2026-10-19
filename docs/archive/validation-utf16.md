@@ -4,7 +4,7 @@ This milestone adds UTF-16LE/BE input to push parsing and owned documents. It
 does not complete the libxml2 replacement goal. The production source measured
 at clean `9338656765df486b36608b9f640b720f7f457bed` is byte-identical to final
 test and fuzz snapshot `e7e2691e4a0d4bb0cae464f19ea936d7e9ab1638`.
-The [encoding contract](encoding.md) and [frozen plan](plans/utf16.md) define the
+The [encoding contract](../encoding.md) and [frozen plan](plans/utf16.md) define the
 supported subset and deliberate compatibility differences.
 
 ## Implementation and functional evidence
@@ -127,7 +127,7 @@ bytes go to libxml2; its values are never reparsed by yaxml.
 
 An earlier encoding fixture used a non-ASCII namespace URI. Strict namespace
 checking in local 2.15.3 rejected it while yaxml accepted it. This separate
-[URI-validation difference](compatibility.md) is recorded, and encoding fixtures
+[URI-validation difference](../compatibility.md) is recorded, and encoding fixtures
 now use ASCII URIs. A minimized fixture and raw diagnostic/exit status remain in
 ignored `coverage/utf16-oracle-probes/`. Declared-encoding mismatches are explicit
 policy skips because yaxml's strict agreement differs from libxml2's warning
