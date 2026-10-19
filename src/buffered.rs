@@ -119,13 +119,11 @@ impl<R: BufRead> BufferedReader<R> {
                 Ok(Some(true)) => {
                     self.pending = true;
                     self.status = Status::Active;
-                    return match self.session.lend_plain() {
-                        Ok(event) => Ok(Some(event)),
-                        Err(error) => {
-                            self.status = Status::Xml(error);
-                            Err(ReadError::Xml(error))
-                        }
-                    };
+                    let lent = self.session.lend_plain();
+                    if let Err(ReadError::Xml(error)) = &lent {
+                        self.status = Status::Xml(*error);
+                    }
+                    return lent;
                 }
                 Ok(Some(false)) => {
                     self.status = Status::Finished;
