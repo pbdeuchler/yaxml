@@ -44,6 +44,9 @@ mod xpath;
 #[path = "c14n.rs"]
 mod c14n;
 
+#[path = "html.rs"]
+mod html;
+
 #[path = "resolver.rs"]
 mod resolver;
 
@@ -66,6 +69,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     );
     exercise_names(input);
     exercise_uri(input);
+    exercise_html(input);
     exercise_xpath(input);
     exercise_c14n(input);
     exercise_construction(input);
@@ -152,6 +156,11 @@ pub fn exercise_resolver(input: &[u8]) -> Outcome {
 /// URI parse, serialization, escaping and resolution invariants.
 pub fn exercise_uri(input: &[u8]) {
     uri::exercise(input);
+}
+
+/// HTML parsing, push chunk independence and serialization.
+pub fn exercise_html(input: &[u8]) {
+    html::exercise(input);
 }
 
 /// Borrowed parse of UTF-8 input; recognized encodings have their own oracle.

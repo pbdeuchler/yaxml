@@ -63,6 +63,8 @@ pub enum ErrorKind {
     InvalidDeclaration,
     UnsupportedEncoding,
     EncodingMismatch,
+    /// A parser option flag that is unknown or not implemented.
+    UnsupportedOption,
     LimitExceeded(Limit),
     Allocation,
     /// The non-recycled owned-document identity space is exhausted.

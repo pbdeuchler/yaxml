@@ -75,6 +75,10 @@ pub trait Navigate {
     fn ranks(&self) -> Option<Vec<usize>>;
     /// `(element, attribute index)` of ID-typed attributes, sorted.
     fn ids(&self) -> &[(Self::Id, usize)];
+    /// Content XML output cannot represent (only possible in HTML documents).
+    fn xml_violation(&self) -> Option<String> {
+        None
+    }
 }
 
 impl Navigate for Document<'_> {
@@ -137,6 +141,10 @@ impl Navigate for Document<'_> {
 
 impl Navigate for OwnedDocument {
     type Id = OwnedNodeId;
+
+    fn xml_violation(&self) -> Option<String> {
+        OwnedDocument::xml_violation(self)
+    }
 
     fn root(&self) -> OwnedNodeId {
         OwnedDocument::root(self).id()

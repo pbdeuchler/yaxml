@@ -32,6 +32,8 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `names` | `exercise_names` | `Name` and owned PI targets |
 | `c14n` | `exercise_c14n` | `c14n::to_string` modes, comments, node-sets and prefix lists |
 | `dtd` | `exercise_dtd` | DOCTYPE-wrapped input (subset, entity value, PE text) through every surface; control byte `3` serves NUL-separated fuzz resources through an in-memory resolver and checks surface agreement and load/byte budgets |
+| `uri` | `exercise_uri` | `yaxml::uri` parse, save, escape and resolution |
+| `html` | `exercise_html` | `html::parse`, `PushParser` chunk independence, `html::save`/`to_html` |
 
 ```sh
 cargo install cargo-fuzz
@@ -81,6 +83,7 @@ Merged `src/` coverage from the tracked corpora (`fuzz/coverage.sh`): 88.73% reg
 | XML normalization and references | Reader/DOM corpora and generated documents | Exercised indirectly; semantic golden tests are also required in the ordinary test suite |
 | Validated name construction and owned PI targets | Every bounded testcase enters `driver::exercise_names` before XML/encoding dispatch | 28 literal QName/offset goldens, borrowed/owned/Cow parity and buffer preservation, arbitrary bounded strings, getter recomposition, and exact owned-PI Writer/Reader bytes; `name-owned-views.txt` seeds a Unicode QName |
 | `yaxml::uri` parse, raw parse, display, escape, unescape, normalize, resolve, relative | Every bounded UTF-8 testcase enters `uri::exercise` (reference, base, escape list as lines); `uri.txt` seeds | No panics; raw parse is ASCII and reparses; normalization idempotent; escape/unescape round trip up to NUL |
+| `html::parse`, `html::PushParser`, `html::save`, `html::to_html`, HTML `OwnedDocument` views | Every testcase enters `html::exercise`; options, small limits and a 1–17 byte chunk schedule derive from an input hash; `html.html` seeds | No panics; only limit/unsupported-encoding failures; push equals pull (output, diagnostics, stop); tree links, depth, merged non-empty character data, valueless attributes read as ""; saved output reparses |
 | `xpath::XPath::compile_with_limits`, `evaluate`, `Context` namespace and limit bindings | `driver::exercise_xpath` (also entered from `driver::exercise`): expression bytes, optionally followed by NUL and an XML document; small finite limits | Borrowed and owned DOMs agree exactly at the root and document element (value, error kind, node ranks); node-sets strictly in document order; source text round-trips |
 | `c14n::to_string`, `Options` (mode, comments, node-set, inclusive prefixes) | `driver::exercise_c14n` (also entered from `driver::exercise`): one selector byte (mode, comments, one of eight fixed XPath selections, prefix list) followed by an XML document | Borrowed and owned DOMs agree exactly (output or error); whole-document output that reparses is its own canonical form |
 | `PushParser::with_decode_limits`, UTF-8/UTF-16 detection, declared single-byte decoding | `encoding::exercise`, `exercise_decode_limits`, encoded fixtures/mutations, `charset-*.xml` | Standard-library UTF-16 reference, xmllint-recorded single-byte tables, declaration agreement, exact typed events and original source spans, split-independent acceptance, sticky failures and decoded ceilings |

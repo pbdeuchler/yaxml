@@ -234,6 +234,25 @@ assert_eq!(canonical, r#"<r><p:e xmlns:p="urn:p" a="1" b="2"></p:e></r>"#);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
+tokenization, libxml2's legacy tree construction with implied elements and
+auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding
+selection) into an `OwnedDocument` marked as HTML, incrementally through
+`html::PushParser` with chunk-independent results, and serializes it like
+`htmlDocDumpMemory` (`html::to_html`) or `xmllint --html` (`html::save`):
+
+```rust
+use yaxml::html;
+
+let parsed = html::parse(b"<title>T</title><p>a<p>b &amp; c", html::Options::default())?;
+let output = html::save(&parsed.document, false)?;
+assert!(output.ends_with(b"<body><p>a</p><p>b &amp; c</p></body></html>\n"));
+# Ok::<(), yaxml::Error>(())
+```
+
+The [HTML contract](docs/html.md) lists options, encodings, limits, the
+xmllint differential and known differences.
+
 The core uses `#![forbid(unsafe_code)]`; standard-library and `memchr` internals
 are separate boundaries. Native C ABI compatibility and language adapters need
 their own scope decision because libxml2 exposes raw pointers and public mutable

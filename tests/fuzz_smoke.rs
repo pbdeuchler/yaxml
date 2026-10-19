@@ -33,6 +33,7 @@ const SEEDS: &[&[u8]] = &[
     include_bytes!("../fuzz/corpus/construction-long-prefix.bin"),
     include_bytes!("../fuzz/corpus/name-owned-views.txt"),
     include_bytes!("../fuzz/corpus/uri.txt"),
+    include_bytes!("../fuzz/corpus/html.html"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
@@ -1064,6 +1065,7 @@ fn fuzz_regressions_replay() {
                     driver::exercise_pull(&data, data.get(data.len() / 2).copied().unwrap_or(0));
                 }
                 "dtd" => drop(driver::exercise_dtd(&data)),
+                "html" => driver::exercise_html(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }

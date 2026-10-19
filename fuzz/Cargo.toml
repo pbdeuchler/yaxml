@@ -118,3 +118,10 @@ path = "fuzz_targets/dtd.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "html"
+path = "fuzz_targets/html.rs"
+test = false
+doc = false
+bench = false
