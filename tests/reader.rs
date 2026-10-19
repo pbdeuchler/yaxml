@@ -669,3 +669,63 @@ fn expanded_attribute_uniqueness_and_end_tags_on_both_paths() {
         assert_eq!(result, expected, "{xml}");
     }
 }
+
+/// Scopes cross the prefix-index threshold in both directions: deep nesting
+/// rebinding prefixes, then unwinding back to a few bindings, twice.
+#[test]
+fn namespace_scopes_resolve_across_index_threshold() {
+    for root in [2, 20] {
+        let mut xml = String::from("<r");
+        for n in 0..root {
+            xml.push_str(&format!(" xmlns:p{n}='urn:{n}'"));
+        }
+        xml.push('>');
+        let mut expected = vec![None];
+        for _ in 0..2 {
+            for depth in 0..20 {
+                xml.push_str(&format!(
+                    "<p{depth}:e xmlns:p{depth}='urn:in{depth}' xmlns:q='urn:q{depth}'>"
+                ));
+                expected.push(Some(format!("urn:in{depth}")));
+                xml.push_str("<q:x/>");
+                expected.push(Some(format!("urn:q{depth}")));
+            }
+            for depth in (0..20).rev() {
+                xml.push_str(&format!("</p{depth}:e>"));
+                if depth < root {
+                    xml.push_str(&format!("<p{depth}:after/>"));
+                    expected.push(Some(format!("urn:{depth}")));
+                }
+            }
+        }
+        xml.push_str("<q:bad/></r>");
+        for push in [false, true] {
+            let mut seen = Vec::new();
+            let mut record = |event: Event<'_>| {
+                if let Event::Start(element) | Event::Empty(element) = event {
+                    seen.push(element.name.namespace().map(str::to_owned));
+                }
+            };
+            let error = if push {
+                let mut parser = yaxml::PushParser::new();
+                parser
+                    .feed(xml.as_bytes(), |event, _| {
+                        record(event);
+                        std::ops::ControlFlow::Continue(())
+                    })
+                    .unwrap_err()
+            } else {
+                let mut reader = Reader::new(xml.as_bytes()).unwrap();
+                loop {
+                    match reader.read_event() {
+                        Ok(Some(event)) => record(event),
+                        Ok(None) => panic!("unbound q accepted"),
+                        Err(error) => break error,
+                    }
+                }
+            };
+            assert_eq!(seen, expected, "root {root} push {push}");
+            assert_eq!(error.kind, ErrorKind::Namespace);
+        }
+    }
+}

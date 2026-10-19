@@ -19,7 +19,7 @@ impl Stream {
         Self {
             tokenizer: Tokenizer::new(limits.max_token_bytes, decode.max_decoded_token_bytes),
             decoder: Decoder::new(decode.max_decoded_bytes),
-            state: ParserState::new(limits, 0).pooling_frame_names(),
+            state: ParserState::new(limits, 0).copying_names(),
             decoded_token_limit: decode.max_decoded_token_bytes,
         }
     }

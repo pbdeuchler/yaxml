@@ -13,6 +13,8 @@ use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Lim
 
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
+/// Namespace scopes up to this many bindings are searched linearly.
+const INDEXED_SCOPE: usize = 16;
 /// Attribute counts up to this compare expanded names pairwise.
 const SMALL_ATTRIBUTES: usize = 8;
 
@@ -269,9 +271,12 @@ pub(crate) struct ParserState<'source> {
     phase: Phase,
     stack: Vec<Frame<'source>>,
     frame_names: String,
-    pool_frame_names: bool,
+    copies_names: bool,
     bindings: Vec<Binding<'source>>,
+    /// Prefix -> active binding, maintained only above `INDEXED_SCOPE`
+    /// bindings; smaller scopes search `bindings` from the innermost entry.
     namespace_index: HashMap<Cow<'source, str>, usize>,
+    indexed: bool,
     namespace_ids: HashMap<Cow<'source, str>, NamespaceEntry>,
     next_namespace: usize,
     budget: Budget,
@@ -299,9 +304,10 @@ impl<'source> ParserState<'source> {
             phase: Phase::Prolog,
             stack: Vec::new(),
             frame_names: String::new(),
-            pool_frame_names: false,
+            copies_names: false,
             bindings: Vec::new(),
             namespace_index: HashMap::new(),
+            indexed: false,
             namespace_ids: HashMap::new(),
             next_namespace: 0,
             budget: Budget {
@@ -328,11 +334,50 @@ impl<'source> ParserState<'source> {
         self.token_limit_kind = Limit::DecodedTokenBytes;
     }
 
-    /// Streaming frontends copy every retained name; open element names then
-    /// share one charged buffer instead of one allocation per element.
-    pub(crate) fn pooling_frame_names(mut self) -> Self {
-        self.pool_frame_names = true;
+    /// Streaming frontends copy every retained name. Open element names then
+    /// share one charged buffer, and unindexed prefixes are charged directly.
+    pub(crate) fn copying_names(mut self) -> Self {
+        self.copies_names = true;
         self
+    }
+
+    /// The active binding index for `prefix`.
+    fn bound(&self, prefix: &str) -> Option<usize> {
+        if self.indexed {
+            self.namespace_index.get(prefix).copied()
+        } else {
+            self.bindings
+                .iter()
+                .rposition(|binding| binding.prefix == prefix)
+        }
+    }
+
+    /// Builds the prefix index once a scope outgrows linear search. Keys
+    /// were charged when their bindings were retained.
+    fn index_bindings(&mut self, offset: usize) -> Result<(), Error> {
+        if self.indexed || self.bindings.len() <= INDEXED_SCOPE {
+            return Ok(());
+        }
+        let allocation = || Error::new(ErrorKind::Allocation, offset);
+        let mut index = HashMap::new();
+        index
+            .try_reserve(self.bindings.len())
+            .map_err(|_| allocation())?;
+        for (position, binding) in self.bindings.iter().enumerate() {
+            let key = match &binding.prefix {
+                Cow::Borrowed(prefix) => Cow::Borrowed(*prefix),
+                Cow::Owned(prefix) => {
+                    let mut key = String::new();
+                    key.try_reserve(prefix.len()).map_err(|_| allocation())?;
+                    key.push_str(prefix);
+                    Cow::Owned(key)
+                }
+            };
+            index.insert(key, position);
+        }
+        self.namespace_index = index;
+        self.indexed = true;
+        Ok(())
     }
 
     fn open_name(&self) -> Option<&str> {
@@ -601,8 +646,12 @@ impl<'source> ParserState<'source> {
                     .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
                 let retained_prefix = retain(bound_prefix, offset, &mut self.budget)?;
                 let uri = self.retain_value(&value, offset, retain)?;
-                let previous = self.namespace_index.get(bound_prefix).copied();
-                if let Some(slot) = self.namespace_index.get_mut(bound_prefix) {
+                let previous = self.bound(bound_prefix);
+                if !self.indexed {
+                    if previous.is_none() && self.copies_names {
+                        self.budget.charge_owned(bound_prefix.len(), offset)?;
+                    }
+                } else if let Some(slot) = self.namespace_index.get_mut(bound_prefix) {
                     *slot = self.bindings.len();
                 } else {
                     self.namespace_index
@@ -617,6 +666,7 @@ impl<'source> ParserState<'source> {
                     namespace,
                     previous,
                 });
+                self.index_bindings(offset)?;
             }
             attributes
                 .try_reserve(1)
@@ -667,7 +717,7 @@ impl<'source> ParserState<'source> {
             self.stack
                 .try_reserve(1)
                 .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-            let qualified = if self.pool_frame_names {
+            let qualified = if self.copies_names {
                 self.budget.charge_owned(qualified.len(), start + 1)?;
                 self.frame_names
                     .try_reserve(qualified.len())
@@ -1136,7 +1186,7 @@ impl<'source> ParserState<'source> {
                 let uri = self
                     .retain_value(&attribute.value, offset, retain)
                     .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
-                let previous = self.namespace_index.get(bound_prefix).copied();
+                let previous = self.bound(bound_prefix);
                 let index = pending.len();
                 let prior = pending_prefixes.insert(prefix_key, index);
                 debug_assert!(prior.is_none());
@@ -1211,12 +1261,14 @@ impl<'source> ParserState<'source> {
             PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
         })?;
         self.namespace_index
-            .try_reserve(
+            .try_reserve(if self.indexed {
                 pending
                     .iter()
                     .filter(|binding| binding.previous.is_none())
-                    .count(),
-            )
+                    .count()
+            } else {
+                0
+            })
             .map_err(|_| {
                 PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
             })?;
@@ -1258,7 +1310,14 @@ impl<'source> ParserState<'source> {
                 .remove_entry(binding.prefix.as_ref())
                 .expect("planned namespace prefix");
             let index = self.bindings.len();
-            if let Some(previous) = binding.previous {
+            if !self.indexed {
+                self.bindings.push(Binding {
+                    prefix: binding.prefix,
+                    uri: binding.uri,
+                    namespace: binding.namespace,
+                    previous: binding.previous,
+                });
+            } else if let Some(previous) = binding.previous {
                 *self
                     .namespace_index
                     .get_mut(binding.prefix.as_ref())
@@ -1279,6 +1338,8 @@ impl<'source> ParserState<'source> {
                 });
             }
         }
+        self.index_bindings(prepared.start)
+            .map_err(PreparedTagError::input)?;
         if prepared.empty {
             self.unwind_bindings(bindings_start);
             if self.stack.is_empty() {
@@ -1401,7 +1462,7 @@ impl<'source> ParserState<'source> {
         let namespace = match prefix {
             Some("xmlns") => return Err(Error::new(ErrorKind::Namespace, offset)),
             Some("xml") => Some(Cow::Borrowed(XML)),
-            _ => match self.namespace_index.get(prefix.unwrap_or("")).copied() {
+            _ => match self.bound(prefix.unwrap_or("")) {
                 Some(index) if !self.bindings[index].uri.is_empty() => {
                     Some(self.budget.copy(&self.bindings[index].uri, offset)?)
                 }
@@ -1435,7 +1496,7 @@ impl<'source> ParserState<'source> {
                 (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns))
             }
             None if attribute => (None, None),
-            _ => match self.namespace_index.get(prefix.unwrap_or("")).copied() {
+            _ => match self.bound(prefix.unwrap_or("")) {
                 Some(index) if !self.bindings[index].uri.is_empty() => {
                     if let Cow::Owned(uri) = &self.bindings[index].uri {
                         self.budget.charge_owned(uri.len(), offset)?;
@@ -1478,11 +1539,12 @@ impl<'source> ParserState<'source> {
             }
             None if attribute => (None, None),
             _ => {
+                let active = self.bound(selected);
                 let binding = planned
                     .map(|binding| (&binding.uri, binding.namespace))
                     .or_else(|| {
-                        self.namespace_index.get(selected).map(|index| {
-                            let binding = &self.bindings[*index];
+                        active.map(|index| {
+                            let binding = &self.bindings[index];
                             (&binding.uri, binding.namespace)
                         })
                     });
@@ -1546,13 +1608,15 @@ impl<'source> ParserState<'source> {
     fn unwind_bindings(&mut self, start: usize) {
         while self.bindings.len() > start {
             let binding = self.bindings.pop().expect("binding scope");
-            if let Some(previous) = binding.previous {
-                *self
-                    .namespace_index
-                    .get_mut(binding.prefix.as_ref())
-                    .expect("active namespace prefix") = previous;
-            } else {
-                self.namespace_index.remove(binding.prefix.as_ref());
+            if self.indexed {
+                if let Some(previous) = binding.previous {
+                    *self
+                        .namespace_index
+                        .get_mut(binding.prefix.as_ref())
+                        .expect("active namespace prefix") = previous;
+                } else {
+                    self.namespace_index.remove(binding.prefix.as_ref());
+                }
             }
             if matches!(binding.namespace, Some(NamespaceId::Declared(_))) {
                 let entry = self
@@ -1564,6 +1628,10 @@ impl<'source> ParserState<'source> {
                     self.namespace_ids.remove(binding.uri.as_ref());
                 }
             }
+        }
+        if self.indexed && self.bindings.len() <= INDEXED_SCOPE / 2 {
+            self.namespace_index = HashMap::new();
+            self.indexed = false;
         }
     }
 }

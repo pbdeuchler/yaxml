@@ -85,7 +85,7 @@ impl<W: Write> Writer<W> {
                 },
                 0,
             )
-            .pooling_frame_names(),
+            .copying_names(),
             buffer: TokenBuffer {
                 text: String::new(),
                 offset: 0,
