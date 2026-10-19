@@ -29,6 +29,7 @@ mod reader;
 mod serialize;
 mod stream;
 mod tokenizer;
+pub mod uri;
 mod writer;
 
 pub use buffered::BufferedReader;
@@ -46,6 +47,7 @@ pub use owned::{
 };
 pub use push::PushParser;
 pub use reader::{Attribute, Declaration, Element, Event, Limits, Reader};
+pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
 
 #[cfg(test)]

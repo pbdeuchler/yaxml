@@ -29,6 +29,9 @@ mod construction;
 #[path = "names.rs"]
 mod names;
 
+#[path = "uri.rs"]
+mod uri;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -49,6 +52,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
         check_finish_abort(input);
     }
     exercise_names(input);
+    uri::exercise(input);
     exercise_construction(input);
     exercise_mutation(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
