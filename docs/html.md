@@ -19,6 +19,7 @@ the WHATWG tree builder.
 | `OwnedDocument::{is_html, doctype, html_encoding}` | `XML_DOC_HTML`, `doc->intSubset`, `doc->encoding` |
 | `Writer::write_owned_document`, `c14n` on an HTML document | XML output; fails if names, characters, comments or several top-level elements are not XML |
 | `OwnedNode::attribute_has_value(i)` | `attr->children != NULL` |
+| `OwnedDocument::element_by_id` | `xmlGetID` with HTML's `xmlIsID`: valued `id` attributes, and `name` on `a` |
 
 Documents are ordinary [`OwnedDocument`](owned-dom.md)s, so traversal, text
 chunks and editing work unchanged. HTML names are stored verbatim (they may be

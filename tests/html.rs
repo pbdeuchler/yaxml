@@ -633,3 +633,28 @@ fn documents_are_marked_html() {
     assert!(!xml.is_html() && xml.doctype().is_none() && xml.html_encoding().is_none());
     assert_eq!(html::to_html(&xml).unwrap(), b"<r></r>\n");
 }
+
+#[test]
+fn html_ids_follow_xmlisid() {
+    let parsed = parse(
+        b"<p id=a>1<a name=n>2</a><b name=m id>3<i id=a>4<i ID=c>",
+        0,
+    );
+    let document = &parsed.document;
+    let name = |value: &str| {
+        document
+            .element_by_id(value)
+            .map(|node| node.name().unwrap().qualified().to_owned())
+    };
+    assert_eq!(name("a"), Some("p".to_owned()));
+    assert_eq!(name("n"), Some("a".to_owned()));
+    assert_eq!(name("c"), Some("i".to_owned()));
+    assert_eq!((name("m"), name(""), name("zz")), (None, None, None));
+    let id = yaxml::xpath::XPath::compile("count(id('a c n'))").unwrap();
+    let value = id.evaluate(
+        document,
+        document.root().id(),
+        &yaxml::xpath::Context::new(),
+    );
+    assert_eq!(value.unwrap(), yaxml::xpath::Value::Number(3.0));
+}

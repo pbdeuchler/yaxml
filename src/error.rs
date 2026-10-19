@@ -21,6 +21,10 @@ pub enum Limit {
     EntityReferences,
     /// Nesting depth of entity expansion.
     EntityDepth,
+    /// External resources requested from the resolver.
+    ExternalLoads,
+    /// Cumulative bytes returned by the resolver.
+    ExternalBytes,
 }
 
 /// Structured failures; offsets are input bytes, or prospective writer output bytes.
@@ -51,6 +55,8 @@ pub enum ErrorKind {
     UnbalancedEntity,
     /// Malformed document type declaration or internal subset.
     InvalidDtd,
+    /// The resolver failed to load an external DTD subset or entity.
+    ExternalResource,
     MissingRoot,
     MultipleRoots,
     TextOutsideRoot,

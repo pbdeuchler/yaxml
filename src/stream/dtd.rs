@@ -152,6 +152,25 @@ const fn limit(limit: Limit) -> ErrorKind {
     ErrorKind::LimitExceeded(limit)
 }
 
+fn grammar_kind(kind: DtdErrorKind) -> ErrorKind {
+    match kind {
+        DtdErrorKind::InvalidName => ErrorKind::InvalidName,
+        DtdErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
+        DtdErrorKind::InvalidReference => ErrorKind::InvalidReference,
+        DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes | DtdLimit::Tokens) => {
+            limit(Limit::TokenBytes)
+        }
+        DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth) => limit(Limit::Depth),
+        DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions) => limit(Limit::Attributes),
+        DtdErrorKind::Allocation => ErrorKind::Allocation,
+        DtdErrorKind::Syntax
+        | DtdErrorKind::InvalidNmtoken
+        | DtdErrorKind::InvalidPublicIdentifier
+        | DtdErrorKind::SystemIdentifierFragment
+        | DtdErrorKind::ReservedPiTarget => ErrorKind::InvalidDtd,
+    }
+}
+
 fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
     match kind {
         ControllerErrorKind::Scan(kind) => match kind {
@@ -164,22 +183,7 @@ fn controller_kind(kind: ControllerErrorKind) -> ErrorKind {
             ScanErrorKind::Limit(ScanLimit::Work) => limit(Limit::EntityExpansion),
             ScanErrorKind::Allocation => ErrorKind::Allocation,
         },
-        ControllerErrorKind::Grammar(kind) => match kind {
-            DtdErrorKind::InvalidName => ErrorKind::InvalidName,
-            DtdErrorKind::InvalidCharacter => ErrorKind::InvalidCharacter,
-            DtdErrorKind::InvalidReference => ErrorKind::InvalidReference,
-            DtdErrorKind::LimitExceeded(DtdLimit::UnitBytes | DtdLimit::Tokens) => {
-                limit(Limit::TokenBytes)
-            }
-            DtdErrorKind::LimitExceeded(DtdLimit::ModelDepth) => limit(Limit::Depth),
-            DtdErrorKind::LimitExceeded(DtdLimit::AttributeDefinitions) => limit(Limit::Attributes),
-            DtdErrorKind::Allocation => ErrorKind::Allocation,
-            DtdErrorKind::Syntax
-            | DtdErrorKind::InvalidNmtoken
-            | DtdErrorKind::InvalidPublicIdentifier
-            | DtdErrorKind::SystemIdentifierFragment
-            | DtdErrorKind::ReservedPiTarget => ErrorKind::InvalidDtd,
-        },
+        ControllerErrorKind::Grammar(kind) => grammar_kind(kind),
         ControllerErrorKind::Catalog(kind) => catalog_kind(kind),
         ControllerErrorKind::Frame(kind) => frame_kind(kind),
         ControllerErrorKind::Ownership(kind) => kind,
@@ -219,6 +223,9 @@ fn catalog_kind(kind: CatalogErrorKind) -> ErrorKind {
         CatalogErrorKind::Limit(CatalogLimit::References) => limit(Limit::EntityReferences),
         CatalogErrorKind::Limit(CatalogLimit::Depth) => limit(Limit::EntityDepth),
         CatalogErrorKind::Allocation => ErrorKind::Allocation,
+        CatalogErrorKind::Grammar(kind) => grammar_kind(kind),
+        CatalogErrorKind::Xml(kind) => kind,
+        CatalogErrorKind::Load(_) => ErrorKind::InvalidState,
     }
 }
 
@@ -350,6 +357,7 @@ pub(crate) struct StreamingSession {
     decode: DecodeLimits,
     options: SessionLimits,
     standalone: bool,
+    loader: Option<crate::resolve::Loader>,
     origin: Option<SourceOrigin>,
     physical: usize,
     finalizing: bool,
@@ -367,6 +375,7 @@ impl StreamingSession {
             decode,
             options: SessionLimits::new(limits, decode),
             standalone: false,
+            loader: None,
             origin: None,
             physical: 0,
             finalizing: false,
@@ -387,6 +396,21 @@ impl StreamingSession {
     }
     pub(crate) fn event_origin(&self) -> Option<SourceOrigin> {
         self.origin
+    }
+    pub(crate) fn set_resolver(&mut self, base: &str, resolver: Box<dyn crate::Resolver>) {
+        let unit = self.options.declarations.unit;
+        self.loader = Some(crate::resolve::Loader::new(
+            base,
+            resolver,
+            &self.limits,
+            unit,
+        ));
+    }
+    pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
+        match self.session.first()?.phase.as_ref()? {
+            Phase::Content(controller) => Some(controller.catalog()),
+            Phase::Declarations { .. } => None,
+        }
     }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
     pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, SessionError> {
@@ -643,6 +667,9 @@ impl StreamingSession {
             self.options.declarations,
             self.standalone,
         );
+        if let Some(loader) = self.loader.take() {
+            controller.set_loader(loader);
+        }
         // Existing scanner work charges the nine-byte grammar rescan. These are
         // already accepted transport bytes: never resend them through Decoder.
         let prefix = tokenizer.current().expect("owned prefix").1;

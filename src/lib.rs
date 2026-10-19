@@ -20,6 +20,7 @@ mod owned;
 mod parser;
 mod push;
 mod reader;
+mod resolve;
 mod serialize;
 mod stream;
 mod tokenizer;
@@ -42,6 +43,7 @@ pub use owned::{
 };
 pub use push::PushParser;
 pub use reader::{Attribute, Declaration, Doctype, Element, Event, Limits, Reader};
+pub use resolve::{FileResolver, Request, Resolver, ResourceKind};
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
 

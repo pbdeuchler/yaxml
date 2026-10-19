@@ -385,7 +385,7 @@ fn unread_parameter_references_in_entity_values_expand_empty() {
             ..
         }
     ));
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), true);
+    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
     declare(&mut catalog, "<!ENTITY % p SYSTEM 'not-opened'>").unwrap();
     let unit = DtdUnit::parse("<!ENTITY e '%p;'>", DtdLimits::default()).unwrap();
     catalog.apply(&unit, external).unwrap();
@@ -682,13 +682,17 @@ fn unloaded_pe_inside_entity_value_keeps_later_declarations() {
                 },
             )
             .unwrap();
-        assert!(matches!(
-            catalog.lookup_general("e"),
-            EntityLookup::Internal {
-                replacement: "",
-                ..
-            }
-        ));
+        // A standalone document never binds externally declared general entities.
+        assert_eq!(
+            matches!(
+                catalog.lookup_general("e"),
+                EntityLookup::Internal {
+                    replacement: "",
+                    ..
+                }
+            ),
+            !standalone
+        );
         declare(&mut catalog, "<!ENTITY later 'v'>").unwrap();
         declare(&mut catalog, "<!ATTLIST r a CDATA 'v'>").unwrap();
         assert_eq!(catalog.attributes("r").count(), 1);

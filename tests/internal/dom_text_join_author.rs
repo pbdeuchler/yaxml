@@ -7,6 +7,7 @@ fn empty_document() -> Document<'static> {
         nodes: vec![Record::root(NodeKind::Document, 32)],
         root_element: NodeId(0),
         declaration: None,
+        ids: Vec::new(),
     }
 }
 

@@ -518,7 +518,7 @@ pub(crate) fn needs_decoding(input: &[u8]) -> bool {
 
 /// Locates a leading declaration's label only to route it to the decoder;
 /// the parser still validates the declaration grammar.
-fn declared_label(input: &[u8]) -> Option<&str> {
+pub(crate) fn declared_label(input: &[u8]) -> Option<&str> {
     let space = |b: &u8| matches!(b, b' ' | b'\t' | b'\r' | b'\n');
     let skip = |b: &[u8]| -> usize { b.iter().position(|c| !space(c)).unwrap_or(b.len()) };
     let head = input.strip_prefix(b"<?xml")?;

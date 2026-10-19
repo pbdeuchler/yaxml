@@ -50,6 +50,17 @@ impl PushParser {
         }
     }
 
+    /// Loads the external subset and external parsed entities through
+    /// `resolver`; `base` is the document's URI or path for relative system IDs.
+    pub fn with_resolver(mut self, base: &str, resolver: Box<dyn crate::Resolver>) -> Self {
+        self.session.set_resolver(base, resolver);
+        self
+    }
+
+    pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
+        self.session.catalog()
+    }
+
     /// Source bytes consumed, including encoding detection and one scalar of lookahead
     /// when a `<` terminates text. On failure, a chunk's suffix can be unconsumed.
     pub fn position(&self) -> usize {
