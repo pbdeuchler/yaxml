@@ -86,3 +86,7 @@ are linear; include/import cycles load each document once.
 - No streaming (`xmlSchemaValidateStream`) or SAX plug; `xml:base` in schema
   documents is ignored when resolving locations; attribute-use value
   constraints are not checked against the declaration's, as in libxml2.
+- Derivation by restriction must restate a base attribute's `fixed` value
+  (derivation-ok-restriction 2.1.3). libxml2 2.15.4 compares the base's value
+  with itself and never reports this, so it accepts schemas that omit or change
+  the fixed value; yaxml and Xerces reject them.
