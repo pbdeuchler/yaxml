@@ -23,6 +23,7 @@ pub mod pattern;
 mod push;
 mod reader;
 pub mod regexp;
+pub mod relaxng;
 mod resolve;
 pub mod schema_types;
 mod serialize;

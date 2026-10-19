@@ -23,6 +23,8 @@ pub enum ResourceKind {
     XIncludeText,
     /// An XML or SGML catalog file loaded by [`crate::catalog::Catalog`].
     Catalog,
+    /// A schema document named by a RELAX NG `include` or `externalRef`.
+    RelaxNg,
 }
 
 /// One load request.

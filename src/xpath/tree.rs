@@ -83,6 +83,8 @@ pub trait Navigate {
     fn xml_violation(&self) -> Option<String> {
         None
     }
+    /// The declarations the document's DTD made.
+    fn dtd(&self) -> Option<&Dtd>;
 }
 
 impl Navigate for Document<'_> {
@@ -149,6 +151,10 @@ impl Navigate for Document<'_> {
 
     fn offset(&self, id: NodeId) -> Option<usize> {
         Some(self.node(id)?.range()?.start)
+    }
+
+    fn dtd(&self) -> Option<&Dtd> {
+        Document::dtd(self)
     }
 }
 
@@ -222,6 +228,10 @@ impl Navigate for OwnedDocument {
 
     fn offset(&self, id: OwnedNodeId) -> Option<usize> {
         Some(self.node(id)?.range()?.start)
+    }
+
+    fn dtd(&self) -> Option<&Dtd> {
+        OwnedDocument::dtd(self)
     }
 }
 
