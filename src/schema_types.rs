@@ -381,7 +381,8 @@ fn qname(ty: Type, text: &str, context: Option<&dyn Context>) -> Option<Data> {
     };
     let resolve = |prefix: &str| match prefix {
         "xml" => Some(XML_NAMESPACE),
-        prefix => context.namespace(prefix),
+        // An empty URI is a default-namespace undeclaration: no namespace.
+        prefix => context.namespace(prefix).filter(|uri| !uri.is_empty()),
     };
     // An unprefixed QName takes the default namespace; a NOTATION does not.
     let namespace = match prefix {

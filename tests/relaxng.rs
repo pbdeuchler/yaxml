@@ -215,6 +215,15 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     ),
     ("<data type='QName'/>", "<r xmlns:p='urn:p'>p:x</r>", &[]),
     ("<data type='QName'/>", "<r>q:x</r>", &[Code::Datatype]),
+    // An unprefixed QName in an `xmlns=""` scope has no namespace, as with no default at all.
+    ("<value type='QName'>x</value>", "<r>x</r>", &[]),
+    ("<value type='QName'>x</value>", "<r xmlns=''>x</r>", &[]),
+    ("<data type='QName'/>", "<r xmlns=''>x</r>", &[]),
+    (
+        "<value type='QName' ns='urn:d'>x</value>",
+        "<r xmlns=''>x</r>",
+        &[Code::Value],
+    ),
     ("<value>a  b</value>", "<r> a b </r>", &[]),
     (
         "<value type='string' datatypeLibrary=''>a</value>",

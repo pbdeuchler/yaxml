@@ -45,7 +45,6 @@ impl schema_types::Context for Scope<'_> {
             .iter()
             .find(|&&(p, _)| p == prefix)
             .map(|&(_, uri)| uri)
-            .filter(|uri| !uri.is_empty())
     }
 
     /// `xmlSchemaValidateNotation`: a declared notation; an unprefixed name
