@@ -135,8 +135,38 @@ impl Tokenizer {
     /// Consume only through the next complete token. A text delimiter already
     /// counted in the positions is replayed from constant lookahead storage.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
+        if let Some(consumed) = self.adopt(input)? {
+            return Ok(consumed);
+        }
         self.advance_inner::<false>(input)
             .map(|(consumed, _)| consumed)
+    }
+
+    /// Copies a token that is complete in `input` in one step, with the
+    /// same span, counters and lookahead the byte-wise scan would produce.
+    fn adopt(&mut self, input: &[u8]) -> Result<Option<usize>, Error> {
+        let Some((next, replay)) = self.idle_utf8() else {
+            return Ok(None);
+        };
+        let found = if replay {
+            markup_after_lt(input).map(|(kind, used)| (kind, used, used + 1))
+        } else {
+            complete_token(input).map(|(kind, used)| (kind, used, used))
+        };
+        let Some((kind, used, length)) = found.filter(|found| found.2 <= self.borrow_limit())
+        else {
+            return Ok(None);
+        };
+        let start = next - usize::from(replay);
+        if replay {
+            self.append(b'<')?;
+        }
+        self.append_slice(&input[..used])?;
+        self.skip_borrowed(kind, start + length);
+        self.start = start;
+        self.source_start = start;
+        self.mark_at(kind, start + length, start + length);
+        Ok(Some(used + usize::from(kind == TokenKind::Text)))
     }
 
     fn advance_inner<const REFERENCES: bool>(
@@ -230,9 +260,8 @@ impl Tokenizer {
     }
 
     /// While no token is buffered in plain UTF-8 mode, the absolute offset of
-    /// the next byte and whether a text-terminating `<` awaits replay. Callers
-    /// holding the input may then take complete tokens without copying them.
-    pub(crate) fn idle_utf8(&self) -> Option<(usize, bool)> {
+    /// the next byte and whether a text-terminating `<` awaits replay.
+    fn idle_utf8(&self) -> Option<(usize, bool)> {
         (self.ready.is_none()
             && self.buffer.is_empty()
             && matches!(self.scan, Scan::Text)
@@ -243,14 +272,14 @@ impl Tokenizer {
     }
 
     /// Longest token both byte ceilings accept without diagnosing it.
-    pub(crate) fn borrow_limit(&self) -> usize {
+    fn borrow_limit(&self) -> usize {
         self.limit.min(self.decoded_limit)
     }
 
-    /// Accounts for a token taken from the input and ending at absolute `end`.
+    /// Accounts for an adopted token ending at absolute `end`.
     /// Text also consumes its terminating `<` as replayed lookahead, exactly
     /// as the incremental scanner does.
-    pub(crate) fn skip_borrowed(&mut self, kind: TokenKind, end: usize) {
+    fn skip_borrowed(&mut self, kind: TokenKind, end: usize) {
         self.lookahead = (kind == TokenKind::Text).then_some((end, end));
         self.position = end + usize::from(kind == TokenKind::Text);
         self.source_position = self.position;
@@ -474,36 +503,43 @@ impl Tokenizer {
 /// Kind and length of a complete UTF-8 token at the start of `input`, using
 /// the incremental scanner's delimiters. `None` when more input could change
 /// the token, or for prefixes it alone classifies (DOCTYPE, invalid markup).
-pub(crate) fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
+fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
+    match input.split_first()? {
+        (b'<', rest) => markup_after_lt(rest).map(|(kind, length)| (kind, length + 1)),
+        _ => memchr(b'<', input).map(|at| (TokenKind::Text, at)),
+    }
+}
+
+/// Complete markup whose `<` immediately precedes `rest`; the length excludes it.
+fn markup_after_lt(rest: &[u8]) -> Option<(TokenKind, usize)> {
     let delimited = |kind, prefix: usize, end: &[u8]| {
-        memmem::find(&input[prefix..], end).map(|at| (kind, prefix + at + end.len()))
+        memmem::find(&rest[prefix..], end).map(|at| (kind, prefix + at + end.len()))
     };
-    match input {
-        [] | [b'<'] => None,
-        [b'<', b'!', b'-', b'-', ..] => delimited(TokenKind::Comment, 4, b"-->"),
-        [b'<', b'!', b'[', b'C', b'D', b'A', b'T', b'A', b'[', ..] => {
-            delimited(TokenKind::Cdata, 9, b"]]>")
+    match rest {
+        [] => None,
+        [b'!', b'-', b'-', ..] => delimited(TokenKind::Comment, 3, b"-->"),
+        [b'!', b'[', b'C', b'D', b'A', b'T', b'A', b'[', ..] => {
+            delimited(TokenKind::Cdata, 8, b"]]>")
         }
-        [b'<', b'!', ..] => None,
-        [b'<', b'?', ..] => delimited(TokenKind::Instruction, 2, b"?>"),
-        [b'<', second, ..] => {
-            let kind = if *second == b'/' {
+        [b'!', ..] => None,
+        [b'?', ..] => delimited(TokenKind::Instruction, 1, b"?>"),
+        [first, ..] => {
+            let kind = if *first == b'/' {
                 TokenKind::End
             } else {
                 TokenKind::Start
             };
-            let mut at = 1;
+            let mut at = 0;
             loop {
-                at += memchr3(b'\'', b'"', b'>', &input[at..])?;
-                if input[at] == b'>' {
+                at += memchr3(b'\'', b'"', b'>', &rest[at..])?;
+                if rest[at] == b'>' {
                     return Some((kind, at + 1));
                 }
-                let quote = input[at];
+                let quote = rest[at];
                 at += 1;
-                at += memchr(quote, &input[at..])? + 1;
+                at += memchr(quote, &rest[at..])? + 1;
             }
         }
-        _ => memchr(b'<', input).map(|at| (TokenKind::Text, at)),
     }
 }
 

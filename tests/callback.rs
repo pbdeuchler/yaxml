@@ -71,6 +71,20 @@ fn borrowed_and_buffered_tokens_are_indistinguishable() {
         log.push(format!("{result:?} at {}", parser.position()));
         log
     }
+    fn lent(input: &[u8], capacity: usize, limits: Limits) -> Vec<String> {
+        let source = std::io::BufReader::with_capacity(capacity, input);
+        let mut reader = yaxml::BufferedReader::with_limits(source, limits);
+        let mut log = Vec::new();
+        loop {
+            match reader.read_event() {
+                Ok(Some((event, origin))) => log.push(format!("{event:?} {origin:?}")),
+                result => {
+                    log.push(format!("{:?} at {}", result.map(|_| ()), reader.position()));
+                    return log;
+                }
+            }
+        }
+    }
     let tight = Limits {
         max_token_bytes: 12,
         ..Limits::default()
@@ -104,11 +118,18 @@ fn borrowed_and_buffered_tokens_are_indistinguishable() {
     for input in cases {
         for limits in [Limits::default(), tight] {
             let buffered = transcript(input, 1, limits);
+            let pulled = lent(input, 1, limits);
             for chunk in [2, 3, 7, input.len()] {
                 assert_eq!(
                     transcript(input, chunk, limits),
                     buffered,
                     "{} chunk {chunk}",
+                    String::from_utf8_lossy(input)
+                );
+                assert_eq!(
+                    lent(input, chunk, limits),
+                    pulled,
+                    "{} capacity {chunk}",
                     String::from_utf8_lossy(input)
                 );
             }
