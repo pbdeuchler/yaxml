@@ -1,0 +1,41 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Sucmaay of?  "s" on the "My> --><!ELEMENT channel (titletinput? | copy? | copyri | link 
+| language | item+ | ratinage? | textijput? | copypy? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | link 
+| language | item+ | ratinage? | textijput? | copypy? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | rating? | image? | t.extinput9 | copyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copy|ri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | rating? | image? | t.extinput8 | copyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | copyrioht? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| lari | link 
+| lanagegu | item+ | rating? | image? | t.extinput9 | copyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditoropyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? |ri | link 
+| lanagegu | item+ | rating? | image? | t.extinput0 | copyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copy|ri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | rating? | image? | t.extinput8 | copyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | copyrioht? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| lari | link 
+| lanagegu | item+ | rating? | image? | t.extinput9 | copyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditoropyright? | 
+pbuc0Date? | last? | copyri | link 
+| language | m+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | rating? | image? | t.extinput8 | copyright? | 
+pbuc0Date? | lastBuildDate? | docs? | managingEditor| item+ | rating? | image? | textinput? | copyright? | description | link 
+| language | item+ | rating? | image? | textinput? | copyri | link 
+| canguage | Item+ | ratknage? | textijput? | copy|nguage | item+ | ratinage? | textijput? | copy| skipDays?)*>
+<channel>
+</rss>

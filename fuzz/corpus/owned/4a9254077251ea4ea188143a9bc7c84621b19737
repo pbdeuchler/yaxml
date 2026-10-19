@@ -1,0 +1,7 @@
+–<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Cat:log Href="http:uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu//www.Yfp.com/dtd/AFPCatalog.xml" xmlns="u" xmlns:p="v" p:a="&amp;&#09;&#9;&quot;&#13;&lt;"><p:e/><e xmlns=""/><?q data?><![CDATA[c]]>&#2f S/r><!-0011022wsML>

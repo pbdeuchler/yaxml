@@ -1,0 +1,5 @@
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST ro
+<root>missing entity name &;</root>

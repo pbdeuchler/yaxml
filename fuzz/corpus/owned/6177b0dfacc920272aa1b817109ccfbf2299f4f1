@@ -1,0 +1,29 @@
+‚<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc>
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem4"    ></e4>u   <e7 a:attr="out "b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org" 
+       xmlns:e="http://www.w3.org"
+       xmlns="http://www.uvic.ca"/>
+   <e6 xmlns="" xmlns:a="http://www.w3.org">
+       <e7 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http:/ttp://example.org/very/long/namespace/uri/5' xmlns:p6='http://example.org/very/<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName0 ANY>
+<!ATTLIST LegalName0 attr0 ID #IMPLIED>
+<!ATTLIST LegalName0 attr00 IDREF #IMPLIED>
+<!ELEMENT LegalName1 ANY>
+<!ATTLIST LegalName1 attr1 ID #IMPLIED>
+<!ATTLIST LegalName1 attr10 IDREF #IMPLIED>
+<!ELEMENT LegalName2 ANY>
+<!ATTLIST LegalName2 attr2 ID #IMPLIED>
+<!ATTLIST LegalName2 atvr20 IDREF #IMPLIED>
+<!ELEMENT LegalName3 ANY>
+<!ATTLIST LegalName3 attr3 ID #IMPLIED>
+<!ATTLIST LegalName3 attr30 IDREF #IMPLIED>
+<!ELEMENT LegalName4 ANY>
+<!ATTŠ<r xmlns:p1='http://example.org/very/long/norg/very/long/namespace/uri/15' xmlns:p16='http://example.org/very/long/namespace/uri/73' xmlns:p17='http://example.org/very/long/namespace/uri/17' xmlns:p18='http://example.org/very/long/namespace/uri/19' xmlns:p19='http://example.org/very/long/namespace/uri/19' xmlns:p20='http://example.org/very/long/namespacdouri/20' xmlns:p21='http://example.org/very/long/namespace/uri/21' xmlns:p22='http://example.org/very/long/namespace/uri/22' xmlns:p23='http://example.org/very/long/namespace/uri/23' xmlns:p24='http://example.org/very/long/namespace/uri/24' xmlns:p25='http://example.org/very/long/namespace/uri/25' xmlns:p26='http://example.org/very/long/namespace/uri/26' xmlns:p27='http://example.org/very/long/namespace/uri/27' xmlns:p28='http://example.org/very/long/namespace/uri/28' xmlns:p29='http://example.org/very/long/namespace/uri/29' xmlns:p30='http://example.org/very/long/namespace/uri/30' xmlns:p31='http://example.org/very/long/namespace/uri/31' xmlns:p32='http://example.org/very/long/namespace/uri/32' xmlns:p33='http://example.org/veari/13' xmlns:p14='http://example.org/veryi/18' xmlns:p19='http://example.org/very/long/namespace/uri/19' xmlns:p20='http://example.org/very/long/namespaLIST LegalName4 attr4 ID #IMPLIED>
+<ce/uri/20' xmlns:p21='http://example.org/very/long/namespace/uri/21' xmlns:p22='http://example.org/very/long!/nAa

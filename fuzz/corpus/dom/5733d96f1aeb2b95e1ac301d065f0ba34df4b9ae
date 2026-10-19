@@ -1,0 +1,44 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm ôttr='
+  foo bar foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' fvo bab
+'/>
+  g="UTF-3"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:0.0:0.70"à}mlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:u<?xml "s?ev2>
+ateTspes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70">
+   <cat:RefeOecnerd-der>
+      <cat:SellersOrderID schemg back -->
+</doc>
+ versn="1.D"<?0>
+:propfind xmlns:D="ht¯tp://www.iH¦HHHHHH  '/>
+  <norm attr='
+
+fo@obar'/>
+  <norm attr=' foo bab
+'/>
+  g=)UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:namesitc:ubl:CoreComponentParameters:0.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CAmmonAggregateTspes:1.0:0.7î<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization --> attr='
+  foId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId ettr='foobar
+
+&lt;'/>
+  <n<!DOCTYPE r [<0" xmlns="urn:oasis:names:tc:ubl:Invoice:120:0.70">
+   <cÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿat:RefeOecnerd-der>
+      <cat:SellersOrderID schemg back -->
+</doc>
+ versn="1.0"?!ENTI#xa;&#9;>
+<D:propfind xmlns:D'/>
+  <norm a.iHHHHHHHHHHHHHHHH '/> <!-- PBM serializiHrg/standang back --r>
+</doc>

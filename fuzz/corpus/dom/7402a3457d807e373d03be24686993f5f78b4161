@@ -1,0 +1,8 @@
+î<!DOCTYPE d0oc [
+<!ELEMENT doc (src | dest)*>
+<!ELEMENT src EMPTY>
+<!ELEMENT de0ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿst EMPTY>]>
+<do.>
+  <src ref="foo"/>
+ „„oc>
+

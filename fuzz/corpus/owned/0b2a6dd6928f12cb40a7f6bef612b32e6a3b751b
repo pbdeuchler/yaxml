@@ -1,0 +1,11 @@
+«<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c§§§§§§§§§§§§§§§§§§§§§§£§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§:§§§§§D§§§§§§§§§§§§§§§§§§§§§§§§§§§§/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the pro5•blem</p>
+   <TION n SYSTEM('n'><!ENroblem</p>
+   <p>p://www.ietf.org">
+       est2;</ent>
+</doc>
+

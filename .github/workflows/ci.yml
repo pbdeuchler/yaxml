@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        toolchain: ["1.95.0", stable]
+        toolchain: ["1.97.0", stable]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2026-06-06
+          toolchain: nightly-2026-10-18
           components: llvm-tools-preview
       - name: Replay and mutate corpus with source coverage
         shell: bash
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.95.0"
+          toolchain: "1.97.0"
       - name: Build the pinned external oracle
         shell: bash
         run: |

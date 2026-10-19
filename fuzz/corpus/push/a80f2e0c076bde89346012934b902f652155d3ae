@@ -1,0 +1,31 @@
+<!DOCTYPE r SYSTEM 'm.<td' [<!ENTITY e '<a> g (a<r xmlns="urn:r" xmlns:p="urn:p" a="1" p:a="1"><p:c xmlns:p=":a="1"><p:c]aaaaaa;aaaaaaaaaaaaaaaappppp<p:c xmlns:p="urn:~oth</ggggggggggeggggggggggga>'><!NOTATION n SYSTEM 'n'><!--Oc#--><?p d?>]><r>&e;Y/r>n="l
+
+aaaaaaaaaaaaaaaaaaaa<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gives validity constraints applying to attri~butes
+	in standalone docs:  no external defaults or decls
+	causing normppypp<p:c xmlns:p=":a="1"><p:c]aaaaaa;aaaaaaaaaaaaaaaappppp<p:c xmlns:p="urn:~oth</ggggggalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+     <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/ggggeggggggggggga>dev/null">
+    <!NOTATION bar SYSTEM "filnsole"
+			NDATA nonce>
+    <!ENTITY unparnternal " internal&number; ">
+    <!NTEITY number 42">
+
+    <!NOTATION nonce SYSTEM "file:/dev'><!NOTATION n SYSTEM 'n'><!--Oc#--><?p d?>]><r>&e;Y/r>n="/null">
+    <!NOTATION foo PUBLIC "-//public id/l/foo" "file:/dev/null">
+    <!NOTATI
+
+
+mON bar SYSTEM "file:/dev/tty">
+
+    <!ENTITY unparsed-2 PUBLIC "-//some public//ID" "filee!"
+    />

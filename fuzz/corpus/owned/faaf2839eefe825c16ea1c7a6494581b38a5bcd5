@@ -1,0 +1,9 @@
+‰<!DOCTYPE r [<!ENTITY e "<p:a></p:a><xmlns:b>TYPE doc [
+<!ELEMENT d></p:a><xmlns:b>TYPE doc [
+<!ELEMENT doc EMPTY>
+]>
+<doc/>
+</xmlns:oc EMPTY>
+]>
+<doc/>
+</xmlns:b>">]><r>&e;</r>

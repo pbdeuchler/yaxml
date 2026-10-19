@@ -1,0 +1,8 @@
+<?xml version="1.0" standalone="yes" ?>
+<!DOCTYPE animal SYSTEM "ibm32n09.dtd" [
+   <!ELEMENT animal (#PCDATA)>
+]>
+<!-- This is test vcument declaration has the value "yes", there is an 
+ external markup declaration of an entity (other than amp, lt, gt, apos, quot), and references to this entity appear in the document. 
+-->
+<animal>&animal_content;</animal>

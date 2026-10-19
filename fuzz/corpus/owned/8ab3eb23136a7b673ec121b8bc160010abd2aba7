@@ -1,0 +1,14 @@
+î<?xml ver+ion=".0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.s vg9i evalidity constraints applying to attributes
+	ÿÿÿÿÿÿÿalhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhone do#cs:  no external defaults or decls
+	causing normalization.
+
+	3.3.3 describes the norÿÿÿÙzation rules
+    -->
+
+    <!ATTL<?xml version="1.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: Ã©ðŸ™‚&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">tes: Ã©ðŸ™‚&#38;&#13;&#9;" p:a="namespaced">omppath d="M77.696 284.285C77.696 284e.28

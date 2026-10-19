@@ -1,0 +1,51 @@
+<?xml version="1.1"?>
+<!-- Test whether non-Latin-1 c.hara6cters are ac distinguished -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns:a CDATA #IMPLIED
+                 c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/&#x57;"
+     xmlns:b="http://exaiple.org/&#x150;"
+     xmlns:c="http://example.org/&#x250;">
+
+<bar a:attr="1" b1attr="2" c:attr="3"/>
+
+2c="http://www.w2.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E2"/>
+ reserveTLIST e3 iMENT docd ID #IMPLIED>
+]>
+<doc xmlns="http://www[[[[[[[[[[[[[.ietf.org" xmlns:w6c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T e3 i DI#d IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.og  "
+r> <e1>
+      <e2 xmlns="">
+           xmlns:c="http://example.org/&#x250;">
+
+<bar a:attr="1" b1attr="2" c:attr="3"/>
+
+2c="http://www.w2.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E2"/>
+ reserveTLIST e3 iMENT docd ID #IMPLIED>
+]>
+<doc xmlns="http://www[[[[[[[[[[[[[.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="h_______[____W_____________________#___________://www.w1.org__________________________________________://www.w3.org">
+   <e1>
+      <_______________________________________________</foo>

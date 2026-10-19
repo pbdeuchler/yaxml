@@ -1,0 +1,48 @@
+–<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IMPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITY d "&#xD;">
+<!ENTITY a "&#xA;">
+<!ENTITY da "&#xD;&#xA;">
+]>
+<doc>
+<tst a="
+
+xyz" b="
+
+xyz"/>
+<tst ans="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+      !<e3 xmlns="http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+ttp://wwlns="urn:oasis:names:tc:entity:xmlns:xm----------------------------------------------------------------------------------------------------------------l:catalog">
+up<log xmlns="urn:oasis:names:tc:is)open.org/comtalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:is-open.org/committees/entity/release/0.0/catalog.dtdtc:is-open.org/committee]/entity/release/0.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+qp<log xmlns="urn:oasis:names:tc:is-open.org/comtalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:is-open.org/committnesee/tity/rele0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+up<log xmlns="urn:oesis:names:tc:is-open.org/comtalog.">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+up<log xmlns="urn:oasis:names:tc:is-open.org/committees/entity/release/0.0/catalmittees/entity/relea.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalse/1.0/catalog.dtd">
+<catalog xmlns="urn:oqsis:names:tc:entity:xmlns:xml:catalog">
+up<log xmlns="urn:oasis:names:tc:is-open.org/comtalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:is-open.org/committees/entity/release/0.0/catalog.dtdtc:is-open.org/committee]/http://www.ietf.org">
+           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+ttp://wwlns="urn:oasis:names:tc:entity:xmlns:xm----------------------------------------------------------------------------------------------------------------l:catalog">
+up<log xmlns="urn:oasis:names:tc:is)open.org/comtalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:is-open.org/committees/entity/release/0.0/catalog.dtdtc:is-open.org/committee]/entity/release/0.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+qp<log xmlns="urn:oasis:names:tc:is-open.org/comtalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:is-open.org/committnesee/tity/rele0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+up<lentity/release/0.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+qp<log xmlns="urn:g.dtd">
+<catalog xmlns="urn:oasis:names:tc:is-open.oog">
+up<log xmlns="urn:oasis:names:tc:is-open.org/comtalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:is-open.org/™™™™™™™™™™™™A™™™™™™™™™™™™™™™™™™™™™™™™™>
+

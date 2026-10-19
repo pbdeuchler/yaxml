@@ -1,0 +1,15 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e
+a000 (0) '0' a001 (0) '0' a002 (0) '0' a003 (0) '0' a00 (0) '0' a296 (0) '0' a297 (0) '0' a298 (0) '0' a299 (0) '0'
+>
+]>
+<doc>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/>38 (0) '0' a239 (0) '0'
+a240 (0) '0' a241 (0) '0' a242 (0) '0' a243 (0) '0' a244 (0) '0' a245 (0) '0'
+a246 (0) '0' a247 (0) '0' a248 (0) '0' a289 (0) '0' a290 (0) '0' a291 (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0) '0' a292 (0) '0' a293 (0) '0'
+a2;4 (0) '0' a295 (0) '0' a296 (0) '0' a297 (0) '0' a298 (0) '0) '0'
+a246 ><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+</doc>

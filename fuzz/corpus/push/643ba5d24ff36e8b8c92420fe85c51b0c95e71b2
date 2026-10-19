@@ -1,0 +1,21 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "0ttp://www.w3.org/Graphision="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG April 1999//EN" 
+  "0ttp://www.w3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <desc>Radial gradient example with three gra<!DOCTYPE r [
+<!ELEMENT r ANY>
+<dient stops
+  </desc>
+  <g>offset="0%" color="white"/>
+         <gradientstop offset="25%" color="red"" b!NOTATION nZXXXXXXXXXXXXXXXXXXXXXX SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej$ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='bw="" aj="" a:ey="" c:eh="" bq 

@@ -5,7 +5,7 @@
 # Usage: fuzz/coverage.sh [target...]
 set -eu
 cd "$(dirname "$0")/.."
-toolchain=${TOOLCHAIN:-nightly-2026-06-06}
+toolchain=${TOOLCHAIN:-nightly-2026-10-18}
 host=$(rustup run "$toolchain" rustc -vV | sed -n 's/^host: //p')
 llvm=$(rustup run "$toolchain" rustc --print sysroot)/lib/rustlib/$host/bin
 build=${CARGO_TARGET_DIR:-fuzz/target}/coverage

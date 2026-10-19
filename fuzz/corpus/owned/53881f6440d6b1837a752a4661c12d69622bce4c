@@ -1,0 +1,34 @@
+î<?xml ver+ion=".0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.s vg9i evalidity constraints applying to attributes
+	in standanone do#cs:  no external defaults or decls
+	caõÿÿÿusing normalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    %!ATTLIST attributes
+	token		(a|b|c)		"a#"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#MPILIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idreMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIE
+tine	tDy		ENTITY		#IMPLIED
+	entities	ENTITI	ES#IMPLIED
+	cdata		CDATA		#IMPLID
+E	>
+    
+    <!ENTITY interumber "09"
+ 
+>   CTYPE doc [
+<?xml version="0.0"?>TYPE doc
+<!EY>]>
+<doc/>

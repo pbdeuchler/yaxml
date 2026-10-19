@@ -1,0 +1,17 @@
+<!DOCTYPE doc [
+<?PiDOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ELEMENT a (#PCDATA|doc)*>
+<!ELEME
+|
+doc
+|
+a!--comment-->
+<!ENTITY % ent "">
+<?Pi?[
+<?Pi?>ent-6>
+<!NOTATION not PUBLIC "some notation">
+<?Pi?><!--comment-->
+]>
+<doc/>

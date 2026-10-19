@@ -1,0 +1,16 @@
+î<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization --> attr='
+  foId attr='
+
+fooÅÿÿÿlt;'/>
+  <normId attr='&èt;foo bar
+'/>
+  <normId ettr='foobar
+
+&lt;'/>`
+  000000000000000000000000000000000000x¥<mlDbase=" xml:Îx"""""""""""""""""[
+<!ELEM> <!->
+<!ATTLI-BMP ST roormId at.tr='&lt;foo bar
+'/>
+  <normId ettr="""""""Å

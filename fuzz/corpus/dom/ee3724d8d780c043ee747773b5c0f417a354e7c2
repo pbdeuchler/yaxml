@@ -1,0 +1,12 @@
+–<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsMØØØØØØØØØØØØØØØØØØzØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØØL SYSTEM "dtds/NewsML.v1.2tdd" [
+  <!ENTITY % nitf SYSTEM "dtcs/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  <Catalog Href="http://www.afp.com/dtd/AFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateA1022T1ÿÿÿÿÿÿÿÿpe>
+  <NewsItem>
+
+  %ni    <Prto

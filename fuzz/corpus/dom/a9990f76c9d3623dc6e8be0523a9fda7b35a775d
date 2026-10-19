@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set of the skhema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypesc:opendocument:xmlns:t:Tpppppppppppuppppppppppppppppppppppppppppppppppppppppppn" pa="0" p:a="1"><p:c xmlns:p="urE<pppppppppppupppppppppppppp:o NOTATION (n|o)es>

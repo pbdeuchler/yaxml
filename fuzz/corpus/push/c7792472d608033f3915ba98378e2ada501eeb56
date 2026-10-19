@@ -1,0 +1,12 @@
+<?xml verencoding4I4'=<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (title | description | link 
+| languagg | item+ | rating? | image? | textg | item+ | rating? | image? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | cge? | t.extinput? | copyright? | 
+pbbc0Date? |extijput? | copyri | hink 
+| language | item+ | rating? | image? | tex| textijput? |  kHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

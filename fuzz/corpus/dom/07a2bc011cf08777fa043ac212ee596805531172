@@ -1,0 +1,26 @@
+ˆ<r><?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's onl1 a very small sul-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/struxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w6.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:ww.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:a&utc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:confkg="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocumende='&u;'/></rnt:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+    xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+    xmlns:dr6d="opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tfig:1.0"
+    xmlns:text="upaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDes>
+</office:document-styles>

@@ -1,0 +1,38 @@
+Ë<!DOCTYPE<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set oF the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:ww.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:n#mes:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendoctions/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatyp r [<!ATTLIST r a CDATA 'x'><!ATTLIST b r CDATA 'y'><!ATTLIST r c PE r [<!ATTLIST r a CDATA 'x'><!<!--4es"
+
+    xmlns:office="urn:oasis2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xslfo-compatible:1.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tcnhttp:StartString=P'h@ttp://e/' camAxt//D:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-CDAT->
+<!ENTITY Brittannica SYSTEM "htt.com" NDATA Encyclopae     mlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tcnhttd CDATA 'w             a xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendo//openoffice.org/2004/office" xmlns:ooow="http://openoffice.org/2004/httper" xmlns:oooc="http://openoffice.org/2004/calc" xmlns:dom="http://www.w3.org/2001/xml-events" office:version="1.0">
+ <office:styles>
+  <text:notes-configuration text:note-class="endnote" style:num-format="1" text:start-value="0"/>
+ </office:styles>
+</office:document-s'>]><r tyles>
+g=">
+    <-4-->

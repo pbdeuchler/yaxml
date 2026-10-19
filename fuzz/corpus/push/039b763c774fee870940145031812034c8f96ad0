@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION		(frATIOVC -->;]>
+<root tyšÂÝœž‘‘y"/>
+

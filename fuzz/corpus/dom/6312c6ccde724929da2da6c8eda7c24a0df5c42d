@@ -1,0 +1,12 @@
+Ž<?xml vŠers?xml version='1.0'l version="1.0" encoding="UTF-8"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDATA "eng">
+  <!ATTLIST „foo bar CDATA "&lt;&gt;`quot;">
+]>
+<root>
+  <foo xm:llang=>
+<!ENTITY recursive "ference">
+]>
+<attributes
+  nmtoke= n  " &ent;   &ent; &ent; "
+  nmtokens = " Test&#x0d;&#x0Ba;     this&#x20; normaniza/>

@@ -1,0 +1,1 @@
+Å<!DOCTYPE r [<!ENTITY f "a&#38;f;b">]><r>&e;</r>

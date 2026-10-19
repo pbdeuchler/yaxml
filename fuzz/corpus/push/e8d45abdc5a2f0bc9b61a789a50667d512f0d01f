@@ -1,0 +1,7 @@
+<?xml version="1.0&?>
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!A!DOCTYPE doc TTLIST student
+		ED
+	">My dent firsttesting invalid attvalue -->
+<student first="Snow"Man">Myq Name is1SnowMan. </student>

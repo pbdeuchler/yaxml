@@ -1,0 +1,19 @@
+<doc><![CDAPA[abc]]><![CDAefault">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.[xample.org/2002/"><?xml version="1.0"?>
+<!-- Reserved prefixes and namespaces: binding anothre prefix
+     to the xmlns namespace -->
+<foo xmlns:ymlns="http://www.w3.orgorw/2000/xml"/>
+amp;&#x1ltiple colons
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIRIIONS="1" URI="legal in XML 1.1
+</0±<?xml version="1.0" encoding="ISO-8811.xml" ID59-5"?><doc>€‚ƒ„…†‡ˆ‰="Tr   <desc> Java Fg<e	NOTATION	(fruit |x
+        &#37;  
+	  	ediTML 1.1 dntains a C1 control, legal in XML 1.0, il SECTIO(S="1" URI="legal in XML 1.1
+</0±<?xml version="1.0" desc> Java Fg<e	NOTATION	(fruit |x
+        &#37;  
+	  	ediTML 1.1 dntains a C1 control, legal in XML 1.0, il SECTIO(S="1" URI="legal in XML 1.1
+</0±<?xml version="1.0" encoding="ISO-8811.xml" ID59-5"?><doc>€‚ƒ„…†‡ˆ‰="Tr   <desc> Java Fg<>g
+s  tyle = "DATA #IMPüışÿ</
+  EmSomde( te8t.
+</ao>
+c>

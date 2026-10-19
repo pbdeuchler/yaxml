@@ -1,0 +1,49 @@
+<!DOCTYPE test [
+<!ENTITY example "(&#37;#38;#?38;) or with c -g,,,,,,,,,,<p>An ampersand (&#38;#38;r='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;bar   '/>
+  <normId attr='
+
+foobar&amp;'/>
+  <normId attr='&amp;foo bar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId attr='
+
+foobar&lt;'/>
+  <normId attr=':lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#xa;&#9;roc SYSTEM "031-1.ent">
+<doc>&e;</do'/>
+  <normId attr=' foo bar
+'/>
+  <normId attr='foobar
+
+'/>
+  <normId attr=' &amp; '/>
+  <normId attr='
+  foo&amp;baz   '/>
+  <normId atar
+'/>
+  <normId attr='foobar
+
+&amp;'/>
+  <normId attr=' &lt; '/>
+  <normId attr='
+  foo&lt;bar   '/>
+  <normId p;amp;).</p>" >
+]>
+<test>&example;<><!----><!-/test----><!----><!---->
+<!----><!----><!----><!----><!---->É!----><!----><!----><!----><!---->
+>

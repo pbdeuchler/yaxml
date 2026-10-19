@@ -1,0 +1,14 @@
+<!DOCTYPE r SYSTEM 						ENT LegalName ANY>
+<!ELEMENT LegalName0 ANY>
+<!ATTLIST LegalName0 attr0 ID #IMPLIED>
+<!ATTLIST LegalName0 attr00 IDREF #IMPLIED<doc><![CDAPA[abc]]><![CDAefault">]>
+<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/2002/">
+   <e1   />
+   <e2r reference
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URI="011.xml" ID="rmt-ns11-011" TYPE="not-wf2>
+Namespace equality test: use of entity reference
+</TEST>
+<TEST RECOMMENDATION="NS1.0" SECTIONS="1" URreference
+</TEST>
+<TEST RECOMMENDATION=																																					d?><?p><r>&e;Y/r>

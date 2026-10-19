@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!DOCTYPE spec SYSTEM "spec.dtd" [
+
+<!-- 日本語訳のための解析対象実体（ここから） -->
+
+<!ENTITY TR-or-Rec             "仕様書">
+<!-- <!ENTITY TR-or-Rec             "標準情報(TR)"> -->
+<!ENTITY eTR-or-Rc e           "specification">
+<!-- <!ENTITY eTR-or-Rec             "technical report(TR)"> -->
+<!ENTITY application           "アプリケーション">
+<!ENTITY error                 "エラー">
+<!ENTITY fatal-error           "TY parsed-entity         "解析対象実体">
+<!ENTITY parser                "パーサ">
+<!ENTITY unparsed-entity       "解析対象外実体">
+<!ENTITY well-formed           "整形式">
+<!ENTITY valid                 "�
+working drafts can be found at 
+<loc  href="http://www.w2.org/TR">http://www.w3.org/TR</loc>.</statusp>
+<statusp><emph>Note:</emph> Since working drafts are subject to f]>
+<doc>&e;</d�c>requent
+change, you are advised to reference the above URL, rather than the
+URLs for working drafts themselves.</statusp>
+<statusp>This work is part of the W3C SGML Activity (for current
+status, see <loc href="http://www.w3.org/MarkUp/SGML/Activity"
+>ht
+tp://www.w3.org/MarkUp/SGML/Activi

@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preserve'>
+<!ATTLIST e1 id ID #IMPLIED>
+]>
+<doc xmlnsie xml:base="bar/">
+      </e1>
+</doc>

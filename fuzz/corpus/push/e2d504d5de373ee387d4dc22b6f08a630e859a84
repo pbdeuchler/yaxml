@@ -1,0 +1,3 @@
+<XPath>
+(//. | //@* | //namespace::*)[ancestorp-or-self::e
+</XPath>

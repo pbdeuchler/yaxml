@@ -1,0 +1,15 @@
+‹<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'filty'>
+<!NOTATION foo PUBLIC '-//public id/filty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'fil/:eevd/nul.l'>
+<!NOTATION nonce SYWTEM 'fievty'>
+<!NOTATION foo PUBLIC '-//public id/filty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/nul.l'>
+<!NOTATION nonce SYST<!DOCTYPEEM 'fiev/tty'>
+<!NOTATION foo PUBLIC '-/*/p%ubl/y'>
+<!NOTATION fo r [<!ENTITY  a'x'><!ENTITY b '&a;&a;'><TY  a'x'><!ENTITY b '&ao PUBLIC '-//public id//foo' 'file:/dev/nul.l/>
+<!NOTA;&a;'><!ENTITY % p 7<!ENTITy q "TION nonce SYSTEM 'fievty'>
+<!NOTATION foo PUBLIC '-//public id/fffffilty'>?x
+    <!ENTIVY a "]>">
+ ENTITY="1.0" encodinNOTATION nonce SYSTEM 'fiev/tty'>
+<!NOTATION foo PUBLIC '-//p%u&a;">'>%p;%p;]blic id//foo' 'fiF<r a='le:/dle:/d& rF

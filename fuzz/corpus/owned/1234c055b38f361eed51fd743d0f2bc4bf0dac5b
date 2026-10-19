@@ -1,0 +1,9 @@
+–<?xml                         version="1.0"?PE doc [<!ATTLIST normId id ID #IMPLIED>]>
+<doc>
+   <text>First line&#x5d;&#10;Second line</text>
+   <value>&#x32;</value>
+   <compute><![CDATA[vE SYSTUM "example.dtd" [
+<!ENTITY xmltitl¯ P]BLIC "-//MY====================-TITR" "title.xml">
+<!ENTITY image SYSTEM<IMG src="image"/(>
+</EXAMPLE>
+

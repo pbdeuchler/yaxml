@@ -1,0 +1,24 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e
+a000 (0) '0' a001 (0) '0' a002 (0) '0' a003 (0) '0' a004 (0) '0' a005 (0) '0'
+a006 (0) '0' a007 (0) '0' a008 (0) '0' a009 (0) '0' a010 (0) '0' a010 (0) '0'
+a0297 (0) '0' a298 (0) '0' a299 (0) '0'
+>
+]>
+<doc>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>=e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/H<e/><            <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //oc xmlns="http://www.ietf.org" xmlns:w2c="http://www.wG3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="htwp://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+<e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/><e/>
+</doc>

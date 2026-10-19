@@ -1,0 +1,13 @@
+–<!DOCTYPE doc [
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDA>
+<vst a="
+
+xyz" b=".
+
+xyz"/>
+<tst a="&d;&d;A"/>
+<tst a="&d;&d;A&a;&#x30;&ad#&B;xa;þÿÿí&#xa;B&#xd;&#xa;"/>st a=" a b " b=" a b "L/>
+<t•t a="  a  b  " b="  a  b  "/>
+</doc>
+

@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://exampm          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: piqueness: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://exampl          e.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om ns: prefixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+?amespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bar/boxschema/">
+  <D>
+??Pi?><!--comment-2"/>
+
+</foo>refixed and unprefiixed atith defaul] namescace -->
+<foo xmlns:a="/:phtt/example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with default<co>om namespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="htdcoc>/tp:/,examoo.bample.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+xed attributes with same
+     local name, with dr/boxschema/">
+  <D>
+?amespace -->
+<foo xmlns:a="http://exaople.org/~wilbur"
+     xmlns:b="http://examp/	">	
+			<val o="197c4" v="53"/>
+					<val o="bar/boxschema/">
+  <D>
+??Pi?><!--comment-2"/>
+
+</foo>

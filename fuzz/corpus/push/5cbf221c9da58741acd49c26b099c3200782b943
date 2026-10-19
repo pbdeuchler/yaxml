@@ -1,0 +1,6 @@
+
+<XPath xmlns:n1="http://example.net" >
+   [
+	ancestor-or-self:	ancestor-or-self::n1:el:   ]
+</XPath>
+ 

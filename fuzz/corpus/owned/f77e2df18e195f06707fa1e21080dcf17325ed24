@@ -1,0 +1,13 @@
+–<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc
+     defatt  (5|1)   "0"
+     xmlns:tst CDATA #FIXE<!DOCTYPE rnode [
+<!ELEMENT rnode (f)>
+   ]>
+                                                  "             
+<rnode>
+ D "http://example.org"
+     tst               &f;
+</rnode                      ‹‹ÂÜ1"
+/>

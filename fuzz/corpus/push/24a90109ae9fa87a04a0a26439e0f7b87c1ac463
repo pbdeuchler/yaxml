@@ -1,0 +1,2 @@
+<!DOCTYPE x [ <!ELEMENT x EMPTY> ]>
+<x xmlns:xmlc='http://www.w3.org/XML/1998/namespace'/>

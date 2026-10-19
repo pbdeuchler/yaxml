@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ENTITY YN '"]es"' >
+<!ENTITY WhatHeSaid "He said &YN;" >
+]>
+<doc>&WhatHeSaid;</doc>
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TESTSUITE SYSTEM "../testcases.dtd" [
+
+    <!ENTITY eduni-errata2e	SYSTEM "errata-2e/errata2e.xml">
+    <!ENTITY eduni-xml11	SYSTEM "xml-1.1/xml11.xml">
+    <!ENTITY eduni-ns10	ISYSTEM "namespaces/1.0/rmt-ns10.xml">
+    <!ENTITY eduni-ns11		SYSTEM "namespaces/1.1/rmt-ns11.xml">
+    <!ENTITY eduni-errata3e	SYSTEM "errata-3e/e>
+
+</TESTSUITE>

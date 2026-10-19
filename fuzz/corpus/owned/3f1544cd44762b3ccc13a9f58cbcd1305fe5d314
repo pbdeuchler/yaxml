@@ -1,0 +1,14 @@
+î<?dal!refs		IDREFS		#IMPLIED
+	entity		ENtITY		#IMPLIEIDREFS		#IED
+	entiries	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLID
+E	>
+    
+    <TY number "42"
+ 
+>   <!NOTATION jonce SYSTEM "file:/dezv/null">
+    <!NTEM "file:/dezv/null">
+    <!NOTATION foo PUBLDOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<docà/>

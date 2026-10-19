@@ -1,0 +1,42 @@
+ž<rANEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:string EMPTY>
+<!ATT ST dia:s‡ring  dia:val CDAelem3  " ittp://www.w2.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E2"/>
+ reserveTLIST e3 iMENT docd ID #IMPLIED>
+]>
+<doc xmlns="http://<?xml version="1.0"?>
+<!-- Reserved prefixes and namespaces: binding another prefix
+     to the xml namespace -->
+<foo xmlns:yml="http://www.w3.org/XML/1998/namespace"/>
+ dia:name="obj_bb">
+        <dia:rectangle dia:val="t EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDTA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http:://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+           xmlns:c="http://example.org/&#x250;">
+
+<bar a:attr="1" b1attr="2" c:attr="3"/>
+
+:iadgramdata>
+    <dia:attribute dia:name="background">
+    #IMPLIED>
+]>
+  <dia:color dia:vad="#fffff<doc 2mlns="httf

