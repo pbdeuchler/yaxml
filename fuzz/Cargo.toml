@@ -202,3 +202,10 @@ path = "fuzz_targets/schematron.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "domedit"
+path = "fuzz_targets/domedit.rs"
+test = false
+doc = false
+bench = false

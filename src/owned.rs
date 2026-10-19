@@ -501,8 +501,8 @@ impl OwnedDocument {
     /// Creates a complete owned document containing one constructed root element.
     ///
     /// Initial namespace declarations and attributes become part of the root's
-    /// fixed attribute range. Values remain editable, but this API does not add
-    /// or remove items from an existing element.
+    /// attribute range; `Editor::set_attribute`, `remove_attribute` and
+    /// `declare_namespace` change it later.
     ///
     /// ```
     /// use yaxml::{EditLimits, ElementSpec, NameSpec, OwnedDocument, PrefixPolicy, Writer};
@@ -1156,9 +1156,11 @@ impl Default for EditLimits {
     }
 }
 
-/// Exclusive, atomic value edits, fresh leaf insertion and permanent removal.
-/// An editor remains usable after an error. Surviving names and provenance stay
-/// unchanged; created nodes have no original source location.
+/// Exclusive, atomic edits: values, creation, moves, unlink and replacement,
+/// attribute membership, names and namespaces, removal and compaction (see
+/// `docs/owned-dom.md`). Every failure leaves the tree unchanged.
+/// An editor remains usable after an error. Parsed nodes keep their
+/// provenance; created nodes have no original source location.
 /// Dropping an editor performs no work. Equal replacements take the edit path.
 pub struct Editor<'document, A: Allocator = Global> {
     document: &'document mut OwnedDocument<A>,
@@ -1171,8 +1173,8 @@ impl<A: Allocator> Editor<'_, A> {
     }
 
     /// Appends a fresh element with its initial attributes and namespace declarations.
-    /// The element's attribute membership and contiguous range are fixed after
-    /// insertion; existing value-edit methods remain available.
+    /// Later membership changes use `set_attribute`, `remove_attribute` and
+    /// `declare_namespace`.
     pub fn append_element(
         &mut self,
         parent: OwnedNodeId,

@@ -172,11 +172,10 @@ impl<A: Allocator> OwnedDocument<A> {
         self.set_attribute_range(element, start..start + range.len() + 1);
     }
 
-    /// Undoes the [`Self::push_attribute`] of a created attribute, whose
-    /// element range then ends at the arena tail.
+    /// Undoes the [`Self::push_attribute`] of a created attribute; the record
+    /// stays behind as garbage, since other (empty) ranges may lie past it.
     fn pop_attribute(&mut self, element: usize) {
         let range = self.attribute_range(element);
-        self.attributes.truncate(range.end - 1);
         self.set_attribute_range(element, range.start..range.end - 1);
         self.edit_created_attributes -= 1;
     }
@@ -196,14 +195,11 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     /// Completes [`Self::hide_attribute`]: side tables drop the attribute and
-    /// shift later positions; an arena tail shrinks.
+    /// shift later positions. The record stays as garbage for `compact`.
     fn forget_attribute(&mut self, element: usize, position: usize) {
         let range = self.attribute_range(element);
         let removed = range.start + position;
         let old_end = range.end + 1;
-        if old_end == self.attributes.len() {
-            self.attributes.truncate(range.end);
-        }
         let shift = |index: &mut usize| *index -= usize::from(*index > removed && *index < old_end);
         if let Ok(found) = self.kept.binary_search_by_key(&removed, |entry| entry.0) {
             self.kept.remove(found);
@@ -278,42 +274,47 @@ impl<A: Allocator> OwnedDocument<A> {
         loop {
             let record = &self.nodes[current];
             if let Content::Element { name, attributes } = &record.content {
-                let ordinary = self.attributes[attributes.clone()]
-                    .iter()
-                    .filter(|attribute| attribute.name.declared(pool).is_none());
-                let names = std::iter::once((name, true))
-                    .chain(ordinary.map(|attribute| (&attribute.name, false)));
-                for (name, element) in names {
-                    work.charge(1)?;
-                    let prefix = name.prefix();
-                    let text = prefix.clone().map_or("", |range| &pool[range]);
-                    // Unprefixed attributes have no namespace, `xml` is always
-                    // bound, and a recovered unbound prefix cannot be declared.
-                    let unbound = prefix.is_some() && name.namespace.is_none();
-                    if (!element && prefix.is_none()) || text == "xml" || unbound {
-                        continue;
-                    }
-                    let wanted = name.namespace.clone().map(|range| &pool[range]);
-                    let bound = self.bound(current, text, root, context, &plan, work)?;
-                    if bound.filter(|uri| !uri.is_empty()) == wanted {
-                        continue;
-                    }
-                    let own = self.attributes[attributes.clone()]
+                // A declaration planned for one name can rebind another on
+                // the same element: the second pass finds that conflict.
+                for verify in [false, true] {
+                    let ordinary = self.attributes[attributes.clone()]
                         .iter()
-                        .any(|attribute| attribute.name.declared(pool) == Some(text));
-                    let planned = plan.iter().any(|declare| {
-                        declare.element == current
-                            && declare.prefix.clone().map_or("", |range| &pool[range]) == text
-                    });
-                    if own || planned {
-                        return Err(error(EditErrorKind::Namespace));
+                        .filter(|attribute| attribute.name.declared(pool).is_none());
+                    let names = std::iter::once((name, true))
+                        .chain(ordinary.map(|attribute| (&attribute.name, false)));
+                    for (name, element) in names {
+                        work.charge(1)?;
+                        let prefix = name.prefix();
+                        let text = prefix.clone().map_or("", |range| &pool[range]);
+                        // Unprefixed attributes have no namespace, `xml` is
+                        // always bound, and a recovered unbound prefix cannot
+                        // be declared.
+                        let unbound = prefix.is_some() && name.namespace.is_none();
+                        if (!element && prefix.is_none()) || text == "xml" || unbound {
+                            continue;
+                        }
+                        let wanted = name.namespace.clone().map(|range| &pool[range]);
+                        let bound = self.bound(current, text, root, context, &plan, work)?;
+                        if bound.filter(|uri| !uri.is_empty()) == wanted {
+                            continue;
+                        }
+                        let own = self.attributes[attributes.clone()]
+                            .iter()
+                            .any(|attribute| attribute.name.declared(pool) == Some(text));
+                        let planned = plan.iter().any(|declare| {
+                            declare.element == current
+                                && declare.prefix.clone().map_or("", |range| &pool[range]) == text
+                        });
+                        if verify || own || planned {
+                            return Err(error(EditErrorKind::Namespace));
+                        }
+                        plan.try_reserve(1).map_err(|_| allocation_error())?;
+                        plan.push(Declare {
+                            element: current,
+                            prefix,
+                            uri: name.namespace.clone(),
+                        });
                     }
-                    plan.try_reserve(1).map_err(|_| allocation_error())?;
-                    plan.push(Declare {
-                        element: current,
-                        prefix,
-                        uri: name.namespace.clone(),
-                    });
                 }
             }
             let first = match record.content {
@@ -396,7 +397,25 @@ impl<A: Allocator> Editor<'_, A> {
 
     /// `xmlAddChild`: moves `node` (attached or detached) to be `parent`'s
     /// last child and returns it. Text after a Text last child merges into
-    /// that child, whose handle is returned; `node` is then removed.
+    /// that child, whose handle is returned; `node` is then removed. A moved
+    /// subtree keeps its namespaces: missing bindings are declared on it.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument, save};
+    /// let mut document = OwnedDocument::parse("<r>a<p:b xmlns:p='urn:p'><p:c/></p:b>z</r>")?;
+    /// let root = document.root_element();
+    /// let (a, z) = (root.first_child().unwrap().id(), root.last_child().unwrap().id());
+    /// let c = root.first_child().unwrap().next_sibling().unwrap().first_child().unwrap().id();
+    /// let root = root.id();
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// assert_eq!(editor.append_child(root, a)?, z); // "a" merges into "z"
+    /// assert!(editor.document().node(a).is_none());
+    /// editor.append_child(root, c)?;
+    /// let saved = save::to_vec(editor.document(), &save::Options::default())?;
+    /// let saved = String::from_utf8(saved)?;
+    /// assert!(saved.ends_with("<r><p:b xmlns:p=\"urn:p\"/>za<p:c xmlns:p=\"urn:p\"/></r>\n"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn append_child(
         &mut self,
         parent: OwnedNodeId,
@@ -832,7 +851,8 @@ impl<A: Allocator> Editor<'_, A> {
     /// undeclares it) on `element`. The element may not already declare the
     /// prefix, nor use it for a different URI itself; descendants that
     /// relied on an outer binding of the prefix get it declared on them.
-    /// Errors locate namespace item 0.
+    /// `xml` is always bound and cannot be declared; the XMLNS and XML URIs
+    /// are reserved. Errors locate namespace item 0.
     pub fn declare_namespace(
         &mut self,
         element: OwnedNodeId,
@@ -847,7 +867,8 @@ impl<A: Allocator> Editor<'_, A> {
         check_part(uri, EditComponent::NamespaceUri, item, false, &self.limits)?;
         let reserved = prefix == Some("xmlns")
             || uri == XMLNS
-            || (prefix == Some("xml")) != (uri == XML)
+            || prefix == Some("xml")
+            || uri == XML
             || (prefix.is_some() && uri.is_empty())
             || self.document.is_html();
         if reserved {
@@ -1001,7 +1022,15 @@ impl<A: Allocator> Editor<'_, A> {
             .map_err(|_| allocation_error())?;
         owners.extend(elements);
         // Attribute storage is relaid without changing any view, so a later
-        // pool failure leaves a consistent document.
+        // pool failure leaves a consistent document. Empty ranges move to 0
+        // so that none lies past the truncated arena.
+        for record in document.nodes.iter_mut() {
+            if let Content::Element { attributes, .. } = &mut record.content
+                && attributes.start == attributes.end
+            {
+                *attributes = 0..0;
+            }
+        }
         owners.sort_unstable_by_key(|(range, ..)| range.start);
         let mut write = 0;
         for (range, element, start) in &mut owners {

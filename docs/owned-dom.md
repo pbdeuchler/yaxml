@@ -1,7 +1,8 @@
 # Owned document storage
 
 `OwnedDocument` survives destruction of its UTF-8 or UTF-16 input and supports
-bounded rooted construction, element/leaf insertion, value replacement and
+bounded rooted construction, element/leaf insertion, value replacement, moves,
+unlink and replacement, attribute, name and namespace edits, compaction and
 permanent subtree removal.
 Its parser uses the same XML grammar, namespaces, normalization and resource
 policy as `Document`; strings are copied into a document-owned UTF-8 pool.
@@ -289,8 +290,8 @@ URIs. An unnamespaced element adds `xmlns=""` when needed. Conflicting explicit
 declarations fail instead of being silently rewritten.
 
 Initial attributes occupy one contiguous range. Their values can use
-`set_attribute_value`; membership stays fixed. Attribute insertion/removal on
-existing elements and namespace rebinding remain separate work.
+`set_attribute_value`; [`set_attribute`, `remove_attribute` and
+`declare_namespace`](#attributes-names-and-declarations) change membership later.
 
 Construction errors use `EditError.location`, identifying an element field or
 zero-based `ElementSpec.items` index. Byte offsets refer to the supplied UTF-8
@@ -332,17 +333,19 @@ order, created-node quota, owned-byte quota, then allocation. Both PI byte
 ceilings precede scanning either string. `InvalidName` indexes the target;
 character/lexical errors index whichever target or data argument failed.
 
-`remove_subtree` permanently removes a node and every descendant. All their
+`remove_subtree` permanently removes a node and every descendant, attached or
+[detached](#moving-unlinking-and-replacing). All their
 handles become stale for lookup and editing. The synthetic root and document
 element return `ProtectedNode`; foreign, invalid or stale handles return
 `InvalidHandle` first. Surviving handles, values, namespace metadata and source
 ranges remain unchanged. Removal allocates nothing and does not recurse.
 
-Neither insertion nor removal merges adjacent Text nodes. Appending Text `b`
-after Text `a` retains both handles but writes `ab`; empty Text retains a handle
-while contributing no bytes. Removing an intervening element has the same Text
-behavior. Reparse can coalesce Text runs and omit empty Text. CDATA, comments and
-PIs retain their distinct nodes, including empty payloads.
+The `append_*` creators and removal never merge adjacent Text nodes. Appending
+Text `b` after Text `a` retains both handles but writes `ab`; empty Text retains
+a handle while contributing no bytes. Removing an intervening element has the
+same Text behavior. Reparse can coalesce Text runs and omit empty Text. CDATA,
+comments and PIs retain their distinct nodes, including empty payloads. Only
+`append_child`, libxml2's `xmlAddChild`, merges.
 
 Every error preserves the logical tree and leaves the editor usable. Appends
 reserve storage before publishing links. Capacity changes and cumulative charges
@@ -351,19 +354,187 @@ links from each tombstone; slots, old pool strings and attribute storage are not
 reclaimed or zeroized. The document stays well-formed, so complete serialization
 remains available under the writer's own limits.
 
+## Moving, unlinking and replacing
+
+Every node except the synthetic root, the DOCTYPE and the document element can
+move; each method takes the node's handle wherever it is:
+
+| Method | libxml2 | Behavior |
+| --- | --- | --- |
+| `append_child(parent, node)` | `xmlAddChild` | Last child of `parent`. Text after a Text last child (not CDATA) is appended to that child, whose handle is returned; `node` is removed. Already last: no change. |
+| `insert_before(reference, node)` | `xmlAddPrevSibling` | Before `reference`, never merging Text (2.13 and later). |
+| `insert_after(reference, node)` | `xmlAddNextSibling` | After `reference`, never merging Text. |
+| `unlink(node)` | `xmlUnlinkNode` | Detaches the subtree. Its handles stay live; it can be inserted again or removed. A detached root is left as it is. |
+| `replace(old, new)` | `xmlReplaceNode` | `new` takes `old`'s place and `old` is detached. The document element can be replaced by an element. |
+
+```rust
+use yaxml::{EditLimits, OwnedDocument};
+let mut document = OwnedDocument::parse("<r>a<b/>c</r>")?;
+let root = document.root_element();
+let first = root.first_child().unwrap().id();
+let b = root.first_child().unwrap().next_sibling().unwrap().id();
+let last = root.last_child().unwrap().id();
+let root = root.id();
+let mut editor = document.edit(EditLimits::default())?;
+assert_eq!(editor.append_child(root, first)?, last); // "a" merges into "c"
+assert!(editor.document().node(first).is_none());
+editor.unlink(b)?;
+editor.append_child(root, b)?;
+assert_eq!(editor.document().root_element().content().as_deref(), Some("ca"));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+Checks run in order: handles (`InvalidHandle`); protected nodes and
+entity-reference content, which `save` writes as the reference, so its
+structure is read-only (`ProtectedNode`); the parent kind (`WrongNodeKind`
+unless an element or the document); `Hierarchy` for a node that would contain
+its own parent, a sibling anchor without a parent, Text, CDATA, entity
+references or a second element under the document; `LimitExceeded(Depth)` when
+the move makes the subtree deeper than `max_depth` and deeper than it was; then
+namespace reconciliation, quotas and reservations. Publication only relinks.
+A merge checks the joined length against `max_value_bytes` and grows the pool;
+merging into a Text node at the pool's tail appends in place.
+
+Detached subtrees are ordinary live nodes outside `nodes()`: `parent()` of
+their root is `None`, `path()` starts at their root, and namespace and
+`xml:*` lookups stop there. Anything can be inserted into a detached element.
+libxml2's leftovers that a checked arena does not need are absent: freeing,
+`xmlSetTreeDoc` and the `xmlAddChild` quirk that appends to a Text parent's
+content (here `WrongNodeKind`).
+
+## Attributes, names and declarations
+
+| Method | libxml2 | Behavior |
+| --- | --- | --- |
+| `set_attribute(element, NameSpec, value)` | `xmlSetProp`, `xmlSetNsProp` | An existing attribute with the expanded name keeps its spelling and position and takes the value (`set_attribute_value`). A new one is appended. `Exact` keeps the prefix; `Automatic` takes an in-scope prefixed binding of the URI, else the first unbound `nsN`; the XML namespace is `xml`. |
+| `remove_attribute(element, namespace, local)` | `xmlUnsetProp`, `xmlUnsetNsProp` | Removes by expanded name. A declaration (namespace XMLNS, local `xmlns` for the default) is removed only while no name in the element's subtree resolves through it. |
+| `declare_namespace(element, prefix, uri)` | `xmlNewNs` | Adds a declaration (`None`: default, `""` undeclares it). The prefix must not already be declared there (`DuplicateAttribute`); `xml`, `xmlns` and the XML/XMLNS URIs are reserved. |
+| `set_name(element, NameSpec)` | `xmlNodeSetName` + `xmlSetNs` | Renames; `Automatic` prefers the in-scope default, then a prefixed binding, then `nsN`. |
+| `set_url(url)` | `doc->URL` | The URL `base_uri` resolves against. |
+
+New attributes join the ID table when libxml2's `xmlIsID` would: `xml:id`,
+HTML `id` (`name` on `a`), or a DTD-declared `ID`; removal drops the entry.
+Single-item name errors locate attribute or namespace item 0; the rename locates
+the element name. HTML documents take no namespaces. Like construction, these
+methods copy strings before returning and check lengths, characters and names
+before planning namespaces, then quotas, then reservations.
+
+## Namespace consistency
+
+An owned name stores its URI, so moving a node never changes what it means; what
+can break is serialization, where a prefix must be declared in scope. yaxml keeps
+a stronger invariant than libxml2: in the attached tree every element and
+attribute prefix resolves, where it stands, to its stored URI. Each edit that
+could break this reconciles before publishing. For each name of the affected
+subtree whose prefix no longer resolves to its URI, the binding is declared on
+the outermost element of that subtree that needs it, under the name's own
+prefix; descendants then inherit it. Names never change spelling. When the
+element itself declares the prefix differently, the edit fails with `Namespace`
+and changes nothing. Entity-reference content is not entered, as in
+`xmlReconciliateNs`.
+
+```rust
+use yaxml::{EditLimits, OwnedDocument, save};
+let mut document = OwnedDocument::parse("<r><p:a xmlns:p='urn:p'><p:b/></p:a><c/></r>")?;
+let a = document.root_element().first_child().unwrap();
+let (b, c) = (a.first_child().unwrap().id(), a.next_sibling().unwrap().id());
+document.edit(EditLimits::default())?.append_child(c, b)?;
+let saved = save::to_vec(&document, &save::Options::default())?;
+assert!(String::from_utf8(saved)?.contains("<c><p:b xmlns:p=\"urn:p\"/></c>"));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+libxml2's `xmlAddChild` leaves the moved `ns` pointers alone, so a later free of
+the declaring element dangles and `xmlSaveDoc` can write an undeclared prefix;
+callers are told to run `xmlReconciliateNs` or `xmlDOMWrapAdoptNode`. That
+function declares everything on the subtree root and may rename a prefix to
+reuse an in-scope binding of the URI (or invent `default1` for the default
+namespace). Reconciling automatically, per element and without renaming, keeps
+handles, spellings and XPath results stable; there is no separate
+reconciliation call because the tree is never inconsistent. Moves within one
+document are the only moves; detached subtrees resolve against their own root
+until inserted. `xmlSetNs` on an attribute is `remove_attribute` plus
+`set_attribute`.
+
+Each call charges `max_namespace_work` for every element step, examined
+attribute and planned declaration probe; declarations count toward
+`max_created_attributes` and their strings toward `max_owned_bytes`.
+
+## Compaction and memory growth
+
+Slots are never reused, so stale handles stay rejectable. Three things grow
+in a long-lived edited document: the append-only pool (replaced values,
+renamed names, merged Text, removed nodes' strings), the attribute arena (an
+element whose range is not at the arena tail moves it there to grow, and removed
+attributes leave records behind) and tombstoned slots (one record each, bounded
+by `max_created_nodes` plus the parsed count). `Editor::compact` rebuilds the
+first two in place: live attributes are packed in arena order and every live
+pool range, including kept attribute forms and detached subtrees, is copied
+into one exactly sized pool. Every handle and view stays the same. The new pool
+is the owned-byte baseline, as a parsed pool is, so `max_owned_bytes` again
+bounds growth since the last compaction; the node and attribute counters are
+not reset. The arena and pool requests are reserved before anything changes;
+packing attributes changes no view, so a failed pool reservation still leaves
+a consistent document. Reclaiming tombstones would renumber handles and is
+left to a rebuild (save and reparse).
+
+## Accessors
+
+Both DOMs share one implementation over the crate's `Navigate` trait, which
+also serves `TextReader::base_uri`, XInclude, catalogs, XPath `lang()` and
+`NOBLANKS` (whose `xml:space` now skips values other than `preserve` and
+`default`, as libxml2's parser does):
+
+| Method (`Node`, `OwnedNode`) | libxml2 |
+| --- | --- |
+| `previous_sibling()` | `prev`; the borrowed tree climbs from the preceding slot, the owned tree has a link |
+| `attribute(name)` | `xmlGetProp`/`xmlHasProp`: first attribute with that name (local name when namespaced) in any namespace, else the DTD default |
+| `attribute_ns(local, namespace)` | `xmlGetNsProp`; `None` is no namespace |
+| `content()` | `xmlNodeGetContent`: concatenated Text/CDATA of a container or entity reference, a leaf's payload; `None` for the DOCTYPE |
+| `path()` | `xmlGetNodePath`, same format (`/*` for the default namespace, `[n]` among same-named siblings); `None` for the DOCTYPE and entity content |
+| `base_uri()` | `xmlNodeGetBase`, against `url()`; in HTML, the first `<base href>` |
+| `lang()`, `space_preserve()` | `xmlNodeGetLang`, `xmlNodeGetSpacePreserve` (elements only) |
+| `search_ns(prefix)`, `search_ns_by_href(uri)`, `namespaces()` | `xmlSearchNs`, `xmlSearchNsByHref`, `xmlGetNsList`; `NamespaceBinding { prefix, uri }` |
+| `Document::url()`, `OwnedDocument::url()` | `doc->URL`, from `ParseOptions::base` |
+
+libxml2's entity content has the entity declaration as its parent, so its
+lookups never see the reference's ancestors; the same scope boundary applies
+here. Divergences: the document node's `content()` omits the text of parsed
+entity declarations, which libxml2's `xmlBufGetChildContent` reaches through
+the DTD node; and a base inside an external parsed entity resolves as an
+internal entity's does, since the entity's URI is not retained.
+
+`tests/dom_edit_oracle.rs` compares these accessors on every node, and the tree
+after random `append_child`/`insert_before`/`insert_after`/`unlink`/`replace`
+and create-then-`xmlAddChild` scripts, with `tooling/libxml2_domedit.c`:
+
+```sh
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -I../../yaxml-oracle/build \
+  -I../../yaxml-oracle/libxml2-2.15.4/include tooling/libxml2_domedit.c \
+  ../../yaxml-oracle/build/libxml2.a -lm -lz -o target/domedit-helper
+YAXML_DOMEDIT_HELPER=$PWD/target/domedit-helper YAXML_DOMEDIT_CASES=100000 \
+  cargo test --release --test dom_edit_oracle -- --nocapture
+```
+
+At the last run (seeds 1-3, 100,000 documents each, about 62,000 accepted
+operations each) there were 0 mismatches. Namespaced documents run without
+edits, since libxml2 does not reconcile. The `domedit` fuzz target runs random
+edit scripts and checks link consistency, namespace resolution, atomic failure,
+stale-handle rejection and save-then-reparse equality after every operation.
+
 ## Editing limits
 
 | `EditLimits` field | Default | Accounting |
 | --- | --- | --- |
-| `max_value_bytes` | 1 MiB (1,048,576 bytes) | UTF-8 bytes per supplied value or PI target, checked before scanning; excludes selector keys. |
+| `max_value_bytes` | 1 MiB (1,048,576 bytes) | UTF-8 bytes per supplied value, PI target or URL, checked before scanning, and per Text merged by `append_child`; excludes selector keys. |
 | `max_owned_bytes` | 64 MiB (67,108,864 bytes) | Full newly requested pool capacities across all editors for this document. |
 | `max_created_nodes` | 1,000,000 | Successful fresh slots across all editors; excludes parsed nodes and never refunds removal. |
-| `max_name_bytes` | 1 MiB | Per local name, prefix or namespace URI in construction. |
+| `max_name_bytes` | 1 MiB | Per local name, prefix or namespace URI in construction, `set_attribute`, `set_name` and `declare_namespace`. |
 | `max_supplied_bytes` | 8 MiB | All string occurrences in one construction call; repeated borrowed strings count repeatedly. |
 | `max_attributes` | 1,024 | Explicit plus generated items on a newly constructed element. |
-| `max_depth` | 256 | Prospective element depth; the real document element is depth one. |
-| `max_created_attributes` | 1,000,000 | Successful fresh ordinary attributes and declarations, including initial creation; no removal refund. |
-| `max_namespace_work` | 64 MiB | Per-call element-scope probes, binding/expanded-name comparisons and selected prefix work. |
+| `max_depth` | 256 | Prospective element depth; the real document element is depth one. A move may not make a subtree deeper than this unless it was already as deep. |
+| `max_created_attributes` | 1,000,000 | Successful fresh ordinary attributes and declarations, including initial creation, `set_attribute`, `declare_namespace` and reconciliation; no removal refund. |
+| `max_namespace_work` | 64 MiB | Per-call element-scope probes, binding/expanded-name comparisons and selected prefix work, in construction and reconciliation. |
 
 Editing starts with the parsed pool and spare capacity as its baseline. It does
 not charge parsing again or reset persistent editing counters when an editor closes.
@@ -405,9 +576,9 @@ implemented behavior from pending coverage, review and performance evidence.
 
 Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
-adapters. Existing-element attribute insertion/removal, sibling insertion, moves,
-copy/import/adoption, detached ownership, slot reuse, compaction, name and namespace
-edits, declaration editing, foreign registries, an allocator-aware string pool, formatting,
-namespace repair, and UTF-16 output remain separate work items. Comparative
+adapters. Copy/import/adoption across documents, slot reuse (a renumbering
+rebuild), DOCTYPE and declaration editing, entity-interpreting setters
+(`xmlNodeSetContent`), foreign registries, an allocator-aware string pool,
+formatting and UTF-16 output remain separate work items. Comparative
 parsing/serialization performance and complete fuzz coverage remain open
 evidence gates.
