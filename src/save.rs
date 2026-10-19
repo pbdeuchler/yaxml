@@ -146,8 +146,6 @@ pub(crate) trait Walk<'document>: Copy {
         limit: usize,
         offset: usize,
     ) -> Result<(), Error>;
-    /// The attribute at `position` with its entity references kept, if any.
-    fn kept_form(self, position: usize) -> Option<&'document str>;
     fn is_document(self) -> bool;
 }
 
@@ -220,13 +218,6 @@ impl<'document> Walk<'document> for Tree<'document, '_> {
         }
     }
 
-    fn kept_form(self, position: usize) -> Option<&'document str> {
-        match self {
-            Self::Borrowed(node) => node.unexpanded_attribute(position),
-            Self::Owned(node) => node.unexpanded_attribute(position),
-        }
-    }
-
     fn is_document(self) -> bool {
         match self {
             Self::Borrowed(node) => matches!(node.kind(), NodeKind::Document),
@@ -265,16 +256,20 @@ impl<'document, A: Allocator> Walk<'document> for OwnedNode<'document, A> {
         collect_attributes(attributes, OwnedNode::attributes(self), limit, offset)
     }
 
-    fn kept_form(self, position: usize) -> Option<&'document str> {
-        OwnedNode::unexpanded_attribute(self, position)
-    }
-
     fn is_document(self) -> bool {
         self.kind() == OwnedNodeKind::Document
     }
 }
 
 impl<'document, 'input> Tree<'document, 'input> {
+    /// The attribute at `position` with its entity references kept, if any.
+    fn kept_form(self, position: usize) -> Option<&'document str> {
+        match self {
+            Self::Borrowed(node) => node.unexpanded_attribute(position),
+            Self::Owned(node) => node.unexpanded_attribute(position),
+        }
+    }
+
     fn same(self, other: Self) -> bool {
         match (self, other) {
             (Self::Borrowed(a), Self::Borrowed(b)) => a.id() == b.id(),
@@ -344,18 +339,22 @@ pub(crate) fn collect_attributes<'a>(
 
 /// A leaf node's event; documents and elements have none.
 pub(crate) fn owned_leaf<A: Allocator>(node: OwnedNode<'_, A>) -> Option<Event<'_>> {
-    match node.kind() {
-        OwnedNodeKind::DocumentType => node.doctype().map(Event::Doctype),
-        OwnedNodeKind::Text => Some(Event::Text(Cow::Borrowed(node.text()?))),
-        OwnedNodeKind::Cdata => Some(Event::Cdata(Cow::Borrowed(node.text()?))),
-        OwnedNodeKind::Comment => Some(Event::Comment(Cow::Borrowed(node.text()?))),
-        OwnedNodeKind::ProcessingInstruction => Some(Event::ProcessingInstruction {
-            target: Cow::Borrowed(node.processing_instruction_target()?),
-            data: Cow::Borrowed(node.text()?),
-        }),
-        OwnedNodeKind::EntityRef => Some(Event::EntityStart(Cow::Borrowed(node.entity_name()?))),
-        OwnedNodeKind::Document | OwnedNodeKind::Element => None,
-    }
+    // Leaf records always hold their text, target and entity name.
+    let text = Cow::Borrowed(node.text().unwrap_or_default());
+    Some(match node.kind() {
+        OwnedNodeKind::DocumentType => return node.doctype().map(Event::Doctype),
+        OwnedNodeKind::Text => Event::Text(text),
+        OwnedNodeKind::Cdata => Event::Cdata(text),
+        OwnedNodeKind::Comment => Event::Comment(text),
+        OwnedNodeKind::ProcessingInstruction => Event::ProcessingInstruction {
+            target: Cow::Borrowed(node.processing_instruction_target().unwrap_or_default()),
+            data: text,
+        },
+        OwnedNodeKind::EntityRef => {
+            Event::EntityStart(Cow::Borrowed(node.entity_name().unwrap_or_default()))
+        }
+        OwnedNodeKind::Document | OwnedNodeKind::Element => return None,
+    })
 }
 
 /// Serializes `tree`: `xmlSaveDoc` for a document node, otherwise
@@ -1089,17 +1088,14 @@ fn missing_namespaces(root: Tree<'_, '_>) -> Vec<(Option<String>, String)> {
             declared.truncate(marks.pop().unwrap_or_default());
         }
         loop {
-            if node.same(root) {
+            let Some(parent) = node.parent().filter(|_| !node.same(root)) else {
                 return added;
-            }
+            };
             if let Some(next) = node.next_sibling() {
                 node = next;
                 break;
             }
-            match node.parent() {
-                Some(parent) => node = parent,
-                None => return added,
-            }
+            node = parent;
             declared.truncate(marks.pop().unwrap_or_default());
         }
     }
