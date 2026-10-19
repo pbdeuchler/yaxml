@@ -54,10 +54,10 @@ mod names;
 
 #[path = "datatypes.rs"]
 mod datatypes;
-#[path = "regexp.rs"]
-mod regexp;
 #[path = "pattern.rs"]
 mod pattern;
+#[path = "regexp.rs"]
+mod regexp;
 #[path = "uri.rs"]
 mod uri;
 #[path = "xpath.rs"]
