@@ -3,7 +3,7 @@
 
 use std::cmp::Ordering;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(super) struct Decimal {
     /// Never set for zero.
     negative: bool,

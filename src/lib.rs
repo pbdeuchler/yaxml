@@ -35,6 +35,7 @@ mod writer;
 pub mod xinclude;
 pub mod xpath;
 pub mod xpointer;
+pub mod xsd;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};

@@ -23,6 +23,9 @@ pub enum ResourceKind {
     XIncludeText,
     /// An XML or SGML catalog file loaded by [`crate::catalog::Catalog`].
     Catalog,
+    /// An XML Schema document included, imported or redefined by
+    /// [`crate::xsd::Schema`], or named by `xsi:schemaLocation`.
+    Schema,
 }
 
 /// One load request.
