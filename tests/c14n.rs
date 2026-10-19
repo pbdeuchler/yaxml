@@ -170,9 +170,7 @@ fn libxml2_suite() {
         count(Outcome::Mismatch),
     );
     eprintln!("libxml2 c14n suite: {pass} pass, {dtd} need DTD support, {mismatch} mismatch");
-    // without-comments/test-3 and exc-without-comments/test-{0,1} select an
-    // `xmlns=""` namespace node, which yaxml's XPath does not model (c14n.md).
-    assert_eq!((pass, dtd, mismatch), (70, 0, 3));
+    assert_eq!((pass, dtd, mismatch), (73, 0, 0));
 }
 
 /// Canonicalizes `xml` over both DOMs, checking they agree.
@@ -330,6 +328,8 @@ fn whole_documents() {
 fn node_sets() {
     // Exclusive XML Canonicalization section 2.2.
     const SPEC: &str = "<n0:local xmlns:n0='foo:bar' xmlns:n3='ftp://example.org'><n1:elem2 xmlns:n1='http://example.net' xml:lang='en'><n3:stuff xmlns:n3='ftp://example.org'/></n1:elem2></n0:local>";
+    const UND: &str =
+        "<doc xmlns='urn:d'><e xmlns='' a='1'><f xmlns='urn:f'><g xmlns=''/></f></e></doc>";
     const BASE: &str =
         "<r xml:lang='en' xml:id='a' xml:base='http://x/a/'><s xml:base='b/'><t/></s></r>";
     let subtree = |apex: &str| Selection {
@@ -412,6 +412,51 @@ fn node_sets() {
             Mode::Exclusive10,
             &["#default"],
             "<s></s>",
+        ),
+        // An `xmlns=""` namespace node is selectable: a default namespace undeclared
+        // below a rendered one is declared once, and one nothing rendered stays silent.
+        (
+            UND,
+            subtree("e"),
+            Mode::C14n10,
+            &[],
+            r#"<e a="1"><f xmlns="urn:f"><g xmlns=""></g></f></e>"#,
+        ),
+        (
+            UND,
+            subtree("e"),
+            Mode::Exclusive10,
+            &[],
+            r#"<e a="1"><f xmlns="urn:f"><g xmlns=""></g></f></e>"#,
+        ),
+        (
+            UND,
+            subtree("e"),
+            Mode::Exclusive10,
+            &["#default"],
+            r#"<e a="1"><f xmlns="urn:f"><g xmlns=""></g></f></e>"#,
+        ),
+        (UND, subtree("g"), Mode::C14n10, &[], "<g></g>"),
+        (
+            UND,
+            Selection {
+                expression: "(//. | //@* | //namespace::*)[ancestor-or-self::*[local-name()='f']]"
+                    .into(),
+                namespaces: Vec::new(),
+            },
+            Mode::C14n10,
+            &[],
+            r#"<f xmlns="urn:f"><g xmlns=""></g></f>"#,
+        ),
+        (
+            UND,
+            Selection {
+                expression: "//* | //@*".into(),
+                namespaces: Vec::new(),
+            },
+            Mode::C14n10,
+            &[],
+            r#"<doc><e a="1"><f><g></g></f></e></doc>"#,
         ),
         // Like libxml2, a listed namespace node renders even on an omitted element.
         (

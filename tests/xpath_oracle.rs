@@ -70,6 +70,9 @@ const EXPRESSIONS: &[&str] = &[
     "//node()[not(self::*)]",
     "//leaf/namespace::*",
     "count(//leaf/namespace::*)",
+    "count(//undecl/namespace::*)",
+    "//undecl/namespace::*",
+    "//undecl/namespace::*[string() = '']",
     "//leaf/namespace::c",
     "//*[local-name() = 'leaf']",
     "//item | //b",
@@ -325,8 +328,6 @@ const DIFFERENCES: &[&str] = &[
     // xmllint evaluates with an unset context size and position.
     "last()",
     "position()",
-    // libxml2 exposes `xmlns=""` as a namespace node.
-    "count(//undecl/namespace::*)",
 ];
 
 fn compare(

@@ -66,8 +66,6 @@ These are checked to still differ by `tests/xpath_oracle.rs`:
 
 - `xmllint --xpath` evaluates with an unset context size and position, so a
   top-level `last()` or `position()` fails there; yaxml returns 1.
-- libxml2 exposes a default-namespace undeclaration (`xmlns=""`) as a
-  namespace node with an empty URI. XPath 1.0 has no such node; yaxml omits it.
 
 Not compared, and deliberately different:
 

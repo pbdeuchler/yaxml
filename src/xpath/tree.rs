@@ -328,7 +328,8 @@ pub(crate) fn descendants<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Ite
 
 /// In-scope namespaces as (prefix, URI), `""` naming the default namespace.
 /// Order follows libxml2: `xml` first, then `xmlGetNsList` reversed.
-/// Default-namespace undeclarations hide outer bindings but are not nodes.
+/// A default-namespace undeclaration (`xmlns=""`) is a node with an empty URI,
+/// as `xmlGetNsListSafe` lists it for `xmlXPathNextNamespace`.
 pub(crate) fn namespaces<T: Navigate>(tree: &T, element: T::Id) -> Vec<(&str, &str)> {
     if !matches!(tree.item(element), Item::Element(_)) {
         return Vec::new();
@@ -344,12 +345,7 @@ pub(crate) fn namespaces<T: Navigate>(tree: &T, element: T::Id) -> Vec<(&str, &s
         }
     }
     let inherited = found.split_off(1);
-    found.extend(
-        inherited
-            .into_iter()
-            .rev()
-            .filter(|&(_, uri)| !uri.is_empty()),
-    );
+    found.extend(inherited.into_iter().rev());
     found
 }
 
