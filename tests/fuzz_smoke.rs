@@ -1202,3 +1202,14 @@ fn catalog_entry_replays_seeds_and_malformed_pieces() {
         driver::exercise_catalog(case);
     }
 }
+
+#[test]
+fn xsd_driver_accepts_schema_instance_and_resources() {
+    let schema = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:include schemaLocation='0.xsd'/></xs:schema>";
+    let included = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:element name='r' type='xs:int'/></xs:schema>";
+    for instance in ["<r>1</r>", "<r>x</r>", "<s/>", "<r", ""] {
+        driver::exercise_xsd(format!("{schema}\0{instance}\0{included}").as_bytes());
+    }
+    driver::exercise_xsd(b"");
+    driver::exercise_xsd(b"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:import schemaLocation='0.xsd'/></xs:schema>\0<r/>\0<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'><xs:import schemaLocation='main.xsd'/></xs:schema>");
+}

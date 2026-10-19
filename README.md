@@ -308,6 +308,26 @@ assert_eq!(early.compare(&late), Comparison::Less);
 # Ok::<(), yaxml::regexp::Error>(())
 ```
 
+`yaxml::xsd` compiles XML Schema 1.0 documents as libxml2's `xmlschemas.c`
+does (includes, imports and redefines through a caller `Resolver`, derivation
+and Unique Particle Attribution checks, counted content models, identity
+constraints) into a reusable, thread-safe `Schema` that validates either DOM
+with libxml2's error codes; verdicts agree on all 233 libxml2 `test/schemas`
+instances. See [XML Schema](docs/xsd.md).
+
+```rust
+use yaxml::xsd::{self, Code, Schema};
+
+let schema = Schema::parse(br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="r"><xs:complexType><xs:sequence>
+    <xs:element name="n" type="xs:int" maxOccurs="3"/>
+  </xs:sequence></xs:complexType></xs:element></xs:schema>"#, "r.xsd")?;
+let diagnostics = schema.validate(&yaxml::Document::parse("<r><n>1</n><n>x</n></r>")?);
+assert!(!xsd::is_valid(&diagnostics));
+assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 `yaxml::html` parses HTML the way libxml2 2.15.4 does (HTML5-style
 tokenization, libxml2's legacy tree construction with implied elements and
 auto-close tables, recovery with diagnostics, meta/BOM/windows-1252 encoding

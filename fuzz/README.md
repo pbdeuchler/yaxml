@@ -40,6 +40,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `html` | `exercise_html` | `html::parse`, `PushParser` chunk independence, `html::save`/`to_html` |
 | `pattern` | `exercise_pattern` | `pattern::Pattern` compile, `matches` on both DOMs, `StreamMatcher` against the DOM match |
 | `xinclude` | `exercise_xinclude` | `xinclude::process` over NUL-separated pieces (including document, then resources `0`..`9`), `xpointer::evaluate` |
+| `xsd` | `exercise_xsd` | `xsd::Schema::with_resolver` and `validate` on NUL-separated pieces (schema, instance, then resources `file:///f/0.xsd`..`9.xsd`) under small limits: identical diagnostics over both DOMs and on repetition, load budget held |
 | `catalog` | `exercise_catalog` | `catalog::Catalog::parse`, `resolve`, `resolve_uri` and `CatalogResolver` over NUL-separated pieces (root catalog, then files `0`..`9`; the last piece also lists queries) |
 
 ```sh

@@ -45,3 +45,8 @@ for d in (lt / "XPath/expr", lt / "XPath/tests", lt / "XPath/xptr"):
 lines = [l for p in (lt / "URI").glob("*") for l in p.read_text(errors="replace").splitlines()]
 for prev, l in zip([""] + lines, lines):
     put("uri", f"{l}\n{prev}\n/:%#".encode())
+
+for x in (lt / "schemas").glob("*.xsd"):
+    stem = x.stem.rsplit("_", 1)[0]
+    for i in (lt / "schemas").glob(f"{stem}_*.xml"):
+        put("xsd", x.read_bytes() + b"\0" + i.read_bytes())

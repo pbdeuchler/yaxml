@@ -83,6 +83,9 @@ mod xinclude;
 #[path = "catalog.rs"]
 mod catalog;
 
+#[path = "xsd.rs"]
+mod xsd;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -109,6 +112,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_pattern(input);
     exercise_xinclude(input);
     exercise_catalog(input);
+    exercise_xsd(input);
     exercise_c14n(input);
     exercise_valid(input);
     exercise_textreader(input);
@@ -389,6 +393,12 @@ pub fn exercise_xpath(input: &[u8]) {
 
 /// Exercise pattern compilation, DOM matching and streaming; see `pattern.rs`
 /// for the testcase format.
+/// XML Schema construction and validation; see `xsd.rs` for the format.
+pub fn exercise_xsd(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    xsd::exercise(input);
+}
+
 pub fn exercise_pattern(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     pattern::exercise(input);
