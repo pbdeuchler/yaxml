@@ -34,6 +34,10 @@ impl Stream {
         self.tokenizer.current().is_some()
     }
 
+    pub(crate) fn token_kind(&self) -> Option<TokenKind> {
+        self.tokenizer.current().map(|(kind, _, _)| kind)
+    }
+
     pub(crate) fn is_non_event(&self) -> bool {
         self.tokenizer
             .current()
@@ -82,6 +86,50 @@ impl Stream {
         let position = self.position();
         parse(&self.tokenizer, &mut self.state)?
             .ok_or_else(|| Error::new(ErrorKind::InvalidState, position))
+    }
+
+    /// Callback delivery for the DTD-free token loop. Returns the accepted
+    /// input and `Some(finished)` once the input (or EOF) is exhausted, or
+    /// `None` with a parked DOCTYPE token for the DTD session to adopt.
+    pub(crate) fn drive(
+        &mut self,
+        input: &[u8],
+        finalizing: bool,
+        standalone: &mut bool,
+        last_origin: &mut Option<SourceOrigin>,
+        emit: &mut impl FnMut(Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    ) -> Result<(usize, Option<bool>), Error> {
+        let mut consumed = 0;
+        loop {
+            if let Some((kind, _, _)) = self.tokenizer.current() {
+                if kind == TokenKind::Dtd {
+                    return Ok((consumed, None));
+                }
+                if let Some((event, origin)) = parse(&self.tokenizer, &mut self.state)? {
+                    if let Event::Declaration(declaration) = &event {
+                        *standalone = declaration.standalone == Some(true);
+                    }
+                    *last_origin = Some(origin);
+                    emit(event, origin, self.state.owned_budget())?;
+                }
+                self.release();
+                continue;
+            }
+            if finalizing {
+                if self.finish_step()? {
+                    continue;
+                }
+                self.validate_finish()?;
+                return Ok((consumed, Some(true)));
+            }
+            consumed += self.advance(&input[consumed..])?;
+            if !self.has_token() {
+                if consumed == input.len() {
+                    return Ok((consumed, Some(false)));
+                }
+                return Err(Error::new(ErrorKind::InvalidState, self.position()));
+            }
+        }
     }
 
     pub(crate) fn emit(

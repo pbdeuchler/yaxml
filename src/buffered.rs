@@ -1,6 +1,7 @@
 use std::io::{self, BufRead};
 
 use crate::stream::dtd::{SessionError, SessionOutcome, SessionStep, StreamingSession};
+use crate::tokenizer::TokenKind;
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, SourceOrigin};
 
 #[derive(Clone, Copy)]
@@ -101,6 +102,37 @@ impl<R: BufRead> BufferedReader<R> {
         // Poison before releasing tokens, mutating semantic state, or calling
         // the source. A caught panic cannot resume uncertain stream progress.
         self.status = Status::Poisoned;
+        if let Some(stream) = self.session.plain() {
+            // DTD-free documents lend straight from the ordinary token loop.
+            if std::mem::take(&mut self.pending) {
+                stream.release();
+            }
+            match self.prepare_plain() {
+                Ok(Some(true)) => {
+                    self.pending = true;
+                    self.status = Status::Active;
+                    return match self.session.lend_plain() {
+                        Ok(event) => Ok(Some(event)),
+                        Err(error) => {
+                            self.status = Status::Xml(error);
+                            Err(ReadError::Xml(error))
+                        }
+                    };
+                }
+                Ok(Some(false)) => {
+                    self.status = Status::Finished;
+                    return Ok(None);
+                }
+                // A parked DOCTYPE token hands over to the DTD session below.
+                Ok(None) => {}
+                Err(error) => {
+                    if let ReadError::Xml(xml) = &error {
+                        self.status = Status::Xml(*xml);
+                    }
+                    return Err(error);
+                }
+            }
+        }
         let prepared = if self.pending {
             self.pending = false;
             self.session
@@ -197,6 +229,68 @@ impl<R: BufRead> BufferedReader<R> {
                     return Err(ReadError::Xml(self.invalid_state()));
                 }
                 SessionOutcome::NeedInput => {}
+            }
+        }
+    }
+
+    /// The DTD-free counterpart of `prepare`: `Some(ready)` like `prepare`, or
+    /// `None` once a DOCTYPE token is parked for the session.
+    fn prepare_plain(&mut self) -> Result<Option<bool>, ReadError> {
+        loop {
+            let stream = self.session.plain().expect("DTD-free stream");
+            match stream.token_kind() {
+                Some(TokenKind::Dtd) => return Ok(None),
+                Some(_) if stream.is_non_event() => {
+                    stream
+                        .emit(&mut |_, _, _| unreachable!("classified non-event"))
+                        .map_err(ReadError::Xml)?;
+                    stream.release();
+                    continue;
+                }
+                Some(_) => return Ok(Some(true)),
+                None => {}
+            }
+            if self.eof {
+                if stream.finish_step().map_err(ReadError::Xml)? {
+                    continue;
+                }
+                stream.validate_finish().map_err(ReadError::Xml)?;
+                return Ok(Some(false));
+            }
+            // Replaying saved lookahead or decoded carry need not touch R.
+            stream.advance(&[]).map_err(ReadError::Xml)?;
+            if stream.has_token() {
+                continue;
+            }
+            let before = stream.position();
+            let result = {
+                let input = match self.input.fill_buf() {
+                    Ok(input) => input,
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(error) => return Err(ReadError::Io(error)),
+                };
+                if input.is_empty() {
+                    self.eof = true;
+                    continue;
+                }
+                let remaining = self.max_input_bytes.saturating_sub(before);
+                if remaining == 0 {
+                    return Err(ReadError::Xml(Error::new(
+                        ErrorKind::LimitExceeded(Limit::InputBytes),
+                        0,
+                    )));
+                }
+                stream.advance(&input[..input.len().min(remaining)])
+            };
+            // Commit accepted transport before reporting a lexical error.
+            let consumed = stream.position() - before;
+            let stalled = consumed == 0 && !stream.has_token();
+            if consumed != 0 {
+                self.input.consume(consumed);
+            }
+            result.map_err(ReadError::Xml)?;
+            if stalled {
+                return Err(ReadError::Xml(self.invalid_state()));
             }
         }
     }
