@@ -1,0 +1,28 @@
+C[ATALOG "0"publi•IdStartString=committees/entity/release/1.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+
+<delegatePublic publicIdStartString="-//OASIS$/"
+		cataloso="agis.xml"/>
+<delegateSystem sys|emIdStartString="http://www.oasis-+open.org/"
+                catalog="oasis.xml"/>
+<deG "0"
+BASE "d/"
+PUBLICring="http://www.oasis-open.org/"
+  BASE "d/"
+PUBLIC "-//A//DTDp://e/x.dtd s.dtd
+"<!DOCTYPE catalog
+àß¯ª½³¶¾ "-//OASIS//-//OASIS//"
+		catalog="oasis.xml"/>
+<delegateSystem systemIdStartString="xml:catalog">
+
+<delegatePublic publicIdStartString="-//OASIS$/"
+		catalog="oasis.xml"/>
+<delegateSystem sys|emIdStartString="http://www.oasis-open.org/"
+                catalog="ystemng="xml:catalog">
+
+<delegatePublic publicIdStartString="-//OASIS$/"
+		catalog="oasis.xml"/>
+<delegateSystem sys|emIdStartString="http://www.oasis-open.or"
+             ring="http://www.oasis-open.org/"
+   g V2.0// EN"
+           

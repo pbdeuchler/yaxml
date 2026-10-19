@@ -3,6 +3,7 @@
 
 mod buffered;
 pub mod c14n;
+pub mod catalog;
 mod dom;
 mod dtd;
 mod dtd_catalog;

@@ -1,0 +1,11 @@
+<!DOCTYPE catalog
+  PUBLIC "-//OASIS//DTD EntN"
+         "http://www.oasis-open.org/committees/entity/relcatalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog"
+         prefer="public">
+
+<!-- Circumvent r:lative URI in spec.xsl that doesn't work online -->
+<uri name="http://www.oasis-open.org/committes/tr.xsl"
+   uri="http://www.oasis-open.org/co/share/xml/toto/toto.dtd"/>
+</catalog>
+

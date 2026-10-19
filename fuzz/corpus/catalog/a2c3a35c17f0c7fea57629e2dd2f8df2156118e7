@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN" "http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+<public publicId="-//OASIS//DTD DocBook XML V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd"/>
+<public publicId="-//OASIS//ENTITIES DocBook XML Notations V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbnotnx.mod"/>
+<public publicId=" -//OASIS//ENTITIES	DocBook  
+ M  LX  Character Entities V4.1.2//EN " uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbcentx.mod"/>
+<public publicId="-//OASIS//ELEMENTS DocBook XML Information Pool V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbpoolx.mod"/>
+<public pubommittees/entity/release/1.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+<public publicId="-//OASIS//DTD DocBook XML V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd"/>
+<public publicId="-//OASIS//ENTITIES DocBook XML Notations V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbnotnx.mod"/>
+<public publilicId="-//OASIS//ELEM4.1.2/dbhierx.mod"/>
+<public publicId="-//OASIS//ENTITIES DocBook XML Additional General Entities V4.1.2//EN" uri="http://www.oasis-open.org/docbook/xml/4.1.2/dbgenent.mod"/>
+<public publicId="-//OASIS//DTD DocBook XML CALS Table Model V4.1.2//EN" uri="http://www.oasis-open.o<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'>rg/docbook/xml/4.1.2/calstblx.dtd"/>
+<public publicId="-//OASIS//DTD DocBook <delegatePMathML Moduleublic publicIdSta V1.0//ErtStrN

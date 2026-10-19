@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN" "http://www.oasis-open.org/committees/entity/release/1.0/catalp|og.dtd">
+<catalog xmlns="urn:oasis:names:tc:ens:xml:catalog">
+
+<delegatePublic publicIdStartSog="oasis.xml"/>
+<dlegateURI uriS:tartString="http://www.oasis-open.org/"
+ blicIdStartString="-//OASIS//DTD XML Catalog //"
+		catalog="docbook.xml"/>
+<delegatePublic publicIdSta

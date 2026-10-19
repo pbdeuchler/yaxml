@@ -1,0 +1,10 @@
+<catalog xmlns='urn:oasis:names:tc:entaty:xmlns:xml:catalog'><delegatePublic publicIdSaStrrtting='-//A//' catalog='0'/><delegateSystem sySSSSSSSSSSSSSSSlicIdStartString="-//is.xml"/>
+<delegateSystem systemIdStartString="http://www.oasis-open.org/"
+                catalog="oasis.xml"/>
+<delegateURI uriStartString="http://www.oasis-open.org/"
+                catalog="oasis.xml"/>
+
+<delegatePublic publicIdStartString="-//OASIS//DTD  LXCaMtalog //"
+		cicIdStartStrign="-//OASIS//ENTITIES DocBook XML"
+		catalog="docbook.xl"/>
+name><s:

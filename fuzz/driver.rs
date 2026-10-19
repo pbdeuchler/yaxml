@@ -80,6 +80,9 @@ mod textreader;
 #[path = "xinclude.rs"]
 mod xinclude;
 
+#[path = "catalog.rs"]
+mod catalog;
+
 /// Maximum testcase size accepted by the process driver.
 pub const MAX_INPUT_BYTES: usize = 1 << 20;
 
@@ -105,6 +108,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_xpath(input);
     exercise_pattern(input);
     exercise_xinclude(input);
+    exercise_catalog(input);
     exercise_c14n(input);
     exercise_valid(input);
     exercise_textreader(input);
@@ -395,6 +399,13 @@ pub fn exercise_pattern(input: &[u8]) {
 pub fn exercise_xinclude(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     xinclude::exercise(input);
+}
+
+/// Exercise XML and SGML catalogs over fuzz-provided files; see `catalog.rs`
+/// for the testcase format.
+pub fn exercise_catalog(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    catalog::exercise(input);
 }
 
 /// Exercise canonicalization over both DOMs; see `c14n.rs` for the testcase format.
