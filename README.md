@@ -222,6 +222,22 @@ assert_eq!(document.element_by_id("a").unwrap().text_chunks().collect::<String>(
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`Document::validate` and `OwnedDocument::validate` check a tree against its
+DTD like libxml2's `XML_PARSE_DTDVALID`; `yaxml::valid::validate` checks it
+against a separate `Dtd` (`xmllint --dtdvalid`). Validity diagnostics are
+never fatal and carry libxml2's `XML_DTD_*` numbers; content models compile
+to bounded deterministic automata. See [DTD validation](docs/validation-dtd.md).
+
+```rust
+let xml = "<!DOCTYPE r [<!ELEMENT r (a)><!ATTLIST r id ID #REQUIRED>]><r/>";
+let diagnostics = yaxml::Document::parse(xml)?.validate();
+let codes: Vec<_> = diagnostics.iter().map(|diagnostic| diagnostic.code).collect();
+use yaxml::valid::Code::{ContentModel, MissingAttribute};
+assert_eq!(codes, [ContentModel, MissingAttribute]);
+assert!(!yaxml::valid::is_valid(&diagnostics));
+# Ok::<(), yaxml::Error>(())
+```
+
 `yaxml::c14n` writes Canonical XML 1.0 and 1.1 and Exclusive XML
 Canonicalization 1.0 for either DOM, whole or as an XPath node-set, with
 libxml2's bytes; see the [C14N contract](docs/c14n.md).
