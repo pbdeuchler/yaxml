@@ -61,7 +61,7 @@ impl Budget {
     }
 }
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum NamespaceId {
     Xml,
     Xmlns,
@@ -352,6 +352,24 @@ impl<'source> ParserState<'source> {
         }
     }
 
+    /// The interned identity of an active URI and its binding count (counts
+    /// are kept only while indexed; linear scopes search the binding stack).
+    fn interned(&self, uri: &str) -> Option<(NamespaceId, usize)> {
+        if self.indexed {
+            return self
+                .namespace_ids
+                .get(uri)
+                .map(|entry| (entry.id, entry.bindings));
+        }
+        self.bindings
+            .iter()
+            .rev()
+            .find_map(|binding| match binding.namespace {
+                Some(id @ NamespaceId::Declared(_)) if binding.uri == uri => Some((id, 0)),
+                _ => None,
+            })
+    }
+
     /// Builds the prefix index once a scope outgrows linear search. Keys
     /// were charged when their bindings were retained.
     fn index_bindings(&mut self, offset: usize) -> Result<(), Error> {
@@ -359,23 +377,36 @@ impl<'source> ParserState<'source> {
             return Ok(());
         }
         let allocation = || Error::new(ErrorKind::Allocation, offset);
+        let key = |value: &Cow<'source, str>| -> Result<Cow<'source, str>, Error> {
+            Ok(match value {
+                Cow::Borrowed(value) => Cow::Borrowed(*value),
+                Cow::Owned(value) => {
+                    let mut key = String::new();
+                    key.try_reserve(value.len()).map_err(|_| allocation())?;
+                    key.push_str(value);
+                    Cow::Owned(key)
+                }
+            })
+        };
         let mut index = HashMap::new();
+        let mut ids: HashMap<Cow<'source, str>, NamespaceEntry> = HashMap::new();
         index
             .try_reserve(self.bindings.len())
             .map_err(|_| allocation())?;
+        ids.try_reserve(self.bindings.len())
+            .map_err(|_| allocation())?;
         for (position, binding) in self.bindings.iter().enumerate() {
-            let key = match &binding.prefix {
-                Cow::Borrowed(prefix) => Cow::Borrowed(*prefix),
-                Cow::Owned(prefix) => {
-                    let mut key = String::new();
-                    key.try_reserve(prefix.len()).map_err(|_| allocation())?;
-                    key.push_str(prefix);
-                    Cow::Owned(key)
+            index.insert(key(&binding.prefix)?, position);
+            if let Some(id @ NamespaceId::Declared(_)) = binding.namespace {
+                if let Some(entry) = ids.get_mut(binding.uri.as_ref()) {
+                    entry.bindings += 1;
+                } else {
+                    ids.insert(key(&binding.uri)?, NamespaceEntry { id, bindings: 1 });
                 }
-            };
-            index.insert(key, position);
+            }
         }
         self.namespace_index = index;
+        self.namespace_ids = ids;
         self.indexed = true;
         Ok(())
     }
@@ -1134,14 +1165,14 @@ impl<'source> ParserState<'source> {
                     Some(namespace.id)
                 } else {
                     let (id, bindings, existing) =
-                        if let Some(entry) = self.namespace_ids.get(attribute.value.as_ref()) {
-                            let bindings = entry.bindings.checked_add(1).ok_or_else(|| {
+                        if let Some((id, count)) = self.interned(attribute.value.as_ref()) {
+                            let bindings = count.checked_add(1).ok_or_else(|| {
                                 PreparedTagError::attribute(
                                     Error::new(ErrorKind::Allocation, offset),
                                     attribute.provenance,
                                 )
                             })?;
-                            (entry.id, bindings, true)
+                            (id, bindings, true)
                         } else {
                             let id = NamespaceId::Declared(next_namespace);
                             next_namespace = next_namespace.checked_add(1).ok_or_else(|| {
@@ -1273,12 +1304,14 @@ impl<'source> ParserState<'source> {
                 PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
             })?;
         self.namespace_ids
-            .try_reserve(
+            .try_reserve(if self.indexed {
                 pending_namespaces
                     .values()
                     .filter(|namespace| !namespace.existing)
-                    .count(),
-            )
+                    .count()
+            } else {
+                0
+            })
             .map_err(|_| {
                 PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
             })?;
@@ -1289,6 +1322,8 @@ impl<'source> ParserState<'source> {
         }
 
         self.next_namespace = next_namespace;
+        // Linear scopes find identities on the binding stack instead.
+        let pending_namespaces = pending_namespaces.into_iter().filter(|_| self.indexed);
         for (key, namespace) in pending_namespaces {
             if namespace.existing {
                 self.namespace_ids
@@ -1395,6 +1430,21 @@ impl<'source> ParserState<'source> {
         }
         if uri == XML {
             return Ok(Some(NamespaceId::Xml));
+        }
+        if !self.indexed {
+            if let Some((id, _)) = self.interned(uri) {
+                return Ok(Some(id));
+            }
+            // Charge the URI exactly as retaining it as an index key would.
+            if matches!(uri, Cow::Owned(_)) || self.copies_names {
+                self.budget.charge_owned(uri.len(), offset)?;
+            }
+            let id = NamespaceId::Declared(self.next_namespace);
+            self.next_namespace = self
+                .next_namespace
+                .checked_add(1)
+                .ok_or(Error::new(ErrorKind::Allocation, offset))?;
+            return Ok(Some(id));
         }
         if let Some(entry) = self.namespace_ids.get_mut(uri.as_ref()) {
             entry.bindings = entry
@@ -1618,7 +1668,7 @@ impl<'source> ParserState<'source> {
                     self.namespace_index.remove(binding.prefix.as_ref());
                 }
             }
-            if matches!(binding.namespace, Some(NamespaceId::Declared(_))) {
+            if self.indexed && matches!(binding.namespace, Some(NamespaceId::Declared(_))) {
                 let entry = self
                     .namespace_ids
                     .get_mut(binding.uri.as_ref())
@@ -1631,6 +1681,7 @@ impl<'source> ParserState<'source> {
         }
         if self.indexed && self.bindings.len() <= INDEXED_SCOPE / 2 {
             self.namespace_index = HashMap::new();
+            self.namespace_ids = HashMap::new();
             self.indexed = false;
         }
     }
