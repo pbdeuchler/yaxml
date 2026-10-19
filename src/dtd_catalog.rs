@@ -5,8 +5,8 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::dtd::{
     DefaultDeclarationView, DtdLimits, DtdUnit, DtdUnitView, EntityDefinitionView, ReferenceKind,
 };
-use crate::escape::{numeric_reference, predefined, xml_char};
-use crate::name::validate_name;
+use crate::dtd_reference::{ReferenceKind as Spelled, classify};
+use crate::escape::{predefined, xml_char};
 use crate::resolve::Loader;
 use crate::valid::{AttributeDecl, Code, Dtd, ElementDecl};
 use crate::{DtdError, ErrorKind, Limit};
@@ -994,17 +994,17 @@ enum Reference<'a> {
 }
 
 /// The reference spelled at the start of `raw` through its `;`, and its value.
+/// A parameter reference names an entity; it is never a character.
 fn parse_reference(raw: &str) -> Option<(&str, Reference<'_>)> {
-    let end = raw.find(';')?;
-    let body = &raw[1..end];
-    let value = match body.strip_prefix('#').filter(|_| raw.starts_with('&')) {
-        Some(number) => Reference::Character(numeric_reference(number)?),
-        None => {
-            validate_name(body, 0, true).ok()?;
-            Reference::Named(body)
-        }
-    };
-    Some((&raw[..=end], value))
+    let spelling = &raw[..=raw.find(';')?];
+    let name = &spelling[1..spelling.len() - 1];
+    if raw.starts_with('%') && name.starts_with('#') {
+        return None;
+    }
+    Some(match classify(spelling, 0, true).ok()? {
+        Spelled::Numeric(character) => (spelling, Reference::Character(character)),
+        _ => (spelling, Reference::Named(name)),
+    })
 }
 
 fn valid_predefined(name: &str, character: char, replacement: &str) -> bool {

@@ -240,8 +240,10 @@ impl DtdCatalog {
         let &Frame { source, cursor, .. } = frames.last().expect("active frame");
         let rest = &self.text(subset, source)[cursor..];
         let end = rest.find(';').ok_or_else(syntax)?;
-        validate_name(&rest[1..end], 0, true).map_err(|_| error(ErrorKind::InvalidReference))?;
-        let id = self.parameter.get(&rest[1..end]).copied();
+        let Some((_, Reference::Named(name))) = parse_reference(rest) else {
+            return Err(error(ErrorKind::InvalidReference));
+        };
+        let id = self.parameter.get(name).copied();
         frames.last_mut().expect("active frame").cursor += end + 1;
         self.parameter_reference = true;
         match id {

@@ -201,7 +201,7 @@ impl ReferenceScratch {
 
 /// Classifies a spelling at decoded offset `start`, through its `;` when
 /// `closed`; an unclosed prefix reports only errors already certain.
-fn classify(raw: &str, start: usize, closed: bool) -> Result<ReferenceKind, Error> {
+pub(crate) fn classify(raw: &str, start: usize, closed: bool) -> Result<ReferenceKind, Error> {
     let fail = |kind, offset| Err(Error::new(kind, offset));
     if let Some(offset) = invalid_char(raw) {
         return fail(ErrorKind::InvalidCharacter, start + offset);
