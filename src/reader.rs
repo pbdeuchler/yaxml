@@ -791,7 +791,8 @@ impl<'a> SliceReader<'a> {
             }
             let event = result?;
             if let Some(event) = event {
-                self.origin = Some(SourceOrigin::input(start..end));
+                // A tag ended early spans what was read of it.
+                self.origin = Some(SourceOrigin::input(start..self.cursor.min(end)));
                 return Ok(Some(event));
             }
         }
