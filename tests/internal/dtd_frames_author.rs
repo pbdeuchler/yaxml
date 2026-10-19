@@ -48,7 +48,7 @@ fn identifiers_contexts_and_default_state_are_concrete() {
 fn fragment_origins_join_only_exact_contiguous_sources() {
     let input = FragmentOrigin::input(2..5)
         .unwrap()
-        .join(FragmentOrigin::input(5..9).unwrap());
+        .join_text(FragmentOrigin::input(5..9).unwrap());
     assert_eq!(input.input_range(), Some(2..9));
     assert_eq!(input.replacement_range(), None);
     assert_eq!(input.physical_context(), 2..9);
@@ -60,7 +60,7 @@ fn fragment_origins_join_only_exact_contiguous_sources() {
         local: span(0, 2),
         physical_reference: span(10, 13),
     }
-    .join(FragmentOrigin::Replacement {
+    .join_text(FragmentOrigin::Replacement {
         declaration: EntityDeclarationId::from_index(1),
         invocation,
         local: span(2, 6),
@@ -77,7 +77,7 @@ fn fragment_origins_join_only_exact_contiguous_sources() {
         physical_reference: span(20, 23),
     };
     assert_eq!(
-        replacement.join(different_invocation),
+        replacement.join_text(different_invocation),
         FragmentOrigin::Mixed {
             physical_context: span(10, 23)
         }
@@ -85,7 +85,7 @@ fn fragment_origins_join_only_exact_contiguous_sources() {
     assert_eq!(
         FragmentOrigin::input(0..1)
             .unwrap()
-            .join(FragmentOrigin::input(2..3).unwrap()),
+            .join_text(FragmentOrigin::input(2..3).unwrap()),
         FragmentOrigin::Mixed {
             physical_context: span(0, 3)
         }
@@ -180,7 +180,7 @@ fn physical_and_nested_frames_preserve_identity_cursor_and_outer_context() {
     );
 
     assert!(matches!(
-        prefix.join(child_origin).join(suffix),
+        prefix.join_text(child_origin).join_text(suffix),
         FragmentOrigin::Mixed { .. }
     ));
 }
@@ -883,7 +883,7 @@ fn bounded_sequential_sequences_match_literal_ranges_and_totals() {
             assert_eq!(origin.replacement_range(), Some(cursor..cursor + bytes));
             joined = Some(match joined {
                 None => origin,
-                Some(previous) => previous.join(origin),
+                Some(previous) => previous.join_text(origin),
             });
             cursor += bytes;
         }

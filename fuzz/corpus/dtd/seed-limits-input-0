@@ -1,0 +1,1 @@
+Ë<!DOCTYPE r [<!ENTITY a 'xyz'>]><r>&a; text <b>more &a; text</b> tail</r><!--0-->

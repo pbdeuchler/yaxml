@@ -6,15 +6,12 @@ use crate::{Error, ErrorKind};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct EntityDeclarationId(usize);
 
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "private DTD controller is still test-only")
-)]
 impl EntityDeclarationId {
     pub(crate) fn from_index(index: usize) -> Self {
         Self(index)
     }
 
+    #[cfg(test)]
     pub(crate) fn index(self) -> usize {
         self.0
     }
@@ -23,10 +20,7 @@ impl EntityDeclarationId {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct EntityInvocationId(pub(crate) NonZeroU64);
 
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "private DTD controller is still test-only")
-)]
+#[cfg(test)]
 impl EntityInvocationId {
     pub(crate) fn get(self) -> u64 {
         self.0.get()
@@ -159,11 +153,6 @@ impl OriginRepr {
                 physical_context: left.physical_span().cover(right.physical_span()),
             },
         }
-    }
-
-    /// Compatibility name for the entity-frame prototype's Text-origin model.
-    pub(crate) fn join(self, next: Self) -> Self {
-        self.join_text(next)
     }
 
     fn close_element(self, end: Self) -> Result<Self, Error> {

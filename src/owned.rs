@@ -2191,10 +2191,6 @@ impl<'document> Iterator for LinkedDescendants<'document> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
     }
-
-    fn count(self) -> usize {
-        self.remaining
-    }
 }
 
 impl ExactSizeIterator for LinkedDescendants<'_> {}

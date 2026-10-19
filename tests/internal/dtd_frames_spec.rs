@@ -148,7 +148,10 @@ fn unicode_nested_sources_keep_byte_cursors_origins_and_exact_counters() {
         }
     );
     assert_eq!(
-        prefix.join(nested).join(suffix).physical_context(),
+        prefix
+            .join_text(nested)
+            .join_text(suffix)
+            .physical_context(),
         100..106
     );
 }
@@ -765,7 +768,7 @@ fn close_then_reopen_is_rejected_before_the_outer_end_tag() {
 fn origin_join_table_preserves_only_exact_contiguous_sources() {
     let contiguous_input = FragmentOrigin::input(0..2)
         .unwrap()
-        .join(FragmentOrigin::input(2..5).unwrap());
+        .join_text(FragmentOrigin::input(2..5).unwrap());
     assert_eq!(contiguous_input.input_range(), Some(0..5));
     assert_eq!(contiguous_input.replacement_range(), None);
     assert_eq!(contiguous_input.physical_context(), 0..5);
@@ -773,13 +776,13 @@ fn origin_join_table_preserves_only_exact_contiguous_sources() {
     for mixed in [
         FragmentOrigin::input(2..5)
             .unwrap()
-            .join(FragmentOrigin::input(0..2).unwrap()),
+            .join_text(FragmentOrigin::input(0..2).unwrap()),
         FragmentOrigin::input(0..2)
             .unwrap()
-            .join(FragmentOrigin::input(3..5).unwrap()),
+            .join_text(FragmentOrigin::input(3..5).unwrap()),
         FragmentOrigin::input(0..3)
             .unwrap()
-            .join(FragmentOrigin::input(2..5).unwrap()),
+            .join_text(FragmentOrigin::input(2..5).unwrap()),
     ] {
         assert_eq!(
             mixed,
@@ -790,15 +793,15 @@ fn origin_join_table_preserves_only_exact_contiguous_sources() {
     }
 
     let exact_replacement =
-        replacement_origin(1, 7, 0..2, 10..13).join(replacement_origin(1, 7, 2..5, 10..13));
+        replacement_origin(1, 7, 0..2, 10..13).join_text(replacement_origin(1, 7, 2..5, 10..13));
     assert_eq!(exact_replacement.replacement_range(), Some(0..5));
     assert_eq!(exact_replacement.input_range(), None);
     assert_eq!(exact_replacement.physical_context(), 10..13);
 
     for mixed in [
-        replacement_origin(1, 7, 0..2, 10..13).join(replacement_origin(1, 8, 2..5, 10..13)),
-        replacement_origin(1, 7, 0..2, 10..13).join(replacement_origin(2, 7, 2..5, 10..13)),
-        replacement_origin(1, 7, 0..2, 10..13).join(replacement_origin(1, 7, 3..5, 10..13)),
+        replacement_origin(1, 7, 0..2, 10..13).join_text(replacement_origin(1, 8, 2..5, 10..13)),
+        replacement_origin(1, 7, 0..2, 10..13).join_text(replacement_origin(2, 7, 2..5, 10..13)),
+        replacement_origin(1, 7, 0..2, 10..13).join_text(replacement_origin(1, 7, 3..5, 10..13)),
     ] {
         assert_eq!(
             mixed,
@@ -811,13 +814,13 @@ fn origin_join_table_preserves_only_exact_contiguous_sources() {
     assert_eq!(
         FragmentOrigin::input(0..5)
             .unwrap()
-            .join(replacement_origin(1, 7, 0..2, 10..13)),
+            .join_text(replacement_origin(1, 7, 0..2, 10..13)),
         FragmentOrigin::Mixed {
             physical_context: span(0, 13),
         }
     );
     assert_eq!(
-        replacement_origin(1, 7, 0..2, 10..13).join(replacement_origin(1, 7, 2..5, 20..23)),
+        replacement_origin(1, 7, 0..2, 10..13).join_text(replacement_origin(1, 7, 2..5, 20..23)),
         FragmentOrigin::Mixed {
             physical_context: span(10, 23),
         }
@@ -825,8 +828,8 @@ fn origin_join_table_preserves_only_exact_contiguous_sources() {
     let chained = FragmentOrigin::Mixed {
         physical_context: span(10, 23),
     }
-    .join(FragmentOrigin::input(2..4).unwrap())
-    .join(replacement_origin(9, 9, 0..1, 30..33));
+    .join_text(FragmentOrigin::input(2..4).unwrap())
+    .join_text(replacement_origin(9, 9, 0..1, 30..33));
     assert_eq!(
         chained,
         FragmentOrigin::Mixed {

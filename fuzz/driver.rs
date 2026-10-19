@@ -143,7 +143,7 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
     }
     let (control, body) = input.split_first().unwrap_or((&0, &[]));
     if control % 4 == 3 {
-        return exercise_resolver(body);
+        return exercise_resolver(*control, body);
     }
     let mut document = Vec::with_capacity(body.len() + 64);
     match control % 4 {
@@ -168,35 +168,80 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
 }
 
 /// The DTD-relevant subset of `exercise`; the full family is far slower.
+/// A hash of the input also selects a small `Limits` profile and a push
+/// cancellation point, so budget and abort paths inside DTDs are reached.
 fn exercise_doctype(input: &[u8]) -> Outcome {
     exercise_valid(input);
     exercise_owned(input);
     exercise_serialize(input);
     exercise_push(input);
+    let seed = resolver::hash(input);
+    // Profile 0 is close to the defaults every other surface already ran.
+    let limits = resolver::profile((seed >> 40) as u8, seed, input.len());
+    if (seed >> 40) & 3 != 0 {
+        exercise_with_limits(input, limits);
+    }
+    resolver::cancel(
+        input,
+        limits,
+        (seed >> 44) as usize % 24,
+        1 + (seed >> 50) as usize % 13,
+    );
     exercise_dom(input)
 }
 
-/// NUL-separated pieces: internal-subset text, then the resources the
-/// resolver serves as `s` (external subset), `e`, `p` and `0`..`9`.
-pub fn exercise_resolver(input: &[u8]) -> Outcome {
+/// Control bits 2-3 pick a template, 4-5 the resolver policy and 6-7 a
+/// `Limits` profile. The remaining NUL-separated pieces are the resources
+/// served as `s` (external subset), `e`, `p` and `0`..`9`. Templates:
+/// 0 wraps the first piece as an internal subset that references them;
+/// 1 is the same in a standalone document with attributes and whitespace;
+/// 2 takes the first piece as the whole document; 3 loads `s` with
+/// `valid::Dtd::load` and validates the first piece against it.
+pub fn exercise_resolver(control: u8, input: &[u8]) -> Outcome {
     let mut pieces = input.split(|byte| *byte == 0);
-    let subset = pieces.next().unwrap_or_default();
+    let first = pieces.next().unwrap_or_default();
     let resources: Vec<Vec<u8>> = pieces.map(<[u8]>::to_vec).collect();
-    let mut document =
-        b"<!DOCTYPE r SYSTEM 's' [<!ENTITY e SYSTEM 'e'><!ENTITY % p SYSTEM 'p'>".to_vec();
     // The slice reader validates a whole document's characters first, so
     // other surfaces could fail later; resources share one decoder and stay raw.
-    let subset: String = String::from_utf8_lossy(subset)
+    let first: String = String::from_utf8_lossy(first)
         .chars()
         .filter(|c| {
             (!c.is_control() || matches!(c, '\t' | '\n' | '\r'))
                 && !matches!(c, '\u{fffe}' | '\u{ffff}')
         })
         .collect();
-    document.extend_from_slice(subset.as_bytes());
-    document.extend_from_slice(b"%p;]><r>&e;</r>");
+    let policy = resolver::Policy::from_bits(control >> 4);
+    let seed = resolver::hash(input);
+    let document = match control >> 2 & 3 {
+        0 => [
+            "<!DOCTYPE r SYSTEM 's' [<!ENTITY e SYSTEM 'e'><!ENTITY % p SYSTEM 'p'>",
+            &first,
+            "%p;]><r>&e;</r>",
+        ]
+        .concat(),
+        1 => [
+            "<?xml version='1.0' standalone='yes'?><!DOCTYPE r SYSTEM 's' [",
+            &first,
+            "]><r a=' x  y ' b='z'>\n <c/> </r>",
+        ]
+        .concat(),
+        2 => first,
+        _ => {
+            let limits = resolver::profile(control >> 6, seed, first.len());
+            return Outcome {
+                error: resolver::exercise_load(first.as_bytes(), &resources, limits, policy),
+                events: 0,
+            };
+        }
+    };
+    // Re-encoded resources also re-encode a whole document.
+    let document = match (control >> 2 & 3, policy) {
+        (2, resolver::Policy::Utf16) => resolver::utf16(document.as_bytes()),
+        _ => document.into_bytes(),
+    };
+    let limits = resolver::profile(control >> 6, seed, document.len());
     Outcome {
-        error: resolver::exercise(&document, &resources),
+        error: resolver::exercise(&document, &resources, limits, policy),
         events: 0,
     }
 }
@@ -598,7 +643,10 @@ fn read<'input>(
         previous = position;
         match result {
             Ok(Some(event)) => {
-                let range = span(reader.event_origin().unwrap());
+                let origin = reader.event_origin().unwrap();
+                check_origin(origin, input.len());
+                assert_eq!(reader.event_range(), origin.input_range());
+                let range = span(origin);
                 assert!(range.start <= range.end && range.end <= position);
                 events += 1;
                 assert!(
@@ -691,6 +739,7 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                     actual == expected,
                     "element names or attributes differ from stream"
                 );
+                check_attributes(&expected.attributes);
                 if matches!(event, Event::Start(_)) {
                     parents.push(node.id());
                 }
@@ -740,6 +789,42 @@ pub fn check_projection(document: &Document<'_>, stream: &[Event<'_>]) {
                 .collect::<String>(),
         "document string-value chunks differ from reader payloads"
     );
+}
+
+/// A control byte that depends on every input byte (FNV-1a), for policy
+/// choices that grammar-shaped inputs could not otherwise vary.
+pub(crate) fn selector(input: &[u8]) -> u8 {
+    let hash = input.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, &byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
+    });
+    (hash >> 56) as u8
+}
+
+/// Every `Attributes` conversion preserves the list, lent or owned.
+fn check_attributes(attributes: &yaxml::Attributes<'_>) {
+    let lent = yaxml::Attributes::Borrowed(attributes);
+    let mut owned = lent.clone();
+    owned.to_mut().reverse();
+    owned.to_mut().reverse();
+    assert!(owned == lent && matches!(owned, yaxml::Attributes::Owned(_)));
+    let collected: yaxml::Attributes<'_> = lent.clone().into_iter().collect();
+    assert!(collected == *attributes);
+    assert_eq!(lent.into_owned(), owned.into_owned());
+    let mut empty = yaxml::Attributes::default();
+    assert!(empty.to_mut().is_empty());
+}
+
+/// An exact input range and a replacement range exclude each other; the
+/// physical context covers the exact range and lies inside the input.
+fn check_origin(origin: yaxml::SourceOrigin, len: usize) {
+    let context = origin.physical_context();
+    assert!(context.start <= context.end && context.end <= len);
+    if let Some(range) = origin.input_range() {
+        assert!(origin.replacement_range().is_none(), "{origin:?}");
+        assert_eq!(range, context);
+    } else if let Some(range) = origin.replacement_range() {
+        assert!(range.start <= range.end);
+    }
 }
 
 fn check_error(error: Error, len: usize) {
@@ -818,6 +903,7 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
         );
         visited.push(node.id());
         assert_eq!(document.node(node.id()).unwrap().id(), node.id());
+        check_origin(node.origin(), len);
         let range = span(node.origin());
         assert!(range.start <= range.end && range.end <= len);
         let children: Vec<_> = node.children().take(nodes.len() + 1).collect();
@@ -866,6 +952,26 @@ fn check_document(document: &Document<'_>, len: usize, events: usize) {
         pending.extend(children.into_iter().rev());
     }
     assert_eq!(visited, nodes.iter().map(|n| n.id()).collect::<Vec<_>>());
+    assert_eq!(
+        document.doctype(),
+        nodes.iter().find_map(|node| match node.kind() {
+            NodeKind::Doctype(doctype) => Some(doctype),
+            _ => None,
+        })
+    );
+    // Without DTD-declared IDs, `xml:id` lookup finds the first element in
+    // document order carrying that value.
+    if document.dtd().is_none() {
+        for node in &nodes {
+            for attribute in node.attributes() {
+                if attribute.name.qualified() == "xml:id" {
+                    let found = document.element_by_id(&attribute.value).expect("xml:id");
+                    assert!(found.id() <= node.id());
+                }
+            }
+        }
+        assert!(document.element_by_id("\u{0}").is_none());
+    }
     if nodes.len() > 2 {
         let smaller = Document::parse("<r/>").unwrap();
         assert!(smaller.node(nodes.last().unwrap().id()).is_none());
@@ -909,7 +1015,9 @@ pub(crate) fn drive_push(
     }
     assert!(parser.position() <= input.len());
     if let Some(range) = latest {
-        assert_eq!(span(parser.event_origin().unwrap()), range);
+        let origin = parser.event_origin().unwrap();
+        assert_eq!(span(origin), range);
+        assert_eq!(parser.event_range(), origin.input_range());
     }
     match result {
         Ok(()) => {

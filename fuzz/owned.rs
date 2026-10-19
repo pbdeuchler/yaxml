@@ -123,6 +123,10 @@ pub(super) fn check_nodes(
             assert!(actual == *expected, "owned attribute changed");
         }
         assert!(attributes.next().is_none());
+        // XML attributes always carry a value; past the end there is none.
+        let count = expected.attributes().len();
+        assert!((0..count).all(|position| actual.attribute_has_value(position)));
+        assert!(!actual.attribute_has_value(count));
         let (kind, target) = match expected.kind() {
             NodeKind::Document => (OwnedNodeKind::Document, None),
             NodeKind::Doctype(doctype) => {
@@ -182,7 +186,20 @@ pub(super) fn check_nodes(
             actual.processing_instruction_target()
         );
         assert!(resolved.attributes().eq(actual.attributes()));
+        // ID lookup agrees with the borrowed tree.
+        for attribute in expected.attributes() {
+            if attribute.name.qualified() == "xml:id" {
+                assert_eq!(
+                    owned.element_by_id(&attribute.value).map(|n| n.id()),
+                    borrowed
+                        .element_by_id(&attribute.value)
+                        .map(|n| handles[&n.id()])
+                );
+            }
+        }
     }
+    assert_eq!(owned.doctype(), borrowed.doctype().copied());
+    assert!(owned.element_by_id("\u{0}").is_none());
     if let Some(last) = owned.nodes().last() {
         let small = OwnedDocument::parse("<r/>").unwrap();
         assert!(small.node(last.id()).is_none());

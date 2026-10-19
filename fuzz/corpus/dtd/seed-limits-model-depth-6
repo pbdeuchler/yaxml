@@ -1,0 +1,1 @@
+Ë<!DOCTYPE r [<!ELEMENT r ((((((a|b),c)*)?)+)|(d,(e,(f,(g)))))><!ELEMENT a (#PCDATA|b|c)*>]><r/><!--6-->

@@ -1,0 +1,1 @@
+‹<!DOCTYPE r [<!ENTITY a 'aaaaaaaaaa'><!ENTITY b '&a;&a;&a;&a;&a;&a;'><!ENTITY c '&b;&b;&b;&b;&b;'><!ATTLIST r x CDATA '&c;'>]><r y='&b;'>&c;&c;&c;</r>

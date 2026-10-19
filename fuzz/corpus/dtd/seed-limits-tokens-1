@@ -1,0 +1,1 @@
+Ë<!DOCTYPE r [<!ENTITY long 'a much longer entity value that exceeds small token budgets'><!ATTLIST r a CDATA 'a much longer attribute default value'><!ENTITY % pe 'parameter entity text with length'>%pe;]><r>&long;&#x41;&#65;&amp;</r><!--1-->
