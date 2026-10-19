@@ -1,0 +1,16 @@
+<?xml version="1.0"?><!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetab)	#REQUIRED
+    e	NOTATION	(fruit | vegetable)	#REQUIRED
+    e	NOTATION	(fruit |    type	NOTATION	(fruit | vegetab)	#REQUIRED
+    e	NOTATION	(fruit | vegetable)	#REQUIRED
+    e	NOoNamespaceSchemaLP">
+      <Part country="FA"/>
+      <Part country="F"/>
+    </City>
+  </Csuntry>
+</Test>
+my"/>
+
+

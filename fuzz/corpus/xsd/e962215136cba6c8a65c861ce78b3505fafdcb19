@@ -1,0 +1,5 @@
+<!DOCTYPE item [
+<!ENTITY % sampleEnt "<!ELEMENT itemp (ara)+>">
+<!ENTITY sampleEnt "the hyacinth girl">
+leEnt;
+<!E>'they called me &sampleEnt;'</para></item>

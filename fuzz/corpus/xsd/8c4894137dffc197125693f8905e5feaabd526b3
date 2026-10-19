@@ -1,0 +1,5 @@
+<!-- Defaulr1')/p[1]ES es. -->
+<!DOCTYPE oof [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a ENTITIES "34">
+<!ENTY ent SYSTnt SYS

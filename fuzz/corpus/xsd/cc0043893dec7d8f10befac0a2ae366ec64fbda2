@@ -1,0 +1,9 @@
+<!--Inability to reso an error-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not1 PUBLIC "a b
+edcfghijklmn------------------------------------------------------------------;--------opqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW-------------------------------------W---------------------------------------">
+<!NOTATIO???UBL>
+`>
+<doc/>

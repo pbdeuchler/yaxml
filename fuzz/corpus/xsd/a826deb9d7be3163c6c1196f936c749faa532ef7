@@ -1,0 +1,19 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--evalidity constraints applying to attributes
+	immmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm<xmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmn standalone do#cs:  no external defaultsn.
+
+	4.3.3 describeson rules
+    -->
+
+ a|b|c)		"a"
+	notation	(nonm
+
+
+<!ELEMENTs >"ToneEns/*/>!"
+
+  >
+  />

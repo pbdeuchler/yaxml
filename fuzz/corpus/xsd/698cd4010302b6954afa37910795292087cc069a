@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ELEMENT d ANY>
+  <!ELEMENT e ANY>
+  <!ELEMENT f ANY>
+  <!--* test all possible cen,cp,choice,seq patterns in P47,P48,P49,P50 *-->
+  <!ELEMENT child0 (a)>
+  <!ELEMENT child1 (c|b|c)>
+  <!ELEMENT child2 (a ,b,b?,a*,c,c,a,a,b+,c ) >
+<?xml version  <!ELEMENT ="1.0"?>
+<D:multistatus xmlns:D=child4 (a+|b)? >
+  <!ELEMEN >
+   content of b"http: e

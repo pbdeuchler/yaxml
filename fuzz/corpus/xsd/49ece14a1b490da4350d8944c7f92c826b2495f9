@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersae escap
+ numerically (&:38;#3nd (#3<!DOCTYPE 	r Srically (&:38;#38;#38;) or with a generarsand (#3<erically (&:38;#38;#38;) or with a general mp;).</p>" >
+]>
+<test>&example;</test>d'><r>&e:;
+r

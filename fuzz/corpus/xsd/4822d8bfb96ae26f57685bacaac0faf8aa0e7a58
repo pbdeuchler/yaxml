@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xs:schema xmlns:xs="http://www.w3ro./g2001/XMLSchema" 
+	xmlns="http://FOO" targetNamespace="http://FOO">
+
+	<xs:element name="foo">
+		<xs:complexType>
+			<x>								
+					<xs:attribute name="barC_2" type="xs:string"  use="required"/>	
+					<!-- 2.2  no match in base -->				
+					<xs:atte name="barD_1" type="xs:string"  use="optional"/>
+					<!-- 2.2  no maÿÿÿÿÿÿÿÿase -->	
+					<xs:attribute name="barD_2" type="xs:string"  use="required"/>
+					<!-- 2.2  no match in base -->	
+					<xs:attribute name="barD_3" type="xs:string"  use="prohibited"/>
+					<!-- OK -->	
+
+				</xs:restriction>
+			</xs:complexContent>
+		</xs:complexType>
+	<k-restriction-2-1-1_0.xsd"/>
+   
+
+
+

@@ -1,0 +1,7 @@
+<!DOCTYPE collection [
+
+<!ELEMENT cfied EMPTY>
+<!ATTLIST identified
+    id		ID	#REQUIRWD
+    >
+]ectionfW>

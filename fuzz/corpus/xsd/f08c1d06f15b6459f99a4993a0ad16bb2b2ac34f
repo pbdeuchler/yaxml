@@ -1,0 +1,9 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a*,d?,(e.f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (TA|Z|b)*>
+<!ELEMENT df ((a?,Xb?)*,d?,(e.f)+)>
+<!ELEMENT a EMPTY>
+<b?)*,c)>
+<!ELEMENT gr>

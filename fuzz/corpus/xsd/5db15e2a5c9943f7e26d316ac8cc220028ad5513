@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+]>
+<root>
+Test all valid Charater references xa;&#................................................................x0A;&#x00x10000; &#x10FFFF;
+</root>
+<!--P67 *-->

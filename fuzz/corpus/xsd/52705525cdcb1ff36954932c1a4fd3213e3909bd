@@ -1,0 +1,13 @@
+<rooRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRt><a></a><b>&#10;  ">]>
+<to-c xmlns:foo="http://www.bar.org" xml:base="http://ww/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    name = "elem3"   id="elem3"    />
+   <e4    name="elem4"   id="elem5"    ></e4>
+   <e5 a:attr="out1" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http://www.w3.org"
+       xmlns="http://example.org"/>
+   <e6 xmlns="" test="../baz" xmlns:a="http://www.w3.org">
+       <e7 xmlns="g">
+         `  <e8 xmlns="" xmln   >&#10;   Content of b element&#11;</b><P/root>

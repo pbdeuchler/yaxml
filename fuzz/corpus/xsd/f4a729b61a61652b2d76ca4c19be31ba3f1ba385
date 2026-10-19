@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<rŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬŬ i='a'>>>>>>>>>>>>>>>>>>>>> enc=oding="8>>>>>/////////////////////r i='a'>>>//////////////////////////
+<r i='a'>>>>>//////////////////////////////
+<r i='a'>>>˙˙-˙˙˙˙˙˙˙˙˙˙˙˙ enc=oding**
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/l version='1.0' encoding='ISOSO-8858-5'?>2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:2.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:draw="urn:oasis:names:tc:opendocumen"
+    xmlns:dr3d="urn1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+        <attribute name="office:process-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>
+    </optional>
+</define>
+<start>
+    <choice> i='a'>>>ding="7>>>>>//////////////////////////////
+<r i='a'>>>>>>on="1.0" encoding="8>>>>>>>>>>>>>>>>>>>>>'d  '=bs=(a c' e='p' es='u v am<r><!p' t='2 2' -

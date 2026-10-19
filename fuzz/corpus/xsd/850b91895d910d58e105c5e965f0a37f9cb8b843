@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "z<b>General entity reference in element contity reference in element c,ontent</b>I">
+]>
+<!--* contant: element|CharData|Reference|CDSect|PI|CDSect|PI|Comment, *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in element contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntentnt *-->
+<root><a/><b>
+<!-- there is an empty element in the above line -->
+   <c></c> 
+   CharData: content of b element
+   %paaa; : PE reference should not be renocgized in hhhhhhhhhhhhhhhhelement contentence should not be rt P43 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Charatntent of b element;   %paaa; : PE reference should not be renocgized in element contentence should not be rt P59 *-- 
+   <c>
+<?PIcontent anyProcessingAnstruction?>
+<!-- Comment content -->
+    &inContent;
+    Chent: <![CDATA[ <html>markupecognizecttedt anyProcessingAnstrqe|PI|Comment *-->
+<root <myapp:"/>
+        <!-- Other @@@ P43 *-->

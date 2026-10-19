@@ -1,0 +1,9 @@
+<!--comment--> <?pi?>
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+]>
+
+<!--cment--> <?pi?>
+
+<doc/>

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!-- apace and rebinding -->
+<foo xmlns="hace">
+ <fooo xmlns="hcae">
+ <foo xmlns="hace">
+ <fooo xmlns="hace">
+ <foo e.ormlns="hxample.org/nasmepace">r-namespace"/>
+</foo>
+

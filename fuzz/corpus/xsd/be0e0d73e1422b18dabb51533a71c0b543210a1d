@@ -1,0 +1,8 @@
+<?xwl versio@="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Ch0A;
+&#x0d;
+&#xAB; &#xab; &#zCD_ &#xcD; &#xEf;->

@@ -1,0 +1,43 @@
+<?xmv lersion="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#42;&#0000000009;
+&#xA;&#xa;&#x0A;&#x0000000d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#xD7A3; ELEMENT root (#PCDATA)>
+]>
+<root>
+Test all valid Charater references for P66:
+&#9;&#42;&#0000000009;
+&#xA;&#xa;&#x0A;&#x0000000d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x43; &#x5f;
+&#x20; &#&#xD7A<?xms v'ebsion="1.0"?>
+<!DOCTYPE catalog PUBLIC "-/" "org/"
+        
+
+
+
+
+
+
+]
+[
+
+
+
+
+
+
+
+
+
+
+
+
+g PUBLIC "N
+ a valid test for P33 *-->

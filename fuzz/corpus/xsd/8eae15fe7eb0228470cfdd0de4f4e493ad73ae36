@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<xs:chdsema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-	    targetNamespace="http://example.com/xsd/ns"
-            elementFormDefault="qualified"
-	    attributeFormDefault="unqualified">
-  <xsd:element name=lns:n="http://example.com/xsd/ns" id="abc"/>
-

@@ -1,0 +1,5 @@
+<?Gml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT r (#PCDATA) >
+  <!ELEMENT c (                          #PCDATA)*>
+  <!ELEMENT iate Types *-->

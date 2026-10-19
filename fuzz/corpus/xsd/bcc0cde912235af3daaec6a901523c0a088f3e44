@@ -1,0 +1,8 @@
+<?ml version='1.0' standalone='no'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*,d?,(e,f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT f ((a?,b?)*,c)>
+<!ELEMENT zg (#PCDATA|a											
+<!DOCTYPE r [
+<!Lr>

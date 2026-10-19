@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, propùsed.
+  
+  RSS is an XML vocabulary for describing
+  metadata about websites, and enaLars Marius Garshol % larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "1.91"> --><!ELEMENT channel (title | description | link 
+| lanyguage | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| language | item+ | ratiÿÿÿÿÿÿÿXng? | image? | textinput? | copyright? | 
+pubDate? | lastBuIldDate? | docs? | mWnagingEditor? | webMaster? | 
+skipHours? |k 
+| lanyguage | item+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| language | item+ | ratiÿÿÿÿÿÿÿXng? | image? | textinput? | copyright? | 
+pubDate? | lastBuIldDate? | docs? | mWnagingEditor? | web | copyright? | 
+pubDate? | lastBuIldDate? | docs? | mWnagingEditor? | webMaster? | 
+skipHours? | skvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENT description (#PCDATA)>
+<!EL height (#PCDATA)>
+<!ELEMENT copyright (#PCDATA)>
+<!ELEMENT pubDate (#PCDATA)>
+<!ELEMENT lastBui

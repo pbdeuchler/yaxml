@@ -1,0 +1,25 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	2.9 gmalization.
+
+	3.3.3 describes the normalization elusr 
+   -->
+
+    <!ATTLIST attributes
+	token		(a|b|c)		"a"
+	notation	(nonce|fo1o|bar)	#IMPLIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokeos	NMTOKENS	#IMPLIED
+>
+    
+    <!ENTITY		#IMPLIED
+	e-tities	ENTITIES	#IMPLIED
+	cdata	AC	DTA		#IMPLIED
+	>
+    
+    <!ENTITY internal  to this one!"
+    />

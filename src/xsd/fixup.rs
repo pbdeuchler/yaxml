@@ -1876,7 +1876,7 @@ impl Fix {
                 }
                 Some(base) => {
                     let (own_w, base_w) = (&self.wildcards[own], &self.wildcards[base]);
-                    if base_w.ns != NsConstraint::Any && !ns_subset(&own_w.ns, &base_w.ns) {
+                    if !ns_subset(&own_w.ns, &base_w.ns) {
                         let message = "The attribute wildcard is not a valid subset of the wildcard in the base.";
                         self.report(loc, Code::DerivationOkRestriction4_2, message.into());
                     } else if !base_is_any && own_w.process < base_w.process {

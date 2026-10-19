@@ -1,0 +1,16 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' ><xs:simpleType name='ws'><xs:restriction base='xs:string'><xs:whiteSpace value='collapse'/></xs:restriction></xs:simpleType><xs:simpleType name='wsf'><xs:restriction base='xs:string'><xs:whiteSpace value='replace' fixed='true'/></xs:restriction></xrmI9 am8Jes Clark.ert;'/>&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='   '/>
+  AnormId attr='  <xi:/>
+  <normId a
+  <normId attr='
+  />,<d/>">
+]>
+<dok>
+   <ent>&test1;</  <p> W   <xissLength value='1'/><xs:maxLength value='3'/></xs:restriction></xs:simpleType><xs:simpleType name='li'><xs:lleType name='t'><xs:restriction base='xs:hexBinary'><xs:totalDigits value='1'/></xs:restriction></xs:simpleType><xs:element namDo

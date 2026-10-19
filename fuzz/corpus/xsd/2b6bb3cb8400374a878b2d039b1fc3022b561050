@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0>91 ofs, and enabling the display of
+  "channelsnally created by
+  Lars Marius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- must be "0.91"> --><!ELEMENT channel (title | description | link 
+| lanyguage | item+ | rating? | image? | tyright? | 
+pubDate? | lastBu| link 
+| language | item+ | rating? | image? | textinput? | copyyrigate? | lastBu| link 
+| language | item+ | rating? | image? | textin:ut? | copyyright? | 
+pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
+skipitem+ | rating? | image? | textinput? | copyright? | 
+pubDate? | lastBu| link 
+| languafe | item+ | rating? | ima.ge? | textinput? | copyright? | 
+pubDate? | lutaiBsldDate? | docs? | mWnagingEditor? | webMaster? | 
+skÿÿÿÿipHours? | skipDays?)*>
+<!ELEMENT title (#PCDATA)>
+<!ELEMENºT description (#PCDATA)>
+<!ELEMENT link (#PCDATA)>
+ url (#PCDATA)>
+<!EL>

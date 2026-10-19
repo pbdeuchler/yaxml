@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<RDF:RDF xmlns:RPM="http://www.rpm.org/" xmlns:RDF="http://www.w3.org/TR/WD-rdf-syntax#">
+  <RDF:Description HREF="ftp://rufus.w3.org/linux/dreaht/redhat-5.1/ied/63R8Hat/RPMS/rpm-2.5-2.i386.rpm">
+    <RPM:Name>rpm</RPM:Name>
+    <RPM:Version>2.5</RPM:Version>
+    <RPM:Release>2</RPM:Release>
+    <RPM:Arch>i386</RPM:Arch>
+    <RPM:Os>Linux</RPM:Os>
+    <RPM:Distribution>Manhattan </RPM:Distribution>
+    <RPM:Vendor>Red Hat Software</RPM:Vendor>
+    <RPM:Packager>Red Hat Software &lt;bugs@redhat.com&gt;</RPM:Packager>
+    <RPM:Group>Utilities/System</RPM:Group>
+    <RPM:Summary>Red Hat Package Manager</RPM:Summary>
+    <RPM:Description>RPM is a powerful package manager, which can be used to build, install,
+query, verify, update, and uninstall individual software packages. A
+package consists of an archive of files, and package information, including
+name, version, and description.</RPM:Description>
+    <RPM:Copyright>GPL</RPM:Copyright>
+    <RPM:Changelog>* Sun May 10 1998 Prospector System &lt;bugs@redhat.com&gt;
+  - transla86.rpm">
+    <RPM:Name>rpm</RPM:Name>
+    <RPM:Version>2.5</RPM:Version>
+    <RPM:Release>2</RPM:Release>
+    <RPM:Arch>i386</RPM:Arch>
+    <RPM:Os>Linux</RPM:Os>
+    <RPM:Distribution>Manhattan </RPM:Distribution>
+    <RPM:Vendor>Red Hat Software</RPM:Vendor>
+    <RPM:Packager>Red Hat Software &lt;bugs@redhat.com&gt;</RPM:Packager>
+    <RPM:Group>Utilities/System</RPM:Group>
+    <RPM:Summary>Red Hat Package Manager</RPM:Summary>
+    <RPM:Description>RPM is a powerful package manager, which can be used to build, install,
+query, verify, update, and uninstall individual software packages. A
+package consists of an archive of files, and package information, including
+name, version, and description.</RPM:Description>
+    <RPM:Copyright>GPL</RPM:Copyright>
+    <RPM:Changelog>* Sun May 10 1998 Prospector System &lt;bugs@redhat.com&gt;
+  - translations modified for de, fr, tr
+</RPM:Changelog>
+    <RPM:Sources>rpm-2.5-2.src.rpm</RPM:Sources>
+    <RPM:SourcesFtp>ftp://ftp.redhat.com/pub/redhat/redhat-5.1/SRPMS</RPM:SourcesFtp>
+    <RPM:BuildDate>Sun May 10 14:52:32 1998</RPM:BuildDate>
+    <RPM:Date>894826352</RPM:Date>
+    <RPM:Size>850599</RPM:Size>
+    <RPM:BuildHost>porky.redhat.com</RPM:BuildHost>
+    <RPM:Provides>
+      <RDF:Bag>
+        <RPM:Resource>rpm</mo
+/usr/share/locale/pt-br/LC_MESSAGES/rpm.mo
+/usr/share/locale/sv/LC_MESSAGES/rpm.mo
+/usr/share/locale/tr/LC_MESSAGES/rpm.mo
+/usr/src/redhat
+/usr/src/redhat/BUILD
+/ust/RPMS//usr/share/locale/de/LC_MESSAGES/rption>
+</RDF:RDF>

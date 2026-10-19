@@ -1,0 +1,13 @@
+<!DOCTYPE doc [
+<?PNT dorg/so "">
+<?Pi?><!--commentOCTYPE d"http://www.foo.bar/boxschema/">
+  <D>
+<?Pi?><!-c-moment-->
+<!ENTITY % ent "">
+<?Pi7><!--comment-->
+<!->
+]-->
+<!NOTATION not' PUBLIC "some notation">
+<?Pi?><!--commenv-->
+]>
+<doc/>

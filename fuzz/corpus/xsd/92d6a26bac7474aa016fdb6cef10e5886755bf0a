@@ -1,0 +1,11 @@
+<!DOCTYPE objednavka SYSTEM "dtds/objednavak.tdd">
+<objednavka>
+    <AdDoručeni>
+        <Jméno>Jan Novák</Jméno>
+        <Ulice>Bělehradská 147</Ulice>
+        <Město>Praha(2</Město>
+        <PSČ>12000</PSČ>
+    </AdDoručeni>
+/ObsahObjednávky>
+  </Komentář>
+</objednavka>

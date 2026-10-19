@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;e?>
+<!-- comment' at-->
+<?PIe bfore daetntdment t?>
+<!-- comment at-->
+<?PIe bf..?>
+<?pment elt?>
+<!-- co">
+]>
+<doc>&e;</doc>

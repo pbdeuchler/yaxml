@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<D:multistatus xmlns:D="http:/andards/dav/">
+  <D:response>
+   <D:prop>
+    + <D:supportedlock>
+        <D:LockEntry>
+        </ PPPPP

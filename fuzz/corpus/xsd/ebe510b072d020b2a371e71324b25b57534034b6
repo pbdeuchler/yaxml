@@ -1,0 +1,9 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<do>
+  <normId attr='lt;foo bar
+'/>
+  <normId attr='foobar
+
+&lt;'/>
+  8norm '/> < %->
+</doc>

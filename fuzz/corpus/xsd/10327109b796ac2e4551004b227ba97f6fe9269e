@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (ATA)>
+<!ATTLIST doc a1 NOTATIONoc></doc>

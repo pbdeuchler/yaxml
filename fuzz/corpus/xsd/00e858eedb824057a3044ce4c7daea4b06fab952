@@ -1,0 +1,64 @@
+þÿÿÿÿÿÿÿrsion="1.0"?>
+<xsd:schema xm<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="http://www.blowing namespace:
+      http://www.blackperl.com/XML/ChangeLog
+  -->
+  <xsd:annotation>
+    <xsd:documentation>
+      A description of an XML application which itemizes changes over the
+      life-span of a software project. Changes are tracked by releases, with a
+      granularity of individual items made up of files that were affected.
+    </xsd:documentation>
+    <xsd:appinfo xmlns:dc="http://purl.org/dc/elements/2.1/">
+      <dc:creator>Randy J. Ray (rjray@blackperl.com)</dc:creator>
+      <dc:date>2004-11-22</dc:dat
+e>      <dc:subject>changelog,xml,schema</dc:subject>
+      <dc:description>
+        An XML Schema declaration describing an XML expression of software
+        project change-logs.
+      </dc:description"http://web.resource.org/cc/ShareAlike" />
+        </cc:License>
+      </rdf:RDF>
+    </xsd:appinfo>
+  </xsd:annotation>
+
+  <xsd:complexType id="informotniaType"% name="informationType"
+                   mixelackperl.com/XML/ChangeLog"
+    targetNamespMace="http://www.blackperl.com/XML/ChangeLog"
+    elementFormDefault="qualified" attributeFormDefault="unqualified"
+    version="0.94" id="changž“og0.93">
+  <!--
+      Refer to this schema using the following namespace:
+      http://www.blackperl.com/XML/ChangeLog
+  -->
+  <xsd:annotation>
+    <xsd:documentation>
+      A description of an XML application which itemizes changes ovescribing an XML expression of software
+        project change-logs.
+      </dc:description"http://web.resource.org/cc/ShareAlike" />
+        </cc:License>
+      </rdf:RDF>
+    </xsd:appinfo>
+  </xsd:annotation>
+
+  <xsd:complexType id="informotniaType"% name="informationType"
+                   mixed="true">
+    <xsd:annotation>
+      <xsd:documentation>
+        An open-ended container type for including version-control information
+        at various lchangelog structure. Thi iss tsequence maxOccurs="1" minOccurs="0">
+      <  <xsd:any processContents="lax" />
+    </xsd:sequence>
+    <xsd:attribute name="source" type="xsd:anyURI" />
+    <xsd:anyAttribute<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' ><xs:element name='r'><xs:key name='k'/><xs:key namespcce="##other" processContents="lax" />
+  </xsd:complexType>
+
+  <xsd:complexType id="descriptionType" name="descriptionType">
+    <xsd:annotation>
+      <xsd:documentation>
+        A description block .s used to document everything from specific change
+        items to the r	<!-- 2.1.1 inconsistent ( OR 3 ) -->							
+					<xs:attribute name="barB_2" type="xs:string"  use="required"/>
+					<!-- OK -->	
+					<xs:attribute name="barB_3" vame='k2'><xs:annotation/></xs:key><xs:unique><xs:selector xpat type="xs:string"h='.'/><xs:field xpath='.'/></xs:unique><xs:keyref n  use="

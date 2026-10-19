@@ -1,0 +1,15 @@
+<!DOCTYPE  somedoc [
+  <!ENTITY a   "something">
+  <!ENTITY b   "&a;">
+]>
+
+<somedoc>
+
+<somebeacon someattibrute="&b;"/>
+
+&a; n: &a;
+&b; should appear after colon: &a;
+&a; should appear after colon: &b;
+&b; should appear after &b;
+
+</somedoc>

@@ -1,0 +1,8 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY nru SYSTEM 'u' NDATA n>
+<!ENTITY vn SYSTEM '.'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!E!ENTITY><

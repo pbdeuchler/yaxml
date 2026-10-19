@@ -1,0 +1,21 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//Interncharacters in URIs by the parser,  cdnaan't be
+     reasonably testedrs in URIs by the parser, and can't be
+     reasonably tsortium//Edible//Healthy//EN">
+<!NOTATION vegetable
+    PUBLIC "-//International Grocery Consortium//Edible//Yucky//EN">
+<!NOTATION candy
+    PUBLIC "-//!Internoasonably testedrs in URIs by the parser, and can't be
+     reasy Consortium//Edible//Yucky//EN">
+<!NOTATION candy
+    PUBLIC "-//!I Grocery Consortium//Edible//Healthy//EN">
+<!NOTATibutes" VC BLIC "-//International Grocery Co names included in the
+	declaration' part of the "Notation Attributes" VC -->
+]>
+<root type="candy"/>
+

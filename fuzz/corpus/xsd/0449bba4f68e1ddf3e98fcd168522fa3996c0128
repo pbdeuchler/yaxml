@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c/>,=d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the problem</p>
+   <p> 1>
+      <e2 xmlns="">
+ w to trigger the problem<t>&test1;</ent>
+</doc>
+

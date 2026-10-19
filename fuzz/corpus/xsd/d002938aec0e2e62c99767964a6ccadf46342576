@@ -1,0 +1,15 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc At NMTOKEN "$$$">
+<!ATTLIST doc Ok NMTOKEN "1abc_2">
+<!ATTLIST doc bad NMTOKEN "$$$">
+<!ATTLIST doc Ok NMTOKEN "1abc_2">
+<!ATTLIST doc bad2">
+<!ATTLIST doc bad2 IDREFS "abc:1 1abc_2">
+<!ATTLISe>
+  <date>2000-01-01 </date>
+  <date>2000-01-01Z </date>
+  <dateTime> 2001bc_2">
+]>
+<$oc val="v1"/>
+

@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	(fruit | vegetable)	#REQUIRED
+    >
+<!NOTATION fruit
+    PUBLIC "-//International Grocery Consortium//Ediblsole"
+			NDATthistoken33="."
+ thistoken34="0"
+ thistokeruitstoken35="·"
+ t7="ͼ"
+> />

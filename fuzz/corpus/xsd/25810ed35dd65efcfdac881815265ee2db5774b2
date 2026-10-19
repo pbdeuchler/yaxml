@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.chema">
+
+    <xs:element name="test">
+        <xs:complexType>
+            <xs:attribute name="test1" type="myType"/>
+            <xs:attribute name="test2" type="myType"/>
+            <xs:attribute name="test3" tye="test4" type="myType"/>"?>
+
+<test test1="5"
+      test2="6"
+      test3="#"
+      test4=";"
+      test5="&amp;" />

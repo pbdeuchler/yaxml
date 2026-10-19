@@ -1,0 +1,22 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z&#37;;z;
+        ERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="2.8 4.3.4" URI="009.xml" ID="rmt-010" TYPE="error" ENTITIES="general">
+External general entity has implausible version number
+</TEST>
+ S<TE
+�attr CDATA #IMPLIED>
+<!ATTLIST LegalName zA.-attr CDATA #IMPLIED>
+<!ATTDIST LegalName attr0zA. C1 co]trol, legal in XML 1G0, illegal in XML 1.1
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION=-�at~tr CDATA #IMPLIED>
+<!ATTLIESD>
+<!ATTLIST LegalName Àat A.-�attr CDATA #IMPLIED>
+<!ATTLIST LegalName zA.-attr CDATA #IMPL>
+<!ATTLIST LegalName13 attr13 Nels#37;z;
+    '>
+    %u="at;trValue"
+ /
+]>>
+<doc/>

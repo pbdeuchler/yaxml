@@ -1,0 +1,50 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z&#37;;z;
+     TIONS="2.3" URI="015.xml" ID="rmt-015" OUTPUT="out/01=.xm~l" TYPED>
+<!ELEMENT LegalName12 ANY>
+<!ATTLIST LegalNa΀῾" attr130="΀῾"
+ 	attr14="῾῿" attr140="῾῿"
+ 	attr15="῿‌" attr150="῿‌"
+ 	attr16="‌‍" attr160="‌‍"
+ 	attr17="‍⁰" attr170="‍⁰"
+ 	attr18="⁰ⁱ" attr180="⁰ⁱ"
+ 	attr19="ⁱ↎" attr190="ⁱ↎"
+ 	attr20="↎↏Ⰰ" attr200="↎↏Ⰰ"
+ 	attr21="↏ⰀⰁ" attr210="↏ⰀⰁ"
+ 	attr23="ⰀⰁ⿮" attr220="ⰀⰁ⿮"
+ 	attr23="Ⰱ⿮⿯" attr230="Ⰱ⿮⿯"
+ 	attr24="⿮⿯、" attr240="⿮⿯、"
+ 	attr25="⿯、。" attr250="⿯、。"
+ 	attr26="、。퟾" attr260="、。퟾"
+ 	attr27="。퟾퟿" attr270="。퟾퟿"
+ 	attr28="퟾퟿豈" attr280="퟾퟿豈"
+ 	attr29="퟿豈更" attr290="퟿豈更"
+ 	attr30="豈퟿퟾。" attr300="豈퟿퟾。"
+ 	attr31="更豈퟿퟾" attr310="更豈퟿퟾"
+ 	attr32="�更豈퟿" attr320="�更豈퟿"
+ 	attr33="-�更豈" attr330="-�更豈"
+ 	attr34=".-�更" attr340=".-�更"
+ 	attr35="A.-�" attr350="A.-�"
+ 	attr36="zA.-" attr360="zA.-"
+ 	attr37="0zA." attr370="0zA."
+ 	attr38="·0zA" attr380="·0zA"
+ 	attr39="̀·0z" attr390="̀·0z"
+ 	attr40="́̀·0" attr400="́̀·0"
+ 	attr41="ͮ́̀·" attr410="ͮ́̀·"
+ 	attr42="ͯͮ́̀" attr420="ͯͮ́̀"
+ 	attr43="‿ͯͮ́" attr430="‿ͯͮ́"
+ 	attr44="⁀‿ͯͮ" attr440="⁀‿ͯͮ"
+ 	attr45="null⁀‿ͯ" attr450="null⁀‿ͯ"
+ 	attr46="nullnull⁀1" URI="043.xml" IzzzzzzzzzzzzzzzzzzzzzzzD="rmt-043" OUTPUT="out/043.xml" TYPE="valid">
+Contains a character reference to a C1 control character (form-feed),
+legal in XML 1.1 but not 1.0
+</TEST>
+
+<TEST VERSION="1.1" RECOMMENDATION="XML1.1" SECTIONS="4.1" URI="044.xml" ed by Andrew Nels3#7;
+        &#37;  
+	  	edited by Andrew Nels#37;z;
+    '>
+    %u;
+]>
+<doc/>

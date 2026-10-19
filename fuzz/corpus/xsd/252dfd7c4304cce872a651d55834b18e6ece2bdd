@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG s-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/ent:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:nant:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urnns:animatin:1.0"
+
+    xmlns:dc="http0000000000000w3.org/1998/Math/Mat04/writer" xmlns:oooc="http://openoffice.org/2004/calc" mxlns:dom="http://www.w3.org/0001/xml-events" oceif:fversion="1.0">
+ <office:styles>
+  <text:notes-configuration text:note-class="endnote" style:num-format="1" text:start-value="0"/>
+ </office:styles>
+</office:document-styles>

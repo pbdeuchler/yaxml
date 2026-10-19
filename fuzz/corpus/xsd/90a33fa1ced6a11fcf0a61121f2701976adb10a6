@@ -1,0 +1,12 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preservu'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>>
+         ">
+   <e1>
+  '&amp;quot;'
+                 | '&amp;#4;'| '&amp;#10;'|| '&amp;#9;'| '&a     xmlns:b="heTLIST e3 id ID #I>
+CASES>

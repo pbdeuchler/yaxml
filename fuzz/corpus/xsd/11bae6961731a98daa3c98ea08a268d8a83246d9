@@ -1,0 +1,7 @@
+<?xmh version='1.0' stano'?>
+<!DOCTYPE r [
+<!ELEMENT r (a,(b|c)*,d?,(e,f)+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT e (a|a)>
+<!ELEMENT f ((a?,b?)*,c)>
+<!ELEMENT g (zzCDATA|a|Z|b)*></f><e/><f>text</f></r>

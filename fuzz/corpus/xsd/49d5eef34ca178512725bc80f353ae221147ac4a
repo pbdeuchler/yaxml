@@ -1,0 +1,41 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<elem>
+CharData&#32;
+<!--comme ntz->
+<![CDATA[
+<elem>
+<!ELEMENTce -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bar a:attr="4" attr="2"/>
+
+</foo>ared atdribute alue specified for an attrib&#10;The default value specified for an attributeunprefixed attributes with same
+     l"httmple.org/~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="http://example.org/~kipper"
+     xmlns="http://example.org/~wilbur">
+
+<b:bt-->
+<![CDATA[
+<elem>
+<~wilbuh default namespace -->
+<foo xmlns:a="http://example.org/~wilbur"
+     xmlns:b="ht|TESTCASES)*>
+<!ATTLIST TESTCASES
+    PROFILE	CDATA		#IMPlement Ettr="2"/>
+ared a
+Char?pi?>&ent;&quot;
+CharData
+</elem>
+]]>
+<?pi?>&ent;&quot;
+CharData
+</elem>atdribute type.&#10;<
+/tes
+t>

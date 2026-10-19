@@ -1,0 +1,10 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'vd'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd33333333/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////3n'>
+]>
+<r i='a' f='b' p='a c' e='p' es='u v amp' t='0 2' q=''/></r>

@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+ll valid Charater renD; &#xcD; &#xEf; &#xeFFFF;
+</root>
+<!--* a     '>
+    %
+u;#]>
+<doc/>

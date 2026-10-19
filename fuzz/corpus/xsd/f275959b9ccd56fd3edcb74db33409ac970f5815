@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-  <xs:element name="doc">
-    <xs:complexType>
-      <xs:sequence>
-     curs="1" maxOccur~="1">
-          <xs:element name="a"/>
-  >
