@@ -31,6 +31,7 @@ mod stream;
 mod tokenizer;
 pub mod uri;
 mod writer;
+pub mod xpath;
 
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};

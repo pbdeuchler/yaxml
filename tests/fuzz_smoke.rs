@@ -986,3 +986,24 @@ fn encoded_equivalents_and_every_truncation() {
         }
     }
 }
+
+#[test]
+fn xpath_entry_replays_expressions_and_documents() {
+    let cases: &[&[u8]] = &[
+        b"//*[@id]/@*",
+        b"count(//node()) + sum(//text())",
+        b"//p:c/namespace::* | //e/..",
+        b"string(/r/a[1]/following::node()[last()])",
+        b"id('i')/preceding::node()",
+        b"concat(name(//*[lang('EN')][1]), substring('abc', 2), translate('x', 'x', 'y'))",
+        b"//a[",
+        b"((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))",
+        b"//*[count(//*) > 0][1]\0<r><s><t/></s><s/></r>",
+        b"//x\0<r",
+        b"\xff\xfe//*",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_xpath(case);
+    }
+}

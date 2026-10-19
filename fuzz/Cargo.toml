@@ -97,3 +97,10 @@ path = "fuzz_targets/uri.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "xpath"
+path = "fuzz_targets/xpath.rs"
+test = false
+doc = false
+bench = false
