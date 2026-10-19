@@ -192,6 +192,21 @@ fn decoding_surfaces_agree(document: &[u8], flags: u32) {
     );
     if push_ok {
         assert_eq!(pushed, pulled, "push/buffered events under {flags:#x}");
+        assert_eq!(push.dtd().is_some(), buffered.dtd().is_some());
+    }
+    // The streams refuse tree-only flags.
+    if flags & TREE_ONLY != 0 {
+        let options = || ParseOptions::new(flags);
+        for refused in [
+            Reader::with_options(document, options()).err(),
+            PushParser::with_options(options()).err(),
+            BufferedReader::with_options(document, options()).err(),
+        ] {
+            assert_eq!(
+                refused.map(|error| error.kind),
+                Some(ErrorKind::UnsupportedOption)
+            );
+        }
     }
     let mut text = TextReader::with_options(document, ParseOptions::new(stream)).unwrap();
     let text_ok = loop {
@@ -291,15 +306,20 @@ fn check_recovered(flags: u32, document: &[u8]) {
     let declared = document
         .windows(8)
         .any(|w| w.eq_ignore_ascii_case(b"encoding"));
+    let owned = OwnedDocument::parse_with(document, ParseOptions::new(flags));
+    if let Ok(owned) = &owned {
+        assert!(owned.errors().len() <= 100);
+        assert!(owned.errors().iter().all(|error| !matches!(
+            error.kind,
+            ErrorKind::LimitExceeded(_) | ErrorKind::Allocation | ErrorKind::EntityLoop
+        )));
+    }
     if !super::encoding::recognizes(document)
         && !declared
         && std::str::from_utf8(document).is_ok()
-        && let (Ok(borrowed), Ok(owned)) = (
-            &recovered,
-            OwnedDocument::parse_with(document, ParseOptions::new(flags)),
-        )
+        && let (Ok(borrowed), Ok(owned)) = (&recovered, &owned)
     {
-        let owned_saved = save::to_vec(&owned, &Default::default()).unwrap();
+        let owned_saved = save::to_vec(owned, &Default::default()).unwrap();
         assert_eq!(saved(borrowed), owned_saved, "DOMs recover differently");
         assert_eq!(
             borrowed.errors(),

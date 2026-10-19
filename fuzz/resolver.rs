@@ -134,10 +134,12 @@ fn resolver(resources: &[Vec<u8>], policy: Policy, log: &Log) -> Box<dyn Resolve
     let log = log.clone();
     let mut files = (policy == Policy::Files).then(|| {
         let root = sandbox();
-        assert!(
-            FileResolver::new(root.join("d/s")).is_err(),
-            "file root accepted"
-        );
+        for refused in ["d/s", "d/missing"] {
+            assert!(
+                FileResolver::new(root.join(refused)).is_err(),
+                "{refused} root accepted"
+            );
+        }
         FileResolver::new(root).expect("sandbox root")
     });
     Box::new(move |request: Request<'_>| {
@@ -281,6 +283,18 @@ pub(super) fn exercise(
             document,
             loading(limits, "d/doc.xml", resolver(resources, policy, &log)),
         );
+        // XInclude shares the parse's resolver; without an include
+        // element it changes nothing.
+        let mut options = loading(limits, "d/doc.xml", resolver(resources, policy, &log));
+        options.flags |= yaxml::options::XINCLUDE;
+        let included = OwnedDocument::parse_with(document, options);
+        if !document.windows(8).any(|w| w == b"XInclude") {
+            assert_eq!(
+                included.is_ok(),
+                owned.is_ok(),
+                "XINCLUDE changed acceptance"
+            );
+        }
         if let (Ok(borrowed), Ok(owned)) = (borrowed, owned) {
             super::valid::compare(&borrowed, &owned, None);
         }
