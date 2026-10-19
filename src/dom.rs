@@ -157,14 +157,14 @@ impl<'input> Document<'input> {
                     parents
                         .try_reserve(1)
                         .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
-                    let id = document.append(parent, NodeKind::Element(element), origin)?;
+                    let id = document.append_element(parent, element, origin)?;
                     if parent == NodeId(0) {
                         document.root_element = id;
                     }
                     parents.push(id);
                 }
                 Event::Empty(element) => {
-                    let id = document.append(parent, NodeKind::Element(element), origin)?;
+                    let id = document.append_element(parent, element, origin)?;
                     if parent == NodeId(0) {
                         document.root_element = id;
                     }
@@ -191,8 +191,12 @@ impl<'input> Document<'input> {
             return Err(Error::new(ErrorKind::MissingRoot, reader.position()));
         }
         document.nodes[0].subtree_end = document.nodes.len();
-        let ids = crate::xpath::tree::find_ids(&document, reader.catalog());
-        Ok(Self { ids, ..document })
+        // Without DTD-declared ID attributes, the `xml:id`s noted while
+        // building are exactly what a full traversal would find.
+        if crate::xpath::tree::declares_ids(reader.catalog()) {
+            document.ids = crate::xpath::tree::find_ids(&document, reader.catalog());
+        }
+        Ok(document)
     }
 
     /// The element whose `xml:id` or DTD-declared `ID` attribute has this
@@ -203,6 +207,25 @@ impl<'input> Document<'input> {
 
     pub(crate) fn ids(&self) -> &[(NodeId, usize)] {
         &self.ids
+    }
+
+    /// Appends an element, noting its `xml:id` attributes in document order.
+    fn append_element(
+        &mut self,
+        parent: NodeId,
+        element: Element<'input>,
+        origin: SourceOrigin,
+    ) -> Result<NodeId, Error> {
+        let id = NodeId(self.nodes.len());
+        for (index, attribute) in element.attributes.iter().enumerate() {
+            if attribute.name.qualified() == "xml:id" {
+                self.ids
+                    .try_reserve(1)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
+                self.ids.push((id, index));
+            }
+        }
+        self.append(parent, NodeKind::Element(element), origin)
     }
 
     fn append(

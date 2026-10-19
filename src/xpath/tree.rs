@@ -205,6 +205,12 @@ impl Navigate for OwnedDocument {
 
 /// ID-typed attributes of a freshly parsed tree: `xml:id` and those declared
 /// `ID` for their element in the DTD, as libxml2's `xmlIsID`.
+/// Whether the DTD declares any ID-typed attribute; otherwise only `xml:id`
+/// attributes are IDs.
+pub(crate) fn declares_ids(catalog: Option<&DtdCatalog>) -> bool {
+    catalog.is_some_and(|catalog| catalog.id_attributes().next().is_some())
+}
+
 pub(crate) fn find_ids<T: Navigate>(tree: &T, catalog: Option<&DtdCatalog>) -> Vec<(T::Id, usize)> {
     let mut declared: HashMap<&str, HashSet<&str>> = HashMap::new();
     for (element, attribute) in catalog.into_iter().flat_map(DtdCatalog::id_attributes) {

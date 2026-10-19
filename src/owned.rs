@@ -1261,6 +1261,8 @@ fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), Edit
 /// Concrete shared sink: all strings are copied using the parser's budget.
 struct OwnedBuilder {
     nodes: Vec<OwnedRecord>,
+    /// `(element slot, attribute index)` of each `xml:id`, in document order.
+    xml_ids: Vec<(NodeId, usize)>,
     attributes: Vec<StoredAttribute>,
     pool: Pool,
     root_element: NodeId,
@@ -1277,6 +1279,7 @@ impl OwnedBuilder {
         nodes.push(OwnedRecord::root(source_length));
         Ok(Self {
             nodes,
+            xml_ids: Vec::new(),
             attributes: Vec::new(),
             pool: Pool::default(),
             root_element: NodeId(0),
@@ -1349,7 +1352,14 @@ impl OwnedBuilder {
                 self.attributes
                     .try_reserve(element.attributes.len())
                     .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-                for attribute in element.attributes {
+                let slot = NodeId(self.nodes.len());
+                for (index, attribute) in element.attributes.iter().enumerate() {
+                    if attribute.name.qualified() == "xml:id" {
+                        self.xml_ids
+                            .try_reserve(1)
+                            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+                        self.xml_ids.push((slot, index));
+                    }
                     self.attributes.push(StoredAttribute {
                         name: self.pool.name(&attribute.name, offset, budget)?,
                         value: self.pool.store(&attribute.value, offset, budget)?,
@@ -1410,12 +1420,23 @@ impl OwnedBuilder {
     }
 
     fn finish(
-        self,
+        mut self,
         position: usize,
         catalog: Option<&crate::dtd_catalog::DtdCatalog>,
     ) -> Result<OwnedDocument, Error> {
+        let xml_ids = std::mem::take(&mut self.xml_ids);
         let document = self.finish_with_counter(position, &LAST_DOCUMENT_ID)?;
-        let ids = crate::xpath::tree::find_ids(&document, catalog);
+        // Without DTD-declared ID attributes, the `xml:id`s noted while
+        // building are exactly what a full traversal would find.
+        let ids = if crate::xpath::tree::declares_ids(catalog) {
+            crate::xpath::tree::find_ids(&document, catalog)
+        } else {
+            let document = document.identity;
+            xml_ids
+                .into_iter()
+                .map(|(slot, index)| (OwnedNodeId { document, slot }, index))
+                .collect()
+        };
         Ok(OwnedDocument { ids, ..document })
     }
 
