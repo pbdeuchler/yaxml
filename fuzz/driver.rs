@@ -36,6 +36,8 @@ mod construction;
 #[path = "names.rs"]
 mod names;
 
+#[path = "pattern.rs"]
+mod pattern;
 #[path = "uri.rs"]
 mod uri;
 #[path = "xpath.rs"]
@@ -79,6 +81,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_uri(input);
     exercise_html(input);
     exercise_xpath(input);
+    exercise_pattern(input);
     exercise_xinclude(input);
     exercise_c14n(input);
     exercise_valid(input);
@@ -346,6 +349,13 @@ pub fn exercise_mutation(input: &[u8]) {
 pub fn exercise_xpath(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     xpath::exercise(input);
+}
+
+/// Exercise pattern compilation, DOM matching and streaming; see `pattern.rs`
+/// for the testcase format.
+pub fn exercise_pattern(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    pattern::exercise(input);
 }
 
 /// Exercise XInclude over fuzz-provided resources; see `xinclude.rs` for the

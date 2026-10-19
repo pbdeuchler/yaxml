@@ -1036,6 +1036,30 @@ fn xpath_entry_replays_expressions_and_documents() {
 }
 
 #[test]
+fn pattern_entry_replays_patterns_and_documents() {
+    let cases: &[&[u8]] = &[
+        b" a/b",
+        b" //b|/r/a",
+        b" p:b",
+        b" a//b",
+        b" *//b",
+        b" a//.",
+        b" @x",
+        b" a/@x|b",
+        b".//a",
+        b"./a/b",
+        b"@p:y",
+        b" a/b <r><a><b/></a></r>",
+        b" a <r",
+        b" a[",
+        b"",
+    ];
+    for case in cases {
+        driver::exercise_pattern(case);
+    }
+}
+
+#[test]
 fn textreader_entry_replays_controls_and_documents() {
     let document = b"<?xml version='1.0'?><!DOCTYPE r [<!ENTITY e 'x<b/>'>]><!--a--><r xmlns:p='urn:p' p:a='1' b='2' xmlns='urn:d'>t&e;<p:c><![CDATA[y]]><!--c--><?pi?><e/></p:c> </r><?z d?>";
     let mut cases: Vec<Vec<u8>> = (0..=255u8)
