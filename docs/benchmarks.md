@@ -52,7 +52,9 @@ The [first matched parsing validation](validation-parse-baseline.md) records
 65 workloads with raw phase distributions and substantial remaining gaps.
 
 `cargo bench --bench parse` retains the pre-pull DOM parse/destruction, owned
-parse/destruction, slice events and 8 KiB push workloads. Set
+parse/destruction, slice events and 8 KiB push workloads; its `dtd` fixture
+expands an internal-subset entity and applies attribute defaults and
+normalization in every element, so the DTD path is measured too. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 

@@ -5,9 +5,11 @@
 //! parameter references inside declarations (XML 1.0 §2.8, §3.4, §4.4.8).
 
 use super::*;
-use crate::dtd::{DtdErrorKind, DtdUnit};
+use crate::dtd::DtdUnit;
+use crate::dtd_frames::EntityFrame;
 use crate::parser::space;
 use crate::resolve::ResourceKind;
+use crate::{ErrorKind, Limit};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum Source {
@@ -30,7 +32,7 @@ enum Until {
     Keyword,
 }
 
-const LOCATION: ValueLocation = ValueLocation::Input(0);
+const LOCATION: Option<usize> = Some(0);
 
 /// The current entity: its depth and source.
 fn here(frames: &[Frame]) -> (usize, Source) {
@@ -46,8 +48,12 @@ fn boundary(catalog: &mut DtdCatalog, began: (usize, Source), frames: &[Frame], 
     }
 }
 
-fn syntax() -> CatalogError {
-    error(CatalogErrorKind::Grammar(DtdErrorKind::Syntax), LOCATION)
+fn syntax() -> DtdError {
+    error(ErrorKind::InvalidDtd)
+}
+
+fn error(kind: ErrorKind) -> DtdError {
+    DtdError::new(kind, LOCATION)
 }
 
 /// Reads the external DTD `system` on its own, as libxml2's `xmlParseDTD`.
@@ -57,14 +63,14 @@ pub(crate) fn external_dtd(
     resolver: Box<dyn crate::Resolver>,
 ) -> Result<Dtd, crate::Error> {
     let fail = |kind| crate::Error::new(kind, 0);
-    let mut loader = Loader::new("", resolver, &limits, crate::dtd::DtdLimits::default());
+    let mut loader = Loader::new("", resolver, &limits);
     let uri = loader.uri(system);
     let text = loader
         .load(ResourceKind::DtdSubset, &uri, None)
         .map_err(fail)?
         .ok_or(fail(crate::ErrorKind::ExternalResource))?;
     loader.base = uri;
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
     catalog.set_loader(loader);
     let mut frames = vec![Frame {
         source: Source::Subset,
@@ -73,7 +79,7 @@ pub(crate) fn external_dtd(
     }];
     catalog
         .run(&text, &mut frames, &[])
-        .map_err(|error| fail(crate::stream::dtd::catalog_kind(error.kind)))?;
+        .map_err(|error| fail(error.kind))?;
     Ok(catalog.dtd)
 }
 
@@ -83,7 +89,7 @@ impl DtdCatalog {
     }
 
     /// Loads an external parsed entity once; `false` when it has no text.
-    pub(crate) fn load(&mut self, id: EntityId) -> Result<bool, CatalogError> {
+    pub(crate) fn load(&mut self, id: EntityId) -> Result<bool, DtdError> {
         let entity = &mut self.entities[id.0];
         let (Some(loader), EntityBody::External(external)) = (&mut self.loader, &mut entity.body)
         else {
@@ -101,13 +107,13 @@ impl DtdCatalog {
                 .expect("loader resolves identifiers");
             external.text = loader
                 .load(kind, uri, external.public.as_deref())
-                .map_err(|kind| error(CatalogErrorKind::Xml(kind), LOCATION))?;
+                .map_err(error)?;
         }
         Ok(external.text.is_some())
     }
 
     /// Loads the external general entity `name` before content lookup.
-    pub(crate) fn load_general(&mut self, name: &str) -> Result<(), CatalogError> {
+    pub(crate) fn load_general(&mut self, name: &str) -> Result<(), DtdError> {
         match self.general.get(name) {
             Some(&id) => self.load(id).map(drop),
             None => Ok(()),
@@ -119,15 +125,15 @@ impl DtdCatalog {
     pub(crate) fn include_parameter(
         &mut self,
         id: EntityId,
-        outer: &[EntityId],
-    ) -> Result<(), CatalogError> {
+        outer: &[EntityFrame],
+    ) -> Result<(), DtdError> {
         let mut frames = Vec::new();
         self.enter(id, &mut frames, outer)?;
         self.run("", &mut frames, outer)
     }
 
     /// Loads and processes the external subset after the internal subset.
-    pub(crate) fn include_subset(&mut self) -> Result<(), CatalogError> {
+    pub(crate) fn include_subset(&mut self) -> Result<(), DtdError> {
         let (Some(loader), Some(subset)) = (&mut self.loader, self.subset.take()) else {
             return Ok(());
         };
@@ -136,7 +142,7 @@ impl DtdCatalog {
         };
         let Some(text) = loader
             .load(ResourceKind::DtdSubset, &uri, subset.public.as_deref())
-            .map_err(|kind| error(CatalogErrorKind::Xml(kind), LOCATION))?
+            .map_err(error)?
         else {
             return Ok(());
         };
@@ -169,13 +175,13 @@ impl DtdCatalog {
         &mut self,
         id: EntityId,
         frames: &mut Vec<Frame>,
-        outer: &[EntityId],
-    ) -> Result<(), CatalogError> {
+        outer: &[EntityFrame],
+    ) -> Result<(), DtdError> {
         increment(
             &mut self.usage.references,
             1,
-            self.limits.max_references,
-            CatalogLimit::References,
+            self.limits.references,
+            ErrorKind::LimitExceeded(Limit::EntityReferences),
             LOCATION,
         )?;
         let active = frames
@@ -184,19 +190,16 @@ impl DtdCatalog {
                 Source::Entity(id) => Some(id),
                 Source::Subset => None,
             })
-            .chain(outer.iter().copied());
+            .chain(outer.iter().map(|frame| frame.entity));
         let mut depth = 0;
         for active in active {
             if active == id {
-                return Err(error(CatalogErrorKind::Recursion, LOCATION));
+                return Err(error(ErrorKind::EntityLoop));
             }
             depth += 1;
         }
-        if depth >= self.limits.max_depth {
-            return Err(error(
-                CatalogErrorKind::Limit(CatalogLimit::Depth),
-                LOCATION,
-            ));
+        if depth >= self.limits.depth {
+            return Err(error(ErrorKind::LimitExceeded(Limit::EntityDepth)));
         }
         if !self.load(id)? && matches!(self.entities[id.0].body, EntityBody::External(_)) {
             return Ok(());
@@ -205,8 +208,8 @@ impl DtdCatalog {
         increment(
             &mut self.usage.expanded_bytes,
             length,
-            self.limits.max_expanded_bytes,
-            CatalogLimit::ExpandedBytes,
+            self.limits.expansion,
+            ErrorKind::LimitExceeded(Limit::EntityExpansion),
             LOCATION,
         )?;
         let base = match (&mut self.loader, &self.entities[id.0].body) {
@@ -218,7 +221,7 @@ impl DtdCatalog {
         };
         frames
             .try_reserve(1)
-            .map_err(|_| error(CatalogErrorKind::Allocation, LOCATION))?;
+            .map_err(|_| error(ErrorKind::Allocation))?;
         frames.push(Frame {
             source: Source::Entity(id),
             cursor: 0,
@@ -232,14 +235,15 @@ impl DtdCatalog {
         &mut self,
         subset: &str,
         frames: &mut Vec<Frame>,
-        outer: &[EntityId],
-    ) -> Result<(), CatalogError> {
+        outer: &[EntityFrame],
+    ) -> Result<(), DtdError> {
         let &Frame { source, cursor, .. } = frames.last().expect("active frame");
         let rest = &self.text(subset, source)[cursor..];
         let end = rest.find(';').ok_or_else(syntax)?;
-        validate_name(&rest[1..end], 0, true)
-            .map_err(|_| error(CatalogErrorKind::InvalidReference, LOCATION))?;
-        let id = self.parameter.get(&rest[1..end]).copied();
+        let Some((_, Reference::Named(name))) = parse_reference(rest) else {
+            return Err(error(ErrorKind::InvalidReference));
+        };
+        let id = self.parameter.get(name).copied();
         frames.last_mut().expect("active frame").cursor += end + 1;
         self.parameter_reference = true;
         match id {
@@ -250,7 +254,7 @@ impl DtdCatalog {
                 self.note(Code::UndeclaredEntity, None, message);
                 Ok(())
             }
-            None => Err(error(CatalogErrorKind::EntityDeclared, LOCATION)),
+            None => Err(error(ErrorKind::UnknownEntity)),
         }
     }
 
@@ -258,8 +262,8 @@ impl DtdCatalog {
         &mut self,
         subset: &str,
         frames: &mut Vec<Frame>,
-        outer: &[EntityId],
-    ) -> Result<(), CatalogError> {
+        outer: &[EntityFrame],
+    ) -> Result<(), DtdError> {
         let mut sections = Vec::new();
         while let Some(frame) = frames.last() {
             let rest = &self.text(subset, frame.source)[frame.cursor..];
@@ -290,15 +294,11 @@ impl DtdCatalog {
             } else if rest.starts_with("<!--") || rest.starts_with("<?") {
                 let close = if rest.starts_with("<?") { "?>" } else { "-->" };
                 let end = rest.find(close).ok_or_else(syntax)? + close.len();
-                let limits = self.loader.as_ref().expect("loaded text").unit;
-                DtdUnit::parse(&rest[..end], limits)
-                    .map_err(|e| error(CatalogErrorKind::Grammar(e.kind), LOCATION))?;
+                DtdUnit::parse(&rest[..end], self.limits).map_err(|e| error(e.kind))?;
                 end
             } else if rest.starts_with("<!") {
                 let declaration = self.collect(subset, frames, outer, Until::Declaration)?;
-                let limits = self.loader.as_ref().expect("loaded text").unit;
-                let unit = DtdUnit::parse(declaration, limits)
-                    .map_err(|e| error(CatalogErrorKind::Grammar(e.kind), LOCATION))?;
+                let unit = DtdUnit::parse(declaration, self.limits).map_err(|e| error(e.kind))?;
                 if !matches!(
                     unit.view(),
                     DtdUnitView::Element(_)
@@ -308,7 +308,7 @@ impl DtdCatalog {
                 ) {
                     return Err(syntax());
                 }
-                self.apply_inner(
+                self.apply(
                     &unit,
                     DeclarationContext {
                         internal_subset: false,
@@ -334,9 +334,9 @@ impl DtdCatalog {
         &mut self,
         subset: &str,
         frames: &mut Vec<Frame>,
-        outer: &[EntityId],
+        outer: &[EntityFrame],
         until: Until,
-    ) -> Result<String, CatalogError> {
+    ) -> Result<String, DtdError> {
         let depth = frames.len();
         let began = here(frames);
         let mut output = String::new();
@@ -368,7 +368,7 @@ impl DtdCatalog {
             }
             output
                 .try_reserve(character.len_utf8())
-                .map_err(|_| error(CatalogErrorKind::Allocation, LOCATION))?;
+                .map_err(|_| error(ErrorKind::Allocation))?;
             frames.last_mut().expect("active frame").cursor += character.len_utf8();
             match (quote, character) {
                 (Some(open), _) if open == character => quote = None,
@@ -387,8 +387,8 @@ impl DtdCatalog {
                     increment(
                         &mut self.usage.work,
                         output.len(),
-                        self.limits.max_work,
-                        CatalogLimit::Work,
+                        self.limits.work,
+                        ErrorKind::LimitExceeded(Limit::EntityExpansion),
                         LOCATION,
                     )?;
                     return Ok(output);
@@ -400,7 +400,7 @@ impl DtdCatalog {
     }
 
     /// Skips an ignored section's contents, which must end in the same entity.
-    fn ignore(&mut self, subset: &str, frames: &mut [Frame]) -> Result<(), CatalogError> {
+    fn ignore(&mut self, subset: &str, frames: &mut [Frame]) -> Result<(), DtdError> {
         let frame = frames.last_mut().expect("active frame");
         let rest = &self.text(subset, frame.source)[frame.cursor..];
         let mut nested = 1usize;

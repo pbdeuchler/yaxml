@@ -9,7 +9,9 @@ use crate::escape::normalize_replacement_required;
 use crate::escape::{needs_normalization, normalize_into};
 use crate::name::{qname, validate_name};
 use crate::tokenizer::TokenKind;
-use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
+use crate::{
+    Attribute, Declaration, DtdError, Element, Error, ErrorKind, Event, Limit, Limits, Name,
+};
 
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
@@ -136,31 +138,12 @@ pub(crate) struct RawTag<'event> {
     pub(crate) start: usize,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum AttributeProvenance {
-    Specified {
-        name_offset: usize,
-        value_offset: usize,
-    },
-    Defaulted {
-        declaration: usize,
-    },
-}
-
-impl AttributeProvenance {
-    pub(crate) fn offset(self, _fallback: usize) -> usize {
-        match self {
-            Self::Specified { name_offset, .. } => name_offset,
-            Self::Defaulted { .. } => _fallback,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct PreparedAttribute<'event> {
     pub(crate) name: Name<'event>,
     pub(crate) value: Cow<'event, str>,
-    pub(crate) provenance: AttributeProvenance,
+    /// The specified attribute's name offset; `None` when defaulted.
+    pub(crate) name_offset: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -180,7 +163,7 @@ impl PreparedTag<'_> {
             .try_reserve(self.attributes.len())
             .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
         for attribute in self.attributes {
-            let offset = attribute.provenance.offset(start);
+            let offset = attribute.name_offset.unwrap_or(start);
             let name = attribute.name.try_into_static(offset)?;
             let Cow::Owned(value) = attribute.value else {
                 return Err(Error::new(ErrorKind::InvalidState, offset));
@@ -188,7 +171,7 @@ impl PreparedTag<'_> {
             attributes.push(PreparedAttribute {
                 name,
                 value: Cow::Owned(value),
-                provenance: attribute.provenance,
+                name_offset: attribute.name_offset,
             });
         }
         Ok(PreparedTag {
@@ -206,60 +189,6 @@ pub(crate) enum DtdLeafKind {
     Cdata,
     Comment,
     ProcessingInstruction,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ReplacementError {
-    pub(crate) kind: ErrorKind,
-    pub(crate) local_offset: usize,
-}
-
-impl From<Error> for ReplacementError {
-    fn from(error: Error) -> Self {
-        Self {
-            kind: error.kind,
-            local_offset: error.offset,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PreparedTagErrorLocation {
-    Input(usize),
-    Declaration { declaration: usize, offset: usize },
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct PreparedTagError {
-    pub(crate) kind: ErrorKind,
-    pub(crate) location: PreparedTagErrorLocation,
-}
-
-impl PreparedTagError {
-    fn input(error: Error) -> Self {
-        Self {
-            kind: error.kind,
-            location: PreparedTagErrorLocation::Input(error.offset),
-        }
-    }
-
-    fn attribute(error: Error, provenance: AttributeProvenance) -> Self {
-        let location = match provenance {
-            AttributeProvenance::Specified { name_offset, .. } => {
-                PreparedTagErrorLocation::Input(name_offset)
-            }
-            AttributeProvenance::Defaulted { declaration } => {
-                PreparedTagErrorLocation::Declaration {
-                    declaration,
-                    offset: 0,
-                }
-            }
-        };
-        Self {
-            kind: error.kind,
-            location,
-        }
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -855,7 +784,7 @@ impl<'source> ParserState<'source> {
         catalog: &mut crate::dtd_catalog::DtdCatalog,
         source: crate::dtd::LiteralSource,
         retain: &mut F,
-    ) -> Result<Event<'event>, crate::dtd_tag::DtdTagError>
+    ) -> Result<Event<'event>, DtdError>
     where
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
@@ -869,7 +798,7 @@ impl<'source> ParserState<'source> {
         start: usize,
         catalog: &mut crate::dtd_catalog::DtdCatalog,
         retain: &mut F,
-    ) -> Result<Event<'event>, crate::dtd_tag::DtdTagError>
+    ) -> Result<Event<'event>, DtdError>
     where
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
@@ -892,7 +821,7 @@ impl<'source> ParserState<'source> {
         source: crate::dtd::LiteralSource,
         borrow_physical: bool,
         retain: &mut F,
-    ) -> Result<Event<'event>, crate::dtd_tag::DtdTagError>
+    ) -> Result<Event<'event>, DtdError>
     where
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
@@ -907,9 +836,15 @@ impl<'source> ParserState<'source> {
         self.check_token_start(TokenKind::Start, start)?;
         let raw = self.collect_raw_tag(raw, start)?;
         let prepared = if borrow_physical {
-            crate::dtd_tag::prepare_stable_dtd_tag(catalog, &mut self.budget, raw)?
+            crate::dtd_tag::prepare_dtd_tag(
+                catalog,
+                &mut self.budget,
+                raw,
+                crate::dtd::LiteralSource::Physical,
+                true,
+            )?
         } else {
-            crate::dtd_tag::prepare_dtd_tag(catalog, &mut self.budget, raw, source)?
+            crate::dtd_tag::prepare_dtd_tag(catalog, &mut self.budget, raw, source, false)?
         };
         let event = self.publish_prepared_tag(prepared, retain)?;
         self.events += 1;
@@ -921,7 +856,7 @@ impl<'source> ParserState<'source> {
         raw: &str,
         start: usize,
         catalog: &mut crate::dtd_catalog::DtdCatalog,
-    ) -> Result<Event<'static>, crate::dtd_tag::DtdTagError> {
+    ) -> Result<Event<'static>, DtdError> {
         if raw.len() > self.token_limit {
             return Err(Error::new(ErrorKind::LimitExceeded(self.token_limit_kind), start).into());
         }
@@ -936,6 +871,7 @@ impl<'source> ParserState<'source> {
             &mut self.budget,
             raw,
             crate::dtd::LiteralSource::Replacement,
+            false,
         )?
         .try_into_static()?;
         let event = self.publish_prepared_tag_owned(prepared)?;
@@ -944,16 +880,6 @@ impl<'source> ParserState<'source> {
     }
 
     pub(crate) fn process_dtd_leaf_owned(
-        &mut self,
-        kind: DtdLeafKind,
-        raw: &str,
-        local_range: Range<usize>,
-    ) -> Result<Event<'static>, ReplacementError> {
-        self.process_dtd_leaf_owned_inner(kind, raw, local_range)
-            .map_err(ReplacementError::from)
-    }
-
-    fn process_dtd_leaf_owned_inner(
         &mut self,
         kind: DtdLeafKind,
         raw: &str,
@@ -1038,15 +964,6 @@ impl<'source> ParserState<'source> {
     }
 
     pub(crate) fn process_dtd_end_owned(
-        &mut self,
-        raw: &str,
-        start: usize,
-    ) -> Result<Event<'static>, ReplacementError> {
-        self.process_dtd_end_owned_inner(raw, start)
-            .map_err(ReplacementError::from)
-    }
-
-    fn process_dtd_end_owned_inner(
         &mut self,
         raw: &str,
         start: usize,
@@ -1149,7 +1066,7 @@ impl<'source> ParserState<'source> {
         &mut self,
         prepared: PreparedTag<'event>,
         retain: &mut F,
-    ) -> Result<Event<'event>, PreparedTagError>
+    ) -> Result<Event<'event>, DtdError>
     where
         'source: 'event,
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
@@ -1163,7 +1080,7 @@ impl<'source> ParserState<'source> {
     fn publish_prepared_tag_owned(
         &mut self,
         prepared: PreparedTag<'static>,
-    ) -> Result<Event<'static>, PreparedTagError> {
+    ) -> Result<Event<'static>, DtdError> {
         self.publish_prepared_tag_with(
             prepared,
             &mut |_, offset, _| Err(Error::new(ErrorKind::InvalidState, offset)),
@@ -1176,7 +1093,7 @@ impl<'source> ParserState<'source> {
         mut prepared: PreparedTag<'event>,
         retain: &mut F,
         namespace_output: &mut N,
-    ) -> Result<Event<'event>, PreparedTagError>
+    ) -> Result<Event<'event>, DtdError>
     where
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
         N: FnMut(&Cow<'source, str>, usize, &mut Budget) -> Result<Cow<'event, str>, Error>,
@@ -1193,19 +1110,15 @@ impl<'source> ParserState<'source> {
                 attribute.name.qualified() == "xmlns" || attribute.name.prefix() == Some("xmlns")
             })
             .count();
-        pending.try_reserve(namespace_declarations).map_err(|_| {
-            PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-        })?;
+        pending
+            .try_reserve(namespace_declarations)
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         pending_prefixes
             .try_reserve(namespace_declarations)
-            .map_err(|_| {
-                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-            })?;
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         pending_namespaces
             .try_reserve(namespace_declarations)
-            .map_err(|_| {
-                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-            })?;
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         for attribute in &prepared.attributes {
             let name = &attribute.name;
             let declaration = if name.qualified() == "xmlns" {
@@ -1221,15 +1134,9 @@ impl<'source> ParserState<'source> {
             };
             if let Some((bound_prefix, prefix_range)) = declaration {
                 if invalid_namespace_binding(bound_prefix, &attribute.value) {
-                    return Err(PreparedTagError::attribute(
-                        Error::new(
-                            ErrorKind::Namespace,
-                            attribute.provenance.offset(prepared.start),
-                        ),
-                        attribute.provenance,
-                    ));
+                    return Err(DtdError::new(ErrorKind::Namespace, attribute.name_offset));
                 }
-                let offset = attribute.provenance.offset(prepared.start);
+                let offset = attribute.name_offset.unwrap_or(prepared.start);
                 let namespace = if attribute.value.is_empty() {
                     None
                 } else if attribute.value == XML {
@@ -1237,37 +1144,26 @@ impl<'source> ParserState<'source> {
                 } else if let Some(namespace) = pending_namespaces.get_mut(attribute.value.as_ref())
                 {
                     namespace.bindings = namespace.bindings.checked_add(1).ok_or_else(|| {
-                        PreparedTagError::attribute(
-                            Error::new(ErrorKind::Allocation, offset),
-                            attribute.provenance,
-                        )
+                        DtdError::new(ErrorKind::Allocation, attribute.name_offset)
                     })?;
                     Some(namespace.id)
                 } else {
                     let (id, bindings, existing) =
                         if let Some((id, count)) = self.interned(attribute.value.as_ref()) {
                             let bindings = count.checked_add(1).ok_or_else(|| {
-                                PreparedTagError::attribute(
-                                    Error::new(ErrorKind::Allocation, offset),
-                                    attribute.provenance,
-                                )
+                                DtdError::new(ErrorKind::Allocation, attribute.name_offset)
                             })?;
                             (id, bindings, true)
                         } else {
                             let id = NamespaceId::Declared(next_namespace);
                             next_namespace = next_namespace.checked_add(1).ok_or_else(|| {
-                                PreparedTagError::attribute(
-                                    Error::new(ErrorKind::Allocation, offset),
-                                    attribute.provenance,
-                                )
+                                DtdError::new(ErrorKind::Allocation, attribute.name_offset)
                             })?;
                             (id, 1, false)
                         };
                     let key = self
                         .retain_value(&attribute.value, offset, retain)
-                        .map_err(|error| {
-                            PreparedTagError::attribute(error, attribute.provenance)
-                        })?;
+                        .map_err(|error| DtdError::new(error.kind, attribute.name_offset))?;
                     pending_namespaces.insert(
                         key,
                         PendingNamespace {
@@ -1285,7 +1181,7 @@ impl<'source> ParserState<'source> {
                         offset,
                         retain,
                     )
-                    .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
+                    .map_err(|error| DtdError::new(error.kind, attribute.name_offset))?;
                 let prefix = self
                     .retain_name_range(
                         name.qualified_source(),
@@ -1293,10 +1189,10 @@ impl<'source> ParserState<'source> {
                         offset,
                         retain,
                     )
-                    .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
+                    .map_err(|error| DtdError::new(error.kind, attribute.name_offset))?;
                 let uri = self
                     .retain_value(&attribute.value, offset, retain)
-                    .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
+                    .map_err(|error| DtdError::new(error.kind, attribute.name_offset))?;
                 let previous = self.bound(bound_prefix);
                 let index = pending.len();
                 let prior = pending_prefixes.insert(prefix_key, index);
@@ -1318,15 +1214,13 @@ impl<'source> ParserState<'source> {
             &pending_prefixes,
             namespace_output,
         )
-        .map_err(PreparedTagError::input)?;
+        .map_err(DtdError::from)?;
         let mut expanded = HashSet::new();
         expanded
             .try_reserve(prepared.attributes.len())
-            .map_err(|_| {
-                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-            })?;
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         for attribute in &mut prepared.attributes {
-            let offset = attribute.provenance.offset(prepared.start);
+            let offset = attribute.name_offset.unwrap_or(prepared.start);
             let namespace = self
                 .resolve_namespace_with_pending(
                     &mut attribute.name,
@@ -1336,11 +1230,11 @@ impl<'source> ParserState<'source> {
                     &pending_prefixes,
                     namespace_output,
                 )
-                .map_err(|error| PreparedTagError::attribute(error, attribute.provenance))?;
+                .map_err(|error| DtdError::new(error.kind, attribute.name_offset))?;
             if !expanded.insert((attribute.name.local(), namespace)) {
-                return Err(PreparedTagError::attribute(
-                    Error::new(ErrorKind::DuplicateAttribute, offset),
-                    attribute.provenance,
+                return Err(DtdError::new(
+                    ErrorKind::DuplicateAttribute,
+                    attribute.name_offset,
                 ));
             }
         }
@@ -1349,15 +1243,13 @@ impl<'source> ParserState<'source> {
         } else {
             Some(
                 self.retain_value(prepared.name.qualified_source(), prepared.start + 1, retain)
-                    .map_err(PreparedTagError::input)?,
+                    .map_err(DtdError::from)?,
             )
         };
         let mut attributes = Vec::new();
         attributes
             .try_reserve(prepared.attributes.len())
-            .map_err(|_| {
-                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-            })?;
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         for attribute in prepared.attributes {
             attributes.push(Attribute {
                 name: attribute.name,
@@ -1368,9 +1260,9 @@ impl<'source> ParserState<'source> {
             name: prepared.name,
             attributes: attributes.into(),
         };
-        self.bindings.try_reserve(pending.len()).map_err(|_| {
-            PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-        })?;
+        self.bindings
+            .try_reserve(pending.len())
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         self.namespace_index
             .try_reserve(if self.indexed {
                 pending
@@ -1380,9 +1272,7 @@ impl<'source> ParserState<'source> {
             } else {
                 0
             })
-            .map_err(|_| {
-                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-            })?;
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         self.namespace_ids
             .try_reserve(if self.indexed {
                 pending_namespaces
@@ -1392,13 +1282,11 @@ impl<'source> ParserState<'source> {
             } else {
                 0
             })
-            .map_err(|_| {
-                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-            })?;
+            .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         if !prepared.empty {
-            self.stack.try_reserve(1).map_err(|_| {
-                PreparedTagError::input(Error::new(ErrorKind::Allocation, prepared.start))
-            })?;
+            self.stack
+                .try_reserve(1)
+                .map_err(|_| DtdError::from(Error::new(ErrorKind::Allocation, prepared.start)))?;
         }
 
         self.next_namespace = next_namespace;
@@ -1454,7 +1342,7 @@ impl<'source> ParserState<'source> {
             }
         }
         self.index_bindings(prepared.start)
-            .map_err(PreparedTagError::input)?;
+            .map_err(DtdError::from)?;
         if prepared.empty {
             self.unwind_bindings(bindings_start);
             if self.stack.is_empty() {
@@ -2101,11 +1989,3 @@ fn validate_encoding(
 #[cfg(test)]
 #[path = "../tests/internal/parser.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_tag_spec.rs"]
-mod dtd_tag_spec;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_owned_leaf_spec.rs"]
-mod dtd_owned_leaf_spec;

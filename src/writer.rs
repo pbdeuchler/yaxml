@@ -1,9 +1,9 @@
 use std::io::{self, Write};
 
+use crate::dtd::DtdLimits;
 use crate::dtd_controller::DtdController;
 use crate::escape::invalid_char;
 use crate::parser::{ParserState, space};
-use crate::stream::dtd::SessionLimits;
 use crate::tokenizer::TokenKind;
 use crate::{
     DecodeLimits, Doctype, Document, Element, Error, ErrorKind, Event, Limit, Limits, Name,
@@ -253,13 +253,9 @@ impl<W: Write> Writer<W> {
             max_dtd_bytes: self.limits.max_token_bytes,
             ..Limits::default()
         };
-        let options = SessionLimits::new(limits, DecodeLimits::default()).declarations;
-        let relocate = |error| {
-            let error = Error::from(crate::stream::dtd::SessionError::Dtd(error));
-            Error::new(error.kind, start + error.offset)
-        };
-        let mut controller =
-            DtdController::stable_utf8(raw, 0, 0, options, false).map_err(relocate)?;
+        let options = DtdLimits::new(limits, DecodeLimits::default());
+        let relocate = |error: Error| Error::new(error.kind, start + error.offset);
+        let mut controller = DtdController::stable_utf8(raw, 0, 0, options, false);
         let budget = self.state.owned_budget();
         while !controller.is_complete() {
             if controller.current().is_some() {

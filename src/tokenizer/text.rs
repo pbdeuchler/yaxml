@@ -1,117 +1,66 @@
 //! One active source lease and bounded Text/reference coordination.
-use super::local::{LocalError, LocalErrorKind, LocalTokenizer};
-use super::reference::{
-    ContentStep, ContentStop, ReferenceCursor, ReferenceCursorError, ReferenceCursorErrorKind,
-    ReferenceExtent,
-};
+use super::local::LocalTokenizer;
+use super::reference::{ContentStep, ContentStop, ReferenceCursor, ReferenceExtent};
 use super::{TokenKind, Tokenizer};
+use crate::dtd::DtdLimits;
 use crate::dtd_frames::EntityInvocationId;
-use crate::dtd_reference::{
-    ReferenceError, ReferenceErrorKind, ReferenceKind, ReferenceLimit, ReferenceLimits,
-    ReferenceScratch, ValidatedReference,
-};
+use crate::dtd_reference::{ReferenceKind, ReferenceScratch, ValidatedReference};
 use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::escape::invalid_char;
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, Limit};
 use std::ops::Range;
+
+const WORK: ErrorKind = ErrorKind::LimitExceeded(Limit::EntityExpansion);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TextSourceId {
     Input,
     Replacement(EntityInvocationId),
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum TextErrorKind {
-    Xml(ErrorKind),
-    Local(LocalErrorKind),
-    Reference(ReferenceErrorKind),
-    Cursor(ReferenceCursorErrorKind),
-    Work,
-    PositionOverflow,
-    Scratch,
-    ScratchOverflow,
-    InvalidState,
-    SourceMismatch,
-}
 /// Input offsets are physical; replacement offsets are local UTF-8 bytes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct TextError {
-    pub(crate) kind: TextErrorKind,
+    pub(crate) kind: ErrorKind,
     pub(crate) source: TextSourceId,
     pub(crate) offset: usize,
 }
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct TextScratchLimits {
-    pub(crate) input_token_bytes: usize,
-    pub(crate) replacement_token_bytes: usize,
-    pub(crate) max_bytes: usize,
+impl TextError {
+    fn at(source: TextSourceId) -> impl Fn(Error) -> Self {
+        move |error| Self {
+            kind: error.kind,
+            source,
+            offset: error.offset,
+        }
+    }
 }
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct TextLimits {
-    pub(crate) max_work: usize,
-    pub(crate) reference: ReferenceLimits,
-    pub(crate) scratch: TextScratchLimits,
-}
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) struct TextUsage {
-    pub(crate) work: usize,
-    pub(crate) source_scanned: usize,
-    pub(crate) reference_scanned: usize,
-    pub(crate) reference_copied: usize,
-    pub(crate) reference_classified: usize,
-    pub(crate) appended_reference_copied: usize,
-    pub(crate) validated: usize,
-}
-/// The same scratch allocation and counters move across source handoffs.
+/// The same scratch allocation and work ledger move across source handoffs.
 pub(crate) struct TextShared {
-    limits: TextLimits,
-    usage: TextUsage,
+    limits: DtdLimits,
+    work: usize,
     reference: Option<ReferenceScratch>,
-    failure: Option<TextError>,
 }
 impl TextShared {
-    pub(crate) fn new(limits: TextLimits, initial_work: usize) -> Result<Self, TextErrorKind> {
-        if initial_work > limits.max_work {
-            return Err(TextErrorKind::Work);
+    pub(crate) fn new(limits: DtdLimits, initial_work: usize) -> Result<Self, ErrorKind> {
+        if initial_work > limits.work {
+            return Err(WORK);
         }
-        let reserved = limits
+        // Both source slots and the reference scratch must be addressable.
+        limits
             .scratch
-            .input_token_bytes
-            .checked_add(limits.scratch.replacement_token_bytes)
-            .and_then(|tokens| {
-                tokens.checked_add(
-                    limits
-                        .reference
-                        .max_bytes
-                        .min(limits.reference.max_scratch_bytes),
-                )
-            })
-            .ok_or(TextErrorKind::ScratchOverflow)?;
-        if reserved > limits.scratch.max_bytes {
-            return Err(TextErrorKind::Scratch);
-        }
+            .checked_add(limits.scratch)
+            .and_then(|tokens| tokens.checked_add(limits.token))
+            .ok_or(ErrorKind::LimitExceeded(Limit::TokenBytes))?;
         Ok(Self {
             limits,
-            usage: TextUsage {
-                work: initial_work,
-                ..TextUsage::default()
-            },
+            work: initial_work,
             reference: None,
-            failure: None,
         })
     }
-    pub(crate) fn usage(&self) -> TextUsage {
-        self.usage
+    pub(crate) fn work(&self) -> usize {
+        self.work
     }
-    pub(crate) fn remaining_work(&self) -> Result<usize, TextError> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        Ok(self
-            .limits
-            .max_work
-            .checked_sub(self.usage.work)
-            .expect("accepted Text work stays within its limit"))
+    fn remaining_work(&self) -> usize {
+        self.limits.work - self.work
     }
     pub(crate) fn charge_external_work(
         &mut self,
@@ -119,47 +68,36 @@ impl TextShared {
         source: TextSourceId,
         offset: usize,
     ) -> Result<(), TextError> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        let result = charge(self, source, offset, delta);
-        if let Err(error) = result {
-            self.failure = Some(error);
-        }
-        result
+        self.work = self
+            .work
+            .checked_add(delta)
+            .filter(|n| *n <= self.limits.work)
+            .ok_or(TextError {
+                kind: WORK,
+                source,
+                offset,
+            })?;
+        Ok(())
     }
-    pub(crate) fn check_source(&self, source: &TextSourceLease<'_>) -> Result<(), TextError> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        let (required, slot) = match &source.kind {
-            LeaseKind::Input { tokenizer, .. } => (
-                tokenizer.scratch_capacity_requirement(),
-                self.limits.scratch.input_token_bytes,
-            ),
-            LeaseKind::Local { tokenizer, .. } => (
-                tokenizer.scratch_capacity_requirement(),
-                self.limits.scratch.replacement_token_bytes,
-            ),
+    fn check_source(&self, source: &TextSourceLease<'_>) -> Result<(), TextError> {
+        let required = match &source.kind {
+            LeaseKind::Input { tokenizer, .. } => tokenizer.scratch_capacity_requirement(),
+            LeaseKind::Local { tokenizer, .. } => tokenizer.scratch_capacity_requirement(),
         };
-        if required > slot {
-            Err(TextError {
-                kind: TextErrorKind::Scratch,
+        if required > self.limits.scratch {
+            return Err(TextError {
+                kind: ErrorKind::LimitExceeded(Limit::TokenBytes),
                 source: source.id(),
                 offset: source.offset(),
-            })
-        } else {
-            Ok(())
+            });
         }
+        Ok(())
     }
 }
 
 enum InputMode<'input> {
     Streaming,
-    Stable {
-        input: &'input str,
-        decoded_start: usize,
-    },
+    Stable(&'input str),
 }
 enum LeaseKind<'input> {
     Input {
@@ -171,160 +109,66 @@ enum LeaseKind<'input> {
     Local {
         tokenizer: LocalTokenizer,
         invocation: EntityInvocationId,
-        native_work: usize,
     },
 }
 /// Ownership, rather than matching offsets, binds pending work to its tokenizer.
 pub(crate) struct TextSourceLease<'input> {
     kind: LeaseKind<'input>,
     finalizing: bool,
-    boundary: bool,
 }
 impl<'input> TextSourceLease<'input> {
-    pub(crate) fn streaming(tokenizer: Tokenizer) -> Self {
-        let decoded = tokenizer.position;
-        let physical = tokenizer.source_position;
-        Self {
-            kind: LeaseKind::Input {
-                tokenizer,
-                mode: InputMode::Streaming,
-                decoded,
-                physical,
-            },
-            finalizing: false,
-            boundary: false,
-        }
-    }
-    pub(crate) fn resume_utf8(
-        tokenizer: Tokenizer,
-        decoded_position: usize,
-        physical_position: usize,
-    ) -> Result<Self, TextError> {
-        Self::resume(
-            tokenizer,
-            SourceEncoding::Utf8,
-            decoded_position,
-            physical_position,
-        )
-    }
     /// Resume decoded input from the same decoder at a complete token boundary.
     /// UTF-16 coordinates count decoded UTF-8 bytes and original transport bytes
     /// independently; configuring the encoding must not replay its BOM.
     pub(crate) fn resume(
-        mut tokenizer: Tokenizer,
+        tokenizer: Tokenizer,
         encoding: SourceEncoding,
-        decoded_position: usize,
-        physical_position: usize,
-    ) -> Result<Self, TextError> {
-        let coordinates = match encoding {
-            SourceEncoding::Utf8 => decoded_position == physical_position,
-            SourceEncoding::Utf16 { bom, .. } => {
-                physical_position.is_multiple_of(2) && (!bom || physical_position >= 2)
-            }
-            // A byte charset begins after a UTF-8-forwarded ASCII declaration.
-            SourceEncoding::Byte(_) => decoded_position >= physical_position,
-        };
-        let valid = coordinates
-            && tokenizer.encoding == SourceEncoding::Utf8
-            && tokenizer.buffer.is_empty()
-            && tokenizer.position == 0
-            && tokenizer.source_position == 0
-            && tokenizer.start == 0
-            && tokenizer.source_start == 0
-            && tokenizer.reference_cursor().is_ok();
-        if !valid {
-            return Err(TextError {
-                kind: TextErrorKind::InvalidState,
-                source: TextSourceId::Input,
-                offset: physical_position,
-            });
-        }
-        tokenizer.encoding = encoding;
-        tokenizer.start = decoded_position;
-        tokenizer.position = decoded_position;
-        tokenizer.source_start = physical_position;
-        tokenizer.source_position = physical_position;
-        Ok(Self::streaming(tokenizer))
+        decoded: usize,
+        physical: usize,
+    ) -> Self {
+        Self::input(tokenizer, encoding, decoded, physical, InputMode::Streaming)
     }
+    /// Resume at `position` of `input`, a complete UTF-8 source.
     pub(crate) fn resume_stable_utf8(
         tokenizer: Tokenizer,
         input: &'input str,
-        decoded_position: usize,
-        physical_position: usize,
-    ) -> Result<Self, TextError> {
-        let source = Self::resume_utf8(tokenizer, decoded_position, physical_position)?;
-        let LeaseKind::Input { tokenizer, .. } = source.kind else {
-            unreachable!("resumed input")
-        };
-        Self::stable_utf8(tokenizer, input, 0)
+        position: usize,
+    ) -> Self {
+        let mode = InputMode::Stable(input);
+        Self::input(tokenizer, SourceEncoding::Utf8, position, position, mode)
     }
-    pub(crate) fn is_stable_input(&self) -> bool {
-        matches!(
-            self.kind,
-            LeaseKind::Input {
-                mode: InputMode::Stable { .. },
-                ..
-            }
-        )
-    }
-    pub(crate) fn stable_utf8(
-        tokenizer: Tokenizer,
-        input: &'input str,
-        decoded_start: usize,
-    ) -> Result<Self, TextError> {
-        let end = decoded_start.checked_add(input.len());
-        let valid = tokenizer.encoding == SourceEncoding::Utf8
-            && tokenizer.buffer.is_empty()
-            && tokenizer.position == tokenizer.source_position
-            && tokenizer.reference_cursor().is_ok()
-            && end.is_some_and(|end| {
-                tokenizer.position >= decoded_start && tokenizer.position <= end
-            })
-            && input.is_char_boundary(tokenizer.position.saturating_sub(decoded_start));
-        if !valid {
-            return Err(TextError {
-                kind: TextErrorKind::InvalidState,
-                source: TextSourceId::Input,
-                offset: tokenizer.source_position,
-            });
-        }
-        let decoded = tokenizer.position;
-        let physical = tokenizer.source_position;
-        Ok(Self {
+    fn input(
+        mut tokenizer: Tokenizer,
+        encoding: SourceEncoding,
+        decoded: usize,
+        physical: usize,
+        mode: InputMode<'input>,
+    ) -> Self {
+        debug_assert!(tokenizer.buffer.is_empty() && tokenizer.position == 0);
+        tokenizer.encoding = encoding;
+        (tokenizer.start, tokenizer.position) = (decoded, decoded);
+        (tokenizer.source_start, tokenizer.source_position) = (physical, physical);
+        Self {
             kind: LeaseKind::Input {
                 tokenizer,
-                mode: InputMode::Stable {
-                    input,
-                    decoded_start,
-                },
+                mode,
                 decoded,
                 physical,
             },
             finalizing: false,
-            boundary: false,
-        })
-    }
-    pub(crate) fn local(
-        tokenizer: LocalTokenizer,
-        invocation: EntityInvocationId,
-    ) -> Result<Self, TextError> {
-        if !tokenizer.is_fresh_source() {
-            return Err(TextError {
-                kind: TextErrorKind::InvalidState,
-                source: TextSourceId::Replacement(invocation),
-                offset: tokenizer.position(),
-            });
         }
-        let native_work = tokenizer.work_ceiling();
-        Ok(Self {
+    }
+    pub(crate) fn local(tokenizer: LocalTokenizer, invocation: EntityInvocationId) -> Self {
+        Self {
             kind: LeaseKind::Local {
                 tokenizer,
                 invocation,
-                native_work,
             },
             finalizing: false,
-            boundary: false,
-        })
+        }
+    }
+    pub(crate) fn is_stable_input(&self) -> bool {
+        self.stable().is_some()
     }
     pub(crate) fn id(&self) -> TextSourceId {
         match &self.kind {
@@ -340,51 +184,31 @@ impl<'input> TextSourceLease<'input> {
             _ => None,
         }
     }
-    pub(crate) fn input_encoding(&self) -> Option<SourceEncoding> {
+    fn stable(&self) -> Option<(&Tokenizer, &'input str, usize)> {
         match &self.kind {
-            LeaseKind::Input { tokenizer, .. } => Some(tokenizer.encoding),
-            LeaseKind::Local { .. } => None,
+            LeaseKind::Input {
+                tokenizer,
+                mode: InputMode::Stable(input),
+                decoded,
+                ..
+            } => Some((tokenizer, input, *decoded)),
+            _ => None,
         }
     }
     fn stable_remaining(&self) -> Option<&'input [u8]> {
-        let LeaseKind::Input {
-            mode:
-                InputMode::Stable {
-                    input,
-                    decoded_start,
-                },
-            decoded,
-            ..
-        } = &self.kind
-        else {
-            return None;
-        };
-        input.as_bytes().get(decoded.checked_sub(*decoded_start)?..)
+        let (_, input, decoded) = self.stable()?;
+        input.as_bytes().get(decoded..)
     }
     fn stable_current(&self) -> Option<(TokenKind, &'input str, TokenSpan)> {
-        let LeaseKind::Input {
-            tokenizer,
-            mode:
-                InputMode::Stable {
-                    input,
-                    decoded_start,
-                },
-            ..
-        } = &self.kind
-        else {
-            return None;
-        };
+        let (tokenizer, input, _) = self.stable()?;
         let (kind, _, span) = tokenizer.current()?;
-        if span.encoding != SourceEncoding::Utf8 || span.source != span.decoded {
+        if span.source != span.decoded {
             return None;
         }
-        let start = span.decoded.start.checked_sub(*decoded_start)?;
-        let end = span.decoded.end.checked_sub(*decoded_start)?;
         // Invalid markup can end inside a scalar; its kind alone is rejected.
-        let raw = if kind == TokenKind::InvalidMarkup {
-            ""
-        } else {
-            input.get(start..end)?
+        let raw = match kind {
+            TokenKind::InvalidMarkup => "",
+            _ => input.get(span.decoded.clone())?,
         };
         Some((kind, raw, span.clone()))
     }
@@ -400,7 +224,6 @@ impl<'input> TextSourceLease<'input> {
             LeaseKind::Local {
                 tokenizer,
                 invocation,
-                ..
             } => tokenizer.current().map(|(kind, raw, range)| TextToken {
                 kind,
                 raw,
@@ -417,36 +240,18 @@ impl<'input> TextSourceLease<'input> {
         start: usize,
     ) -> Result<(), TextError> {
         let id = self.id();
-        let offset = self.offset();
-        if !self.boundary {
-            return Err(TextError {
-                kind: TextErrorKind::InvalidState,
-                source: id,
-                offset,
-            });
-        }
         let LeaseKind::Local {
             tokenizer,
             invocation: current,
-            ..
         } = &mut self.kind
         else {
-            return Err(TextError {
-                kind: TextErrorKind::InvalidState,
-                source: id,
-                offset,
-            });
+            unreachable!("only a local source switches invocation")
         };
         tokenizer
             .switch_source_boundary(start)
-            .map_err(|e| TextError {
-                kind: TextErrorKind::Local(e.kind),
-                source: id,
-                offset: e.offset,
-            })?;
+            .map_err(TextError::at(id))?;
         *current = invocation;
         self.finalizing = false;
-        self.boundary = false;
         Ok(())
     }
     fn offset(&self) -> usize {
@@ -500,34 +305,22 @@ pub(crate) struct TextCoordinator<'input> {
     source: TextSourceLease<'input>,
     pending: Pending,
 }
-#[cfg(test)]
-pub(crate) struct TextHandoff<'input> {
-    shared: TextShared,
-    source: TextSourceLease<'input>,
-}
-#[cfg(test)]
-impl<'input> TextHandoff<'input> {
-    pub(crate) fn into_parts(self) -> (TextShared, TextSourceLease<'input>) {
-        (self.shared, self.source)
-    }
-}
 impl<'input> TextCoordinator<'input> {
     pub(crate) fn new(
         shared: TextShared,
-        mut source: TextSourceLease<'input>,
+        source: TextSourceLease<'input>,
     ) -> Result<Self, TextError> {
         shared.check_source(&source)?;
-        source.boundary = false;
         Ok(Self {
             shared,
             source,
             pending: Pending::Scanning,
         })
     }
-    pub(crate) fn usage(&self) -> TextUsage {
-        self.shared.usage
+    pub(crate) fn work(&self) -> usize {
+        self.shared.work
     }
-    pub(crate) fn remaining_work(&self) -> Result<usize, TextError> {
+    pub(crate) fn remaining_work(&self) -> usize {
         self.shared.remaining_work()
     }
     pub(crate) fn charge_external_work(
@@ -541,21 +334,16 @@ impl<'input> TextCoordinator<'input> {
     pub(crate) fn input_position(&self) -> Option<(usize, usize)> {
         self.source.input_position()
     }
+    fn token_ready(&self) -> bool {
+        matches!(self.pending, Pending::TokenReady | Pending::PrefixReady(_))
+    }
     pub(crate) fn current(&self) -> Option<TextToken<'_>> {
-        if self.shared.failure.is_some()
-            || !matches!(self.pending, Pending::TokenReady | Pending::PrefixReady(_))
-        {
-            return None;
-        }
-        self.source.current()
+        self.token_ready().then(|| self.source.current()).flatten()
     }
     pub(crate) fn is_stable_input(&self) -> bool {
         self.source.is_stable_input()
     }
     pub(crate) fn stable_remaining(&self) -> Option<&'input [u8]> {
-        if self.shared.failure.is_some() {
-            return None;
-        }
         self.source.stable_remaining()
     }
     pub(crate) fn stable_current(&self) -> Option<(TokenKind, &'input str, TokenSpan)> {
@@ -563,9 +351,7 @@ impl<'input> TextCoordinator<'input> {
         self.source.stable_current()
     }
     pub(crate) fn current_with_work(&mut self) -> Option<(TextToken<'_>, &mut TextShared)> {
-        if self.shared.failure.is_some()
-            || !matches!(self.pending, Pending::TokenReady | Pending::PrefixReady(_))
-        {
+        if !self.token_ready() {
             return None;
         }
         let token = self.source.current()?;
@@ -574,9 +360,6 @@ impl<'input> TextCoordinator<'input> {
     pub(crate) fn general(
         &self,
     ) -> Option<(ValidatedReference<'_>, &ReferenceExtent, TextSourceId)> {
-        if self.shared.failure.is_some() {
-            return None;
-        }
         let Pending::GeneralReady(extent) = &self.pending else {
             return None;
         };
@@ -586,140 +369,42 @@ impl<'input> TextCoordinator<'input> {
             self.source.id(),
         ))
     }
+    /// Scans streamed input, or the active replacement text.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<TextStep, TextError> {
-        self.remember(|s| {
-            if !matches!(
-                s.source.kind,
-                LeaseKind::Input {
-                    mode: InputMode::Streaming,
-                    ..
-                }
-            ) {
-                return Err(s.error(TextErrorKind::InvalidState));
-            }
-            s.drive(input)
-        })
-    }
-    pub(crate) fn advance_local(
-        &mut self,
-        invocation: EntityInvocationId,
-        input: &[u8],
-    ) -> Result<TextStep, TextError> {
-        self.remember(|s| {
-            if s.source.id() != TextSourceId::Replacement(invocation) {
-                return Err(s.error(TextErrorKind::SourceMismatch));
-            }
-            s.drive(input)
-        })
-    }
-    #[cfg(test)]
-    pub(crate) fn advance_borrowed(&mut self) -> Result<TextStep, TextError> {
-        self.advance_borrowed_bounded(usize::MAX)
-    }
-    pub(crate) fn advance_borrowed_bounded(
-        &mut self,
-        maximum: usize,
-    ) -> Result<TextStep, TextError> {
-        self.remember(|s| {
-            let LeaseKind::Input {
-                mode:
-                    InputMode::Stable {
-                        input,
-                        decoded_start,
-                    },
-                decoded,
-                ..
-            } = &s.source.kind
-            else {
-                return Err(s.error(TextErrorKind::InvalidState));
-            };
-            let (input, start, position) = (*input, *decoded_start, *decoded);
-            let relative = position
-                .checked_sub(start)
-                .filter(|at| *at <= input.len())
-                .ok_or_else(|| s.error(TextErrorKind::InvalidState))?;
-            let available = &input.as_bytes()[relative..];
-            s.drive(&available[..available.len().min(maximum)])
-        })
+        self.drive(input)
     }
     pub(crate) fn finish_step(&mut self) -> Result<TextStep, TextError> {
-        self.remember(|s| {
-            if let LeaseKind::Input {
-                mode:
-                    InputMode::Stable {
-                        input,
-                        decoded_start,
-                    },
-                decoded,
-                ..
-            } = &s.source.kind
-                && decoded.checked_sub(*decoded_start) != Some(input.len())
-            {
-                return Err(s.error(TextErrorKind::InvalidState));
-            }
-            s.source.finalizing = true;
-            s.drive(&[])
-        })
+        self.source.finalizing = true;
+        self.drive(&[])
     }
     pub(crate) fn release_token(&mut self) -> Result<(), TextError> {
-        self.remember(|s| {
-            let pending = s.pending.clone();
-            match pending {
-                Pending::TokenReady => {
-                    s.source.release();
-                    s.pending = Pending::Scanning;
-                }
-                Pending::PrefixReady(extent) => {
-                    s.source.release();
-                    s.skip_general(&extent)?;
-                    s.pending = Pending::GeneralReady(extent);
-                }
-                _ => return Err(s.error(TextErrorKind::InvalidState)),
+        match self.pending.clone() {
+            Pending::TokenReady => {
+                self.source.release();
+                self.pending = Pending::Scanning;
             }
-            Ok(())
-        })
+            Pending::PrefixReady(extent) => {
+                self.source.release();
+                self.skip_general(&extent)?;
+                self.pending = Pending::GeneralReady(extent);
+            }
+            _ => return Err(self.error(ErrorKind::InvalidState)),
+        }
+        Ok(())
     }
     /// Drops a ready general reference as empty replacement text and resumes
     /// scanning the same source after it.
-    pub(crate) fn discard_general(&mut self) -> Result<(), TextError> {
-        self.remember(|s| {
-            if !matches!(s.pending, Pending::GeneralReady(_)) {
-                return Err(s.error(TextErrorKind::InvalidState));
-            }
-            if let Some(reference) = &mut s.shared.reference {
-                reference.release();
-            }
-            s.pending = Pending::Scanning;
-            Ok(())
-        })
+    pub(crate) fn discard_general(&mut self) {
+        self.release_general();
+        self.pending = Pending::Scanning;
     }
-    /// The caller acknowledges successful inclusion scheduling; no lookup or
-    /// frame mutation is performed here. Prefix acceptance already happened.
-    /// The source is left at a boundary for `source_mut` and `resume`, so the
-    /// large coordinator never moves per entity reference.
-    pub(crate) fn acknowledge_general_in_place(&mut self) -> Result<(), TextError> {
-        if let Some(error) = self.shared.failure {
-            return Err(error);
-        }
-        if !matches!(self.pending, Pending::GeneralReady(_)) {
-            return Err(self.error(TextErrorKind::InvalidState));
-        }
+    /// Releases a ready general reference whose entity the caller enters:
+    /// it switches or swaps the source and then calls `resume`.
+    pub(crate) fn release_general(&mut self) {
+        debug_assert!(matches!(self.pending, Pending::GeneralReady(_)));
         if let Some(reference) = &mut self.shared.reference {
             reference.release();
         }
-        self.source.boundary = true;
-        Ok(())
-    }
-    /// Leaves a completed source at a boundary, like `acknowledge_general_in_place`.
-    pub(crate) fn complete_in_place(&mut self) -> Result<(), TextError> {
-        if let Some(error) = self.shared.failure {
-            return Err(error);
-        }
-        if !matches!(self.pending, Pending::Complete) {
-            return Err(self.error(TextErrorKind::InvalidState));
-        }
-        self.source.boundary = true;
-        Ok(())
     }
     /// The boundary source, to switch to a new invocation or swap for another.
     pub(crate) fn source_mut(&mut self) -> &mut TextSourceLease<'input> {
@@ -728,471 +413,293 @@ impl<'input> TextCoordinator<'input> {
     /// Scans the (possibly replaced) source, as `new` would.
     pub(crate) fn resume(&mut self) -> Result<(), TextError> {
         self.shared.check_source(&self.source)?;
-        self.source.boundary = false;
         self.pending = Pending::Scanning;
         Ok(())
     }
-    #[cfg(test)]
-    pub(crate) fn acknowledge_general(mut self) -> Result<TextHandoff<'input>, TextError> {
-        self.acknowledge_general_in_place()?;
-        Ok(TextHandoff {
-            shared: self.shared,
-            source: self.source,
-        })
-    }
-    #[cfg(test)]
-    pub(crate) fn take_complete(mut self) -> Result<TextHandoff<'input>, TextError> {
-        self.complete_in_place()?;
-        Ok(TextHandoff {
-            shared: self.shared,
-            source: self.source,
-        })
-    }
     fn drive(&mut self, input: &[u8]) -> Result<TextStep, TextError> {
         if self.source.finalizing && !input.is_empty() {
-            return Err(self.error(TextErrorKind::InvalidState));
+            return Err(self.error(ErrorKind::InvalidState));
         }
         let mut consumed = 0;
         loop {
             let outcome = match &self.pending {
-                Pending::TokenReady | Pending::PrefixReady(_) => Some(TextOutcome::TokenReady),
-                Pending::GeneralReady(_) => Some(TextOutcome::GeneralReferenceReady),
-                Pending::Complete => Some(TextOutcome::Complete),
-                _ => None,
-            };
-            if let Some(outcome) = outcome {
-                return Ok(TextStep { consumed, outcome });
-            }
-            match self.pending {
+                Pending::TokenReady | Pending::PrefixReady(_) => TextOutcome::TokenReady,
+                Pending::GeneralReady(_) => TextOutcome::GeneralReferenceReady,
+                Pending::Complete => TextOutcome::Complete,
                 Pending::Scanning => {
                     let step = self.scan(&input[consumed..])?;
                     consumed += step.consumed;
                     match step.stop {
-                        ContentStop::TokenReady => {
-                            self.pending = Pending::TokenReady;
-                        }
-                        ContentStop::ReferenceStart => {
-                            let cursor = self.cursor()?;
-                            if let Some(reference) = &mut self.shared.reference {
-                                reference.restart(cursor.decoded_position()).map_err(|e| {
-                                    TextError {
-                                        kind: TextErrorKind::Reference(e.kind),
-                                        source: self.source.id(),
-                                        offset: e.offset,
-                                    }
-                                })?;
-                            } else {
-                                self.shared.reference = Some(ReferenceScratch::new(
-                                    cursor.decoded_position(),
-                                    self.shared.limits.reference,
-                                ));
-                            }
-                            self.pending = Pending::Collecting(cursor);
-                        }
+                        ContentStop::TokenReady => self.pending = Pending::TokenReady,
+                        ContentStop::ReferenceStart => self.start_reference()?,
+                        ContentStop::Exhausted if self.source.finalizing => self.finish_source()?,
                         ContentStop::Exhausted => {
-                            if self.source.finalizing {
-                                self.finish_source()?;
-                            } else {
-                                return Ok(TextStep {
-                                    consumed,
-                                    outcome: TextOutcome::NeedInput,
-                                });
-                            }
+                            return Ok(TextStep {
+                                consumed,
+                                outcome: TextOutcome::NeedInput,
+                            });
                         }
                     }
+                    continue;
                 }
                 Pending::Collecting(cursor) => {
-                    if consumed == input.len() {
-                        if self.source.finalizing {
-                            let source = self.source.id();
-                            let reference = self.shared.reference.as_mut().ok_or(TextError {
-                                kind: TextErrorKind::InvalidState,
-                                source,
-                                offset: self.source.offset(),
-                            })?;
-                            let global_cap = reference.usage().work.saturating_add(
-                                self.shared.limits.max_work - self.shared.usage.work,
-                            );
-                            reference.cap_work(global_cap);
-                            let before = reference.usage();
-                            let result = reference.finish_step();
-                            self.sync_reference(before)?;
-                            result.map_err(|e| self.reference_error(e, cursor, global_cap))?;
-                            return Err(self.error(TextErrorKind::InvalidState));
-                        }
-                        return Ok(TextStep {
-                            consumed,
-                            outcome: TextOutcome::NeedInput,
-                        });
-                    }
-                    let source = self.source.id();
-                    let offset = self.source.offset();
-                    let reference = self.shared.reference.as_mut().ok_or(TextError {
-                        kind: TextErrorKind::InvalidState,
-                        source,
-                        offset,
-                    })?;
-                    let global_cap = reference
-                        .usage()
-                        .work
-                        .saturating_add(self.shared.limits.max_work - self.shared.usage.work);
-                    reference.cap_work(global_cap);
-                    // A whole simple ASCII reference cannot fail before its `;`, so
-                    // it is fed at once; anything else goes byte by byte.
-                    let rest = &input[consumed..];
-                    let byte = memchr::memchr(b';', &rest[..rest.len().min(64)])
-                        .map(|end| &rest[..=end])
-                        .filter(|window| {
-                            window.len() > 2
-                                && window[1..window.len() - 1]
-                                    .iter()
-                                    .all(|b| b.is_ascii_alphanumeric() || b"_-.:#".contains(b))
-                                && reference.fits(window)
-                                && cursor.checked_advance(window).is_ok()
-                        })
-                        .unwrap_or(&rest[..1]);
-                    let next = cursor
-                        .checked_advance(byte)
-                        .map_err(|e| self.cursor_error(e))?;
-                    let reference = self.shared.reference.as_mut().expect("checked scratch");
-                    let before = reference.usage();
-                    let before_position = reference.position();
-                    let result = reference.advance(byte);
-                    let accepted = reference.position() - before_position;
-                    if accepted != 0 {
-                        consumed += accepted;
-                        self.accept_reference_cursor(next);
-                        self.pending = Pending::Collecting(next);
-                    }
-                    self.sync_reference(before)?;
-                    result.map_err(|e| self.reference_error(e, next, global_cap))?;
-                    let Some(view) = self
-                        .shared
-                        .reference
-                        .as_ref()
-                        .and_then(ReferenceScratch::validated)
-                    else {
+                    let cursor = *cursor;
+                    if consumed < input.len() {
+                        self.collect(cursor, &input[consumed..], &mut consumed)?;
                         continue;
-                    };
-                    let extent = next.finish(view).map_err(|e| self.cursor_error(e))?;
-                    if view.kind() == ReferenceKind::General {
-                        if self.flush_prefix()? {
-                            self.pending = Pending::PrefixReady(extent);
-                        } else {
-                            self.skip_general(&extent)?;
-                            self.pending = Pending::GeneralReady(extent);
-                        }
+                    }
+                    if !self.source.finalizing {
+                        TextOutcome::NeedInput
                     } else {
-                        self.append_character(&extent)?;
-                        if let Some(reference) = &mut self.shared.reference {
-                            reference.release();
-                        }
-                        self.pending = Pending::Scanning;
+                        let result = self.reference(ReferenceScratch::finish_step)?;
+                        result.map_err(|error| self.reference_error(error, cursor))?;
+                        return Err(self.error(ErrorKind::InvalidState));
                     }
                 }
-                _ => return Err(self.error(TextErrorKind::InvalidState)),
+            };
+            return Ok(TextStep { consumed, outcome });
+        }
+    }
+    fn start_reference(&mut self) -> Result<(), TextError> {
+        let cursor = self.cursor()?;
+        let start = cursor.decoded_position();
+        match &mut self.shared.reference {
+            Some(reference) => reference.restart(start),
+            None => {
+                let limits = self.shared.limits;
+                self.shared.reference =
+                    Some(ReferenceScratch::new(start, limits.token, limits.work));
             }
         }
+        self.pending = Pending::Collecting(cursor);
+        Ok(())
+    }
+    /// Feeds reference bytes from `rest`, then completes a validated spelling.
+    fn collect(
+        &mut self,
+        cursor: ReferenceCursor,
+        rest: &[u8],
+        consumed: &mut usize,
+    ) -> Result<(), TextError> {
+        let source = self.source.id();
+        let remaining = self.shared.remaining_work();
+        let reference = self.shared.reference.as_mut().expect("collecting scratch");
+        reference.cap_work(reference.work().saturating_add(remaining));
+        // A whole simple ASCII reference cannot fail before its `;`, so it is
+        // fed at once; anything else goes byte by byte.
+        let bytes = memchr::memchr(b';', &rest[..rest.len().min(64)])
+            .map(|end| &rest[..=end])
+            .filter(|window| {
+                window.len() > 2
+                    && window[1..window.len() - 1]
+                        .iter()
+                        .all(|b| b.is_ascii_alphanumeric() || b"_-.:#".contains(b))
+                    && reference.fits(window)
+                    && cursor.checked_advance(window).is_ok()
+            })
+            .unwrap_or(&rest[..1]);
+        let next = cursor
+            .checked_advance(bytes)
+            .map_err(TextError::at(source))?;
+        let mut accepted = 0;
+        let result = self.reference(|reference| {
+            let before = reference.position();
+            let result = reference.advance(bytes);
+            accepted = reference.position() - before;
+            result
+        });
+        if accepted != 0 {
+            *consumed += accepted;
+            if let LeaseKind::Input {
+                decoded, physical, ..
+            } = &mut self.source.kind
+            {
+                *decoded = next.decoded_position();
+                *physical = next.input_position().unwrap_or(*physical);
+            }
+            self.pending = Pending::Collecting(next);
+        }
+        result?.map_err(|error| self.reference_error(error, next))?;
+        let Some(view) = self
+            .shared
+            .reference
+            .as_ref()
+            .and_then(ReferenceScratch::validated)
+        else {
+            return Ok(());
+        };
+        let extent = next.finish(view).map_err(TextError::at(source))?;
+        if view.kind() == ReferenceKind::General {
+            if self.flush_prefix()? {
+                self.pending = Pending::PrefixReady(extent);
+            } else {
+                self.skip_general(&extent)?;
+                self.pending = Pending::GeneralReady(extent);
+            }
+        } else {
+            self.append_character(&extent)?;
+            if let Some(reference) = &mut self.shared.reference {
+                reference.release();
+            }
+            self.pending = Pending::Scanning;
+        }
+        Ok(())
+    }
+    /// Runs one reference-scratch operation within the remaining work, then
+    /// charges what it spent; the operation's own result comes back inside.
+    fn reference<T>(
+        &mut self,
+        operation: impl FnOnce(&mut ReferenceScratch) -> Result<T, Error>,
+    ) -> Result<Result<T, Error>, TextError> {
+        let (source, offset) = (self.source.id(), self.source.offset());
+        let remaining = self.shared.remaining_work();
+        let reference = self.shared.reference.as_mut().expect("collecting scratch");
+        let before = reference.work();
+        reference.cap_work(before.saturating_add(remaining));
+        let result = operation(reference);
+        let spent = reference.work() - before;
+        self.shared.charge_external_work(spent, source, offset)?;
+        Ok(result)
+    }
+    /// Runs one local-tokenizer operation within the remaining work, then
+    /// charges what it spent.
+    fn local<T>(
+        &mut self,
+        operation: impl FnOnce(&mut LocalTokenizer) -> Result<T, Error>,
+    ) -> Result<T, TextError> {
+        let source = self.source.id();
+        let remaining = self.shared.remaining_work();
+        let LeaseKind::Local { tokenizer, .. } = &mut self.source.kind else {
+            unreachable!("local source")
+        };
+        let before = tokenizer.work();
+        tokenizer.cap_work(before.saturating_add(remaining));
+        let result = operation(tokenizer);
+        let (spent, offset) = (tokenizer.work() - before, tokenizer.position());
+        self.shared.charge_external_work(spent, source, offset)?;
+        result.map_err(TextError::at(source))
     }
     fn scan(&mut self, input: &[u8]) -> Result<ContentStep, TextError> {
         let source = self.source.id();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
-        match &mut self.source.kind {
-            LeaseKind::Input {
-                tokenizer,
-                decoded,
-                physical,
-                ..
-            } => {
-                let before = tokenizer.position;
-                let length = input.len().min(remaining);
-                let safe = checked_input_prefix(tokenizer, &input[..length]);
-                let position_blocked = safe < length;
-                let result = tokenizer.advance_content(&input[..safe]);
-                let scanned = tokenizer.position - before;
-                self.shared.usage.source_scanned += scanned;
-                charge(&mut self.shared, source, *physical, scanned)?;
-                *decoded = tokenizer.position;
-                *physical = tokenizer.source_position;
-                let step = result.map_err(|e| TextError {
-                    kind: TextErrorKind::Xml(e.kind),
-                    source,
-                    offset: e.offset,
-                })?;
-                if position_blocked && step.stop == ContentStop::Exhausted {
-                    return Err(TextError {
-                        kind: TextErrorKind::PositionOverflow,
-                        source,
-                        offset: *physical,
-                    });
-                }
-                if step.stop == ContentStop::TokenReady {
-                    validate_input(&mut self.shared, tokenizer)?;
-                }
-                if length < input.len() && step.stop == ContentStop::Exhausted {
-                    return Err(TextError {
-                        kind: TextErrorKind::Work,
-                        source,
-                        offset: *physical,
-                    });
-                }
-                Ok(step)
-            }
-            LeaseKind::Local {
-                tokenizer,
-                native_work,
-                ..
-            } => {
-                let before = tokenizer.usage();
-                let cap = before.work.saturating_add(remaining);
-                tokenizer.cap_work(cap);
-                let result = tokenizer.advance_content(input);
-                let after = tokenizer.usage();
-                sync_local(
-                    &mut self.shared,
-                    source,
-                    tokenizer.position(),
-                    before,
-                    after,
-                )?;
-                result.map_err(|e| local_error(source, e, cap, *native_work))
-            }
+        let remaining = self.shared.remaining_work();
+        let LeaseKind::Input {
+            tokenizer,
+            decoded,
+            physical,
+            ..
+        } = &mut self.source.kind
+        else {
+            return self.local(|tokenizer| tokenizer.advance_content(input));
+        };
+        let before = tokenizer.position;
+        let length = input.len().min(remaining);
+        let safe = checked_input_prefix(tokenizer, &input[..length]);
+        let result = tokenizer.advance_content(&input[..safe]);
+        let scanned = tokenizer.position - before;
+        self.shared
+            .charge_external_work(scanned, source, *physical)?;
+        *decoded = tokenizer.position;
+        *physical = tokenizer.source_position;
+        let step = result.map_err(TextError::at(source))?;
+        let exhausted = step.stop == ContentStop::Exhausted;
+        let error = |kind| TextError {
+            kind,
+            source,
+            offset: *physical,
+        };
+        if safe < length && exhausted {
+            return Err(error(ErrorKind::InvalidState));
         }
+        if step.stop == ContentStop::TokenReady {
+            validate_input(&mut self.shared, tokenizer)?;
+        }
+        if length < input.len() && exhausted {
+            return Err(error(WORK));
+        }
+        Ok(step)
     }
     fn cursor(&mut self) -> Result<ReferenceCursor, TextError> {
         let source = self.source.id();
         match &mut self.source.kind {
-            LeaseKind::Input { tokenizer, .. } => {
-                tokenizer.reference_cursor().map_err(|e| TextError {
-                    kind: TextErrorKind::Xml(e.kind),
-                    source,
-                    offset: e.offset,
-                })
-            }
-            LeaseKind::Local { tokenizer, .. } => {
-                tokenizer.reference_cursor().map_err(|e| TextError {
-                    kind: TextErrorKind::Local(e.kind),
-                    source,
-                    offset: e.offset,
-                })
-            }
+            LeaseKind::Input { tokenizer, .. } => tokenizer.reference_cursor(),
+            LeaseKind::Local { tokenizer, .. } => tokenizer.reference_cursor(),
         }
+        .map_err(TextError::at(source))
     }
     fn flush_prefix(&mut self) -> Result<bool, TextError> {
         let source = self.source.id();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
-        match &mut self.source.kind {
-            LeaseKind::Input { tokenizer, .. } => {
-                let ready = tokenizer
-                    .flush_text_before_reference()
-                    .map_err(|e| TextError {
-                        kind: TextErrorKind::Xml(e.kind),
-                        source,
-                        offset: e.offset,
-                    })?;
-                if ready {
-                    validate_input(&mut self.shared, tokenizer)?;
-                }
-                Ok(ready)
-            }
-            LeaseKind::Local {
-                tokenizer,
-                native_work,
-                ..
-            } => {
-                let before = tokenizer.usage();
-                let cap = before.work.saturating_add(remaining);
-                tokenizer.cap_work(cap);
-                let result = tokenizer.flush_text_before_reference();
-                let after = tokenizer.usage();
-                sync_local(
-                    &mut self.shared,
-                    source,
-                    tokenizer.position(),
-                    before,
-                    after,
-                )?;
-                result.map_err(|e| local_error(source, e, cap, *native_work))
-            }
+        let LeaseKind::Input { tokenizer, .. } = &mut self.source.kind else {
+            return self.local(LocalTokenizer::flush_text_before_reference);
+        };
+        let ready = tokenizer
+            .flush_text_before_reference()
+            .map_err(TextError::at(source))?;
+        if ready {
+            validate_input(&mut self.shared, tokenizer)?;
         }
+        Ok(ready)
     }
     fn append_character(&mut self, extent: &ReferenceExtent) -> Result<(), TextError> {
-        let source = self.source.id();
-        let offset = self.source.offset();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
-        let reference = self
-            .shared
-            .reference
-            .as_ref()
-            .and_then(ReferenceScratch::validated)
-            .ok_or(TextError {
-                kind: TextErrorKind::InvalidState,
-                source,
-                offset,
-            })?;
-        match &mut self.source.kind {
+        let (source, offset) = (self.source.id(), self.source.offset());
+        // The scratch steps aside so the tokenizers can borrow its spelling.
+        let reference = self.shared.reference.take().expect("validated scratch");
+        let view = reference.validated().expect("validated reference");
+        let result = match &mut self.source.kind {
             LeaseKind::Input { tokenizer, .. } => {
-                let length = reference.raw().len();
                 // Charge before the possible token-buffer reservation.
-                let next = self
+                let result = self
                     .shared
-                    .usage
-                    .work
-                    .checked_add(length)
-                    .filter(|n| *n <= self.shared.limits.max_work)
-                    .ok_or(TextError {
-                        kind: TextErrorKind::Work,
-                        source,
-                        offset,
-                    })?;
-                self.shared.usage.work = next;
-                tokenizer
-                    .append_character_reference(reference, extent)
-                    .map_err(|e| TextError {
-                        kind: TextErrorKind::Xml(e.kind),
-                        source,
-                        offset: e.offset,
-                    })?;
-                self.shared.usage.appended_reference_copied += length;
-                Ok(())
+                    .charge_external_work(view.raw().len(), source, offset);
+                result.and_then(|()| {
+                    tokenizer
+                        .append_character_reference(view, extent)
+                        .map_err(TextError::at(source))
+                })
             }
-            LeaseKind::Local {
-                tokenizer,
-                native_work,
-                ..
-            } => {
-                let before = tokenizer.usage();
-                let cap = before.work.saturating_add(remaining);
-                tokenizer.cap_work(cap);
-                let result = tokenizer.append_character_reference(reference, extent);
-                let after = tokenizer.usage();
-                sync_local(
-                    &mut self.shared,
-                    source,
-                    tokenizer.position(),
-                    before,
-                    after,
-                )?;
-                result.map_err(|e| local_error(source, e, cap, *native_work))
+            LeaseKind::Local { .. } => {
+                self.local(|tokenizer| tokenizer.append_character_reference(view, extent))
             }
-        }
+        };
+        self.shared.reference = Some(reference);
+        result
     }
     fn skip_general(&mut self, extent: &ReferenceExtent) -> Result<(), TextError> {
         let source = self.source.id();
-        let offset = self.source.offset();
-        let reference = self
+        let view = self
             .shared
             .reference
             .as_ref()
             .and_then(ReferenceScratch::validated)
-            .ok_or(TextError {
-                kind: TextErrorKind::InvalidState,
-                source,
-                offset,
-            })?;
+            .expect("validated reference");
         match &mut self.source.kind {
-            LeaseKind::Input { tokenizer, .. } => tokenizer
-                .skip_general_reference(reference, extent)
-                .map_err(|e| TextError {
-                    kind: TextErrorKind::Xml(e.kind),
-                    source,
-                    offset: e.offset,
-                }),
-            LeaseKind::Local { tokenizer, .. } => tokenizer
-                .skip_general_reference(reference, extent)
-                .map_err(|e| TextError {
-                    kind: TextErrorKind::Local(e.kind),
-                    source,
-                    offset: e.offset,
-                }),
+            LeaseKind::Input { tokenizer, .. } => tokenizer.skip_general_reference(view, extent),
+            LeaseKind::Local { tokenizer, .. } => tokenizer.skip_general_reference(view, extent),
         }
+        .map_err(TextError::at(source))
     }
     fn finish_source(&mut self) -> Result<(), TextError> {
         let source = self.source.id();
-        let remaining = self.shared.limits.max_work - self.shared.usage.work;
         let ready = match &mut self.source.kind {
             LeaseKind::Input { tokenizer, .. } => {
-                tokenizer.finish_step().map_err(|e| TextError {
-                    kind: TextErrorKind::Xml(e.kind),
-                    source,
-                    offset: e.offset,
-                })?;
+                tokenizer.finish_step().map_err(TextError::at(source))?;
                 let ready = tokenizer.current().is_some();
                 if ready {
                     validate_input(&mut self.shared, tokenizer)?;
                 }
                 ready
             }
-            LeaseKind::Local {
-                tokenizer,
-                native_work,
-                ..
-            } => {
-                let before = tokenizer.usage();
-                let cap = before.work.saturating_add(remaining);
-                tokenizer.cap_work(cap);
-                let result = tokenizer.finish_step();
-                let after = tokenizer.usage();
-                sync_local(
-                    &mut self.shared,
-                    source,
-                    tokenizer.position(),
-                    before,
-                    after,
-                )?;
-                result.map_err(|e| local_error(source, e, cap, *native_work))?;
-                tokenizer.current().is_some()
-            }
+            LeaseKind::Local { .. } => self.local(|tokenizer| {
+                tokenizer.finish_step()?;
+                Ok(tokenizer.current().is_some())
+            })?,
         };
-        self.pending = if ready {
-            Pending::TokenReady
-        } else {
-            Pending::Complete
+        self.pending = match ready {
+            true => Pending::TokenReady,
+            false => Pending::Complete,
         };
         Ok(())
     }
-    fn accept_reference_cursor(&mut self, cursor: ReferenceCursor) {
-        if let LeaseKind::Input {
-            decoded, physical, ..
-        } = &mut self.source.kind
-        {
-            *decoded = cursor.decoded_position();
-            if let Some(end) = cursor.input_position() {
-                *physical = end;
-            }
-        }
-    }
-    fn sync_reference(
-        &mut self,
-        before: crate::dtd_reference::ReferenceUsage,
-    ) -> Result<(), TextError> {
-        let after = self
-            .shared
-            .reference
-            .as_ref()
-            .ok_or_else(|| self.error(TextErrorKind::InvalidState))?
-            .usage();
-        let source = self.source.id();
-        let offset = self.source.offset();
-        charge(&mut self.shared, source, offset, after.work - before.work)?;
-        self.shared.usage.reference_scanned += after.scanned - before.scanned;
-        self.shared.usage.reference_copied += after.copied - before.copied;
-        self.shared.usage.reference_classified += after.classified - before.classified;
-        Ok(())
-    }
-    fn reference_error(
-        &self,
-        error: ReferenceError,
-        cursor: ReferenceCursor,
-        global_cap: usize,
-    ) -> TextError {
-        let kind = if error.kind == ReferenceErrorKind::Limit(ReferenceLimit::Work)
-            && global_cap <= self.shared.limits.reference.max_work
-        {
-            TextErrorKind::Work
-        } else {
-            TextErrorKind::Reference(error.kind)
-        };
+    fn reference_error(&self, error: Error, cursor: ReferenceCursor) -> TextError {
         let raw = self
             .shared
             .reference
@@ -1200,37 +707,17 @@ impl<'input> TextCoordinator<'input> {
             .map(ReferenceScratch::collected_bytes)
             .unwrap_or(&[]);
         TextError {
-            kind,
+            kind: error.kind,
             source: self.source.id(),
             offset: cursor.map_offset(raw, error.offset),
         }
     }
-    fn cursor_error(&self, error: ReferenceCursorError) -> TextError {
-        TextError {
-            kind: TextErrorKind::Cursor(error.kind),
-            source: self.source.id(),
-            offset: error.offset,
-        }
-    }
-    fn error(&self, kind: TextErrorKind) -> TextError {
+    fn error(&self, kind: ErrorKind) -> TextError {
         TextError {
             kind,
             source: self.source.id(),
             offset: self.source.offset(),
         }
-    }
-    fn remember<T>(
-        &mut self,
-        operation: impl FnOnce(&mut Self) -> Result<T, TextError>,
-    ) -> Result<T, TextError> {
-        if let Some(error) = self.shared.failure {
-            return Err(error);
-        }
-        let result = operation(self);
-        if let Err(error) = result {
-            self.shared.failure = Some(error);
-        }
-        result
     }
 }
 fn checked_input_prefix(tokenizer: &Tokenizer, input: &[u8]) -> usize {
@@ -1257,93 +744,25 @@ fn checked_input_prefix(tokenizer: &Tokenizer, input: &[u8]) -> usize {
     }
     input.len()
 }
-fn charge(
-    shared: &mut TextShared,
-    source: TextSourceId,
-    offset: usize,
-    amount: usize,
-) -> Result<(), TextError> {
-    shared.usage.work = shared
-        .usage
-        .work
-        .checked_add(amount)
-        .filter(|n| *n <= shared.limits.max_work)
-        .ok_or(TextError {
-            kind: TextErrorKind::Work,
-            source,
-            offset,
-        })?;
-    Ok(())
-}
-fn sync_local(
-    shared: &mut TextShared,
-    source: TextSourceId,
-    offset: usize,
-    before: super::local::LocalUsage,
-    after: super::local::LocalUsage,
-) -> Result<(), TextError> {
-    charge(shared, source, offset, after.work - before.work)?;
-    shared.usage.source_scanned += after.scanned - before.scanned;
-    shared.usage.validated += after.validated - before.validated;
-    shared.usage.appended_reference_copied += after.reference_copied - before.reference_copied;
-    Ok(())
-}
-fn local_error(
-    source: TextSourceId,
-    error: LocalError,
-    global_cap: usize,
-    native: usize,
-) -> TextError {
-    TextError {
-        kind: if error.kind == LocalErrorKind::Work && global_cap <= native {
-            TextErrorKind::Work
-        } else {
-            TextErrorKind::Local(error.kind)
-        },
-        source,
-        offset: error.offset,
-    }
-}
 fn validate_input(shared: &mut TextShared, tokenizer: &Tokenizer) -> Result<(), TextError> {
-    let Some((kind, bytes, span)) = tokenizer.current() else {
-        return Err(TextError {
-            kind: TextErrorKind::InvalidState,
-            source: TextSourceId::Input,
-            offset: tokenizer.source_position,
-        });
+    let input = |kind, offset| TextError {
+        kind,
+        source: TextSourceId::Input,
+        offset,
     };
-    charge(shared, TextSourceId::Input, span.source.start, bytes.len())?;
-    shared.usage.validated += bytes.len();
+    let (kind, bytes, span) = tokenizer.current().expect("ready input token");
+    shared.charge_external_work(bytes.len(), TextSourceId::Input, span.source.start)?;
     if kind == TokenKind::InvalidMarkup {
         return Ok(());
     }
-    let raw = std::str::from_utf8(bytes).map_err(|e| TextError {
-        kind: TextErrorKind::Xml(ErrorKind::InvalidUtf8),
-        source: TextSourceId::Input,
-        offset: span.source.start + e.valid_up_to(),
-    })?;
+    let raw = std::str::from_utf8(bytes)
+        .map_err(|e| input(ErrorKind::InvalidUtf8, span.source.start + e.valid_up_to()))?;
     if let Some(offset) = invalid_char(raw) {
         let mapped = span.map_error(
             raw,
             Error::new(ErrorKind::InvalidCharacter, span.decoded.start + offset),
         );
-        return Err(TextError {
-            kind: TextErrorKind::Xml(mapped.kind),
-            source: TextSourceId::Input,
-            offset: mapped.offset,
-        });
+        return Err(input(mapped.kind, mapped.offset));
     }
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_text_coordinator_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_text_coordinator_spec.rs"]
-mod spec_tests;
-
-#[cfg(test)]
-#[path = "../../tests/internal/dtd_text_work_ledger.rs"]
-mod work_ledger_tests;

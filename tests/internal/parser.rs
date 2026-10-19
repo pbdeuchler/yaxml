@@ -1,7 +1,7 @@
 use super::*;
-use crate::dtd::LiteralSource;
-use crate::dtd_catalog::{CatalogLimits, DtdCatalog};
-use crate::dtd_tag::{DtdTagErrorKind, DtdTagLocation, prepare_dtd_tag};
+use crate::dtd::{DtdLimits, LiteralSource};
+use crate::dtd_catalog::DtdCatalog;
+use crate::dtd_tag::prepare_dtd_tag;
 
 impl ParserState<'_> {
     pub(crate) fn retained_snapshot(&self) -> [(usize, usize); 4] {
@@ -35,7 +35,7 @@ fn generated_start_with_short_source(source: &str) -> Event<'static> {
             Ok(Cow::Borrowed(raw))
         })
         .unwrap();
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
     let generated = String::from("<p:child/>");
     state
         .process_dtd_start_owned(&generated, source.len(), &mut catalog)
@@ -56,10 +56,11 @@ fn generated_start_owns_names_and_an_inherited_borrowed_namespace() {
     let mut state = ParserState::new(Limits::default(), 0);
     let raw = state.collect_raw_tag("<p:child/>", 11).unwrap();
     let prepared = prepare_dtd_tag(
-        &mut DtdCatalog::new(CatalogLimits::default(), false),
+        &mut DtdCatalog::new(DtdLimits::STANDALONE, false),
         state.owned_budget(),
         raw,
         LiteralSource::Physical,
+        false,
     )
     .unwrap();
     assert_eq!(
@@ -81,16 +82,13 @@ fn generated_namespace_copy_limit_fails_before_publication() {
             Ok(Cow::Borrowed(raw))
         })
         .unwrap();
-    let mut catalog = DtdCatalog::new(CatalogLimits::default(), false);
+    let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
     let start = source.len();
     let error = state
         .process_dtd_start_owned("<p:c/>", start, &mut catalog)
         .unwrap_err();
-    assert_eq!(
-        error.kind,
-        DtdTagErrorKind::Parser(ErrorKind::LimitExceeded(Limit::OwnedBytes))
-    );
-    assert_eq!(error.location, DtdTagLocation::Input(start + 1));
+    assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
+    assert_eq!(error.offset, Some(start + 1));
     assert_eq!(state.element_depth(), 1);
     assert_eq!(state.events, 1);
 }
@@ -132,7 +130,7 @@ fn generated_end_is_owned_and_failures_cannot_pop_the_current_frame() {
         .process_dtd_end_owned("</p:r>", source.len())
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
-    assert_eq!(error.local_offset, source.len() + 2);
+    assert_eq!(error.offset, source.len() + 2);
     assert_eq!(state.element_depth(), 1);
     assert_eq!(state.events, events);
 
@@ -158,7 +156,7 @@ fn generated_end_is_owned_and_failures_cannot_pop_the_current_frame() {
         .process_dtd_end_owned("</p:r>", source.len())
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
-    assert_eq!(error.local_offset, source.len() + 2);
+    assert_eq!(error.offset, source.len() + 2);
     assert_eq!(state.element_depth(), 1);
     assert_eq!(state.events, 1);
     assert_eq!(state.budget.remaining_owned(), 0);
@@ -201,21 +199,21 @@ fn generated_leaves_preserve_replacement_eol_and_do_not_rescan_final_data() {
         )
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::InvalidDeclaration);
-    assert_eq!(error.local_offset, 40);
+    assert_eq!(error.offset, 40);
     assert_eq!(state.events, before);
 
     let error = state
         .process_dtd_leaf_owned(DtdLeafKind::Cdata, "<![CDATA[x]]>", 70..84)
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::InvalidState);
-    assert_eq!(error.local_offset, 70);
+    assert_eq!(error.offset, 70);
 
     let before = state.events;
     let error = state
         .process_dtd_leaf_owned(DtdLeafKind::Text, "π&missing;", 90..101)
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::UnknownEntity);
-    assert_eq!(error.local_offset, 92);
+    assert_eq!(error.offset, 92);
     assert_eq!(state.events, before);
 }
 
@@ -228,7 +226,7 @@ fn generated_text_rejects_prolog_and_epilog_before_spending_resources() {
             .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 7..7 + raw.len())
             .unwrap_err();
         assert_eq!(error.kind, ErrorKind::TextOutsideRoot);
-        assert_eq!(error.local_offset, prolog_offset);
+        assert_eq!(error.offset, prolog_offset);
         assert_eq!(state.budget.remaining_owned(), before);
         assert_eq!(state.events, 0);
 
@@ -239,7 +237,7 @@ fn generated_text_rejects_prolog_and_epilog_before_spending_resources() {
             .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 11..11 + raw.len())
             .unwrap_err();
         assert_eq!(error.kind, ErrorKind::TextOutsideRoot);
-        assert_eq!(error.local_offset, prolog_offset + 4);
+        assert_eq!(error.offset, prolog_offset + 4);
         assert_eq!(state.budget.remaining_owned(), before);
         assert_eq!(state.events, events);
     }
@@ -283,7 +281,7 @@ fn generated_leaf_copy_quota_is_exact_for_unicode_bytes() {
         .process_dtd_leaf_owned(DtdLeafKind::Text, "π", 3..5)
         .unwrap_err();
     assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
-    assert_eq!(error.local_offset, 3);
+    assert_eq!(error.offset, 3);
     assert_eq!(short.events, 1);
 }
 

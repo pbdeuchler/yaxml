@@ -1,6 +1,6 @@
 use std::io::{self, BufRead};
 
-use crate::stream::dtd::{SessionError, SessionOutcome, SessionStep, StreamingSession};
+use crate::stream::dtd::{SessionOutcome, SessionStep, StreamingSession};
 use crate::tokenizer::TokenKind;
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limit, Limits, ReadError, SourceOrigin};
 
@@ -143,7 +143,7 @@ impl<R: BufRead> BufferedReader<R> {
             self.pending = false;
             self.session
                 .acknowledge()
-                .map_err(|error| ReadError::Xml(error.into()))
+                .map_err(ReadError::Xml)
                 .and_then(|()| self.prepare())
         } else {
             self.prepare()
@@ -166,7 +166,6 @@ impl<R: BufRead> BufferedReader<R> {
         match self.session.lend() {
             Ok(event) => Ok(Some(event)),
             Err(error) => {
-                let error = Error::from(error);
                 self.status = Status::Xml(error);
                 Err(ReadError::Xml(error))
             }
@@ -186,10 +185,7 @@ impl<R: BufRead> BufferedReader<R> {
             if checked_consumed(before, self.position(), 0, &result).is_none() {
                 return Err(ReadError::Xml(self.invalid_state()));
             }
-            match result
-                .map_err(|error| ReadError::Xml(error.into()))?
-                .outcome
-            {
+            match result.map_err(ReadError::Xml)?.outcome {
                 SessionOutcome::Ready => return Ok(true),
                 SessionOutcome::Complete => return Ok(false),
                 SessionOutcome::NeedInput => {}
@@ -225,10 +221,7 @@ impl<R: BufRead> BufferedReader<R> {
             if consumed != 0 {
                 self.input.consume(consumed);
             }
-            match result
-                .map_err(|error| ReadError::Xml(error.into()))?
-                .outcome
-            {
+            match result.map_err(ReadError::Xml)?.outcome {
                 SessionOutcome::Ready => return Ok(true),
                 SessionOutcome::Complete => return Ok(false),
                 SessionOutcome::NeedInput if consumed == 0 => {
@@ -312,7 +305,7 @@ fn checked_consumed(
     before: usize,
     after: usize,
     offered: usize,
-    result: &Result<SessionStep, SessionError>,
+    result: &Result<SessionStep, Error>,
 ) -> Option<usize> {
     let delta = after.checked_sub(before)?;
     let consumed = result.as_ref().map_or(delta, |step| step.consumed);

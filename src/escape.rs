@@ -114,36 +114,39 @@ fn normalize(
 
 /// The character named by a predefined or numeric reference body.
 fn reference(entity: &str, offset: usize) -> Result<char, Error> {
-    Ok(match entity {
+    match entity.strip_prefix('#') {
+        Some(number) => numeric_reference(number).ok_or(ErrorKind::InvalidReference),
+        None => predefined(entity).ok_or(ErrorKind::UnknownEntity),
+    }
+    .map_err(|kind| Error::new(kind, offset))
+}
+
+/// The character of a predefined entity.
+pub(crate) fn predefined(name: &str) -> Option<char> {
+    Some(match name {
         "lt" => '<',
         "gt" => '>',
         "amp" => '&',
         "apos" => '\'',
         "quot" => '"',
-        _ if entity.starts_with('#') => {
-            let (digits, radix) = match entity.strip_prefix("#x") {
-                Some(s) => (s, 16),
-                None => (&entity[1..], 10),
-            };
-            if digits.is_empty()
-                || !digits.bytes().all(|b| {
-                    if radix == 16 {
-                        b.is_ascii_hexdigit()
-                    } else {
-                        b.is_ascii_digit()
-                    }
-                })
-            {
-                return Err(Error::new(ErrorKind::InvalidReference, offset));
-            }
-            u32::from_str_radix(digits, radix)
-                .ok()
-                .and_then(char::from_u32)
-                .filter(|c| xml_char(*c))
-                .ok_or(Error::new(ErrorKind::InvalidReference, offset))?
-        }
-        _ => return Err(Error::new(ErrorKind::UnknownEntity, offset)),
+        _ => return None,
     })
+}
+
+/// The character named by the digits of a character reference after `&#`,
+/// with a leading `x` for hexadecimal.
+pub(crate) fn numeric_reference(number: &str) -> Option<char> {
+    let (digits, radix) = match number.strip_prefix('x') {
+        Some(digits) => (digits, 16),
+        None => (number, 10),
+    };
+    if digits.is_empty() || !digits.chars().all(|digit| digit.is_digit(radix)) {
+        return None;
+    }
+    u32::from_str_radix(digits, radix)
+        .ok()
+        .and_then(char::from_u32)
+        .filter(|c| xml_char(*c))
 }
 
 #[cfg(test)]

@@ -9,13 +9,12 @@ use std::collections::HashSet;
 
 use super::Out;
 use crate::dtd::{
-    AttributeTypeView, Connector, DefaultDeclarationView, DtdUnitView, ElementContentView,
+    AttributeKind, Connector, DefaultDeclarationView, DtdLimits, DtdUnitView, ElementContentView,
     EntityDefinitionView, ExternalIdView, ModelTokenView, Occurrence,
 };
-use crate::dtd_catalog::{DefaultValue, DtdCatalog};
+use crate::dtd_catalog::DtdCatalog;
 use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::parser::Budget;
-use crate::stream::dtd::SessionLimits;
 use crate::{DecodeLimits, Doctype, Limits};
 
 pub(super) fn doctype(out: &mut Out, doctype: &Doctype<'_>) {
@@ -65,13 +64,13 @@ fn declarations(name: &str, subset: &str, notations: &mut Out, out: &mut Out) ->
         max_dtd_bytes: defaults.max_dtd_bytes.max(text.len()),
         ..defaults
     };
-    let options = SessionLimits::new(limits, DecodeLimits::default()).declarations;
-    let mut controller = DtdController::stable_utf8(&text, 0, 0, options, false).ok()?;
+    let options = DtdLimits::new(limits, DecodeLimits::default());
+    let mut controller = DtdController::stable_utf8(&text, 0, 0, options, false);
     let mut budget = Budget::new(limits);
     let (mut seen, mut declared) = (HashSet::new(), false);
     while !controller.is_complete() {
         match controller.current() {
-            Some((DtdEvent::Item { unit, .. }, _)) => {
+            Some((DtdEvent::Item(unit), _)) => {
                 let view = unit.view();
                 declared |= declaration(view, controller.catalog(), &mut seen, notations, out);
             }
@@ -121,21 +120,23 @@ fn declaration(
                 out.raw(element);
                 out.raw(" ");
                 out.raw(definition.name());
-                let (keyword, values) = match definition.attribute_type() {
-                    AttributeTypeView::Cdata => (" CDATA", None),
-                    AttributeTypeView::Id => (" ID", None),
-                    AttributeTypeView::IdRef => (" IDREF", None),
-                    AttributeTypeView::IdRefs => (" IDREFS", None),
-                    AttributeTypeView::Entity => (" ENTITY", None),
-                    AttributeTypeView::Entities => (" ENTITIES", None),
-                    AttributeTypeView::NmToken => (" NMTOKEN", None),
-                    AttributeTypeView::NmTokens => (" NMTOKENS", None),
-                    AttributeTypeView::Enumeration(values) => (" (", Some(values)),
-                    AttributeTypeView::Notation(values) => (" NOTATION (", Some(values)),
-                };
-                out.raw(keyword);
-                if let Some(values) = values {
-                    for (index, value) in values.enumerate() {
+                out.raw(match definition.kind() {
+                    AttributeKind::Cdata => " CDATA",
+                    AttributeKind::Id => " ID",
+                    AttributeKind::IdRef => " IDREF",
+                    AttributeKind::IdRefs => " IDREFS",
+                    AttributeKind::Entity => " ENTITY",
+                    AttributeKind::Entities => " ENTITIES",
+                    AttributeKind::NmToken => " NMTOKEN",
+                    AttributeKind::NmTokens => " NMTOKENS",
+                    AttributeKind::Enumeration => " (",
+                    AttributeKind::Notation => " NOTATION (",
+                });
+                if matches!(
+                    definition.kind(),
+                    AttributeKind::Enumeration | AttributeKind::Notation
+                ) {
+                    for (index, value) in definition.values().enumerate() {
                         if index > 0 {
                             out.raw(" | ");
                         }
@@ -146,12 +147,9 @@ fn declaration(
                 let (keyword, literal) = match definition.default() {
                     DefaultDeclarationView::Required => (" #REQUIRED", None),
                     DefaultDeclarationView::Implied => (" #IMPLIED", None),
-                    DefaultDeclarationView::Value {
-                        fixed,
-                        quoted_literal,
-                    } => (
+                    DefaultDeclarationView::Value { fixed, literal } => (
                         if fixed { " #FIXED" } else { "" },
-                        Some(unquote(quoted_literal)),
+                        Some(literal.content().0),
                     ),
                 };
                 out.raw(keyword);
@@ -159,11 +157,8 @@ fn declaration(
                     // The stored default: references expanded, then normalized.
                     let value = catalog
                         .attributes(element)
-                        .find(|binding| binding.name() == definition.name())
-                        .and_then(|binding| match binding.default() {
-                            DefaultValue::Value { value, .. } => Some(value),
-                            _ => None,
-                        })
+                        .find(|binding| binding.name == definition.name())
+                        .and_then(|binding| binding.default.value())
                         .unwrap_or(literal);
                     out.raw(" \"");
                     out.text(value, true);
@@ -185,8 +180,8 @@ fn declaration(
                 out.raw(entity.name());
                 out.raw(" ");
                 match entity.definition() {
-                    EntityDefinitionView::Internal { quoted_literal } => {
-                        out.quoted(unquote(quoted_literal), true)
+                    EntityDefinitionView::Internal(literal) => {
+                        out.quoted(literal.content().0, true)
                     }
                     EntityDefinitionView::External {
                         identifier,

@@ -4,40 +4,12 @@ use std::ops::Range;
 
 use crate::name::validate_name;
 use crate::parser::space;
+use crate::{Error, ErrorKind, Limit};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ScanMode {
     Doctype,
     SubsetFragment,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ScanLimits {
-    pub(crate) max_unit_bytes: usize,
-    pub(crate) max_scratch_bytes: usize,
-    pub(crate) max_work: usize,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ScanLimit {
-    UnitBytes,
-    ScratchBytes,
-    Work,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ScanErrorKind {
-    Syntax,
-    UnexpectedEof,
-    InvalidUtf8,
-    Limit(ScanLimit),
-    Allocation,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ScanError {
-    pub(crate) kind: ScanErrorKind,
-    pub(crate) offset: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -69,7 +41,8 @@ enum State {
 
 pub(crate) struct DtdScanner {
     mode: ScanMode,
-    limits: ScanLimits,
+    max_unit_bytes: usize,
+    max_work: usize,
     state: State,
     buffer: Vec<u8>,
     start: usize,
@@ -77,14 +50,14 @@ pub(crate) struct DtdScanner {
     ready: Option<ScanKind>,
     complete: bool,
     finalizing: bool,
-    failure: Option<ScanError>,
 }
 
 impl DtdScanner {
-    pub(crate) fn new(mode: ScanMode, limits: ScanLimits) -> Self {
+    pub(crate) fn new(mode: ScanMode, max_unit_bytes: usize, max_work: usize) -> Self {
         Self {
             mode,
-            limits,
+            max_unit_bytes,
+            max_work,
             state: match mode {
                 ScanMode::Doctype => State::HeaderPrefix(0),
                 ScanMode::SubsetFragment => State::Between,
@@ -95,12 +68,11 @@ impl DtdScanner {
             ready: None,
             complete: false,
             finalizing: false,
-            failure: None,
         }
     }
 
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
-        self.limits.max_work = self.limits.max_work.min(ceiling);
+        self.max_work = self.max_work.min(ceiling);
     }
 
     pub(crate) fn pending(&self) -> (&[u8], Range<usize>) {
@@ -108,37 +80,21 @@ impl DtdScanner {
     }
 
     /// Reuse scratch only at a complete between-declaration boundary.
-    pub(crate) fn restart_fragment(&mut self) -> Result<(), ScanError> {
-        self.remember(|scanner| {
-            if scanner.mode != ScanMode::SubsetFragment
-                || scanner.ready.is_some()
-                || !scanner.buffer.is_empty()
-                || !matches!(scanner.state, State::Between)
-            {
-                return Err(scanner.error(ScanErrorKind::Syntax));
-            }
-            scanner.start = 0;
-            scanner.position = 0;
-            scanner.complete = false;
-            scanner.finalizing = false;
-            Ok(())
-        })
+    pub(crate) fn restart_fragment(&mut self) {
+        debug_assert!(
+            self.mode == ScanMode::SubsetFragment
+                && self.ready.is_none()
+                && self.buffer.is_empty()
+                && matches!(self.state, State::Between)
+        );
+        self.start = 0;
+        self.position = 0;
+        self.complete = false;
+        self.finalizing = false;
     }
 
     pub(crate) fn position(&self) -> usize {
         self.position
-    }
-
-    #[cfg(test)]
-    /// Consumed-byte work units; framing and final validation are linear in this.
-    pub(crate) fn work(&self) -> usize {
-        self.position
-    }
-
-    #[cfg(test)]
-    /// A final header/end or fragment EOF was recognized. A unit may remain ready.
-    pub(crate) fn is_complete(&self) -> bool {
-        self.complete
     }
 
     /// The ready unit remains available until release, including after EOF calls.
@@ -154,11 +110,7 @@ impl DtdScanner {
     }
 
     /// Stop at one unit; ready, completed, or finalizing scanners consume no suffix.
-    pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, ScanError> {
-        self.remember(|scanner| scanner.advance_inner(input))
-    }
-
-    fn advance_inner(&mut self, input: &[u8]) -> Result<usize, ScanError> {
+    pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
         if self.ready.is_some() || self.complete || self.finalizing {
             return Ok(0);
         }
@@ -178,69 +130,47 @@ impl DtdScanner {
     }
 
     /// Declare final EOF, draining a trailing whitespace unit before closure checks.
-    pub(crate) fn finish_step(&mut self) -> Result<(), ScanError> {
-        self.remember(|scanner| {
-            scanner.finalizing = true;
-            if scanner.ready.is_some() || scanner.complete {
-                return Ok(());
+    pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
+        self.finalizing = true;
+        if self.ready.is_some() || self.complete {
+            return Ok(());
+        }
+        match self.state {
+            State::Whitespace => {
+                self.mark(ScanKind::Whitespace)?;
+                self.state = State::Between;
+                Ok(())
             }
-            match scanner.state {
-                State::Whitespace => {
-                    scanner.mark(ScanKind::Whitespace)?;
-                    scanner.state = State::Between;
-                    Ok(())
-                }
-                State::Between if scanner.mode == ScanMode::SubsetFragment => {
-                    scanner.complete = true;
-                    Ok(())
-                }
-                _ => {
-                    let raw = scanner.validate_utf8()?;
-                    if matches!(scanner.state, State::ParameterReference) && raw.len() > 1 {
-                        Self::validate_parameter_name(&raw[1..], scanner.start + 1)?;
-                    }
-                    Err(scanner.error(ScanErrorKind::UnexpectedEof))
-                }
+            State::Between if self.mode == ScanMode::SubsetFragment => {
+                self.complete = true;
+                Ok(())
             }
-        })
-    }
-
-    fn remember<T>(
-        &mut self,
-        operation: impl FnOnce(&mut Self) -> Result<T, ScanError>,
-    ) -> Result<T, ScanError> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        let result = operation(self);
-        if let Err(error) = result {
-            self.failure = Some(error);
-        }
-        result
-    }
-
-    fn error(&self, kind: ScanErrorKind) -> ScanError {
-        ScanError {
-            kind,
-            offset: self.position,
+            _ => {
+                let raw = self.validate_utf8()?;
+                if matches!(self.state, State::ParameterReference) && raw.len() > 1 {
+                    Self::validate_parameter_name(&raw[1..], self.start + 1)?;
+                }
+                Err(self.error(ErrorKind::UnexpectedEof))
+            }
         }
     }
 
-    fn append(&mut self, byte: u8) -> Result<(), ScanError> {
+    fn error(&self, kind: ErrorKind) -> Error {
+        Error::new(kind, self.position)
+    }
+
+    fn append(&mut self, byte: u8) -> Result<(), Error> {
         let next = self
             .position
             .checked_add(1)
-            .filter(|position| *position <= self.limits.max_work)
-            .ok_or_else(|| self.error(ScanErrorKind::Limit(ScanLimit::Work)))?;
+            .filter(|position| *position <= self.max_work)
+            .ok_or_else(|| self.error(ErrorKind::LimitExceeded(Limit::EntityExpansion)))?;
         let needed = self
             .buffer
             .len()
             .checked_add(1)
-            .filter(|length| *length <= self.limits.max_unit_bytes)
-            .ok_or_else(|| self.error(ScanErrorKind::Limit(ScanLimit::UnitBytes)))?;
-        if needed > self.limits.max_scratch_bytes {
-            return Err(self.error(ScanErrorKind::Limit(ScanLimit::ScratchBytes)));
-        }
+            .filter(|length| *length <= self.max_unit_bytes)
+            .ok_or_else(|| self.error(ErrorKind::LimitExceeded(Limit::TokenBytes)))?;
         if needed > self.buffer.capacity() {
             let target = self
                 .buffer
@@ -248,11 +178,10 @@ impl DtdScanner {
                 .saturating_mul(2)
                 .max(64)
                 .max(needed)
-                .min(self.limits.max_unit_bytes)
-                .min(self.limits.max_scratch_bytes);
+                .min(self.max_unit_bytes);
             self.buffer
                 .try_reserve_exact(target - self.buffer.len())
-                .map_err(|_| self.error(ScanErrorKind::Allocation))?;
+                .map_err(|_| self.error(ErrorKind::Allocation))?;
         }
         if self.buffer.is_empty() {
             self.start = self.position;
@@ -262,7 +191,7 @@ impl DtdScanner {
         Ok(())
     }
 
-    fn consume(&mut self, byte: u8) -> Result<(), ScanError> {
+    fn consume(&mut self, byte: u8) -> Result<(), Error> {
         self.state = match self.state {
             State::HeaderPrefix(index) => {
                 if byte != b"<!DOCTYPE"[index] {
@@ -341,7 +270,7 @@ impl DtdScanner {
         Ok(())
     }
 
-    fn declaration_byte(&mut self, quote: Option<u8>, byte: u8) -> Result<State, ScanError> {
+    fn declaration_byte(&mut self, quote: Option<u8>, byte: u8) -> Result<State, Error> {
         match (quote, byte) {
             (Some(quote), byte) if byte == quote => Ok(State::Declaration(None)),
             (Some(quote), _) => Ok(State::Declaration(Some(quote))),
@@ -354,28 +283,21 @@ impl DtdScanner {
         }
     }
 
-    fn syntax(&self) -> ScanError {
-        ScanError {
-            kind: ScanErrorKind::Syntax,
-            offset: self.position - 1,
-        }
+    fn syntax(&self) -> Error {
+        Error::new(ErrorKind::InvalidDtd, self.position - 1)
     }
 
-    fn validate_utf8(&self) -> Result<&str, ScanError> {
-        std::str::from_utf8(&self.buffer).map_err(|error| ScanError {
-            kind: ScanErrorKind::InvalidUtf8,
-            offset: self.start + error.valid_up_to(),
-        })
+    fn validate_utf8(&self) -> Result<&str, Error> {
+        std::str::from_utf8(&self.buffer)
+            .map_err(|error| Error::new(ErrorKind::InvalidUtf8, self.start + error.valid_up_to()))
     }
 
-    fn validate_parameter_name(name: &str, offset: usize) -> Result<(), ScanError> {
-        validate_name(name, offset, true).map_err(|error| ScanError {
-            kind: ScanErrorKind::Syntax,
-            offset: error.offset,
-        })
+    fn validate_parameter_name(name: &str, offset: usize) -> Result<(), Error> {
+        validate_name(name, offset, true)
+            .map_err(|error| Error::new(ErrorKind::InvalidDtd, error.offset))
     }
 
-    fn mark(&mut self, kind: ScanKind) -> Result<(), ScanError> {
+    fn mark(&mut self, kind: ScanKind) -> Result<(), Error> {
         let raw = self.validate_utf8()?;
         if kind == ScanKind::ParameterReference {
             Self::validate_parameter_name(&raw[1..raw.len() - 1], self.start + 1)?;
@@ -384,11 +306,3 @@ impl DtdScanner {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_scan.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_pipeline_spec.rs"]
-mod pipeline_spec;

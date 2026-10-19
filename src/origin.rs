@@ -4,28 +4,10 @@ use std::ops::Range;
 use crate::{Error, ErrorKind};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct EntityDeclarationId(usize);
-
-impl EntityDeclarationId {
-    pub(crate) fn from_index(index: usize) -> Self {
-        Self(index)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn index(self) -> usize {
-        self.0
-    }
-}
+pub(crate) struct EntityId(pub(crate) usize);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct EntityInvocationId(pub(crate) NonZeroU64);
-
-#[cfg(test)]
-impl EntityInvocationId {
-    pub(crate) fn get(self) -> u64 {
-        self.0.get()
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ByteSpan {
@@ -60,7 +42,7 @@ pub(crate) enum OriginRepr {
         span: ByteSpan,
     },
     Replacement {
-        declaration: EntityDeclarationId,
+        declaration: EntityId,
         invocation: EntityInvocationId,
         local: ByteSpan,
         physical_reference: ByteSpan,
@@ -70,13 +52,6 @@ pub(crate) enum OriginRepr {
     },
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "replacement origins activate with the private DTD controller"
-    )
-)]
 impl OriginRepr {
     pub(crate) fn input(span: Range<usize>) -> Option<Self> {
         ByteSpan::new(span).map(|span| Self::Input { span })
@@ -280,11 +255,3 @@ impl SourceOrigin {
 #[cfg(test)]
 #[path = "../tests/internal/origin.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_provenance_author.rs"]
-mod provenance_author_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_provenance_spec.rs"]
-mod provenance_spec_tests;

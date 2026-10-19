@@ -790,3 +790,195 @@ fn single_byte_doctypes_decode_before_entity_processing() {
         }
     }
 }
+
+#[test]
+fn declaration_token_and_default_ceilings_fail_identically() {
+    use ErrorKind::{InvalidDtd, LimitExceeded};
+    let d = Limits::default();
+    let long_reference = format!("<!DOCTYPE r [<!ENTITY a 'x'>]><r>&{};</r>", "a".repeat(40));
+    let long_value = format!("<!DOCTYPE r [<!ENTITY e '{}'>]><r/>", "x".repeat(40));
+    let cases: &[(&str, Limits, ErrorKind, usize)] = &[
+        (
+            "<!DOCTYPE r [<!ENTITY lt SYSTEM 'x'>]><r/>",
+            d,
+            InvalidDtd,
+            13,
+        ),
+        (
+            "<!DOCTYPE r [<!ATTLIST r a CDATA 'x'><!ATTLIST r b CDATA 'y'>]><r/>",
+            Limits {
+                max_attributes: 1,
+                ..d
+            },
+            LimitExceeded(Limit::Attributes),
+            63,
+        ),
+        (
+            "<!DOCTYPE r [<!ATTLIST r a CDATA 'x'>]><r c='z'/>",
+            Limits {
+                max_attributes: 1,
+                ..d
+            },
+            LimitExceeded(Limit::Attributes),
+            39,
+        ),
+        (
+            "<!DOCTYPE r [<!ELEMENT r ((((a))))>]><r/>",
+            Limits { max_depth: 2, ..d },
+            LimitExceeded(Limit::Depth),
+            27,
+        ),
+        (
+            "<!DOCTYPE r [<!ELEMENT r (#PCDATA)>]><r/>",
+            Limits { max_depth: 0, ..d },
+            LimitExceeded(Limit::Depth),
+            25,
+        ),
+        (
+            &long_reference,
+            Limits {
+                max_token_bytes: 32,
+                ..d
+            },
+            LimitExceeded(Limit::TokenBytes),
+            33,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY a 'x'>]><r>xxxxxxxxxxxxxxxxxxxxxxxxxxxx&#x41;</r>",
+            Limits {
+                max_token_bytes: 32,
+                ..d
+            },
+            LimitExceeded(Limit::TokenBytes),
+            33,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY a 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx&#x41;'>]><r>&a;</r>",
+            Limits {
+                max_token_bytes: 32,
+                ..d
+            },
+            LimitExceeded(Limit::TokenBytes),
+            45,
+        ),
+        (
+            &long_value,
+            Limits {
+                max_token_bytes: 32,
+                ..d
+            },
+            LimitExceeded(Limit::TokenBytes),
+            45,
+        ),
+        (
+            "<!DOCTYPE r [<!-- a long comment here -->]><r/>",
+            Limits {
+                max_dtd_bytes: 20,
+                ..d
+            },
+            LimitExceeded(Limit::DtdBytes),
+            20,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY e 'xyz'>]><r>&e;&e;</r>",
+            Limits {
+                max_entity_references: 1,
+                ..d
+            },
+            LimitExceeded(Limit::EntityReferences),
+            38,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY e 'xyz'>]><r a='&e;&e;'/>",
+            Limits {
+                max_entity_references: 1,
+                ..d
+            },
+            LimitExceeded(Limit::EntityReferences),
+            41,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY e 'a]]>b'>]><r>&e;</r>",
+            d,
+            ErrorKind::Syntax,
+            37,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY % p ''>%p;%p;]><r/>",
+            Limits {
+                max_entity_references: 1,
+                ..d
+            },
+            LimitExceeded(Limit::EntityReferences),
+            32,
+        ),
+    ];
+    for &(input, limits, kind, offset) in cases {
+        assert_eq!(
+            all(input.as_bytes(), limits),
+            Err(Error { kind, offset }),
+            "{input}"
+        );
+    }
+    // Normalizing a tokenized value spends the string budget; streaming
+    // surfaces copy names too, so they stop earlier.
+    let input = b"<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]>\
+        <r a='   xxxxxxxxxxxxxxxxxxxxxxxx    yyyyyyyyyyyyyyyyyyyyy   '/>";
+    let owned = Limits {
+        max_owned_bytes: 60,
+        ..d
+    };
+    let error = |offset| {
+        Err(Error {
+            kind: LimitExceeded(Limit::OwnedBytes),
+            offset,
+        })
+    };
+    assert_eq!(reader(input, owned), error(56));
+    assert_eq!(push(input, &[], owned), error(45));
+}
+
+#[test]
+fn dtd_bytes_bound_only_the_doctype_and_input_bytes_the_document() {
+    use ErrorKind::LimitExceeded;
+    let body = "<e a='v'>text &e;</e>".repeat(20);
+    let small = format!("<!DOCTYPE r [<!ENTITY e 'x'>]><r>{body}</r>");
+    let large = format!("<!DOCTYPE r [<!ENTITY e '{}'>]><r>&e;</r>", "x".repeat(200));
+    let dtd = |max_dtd_bytes| Limits {
+        max_dtd_bytes,
+        ..Limits::default()
+    };
+    let input = Limits {
+        max_input_bytes: small.len() - 1,
+        ..Limits::default()
+    };
+    type Case<'a> = (&'a str, Limits, Option<(ErrorKind, usize)>);
+    let cases: &[Case<'_>] = &[
+        // Content after a small DOCTYPE may exceed max_dtd_bytes.
+        (&small, dtd(64), None),
+        (&small, dtd(small.len() / 4), None),
+        // The DOCTYPE itself, internal subset included, may not.
+        (
+            &large,
+            dtd(100),
+            Some((LimitExceeded(Limit::DtdBytes), 100)),
+        ),
+        (&large, dtd(large.find("]>").unwrap() + 2), None),
+        // Input bytes bound a document with a DOCTYPE as one without.
+        (&small, input, Some((LimitExceeded(Limit::InputBytes), 0))),
+    ];
+    for (input, limits, expected) in cases {
+        let result = all(input.as_bytes(), *limits);
+        match expected {
+            None => assert!(result.is_ok(), "{input}: {result:?}"),
+            Some((kind, offset)) => assert_eq!(
+                result,
+                Err(Error {
+                    kind: *kind,
+                    offset: *offset
+                }),
+                "{input}"
+            ),
+        }
+    }
+}

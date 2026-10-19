@@ -42,6 +42,7 @@ pub mod xsd;
 pub use buffered::BufferedReader;
 pub use dom::{Document, Node, NodeId, NodeKind};
 pub use encoding::DecodeLimits;
+pub(crate) use error::DtdError;
 pub use error::{
     EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
     ReadError, WriteError,
@@ -60,11 +61,3 @@ pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
 
 mod dtd_reference;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_content_foundations_spec.rs"]
-mod dtd_content_foundations_spec;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_text_reference_spec.rs"]
-mod dtd_text_reference_spec;

@@ -1,53 +1,24 @@
-//! Private internal-subset composition. No public XML parser enables this yet.
+//! Internal-subset composition: scanned units, parameter entities and the catalog.
 
-use std::ops::Range;
-
-use crate::dtd::{DoctypeHeaderView, DtdErrorKind, DtdLimits, DtdUnit, DtdUnitView};
-use crate::dtd_catalog::{
-    CatalogErrorKind, CatalogLimits, DeclarationContext, DtdCatalog, EntityId, EntityLookup,
-    LiteralSource, ValueLocation,
-};
-use crate::dtd_frames::{
-    ByteSpan, EntityDeclarationId, EntityFrames, EntityKind, EntityResolution, FragmentOrigin,
-    FrameBoundary, FrameErrorKind, FrameLimits, LookupFailure,
-};
-use crate::dtd_scan::{DtdScanner, ScanErrorKind, ScanKind, ScanLimits, ScanMode};
+use crate::dtd::{DtdLimits, DtdUnit, DtdUnitView};
+use crate::dtd_catalog::{DeclarationContext, DtdCatalog, EntityLookup, LiteralSource};
+use crate::dtd_frames::{EntityFrames, FragmentOrigin};
+use crate::dtd_scan::{DtdScanner, ScanKind, ScanMode};
 use crate::encoding::{SourceEncoding, TokenSpan};
 use crate::parser::Budget;
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, Limit};
 
 pub(crate) mod content;
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ControllerLimits {
-    pub(crate) scan: ScanLimits,
-    pub(crate) unit: DtdLimits,
-    pub(crate) catalog: CatalogLimits,
-    pub(crate) frames: FrameLimits,
-    pub(crate) max_physical_bytes: usize,
-    pub(crate) max_work: usize,
-    pub(crate) max_owned_bytes: usize,
-    /// Expansion allowed regardless of input size.
-    pub(crate) expansion_floor: usize,
-    /// Permitted expansion per consumed input byte above the floor.
-    pub(crate) amplification: usize,
-}
 
 /// libxml2's `XML_ENT_FIXED_COST`: charged per expansion so that empty or
 /// tiny entities cannot be referenced without bound.
 pub(crate) const ENTITY_FIXED_COST: usize = 20;
 
-impl ControllerLimits {
-    /// libxml2's `xmlParserEntityCheck` threshold for `consumed` input bytes.
-    pub(crate) fn expansion_allowance(&self, consumed: usize) -> usize {
-        self.expansion_floor
-            .max(consumed.saturating_mul(self.amplification))
-    }
-}
+const WORK: ErrorKind = ErrorKind::LimitExceeded(Limit::EntityExpansion);
 
 /// Splits the shared expansion allowance between the two expanding components.
 pub(crate) fn share_expansion(
-    limits: &ControllerLimits,
+    limits: &DtdLimits,
     consumed: usize,
     frames: &mut EntityFrames,
     catalog: &mut DtdCatalog,
@@ -69,94 +40,25 @@ pub(crate) fn share_expansion(
     catalog.set_amplification_ceiling(catalog_used.saturating_add(left));
 }
 
-impl Default for ControllerLimits {
-    fn default() -> Self {
-        Self {
-            scan: ScanLimits {
-                max_unit_bytes: 64 * 1024,
-                max_scratch_bytes: 64 * 1024,
-                max_work: 64 * 1024 * 1024,
-            },
-            unit: DtdLimits::default(),
-            catalog: CatalogLimits::default(),
-            frames: FrameLimits::default(),
-            max_physical_bytes: 16 * 1024 * 1024,
-            max_work: 64 * 1024 * 1024,
-            max_owned_bytes: 16 * 1024 * 1024,
-            expansion_floor: 1_000_000,
-            amplification: 5,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ControllerCounters {
     pub(crate) work: usize,
-    pub(crate) scanned_bytes: usize,
     pub(crate) owned_bytes: usize,
     pub(crate) physical_bytes: usize,
-    pub(crate) reference_attempts: usize,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ControllerLimit {
-    PhysicalBytes,
-    Work,
-    OwnedBytes,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ControllerErrorKind {
-    Scan(ScanErrorKind),
-    Grammar(DtdErrorKind),
-    Catalog(CatalogErrorKind),
-    Frame(FrameErrorKind),
-    Ownership(ErrorKind),
-    Limit(ControllerLimit),
-    PositionOverflow,
-    InvalidUnitFamily,
-    InvalidState,
-    Allocation,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ControllerError {
-    pub(crate) kind: ControllerErrorKind,
-    pub(crate) physical_offset: usize,
-    pub(crate) origin: Option<FragmentOrigin>,
-    pub(crate) local_offset: Option<usize>,
-    pub(crate) value_location: Option<ValueLocation>,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum DtdEvent<'a> {
-    Begin(
-        #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-        DoctypeHeaderView<'a>,
-    ),
-    Item {
-        unit: &'a DtdUnit<'a>,
-        #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-        literals: LiteralSource,
-    },
-    End,
-}
-
-#[cfg(test)]
-#[derive(Debug)]
-pub(crate) enum TakenDtdEvent<'a> {
-    Begin(DtdUnit<'a>),
-    Item {
-        unit: DtdUnit<'a>,
-        literals: LiteralSource,
-    },
+    Header,
+    /// A declaration, comment or processing instruction, after the catalog applied it.
+    Item(&'a DtdUnit<'a>),
     End,
 }
 
 #[derive(Clone, Copy)]
 enum Ready {
     Begin,
-    Item(LiteralSource),
+    Item,
     End,
 }
 #[derive(Clone, Copy)]
@@ -165,25 +67,13 @@ enum Side {
     Replacement,
 }
 
-#[derive(Clone, Copy)]
-enum PhysicalInput<'input> {
-    Streaming,
-    StableUtf8 {
-        source: &'input str,
-        source_start: usize,
-        source_end: usize,
-    },
-}
-
 pub(crate) struct DtdBodyState {
     catalog: DtdCatalog,
     frames: EntityFrames,
-    limits: ControllerLimits,
+    limits: DtdLimits,
     counters: ControllerCounters,
     decoded_position: usize,
     physical_position: usize,
-    #[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-    doctype_range: Range<usize>,
     encoding: SourceEncoding,
 }
 
@@ -192,44 +82,35 @@ pub(crate) struct DtdControllerCore<'input> {
     fragment: DtdScanner,
     catalog: DtdCatalog,
     frames: EntityFrames,
-    active: Vec<EntityId>,
-    input: PhysicalInput<'input>,
+    /// Complete UTF-8 input whose declarations are parsed in place, with the
+    /// physical offset of its first byte; absent for streamed input.
+    stable: Option<(&'input str, usize)>,
     encoding: SourceEncoding,
     start: usize,
     decoded_start: usize,
     position: usize,
     unit_start: usize,
-    limits: ControllerLimits,
+    limits: DtdLimits,
     counters: ControllerCounters,
-    unit: Option<DtdUnit<'input>>,
     ready: Option<Ready>,
+    /// The ready item's unit, for consumers that read declarations.
+    unit: Option<DtdUnit<'input>>,
     origin: Option<FragmentOrigin>,
     held_end: Option<FragmentOrigin>,
     started: bool,
     finalizing: bool,
     complete: bool,
-    failure: Option<ControllerError>,
 }
 
 pub(crate) type DtdController = DtdControllerCore<'static>;
 pub(crate) type BorrowedDtdController<'input> = DtdControllerCore<'input>;
 
 impl DtdControllerCore<'static> {
-    #[cfg(test)]
-    pub(crate) fn new(
-        encoding: SourceEncoding,
-        physical_start: usize,
-        limits: ControllerLimits,
-        standalone: bool,
-    ) -> Self {
-        Self::new_at(encoding, physical_start, physical_start, limits, standalone)
-    }
-
     pub(crate) fn new_at(
         encoding: SourceEncoding,
         physical_start: usize,
         decoded_start: usize,
-        limits: ControllerLimits,
+        limits: DtdLimits,
         standalone: bool,
     ) -> Self {
         Self::with_input(
@@ -238,41 +119,28 @@ impl DtdControllerCore<'static> {
             decoded_start,
             limits,
             standalone,
-            PhysicalInput::Streaming,
+            None,
         )
     }
 
+    /// Parses the DOCTYPE starting at `physical_start` of `source`, whose
+    /// first byte is at physical offset `source_start`.
     pub(crate) fn stable_utf8<'input>(
         source: &'input str,
         source_start: usize,
         physical_start: usize,
-        limits: ControllerLimits,
+        limits: DtdLimits,
         standalone: bool,
-    ) -> Result<BorrowedDtdController<'input>, ControllerError> {
-        let source_end = source_start.checked_add(source.len()).ok_or_else(|| {
-            standalone_error(ControllerErrorKind::PositionOverflow, physical_start)
-        })?;
-        let relative = physical_start
-            .checked_sub(source_start)
-            .ok_or_else(|| standalone_error(ControllerErrorKind::InvalidState, physical_start))?;
-        if physical_start > source_end || !source.is_char_boundary(relative) {
-            return Err(standalone_error(
-                ControllerErrorKind::InvalidState,
-                physical_start,
-            ));
-        }
-        Ok(DtdControllerCore::with_input(
+    ) -> BorrowedDtdController<'input> {
+        debug_assert!(source.is_char_boundary(physical_start - source_start));
+        DtdControllerCore::with_input(
             SourceEncoding::Utf8,
             physical_start,
             physical_start,
             limits,
             standalone,
-            PhysicalInput::StableUtf8 {
-                source,
-                source_start,
-                source_end,
-            },
-        ))
+            Some((source, source_start)),
+        )
     }
 }
 
@@ -281,17 +149,16 @@ impl<'input> DtdControllerCore<'input> {
         encoding: SourceEncoding,
         physical_start: usize,
         decoded_start: usize,
-        limits: ControllerLimits,
+        limits: DtdLimits,
         standalone: bool,
-        input: PhysicalInput<'input>,
+        stable: Option<(&'input str, usize)>,
     ) -> Self {
         Self {
-            physical: DtdScanner::new(ScanMode::Doctype, limits.scan),
-            fragment: DtdScanner::new(ScanMode::SubsetFragment, limits.scan),
-            catalog: DtdCatalog::new(limits.catalog, standalone),
-            frames: EntityFrames::new(limits.frames),
-            active: Vec::new(),
-            input,
+            physical: DtdScanner::new(ScanMode::Doctype, limits.token, limits.work),
+            fragment: DtdScanner::new(ScanMode::SubsetFragment, limits.token, limits.work),
+            catalog: DtdCatalog::new(limits, standalone),
+            frames: EntityFrames::new(limits),
+            stable,
             encoding,
             start: physical_start,
             decoded_start,
@@ -299,26 +166,18 @@ impl<'input> DtdControllerCore<'input> {
             unit_start: physical_start,
             limits,
             counters: ControllerCounters::default(),
-            unit: None,
             ready: None,
+            unit: None,
             origin: None,
             held_end: None,
             started: false,
             finalizing: false,
             complete: false,
-            failure: None,
         }
     }
 
     pub(crate) fn physical_position(&self) -> usize {
         self.position
-    }
-    #[cfg(test)]
-    pub(crate) fn counters(&self) -> ControllerCounters {
-        self.counters
-    }
-    pub(crate) fn catalog(&self) -> &DtdCatalog {
-        &self.catalog
     }
     pub(crate) fn is_complete(&self) -> bool {
         self.complete
@@ -326,59 +185,23 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn start(&self) -> usize {
         self.start
     }
-    #[cfg(test)]
-    pub(crate) fn doctype_range(&self) -> Option<Range<usize>> {
-        self.complete.then_some(self.start..self.position)
+    pub(crate) fn catalog(&self) -> &DtdCatalog {
+        &self.catalog
     }
-
     pub(crate) fn current(&self) -> Option<(DtdEvent<'_>, FragmentOrigin)> {
         let event = match self.ready? {
-            Ready::Begin => match self.unit.as_ref()?.view() {
-                DtdUnitView::Header(header) => DtdEvent::Begin(header),
-                _ => unreachable!("checked header event"),
-            },
-            Ready::Item(literals) => DtdEvent::Item {
-                unit: self.unit.as_ref()?,
-                literals,
-            },
+            Ready::Begin => DtdEvent::Header,
+            Ready::Item => DtdEvent::Item(self.unit.as_ref()?),
             Ready::End => DtdEvent::End,
         };
         Some((event, self.origin?))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn take_current(&mut self) -> Option<(TakenDtdEvent<'input>, FragmentOrigin)> {
-        let ready = self.ready?;
-        let _origin = self.origin.expect("ready DTD event has an origin");
-        if matches!(ready, Ready::Begin | Ready::Item(_)) {
-            self.unit.as_ref().expect("ready DTD unit is retained");
-        } else {
-            assert!(self.unit.is_none(), "DTD End does not retain a unit");
-        }
-        let ready = self.ready.take().expect("checked ready DTD event");
-        let origin = self.origin.take().expect("checked ready DTD origin");
-        let event = match ready {
-            Ready::Begin => TakenDtdEvent::Begin(self.unit.take().expect("checked retained unit")),
-            Ready::Item(literals) => TakenDtdEvent::Item {
-                unit: self.unit.take().expect("checked retained unit"),
-                literals,
-            },
-            Ready::End => TakenDtdEvent::End,
-        };
-        self.finish_release(ready);
-        Some((event, origin))
     }
 
     pub(crate) fn release(&mut self) {
         let Some(ready) = self.ready.take() else {
             return;
         };
-        self.unit = None;
-        self.origin = None;
-        self.finish_release(ready);
-    }
-
-    fn finish_release(&mut self, ready: Ready) {
+        (self.origin, self.unit) = (None, None);
         if matches!(ready, Ready::Begin)
             && let Some(end) = self.held_end.take()
         {
@@ -389,62 +212,26 @@ impl<'input> DtdControllerCore<'input> {
         }
     }
 
-    pub(crate) fn advance(
-        &mut self,
-        input: &[u8],
-        budget: &mut Budget,
-    ) -> Result<usize, ControllerError> {
-        self.remember(|controller| {
-            if !matches!(controller.input, PhysicalInput::Streaming) {
-                return Err(controller.simple_error(ControllerErrorKind::InvalidState));
-            }
-            controller.drive(if controller.finalizing { &[] } else { input }, budget)
-        })
+    pub(crate) fn advance(&mut self, input: &[u8], budget: &mut Budget) -> Result<usize, Error> {
+        self.drive(if self.finalizing { &[] } else { input }, budget)
     }
 
-    pub(crate) fn advance_borrowed(
-        &mut self,
-        budget: &mut Budget,
-    ) -> Result<usize, ControllerError> {
-        self.remember(|controller| {
-            let PhysicalInput::StableUtf8 {
-                source,
-                source_start,
-                source_end,
-            } = controller.input
-            else {
-                return Err(controller.simple_error(ControllerErrorKind::InvalidState));
-            };
-            if controller.finalizing {
-                return controller.drive(&[], budget);
-            }
-            let relative = controller
-                .position
-                .checked_sub(source_start)
-                .ok_or_else(|| controller.simple_error(ControllerErrorKind::InvalidState))?;
-            let remaining = source
-                .get(relative..)
-                .ok_or_else(|| controller.simple_error(ControllerErrorKind::InvalidState))?;
-            let consumed = controller.drive(remaining.as_bytes(), budget)?;
-            if controller.ready.is_none()
-                && !controller.complete
-                && controller.position == source_end
-            {
-                controller.finalizing = true;
-                controller.drive(&[], budget)?;
-            }
-            Ok(consumed)
-        })
+    pub(crate) fn advance_borrowed(&mut self, budget: &mut Budget) -> Result<usize, Error> {
+        let (source, source_start) = self.stable.expect("stable input");
+        if self.finalizing {
+            return self.drive(&[], budget);
+        }
+        let consumed = self.drive(&source.as_bytes()[self.position - source_start..], budget)?;
+        if self.ready.is_none() && !self.complete && self.position == source_start + source.len() {
+            self.finalizing = true;
+            self.drive(&[], budget)?;
+        }
+        Ok(consumed)
     }
 
-    pub(crate) fn finish_step(&mut self, budget: &mut Budget) -> Result<(), ControllerError> {
-        self.remember(|controller| {
-            if !matches!(controller.input, PhysicalInput::Streaming) {
-                return Err(controller.simple_error(ControllerErrorKind::InvalidState));
-            }
-            controller.finalizing = true;
-            controller.drive(&[], budget).map(|_| ())
-        })
+    pub(crate) fn finish_step(&mut self, budget: &mut Budget) -> Result<(), Error> {
+        self.finalizing = true;
+        self.drive(&[], budget).map(|_| ())
     }
 
     pub(crate) fn set_loader(&mut self, loader: crate::resolve::Loader) {
@@ -452,46 +239,25 @@ impl<'input> DtdControllerCore<'input> {
     }
 
     /// Completes the declarations, loading the external subset last as libxml2 does.
-    pub(crate) fn into_body_state(mut self) -> Result<DtdBodyState, ControllerError> {
-        if let Some(error) = self.failure {
-            return Err(error);
+    pub(crate) fn into_body_state(mut self) -> Result<DtdBodyState, Error> {
+        if let Err(error) = self.catalog.include_subset() {
+            return Err(self.simple_error(error.kind));
         }
-        if self.complete
-            && let Err(error) = self.catalog.include_subset()
-        {
-            return Err(self.simple_error(ControllerErrorKind::Catalog(error.kind)));
-        }
-        if !self.complete
-            || self.ready.is_some()
-            || self.unit.is_some()
-            || self.origin.is_some()
-            || self.held_end.is_some()
-            || !self.active.is_empty()
-            || self.frames.depth() != 0
-        {
-            return Err(self.simple_error(ControllerErrorKind::InvalidState));
-        }
-        let doctype_range = self.start..self.position;
-        let decoded_position = self
-            .decoded_start
-            .checked_add(self.physical.position())
-            .ok_or_else(|| self.simple_error(ControllerErrorKind::PositionOverflow))?;
         Ok(DtdBodyState {
             catalog: self.catalog,
             frames: self.frames,
             limits: self.limits,
             counters: self.counters,
-            decoded_position,
+            decoded_position: self.decoded_start + self.physical.position(),
             physical_position: self.position,
-            doctype_range,
             encoding: self.encoding,
         })
     }
 
-    fn drive(&mut self, input: &[u8], budget: &mut Budget) -> Result<usize, ControllerError> {
+    fn drive(&mut self, input: &[u8], budget: &mut Budget) -> Result<usize, Error> {
         let mut cursor = 0;
         while self.ready.is_none() && !self.complete {
-            if !self.active.is_empty() {
+            if self.frames.top().is_some() {
                 self.drive_replacement(budget)?;
                 continue;
             }
@@ -502,7 +268,7 @@ impl<'input> DtdControllerCore<'input> {
             if cursor == input.len() {
                 if self.finalizing {
                     if let Err(error) = self.physical.finish_step() {
-                        return Err(self.scan_error(Side::Physical, error.kind, error.offset));
+                        return Err(self.scan_error(Side::Physical, error));
                     }
                     if self.physical.current().is_some() {
                         continue;
@@ -512,120 +278,85 @@ impl<'input> DtdControllerCore<'input> {
             }
             let byte = input[cursor];
             let cost = self.encoding.source_length(std::slice::from_ref(&byte));
-            let next = self
-                .position
-                .checked_add(cost)
-                .ok_or_else(|| self.simple_error(ControllerErrorKind::PositionOverflow))?;
             let physical_block = self
                 .counters
                 .physical_bytes
                 .checked_add(cost)
-                .is_none_or(|count| count > self.limits.max_physical_bytes);
-            let global_remaining = self.limits.max_work - self.counters.work;
-            let scan_remaining = self.limits.scan.max_work - self.counters.scanned_bytes;
-            let remaining = global_remaining.min(scan_remaining);
+                .is_none_or(|count| count > self.limits.declarations);
+            // The scanner's own work ceiling stops it when either budget runs out.
+            let remaining = if physical_block {
+                0
+            } else {
+                self.limits.work - self.counters.work
+            };
             self.physical
                 .cap_work(self.physical.position().saturating_add(remaining));
-            if physical_block {
-                self.physical.cap_work(self.physical.position());
-            }
             let before = self.physical.position();
             let result = self.physical.advance(std::slice::from_ref(&byte));
             let consumed = self.physical.position() - before;
             self.counters.work += consumed;
-            self.counters.scanned_bytes += consumed;
             if consumed != 0 {
-                self.position = next;
+                self.position += cost;
                 self.counters.physical_bytes += cost;
                 cursor += consumed;
             }
             if let Err(error) = result {
-                if error.kind == ScanErrorKind::Limit(crate::dtd_scan::ScanLimit::Work)
-                    && (physical_block || global_remaining == 0)
-                {
-                    return Err(
-                        self.simple_error(ControllerErrorKind::Limit(if physical_block {
-                            ControllerLimit::PhysicalBytes
-                        } else {
-                            ControllerLimit::Work
-                        })),
-                    );
-                }
-                return Err(self.scan_error(Side::Physical, error.kind, error.offset));
+                return Err(match error.kind {
+                    WORK if physical_block => {
+                        self.simple_error(ErrorKind::LimitExceeded(Limit::DtdBytes))
+                    }
+                    WORK => self.simple_error(WORK),
+                    _ => self.scan_error(Side::Physical, error),
+                });
             }
         }
         Ok(cursor)
     }
 
-    fn drive_replacement(&mut self, budget: &mut Budget) -> Result<(), ControllerError> {
+    fn drive_replacement(&mut self, budget: &mut Budget) -> Result<(), Error> {
         if self.fragment.current().is_some() {
             return self.process_ready(Side::Replacement, budget);
         }
-        let id = *self.active.last().expect("active parameter source");
-        let declaration = EntityDeclarationId::from_index(id.index());
-        let replacement = self
-            .catalog
-            .replacement(id)
-            .expect("active immutable replacement");
-        let source = self
-            .frames
-            .current(declaration, replacement)
-            .map_err(|error| self.frame_error(error))?;
-        let pending = self.fragment.pending().0.len();
-        let cursor = source.local_start + pending;
+        let frame = self.frames.top().expect("active parameter source");
+        let replacement = self.catalog.replacement(frame.entity).expect("replacement");
+        let cursor = frame.cursor + self.fragment.pending().0.len();
         if cursor == replacement.len() {
             if let Err(error) = self.fragment.finish_step() {
-                return Err(self.scan_error(Side::Replacement, error.kind, error.offset));
+                return Err(self.scan_error(Side::Replacement, error));
             }
             if self.fragment.current().is_some() {
                 return self.process_ready(Side::Replacement, budget);
             }
-            self.frames
-                .finish_current(FrameBoundary::DtdSubset)
-                .map_err(|error| self.frame_error(error))?;
-            self.active.pop();
-            self.fragment
-                .restart_fragment()
-                .expect("finished complete fragment");
+            self.frames.finish(None)?;
+            self.fragment.restart_fragment();
             return Ok(());
         }
-        let global_remaining = self.limits.max_work - self.counters.work;
-        let scan_remaining = self.limits.scan.max_work - self.counters.scanned_bytes;
-        let remaining = global_remaining.min(scan_remaining);
+        let ceiling = self.limits.work - self.counters.work;
         self.fragment
-            .cap_work(self.fragment.position().saturating_add(remaining));
+            .cap_work(self.fragment.position().saturating_add(ceiling));
         let before = self.fragment.position();
         // The scanner stops at the first complete unit, so whole slices are safe.
         let result = self.fragment.advance(&replacement.as_bytes()[cursor..]);
-        let consumed = self.fragment.position() - before;
-        self.counters.work += consumed;
-        self.counters.scanned_bytes += consumed;
-        if let Err(error) = result {
-            // A slice can exhaust the cap mid-way; the tighter ceiling names it.
-            if error.kind == ScanErrorKind::Limit(crate::dtd_scan::ScanLimit::Work)
-                && global_remaining <= scan_remaining
-            {
-                return Err(self.simple_error(ControllerErrorKind::Limit(ControllerLimit::Work)));
-            }
-            return Err(self.scan_error(Side::Replacement, error.kind, error.offset));
-        }
-        Ok(())
+        self.counters.work += self.fragment.position() - before;
+        result.map(drop).map_err(|error| match error.kind {
+            WORK => self.simple_error(WORK),
+            _ => self.scan_error(Side::Replacement, error),
+        })
     }
 
-    fn process_ready(&mut self, side: Side, budget: &mut Budget) -> Result<(), ControllerError> {
+    fn process_ready(&mut self, side: Side, budget: &mut Budget) -> Result<(), Error> {
         share_expansion(
             &self.limits,
             self.position,
             &mut self.frames,
             &mut self.catalog,
         );
-        let (kind, raw_len) = match side {
-            Side::Physical => self.physical.current(),
-            Side::Replacement => self.fragment.current(),
-        }
-        .map(|(kind, raw, _)| (kind, raw.len()))
-        .expect("ready unit");
-        let origin = self.pending_origin(side)?;
+        let (kind, raw_len) = self
+            .scanner(side)
+            .current()
+            .map(|(kind, raw, _)| (kind, raw.len()))
+            .expect("ready unit");
+        let origin = self.pending_origin(side);
         if kind == ScanKind::ParameterReference {
             return self.enter_parameter(side, origin);
         }
@@ -636,7 +367,7 @@ impl<'input> DtdControllerCore<'input> {
         }
         if kind == ScanKind::End {
             if !matches!(side, Side::Physical) {
-                return Err(self.simple_error(ControllerErrorKind::InvalidUnitFamily));
+                return Err(self.simple_error(ErrorKind::InvalidDtd));
             }
             self.release_scanner(side);
             self.ready = Some(Ready::End);
@@ -644,104 +375,47 @@ impl<'input> DtdControllerCore<'input> {
             return Ok(());
         }
         // Grammar is always checked before an input-mode-dependent raw copy.
-        self.charge_work(raw_len, Some(origin))?;
-        let stable_raw = if matches!(side, Side::Physical) {
-            self.stable_physical_raw(origin)?
-        } else {
-            None
+        self.charge_work(raw_len, origin)?;
+        let (encoding, started, limits) = (self.encoding, self.started, self.limits);
+        let unit = match (side, self.stable) {
+            (Side::Physical, Some((source, source_start))) => {
+                let range = origin.input_range().expect("physical unit");
+                let raw = &source[range.start - source_start..range.end - source_start];
+                parse_unit(raw, limits, (kind, side, started), encoding, origin)?
+            }
+            _ => {
+                let raw = std::str::from_utf8(self.scanner(side).current().expect("ready").1)
+                    .expect("scanner validates ready UTF-8");
+                let borrowed = parse_unit(raw, limits, (kind, side, started), encoding, origin)?;
+                // A streamed unit is retained beyond its scanner as an owned copy.
+                let limit = |count: usize, ceiling| {
+                    count.checked_add(raw_len).filter(|count| *count <= ceiling)
+                };
+                let owned =
+                    limit(self.counters.owned_bytes, self.limits.storage).ok_or(Error::new(
+                        ErrorKind::LimitExceeded(Limit::OwnedBytes),
+                        origin.error_offset(),
+                    ))?;
+                let work = limit(self.counters.work, self.limits.work)
+                    .ok_or(Error::new(WORK, origin.error_offset()))?;
+                let unit = borrowed
+                    .try_into_owned(budget, origin.error_offset())
+                    .map_err(|error| {
+                        Error::new(error.kind, unit_offset(encoding, origin, raw, 0))
+                    })?;
+                (self.counters.work, self.counters.owned_bytes) = (work, owned);
+                unit
+            }
         };
-        let unit = if let Some(raw) = stable_raw {
-            let unit = DtdUnit::parse(raw, self.limits.unit).map_err(|error| {
-                map_unit_error(
-                    self.encoding,
-                    origin,
-                    raw,
-                    error.offset,
-                    ControllerErrorKind::Grammar(error.kind),
-                )
-            })?;
-            if !valid_unit(kind, side, self.started, &unit) {
-                return Err(self.error_for_origin(
-                    ControllerErrorKind::InvalidUnitFamily,
-                    origin,
-                    None,
-                ));
-            }
-            unit
-        } else {
-            let raw = match side {
-                Side::Physical => self.physical.current(),
-                Side::Replacement => self.fragment.current(),
-            }
-            .expect("ready raw")
-            .1;
-            let raw = std::str::from_utf8(raw).expect("scanner validates ready UTF-8");
-            let borrowed = DtdUnit::parse(raw, self.limits.unit).map_err(|error| {
-                map_unit_error(
-                    self.encoding,
-                    origin,
-                    raw,
-                    error.offset,
-                    ControllerErrorKind::Grammar(error.kind),
-                )
-            })?;
-            if !valid_unit(kind, side, self.started, &borrowed) {
-                return Err(self.error_for_origin(
-                    ControllerErrorKind::InvalidUnitFamily,
-                    origin,
-                    None,
-                ));
-            }
-            let next_owned = self
-                .counters
-                .owned_bytes
-                .checked_add(raw_len)
-                .filter(|count| *count <= self.limits.max_owned_bytes)
-                .ok_or_else(|| {
-                    self.error_for_origin(
-                        ControllerErrorKind::Limit(ControllerLimit::OwnedBytes),
-                        origin,
-                        None,
-                    )
-                })?;
-            let next_work = self
-                .counters
-                .work
-                .checked_add(raw_len)
-                .filter(|work| *work <= self.limits.max_work)
-                .ok_or_else(|| {
-                    self.error_for_origin(
-                        ControllerErrorKind::Limit(ControllerLimit::Work),
-                        origin,
-                        None,
-                    )
-                })?;
-            let owned = borrowed
-                .try_into_owned(budget, origin.physical_context().start)
-                .map_err(|error| {
-                    map_unit_error(
-                        self.encoding,
-                        origin,
-                        raw,
-                        0,
-                        ControllerErrorKind::Ownership(error.kind),
-                    )
-                })?;
-            self.counters.work = next_work;
-            self.counters.owned_bytes = next_owned;
-            owned
-        };
-        let header = matches!(unit.view(), DtdUnitView::Header(_));
         self.commit_source(side, raw_len)?;
         self.release_scanner(side);
-        let literals = if matches!(side, Side::Physical) {
-            LiteralSource::Physical
-        } else {
-            LiteralSource::Replacement
+        let literals = match side {
+            Side::Physical => LiteralSource::Physical,
+            Side::Replacement => LiteralSource::Replacement,
         };
         let before = self.catalog.usage().work;
-        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
-        self.catalog.cap_work(ceiling);
+        self.catalog
+            .cap_work(before.saturating_add(self.limits.work - self.counters.work));
         let result = self.catalog.apply(
             &unit,
             DeclarationContext {
@@ -751,206 +425,94 @@ impl<'input> DtdControllerCore<'input> {
         );
         self.counters.work += self.catalog.usage().work - before;
         result.map_err(|error| {
-            let kind = if error.kind
-                == CatalogErrorKind::Limit(crate::dtd_catalog::CatalogLimit::Work)
-                && ceiling <= self.limits.catalog.max_work
-            {
-                ControllerErrorKind::Limit(ControllerLimit::Work)
-            } else {
-                ControllerErrorKind::Catalog(error.kind)
+            let offset = match error.offset {
+                Some(offset) => unit_offset(encoding, origin, unit.raw(), offset),
+                None => origin.error_offset(),
             };
-            let relative = match error.location {
-                ValueLocation::Declaration { offset, .. } | ValueLocation::Input(offset) => {
-                    Some(offset)
-                }
-                ValueLocation::Replacement { .. } => None,
-            };
-            let mut mapped = if let Some(relative) = relative {
-                map_unit_error(self.encoding, origin, unit.raw(), relative, kind)
-            } else {
-                self.error_for_origin(kind, origin, None)
-            };
-            mapped.value_location = Some(error.location);
-            mapped
+            Error::new(error.kind, offset)
         })?;
-        if header {
+        self.ready = Some(Ready::Item);
+        self.origin = Some(origin);
+        if let DtdUnitView::Header(header) = unit.view() {
             self.started = true;
-            let DtdUnitView::Header(view) = unit.view() else {
-                unreachable!()
-            };
-            let mut begin = origin;
-            if !view.has_internal_subset() {
-                let range = origin.input_range().expect("physical header");
-                let delimiter = self.encoding.source_length(b">");
-                begin = FragmentOrigin::input(range.start..range.end - delimiter)
-                    .expect("real header range");
-                self.held_end = FragmentOrigin::input(range.end - delimiter..range.end);
-            }
             self.ready = Some(Ready::Begin);
-            self.origin = Some(begin);
-        } else {
-            self.ready = Some(Ready::Item(literals));
-            self.origin = Some(origin);
+            if !header.has_internal_subset() {
+                let range = origin.input_range().expect("physical header");
+                let delimiter = range.end - self.encoding.source_length(b">");
+                self.origin = FragmentOrigin::input(range.start..delimiter);
+                self.held_end = FragmentOrigin::input(delimiter..range.end);
+            }
         }
         self.unit = Some(unit);
         Ok(())
     }
 
-    fn enter_parameter(
-        &mut self,
-        side: Side,
-        origin: FragmentOrigin,
-    ) -> Result<(), ControllerError> {
+    fn enter_parameter(&mut self, side: Side, origin: FragmentOrigin) -> Result<(), Error> {
         // libxml2 sets hasPErefs before resolving the name.
         self.catalog.note_parameter_reference();
-        let raw_len = match side {
-            Side::Physical => self.physical.current(),
-            Side::Replacement => self.fragment.current(),
-        }
-        .map_or(0, |(_, raw, _)| raw.len());
-        let (id, resolution) = {
-            let raw = match side {
-                Side::Physical => self.physical.current(),
-                Side::Replacement => self.fragment.current(),
+        let raw = self.scanner(side).current().expect("parameter raw").1;
+        let raw_len = raw.len();
+        let raw = std::str::from_utf8(raw).expect("validated PE reference");
+        let name = &raw[1..raw.len() - 1];
+        let fail = |kind| Error::new(kind, origin.error_offset());
+        let (id, len) = match self.catalog.lookup_parameter(name) {
+            EntityLookup::Internal { id, replacement } => (id, replacement.len()),
+            // External text is processed whole when the caller's resolver
+            // supplies it; otherwise, like libxml2's failed load, it is skipped.
+            EntityLookup::ExternalUnavailable { id } => {
+                // A skipped reference still consumes (and pays for) its spelling.
+                self.commit_source(side, raw_len)?;
+                self.release_scanner(side);
+                return self
+                    .catalog
+                    .include_parameter(id, self.frames.stack())
+                    .map_err(|error| fail(error.kind));
             }
-            .expect("parameter raw")
-            .1;
-            let raw = std::str::from_utf8(raw).expect("validated PE reference");
-            let name = &raw[1..raw.len() - 1];
-            match self.catalog.lookup_parameter(name) {
-                EntityLookup::Internal { id, replacement } => (
-                    id,
-                    EntityResolution::Internal {
-                        kind: EntityKind::Parameter,
-                        declaration: EntityDeclarationId::from_index(id.index()),
-                        replacement_len: replacement.len(),
-                    },
-                ),
-                // External text is processed whole when the caller's resolver
-                // supplies it; otherwise, like libxml2's failed load, it is skipped.
-                EntityLookup::ExternalUnavailable { id, .. } => {
-                    // A skipped reference still consumes (and pays for) its spelling.
-                    self.commit_source(side, raw_len)?;
-                    self.release_scanner(side);
-                    return self
-                        .catalog
-                        .include_parameter(id, &self.active)
-                        .map_err(|error| {
-                            self.error_for_origin(
-                                ControllerErrorKind::Catalog(error.kind),
-                                origin,
-                                None,
-                            )
-                        });
-                }
-                // Like libxml2's undeclared validity error, the reference is skipped.
-                EntityLookup::UnreadEntity => {
-                    let message = format!("Entity '{name}' not defined");
-                    let offset = origin.input_range().map(|range| range.start);
-                    self.catalog
-                        .note(crate::valid::Code::UndeclaredEntity, offset, message);
-                    self.commit_source(side, raw_len)?;
-                    self.release_scanner(side);
-                    return Ok(());
-                }
-                EntityLookup::Unparsed { .. } => {
-                    return Err(self.error_for_origin(
-                        ControllerErrorKind::Frame(FrameErrorKind::Lookup(LookupFailure::Unparsed)),
-                        origin,
-                        None,
-                    ));
-                }
-                EntityLookup::Predefined(_) | EntityLookup::Undeclared => {
-                    return Err(self.error_for_origin(
-                        ControllerErrorKind::Frame(FrameErrorKind::Lookup(
-                            LookupFailure::Undeclared,
-                        )),
-                        origin,
-                        None,
-                    ));
-                }
+            // Like libxml2's undeclared validity error, the reference is skipped.
+            EntityLookup::UnreadEntity => {
+                let message = format!("Entity '{name}' not defined");
+                let offset = origin.input_range().map(|range| range.start);
+                self.catalog
+                    .note(crate::valid::Code::UndeclaredEntity, offset, message);
+                self.commit_source(side, raw_len)?;
+                self.release_scanner(side);
+                return Ok(());
+            }
+            EntityLookup::Unparsed => return Err(fail(ErrorKind::UnparsedEntity)),
+            EntityLookup::Predefined | EntityLookup::Undeclared => {
+                return Err(fail(ErrorKind::UnknownEntity));
             }
         };
-        // Keep the ID stack ready before frames publish a child or move its parent.
-        // Failed lookups and depth failures never need another active slot.
-        if self.active.len() < self.limits.frames.max_active_depth {
-            self.active.try_reserve(1).map_err(|_| {
-                self.error_for_origin(ControllerErrorKind::Allocation, origin, None)
-            })?;
-        }
         self.release_scanner(side);
         let before = self.frames.counters().work;
-        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
-        self.frames.cap_work(ceiling);
-        let result = match side {
-            Side::Physical => self.frames.enter_physical(
-                EntityKind::Parameter,
-                resolution,
-                origin.physical_context(),
-                FrameBoundary::DtdSubset,
-            ),
-            Side::Replacement => {
-                let parent = *self.active.last().expect("nested parent");
-                self.frames.enter_nested(
-                    EntityKind::Parameter,
-                    resolution,
-                    EntityDeclarationId::from_index(parent.index()),
-                    self.catalog.replacement(parent).expect("parent text"),
-                    origin.replacement_range().expect("nested reference"),
-                    FrameBoundary::DtdSubset,
-                )
-            }
+        self.frames
+            .cap_work(before.saturating_add(self.limits.work - self.counters.work));
+        let reference = match side {
+            Side::Physical => origin.physical_context(),
+            Side::Replacement => origin.replacement_range().expect("nested reference"),
         };
+        let result = self.frames.enter(id, len, reference, None);
         self.counters.work += self.frames.counters().work - before;
-        self.counters.reference_attempts = self.frames.counters().reference_attempts;
-        if let Err(error) = result {
-            return Err(self.error_for_origin(
-                if error.kind == FrameErrorKind::LimitExceeded(crate::dtd_frames::FrameLimit::Work)
-                    && ceiling <= self.limits.frames.max_work
-                {
-                    ControllerErrorKind::Limit(ControllerLimit::Work)
-                } else {
-                    ControllerErrorKind::Frame(error.kind)
-                },
-                origin,
-                origin.replacement_range().map(|range| range.start),
-            ));
-        }
-
-        self.active.push(id);
-        Ok(())
+        result.map(drop).map_err(|error| fail(error.kind))
     }
 
-    fn commit_source(&mut self, side: Side, bytes: usize) -> Result<(), ControllerError> {
+    fn commit_source(&mut self, side: Side, bytes: usize) -> Result<(), Error> {
         if matches!(side, Side::Physical) {
             return Ok(());
         }
-        let id = *self.active.last().expect("active unit source");
-        let origin = self.pending_origin(Side::Replacement)?;
         let before = self.frames.counters().work;
-        let ceiling = before.saturating_add(self.limits.max_work - self.counters.work);
-        self.frames.cap_work(ceiling);
-        let result = self.frames.advance_current(
-            EntityDeclarationId::from_index(id.index()),
-            self.catalog.replacement(id).expect("replacement source"),
-            bytes,
-        );
+        self.frames
+            .cap_work(before.saturating_add(self.limits.work - self.counters.work));
+        let result = self.frames.advance(bytes);
         self.counters.work += self.frames.counters().work - before;
-        result.map(|_| ()).map_err(|error| {
-            let kind = if error.kind
-                == FrameErrorKind::LimitExceeded(crate::dtd_frames::FrameLimit::Work)
-                && ceiling <= self.limits.frames.max_work
-            {
-                ControllerErrorKind::Limit(ControllerLimit::Work)
-            } else {
-                ControllerErrorKind::Frame(error.kind)
-            };
-            self.error_for_origin(
-                kind,
-                origin,
-                origin.replacement_range().map(|range| range.start),
-            )
-        })
+        result
+    }
+
+    fn scanner(&self, side: Side) -> &DtdScanner {
+        match side {
+            Side::Physical => &self.physical,
+            Side::Replacement => &self.fragment,
+        }
     }
 
     fn release_scanner(&mut self, side: Side) {
@@ -961,74 +523,29 @@ impl<'input> DtdControllerCore<'input> {
             }
             Side::Replacement => {
                 self.fragment.release();
-                self.fragment
-                    .restart_fragment()
-                    .expect("released complete subset unit");
+                self.fragment.restart_fragment();
             }
         }
     }
 
-    fn pending_origin(&self, side: Side) -> Result<FragmentOrigin, ControllerError> {
-        match side {
-            Side::Physical => Ok(FragmentOrigin::input(self.unit_start..self.position)
-                .expect("ordered source progress")),
-            Side::Replacement => {
-                let id = *self.active.last().expect("replacement origin");
-                let source = self
-                    .frames
-                    .current(
-                        EntityDeclarationId::from_index(id.index()),
-                        self.catalog.replacement(id).expect("replacement text"),
-                    )
-                    .map_err(|error| self.frame_error(error))?;
-                Ok(FragmentOrigin::Replacement {
-                    declaration: source.declaration,
-                    invocation: source.invocation,
-                    local: ByteSpan::new(
-                        source.local_start..source.local_start + self.fragment.pending().0.len(),
-                    )
-                    .expect("bounded replacement range"),
-                    physical_reference: ByteSpan::new(source.physical_reference)
-                        .expect("real outer reference"),
-                })
-            }
+    fn pending_origin(&self, side: Side) -> FragmentOrigin {
+        let Side::Replacement = side else {
+            return FragmentOrigin::input(self.unit_start..self.position).expect("ordered");
+        };
+        let frame = self.frames.top().expect("replacement origin");
+        let local = frame.cursor..frame.cursor + self.fragment.pending().0.len();
+        FragmentOrigin::Replacement {
+            declaration: frame.entity,
+            invocation: frame.invocation,
+            local: crate::dtd_frames::ByteSpan::new(local).expect("ordered"),
+            physical_reference: frame.physical_reference,
         }
     }
 
-    fn stable_physical_raw(
-        &self,
-        origin: FragmentOrigin,
-    ) -> Result<Option<&'input str>, ControllerError> {
-        let PhysicalInput::StableUtf8 {
-            source,
-            source_start,
-            ..
-        } = self.input
-        else {
-            return Ok(None);
-        };
-        let range = origin.input_range().ok_or_else(|| {
-            self.error_for_origin(ControllerErrorKind::InvalidState, origin, None)
-        })?;
-        let start = range.start.checked_sub(source_start).ok_or_else(|| {
-            self.error_for_origin(ControllerErrorKind::InvalidState, origin, None)
-        })?;
-        let end = range.end.checked_sub(source_start).ok_or_else(|| {
-            self.error_for_origin(ControllerErrorKind::InvalidState, origin, None)
-        })?;
-        source
-            .get(start..end)
-            .map(Some)
-            .ok_or_else(|| self.error_for_origin(ControllerErrorKind::InvalidState, origin, None))
-    }
-
-    fn scan_error(&self, side: Side, kind: ScanErrorKind, offset: usize) -> ControllerError {
-        let (raw, range) = match side {
-            Side::Physical => self.physical.pending(),
-            Side::Replacement => self.fragment.pending(),
-        };
+    fn scan_error(&self, side: Side, error: Error) -> Error {
+        let (raw, range) = self.scanner(side).pending();
         if raw.is_empty() && matches!(side, Side::Physical) {
-            return self.simple_error(ControllerErrorKind::Scan(kind));
+            return self.simple_error(error.kind);
         }
         let prefix = match std::str::from_utf8(raw) {
             Ok(raw) => raw,
@@ -1036,237 +553,93 @@ impl<'input> DtdControllerCore<'input> {
                 std::str::from_utf8(&raw[..error.valid_up_to()]).expect("UTF-8 valid prefix")
             }
         };
-        let origin = self.pending_origin(side).ok();
-        if let Some(origin) = origin {
-            map_unit_error(
-                self.encoding,
-                origin,
-                prefix,
-                offset.saturating_sub(range.start),
-                ControllerErrorKind::Scan(kind),
-            )
-        } else {
-            self.simple_error(ControllerErrorKind::Scan(kind))
-        }
+        let relative = error.offset.saturating_sub(range.start);
+        let origin = self.pending_origin(side);
+        Error::new(
+            error.kind,
+            unit_offset(self.encoding, origin, prefix, relative),
+        )
     }
 
-    fn frame_error(&self, error: crate::dtd_frames::FrameError) -> ControllerError {
-        ControllerError {
-            kind: ControllerErrorKind::Frame(error.kind),
-            physical_offset: error.physical_offset,
-            origin: None,
-            local_offset: None,
-            value_location: None,
-        }
-    }
-
-    fn simple_error(&self, kind: ControllerErrorKind) -> ControllerError {
-        let origin = if self.active.is_empty() {
-            None
-        } else {
-            self.pending_origin(Side::Replacement).ok()
+    /// Fails at the active replacement's reference, else the current position.
+    fn simple_error(&self, kind: ErrorKind) -> Error {
+        let offset = match self.frames.top() {
+            Some(_) => self.pending_origin(Side::Replacement).error_offset(),
+            None => self.position,
         };
-        match origin {
-            Some(origin) => self.error_for_origin(kind, origin, None),
-            None => ControllerError {
-                kind,
-                physical_offset: self.position,
-                origin: None,
-                local_offset: None,
-                value_location: None,
-            },
-        }
+        Error::new(kind, offset)
     }
 
-    fn error_for_origin(
-        &self,
-        kind: ControllerErrorKind,
-        origin: FragmentOrigin,
-        local_offset: Option<usize>,
-    ) -> ControllerError {
-        ControllerError {
-            kind,
-            physical_offset: origin.physical_context().start,
-            origin: Some(origin),
-            local_offset: local_offset
-                .or_else(|| origin.replacement_range().map(|range| range.start)),
-            value_location: None,
-        }
-    }
-
-    fn charge_work(
-        &mut self,
-        bytes: usize,
-        origin: Option<FragmentOrigin>,
-    ) -> Result<(), ControllerError> {
+    fn charge_work(&mut self, bytes: usize, origin: FragmentOrigin) -> Result<(), Error> {
         self.counters.work = self
             .counters
             .work
             .checked_add(bytes)
-            .filter(|work| *work <= self.limits.max_work)
-            .ok_or_else(|| match origin {
-                Some(origin) => self.error_for_origin(
-                    ControllerErrorKind::Limit(ControllerLimit::Work),
-                    origin,
-                    None,
-                ),
-                None => self.simple_error(ControllerErrorKind::Limit(ControllerLimit::Work)),
-            })?;
+            .filter(|work| *work <= self.limits.work)
+            .ok_or(Error::new(WORK, origin.error_offset()))?;
         Ok(())
-    }
-
-    fn remember<T>(
-        &mut self,
-        operation: impl FnOnce(&mut Self) -> Result<T, ControllerError>,
-    ) -> Result<T, ControllerError> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        let result = operation(self);
-        if let Err(error) = result {
-            self.failure = Some(error);
-        }
-        result
     }
 }
 
 impl DtdBodyState {
-    #[cfg(test)]
-    pub(crate) fn catalog(&self) -> &DtdCatalog {
-        &self.catalog
-    }
-
-    #[cfg(test)]
-    pub(crate) fn frames(&self) -> &EntityFrames {
-        &self.frames
-    }
-
-    #[cfg(test)]
-    pub(crate) fn frames_mut(&mut self) -> &mut EntityFrames {
-        &mut self.frames
-    }
-
-    #[cfg(test)]
-    pub(crate) fn limits(&self) -> ControllerLimits {
-        self.limits
-    }
-
-    #[cfg(test)]
-    pub(crate) fn counters(&self) -> ControllerCounters {
-        self.counters
-    }
-
-    #[cfg(test)]
-    pub(crate) fn physical_position(&self) -> usize {
-        self.physical_position
-    }
-
-    #[cfg(test)]
-    pub(crate) fn decoded_position(&self) -> usize {
-        self.decoded_position
-    }
-
     pub(crate) fn resume_position(&self) -> (usize, usize) {
         (self.decoded_position, self.physical_position)
     }
+}
 
-    #[cfg(test)]
-    pub(crate) fn doctype_range(&self) -> Range<usize> {
-        self.doctype_range.clone()
+/// Parses `raw`, read from `origin`, as a unit the scanner classified as `kind`.
+fn parse_unit(
+    raw: &str,
+    limits: DtdLimits,
+    (kind, side, started): (ScanKind, Side, bool),
+    encoding: SourceEncoding,
+    origin: FragmentOrigin,
+) -> Result<DtdUnit<'_>, Error> {
+    let unit = DtdUnit::parse(raw, limits).map_err(|error| {
+        Error::new(error.kind, unit_offset(encoding, origin, raw, error.offset))
+    })?;
+    match valid_unit(kind, side, started, &unit) {
+        true => Ok(unit),
+        false => Err(Error::new(ErrorKind::InvalidDtd, origin.error_offset())),
     }
 }
 
 fn valid_unit(kind: ScanKind, side: Side, started: bool, unit: &DtdUnit<'_>) -> bool {
-    let header = matches!(unit.view(), DtdUnitView::Header(_));
-    match kind {
-        ScanKind::Header => matches!(side, Side::Physical) && !started && header,
-        ScanKind::Declaration => {
-            !header
-                && matches!(
-                    unit.view(),
-                    DtdUnitView::Element(_)
-                        | DtdUnitView::AttributeList(_)
-                        | DtdUnitView::Entity(_)
-                        | DtdUnitView::Notation(_)
-                )
-        }
-        ScanKind::Comment => matches!(unit.view(), DtdUnitView::Comment(_)),
-        ScanKind::Instruction => {
-            matches!(unit.view(), DtdUnitView::ProcessingInstruction(_))
-        }
+    match (kind, unit.view()) {
+        (ScanKind::Header, DtdUnitView::Header(_)) => matches!(side, Side::Physical) && !started,
+        (
+            ScanKind::Declaration,
+            DtdUnitView::Element(_)
+            | DtdUnitView::AttributeList(_)
+            | DtdUnitView::Entity(_)
+            | DtdUnitView::Notation(_),
+        )
+        | (ScanKind::Comment, DtdUnitView::Comment(_))
+        | (ScanKind::Instruction, DtdUnitView::ProcessingInstruction(_)) => true,
         _ => false,
     }
 }
 
-fn standalone_error(kind: ControllerErrorKind, physical_offset: usize) -> ControllerError {
-    ControllerError {
-        kind,
-        physical_offset,
-        origin: None,
-        local_offset: None,
-        value_location: None,
-    }
-}
-
-fn map_unit_error(
+/// The physical offset of `relative` within `raw`, a unit read from `origin`.
+/// Replacement text has no physical position of its own.
+fn unit_offset(
     encoding: SourceEncoding,
     origin: FragmentOrigin,
     raw: &str,
     relative: usize,
-    kind: ControllerErrorKind,
-) -> ControllerError {
-    let (physical_offset, local_offset) = match origin {
-        FragmentOrigin::Input { .. } => {
-            let source = origin.input_range().expect("input range");
-            let span = TokenSpan {
-                decoded: 0..raw.len(),
-                source: source.clone(),
-                encoding,
-            };
-            let offset = if encoding == SourceEncoding::Utf8 {
-                source.start.saturating_add(relative)
-            } else {
-                relative
-            };
-            (
-                span.map_error(raw, Error::new(ErrorKind::InvalidState, offset))
-                    .offset,
-                None,
-            )
-        }
-        FragmentOrigin::Replacement { .. } => (
-            origin.physical_context().start,
-            Some(
-                origin
-                    .replacement_range()
-                    .expect("replacement range")
-                    .start
-                    .saturating_add(relative),
-            ),
-        ),
-        FragmentOrigin::Mixed { .. } => (origin.physical_context().start, None),
+) -> usize {
+    let Some(source) = origin.input_range() else {
+        return origin.error_offset();
     };
-    ControllerError {
-        kind,
-        physical_offset,
-        origin: Some(origin),
-        local_offset,
-        value_location: None,
-    }
+    let offset = match encoding {
+        SourceEncoding::Utf8 => source.start.saturating_add(relative),
+        _ => relative,
+    };
+    let span = TokenSpan {
+        decoded: 0..raw.len(),
+        source,
+        encoding,
+    };
+    span.map_error(raw, Error::new(ErrorKind::InvalidState, offset))
+        .offset
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_controller_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_controller_spec.rs"]
-mod spec_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_borrowed_author.rs"]
-mod borrowed_author_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_borrowed_spec.rs"]
-mod borrowed_spec_tests;

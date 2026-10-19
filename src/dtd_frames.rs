@@ -1,61 +1,27 @@
+//! The stack of entities being expanded, with libxml2's reference accounting.
+
 use std::num::NonZeroU64;
 use std::ops::Range;
 
+use crate::dtd::DtdLimits;
+use crate::{Error, ErrorKind, Limit};
+
 pub(crate) use crate::origin::{
-    ByteSpan, EntityDeclarationId, EntityInvocationId, OriginRepr as FragmentOrigin,
+    ByteSpan, EntityId, EntityInvocationId, OriginRepr as FragmentOrigin,
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum EntityKind {
-    General,
-    Parameter,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ReferenceContext {
-    Content,
-    AttributeValue,
-    EntityValue,
-    DtdSubset,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-pub(crate) enum FrameBoundary {
-    Content { element_depth: usize },
-    AttributeValue,
-    EntityValue,
-    DtdSubset,
-}
-
-impl FrameBoundary {
-    pub(crate) fn context(self) -> ReferenceContext {
-        match self {
-            Self::Content { .. } => ReferenceContext::Content,
-            Self::AttributeValue => ReferenceContext::AttributeValue,
-            Self::EntityValue => ReferenceContext::EntityValue,
-            Self::DtdSubset => ReferenceContext::DtdSubset,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct FrameLimits {
-    pub(crate) max_active_depth: usize,
-    pub(crate) max_reference_attempts: usize,
-    pub(crate) max_work: usize,
-    pub(crate) max_expanded_bytes: usize,
-}
-
-impl Default for FrameLimits {
-    fn default() -> Self {
-        Self {
-            max_active_depth: 64,
-            max_reference_attempts: 16 * 1024,
-            max_work: 8 * 1024 * 1024,
-            max_expanded_bytes: 8 * 1024 * 1024,
-        }
-    }
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct EntityFrame {
+    pub(crate) entity: EntityId,
+    pub(crate) invocation: EntityInvocationId,
+    /// Replacement bytes consumed by complete units and tokens.
+    pub(crate) cursor: usize,
+    /// Replacement bytes scanned; lexical lookahead can run ahead of `cursor`.
+    pub(crate) scanned: usize,
+    len: usize,
+    pub(crate) physical_reference: ByteSpan,
+    /// Element depth at entry, or `None` for a parameter entity.
+    element_depth: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -65,126 +31,30 @@ pub(crate) struct FrameCounters {
     pub(crate) expanded_bytes: usize,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum FrameLimit {
-    ActiveDepth,
-    ReferenceAttempts,
-    Work,
-    ExpandedBytes,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum FrameCounter {
-    ReferenceAttempts,
-    Work,
-    ExpandedBytes,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-pub(crate) enum LookupFailure {
-    Undeclared,
-    ExternalUnavailable,
-    Unparsed,
-    Unread,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(not(test), expect(dead_code, reason = "inspected only by unit tests"))]
-pub(crate) enum EntityResolution {
-    Internal {
-        kind: EntityKind,
-        declaration: EntityDeclarationId,
-        replacement_len: usize,
-    },
-    Failed {
-        kind: EntityKind,
-        failure: LookupFailure,
-    },
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum FrameErrorKind {
-    InvalidSpan,
-    InvalidContext,
-    KindMismatch,
-    Lookup(LookupFailure),
-    Cycle,
-    LimitExceeded(FrameLimit),
-    CounterOverflow(FrameCounter),
-    InvocationIdsExhausted,
-    Allocation,
-    NoActiveFrame,
-    SourceMismatch,
-    PrematureEnd,
-    BoundaryMismatch,
-    ElementBoundaryCrossing,
-    ElementDepthMismatch,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct FrameError {
-    pub(crate) kind: FrameErrorKind,
-    pub(crate) physical_offset: usize,
-}
-
-impl FrameError {
-    fn new(kind: FrameErrorKind, physical_offset: usize) -> Self {
-        Self {
-            kind,
-            physical_offset,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct EntityFrame {
-    declaration: EntityDeclarationId,
-    invocation: EntityInvocationId,
-    cursor: usize,
-    replacement_len: usize,
-    physical_reference: ByteSpan,
-    boundary: FrameBoundary,
-}
-
 #[derive(Debug)]
 pub(crate) struct EntityFrames {
     frames: Vec<EntityFrame>,
-    limits: FrameLimits,
+    limits: DtdLimits,
     counters: FrameCounters,
-    next_invocation: Option<NonZeroU64>,
+    next_invocation: u64,
     expansion_ceiling: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CurrentSource<'a> {
-    pub(crate) declaration: EntityDeclarationId,
-    pub(crate) invocation: EntityInvocationId,
-    pub(crate) local_start: usize,
-    pub(crate) remaining: &'a str,
-    pub(crate) physical_reference: Range<usize>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CompletedFrame {
-    pub(crate) declaration: EntityDeclarationId,
-    pub(crate) invocation: EntityInvocationId,
-    pub(crate) physical_reference: Range<usize>,
-}
+const EXPANSION: ErrorKind = ErrorKind::LimitExceeded(Limit::EntityExpansion);
 
 impl EntityFrames {
-    pub(crate) fn new(limits: FrameLimits) -> Self {
+    pub(crate) fn new(limits: DtdLimits) -> Self {
         Self {
             frames: Vec::new(),
             limits,
             counters: FrameCounters::default(),
-            next_invocation: NonZeroU64::new(1),
+            next_invocation: 1,
             expansion_ceiling: usize::MAX,
         }
     }
 
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
-        self.limits.max_work = self.limits.max_work.min(ceiling);
+        self.limits.work = self.limits.work.min(ceiling);
     }
 
     /// The live amplification allowance, beneath the configured ceiling.
@@ -192,314 +62,117 @@ impl EntityFrames {
         self.expansion_ceiling = ceiling;
     }
 
-    pub(crate) fn depth(&self) -> usize {
-        self.frames.len()
-    }
-
     pub(crate) fn counters(&self) -> FrameCounters {
         self.counters
     }
 
-    pub(crate) fn enter_physical(
+    pub(crate) fn stack(&self) -> &[EntityFrame] {
+        &self.frames
+    }
+
+    pub(crate) fn top(&self) -> Option<&EntityFrame> {
+        self.frames.last()
+    }
+
+    pub(crate) fn top_mut(&mut self) -> Option<&mut EntityFrame> {
+        self.frames.last_mut()
+    }
+
+    /// Enters `entity`, whose replacement text is `len` bytes, from the
+    /// reference at `reference`: physical input when no entity is active,
+    /// otherwise the top frame's replacement text, which resumes after it.
+    pub(crate) fn enter(
         &mut self,
-        requested: EntityKind,
-        resolution: EntityResolution,
+        entity: EntityId,
+        len: usize,
         reference: Range<usize>,
-        boundary: FrameBoundary,
-    ) -> Result<EntityInvocationId, FrameError> {
-        let offset = reference.start;
-        if !self.frames.is_empty() {
-            return Err(FrameError::new(FrameErrorKind::SourceMismatch, offset));
-        }
-        let Some(reference) = nonempty_span(reference) else {
-            return Err(FrameError::new(FrameErrorKind::InvalidSpan, offset));
+        element_depth: Option<usize>,
+    ) -> Result<EntityInvocationId, Error> {
+        let (physical_reference, spelling) = match self.frames.last() {
+            None => (ByteSpan::new(reference.clone()).expect("ordered"), 0),
+            Some(parent) => (parent.physical_reference, reference.len()),
         };
-        self.enter(requested, resolution, reference, boundary, 0, None)
-    }
-
-    pub(crate) fn enter_nested(
-        &mut self,
-        requested: EntityKind,
-        resolution: EntityResolution,
-        parent_declaration: EntityDeclarationId,
-        parent_replacement: &str,
-        reference: Range<usize>,
-        boundary: FrameBoundary,
-    ) -> Result<EntityInvocationId, FrameError> {
-        let Some(parent) = self.frames.last() else {
-            return Err(FrameError::new(FrameErrorKind::NoActiveFrame, 0));
-        };
-        let physical = parent.physical_reference;
-        let offset = physical.start;
-        if parent.declaration != parent_declaration
-            || parent.replacement_len != parent_replacement.len()
-        {
-            return Err(FrameError::new(FrameErrorKind::SourceMismatch, offset));
+        let fail = |kind| Error::new(kind, physical_reference.start);
+        self.charge_attempt(spelling, physical_reference.start)?;
+        if self.frames.iter().any(|frame| frame.entity == entity) {
+            return Err(fail(ErrorKind::EntityLoop));
         }
-        let Some(reference) = nonempty_span(reference) else {
-            return Err(FrameError::new(FrameErrorKind::InvalidSpan, offset));
-        };
-        if reference.start != parent.cursor
-            || reference.end > parent.replacement_len
-            || !parent_replacement.is_char_boundary(reference.start)
-            || !parent_replacement.is_char_boundary(reference.end)
-        {
-            return Err(FrameError::new(FrameErrorKind::SourceMismatch, offset));
+        if self.frames.len() >= self.limits.depth {
+            return Err(fail(ErrorKind::LimitExceeded(Limit::EntityDepth)));
         }
-        self.enter(
-            requested,
-            resolution,
-            physical,
-            boundary,
-            reference.end - reference.start,
-            Some(reference.end),
-        )
-    }
-
-    pub(crate) fn current<'a>(
-        &self,
-        declaration: EntityDeclarationId,
-        replacement: &'a str,
-    ) -> Result<CurrentSource<'a>, FrameError> {
-        let Some(frame) = self.frames.last() else {
-            return Err(FrameError::new(FrameErrorKind::NoActiveFrame, 0));
-        };
-        let offset = frame.physical_reference.start;
-        if frame.declaration != declaration
-            || frame.replacement_len != replacement.len()
-            || !replacement.is_char_boundary(frame.cursor)
-        {
-            return Err(FrameError::new(FrameErrorKind::SourceMismatch, offset));
-        }
-        Ok(CurrentSource {
-            declaration,
-            invocation: frame.invocation,
-            local_start: frame.cursor,
-            remaining: &replacement[frame.cursor..],
-            physical_reference: frame.physical_reference.range(),
-        })
-    }
-
-    pub(crate) fn advance_current(
-        &mut self,
-        declaration: EntityDeclarationId,
-        replacement: &str,
-        byte_count: usize,
-    ) -> Result<FragmentOrigin, FrameError> {
-        let Some(frame) = self.frames.last() else {
-            return Err(FrameError::new(FrameErrorKind::NoActiveFrame, 0));
-        };
-        let offset = frame.physical_reference.start;
-        if frame.declaration != declaration || frame.replacement_len != replacement.len() {
-            return Err(FrameError::new(FrameErrorKind::SourceMismatch, offset));
-        }
-        let Some(end) = frame.cursor.checked_add(byte_count) else {
-            return Err(FrameError::new(FrameErrorKind::InvalidSpan, offset));
-        };
-        if byte_count == 0
-            || end > frame.replacement_len
-            || !replacement.is_char_boundary(frame.cursor)
-            || !replacement.is_char_boundary(end)
-        {
-            return Err(FrameError::new(FrameErrorKind::InvalidSpan, offset));
-        }
-        self.charge_bytes(byte_count, offset)?;
-        let frame = self.frames.last_mut().expect("active frame was checked");
-        let local = ByteSpan {
-            start: frame.cursor,
-            end,
-        };
-        frame.cursor = end;
-        Ok(FragmentOrigin::Replacement {
-            declaration,
-            invocation: frame.invocation,
-            local,
-            physical_reference: frame.physical_reference,
-        })
-    }
-
-    pub(crate) fn finish_current(
-        &mut self,
-        boundary: FrameBoundary,
-    ) -> Result<CompletedFrame, FrameError> {
-        let Some(frame) = self.frames.last() else {
-            return Err(FrameError::new(FrameErrorKind::NoActiveFrame, 0));
-        };
-        let offset = frame.physical_reference.start;
-        if frame.cursor != frame.replacement_len {
-            return Err(FrameError::new(FrameErrorKind::PrematureEnd, offset));
-        }
-        match (frame.boundary, boundary) {
-            (
-                FrameBoundary::Content {
-                    element_depth: expected,
-                },
-                FrameBoundary::Content {
-                    element_depth: actual,
-                },
-            ) if expected != actual => {
-                return Err(FrameError::new(
-                    FrameErrorKind::ElementDepthMismatch,
-                    offset,
-                ));
-            }
-            (expected, actual) if expected.context() != actual.context() => {
-                return Err(FrameError::new(FrameErrorKind::BoundaryMismatch, offset));
-            }
-            _ => {}
-        }
-        let frame = self.frames.pop().expect("active frame was checked");
-        Ok(CompletedFrame {
-            declaration: frame.declaration,
-            invocation: frame.invocation,
-            physical_reference: frame.physical_reference.range(),
-        })
-    }
-
-    pub(crate) fn check_before_end_element(
-        &self,
-        current_element_depth: usize,
-    ) -> Result<(), FrameError> {
-        let Some(frame) = self.frames.last() else {
-            return Ok(());
-        };
-        let offset = frame.physical_reference.start;
-        let FrameBoundary::Content {
-            element_depth: entry_depth,
-        } = frame.boundary
-        else {
-            return Err(FrameError::new(FrameErrorKind::BoundaryMismatch, offset));
-        };
-        if current_element_depth <= entry_depth {
-            return Err(FrameError::new(
-                FrameErrorKind::ElementBoundaryCrossing,
-                offset,
-            ));
-        }
-        Ok(())
-    }
-
-    fn enter(
-        &mut self,
-        requested: EntityKind,
-        resolution: EntityResolution,
-        physical_reference: ByteSpan,
-        boundary: FrameBoundary,
-        spelling_bytes: usize,
-        parent_cursor: Option<usize>,
-    ) -> Result<EntityInvocationId, FrameError> {
-        let offset = physical_reference.start;
-        self.charge_attempt(spelling_bytes, offset)?;
-        let (kind, declaration, replacement_len) = match resolution {
-            EntityResolution::Internal {
-                kind,
-                declaration,
-                replacement_len,
-            } => (kind, declaration, replacement_len),
-            EntityResolution::Failed { kind, failure } => {
-                if kind != requested {
-                    return Err(FrameError::new(FrameErrorKind::KindMismatch, offset));
-                }
-                return Err(FrameError::new(FrameErrorKind::Lookup(failure), offset));
-            }
-        };
-        if kind != requested {
-            return Err(FrameError::new(FrameErrorKind::KindMismatch, offset));
-        }
-        if !context_allows(kind, boundary.context()) {
-            return Err(FrameError::new(FrameErrorKind::InvalidContext, offset));
-        }
-        if self
-            .frames
-            .iter()
-            .any(|frame| frame.declaration == declaration)
-        {
-            return Err(FrameError::new(FrameErrorKind::Cycle, offset));
-        }
-        if self.frames.len() >= self.limits.max_active_depth {
-            return Err(FrameError::new(
-                FrameErrorKind::LimitExceeded(FrameLimit::ActiveDepth),
-                offset,
-            ));
-        }
-        let Some(invocation) = self.next_invocation.map(EntityInvocationId) else {
-            return Err(FrameError::new(
-                FrameErrorKind::InvocationIdsExhausted,
-                offset,
-            ));
-        };
         self.frames
             .try_reserve(1)
-            .map_err(|_| FrameError::new(FrameErrorKind::Allocation, offset))?;
-        if let Some(cursor) = parent_cursor {
-            self.frames
-                .last_mut()
-                .expect("nested entry has a parent frame")
-                .cursor = cursor;
+            .map_err(|_| fail(ErrorKind::Allocation))?;
+        if let Some(parent) = self.frames.last_mut() {
+            parent.cursor = reference.end;
         }
+        let invocation = EntityInvocationId(NonZeroU64::new(self.next_invocation).expect("from 1"));
+        self.next_invocation += 1;
         self.frames.push(EntityFrame {
-            declaration,
+            entity,
             invocation,
             cursor: 0,
-            replacement_len,
+            scanned: 0,
+            len,
             physical_reference,
-            boundary,
+            element_depth,
         });
-        self.next_invocation = invocation.0.get().checked_add(1).and_then(NonZeroU64::new);
         Ok(invocation)
     }
 
-    fn charge_attempt(
-        &mut self,
-        spelling_bytes: usize,
-        physical_offset: usize,
-    ) -> Result<(), FrameError> {
-        let attempts = checked_add_counter(
-            self.counters.reference_attempts,
-            1,
-            FrameCounter::ReferenceAttempts,
-            physical_offset,
-        )?;
-        if attempts > self.limits.max_reference_attempts {
-            return Err(FrameError::new(
-                FrameErrorKind::LimitExceeded(FrameLimit::ReferenceAttempts),
-                physical_offset,
+    /// Consumes `bytes` of the top frame's replacement text.
+    pub(crate) fn advance(&mut self, bytes: usize) -> Result<(), Error> {
+        let frame = self.frames.last().expect("active frame");
+        debug_assert!(bytes != 0 && frame.cursor + bytes <= frame.len);
+        let offset = frame.physical_reference.start;
+        let ceiling = self.limits.expansion.min(self.expansion_ceiling);
+        let work = add(self.counters.work, bytes, self.limits.work, offset)?;
+        let expanded = add(self.counters.expanded_bytes, bytes, ceiling, offset)?;
+        (self.counters.work, self.counters.expanded_bytes) = (work, expanded);
+        self.frames.last_mut().expect("active frame").cursor += bytes;
+        Ok(())
+    }
+
+    /// Leaves the top frame, which must be consumed and, for a general
+    /// entity, end at the element depth where it began.
+    pub(crate) fn finish(&mut self, element_depth: Option<usize>) -> Result<(), Error> {
+        let frame = self.frames.last().expect("active frame");
+        if frame.cursor != frame.len || frame.element_depth != element_depth {
+            let offset = frame.physical_reference.start;
+            return Err(Error::new(ErrorKind::UnbalancedEntity, offset));
+        }
+        self.frames.pop();
+        Ok(())
+    }
+
+    /// An end tag inside replacement text must close an element it opened.
+    pub(crate) fn check_before_end_element(&self, element_depth: usize) -> Result<(), Error> {
+        match self.frames.last() {
+            Some(frame)
+                if frame
+                    .element_depth
+                    .is_none_or(|entry| element_depth <= entry) =>
+            {
+                let offset = frame.physical_reference.start;
+                Err(Error::new(ErrorKind::UnbalancedEntity, offset))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn charge_attempt(&mut self, spelling: usize, offset: usize) -> Result<(), Error> {
+        let attempts = add(self.counters.reference_attempts, 1, usize::MAX, offset)?;
+        if attempts > self.limits.references {
+            return Err(Error::new(
+                ErrorKind::LimitExceeded(Limit::EntityReferences),
+                offset,
             ));
         }
-        let comparison_work = self.frames.len();
-        let work_delta = 1_usize
-            .checked_add(comparison_work)
-            .and_then(|work| work.checked_add(spelling_bytes))
-            .ok_or_else(|| {
-                FrameError::new(
-                    FrameErrorKind::CounterOverflow(FrameCounter::Work),
-                    physical_offset,
-                )
-            })?;
-        let work = checked_add_counter(
-            self.counters.work,
-            work_delta,
-            FrameCounter::Work,
-            physical_offset,
-        )?;
-        if work > self.limits.max_work {
-            return Err(FrameError::new(
-                FrameErrorKind::LimitExceeded(FrameLimit::Work),
-                physical_offset,
-            ));
-        }
-        let expanded_bytes = checked_add_counter(
-            self.counters.expanded_bytes,
-            spelling_bytes,
-            FrameCounter::ExpandedBytes,
-            physical_offset,
-        )?;
-        if expanded_bytes > self.limits.max_expanded_bytes.min(self.expansion_ceiling) {
-            return Err(FrameError::new(
-                FrameErrorKind::LimitExceeded(FrameLimit::ExpandedBytes),
-                physical_offset,
-            ));
-        }
+        let delta = add(1, self.frames.len(), usize::MAX, offset)?;
+        let delta = add(delta, spelling, usize::MAX, offset)?;
+        let work = add(self.counters.work, delta, self.limits.work, offset)?;
+        let ceiling = self.limits.expansion.min(self.expansion_ceiling);
+        let expanded_bytes = add(self.counters.expanded_bytes, spelling, ceiling, offset)?;
         self.counters = FrameCounters {
             reference_attempts: attempts,
             work,
@@ -507,81 +180,12 @@ impl EntityFrames {
         };
         Ok(())
     }
-
-    fn charge_bytes(
-        &mut self,
-        byte_count: usize,
-        physical_offset: usize,
-    ) -> Result<(), FrameError> {
-        let work = checked_add_counter(
-            self.counters.work,
-            byte_count,
-            FrameCounter::Work,
-            physical_offset,
-        )?;
-        if work > self.limits.max_work {
-            return Err(FrameError::new(
-                FrameErrorKind::LimitExceeded(FrameLimit::Work),
-                physical_offset,
-            ));
-        }
-        let expanded_bytes = checked_add_counter(
-            self.counters.expanded_bytes,
-            byte_count,
-            FrameCounter::ExpandedBytes,
-            physical_offset,
-        )?;
-        if expanded_bytes > self.limits.max_expanded_bytes.min(self.expansion_ceiling) {
-            return Err(FrameError::new(
-                FrameErrorKind::LimitExceeded(FrameLimit::ExpandedBytes),
-                physical_offset,
-            ));
-        }
-        self.counters.work = work;
-        self.counters.expanded_bytes = expanded_bytes;
-        Ok(())
-    }
 }
 
-fn nonempty_span(range: Range<usize>) -> Option<ByteSpan> {
-    (range.start < range.end).then_some(ByteSpan {
-        start: range.start,
-        end: range.end,
-    })
-}
-
-fn context_allows(kind: EntityKind, context: ReferenceContext) -> bool {
-    matches!(
-        (kind, context),
-        (
-            EntityKind::General,
-            ReferenceContext::Content | ReferenceContext::AttributeValue
-        ) | (
-            EntityKind::Parameter,
-            ReferenceContext::EntityValue | ReferenceContext::DtdSubset
-        )
-    )
-}
-
-fn checked_add_counter(
-    current: usize,
-    delta: usize,
-    counter: FrameCounter,
-    physical_offset: usize,
-) -> Result<usize, FrameError> {
-    current
+/// `count + delta` within `ceiling`; overflow counts as excess expansion.
+fn add(count: usize, delta: usize, ceiling: usize, offset: usize) -> Result<usize, Error> {
+    count
         .checked_add(delta)
-        .ok_or_else(|| FrameError::new(FrameErrorKind::CounterOverflow(counter), physical_offset))
+        .filter(|count| *count <= ceiling)
+        .ok_or(Error::new(EXPANSION, offset))
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_frames_author.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_frames_spec.rs"]
-mod spec_tests;
-
-#[cfg(test)]
-#[path = "../tests/internal/dtd_entity_pipeline_spec.rs"]
-mod pipeline_tests;

@@ -56,12 +56,7 @@ fn decode_normalizes_supported_resources_and_rejects_malformed_ones() {
 fn loader(limits: Limits, responses: Vec<io::Result<Option<Vec<u8>>>>) -> Loader {
     let mut responses = responses.into_iter();
     let resolver = move |_: Request<'_>| responses.next().expect("scripted response");
-    Loader::new(
-        "dir/doc.xml",
-        Box::new(resolver),
-        &limits,
-        DtdLimits::default(),
-    )
+    Loader::new("dir/doc.xml", Box::new(resolver), &limits)
 }
 
 #[test]

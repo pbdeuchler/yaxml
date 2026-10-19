@@ -2,12 +2,12 @@ use std::{borrow::Cow, ops::Range};
 
 use memchr::{memchr, memmem};
 
+use crate::dtd::DtdLimits;
 use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
 use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
 use crate::escape::invalid_char;
 use crate::parser::{Budget, ParserState, space};
 use crate::resolve::{Loader, Resolver};
-use crate::stream::dtd::{SessionError, SessionLimits};
 use crate::tokenizer::{TokenKind, Tokenizer, tag_close};
 use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, SourceOrigin};
 
@@ -266,7 +266,7 @@ pub struct Reader<'a> {
     session: Vec<Phase<'a>>,
     limits: Limits,
     decode: DecodeLimits,
-    options: SessionLimits,
+    options: DtdLimits,
     standalone: bool,
     loader: Option<Loader>,
     doctype_start: usize,
@@ -303,7 +303,7 @@ impl<'a> Reader<'a> {
             session: Vec::new(),
             limits,
             decode,
-            options: SessionLimits::new(limits, decode),
+            options: DtdLimits::new(limits, decode),
             standalone: false,
             loader: None,
             doctype_start: 0,
@@ -316,8 +316,7 @@ impl<'a> Reader<'a> {
     /// Loads the external subset and external parsed entities through
     /// `resolver`; `base` is the document's URI or path for relative system IDs.
     pub fn with_resolver(mut self, base: &str, resolver: Box<dyn Resolver>) -> Self {
-        let unit = self.options.declarations.unit;
-        self.loader = Some(Loader::new(base, resolver, &self.limits, unit));
+        self.loader = Some(Loader::new(base, resolver, &self.limits));
         self
     }
 
@@ -385,14 +384,11 @@ impl<'a> Reader<'a> {
                         self.finished = true;
                         return Ok(None);
                     }
-                    Some(start) => self
-                        .start_dtd(start)
-                        .and_then(|()| self.read_session())
-                        .map_err(Error::from),
+                    Some(start) => self.start_dtd(start).and_then(|()| self.read_session()),
                 },
                 Err(error) => Err(error),
             },
-            None => self.read_session().map_err(Error::from),
+            None => self.read_session(),
         };
         if let Err(error) = result {
             self.failure = Some(error);
@@ -401,7 +397,7 @@ impl<'a> Reader<'a> {
     }
 
     #[inline(never)]
-    fn read_session(&mut self) -> Result<Option<Event<'a>>, SessionError> {
+    fn read_session(&mut self) -> Result<Option<Event<'a>>, Error> {
         loop {
             if matches!(self.session.first(), Some(Phase::Declarations { controller, .. }) if controller.is_complete())
             {
@@ -440,31 +436,22 @@ impl<'a> Reader<'a> {
                         return Ok(None);
                     }
                     ContentOutcome::NeedPhysicalInput => {
-                        return Err(
-                            Error::new(ErrorKind::InvalidState, controller.position().1).into()
-                        );
+                        return Err(Error::new(ErrorKind::InvalidState, controller.position().1));
                     }
                 },
             }
         }
     }
 
-    fn start_dtd(&mut self, start: usize) -> Result<(), SessionError> {
+    fn start_dtd(&mut self, start: usize) -> Result<(), Error> {
         self.session
             .try_reserve_exact(1)
-            .map_err(|_| SessionError::Allocation {
-                physical_offset: start,
-            })?;
+            .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
         self.physical = self.position();
         self.doctype_start = start;
         let ordinary = self.ordinary.take().expect("checked ordinary owner");
-        let mut controller = DtdController::stable_utf8(
-            self.source,
-            0,
-            start,
-            self.options.declarations,
-            self.standalone,
-        )?;
+        let mut controller =
+            DtdController::stable_utf8(self.source, 0, start, self.options, self.standalone);
         if let Some(loader) = self.loader.take() {
             controller.set_loader(loader);
         }
@@ -475,7 +462,7 @@ impl<'a> Reader<'a> {
         Ok(())
     }
 
-    fn start_content(&mut self) -> Result<(), SessionError> {
+    fn start_content(&mut self) -> Result<(), Error> {
         self.physical = self.position();
         let Phase::Declarations { controller, parser } = self.session.pop().expect("completed DTD")
         else {
@@ -486,14 +473,8 @@ impl<'a> Reader<'a> {
             self.limits.max_token_bytes,
             self.decode.max_decoded_token_bytes,
         );
-        let controller = BorrowedContentController::stable_utf8(
-            body,
-            parser,
-            tokenizer,
-            self.source,
-            self.options.text,
-            self.options.local,
-        )?;
+        let controller =
+            BorrowedContentController::stable_utf8(body, parser, tokenizer, self.source)?;
         self.session.push(Phase::Content(controller));
         Ok(())
     }

@@ -27,6 +27,15 @@ fn main() {
                 "<p:item p:a='v'/>".repeat(10_000)
             ),
         ),
+        (
+            "dtd",
+            format!(
+                "<!DOCTYPE root [<!ENTITY e 'one <b>two</b> &#x33;'>\
+                 <!ATTLIST item a CDATA 'd' t NMTOKENS ' x  y '>]>\
+                 <root>{}</root>",
+                "<item t=' p  q '>&e;&amp;</item>".repeat(10_000)
+            ),
+        ),
     ];
     let iterations: usize = std::env::var("YAXML_BENCH_ITERATIONS")
         .ok()
