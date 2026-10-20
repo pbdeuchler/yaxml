@@ -1088,6 +1088,7 @@ fn fuzz_regressions_replay() {
                 "schematron" => driver::exercise_schematron(&data),
                 "save" => driver::exercise_save(&data),
                 "fragment" => driver::exercise_fragment(&data),
+                "textreader" => driver::exercise_textreader(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }

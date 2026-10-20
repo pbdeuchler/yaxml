@@ -512,6 +512,37 @@ fn content_strings_cover_each_node_kind() {
     );
 }
 
+/// Kept entity references serialize as `&name;` in attributes and content, so
+/// the outer XML reparses only with the DTD, as in libxml2.
+#[test]
+fn outer_xml_keeps_references_that_need_their_dtd() {
+    let dtd = "<!DOCTYPE r [<!ENTITY e \"v\">]>";
+    for (body, outer, reparses) in [
+        ("<r a='&e;'/>", "<r a=\"&e;\"/>", false),
+        ("<r a='x&e;&amp;'/>", "<r a=\"x&e;&amp;\"/>", false),
+        ("<r>&e;</r>", "<r>&e;</r>", false),
+        ("<r a='&amp;&#65;'/>", "<r a=\"&amp;A\"/>", true),
+        ("<r a='1'>&#65;</r>", "<r a=\"1\">A</r>", true),
+    ] {
+        let input = format!("{dtd}{body}");
+        let mut reader = TextReader::new(input.as_bytes());
+        while reader.node_type() != NodeType::Element {
+            assert!(reader.read().unwrap(), "{body}");
+        }
+        let outer_xml = reader.read_outer_xml().unwrap().unwrap();
+        assert_eq!(outer_xml, outer, "{body}");
+        match OwnedDocument::parse(&outer_xml) {
+            Ok(_) => assert!(reparses, "{body}"),
+            Err(error) => assert!(
+                !reparses && error.kind == ErrorKind::UnknownEntity,
+                "{body}: {error:?}"
+            ),
+        }
+        // Expansion writes the content instead, so it needs no DTD.
+        assert!(reader.expand().unwrap().is_some(), "{body}");
+    }
+}
+
 #[test]
 fn subtree_buffering_is_bounded_and_recoverable() {
     let input = format!("<r><big>{}</big><after/></r>", "<i>text</i>".repeat(100));
