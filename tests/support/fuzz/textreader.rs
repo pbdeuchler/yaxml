@@ -201,8 +201,10 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
             assert!(matches!(reader.read_string(), Ok(None)));
             assert!(reader.move_to_element());
             // A namespace error can leave a qualified name unresolvable, as
-            // in libxml2: an unbound prefix or a malformed QName.
-            let resolvable = !qualified.contains(':') || namespace.is_some();
+            // in libxml2: an unbound prefix, a malformed QName, or a second
+            // attribute with the same expanded name (lookups find the first).
+            let first = reader.get_attribute_ns(&local, namespace.as_deref()) == Some(&value);
+            let resolvable = (!qualified.contains(':') || namespace.is_some()) && first;
             if resolvable {
                 assert_eq!(reader.get_attribute(&qualified), Some(value.as_str()));
             }
@@ -387,11 +389,18 @@ fn navigate<R: BufRead>(reader: &mut TextReader<R>, expected: &[(String, String)
     while reader.move_to_next_attribute() {
         assert_eq!(reader.node_type(), NodeType::Attribute);
         let name = reader.name().expect("attribute name").to_owned();
-        visited.push((
-            name.clone(),
-            reader.value().expect("attribute value").to_owned(),
-        ));
+        let local = reader.local_name().expect("local name").to_owned();
+        let namespace = reader.namespace_uri().map(str::to_owned);
+        let value = reader.value().expect("attribute value").to_owned();
+        visited.push((name.clone(), value.clone()));
         assert!(reader.move_to_element());
+        // As in `probe`: a namespace error can leave the name unresolvable.
+        let first = reader.get_attribute_ns(&local, namespace.as_deref()) == Some(&value);
+        let resolvable = (!name.contains(':') || namespace.is_some()) && first;
+        if !resolvable {
+            assert!(reader.move_to_attribute_no(visited.len() - 1));
+            continue;
+        }
         assert_eq!(
             reader.get_attribute(&name),
             visited.last().map(|(_, value)| value.as_str())
