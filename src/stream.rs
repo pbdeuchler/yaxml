@@ -683,6 +683,7 @@ fn parse_recovering<'token>(
 
 /// The token's text, checked to be UTF-8 made of `Char`s; `screened` bytes
 /// are known to be `Char`s once they are UTF-8.
+#[inline(always)]
 fn validate<'token>(
     kind: TokenKind,
     bytes: &'token [u8],
