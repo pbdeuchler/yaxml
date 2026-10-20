@@ -647,10 +647,12 @@ pub(crate) fn attributes<T: Navigate>(
 }
 
 /// Whitespace-only Text nodes `XML_PARSE_NOBLANKS` drops, in document order,
-/// by libxml2's `areBlanks`: never under `xml:space="preserve"`; in elements
-/// the DTD declares with element content always; otherwise only when the
-/// text is not the only child and neither the first child nor the node
-/// before it is text, and it is not followed by an entity reference.
+/// by libxml2's `areBlanks`: never under `xml:space="preserve"`, nor after
+/// text in an element without `xml:space` (libxml2 sets `*ctxt->space = -2`
+/// when it keeps characters); in elements the DTD declares with element
+/// content always; otherwise only when the text is not the only child and
+/// neither the first child nor the node before it is text, and it is not
+/// followed by an entity reference.
 pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
     let text = |id: T::Id| matches!(tree.item(id), Item::Text(_)) && !tree.is_cdata(id);
     let blank = |id: T::Id| {
@@ -662,7 +664,8 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
         let Item::Element(name) = tree.item(parent) else {
             continue;
         };
-        if space_preserve(tree, parent) == Some(true) {
+        let space = space_preserve(tree, parent);
+        if space == Some(true) {
             continue;
         }
         let declared = tree
@@ -680,7 +683,12 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
             let reference = tree
                 .next_sibling(child)
                 .is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)));
-            match blank(child) && declared.unwrap_or(!reference && children.len() > 1 && leading) {
+            let spoken =
+                space.is_none() && kept.iter().any(|&id| text(id) && tree.offset(id).is_some());
+            match blank(child)
+                && !spoken
+                && declared.unwrap_or(!reference && children.len() > 1 && leading)
+            {
                 true => found.push(child),
                 false => kept.push(child),
             }

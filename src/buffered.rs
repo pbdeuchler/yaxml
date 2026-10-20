@@ -134,6 +134,15 @@ impl<R: BufRead> BufferedReader<R> {
         self.session.catalog().map(|catalog| catalog.dtd())
     }
 
+    pub(crate) fn budget(&mut self) -> Option<&mut crate::parser::Budget> {
+        self.session.budget()
+    }
+
+    /// Changes the flags of a reader that has not been read yet.
+    pub(crate) fn set_flags(&mut self, flags: crate::options::Flags) {
+        self.session.set_flags(flags);
+    }
+
     pub fn get_ref(&self) -> &R {
         &self.input
     }

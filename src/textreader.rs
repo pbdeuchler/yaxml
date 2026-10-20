@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::io::BufRead;
 use std::ops::RangeInclusive;
 
-use crate::options::Flags;
+use crate::options::{DTDATTR, DTDLOAD, Flags, NOBLANKS, NOENT};
 use crate::valid::Dtd;
 use crate::{
     BufferedReader, DecodeLimits, Error, ErrorKind, Event, Limit, Limits, Name, OwnedDocument,
@@ -16,10 +16,13 @@ const XML: &str = "http://www.w3.org/XML/1998/namespace";
 /// Recycled node buffers kept after a subtree expansion drains.
 const SPARE_NODES: usize = 4;
 
-/// libxml2 `xmlReaderTypes` values for the nodes this reader produces;
-/// `node_type as i32` is the C constant. Entities, documents, fragments,
-/// notations, insignificant whitespace, entity ends and XML declarations are
-/// never reported; entity references are, unless `NOENT` substitutes them.
+/// libxml2 `xmlReaderTypes` values; `node_type as i32` is the C constant.
+/// libxml2 2.15.4's reader never reports `Entity`, `Document`,
+/// `DocumentFragment`, `Notation`, `Whitespace`, `EndEntity` or
+/// `XmlDeclaration` (checked with `xmllint --stream --debug` over its whole
+/// `test` tree under default, `NOENT`, `NOBLANKS` and `DTDVALID` options), nor
+/// does this reader; they exist so the integer values round-trip. Entity
+/// references are reported, unless `NOENT` substitutes them.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum NodeType {
@@ -30,13 +33,41 @@ pub enum NodeType {
     Cdata = 4,
     /// A kept entity reference (no `NOENT`); its content is not visited.
     EntityReference = 5,
+    /// Never reported: entity declarations are not tree nodes.
+    Entity = 6,
     ProcessingInstruction = 7,
     Comment = 8,
+    /// Never reported: the reader starts at the root element.
+    Document = 9,
     DocumentType = 10,
+    /// Never reported.
+    DocumentFragment = 11,
+    /// Never reported: notations are not tree nodes.
+    Notation = 12,
+    /// Never reported: libxml2 asks `xmlNodeGetSpacePreserve` about the text
+    /// node, which answers -1 for anything but an element, so every
+    /// whitespace-only text is `SignificantWhitespace`.
+    Whitespace = 13,
     /// Whitespace-only text. libxml2's reader reports all of it as
-    /// significant, whatever `xml:space` says.
+    /// significant, whatever `xml:space` says; `NOBLANKS` drops the ignorable
+    /// ones instead.
     SignificantWhitespace = 14,
     EndElement = 15,
+    /// Never reported.
+    EndEntity = 16,
+    /// Never reported: the XML declaration is not a node.
+    XmlDeclaration = 17,
+}
+
+/// `xmlTextReaderStandalone`'s result; `as i32` is the C value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Standalone {
+    /// No XML declaration, or nothing read yet.
+    NoDeclaration = -1,
+    /// An XML declaration without a `standalone` pseudo-attribute.
+    Unspecified = -2,
+    No = 0,
+    Yes = 1,
 }
 
 /// libxml2 `xmlTextReaderMode` values; `as i32` is the C constant.
@@ -56,7 +87,11 @@ pub enum ParserProperty {
     LoadDtd = 1,
     /// Insert DTD default attributes: `DTDATTR`.
     DefaultAttributes = 2,
-    /// DTD validation: not implemented, always false.
+    /// DTD validation while reading: not implemented, always false, and
+    /// turning it on is `UnsupportedOption`. `src/valid.rs` validates a whole
+    /// tree after the fact (content models walk each element's children,
+    /// IDREFs resolve against every ID, diagnostics come in preorder), so it
+    /// cannot take events as `relaxng::Stream` and `xsd::StreamValidator` do.
     Validate = 3,
     /// Substitute entity references: `NOENT`.
     SubstituteEntities = 4,
@@ -73,10 +108,23 @@ struct QName {
     namespace: Option<Span>,
 }
 
+/// One child of an attribute: a run of text or a kept entity reference.
+#[derive(Clone, Copy)]
+struct Part {
+    reference: bool,
+    /// The text, or the entity's name.
+    span: Span,
+}
+
 #[derive(Clone, Copy)]
 struct Attr {
     name: QName,
     value: Span,
+    /// Index in the start tag, which `Budget::kept` uses.
+    position: usize,
+    /// Range in `Node::parts` when the value keeps entity references; empty
+    /// when the value is one text (or none).
+    parts: (usize, usize),
 }
 
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
@@ -105,6 +153,10 @@ struct Node {
     value: Span,
     attributes: Vec<Attr>,
     declarations: usize,
+    parts: Vec<Part>,
+    /// Text any of which came from an entity's replacement text, or the
+    /// first node of one.
+    replaced: bool,
 }
 
 fn get(pool: &str, (start, end): Span) -> &str {
@@ -138,6 +190,87 @@ impl Node {
         self.get(name.qualified)
     }
 
+    /// Children of attribute `index`, as `ReadAttributeValue` walks them. A
+    /// value that keeps no reference is one text, even if empty.
+    fn part(&self, index: usize, child: usize) -> Option<Part> {
+        let attribute = self.attributes[index];
+        let (start, end) = attribute.parts;
+        if start < end {
+            return self.parts[start..end].get(child).copied();
+        }
+        (child == 0).then_some(Part {
+            reference: false,
+            span: attribute.value,
+        })
+    }
+
+    /// ` name="value"` as `xmlNodeDump` writes it: kept entity references as
+    /// `&name;`, unless `expanded`.
+    fn write_attribute(&self, out: &mut String, attribute: &Attr, expanded: bool) {
+        let (start, end) = attribute.parts;
+        let name = self.qualified(attribute.name);
+        if expanded || start == end {
+            return write_attribute(out, None, name, self.get(attribute.value));
+        }
+        out.push(' ');
+        out.push_str(name);
+        out.push_str("=\"");
+        for part in &self.parts[start..end] {
+            let text = self.get(part.span);
+            if part.reference {
+                out.push('&');
+                out.push_str(text);
+                out.push(';');
+            } else {
+                escape(out, text, true);
+            }
+        }
+        out.push('"');
+    }
+
+    /// Splits kept forms (`dtd_tag::kept_form`: `&name;` for a kept reference,
+    /// `&#38;` for a literal `&`) into the children of their attributes.
+    fn keep(&mut self, kept: Vec<(usize, String)>) {
+        for (position, form) in kept {
+            let Some(index) = self.attributes.iter().position(|a| a.position == position) else {
+                continue;
+            };
+            let start = self.parts.len();
+            let (mut text, mut rest) = (String::new(), form.as_str());
+            while let Some(at) = rest.find('&') {
+                text.push_str(&rest[..at]);
+                let end = at + rest[at..].find(';').unwrap_or(rest.len() - at - 1);
+                match &rest[at + 1..end] {
+                    "#38" => text.push('&'),
+                    name => {
+                        self.part_text(&mut text);
+                        let span = self.push(name);
+                        self.parts.push(Part {
+                            reference: true,
+                            span,
+                        });
+                    }
+                }
+                rest = &rest[end + 1..];
+            }
+            text.push_str(rest);
+            self.part_text(&mut text);
+            self.attributes[index].parts = (start, self.parts.len());
+        }
+    }
+
+    /// Ends a run of text in the current attribute's parts.
+    fn part_text(&mut self, text: &mut String) {
+        if !text.is_empty() {
+            let span = self.push(text);
+            self.parts.push(Part {
+                reference: false,
+                span,
+            });
+            text.clear();
+        }
+    }
+
     fn prefix(&self, name: QName) -> Option<&str> {
         (name.prefix > 0).then(|| &self.qualified(name)[..name.prefix])
     }
@@ -155,6 +288,7 @@ impl Node {
         if !merge {
             self.text.clear();
             self.attributes.clear();
+            self.parts.clear();
             self.declarations = 0;
         }
         self.kind = match event {
@@ -169,14 +303,19 @@ impl Node {
             Event::Start(element) | Event::Empty(element) => {
                 self.name = self.qname(&element.name);
                 for declarations in [true, false] {
-                    for attribute in &element.attributes {
+                    for (position, attribute) in element.attributes.iter().enumerate() {
                         let name = &attribute.name;
                         if declarations
                             == (name.prefix() == Some("xmlns") || name.qualified() == "xmlns")
                         {
                             let name = self.qname(name);
                             let value = self.push(&attribute.value);
-                            self.attributes.push(Attr { name, value });
+                            self.attributes.push(Attr {
+                                name,
+                                value,
+                                position,
+                                parts: (0, 0),
+                            });
                         }
                     }
                     if declarations {
@@ -231,6 +370,27 @@ struct Frame {
     /// This element's own `xml:base`.
     base: Option<Span>,
     attributes: bool,
+}
+
+/// What `areBlanks` asks about the kept children of an element so far.
+#[derive(Clone, Copy, Default)]
+struct Kids {
+    kept: bool,
+    /// The first and the last are text.
+    first_text: bool,
+    last_text: bool,
+    /// Some text came from the document itself, which libxml2 notes as
+    /// `*ctxt->space = -2`: later blanks in an element without `xml:space`
+    /// are kept.
+    spoken: bool,
+}
+
+impl Kids {
+    /// Notes a kept child: `text`, from the document unless `replaced`.
+    fn push(&mut self, text: bool, replaced: bool) {
+        (self.first_text, self.kept) = (self.first_text || (!self.kept && text), true);
+        (self.last_text, self.spoken) = (text, self.spoken || (text && !replaced));
+    }
 }
 
 /// Namespace bindings, `xml:lang` and `xml:base` of the open elements.
@@ -290,6 +450,51 @@ impl Scope {
     }
 }
 
+/// An element open at the parse front, for `NOBLANKS`.
+#[derive(Clone, Copy)]
+struct Open {
+    name: Span,
+    /// The `xml:space` in effect: `preserve` (true), `default` (false) or none.
+    space: Option<bool>,
+    kids: Kids,
+}
+
+/// libxml2's `areBlanks` (`XML_PARSE_NOBLANKS`) state: the elements open at
+/// the last node fetched, which can be ahead of the cursor.
+#[derive(Default)]
+struct Blanks {
+    text: String,
+    open: Vec<Open>,
+}
+
+impl Blanks {
+    fn open(&mut self, node: &Node) {
+        let space = (node.attributes.iter().rev())
+            .find_map(|a| {
+                let is = node.prefix(a.name) == Some("xml") && node.local(a.name) == "space";
+                match node.get(a.value) {
+                    _ if !is => None,
+                    "preserve" => Some(true),
+                    "default" => Some(false),
+                    _ => None,
+                }
+            })
+            .or_else(|| self.open.last().and_then(|open| open.space));
+        let name = push(&mut self.text, node.qualified(node.name));
+        self.open.push(Open {
+            name,
+            space,
+            kids: Kids::default(),
+        });
+    }
+
+    fn close(&mut self) {
+        if let Some(open) = self.open.pop() {
+            self.text.truncate(open.name.0);
+        }
+    }
+}
+
 /// A forward-only cursor over the nodes of a document, as libxml2's
 /// `xmlTextReader` (`xmlreader.h`), over any [`BufRead`] including `&[u8]`.
 ///
@@ -333,9 +538,14 @@ pub struct TextReader<R: BufRead> {
     /// An I/O failure met while completing the current text node.
     pending: Option<ReadError>,
     attribute: Option<usize>,
+    /// The child of that attribute under the cursor (`ReadAttributeValue`).
+    value: Option<usize>,
     scope: Scope,
+    /// `NOBLANKS` state at the parse front.
+    blanks: Blanks,
     /// Validation of every event read from the source.
     validators: Validators,
+    standalone: Standalone,
 }
 
 impl<R: BufRead> TextReader<R> {
@@ -355,7 +565,8 @@ impl<R: BufRead> TextReader<R> {
 
     /// A reader with libxml2 parser options, like `xmlReaderForMemory`'s
     /// `options`; see [`crate::options`]. `base` is the document URI.
-    /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
+    /// `NOBLANKS` drops ignorable blanks as libxml2's reader does; the other
+    /// tree-only flags (`DTDVALID`, `XINCLUDE`) are `UnsupportedOption`.
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         // `BufferedReader` rejects the flags a reader does not support.
         let flags = Flags(options.flags);
@@ -363,7 +574,7 @@ impl<R: BufRead> TextReader<R> {
         let url = options.base.clone();
         let resolver = options.resolver.is_some();
         Ok(Self {
-            source: BufferedReader::with_options(input, options)?,
+            source: BufferedReader::with_options(input, streaming(options))?,
             limits,
             url,
             resolver,
@@ -374,8 +585,11 @@ impl<R: BufRead> TextReader<R> {
             buffered: 0,
             pending: None,
             attribute: None,
+            value: None,
             scope: Scope::default(),
+            blanks: Blanks::default(),
             validators: Validators::default(),
+            standalone: Standalone::NoDeclaration,
         })
     }
 
@@ -401,7 +615,7 @@ impl<R: BufRead> TextReader<R> {
             options.base.clone(),
             options.resolver.is_some(),
         );
-        let previous = self.source.reset_with(input, options)?;
+        let previous = self.source.reset_with(input, streaming(options))?;
         (self.limits, self.flags, self.url, self.resolver) = (limits, flags, url, resolver);
         self.restart();
         Ok(previous)
@@ -413,8 +627,11 @@ impl<R: BufRead> TextReader<R> {
         self.buffered = 0;
         self.pending = None;
         self.attribute = None;
+        self.value = None;
         self.scope = Scope::default();
+        self.blanks = Blanks::default();
         self.validators = Validators::default();
+        self.standalone = Standalone::NoDeclaration;
     }
 
     /// `xmlTextReaderRead`: moves to the next node in document order.
@@ -425,15 +642,12 @@ impl<R: BufRead> TextReader<R> {
             ReadState::Error => return Err(self.failure()),
             ReadState::Initial | ReadState::Interactive => {}
         }
-        self.attribute = None;
+        (self.attribute, self.value) = (None, None);
         if let Some(node) = self.queue.pop_front() {
             if matches!(node.kind, Kind::Empty | Kind::End) {
                 self.scope.pop();
             }
-            self.buffered -= node.text.len();
-            if self.spare.len() < SPARE_NODES {
-                self.spare.push(node);
-            }
+            self.recycle(node);
         }
         match self.fill() {
             Ok(true) => {
@@ -460,6 +674,13 @@ impl<R: BufRead> TextReader<R> {
                 self.state = ReadState::Error;
                 Err(error)
             }
+        }
+    }
+
+    fn recycle(&mut self, node: Node) {
+        self.buffered -= node.text.len();
+        if self.spare.len() < SPARE_NODES {
+            self.spare.push(node);
         }
     }
 
@@ -511,6 +732,13 @@ impl<R: BufRead> TextReader<R> {
                 return Ok(false);
             };
             self.validators.event(&event, origin);
+            if let Event::Declaration(declaration) = &event {
+                self.standalone = match declaration.standalone {
+                    Some(true) => Standalone::Yes,
+                    Some(false) => Standalone::No,
+                    None => Standalone::Unspecified,
+                };
+            }
             let merge = matches!(event, Event::Text(_))
                 && self
                     .queue
@@ -525,16 +753,79 @@ impl<R: BufRead> TextReader<R> {
                 self.queue.pop_back();
                 continue;
             }
+            node.replaced = (merge && node.replaced) || origin.replacement_range().is_some();
+            if matches!(node.kind, Kind::Element | Kind::Empty)
+                && let Some(budget) = self.source.budget()
+                && !budget.kept().is_empty()
+            {
+                node.keep(std::mem::take(budget.kept()));
+            }
             self.buffered += node.text.len() - before;
             if node.kind == Kind::Doctype
                 && let Some(dtd) = self.source.dtd()
             {
                 self.validators.set_dtd(dtd);
             }
-            if node.kind == Kind::EntityRef {
+            if self.flags.drops_blanks() && !merge {
+                self.track();
+            }
+            if self
+                .queue
+                .back()
+                .is_some_and(|node| node.kind == Kind::EntityRef)
+            {
                 self.skip_entity()?;
             }
             return Ok(true);
+        }
+    }
+
+    /// `areBlanks` for the text before the node just queued, which completes
+    /// it; drops the text when it is ignorable blank, then notes the node.
+    fn track(&mut self) {
+        let last = self.queue.len() - 1;
+        if last > 0 && self.queue[last - 1].kind == Kind::Text {
+            let (text, next) = (&self.queue[last - 1], &self.queue[last]);
+            // Replacement text is never judged.
+            let blank =
+                !text.replaced && (text.get(text.value).bytes()).all(|b| b" \t\r\n".contains(&b));
+            let (reference, next) = (next.replaced || next.kind == Kind::EntityRef, next.kind);
+            let drop = self.blanks.open.last().is_some_and(|open| {
+                let name = get(&self.blanks.text, open.name);
+                let declared = (self.source.dtd()).and_then(|dtd| dtd.has_element_content(name));
+                let kids = open.kids;
+                // Outside declared element content, libxml2 sees the `&` of
+                // a following reference, and keeps a blank that is the only
+                // child or follows or precedes other text.
+                blank
+                    && open.space != Some(true)
+                    && !(open.space.is_none() && kids.spoken)
+                    && declared.unwrap_or(
+                        (kids.kept || next != Kind::End)
+                            && (!kids.kept || !(kids.first_text || kids.last_text))
+                            && !reference,
+                    )
+            });
+            let replaced = self.queue[last - 1].replaced;
+            if !drop && let Some(open) = self.blanks.open.last_mut() {
+                open.kids.push(true, replaced);
+            }
+            if drop && let Some(text) = self.queue.remove(last - 1) {
+                self.recycle(text);
+            }
+        }
+        let node = self.queue.back().expect("queued node");
+        match node.kind {
+            Kind::End => self.blanks.close(),
+            Kind::Text | Kind::Doctype => {}
+            kind => {
+                if let Some(open) = self.blanks.open.last_mut() {
+                    open.kids.push(false, false);
+                }
+                if kind == Kind::Element {
+                    self.blanks.open(node);
+                }
+            }
         }
     }
 
@@ -600,8 +891,11 @@ impl<R: BufRead> TextReader<R> {
                     return Err(ReadError::Xml(Error::new(limit, self.source.position())));
                 }
                 // The source reports EOF inside an element as an error.
+                let queued = self.queue.len();
                 let fetched = self.fetch();
                 if matches!(fetched, Ok(true)) {
+                    // `NOBLANKS` drops a blank text before the node fetched.
+                    index -= usize::from(self.queue.len() == queued);
                     continue;
                 }
                 self.state = ReadState::Error;
@@ -622,6 +916,9 @@ impl<R: BufRead> TextReader<R> {
     /// `xmlTextReaderReadString`: text of a Text/CDATA node, or the
     /// concatenated descendant text of an element with children.
     pub fn read_string(&mut self) -> Result<Option<String>, ReadError> {
+        if let Some((node, part)) = self.part() {
+            return Ok((!part.reference).then(|| node.get(part.span).to_owned()));
+        }
         if self.attribute.is_some() {
             return Ok(None);
         }
@@ -760,12 +1057,7 @@ impl<R: BufRead> TextReader<R> {
                         }
                     }
                     for attribute in attributes {
-                        write_attribute(
-                            out,
-                            None,
-                            node.qualified(attribute.name),
-                            node.get(attribute.value),
-                        );
+                        node.write_attribute(out, attribute, expanded);
                     }
                     if node.kind == Kind::Empty {
                         out.push_str("/>");
@@ -824,17 +1116,30 @@ impl<R: BufRead> TextReader<R> {
     /// The attribute under the cursor, or the current node's own name.
     fn qname(&self) -> Option<(&Node, QName)> {
         let node = self.node()?;
-        match (self.attribute, node.kind) {
-            (Some(index), _) => Some((node, node.attributes[index].name)),
-            (None, Kind::Element | Kind::Empty | Kind::End) => Some((node, node.name)),
+        match (self.attribute, self.value, node.kind) {
+            (Some(_), Some(_), _) => None,
+            (Some(index), None, _) => Some((node, node.attributes[index].name)),
+            (None, _, Kind::Element | Kind::Empty | Kind::End) => Some((node, node.name)),
             _ => None,
         }
+    }
+
+    /// The attribute child under the cursor.
+    fn part(&self) -> Option<(&Node, Part)> {
+        let node = self.node()?;
+        Some((node, node.part(self.attribute?, self.value?)?))
     }
 
     pub fn node_type(&self) -> NodeType {
         let Some(node) = self.node() else {
             return NodeType::None;
         };
+        if let Some((_, part)) = self.part() {
+            return match part.reference {
+                true => NodeType::EntityReference,
+                false => NodeType::Text,
+            };
+        }
         if self.attribute.is_some() {
             return NodeType::Attribute;
         }
@@ -856,6 +1161,12 @@ impl<R: BufRead> TextReader<R> {
     pub fn name(&self) -> Option<&str> {
         if let Some((node, name)) = self.qname() {
             return Some(node.qualified(name));
+        }
+        if let Some((node, part)) = self.part() {
+            return Some(match part.reference {
+                true => node.get(part.span),
+                false => "#text",
+            });
         }
         let node = self.node()?;
         Some(match node.kind {
@@ -887,6 +1198,9 @@ impl<R: BufRead> TextReader<R> {
     /// Attribute, text, CDATA, comment or PI content. A PI without data has
     /// none, although [`has_value`](Self::has_value) is true.
     pub fn value(&self) -> Option<&str> {
+        if let Some((node, part)) = self.part() {
+            return (!part.reference).then(|| node.get(part.span));
+        }
         let node = self.node()?;
         match (self.attribute, node.kind) {
             (Some(index), _) => Some(node.get(node.attributes[index].value)),
@@ -899,6 +1213,9 @@ impl<R: BufRead> TextReader<R> {
     }
 
     pub fn has_value(&self) -> bool {
+        if let Some((_, part)) = self.part() {
+            return !part.reference;
+        }
         self.node().is_some_and(|node| {
             self.attribute.is_some()
                 || matches!(
@@ -912,7 +1229,8 @@ impl<R: BufRead> TextReader<R> {
     pub fn depth(&self) -> usize {
         self.node().map_or(0, |node| {
             let element = matches!(node.kind, Kind::Element | Kind::Empty | Kind::End);
-            self.scope.frames.len() - usize::from(element) + usize::from(self.attribute.is_some())
+            let nested = usize::from(self.attribute.is_some()) + usize::from(self.value.is_some());
+            self.scope.frames.len() - usize::from(element) + nested
         })
     }
 
@@ -993,7 +1311,7 @@ impl<R: BufRead> TextReader<R> {
 
     fn move_to(&mut self, index: Option<usize>) -> bool {
         if index.is_some() {
-            self.attribute = index;
+            (self.attribute, self.value) = (index, None);
         }
         index.is_some()
     }
@@ -1012,7 +1330,7 @@ impl<R: BufRead> TextReader<R> {
         let Some(count) = self.element().map(|node| node.attributes.len()) else {
             return false;
         };
-        self.attribute = (index < count).then_some(index);
+        (self.attribute, self.value) = ((index < count).then_some(index), None);
         self.attribute.is_some()
     }
 
@@ -1024,7 +1342,12 @@ impl<R: BufRead> TextReader<R> {
         )
     }
 
+    /// From an attribute's value ([`read_attribute_value`](Self::read_attribute_value))
+    /// there is no next attribute, as in libxml2.
     pub fn move_to_next_attribute(&mut self) -> bool {
+        if self.value.is_some() {
+            return false;
+        }
         let next = self.attribute.map_or(0, |index| index + 1);
         self.move_to(
             self.element()
@@ -1035,7 +1358,67 @@ impl<R: BufRead> TextReader<R> {
 
     /// Returns from an attribute to its element; false if not on one.
     pub fn move_to_element(&mut self) -> bool {
+        self.value = None;
         self.attribute.take().is_some()
+    }
+
+    /// `xmlTextReaderReadAttributeValue`: from an attribute, moves to the
+    /// first Text or EntityReference child of its value, then to each next
+    /// one. False when there is none (an empty value) or no more, leaving the
+    /// cursor where it was. A child is a Text (depth + 2) named `#text` with
+    /// the text as value, or an EntityReference named after the entity with no
+    /// value; without `NOENT` a declared general entity reference in the value
+    /// is one, otherwise the value is one Text. A namespace declaration's
+    /// value is one Text, even when empty.
+    pub fn read_attribute_value(&mut self) -> bool {
+        let (Some(node), Some(index)) = (self.node(), self.attribute) else {
+            return false;
+        };
+        let next = self.value.map_or(0, |child| child + 1);
+        let found = node.part(index, next).is_some();
+        if found {
+            self.value = Some(next);
+        }
+        found
+    }
+
+    /// `xmlTextReaderIsDefault`: always false. libxml2 2.15.4 documents it as
+    /// "an Attribute node generated from the default value defined in the
+    /// DTD" but returns 0 for every node, defaulted attributes included, and
+    /// so does this reader.
+    pub fn is_default(&self) -> bool {
+        false
+    }
+
+    /// `xmlTextReaderNormalization`: always true; libxml2 returns 1 and has
+    /// no setter.
+    pub fn normalization(&self) -> bool {
+        true
+    }
+
+    /// `xmlTextReaderStandalone`: the XML declaration's `standalone`, once the
+    /// first node was read.
+    pub fn standalone(&self) -> Standalone {
+        self.standalone
+    }
+
+    /// `xmlTextReaderByteConsumed`: input bytes the parser has taken, which
+    /// includes the lookahead that completes the current node (a text node is
+    /// complete only once its successor is known). libxml2 pushes 4 KiB
+    /// chunks and counts whole ones, so only the value at the end of a
+    /// document, its length, is the same.
+    pub fn byte_consumed(&self) -> usize {
+        self.source.position()
+    }
+
+    /// `xmlTextReaderGetRemainder`: stops the reader and returns the source
+    /// as the parser left it, `None` when no node is current (before the first
+    /// read, at the end or after an error). The parser takes whole windows
+    /// of a `BufRead`, so what it already holds is not in the remainder: for
+    /// a slice, which is one window, nothing is left.
+    pub fn into_remainder(self) -> Option<R> {
+        self.node()?;
+        Some(self.source.into_inner())
     }
 
     /// `xmlNodeGetBase`: the innermost `xml:base` resolved against enclosing
@@ -1071,22 +1454,44 @@ impl<R: BufRead> TextReader<R> {
         }
     }
 
-    /// `xmlTextReaderSetParserProp`. Properties are fixed by the options at
-    /// construction ([`with_options`](Self::with_options)); setting another
-    /// value returns `UnsupportedOption`.
+    /// `xmlTextReaderSetParserProp`: sets the `DTDLOAD`, `DTDATTR` or `NOENT`
+    /// flag of [`with_options`](Self::with_options). Setting the current
+    /// value always succeeds. Changing one is only possible before the first
+    /// read (`InvalidState` afterwards; libxml2 allows some changes
+    /// mid-stream, the stream here is configured when it starts). Clearing
+    /// `LoadDtd` clears `DTDLOAD` only, so it stays true while `DTDATTR` or
+    /// `DTDVALID` load the subset, as libxml2's. `UnsupportedOption`: turning
+    /// `Validate` on (see [`ParserProperty::Validate`]) and `LoadDtd` without
+    /// a resolver (nothing could be loaded).
     pub fn set_parser_property(
         &mut self,
         property: ParserProperty,
         value: bool,
     ) -> Result<(), Error> {
-        if self.parser_property(property) == value {
-            Ok(())
-        } else {
-            Err(Error::new(
-                ErrorKind::UnsupportedOption,
-                self.source.position(),
-            ))
+        let flag = match property {
+            ParserProperty::LoadDtd => DTDLOAD,
+            ParserProperty::DefaultAttributes => DTDATTR,
+            ParserProperty::SubstituteEntities => NOENT,
+            ParserProperty::Validate => 0,
+        };
+        let (unsupported, position) = (ErrorKind::UnsupportedOption, self.source.position());
+        if value && (flag == 0 || flag == DTDLOAD && !self.resolver) {
+            return Err(Error::new(unsupported, position));
         }
+        let flags = Flags(if value {
+            self.flags.0 | flag
+        } else {
+            self.flags.0 & !flag
+        });
+        if flags == self.flags {
+            return Ok(());
+        }
+        if self.state != ReadState::Initial {
+            return Err(Error::new(ErrorKind::InvalidState, position));
+        }
+        self.source.set_flags(streaming_flags(flags));
+        self.flags = flags;
+        Ok(())
     }
 
     /// `xmlTextReaderRelaxNGSetSchema`: validates the document against `schema`
@@ -1168,6 +1573,18 @@ impl Validators {
             (Some(true), Some(true) | None) | (None, Some(true))
         )
     }
+}
+
+/// The options the source sees: it rejects `NOBLANKS`, which the reader applies.
+fn streaming(options: ParseOptions) -> ParseOptions {
+    ParseOptions {
+        flags: streaming_flags(Flags(options.flags)).0,
+        ..options
+    }
+}
+
+fn streaming_flags(flags: Flags) -> Flags {
+    Flags(flags.0 & !NOBLANKS)
 }
 
 /// Serializes one replacement-text event of a skipped entity reference.

@@ -64,7 +64,7 @@ pub use owned::{
 pub use push::PushParser;
 pub use reader::{Attribute, Attributes, Declaration, Doctype, Element, Event, Limits, Reader};
 pub use resolve::{FileResolver, Request, Resolver, ResourceKind};
-pub use textreader::{NodeType, ParserProperty, ReadState, TextReader};
+pub use textreader::{NodeType, ParserProperty, ReadState, Standalone, TextReader};
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
 pub use xpath::tree::NamespaceBinding;

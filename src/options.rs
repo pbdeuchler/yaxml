@@ -45,7 +45,7 @@ pub const NOERROR: u32 = 1 << 5;
 pub const NOWARNING: u32 = 1 << 6;
 /// `XML_PARSE_PEDANTIC`: accepted; it only adds printed warnings in libxml2.
 pub const PEDANTIC: u32 = 1 << 7;
-/// `XML_PARSE_NOBLANKS`: drop ignorable whitespace text (DOMs only), with
+/// `XML_PARSE_NOBLANKS`: drop ignorable whitespace text (DOMs and `TextReader`), with
 /// libxml2's `areBlanks` rules.
 pub const NOBLANKS: u32 = 1 << 8;
 /// `XML_PARSE_SAX1`: accepted; yaxml has no SAX1 handlers to prefer.
