@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e "<foo ;'></foooo a='&#60;'></foo>">
-]>
-<>">
-]k
-<doc>&e;</doc>

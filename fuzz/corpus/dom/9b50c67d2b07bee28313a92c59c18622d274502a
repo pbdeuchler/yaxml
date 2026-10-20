@@ -1,18 +1,0 @@
-ž<r><s xml:c"sml:cc[
-< b CDATA #IMPLIED>
-<!ENTITY d "&#xD;">
-<!ENTITY a "&#xA;">
-<!ENTITY da "&#xD;&#xA;">
-]>
-<doc>
-<tst a="
-
-xyz" b="
-
-xyz"/>
-<tst a="&d;&d;A&a;&#x47;&a;B&da;" b="&d;&d;A&a;&#x20;.a;B&da;"/>
-<tst a=";B&#xd;&#xa;"/>
-<t"&#32;x&#32;&#32;y&#32;" b="&#32;x&#32;&#32;y&#30;"/>
-<tst a=" a b " b=" a b&#32;" b="&#32;x&#32;&#32;y&#30;"/>
-<tst a=" a b ?xmvl -="?>C="?
-	xml<s )

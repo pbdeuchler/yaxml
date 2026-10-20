@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc bad2 IDREFS "abc:1 1abc_2">
-<!ATTLIST doc ok1 IDREFS "abc:1 #a1bcTLIST docbad IDREF1"/>
-

@@ -1,2 +1,0 @@
-<!DOCTYPE fo: [
-<!ELEMENT foo ANYLIST foo bar NMTOKE bar0"abc&#9;xyz"/>

@@ -1,8 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normdI attr NMTOKENS #IMPLIED>]>
-<doc> <norm attr='
-
-foobar'/>
-  <norm attr=' foo bar
-'/>
-  <norm attrOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO='foo&#43;&#x;# 9;&a'/> <!-- PBM serializing back -->
-</doc>*

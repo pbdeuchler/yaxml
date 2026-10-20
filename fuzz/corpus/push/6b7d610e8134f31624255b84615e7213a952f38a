@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e "&#39;">
-]>
-<c>&e;#97;</doc>

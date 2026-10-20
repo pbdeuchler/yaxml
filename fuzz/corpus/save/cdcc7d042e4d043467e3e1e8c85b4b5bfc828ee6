@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "<?yml F-8'?>">
-]>
-<doc>&e;<j/doc>

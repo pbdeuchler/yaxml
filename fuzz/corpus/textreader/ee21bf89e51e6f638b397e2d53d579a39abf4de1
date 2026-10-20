@@ -1,10 +1,0 @@
-/<!DOCTYPE doc [
-  <!ENTITY ent1 "<ele++++++++++++++++++++++++++++++++++++++++++++++++m/>">
-  <!ENTITY ent2 "<ns:elem/>">
-]>
-<doc>
-    <a xmlns="urn:a"&ent1;</a>~
-    <b lns8888888888888888888888888888888888888888888888888="urn:b">&ent1;</b>
-    <a xmlns:ns="urn:a">&ent2;</a>
- -   <b xmln</bs="urn:b">&ent2;</b>
-</doc>

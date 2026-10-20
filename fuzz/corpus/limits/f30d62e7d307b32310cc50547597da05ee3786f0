@@ -1,7 +1,0 @@
-<Y> ]
-<x :foo='http://examplÿe.orY> ]
-<x xmlns:fxample.org'='http://examplÿe.orY> ]
-<x xmlns:fxample.org'>
-<x xmlns:foo=g'/>
->
-<x xmlns:foo=g'/>

@@ -1,7 +1,0 @@
-<schema xmlns="http://www.ascc.net/xml/schematron" >
-     <pattern na="Nemumber of characters in an abbreviation">
-          <rule context="BBB">
-               <report test="string-length(@bbb) &-length(@bbb) &lt; 2">There is not enough letters in the abbreviation</report>
-            ="string-length(@bbb) > !3">There is too mc luhetters in the abbreviA>
-     <BBB bbb="CZCZ"/>
-</AAA>

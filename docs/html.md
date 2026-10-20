@@ -224,7 +224,7 @@ html5lib-style tokenizer inputs) plus, with the source tree, libxml2's
 
 xmllint has no HTML5 flag and prints neither SAX callbacks verbatim nor
 lines, so `matches_libxml2_callbacks_lines_and_fragments` drives libxml2
-directly through `tooling/libxml2_html.c`:
+directly through `yaxml-harness/tooling/libxml2_html.c`:
 
 ```sh
 ORACLE=/path/to/yaxml-oracle
@@ -253,14 +253,14 @@ list, errors).
 
 ## Fuzzing
 
-`fuzz/html.rs` derives options, small limits and a push chunk schedule from
+`tests/support/fuzz/html.rs` derives options, small limits and a push chunk schedule from
 each input and checks that push equals pull, tree invariants and that saved
-output reparses (see [fuzz/README.md](../fuzz/README.md)). Seeded with the
+output reparses (see [yaxml-harness/fuzz/README.md](https://github.com/pbdeuchler/yaxml-harness/blob/main/fuzz/README.md)). Seeded with the
 corpus snippets and libxml2's `test/HTML` files,
-`cargo +nightly fuzz run html fuzz/corpus/html fuzz/corpus -- -max_total_time=360 -max_len=16384`
+`cargo +nightly fuzz run html yaxml-harness/fuzz/corpus/html yaxml-harness/fuzz/corpus -- -max_total_time=360 -max_len=16384`
 ran 302,479 inputs in 6 minutes without failure. Its smoke tests had found two
 chunk-dependence bugs, and an earlier run an over-strict reparse invariant
-(`fuzz/regressions/html/reparse-prescan.html`). `fuzz/coverage.sh html` on the
+(`yaxml-harness/fuzz/regressions/html/reparse-prescan.html`). `yaxml-harness/coverage.sh html` on the
 resulting corpus covers 99.8% of tokenizer lines (98.7% of branches), 98.8%
 of tree lines (92.9%), 94.2% of serializer lines (92.3%), 94.9% of encoding
 lines (93.6%) and 98.3% of the driver (90.4%).
@@ -269,14 +269,14 @@ Targets `html_events` (events: push equals pull, the SAX2 replay of the
 events equals `parse`'s tree and diagnostics, `Break` ends them) and
 `html_fragment` cover the new entry points; `HTML5` is one of the derived
 options in all three. On 2026-10-20, 10 minutes each on nightly-2026-10-18
-(`-fork=1 -timeout=2 -max_len=16384`, seeded with `fuzz/corpus/html`):
+(`-fork=1 -timeout=2 -max_len=16384`, seeded with `yaxml-harness/fuzz/corpus/html`):
 `html` 134,586 inputs, `html_events` 504,791, `html_fragment` 739,904, no
 failures; after lines became lazy, another 10 minutes each (seeded with
 those corpora): 199,919, 423,770 and 710,571 inputs, no failures. A first `html` run found an over-strict invariant: an HTML5 tree
 can have several top-level `html` elements, and libxml2 (and this
 serializer) gives only the first head a generated `<meta charset>` when that
 head is empty, so per-subtree output differs
-(`fuzz/regressions/html/html5-subtrees.html`).
+(`yaxml-harness/fuzz/regressions/html/html5-subtrees.html`).
 
 ## Known differences
 

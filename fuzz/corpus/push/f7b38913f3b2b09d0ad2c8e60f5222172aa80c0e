@@ -1,11 +1,0 @@
-<?xml version=" ?>
-<!DOCTYPE book [
-<!ELEMENT book ANY>
-<!-- This test case covers     legal character ranges plus
-        discrete legal000000000000000000000000000018446744073709551615"1.0"?>
-<!-- Attribute uniqueness: ˜š™–‡~€‚íŸ¾attr="
-ï¤€íŸ¿íŸ¾ã€‚attr="attrValue"
- 	ï¤ï¤€íŸ¿íŸ¾attr="attrValue"
- 	ï¿½ï¤ï¤€íŸ¿attr="attrValue"
- 	attr-ï¿½ï¤:b="hipper"
-     xm</fo>o>

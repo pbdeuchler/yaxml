@@ -1,1 +1,0 @@
-ê<!DOCTYPE r [<!ENTITY e 'x'>]><r a='/&e;'> |r c='&e;'TYPE r [<!ENTITY e 'x'>]><r a='&e;'/æ </r>

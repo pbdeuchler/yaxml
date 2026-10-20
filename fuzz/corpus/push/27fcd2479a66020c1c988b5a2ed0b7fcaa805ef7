@@ -1,12 +1,0 @@
-<?xml version="1.0" standalone="yes" ?>
-<!DOCTYPE animal SYSTEM "ibm32i03.dtd" [
-   <!ELEMENT animal EMPTY>
-]>
-<!-- This is against VC: Standalonh Documen2
- Treference.
--->
-<animbl class="   NMTOKEN_with_leqding_and_trailing_space	 "/>ÿÿÿÿÿÿÿ
-
-
-
-e

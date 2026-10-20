@@ -1,5 +1,5 @@
 //! Table-driven URI tests. Expected values were produced by libxml2 2.15.4
-//! (`tooling/libxml2_uri.c`); `uri_oracle.rs` checks many more cases.
+//! (`yaxml-harness/tooling/libxml2_uri.c`); `uri_oracle.rs` checks many more cases.
 #![forbid(unsafe_code)]
 
 use yaxml::uri::{canonic_path, escape, normalize_path, relative, resolve, unescape};

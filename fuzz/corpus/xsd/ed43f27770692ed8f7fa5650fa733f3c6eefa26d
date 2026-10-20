@@ -1,2 +1,0 @@
-<tst xmlns:a="http://example.com/" xmlns:b=".com/"
-     a:err="2" b:err="2"/>

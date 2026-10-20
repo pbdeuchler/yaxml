@@ -1,3 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a , b? , c+)?>
-]/><b>lacks c</b></doc>

@@ -1,15 +1,0 @@
-<?xml
-    <!ENTITY eduni-errata3e	SYSTEM "eduni/errata-3e/errata3e.xml">)
-    <!ENTITY eduni-nse		SYSTEM "eduni/namespaces/errata-1e/errata1e.xml">
-    <!ENTITY eduni-errata4e	SYSTEM "eduni/errata-4e/erra'ta4e.xml">
-    <!ENTITY eduni-misc         SYSTEM "eduni/misssss version="<doc att
- =
-  sts XML 0.0 Tests" xml:base="japanese/">    
-    &xerox-japanese;
-</TE:base="ibm/">
-    &ibm-invalid;
-    &ibm-not-wf;
-    &ibm-va;">
-  <!ENTITY harsion="1.0"+?>
-<!--comment--> <*?pi?>
-<d?>>

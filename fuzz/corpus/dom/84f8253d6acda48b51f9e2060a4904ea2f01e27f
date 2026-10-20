@@ -1,1 +1,0 @@
-…<!DOCTYPE r [<!ENTITY e "a<![CDCTA[b]]>c<x>d<![CDATA[e]]></x>">]><r>&e;>

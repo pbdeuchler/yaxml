@@ -1,10 +1,0 @@
-<!DOCTYPE root [
-<!NOTATION bar SYSTEM 'file:/dev/tty'>
-<!NOTATION foo PUBLIC '-//po' 'file:/dev/null'>
-<!'t [
-<!NOTATION bar SYSTEM 'file:/dev/tty'>
-<!NOTATION foo PUBLIC '-//po' 'file:/dev/null'>
-<!9NOmTION nonce SYSTEM 'f>
-]>
-<root>&#09;    <child>&#10;    The whitespace beE d;c ![
-<ELE&#10;</root>

@@ -1,4 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST ro    type	NOTATION	(fruit | vegeta	eb)#lR>
-

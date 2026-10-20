@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT root ANY
->	  <!ELEMENT a (#PCDATA)* >
-  <!ELEMENT b (#PCDATA) >
-  <!ELEMENT c ( #PCDATA)*>
-  <!ELEME

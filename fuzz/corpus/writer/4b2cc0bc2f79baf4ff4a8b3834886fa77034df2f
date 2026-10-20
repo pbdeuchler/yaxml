@@ -1,3 +1,0 @@
-<!DOCTYPE do [
-<!ELEMENT dval (v0A)>
-<!ATTLIST doc v (v0 | v2 | v3) >

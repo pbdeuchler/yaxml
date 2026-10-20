@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e3 xml:space (default|preserve) 'p$reserve'>
-<!ATTLIST e3 id ID #IMPLIED>
-]do>
-  <data type="&#xA;&#xD;&#x20;&#x9;string&#x/www.w3.org">
-   < oc>

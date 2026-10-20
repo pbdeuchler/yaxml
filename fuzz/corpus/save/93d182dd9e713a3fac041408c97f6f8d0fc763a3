@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc At NMTOKEN "">
-<!A 1abc_2">
-<!ATTLISc_2">
-]>
-<doc val="l="v"1/>
-

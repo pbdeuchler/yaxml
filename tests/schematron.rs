@@ -1,7 +1,7 @@
 //! Schematron: libxml2's `test/schematron` corpus with runtest's expected
 //! output (vendored in `tests/fixtures/schematron`), table-driven schema and
 //! validation cases, and (ignored, with `YAXML_SCHEMATRON_HELPER` naming the
-//! compiled `tooling/libxml2_schematron.c`) a differential run of all of
+//! compiled `yaxml-harness/tooling/libxml2_schematron.c`) a differential run of all of
 //! them, in every output mode, against libxml2.
 
 use std::path::Path;
@@ -778,7 +778,7 @@ fn oracle(helper: &str, directory: &Path, mode: &str, schema: &str, instances: &
 }
 
 #[test]
-#[ignore = "requires YAXML_SCHEMATRON_HELPER pointing at the compiled tooling/libxml2_schematron.c"]
+#[ignore = "requires YAXML_SCHEMATRON_HELPER pointing at the compiled yaxml-harness/tooling/libxml2_schematron.c"]
 fn libxml2_agrees_in_every_mode() {
     let helper = std::env::var("YAXML_SCHEMATRON_HELPER").unwrap();
     let (mut total, mut differences) = (0, Vec::new());

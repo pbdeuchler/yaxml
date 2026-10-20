@@ -7,7 +7,7 @@ under `cargo test --all-targets` is only a functional smoke check.
 
 ## Matched DOM and streaming parsing
 
-The `parse_bench` example and external `tooling/libxml2_parse_bench.c` helper
+The `parse_bench` example and external `yaxml-harness/tooling/libxml2_parse_bench.c` helper
 implement the [matched parsing contract](archive/plans/matched-parse-baseline.md).
 They measure fresh borrowing/owned DOMs, memory readers, SAX push input and
 buffered pull input with complete logical-value observations. DOM traversal
@@ -170,7 +170,7 @@ no new lead.
 
 ### DTD-heavy parsing (2026-10-20, `dtd` fixture family)
 
-Five DOCTYPE fixtures joined the matrix (`examples/support/parse_benchmark.rs`):
+Five DOCTYPE fixtures joined the matrix (`yaxml-harness/examples/support/parse_benchmark.rs`):
 `dtd-decl` (2,000 general entities and 1,000 element/ATTLIST pairs, `<r/>`),
 `dtd-refs` (5,000 paragraphs with three internal references each, one with
 markup, one with a character reference), `dtd-nested` (5,000 references to
@@ -715,7 +715,7 @@ no Rust pointers or private arena state.
 
 ### Matched libxml2 structural run
 
-`tooling/libxml2_structure_bench.c` is compiled separately and never linked by
+`yaxml-harness/tooling/libxml2_structure_bench.c` is compiled separately and never linked by
 Cargo. Build it against the pinned static libxml2 2.15.4 archive:
 
 ```console

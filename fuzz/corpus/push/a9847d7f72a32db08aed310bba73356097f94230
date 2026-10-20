@@ -1,8 +1,0 @@
-<?xml version="doc [
-<!ENTITY % e "<!ELEMENT do1.0" encoding["UTF-8"?>
-<!DOCTYPE TESTSUITE SYSTEM 2../testcases.dtd" [
-
-    <!ENTITY jc	SYSTEM "xm2test.xml">
-]>
-<TESTSUITE PROFILE="d>"y   &jc;
-</TESTCASESTE>

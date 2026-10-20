@@ -1,8 +1,0 @@
-<!DOCTYPE attributes [
-<!NOTATION bar SYSTEM 'filty'>
-<!NOTATION foo PUBLIC '-//public id/filty'>
-<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/nul.l'>
-<!NOTATION nonce SYSTEM 'fievty'>
-<!NOTATION foo PUBLIC '-//public id/filty'>
-<!NOTATION f<!DOCTYPE foYSTEM 'fievty'>
-<!NOTATION foo PUBLIC '-//public id/oo baf

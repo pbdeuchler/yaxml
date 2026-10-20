@@ -1,13 +1,0 @@
-<!DOCTYPE doc SYSTEM "010.enc a1 CDATA "v1">doc a1 CDATA "v1">
- <!ENTITY % z '37;z;n;
-    '>
-    
-     <!DOCTYPE doc [
-    <!ENTITY % z '
-        &#37;z; &#37;z;n;
-      &#37;z; &#37;z;n;
-    ']>
-<do '>
-    c></doc>%z;
-]>
-<dAoc/>

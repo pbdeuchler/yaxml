@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc a CDATA #IMPLIED->
-<!ENe '"'>
-]>
-<doc a="&e;></doc>

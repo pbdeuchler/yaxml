@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc At NMTOKEN "$$$">
-<!ATTLIST doc Ok NMTOKEN "1abc_2">
-<!ATTLIST doc bad NMTOKEN "$$$">
-<!ATTLIST doc Ok NMTOKEN "1abc_2">
-<!ATTLIS<$oc val="v1"/>
-

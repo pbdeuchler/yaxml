@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<?Pi?¦<,!--comment-comment-->
-<!ATTLIST doc att CDATA #IMPLIdoc ANY>
-<!ELEMEN! PUBLIC "some notation">
-<?Pi?><!--comment-->
-]>
-<doc/>

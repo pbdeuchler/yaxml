@@ -5,8 +5,23 @@ edition = "2024"
 rust-version = "1.97"
 description = "A safe Rust XML processor pursuing libxml2 compatibility"
 license = "MIT OR Apache-2.0"
-# Language bindings are their own workspace (bindings/Cargo.toml).
-exclude = ["/bindings"]
+repository = "https://github.com/pbdeuchler/yaxml"
+documentation = "https://docs.rs/yaxml"
+readme = "README.md"
+keywords = ["xml", "parser", "libxml2", "xpath", "xsd"]
+categories = ["parser-implementations", "encoding"]
+# Benchmarks, fuzzing and the libxml2 differentials live in yaxml-harness.
+# The three docs are module docs (`#![doc = include_str!(..)]`).
+include = [
+    "/src/**",
+    "/docs/c14n.md",
+    "/docs/relaxng.md",
+    "/docs/schematron.md",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
 
 [dependencies]
 memchr = "2.8.0"
@@ -15,34 +30,6 @@ memchr = "2.8.0"
 default = []
 # Allocator-aware OwnedDocument storage; requires Rust 1.100 (std allocator API).
 allocator_api = []
-
-[[bench]]
-name = "parse"
-harness = false
-
-[[bench]]
-name = "pull"
-harness = false
-
-[[bench]]
-name = "serialize"
-harness = false
-
-[[bench]]
-name = "mutation"
-harness = false
-
-[[bench]]
-name = "structural_mutation"
-harness = false
-
-[[bench]]
-name = "regexp"
-harness = false
-
-[[bench]]
-name = "valid"
-harness = false
 
 [lints.rust]
 unsafe_code = "forbid"

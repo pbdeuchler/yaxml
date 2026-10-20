@@ -1,11 +1,0 @@
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<!-- This test case containvs alid char 
-&#x9;
-&#xA;
-&#xD;
-&#xx7E;
-&#x<5;#xxFEF0;FFD;
-&#x10000;&#x4FEDC;&#x1FF;
--->

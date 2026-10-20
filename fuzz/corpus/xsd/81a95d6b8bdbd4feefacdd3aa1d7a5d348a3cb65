@@ -1,5 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE test [
-<!ENTITY example "<p>An ampe numerically (&#38;#38.</p>" >
-]>
-<test>&example;</test>

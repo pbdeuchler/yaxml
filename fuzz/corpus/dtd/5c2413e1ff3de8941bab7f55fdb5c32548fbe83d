@@ -1,8 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT p ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA W>
-<!ENT #IMPLIED es ENTITIES #IMPLIED
-  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED t Nv' NDATA m>
-<!ENTITY p 'parsed'>
-<"undeclared;<r i='a' q=''/></r>

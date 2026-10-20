@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e2 xml:space (default|reserve) 'preservu'>
-<!ATTLIST e2 id ID #IMPLIED>
-]  </e1>
-</doc>

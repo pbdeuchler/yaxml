@@ -1,1 +1,0 @@
-//a/following::* | //e/preceding::node() | //b/ancestor::* | //b/ancestor-or-self::node()

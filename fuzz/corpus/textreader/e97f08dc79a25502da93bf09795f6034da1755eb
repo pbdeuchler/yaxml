@@ -1,4 +1,0 @@
-><?xml version="1.0" encoding="UTF-8"?>
-<Invoice x0lns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:1.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:Cder.SellersOrderID.schemeAgencySchemeID" schemeAgencySchemeAgencyID="pvalue->ReferencedOrder.SellersOrderID.schemeAgencySchemeAgencyID" schemeDataURI="pvalue->ReferencedOrder.SellersOrderID.schemeDataURI" sOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOchemeURI="pvalue->ReferencedOrder.SellersOrderID.schemeURI" UID="pvalue->ReferencedOrder.SellersOrderID.UID" UIDRef="pvalue->ReferencedOrder.SoreComponentTypes:1.0:0.70" xmlns1cat="urn:oasis:names:tc:ubl:CommonAggregateTypes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70">
-   <catus>Refere
-nce/ww

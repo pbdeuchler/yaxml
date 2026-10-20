@@ -1,6 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
-<!ELEMENT r ANY>
-<!ENTITY % pe ''>
-%pe;
-<!ATTLIST i r ID #IMPLIED f IDREF #IMPLIED r IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
-<!ATTLIST r c CDATA 'aA 'ag 3'Ġ -

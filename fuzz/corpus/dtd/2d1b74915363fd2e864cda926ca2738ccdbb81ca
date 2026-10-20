@@ -1,3 +1,0 @@
-<!DOCTYPE test [
-  <!ENTITY newline "&#x98;#xA;">
-]>þ<test newl;"/>

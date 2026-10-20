@@ -1,7 +1,0 @@
-<!DOCTYPE foo [
-<!ENTITY f "someniert nal data">
-<!ENTITY e "&f;&f;">
-<!ENTITY d "fe;&e;">
-]>
-<foo>&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
-&d;&d;&d;&d;&d;</foo>

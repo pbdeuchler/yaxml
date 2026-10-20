@@ -1,1 +1,0 @@
-ÿ<!DOCTYPE r [<!ENTITY % p '<!ENTITY e "<n a=&#3/>x">'>%p;<!ATTLIST r a NMTOKENS ' x  y ' b CDATA #FIXED 'f'>]><r>&e;</r>

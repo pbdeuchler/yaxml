@@ -1,3 +1,0 @@
-<!DOCTYPE animal SYSTEM "ibm32n06.dtd">
-<!-- Wrong keyword in SDDecl -->
-<animal/>

@@ -1,8 +1,0 @@
-Ž<?xml version="1.0"?>
-<!DOCTYPE test [
-<!ENTITY example "<p>An amper^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^me>
-  </NewsEnv numerically (&#38;#38 be escaped
- numerically (&#38;#38;#38;) or with a general entity
-  (&amp;amp;).</p>" >
-]>
-<test>&example;ntity¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢¢>&example;</test>

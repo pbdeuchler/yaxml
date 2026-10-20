@@ -179,7 +179,7 @@ These allocations stay on the global heap for every `A`:
 
 Parsing reserves two node records (200 bytes each) per `<` in the first 16 KB,
 scaled to the input and capped at 4,096; the vector then grows as usual. On
-`benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
+`yaxml-harness/benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
 retained document bytes (node + attribute + pool capacity) for markup-heavy
 input; one 500 KB text node reserves 92 records (18 KB), where an estimate
 from input length reserved 4,097 (800 KB, 62% of retained bytes).
@@ -610,11 +610,11 @@ entity declarations, which libxml2's `xmlBufGetChildContent` reaches through
 the DTD node; and a base inside an external parsed entity resolves as an
 internal entity's does, since the entity's URI is not retained.
 
-`tests/dom_edit_oracle.rs` compares these accessors on every node, and the tree
+`yaxml-harness/tests/dom_edit_oracle.rs` compares these accessors on every node, and the tree
 after random `append_child`/`insert_before`/`insert_after`/`unlink`/`replace`
 and create-then-`xmlAddChild` scripts, or after copy scripts (`import` from a
 second document or `copy` within, then `append_child`, as `xmlDocCopyNode` then
-`xmlAddChild`; `try_clone` as `xmlCopyDoc`), with `tooling/libxml2_domedit.c`:
+`xmlAddChild`; `try_clone` as `xmlCopyDoc`), with `yaxml-harness/tooling/libxml2_domedit.c`:
 
 ```sh
 cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -I../../yaxml-oracle/build \

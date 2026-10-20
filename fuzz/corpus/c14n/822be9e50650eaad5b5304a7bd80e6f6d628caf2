@@ -1,7 +1,0 @@
-<student first="" last="">My Name is S
-]>
-<!--* This test is 4.3.2:
-      An internal general parsed encith is well-formed if 
-      its replacement text matches the production labeled
-      "content" *--> 
-<?MyInstruct T;his is a testnow  M. na</student>

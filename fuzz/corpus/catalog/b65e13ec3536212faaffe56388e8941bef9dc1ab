@@ -1,8 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
-<doc xmlns:foo="http://www.bar.org" xml:base="httprted" attr2="all" attr="I'm"
-       xmlns:b="http://www.ietf.org"
-       xmlns:a="http://www.w3.org"
-       	CDATA		#IMPLIED
-	>
-    
-    <!ENTITY ins="" test="../baz"doc>

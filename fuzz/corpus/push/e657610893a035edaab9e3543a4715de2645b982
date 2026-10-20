@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-    <!ELEMENT root EMPTY>
-
-    <!-- illeul pgablic ID characters --ENTIT  <! <!ELEMENT root EMPTY>
-
-    <!-- illeul pgablic ID characters --EENTITY e PUBLIC "this isn&apos;t allowed" "ignored">
-]>]
-
-<root/>

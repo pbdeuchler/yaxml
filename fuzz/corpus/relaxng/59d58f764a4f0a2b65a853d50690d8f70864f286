@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "<?xml encTF-8'?>">
-]>
-<doc>&e;</doc>

@@ -1,1 +1,0 @@
-/descendant::* | /descendant-or-self::node() /p:c/namespace::p

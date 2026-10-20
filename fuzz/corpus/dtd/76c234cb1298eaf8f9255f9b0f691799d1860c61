@@ -1,3 +1,0 @@
-<!DOCTYPE root [
-<!NOTATION bar SYSTEM 'file:/dev/tty'>
-<!NOTATION	 foo0;    </child>&#10;</root>

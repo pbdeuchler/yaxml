@@ -1,5 +1,0 @@
-<schema xmlns="http://www.ascc.net/xml/schematron" >
-  ="Character @ forbidden">
-          <rule context="*">
-               <zreport test="contains(.<'@')"C>
-</AAA>

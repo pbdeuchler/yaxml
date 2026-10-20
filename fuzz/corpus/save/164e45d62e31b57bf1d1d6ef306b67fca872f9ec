@@ -1,4 +1,0 @@
-<!DOCTYPE root [
-<!ENTITY bomboom SYSTEM "bomb_be.xml">
-]>
-<root>&bomboom;</root>

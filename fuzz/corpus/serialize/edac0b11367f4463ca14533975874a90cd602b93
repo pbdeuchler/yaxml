@@ -1,4 +1,0 @@
-<!DOCTYPE d [<!ENTITY e "x&#38;#38;y"><!ENTITY q 'a"b&#39;c'>]><d a="1&e;name:tc:opendocument:xmlns:s:tc:opendocument:xmlns:meta:1.0"
-    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
-    xmlns:text="urn:oasicument:xmlns:dr3d:1.0"
-    xmlns:chart="urn:oasis:names:tc:opendocument:2&#38;3&amp;4" b="&q;"><x/>&e;</d>   

@@ -1,5 +1,0 @@
-8<?xml version="1.0"?>
-<XPath xmlns:bar="http://en-ie">
-    (//. | //@* |r-self::bar:Something
-    ]
-</XPath>

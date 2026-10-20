@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!-- Elemes ms. -->
-<!DOCTYPE foo [
-<!ELEMENT xmlns:foo EMPTY>
-]>
-<xmlns:foo/>

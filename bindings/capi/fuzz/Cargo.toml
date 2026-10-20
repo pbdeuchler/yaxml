@@ -11,7 +11,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 yaxml-capi = { path = ".." }
 
-# Standalone workspace, like the core's fuzz/.
+# Standalone workspace, like yaxml-harness/fuzz/.
 [workspace]
 
 [[bin]]

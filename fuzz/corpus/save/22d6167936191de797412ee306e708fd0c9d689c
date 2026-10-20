@@ -1,13 +1,0 @@
-<?xml version="1.1"?>
-<!-- Test whether nonLatin-1 cha=acters are accepted in IRIs -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo xmattr CDATA #IMPLIED
-              b:attr CDATA #IMPLIED
-              c:attr CDATA #IMPLIED>
-]>
-<foo xmlns:a="http://example.org/&#x49;"
-     xmlns:b="ht@p://example.org/&#x150;"
-     xsattr="2" c:attr="3"/>
-
-</foo>

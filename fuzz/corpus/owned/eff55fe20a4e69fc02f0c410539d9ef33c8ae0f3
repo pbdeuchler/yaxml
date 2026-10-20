@@ -1,4 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root (#PCDATA|repeat-ti-lldone|repeat-till-done)*>
-<!ELEMENT repeat-till-done (#PCDATA)>
-]

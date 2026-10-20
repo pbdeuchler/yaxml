@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA | ns:a | ns:b)*>
-<!ATTLIST doc
-          attr  CDATA #REQUIRED
-          xmlns:ns CDATA #IMPLIED>
-<!ELEMENT a EMPTY>
-<!EL²MENT b (#PCDATA)>
-]>
-<ns:doc ns:attr="val" xm/ns:doc>

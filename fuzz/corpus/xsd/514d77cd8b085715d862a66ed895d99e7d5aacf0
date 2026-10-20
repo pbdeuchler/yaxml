@@ -1,10 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]>
-
-T doc EMPTY
-]>
-<
-
-
-

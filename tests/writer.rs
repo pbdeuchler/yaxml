@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-#[path = "../fuzz/driver.rs"]
+#[path = "support/fuzz/driver.rs"]
 mod driver;
 
 #[path = "support/capture.rs"]

@@ -1,7 +1,0 @@
-,<!DOCTYPE a [
-<!ELEMENT a (#PCDATA|b|s:bDATA|b|s:b)*>
-)*>
-<!ATTLIST a xmlns:s CDATA #I:s CDATA &IMPLIED>
-]>
-<a xm±sMl:nPLIEt.
-</a>

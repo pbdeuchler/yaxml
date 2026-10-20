@@ -1,5 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|c+)*,d?,(e)*,d?,(b|c)*,l?,(e)*,d?,(e,f)+)>
-<!EMENNfT 
-E r

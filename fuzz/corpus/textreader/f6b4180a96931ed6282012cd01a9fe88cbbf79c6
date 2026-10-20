@@ -1,6 +1,0 @@
-–<?xml version="1.0"?>
-<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
-<!ENTITY image SYSTEM "6666xml; and this is6666666666img.gif" NDATA GIF>
-]>
-<EXAMPLE>
-

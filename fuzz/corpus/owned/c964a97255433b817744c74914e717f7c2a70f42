@@ -1,16 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e ""><!DOCTYPE
-
-
-
-CTYPE
-
-
-
-E
-
-><r>%&e;Y/
-< "<foo>">
-]>r;
-<doc>>&e;</doc>

@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA | ns:a | ns==========================>
-<ns:b>
-   <ns:b>second line</ns:b>
-</ns:doc>

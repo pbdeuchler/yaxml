@@ -1,7 +1,0 @@
-Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no normalization -->
-  <norm attr='   '/>
-  <norm attr='
-  foo bar   D.schemeURI" UID="pvalue->ReferencedOrder.SellersOllersOrderID.UIDRef" UIDRefs="pvalue-&gt;Referenames:tc:ubl3;&#xa;&#9; '/> ng back -->
-</doc>

@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-  <!ENTITY e "-">
-]>
-<doc>
-    <u xmlns="foo:x&#76;x&amp;x&apos;x&e;x"/>
-    <e xmlns:ns="fo;x&apos;x&e;x"/>
-</doc>

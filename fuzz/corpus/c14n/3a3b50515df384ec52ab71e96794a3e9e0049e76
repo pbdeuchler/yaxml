@@ -1,5 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT	<!ATTLIST student
-		fi	<!ENTITY myfirst "Snow">
-	<!ENTITY mymiddle </student>

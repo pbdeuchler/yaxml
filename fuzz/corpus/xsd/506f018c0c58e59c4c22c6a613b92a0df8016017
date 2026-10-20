@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root0 (a)>
-  <!ELEMENT child1 (a|b|c)>
-  <!ELEMENT child2 (a ,b,b?,a*,c,c,a,a,b+,c ) >
-  <!ELEMENT child3 (a+|b)? >
-  <!ELEMENT child4 (a, (b|c)+, (a|d)?, (e|d)* )?>
-  <!ELEMENT chil  <!ELEMENT d A P47,P48,P49,P50*-->
-

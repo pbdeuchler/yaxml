@@ -1,40 +1,40 @@
 #![forbid(unsafe_code)]
 
-#[path = "../fuzz/driver.rs"]
+#[path = "support/fuzz/driver.rs"]
 mod driver;
 
 const SEEDS: &[&[u8]] = &[
-    include_bytes!("../fuzz/corpus/minimal.xml"),
-    include_bytes!("../fuzz/corpus/namespaces.xml"),
-    include_bytes!("../fuzz/corpus/lexical.xml"),
-    include_bytes!("../fuzz/corpus/references.xml"),
-    include_bytes!("../fuzz/corpus/malformed.xml"),
-    include_bytes!("../fuzz/corpus/dtd.xml"),
-    include_bytes!("../fuzz/corpus/dtd-entities.xml"),
-    include_bytes!("../fuzz/corpus/dtd-unread.xml"),
-    include_bytes!("../fuzz/corpus/declaration.xml"),
-    include_bytes!("../fuzz/corpus/encoding-name.xml"),
-    include_bytes!("../fuzz/corpus/infoset.xml"),
-    include_bytes!("../fuzz/corpus/utf16le-bom.xml"),
-    include_bytes!("../fuzz/corpus/utf16be-bom.xml"),
-    include_bytes!("../fuzz/corpus/utf16le-declaration.xml"),
-    include_bytes!("../fuzz/corpus/utf16be-declaration.xml"),
-    include_bytes!("../fuzz/corpus/utf16-malformed.xml"),
-    include_bytes!("../fuzz/corpus/charset-alias.xml"),
-    include_bytes!("../fuzz/corpus/charset-unmapped.xml"),
-    include_bytes!("../fuzz/corpus/pull-lookahead.xml"),
-    include_bytes!("../fuzz/corpus/serialize.xml"),
-    include_bytes!("../fuzz/corpus/textreader.xml"),
-    include_bytes!("../fuzz/corpus/mutation-operations.bin"),
-    include_bytes!("../fuzz/corpus/mutation-quotas.bin"),
-    include_bytes!("../fuzz/corpus/structure-operations.bin"),
-    include_bytes!("../fuzz/corpus/construction-controls.bin"),
-    include_bytes!("../fuzz/corpus/construction-binding-limit.bin"),
-    include_bytes!("../fuzz/corpus/construction-format.bin"),
-    include_bytes!("../fuzz/corpus/construction-long-prefix.bin"),
-    include_bytes!("../fuzz/corpus/name-owned-views.txt"),
-    include_bytes!("../fuzz/corpus/uri.txt"),
-    include_bytes!("../fuzz/corpus/html.html"),
+    include_bytes!("fixtures/fuzz-seeds/minimal.xml"),
+    include_bytes!("fixtures/fuzz-seeds/namespaces.xml"),
+    include_bytes!("fixtures/fuzz-seeds/lexical.xml"),
+    include_bytes!("fixtures/fuzz-seeds/references.xml"),
+    include_bytes!("fixtures/fuzz-seeds/malformed.xml"),
+    include_bytes!("fixtures/fuzz-seeds/dtd.xml"),
+    include_bytes!("fixtures/fuzz-seeds/dtd-entities.xml"),
+    include_bytes!("fixtures/fuzz-seeds/dtd-unread.xml"),
+    include_bytes!("fixtures/fuzz-seeds/declaration.xml"),
+    include_bytes!("fixtures/fuzz-seeds/encoding-name.xml"),
+    include_bytes!("fixtures/fuzz-seeds/infoset.xml"),
+    include_bytes!("fixtures/fuzz-seeds/utf16le-bom.xml"),
+    include_bytes!("fixtures/fuzz-seeds/utf16be-bom.xml"),
+    include_bytes!("fixtures/fuzz-seeds/utf16le-declaration.xml"),
+    include_bytes!("fixtures/fuzz-seeds/utf16be-declaration.xml"),
+    include_bytes!("fixtures/fuzz-seeds/utf16-malformed.xml"),
+    include_bytes!("fixtures/fuzz-seeds/charset-alias.xml"),
+    include_bytes!("fixtures/fuzz-seeds/charset-unmapped.xml"),
+    include_bytes!("fixtures/fuzz-seeds/pull-lookahead.xml"),
+    include_bytes!("fixtures/fuzz-seeds/serialize.xml"),
+    include_bytes!("fixtures/fuzz-seeds/textreader.xml"),
+    include_bytes!("fixtures/fuzz-seeds/mutation-operations.bin"),
+    include_bytes!("fixtures/fuzz-seeds/mutation-quotas.bin"),
+    include_bytes!("fixtures/fuzz-seeds/structure-operations.bin"),
+    include_bytes!("fixtures/fuzz-seeds/construction-controls.bin"),
+    include_bytes!("fixtures/fuzz-seeds/construction-binding-limit.bin"),
+    include_bytes!("fixtures/fuzz-seeds/construction-format.bin"),
+    include_bytes!("fixtures/fuzz-seeds/construction-long-prefix.bin"),
+    include_bytes!("fixtures/fuzz-seeds/name-owned-views.txt"),
+    include_bytes!("fixtures/fuzz-seeds/uri.txt"),
+    include_bytes!("fixtures/fuzz-seeds/html.html"),
     b"",
     b"\xff\xfe\x00\xd8",
 ];
@@ -946,10 +946,10 @@ fn encoded_equivalents_and_every_truncation() {
 #[test]
 fn valid_entry_replays_models_attributes_and_separate_dtds() {
     let cases: &[&[u8]] = &[
-        include_bytes!("../fuzz/corpus/valid-models.xml"),
-        include_bytes!("../fuzz/corpus/valid-attributes.xml"),
-        include_bytes!("../fuzz/corpus/valid-dtdvalid.bin"),
-        include_bytes!("../fuzz/corpus/valid-pathological.txt"),
+        include_bytes!("fixtures/fuzz-seeds/valid-models.xml"),
+        include_bytes!("fixtures/fuzz-seeds/valid-attributes.xml"),
+        include_bytes!("fixtures/fuzz-seeds/valid-dtdvalid.bin"),
+        include_bytes!("fixtures/fuzz-seeds/valid-pathological.txt"),
         b"<!ELEMENT r (a|a)><!ELEMENT a EMPTY>",
         b"<!ELEMENT r (#PCDATA)>\0<r/>",
         b"<!ELEMENT r (\0<r/>",
@@ -1060,11 +1060,12 @@ fn dtd_wrappers_reach_every_construction() {
     assert!(driver::exercise_dtd(b"\x01&e;").error.is_some());
 }
 
-/// Replays every minimized crash under `fuzz/regressions/<target>/` through
+/// Replays every minimized crash under `tests/fixtures/fuzz-regressions/<target>/` through
 /// that target's entry point.
 #[test]
 fn fuzz_regressions_replay() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/regressions");
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fuzz-regressions");
     for target in std::fs::read_dir(root).unwrap() {
         let target = target.unwrap();
         let name = target.file_name().into_string().unwrap();
@@ -1094,7 +1095,8 @@ fn fuzz_regressions_replay() {
 
 #[test]
 fn xinclude_entry_replays_seeds_and_malformed_pieces() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/xinclude");
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fuzz-seeds/xinclude");
     for seed in std::fs::read_dir(root).unwrap() {
         driver::exercise_xinclude(&std::fs::read(seed.unwrap().path()).unwrap());
     }
@@ -1137,7 +1139,8 @@ fn resolver_wrapper_serves_fuzz_resources_to_every_surface() {
 
 #[test]
 fn catalog_entry_replays_seeds_and_malformed_pieces() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/catalog");
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fuzz-seeds/catalog");
     for seed in std::fs::read_dir(root).unwrap() {
         driver::exercise_catalog(&std::fs::read(seed.unwrap().path()).unwrap());
     }
@@ -1167,7 +1170,8 @@ fn xsd_driver_accepts_schema_instance_and_resources() {
 
 #[test]
 fn relaxng_entry_replays_seeds_and_malformed_pieces() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/relaxng");
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fuzz-seeds/relaxng");
     for seed in std::fs::read_dir(root).unwrap() {
         driver::exercise_relaxng(&std::fs::read(seed.unwrap().path()).unwrap());
     }
@@ -1209,7 +1213,8 @@ fn save_entry_reaches_fixed_points_for_seeds_and_edge_documents() {
 
 #[test]
 fn schematron_entry_replays_seeds_and_malformed_pieces() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz/corpus/schematron");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/fuzz-seeds/schematron");
     for seed in std::fs::read_dir(root).unwrap() {
         driver::exercise_schematron(&std::fs::read(seed.unwrap().path()).unwrap());
     }
@@ -1228,9 +1233,9 @@ fn schematron_entry_replays_seeds_and_malformed_pieces() {
 
 #[test]
 fn domedit_corpus_and_regressions_keep_their_invariants() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let mut replayed = 0;
-    for directory in ["corpus/domedit", "regressions/domedit"] {
+    for directory in ["fuzz-seeds/domedit", "fuzz-regressions/domedit"] {
         let Ok(entries) = std::fs::read_dir(root.join(directory)) else {
             continue;
         };

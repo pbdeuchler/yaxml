@@ -1,5 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "<p>An ampersand (&#38;#38;) may be e½scap;#38;#?3 )ow r8;ith a -g,,,,,,,,,,,,,,eneral entity
-  (samp;amp;'.</p>" >
-]>
-<test>&example;</test>!

@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<root>
-T900; &#xFFFD;
-&#x10000; &#x10FFFF;
-</root>
-<!--* a valid test for P66 *-->

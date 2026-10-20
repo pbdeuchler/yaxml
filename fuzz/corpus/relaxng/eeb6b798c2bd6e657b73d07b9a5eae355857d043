@@ -1,4 +1,0 @@
-<!DOCTYPE x [
-<!ELEMENT xml:foo EMPTY>
-]>
-<xml:foo/>

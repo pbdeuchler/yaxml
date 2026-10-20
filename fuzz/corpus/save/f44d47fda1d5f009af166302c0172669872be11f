@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e SYSTEM "n" NDATA n>
-]>
-<doc>&e;</doc>

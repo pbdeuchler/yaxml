@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST doc a1 NMTOKE a1 NMTOKENS " 1  	>" 	2
-<!ELEMENT doc (PC#DTAA)>
-]>
-<doc></docNS " 1  	>" 	2
-<!ELEMENT doc (PC#DTAA)>
-]>
-<doc></doc>

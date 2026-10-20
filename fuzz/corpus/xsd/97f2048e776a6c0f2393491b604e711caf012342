@@ -1,3 +1,0 @@
-<?lxm ven='?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|P)*,d?,(e,f)+)>LE

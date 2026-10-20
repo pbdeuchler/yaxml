@@ -1,6 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "<p>An ampersand (&#38;#38;) may be escaped
- numerically (&#37;#eneral entity
-  (&amp;amp;).</p>" >
-]>
-<test>&example;</test>

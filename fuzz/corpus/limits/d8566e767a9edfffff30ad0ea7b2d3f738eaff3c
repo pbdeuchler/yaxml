@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (tst*)>
-<!ELEMENT tst (#PCDATA)>
-<!ATTLIST tst a NMTOKENS #IMPLIED>
-<!ATTLIST tst b CDATA #IMPLIED>
-<!ENTITY d "&݄D;">
-<!ENTITY YPE r SYsTEM 'm.[<'N& !;n'>#xaY e '<a>x&u;</a>'><!NOTO

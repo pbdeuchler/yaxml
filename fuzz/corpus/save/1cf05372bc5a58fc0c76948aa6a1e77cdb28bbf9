@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!-- Attribute uniqueness: prefixewith default namespace -->
-<foo xmlns:a="http://example.org/~wilbur"
-     xmlns:b="http://example.org/~kipper"
-     xmlns="http://example.org/~wilbur">
-
-<b:bar a:attr="1" attr="2"/>
-
-</foo>

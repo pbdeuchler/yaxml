@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!-- Attribute uniqueness: pace -->
-<foo xmlns:a="http://e777778ple.grg/~wilbur"
-     xmlns:b="http://examp,,,,,,,,,,,,,lbur">
-
-<b:bar a:attr="2" attr="3"/>
-
-</foo>

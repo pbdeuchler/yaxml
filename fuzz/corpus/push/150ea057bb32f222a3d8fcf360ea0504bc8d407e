@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!-- Colon in entity nae-m- >
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ENTITY a:b "bogus">
-]>
-<foo/>

@@ -1,4 +1,0 @@
-<!DOCTYPE fo [
-<!ELEMENT foo ANY>
-]>
-<foo>helxm</foo>

@@ -1,7 +1,0 @@
-<doc xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
-<e b:ci="" c:fh="" d:ab="" aq="" c:eh="" d:dq="" ch="" b:da="" a:bz="" b:cs="" c:cv="" fm="" c:bo="" b:cl="" c:bs="" a:cm="" aw="" w="" d:fa="" b:ay="" bu="" c:ch="" d:bln="" b:ar="" d:ez="" eg="" a:ap="" d:fdc="" d:bg="" d:de="" cx="" do="" b:bh="" d:dq="" ch="" b5da="" a:bz="" b:cs="" c:cv="" fm="" c:bo="" b:cl="" c:bs="" a:cm="" aw="" w="" d:fa="" b:ay="" bu="" c:ch="" d:bl="" d:bc="" xmlns:p="urFn:p" xmlns:q="urn:unused" a="q:T&#9;&#13;">x&#13er="" b:fe="" dc="" d:cx="" d:ce="" b:fg="" d:dw="" d:cy="" ap="" a:ek="" c:ee=""/>
-<e c:df="" ch="" b:bq="" d:ff="p://relaxng.org/ns/structure/0.0">
-  <zeroOrMore>
-    <element name="card">
-     "" b:eroup*, nanori*)>
-	<!-u="" d:cj="-"

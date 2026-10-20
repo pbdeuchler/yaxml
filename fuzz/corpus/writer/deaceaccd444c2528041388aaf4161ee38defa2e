@@ -1,5 +1,0 @@
-<!DOCTYPE doc SYSTEM "N" [
-  <!ENTITY a "&b;">
-
-]>
-<doc attr="1a;"/>

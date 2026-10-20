@@ -1,8 +1,0 @@
-ˆ<?xml version="1.0" encoding='ISO-8859-1"?OCTYPE rANY><!ENTITY<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!EL EMENT r (a,(b|c))*>
-<!ELEMENT d AENT g~(PCDATA|a|a)*2>
-<!ELEMENT g EMPTY>
-]<r>&a;é>
-<<r>><f>text/r</f></r>
->

@@ -1,5 +1,0 @@
-<!-- Having an exteng. -->
-<!DOCTYPE doc SYSTEM "foo">
-<doc>
-    <elem attr="&undeclclared;</elem>
-</doc>

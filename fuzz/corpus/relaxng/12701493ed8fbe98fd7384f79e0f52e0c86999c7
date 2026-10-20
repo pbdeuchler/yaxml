@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
-<!-- Contains a character reæerence to a C0 control character (fr-omfeed),
-     leÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿùÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿgal in XML 1.1 but not 1.0 -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-]>
-<foo>{&#x0c;<4foo>

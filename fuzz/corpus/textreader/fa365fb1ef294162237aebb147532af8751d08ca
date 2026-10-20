@@ -1,8 +1,0 @@
-–<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc
-     defatt  (1
-|)1   "0"
-     xmlns:t>
-]>
-<£oc att="1"/>

@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-    <!'LEMENT roDATA #REQUIRED
-	>
-]>
-
-<root req="foo"/>

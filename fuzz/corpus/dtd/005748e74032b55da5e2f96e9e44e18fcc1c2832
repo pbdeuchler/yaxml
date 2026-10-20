@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a , b* , c+)>
-<!ELEMENT a EMPTY>
-<!ELEME> but this</b><c>was not declared</c><b>seems</b></doc>

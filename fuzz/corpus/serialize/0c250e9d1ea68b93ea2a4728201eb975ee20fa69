@@ -1,5 +1,0 @@
-<?xml  version="1.0"?>
-<!-- syntax test for Production 58-IED>xml  versin 59-->
-<!DOCTYPE test
- [
- <!ATTLIST two attr t>

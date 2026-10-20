@@ -1,6 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM '<!DOCTYPE r--<!----><!---->< u' NDATA n>
-<!ENTITY v SYSTEM '~' NDATA m>
-<!ENTIT-Y p '

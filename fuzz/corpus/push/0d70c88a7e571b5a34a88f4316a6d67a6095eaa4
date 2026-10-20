@@ -1,5 +1,0 @@
-<?xml version="1ng='UTF-8'?>
-<!DOCTYPE animal [
-   <!ELEMENT animal ANY>
-   <!ENTITY % parameterE "cat SYSTEM">
-   <mal>Any content</animal>

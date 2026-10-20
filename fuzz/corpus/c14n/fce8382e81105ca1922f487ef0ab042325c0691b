@@ -1,4 +1,0 @@
-<!DOCTYPE el [
-<!ELEMENT el EMPTY>
-<!ATTLIST el at (one|two|
-<e1 at="two"/>

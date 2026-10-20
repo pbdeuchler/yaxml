@@ -1,17 +1,0 @@
-ˆ<?xml versiof="1.0" en.0"?>
-<XPath xmlns:bar="http://example.org/bar" >
-              ancestor-or-self::bar:Something  and
-           1   (sel<doc xmlns:Ea="urn:<!DOCTYPE doc [
-<!NOa" xmlns:b"=urn:b" xmlSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS<!DOC&
-CharData&#32;trData
-</elem>
-]]>
-<![CDATA[
-<elem>
-CharData&#32;
-<!--comment-->
-<?pi?>&ent;&quo;
-thCarData
-</elem>
-]]>
-<?pi?" b:codL

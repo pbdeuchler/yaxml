@@ -1,6 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo (foo*)>
-<!ENTITY space "&#32;">
-]>
-<<!DOCTYPEMENT foo (foo*)>
-<!ENTITY spacefoo>/></foo>

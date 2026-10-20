@@ -1,7 +1,0 @@
-<!DOCTYPE root [
-<!NOTATION UTF-8 SYSTEM 'UTF-8'>
-<!NOTATIOt tent type c </c>&#10;t type c </c>&#10;  <d d_reference="a1 b1"> Element type d<!DOCTYPE test [
-  <!ENTITY newline "&#x26;#xA;">
-]>
-<test newlineH="&newline;"/>
-loElement t tpe j </j>&#10;</root>

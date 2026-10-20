@@ -1,8 +1,0 @@
-‚<?xml version="1.0"?>
-<XPath xmlns:bar="http://example.org/bar" xmlns:baz="''''''''http://eple.org/foo" xml:lang="en-ie">
-   -self::ba:rS!ENTITY ha20 "&ha9; &ha9;">
-  "&ha21 "&ha20; &ha20;">
-  <!ENTITY 1;">
-  <!ENTITY ha23h"a& 22; &2;">
-  <!ENTITY ha34 "&ha33; &ha33;"/XP>
-  <!ath>E

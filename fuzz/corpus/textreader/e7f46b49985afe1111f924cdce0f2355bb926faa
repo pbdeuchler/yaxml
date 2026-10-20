@@ -1,4 +1,0 @@
-Ž<!DOCTYPE root [
-<!ELEMENT root (elem)>
-<!ELEMENT elem (#PCDATA)>
-<!ATTLIST elem id ID >

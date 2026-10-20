@@ -1,7 +1,0 @@
-<!DOCTYPE r [
-%pe;
-<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED es ENTITIES #IMPLIED
-  t NMTOKEN #IMPLIED ts NMTOKENS #IMPLIED   c CDATA #FIXED 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:q' j ID 'd'>
-<!ATTLIST r c CDATA 'again'>
-]>
-<r i='a' f='b' s='a c' e='p' es='u\\\\\\\\\\[[[[[[[[[[[[[[[[[[[[[[[[[[[[\\\ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #\\\\\\\\\\\\\DOC\\\\\e ENTITY #"MPLIED es ENTITIEHHH(HH\\\\\\\\\\\\\\\\\\ v !amp' t='1L2' ts=' x  y '></r>

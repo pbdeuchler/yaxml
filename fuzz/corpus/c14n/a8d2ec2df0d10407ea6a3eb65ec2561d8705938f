@@ -1,6 +1,0 @@
-<!DOCTYPE a [
-<!ELEMENT a EMPTY>
-<!ATTLIST a b C’IATA #IMPLIED d CD]>
-<a b="c"d="e"ATA #IMPLIE:>
-]>
-<a b="c"d="e"/>

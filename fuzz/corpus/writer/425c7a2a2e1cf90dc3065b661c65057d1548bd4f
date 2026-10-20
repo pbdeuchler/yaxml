@@ -1,11 +1,0 @@
-<?xml version="1.1"?>
-<!-- Has an LSEP character in an NMTOKENS attribute; well-formed in both
-     XML 1.0 and 1.1, but valid only in 1.1 -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo bar NMTOKENS #IMPLIED>
-<!DOCTYP "34">
-]>
-<foo id="g0034" a="g]>
-00<foo bar="abc34"/>T de
-f"/>

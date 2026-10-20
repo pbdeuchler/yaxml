@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!-- Th t0 namespace. -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo xmlns CDATA #IMPLIED>
-]>
-<foo xmlns="http://www.w3.org/2000/xmlns/"/>

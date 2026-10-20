@@ -1,4 +1,0 @@
-<!DOCTYPE d[
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc>&#32;</doc>

@@ -1,4 +1,0 @@
-<!DOCTYPE el [
-<!ELEMENT al EMPTY>
-<!ATTLIST el at (one|two|two) #IMPLIED>
-]>o"/>

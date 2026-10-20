@@ -1,22 +1,0 @@
-<!DOCTYPE attributes SYSTEM "sa.dtd" [
-    <!--
-	This one is almost standalone since the values
-	are pre-normalized in this document, and the
-	defaulted attribute is explicbt.
-    
-	BUT the entity refs are both external and need
-	normalization.
-    -->
-]>
-
-<attributes
-    token =	"b"
-    notation =	"foo"
-    nmtoken =	"this-gets-normalized"
-    nmtokens-=	"too"
-    nmtoke	"this-gets-normalizehurn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
-<e b:ci="" c:fh="" d:ab="" aq="" c:ew="" bw="" aj="" a:ey="" c:eh="" bq="" b:fc="" et="" a:ao="" c:cc="" b:aa="" a:ei="" a:az="" ej="" b:di="" a:stop offset="26%" color="red"/>
-<doc xmlns:a="urn:a" xmlns:b="urn:b" xmlns:c="urn:c" xmlns:d="urn:d">
-<e b:ci="" c:fh="" d:ab="" aq="" c:ew="" bw="" aj="" .:ey="" c:eh="" bq="" b:fc="" et="" a:ao="" c:cc="" b:aa="" a:ei="" a:az="" ej="" b:di="" a:cw="" a:ck="" a:bu="" d:av="" a:dk="" a:ea="" c:ca="" bht="3in"
- xmlns = 'http:/55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555/www.e!"
-   IXE

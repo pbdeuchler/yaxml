@@ -1,6 +1,0 @@
-–<?xml                         version="1.0"?>
-<!DOCTYPE EXAMPLE SYSTEM "example.dtd" [
-<!ENTITY xmltitle PUBLIC "-//MY====================-TITR" "title.xml">
-<!ENTITY image SYSTEM<IMG src="image"/(>
-</EXAMPLE>
-

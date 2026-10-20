@@ -1,17 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<root>
-Test all valid Charater references for P65:
-&#9;&#09;&#0000000009;
-&#xA;on="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-]>
-<root>
-Test all valid Charater references for P65:
-&#9;&#09;&#0000000009;
-&#xa;&#x0A;&#x000000ÿÿÿÿ00A;
-&#x0d;#PCDATA)>
-	<!ENTITYA;&#xa;&#x0A ;.#x00000g

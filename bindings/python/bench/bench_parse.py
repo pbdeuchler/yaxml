@@ -1,4 +1,4 @@
-"""Parse (and a few follow-up operations) on the core's benches/parse.rs
+"""Parse (and a few follow-up operations) on yaxml-harness's benches/parse.rs
 fixtures: yaxml vs lxml vs the standard library's xml.etree.
 
     uv run --group compare python bench/bench_parse.py [--repeat 7]

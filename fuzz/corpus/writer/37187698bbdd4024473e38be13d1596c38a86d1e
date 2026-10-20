@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
-]>
-<doc>
-   <ent>&test1;</ent>
-   <p> WE need lot of garbage now to trigger the;&#13;&#9;" p:a="namespaced"><p:n xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a?![CDATA[b]]>c</p:n>A!C<[DTA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes;" pent>
-</doc>
-

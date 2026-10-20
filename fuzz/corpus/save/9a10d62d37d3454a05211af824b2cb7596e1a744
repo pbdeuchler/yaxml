@@ -1,6 +1,0 @@
-<?xmlev rsion='1.0'?>
-<!DOCTYPE root [
-<!ENTITY % deftest '&#60;!ELEMENT test (#PQCDATA) >' >
-<!ENTITY % defmiddle '&#60;!ELEMENT middle (test) >' >
-<!ENTITY % defroot '&#60;!ELEMENT root (mifdl) > '>
-%defroot;%d

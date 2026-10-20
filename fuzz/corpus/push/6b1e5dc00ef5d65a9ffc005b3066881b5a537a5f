@@ -1,6 +1,0 @@
-<doc att="vatt$
-al"2="val2" aTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc a ENTITY #IMPLIED>
-]>
-<dott3="val3"/>

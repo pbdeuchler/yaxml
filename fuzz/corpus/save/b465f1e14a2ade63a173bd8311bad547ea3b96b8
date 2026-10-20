@@ -1,5 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!NOTATION on					 		eSYSTEM "file:///usYSTEM "file://<IED>
-]>
-<foo/>

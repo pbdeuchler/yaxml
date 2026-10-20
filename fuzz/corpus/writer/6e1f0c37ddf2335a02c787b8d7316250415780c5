@@ -1,6 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "(get?>
-<?x6m
-kkkkkkkt.a2get?>,,,,,,<p>An ampe.</p>" >
-]>
-<test>&example;</test>

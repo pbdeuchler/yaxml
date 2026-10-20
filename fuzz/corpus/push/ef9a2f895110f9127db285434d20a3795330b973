@@ -1,4 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY ampproblem '&amp;'>
-]>
-<v a="&ampproblem;">a</tÂó

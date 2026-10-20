@@ -1,7 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
-        <!ATTLIST student att1 CDATA #REQUIRED>
-]>
-<!--* This test is to test the GE well-formedness 
-      constnowMan. </student>

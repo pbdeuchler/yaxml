@@ -1,6 +1,0 @@
-><?xml version="1.0" encoding="utf-8" ?>
-<!DOCTYPE xdoc [
- <!ENTITY nzewl "&#13;">
-]>
-
-<doc>&newl;»/doc>

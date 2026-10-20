@@ -1,1 +1,0 @@
-<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:b='urn001/XMLSchema' targetNamespace='urn:b'><xs:import schemaLocation='main.xsd'/><xs:simpleType name='t'><xs:restriction base='xs:int'/></xs:simpleType></xs:schema>

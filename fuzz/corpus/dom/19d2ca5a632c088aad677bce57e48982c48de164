@@ -1,5 +1,0 @@
-Ž<!DOCTYPE doc [
-<!ELEMENT ê(#PCDATA | b |*            e         c | d | c)*>"?>
-<!DOCTYPE a [
-<!ELEMENT a (#PCDATA | b |              No Duplicate Types   ] >
- </a>

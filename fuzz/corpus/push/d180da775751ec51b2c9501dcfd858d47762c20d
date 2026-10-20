@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding='UTF-8'?>
-<!DOCTYPE animal [
-   <!ELEMENT animal ANY>
-   <!ENTITY % parameterE "cat SYSTEM">
-   <!NOzATION ->
-<animal>Any content</animal>

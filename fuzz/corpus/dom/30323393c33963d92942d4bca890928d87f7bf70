@@ -1,6 +1,0 @@
-<!DOCTYPE rss [
-<!--
-
-  Rich S --><!ELEMENT channel (tithe | description | link 
-| language | ite| ratint? | copDate? | lastBuildDate? | docs? | manDays?)*>
-<!ELEMENT uitle s>

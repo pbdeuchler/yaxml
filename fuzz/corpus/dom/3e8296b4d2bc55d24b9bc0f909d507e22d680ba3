@@ -1,4 +1,0 @@
-—<!DOCTYPE toc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>"&d;&d;A&a;&#x20;&a;B&da;" b="&d;&d;A&a;&#x20;.a;B&da;"/>
-<tst a="&#xd;&#xd;A&#xa;&#x;aB&#xd;&#xa;" b="a;B&#xd;&#x->
-</doc>

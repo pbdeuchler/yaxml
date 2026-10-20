@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e1 "&e2;">	
-<!eNTITY e4 "&e3;">
-<!ENTITY e2 "&e1;"<doc a="&e1;"></doc>
-

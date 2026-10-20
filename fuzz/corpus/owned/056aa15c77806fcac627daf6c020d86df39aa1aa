@@ -1,7 +1,0 @@
-î<?xml ver+ion3.3.3 describes the normalization rules
-    -->
-
-    <!ATTL<?xml version="1.0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: Ã©ğŸ™‚&#10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirty bytes: ä¸­-->tail&#13;Ã©ğŸ™‚<-after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: Ã©ğŸ™‚&#38;&ÿÿÿÿÿÿlespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?ecomplete comment longer than thirt~y bytes: ä¸­-->ts		IDREFS		#IMPLIED
-	entity:t		ENTITY		#IMPLIED
-	entities	ENTITIESe longer than thirty bytes: Ã©ğŸ™‚&#69;&#13;&#9;" p:a="namesp	#IMPLIED
-	cdaaced">otamp

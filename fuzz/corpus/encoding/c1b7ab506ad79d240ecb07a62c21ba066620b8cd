@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "Char/>
-	<ͼLegalNameStartChar/>
-	<ͽLegalNaLegalNameStartChar/>
-	<豈Lega<a/>,2<b/>,<c/><?xml v,<d/>">
-]>
-<doc>
-   <ent>&test1;</ent>
-   <p> WE need lot of gew" 

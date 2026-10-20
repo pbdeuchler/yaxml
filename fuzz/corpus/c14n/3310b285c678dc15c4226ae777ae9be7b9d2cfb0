@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<?Pi?><!--comment-->
-<!ELEMENT doc EMPTY>
-<?Pi?>Pi?><!--comment-->
-<!NOTATION not PUBLIC "some notatio~">
-<?Pi?><!--comment-->
-]>
-<doc/>

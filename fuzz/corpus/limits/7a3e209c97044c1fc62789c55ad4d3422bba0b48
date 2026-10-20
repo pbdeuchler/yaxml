@@ -1,5 +1,0 @@
-<!-- Default values -->
-<!DOCTYPE foo [
-<!ELEMENT foo EMPTY>
-<!ATTLIST foo a NMTOKEN "34+">
-]/>

@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root [
-  <!ELEMENT root (#PCDATA)>
-  <!ATTLIST root attr CDATA #REQUIRED>
-  <!ENTITY rͰ ANY>
-<!ELEMENT LegalNameCharͱ &#65;">
-&ge1; &#66;
-</root>
-<!--* a valid test for P67 *-->

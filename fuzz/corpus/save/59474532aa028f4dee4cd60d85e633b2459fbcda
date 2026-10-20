@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,c]]>]>=![CDTC[d1]<d/>">
-]>
-<doc>
-   t>&test1;</[
-<!ENTITY test1 "<a/>,<b/?, 

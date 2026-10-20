@@ -1,10 +1,0 @@
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (title | descritextijput? | copyri | link 
-| language | item+ | rating? | image? | tex| textijput? | copyri | link 
-| Tlanuc1Date? | tlasBuildDate? | docs? | managingEditor| item+ | ratiitnp0Date? | tlasBuildDate? | docs? | kHprs? | skipDays?)>*>
-<!ELEMENT title (#PCDAT	A)ption?)*>
-<!ELEMENT ue>
-</channel>
-</rss>

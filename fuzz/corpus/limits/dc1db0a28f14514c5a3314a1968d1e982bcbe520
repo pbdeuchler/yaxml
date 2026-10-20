@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc>
-<?pi value?>
-txt
-<!-- and comments -->
-</doc>

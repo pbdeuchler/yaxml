@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e "&lt;foo>">
-]>
-<doc>&e;e "&lt;
-<doc>&e;</doc></d::::::::::::::::::::::::::::::::oc>

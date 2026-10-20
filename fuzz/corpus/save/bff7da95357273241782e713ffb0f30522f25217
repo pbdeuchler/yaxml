@@ -1,3 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT stude2t (#PCDATA)> 
- 	<!ENTITY FullHName "Snow&Man">!--stiZg inval</student>

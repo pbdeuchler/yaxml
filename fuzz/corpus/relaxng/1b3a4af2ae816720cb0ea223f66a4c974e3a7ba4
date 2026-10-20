@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY very_biw_entitybig_ent_name '"Yes"' >
-<!ENTITY WhatHeSaid "He said &very_big_entity_name01245678901234567890123456790123456789012345678901234567890012345678912345678901234567890123456789_end_of_ver__ynibget_name;" >
-]>
-<doc>&WhatHeSaid;</doc>

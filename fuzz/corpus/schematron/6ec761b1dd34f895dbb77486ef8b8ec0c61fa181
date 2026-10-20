@@ -1,9 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA n>
-<!EN&ITY v SYSTEM 'v' NDATA m>
-<!ENTITY p 'parsed'>
-<!ENTITY % pe ''>
-%pe;
-<!ATTLIST r˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙˙s:p="&2Fn:p" xmlns:q="urn:unused" a="q:T&#9;&#13;">x&#06;<p:c/>.0" encoding="uTf-8" standalons:q>>>>>>>>>>>>>>>>>>>>>>>>>>>[CDATA[]]><e="no"?><!--before--->

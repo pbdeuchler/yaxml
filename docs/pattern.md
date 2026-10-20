@@ -60,7 +60,7 @@ bound compilation and stream nesting; exceeding them is
 all four `test/pattern` inputs (conj, multiple, namespaces, simple: 4 of 4,
 byte-identical, including the stream-versus-DOM agreement check), plus
 table-driven compile, match and stream cases on both DOMs. The `pattern` fuzz
-target (`fuzz/pattern.rs`) asserts, for every element and attribute, that the
+target (`tests/support/fuzz/pattern.rs`) asserts, for every element and attribute, that the
 streamed result equals the DOM match in pattern mode, and that both DOMs agree.
 
 ## Differences from libxml2

@@ -1,5 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    affiliated	ENTITIES	#R<QU  >
- . t "la

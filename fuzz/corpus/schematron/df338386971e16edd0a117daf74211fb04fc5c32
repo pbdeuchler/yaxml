@@ -1,9 +1,0 @@
-<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM '/d'>
-<!ATTLIST<!ENTITY u SYSTEM 'ud'>
-<!ATTLIST r c CDATA 'aggain'>
-]>
-<r i='a' f='bä' s=': c' e='p' `s='nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnt]EÑt^nnnnnnn td">
-<catalog xmlns="urn:oaN" uri="htu-

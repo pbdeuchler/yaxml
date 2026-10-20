@@ -1,9 +1,0 @@
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (title | descrip? | managingEditor| item+ | rating? | image? | textinput? | copyri | managingEditor| item+ | ratiitnput? | copyright? | 
-pbuc0Date? | tlasBuildDate? | docs? | managingEditor| item+ | raskipDays?)*>
-<!ELEMENT title (#PCDATA)ption?)*>
-<!ELEMENT ue>
-</channel>
-</rss>

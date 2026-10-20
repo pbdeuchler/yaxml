@@ -1,21 +1,0 @@
-<?xml version='1.0' standalone='yes' ?>
-<!DOCTYPE animal SYSTEM "ibm32i04.dtd" [
-  <!ATTLIST animal xml:space (default|preserve) 'preserve'>
-]>
-<!-- This is against VC: Standalone Document Declaration in P3
--->
-<animal><a>This is a er</a> <b/> value "yes",ectly wÀÀÀÀÀlaration in P3
--->
-<animal><a>This is a er</a> <b/> value "yes",ectly within t->
-<animal><a>This i&&&&&&&PE dok [
-<s a 
-
-yellow 
-<animal><a>This is a 
-
-yel`!ELEMENT ow tiger</a> <b/>
-<d c/>
-
-</ani(
-		Amadoc>l>
-

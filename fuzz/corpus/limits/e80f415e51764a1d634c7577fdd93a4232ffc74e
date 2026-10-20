@@ -1,6 +1,0 @@
-<?xml version="1.1" encoding="iso-8859-1"?>
-<!-- Convains a DEL -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-]>
-<foo></foo>

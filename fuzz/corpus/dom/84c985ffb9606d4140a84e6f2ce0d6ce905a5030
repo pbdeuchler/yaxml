@@ -1,9 +1,0 @@
-<!DOCTYPE x [
-<!ELEMENT x (test*)>
-<!ELEMENT test A "attvalue">
-<!ENTITY test.ent "<test/>">~
-]>
-<x>
-    <test/>
-    &test.ent;
-<x/>

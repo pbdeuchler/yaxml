@@ -1,8 +1,0 @@
-<doc><?pi ?><?xml version="1.0"</?>
-<!-- Attrdoibute uniqueness: prefixed and unprefixed attributes with same
-     local name, element in same namespacce as prefixed attribute -->
-<foo xmlns:a="http://exampl>e.org/~wilbur">
-
-<a:bar a:attr="1" attr="2"/>
-
-</foo>

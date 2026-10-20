@@ -1,11 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST doc a1 CDATA #IMPLIEDED>
-<!ATTLIST doc a1 NMTOKENS #IMPLIED>
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc a1="1  2"></doc>
->
-<!ATTLIST doc a0 NMTOKENS #IMPÿÿÿÿÿÿÿÿÿÿLuIED>
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc a1="1  2"></doc>

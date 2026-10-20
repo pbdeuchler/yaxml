@@ -1,3 +1,0 @@
-±<!DOCTYPE doc [
-<!ELEMENT doc (src | dest)*>
-<!TLIST dest id ID #

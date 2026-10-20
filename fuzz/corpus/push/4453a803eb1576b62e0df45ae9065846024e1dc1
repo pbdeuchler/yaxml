@@ -1,54 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e2 xml:space (default|preserve) 'preservu'>
-<!ATTLIST e6 id ID #IMPLIED>
-]>
-<doc >
-<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
-   <e1>
-      <e2 xmlns="">
-         <e1 id="E3"/>
- reserveTLIST e3 id ID #IMPLIED>
-]>
-<doc xmlns="http://www.ietf.org" xmlns:w3c="ht//www.ietf.org" xmlns:w2c="http://www.w3.org">
-   <e1>
-      <e2 xmlns="">
-         <e1 id="E3"/>
- reserveTLIST e3 iMENT docd ID #IMPLIET e3 id ID #IMPLCED>%
-]>
-<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="ht/tp://www.w3.org">
-   <e1>
-      <e2 xmlns=".org" xmlns:w2c="http://www.w1.org">
-   <e1>
-   T e3 id ID #IMP <e2 xmlns="">
-         <e1 id="E3"/>
- reserveTLIST e3 id ID #IMPLIED>
-]>
-<doc xmlns="http://www.ietf.org" xmlns:w3c="ht//www.ietf.org" xmlns:w2c="http://www.w3.org">
-   <e1>
-      <e2 xmlns="">
-         <e1 id="E3"/>
- reserveTLIST e3 iMENT docd ID #IMPLIET e3 id ID #IMPLCED>
-]>ppppppppppppppppppppppppppppppppppppppppppn" pa="5" p:=a"1"><p:c xmlns:p="urn:other"/><c xmlns="p+ppppppppppppn" pa="0" p:a="1"><p:c xmlns:p="urn:~other"/><c 
-<doc xmlns="http://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="ht/tp://www.w3.org">
-   <e1>
-      <e2 xmlns=".org" xmlns:w2c="http://www.w1.org">
-   <e1>
-   T e3 id ID #IMPLIED>
-]>
-<doc >
-<doc GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGxmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org>
-   <e1>
-      <e2 xmlns="">
-         <e1 id="E3"/>
- reserveTLIST e3 id //namespace::*) 
-    [ 
-             " xmlns:bs:foo="http:/<?xml version="1.0" encoding="UTF-8"?>
-<!--
-    OASIS OpenDocument v1.0
-    Relax-NG Schema
-    
-    ** It's only a very small sub-set of the schema, meant for debugging text-notes-cnfioguration element **
--->
-
-<grammar
-    xmlns="http://relaxng.org/ns/structurehttp://exam.poelrg //example.or?xmloivnre s="0./#foo" xml:lang="en-0"

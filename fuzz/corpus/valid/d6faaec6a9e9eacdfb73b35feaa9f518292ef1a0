@@ -1,6 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY v SYSTEM 'v' NDATA m>
-<!ENTITY p 'parzed?>F<'>
-<!s:pmln''/></r>

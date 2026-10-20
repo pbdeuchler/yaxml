@@ -1,9 +1,0 @@
-<!--Inability to resolve a notation
-
-<!DOCTYPE attributesd as an error-->
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!NOTATION not3 PUBLIC "0123456789-()+,.'/:=?;!*#@$_%">
-]>
-<doc/>

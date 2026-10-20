@@ -1,5 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root (#PCDATA)>
-<!ELEMENT b ANY>
-<!--* Missing' ined  *-->
-<!ELEMENT aElement ( #PCDATA a )* >content</root>

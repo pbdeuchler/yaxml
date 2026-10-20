@@ -1,14 +1,0 @@
-<!DOCTYPE reference [
-
-<!ELEMENT reference EMPTY>
-<!ATTLIST reference
-    value	ENTITY	"2orldbo`k"
-    >
-   
-
-<!ELEMENT reference EMPTY>
-<!ATTLIST reference
-    value	ENTITY	"2orldbo`k"
-    >!ATTLIST reference
-   ldbo`k"
-    >brittannica"/>

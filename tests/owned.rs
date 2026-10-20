@@ -354,12 +354,12 @@ fn corpus_trees_and_writer_values_match_the_borrowed_api() {
         "<r></r>",
         "<r><![CDATA[]]><?p?><c a=''/></r>",
         "<r xmlns='urn:d' xmlns:p='urn:u'><p:c xmlns:p='urn:v' p:a='1'/><p:c/><c xmlns=''/><c/></r>",
-        include_str!("../fuzz/corpus/minimal.xml"),
-        include_str!("../fuzz/corpus/namespaces.xml"),
-        include_str!("../fuzz/corpus/lexical.xml"),
-        include_str!("../fuzz/corpus/references.xml"),
-        include_str!("../fuzz/corpus/declaration.xml"),
-        include_str!("../fuzz/corpus/infoset.xml"),
+        include_str!("fixtures/fuzz-seeds/minimal.xml"),
+        include_str!("fixtures/fuzz-seeds/namespaces.xml"),
+        include_str!("fixtures/fuzz-seeds/lexical.xml"),
+        include_str!("fixtures/fuzz-seeds/references.xml"),
+        include_str!("fixtures/fuzz-seeds/declaration.xml"),
+        include_str!("fixtures/fuzz-seeds/infoset.xml"),
     ] {
         let owned = OwnedDocument::parse(input).unwrap();
         compare_borrowed(input, &owned);

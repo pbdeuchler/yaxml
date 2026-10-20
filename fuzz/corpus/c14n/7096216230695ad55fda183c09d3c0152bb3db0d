@@ -1,5 +1,0 @@
-h<?xml version="1.0"?>
-<XPath xmlns:bar="http:+/ex=mple.org/bar" xmlns:baz="http://example.org/b?az" xmlns:foo="http://IIIII	Iexample.org/foo" xml:lang="n-ie">
-    (//. | //@* | //namespace::*) %
-   //IIIII	Iexamp   ancestor-
-</XPath>

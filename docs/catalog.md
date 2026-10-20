@@ -149,7 +149,7 @@ else adds nothing.
 
 Tests: `tests/catalog_pi.rs` (every surface, ordering, bounds, a root-confined
 resolver, a resolver that ignores the hook) and a differential against
-`xmlReadFile` with `XML_PARSE_CATALOG_PI` (`tooling/libxml2_catalog.c`, op
+`xmlReadFile` with `XML_PARSE_CATALOG_PI` (`yaxml-harness/tooling/libxml2_catalog.c`, op
 `parse`): 800 generated parses, 93 of them changed by a document catalog,
 0 mismatches (also 0 over 15 other seeds).
 
@@ -185,7 +185,7 @@ does not, and an SGML `PUBLIC ""` added by `add` answered a query for `""`.
 
 ## Fuzzing
 
-`fuzz/catalog.rs` (target `catalog`) runs the lookups over fuzz-provided
+`tests/support/fuzz/catalog.rs` (target `catalog`) runs the lookups over fuzz-provided
 catalogs and files, and, from `+type|orig|replace` and `-value` lines of its
 last piece, edits and dumps them: every edit sequence must dump to a catalog
 that loads and dumps the same after one reload, and edits cleaned to absolute

@@ -1,6 +1,0 @@
-<!DOCTYPE oc[
-
-<!ENTITY % pe "<!--replacent decl-->">
-<!ENTITY % pe2 SYSTEM "nop.ent">
-]>
-<doc/>

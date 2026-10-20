@@ -1,3 +1,0 @@
-<!DOCTYPE do [
-<!-ELEMENT doc (#PGDATA)>
-<!ATTLIST doc val (v2 v|2| ]<@doc val="v4"></doc>

@@ -1,5 +1,5 @@
 //! Table-driven XML Schema datatype tests. Expected results match libxml2
-//! 2.15.4 (`tooling/libxml2_schema_types.c`); `schema_types_oracle.rs`
+//! 2.15.4 (`yaxml-harness/tooling/libxml2_schema_types.c`); `schema_types_oracle.rs`
 //! checks many generated cases.
 #![forbid(unsafe_code)]
 
