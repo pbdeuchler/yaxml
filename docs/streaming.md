@@ -91,7 +91,9 @@ repairs stops the parse, which then closes what is open with `End` (and
 `EntityEnd`) events at that error's offset and ends normally. `errors()`
 lists what was recovered from (the first 100); resource limits, loops,
 allocation and resolver failures stay errors. A stopped `PushParser` ignores
-further input, and `finish` succeeds. The DTD-free stream recovers as the
+further input, and `finish` succeeds. Input without an element ends with
+`MissingRoot` or `TextOutsideRoot` in `errors()` (the DOMs keep a rootless
+document, and fail on empty input). The DTD-free stream recovers as the
 slice reader does: the rest of a tag libxml2 ends early is reread from a
 replay buffer, characters outside `Char` are repaired once one is seen, an
 undeclared reference is an empty `EntityStart`/`EntityEnd` pair, a start tag
