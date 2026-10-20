@@ -296,7 +296,7 @@ FIELD_DEFAULT = {
     "_xmlChRangeGroup": ("N", "character classes are private"),
     "_xmlCharEncodingHandler": ("N", "no public encoding handler registry"),
     "_xlinkHandler": ("N", "XLink callbacks not started"),
-    "_xmlDOMWrapCtxt": ("N", "no cross-document DOM wrapper"),
+    "_xmlDOMWrapCtxt": ("A", "no DOM-wrapper context; copies plan namespaces themselves"),
     "_xmlEntity": ("N", "no public entity model"),
     "_xmlElement": ("N", "no public DTD declaration model"),
     "_xmlAttribute": ("N", "no public DTD declaration model"),
@@ -503,7 +503,9 @@ P|xmlFirstElementChild xmlLastElementChild xmlNextElementSibling xmlPreviousElem
 I|xmlNodeGetContent|Node::content, OwnedNode::content
 P|xmlNodeBufGetContent xmlBufGetNodeContent|Node::content, OwnedNode::content
 P|xmlNodeSetContent xmlNodeSetContentLen|Editor::set_node_value
-N|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat xmlTextMerge xmlNodeListGetString xmlNodeListGetRawString xmlStringGetNodeList xmlStringLenGetNodeList|not started
+N|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat xmlTextMerge xmlStringGetNodeList xmlStringLenGetNodeList|not started
+I|xmlNodeListGetString|Node::list_string, OwnedNode::list_string
+P|xmlNodeListGetRawString|OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
 I|xmlNodeSetName|Editor::set_name
 P|xmlSetNs|Editor::set_name
 I|xmlNodeGetBase xmlNodeGetBaseSafe|Node::base_uri, OwnedNode::base_uri
@@ -517,8 +519,21 @@ I|xmlGetNsList xmlGetNsListSafe|Node::namespaces, OwnedNode::namespaces
 I|xmlSearchNs|Node::search_ns, OwnedNode::search_ns
 I|xmlSearchNsByHref|Node::search_ns_by_href, OwnedNode::search_ns_by_href
 A|xmlReconciliateNs|automatic namespace reconciliation on every owned edit
-N|xmlCopyDoc xmlCopyDtd xmlCopyNamespace xmlCopyNamespaceList xmlCopyNode xmlCopyNodeList xmlCopyProp xmlCopyPropList xmlDocCopyNode xmlDocCopyNodeList|copy/import not started
-N|xmlDOMWrap* xmlSetTreeDoc xmlSetListDoc|cross-document ownership not started
+I|xmlCopyDoc|OwnedDocument::try_clone
+I|xmlCopyNode|Editor::copy - deep, or extended 2 when shallow; extended 0 is not offered
+I|xmlDocCopyNode|Editor::import - deep, or extended 2 when shallow
+P|xmlCopyNodeList|Editor::copy - one node at a time
+P|xmlDocCopyNodeList|Editor::import - one node at a time
+P|xmlCopyDtd|OwnedDocument::try_clone - copies the DTD with the document; no standalone DTD copy
+A|xmlCopyProp xmlCopyPropList|attributes are not nodes; copied with their element by Editor::import/copy
+A|xmlCopyNamespace xmlCopyNamespaceList|declarations are attributes; copied with their element
+P|xmlDOMWrapCloneNode|Editor::import - declarations on the copy root; no prefix renaming or oldNs (docs/owned-dom.md#copying-and-importing)
+A|xmlDOMWrapAdoptNode|handles name one document: Editor::import + remove_subtree (docs/bindings.md#moving-nodes-between-documents)
+A|xmlDOMWrapReconcileNamespaces|every edit and copy reconciles before publishing
+A|xmlDOMWrapRemoveNode|Editor::unlink; namespaces need no fixup
+A|xmlDOMWrapAcquireNsFunction|no custom namespace callback; copies never rename
+A|xmlDOMWrap*|no DOM-wrapper context; copies plan namespaces themselves
+A|xmlSetTreeDoc xmlSetListDoc|a node belongs to its arena; Editor::import copies
 P|xmlGetIntSubset|Document::doctype, OwnedDocument::doctype
 P|xmlDocDump xmlDocFormatDump xmlSaveFile xmlSaveFileEnc xmlSaveFileTo xmlSaveFormatFile xmlSaveFormatFileEnc xmlSaveFormatFileTo|save::to_vec - returns bytes; caller writes the file
 I|xmlDocDumpMemory xmlDocDumpFormatMemory xmlDocDumpMemoryEnc xmlDocDumpFormatMemoryEnc|save::to_vec
