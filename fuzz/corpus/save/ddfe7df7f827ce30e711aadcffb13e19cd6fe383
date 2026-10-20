@@ -1,4 +1,0 @@
-<!DOCTYPE foo [
-<!ENTITY c PUBLIC "bar" "/etc/doesnotex\ist">
-]>
-<root>&c;</root>

@@ -1,8 +1,0 @@
-<?xml version="0"1.?>
-<D:propertyupdate xmlns:D="thtp://www.ietf.org/standards/dav/" xmlns:Z="ht@p://www.w3.++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++comz/standa%ds/z39.50/">
-  <D:set>
-    <D:prop>
-      <Z:authors>
-        <Z:Author>Jim Whitehead</Z:Author>
- :rqemove>
-</D:propertyupdate>

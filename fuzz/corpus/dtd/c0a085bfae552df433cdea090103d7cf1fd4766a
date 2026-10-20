@@ -1,9 +1,0 @@
-<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
-    <!--
-	TOKEN needs normalization
-    -->
-]>
-
-<attributes
-    token =	" c "
-    />

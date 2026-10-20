@@ -1,6 +1,0 @@
-<!DOCTYPE foo [
-<!ENTITY f "some itnranelaking quite soma room">
-<!ENTITY e "&f;&f;">
-<!ENTITY d "&e;&e;">
-]>
-<foo bar="&d;&d;&d;&d;&d;$d;&d;&d;&d;"/>

@@ -1,5 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "<p>An ampersand scaped
- numerically (&#38;#38;#38;) or with ap;).</p>" >
-]>
-<test>&example;</test>

@@ -1,3 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT foc ((a, b)| (a, c))>
-<<c> doc is non-deterministic </c></doc>

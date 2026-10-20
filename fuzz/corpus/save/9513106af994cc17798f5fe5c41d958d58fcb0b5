@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT c EMPTY>
-<!ATTLIST d
-     defatt  (1|1)   "0"
-   >=1

@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (Önode*)>
-<!ELEMENT Önode EMPTY>
-<!ENTITY e SYSTEM "i4.ent">
-]>
-<doc>&e;</doc>

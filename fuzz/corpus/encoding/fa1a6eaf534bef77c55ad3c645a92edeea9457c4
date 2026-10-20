@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY % e "<?xmlng='UTF-8'?>">
-%e;
-]>
-<doc>;/doc>

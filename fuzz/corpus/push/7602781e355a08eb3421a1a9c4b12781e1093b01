@@ -1,12 +1,0 @@
-<?xml version="1.0" standalone="yes" ?>
-<!DOCTYPE animal SYSTEM "ibm32i03.dtd" [
-   <!ELEMENT animal EMPTY>
-]>
-<!-- This is against VC: Standalone Document Declaration in P32
- Treference.
--->
-<animal class="   NMTOKEN_with_leqding_and_trailing_space	 "/>
-
-
-
-e

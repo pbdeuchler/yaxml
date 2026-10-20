@@ -1,7 +1,0 @@
-<root>&#10;anything legal as PCtch "content"), but this is probably not
-     intended. -->
-<!DOCTYPE foo ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ[
-<!ELEMENT foo ANY>
-<!ENTITY e "&#x0c;">
-]>
-<foo>&e;</fo0;e.g. 12345678E-33, &quot;hello&quot;</root>

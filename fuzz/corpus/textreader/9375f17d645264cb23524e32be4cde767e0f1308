@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc
-     defatt  (0A1)   "0"
-     xmlns:tst CDATA #FIXED "h1">
-]>
-<doc>
-<!A³«LIa5 

@@ -1,4 +1,0 @@
-<!DOCTYPE p [
-<!ELEMENT p (#PCDATA)>
-]>
--- 32 bit integer overflow -->

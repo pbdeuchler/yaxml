@@ -1,4 +1,0 @@
-(1(a|b|\P{Nd})}|bcb|\P{Nd}){5,2}|babaaca
-aab
-aaca
-aaabb|bab|\Paa

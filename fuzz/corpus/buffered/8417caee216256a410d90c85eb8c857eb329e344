@@ -1,12 +1,0 @@
-<?xml version='1.0' standalone='yes' ?>
-<!DOCTYPE animal SYSTEM "ibm32i04.dtd" [
-  <!ATTLIST animal ml:333333333333333333333333333333333333333333333333333space (default|preserve) 'preserve'>
-]>
-<!-- This is against VC: Standalone Document Declt with a element only content type, and 
- white space occurs directly within the mixed content.
--->
-<animal><a>This is a 
-
-yellow tiger</a> <b/>
-<c/>
-Š</animal>

@@ -1,4 +1,0 @@
-<!DOCTYPE vdoc [
-<!ENTITY e "&lt;fo<>">
-]>
-<doc>&e;</doc>

@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc a1 CDAQA "v1">=
- a2 CDATA "v2">
-]>
-<dœÁÃ/doc>

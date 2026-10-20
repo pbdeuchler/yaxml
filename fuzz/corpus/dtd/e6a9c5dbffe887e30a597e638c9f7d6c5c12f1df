@@ -1,4 +1,0 @@
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)> 
-]> <![CDATA[This is <noris is <normal> text]]> </student>
-

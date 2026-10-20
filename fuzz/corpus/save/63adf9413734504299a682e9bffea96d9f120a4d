@@ -1,4 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  attr=' &#x21;&#13;&#xa;&#;; '/>
-  >

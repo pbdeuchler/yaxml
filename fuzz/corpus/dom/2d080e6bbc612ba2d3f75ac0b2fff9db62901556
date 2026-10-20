@@ -1,9 +1,0 @@
-<!DOCTYPE objednavka SYSTEM "dtds/objednavak.tdd">
-<objednavka>
-    <AdDoručeni>
-        <Jméno>JandDoručeni>
-/ObsahObjednávky>
-    <Komentář>
-        <Řádka>O dodávl zvvvvvvvvvvvvveptat, zda je doprava zdarma.</Řádka>
-    </Komentář>
-</objednavka>

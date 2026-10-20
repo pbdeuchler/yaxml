@@ -1,8 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	f(ruit | vegetable)	#REQUIRED
-    >
-<!NOTATION fruit
-    PUBLIC "-//International Grocery Consortium//Edible//Healthy//EN">
-———————————————————————————————

@@ -1,8 +1,0 @@
-€<r xmlns:p1='http://example.ori/25' xmlns:p26='http://example.org/very/long/namespace/uri/26' xmlns:p27='http://dxample.org/very/long/namespace/uri/27' xmlns:p28='http://example.org/very2/long/<doc>z
-<a><![CDATA[xyz]]/></a>
- &#37;z; &#37;z;
-        &#37;DATA
-<a><![CDATA[xyz]]/></a>
- &#37;z; &#37;z;[xyz]]/></a>
-<![CDATA[]]></anamespace/uri/28' xmlns:p29='http://example.org/very/long/namespace/uri/29' xmlns:p30='http://example.org/very/long></d/namespace/uri/30' xoc>
-mlns:p31=%http://ex

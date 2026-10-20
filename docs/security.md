@@ -4,7 +4,7 @@ This is a development policy, not a claim that yaxml is ready for hostile produc
 
 ## Trust boundaries
 
-The Rust core forbids unsafe code and has one dependency, `memchr`. Keep the same restriction for core tests, examples, and fuzz drivers; only the standalone `fuzz/` cargo-fuzz package adds `libfuzzer-sys` and its generated unsafe entry point. Review the dependency graph and enabled features when updating the lockfile. The prohibition applies to yaxml's source; dependencies and the standard library have their own implementation and audit boundaries.
+The Rust core forbids unsafe code and has one dependency, `memchr`. Keep the same restriction for core tests, examples, and fuzz drivers; only the standalone `yaxml-harness/fuzz/` cargo-fuzz package adds `libfuzzer-sys` and its generated unsafe entry point. Review the dependency graph and enabled features when updating the lockfile. The prohibition applies to yaxml's source; dependencies and the standard library have their own implementation and audit boundaries.
 
 Treat document bytes, parser options, caller-created tree data, resolver responses, and binding handles as independent input boundaries. Validate bytes and XML structure before creating trusted names and nodes. A writer must validate caller-created data even when the reader already validates parsed input. Constructors and tree mutations must preserve node relationships and namespace invariants. Do not add redundant validation inside every internal function.
 
@@ -48,7 +48,7 @@ Attributes were the gap. They are not events and `max_owned_bytes` charges only 
 
 ### Superlinear audit
 
-`examples/adversarial_scaling.rs` generates the hostile families below and prints time and log-log slopes (`cargo run --release --example adversarial_scaling -- all dom 1 4 16`; `DEFAULTS=1` keeps the default limits, `FLAGS=n` sets `ParseOptions` flags, `CHUNK=n` and modes `push`/`buffered` feed n-byte chunks, `owned`, `reader`, `text`, `html` select the frontend). Every ceiling is raised for the series so the cost of the construct, not the limit, is measured. Exponent = slope of ln(time) against ln(size) from 1 to 16 MiB (apple silicon, release, borrowed DOM unless noted; owned, `Reader`, `TextReader`, `PushParser` and `BufferedReader` at 1-byte chunks agree within 0.15).
+`yaxml-harness/examples/adversarial_scaling.rs` generates the hostile families below and prints time and log-log slopes (`cargo run --release --example adversarial_scaling -- all dom 1 4 16`; `DEFAULTS=1` keeps the default limits, `FLAGS=n` sets `ParseOptions` flags, `CHUNK=n` and modes `push`/`buffered` feed n-byte chunks, `owned`, `reader`, `text`, `html` select the frontend). Every ceiling is raised for the series so the cost of the construct, not the limit, is measured. Exponent = slope of ln(time) against ln(size) from 1 to 16 MiB (apple silicon, release, borrowed DOM unless noted; owned, `Reader`, `TextReader`, `PushParser` and `BufferedReader` at 1-byte chunks agree within 0.15).
 
 | Family (generator) | Exponent | Time at 16 MiB |
 | --- | --- | --- |
@@ -189,7 +189,7 @@ Differential testing runs a separately built, version-pinned libxml2 executable 
 
 Use both arbitrary byte mutation and grammar-generated valid documents. Seed all lexical constructs, Unicode/name boundaries, CR/CRLF, references, malformed delimiters, namespace shadowing, duplicate attributes, truncation at every byte, and each limit at zero, below, equal, and above its boundary. Add deep/wide documents and many shared-prefix names to test complexity. Keep every minimized bug as a deterministic regression with its invariant, not just as an opaque corpus file.
 
-The dependency-free driver backs a stdin/file replay example, deterministic smoke tests, and one cargo-fuzz (libFuzzer) target per input family; `fuzz/coverage.sh` reports per-target and merged library coverage. Random mutation without coverage feedback is a smoke test, not evidence of coverage-guided fuzzing. See [fuzz/README.md](../fuzz/README.md).
+The dependency-free driver backs a stdin/file replay example, deterministic smoke tests, and one cargo-fuzz (libFuzzer) target per input family; `yaxml-harness/coverage.sh` reports per-target and merged library coverage. Random mutation without coverage feedback is a smoke test, not evidence of coverage-guided fuzzing. See [yaxml-harness/fuzz/README.md](https://github.com/pbdeuchler/yaxml-harness/blob/main/fuzz/README.md).
 
 ## Release gates
 

@@ -1,9 +1,0 @@
-<!-- Non-syntactic vaif the attribute is in fact defaulted. -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo id ID #IMPLIED>
-<!ATTLIST foo ref IDREF "undef get an error for one of the undef">
-<!-- can't tfoo" NDATA not>
-<!NOTTEM "not">
-]>
-<fo= "gt="ent"/>

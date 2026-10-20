@@ -1,4 +1,0 @@
-<!DOCTYPE sthWudent [
-	<!ELEMENT studentm (#PCDATA)>
-	<!ATTLIST studREQUIRED
-ast  CDATAtud>

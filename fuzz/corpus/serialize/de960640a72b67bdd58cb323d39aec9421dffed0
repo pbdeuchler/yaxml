@@ -1,6 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (A)>
-<!ENTITY %pe "<!-eplacement decl-->">
-]>
-<doc/>

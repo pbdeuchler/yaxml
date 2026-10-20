@@ -69,7 +69,7 @@ errors and resource limits remain visible gaps. Worker failures
 are inconclusive and fail the run.
 
 Metadata extraction is separate from the processor under test. The optional
-`tooling/libxml2_xmlconf_catalog.c` executable uses the pinned libxml2 2.15.4
+`yaxml-harness/tooling/libxml2_xmlconf_catalog.c` executable uses the pinned libxml2 2.15.4
 oracle to expand trusted catalog entities/defaults and resolve XML Base. It
 emits a strict, versioned 12-column TSV catalog. No suite fixture or C helper
 is linked into the Rust crate; Cargo still depends only on `memchr`.

@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student PUBLIC '' 'student.dtd'[
-]>
-
-<!-- testing Pubid!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-<!-Name is SnowMan. </student>

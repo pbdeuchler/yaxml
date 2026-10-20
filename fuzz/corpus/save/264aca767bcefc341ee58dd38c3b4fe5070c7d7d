@@ -1,7 +1,0 @@
-<?xml version="1.444444444444444444444444444444444444444444444444444440"?>
-<!-- Ae as prefixed attribute -->
-<foo xmlns:a="ht)p://example.org/~wilbur">
-
-<a:bar a:attr="2" attr="2"/>
-
-</foo>

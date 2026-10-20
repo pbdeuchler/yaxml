@@ -1,4 +1,0 @@
-<!DOCTYPE test SYSTEM "noation01.dtd" [
-    <!ENTITY applydSssl SYSTEM "applydsssl.gif" NDATA GIF>
-]>
-<test>test</test>

@@ -1,3 +1,0 @@
-\p{IsBasicLatin}+\p{IsGreek}?TP{IsC}
-abc
-abα

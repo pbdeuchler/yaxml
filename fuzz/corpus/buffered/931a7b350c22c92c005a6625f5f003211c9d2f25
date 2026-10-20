@@ -1,6 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!-- URI fragmenÿÿÿÿÿÿÿlowed -->
-<!ENTITY foo SYSTEM "foo#bar">
-]>
-<root/>

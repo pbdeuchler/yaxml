@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST d  defatp  (1|1)   "http://e(ample.org"
-   tt (0|0)   "2">
-]>
-<dtc a"t (

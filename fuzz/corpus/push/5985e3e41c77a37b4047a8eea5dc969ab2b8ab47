@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY % foo SYSTE M"foo.xml" NDATA bar>
-]>
-<doc></doc>

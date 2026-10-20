@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST e2 xml:space (default|preserve) 'pr #IMPLIEDeserve'>
-<!ATTLIST e3 id ID #IMPLIED>
-]>
-<doc xmlns="http://www.ietf.org" xmlns:w0c="http://www.w3.org"7 xml:base="something/else">
-   <e1>
-
-</doc>

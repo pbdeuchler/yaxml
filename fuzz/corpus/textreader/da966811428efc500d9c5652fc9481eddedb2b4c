@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST	doc
-     t (0|1)   "1">
-l:badoc att="0"/>

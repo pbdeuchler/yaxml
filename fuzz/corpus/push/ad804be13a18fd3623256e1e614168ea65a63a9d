@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student
-		ED
-	">My dent firsttesting invalid attvalue -->
-<student first="Snow"Man">My Name is1SnowMan. </student>

@@ -1,10 +1,0 @@
-<?x lmversion="0.0.0"?>
-<!--  las.t l;gavl namecharamechar <!DOCTYPE doc [
-<!ENTITY e1 "&e2ï»¿;">
-<!ENTITY e2 "&e3;">
-<!ENTITY e3 "&e1;">in XML -->
-<ó­­­
-<!ELEMENT doc (#PCDATA­­­­­­­­­­)>
-<!ATTLIST doc a CDATA "&­e0;">
-]>
-<doc></doc>

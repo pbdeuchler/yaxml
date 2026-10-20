@@ -1,11 +1,0 @@
-<!DOCTYPE objednavka SYSTEM "dtds/objednavak.tdd"
-><objednavka>
-    <AdDoruÄeni>
-        <JmÃ©no>Jan NovÃ¡k</JmÃ©no>
-        <Ulice>BÄ›lehradskÃ¡ 073</Ulice>
-        <MÄ›sto>Praha 2</MÄ›ÿÿÿÿÿÿÿÿsto>
-        <PSÄŒ>12000</PSÄŒ>
-    </AdDoruÄeni>
-/ObsahObjednÃ¡vky>
-    <KomentÃ¡Å™>
-   >

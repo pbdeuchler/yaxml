@@ -1,6 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION On SYSTEM 'n'>
-<!ENTITY ATA n>
-<!ENTITY v>
-<!ENTITY u SLEMENTec C

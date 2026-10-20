@@ -1,5 +1,0 @@
-<?x
-<!DOCTYPE r='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (PCDATA)>
-<!ELEMENT c (#PCDATA|`>

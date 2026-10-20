@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-
-<!-,* Test all legal patterns derived from pe2;&epe3;</root>
-<!-- a valid test case: test P78, P77, P80 -->

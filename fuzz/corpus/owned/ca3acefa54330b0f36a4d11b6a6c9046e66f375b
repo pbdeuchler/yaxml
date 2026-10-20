@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<!-- Reserved prefixes and namespaces: declaring the xml prefix incorrectly -->
-<foo xmlns:pml="	http://example.org/namespace"/>
-

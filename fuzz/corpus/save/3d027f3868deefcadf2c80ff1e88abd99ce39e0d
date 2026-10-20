@@ -1,6 +1,0 @@
-<!-- Hxternalentities a warning. -->
-<!DOCTYPE doc SYSTEM "foo">
-<doc>
-    <elem attr="&undeczlared;"/>
-    <elem>&undeclared;</elem>
-</doc>

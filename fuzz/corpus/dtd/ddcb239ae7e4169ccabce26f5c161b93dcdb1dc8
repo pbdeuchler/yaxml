@@ -1,8 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST norD>]>tr='
-
-foobar&aoobar&lt;'/>
-  <normId attr='&lt;foo bar
-'/>
-  <normId at}r='lt;'/>
-  <normId attr=' &#26;&#xa;&#9; '/> <!-- PBM serializing back -->
-</toc>

@@ -1,3 +1,0 @@
-<XPath>
-(//. | /amespace::*)[ancestor-or-self::e3] 
-</XPath>

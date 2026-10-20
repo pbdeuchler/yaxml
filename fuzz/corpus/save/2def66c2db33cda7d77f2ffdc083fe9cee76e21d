@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-	<!ELEMENT student (#PCDATA)>
-	<!ATTLIST student
-		first CDATA #REQUIREth ety char inside double quote -->
-lns:b="h4t

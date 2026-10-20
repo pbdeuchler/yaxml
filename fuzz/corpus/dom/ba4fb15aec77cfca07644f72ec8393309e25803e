@@ -1,4 +1,0 @@
-—<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- noormId attr='foo&b;&a;&b;&q;</r><!bang back -->
-</doc>

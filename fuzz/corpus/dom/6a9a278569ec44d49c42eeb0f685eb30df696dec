@@ -1,5 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo EMPTY>
-]>
-<foo><?pi xxx?></foo>
-_

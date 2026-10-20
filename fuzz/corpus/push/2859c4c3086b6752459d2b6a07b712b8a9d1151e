@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE dia:diagram [
-<!ELEMENT dia:diagram (dia:diagramdata, (dia:layer)*) >
-<!ATT-D "http://www.lysator.liu.se/~o IDREF #REQUIRED
-   dia:connection NMTOKEN #REQUIRED>
-
-<!ELEMENT dia:group (dia:object | dia:group)*>
-
-<!ELEMENT eia:attt>

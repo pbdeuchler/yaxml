@@ -1,4 +1,0 @@
-<schema xmlns="http://www.ascc.net/xml/+chematron" >
-     <pattern name="Print both cases">
-          <rule context="AAA">
-               <assert test="B<scheBB">BBB elemma xmlns="http://www.ascc.net/xmenl

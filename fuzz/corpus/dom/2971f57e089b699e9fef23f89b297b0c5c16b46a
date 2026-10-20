@@ -1,7 +1,0 @@
-<doc><![C[P<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
-]>
-<doc>
-   <ent>&test1;</ent>
-   <p> WE need lot of garbage now to trigger the proattribute longer than th98;&#13;&#9;" p:a="namespaced"><p:n xlmsn="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: Ã©ğŸ™‚&#10;&#13;&#9;" p:a="namesp+aced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlnshan thirty bytes: Ã©ğŸ™‚><![CDAT;[debhttUp://&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than th10;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">as*tris*tr<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?iecompleteàœ‘Òg&d oc>
-

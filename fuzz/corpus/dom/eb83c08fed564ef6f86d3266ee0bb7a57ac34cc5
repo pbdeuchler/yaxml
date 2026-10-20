@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (a , b? , c+)?>
-]>
-<dtc><a/><b>lacks c</b></doc>

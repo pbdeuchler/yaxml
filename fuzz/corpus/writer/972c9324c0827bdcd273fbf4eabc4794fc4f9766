@@ -1,5 +1,0 @@
-<schema xmlns="ematron" >
-     <pattern name="Test count">
-       <rule context="/*">
-               <report test="chttp://l/schematron" >
-     												<sca xmlns="			"	>

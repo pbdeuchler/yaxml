@@ -1,6 +1,0 @@
-<!-- Default values for ID -->
-<!DOCTYPE foo [
-<!ELEMENT foo EMPTY>
-<!ATTLIST ED>
-<!ATTLIST foo a IDREF "34E><foo id"<!DOCTYPE foo [
-<!ELEMENT foo EMPTY>g0034" a="g0034"/>

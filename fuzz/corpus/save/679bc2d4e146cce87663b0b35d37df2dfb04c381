@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-    <!-- SGML-ism:  illegalt -->
-
-    <!ATTLIST root
-	language	CDATA
-
-]>
-
-<rootDu

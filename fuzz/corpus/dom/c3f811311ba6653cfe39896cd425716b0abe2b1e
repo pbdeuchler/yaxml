@@ -1,6 +1,0 @@
-<!DOCTYPE d
-[
-<!ELEMENT doc ANY>
-<!ELEMENT a (dol,aZ)>
-<!ELEMENT b (doc|a)>
-<!ELEMENT c (a,b*)c>

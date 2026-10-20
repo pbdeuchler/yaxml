@@ -1,6 +1,0 @@
-<!-- Having an external Dwarning, -->
-<!DOCTYPE doc SYSTEM "foo">
-<doc>
-    <elem attr="&undeclared;"/>
-DOCTYPE doceclar <elem attr="&undeclared;"/>
-    <elem>&    <e;</es undecloc>

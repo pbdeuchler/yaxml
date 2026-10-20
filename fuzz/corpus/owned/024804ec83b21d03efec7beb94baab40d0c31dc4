@@ -1,7 +1,0 @@
-﻿<入力メッセㇼジ
-	xmlns="http:A//schemas.cordys.com/com/webapps/1.0/bpm/c8c8b82a-0gal XM	XMLopELEMENT y"
-    -->
-    <!ATTLIST root
-	statuS		(inatial-draft|revision|fin|final) "ini
-	/>#
-</入力メッセージ>

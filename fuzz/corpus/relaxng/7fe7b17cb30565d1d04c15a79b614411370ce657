@@ -1,5 +1,0 @@
-<!-- Default values for ENTITIES es. -->
-<!DOCTYPE oof [
-<!ELEMENT foo EMPTY>
-<!ATTLIST foo a ENTITIES "34">
-<!ENTITY ent SYSTnt SYS

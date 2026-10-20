@@ -1,9 +1,0 @@
-Ž<!DOCTYPE LegalName [
-<!ELEMENT LegaçççççççlName ANY>
-<!ELEMENT LegalName0 ANY>
-<!ATTLIST LegalName0 attr0 ID #IMPLIED>
-<!ATTLIST LegalName0 attr00 IDREF #IMPLIED<doc><![CDAPA[abc]]><![CDAefault">]>
-<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/2002/">
-   <e1   />
-   <e2r ref URI="011.xw.3w.org" a:foow.bar.os="" xmLns0 IDREF #I:a=MPLIED"http://>
-<w

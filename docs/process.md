@@ -19,7 +19,7 @@ work.
 2. **Ship behavior.** Private code paths exist only briefly. A feature is
    activated publicly behind a well-specified API as soon as its tests pass.
 3. **Standard fuzzing.** Coverage-guided fuzzing uses cargo-fuzz (libFuzzer)
-   in the separate `fuzz/` package. Coverage is measured with `cargo fuzz
+   in the separate `yaxml-harness/fuzz/` package. Coverage is measured with `cargo fuzz
    coverage` and llvm-cov. Fuzz-only dependencies never enter the library's
    dependency graph, which stays memchr-only.
 4. **Measured claims only.** Compatibility, coverage and performance numbers
@@ -33,6 +33,12 @@ work.
 - Canonical repository: bare mirror `../yaxml.git` beside the workspace, with
   worktrees in `../yaxml-wt/`. The visible workspace directory has no `.git`.
 - Pinned libxml2 2.15.4 oracle build: `../yaxml-oracle/build/xmllint`.
+- Benchmarks, fuzzing, libxml2 differentials and the XMLTS run: the separate
+  [yaxml-harness](https://github.com/pbdeuchler/yaxml-harness) repository
+  (bare `../yaxml-harness.git`), checked out beside yaxml. Paths written
+  `yaxml-harness/...` in these docs are in it, and commands that use them run
+  there. `./setup.sh` fetches the oracle and suite, `./oracle.sh` runs every
+  differential, `./bench.sh`, `./fuzz.sh` and `./coverage.sh` the rest.
 - Backups of the pre-reset history and evidence: `../yaxml-backup/`.
 
 ## Toolchains
@@ -42,7 +48,7 @@ work.
   in release builds ([rust-lang/rust#158206](https://github.com/rust-lang/rust/issues/158206),
   MIR pass SimplifyComparisonIntegral, fixed by #158214 in 1.97).
   `tooling/simplify_comparison_scan.py` stays as the regression guard.
-- Fuzz and coverage: `nightly-2026-10-18` (`fuzz/rust-toolchain.toml`, so plain
-  `cargo fuzz` inside `fuzz/` works; from the root use `cargo +nightly-2026-10-18`).
+- Fuzz and coverage: `nightly-2026-10-18` (`yaxml-harness/fuzz/rust-toolchain.toml`, so plain
+  `cargo fuzz` inside `yaxml-harness/fuzz/` works; from the root use `cargo +nightly-2026-10-18`).
   The earlier pin, `nightly-2026-06-06`, predates the fix. Campaign results in
   docs that name it were measured on it and are left as recorded.

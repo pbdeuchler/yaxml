@@ -1,6 +1,0 @@
-<!DOCTYPE doc
-[
-
-<!ATTLIST doc att (01|35a|A|-a|:a.|_a) #IMPLIED>
-]>
-<doc/>

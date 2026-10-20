@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<?Pi?><!--comment-->
-<!ELEMENT doc EMPTY>
-<?P--:
-<!NATION not PUBLIC "some notation">
-<?Ti?><!--colment-->
-]>
-<doc/>

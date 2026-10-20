@@ -1,7 +1,0 @@
-<!DOCTYPE billion [
-  <!ELEMENT billion (#PCDATA)>
-  <!ENTITY % p1 SYSTEM "&&&&&&&&&&&&&&&&&&&&&&&nt">
-  <!ENTITY % p6 SYSTEM "p3.ent">
-  %p3;
-]>
-<billion/>

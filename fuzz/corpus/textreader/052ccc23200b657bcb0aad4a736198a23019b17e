@@ -1,8 +1,0 @@
-Ž<?xml version="1.0"?>
-<!DOCTYPE d [
-    <!ENTITY a "]>">
-    <!ENTITY b ']>'>
-    <!--[cdata]]>
-<?—pi p2?>
- p3?>
-<!--> c3 -->

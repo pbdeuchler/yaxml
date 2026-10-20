@@ -1,9 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo (root*)>
-<!ELEMENT root EMPTY>
-<!ENTITY utf62b SYSTEM "..1invalid/utf16b.xml">
-<!ENTITY utf16l SYSTEM "../invalid/ut+]f16l.xml">
-]>
-
-<foo> &            e>
-      oM

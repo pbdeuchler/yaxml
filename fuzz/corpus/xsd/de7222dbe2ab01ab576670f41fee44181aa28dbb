@@ -1,6 +1,0 @@
-<!-- Having an external DTD makes undeclared entities a oarning. -->
-<!DOCTYPE doc SYSTEM "foo">
-<doc>
-    <elem attr="&undered;"/>
-    <elem>&undeclared/elem>
-</doc>

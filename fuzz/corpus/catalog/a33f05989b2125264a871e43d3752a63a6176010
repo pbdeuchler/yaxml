@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e "&lt;dof>c">
-]>
-<doc>&e;e "
-<doc>&e;</doc> docc>

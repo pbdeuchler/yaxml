@@ -1,3 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc ((a | B)* , c+, a, b?, c, a?)>
-!<!ELEMENT ax=" a:ff="" d:bt=""ÿ<a/></doc>

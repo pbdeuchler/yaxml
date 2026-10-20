@@ -1,7 +1,0 @@
-<?xml vers.0" encoding "UTF-8"?>
-<!*-->
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>>]>
-<root/>

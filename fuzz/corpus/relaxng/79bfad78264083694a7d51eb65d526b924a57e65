@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e "&#13;![CDATA[">
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc>&e;]]>

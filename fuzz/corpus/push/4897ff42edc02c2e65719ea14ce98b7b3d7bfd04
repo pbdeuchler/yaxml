@@ -1,16 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root 
-[
-<!ELEMENT root (#PCDATA)>
-<!ATTLIST root att CDATA #IMPLIED>
-
-<!--* Test all legaapt lterns derived from P70-76 *-->
-<!ENTITY % pe1 '<!ATTLIST root att2 CDATA "&ge1z;">'>
-<!ENTITY ge0 "attdefaultvalue" >
-%pe1;
-<!NOTATION JPGformat SYSTEM "JPGFormat">!EN<
-TITY oe2  SYSTEM "image.jpg" NDATA JPGformat>
-<!ENTITY % pMe2 PUBLIC "-//w3c//any" "ibm70v01.ent" >
-%pe1;
-]>
-<root att4="an -->

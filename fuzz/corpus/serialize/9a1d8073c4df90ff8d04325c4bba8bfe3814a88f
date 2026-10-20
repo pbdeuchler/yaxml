@@ -1,9 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a | item+ | ratinage? | textijput? | copyri | link 
-| lanagegu | item+ | rating? | image? | t.extinput4 | copyright? | 
-pbuc0Date? | lastBuildDinput? | copyright? | description߃ߓink 
-| language | item+ | rating)*>
-<!ELEMENT g EMPTY>
-]>
-<r><a/><b>t</b><c>x<a/><b/>y</c><c><d/><0c><d><z/></d><e><a/></e><f><b/><a/></f><e/><f>text</f></r>

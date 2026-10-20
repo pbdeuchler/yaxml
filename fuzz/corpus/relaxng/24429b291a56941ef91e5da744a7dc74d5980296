@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc
-    fatt  (0|1)   "0"
-     xmlns:tst CDATA  "http://exa}ple.org"
-     tst:att (0|1)   "1">
-]>
-<doc att="1"/>

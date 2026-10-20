@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE student [
-	<!ENTITY info PUBLIC "This is a test Ã¡ " "student.d]">dt
-
->
-<!-- teoting invalid pubid char with Ã¡  -->
-<student>³†ßªame is &info;. </student>
-

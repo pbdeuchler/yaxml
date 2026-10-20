@@ -1,4 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!ENTITY u SYSTEM 'u' NDATA{ n>
-<!EC

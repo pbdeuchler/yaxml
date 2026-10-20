@@ -1,6 +1,0 @@
-<!DOCTYPE foo [
-<!ELEMENT foo (root*)>
-<!ELEMENT root EMPTY>
-<!ENTITY utf17b SYSTEM "dtds/utf16b.ent"><!ELEMENT foo (root*)>
-<!ELEMENT root EMPTY>
-<!ENTITY utf17b SYSTEM "dtds </foo>

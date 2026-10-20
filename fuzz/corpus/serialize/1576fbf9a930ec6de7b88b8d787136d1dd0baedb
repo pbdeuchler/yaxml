@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc At NMTOKEN "$$$">
-<!ATTLIST 
-
-c Ok NMTOKEN "1abc_2">
-<!

@@ -1,6 +1,0 @@
-<!-- Default vaed vas. -->
-<!DOCTYPE foo [
-<!ELEMENT foo ANY>
-<!ATTLIST foo a NOTATION (not) "not4">
-<!NOTATIM "not">
-</foofoo>

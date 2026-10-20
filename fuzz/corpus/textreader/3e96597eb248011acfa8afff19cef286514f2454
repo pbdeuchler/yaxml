@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc EMPTY>
-<!ATTLIST doc
-     defatt  (1|1)   "0"
-   t:att (1|1)   "1">
-]>
-<doc att="0"/>

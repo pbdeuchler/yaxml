@@ -1,9 +1,0 @@
-<!DOCTYPE attributes SYSTEM "../valid/sa.dtd" [
-    <!--
-	attribute needs defaulting
-    -->
-]>
-
-<attributes/>
-
-<?pi equals three?>

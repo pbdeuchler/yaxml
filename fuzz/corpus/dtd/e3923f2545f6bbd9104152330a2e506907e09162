@@ -1,11 +1,0 @@
-<!DOCTYPE TESTSUITE SYSTEM "testcases.dtd" [
-
-    <!-- Sun-written testcases -->
-    <!ENTITY sun-valid		SYSTEM "sun/sun-valid.xml">
-    <!ENTITY sun-invalid	SYSTEM "sun/sun-invalid.xml">
-    <!ENTITY sun-not-wf		SYSTEM "sun/sun-not-wf.xml">
-    <!ENTITY sun-error		SYSTEM "su>
-
-    <!-- NIST/OASIS test suite -->
-    <!ENTITY nist-oasis		SYSTEM "oM "ibm/ibm_oasis_invalid.xml "> 
- <?music "Here is P "I" ?><animal>&#10;   <cat></ca t

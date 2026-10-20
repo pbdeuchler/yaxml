@@ -1,7 +1,0 @@
-–<!DOCTYPE doc [
-<!ELEMENT doc (tst*)>
-<!ELEMENT tst (#PCDATA)*>
-<!ELEMENT tst (#PCDATA)*>
-<!ATTLISst "  a  r  "/>
-</doc>
-

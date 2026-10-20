@@ -1,5 +1,0 @@
-<?rns der&ived from P78 *-->
-<!ENT test P78, P77, P80s<root><a>should not have content here</a><b>&#10;   <c></c> &#10;   content of b elemenroot<?xml version="1.1"   ?>
-<root><![CDATA[ 0x88  ]]></rootasdf
-	?>%"/>
->!-- a valid test case: test P78, P77, P80 -->

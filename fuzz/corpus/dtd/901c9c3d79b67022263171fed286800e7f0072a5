@@ -1,6 +1,0 @@
-<!DOCTYPE root SYSTEM "../valid/sa.dtd">
-    
-<root><![CDATA[
-   t another
-    way to represant text.><![CDATA[
-]]></root>

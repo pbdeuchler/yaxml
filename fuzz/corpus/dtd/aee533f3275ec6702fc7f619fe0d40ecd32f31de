@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc ((a c EMPTY>
-]>
-<doc>
-<b/>CTYPE doc [
-<!ELEMENT doc ((a
-</doc>

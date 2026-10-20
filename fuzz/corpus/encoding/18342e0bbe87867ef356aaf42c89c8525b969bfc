@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!NOTATION n SYSTEM "http://www.wttp://www.w3.org/" NDATA n>
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc a ENTIPCDATA)>ENTITY "e">
-]>
-<doc></doc>

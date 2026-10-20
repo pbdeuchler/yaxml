@@ -1,1 +1,0 @@
-substring("1345",1 div 0, 3)

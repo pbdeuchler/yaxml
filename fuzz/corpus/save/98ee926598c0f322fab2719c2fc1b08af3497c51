@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-5"?><!DOCTYPE animal SYSTEM "ibm32i04.dtd" [
-  <!ATTLIST animal xml:space (d00000133584280347126443efault|preserve) 'preserve'>
-]>
-<!-- ternal markup declaration of element type, mixed content.
--->
-<anim<al><a>T&!ELEMENT a:
-
-<o>/animal>

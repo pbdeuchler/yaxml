@@ -1,7 +1,0 @@
-<!DOCTYPE reference [
-
-<!ELEMENT reference EMPTY>
-<!ATTLIST reference
-    value	ENTITY	"2orldbo`k"
-  e	ENTITY	"1dbo`k"
-    >brittannica"/>

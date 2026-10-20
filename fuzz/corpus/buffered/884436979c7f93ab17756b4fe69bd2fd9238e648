@@ -1,7 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!NOTATION unknot P~BLIC "Unknown">
-<!ENTITY ge SYSTEM "nop.ent" ndata unknot>
-]>
-<doc/>

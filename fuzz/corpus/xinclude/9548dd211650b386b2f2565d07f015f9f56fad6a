@@ -1,13 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-5"?><!DOCTYPE doc [
-<!ATTLIST e0 xml:space (dџџџџџџџџe2ault|preserve) 'peserve'>
-<!ATTLIST e3 id ID #IMPLIED>
-]>џџџџџџџџџџџџџџџџџџџџџџџџџџџџџ
-|ttp://www.w3.org/2001/XMLSchema" 
-	tgaNetramespace="h?ttp://FOO" xmlns:foo="http:o" type="foo:type.A"/>
-
-<sim№leType name="type.A">
-		<riction>
-			<simpleType>
-				<list itemType="integer"/>			
-			</simpleType>ype>
-		<stricts-1-2-err_0.xsd">1 2</foo>

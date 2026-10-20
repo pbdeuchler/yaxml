@@ -194,7 +194,7 @@ schema could print in its place (checked on the 2.15.4 oracle build, which has
 
 ## Fuzzing
 
-`fuzz/relaxng.rs` (target `relaxng`) splits a testcase at NUL into schema,
+`tests/support/fuzz/relaxng.rs` (target `relaxng`) splits a testcase at NUL into schema,
 instance and resources `d/0`..`d/9`, wraps non-markup schemas in an
 element, and checks determinism, identical diagnostics over both DOMs and on
 reuse, offsets matching node ranges, the load budget, at most one trailing

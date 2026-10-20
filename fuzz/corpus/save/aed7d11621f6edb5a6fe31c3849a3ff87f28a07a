@@ -1,6 +1,0 @@
-<!DOCTYPE doc
-[
-<!ENTITY % pe "<!--reacement decl->">
-<!ENTITY % pe2 SYSTEM "nop.e+t">
-]>
-<doc/>

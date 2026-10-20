@@ -1,1 +1,0 @@
-<!DOCTYPE d [<!ENTITY e "x&#38;#38;y"><!ENTITY q 'a"b&#39;c'>]><d a="1&e;2&#38;3&amp;4" b="&q;"><x/>&e;</d>    

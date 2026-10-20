@@ -1,5 +1,0 @@
-<!DOCTYPE do [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "<![CDATA[&foo;]]>">
-]>
-<doc>&e;LEMENT nameto

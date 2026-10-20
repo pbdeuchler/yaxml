@@ -1,1 +1,0 @@
-<!DOCTYPE r [<!ELEMENT r ANY><!ATTLIST r xmlns:p NMTOKEN #IMPLIED xmlns NMTOKEN #IMPLIED>]><r xmlns:p='a b' xmlns='c d'/>

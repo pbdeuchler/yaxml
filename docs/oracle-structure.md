@@ -2,7 +2,7 @@
 
 `structure_oracle` compares the owned DOM's leaf insertion and permanent subtree
 removal with an external libxml2 **2.15.4** helper. The helper is
-[`tooling/libxml2_structure.c`](../tooling/libxml2_structure.c); Cargo never
+[`yaxml-harness/tooling/libxml2_structure.c`](https://github.com/pbdeuchler/yaxml-harness/blob/main/tooling/libxml2_structure.c); Cargo never
 compiles or links it. The library remains safe Rust with only `memchr` as a
 dependency. The pinned archive, checksum and shared subprocess restrictions are
 documented in [oracle.md](oracle.md).

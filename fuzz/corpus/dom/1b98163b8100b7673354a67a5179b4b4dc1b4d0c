@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY % e "(#PCDATA)>">
-%e;
-]>
-<do
-%e;
-]>
-<doc></doc>

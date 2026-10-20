@@ -1,4 +1,0 @@
-<!DOCTYPE p [
-<!ELEMENT p (#PCDATA)>
-]>
-<p>Fa&#00000000000000000245;il</p> <!-- 64 bit

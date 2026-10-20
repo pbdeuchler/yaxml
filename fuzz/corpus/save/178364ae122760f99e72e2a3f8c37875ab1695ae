@@ -1,17 +1,0 @@
-<!DOCTYPE elem
-[
-<!ELEMENT elem (#PCDATA|elem)*>
-<!ENTITY ent "<elat><b>
-   <c></s:R    <R:bigbox/nse>
-   a</elem>">
-]>
-<elem>
-CharData&#32;
-<!--comment-->
-<![CDATA[
-<-commentquot;
-CharData
-</elem>
-]]>
-<?pi?>&ent;&quta
-</elem>

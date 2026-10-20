@@ -237,7 +237,7 @@ while `xmlSaveSetAttrEscape` has no effect at all. A conversion callback that
 also does the encoder's job would be a second, lossy escaping path for one
 deprecated knob, and xmllint never sets it.
 
-`tests/save_oracle.rs` compares bytes with `xmllint --noent --dtdattr` (and the
+`yaxml-harness/tests/save_oracle.rs` compares bytes with `xmllint --noent --dtdattr` (and the
 same with `--format`, `--pretty 2` and `--encode`) over the W3C XMLTS valid
 documents and libxml2's `test/*.xml` and `test/xhtml*` (517 documents both
 parsers accept), and `xmllint --html --xmlout [--format]` over libxml2's
@@ -263,7 +263,7 @@ checks DOM agreement, that only markup an encoding lacks fails, and that
 saving reparsed output reproduces it byte for byte, after one extra round
 when libxml2's two-step content-model normalization applies; 1,973,977 runs
 (6 minutes, nightly-2026-06-06, `-timeout=2`) found no failure after the two
-fixes kept in `fuzz/regressions/save`. The target now also picks `NOENT` from
+fixes kept in `yaxml-harness/fuzz/regressions/save`. The target now also picks `NOENT` from
 the input hash, so attribute and content references are saved both kept and
 substituted; 1,052,689 runs (5 minutes, `-fork=1 -timeout=2`) found no failure
 after the third regression (entity-value reference names).
@@ -342,9 +342,9 @@ later `start_document` switches encodings; yaxml converts from the call on.
 yaxml accepts ISO-8859-2..16, which the pinned build lacks. Strings with NUL
 are written whole; C strings end there.
 
-`tests/text_writer_oracle.rs` replays random call scripts (misuse included,
+`yaxml-harness/tests/text_writer_oracle.rs` replays random call scripts (misuse included,
 every operation, encodings, quote characters and indentation) and well-formed
-ones against `tooling/libxml2_textwriter.c`, comparing each call's success
+ones against `yaxml-harness/tooling/libxml2_textwriter.c`, comparing each call's success
 and the output bytes:
 
 ```sh

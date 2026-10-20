@@ -1,7 +1,0 @@
-<!DOCTYPE root 
-[
-<!ELEMENT root EMPTY>
-<!ATTLIST roo| att CDATA #IMPLIED>
-<!ENTITY aaa "wrong charater refrcenee: &49;">
-]>
-<rŠt/>

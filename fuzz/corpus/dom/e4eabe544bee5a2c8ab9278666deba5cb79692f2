@@ -1,22 +1,0 @@
-Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no normalization -->
-  <norm attr='   '/>
-  <norm attr='
-  foo bar f://www.iHHHHHHH  '/>
-  <norm attr='
-
-foobar'/>
-  <norm attr=' foo bab
-'/>
-  g="UTF-7"?>
-<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:0.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTspes:1.0:0.70" xmlns="urn:oasis:names:tc:ub0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTspes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70">
-   <cat:RefeOecnerd-der>
-      <cat:SellersOrderID schemg back -->
-</doc>
- versn="1.0"?>
-<D:proÿÿÿÿÿÿÿÿÿÿ÷ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿpfind xmlns:D= attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no normalization -->
-  <nŽ<?xml version="1.0"?>
-<RDF:RDF xmlfs:p3p="http://www.w3.org/TR/1998/WD-P3P10-sormyntax#pr attoposal.

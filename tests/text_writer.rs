@@ -1,5 +1,5 @@
 //! `TextWriter` (libxml2 `xmlTextWriter`): output bytes are libxml2's for
-//! the same calls (tests/text_writer_oracle.rs checks that at scale); here
+//! the same calls (yaxml-harness/tests/text_writer_oracle.rs checks that at scale); here
 //! the documented cases, failures, limits and sinks.
 
 use std::io::{self, Write};

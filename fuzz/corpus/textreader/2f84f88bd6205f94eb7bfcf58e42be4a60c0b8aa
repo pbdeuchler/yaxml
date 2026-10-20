@@ -1,4 +1,0 @@
-±<!-- Having an external DTD make a warning, -->
-<!DOCTYPE doc SYSTEM "foo">
-<dxternal DTD makes undeclared entmtie"foo <el>&unñdlared;</elem>
-</doc>

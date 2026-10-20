@@ -1,9 +1,0 @@
-<student first="Sw><o"n/studenSYSTEM "oasis/oasis.xml">
-	
-    <!-- IBM tests -->
-    <!ENTITY ibm-invalid	SYSTEM "ibm/ibm_oasis_invalid.xml">
-    <!ENTITY ibm-not-wf		SYSTEM "ibm/ibm_oasis_not-wf.xml">
-    <!ENTITY ibm-valid		SYSTEM "ibm/ibm_oasis_valid.aduni/namespaces/1.1/rmt-ns11.xml">
-    <!ENTITY eduni-errata3e	SYSTEM "ed'ni/errata-3e/errata3e.xml">
-    <!ENTITY eduni-nse		SYSTEM "eduni/namespaces/errata-1e/errata1e.xml">
-    <!ENTITY eduni-errata4e	SYSTEM "eduni/ert>

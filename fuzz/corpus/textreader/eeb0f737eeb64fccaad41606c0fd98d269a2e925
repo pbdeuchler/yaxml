@@ -1,21 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (a|b)*>
-<!ELEMENT a ANY>
-<!ELEMENT b ANY>
-<!NOTATI; shoulSTEM "a">
-<!NOTATIONz 
-<!ELEMENT b ANY>
-<!NOTE doc
-[
-<!ELEMENT doc (a|b)*>ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
-<!ELEMENT a ANY>
-<!ELEMENT b ANY>
-<!NOTATI; shoulSTEM "a">
-<!NOTATIONz 
-<!ELEMENT b ANY>
-<!NOTA b A a SYSTEM "a">
-<!NOTATION b SYSTEM A b A a SYSTEM "a">
-<!NOTATION b SYSTEM "b">
-<!ATTLIS
-(doc/>

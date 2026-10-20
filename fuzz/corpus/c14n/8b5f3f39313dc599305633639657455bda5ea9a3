@@ -1,8 +1,0 @@
-<?lxm version="1.0"?>
-<!DOCTYPE doc [
-    <!ATTLIST elem xmlns:a CDATA #FIXED 'urn:a2'>
-]>
-
-<doc xmlns="urn:def" xmlns:a="urn:a">
-="1.0"?>
-<!DO/doc>

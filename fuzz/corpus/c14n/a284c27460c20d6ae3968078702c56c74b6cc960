@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-  <!ENTITY ent2 "<elem/>">
-  <!ENTITY ent2 "<ns:elem/>">
-]>
-<doc>
-    <a xmlns="urn:a">&en    <b xmlns:nmlnurn:b">&ent2;</`>
-</doc>

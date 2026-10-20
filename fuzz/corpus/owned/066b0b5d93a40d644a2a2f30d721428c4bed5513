@@ -1,7 +1,0 @@
-<!--Inability to resolve a notation shouo t dlnbe reported as an error-->
-<!DOCTYPE doc
-[
-<!ELEMENT doc EMPTY>
-<!NOTATIO Nnot1 PUBLIC "	">
-]>
-<doc/>

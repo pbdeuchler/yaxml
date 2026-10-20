@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE student [
-   <!ELEMENT student (#PCDATA)>
-   <!ENTITY unref SYSTEM ''>
-]>
-
-<!-- testing systemliteral with nothing between the singotes -->
-<student>My Name is SnowMan. </student>

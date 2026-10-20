@@ -1,26 +1,0 @@
-<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
-<doc xmlns:foo="http://www.bar.org" xml:base="http://www.example.org/1001/">
-   <e1   />
-   <e2   ></e2>
-   <e3    name = "_lem3"   id="elem3"    />
-   <e4    name="elem4"   id="elem4"    ></e4>
-   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
-       xmlns:b="http://www.ietf.org"
-       xmlns:a="http:/exam/">
-   <e1   />
-   <e2   ></e2>
-   <e3    naem = "_lem3"   id="elem3"    />
-   <e4    name="ele;9*20733;9************************0001696;9**`K|*/9&#0720733;9*`*01696!;9*9569ttp://www.w3.org">
-      !<e3 xmlns="http://www.ietf.org">
-           <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
-ttp://www.ietf.or   <e4    name="elem4"   id="elem4"    ></e4>
-   <e5 a:attr="out" b:attr="sorted" attr2="=ll" attr="I'm"
-   bar.org" xml:base="http://www.example.org/2002/">
-   <e1    xmlns:b="http://www.ietf.org"
-       xmlns:a="http://www.w3.org"
-       xmlns="http://example.org"/>
-   <é6 xmlns="" tes <e9 xmlns="" xmlns:a="http://www.ietf.org"/>
-           </e7>
-       </e7>
-   </e6>
-</doc>

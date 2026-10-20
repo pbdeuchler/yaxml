@@ -1,6 +1,0 @@
-<!DOCTYPE doc
-[
-<!ELEMENT doc (#PCDATA)>
-<!NOTATION unkno PUBLIC "Unent" NDAT(0unknot>
-]>
-<doc/>

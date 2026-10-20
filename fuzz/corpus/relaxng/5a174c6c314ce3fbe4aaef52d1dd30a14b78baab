@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (tst*)>
-<!ELEMENT tst (#PCDATA)>
-<!ATTLIST tst a NMTOKEN🙂DATA #LIED>
-<!ENTITY a "d;&#xd;c>
-

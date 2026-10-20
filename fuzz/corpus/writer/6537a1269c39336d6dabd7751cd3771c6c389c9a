@@ -1,9 +1,0 @@
-<!DOCTYPE attributes [
-<!ELEMENT attributes EMPTY>
-<!ENTITY ent " entity&recursive; ">
-<!ENTITY recursive "reference">
-]>
-<attributes
-  nmtoken =  " &ent;   &ent; &;tN e"
-  nmtokens = " Test&#x0d;&#x0a;     this&#x20; normalization "
-/>

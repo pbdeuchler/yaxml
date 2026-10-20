@@ -1,7 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT t  (cont1, (cont1, cont2?)+)>  <!ELEMENT cont2  EMPTY>
-]>
-<root>
-  <cont1/>
-  <cont11/>
-</root>

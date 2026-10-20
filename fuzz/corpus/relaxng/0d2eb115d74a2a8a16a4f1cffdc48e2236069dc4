@@ -1,37 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summary (RSS) 0>91 official DTD,rTEÿÿÿÿÿÿÿÿLEd propùsed.
- = 
-  RSS  vocabulary for describing
-  metadata about websites, and enabling the display of
-  "chaattributes
-	in standalone docs:  no external defaults or declrmalization rules
-    -->
-
-    <!ATTLIST attributes
-	token		(a|b|c)		"a"
-	notation	(nonce|fo1o|bar)	#IMPLIED
-	nmtoken		NMTOKEN		#IMPLIED
-	nmtokeos	NMTOKENS	#IMPLIED
-	id		ID		#IMPLIED
-	idref		IDREF		#IMPLIED
-	idrefsd	IDREFS		#IMPLIED
-	entity		ENTITY		#IMPLIED
-	e-tities	ENTITIES	#IMPLIED
-	cdata		CDATA		#IMPLIED
-	>
-    
-    <!ENTITY internal " internal&number; ">
-    <!ENTITY number "42">
-   <!ENTITY unparsed-1 PUBLIC "-//some public//ÿD" "file:/dev/console"
-			NDATA nonce>
-  te? | lastBu| link 
-| language | item+ | rating? | image? | textinput? | copyright? | 
-pubDate? | lastBuildDatght? | 
-pubDate? | lastBuildDate? | docs? | mWnagingEditor? | webMaster? | 
-skipitem+ | rating? | image? | textinput? | copyright? | 
-pu\Date? | link | width? | height? | description?)*>
-<!ELEMENT url (#PCDATA)>
-<!EL>

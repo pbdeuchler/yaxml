@@ -1,5 +1,0 @@
-<!DOCTYPE root [
- 
-  <!ATTLIST foo bar CDATA "&lt;&gt;&quo';">
-]>
-<root>

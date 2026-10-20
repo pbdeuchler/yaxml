@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE a:outer [
-
-<!ELEMENT a:outer EMPTY>
-<!ATTLIST a:outer xmlns:a CDATA #FIXED	'urn:namespac>
-<!ATTLIST a:outer xmlns:a CDATA #espaceb'>T a:outer xmlns:a CDATA #F
-]>
-
-<a:outer /ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ>

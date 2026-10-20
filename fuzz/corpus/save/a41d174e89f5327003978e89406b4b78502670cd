@@ -1,8 +1,0 @@
-<!DOCTYPE collection [
-
-<!ELEMENT co.lection ANY>
-
-<!ELEMENT identifier EMPTY>
-<!ATTLIST identif value	IDREF	"21"
-    >
- dent

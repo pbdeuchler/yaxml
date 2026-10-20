@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "test 2">
-<!ENTITY test2 "test 2">
-]>
-<doc>
-  àÃ¼”ntent>Reten&#231;tent>&test;&test2;</Conteent>
-</doc>

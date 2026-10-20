@@ -1,4 +1,0 @@
-<!DOCTYPE c [
-<!ELEMENT doc (a) *>
-]>
-<doc></doc>

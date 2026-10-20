@@ -1,4 +1,0 @@
-<!DOCTYPE dok [
-<!ELEMENT doc (
-		middle CDATA #IMPLIED
-		last ONoc></doc>

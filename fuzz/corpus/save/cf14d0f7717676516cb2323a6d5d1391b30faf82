@@ -1,7 +1,0 @@
-<!DOCTYPE references [
-
-<!ELEMENT references EMPTY>
-<!ATTLIST references
-lue	ENTITIES	"brittannica 2orldbook"
-    >
-ttna

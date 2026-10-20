@@ -1,10 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root[
-  <!ELEMENT root (a,b)>
-  <!ELEMENT a EMPTY>
-  <!ELEMENT b (#PCDATA|c)* >
-  <!ELEMENT c ANY﻿<?xml version="1.0"?>
-< </c>
-</b>> <c></c> </e>&#10;</r
-</ro
->

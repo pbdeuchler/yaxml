@@ -181,8 +181,8 @@ libxml2's 1-118, the namespace codes 200-203 and 205, 1549 and 1609.
   `xmlSetStructuredErrorFunc`) or `xmlGetLastError`: errors are returned, and
   an adapter's handler is a loop over `describe_all`.
 
-Agreement with libxml2 2.15.4 (`tests/diagnostic_oracle.rs` against
-`tooling/libxml2_errors.c`, which prints libxml2's structured errors):
+Agreement with libxml2 2.15.4 (`yaxml-harness/tests/diagnostic_oracle.rs` against
+`yaxml-harness/tooling/libxml2_errors.c`, which prints libxml2's structured errors):
 libxml2's first error-level record and `describe` agree on code and line for
 1063 of the 1065 XMLTS not-wf documents libxml2 rejects (99.81%) and on the
 message for 1063 (99.81%); over `test/errors` on 38 of 41 (92.68%) for both.
@@ -219,7 +219,7 @@ DTD type normalizes them are compared unnormalized; the context lines
   bound (the tokenizer buffer by `max_token_bytes`); drop the parser to
   release it.
   Measured: 100k tiny documents (47 bytes, 6 events) 820 ns fresh vs 690 ns
-  reset (-16%), a 4-byte document 230 vs 200 ns (`examples/reset_bench.rs`).
+  reset (-16%), a 4-byte document 230 vs 200 ns (`yaxml-harness/examples/reset_bench.rs`).
 
 ## Allocators
 
@@ -584,7 +584,7 @@ subset, `xml:id` errors), and libxml2 2.14 reports some different codes.
 The `tostring` differences are 2.14's `<?pi ?>` spacing, lxml dropping
 some DOCTYPEs, and non-ASCII names and comments under ASCII output.
 
-Benchmark (`bench/bench_parse.py`, the core's `benches/parse.rs` fixtures,
+Benchmark (`bench/bench_parse.py`, yaxml-harness's `benches/parse.rs` fixtures,
 Apple M-series, CPython 3.14, release build, median of 5; host not idle, so
 treat ratios to about 10%):
 

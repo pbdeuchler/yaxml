@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-]><!-- Has a By+zantine Musical Symbol Kratimata in a name,
-    
-<doc /> legal in XML 
-0.1, illegal in XML 1.0 -->
-<𝀲/>

@@ -1,4 +1,0 @@
-<!-- iiiiiiii. -->
-<!DOCTYPE oo [
-<!ENTITY % pe "<!ENTITY ent1 'text'>">
-%pe;

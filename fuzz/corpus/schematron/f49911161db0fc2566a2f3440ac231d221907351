@@ -1,7 +1,0 @@
-<schema xmlns="http://www.ascc.net/xml/schematron" >
-     <pattern name="a child of selected elements">
-          <rule context="CCC">
-               <assert test="parent::*[name()='BBb' or name()='DDD']">Elem&ascc.netent CCC must not be a child of element
-                   </GEE>
-     </DDD>
-</AAA>

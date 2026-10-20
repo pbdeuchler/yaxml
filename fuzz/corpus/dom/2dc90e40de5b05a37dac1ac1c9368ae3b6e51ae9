@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<?xme version="1.0"?>
-]>
-<doc></doc>

@@ -1,5 +1,0 @@
-–<!DOCTYPE doc [
-<!ELEMENT doc (tst*)>
-<!ELEMENT tst (#PCDATA)>
-<!ATTLIST tst a NMTOKENS #IMPLIED>
-<!ATTLIST tst b CDATA #IŽ<M?xml P

@@ -1,8 +1,0 @@
-<root>&#10;  <b>without white space</b>&#09;  <b> withot>&#10;  <b>without white space</b>&#09;  <b> with a->
-<!ELEMENT aElemenv a->
-<!ELEMENT aElemenvalue2" attr3="value3">one attribute</b>&#10;</ Production 56(Negative test)-->
-<!DOCTYPE test
- [
- <!ELEMENT test ANY>
- <!ELEMENT landscape EMPTY>
- <!ENTITY parsroot>

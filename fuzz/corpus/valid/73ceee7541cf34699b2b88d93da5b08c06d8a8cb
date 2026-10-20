@@ -1,8 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY u SYSTEM 'u' NDATA m>
-<!ENTITY p 'parsed'>
-<!ENTITY % pe '																				'>
-%pe;
-<!ATTLIST r i ID #IMPLIED f ID

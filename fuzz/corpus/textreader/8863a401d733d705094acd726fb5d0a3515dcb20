@@ -1,5 +1,0 @@
-Ž<?xml version="1.0"?>
-<!DOCTYPE test [
-<!ENTITY example "<p>An ampersand (&#36;#38;) may be escap#38;#38;#38 with a general  ampevs[nd ><?q8;#38;) may be escapedamp;).</p>" >
-]>
-<test>&example;</test>

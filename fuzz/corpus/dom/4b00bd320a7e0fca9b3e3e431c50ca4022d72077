@@ -1,7 +1,0 @@
-<!-- DefFibutes must match Ne. -->
-<!DOCTYPE foo[
-<!ELEMENT foo EMPTY>
-<!ATTLIST foo id ID #IMPLIED>
-<!ATTLIST foo a IDREF "28">
-]>
-<foo id="g0412" a="g0034"/>

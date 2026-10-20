@@ -1,7 +1,0 @@
-laughs-slow-unit.xml (dtd target, 2026-10-19, timeout at -timeout=2)
-
-A billion-laughs DTD within the default expansion limits takes about 2.1 s
-through the whole dtd driver in the ASan fuzz build (about 0.16 s in a plain
-release build). Expansion is bounded, so this is a slow unit, not a hang;
-the dtd target needs -timeout >= 5 or per-surface profiling to find whether
-one surface is super-linear in the expanded size.

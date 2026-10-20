@@ -1,5 +1,0 @@
-<?x
-<!DOCno'?>
-<!DOCTYPE r [
-<!ELEMENT rc (PCDATA)>
-<!ELEMENT c (#PCDATA|`>

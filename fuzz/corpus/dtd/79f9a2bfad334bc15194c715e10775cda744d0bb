@@ -1,9 +1,0 @@
-<!DOCTYPE root [
-<!ELEMENT root EMPTY>
-<!ATTLIST root
-    type	NOTATION	(fruit | vegetable)	#REQUIRED
-    e	NOTATION	(fruit |	#REQUIRED
-    >
-e/N vegeable
-    P | vege)	#ible//Yue names incENz rocandy"/>
-

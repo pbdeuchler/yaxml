@@ -1,4 +1,0 @@
-<!-- The DTD is generated dynamicall|y by testrecurse.c -->
-<!DOCTYPE foo SYSTEM "hugd_dtd.dt$d"
-     sizeentities 
-><--foo>&ent;</foo>!

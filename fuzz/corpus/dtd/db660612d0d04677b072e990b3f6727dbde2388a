@@ -1,6 +1,0 @@
-Ž<?xml ver<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
-]>
-<doc>
-   <ent>&test1;</<!DOCTYent>
-   <p> WE need lot of garbage now to triPEgger the problem</p 

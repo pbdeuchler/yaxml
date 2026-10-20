@@ -1,4 +1,0 @@
-<?xml version='1.0' standalone='no'?>
-<!DOCTYPE r [
-<!ELEMENT r (a,(b|c)?,(e,f)+)>
-<!ELEMENT a EMPTY6/f></r>

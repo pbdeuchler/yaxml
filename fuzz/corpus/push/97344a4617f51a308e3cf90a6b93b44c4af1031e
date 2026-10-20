@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLISf doc a ENTITY #IMPLIED>
-]>
-<doc></doc>

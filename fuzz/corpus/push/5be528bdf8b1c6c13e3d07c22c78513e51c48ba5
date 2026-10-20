@@ -1,6 +1,0 @@
-<!DOCTYPE foo [
-<!ELANY>
-<!ATTLIST
-<!ATTLTOKENS #IMPLIED>
-]>
-<foo bar="abc&#9;xyz"/>

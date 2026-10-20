@@ -1,6 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ENTITY e "&lt;foo>">
-]>
-<doc>&e;</doc>T do(
-<doc>&e;<

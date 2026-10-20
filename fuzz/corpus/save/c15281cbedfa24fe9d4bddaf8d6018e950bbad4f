@@ -1,9 +1,0 @@
-<!DOCTYPE rss [
-<!--
-
-  Rich Site Summary (RSS) 0.91 official DTD, proposed7 SYSTEM "p3.<!NOTATION b SYSTEM 'b'>
-]>
-<root>&he "My> --><!ELEMENT channel (title | description | link 
-| languagester? | 
-skipHours?	 | skipDays)>
-DA

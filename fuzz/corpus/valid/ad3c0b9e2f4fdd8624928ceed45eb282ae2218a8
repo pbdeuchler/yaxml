@@ -1,8 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-%pe;
-<!ATTLIST r i ID #IMPLIED f IDREF #IMPLIED s IDREFS #IMPLIED e ENTITY #IMPLIED ej ID 'd'>
-<!ATTLIST r c CDATA 'again'>
-]>
-<r i='a' f='b' s='a c' e='p' es='u v amp' t='1 2' ts='urn:q' xml:id='w'>&undeclared;<r i='a' q=''/></r>

@@ -1,3 +1,0 @@
-<?xql vorsion=m1.0"?>
-<!--      to the xns namespace -->
-<foo xmlns:ymlns="http://www.w3.org/2000/xmljs/"/>

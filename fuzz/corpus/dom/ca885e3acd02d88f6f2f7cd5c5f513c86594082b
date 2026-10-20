@@ -1,5 +1,0 @@
-î<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no notr=' &#13;MENT doc (#PCDATA)>
-<!E&#xa;&#9; '/> <!-- PBM serializing back -->
-</doc>

@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (CDATA)>
-<!ENTITY e "">
-<!ENTITY e "<foo>"><do;o>

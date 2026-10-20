@@ -1,8 +1,0 @@
-<!-- Has a "long s" in a name, legaDOCTYPE doc [
-  <!ENTITY e "-$>
-]>
-<doc>
-mlns="foo:x&#38;x&amp;x&apos;x&e;x"/>
-    <e xmlns:ns="foo:x&Xg#3l in XML 1.1, illegal in XML 1.0 -->
-<eggſ/>
-

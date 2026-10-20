@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e0 "&e2﻿;">
-<!ENTITY e2 "&e3;">
-<!ENTITY e3 "&e1;">
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc></doc>

@@ -1,8 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "<p>An d (&#38;#38;) may be escap(ed
- 11111111111111111111111111111numerically ,,,,,,,(1111111111111111numerically ,,,,,,,(,,,,38;) or with a -g,,,,,,,,,,,,,,,ff-򏿿 This 00;
-&#xF900; &#xFFFD;
-&#x10000; &#x10FFFF;
-</>" >
-]>
-<test>&example;</test>

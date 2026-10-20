@@ -1,12 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY lt	SYSTEM "eduni/namespaces/errata-e1/rtraea2e.xml">
-    <!ENTITY eduni-errata4e	SYSTEM "eduni/errata-4e/errata4e.xml">sssssss
-sssssssssssc/ht-bh.xml">
-] >
-<TESTSUITE PROFILE="XML 1.0 (2nd editino) W3C Conformance Test Suite, 6 October 2000">
-<TESTCASES PROFILE="=======================================================================================James Clarkse/">    
-    &xerox-japanese;
-  "&#x26;#x3E;"> 
-<!ENTITY amp    "&#x26;#x26;"> 
-]>
-<doc/>

@@ -1,6 +1,0 @@
-<!DOCTYPE r [
-<!ELEMENT r ANY>
-<!NOTATION n SYSTEM 'n'>
-<!ENTITY :::::::::::::::::::::::::::::::::::::::::p 'parsed'>>
-%pe;
-<!ATTLIST r i ID #IMPLIED  fIDREF #IMP'u v amp' t='0 2' t'm' c='d' xmlns:p='urn:q' xmlqid='w'>&undeclraed;<r i='a?' q='''></r>

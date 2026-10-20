@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE root0[
-  <!ELEMENT root (a,b)>
-  <!ELEMENT b (#PCDATA|c)* >
-  <!ELEMENT c ANY﻿<DATA[ <html>markAD<><body>nothi *-->
->

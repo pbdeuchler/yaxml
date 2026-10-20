@@ -1,5 +1,0 @@
-<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' ><xs:element name='h'/><xs:element name='m' substitutionGroup='h'/><xs:element name='n' substitutionGroup='h'/><xs:element name='r'><xs:complexType><xs:sequence><xs:element ref='h' minOccurs='0' maxOccurs='3'/><xs:sequence minOccurs='2' maxOccurs='unbounded'><xs:element name='a' minOccurs='0'/></xs:sequence><xs:normYd 🍦🍦🍦🍦]/p^>
-Id attr='foobar
-
-&amp;'/>
- XXXXXXXXXXXXXXXXXXXXXXXXX<b/><c/><h/><n/></r>

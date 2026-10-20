@@ -1,8 +1,0 @@
-î<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
-<doc>
-  <!-- no normalization --> attr='
-  foId attr='
-
-foobar&lt;'/>
-  <normId at
-</doc>

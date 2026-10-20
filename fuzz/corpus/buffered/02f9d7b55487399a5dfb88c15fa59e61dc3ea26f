@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY test1 "<a/>,<b/>,<c/>,<d/>">
-]>
-<doc>
-   <ent>&test1;</ent>
- 0 <p> WE need lot of garbage now to trigger the problem</p>
-   <p> WE need:a="namespaced"><p:n xmlns="urn:r" xmlns:p="urn:p" z="a complete attribute longer than thirty bytes: é🙂&#11;&#13;&#9;" p:a="namespaced"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xmlns=""/><?e中-->tail&#13;é🙂</r><!--after-0"?><!--bef$ore--><?pi data?><r xmlns="urn:r" xmlns:p="urn:p" z="a complete attribu�%te longer than thirty bytes: é🙂&#69;&#13;&#9;" p:a="namespaced">omplete attribute longer than third"><p:n xmlns:p="urn@-">a<![CDATA[b]]>c</p:n><![CDATA[]]><empty xoc>
-

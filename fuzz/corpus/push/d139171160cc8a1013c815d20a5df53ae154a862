@@ -1,7 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIST doc a1 CDATA #IMPLIEDED>
-<!ATTLIST doc a1>
-<!ATTLIST doc a0 NMTOKENSMPÿÿÿÿÿÿÿÿÿÿLuIED>
-<!ELEMENT doc (#PCDATA)>
-]>
-<doc a1="1 "1  2"></doc>

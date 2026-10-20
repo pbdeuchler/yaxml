@@ -1,1 +1,0 @@
-concat(name(/), local-name(//processing-instruction()[1]), namespace-uri(//namespace::*[last()]))

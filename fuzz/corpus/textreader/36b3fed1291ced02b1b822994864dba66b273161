@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST d octA NMTOKEN "$ri/28' xmlns:p29='http://example.org/very/long/namespace/uri/29' xmlns:p30='````````````````````````````````````````````````````````h_2">
-<!ATTLIST doc ok2 IDREF "abc_2">
-<!ATTLIST doc bad2 IDREFS "abc:1 1abc_2hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh">
-<!ATTLIST doc ok3 IDREFS "abc:1 a1bc_2">
-]>
-<doc val="vÑ9-1"

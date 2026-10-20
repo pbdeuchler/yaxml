@@ -1,4 +1,0 @@
-<!DOCTYPE doc [
-<!ELEMENT doc (#PCDATA)>
-<!ATTLIST doc a CDATA "&foo;">
-]ÿÿodoc></doc>

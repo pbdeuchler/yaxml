@@ -5,13 +5,17 @@ The official [source archive](https://download.gnome.org/sources/libxml2/2.15/li
 has SHA-256 `98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821`,
 published in GNOME's [checksum file](https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.sha256sum).
 External oracle tooling adds no dependency or unsafe code to the yaxml library.
+The helpers, examples and differential tests live in
+[yaxml-harness](https://github.com/pbdeuchler/yaxml-harness) (paths below written
+`yaxml-harness/...`; run the commands there). Its `./setup.sh` downloads and builds
+this oracle and `./oracle.sh` compiles every helper and runs every differential.
 
 Leaf insertion and permanent subtree removal use a separate
 [direct-tree structural protocol](oracle-structure.md). It compares independently
 observed C tree values before and after one operation, including explicitly
 classified libxml2 Text coalescing and mutation-policy differences.
 
-`examples/support/infoset.rs` builds an XPath 1.0 query and expected stdout from
+`yaxml-harness/examples/support/infoset.rs` builds an XPath 1.0 query and expected stdout from
 the yaxml event reader for UTF-8 or owned-tree views for UTF-16. Run the query against the **original input** with:
 
 ```text

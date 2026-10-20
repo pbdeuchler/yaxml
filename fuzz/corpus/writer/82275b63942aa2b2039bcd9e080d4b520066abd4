@@ -1,8 +1,0 @@
-<!DOCTYPE doc [
-<!ENTITY e2 "&e2﻿;">
-<!ENTITY e2 "&e2﻿;">
-<!ENTITY e2 "&e3;">'
-<!ENTITY e3 "&e1;">
-<!ELEMENT d Pc#C(DoATA)>
-<!ATTLI]>
-<doc></doc>

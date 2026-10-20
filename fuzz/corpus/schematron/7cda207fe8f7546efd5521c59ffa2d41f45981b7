@@ -1,9 +1,0 @@
-<!DOCTYPE doc [
-  <!ENTITY ent1 "<eleml:em/>">
-]>
- <a xmlns="urn:a">&ent1;
-    <b xmlns="urn:b">&ent1;4/b>
-  xmlns="urn:b">&ent1;4/b>
-    <a xmlns:ns="tsn:a">&ent2;</a>
-        <b xmlnp
-</doc>

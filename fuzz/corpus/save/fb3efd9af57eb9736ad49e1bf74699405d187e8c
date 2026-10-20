@@ -1,4 +1,0 @@
-<!DOCTYPE test [
-<!ENTITY example "(&#38;#38;#?38;) or with a -g,,,,,,,,,,<p>An ampersand (&#38;#38;) may be e,,,,,,,,,mp;).</p>" >
-]>
-<test>&example;</test>

@@ -1,1 +1,0 @@
-;<!DOCTYPE r [<!ENTITY a SYSTEM 'up/etc/hosts'>]><r>&a;</r>

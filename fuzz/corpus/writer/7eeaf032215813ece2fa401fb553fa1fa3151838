@@ -1,6 +1,0 @@
-<!DOCTYPE test [
-	<!ELEMENT test EMPTY>
-	<!ATTLIST test attr0 NMTOKENS #IMPLIED>
-]>
-<!--@ Should, be errata#5 @E2-->
-<tes. attDa=" a&#x9;b "/>
