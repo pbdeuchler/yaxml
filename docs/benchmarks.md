@@ -562,3 +562,20 @@ different workloads. No matched external harness or comparative result is added
 by this runner. [Pinned reader](https://github.com/GNOME/libxml2/blob/v2.15.4/xmlreader.c)
 and [xmllint](https://github.com/GNOME/libxml2/blob/v2.15.4/xmllint.c) define those
 reference paths.
+
+## DTD validation
+
+`cargo bench --bench valid` times `Document::validate` (`tree`), reading a
+document's `BufferedReader` events (`events`) and reading them through a
+`valid::StreamValidator` (`stream`) on two fixtures: `flat` (10,000 items
+with element, mixed and `EMPTY` content, `ID`/`IDREF`, enumerated and
+`NMTOKENS` attributes, 1.4 MB) and `deep` (200 nested `(r?)` elements).
+`YAXML_BENCH_ITERATIONS`, `YAXML_BENCH_FIXTURE` and `YAXML_BENCH_MODE` fix
+the run for `/usr/bin/time -l` instruction counts (per iteration = run with N
+iterations minus run with 0, divided by N; 20 iterations for `flat`, 2,000
+for `deep`). Moving the tree pass onto the event engine (2026-10-19) took
+`tree` from 235.17M to 173.20M retired instructions per `flat` iteration
+(-26.35%) and from 300,930 to 191,452 per `deep` iteration (-36.38%): no
+attribute vectors per element, and each child is stepped through its
+parent's automaton during the one walk instead of a second walk per element. `stream` costs 14.72% (`flat`) and 13.58%
+(`deep`) over `events`.
