@@ -36,3 +36,9 @@ not reparse.
   declaration and DOCTYPE; `RECOVER` output reparses to a different document
   (options.rs "recovery is not a fixed point"). Reproduces on main
   `d30e423fd`; diagnostics are not involved.
+- `textreader/outer-xml-kept-attribute-reference.bin` (2026-10-20, stream
+  recovery work): the driver's `content` check reparses an element's outer
+  XML without its DTD, but an attribute whose value keeps a reference
+  (`newline="&newline;"`) is written with it, so the reparse fails with
+  `UnknownEntity`. The check only routes element references to `expand`;
+  attribute kept forms need the same. Reproduces on main `cdc363b54`.
