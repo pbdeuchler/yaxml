@@ -6,7 +6,8 @@ dependency. This is an early implementation, not a libxml2 drop-in replacement.
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
-value edits, leaf insertion and permanent subtree removal. Internal DTD subsets
+value edits, insertion, moves, attribute and namespace edits and permanent
+subtree removal. Internal DTD subsets
 are processed (entities, attribute normalization and, on request, default
 attributes) and the declaration is reported as `Event::Doctype`; entity
 references are kept or substituted as libxml2 options select. External subsets and entities
@@ -187,15 +188,21 @@ elements with initial attributes, preserving expanded names and checked handles.
 `Editor` also replaces existing leaf or ordinary-attribute values, appends fresh
 Text/CDATA/comment/PI leaves, and permanently removes non-root subtrees.
 Text and CDATA require an element parent; comments and PIs may also append after
-the document's epilog. Insertion never merges Text nodes. Removal makes all
+the document's epilog. These appends never merge Text nodes. Removal makes all
 subtree handles stale and protects the synthetic root and document element.
 Parsed survivors retain their source ranges; new nodes have none. `EditLimits`
 bounds each supplied string, cumulative pool-capacity requests, and successful
 created slots/attributes across editors. Construction also bounds aggregate
 supplied bytes, element depth/items and namespace lookup work. Removal refunds
-no cumulative counters. Existing-element attribute insertion/removal,
-moves/adoption, detached ownership, namespace edits, slot reuse and
-compaction remain pending.
+no cumulative counters. The editor also moves nodes with libxml2's semantics
+(`append_child` merges Text like `xmlAddChild`; `insert_before`,
+`insert_after`, `unlink` with detached subtrees, `replace`), adds and removes
+attributes and namespace declarations, renames elements, and `compact`s edit
+garbage without renumbering handles. Every edit keeps namespace prefixes
+declared where they are used. Both DOMs offer libxml2's accessors:
+`attribute`, `content`, `path`, `base_uri`, `lang`, `space_preserve`,
+`search_ns`, `namespaces` and `previous_sibling`. Copy and adoption across
+documents remain pending.
 
 The `allocator_api` cargo feature (Rust 1.100) charges owned-document node
 and attribute storage to a caller's allocator:

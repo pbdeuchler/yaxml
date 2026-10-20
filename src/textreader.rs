@@ -1004,27 +1004,9 @@ impl<R: BufRead> TextReader<R> {
     /// ones and the document URI (`http://`, `ftp://` and `urn:` stop early).
     pub fn base_uri(&self) -> Option<String> {
         self.node()?;
-        let mut base: Option<String> = None;
-        for frame in self.scope.frames.iter().rev() {
-            if let Some(span) = frame.base {
-                let outer = self.scope.get(span);
-                let resolved = match base {
-                    Some(inner) => crate::uri::resolve(&inner, outer).ok()?,
-                    None => outer.to_owned(),
-                };
-                if ["http://", "ftp://", "urn:"]
-                    .iter()
-                    .any(|scheme| resolved.starts_with(scheme))
-                {
-                    return Some(resolved);
-                }
-                base = Some(resolved);
-            }
-        }
-        match (base, &self.url) {
-            (Some(base), Some(url)) => crate::uri::resolve(&base, url).ok(),
-            (base, url) => base.or_else(|| url.clone()),
-        }
+        let frames = self.scope.frames.iter().rev();
+        let bases = frames.filter_map(|frame| Some(self.scope.get(frame.base?)));
+        crate::xpath::tree::resolve_base(bases, self.url.as_deref())
     }
 
     /// Inherited `xml:lang` of the current node.

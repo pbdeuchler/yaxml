@@ -13,6 +13,7 @@ use std::rc::Rc;
 use crate::allocator::{self, Allocator, Global};
 use crate::options::Flags;
 use crate::parser::Budget;
+use crate::xpath::tree::{self, NamespaceBinding};
 use crate::{
     Attribute, Declaration, Doctype, Error, ErrorKind, Event, Limit, Limits, Name, NodeId, Reader,
     SourceOrigin,
@@ -24,6 +25,7 @@ const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 
 mod construction;
+mod edit;
 
 static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -247,9 +249,24 @@ impl OwnedRecord {
             subtree_size: 1,
         }
     }
+
+    /// A created node without links or source provenance.
+    fn detached(id: NodeId, content: Content) -> Self {
+        Self {
+            id,
+            content,
+            source: None,
+            parent: Link::NONE,
+            first_child: Link::NONE,
+            last_child: Link::NONE,
+            previous_sibling: Link::NONE,
+            next_sibling: Link::NONE,
+            subtree_size: 1,
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct StoredName {
     qualified: Range<usize>,
     prefix_length: Option<NonZeroUsize>,
@@ -270,7 +287,7 @@ impl StoredName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct StoredAttribute {
     name: StoredName,
     value: Range<usize>,
@@ -476,14 +493,16 @@ pub struct OwnedDocument<A: Allocator = Global> {
     validity: Vec<crate::valid::Diagnostic<OwnedNodeId>>,
     /// Well-formedness errors a `RECOVER` parse recovered from.
     errors: Vec<Error>,
+    /// `ParseOptions::base` or `Editor::set_url`: libxml2's `doc->URL`.
+    url: Option<String>,
 }
 
 impl OwnedDocument {
     /// Creates a complete owned document containing one constructed root element.
     ///
     /// Initial namespace declarations and attributes become part of the root's
-    /// fixed attribute range. Values remain editable, but this API does not add
-    /// or remove items from an existing element.
+    /// attribute range; `Editor::set_attribute`, `remove_attribute` and
+    /// `declare_namespace` change it later.
     ///
     /// ```
     /// use yaxml::{EditLimits, ElementSpec, NameSpec, OwnedDocument, PrefixPolicy, Writer};
@@ -567,14 +586,14 @@ impl OwnedDocument {
                 parse_flags: flags.0,
                 ..Default::default()
             };
-            let errors = std::mem::take(&mut document.errors);
+            let (errors, url) = (std::mem::take(&mut document.errors), document.url.take());
             document = crate::xinclude::process(&document, &base, resolver, &options).map_err(
                 |error| match error.kind {
                     crate::xinclude::ErrorKind::Xml(error) => error,
                     _ => Error::new(ErrorKind::XInclude, error.offset.unwrap_or(0)),
                 },
             )?;
-            document.errors = errors;
+            (document.errors, document.url) = (errors, url);
         }
         Ok(document.validated(flags))
     }
@@ -644,7 +663,8 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
-        let base = options.base.clone().unwrap_or_default();
+        let url = options.base.clone();
+        let base = url.clone().unwrap_or_default();
         let include = match (flags.includes(), options.resolver.take()) {
             (true, Some(resolver)) => {
                 let share = crate::resolve::share(resolver);
@@ -702,7 +722,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             builder.finish(reader.position(), reader.catalog(), flags, errors)?
         };
         Ok((
-            document,
+            OwnedDocument { url, ..document },
             flags,
             include.map(|resolver| (resolver, base, limits)),
         ))
@@ -710,33 +730,68 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
 }
 
 impl<A: Allocator> OwnedDocument<A> {
-    /// Unlinks the live, unprotected node at `index` and its descendants.
-    fn unlink(&mut self, index: usize) {
-        let record = &self.nodes[index];
-        let parent = record
-            .parent
-            .get()
-            .expect("unprotected live node has a parent");
-        let previous = record.previous_sibling;
-        let next = record.next_sibling;
-        let removed_count = record.subtree_size;
+    /// Unlinks the node at `index` from its parent and siblings, keeping its
+    /// subtree; a detached root stays as it is.
+    fn detach(&mut self, index: usize) {
+        let record = &mut self.nodes[index];
+        let Some(parent) = record.parent.get() else {
+            return;
+        };
+        let (previous, next) = (record.previous_sibling, record.next_sibling);
+        (record.parent, record.previous_sibling, record.next_sibling) =
+            (Link::NONE, Link::NONE, Link::NONE);
+        let size = record.subtree_size;
         self.slots_are_preorder = false;
-        if let Some(previous) = previous.get() {
-            self.nodes[previous.0].next_sibling = next;
-        } else {
-            self.nodes[parent.0].first_child = next;
+        match previous.get() {
+            Some(previous) => self.nodes[previous.0].next_sibling = next,
+            None => self.nodes[parent.0].first_child = next,
         }
-        if let Some(next) = next.get() {
-            self.nodes[next.0].previous_sibling = previous;
-        } else {
-            self.nodes[parent.0].last_child = previous;
+        match next.get() {
+            Some(next) => self.nodes[next.0].previous_sibling = previous,
+            None => self.nodes[parent.0].last_child = previous,
         }
-        let mut ancestor = Some(parent);
+        self.resize_ancestors(parent, size, false);
+    }
+
+    /// Links the detached node at `index` under `parent` before `next`
+    /// (`Link::NONE`: as the last child).
+    fn attach(&mut self, index: usize, parent: usize, next: Link) {
+        let previous = match next.get() {
+            Some(next) => self.nodes[next.0].previous_sibling,
+            None => self.nodes[parent].last_child,
+        };
+        let (link, parent_link) = (Link::new(NodeId(index)), Link::new(NodeId(parent)));
+        let record = &mut self.nodes[index];
+        (record.parent, record.previous_sibling, record.next_sibling) =
+            (parent_link, previous, next);
+        let size = record.subtree_size;
+        self.slots_are_preorder = false;
+        match previous.get() {
+            Some(previous) => self.nodes[previous.0].next_sibling = link,
+            None => self.nodes[parent].first_child = link,
+        }
+        match next.get() {
+            Some(next) => self.nodes[next.0].previous_sibling = link,
+            None => self.nodes[parent].last_child = link,
+        }
+        self.resize_ancestors(NodeId(parent), size, true);
+    }
+
+    fn resize_ancestors(&mut self, from: NodeId, size: usize, grow: bool) {
+        let mut ancestor = Some(from);
         while let Some(id) = ancestor {
             let record = &mut self.nodes[id.0];
-            record.subtree_size -= removed_count;
+            record.subtree_size = match grow {
+                true => record.subtree_size + size,
+                false => record.subtree_size - size,
+            };
             ancestor = record.parent.get();
         }
+    }
+
+    /// Detaches and permanently removes the node at `index` and its descendants.
+    fn remove(&mut self, index: usize) {
+        self.detach(index);
         // Strip rightmost leaves, then their parents. Each edge is visited a
         // constant number of times, without recursion or a temporary stack.
         let mut current = NodeId(index);
@@ -934,6 +989,12 @@ impl<A: Allocator> OwnedDocument<A> {
         })
     }
 
+    /// The document URL (`ParseOptions::base` or [`Editor::set_url`],
+    /// libxml2's `doc->URL`), against which [`OwnedNode::base_uri`] resolves.
+    pub fn url(&self) -> Option<&str> {
+        self.url.as_deref()
+    }
+
     /// True for documents built by the HTML parser.
     pub fn is_html(&self) -> bool {
         self.html.is_some()
@@ -1095,9 +1156,11 @@ impl Default for EditLimits {
     }
 }
 
-/// Exclusive, atomic value edits, fresh leaf insertion and permanent removal.
-/// An editor remains usable after an error. Surviving names and provenance stay
-/// unchanged; created nodes have no original source location.
+/// Exclusive, atomic edits: values, creation, moves, unlink and replacement,
+/// attribute membership, names and namespaces, removal and compaction (see
+/// `docs/owned-dom.md`). Every failure leaves the tree unchanged.
+/// An editor remains usable after an error. Parsed nodes keep their
+/// provenance; created nodes have no original source location.
 /// Dropping an editor performs no work. Equal replacements take the edit path.
 pub struct Editor<'document, A: Allocator = Global> {
     document: &'document mut OwnedDocument<A>,
@@ -1110,8 +1173,8 @@ impl<A: Allocator> Editor<'_, A> {
     }
 
     /// Appends a fresh element with its initial attributes and namespace declarations.
-    /// The element's attribute membership and contiguous range are fixed after
-    /// insertion; existing value-edit methods remain available.
+    /// Later membership changes use `set_attribute`, `remove_attribute` and
+    /// `declare_namespace`.
     pub fn append_element(
         &mut self,
         parent: OwnedNodeId,
@@ -1207,7 +1270,6 @@ impl<A: Allocator> Editor<'_, A> {
         )?;
         let id = NodeId(self.document.nodes.len());
         let allocation = EditError::new(EditErrorKind::Allocation, None);
-        let (link, parent_link) = (Link::new(id), Link::new(NodeId(parent)));
         #[cfg(test)]
         if self.document.nodes.len() == self.document.nodes.capacity() {
             inject_edit_reservation_failure(EditReservation::Node)?;
@@ -1234,31 +1296,8 @@ impl<A: Allocator> Editor<'_, A> {
                 data: value_range,
             },
         };
-        let previous_sibling = self.document.nodes[parent].last_child;
-        self.document.slots_are_preorder = false;
-        self.document.nodes.push(OwnedRecord {
-            id,
-            content,
-            source: None,
-            parent: parent_link,
-            first_child: Link::NONE,
-            last_child: Link::NONE,
-            previous_sibling,
-            next_sibling: Link::NONE,
-            subtree_size: 1,
-        });
-        if let Some(previous) = previous_sibling.get() {
-            self.document.nodes[previous.0].next_sibling = link;
-        } else {
-            self.document.nodes[parent].first_child = link;
-        }
-        self.document.nodes[parent].last_child = link;
-        let mut ancestor = Some(NodeId(parent));
-        while let Some(id) = ancestor {
-            let record = &mut self.document.nodes[id.0];
-            record.subtree_size += 1;
-            ancestor = record.parent.get();
-        }
+        self.document.nodes.push(OwnedRecord::detached(id, content));
+        self.document.attach(id.0, parent, Link::NONE);
         self.document.edit_created_nodes = created;
         Ok(OwnedNodeId {
             document: self.document.identity,
@@ -1274,7 +1313,7 @@ impl<A: Allocator> Editor<'_, A> {
         if index == 0 || NodeId(index) == self.document.root_element {
             return Err(EditError::new(EditErrorKind::ProtectedNode, None));
         }
-        self.document.unlink(index);
+        self.document.remove(index);
         Ok(())
     }
 
@@ -1632,7 +1671,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         };
         if flags.drops_blanks() {
             for blank in crate::xpath::tree::blanks(&document) {
-                document.unlink(blank.slot.0);
+                document.remove(blank.slot.0);
             }
         }
         Ok(document)
@@ -1665,6 +1704,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             dtd: None,
             validity: Vec::new(),
             errors: Vec::new(),
+            url: None,
         })
     }
 }
@@ -2075,6 +2115,7 @@ impl HtmlBuilder {
             dtd: None,
             validity: Vec::new(),
             errors: Vec::new(),
+            url: None,
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document
@@ -2347,8 +2388,96 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
             .and_then(|id| self.document.view(id))
     }
 
+    pub fn previous_sibling(self) -> Option<Self> {
+        self.record()
+            .previous_sibling
+            .get()
+            .and_then(|id| self.document.view(id))
+    }
+
     pub fn children(self) -> impl Iterator<Item = Self> + 'document {
         std::iter::successors(self.first_child(), |node| node.next_sibling())
+    }
+
+    /// `xmlGetProp`: the value of the first attribute whose name (local name
+    /// when namespaced) is `name`, in any namespace, else the DTD's default
+    /// for it; namespace declarations are not attributes.
+    pub fn attribute(self, name: &str) -> Option<&'document str> {
+        tree::property(self.document, self.id(), name, None)
+    }
+
+    /// `xmlGetNsProp`: the attribute `local` in `namespace` (`None`: no
+    /// namespace), else the DTD's default for it.
+    pub fn attribute_ns(self, local: &str, namespace: Option<&str>) -> Option<&'document str> {
+        tree::property(self.document, self.id(), local, Some(namespace))
+    }
+
+    /// `xmlNodeGetContent`: the payload of a leaf, or the concatenated
+    /// Text/CDATA of a document, element or entity reference; `None` for the
+    /// DOCTYPE. [`text_chunks`](Self::text_chunks) visits it without allocating.
+    pub fn content(self) -> Option<String> {
+        let doctype = self.kind() == OwnedNodeKind::DocumentType;
+        (!doctype).then(|| self.text_chunks().collect())
+    }
+
+    /// `xmlGetNodePath`: a location path such as `/r/p:a[2]/text()`; `None`
+    /// for the DOCTYPE, entity references and their content. A detached
+    /// subtree's path starts at its root.
+    pub fn path(self) -> Option<String> {
+        tree::path(self.document, self.id())
+    }
+
+    /// `xmlNodeGetBase`: `xml:base` values from this node outwards resolved
+    /// against each other and the document [`url`](OwnedDocument::url); in an
+    /// HTML document, the `href` of the first `<base>` in `<html>`/`<head>`.
+    pub fn base_uri(self) -> Option<String> {
+        if !self.document.is_html() {
+            return tree::base(self.document, self.id(), self.document.url());
+        }
+        let mut node = self.document.root().first_child();
+        while let Some(current) = node {
+            node = match current.qualified_name() {
+                Some(name) if name.eq_ignore_ascii_case("base") => {
+                    return current.attribute_ns("href", None).map(str::to_owned);
+                }
+                Some(name)
+                    if ["html", "head"]
+                        .iter()
+                        .any(|n| name.eq_ignore_ascii_case(n)) =>
+                {
+                    current.first_child()
+                }
+                _ => current.next_sibling(),
+            };
+        }
+        None
+    }
+
+    /// `xmlNodeGetLang`: the nearest `xml:lang`.
+    pub fn lang(self) -> Option<&'document str> {
+        tree::lang(self.document, self.id())
+    }
+
+    /// `xmlNodeGetSpacePreserve`: the nearest `xml:space` of an element,
+    /// true for `preserve`, false for `default`; other values are skipped.
+    pub fn space_preserve(self) -> Option<bool> {
+        tree::space_preserve(self.document, self.id())
+    }
+
+    /// `xmlSearchNs`: the URI `prefix` (`None`: the default namespace) is
+    /// bound to here; `Some("")` under `xmlns=""`. `xml` is always bound.
+    pub fn search_ns(self, prefix: Option<&str>) -> Option<&'document str> {
+        tree::search_ns(self.document, self.id(), prefix)
+    }
+
+    /// `xmlSearchNsByHref`: the innermost in-scope binding of `uri`.
+    pub fn search_ns_by_href(self, uri: &str) -> Option<NamespaceBinding<'document>> {
+        tree::search_ns_by_href(self.document, self.id(), uri)
+    }
+
+    /// `xmlGetNsList`: every in-scope declaration, innermost first.
+    pub fn namespaces(self) -> Vec<NamespaceBinding<'document>> {
+        tree::ns_list(self.document, self.id())
     }
 
     /// Visits this node and its descendants in preorder without recursion.

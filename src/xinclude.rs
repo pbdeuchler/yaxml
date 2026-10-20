@@ -967,33 +967,12 @@ fn attribute<'d>(node: OwnedNode<'d>, namespace: Option<&str>, local: &str) -> O
 /// `xmlNodeGetBaseSafe`: `xml:base` attributes resolved outward, then against
 /// the document URI; `None` without either.
 fn base_of(node: OwnedNode<'_>, url: &str) -> Option<String> {
-    let mut base: Option<String> = None;
-    for element in std::iter::successors(Some(node), |node| node.parent()) {
-        let Some(value) = attribute(element, Some(XML_NS), "base") else {
-            continue;
-        };
-        let combined = match base {
-            Some(inner) => uri::resolve(&inner, value).ok()?,
-            None => value.to_owned(),
-        };
-        if ["http://", "ftp://", "urn:"]
-            .iter()
-            .any(|scheme| combined.starts_with(scheme))
-        {
-            return Some(combined);
-        }
-        base = Some(combined);
-    }
-    match base {
-        None => (!url.is_empty()).then(|| url.to_owned()),
-        Some(base) if url.is_empty() => Some(base),
-        Some(base) => uri::resolve(&base, url).ok(),
-    }
+    let url = (!url.is_empty()).then_some(url);
+    crate::xpath::tree::base(node.document(), node.id(), url)
 }
 
 fn lang_of<'d>(node: OwnedNode<'d>) -> Option<&'d str> {
-    std::iter::successors(Some(node), |node| node.parent())
-        .find_map(|element| attribute(element, Some(XML_NS), "lang"))
+    node.lang()
 }
 
 /// The base and language fixes for a copied top-level node

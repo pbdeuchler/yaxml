@@ -23,6 +23,10 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
 | Long-lived documents not tied to input lifetimes | `OwnedDocument` (also produced by `html::parse`) |
 | Document memory charged to the host allocator | `OwnedDocument::parse_in`/`create_in` (`allocator_api` feature) |
 | Stable node handles that reject stale or foreign use | `OwnedNodeId`: a private non-recycled document identity plus slot; removed slots are never reused |
+| A DOM that host code edits in place | `Editor`: `append_child`/`insert_before`/`insert_after`/`unlink`/`replace`, `set_attribute`/`remove_attribute`, `set_name`, `declare_namespace`, `set_url`; each call is atomic and keeps namespaces declared where used, so a wrapper never reconciles ([owned-dom.md](owned-dom.md#moving-unlinking-and-replacing)) |
+| Host objects for unlinked nodes | `unlink`/`replace` leave detached subtrees whose handles stay live until reinserted or `remove_subtree`d; a wrapper object needs no ownership transfer, only its handle |
+| Long-lived documents under repeated edits | `Editor::compact` reclaims pool and attribute garbage without changing any handle; removed slots stay as one tombstone record each |
+| DOM accessors hosts expect | `attribute`/`attribute_ns`, `content`, `path`, `base_uri`, `lang`, `space_preserve`, `search_ns`, `namespaces`, `previous_sibling` on `Node` and `OwnedNode` |
 | Pull streaming with no callbacks across the boundary | `TextReader` (xmlTextReader model), `BufferedReader` |
 | Bulk results instead of one call per node | XPath `select_nodes` returns id vectors; serializers write whole documents to a `Write` |
 | Errors that map onto host exceptions | `ErrorKind`, with a stable variant per libxml2 category, plus a byte offset |
@@ -60,7 +64,7 @@ example a wrapper over `PyMem_RawMalloc` or a counting quota allocator.
 - Use one concrete `A` per adapter. `Arc<dyn Allocator + Send + Sync>` is an
   owned, `'static`, erased allocator, so wrapper types need no generics or
   lifetimes and documents stay `Send + Sync`. A document holds one clone per
-  storage vector, currently two. An `&'a Arena` document borrows its arena,
+  storage vector, currently three. An `&'a Arena` document borrows its arena,
   which suits scoped Rust callers but not objects a host keeps alive.
 - Clones must behave as one allocator, as the `Allocator` contract requires.
   A quota allocator therefore keeps its counter behind the shared pointer.

@@ -364,19 +364,276 @@ pub(crate) fn namespaces<T: Navigate>(tree: &T, element: T::Id) -> Vec<(&str, &s
     if !matches!(tree.item(element), Item::Element(_)) {
         return Vec::new();
     }
+    let chain = std::iter::successors(Some(element), |&id| tree.parent(id));
+    let inherited = declarations(tree, chain).filter(|&(prefix, _)| prefix != "xml");
     let mut found = vec![("xml", XML_NAMESPACE)];
-    for owner in std::iter::successors(Some(element), |&id| tree.parent(id)) {
-        for (_, name, uri) in attributes(tree, owner) {
-            if let Some(prefix) = name.declared_prefix()
-                && found.iter().all(|&(seen, _)| seen != prefix)
-            {
-                found.push((prefix, uri));
+    found.extend(inherited.collect::<Vec<_>>().into_iter().rev());
+    found
+}
+
+/// The first declaration of each prefix along `chain`, innermost first, as
+/// `xmlGetNsList` lists them; `""` names the default namespace.
+fn declarations<'t, T: Navigate>(
+    tree: &'t T,
+    chain: impl Iterator<Item = T::Id> + 't,
+) -> impl Iterator<Item = (&'t str, &'t str)> + 't {
+    let mut seen = Vec::new();
+    chain
+        .flat_map(move |id| attributes(tree, id))
+        .filter_map(|(_, name, uri)| Some((name.declared_prefix()?, uri)))
+        .filter(move |&(prefix, _)| {
+            let new = !seen.contains(&prefix);
+            seen.extend(new.then_some(prefix));
+            new
+        })
+}
+
+/// A namespace binding: `prefix` `None` is the default namespace, whose
+/// `uri` is empty where `xmlns=""` undeclares it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct NamespaceBinding<'a> {
+    pub prefix: Option<&'a str>,
+    pub uri: &'a str,
+}
+
+impl<'a> NamespaceBinding<'a> {
+    fn new((prefix, uri): (&'a str, &'a str)) -> Self {
+        let prefix = (!prefix.is_empty()).then_some(prefix);
+        Self { prefix, uri }
+    }
+}
+
+/// The node and its ancestors along libxml2's parent chain, where the parent
+/// of entity content is the entity declaration: the chain stops below an
+/// entity reference.
+pub(crate) fn scope<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Item = T::Id> + '_ {
+    std::iter::successors(Some(id), |&id| {
+        tree.parent(id)
+            .filter(|&parent| !matches!(tree.item(parent), Item::EntityRef(_)))
+    })
+}
+
+/// [`scope`]'s elements from the nearest one, as `xmlSearchNs` climbs.
+fn element_scope<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Item = T::Id> + '_ {
+    let element = move |id: &T::Id| matches!(tree.item(*id), Item::Element(_));
+    scope(tree, id)
+        .skip_while(move |id| !element(id))
+        .take_while(element)
+}
+
+/// `xml:{local}` on an element (`xmlNodeGetAttrValue(.., XML_XML_NAMESPACE)`).
+pub(crate) fn xml_attribute<'t, T: Navigate>(
+    tree: &'t T,
+    id: T::Id,
+    local: &str,
+) -> Option<&'t str> {
+    attributes(tree, id)
+        .find(|(_, name, _)| name.namespace == Some(XML_NAMESPACE) && name.local == local)
+        .map(|(_, _, value)| value)
+}
+
+fn inherited<'t, T: Navigate>(
+    tree: &'t T,
+    id: T::Id,
+    local: &'t str,
+) -> impl Iterator<Item = &'t str> + 't {
+    scope(tree, id).filter_map(move |id| xml_attribute(tree, id, local))
+}
+
+/// `xmlNodeGetLang`: the nearest `xml:lang`.
+pub(crate) fn lang<T: Navigate>(tree: &T, id: T::Id) -> Option<&str> {
+    inherited(tree, id, "lang").next()
+}
+
+/// `xmlNodeGetSpacePreserve` for elements: the nearest `xml:space` that is
+/// `preserve` (true) or `default` (false); other values are skipped.
+pub(crate) fn space_preserve<T: Navigate>(tree: &T, id: T::Id) -> Option<bool> {
+    matches!(tree.item(id), Item::Element(_)).then_some(())?;
+    inherited(tree, id, "space").find_map(|value| match value {
+        "preserve" => Some(true),
+        "default" => Some(false),
+        _ => None,
+    })
+}
+
+/// `xmlNodeGetBase`: `id`'s `xml:base` values resolved outwards, then against
+/// the document `url`. Entity content stops at its reference, as libxml2
+/// stops at an internal entity's declaration.
+pub(crate) fn base<T: Navigate>(tree: &T, id: T::Id, url: Option<&str>) -> Option<String> {
+    resolve_base(inherited(tree, id, "base"), url)
+}
+
+/// The fold of [`base`] over `xml:base` values, innermost first; `http://`,
+/// `ftp://` and `urn:` results stop early. `None` when a step fails.
+pub(crate) fn resolve_base<'a>(
+    bases: impl Iterator<Item = &'a str>,
+    url: Option<&str>,
+) -> Option<String> {
+    let mut base: Option<String> = None;
+    for outer in bases {
+        let combined = match base {
+            Some(inner) => crate::uri::resolve(&inner, outer).ok()?,
+            None => outer.to_owned(),
+        };
+        if ["http://", "ftp://", "urn:"]
+            .iter()
+            .any(|scheme| combined.starts_with(scheme))
+        {
+            return Some(combined);
+        }
+        base = Some(combined);
+    }
+    match (base, url) {
+        (Some(base), Some(url)) => crate::uri::resolve(&base, url).ok(),
+        (base, url) => base.or_else(|| url.map(str::to_owned)),
+    }
+}
+
+/// `xmlSearchNs`: the URI bound to `prefix` (`None`: the default namespace,
+/// `""` where undeclared by `xmlns=""`); `xml` is always bound.
+pub(crate) fn search_ns<'t, T: Navigate>(
+    tree: &'t T,
+    id: T::Id,
+    prefix: Option<&str>,
+) -> Option<&'t str> {
+    if prefix == Some("xml") {
+        return Some(XML_NAMESPACE);
+    }
+    let prefix = prefix.unwrap_or("");
+    declarations(tree, element_scope(tree, id))
+        .find(|&(bound, _)| bound == prefix)
+        .map(|(_, uri)| uri)
+}
+
+/// `xmlSearchNsByHref`: the innermost declaration of `uri` whose prefix is
+/// not redeclared closer to `id`.
+pub(crate) fn search_ns_by_href<'t, T: Navigate>(
+    tree: &'t T,
+    id: T::Id,
+    uri: &str,
+) -> Option<NamespaceBinding<'t>> {
+    if uri == XML_NAMESPACE {
+        return Some(NamespaceBinding::new(("xml", XML_NAMESPACE)));
+    }
+    declarations(tree, element_scope(tree, id))
+        .find(|&(_, bound)| bound == uri)
+        .map(NamespaceBinding::new)
+}
+
+/// `xmlGetNsList`: every in-scope declaration, innermost first.
+pub(crate) fn ns_list<T: Navigate>(tree: &T, id: T::Id) -> Vec<NamespaceBinding<'_>> {
+    let element = |&id: &T::Id| matches!(tree.item(id), Item::Element(_));
+    let chain = scope(tree, id).filter(element);
+    declarations(tree, chain)
+        .map(NamespaceBinding::new)
+        .collect()
+}
+
+/// libxml2's `name` field: the local name of a namespaced node, else the QName.
+fn libxml2_name<'a>(name: &QName<'a>) -> &'a str {
+    if name.namespace.is_some() {
+        name.local
+    } else {
+        name.qualified
+    }
+}
+
+fn prefix<'a>(name: &QName<'a>) -> Option<&'a str> {
+    name.namespace?;
+    let prefix = name.qualified.strip_suffix(name.local)?;
+    prefix.strip_suffix(':')
+}
+
+/// `xmlGetProp` (`namespace` `None`: any namespace) and `xmlGetNsProp`
+/// (`Some(None)`: no namespace), falling back to a DTD default value.
+pub(crate) fn property<'t, T: Navigate>(
+    tree: &'t T,
+    id: T::Id,
+    local: &str,
+    namespace: Option<Option<&str>>,
+) -> Option<&'t str> {
+    let Item::Element(element) = tree.item(id) else {
+        return None;
+    };
+    let own = attributes(tree, id).find(|(_, name, _)| {
+        !name.is_namespace_declaration()
+            && libxml2_name(name) == local
+            && namespace.is_none_or(|uri| uri == name.namespace)
+    });
+    if let Some((_, _, value)) = own {
+        return Some(value);
+    }
+    let dtd = tree.dtd()?;
+    let default = |element: &str, attribute: &str| dtd.default_value(element, attribute);
+    match namespace {
+        None => default(libxml2_name(&element), local),
+        Some(None) => default(element.qualified, local),
+        Some(Some(XML_NAMESPACE)) => default(element.qualified, &format!("xml:{local}")),
+        Some(Some(uri)) => ns_list(tree, id)
+            .into_iter()
+            .filter(|binding| binding.uri == uri)
+            .find_map(|binding| match binding.prefix {
+                Some(prefix) => default(element.qualified, &format!("{prefix}:{local}")),
+                None => default(element.qualified, local),
+            }),
+    }
+}
+
+/// `xmlGetNodePath`: a location path, `None` for a DOCTYPE, an entity
+/// reference or entity content.
+pub(crate) fn path<T: Navigate>(tree: &T, id: T::Id) -> Option<String> {
+    use std::fmt::Write as _;
+    let chain: Vec<T::Id> = std::iter::successors(Some(id), |&id| tree.parent(id)).collect();
+    let mut path = String::new();
+    for &node in chain.iter().rev() {
+        let item = tree.item(node);
+        let matches = |other: Item<'_>| match (item, other) {
+            (Item::Element(name), Item::Element(other)) => {
+                (name.namespace.is_some() && prefix(&name).is_none())
+                    || libxml2_name(&name) == libxml2_name(&other)
+                        && name.namespace.is_some() == other.namespace.is_some()
+                        && prefix(&name) == prefix(&other)
             }
+            (Item::Text(_), Item::Text(_)) | (Item::Comment(_), Item::Comment(_)) => true,
+            (Item::Pi(target, _), Item::Pi(other, _)) => target == other,
+            _ => false,
+        };
+        match item {
+            Item::Root if node == tree.root() => {
+                if node == id {
+                    path.push('/');
+                }
+                continue;
+            }
+            Item::Root | Item::EntityRef(_) => return None,
+            Item::Element(name) => match (prefix(&name), name.namespace) {
+                (Some(prefix), _) => write!(path, "/{prefix}:{}", name.local),
+                (None, Some(_)) => write!(path, "/*"),
+                (None, None) => write!(path, "/{}", name.qualified),
+            },
+            Item::Text(_) => write!(path, "/text()"),
+            Item::Comment(_) => write!(path, "/comment()"),
+            Item::Pi(target, _) => write!(path, "/processing-instruction('{target}')"),
+        }
+        .ok()?;
+        let siblings = tree
+            .parent(node)
+            .and_then(|parent| tree.first_child(parent));
+        let mut siblings = std::iter::successors(siblings, |&id| tree.next_sibling(id));
+        let before = siblings
+            .by_ref()
+            .take_while(|&sibling| sibling != node)
+            .filter(|&sibling| matches(tree.item(sibling)))
+            .count();
+        let occurrence = match before {
+            0 => usize::from(siblings.any(|sibling| matches(tree.item(sibling)))),
+            before => before + 1,
+        };
+        if occurrence > 0 {
+            write!(path, "[{occurrence}]").ok()?;
         }
     }
-    let inherited = found.split_off(1);
-    found.extend(inherited.into_iter().rev());
-    found
+    Some(path)
 }
 
 pub(crate) fn attributes<T: Navigate>(
@@ -400,21 +657,12 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
         matches!(tree.item(id), Item::Text(value) if value.bytes().all(|b| b" \t\r\n".contains(&b)))
             && !tree.is_cdata(id)
     };
-    let preserved = |element: T::Id| {
-        std::iter::successors(Some(element), |&id| tree.parent(id))
-            .find_map(|id| {
-                attributes(tree, id)
-                    .find(|(_, name, _)| name.qualified == "xml:space")
-                    .map(|(_, _, value)| value == "preserve")
-            })
-            .unwrap_or(false)
-    };
     let mut found = Vec::new();
     for parent in preorder(tree, Some(tree.root()), None) {
         let Item::Element(name) = tree.item(parent) else {
             continue;
         };
-        if preserved(parent) {
+        if space_preserve(tree, parent) == Some(true) {
             continue;
         }
         let declared = tree

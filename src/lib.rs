@@ -65,5 +65,6 @@ pub use resolve::{FileResolver, Request, Resolver, ResourceKind};
 pub use textreader::{NodeType, ParserProperty, ReadState, TextReader};
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
+pub use xpath::tree::NamespaceBinding;
 
 mod dtd_reference;
