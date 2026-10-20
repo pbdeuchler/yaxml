@@ -259,9 +259,7 @@ impl<'input> Document<'input> {
             return Err(document.errors.first().copied().unwrap_or(missing));
         }
         document.nodes[0].subtree_end = document.nodes.len();
-        let dtd = reader
-            .catalog()
-            .map(|catalog| Box::new(catalog.dtd().clone()));
+        let dtd = reader.take_dtd().map(Box::new);
         let mut document = Self { dtd, ..document };
         if flags.drops_blanks() {
             let blanks = crate::xpath::tree::blanks(&document);

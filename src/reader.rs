@@ -418,10 +418,10 @@ impl<'a> Reader<'a> {
         })
     }
 
-    /// Element/attribute names declared `ID`, once content has started.
-    pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
-        match self.session.first() {
-            Some(Phase::Content(controller)) => Some(controller.catalog()),
+    /// The finished document's declarations, moved out of the reader.
+    pub(crate) fn take_dtd(&mut self) -> Option<crate::valid::Dtd> {
+        match self.session.first_mut() {
+            Some(Phase::Content(controller)) => Some(controller.catalog_mut().take_dtd()),
             _ => None,
         }
     }
@@ -575,10 +575,11 @@ impl<'a> Reader<'a> {
             .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
         self.physical = self.position();
         self.doctype_start = start;
-        let ordinary = self.ordinary.take().expect("checked ordinary owner");
+        let mut ordinary = self.ordinary.take().expect("checked ordinary owner");
         let mut controller =
             DtdController::stable_utf8(self.source, 0, start, self.options, self.standalone);
-        if let Some(loader) = self.loader.take() {
+        if let Some(mut loader) = self.loader.take() {
+            (ordinary.state.take_catalogs().iter()).for_each(|url| loader.catalog_pi(url));
             controller.set_loader(loader);
         }
         // The DTD stack neither rereads nor repairs characters.

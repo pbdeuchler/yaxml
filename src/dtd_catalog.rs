@@ -271,6 +271,12 @@ impl DtdCatalog {
         &self.dtd
     }
 
+    /// Moves the declarations out for a finished document: cloning them
+    /// copied every entity, name and value (DTD-heavy DOM builds +10%).
+    pub(crate) fn take_dtd(&mut self) -> Dtd {
+        std::mem::take(&mut self.dtd)
+    }
+
     pub(crate) fn attributes(&self, element: &str) -> impl Iterator<Item = &AttributeDecl> {
         self.dtd
             .element_index
@@ -532,20 +538,22 @@ impl DtdCatalog {
             parameter,
             external_subset: self.reading_external_subset,
         });
-        let bind = |table: &mut HashMap<String, EntityId>| {
-            if !table.contains_key(name) {
+        // `apply` returned for duplicates, so only a bound general entity
+        // can find its name in `declared` (an unbound one came first).
+        let bind = |table: &mut HashMap<String, EntityId>, fresh: bool| {
+            if fresh || !table.contains_key(name) {
                 table.try_reserve(1).map_err(|_| allocation())?;
                 table.insert(copy_string(name)?, id);
             }
             Ok(())
         };
         if !parameter {
-            bind(&mut dtd.declared)?;
+            bind(&mut dtd.declared, !bound)?;
         }
         match (bound, parameter) {
             (false, _) => Ok(()),
-            (true, true) => bind(&mut dtd.parameter),
-            (true, false) => bind(&mut dtd.general),
+            (true, true) => bind(&mut dtd.parameter, true),
+            (true, false) => bind(&mut dtd.general, true),
         }
     }
 

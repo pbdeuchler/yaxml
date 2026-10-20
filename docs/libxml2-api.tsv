@@ -168,8 +168,8 @@ c14n.h	xmlC14NDocSaveTo	function	not_marked	P2	implemented	https://github.com/GN
 c14n.h	xmlC14NExecute	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/c14n.h	c14n::write, c14n::Options
 c14n.h	xmlC14NIsVisibleCallback	callback	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/c14n.h	c14n::Options - node subset instead of a callback
 c14n.h	xmlC14NMode	enum	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/c14n.h	c14n::Mode
-catalog.h	XML_CATALOGS_NAMESPACE	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog PI not started
-catalog.h	XML_CATALOG_PI	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog PI not started
+catalog.h	XML_CATALOGS_NAMESPACE	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	private constants of catalog::Catalog and the parser
+catalog.h	XML_CATALOG_PI	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	private constants of catalog::Catalog and the parser
 catalog.h	XML_CATA_ALLOW_ALL	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	XML_CATA_ALLOW_DOCUMENT	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	XML_CATA_ALLOW_GLOBAL	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
@@ -177,31 +177,31 @@ catalog.h	XML_CATA_ALLOW_NONE	enum_value	not_marked	P2	not-applicable	https://gi
 catalog.h	XML_CATA_PREFER_NONE	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	XML_CATA_PREFER_PUBLIC	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse - read from the catalog file's prefer attribute
 catalog.h	XML_CATA_PREFER_SYSTEM	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse - read from the catalog file's prefer attribute
-catalog.h	xmlACatalogAdd	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlACatalogDump	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlACatalogRemove	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+catalog.h	xmlACatalogAdd	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::add
+catalog.h	xmlACatalogDump	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::dump
+catalog.h	xmlACatalogRemove	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::remove
 catalog.h	xmlACatalogResolve	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::resolve
 catalog.h	xmlACatalogResolvePublic	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::resolve
 catalog.h	xmlACatalogResolveSystem	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::resolve
 catalog.h	xmlACatalogResolveURI	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::resolve_uri
 catalog.h	xmlCatalog	typedef	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog
-catalog.h	xmlCatalogAdd	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlCatalogAddLocal	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+catalog.h	xmlCatalogAdd	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+catalog.h	xmlCatalogAddLocal	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::CatalogResolver::catalog_pi - the resolver of a CATALOG_PI parse keeps the list
 catalog.h	xmlCatalogAllow	enum	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	xmlCatalogCleanup	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
-catalog.h	xmlCatalogConvert	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlCatalogDump	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlCatalogDumpDoc	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlCatalogFreeLocal	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+catalog.h	xmlCatalogConvert	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	declined: 2.15.4 passes the address of its argument as the catalog, and converting through the right one moves nothing (docs/catalog.md)
+catalog.h	xmlCatalogDump	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+catalog.h	xmlCatalogDumpDoc	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+catalog.h	xmlCatalogFreeLocal	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	the resolver owns the list and drops it with the parse
 catalog.h	xmlCatalogGetDefaults	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
-catalog.h	xmlCatalogGetPublic	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlCatalogGetSystem	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlCatalogIsEmpty	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+catalog.h	xmlCatalogGetPublic	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+catalog.h	xmlCatalogGetSystem	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+catalog.h	xmlCatalogIsEmpty	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	not started (docs/catalog.md)
 catalog.h	xmlCatalogLocalResolve	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::CatalogResolver::new
 catalog.h	xmlCatalogLocalResolveURI	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::CatalogResolver::new
 catalog.h	xmlCatalogPrefer	enum	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	xmlCatalogPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	raw pointer alias
-catalog.h	xmlCatalogRemove	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+catalog.h	xmlCatalogRemove	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
 catalog.h	xmlCatalogResolve	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::resolve
 catalog.h	xmlCatalogResolvePublic	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::resolve
 catalog.h	xmlCatalogResolveSystem	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::resolve
@@ -209,13 +209,13 @@ catalog.h	xmlCatalogResolveURI	function	not_marked	P2	implemented	https://github
 catalog.h	xmlCatalogSetDebug	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	xmlCatalogSetDefaultPrefer	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	xmlCatalogSetDefaults	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
-catalog.h	xmlConvertSGMLCatalog	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+catalog.h	xmlConvertSGMLCatalog	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	declined: 2.15.4 passes the address of its argument as the catalog, and converting through the right one moves nothing (docs/catalog.md)
 catalog.h	xmlFreeCatalog	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	xmlInitializeCatalog	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	xmlLoadACatalog	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::load
 catalog.h	xmlLoadCatalog	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::load
-catalog.h	xmlLoadCatalogs	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
-catalog.h	xmlLoadSGMLSuperCatalog	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+catalog.h	xmlLoadCatalogs	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+catalog.h	xmlLoadSGMLSuperCatalog	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	not started (docs/catalog.md)
 catalog.h	xmlNewCatalog	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse
 catalog.h	xmlParseCatalogFile	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse
 chvalid.h	_xmlChLRange	struct	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
@@ -540,7 +540,7 @@ parser.h	XML_PARSER_START_TAG	enum_value	not_marked	P0-P3	not-applicable	https:/
 parser.h	XML_PARSER_SYSTEM_LITERAL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_PARSER_XML_DECL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_PARSE_BIG_LINES	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::BIG_LINES
-parser.h	XML_PARSE_CATALOG_PI	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::CATALOG_PI - constant defined, rejected with UnsupportedOption
+parser.h	XML_PARSE_CATALOG_PI	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::CATALOG_PI - acts only through a resolver that takes the instruction (catalog::CatalogResolver)
 parser.h	XML_PARSE_COMPACT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::COMPACT
 parser.h	XML_PARSE_DOM	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_DTDATTR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::DTDATTR
@@ -1188,8 +1188,8 @@ relaxng.h	XML_RELAXNG_ERR_VALUE	enum_value	not_marked	P3	implemented	https://git
 relaxng.h	XML_RELAXNG_OK	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no parser flags or success code
 relaxng.h	xmlRelaxNG	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Schema
 relaxng.h	xmlRelaxNGCleanupTypes	function	yes	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
-relaxng.h	xmlRelaxNGDump	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	not started (docs/relaxng.md)
-relaxng.h	xmlRelaxNGDumpTree	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	not started (docs/relaxng.md)
+relaxng.h	xmlRelaxNGDump	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	declined: debug printers of libxml2's define tree and of the schema document it rewrites in place; yaxml keeps neither (docs/relaxng.md)
+relaxng.h	xmlRelaxNGDumpTree	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	declined: debug printers of libxml2's define tree and of the schema document it rewrites in place; yaxml keeps neither (docs/relaxng.md)
 relaxng.h	xmlRelaxNGFree	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
 relaxng.h	xmlRelaxNGFreeParserCtxt	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
 relaxng.h	xmlRelaxNGFreeValidCtxt	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec

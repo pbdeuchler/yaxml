@@ -134,6 +134,14 @@ impl StreamingSession {
             Phase::Declarations { controller, .. } => Some(controller.catalog()),
         }
     }
+    /// The finished document's declarations, moved out of the session.
+    pub(crate) fn take_dtd(&mut self) -> Option<crate::valid::Dtd> {
+        let catalog = match self.session.first_mut()?.phase.as_mut()? {
+            Phase::Content(controller) => controller.catalog_mut(),
+            Phase::Declarations { controller, .. } => controller.catalog_mut(),
+        };
+        Some(catalog.take_dtd())
+    }
     /// The parse's budget; absent only after a failed DTD handoff.
     pub(crate) fn budget(&mut self) -> Option<&mut Budget> {
         if let Some(ordinary) = &mut self.ordinary {
@@ -341,7 +349,8 @@ impl StreamingSession {
             self.options,
             self.standalone,
         );
-        if let Some(loader) = self.loader.take() {
+        if let Some(mut loader) = self.loader.take() {
+            (state.take_catalogs().iter()).for_each(|url| loader.catalog_pi(url));
             controller.set_loader(loader);
         }
         // Existing scanner work charges the nine-byte grammar rescan. These are

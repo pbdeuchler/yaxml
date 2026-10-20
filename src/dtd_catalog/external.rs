@@ -89,6 +89,13 @@ impl DtdCatalog {
         self.loader = Some(loader);
     }
 
+    /// Passes an `oasis-xml-catalog` instruction's catalog to the loader's resolver.
+    pub(crate) fn catalog_pi(&mut self, catalog: &str) {
+        if let Some(loader) = &mut self.loader {
+            loader.catalog_pi(catalog);
+        }
+    }
+
     /// Loads an external parsed entity once; `false` when it has no text.
     pub(crate) fn load(&mut self, id: EntityId) -> Result<bool, DtdError> {
         let entity = &mut self.dtd.entities[id.0];

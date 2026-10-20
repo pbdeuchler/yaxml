@@ -914,3 +914,302 @@ fn loading(
         .with_limits(limits)
         .with_resolver(base, resolver)
 }
+
+const DUMP_HEAD: &str = "<?xml version=\"1.0\"?>\n<!DOCTYPE catalog PUBLIC \"-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN\" \"http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd\">\n<catalog xmlns=\"urn:oasis:names:tc:entity:xmlns:xml:catalog\"";
+
+fn dumped(body: &str) -> String {
+    match body.is_empty() {
+        true => format!("{DUMP_HEAD}/>\n"),
+        false => format!("{DUMP_HEAD}>\n{body}</catalog>\n"),
+    }
+}
+
+/// An XML catalog with `body`, as a `Catalog`.
+fn built(body: &str) -> Catalog {
+    let (resolver, _) = served(&[]);
+    Catalog::parse(xml(body).as_bytes(), Limits::default(), "cat.xml", resolver).unwrap()
+}
+
+#[test]
+fn adding_to_xml_catalogs_follows_xml_acatalog_add() {
+    // (type, orig, replace, accepted, a query the entry answers)
+    type Case<'a> = (
+        &'a str,
+        Option<&'a str>,
+        &'a str,
+        bool,
+        Ask<'a>,
+        Option<&'a str>,
+    );
+    let cases: Vec<Case<'_>> = vec![
+        (
+            "public",
+            Some("-//A//DTD  X//EN"),
+            "x.dtd",
+            true,
+            Ask::Id(Some("-//A//DTD X//EN"), None),
+            Some("x.dtd"),
+        ),
+        (
+            "system",
+            Some("http://e/s"),
+            "s.dtd",
+            true,
+            Ask::Id(None, Some("http://e/s")),
+            Some("s.dtd"),
+        ),
+        (
+            "rewriteSystem",
+            Some("http://e/"),
+            "local/",
+            true,
+            Ask::Id(None, Some("http://e/a.dtd")),
+            Some("local/a.dtd"),
+        ),
+        (
+            "uri",
+            Some("http://e/u"),
+            "u.ent",
+            true,
+            Ask::Uri("http://e/u"),
+            Some("u.ent"),
+        ),
+        (
+            "rewriteURI",
+            Some("http://e/"),
+            "r/",
+            true,
+            Ask::Uri("http://e/x"),
+            Some("r/x"),
+        ),
+        // The replacement is used as given: not resolved against the catalog URL.
+        (
+            "system",
+            Some("s2"),
+            "../up.dtd",
+            true,
+            Ask::Id(None, Some("s2")),
+            Some("../up.dtd"),
+        ),
+        // Accepted, but no lookup consults it.
+        (
+            "catalog",
+            Some("c"),
+            "c.xml",
+            true,
+            Ask::Id(None, Some("c")),
+            None,
+        ),
+        // `nextCatalog` takes no name.
+        ("nextCatalog", None, "next.xml", true, Ask::Uri("n"), None),
+        ("bogus", Some("a"), "b", false, Ask::Uri("a"), None),
+        ("PUBLIC", Some("a"), "b", false, Ask::Uri("a"), None),
+        ("", Some("a"), "b", false, Ask::Uri("a"), None),
+    ];
+    for (kind, orig, replace, accepted, query, answer) in cases {
+        let mut catalog = built("");
+        assert_eq!(
+            catalog.add(kind, orig, replace),
+            if accepted {
+                Ok(())
+            } else {
+                Err(Error::Rejected)
+            },
+            "{kind}"
+        );
+        assert_eq!(
+            ask(&mut catalog, &query).as_deref(),
+            answer,
+            "{kind} {orig:?}"
+        );
+    }
+}
+
+#[test]
+fn adding_changes_an_entry_of_the_same_type_and_name_in_place() {
+    let mut catalog = built("<system systemId='a' uri='1.dtd'/><uri name='a' uri='u.dtd'/>");
+    assert_eq!(catalog.add("system", Some("a"), "2.dtd"), Ok(()));
+    assert_eq!(catalog.resolve(None, Some("a")).as_deref(), Some("2.dtd"));
+    // Another type with the same name is a new entry; so is a public identifier
+    // that only normalizes to the stored one (libxml2 compares it unnormalized).
+    assert_eq!(catalog.add("public", Some("p  q"), "1"), Ok(()));
+    assert_eq!(catalog.add("public", Some("p  q"), "2"), Ok(()));
+    assert_eq!(catalog.add("public", Some("p q"), "3"), Ok(()));
+    assert_eq!(
+        catalog.dump(),
+        dumped(
+            "  <system systemId=\"a\" uri=\"2.dtd\"/>\n  <uri name=\"a\" uri=\"u.dtd\"/>\n  \
+             <public publicId=\"p q\" uri=\"3\"/>\n  <public publicId=\"p q\" uri=\"2\"/>\n"
+        )
+    );
+}
+
+#[test]
+fn removing_matches_names_and_targets_in_the_root_file() {
+    // (value, entries removed, names still answering)
+    let cases: &[(&str, usize, &[&str])] = &[
+        ("a", 2, &["b"]),
+        ("1.dtd", 1, &["b"]),
+        ("2.dtd", 1, &["a", "b"]),
+        ("none", 0, &["a", "b"]),
+        ("", 0, &["a", "b"]),
+    ];
+    for &(value, removed, answering) in cases {
+        let mut catalog = built(
+            "<system systemId='a' uri='1.dtd'/><uri name='a' uri='2.dtd'/><system systemId='b' uri='3.dtd'/>",
+        );
+        assert_eq!(catalog.remove(value), removed, "{value:?}");
+        let left: Vec<&str> = ["a", "b"]
+            .into_iter()
+            .filter(|id| catalog.resolve(None, Some(id)).is_some())
+            .collect();
+        assert_eq!(left, answering, "{value:?}");
+        // Removing again finds nothing.
+        assert_eq!(catalog.remove(value), 0);
+    }
+    // Entries of other files are not touched.
+    let (mut catalog, _) = catalog(&[
+        ("root.xml", &xml("<nextCatalog catalog='n.xml'/>")),
+        ("n.xml", &xml("<system systemId='a' uri='n.dtd'/>")),
+    ]);
+    assert_eq!(catalog.remove("a"), 0);
+    assert_eq!(catalog.resolve(None, Some("a")).as_deref(), Some("n.dtd"));
+}
+
+#[test]
+fn dumping_xml_catalogs_follows_xml_acatalog_dump() {
+    // (catalog body, dumped body)
+    let cases: &[(&str, &str)] = &[
+        ("", ""),
+        (
+            "<public publicId=' -//A//DTD  X//EN ' uri='x.dtd'/><nextCatalog catalog='n.xml'/>",
+            "  <public publicId=\"-//A//DTD X//EN\" uri=\"x.dtd\"/>\n  <nextCatalog catalog=\"n.xml\"/>\n",
+        ),
+        // Targets print as written; groups keep id, base and preference, and nest.
+        (
+            "<group id='g' xml:base='sub/' prefer='system'><system systemId='s' uri='t.dtd'/>\
+             <group><uri name='u' uri='v'/></group></group><rewriteURI uriStartString='r' rewritePrefix='p/' xml:base='z/'/>",
+            "  <group id=\"g\" xml:base=\"sub/\" prefer=\"system\">\n    <system systemId=\"s\" uri=\"t.dtd\"/>\n    \
+             <group id=\"\">\n      <uri name=\"u\" uri=\"v\"/>\n    </group>\n  </group>\n  \
+             <rewriteURI uriStartString=\"r\" rewritePrefix=\"p/\"/>\n",
+        ),
+        // An invalid preference keeps the inherited one.
+        (
+            "<group prefer='bogus'/>",
+            "  <group id=\"\" prefer=\"public\"/>\n",
+        ),
+        // A public identifier that normalizes to nothing prints empty; markup and
+        // non-ASCII characters are escaped like libxml2's attribute output.
+        (
+            "<public publicId='  ' uri='a'/><delegateSystem systemIdStartString='&lt;&amp;&quot;&#9;&#10;é' catalog='c.xml'/>",
+            "  <public publicId=\"\" uri=\"a\"/>\n  <delegateSystem systemIdStartString=\"&lt;&amp;&quot;&#9;&#10;&#xE9;\" catalog=\"c.xml\"/>\n",
+        ),
+    ];
+    for (body, expected) in cases {
+        let catalog = built(body);
+        assert_eq!(catalog.dump(), dumped(expected), "{body}");
+        // A dump is a catalog that dumps the same.
+        let (resolver, _) = served(&[]);
+        let again = Catalog::parse(
+            catalog.dump().as_bytes(),
+            Limits::default(),
+            "cat.xml",
+            resolver,
+        )
+        .unwrap();
+        assert_eq!(again.dump(), catalog.dump(), "{body}");
+    }
+}
+
+#[test]
+fn dumps_leave_out_removed_entries_and_files_that_failed_to_load() {
+    let (mut catalog, _) = catalog(&[
+        (
+            "root.xml",
+            &xml(
+                "<system systemId='a' uri='1'/><nextCatalog catalog='gone.xml'/><nextCatalog catalog='n.xml'/><system systemId='b' uri='2'/>",
+            ),
+        ),
+        ("n.xml", &xml("")),
+    ]);
+    assert_eq!(
+        catalog.dump().matches("nextCatalog").count(),
+        2,
+        "not yet visited"
+    );
+    // Resolving visits both, and the missing one is dropped from then on.
+    assert_eq!(catalog.resolve(None, Some("zzz")), None);
+    assert_eq!(catalog.remove("b"), 1);
+    assert_eq!(
+        catalog.dump(),
+        dumped("  <system systemId=\"a\" uri=\"1\"/>\n  <nextCatalog catalog=\"n.xml\"/>\n")
+    );
+    // A removed group takes its members with it.
+    let mut grouped = built("<group id='g'><system systemId='a' uri='1'/></group>");
+    assert_eq!(grouped.remove("g"), 1);
+    assert_eq!(grouped.dump(), dumped(""));
+    assert_eq!(grouped.resolve(None, Some("a")).as_deref(), Some("1"));
+}
+
+/// An SGML catalog of `text`.
+fn sgml_catalog(text: &str) -> Catalog {
+    let (resolver, _) = served(&[]);
+    Catalog::parse(text.as_bytes(), Limits::default(), "cat.sgml", resolver).unwrap()
+}
+
+#[test]
+fn editing_sgml_catalogs_follows_the_sgml_branches() {
+    let mut catalog = sgml_catalog(
+        "PUBLIC \"-//A//DTD X//EN\" \"x.dtd\"\nSYSTEM \"s\" \"t.dtd\"\nCATALOG \"gone.sgml\"\n",
+    );
+    // (keyword, name, accepted)
+    let cases: &[(&str, Option<&str>, Result<(), Error>)] = &[
+        ("ENTITY", Some("e"), Ok(())),
+        ("DOCTYPE", Some("d"), Ok(())),
+        ("LINKTYPE", Some("l"), Ok(())),
+        ("NOTATION", Some("n"), Ok(())),
+        ("DELEGATE", Some("-//D//"), Ok(())),
+        ("SGMLDECL", Some("decl"), Ok(())),
+        ("DOCUMENT", Some("doc"), Ok(())),
+        ("BASE", Some("base/"), Ok(())),
+        ("CATALOG", Some("more.sgml"), Ok(())),
+        ("PUBLIC", Some("-//B//DTD Y//EN"), Ok(())),
+        ("SYSTEM", Some("s2"), Ok(())),
+        // One key space: a name already used by any entry is refused.
+        ("SYSTEM", Some("s"), Err(Error::Rejected)),
+        ("PUBLIC", Some("e"), Err(Error::Rejected)),
+        ("PUBLIC", None, Err(Error::Rejected)),
+        ("public", Some("p"), Err(Error::Rejected)),
+        ("bogus", Some("p"), Err(Error::Rejected)),
+    ];
+    for &(keyword, name, expected) in cases {
+        assert_eq!(
+            catalog.add(keyword, name, "v.dtd"),
+            expected,
+            "{keyword} {name:?}"
+        );
+    }
+    assert_eq!(
+        catalog.resolve(Some("-//B//DTD  Y//EN"), None).as_deref(),
+        Some("v.dtd")
+    );
+    assert_eq!(catalog.resolve(None, Some("s2")).as_deref(), Some("v.dtd"));
+    // Only a PUBLIC or SYSTEM entry answers, whatever else holds the name.
+    assert_eq!(catalog.resolve(None, Some("e")), None);
+    let sorted = "PUBLIC \"-//A//DTD X//EN\" \"x.dtd\"\nPUBLIC \"-//B//DTD Y//EN\" \"v.dtd\"\n\
+         DELEGATE \"-//D//\" \"v.dtd\"\nBASE \"base/\"\nDOCTYPE d \"v.dtd\"\nSGMLDECL \"decl\"\n\
+         DOCUMENT \"doc\"\nENTITY e \"v.dtd\"\nCATALOG \"gone.sgml\"\nLINKTYPE l \"v.dtd\"\n\
+         CATALOG \"more.sgml\"\nNOTATION n \"v.dtd\"\nSYSTEM \"s\" \"t.dtd\"\nSYSTEM \"s2\" \"v.dtd\"\n";
+    assert_eq!(catalog.dump(), sorted);
+    // Removal is by key, and reports whether there was an entry.
+    assert_eq!(
+        (
+            catalog.remove("e"),
+            catalog.remove("e"),
+            catalog.remove("nope")
+        ),
+        (1, 0, 0)
+    );
+    assert_eq!(catalog.dump().lines().count(), 13);
+    assert_eq!(sgml_catalog("").dump(), "");
+}
