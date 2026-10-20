@@ -28,6 +28,7 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
 | Long-lived documents under repeated edits | `Editor::compact` reclaims pool and attribute garbage without changing any handle; removed slots stay as one tombstone record each |
 | DOM accessors hosts expect | `attribute`/`attribute_ns`, `content`, `path`, `base_uri`, `lang`, `space_preserve`, `search_ns`, `namespaces`, `previous_sibling` on `Node` and `OwnedNode` |
 | Pull streaming with no callbacks across the boundary | `TextReader` (xmlTextReader model), `BufferedReader` |
+| Streaming output without a `Vec` | `save::to_writer` (`xmlSaveToIO`: any `io::Write`, a host file or stream object, in 32 KiB chunks; I/O failures come back as `WriteError::Io`); `TextWriter` (`xmlTextWriter`, one sink write per call) |
 | Bulk results instead of one call per node | XPath `select_nodes` returns id vectors; serializers write whole documents to a `Write` |
 | Errors that map onto host exceptions | `ErrorKind`, with a stable variant per libxml2 category, plus a byte offset |
 | Hostile-input policy | `Limits` with finite defaults; no I/O unless a `Resolver` is supplied |
@@ -104,8 +105,8 @@ example a wrapper over `PyMem_RawMalloc` or a counting quota allocator.
   node. The string pool, ID and diagnostic lists, the DTD, parser working
   memory and all consumer output stay on the global heap. See
   [allocator strategy](design.md#allocator-strategy). XPath, C14N,
-  validators and `Writer` accept any `A`. `save::to_vec`, HTML serialization
-  and XInclude take global-heap documents only, and `parse_in` rejects
+  validators and `Writer` accept any `A`. `save::to_vec`/`to_writer`, HTML
+  serialization and XInclude take global-heap documents only, and `parse_in` rejects
   `XINCLUDE`.
 
 ## Open decisions

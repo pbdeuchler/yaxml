@@ -468,7 +468,7 @@ struct Out<'s> {
 }
 
 /// `xmlEscapeTabAttr`: other C0 controls become U+FFFD.
-const ATTRIBUTE: [Option<&str>; 128] = {
+pub(crate) const ATTRIBUTE: [Option<&str>; 128] = {
     let mut table = [None; 128];
     let mut byte = 0;
     while byte < 0x20 {
@@ -487,8 +487,15 @@ const ATTRIBUTE: [Option<&str>; 128] = {
 
 /// `xmlEscapeTab`: tabs, newlines and quotes are written as they are.
 const CONTENT: [Option<&str>; 128] = {
+    let mut table = QUOT;
+    table[b'"' as usize] = None;
+    table
+};
+
+/// `xmlEscapeTabQuot` (`xmlEncodeSpecialChars`): content escaping and `"`.
+pub(crate) const QUOT: [Option<&str>; 128] = {
     let mut table = ATTRIBUTE;
-    (table[9], table[10], table[34]) = (None, None, None);
+    (table[9], table[10]) = (None, None);
     table
 };
 
@@ -625,22 +632,8 @@ impl<'s> Out<'s> {
         self.raw(&text[start..]);
     }
 
-    /// `&#xH;` as `xmlSerializeHexCharRef` writes it, or the encoder's `&#N;`.
     fn reference(&mut self, c: char, hex: bool) {
-        let (base, prefix) = if hex { (16, "&#x") } else { (10, "&#") };
-        let mut digits = [0; 8];
-        let (mut value, mut start) = (u32::from(c), digits.len());
-        loop {
-            start -= 1;
-            digits[start] = b"0123456789ABCDEF"[(value % base) as usize];
-            value /= base;
-            if value == 0 {
-                break;
-            }
-        }
-        self.raw(prefix);
-        self.raw(std::str::from_utf8(&digits[start..]).unwrap_or_default());
-        self.raw(";");
+        self.raw(char_reference(c, hex, &mut [0; 12]));
     }
 
     /// An attribute value with kept references, as `xmlSaveWriteAttrContent`
@@ -688,6 +681,24 @@ impl<'s> Out<'s> {
         write(self, text);
         self.raw(quote);
     }
+}
+
+/// `&#xH;` as `xmlSerializeHexCharRef` writes it, or the encoders' `&#N;`.
+pub(crate) fn char_reference(c: char, hex: bool, buffer: &mut [u8; 12]) -> &str {
+    let (base, prefix) = if hex { (16, "&#x") } else { (10, "&#") };
+    let (mut value, mut start) = (u32::from(c), buffer.len() - 1);
+    buffer[start] = b';';
+    loop {
+        start -= 1;
+        buffer[start] = b"0123456789ABCDEF"[(value % base) as usize];
+        value /= base;
+        if value == 0 {
+            break;
+        }
+    }
+    start -= prefix.len();
+    buffer[start..start + prefix.len()].copy_from_slice(prefix.as_bytes());
+    std::str::from_utf8(&buffer[start..]).unwrap_or_default()
 }
 
 /// An attribute value and its kept-reference form, if any.
