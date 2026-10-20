@@ -3,7 +3,9 @@
 //! `xmllint --noent --dtdattr` output where xmllint exposes the option.
 #![forbid(unsafe_code)]
 
-use yaxml::{Document, ErrorKind, OwnedDocument, html, save};
+use std::io::{self, Write};
+
+use yaxml::{Document, ErrorKind, OwnedDocument, WriteError, html, save};
 
 const DECLARATION: &str = "<?xml version=\"1.0\"?>\n";
 
@@ -242,11 +244,10 @@ fn invalid_requests_are_rejected() {
             .kind,
         ErrorKind::UnsupportedOption
     );
+    // AS_HTML saves an owned XML subtree as HTML.
     assert_eq!(
-        save::to_vec(document.root_element(), &options(save::AS_HTML))
-            .unwrap_err()
-            .kind,
-        ErrorKind::UnsupportedOption
+        save::to_vec(document.root_element(), &options(save::AS_HTML)).unwrap(),
+        b"<r></r>"
     );
 }
 
@@ -463,7 +464,11 @@ fn xhtml_documents_follow_appendix_c() {
 
 #[test]
 fn html_documents_choose_their_serializer() {
-    let parsed = html::parse(b"<p class=x>caf&eacute;<br>", html::Options::default()).unwrap();
+    let parsed = html::parse(
+        b"<p class=x>caf&eacute;<br><div>a</div>",
+        html::Options::default(),
+    )
+    .unwrap();
     let document = parsed.document;
     assert_eq!(
         save::to_vec(&document, &options(0)).unwrap(),
@@ -476,7 +481,7 @@ fn html_documents_choose_their_serializer() {
     assert_eq!(
         String::from_utf8(save::to_vec(&document, &options(save::AS_XML)).unwrap()).unwrap(),
         "<?xml version=\"1.0\" standalone=\"yes\"?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\" \
-         \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n<html><body><p class=\"x\">caf&#xE9;<br/></p></body></html>\n"
+         \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n<html><body><p class=\"x\">caf&#xE9;<br/></p><div>a</div></body></html>\n"
     );
     let p = document
         .root_element()
@@ -484,10 +489,31 @@ fn html_documents_choose_their_serializer() {
         .unwrap()
         .first_child()
         .unwrap();
-    assert_eq!(
-        save::to_vec(p, &options(0)).unwrap_err().kind,
-        ErrorKind::UnsupportedOption
-    );
+    // HTML subtrees are HTML (`htmlNodeDumpOutputInternal`), in the
+    // document's encoding or "HTML"; expected bytes are libxml2's.
+    let body = p.parent().unwrap();
+    let cases: &[(save::Tree<'_, '_>, u32, &str)] = &[
+        (p.into(), 0, "<p class=\"x\">caf&eacute;<br></p>"),
+        (
+            p.into(),
+            save::FORMAT,
+            "<p class=\"x\">caf&eacute;<br></p>\n",
+        ),
+        (
+            p.into(),
+            save::AS_HTML,
+            "<p class=\"x\">caf&eacute;<br></p>",
+        ),
+        (
+            body.into(),
+            save::FORMAT,
+            "<body>\n<p class=\"x\">caf&eacute;<br></p>\n<div>a</div>\n</body>",
+        ),
+    ];
+    for (tree, flags, expected) in cases {
+        let saved = save::to_vec(*tree, &options(*flags)).unwrap();
+        assert_eq!(String::from_utf8(saved).unwrap(), *expected, "{flags}");
+    }
     assert_eq!(
         save::to_vec(p, &options(save::AS_XML)).unwrap(),
         b"<p class=\"x\">caf&#xE9;<br/></p>"
@@ -717,4 +743,170 @@ fn edited_attribute_values_drop_their_references() {
     assert!(output.ends_with(b"<r a=\"&amp;e;\" b=\"&e;\"/>\n"));
     // Other nodes have no attributes to keep.
     assert_eq!(root.parent().unwrap().unexpanded_attribute(0), None);
+}
+
+/// A sink taking at most `step` bytes per call that fails once `fail_at`
+/// bytes are taken, or on flush.
+struct Sink {
+    bytes: Vec<u8>,
+    step: usize,
+    fail_at: usize,
+    fail_flush: bool,
+    writes: usize,
+}
+
+impl Sink {
+    fn new(step: usize, fail_at: usize, fail_flush: bool) -> Self {
+        Self {
+            bytes: Vec::new(),
+            step,
+            fail_at,
+            fail_flush,
+            writes: 0,
+        }
+    }
+}
+
+impl Write for Sink {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.writes += 1;
+        if self.bytes.len() >= self.fail_at {
+            return Err(io::Error::other("full"));
+        }
+        let length = bytes
+            .len()
+            .min(self.step)
+            .min(self.fail_at - self.bytes.len());
+        self.bytes.extend_from_slice(&bytes[..length]);
+        Ok(length)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self.fail_flush {
+            true => Err(io::Error::other("flush")),
+            false => Ok(()),
+        }
+    }
+}
+
+#[test]
+fn to_writer_streams_what_to_vec_returns() {
+    // Large enough for several chunks; one HTML document as well.
+    let xml = format!("<r>{}</r>", "<a b='&amp;'>t\u{e9}</a>".repeat(8000));
+    let owned = OwnedDocument::parse(&xml).unwrap();
+    let borrowed = Document::parse(&xml).unwrap();
+    let parsed = html::parse(xml.as_bytes(), html::Options::default()).unwrap();
+    let latin1 = save::Options {
+        encoding: Some("ISO-8859-1"),
+        ..options(save::FORMAT)
+    };
+    let cases: &[(save::Tree<'_, '_>, save::Options<'_>)] = &[
+        ((&owned).into(), options(0)),
+        ((&borrowed).into(), options(save::FORMAT)),
+        (owned.root_element().into(), latin1),
+        ((&parsed.document).into(), options(0)),
+        (parsed.document.root_element().into(), options(save::FORMAT)),
+    ];
+    for (tree, options) in cases {
+        let expected = save::to_vec(*tree, options).unwrap();
+        assert!(expected.len() > 3 * save::CHUNK);
+        for step in [1, 7, usize::MAX] {
+            let mut sink = Sink::new(step, usize::MAX, false);
+            save::to_writer(*tree, options, &mut sink).unwrap();
+            assert_eq!(sink.bytes, expected, "{options:?} {step}");
+            if step == usize::MAX {
+                // Bounded chunks: a few writes, not one per node or one in all.
+                assert!(
+                    (3..=expected.len() / 1000).contains(&sink.writes),
+                    "{}",
+                    sink.writes
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn to_writer_reports_sink_and_encoding_failures() {
+    let xml = format!("<r>{}<\u{105}/></r>", "<a>t</a>".repeat(9000));
+    let document = OwnedDocument::parse(&xml).unwrap();
+    let latin1 = save::Options {
+        encoding: Some("ISO-8859-1"),
+        ..options(0)
+    };
+    let expected = save::to_vec(&document, &options(0)).unwrap();
+    // (options, fail_at, fail_flush, error, bytes the sink holds)
+    let cases: &[(save::Options<'_>, usize, bool, Option<ErrorKind>, usize)] = &[
+        (options(0), 10, false, None, 10),
+        (options(0), usize::MAX, true, None, expected.len()),
+        (options(0), 0, false, None, 0),
+        // The element named outside Latin-1 fails; only whole chunks before
+        // it (each a node past CHUNK at most) are written.
+        (
+            latin1,
+            usize::MAX,
+            false,
+            Some(ErrorKind::InvalidCharacter),
+            2 * save::CHUNK + 64,
+        ),
+    ];
+    for (options, fail_at, fail_flush, kind, held) in cases {
+        let mut sink = Sink::new(usize::MAX, *fail_at, *fail_flush);
+        let error = save::to_writer(&document, options, &mut sink).unwrap_err();
+        match (error, kind) {
+            (WriteError::Io(_), None) => {}
+            (WriteError::Xml(error), Some(kind)) => {
+                assert_eq!(error.kind, *kind);
+                assert!(error.offset >= sink.bytes.len());
+            }
+            (error, _) => panic!("{error:?}"),
+        }
+        assert!(sink.bytes.len() <= *held, "{} > {held}", sink.bytes.len());
+    }
+    // Option errors come first, without I/O.
+    let mut sink = Sink::new(usize::MAX, 0, true);
+    let bogus = save::Options {
+        encoding: Some("x-bogus"),
+        ..options(0)
+    };
+    assert!(matches!(
+        save::to_writer(&document, &bogus, &mut sink),
+        Err(WriteError::Xml(error)) if error.kind == ErrorKind::UnsupportedEncoding
+    ));
+    assert_eq!(sink.writes, 0);
+}
+
+#[test]
+fn subtree_levels_indent_like_xml_node_dump() {
+    let document = OwnedDocument::parse("<r><a><b>t</b><c/></a></r>").unwrap();
+    let a = document.root_element().first_child().unwrap();
+    // Expected bytes are libxml2's `xmlNodeDump(buf, doc, a, level, 1)`.
+    let cases: &[(usize, u32, &str)] = &[
+        (0, save::FORMAT, "<a>\n  <b>t</b>\n  <c/>\n</a>"),
+        (2, save::FORMAT, "<a>\n      <b>t</b>\n      <c/>\n    </a>"),
+        (2, 0, "<a><b>t</b><c/></a>"),
+        // Clamped to 100 levels, then to the 60-column indentation limit.
+        (
+            500,
+            save::FORMAT,
+            &format!("<a>\n{0}<b>t</b>\n{0}<c/>\n{0}</a>", " ".repeat(60)),
+        ),
+    ];
+    for (level, flags, expected) in cases {
+        let options = save::Options {
+            level: *level,
+            ..options(*flags)
+        };
+        let saved = String::from_utf8(save::to_vec(a, &options).unwrap()).unwrap();
+        assert_eq!(saved, *expected, "{level} {flags}");
+    }
+    // Documents start at level 0 regardless.
+    let options = save::Options {
+        level: 3,
+        ..options(save::FORMAT | save::NO_DECL)
+    };
+    assert_eq!(
+        save::to_vec(&document, &options).unwrap(),
+        b"<r>\n  <a>\n    <b>t</b>\n    <c/>\n  </a>\n</r>\n"
+    );
 }
