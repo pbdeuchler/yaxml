@@ -1,19 +1,32 @@
 use std::fmt;
 
-/// A resource ceiling, checked before retaining additional processor state.
+/// The resource ceiling an [`ErrorKind::LimitExceeded`] error hit.
+///
+/// Most variants name a [`Limits`](crate::Limits) or
+/// [`DecodeLimits`](crate::DecodeLimits) field; writers and other modules
+/// reuse them for their own ceilings of the same kind.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Limit {
+    /// Total input bytes.
     InputBytes,
+    /// Total bytes a writer produces.
     OutputBytes,
+    /// Raw bytes in one token, or in one written name or value.
     TokenBytes,
+    /// Total UTF-8 bytes produced by decoding.
     DecodedBytes,
+    /// Decoded UTF-8 bytes in one token.
     DecodedTokenBytes,
+    /// Element nesting depth.
     Depth,
+    /// Attributes on one element, namespace declarations included.
     Attributes,
-    /// Attributes a DOM retains across the document, including namespace declarations and defaulted ones.
+    /// Attributes a DOM keeps across the document, namespace declarations and defaults included.
     TotalAttributes,
+    /// Emitted events or DOM nodes.
     Events,
+    /// Cumulative string capacity requested for copies.
     OwnedBytes,
     /// Bytes in the document type declaration, including its internal subset.
     DtdBytes,
@@ -29,21 +42,33 @@ pub enum Limit {
     ExternalBytes,
 }
 
-/// Structured failures; offsets are input bytes, or prospective writer output bytes.
+/// What went wrong in an [`Error`].
+///
+/// [`ErrorKind::libxml2_code`] maps a kind to libxml2's domain and code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// Input is not well-formed UTF-8.
     InvalidUtf8,
+    /// Input is not well-formed UTF-16 (an unpaired surrogate or odd length).
     InvalidUtf16,
     /// A byte has no mapping in the declared single-byte encoding.
     UnmappedByte,
+    /// A character outside the XML `Char` production.
     InvalidCharacter,
+    /// Input ended inside markup or with elements still open.
     UnexpectedEof,
+    /// Malformed markup.
     Syntax,
+    /// A name that is not a valid XML `Name` or `NCName`.
     InvalidName,
+    /// An end tag does not match the open element.
     MismatchedEndTag,
+    /// An attribute appears twice on one element.
     DuplicateAttribute,
+    /// A namespace constraint is violated, such as an unbound prefix.
     Namespace,
+    /// A malformed character or entity reference.
     InvalidReference,
     /// An undeclared entity whose declaration is required (WFC: Entity Declared).
     UnknownEntity,
@@ -62,17 +87,26 @@ pub enum ErrorKind {
     /// `XML_PARSE_XINCLUDE` processing failed; [`crate::xinclude::process`]
     /// reports the detail.
     XInclude,
+    /// The document has no root element.
     MissingRoot,
+    /// Content after the root element closed, such as a second root.
     MultipleRoots,
+    /// Non-whitespace text or CDATA outside the root element.
     TextOutsideRoot,
+    /// A malformed XML declaration, or a PI named `xml` elsewhere.
     InvalidDeclaration,
+    /// An encoding that is not built in, such as Shift_JIS.
     UnsupportedEncoding,
     /// A requested parser option, flag or property is unknown or not implemented.
     UnsupportedOption,
+    /// The encoding declaration disagrees with the detected encoding, or is
+    /// missing where detection requires one.
     EncodingMismatch,
+    /// A resource ceiling was reached.
     LimitExceeded(Limit),
+    /// Memory allocation failed.
     Allocation,
-    /// The non-recycled owned-document identity space is exhausted.
+    /// No more owned-document node identifiers are available.
     IdentifierExhausted,
     /// The event callback requested terminal cancellation.
     Aborted,
@@ -80,9 +114,15 @@ pub enum ErrorKind {
     InvalidState,
 }
 
+/// A parse, decode or write failure.
+///
+/// Small and `Copy`; [`Error::describe`] expands it into libxml2's full
+/// [`Diagnostic`](crate::Diagnostic).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Error {
+    /// What went wrong.
     pub kind: ErrorKind,
+    /// Input byte offset of the failure, or the output offset for writers.
     pub offset: usize,
 }
 
@@ -121,7 +161,8 @@ impl From<Error> for DtdError {
 
 impl std::error::Error for Error {}
 
-/// A ceiling for bounded owned-tree edits and construction.
+/// The [`EditLimits`](crate::EditLimits) ceiling an
+/// [`EditErrorKind::LimitExceeded`] error hit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum EditLimit {
@@ -158,61 +199,82 @@ pub enum EditComponent {
     Value,
 }
 
-/// A component/item location for construction errors. Semantic errors have no
-/// byte offset; global limits and allocation failures have no location.
+/// Where in an [`ElementSpec`](crate::ElementSpec) a construction error lies.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EditLocation {
     /// The element name supplied directly in `ElementSpec`.
     ElementName {
+        /// The faulty string.
         component: EditComponent,
+        /// UTF-8 byte offset within that string, when the error has one.
         byte_offset: Option<usize>,
     },
     /// A namespace declaration in `ElementSpec.items`.
     NamespaceItem {
+        /// Position in `ElementSpec.items`.
         index: usize,
+        /// The faulty string, if one is at fault.
         component: Option<EditComponent>,
+        /// UTF-8 byte offset within that string, when the error has one.
         byte_offset: Option<usize>,
     },
     /// An ordinary attribute in `ElementSpec.items`.
     AttributeItem {
+        /// Position in `ElementSpec.items`.
         index: usize,
+        /// The faulty string, if one is at fault.
         component: Option<EditComponent>,
+        /// UTF-8 byte offset within that string, when the error has one.
         byte_offset: Option<usize>,
     },
 }
 
-/// A bounded edit/construction failure. Existing scalar edit methods report
-/// `value_offset`; construction methods report the typed `location` instead.
+/// What went wrong in an [`EditError`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum EditErrorKind {
+    /// The node id is stale, removed or from another document.
     InvalidHandle,
+    /// The operation does not apply to this kind of node.
     WrongNodeKind,
+    /// The node cannot be changed this way: the document node, the root
+    /// element, the DOCTYPE, or entity-reference content.
     ProtectedNode,
+    /// The named attribute does not exist.
     MissingAttribute,
+    /// The attribute is a namespace declaration, which has its own methods.
     NamespaceDeclaration,
+    /// A character outside the XML `Char` production.
     InvalidCharacter,
+    /// A value the node cannot hold, such as `--` in a comment or `?>` in a PI.
     InvalidValue,
+    /// A name that is not a valid XML name.
     InvalidName,
+    /// A prefix or namespace URI that cannot be declared or resolved.
     Namespace,
+    /// The element already has an attribute with this name.
     DuplicateAttribute,
     /// The node cannot go there: it would contain its own parent, be a
     /// second document element, or put Text, CDATA or an entity reference
     /// directly under the document; or a sibling anchor has no parent.
     Hierarchy,
+    /// No more node identifiers are available.
     IdentifierExhausted,
+    /// An edit ceiling was reached.
     LimitExceeded(EditLimit),
+    /// Memory allocation failed.
     Allocation,
 }
 
-/// An edit failure. Existing scalar methods retain their optional UTF-8 byte
-/// index in `value_offset`. Construction failures use `location`, whose byte
-/// offset is relative to the named UTF-8 component. Global failures have no
-/// location.
+/// An [`Editor`](crate::Editor) or construction failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct EditError {
+    /// What went wrong.
     pub kind: EditErrorKind,
+    /// UTF-8 byte offset of the fault in the supplied value or name, for
+    /// single-value edits.
     pub value_offset: Option<usize>,
+    /// Where in the specification the fault lies, for construction.
     pub location: Option<EditLocation>,
 }
 
@@ -249,11 +311,13 @@ impl fmt::Display for EditError {
 
 impl std::error::Error for EditError {}
 
-/// Failure while consuming an explicit caller-provided byte reader.
+/// A failure while parsing from a [`std::io::Read`] or [`std::io::BufRead`].
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ReadError {
+    /// The input is not acceptable XML.
     Xml(Error),
+    /// The reader failed.
     Io(std::io::Error),
 }
 
@@ -275,12 +339,16 @@ impl std::error::Error for ReadError {
     }
 }
 
-/// Failure while validating XML events or writing to a caller-provided sink.
-/// The first failure preserves its cause; later writer calls return InvalidState.
+/// A failure while writing XML to a [`std::io::Write`].
+///
+/// After the first failure, further writer calls return
+/// [`ErrorKind::InvalidState`].
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum WriteError {
+    /// The output would not be well-formed, or a limit was reached.
     Xml(Error),
+    /// The sink failed.
     Io(std::io::Error),
 }
 

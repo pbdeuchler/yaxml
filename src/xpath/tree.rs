@@ -438,7 +438,9 @@ fn declarations<'t, T: Navigate>(
 /// `uri` is empty where `xmlns=""` undeclares it.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct NamespaceBinding<'a> {
+    /// The bound prefix; `None` for the default namespace.
     pub prefix: Option<&'a str>,
+    /// The namespace URI.
     pub uri: &'a str,
 }
 

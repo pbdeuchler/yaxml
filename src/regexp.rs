@@ -60,7 +60,9 @@ const CATEGORIES: &[(u8, &[u8])] = &[
 pub enum Error {
     /// Invalid syntax at a byte offset of the pattern.
     Syntax {
+        /// Where the pattern went wrong.
         offset: usize,
+        /// What was wrong.
         message: &'static str,
     },
     /// The automaton would exceed the compile budget.
@@ -93,8 +95,9 @@ impl Regex {
         Self::with_budget(pattern, DEFAULT_BUDGET)
     }
 
-    /// Compiles `pattern`, spending at most `budget` units (see the module
-    /// documentation). Like libxml2, the pattern ends at its first NUL.
+    /// Compiles `pattern`, spending at most `budget` units: NFA instructions,
+    /// repetition copies and distinct class ranges. Like libxml2, the
+    /// pattern ends at its first NUL.
     pub fn with_budget(pattern: &str, budget: usize) -> Result<Self, Error> {
         let text = pattern.split('\0').next().unwrap_or("");
         let mut parser = Parser {

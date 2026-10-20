@@ -86,6 +86,7 @@ impl Code {
 /// One structured error, as libxml2 raises it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic<Id> {
+    /// What is reported.
     pub code: Code,
     /// The element concerned: an instance element for asserts and reports,
     /// `Some(())` for a schema element in [`SchemaErrors`].
@@ -141,6 +142,7 @@ impl<Id> Diagnostic<Id> {
 pub struct SchemaErrors {
     /// The schema document's URI.
     pub uri: String,
+    /// The errors.
     pub errors: Vec<Diagnostic<()>>,
 }
 
@@ -171,10 +173,12 @@ pub struct Validation<Id> {
     /// fired reports and failed `let`s, or `None` for its internal error
     /// (-1): no rules, a failed `let` in one-pass mode, or no operations left.
     pub errors: Option<usize>,
+    /// The report, in libxml2's order.
     pub output: Vec<Output<Id>>,
 }
 
 impl<Id> Validation<Id> {
+    /// Whether nothing failed (`errors == Some(0)`).
     pub fn is_valid(&self) -> bool {
         self.errors == Some(0)
     }
@@ -206,6 +210,7 @@ pub struct Limits {
 setters!(const Limits { xml: crate::Limits, xpath: xpath::Limits, max_operations: u64 });
 
 impl Limits {
+    /// The defaults: 500 million XPath operations per validation.
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,
         xpath: xpath::Limits::DEFAULT,

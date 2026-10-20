@@ -405,10 +405,10 @@ impl<A: Allocator> Editor<'_, A> {
         }
     }
 
-    /// `xmlAddChild`: moves `node` (attached or detached) to be `parent`'s
-    /// last child and returns it. Text after a Text last child merges into
-    /// that child, whose handle is returned; `node` is then removed. A moved
-    /// subtree keeps its namespaces: missing bindings are declared on it.
+    /// Moves `node` to be `parent`'s last child and returns its handle
+    /// (`xmlAddChild`). Text after a Text last child merges into it: that
+    /// child's handle is returned and `node` is removed. Missing bindings are
+    /// declared on the moved subtree.
     ///
     /// ```
     /// use yaxml::{EditLimits, OwnedDocument, save};
@@ -455,9 +455,8 @@ impl<A: Allocator> Editor<'_, A> {
         self.place(node, Anchor::After(reference))
     }
 
-    /// `xmlUnlinkNode`: detaches `node` and its subtree. Their handles stay
-    /// live; the subtree can be inserted again or removed. A detached root
-    /// is left as it is.
+    /// Detaches `node` and its subtree, whose handles stay live for a later
+    /// insert or removal (`xmlUnlinkNode`).
     pub fn unlink(&mut self, node: OwnedNodeId) -> Result<(), EditError> {
         let node = self.resolve(node)?;
         self.check_movable(node)?;
@@ -465,8 +464,8 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
-    /// `xmlReplaceNode`: moves `new` into `old`'s place and detaches `old`.
-    /// The document element can be replaced by another element only.
+    /// Moves `new` into `old`'s place and detaches `old` (`xmlReplaceNode`).
+    /// The document element can be replaced only by an element.
     pub fn replace(&mut self, old: OwnedNodeId, new: OwnedNodeId) -> Result<(), EditError> {
         let (old, new) = (self.resolve(old)?, self.resolve(new)?);
         let document = &*self.document;
@@ -733,13 +732,11 @@ impl<A: Allocator> Editor<'_, A> {
         clone_string(prefix).map(Some)
     }
 
-    /// `xmlSetNsProp`: sets an ordinary attribute by expanded name. An
-    /// existing attribute keeps its spelling and position and takes the new
-    /// value as [`set_attribute_value`](Self::set_attribute_value) does; a
-    /// new one is appended with the prefix [`PrefixPolicy`] selects, its
-    /// binding declared on `element` when not in scope. Namespace
-    /// declarations use [`declare_namespace`](Self::declare_namespace).
-    /// Name errors locate attribute item 0.
+    /// Sets an attribute by expanded name (`xmlSetNsProp`). An existing one
+    /// keeps its spelling and position; a new one is appended with the
+    /// prefix [`PrefixPolicy`] selects, declared on `element` if needed. Name
+    /// errors locate attribute item 0. For namespace declarations, use
+    /// [`declare_namespace`](Self::declare_namespace).
     pub fn set_attribute(
         &mut self,
         element: OwnedNodeId,
@@ -830,10 +827,9 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
-    /// `xmlUnsetNsProp`: removes the attribute with this expanded name
-    /// (`None`: no namespace). A namespace declaration (namespace XMLNS,
-    /// local `xmlns` for the default namespace) can be removed only while
-    /// no name in the element's subtree resolves through it.
+    /// Removes the attribute with this expanded name (`xmlUnsetNsProp`). A
+    /// namespace declaration (XMLNS namespace; local `xmlns` for the
+    /// default) can be removed only while no name in the subtree uses it.
     pub fn remove_attribute(
         &mut self,
         element: OwnedNodeId,
@@ -867,12 +863,16 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
-    /// `xmlNewNs`: declares `prefix` (`None`: the default namespace; `""`
-    /// undeclares it) on `element`. The element may not already declare the
-    /// prefix, nor use it for a different URI itself; descendants that
-    /// relied on an outer binding of the prefix get it declared on them.
-    /// `xml` is always bound and cannot be declared; the XMLNS and XML URIs
-    /// are reserved. Errors locate namespace item 0.
+    /// Declares `prefix` (`None`: the default namespace) as `uri` on
+    /// `element`; an empty `uri` undeclares the default (`xmlNewNs`).
+    /// Descendants that used an outer binding of the prefix get it declared
+    /// on them. Errors locate namespace item 0.
+    ///
+    /// # Errors
+    ///
+    /// The element already declares the prefix or uses it for another URI;
+    /// a reserved prefix or URI (`xml`, `xmlns`, an empty URI for a prefix);
+    /// an HTML document.
     pub fn declare_namespace(
         &mut self,
         element: OwnedNodeId,
@@ -948,10 +948,9 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
-    /// `xmlNodeSetName` with `xmlSetNs`: renames an element. The prefix
+    /// Renames an element (`xmlNodeSetName` with `xmlSetNs`). The prefix
     /// follows [`PrefixPolicy`]; a binding not in scope is declared on the
-    /// element, and descendants it would shadow keep theirs. Errors locate
-    /// the element name.
+    /// element without changing what descendants resolve to.
     pub fn set_name(&mut self, element: OwnedNodeId, name: NameSpec<'_>) -> Result<(), EditError> {
         let index = self.editable_element(element)?;
         check_name(&name, None, &self.limits)?;
@@ -1016,11 +1015,8 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
-    /// Reclaims string and attribute storage that edits left behind: replaced
-    /// values, renamed names, merged Text, relocated or removed attributes
-    /// and removed nodes' strings. Every handle stays valid; removed slots
-    /// remain (one record each) so stale handles are still rejected. The
-    /// rebuilt pool becomes the new owned-byte baseline, as a parsed pool is.
+    /// Reclaims the string and attribute storage that edits left behind.
+    /// Handles stay valid, and stale ones stay rejected.
     pub fn compact(&mut self) -> Result<(), EditError> {
         let document = &mut *self.document;
         // (old range, element, new start) of each element with attributes.

@@ -896,17 +896,16 @@ fn declaration(prefix: Option<&str>) -> String {
     prefix.map_or_else(|| "xmlns".to_owned(), |prefix| format!("xmlns:{prefix}"))
 }
 
-/// libxml2's `xmlTextWriter` over any `Write` sink.
+/// libxml2's `xmlTextWriter` over any [`Write`] sink.
 ///
-/// Each call's output is built in memory, checked against the limits, then
-/// handed to the sink (converted when `start_document` names an encoding;
-/// characters it lacks become `&#N;`). A failure libxml2 reports as -1 is
-/// `WriteError::Xml` and leaves the state and partial output libxml2 leaves,
-/// so the writer stays usable. A limit or I/O failure is terminal: later
-/// calls return `InvalidState` without I/O. [`WriterLimits`] fields used:
-/// `max_output_bytes`, `max_token_bytes` (one call's encoded output),
-/// `max_depth` (open elements, comments, PIs, CDATA sections and DTD parts)
-/// and `max_attributes` (pending namespace declarations).
+/// Output is converted to the encoding `start_document` names; characters
+/// it lacks become `&#N;`. A call libxml2 rejects with -1 is a
+/// [`WriteError::Xml`] that leaves libxml2's state and partial output, and
+/// the writer stays usable; a limit or I/O failure is terminal.
+///
+/// [`WriterLimits`] applies `max_output_bytes`, `max_token_bytes` (one
+/// call's output), `max_depth` (open elements, comments, PIs, CDATA and DTD
+/// parts) and `max_attributes` (pending namespace declarations).
 pub struct TextWriter<W: Write> {
     sink: W,
     machine: Machine,
@@ -932,6 +931,7 @@ impl<W: Write> TextWriter<W> {
         Self::with_limits(sink, WriterLimits::default())
     }
 
+    /// [`new`](Self::new) with custom limits.
     pub fn with_limits(sink: W, limits: WriterLimits) -> Self {
         Self {
             sink,
@@ -1003,55 +1003,93 @@ impl<W: Write> TextWriter<W> {
     }
 
     calls! {
-        /// `xmlTextWriterStartDocument`: the XML declaration. An encoding
-        /// selects the output converter (UTF-8, UTF-16 behind a BOM,
-        /// UTF-16LE/BE, US-ASCII, ISO-8859-x, windows-1252); it is named
-        /// `UTF-8` for UTF-8 and as given otherwise.
+        /// Writes the XML declaration (`xmlTextWriterStartDocument`). The
+        /// encoding (UTF-8, UTF-16, UTF-16LE/BE, US-ASCII, ISO-8859-x or
+        /// windows-1252) selects the output converter.
         start_document(version: Option<&str>, encoding: Option<&str>, standalone: Option<&str>);
+        /// Opens a comment (`xmlTextWriterStartComment`).
         start_comment();
+        /// Closes the open comment (`xmlTextWriterEndComment`).
         end_comment();
+        /// Writes a comment (`xmlTextWriterWriteComment`).
         write_comment(content: &str);
-        /// Closes an open start tag first; inside a PI it fails.
+        /// Opens an element, closing an open start tag first
+        /// (`xmlTextWriterStartElement`).
         start_element(name: &str);
-        /// The declaration of a namespace is written when the start tag closes.
+        /// Opens a namespaced element; the declaration is written when the
+        /// start tag closes (`xmlTextWriterStartElementNS`).
         start_element_ns(prefix: Option<&str>, name: &str, uri: Option<&str>);
-        /// `/>` for an open start tag, else an end tag.
+        /// Closes the open element: `/>` for an open start tag, else an end
+        /// tag (`xmlTextWriterEndElement`).
         end_element();
-        /// Always an end tag: `<a></a>`.
+        /// Closes the open element with an end tag, even when empty
+        /// (`xmlTextWriterFullEndElement`).
         full_end_element();
-        /// Unescaped.
+        /// Writes `content` unescaped (`xmlTextWriterWriteRaw`).
         write_raw(content: &str);
-        /// Escaped in element content and attribute values, raw elsewhere.
+        /// Writes `content`, escaped in element content and attribute values
+        /// (`xmlTextWriterWriteString`).
         write_string(content: &str);
+        /// Writes `data` as base64 (`xmlTextWriterWriteBase64`).
         write_base64(data: &[u8]);
+        /// Writes `data` as hexadecimal (`xmlTextWriterWriteBinHex`).
         write_bin_hex(data: &[u8]);
+        /// Opens an attribute (`xmlTextWriterStartAttribute`).
         start_attribute(name: &str);
+        /// Opens a namespaced attribute (`xmlTextWriterStartAttributeNS`).
         start_attribute_ns(prefix: Option<&str>, name: &str, uri: Option<&str>);
+        /// Closes the open attribute (`xmlTextWriterEndAttribute`).
         end_attribute();
+        /// Writes an attribute (`xmlTextWriterWriteAttribute`).
         write_attribute(name: &str, content: &str);
+        /// Writes a namespaced attribute (`xmlTextWriterWriteAttributeNS`).
         write_attribute_ns(prefix: Option<&str>, name: &str, uri: Option<&str>, content: &str);
+        /// Writes an element with text content (`xmlTextWriterWriteElement`).
         write_element(name: &str, content: Option<&str>);
+        /// Writes a namespaced element with text content
+        /// (`xmlTextWriterWriteElementNS`).
         write_element_ns(prefix: Option<&str>, name: &str, uri: Option<&str>, content: &str);
-        /// Targets named `xml` in any case are refused.
+        /// Opens a PI; a target named `xml` in any case fails
+        /// (`xmlTextWriterStartPI`).
         start_pi(target: &str);
+        /// Closes the open PI (`xmlTextWriterEndPI`).
         end_pi();
+        /// Writes a PI (`xmlTextWriterWritePI`).
         write_pi(target: &str, content: Option<&str>);
+        /// Opens a CDATA section (`xmlTextWriterStartCDATA`).
         start_cdata();
+        /// Closes the open CDATA section (`xmlTextWriterEndCDATA`).
         end_cdata();
+        /// Writes a CDATA section (`xmlTextWriterWriteCDATA`).
         write_cdata(content: Option<&str>);
-        /// Only with nothing open.
+        /// Opens a DOCTYPE, only with nothing open (`xmlTextWriterStartDTD`).
         start_dtd(name: &str, public: Option<&str>, system: Option<&str>);
+        /// Closes the open DOCTYPE (`xmlTextWriterEndDTD`).
         end_dtd();
+        /// Writes a DOCTYPE (`xmlTextWriterWriteDTD`).
         write_dtd(name: &str, public: Option<&str>, system: Option<&str>, subset: Option<&str>);
+        /// Opens an element declaration (`xmlTextWriterStartDTDElement`).
         start_dtd_element(name: &str);
+        /// Closes the open element declaration (`xmlTextWriterEndDTDElement`).
         end_dtd_element();
+        /// Writes an element declaration (`xmlTextWriterWriteDTDElement`).
         write_dtd_element(name: &str, content: &str);
+        /// Opens an attribute-list declaration (`xmlTextWriterStartDTDAttlist`).
         start_dtd_attlist(name: &str);
+        /// Closes the open attribute-list declaration
+        /// (`xmlTextWriterEndDTDAttlist`).
         end_dtd_attlist();
+        /// Writes an attribute-list declaration (`xmlTextWriterWriteDTDAttlist`).
         write_dtd_attlist(name: &str, content: &str);
+        /// Opens an entity declaration (`xmlTextWriterStartDTDEntity`).
         start_dtd_entity(parameter: bool, name: &str);
+        /// Closes the open entity declaration (`xmlTextWriterEndDTDEntity`).
         end_dtd_entity();
+        /// Writes an internal entity declaration
+        /// (`xmlTextWriterWriteDTDInternalEntity`).
         write_dtd_internal_entity(parameter: bool, name: &str, content: &str);
+        /// Writes an external entity declaration
+        /// (`xmlTextWriterWriteDTDExternalEntity`).
         write_dtd_external_entity(
             parameter: bool,
             name: &str,
@@ -1059,12 +1097,15 @@ impl<W: Write> TextWriter<W> {
             system: Option<&str>,
             notation: Option<&str>
         );
+        /// Writes an external entity's identifiers and notation inside an
+        /// open entity declaration (`xmlTextWriterWriteDTDExternalEntityContents`).
         write_dtd_external_entity_contents(
             public: Option<&str>,
             system: Option<&str>,
             notation: Option<&str>
         );
-        /// Internal with content and no identifiers, else external.
+        /// Writes an entity declaration: internal with content and no
+        /// identifiers, else external (`xmlTextWriterWriteDTDEntity`).
         write_dtd_entity(
             parameter: bool,
             name: &str,
@@ -1073,6 +1114,7 @@ impl<W: Write> TextWriter<W> {
             notation: Option<&str>,
             content: Option<&str>
         );
+        /// Writes a notation declaration (`xmlTextWriterWriteDTDNotation`).
         write_dtd_notation(name: &str, public: Option<&str>, system: Option<&str>);
     }
 

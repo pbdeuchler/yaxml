@@ -48,7 +48,9 @@ pub enum Mode {
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub struct Options<'a, Id> {
+    /// The canonicalization algorithm.
     pub mode: Mode,
+    /// Whether comments are kept.
     pub with_comments: bool,
     /// The XPath node-set to render; `None` renders the whole document.
     pub nodes: Option<&'a [Node<Id>]>,
@@ -115,7 +117,8 @@ impl std::error::Error for Error {
     }
 }
 
-/// `xmlC14NDocSaveTo`: writes the canonical form to `sink` and flushes it.
+/// Writes the canonical form to `sink` and flushes it (`xmlC14NDocSaveTo`).
+/// Output written before an error stays in the sink.
 pub fn write<T: Tree>(
     tree: &T,
     options: &Options<'_, T::Id>,
@@ -132,7 +135,7 @@ pub fn write<T: Tree>(
     sink.flush().map_err(Error::Io)
 }
 
-/// `xmlC14NDocDumpMemory`.
+/// The canonical form as a string (`xmlC14NDocDumpMemory`).
 pub fn to_string<T: Tree>(tree: &T, options: &Options<'_, T::Id>) -> Result<String, Error> {
     let mut out = String::new();
     canonicalize(tree, options, |text| out.push_str(text))?;

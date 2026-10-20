@@ -58,154 +58,286 @@ use components::{
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(u16)]
 #[non_exhaustive]
-#[allow(missing_docs)]
 pub enum Code {
+    /// `XML_SCHEMAP_ATTRFORMDEFAULT_VALUE`.
     AttrFormDefaultValue = 1701,
+    /// `XML_SCHEMAP_ELEMFORMDEFAULT_VALUE`.
     ElemFormDefaultValue = 1705,
+    /// `XML_SCHEMAP_FACET_NO_VALUE`.
     FacetNoValue = 1708,
+    /// `XML_SCHEMAP_INVALID_BOOLEAN`.
     InvalidBoolean = 1714,
+    /// `XML_SCHEMAP_INVALID_FACET_VALUE`.
     InvalidFacetValue = 1717,
+    /// `XML_SCHEMAP_NOTATION_NO_NAME`.
     NotationNoName = 1723,
+    /// `XML_SCHEMAP_UNKNOWN_FACET_CHILD`.
     UnknownFacetChild = 1740,
+    /// `XML_SCHEMAP_REGEXP_INVALID`.
     RegexpInvalid = 1756,
+    /// `XML_SCHEMAP_FAILED_LOAD`.
     FailedLoad = 1757,
+    /// `XML_SCHEMAP_NOROOT`.
     NoRoot = 1759,
-    /// A global component of the same kind and name already exists.
+    /// A global component of the same kind and name already exists (`XML_SCHEMAP_REDEFINED_TYPE`).
     RedefinedType = 1761,
+    /// `XML_SCHEMAP_NOT_SCHEMA`.
     NotSchema = 1772,
+    /// `XML_SCHEMAP_INVALID_ATTR_USE`.
     InvalidAttrUse = 1774,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_1`.
     DerivationOkRestriction1 = 1787,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_2_1_1`.
     DerivationOkRestriction2_1_1 = 1788,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_2_1_2`.
     DerivationOkRestriction2_1_2 = 1789,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_2_2`.
     DerivationOkRestriction2_2 = 1790,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_3`.
     DerivationOkRestriction3 = 1791,
+    /// `XML_SCHEMAP_WILDCARD_INVALID_NS_MEMBER`.
     WildcardInvalidNsMember = 1792,
+    /// `XML_SCHEMAP_INTERSECTION_NOT_EXPRESSIBLE`.
     IntersectionNotExpressible = 1793,
+    /// `XML_SCHEMAP_UNION_NOT_EXPRESSIBLE`.
     UnionNotExpressible = 1794,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_4_1`.
     DerivationOkRestriction4_1 = 1797,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_4_2`.
     DerivationOkRestriction4_2 = 1798,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_4_3`.
     DerivationOkRestriction4_3 = 1799,
+    /// `XML_SCHEMAP_COS_CT_EXTENDS_1_3`.
     CosCtExtends1_3 = 1800,
-    /// A validator internal error, such as a content model too complex to match.
+    /// A validator internal error, such as a content model too complex to match (`XML_SCHEMAV_INTERNAL`).
     VInternal = 1818,
+    /// `XML_SCHEMAV_CVC_DATATYPE_VALID_1_2_1`.
     CvcDatatypeValid1_2_1 = 1824,
+    /// `XML_SCHEMAV_CVC_DATATYPE_VALID_1_2_2`.
     CvcDatatypeValid1_2_2 = 1825,
+    /// `XML_SCHEMAV_CVC_DATATYPE_VALID_1_2_3`.
     CvcDatatypeValid1_2_3 = 1826,
+    /// `XML_SCHEMAV_CVC_TYPE_3_1_1`.
     CvcType3_1_1 = 1827,
+    /// `XML_SCHEMAV_CVC_TYPE_3_1_2`.
     CvcType3_1_2 = 1828,
+    /// `XML_SCHEMAV_CVC_LENGTH_VALID`.
     CvcLengthValid = 1830,
+    /// `XML_SCHEMAV_CVC_MINLENGTH_VALID`.
     CvcMinLengthValid = 1831,
+    /// `XML_SCHEMAV_CVC_MAXLENGTH_VALID`.
     CvcMaxLengthValid = 1832,
+    /// `XML_SCHEMAV_CVC_MININCLUSIVE_VALID`.
     CvcMinInclusiveValid = 1833,
+    /// `XML_SCHEMAV_CVC_MAXINCLUSIVE_VALID`.
     CvcMaxInclusiveValid = 1834,
+    /// `XML_SCHEMAV_CVC_MINEXCLUSIVE_VALID`.
     CvcMinExclusiveValid = 1835,
+    /// `XML_SCHEMAV_CVC_MAXEXCLUSIVE_VALID`.
     CvcMaxExclusiveValid = 1836,
+    /// `XML_SCHEMAV_CVC_TOTALDIGITS_VALID`.
     CvcTotalDigitsValid = 1837,
+    /// `XML_SCHEMAV_CVC_FRACTIONDIGITS_VALID`.
     CvcFractionDigitsValid = 1838,
+    /// `XML_SCHEMAV_CVC_PATTERN_VALID`.
     CvcPatternValid = 1839,
+    /// `XML_SCHEMAV_CVC_ENUMERATION_VALID`.
     CvcEnumerationValid = 1840,
+    /// `XML_SCHEMAV_CVC_COMPLEX_TYPE_2_1`.
     CvcComplexType2_1 = 1841,
+    /// `XML_SCHEMAV_CVC_COMPLEX_TYPE_2_2`.
     CvcComplexType2_2 = 1842,
+    /// `XML_SCHEMAV_CVC_COMPLEX_TYPE_2_3`.
     CvcComplexType2_3 = 1843,
+    /// `XML_SCHEMAV_CVC_ELT_1`.
     CvcElt1 = 1845,
+    /// `XML_SCHEMAV_CVC_ELT_2`.
     CvcElt2 = 1846,
+    /// `XML_SCHEMAV_CVC_ELT_3_1`.
     CvcElt3_1 = 1847,
+    /// `XML_SCHEMAV_CVC_ELT_3_2_1`.
     CvcElt3_2_1 = 1848,
+    /// `XML_SCHEMAV_CVC_ELT_3_2_2`.
     CvcElt3_2_2 = 1849,
+    /// `XML_SCHEMAV_CVC_ELT_4_2`.
     CvcElt4_2 = 1851,
+    /// `XML_SCHEMAV_CVC_ELT_4_3`.
     CvcElt4_3 = 1852,
+    /// `XML_SCHEMAV_CVC_ELT_5_2_2_1`.
     CvcElt5_2_2_1 = 1856,
+    /// `XML_SCHEMAV_CVC_ELT_5_2_2_2_1`.
     CvcElt5_2_2_2_1 = 1857,
+    /// `XML_SCHEMAV_CVC_ELT_5_2_2_2_2`.
     CvcElt5_2_2_2_2 = 1858,
+    /// `XML_SCHEMAV_CVC_ATTRIBUTE_2`.
     CvcAttribute2 = 1862,
+    /// `XML_SCHEMAV_CVC_COMPLEX_TYPE_3_2_1`.
     CvcComplexType3_2_1 = 1866,
+    /// `XML_SCHEMAV_CVC_COMPLEX_TYPE_3_2_2`.
     CvcComplexType3_2_2 = 1867,
+    /// `XML_SCHEMAV_CVC_COMPLEX_TYPE_4`.
     CvcComplexType4 = 1868,
-    /// A child element is not expected, or required children are missing.
+    /// A child element is not expected, or required children are missing (`XML_SCHEMAV_ELEMENT_CONTENT`).
     ElementContent = 1871,
+    /// `XML_SCHEMAV_DOCUMENT_ELEMENT_MISSING`.
     DocumentElementMissing = 1872,
+    /// `XML_SCHEMAV_CVC_AU`.
     CvcAu = 1874,
+    /// `XML_SCHEMAV_CVC_TYPE_1`.
     CvcType1 = 1875,
+    /// `XML_SCHEMAV_CVC_TYPE_2`.
     CvcType2 = 1876,
+    /// `XML_SCHEMAV_CVC_IDC`.
     CvcIdc = 1877,
+    /// `XML_SCHEMAV_CVC_WILDCARD`.
     CvcWildcard = 1878,
+    /// `XML_SCHEMAV_MISC`.
     Misc = 1879,
+    /// `XML_SCHEMAP_SRC_SIMPLE_TYPE_1`.
     SrcSimpleType1 = 3000,
+    /// `XML_SCHEMAP_SRC_SIMPLE_TYPE_4`.
     SrcSimpleType4 = 3003,
-    /// A QName does not resolve to a component of the expected kind.
+    /// A QName does not resolve to a component of the expected kind (`XML_SCHEMAP_SRC_RESOLVE`).
     SrcResolve = 3004,
+    /// `XML_SCHEMAP_SRC_RESTRICTION_BASE_OR_SIMPLETYPE`.
     SrcRestrictionBaseOrSimpleType = 3005,
+    /// `XML_SCHEMAP_SRC_UNION_MEMBERTYPES_OR_SIMPLETYPES`.
     SrcUnionMemberTypesOrSimpleTypes = 3007,
+    /// `XML_SCHEMAP_ST_PROPS_CORRECT_1`.
     StPropsCorrect1 = 3008,
+    /// `XML_SCHEMAP_ST_PROPS_CORRECT_2`.
     StPropsCorrect2 = 3009,
+    /// `XML_SCHEMAP_ST_PROPS_CORRECT_3`.
     StPropsCorrect3 = 3010,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_1_1`.
     CosStRestricts1_1 = 3011,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_1_2`.
     CosStRestricts1_2 = 3012,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_1_3_1`.
     CosStRestricts1_3_1 = 3013,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_2_1`.
     CosStRestricts2_1 = 3015,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_2_3_1_1`.
     CosStRestricts2_3_1_1 = 3016,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_2_3_1_2`.
     CosStRestricts2_3_1_2 = 3017,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_2_3_2_1`.
     CosStRestricts2_3_2_1 = 3018,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_2_3_2_2`.
     CosStRestricts2_3_2_2 = 3019,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_2_3_2_3`.
     CosStRestricts2_3_2_3 = 3020,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_2_3_2_4`.
     CosStRestricts2_3_2_4 = 3021,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_3_1`.
     CosStRestricts3_1 = 3023,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_3_3_1`.
     CosStRestricts3_3_1 = 3024,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_3_3_1_2`.
     CosStRestricts3_3_1_2 = 3025,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_3_3_2_2`.
     CosStRestricts3_3_2_2 = 3026,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_3_3_2_1`.
     CosStRestricts3_3_2_1 = 3027,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_3_3_2_3`.
     CosStRestricts3_3_2_3 = 3028,
+    /// `XML_SCHEMAP_COS_ST_RESTRICTS_3_3_2_4`.
     CosStRestricts3_3_2_4 = 3029,
+    /// `XML_SCHEMAP_COS_ST_DERIVED_OK_2_1`.
     CosStDerivedOk2_1 = 3031,
+    /// `XML_SCHEMAP_COS_ST_DERIVED_OK_2_2`.
     CosStDerivedOk2_2 = 3032,
-    /// An element where the schema for schemas allows none.
+    /// An element where the schema for schemas allows none (`XML_SCHEMAP_S4S_ELEM_NOT_ALLOWED`).
     S4sElemNotAllowed = 3033,
+    /// `XML_SCHEMAP_S4S_ELEM_MISSING`.
     S4sElemMissing = 3034,
+    /// `XML_SCHEMAP_S4S_ATTR_NOT_ALLOWED`.
     S4sAttrNotAllowed = 3035,
+    /// `XML_SCHEMAP_S4S_ATTR_MISSING`.
     S4sAttrMissing = 3036,
+    /// `XML_SCHEMAP_S4S_ATTR_INVALID_VALUE`.
     S4sAttrInvalidValue = 3037,
+    /// `XML_SCHEMAP_SRC_ELEMENT_1`.
     SrcElement1 = 3038,
+    /// `XML_SCHEMAP_SRC_ELEMENT_2_1`.
     SrcElement2_1 = 3039,
+    /// `XML_SCHEMAP_SRC_ELEMENT_2_2`.
     SrcElement2_2 = 3040,
+    /// `XML_SCHEMAP_SRC_ELEMENT_3`.
     SrcElement3 = 3041,
+    /// `XML_SCHEMAP_P_PROPS_CORRECT_2_1`.
     PPropsCorrect2_1 = 3043,
+    /// `XML_SCHEMAP_P_PROPS_CORRECT_2_2`.
     PPropsCorrect2_2 = 3044,
+    /// `XML_SCHEMAP_E_PROPS_CORRECT_3`.
     EPropsCorrect3 = 3046,
+    /// `XML_SCHEMAP_E_PROPS_CORRECT_4`.
     EPropsCorrect4 = 3047,
+    /// `XML_SCHEMAP_E_PROPS_CORRECT_5`.
     EPropsCorrect5 = 3048,
+    /// `XML_SCHEMAP_E_PROPS_CORRECT_6`.
     EPropsCorrect6 = 3049,
+    /// `XML_SCHEMAP_SRC_INCLUDE`.
     SrcInclude = 3050,
+    /// `XML_SCHEMAP_SRC_ATTRIBUTE_1`.
     SrcAttribute1 = 3051,
+    /// `XML_SCHEMAP_SRC_ATTRIBUTE_2`.
     SrcAttribute2 = 3052,
+    /// `XML_SCHEMAP_SRC_ATTRIBUTE_3_2`.
     SrcAttribute3_2 = 3054,
+    /// `XML_SCHEMAP_SRC_ATTRIBUTE_4`.
     SrcAttribute4 = 3055,
+    /// `XML_SCHEMAP_NO_XMLNS`.
     NoXmlns = 3056,
+    /// `XML_SCHEMAP_NO_XSI`.
     NoXsi = 3057,
+    /// `XML_SCHEMAP_COS_VALID_DEFAULT_2_1`.
     CosValidDefault2_1 = 3059,
+    /// `XML_SCHEMAP_COS_CT_EXTENDS_1_1`.
     CosCtExtends1_1 = 3063,
+    /// `XML_SCHEMAP_SRC_IMPORT_1_1`.
     SrcImport1_1 = 3064,
+    /// `XML_SCHEMAP_SRC_IMPORT_1_2`.
     SrcImport1_2 = 3065,
+    /// `XML_SCHEMAP_SRC_IMPORT_2_1`.
     SrcImport2_1 = 3067,
-    /// A schema construction failure, such as an exhausted budget.
+    /// A schema construction failure, such as an exhausted budget (`XML_SCHEMAP_INTERNAL`).
     Internal = 3069,
-    /// The content model violates Unique Particle Attribution.
+    /// The content model violates Unique Particle Attribution (`XML_SCHEMAP_NOT_DETERMINISTIC`).
     NotDeterministic = 3070,
+    /// `XML_SCHEMAP_SRC_ATTRIBUTE_GROUP_3`.
     SrcAttributeGroup3 = 3073,
+    /// `XML_SCHEMAP_MG_PROPS_CORRECT_2`.
     MgPropsCorrect2 = 3075,
+    /// `XML_SCHEMAP_SRC_CT_1`.
     SrcCt1 = 3076,
+    /// `XML_SCHEMAP_DERIVATION_OK_RESTRICTION_2_1_3`.
     DerivationOkRestriction2_1_3 = 3077,
+    /// `XML_SCHEMAP_AU_PROPS_CORRECT_2`.
     AuPropsCorrect2 = 3078,
+    /// `XML_SCHEMAP_A_PROPS_CORRECT_2`.
     APropsCorrect2 = 3079,
+    /// `XML_SCHEMAP_C_PROPS_CORRECT`.
     CPropsCorrect = 3080,
+    /// `XML_SCHEMAP_SRC_REDEFINE`.
     SrcRedefine = 3081,
+    /// `XML_SCHEMAP_SRC_IMPORT`.
     SrcImport = 3082,
+    /// `XML_SCHEMAP_WARN_SKIP_SCHEMA`.
     WarnSkipSchema = 3083,
+    /// `XML_SCHEMAP_WARN_UNLOCATED_SCHEMA`.
     WarnUnlocatedSchema = 3084,
+    /// `XML_SCHEMAP_WARN_ATTR_POINTLESS_PROH`.
     WarnAttrPointlessProh = 3086,
+    /// `XML_SCHEMAP_AG_PROPS_CORRECT`.
     AgPropsCorrect = 3087,
+    /// `XML_SCHEMAP_COS_CT_EXTENDS_1_2`.
     CosCtExtends1_2 = 3088,
+    /// `XML_SCHEMAP_AU_PROPS_CORRECT`.
     AuPropsCorrect = 3089,
+    /// `XML_SCHEMAP_A_PROPS_CORRECT_3`.
     APropsCorrect3 = 3090,
+    /// `XML_SCHEMAP_COS_ALL_LIMITED`.
     CosAllLimited = 3091,
 }
 
@@ -226,7 +358,9 @@ impl Code {
 /// A schema construction diagnostic in schema document `uri`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SchemaDiagnostic {
+    /// What went wrong.
     pub code: Code,
+    /// The schema document holding the problem.
     pub uri: String,
     /// The start of the offending schema element, when known.
     pub offset: Option<usize>,
@@ -241,10 +375,10 @@ impl fmt::Display for SchemaDiagnostic {
     }
 }
 
-/// A schema could not be built; `diagnostics` holds the errors and warnings
-/// in report order.
+/// A schema that could not be built.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Error {
+    /// Errors and warnings, in report order.
     pub diagnostics: Vec<SchemaDiagnostic>,
 }
 
@@ -262,6 +396,7 @@ impl std::error::Error for Error {}
 /// One validity error or warning.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic<Id> {
+    /// What went wrong.
     pub code: Code,
     /// The element concerned (an attribute's owner element).
     pub node: Option<Id>,
@@ -303,6 +438,8 @@ pub struct Limits {
 setters!(const Limits { xml: crate::Limits, max_documents: usize, max_bytes: usize, max_depth: usize, max_model_work: usize, max_counter_vectors: usize, max_idc_keys: usize });
 
 impl Limits {
+    /// The defaults: 256 documents, 64 MiB, depth 256, 16 Mi model work
+    /// units, 1024 counter vectors and 1 Mi identity-constraint keys.
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,
         max_documents: 256,
@@ -410,17 +547,17 @@ impl Schema {
     }
 }
 
-/// Validates one document from its parser events, as libxml2's SAX plug
-/// (`xmlSchemaSAXPlug`) does: feed it every event of a [`Reader`](crate::Reader),
+/// A validator for one document fed as events, libxml2's `xmlSchemaSAXPlug`.
+///
+/// Feed it every event of a [`Reader`](crate::Reader),
 /// [`PushParser`](crate::PushParser) or [`BufferedReader`] with its origin,
 /// then [`finish`](Self::finish). Memory follows the open elements, the
-/// identity-constraint tables (`max_idc_keys`) and the ID values seen.
+/// identity-constraint tables ([`Limits::max_idc_keys`]) and the IDs seen.
 ///
-/// The diagnostics equal [`Schema::validate`]'s for the parsed tree, except
-/// that `node` is the element's index in document order. The DTD is the
-/// internal subset's: an external subset's `ID` attributes and unparsed
-/// entities are unknown. A schema `ID` that a later DTD or `xml:id` ID
-/// repeats is reported at the later attribute.
+/// Diagnostics equal [`Schema::validate`]'s, with `node` the element's index
+/// in document order. Without [`set_dtd`](Self::set_dtd) the DTD is the
+/// internal subset, so an external subset's `ID` attributes and unparsed
+/// entities are unknown.
 ///
 /// ```
 /// use std::ops::ControlFlow;

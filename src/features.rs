@@ -18,39 +18,73 @@
 #[non_exhaustive]
 #[repr(u32)]
 pub enum Feature {
+    /// `XML_WITH_THREAD`: thread safety.
     Thread = 1,
+    /// `XML_WITH_TREE`: the tree API.
     Tree = 2,
+    /// `XML_WITH_OUTPUT`: serialization.
     Output = 3,
+    /// `XML_WITH_PUSH`: the push parser.
     Push = 4,
+    /// `XML_WITH_READER`: the `xmlTextReader` API.
     Reader = 5,
+    /// `XML_WITH_PATTERN`: `xmlPattern` matching.
     Pattern = 6,
+    /// `XML_WITH_WRITER`: the `xmlTextWriter` API.
     Writer = 7,
+    /// `XML_WITH_SAX1`: the SAX1 interface.
     Sax1 = 8,
+    /// `XML_WITH_FTP`: the FTP client.
     Ftp = 9,
+    /// `XML_WITH_HTTP`: the HTTP client.
     Http = 10,
+    /// `XML_WITH_VALID`: DTD validation.
     Valid = 11,
+    /// `XML_WITH_HTML`: the HTML parser.
     Html = 12,
+    /// `XML_WITH_LEGACY`: deprecated legacy APIs.
     Legacy = 13,
+    /// `XML_WITH_C14N`: canonicalization.
     C14n = 14,
+    /// `XML_WITH_CATALOG`: XML catalogs.
     Catalog = 15,
+    /// `XML_WITH_XPATH`: XPath.
     Xpath = 16,
+    /// `XML_WITH_XPTR`: XPointer.
     Xptr = 17,
+    /// `XML_WITH_XINCLUDE`: XInclude.
     Xinclude = 18,
+    /// `XML_WITH_ICONV`: iconv-based decoding.
     Iconv = 19,
+    /// `XML_WITH_ISO8859X`: ISO-8859-x decoding.
     Iso8859x = 20,
+    /// `XML_WITH_UNICODE`: Unicode character classes.
     Unicode = 21,
+    /// `XML_WITH_REGEXP`: XML Schema regular expressions.
     Regexp = 22,
+    /// `XML_WITH_AUTOMATA`: the `xmlAutomata` API.
     Automata = 23,
+    /// `XML_WITH_EXPR`: the `xmlExp` API.
     Expr = 24,
+    /// `XML_WITH_SCHEMAS`: XML Schema and RELAX NG.
     Schemas = 25,
+    /// `XML_WITH_SCHEMATRON`: Schematron.
     Schematron = 26,
+    /// `XML_WITH_MODULES`: dynamic module loading.
     Modules = 27,
+    /// `XML_WITH_DEBUG`: debugging output.
     Debug = 28,
+    /// `XML_WITH_DEBUG_MEM`: memory debugging.
     DebugMem = 29,
+    /// `XML_WITH_DEBUG_RUN`: runtime debugging.
     DebugRun = 30,
+    /// `XML_WITH_ZLIB`: zlib decompression.
     Zlib = 31,
+    /// `XML_WITH_ICU`: ICU-based decoding.
     Icu = 32,
+    /// `XML_WITH_LZMA`: LZMA decompression.
     Lzma = 33,
+    /// `XML_WITH_RELAXNG`: RELAX NG.
     Relaxng = 34,
 }
 

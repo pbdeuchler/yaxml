@@ -153,20 +153,15 @@ impl OriginRepr {
     }
 }
 
-/// Where parsed content originated, independently of its current logical value.
-///
-/// The representation is private. `input_range` returns an exact contiguous
-/// original-input range only; replacement and mixed origins deliberately return
-/// `None`.
+/// Where an event or node came from in the input.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SourceOrigin(OriginRepr);
 
 impl SourceOrigin {
-    /// Exact original document bytes, when the value came from one contiguous
-    /// physical input range.
+    /// The input bytes the value was read from, delimiters included; `None`
+    /// when entity expansion produced any of it.
     ///
-    /// Normalization can change the logical value without changing this span.
-    /// This is provenance, not a serialization of the current logical content.
+    /// Normalization changes the value, not this span.
     pub fn input_range(self) -> Option<Range<usize>> {
         self.0.input_range()
     }

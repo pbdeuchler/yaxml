@@ -145,10 +145,11 @@ fn document_identity(counter: &AtomicUsize) -> Result<NonZeroUsize, Error> {
     Ok(NonZeroUsize::MIN.saturating_add(previous))
 }
 
-/// A checked owned-tree handle, tied to one document's non-recycled identity.
-/// Moving a document preserves its handles; separately parsed documents have
-/// different identities. This is not a stable address or a serialized ID.
-/// Borrowing-DOM IDs cannot be used for owned lookup:
+/// A checked handle to a node of one [`OwnedDocument`].
+///
+/// Each document has an identity that is never reused, so a handle from
+/// another document, or to a removed node, looks up as `None`. Borrowed-DOM
+/// IDs are a different type:
 ///
 /// ```compile_fail
 /// use yaxml::{Document, OwnedDocument};
@@ -167,16 +168,14 @@ impl OwnedNodeId {
         self.slot.0
     }
 
-    /// The handle as plain integers `(document identity, slot)`, for foreign
-    /// handle tables such as a C ABI; [`from_parts`](Self::from_parts)
-    /// rebuilds it. Lookups validate a rebuilt handle like any other.
+    /// The handle as `(document identity, slot)`, for foreign handle tables
+    /// such as a C ABI; [`from_parts`](Self::from_parts) rebuilds it.
     pub fn parts(self) -> (usize, usize) {
         (self.document.get(), self.slot.0)
     }
 
-    /// Rebuilds a handle from [`parts`](Self::parts); `None` for identity 0,
-    /// which no document has. Any other pair is accepted here: `node(id)`
-    /// and every editor call reject a forged, foreign, stale or out-of-range one.
+    /// Rebuilds a handle from [`parts`](Self::parts); `None` for identity 0.
+    /// Lookups and edits reject a forged, foreign or stale handle.
     pub fn from_parts(document: usize, slot: usize) -> Option<Self> {
         Some(Self {
             document: NonZeroUsize::new(document)?,
@@ -185,16 +184,23 @@ impl OwnedNodeId {
     }
 }
 
-/// The content category of a node in an owned document.
+/// The kind of an [`OwnedNode`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum OwnedNodeKind {
+    /// The synthetic document root.
     Document,
+    /// The document type declaration.
     DocumentType,
+    /// An element.
     Element,
+    /// Character data.
     Text,
+    /// A CDATA section.
     Cdata,
+    /// A comment.
     Comment,
+    /// A processing instruction.
     ProcessingInstruction,
     /// A kept general entity reference (`XML_ENTITY_REF_NODE`); its children
     /// are the replacement text's nodes.
@@ -476,15 +482,24 @@ impl Pool {
     }
 }
 
-/// An XML tree that owns its logical strings as UTF-8.
+/// An editable XML tree that owns its strings.
 ///
-/// Nodes and attributes contain ranges into one string pool, so moving the
-/// document or growing its storage creates no self-references. Parsing,
-/// traversal and destruction are iterative. Source bytes are not retained.
+/// Parsing, traversal and dropping never recurse; the source is not kept.
+/// Change it through an [`Editor`] from [`edit`](Self::edit). `A` holds node
+/// and attribute storage: the global heap unless the `allocator_api`
+/// feature's `parse_in` or `create_in` chose another allocator.
 ///
-/// `A` holds node and attribute storage. It is always the global heap unless
-/// the `allocator_api` feature (Rust 1.100) enables
-/// `parse_in` and `create_in`.
+/// ```
+/// use yaxml::OwnedDocument;
+///
+/// let document = {
+///     let input = String::from("<root a='value'>text</root>");
+///     OwnedDocument::parse(&input)?
+/// };
+/// assert_eq!(document.root_element().name().unwrap().local(), "root");
+/// assert_eq!(document.root_element().first_child().unwrap().text(), Some("text"));
+/// # Ok::<(), yaxml::Error>(())
+/// ```
 #[derive(Debug)]
 pub struct OwnedDocument<A: Allocator = Global> {
     identity: NonZeroUsize,
@@ -516,11 +531,8 @@ pub struct OwnedDocument<A: Allocator = Global> {
 }
 
 impl OwnedDocument {
-    /// Creates a complete owned document containing one constructed root element.
-    ///
-    /// Initial namespace declarations and attributes become part of the root's
-    /// attribute range; `Editor::set_attribute`, `remove_attribute` and
-    /// `declare_namespace` change it later.
+    /// A new document whose document element is `root` (`xmlNewDoc` plus
+    /// `xmlDocSetRootElement`).
     ///
     /// ```
     /// use yaxml::{EditLimits, ElementSpec, NameSpec, OwnedDocument, PrefixPolicy, Writer};
@@ -559,23 +571,25 @@ impl OwnedDocument {
         construction::create(root, limits, Global)
     }
 
+    /// Parses UTF-8 XML with default options.
     pub fn parse(input: &str) -> Result<Self, Error> {
         Self::parse_bytes(input.as_bytes())
     }
 
-    /// Parses UTF-8, UTF-16 or declared single-byte XML independently of the source's lifetime.
+    /// Parses UTF-8, UTF-16 or a declared single-byte encoding with default
+    /// options.
     pub fn parse_bytes(input: &[u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }
 
-    /// Parses with aggregate string accounting for parser normalization and
-    /// full new pool-capacity requests. Owned storage can exhaust this budget
-    /// before the borrowing DOM; metadata and allocator overhead are separate.
+    /// Parses with custom limits and no flags. Owned strings count against
+    /// [`Limits::max_owned_bytes`], so this can fail where a
+    /// [`Document`](crate::Document) succeeds.
     pub fn with_limits(input: &[u8], limits: Limits) -> Result<Self, Error> {
         Self::with_decode_limits(input, limits, DecodeLimits::default())
     }
 
-    /// Parses UTF-8 or UTF-16 while bounding source, decoded and retained bytes.
+    /// Parses with custom parse and decode limits and no flags.
     pub fn with_decode_limits(
         input: &[u8],
         limits: Limits,
@@ -593,8 +607,9 @@ impl OwnedDocument {
     }
 
     /// Parses with libxml2 parser options; see [`crate::options`]. With
-    /// `XINCLUDE` the result is [`xinclude::process`](crate::xinclude::process)ed
-    /// through the same resolver; its failures are `ErrorKind::XInclude`.
+    /// `XINCLUDE`, the result goes through
+    /// [`xinclude::process`](crate::xinclude::process) with the same
+    /// resolver, and its failures are [`ErrorKind::XInclude`].
     pub fn parse_with(input: &[u8], options: ParseOptions) -> Result<Self, Error> {
         let (mut document, flags, include) = Self::parse_tree(input, options, 0, Global)?;
         if let Some((resolver, base, limits)) = include {
@@ -622,16 +637,17 @@ type Include = (Box<dyn crate::Resolver>, String, Limits);
 
 #[cfg(feature = "allocator_api")]
 impl<A: Allocator + Clone> OwnedDocument<A> {
-    /// Parses like [`parse_with`](OwnedDocument::parse_with), charging node and
-    /// attribute storage to `allocator`; each growth is a fallible reservation
-    /// reported as [`ErrorKind::Allocation`]. The string pool and the other
-    /// allocations listed in `docs/owned-dom.md` stay on the global heap.
-    /// `XINCLUDE` is [`ErrorKind::UnsupportedOption`]: its result tree is
-    /// built on the global heap.
+    /// [`parse_with`](OwnedDocument::parse_with), with node and attribute
+    /// storage in `allocator`. The string pool stays on the global heap
+    /// ([details](https://github.com/pbdeuchler/yaxml/blob/main/docs/owned-dom.md)).
     ///
-    /// Each storage vector holds a clone of `allocator`; pass `&A` to share one
-    /// allocator by reference, or `Arc<dyn Allocator + Send + Sync>` for one
-    /// erased, owned type.
+    /// Each storage vector holds a clone of `allocator`: pass `&A` to share
+    /// one, or `Arc<dyn Allocator + Send + Sync>` for an erased type.
+    ///
+    /// # Errors
+    ///
+    /// A failed reservation is [`ErrorKind::Allocation`]; `XINCLUDE` is
+    /// [`ErrorKind::UnsupportedOption`].
     ///
     /// ```
     /// use std::alloc::System;
@@ -887,7 +903,8 @@ impl<A: Allocator> OwnedDocument<A> {
         &self.ids
     }
 
-    /// Returns the synthetic root, including surrounding comments and PIs.
+    /// The synthetic document root, parent of the document element and of
+    /// the comments and PIs around it.
     pub fn root(&self) -> OwnedNode<'_, A> {
         self.view(NodeId(0)).expect("owned document root is live")
     }
@@ -905,7 +922,8 @@ impl<A: Allocator> OwnedDocument<A> {
         (self.root_element != NodeId(0)).then(|| self.root_element())
     }
 
-    /// Looks up a checked owned handle, rejecting foreign or out-of-range IDs.
+    /// The node `id` names; `None` for a foreign, removed or out-of-range
+    /// handle.
     #[inline]
     pub fn node(&self, id: OwnedNodeId) -> Option<OwnedNode<'_, A>> {
         if id.document != self.identity {
@@ -927,6 +945,7 @@ impl<A: Allocator> OwnedDocument<A> {
         )
     }
 
+    /// Every attached node in document order, the synthetic root first.
     pub fn nodes(&self) -> impl ExactSizeIterator<Item = OwnedNode<'_, A>> + '_ {
         self.root().descendants()
     }
@@ -950,13 +969,14 @@ impl<A: Allocator> OwnedDocument<A> {
         )
     }
 
+    /// The XML declaration.
     pub fn declaration(&self) -> Option<Declaration<'_>> {
         self.declaration
             .as_ref()
             .map(|declaration| declaration.view(&self.pool.0))
     }
 
-    /// Returns the document type declaration while its node remains.
+    /// The document type declaration, while its node remains.
     pub fn doctype(&self) -> Option<Doctype<'_>> {
         self.root().children().find_map(OwnedNode::doctype)
     }
@@ -1001,9 +1021,12 @@ impl<A: Allocator> OwnedDocument<A> {
         Some(&self.html.as_ref()?.decoding)
     }
 
-    /// Opens a bounded tree editor. Owned-byte, created-node and created-attribute
-    /// counters persist across editors; a ceiling below earlier expenditure is rejected.
-    /// Parsed string capacity is the baseline and is not charged again.
+    /// Opens an editor bounded by `limits`. Cumulative counters persist
+    /// across editors.
+    ///
+    /// # Errors
+    ///
+    /// A ceiling below what earlier editors already spent.
     ///
     /// ```
     /// use yaxml::{EditLimits, OwnedDocument};
@@ -1086,34 +1109,32 @@ fn xml_problem<A: Allocator>(node: OwnedNode<'_, A>) -> Option<(EditErrorKind, S
     }
 }
 
-/// Inclusive ceilings for supplied strings and cumulative editing work.
+/// Inclusive ceilings for the strings an [`Editor`] is given and its
+/// cumulative work.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct EditLimits {
-    /// UTF-8 bytes per supplied value or PI target, checked before scanning.
-    /// Default: 1 MiB.
+    /// Bytes per supplied value or PI target. Default: 1 MiB.
     pub max_value_bytes: usize,
-    /// Full new pool-capacity requests across all editors. Default: 64 MiB.
-    /// Includes earlier released buffers and failed reservation charges, but
-    /// excludes parsed baseline capacity, metadata and allocator overhead.
+    /// String-pool capacity requested across all editors, released buffers
+    /// included. Default: 64 MiB.
     pub max_owned_bytes: usize,
-    /// Successful fresh slots across all editors, never refunded by removal.
-    /// Parsed nodes are excluded. Default: 1,000,000.
+    /// Nodes created across all editors; removal refunds nothing.
+    /// Default: 1,000,000.
     pub max_created_nodes: usize,
     /// UTF-8 bytes per supplied XML name, prefix or namespace URI. Default: 1 MiB.
     pub max_name_bytes: usize,
     /// Aggregate supplied string bytes per construction call. Default: 8 MiB.
     pub max_supplied_bytes: usize,
-    /// Initial items on one constructed element, including declarations. Default: 1,024.
+    /// Initial attributes and declarations on one constructed element.
+    /// Default: 1,024.
     pub max_attributes: usize,
     /// Prospective element depth, with the document element at depth one. Default: 256.
     pub max_depth: usize,
     /// Successful initial attributes and declarations across all editors. Default: 1,000,000.
     pub max_created_attributes: usize,
-    /// Namespace lookup and comparison work per construction call. Each
-    /// element ancestor, examined attribute, and prefix candidate costs one;
-    /// compared prefix, URI, and expanded-name bytes cost their full operand
-    /// lengths. Caller-string validation is charged to `max_supplied_bytes`.
+    /// Namespace lookup work per construction call: one per ancestor,
+    /// attribute and prefix candidate examined, plus the bytes compared.
     /// Default: 64 MiB.
     pub max_namespace_work: usize,
 }
@@ -1161,7 +1182,9 @@ pub struct NamespaceSpec<'a> {
 /// An ordered initial namespace declaration or ordinary attribute.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ElementItem<'a> {
+    /// A namespace declaration.
     Namespace(NamespaceSpec<'a>),
+    /// An ordinary attribute.
     Attribute(AttributeSpec<'a>),
 }
 
@@ -1175,6 +1198,7 @@ pub struct ElementSpec<'a> {
 }
 
 impl EditLimits {
+    /// The default ceilings.
     pub const DEFAULT: Self = Self {
         max_value_bytes: 1024 * 1024,
         max_owned_bytes: 64 * 1024 * 1024,
@@ -1194,25 +1218,40 @@ impl Default for EditLimits {
     }
 }
 
-/// Exclusive, atomic edits: values, creation, moves, unlink and replacement,
-/// attribute membership, names and namespaces, removal and compaction (see
-/// `docs/owned-dom.md`). Every failure leaves the tree unchanged.
-/// An editor remains usable after an error. Parsed nodes keep their
-/// provenance; created nodes have no original source location.
-/// Dropping an editor performs no work. Equal replacements take the edit path.
+/// Exclusive access for editing an [`OwnedDocument`], from
+/// [`OwnedDocument::edit`].
+///
+/// Every edit is atomic: a failure leaves the tree unchanged and the editor
+/// usable. Edits keep every prefix declared where it is used. Created nodes
+/// have no source range. See the
+/// [owned DOM contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/owned-dom.md).
+///
+/// ```
+/// use yaxml::{EditLimits, OwnedDocument};
+///
+/// let mut document = OwnedDocument::parse("<r>text</r>")?;
+/// let root = document.root_element().id();
+/// let text = document.root_element().first_child().unwrap().id();
+/// let mut editor = document.edit(EditLimits::default())?;
+/// let note = editor.append_comment(root, "reviewed")?;
+/// assert_eq!(editor.document().node(note).unwrap().range(), None);
+/// editor.remove_subtree(text)?;
+/// assert!(editor.document().node(text).is_none());
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub struct Editor<'document, A: Allocator = Global> {
     document: &'document mut OwnedDocument<A>,
     limits: EditLimits,
 }
 
 impl<A: Allocator> Editor<'_, A> {
+    /// The document being edited.
     pub fn document(&self) -> &OwnedDocument<A> {
         self.document
     }
 
-    /// Appends a fresh element with its initial attributes and namespace declarations.
-    /// Later membership changes use `set_attribute`, `remove_attribute` and
-    /// `declare_namespace`.
+    /// Appends a new element, with its initial attributes and namespace
+    /// declarations, as `parent`'s last child.
     pub fn append_element(
         &mut self,
         parent: OwnedNodeId,
@@ -1221,7 +1260,8 @@ impl<A: Allocator> Editor<'_, A> {
         construction::append(self, parent, element)
     }
 
-    /// Appends one fresh Text node under an element, without merging neighbors.
+    /// Appends a Text node under an element, without merging it with a
+    /// neighbor.
     pub fn append_text(
         &mut self,
         parent: OwnedNodeId,
@@ -1230,7 +1270,7 @@ impl<A: Allocator> Editor<'_, A> {
         self.append_leaf(parent, ValueKind::Text, None, value)
     }
 
-    /// Appends one fresh CDATA node under an element. Raw CR and `]]>` fail.
+    /// Appends a CDATA node under an element; a raw CR or `]]>` fails.
     pub fn append_cdata(
         &mut self,
         parent: OwnedNodeId,
@@ -1249,11 +1289,7 @@ impl<A: Allocator> Editor<'_, A> {
     }
 
     /// Appends a PI under an element or after the document's epilog tail.
-    /// The target is an XML Name without a colon and cannot be any ASCII case
-    /// spelling of `xml`. Target failures index target; data failures index data.
-    /// Both string lengths are checked before either string is scanned.
-    /// Target and data share one pool reservation: on a parsed `<r/>` with one
-    /// pool byte, appending target `p` and data `d` charges capacity 3 once.
+    /// The target is a colon-free Name other than `xml` in any case.
     pub fn append_processing_instruction(
         &mut self,
         parent: OwnedNodeId,
@@ -1343,9 +1379,9 @@ impl<A: Allocator> Editor<'_, A> {
         })
     }
 
-    /// Permanently removes a node and all descendants without allocating.
-    /// The synthetic root and document element are protected. Removed handles
-    /// never become live again; slot and pool expenditure is not refunded.
+    /// Permanently removes a node and its descendants, without allocating;
+    /// their handles stay dead. The synthetic root and document element
+    /// cannot be removed.
     pub fn remove_subtree(&mut self, node: OwnedNodeId) -> Result<(), EditError> {
         let index = self.resolve(node)?;
         if index == 0 || NodeId(index) == self.document.root_element {
@@ -1368,9 +1404,10 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(node.slot.0)
     }
 
-    /// Replaces Text, CDATA, Comment or PI data; PI targets remain unchanged.
-    /// Non-text lexical values reject raw CR and their closing delimiters.
-    /// Comments also reject a trailing dash; PI data rejects leading XML space.
+    /// Replaces the value of a Text, CDATA, comment or PI node
+    /// (`xmlNodeSetContent`). Values that cannot be serialized (a raw CR or
+    /// closing delimiter outside Text, a comment's trailing `-`, PI data's
+    /// leading space) fail.
     pub fn set_node_value(&mut self, node: OwnedNodeId, value: &str) -> Result<(), EditError> {
         let index = self.resolve(node)?;
         let (target, kind) = match &mut self.document.nodes[index].content {
@@ -1396,9 +1433,13 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
-    /// Replaces one existing attribute by expanded name, retaining its spelling
-    /// and position. Some("") differs from None; selector names are not parsed.
-    /// Missing attributes and XMLNS declaration edits are rejected.
+    /// Replaces the value of an existing attribute, selected by expanded name
+    /// (`Some("")` and `None` are different namespaces). Its spelling and
+    /// position are kept.
+    ///
+    /// # Errors
+    ///
+    /// A missing attribute or a namespace declaration.
     pub fn set_attribute_value(
         &mut self,
         element: OwnedNodeId,
@@ -2229,6 +2270,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         self.record
     }
 
+    /// The node's handle.
     pub fn id(self) -> OwnedNodeId {
         OwnedNodeId {
             document: self.document.identity,
@@ -2236,6 +2278,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         }
     }
 
+    /// The node's kind.
     #[inline]
     pub fn kind(self) -> OwnedNodeKind {
         match &self.record().content {
@@ -2251,6 +2294,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         }
     }
 
+    /// An element's name; `None` for other kinds.
     #[inline]
     pub fn name(self) -> Option<Name<'document>> {
         match &self.record().content {
@@ -2267,8 +2311,8 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         }
     }
 
-    /// Returns the direct Text, CDATA, comment or PI payload, without joining
-    /// descendant text. Elements and the document root return None.
+    /// A Text, CDATA, comment or PI payload; `None` for other kinds. See
+    /// [`content`](Self::content) for an element's text.
     #[inline]
     pub fn text(self) -> Option<&'document str> {
         let range = match &self.record().content {
@@ -2279,13 +2323,11 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         Some(&self.document.pool.0[range.clone()])
     }
 
-    /// Visits the node's string value as borrowed chunks without allocating.
+    /// The node's string value as borrowed chunks, without allocating.
     ///
-    /// Documents and elements yield descendant Text/CDATA payloads in document
-    /// order, ignoring comments and PIs. Leaves yield their own payload once,
-    /// including an empty payload. Adjacent and empty Text/CDATA nodes remain
-    /// distinct chunks; `text()` still returns only a direct leaf payload.
-    /// An iterator's shared borrow prevents editing while it remains in use:
+    /// Containers yield descendant Text/CDATA in document order; leaves yield
+    /// their own payload once, even when empty. The iterator borrows the
+    /// document, so it cannot outlive an edit:
     ///
     /// ```compile_fail
     /// use yaxml::{EditLimits, OwnedDocument};
@@ -2314,7 +2356,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         }
     }
 
-    /// Returns a document type node's declaration.
+    /// A document type node's declaration.
     pub fn doctype(self) -> Option<Doctype<'document>> {
         match &self.record().content {
             Content::DocumentType(doctype) => Some(doctype.view(&self.document.pool.0)),
@@ -2345,6 +2387,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         ))
     }
 
+    /// A PI's target; `None` for other kinds.
     pub fn processing_instruction_target(self) -> Option<&'document str> {
         match &self.record().content {
             Content::ProcessingInstruction { target, .. } => {
@@ -2354,8 +2397,8 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         }
     }
 
-    /// Visits attributes in source order, including namespace declarations.
-    /// Each view borrows the pool without allocating.
+    /// An element's attributes in source order, namespace declarations
+    /// included.
     #[inline]
     pub fn attributes(self) -> impl ExactSizeIterator<Item = Attribute<'document>> + 'document {
         let range = match &self.record().content {
@@ -2380,12 +2423,10 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
                 .is_none_or(|html| html.valueless.binary_search(&index).is_err())
     }
 
-    /// The attribute at `position` as libxml2 keeps it when parsing without
-    /// `NOENT` (the attribute's text and entity-reference children, which
-    /// `save` writes): `&name;` for each kept general entity reference, `&#38;`
-    /// for a literal `&`, other references resolved. `None` when it kept no
-    /// reference, the usual case; [`attributes`](Self::attributes) always has
-    /// the substituted value, which XPath, validation and C14N use.
+    /// The attribute at `position` with its general entity references kept
+    /// (`&name;`, a literal `&` as `&#38;`), as libxml2 keeps it without
+    /// `NOENT` and [`save`](crate::save) writes it; `None` when it has none.
+    /// [`attributes`](Self::attributes) holds the substituted value.
     ///
     /// ```
     /// use yaxml::{OwnedDocument, ParseOptions, options::NOENT};
@@ -2411,22 +2452,22 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         Some(&self.document.pool.0[kept[found].1.clone()])
     }
 
-    /// Original source location, independent of current logical content and
-    /// pool storage. Parsed nodes retain their origins; constructed nodes have
-    /// no source provenance. This cannot index the owned string pool. An HTML
-    /// node's origin is the empty range, in the decoded text, where libxml2
-    /// takes its line (see docs/html.md).
+    /// The node's input span; `None` for created nodes and entity content.
+    /// An HTML node's span is empty, at the decoded-text offset whose line
+    /// libxml2 records.
     #[inline]
     pub fn range(self) -> Option<Range<usize>> {
         self.origin().and_then(SourceOrigin::input_range)
     }
 
-    /// Parsed origin; constructed nodes have no parsed provenance.
+    /// Where the node came from in the input; `None` for created nodes.
     #[inline]
     pub fn origin(self) -> Option<SourceOrigin> {
         self.record().source
     }
 
+    /// The parent; `None` for the synthetic root and a detached subtree's
+    /// root.
     pub fn parent(self) -> Option<Self> {
         self.record()
             .parent
@@ -2434,6 +2475,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
             .and_then(|id| self.document.view(id))
     }
 
+    /// The first child.
     pub fn first_child(self) -> Option<Self> {
         self.record()
             .first_child
@@ -2441,6 +2483,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
             .and_then(|id| self.document.view(id))
     }
 
+    /// The last child.
     pub fn last_child(self) -> Option<Self> {
         self.record()
             .last_child
@@ -2448,6 +2491,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
             .and_then(|id| self.document.view(id))
     }
 
+    /// The next sibling.
     pub fn next_sibling(self) -> Option<Self> {
         self.record()
             .next_sibling
@@ -2455,6 +2499,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
             .and_then(|id| self.document.view(id))
     }
 
+    /// The previous sibling.
     pub fn previous_sibling(self) -> Option<Self> {
         self.record()
             .previous_sibling
@@ -2462,6 +2507,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
             .and_then(|id| self.document.view(id))
     }
 
+    /// The children in document order.
     pub fn children(self) -> impl Iterator<Item = Self> + 'document {
         std::iter::successors(self.first_child(), |node| node.next_sibling())
     }
@@ -2559,7 +2605,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         tree::ns_list(self.document, self.id())
     }
 
-    /// Visits this node and its descendants in preorder without recursion.
+    /// This node and its descendants in document order.
     #[inline]
     pub fn descendants(self) -> impl ExactSizeIterator<Item = Self> + 'document {
         let count = self.record().subtree_size;

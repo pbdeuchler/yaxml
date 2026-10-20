@@ -29,33 +29,60 @@ pub enum ResourceKind {
     RelaxNg,
 }
 
-/// One load request.
+/// One load request passed to a [`Resolver`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Request<'a> {
+    /// What the identifier names.
     pub kind: ResourceKind,
     /// The system identifier resolved against the base of the resource that
     /// declared it (the document's base for the subset and internal declarations).
     pub uri: &'a str,
+    /// The public identifier, if declared.
     pub public_id: Option<&'a str>,
-    /// Bytes left under `Limits::max_external_bytes`; a longer response fails
-    /// with `LimitExceeded(ExternalBytes)`, so read at most one byte more.
+    /// Bytes left under [`Limits::max_external_bytes`]; a longer response
+    /// fails with [`Limit::ExternalBytes`], so read at most one byte more.
     pub max_bytes: usize,
 }
 
-/// Supplies external resources. Without one, nothing is ever loaded.
+/// Supplies external resources; without one, nothing is ever loaded.
 ///
-/// `Ok(None)` declines, like libxml2's missing-file warning: the subset is
-/// skipped and an entity reference expands to nothing. `Err` aborts parsing
-/// with [`ErrorKind::ExternalResource`]. Closures implement this trait.
+/// libxml2's custom resource loader. It is passed in
+/// [`ParseOptions`](crate::ParseOptions), whose flags decide what is
+/// requested: `DTDLOAD` the external subset, `NOENT` or `DTDVALID` external
+/// entities, never anything with `NO_XXE`. Loads are bounded by
+/// [`Limits::max_external_loads`] and [`Limits::max_external_bytes`].
+/// Closures implement this trait.
+///
+/// ```
+/// use yaxml::{Document, ParseOptions, Request, options};
+///
+/// let dtd = "<!ATTLIST r id ID #IMPLIED><!ENTITY e 'loaded'>";
+/// let resolver = move |request: Request<'_>| {
+///     Ok((request.uri == "dtd/r.dtd").then(|| dtd.as_bytes().to_vec()))
+/// };
+/// let options = ParseOptions::new(options::DTDLOAD | options::NOENT)
+///     .with_resolver("dtd/doc.xml", Box::new(resolver));
+/// let document = Document::parse_with(b"<!DOCTYPE r SYSTEM 'r.dtd'><r id='a'>&e;</r>", options)?;
+/// let element = document.element_by_id("a").unwrap();
+/// assert_eq!(element.text_chunks().collect::<String>(), "loaded");
+/// # Ok::<(), yaxml::Error>(())
+/// ```
 pub trait Resolver: Send {
+    /// Loads one resource.
+    ///
+    /// # Errors
+    ///
+    /// `Ok(None)` declines, like libxml2's missing-file warning: the subset
+    /// is skipped and an entity reference expands to nothing. `Err` aborts
+    /// parsing with [`ErrorKind::ExternalResource`].
     fn resolve(&mut self, request: Request<'_>) -> io::Result<Option<Vec<u8>>>;
 
-    /// Called with the `catalog` of each `<?oasis-xml-catalog catalog="..."?>`
-    /// processing instruction the document has outside its DTD, when
-    /// `options::CATALOG_PI` is set (libxml2's `xmlCatalogAddLocal`). A
-    /// resolver that maps identifiers through catalogs may use it for the rest
-    /// of the parse; the default ignores it, so nothing happens unless the
-    /// caller chose a resolver that acts on it ([`crate::catalog::CatalogResolver`]).
+    /// Receives the `catalog` of each `<?oasis-xml-catalog?>` instruction
+    /// outside the DTD when [`CATALOG_PI`](crate::options::CATALOG_PI) is
+    /// set (libxml2's `xmlCatalogAddLocal`).
+    ///
+    /// The default ignores it; [`CatalogResolver`](crate::catalog::CatalogResolver)
+    /// uses it for the rest of the parse.
     fn catalog_pi(&mut self, catalog: &str) {
         let _ = catalog;
     }
@@ -78,6 +105,11 @@ pub struct FileResolver {
 }
 
 impl FileResolver {
+    /// A resolver confined to the directory `root`.
+    ///
+    /// # Errors
+    ///
+    /// `root` cannot be canonicalized or is not a directory.
     pub fn new(root: impl AsRef<Path>) -> io::Result<Self> {
         let root = root.as_ref().canonicalize()?;
         if !root.is_dir() {

@@ -66,6 +66,7 @@ pub struct Limits {
 setters!(const Limits { max_loads: usize, max_bytes: usize, max_depth: usize, max_local: usize });
 
 impl Limits {
+    /// The defaults: 64 loads, 16 MiB, depth 50 and 64 local catalogs.
     pub const DEFAULT: Self = Self {
         max_loads: 64,
         max_bytes: 1 << 24,
@@ -1179,6 +1180,7 @@ pub struct CatalogResolver {
 }
 
 impl CatalogResolver {
+    /// Maps requests through `catalog`, then passes them to `inner`.
     pub fn new(catalog: Catalog, inner: Box<dyn Resolver>) -> Self {
         Self { catalog, inner }
     }

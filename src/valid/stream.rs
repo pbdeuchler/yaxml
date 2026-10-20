@@ -5,27 +5,25 @@ use super::{Code, Diagnostic, Dtd};
 use crate::xpath::tree::QName;
 use crate::{Event, SourceOrigin};
 
-/// Validates one document against its DTD from its parser events, as
-/// libxml2's reader does with `XML_PARSER_VALIDATE` (`xmllint --stream
-/// --valid`): feed it every event of a [`Reader`](crate::Reader),
-/// [`PushParser`](crate::PushParser) or [`BufferedReader`](crate::BufferedReader)
-/// with its origin, then [`finish`](Self::finish). Memory is one frame (a
-/// declaration and a content-model state) per open element, the ID values and
-/// the IDREF attributes, all bounded by the parser's
-/// [`Limits`](crate::Limits).
+/// A DTD validator for one document fed as events, like libxml2's reader
+/// with `XML_PARSER_VALIDATE` (`xmllint --stream --valid`).
 ///
-/// Diagnostics come in document order, as soon as they are known; `node` is
-/// the element's index in document order. They are the tree's
-/// ([`Document::validate`](crate::Document::validate)), except that a content
-/// model mismatch is worded as libxml2's push validator words it (`Misplaced
-/// b`, `Text not allowed`, `Expecting more children`) and reported at the
-/// child or end tag that shows it, and a DTD that declares nothing is
-/// libxml2's `Validation failed: no DTD found !`, as the parser reports it.
+/// Feed it every event of a [`Reader`](crate::Reader),
+/// [`PushParser`](crate::PushParser) or
+/// [`BufferedReader`](crate::BufferedReader) with its origin, then
+/// [`finish`](Self::finish). Memory is one frame per open element plus the
+/// IDs and IDREFs, bounded by the parser's [`Limits`](crate::Limits).
 ///
-/// The DTD is the one [`set_dtd`](Self::set_dtd) supplies: a reader's
-/// [`dtd`](crate::BufferedReader::dtd), with the external subset it loaded and
-/// the validity errors the parser finds (standalone and undeclared-entity
-/// checks). Without one, the internal subset of the DOCTYPE event is used.
+/// Diagnostics arrive in document order as soon as they are known, with
+/// `node` the element's index in document order. They match
+/// [`Document::validate`](crate::Document::validate), except that content
+/// model mismatches use libxml2's push wording (`Misplaced b`, `Text not
+/// allowed`, `Expecting more children`) at the child or end tag that shows
+/// them, and an empty DTD is `Validation failed: no DTD found !`.
+///
+/// The DTD is the one [`set_dtd`](Self::set_dtd) supplies, normally the
+/// reader's [`dtd`](crate::BufferedReader::dtd); without one, the internal
+/// subset of the DOCTYPE event.
 ///
 /// ```
 /// use yaxml::{BufferedReader, valid::{Code, StreamValidator}};
@@ -88,12 +86,11 @@ impl StreamValidator {
         Self::default()
     }
 
-    /// Supplies the document's DTD, as its reader holds it after an event.
-    /// Until the document element's start tag is checked, each call copies
-    /// the declarations (a parser loads the external subset while reading
-    /// that tag); afterwards a call only reports the validity errors the
-    /// parser recorded in the DTD since. So a caller passes its reader's DTD
-    /// after every event, as [`TextReader`](crate::TextReader) does.
+    /// Supplies the document's DTD as its reader holds it; call it after
+    /// every event, as [`TextReader`](crate::TextReader) does. Declarations
+    /// are taken until the document element is checked (the external subset
+    /// loads while that tag is read); later calls only add the validity
+    /// errors the parser has recorded since.
     pub fn set_dtd(&mut self, dtd: &Dtd) {
         if self.validator.elements() > 0 {
             return self.validator.issues(dtd);

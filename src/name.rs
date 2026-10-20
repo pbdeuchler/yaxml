@@ -3,14 +3,22 @@ use std::num::NonZeroUsize;
 
 use crate::{Error, ErrorKind};
 
-/// A lexical QName and its namespace metadata, borrowing or owning its strings.
+/// A validated QName and its namespace URI, borrowing or owning its strings.
 ///
-/// The QName is validated at construction. Namespace metadata is preserved as
-/// supplied; its consistency with an element's namespace scope is checked by
-/// the parser or writer. Getter results borrow this view, even when its strings
-/// originated in a longer-lived input.
+/// The namespace is kept as supplied, `Some("")` included; the parser or
+/// [`Writer`](crate::Writer) checks it against the namespace scope.
 ///
-/// Keep the name alive while using a getter's result:
+/// ```
+/// use std::borrow::Cow;
+/// use yaxml::Name;
+///
+/// let name = Name::new(String::from("p:item"), Some(Cow::Borrowed("urn:example")))?;
+/// assert_eq!((name.prefix(), name.local()), (Some("p"), "item"));
+/// assert_eq!(name.namespace(), Some("urn:example"));
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+///
+/// Getter results borrow the name, not its source:
 ///
 /// ```compile_fail
 /// let local = {
@@ -27,9 +35,11 @@ pub struct Name<'a> {
 }
 
 impl<'a> Name<'a> {
-    /// Validates a QName without copying borrowed input or a supplied owned buffer.
-    /// Errors identify a UTF-8 byte offset relative to the start of the QName.
-    /// Namespace metadata is not resolved or validated against a scope here.
+    /// Validates `qualified` as a QName, without copying it.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorKind::InvalidName`] with the byte offset into `qualified`.
     pub fn new(
         qualified: impl Into<Cow<'a, str>>,
         namespace: Option<Cow<'a, str>>,
@@ -44,18 +54,18 @@ impl<'a> Name<'a> {
         ))
     }
 
-    /// Returns the complete lexical spelling.
+    /// The full `prefix:local` spelling.
     pub fn qualified(&self) -> &str {
         &self.qualified
     }
 
-    /// Returns the lexical prefix when present.
+    /// The prefix, if any.
     pub fn prefix(&self) -> Option<&str> {
         self.prefix_length
             .map(|length| &self.qualified[..length.get()])
     }
 
-    /// Returns the local part of the QName.
+    /// The local part.
     pub fn local(&self) -> &str {
         match self.prefix_length {
             Some(length) => &self.qualified[length.get() + 1..],
@@ -63,7 +73,7 @@ impl<'a> Name<'a> {
         }
     }
 
-    /// Returns namespace metadata as supplied or resolved, including an empty URI.
+    /// The namespace URI, as supplied or resolved.
     pub fn namespace(&self) -> Option<&str> {
         self.namespace.as_deref()
     }

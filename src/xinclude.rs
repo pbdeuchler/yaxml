@@ -82,6 +82,7 @@ pub struct Options {
 setters!(const Options { base_fixup: bool, lang_fixup: bool, max_depth: usize, limits: Limits, xpath: xpath::Limits, parse_flags: u32 });
 
 impl Options {
+    /// libxml2's `XML_PARSE_XINCLUDE` behavior.
     pub const DEFAULT: Self = Self {
         base_fixup: true,
         lang_fixup: false,
@@ -98,12 +99,14 @@ impl Default for Options {
     }
 }
 
-/// An XInclude failure in the document `uri`, at the failing element's
-/// source `offset` when it has one.
+/// An XInclude failure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Error {
+    /// What went wrong.
     pub kind: ErrorKind,
+    /// The document holding the failing element.
     pub uri: String,
+    /// The failing element's source offset in that document, when it has one.
     pub offset: Option<usize>,
 }
 
@@ -159,13 +162,12 @@ pub enum ErrorKind {
 }
 
 /// Replaces every `xi:include` in `document`, whose URI is `base`, and
-/// returns the result. Resources load only through `resolver`.
+/// returns the result (`xmlXIncludeProcess`).
 ///
-/// Each failure libxml2 counts as an error fails the call; a resource that
-/// cannot be loaded uses its `xi:fallback`. Documents and texts are loaded
-/// once per call and cached by URI. No `XINCLUDE_START`/`END` marker nodes
-/// are produced (libxml2's `XML_PARSE_NOXINCNODE` tree), adjacent Text nodes
-/// are not merged, and namespace declarations precede other attributes.
+/// A resource that cannot be loaded uses its `xi:fallback`; any other
+/// libxml2 error fails the call. Each URI is loaded once per call. The
+/// result has no `XINCLUDE_START`/`END` nodes (as with
+/// `XML_PARSE_NOXINCNODE`), and adjacent Text nodes are not merged.
 pub fn process(
     document: &OwnedDocument,
     base: &str,
