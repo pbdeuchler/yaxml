@@ -80,8 +80,12 @@ pub trait Navigate {
     fn ids(&self) -> &[(Self::Id, usize)];
     /// Whether a text item is a CDATA section.
     fn is_cdata(&self, id: Self::Id) -> bool;
+    /// The node's source range.
+    fn range(&self, id: Self::Id) -> Option<std::ops::Range<usize>>;
     /// The start of the node's source range.
-    fn offset(&self, id: Self::Id) -> Option<usize>;
+    fn offset(&self, id: Self::Id) -> Option<usize> {
+        self.range(id).map(|range| range.start)
+    }
     /// Content XML output cannot represent (only possible in HTML documents).
     fn xml_violation(&self) -> Option<String> {
         None
@@ -153,8 +157,8 @@ impl Navigate for Document<'_> {
             .is_some_and(|node| matches!(node.kind(), NodeKind::Cdata(_)))
     }
 
-    fn offset(&self, id: NodeId) -> Option<usize> {
-        Some(self.node(id)?.range()?.start)
+    fn range(&self, id: NodeId) -> Option<std::ops::Range<usize>> {
+        self.node(id)?.range()
     }
 
     fn dtd(&self) -> Option<&Dtd> {
@@ -231,8 +235,8 @@ impl<A: crate::allocator::Allocator> Navigate for OwnedDocument<A> {
             .is_some_and(|node| node.kind() == OwnedNodeKind::Cdata)
     }
 
-    fn offset(&self, id: OwnedNodeId) -> Option<usize> {
-        Some(self.node(id)?.range()?.start)
+    fn range(&self, id: OwnedNodeId) -> Option<std::ops::Range<usize>> {
+        self.node(id)?.range()
     }
 
     fn dtd(&self) -> Option<&Dtd> {

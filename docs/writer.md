@@ -142,17 +142,32 @@ usual behavior, so dropping a `BufWriter` can still flush its buffer.
 
 ## libxml2 tree output (`save`)
 
-`yaxml::save::to_vec(tree, &options)` reproduces libxml2 2.15.4's `xmlsave.c`.
-`tree` is a document (`&Document`, `&OwnedDocument`) or any node of either DOM
-(`Node`, `OwnedNode`). A document node is `xmlSaveDoc`: declaration, then each
-top-level node and a newline. Another node is `xmlSaveTree`/`xmlNodeDump`, with
-no declaration. Namespaces the subtree uses but does not declare are added to
-its root in first-use order, as on an `xmlDocCopyNode` copy, so an element
-subtree is a namespace-well-formed document. Output is built in memory; the
-walk is iterative. Unlike `Writer`, `save` does not validate events and follows
-libxml2's spelling exactly.
+`yaxml::save::to_writer(tree, &options, sink)` reproduces libxml2 2.15.4's
+`xmlsave.c` over any `std::io::Write` (`xmlSaveToIO`, `xmlSaveToFd`);
+`save::to_vec(tree, &options)` is `to_writer` into a `Vec`, so there is one
+serializer. `tree` is a document (`&Document`, `&OwnedDocument`) or any node
+of either DOM (`Node`, `OwnedNode`). A document node is `xmlSaveDoc`:
+declaration, then each top-level node and a newline. Another node is
+`xmlSaveTree`/`xmlNodeDump`, with no declaration. Namespaces the subtree uses
+but does not declare are added to its root in first-use order, as on an
+`xmlDocCopyNode` copy, so an element subtree is a namespace-well-formed
+document. The walk is iterative. Unlike `Writer`, `save` does not validate
+events and follows libxml2's spelling exactly.
 
-`Options { flags, encoding, indent }` carries libxml2's `xmlSaveOption` values:
+Output is encoded into a buffer that is handed to the sink whenever it holds
+`save::CHUNK` (32 KiB) bytes, checked between nodes, so memory is bounded by
+the chunk plus one node's markup or text, not by the output; the sink is
+flushed at the end. An I/O failure returns the sink's `WriteError::Io`; XML
+failures are `WriteError::Xml`, and option and encoding errors come before any
+I/O. A character an encoding cannot write in markup (`InvalidCharacter`)
+stops output at the chunk that holds it, as libxml2's `buf->error` stops its
+writes; the sink can hold the chunks before it. The HTML serializer streams
+the same way.
+
+`Options { flags, encoding, indent, level }` carries libxml2's `xmlSaveOption`
+values, the indent string and `xmlNodeDump`'s starting `level` (clamped to 100
+as there; documents always start at 0, and indentation still stops at 60
+columns):
 
 | Flag | Behavior |
 | --- | --- |
@@ -209,7 +224,18 @@ XHTML output adds `xmlns="http://www.w3.org/1999/xhtml"` to a namespace-free
 others, expands empty boolean attributes (`checked="checked"`), copies `name`
 to `id` (C.8) and pairs `lang`/`xml:lang` (C.7), and adds a Content-Type
 `<meta>` to a top-level `head` without one. Subtrees use XHTML rules only with
-the `XHTML` flag; HTML subtrees need `AS_XML`.
+the `XHTML` flag. Nodes of an HTML document, and any owned node under
+`AS_HTML`, use the HTML serializer from that node (`htmlNodeDumpOutputInternal`
+and `htmlNodeDumpInternal`), in the given encoding, else the document's, else
+libxml2's "HTML" converter (ASCII with HTML 4 entities); `AS_XML` writes them
+as XML. The borrowed DOM has no HTML serializer: `AS_HTML` on it is
+`UnsupportedOption`.
+
+`xmlSaveSetEscape` is not ported. In 2.15.4 it is deprecated ("Don't use"); it
+still replaces the escaping of text nodes only (`xmlOutputBufferWriteEscape`),
+while `xmlSaveSetAttrEscape` has no effect at all. A conversion callback that
+also does the encoder's job would be a second, lossy escaping path for one
+deprecated knob, and xmllint never sets it.
 
 `tests/save_oracle.rs` compares bytes with `xmllint --noent --dtdattr` (and the
 same with `--format`, `--pretty 2` and `--encode`) over the W3C XMLTS valid
@@ -246,15 +272,106 @@ after the third regression (entity-value reference names).
 M-series) measures 220-230 MiB/s for flat elements, 530 MiB/s for text,
 430-460 MiB/s for escaped text, 800-840 MiB/s for comments/CDATA/PIs and
 445-515 MiB/s for prefixed attributes, 2.5-4x the validating `Writer` on the
-same trees; `Writer` throughput is unchanged (within 3%).
+same trees; `Writer` throughput is unchanged (within 3%). Making `to_vec` a
+`to_writer` into a `Vec` changed its retired instructions by -0.18% to +1.29%
+across the five shapes and both DOMs (`/usr/bin/time -l`, 300 iterations,
+before/after binaries alternated under host load); a per-write chunk check
+had cost 2-6%, hence the check between nodes. Sink `stream` (`to_writer`
+into a counting sink, no `Vec`) runs at the same speed as `save`.
+
+## libxml2 text writer (`TextWriter`)
+
+`yaxml::TextWriter<W: Write>` is libxml2's `xmlTextWriter` (`xmlwriter.h`):
+`start_document`, `start_element`/`_ns`, `write_attribute`/`_ns` and
+`start_attribute`/`_ns`/`end_attribute`, `write_string`, `write_raw`,
+`write_base64`, `write_bin_hex`, `write_element`/`_ns`, comments, PIs, CDATA,
+`start_dtd`/`write_dtd` with element, attlist, entity (internal, external,
+contents) and notation declarations, `end_element`, `full_end_element`,
+`end_document`, `set_indent`, `set_indent_string`, `set_quote_char` and
+`flush`, one method per libxml2 function with `None` for NULL. The `*Format*`
+variants are `write_*(&format!(..))`. `xmlNewTextWriterDoc`/`Tree` (writing
+into a DOM through the push parser) are not ported.
+
+It is a second writer, not methods on `Writer`, because the two contracts
+conflict. `Writer` accepts only complete events, validates each by reparsing
+before any byte is written, and escapes `"` literally in text. libxml2's
+writer validates nothing (names, comment and PI content, `]]>`, duplicate
+attributes and nesting are written as given), accepts raw markup, builds an
+attribute or a DTD from several calls, writes unescaped strings outside
+elements and inside comments, PIs and the DTD, and escapes `"` in content.
+Matching its bytes as thin methods would mean either a second escaping and
+lifecycle inside `Writer` or rejecting call sequences libxml2 accepts. The
+text writer reuses `save`'s escape tables (`xmlEscapeTabQuot` for content,
+`xmlEscapeTabAttr` for values), its character references and output
+converters, and `Writer`'s sink loop.
+
+For the same calls it writes libxml2's bytes and fails where libxml2 returns
+-1, leaving the state and partial output libxml2 leaves. That includes the
+hard parts: an open start tag closes (namespace declarations first, newest
+first) on the next content; indentation writes the indent string once per
+open stack entry below the top, a newline after each closed construct, and
+indents an end tag only when the last content was an element (raw text,
+strings, comments and `full_end_element` clear that); `<!DOCTYPE` puts a
+newline before identifiers when indenting. Kept libxml2 behaviors: the quote
+character is not escaped in values; attribute values escape non-ASCII as
+`&#xH;` until `start_document` names an encoding; an end with nothing open
+deletes the namespace list, after which namespaced calls and every start-tag
+close fail; a namespaced attribute call that fails after checking its
+namespace still queues the declaration; `end_pi` with nothing open succeeds;
+a public identifier without a system identifier fails after `<!DOCTYPE name`
+is written. An encoding (UTF-8, UTF-16 behind a BOM, UTF-16LE/BE, US-ASCII,
+ISO-8859-x, windows-1252) converts everything after `start_document`, with
+`&#N;` for characters it lacks, also in names and comments as libxml2's
+converter does; the declaration names `UTF-8` for `UTF-8`/`UTF8` and the
+label as given otherwise.
+
+Each call's output is built in memory, checked, converted and handed to the
+sink before the call returns. libxml2 failures (`InvalidState`, `InvalidName`,
+`Namespace`, `InvalidDtd`, `InvalidDeclaration`, `UnsupportedEncoding`,
+`UnsupportedOption`) are not terminal. A limit or I/O failure is: the call's
+output is dropped and later calls return `InvalidState` without I/O. From
+`WriterLimits` it honors `max_output_bytes`, `max_token_bytes` (one call's
+encoded output), `max_depth` (open elements, comments, PIs, CDATA sections
+and DTD parts) and `max_attributes` (pending namespace declarations).
+
+Differences: libxml2 identifies an element by its list link's address, so a
+declaration queued by a failed namespaced attribute call can match a later
+element that malloc places at the same address; yaxml never reuses an
+identity. libxml2 converts output it has buffered but not flushed when a
+later `start_document` switches encodings; yaxml converts from the call on.
+yaxml accepts ISO-8859-2..16, which the pinned build lacks. Strings with NUL
+are written whole; C strings end there.
+
+`tests/text_writer_oracle.rs` replays random call scripts (misuse included,
+every operation, encodings, quote characters and indentation) and well-formed
+ones against `tooling/libxml2_textwriter.c`, comparing each call's success
+and the output bytes:
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -Itarget/oracle/build \
+  -Itarget/oracle/libxml2-2.15.4/include tooling/libxml2_textwriter.c \
+  target/oracle/build/libxml2.a -lm -lz -o target/oracle/textwriter-helper
+YAXML_TEXTWRITER_HELPER="$PWD/target/oracle/textwriter-helper" \
+  YAXML_TEXTWRITER_CASES=200000 cargo test --test text_writer_oracle -- --nocapture
+```
+
+Two seeds of 200,000 scripts (about 3 million calls each): 199,974 and
+199,970 identical (99.98%), 0 mismatches, and 26 and 30 scripts that hit the
+address-reuse difference above (a failed namespaced attribute call with a
+URI). The `writer` fuzz target replays scripts from its input, misuse
+included under small limits (no panic, output within `max_output_bytes`,
+limit failures terminal) or well-formed (output reparses): 839,582 runs (6 minutes,
+nightly-2026-10-18, `-fork=1 -timeout=2`) found no failure. The `save` target
+now also streams through short writes and saves subtrees at a level: 782,738
+runs (5.75 minutes) found no failure.
 
 ## Remaining scope
 
 The writer supports the reader's UTF-8 XML profile, explicit event output, and
-complete borrowed/owned DOM output; `save` adds libxml2's tree output.
-Namespace repair, raw XML injection, `Write`-sink and `xmlSaveTree` level
-parameters, HTML subtree output, iconv/ICU encodings and libxml2's remaining
-writer convenience APIs are pending. This is neither a canonicalizer nor a
+complete borrowed/owned DOM output; `save` adds libxml2's tree output to any
+sink and `TextWriter` libxml2's call-by-call writer. Namespace repair, raw XML
+injection into `Writer`, `xmlSaveSetEscape`, `xmlNewTextWriterDoc`/`Tree` and
+iconv/ICU encodings are pending. This is neither a canonicalizer nor a
 byte-preserving rewrite of source spelling.
 
 The pinned [libxml2 writer](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/xmlwriter.c)

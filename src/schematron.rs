@@ -7,7 +7,7 @@ use crate::xpath::tree::{
     Item, Navigate, Tree, attributes, descendants, namespaces, visible_preorder,
 };
 use crate::xpath::{self, Context, Node, Value, XPath, truthy};
-use crate::{Document, ParseOptions, Resolver, options};
+use crate::{Document, LineIndex, ParseOptions, Resolver, options};
 
 /// The ISO Schematron and Schematron 1.5 namespaces, both accepted.
 const NAMESPACES: [&str; 2] = [
@@ -259,7 +259,7 @@ impl Schema {
         let mut parser = Parser {
             tree,
             base,
-            lines: Lines::new(source),
+            lines: LineIndex::new(source),
             limits,
             namespaces: Vec::new(),
             errors: Vec::new(),
@@ -287,7 +287,7 @@ impl Schema {
             schema: self,
             tree,
             flags,
-            lines: Lines::new(source),
+            lines: LineIndex::new(source),
             budget: self.limits.max_operations,
             errors: 0,
             output: Vec::new(),
@@ -336,40 +336,6 @@ fn attribute<'t, T: Navigate>(tree: &'t T, id: T::Id, name: &str) -> Option<&'t 
         .map(|(.., value)| value)
 }
 
-/// Line numbers as libxml2 records them: where an element's start tag ends.
-struct Lines<'s> {
-    source: &'s [u8],
-    newlines: Vec<usize>,
-}
-
-impl<'s> Lines<'s> {
-    fn new(source: &'s [u8]) -> Self {
-        Self {
-            source,
-            newlines: memchr::memchr_iter(b'\n', source).collect(),
-        }
-    }
-
-    fn line<T: Navigate>(&self, tree: &T, id: T::Id) -> usize {
-        let Some(start) = tree.offset(id).filter(|&start| start < self.source.len()) else {
-            return 0;
-        };
-        let mut quote = None;
-        let end = self.source[start..].iter().position(|&byte| match quote {
-            Some(open) => {
-                quote = (byte != open).then_some(open);
-                false
-            }
-            None => {
-                quote = matches!(byte, b'"' | b'\'').then_some(byte);
-                byte == b'>'
-            }
-        });
-        let end = end.map_or(self.source.len(), |end| start + end);
-        1 + self.newlines.partition_point(|&newline| newline < end)
-    }
-}
-
 /// An XPath error as libxml2 prints it; compilation errors show the
 /// expression with a caret, after the name test for an unbound prefix.
 fn xpath_error<Id>(error: xpath::Error, expression: &str, compiled: bool) -> Diagnostic<Id> {
@@ -392,7 +358,7 @@ fn xpath_error<Id>(error: xpath::Error, expression: &str, compiled: bool) -> Dia
 struct Parser<'a, T: Navigate> {
     tree: &'a T,
     base: &'a str,
-    lines: Lines<'a>,
+    lines: LineIndex<'a>,
     limits: &'a Limits,
     namespaces: Vec<(String, String)>,
     errors: Vec<Diagnostic<()>>,
@@ -402,7 +368,7 @@ impl<'a, T: Navigate> Parser<'a, T> {
     fn error(&mut self, code: Code, id: T::Id, message: String) {
         self.errors.push(Diagnostic {
             node: Some(()),
-            line: self.lines.line(self.tree, id),
+            line: self.lines.node_line(self.tree, id).unwrap_or(0),
             element: local_name(self.tree, id),
             ..Diagnostic::new(code, message)
         });
@@ -625,7 +591,7 @@ struct Run<'a, T: Navigate> {
     schema: &'a Schema,
     tree: &'a T,
     flags: u32,
-    lines: Lines<'a>,
+    lines: LineIndex<'a>,
     budget: u64,
     errors: usize,
     output: Vec<Output<T::Id>>,
@@ -760,7 +726,7 @@ impl<'a, T: Navigate> Run<'a, T> {
         if flags & OUT_XML != 0 || (flags & OUT_QUIET != 0 && test.report) {
             return Ok(());
         }
-        let line = self.lines.line(self.tree, node);
+        let line = self.lines.node_line(self.tree, node).unwrap_or(0);
         let path = crate::xpath::tree::path(self.tree, node).unwrap_or_default();
         let kind = if test.report { "report" } else { "assert" };
         let text = self.format(&test.message, node, context)?;

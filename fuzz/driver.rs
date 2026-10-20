@@ -312,8 +312,15 @@ fn dom(input: &[u8]) -> Outcome {
         Ok(document) => {
             check_document(document, input.len(), outcome.events);
             check_projection(document, &stream);
+            let lines = yaxml::LineIndex::new(input);
+            let last = lines.line(input.len());
+            let numbered = document
+                .root()
+                .descendants()
+                .filter_map(|node| node.line(&lines));
+            assert!(numbered.into_iter().all(|line| (1..=last).contains(&line)));
         }
-        Err(error) => check_error(*error, input.len()),
+        Err(error) => check_error(*error, input),
     }
     if let Ok(text) = std::str::from_utf8(input) {
         assert_eq!(document.is_ok(), Document::parse(text).is_ok());
@@ -651,7 +658,7 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
             check_document(&document, input.len(), outcome.events);
             check_projection(&document, &stream);
         }
-        Err(error) => check_error(error, input.len()),
+        Err(error) => check_error(error, input),
     }
     let incremental = drive_push(input, &[input.len()], limits, |_, _| {});
     if !matches!(&incremental, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
@@ -676,7 +683,7 @@ fn read<'input>(
     ) {
         Ok(reader) => reader,
         Err(error) => {
-            check_error(error, input.len());
+            check_error(error, input);
             return Outcome {
                 error: Some(error),
                 events: 0,
@@ -720,7 +727,7 @@ fn read<'input>(
                 };
             }
             Err(error) => {
-                check_error(error, input.len());
+                check_error(error, input);
                 assert_eq!(
                     reader.read_event().expect_err("error must remain terminal"),
                     error
@@ -892,12 +899,47 @@ fn check_origin(origin: yaxml::SourceOrigin, len: usize) {
     }
 }
 
-fn check_error(error: Error, len: usize) {
+fn check_error(error: Error, input: &[u8]) {
     assert!(
-        error.offset <= len,
+        error.offset <= input.len(),
         "error offset points outside the input: {error}"
     );
     check_display(&error);
+    check_diagnostics(input, &[error]);
+}
+
+/// libxml2's description of failures: positioned in the input, worded, and
+/// rendered as xmllint's report.
+pub fn check_diagnostics(input: &[u8], errors: &[Error]) {
+    let lines = yaxml::LineIndex::new(input);
+    let last = lines.line(input.len());
+    let (described, work, ceiling) = lines.describe_counted(errors);
+    // The re-reader's work, entity expansion included, stays linear in the
+    // input (whose UTF-8 transcoding is at most three times as long).
+    assert!(
+        work <= ceiling && ceiling <= 8 * 3 * input.len() + 64 * 1024,
+        "{work} {ceiling}"
+    );
+    assert!(described.len() <= errors.len());
+    // A charge never exceeds the text, so a description without a column
+    // (out of work) means the budget is all but spent.
+    let spent = work + 3 * input.len() >= ceiling;
+    for diagnostic in described {
+        assert!(
+            diagnostic.line >= 1 && (diagnostic.column >= 1 || spent),
+            "{diagnostic:?}"
+        );
+        assert!(
+            diagnostic.entity || diagnostic.line <= last,
+            "{diagnostic:?}"
+        );
+        assert!(!diagnostic.message.is_empty(), "{diagnostic:?}");
+        let report = diagnostic.render("f", &lines);
+        assert!(
+            report.starts_with("f:") || report.starts_with("Entity: line"),
+            "{report}"
+        );
+    }
 }
 
 // Formatting is also a fallible output boundary. Exercise actual errors with
@@ -1121,7 +1163,7 @@ pub(crate) fn drive_push(
             Ok(())
         }
         Err(error) => {
-            check_error(error, input.len());
+            check_error(error, input);
             assert_eq!(
                 parser
                     .feed(&[], |_, _| panic!("callback after error"))
@@ -1214,7 +1256,7 @@ fn check_streaming(input: &[u8], slice_error: Option<Error>) {
             );
         }
         Err(ReadError::Xml(error)) => {
-            check_error(error, input.len());
+            check_error(error, input);
             assert!(
                 slice_error.is_some()
                     || error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes)
@@ -1334,7 +1376,7 @@ fn check_io_schedule(input: &[u8]) {
             assert_eq!(calls.get(), fail + 1);
         }
         Err(ReadError::Xml(error)) => {
-            check_error(error, input.len());
+            check_error(error, input);
             if let Some((call, end)) = cancelled {
                 assert_eq!(error.kind, ErrorKind::Aborted);
                 assert_eq!(error.offset, end);

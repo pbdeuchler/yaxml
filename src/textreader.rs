@@ -1225,6 +1225,19 @@ impl<R: BufRead> TextReader<R> {
         })
     }
 
+    /// `xmlTextReaderGetParserLineNumber`: the line of the parsing point,
+    /// the input consumed so far (ahead of the current node by the reader's
+    /// lookahead), in the input `lines` indexes; the reader keeps no input.
+    /// libxml2's point also depends on its 512-byte chunking.
+    pub fn line_number(&self, lines: &crate::LineIndex<'_>) -> usize {
+        lines.line(self.source.position())
+    }
+
+    /// `xmlTextReaderGetParserColumnNumber`, as [`line_number`](Self::line_number).
+    pub fn column_number(&self, lines: &crate::LineIndex<'_>) -> usize {
+        lines.column(self.source.position())
+    }
+
     /// Nesting depth: 0 for the document element, +1 on its attributes.
     pub fn depth(&self) -> usize {
         self.node().map_or(0, |node| {

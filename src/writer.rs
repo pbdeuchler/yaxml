@@ -170,31 +170,11 @@ impl<W: Write> Writer<W> {
     }
 
     fn write_buffer(&mut self) -> Result<(), WriteError> {
-        let mut cursor = 0;
-        let bytes = self.buffer.text.as_bytes();
-        while cursor < bytes.len() {
-            match self.sink.write(&bytes[cursor..]) {
-                Ok(0) => {
-                    return Err(WriteError::Io(io::Error::new(
-                        io::ErrorKind::WriteZero,
-                        "XML sink accepted no bytes",
-                    )));
-                }
-                Ok(length) if length > bytes.len() - cursor => {
-                    return Err(WriteError::Io(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "XML sink returned an oversized byte count",
-                    )));
-                }
-                Ok(length) => {
-                    cursor += length;
-                    self.position += length;
-                }
-                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-                Err(error) => return Err(WriteError::Io(error)),
-            }
-        }
-        Ok(())
+        write_all(
+            &mut self.sink,
+            self.buffer.text.as_bytes(),
+            &mut self.position,
+        )
     }
 
     /// Requires a complete document and flushes the sink. Repeating a successful
@@ -215,14 +195,7 @@ impl<W: Write> Writer<W> {
         self.state
             .validate_finish(self.position)
             .map_err(WriteError::Xml)?;
-        loop {
-            match self.sink.flush() {
-                Ok(()) => break,
-                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-                Err(error) => return Err(WriteError::Io(error)),
-            }
-        }
-        Ok(())
+        flush(&mut self.sink)
     }
 
     fn invalid_state(&self) -> WriteError {
@@ -428,6 +401,50 @@ impl<W: Write> Writer<W> {
         } else {
             Limit::TokenBytes
         };
+    }
+}
+
+/// Writes all of `bytes`, retrying interrupted calls; `position` counts
+/// every byte the sink confirms, including those before a failure.
+pub(crate) fn write_all(
+    sink: &mut (impl Write + ?Sized),
+    bytes: &[u8],
+    position: &mut usize,
+) -> Result<(), WriteError> {
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        match sink.write(&bytes[cursor..]) {
+            Ok(0) => {
+                return Err(WriteError::Io(io::Error::new(
+                    io::ErrorKind::WriteZero,
+                    "XML sink accepted no bytes",
+                )));
+            }
+            Ok(length) if length > bytes.len() - cursor => {
+                return Err(WriteError::Io(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "XML sink returned an oversized byte count",
+                )));
+            }
+            Ok(length) => {
+                cursor += length;
+                *position += length;
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(WriteError::Io(error)),
+        }
+    }
+    Ok(())
+}
+
+/// Flushes `sink`, retrying interrupted calls.
+pub(crate) fn flush(sink: &mut (impl Write + ?Sized)) -> Result<(), WriteError> {
+    loop {
+        match sink.flush() {
+            Ok(()) => return Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(WriteError::Io(error)),
+        }
     }
 }
 

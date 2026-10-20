@@ -356,7 +356,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             assert!(reader.unwrap().read_event().unwrap().is_none());
         }
         Err(ReadError::Xml(error)) => {
-            super::check_error(error, input.len());
+            super::check_error(error, input);
             assert!(!valid || resource_error(error.kind));
             if let (Some(reference), Some(Err(expected))) = (&reference, &document) {
                 reference.failure(*expected, Some(error), input.len());
@@ -402,7 +402,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
             });
         }
         Err(error) => {
-            super::check_error(error, input.len());
+            super::check_error(error, input);
             assert!(
                 !valid || resource_error(error.kind),
                 "valid UTF-16 rejected: {error}"
@@ -584,7 +584,7 @@ fn owned_limit_profile(input: &[u8], limits: Limits, minimum: Option<usize>) -> 
         }
     }
     if let Err(error) = owned {
-        super::check_error(error, input.len());
+        super::check_error(error, input);
     } else {
         assert!(result.is_ok(), "owned accepted a stream policy failure");
     }
@@ -849,7 +849,7 @@ fn decode_stream(
             assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
         }
         Err(error) => {
-            super::check_error(error, input.len());
+            super::check_error(error, input);
             assert_eq!(parser.finish(|_, _| panic!()).unwrap_err(), error);
             assert_eq!(parser.feed(&[], |_, _| panic!()).unwrap_err(), error);
         }
@@ -882,7 +882,7 @@ fn decode_profile(input: &[u8], limits: DecodeLimits, oracle: Option<&DecodeOrac
             }
         }
         Err(error) => {
-            super::check_error(error, input.len());
+            super::check_error(error, input);
             if let Some(oracle) = oracle {
                 oracle.check_result(Err(error), limits, input.len());
             }

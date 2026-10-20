@@ -29,3 +29,9 @@ document encoding unless a BOM auto-detected one, as libxml2's
 single-byte encoding lacking a character of a reference name inside an entity
 value is now `InvalidCharacter`, where libxml2 writes `&&#N;...;`, which does
 not reparse.
+- `owned/recover-not-fixed-point-pi-attlist.xml` (2026-10-19, `owned`
+  target, found while fuzzing diagnostics): a leading non-UTF-8 byte, an
+  unterminated `<?xm <"...` PI whose quoted text runs into a later XML
+  declaration and DOCTYPE; `RECOVER` output reparses to a different document
+  (options.rs "recovery is not a fixed point"). Reproduces on main
+  `d30e423fd`; diagnostics are not involved.

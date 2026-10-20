@@ -327,7 +327,7 @@ fn drive(
                 break Ok(());
             }
             Err(ReadError::Xml(error)) => {
-                super::check_error(error, input.len());
+                super::check_error(error, input);
                 let calls = pull.get_ref().calls;
                 assert!(
                     matches!(pull.read_event(), Err(ReadError::Xml(actual)) if actual == error)

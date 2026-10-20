@@ -310,7 +310,7 @@ FIELD_DEFAULT = {
     "_xmlEnumeration": ("N", "no public enumeration list"),
     "_xmlID": ("N", "IDs via Document::element_by_id"),
     "_xmlRef": ("N", "no IDREF table"),
-    "_xmlError": ("N", "yaxml Error has kind and offset only"),
+    "_xmlError": ("A", "no counterpart field"),
     "_htmlElemDesc": ("N", "no public HTML element table"),
     "_htmlEntityDesc": ("N", "no public HTML entity table"),
 }
@@ -377,7 +377,19 @@ TREE_FIELDS = {
     "_xmlDtd.name": ("I", "valid::Dtd::name"),
     "_xmlDtd.ExternalID": ("N", "not exposed"),
     "_xmlDtd.SystemID": ("N", "not exposed"),
-    "_xmlError.code": ("P", "ErrorKind"),
+    "_xmlError.code": ("I", "diagnostic::Diagnostic::code"),
+    "_xmlError.domain": ("I", "diagnostic::Diagnostic::domain"),
+    "_xmlError.level": ("I", "diagnostic::Diagnostic::level"),
+    "_xmlError.line": ("I", "diagnostic::Diagnostic::line"),
+    "_xmlError.int2": ("I", "diagnostic::Diagnostic::column"),
+    "_xmlError.message": ("I", "diagnostic::Diagnostic::message - without the trailing newline"),
+    "_xmlError.str1": ("I", "diagnostic::Diagnostic::str1"),
+    "_xmlError.str2": ("I", "diagnostic::Diagnostic::str2"),
+    "_xmlError.int1": ("I", "diagnostic::Diagnostic::int1"),
+    "_xmlError.node": ("P", "diagnostic::Diagnostic::element - the element's local name"),
+    "_xmlError.file": ("A", "the caller's file name, passed to Diagnostic::render"),
+    "_xmlError.str3": ("N", "no third string in the errors yaxml describes"),
+    "_xmlError.ctxt": ("A", "no parser context object"),
     "_xmlURI.scheme": ("I", "Uri::scheme"),
     "_xmlURI.user": ("I", "Uri::user"),
     "_xmlURI.server": ("I", "Uri::host"),
@@ -570,7 +582,8 @@ I|xmlNodeGetLang|Node::lang, OwnedNode::lang
 I|xmlNodeGetSpacePreserve|Node::space_preserve, OwnedNode::space_preserve
 N|xmlNodeSetBase xmlNodeSetLang xmlNodeSetSpacePreserve|not started
 P|xmlNodeIsText|Node::kind, OwnedNode::kind
-N|xmlIsBlankNode xmlIsXHTML xmlGetLineNo xmlBuildQName|not started (no line numbers)
+N|xmlIsBlankNode xmlIsXHTML xmlBuildQName|not started
+I|xmlGetLineNo|diagnostic::LineIndex - Node::line and OwnedNode::line
 I|xmlGetNodePath|Node::path, OwnedNode::path
 I|xmlGetNsList xmlGetNsListSafe|Node::namespaces, OwnedNode::namespaces
 I|xmlSearchNs|Node::search_ns, OwnedNode::search_ns
@@ -625,11 +638,13 @@ A|_xmlEntity.length|str::len of valid::Entity::content
 N|_xmlEntity.orig|the literal as written is not kept
 # ---- xmlerror.h
 A|xmlLastError __xmlStructuredError*|no global error state
-A|xmlGetLastError xmlResetLastError xmlResetError xmlCopyError xmlCtxtResetLastError xmlSetGenericErrorFunc xmlSetStructuredErrorFunc initGenericErrorDefaultFunc xmlGenericError* xmlStructuredError* xmlParserError xmlParserWarning xmlParserValidityError xmlParserValidityWarning xmlParserPrintFileInfo xmlParserPrintFileContext xmlFormatError __xmlGenericError*|no global error state or printing; diagnostics are returned values
-P|xmlCtxtGetLastError|Document::errors, OwnedDocument::errors
-P|xmlError _xmlError|Error
-N|xmlErrorDomain xmlErrorLevel|no domain or severity field in Error
-P|xmlParserErrors|ErrorKind
+A|xmlGetLastError xmlResetLastError xmlResetError xmlCopyError xmlCtxtResetLastError xmlSetGenericErrorFunc xmlSetStructuredErrorFunc initGenericErrorDefaultFunc xmlGenericError* xmlStructuredError* xmlParserError xmlParserWarning xmlParserValidityError xmlParserValidityWarning xmlParserPrintFileInfo xmlParserPrintFileContext __xmlGenericError*|no global error state or printing; diagnostics are returned values
+I|xmlFormatError|diagnostic::Diagnostic::render
+P|xmlCtxtGetLastError|Document::errors, OwnedDocument::errors, diagnostic::LineIndex::describe_all
+I|xmlError _xmlError|diagnostic::Diagnostic - built on demand by Error::describe
+I|xmlErrorDomain|diagnostic::Domain - the domains yaxml raises
+I|xmlErrorLevel|diagnostic::Level
+I|xmlParserErrors|diagnostic::code - codes yaxml produces; ErrorKind::libxml2_code
 # ---- xpath.h / xpathInternals.h
 I|xmlXPathCompile|xpath::XPath::compile
 P|xmlXPathCtxtCompile|xpath::XPath::compile_with_limits
@@ -718,7 +733,9 @@ I|xmlTextReaderSetSchema|TextReader::xsd_set_schema
 P|xmlTextReaderSchemaValidate xmlTextReaderSchemaValidateCtxt|TextReader::xsd_set_schema - schema is compiled by the caller
 P|xmlTextReaderSetResourceLoader|ParseOptions::with_resolver
 P|xmlTextReaderSetMaxAmplification|Limits::max_entity_amplification
-N|xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderGetParserColumnNumber xmlTextReaderGetParserLineNumber xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderQuoteChar xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
+I|xmlTextReaderGetParserLineNumber|TextReader::line_number - takes the caller's LineIndex
+I|xmlTextReaderGetParserColumnNumber|TextReader::column_number - takes the caller's LineIndex
+N|xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderQuoteChar xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
 N|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler xmlTextReaderGetLastError|no error callback; xsd_diagnostics/relaxng_diagnostics return values
 I|xmlReaderTypes|NodeType
 I|xmlTextReaderMode|ReadState
@@ -975,6 +992,22 @@ def by_code(codes, value, path, kind):
     return ("I", f"{path}::{v}") if v else ("N", f"no yaxml diagnostic carries this {kind} code")
 
 
+# The codes, levels and domains Error::describe produces (src/diagnostic.rs).
+DIAG_CODES = set(re.findall(r"pub const (\w+): u16", (SRC / "diagnostic.rs").read_text()))
+DIAG_LEVEL = {"XML_ERR_WARNING": "Warning", "XML_ERR_ERROR": "Error", "XML_ERR_FATAL": "Fatal"}
+DIAG_DOMAIN = {
+    f"XML_FROM_{c}": rust
+    for c, rust in [("PARSER", "Parser"), ("NAMESPACE", "Namespace"), ("IO", "Io"), ("XINCLUDE", "XInclude"),
+                    ("XPATH", "XPath"), ("SCHEMASP", "SchemasParser"), ("SCHEMASV", "SchemasValidity"),
+                    ("RELAXNGV", "RelaxNgValidity"), ("VALID", "Valid"), ("SCHEMATRONV", "SchematronValidity")]
+}
+
+
+def DIAG_NAME(i):
+    """The `diagnostic::code` constant name for a libxml2 error code."""
+    return re.sub(r"^XML_(?:ERR_|(NS_)ERR_|)", lambda m: m.group(1) or "", i)
+
+
 def error_rule(i, ctx):
     if re.fullmatch(r"XML_SCHEMA[PV]_\w+", i):
         return by_code(ctx.xsd, ctx.err[i], "xsd::Code", "XML_SCHEMA*")
@@ -1005,6 +1038,12 @@ def error_rule(i, ctx):
         return "N", "no matching c14n::Error"
     if i == "XML_REGEXP_COMPILE_ERROR":
         return "P", "regexp::Error::Syntax - category only"
+    if (name := DIAG_NAME(i)) in DIAG_CODES:
+        return "I", f"diagnostic::code::{name}"
+    if i in DIAG_LEVEL:
+        return "I", f"diagnostic::Level::{DIAG_LEVEL[i]}"
+    if i in DIAG_DOMAIN:
+        return "I", f"diagnostic::Domain::{DIAG_DOMAIN[i]}"
     if m := re.fullmatch(r"XML_NS_ERR_(\w+)", i):
         return "P", "ErrorKind::" + ("DuplicateAttribute" if m.group(1) == "ATTRIBUTE_REDEFINED" else "Namespace") + " - category only"
     if m := re.fullmatch(r"XML_ERR_(\w+)", i):

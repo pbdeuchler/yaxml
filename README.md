@@ -26,11 +26,14 @@ caller-provided `std::io::Read`. `BufferedReader` lends one event at a time from
 caller-provided `BufRead` input without consuming the unread suffix. Both retain
 a bounded token and active document/namespace state. `Writer` validates UTF-8
 events and serializes them to a caller-provided `std::io::Write`; fresh writers
-can also serialize complete borrowed or owned DOMs. `save::to_vec` writes a
-document or any node of either DOM as libxml2's `xmlSaveDoc`/`xmlSaveTree` do:
-`xmlSaveOption` flags (format, XHTML, ...), UTF-16 and single-byte output
-encodings, and the internal subset regenerated from its declarations
-([writer.md](docs/writer.md#libxml2-tree-output-save)).
+can also serialize complete borrowed or owned DOMs. `save::to_writer` (or
+`to_vec`) writes a document or any node of either DOM as libxml2's
+`xmlSaveDoc`/`xmlSaveTree` do, streaming to any `Write`: `xmlSaveOption` flags
+(format, XHTML, ...), subtree levels, UTF-16 and single-byte output encodings,
+and the internal subset regenerated from its declarations
+([writer.md](docs/writer.md#libxml2-tree-output-save)). `TextWriter` is
+libxml2's `xmlTextWriter`, byte for byte
+([writer.md](docs/writer.md#libxml2-text-writer-textwriter)).
 
 ```rust
 use std::ops::ControlFlow;
@@ -533,5 +536,24 @@ let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
 assert_eq!(kinds, [ErrorKind::MismatchedEndTag, ErrorKind::Namespace, ErrorKind::UnexpectedEof]);
 let saved = save::to_vec(&document, &Default::default()).unwrap();
 assert_eq!(saved, b"<?xml version=\"1.0\"?>\n<r><a>text</a><p:c/></r>\n");
+# Ok::<(), yaxml::Error>(())
+```
+
+Errors stay the cheap `Error { kind, offset }`; a caller that wants
+libxml2's `xmlError` describes one from the input it parsed, or a recovered
+document's list: domain, code, level, line, column and libxml2's message,
+and `render` prints xmllint's report ([error mapping](docs/bindings.md#error-mapping)).
+`LineIndex` also gives node lines (`xmlGetLineNo`) and the validators'
+diagnostics convert to the same shape:
+
+```rust
+use yaxml::{Document, LineIndex, ParseOptions, options};
+
+let input = b"<r><a>text</b><p:c/>";
+let document = Document::parse_with(input, ParseOptions::new(options::RECOVER))?;
+let lines = LineIndex::new(input);
+let found: Vec<_> = lines.describe_all(document.errors()).into_iter().map(|d| d.message).collect();
+assert_eq!(found, ["Opening and ending tag mismatch: a line 1 and b", "Namespace prefix p on c is not defined"]);
+assert_eq!(document.root_element().line(&lines), Some(1));
 # Ok::<(), yaxml::Error>(())
 ```

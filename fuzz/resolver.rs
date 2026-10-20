@@ -244,7 +244,7 @@ pub(super) fn exercise(
             "byte budget is not cumulative: {requests:?}"
         );
         if let Err(error) = &result {
-            super::check_error(*error, document.len());
+            super::check_error(*error, document);
         }
         (result, requests)
     };
@@ -368,7 +368,7 @@ pub(super) fn cancel(input: &[u8], limits: Limits, stop: usize, width: usize) {
         result = parser.finish(&mut callback);
     }
     if let Err(error) = result {
-        super::check_error(error, input.len());
+        super::check_error(error, input);
         if end.is_some() {
             assert_eq!(error.kind, ErrorKind::Aborted, "cancellation was ignored");
         }
