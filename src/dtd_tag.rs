@@ -129,26 +129,38 @@ impl<'c> TagDeclarations<'c> {
         let Some(index) = self.element else {
             return Ok(defaults);
         };
+        // Sorted and deduplicated (recovery keeps repeated attributes), so a
+        // tag specifying many attributes stays n log n.
+        self.more.sort_unstable();
+        self.more.dedup();
         let (specified, more) = (self.specified, &self.more);
         let unspecified = |index: usize| match index {
             ..64 => specified & 1 << index == 0,
-            _ => !more.contains(&index),
+            _ => more.binary_search(&index).is_err(),
         };
-        // Copied defaults amplify output like entities do (libxml2 `expandedSize`).
-        let copied = (self.catalog.element_attributes(index).iter().enumerate())
-            .filter(|(index, _)| unspecified(*index))
-            .filter_map(|(_, decl)| {
-                let value = decl.default.value()?;
-                Some(decl.name.len() + value.len() + crate::dtd_controller::ENTITY_FIXED_COST)
-            })
-            .fold(0_usize, usize::saturating_add);
+        let element_decl = &self.catalog.dtd().elements[index];
+        let declared = &element_decl.attributes;
+        // Copied defaults amplify output like entities do (libxml2
+        // `expandedSize`): all of the element's, less the specified ones.
+        let bits = std::iter::successors(Some(specified), |bits| Some(bits & bits.wrapping_sub(1)))
+            .take_while(|bits| *bits != 0)
+            .map(|bits| bits.trailing_zeros() as usize);
+        let copied = (bits.chain(more.iter().copied()))
+            .map(|index| declared[index].copy_cost())
+            .fold(element_decl.copied, usize::saturating_sub);
+        // Without `DTDATTR` libxml2 applies only defaulted namespace
+        // declarations; a standalone document notes external defaults.
+        let complete = self.catalog.default_attributes();
+        let standalone = self.catalog.standalone();
+        let walk = complete || standalone || element_decl.namespace_defaults;
         self.catalog
             .charge_default(copied)
             .map_err(|error| Error::new(error.kind, start + error.offset.unwrap_or(0)))?;
+        if !walk {
+            return Ok(defaults);
+        }
         let declared = self.catalog.element_attributes(index);
         let mut notes = Vec::new();
-        // Without `DTDATTR` libxml2 applies only defaulted namespace declarations.
-        let complete = self.catalog.default_attributes();
         for (index, decl) in declared.iter().enumerate() {
             let StoredDefault::Value { value, kept, .. } = &decl.default else {
                 continue;
@@ -156,13 +168,13 @@ impl<'c> TagDeclarations<'c> {
             if !unspecified(index) {
                 continue;
             }
-            if self.catalog.standalone() && !decl.internal {
+            if standalone && !decl.internal {
                 notes.push(format!(
                     "standalone: attribute {} on {element} defaulted from external subset",
                     decl.name
                 ));
             }
-            if !complete && decl.name != "xmlns" && !decl.name.starts_with("xmlns:") {
+            if !complete && !decl.declares_namespace() {
                 continue;
             }
             defaults

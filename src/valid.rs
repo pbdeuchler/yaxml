@@ -165,6 +165,10 @@ pub(crate) struct ElementDecl {
     pub(crate) attributes: Vec<AttributeDecl>,
     /// Attribute names to positions, built once the list outgrows a search.
     index: HashMap<String, usize>,
+    /// The amplification charge of copying every default (`copy_cost`).
+    pub(crate) copied: usize,
+    /// Some default declares a namespace.
+    pub(crate) namespace_defaults: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -195,6 +199,19 @@ pub(crate) struct AttributeDecl {
 }
 
 impl AttributeDecl {
+    /// The amplification charge of copying its default into a tag, as
+    /// libxml2 counts `expandedSize`; zero without one.
+    pub(crate) fn copy_cost(&self) -> usize {
+        self.default.value().map_or(0, |value| {
+            self.name.len() + value.len() + crate::dtd_controller::ENTITY_FIXED_COST
+        })
+    }
+
+    /// It is `xmlns` or `xmlns:*`.
+    pub(crate) fn declares_namespace(&self) -> bool {
+        self.name == "xmlns" || self.name.starts_with("xmlns:")
+    }
+
     fn fixed(&self) -> Option<&str> {
         match &self.default {
             StoredDefault::Value {
@@ -232,6 +249,8 @@ impl ElementDecl {
             internal: false,
             attributes: Vec::new(),
             index: HashMap::new(),
+            copied: 0,
+            namespace_defaults: false,
         }
     }
 
@@ -248,6 +267,9 @@ impl ElementDecl {
     pub(crate) fn push_attribute(&mut self, attribute: AttributeDecl) -> Result<(), ()> {
         const SEARCHED: usize = 8;
         self.attributes.try_reserve(1).map_err(drop)?;
+        self.copied = self.copied.saturating_add(attribute.copy_cost());
+        self.namespace_defaults |=
+            attribute.default.value().is_some() && attribute.declares_namespace();
         self.attributes.push(attribute);
         if self.attributes.len() <= SEARCHED {
             return Ok(());
