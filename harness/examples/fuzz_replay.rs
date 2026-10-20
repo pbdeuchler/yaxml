@@ -115,7 +115,10 @@ fn replay(input: &[u8], oracle: Option<&Oracle>) -> io::Result<Comparison> {
     {
         return Ok(Comparison::SkippedPolicy);
     }
-    oracle.compare(input, outcome.error)
+    // The oracle runs with `--strict-namespace`: a namespace error the
+    // parse kept is a rejection.
+    let kept = || Document::parse_bytes(input).ok()?.errors().first().copied();
+    oracle.compare(input, outcome.error.or_else(kept))
 }
 
 fn classify(code: Option<i32>, diagnostics_empty: bool) -> Option<bool> {

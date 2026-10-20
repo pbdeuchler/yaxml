@@ -115,19 +115,21 @@ fn describe_against_libxml2() {
             };
             total += 1;
             let input = fs::read(dir.join(file)).unwrap_or_default();
-            let ours = OwnedDocument::parse_with(&input, ParseOptions::default())
-                .err()
-                .map(|error| {
-                    let lines = LineIndex::new(&input);
-                    let diagnostic = error.describe(&lines);
-                    let first = diagnostic
-                        .render(file, &lines)
-                        .lines()
-                        .next()
-                        .unwrap_or_default()
-                        .to_owned();
-                    (diagnostic, first)
-                });
+            // The first error: the one that stopped the parse, or a kept
+            // namespace error.
+            let parsed = OwnedDocument::parse_with(&input, ParseOptions::default());
+            let first = parsed.map_or_else(Some, |document| document.errors().first().copied());
+            let ours = first.map(|error| {
+                let lines = LineIndex::new(&input);
+                let diagnostic = error.describe(&lines);
+                let first = diagnostic
+                    .render(file, &lines)
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned();
+                (diagnostic, first)
+            });
             let (same_place, same_words) = ours.as_ref().map_or((false, false), |(d, _)| {
                 (
                     (d.code, d.line) == (code, line),

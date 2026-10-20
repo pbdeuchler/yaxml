@@ -219,6 +219,14 @@ fn validate_profile(input: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// Rejects a parse that kept a namespace error, as the libxml2 helper fails
+/// on any reported error.
+fn kept(errors: &[yaxml::Error]) -> Result<(), String> {
+    errors
+        .first()
+        .map_or(Ok(()), |error| Err(format!("namespace error: {error}")))
+}
+
 fn add_time(total: &mut u64, elapsed: Duration, phase: &str) -> Result<(), String> {
     let elapsed = u64::try_from(elapsed.as_nanos())
         .map_err(|_| format!("{phase} duration does not fit the result protocol"))?;
@@ -240,6 +248,7 @@ fn measure_once(
             let started = Instant::now();
             let document = Document::parse_with(black_box(input), options())
                 .map_err(|error| format!("DOM parse failed: {error}"))?;
+            kept(document.errors())?;
             black_box(&document);
             let parse = started.elapsed();
             let started = Instant::now();
@@ -255,6 +264,7 @@ fn measure_once(
             let started = Instant::now();
             let document = OwnedDocument::parse_with(black_box(input), options())
                 .map_err(|error| format!("owned DOM parse failed: {error}"))?;
+            kept(document.errors())?;
             black_box(&document);
             let parse = started.elapsed();
             let started = Instant::now();
@@ -289,6 +299,7 @@ fn measure_reader(
     if reader.position() != input.len() {
         return Err("reader did not consume the complete input".into());
     }
+    kept(reader.errors())?;
     let observed = observer.finish();
     black_box(&observed);
     let parse = started.elapsed();
@@ -324,6 +335,7 @@ fn measure_push(
     if parser.position() != input.len() {
         return Err("push parser did not consume the complete input".into());
     }
+    kept(parser.errors())?;
     let observed = observer.finish();
     black_box(&observed);
     let parse = started.elapsed();
@@ -352,6 +364,7 @@ fn measure_buffered(
     if reader.position() != input.len() {
         return Err("buffered reader did not consume the complete input".into());
     }
+    kept(reader.errors())?;
     let observed = observer.finish();
     black_box(&observed);
     let parse = started.elapsed();
