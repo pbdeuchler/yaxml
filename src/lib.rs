@@ -7,6 +7,7 @@ mod allocator;
 mod buffered;
 pub mod c14n;
 pub mod catalog;
+pub mod diagnostic;
 mod dom;
 mod dtd;
 mod dtd_catalog;
@@ -45,6 +46,7 @@ pub mod xpointer;
 pub mod xsd;
 
 pub use buffered::BufferedReader;
+pub use diagnostic::{Diagnostic, LineIndex};
 pub use dom::{Document, Node, NodeId, NodeKind};
 pub use encoding::DecodeLimits;
 pub(crate) use error::DtdError;
