@@ -1,0 +1,12 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'v' NDATA m>
+<!ENTITY p 'parsed'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r i ID #IMPLIED N (n|o) #IMPLIED
+  c CDATA #FIXED 'cin'>
+]>
+<r i='2' f='b' s='a*c' e='p' es='u\\\\\\\\\\\\\!ATTLIST r i ID #I\\\\\\\\\\' c='d' Kxmlns:p='urn:q' xml:id='w'>&uBndeclared;<r i='a' q=''/></r>
