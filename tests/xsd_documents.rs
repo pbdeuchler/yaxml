@@ -364,6 +364,53 @@ fn nested_counters_are_capped() {
     assert!(codes.iter().all(|&c| c != Code::VInternal) || codes == vec![Code::VInternal]);
 }
 
+/// A sequence of `n` optional elements: transitions quadratic in `n` after
+/// epsilon removal.
+fn optionals(n: usize) -> String {
+    let items: String = (0..n)
+        .map(|i| format!("<xs:element name='e{i}' minOccurs='0'/>"))
+        .collect();
+    format!(
+        "<xs:element name='r'><xs:complexType><xs:sequence>{items}</xs:sequence></xs:complexType></xs:element>"
+    )
+}
+
+#[test]
+fn model_bytes_bound_quadratic_models() {
+    let bytes = |b| Limits::default().max_model_bytes(b);
+    let cases = [
+        (8, Limits::default(), true),
+        (1741, Limits::default(), true),
+        (1742, Limits::default(), false),
+        // 150 KiB that held 1 GB within the work budget alone.
+        (4000, Limits::default(), false),
+        (8, bytes(3272), true),
+        (8, bytes(3271), false),
+        (8, bytes(0), false),
+    ];
+    for (n, limits, accepted) in cases {
+        // Rejection must be fast; an accepted quadratic model is slow in debug builds.
+        let build = || build_with(&optionals(n), limits);
+        let built = match accepted {
+            true => build(),
+            false => timed("optionals", build),
+        };
+        match (built, accepted) {
+            (Ok(schema), true) => {
+                assert_eq!(valid(&schema, "<r><e1/><e7/></r>"), vec![], "{n}");
+                assert_eq!(
+                    valid(&schema, "<r><e7/><e1/></r>"),
+                    vec![Code::ElementContent],
+                    "{n}"
+                );
+            }
+            // At zero bytes the built-in anyType model fails too.
+            (Err(codes), false) => assert!(codes.iter().all(|&c| c == Code::Internal), "{n}"),
+            (built, _) => panic!("{n} {limits:?}: {:?}", built.err()),
+        }
+    }
+}
+
 #[test]
 fn deep_and_wide_models_stay_bounded() {
     let deep = |n: usize| {
@@ -377,15 +424,7 @@ fn deep_and_wide_models_stay_bounded() {
     assert_eq!(valid(&schema, "<r><a/></r>"), vec![]);
     // Past the XML nesting limit the schema document itself is rejected.
     assert!(timed("deeper", || build(&deep(2000))).is_err());
-    // n optional elements: quadratic transitions after epsilon removal.
-    let wide = |n: usize| {
-        let items: String = (0..n)
-            .map(|i| format!("<xs:element name='e{i}' minOccurs='0'/>"))
-            .collect();
-        format!(
-            "<xs:element name='r'><xs:complexType><xs:sequence>{items}</xs:sequence></xs:complexType></xs:element>"
-        )
-    };
+    let wide = optionals;
     let schema = timed("wide", || build(&wide(300)).unwrap());
     assert_eq!(valid(&schema, "<r><e1/><e299/></r>"), vec![]);
     assert_eq!(

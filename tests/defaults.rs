@@ -121,10 +121,12 @@ fn cases() -> Vec<(&'static str, String, String, String)> {
             xsd::Limits,
             format!(
                 "Limits {{ xml: {}, max_documents: 256, max_bytes: {}, max_depth: 256, \
-                 max_model_work: {}, max_counter_vectors: 1024, max_idc_keys: {} }}",
+                 max_model_work: {}, max_model_bytes: {}, max_counter_vectors: 1024, \
+                 max_idc_keys: {} }}",
                 xml(),
                 64 * MIB,
                 16 * MIB,
+                64 * MIB,
                 MIB
             )
         ),

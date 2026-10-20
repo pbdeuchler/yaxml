@@ -29,6 +29,7 @@ fn limits(control: u8, schema: usize) -> Limits {
         .max_bytes(pick(2, 256, 1 << 16))
         .max_depth(pick(4, 2, 32))
         .max_model_work(pick(8, 16 + schema * 7 % 1024, 1 << 16))
+        .max_model_bytes(pick(8, 1024 + schema * 31 % 16384, 1 << 22))
         .max_counter_vectors(pick(2, 1, 16));
     limits.xml.max_depth = pick(4, 8, limits.xml.max_depth);
     limits

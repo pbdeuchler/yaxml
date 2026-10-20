@@ -4,7 +4,7 @@
 //! Included, imported and redefined documents load through the caller's
 //! resolver, breadth first from a queue, each location at most once.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, TryReserveError, VecDeque};
 use std::rc::Rc;
 
 use crate::fallible::TryPush;
@@ -141,6 +141,28 @@ pub(crate) struct Particle {
     pub(crate) max: Option<u32>,
     pub(crate) term: Term,
     pub(crate) loc: Loc,
+}
+
+impl Particle {
+    /// A deep copy (see [`copies`]).
+    pub(crate) fn copy(&self) -> Result<Particle, TryReserveError> {
+        let term = match &self.term {
+            Term::Group(compositor, children) => Term::Group(*compositor, copies(children)?),
+            term => term.clone(),
+        };
+        Ok(Particle { term, ..*self })
+    }
+}
+
+/// Deep copies of `particles`, reserved fallibly: a model group is as
+/// large as its schema.
+pub(crate) fn copies(particles: &[Particle]) -> Result<Vec<Particle>, TryReserveError> {
+    let mut out = Vec::new();
+    out.try_reserve_exact(particles.len())?;
+    for particle in particles {
+        out.push(particle.copy()?);
+    }
+    Ok(out)
 }
 
 #[derive(Clone, Debug)]

@@ -68,7 +68,9 @@ xsi:nil, defaults and fixed values, wildcards and ID/IDREF; `idc.rs` evaluates
 `xsd::Limits`: per-document XML limits, `max_documents` (256) and
 `max_bytes` (64 MiB) across all resolver loads, `max_depth` (256) for
 particle nesting through groups, `max_model_work` (2^24 units for all content
-models; exceeding it is `XML_SCHEMAP_INTERNAL`) and `max_counter_vectors`
+models; exceeding it is `XML_SCHEMAP_INTERNAL`), `max_model_bytes` (64 MiB
+for the entries the compiled models and the automaton compiling the current
+one hold; exceeding it is `XML_SCHEMAP_INTERNAL` too) and `max_counter_vectors`
 (1024 per element; exceeding it is `XML_SCHEMAV_INTERNAL`) and `max_idc_keys`
 (2^20 identity-constraint key sequences per validation; beyond it validation
 reports `XML_SCHEMAV_INTERNAL` once and stops keeping keys and checking
@@ -113,10 +115,13 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
   stream path, for outcomes no schema author wants. The two are reported as
   the only divergence classes of the random differential, and are bounded
   (about 1 case in 1,000 of that generator overall).
-- Content models over `max_model_work` fail instead of compiling slowly
-  (libxml2 needs 30 s for 2,500 optional elements in a sequence; yaxml
-  compiles that in about 1 s and rejects 5,000), and group nesting stops at
-  `max_depth`.
+- Content models over `max_model_work` or `max_model_bytes` fail instead of
+  compiling slowly or holding hundreds of MB, and group nesting stops at
+  `max_depth`. Both libxml2 and yaxml hold transitions quadratic in the
+  particles for a sequence of optional elements: libxml2 needs 17 s and
+  126 MB for 2,000 of them and 170 s and 468 MB for 4,000, both accepted;
+  yaxml compiles up to 1,741 (0.35 s, 132 MB resident) and rejects longer
+  ones within about 115 MB.
 - `xml:base` in schema documents is ignored when resolving locations;
   attribute-use value constraints are not checked against the declaration's,
   as in libxml2.

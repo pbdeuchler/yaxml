@@ -9,16 +9,18 @@
 use std::collections::{HashMap, HashSet};
 
 use super::components::Sym;
-use super::model::{Atom, Kind, Matched, Node, TooComplex};
+use super::model::{Atom, Budget, Kind, Matched, Node, TooComplex};
 use crate::fallible::{TryPush, collected};
 
-#[derive(Clone, Copy, Debug)]
+/// Transitions are most of a model's memory, quadratic in its positions
+/// for shapes like a sequence of optional elements, hence 32-bit fields.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Trans {
-    atom: Option<usize>,
+    atom: Option<u32>,
     /// Target state; negative once removed.
-    to: i64,
-    counter: i64,
-    count: i64,
+    to: i32,
+    counter: i32,
+    count: i32,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,8 +44,8 @@ struct State {
     kind: Type,
     trans: Vec<Trans>,
     /// The live (non-negative target) transitions, for duplicate checks.
-    live: HashSet<(Option<usize>, i64, i64, i64)>,
-    trans_to: Vec<usize>,
+    live: HashSet<Trans>,
+    trans_to: Vec<u32>,
     mark: Mark,
     markd: bool,
     reached: Mark,
@@ -53,18 +55,13 @@ struct Automaton {
     states: Vec<Option<State>>,
     atoms: Vec<Atom>,
     current: usize,
-    counters: i64,
-    budget: usize,
+    counters: i32,
+    budget: Budget,
 }
 
 const UNBOUNDED: Option<u32> = None;
 
 impl Automaton {
-    fn charge(&mut self, work: usize) -> Result<(), TooComplex> {
-        self.budget = self.budget.checked_sub(work).ok_or(TooComplex::Work)?;
-        Ok(())
-    }
-
     fn state(&self, id: usize) -> &State {
         self.states[id].as_ref().expect("live state")
     }
@@ -74,7 +71,9 @@ impl Automaton {
     }
 
     fn push_state(&mut self) -> Result<usize, TooComplex> {
-        self.charge(1)?;
+        self.budget.charge(1)?;
+        self.budget.hold(size_of::<Option<State>>())?;
+        i32::try_from(self.states.len()).map_err(|_| TooComplex::Work)?;
         self.states.try_push(Some(State {
             kind: Type::Transition,
             trans: Vec::new(),
@@ -91,33 +90,32 @@ impl Automaton {
     fn add(
         &mut self,
         from: usize,
-        atom: Option<usize>,
+        atom: Option<u32>,
         to: usize,
-        counter: i64,
-        count: i64,
+        counter: i32,
+        count: i32,
     ) -> Result<(), TooComplex> {
-        self.charge(1)?;
-        let to_i = to as i64;
-        let state = self.state_mut(from);
-        state.live.try_reserve(1)?;
-        if !state.live.insert((atom, to_i, counter, count)) {
-            return Ok(());
-        }
-        state.trans.try_push(Trans {
+        self.budget.charge(1)?;
+        let t = Trans {
             atom,
-            to: to_i,
+            to: to as i32,
             counter,
             count,
-        })?;
-        self.state_mut(to).trans_to.try_push(from)?;
-        Ok(())
+        };
+        let state = self.state_mut(from);
+        state.live.try_reserve(1)?;
+        if !state.live.insert(t) {
+            return Ok(());
+        }
+        state.trans.try_push(t)?;
+        self.state_mut(to).trans_to.try_push(from as u32)?;
+        self.budget.hold(2 * size_of::<Trans>() + size_of::<u32>())
     }
 
     /// Removes transition `i` of `state` by giving it a negative target.
-    fn drop_trans(&mut self, state: usize, i: usize, to: i64) {
+    fn drop_trans(&mut self, state: usize, i: usize, to: i32) {
         let state = self.state_mut(state);
-        let t = state.trans[i];
-        state.live.remove(&(t.atom, t.to, t.counter, t.count));
+        state.live.remove(&state.trans[i]);
         state.trans[i].to = to;
     }
 
@@ -146,18 +144,19 @@ impl Automaton {
         to: Option<usize>,
         atom: Atom,
     ) -> Result<usize, TooComplex> {
+        let id = u32::try_from(self.atoms.len()).map_err(|_| TooComplex::Work)?;
+        self.budget.hold(size_of::<Atom>())?;
         self.atoms.try_push(atom)?;
-        let atom = self.atoms.len() - 1;
         let to = match to {
             Some(to) => to,
             None => self.push_state()?,
         };
-        self.add(from, Some(atom), to, -1, -1)?;
+        self.add(from, Some(id), to, -1, -1)?;
         self.current = to;
         Ok(to)
     }
 
-    fn counter(&mut self) -> i64 {
+    fn counter(&mut self) -> i32 {
         self.counters += 1;
         self.counters - 1
     }
@@ -167,7 +166,7 @@ impl Automaton {
         &mut self,
         from: usize,
         to: Option<usize>,
-        counter: i64,
+        counter: i32,
     ) -> Result<usize, TooComplex> {
         let to = self.target(to)?;
         self.add(from, None, to, counter, -1)?;
@@ -179,7 +178,7 @@ impl Automaton {
         &mut self,
         from: usize,
         to: Option<usize>,
-        counter: i64,
+        counter: i32,
     ) -> Result<usize, TooComplex> {
         let to = self.target(to)?;
         self.add(from, None, to, -1, counter)?;
@@ -279,7 +278,7 @@ impl Automaton {
 
     /// `xmlSchemaBuildAContentModel`; whether the particle is emptiable.
     fn build(&mut self, node: &Node) -> Result<bool, TooComplex> {
-        self.charge(1)?;
+        self.budget.charge(1)?;
         let (min, max) = (node.min, node.max);
         match &node.kind {
             Kind::Empty => Ok(true),
@@ -429,7 +428,7 @@ impl Automaton {
                 continue;
             }
             let t = state.trans[0];
-            if t.atom.is_some() || t.to < 0 || t.to == id as i64 || t.counter >= 0 || t.count >= 0 {
+            if t.atom.is_some() || t.to < 0 || t.to == id as i32 || t.counter >= 0 || t.count >= 0 {
                 continue;
             }
             if state.kind == Type::Start {
@@ -437,11 +436,12 @@ impl Automaton {
             }
             let newto = t.to as usize;
             for from in state.trans_to.clone() {
+                let from = from as usize;
                 let count = self.state(from).trans.len();
-                self.charge(count)?;
+                self.budget.charge(count)?;
                 for j in 0..count {
                     let tj = self.state(from).trans[j];
-                    if tj.to == id as i64 {
+                    if tj.to == id as i32 {
                         self.drop_trans(from, j, -1);
                         self.add(from, tj.atom, newto, tj.counter, tj.count)?;
                     }
@@ -468,7 +468,7 @@ impl Automaton {
         if matches!(target.mark, Mark::Start | Mark::Visited) {
             return Ok(false);
         }
-        self.charge(1)?;
+        self.budget.charge(1)?;
         self.state_mut(to).mark = Mark::Visited;
         if self.state(to).kind == Type::Final {
             self.state_mut(from).kind = Type::Final;
@@ -479,7 +479,7 @@ impl Automaton {
     /// `xmlFAReduceEpsilonTransitions`: copies to `from` what the epsilon
     /// closure through `to` reaches, depth first in libxml2's order, with an
     /// explicit stack of (state, next transition, counter).
-    fn reduce(&mut self, from: usize, to: usize, counter: i64) -> Result<(), TooComplex> {
+    fn reduce(&mut self, from: usize, to: usize, counter: i32) -> Result<(), TooComplex> {
         let mut stack = Vec::new();
         if self.visit(from, to)? {
             stack.push((to, 0, counter));
@@ -496,7 +496,7 @@ impl Automaton {
             }
             let tcounter = if t.counter >= 0 { t.counter } else { counter };
             match t.atom {
-                None if t.to == from as i64 => {}
+                None if t.to == from as i32 => {}
                 None if t.count >= 0 => self.add(from, None, t.to as usize, -1, t.count)?,
                 None => {
                     if self.visit(from, t.to as usize)? {
@@ -543,7 +543,7 @@ impl Automaton {
             while i < self.state(id).trans.len() {
                 let t = self.state(id).trans[i];
                 if t.atom.is_none() && t.to >= 0 {
-                    if t.to == id as i64 {
+                    if t.to == id as i32 {
                         self.drop_trans(id, i, -1);
                     } else if t.count < 0 {
                         has_epsilon = true;
@@ -600,17 +600,17 @@ impl Automaton {
 
     // ---- xmlFAComputesDeterminism ----------------------------------------------
 
-    fn compare(&self, a: usize, b: usize) -> bool {
-        a == b || self.atoms[a].conflicts(&self.atoms[b])
+    fn compare(&self, a: u32, b: u32) -> bool {
+        a == b || self.atoms[a as usize].conflicts(&self.atoms[b as usize])
     }
 
-    fn equal(&self, a: usize, b: usize) -> bool {
-        let (x, y) = (&self.atoms[a], &self.atoms[b]);
+    fn equal(&self, a: u32, b: u32) -> bool {
+        let (x, y) = (&self.atoms[a as usize], &self.atoms[b as usize]);
         a == b || (x.local == y.local && x.ns == y.ns)
     }
 
     /// `xmlFARecurseDeterminism`.
-    fn recurse(&mut self, state: usize, from: i64, to: i64, atom: usize) -> bool {
+    fn recurse(&mut self, state: usize, from: i32, to: i32, atom: u32) -> bool {
         let Some(s) = &self.states[state] else {
             return true;
         };
@@ -619,7 +619,7 @@ impl Automaton {
         }
         let mut deterministic = true;
         let count = s.trans.len();
-        self.budget = self.budget.saturating_sub(count + 1);
+        self.budget.work = self.budget.work.saturating_sub(count + 1);
         for i in 0..count {
             let t = self.state(state).trans[i];
             if t.to < 0 || t.to == from {
@@ -677,8 +677,8 @@ impl Automaton {
             let Some(count) = self.states[id].as_ref().map(|s| s.trans.len()) else {
                 continue;
             };
-            self.charge(count)?;
-            let mut last: HashMap<(Key, i64, i64, i64), usize> = HashMap::new();
+            self.budget.charge(count)?;
+            let mut last: HashMap<(Key, i32, i32, i32), usize> = HashMap::new();
             last.try_reserve(count)?;
             for i in 0..count {
                 let t = self.state(id).trans[i];
@@ -686,11 +686,16 @@ impl Automaton {
                 if t.to < 0 {
                     continue;
                 }
-                if let Some(j) = last.insert((key(&self.atoms[atom]), t.to, t.counter, t.count), i)
-                {
+                if let Some(j) = last.insert(
+                    (key(&self.atoms[atom as usize]), t.to, t.counter, t.count),
+                    i,
+                ) {
                     let hidden = self.state(id).trans[j].atom.expect("atom");
                     self.state_mut(id).trans[j].to = -1;
-                    let pair = (self.atoms[hidden].origin, self.atoms[atom].origin);
+                    let pair = (
+                        self.atoms[hidden as usize].origin,
+                        self.atoms[atom as usize].origin,
+                    );
                     if pair.0 != pair.1 && !shadowed.contains(&pair) {
                         shadowed.push(pair);
                     }
@@ -714,7 +719,7 @@ impl Automaton {
             named.try_reserve(live.len())?;
             wild.try_reserve(live.len())?;
             for (k, &(_, t)) in live.iter().enumerate() {
-                let Some(atom) = t.atom.map(|a| self.atoms[a]) else {
+                let Some(atom) = t.atom.map(|a| self.atoms[a as usize]) else {
                     continue;
                 };
                 match !atom.negated && atom.local.is_some() && atom.ns != Some(None) {
@@ -724,7 +729,7 @@ impl Automaton {
             }
             let pairs =
                 wild.len() * live.len() + named.values().map(|v| v.len().pow(2)).sum::<usize>();
-            self.charge(pairs)?;
+            self.budget.charge(pairs)?;
             let clash = |this: &Self, t1: &Trans, t2: &Trans| {
                 let (a1, a2) = (t1.atom.expect("atom"), t2.atom.expect("atom"));
                 this.compare(a1, a2)
@@ -749,7 +754,7 @@ impl Automaton {
             }
             for (j, t2) in live.iter().filter(|(_, t)| t.atom.is_none()) {
                 for (_, t1) in live.iter().filter(|(i, t)| i > j && t.atom.is_some()) {
-                    let ok = self.recurse(t2.to as usize, id as i64, t1.to, t1.atom.expect("atom"));
+                    let ok = self.recurse(t2.to as usize, id as i32, t1.to, t1.atom.expect("atom"));
                     self.finish_recurse(t2.to as usize);
                     if !ok {
                         return Ok(false);
@@ -763,10 +768,11 @@ impl Automaton {
 
 /// Whether libxml2 would find the content model `node` deterministic, with
 /// the particles it shadows (see [`Automaton::deterministic`]); `Err` when
-/// `budget` runs out.
+/// `budget` runs out. The bytes held are the caller's to refund: the
+/// automaton is dropped on return.
 pub(crate) fn deterministic(
     node: &Node,
-    budget: &mut usize,
+    budget: &mut Budget,
 ) -> Result<(bool, Vec<(Matched, Matched)>), TooComplex> {
     let mut automaton = Automaton {
         states: Vec::new(),
@@ -783,7 +789,7 @@ pub(crate) fn deterministic(
     automaton.eliminate_epsilons()?;
     let mut shadowed = Vec::new();
     let result = automaton.deterministic(&mut shadowed)?;
-    if automaton.budget == 0 {
+    if automaton.budget.work == 0 {
         return Err(TooComplex::Work);
     }
     *budget = automaton.budget;
