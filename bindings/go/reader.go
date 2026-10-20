@@ -44,14 +44,25 @@ type Event struct {
 	Start, End int
 }
 
-// Reader is a pull parser over a copy of its input.
+// Reader is a pull parser over a copy of its input. It fetches events in
+// batches, one cgo call each.
 type Reader struct {
 	h       *C.yaxml_reader
 	cleanup runtime.Cleanup
-	ev      *C.yaxml_event // reused, separate allocations: C sees no Go pointers
+	out     *batch // reused, separate allocations: C sees no Go pointers
 	err     *C.yaxml_error
+	pending []C.yaxml_event // the rest of the batch, owned by the C reader
 	names   map[string]string
 }
+
+// batch is yaxml_reader_next_batch's out-parameters.
+type batch struct {
+	events *C.yaxml_event
+	count  C.size_t
+}
+
+// batchSize is the most events one call fetches.
+const batchSize = 64
 
 // maxNames bounds the name cache against documents with endless new names.
 const maxNames = 4096
@@ -91,7 +102,7 @@ func NewReader(data []byte, opts ...Option) (*Reader, error) {
 	if err := check(status, &e); err != nil {
 		return nil, err
 	}
-	r := &Reader{h: h, ev: new(C.yaxml_event), err: new(C.yaxml_error), names: make(map[string]string)}
+	r := &Reader{h: h, out: new(batch), err: new(C.yaxml_error), names: make(map[string]string)}
 	r.cleanup = runtime.AddCleanup(r, func(h *C.yaxml_reader) { C.yaxml_reader_free(h) }, h)
 	return r, nil
 }
@@ -105,14 +116,18 @@ func offset(v C.uint64_t) int {
 
 // Next returns the next event, or io.EOF after the last one.
 func (r *Reader) Next() (Event, error) {
-	ev := r.ev
-	status := C.yaxml_reader_next(r.h, ev, r.err)
-	if err := check(status, r.err); err != nil {
-		return Event{}, err
+	if len(r.pending) == 0 {
+		status := C.yaxml_reader_next_batch(r.h, batchSize, &r.out.events, &r.out.count, r.err)
+		if err := check(status, r.err); err != nil {
+			return Event{}, err
+		}
+		if status == C.YAXML_NONE {
+			return Event{}, io.EOF
+		}
+		r.pending = unsafe.Slice(r.out.events, r.out.count)
 	}
-	if status == C.YAXML_NONE {
-		return Event{}, io.EOF
-	}
+	ev := &r.pending[0]
+	r.pending = r.pending[1:]
 	out := Event{
 		Kind: EventKind(ev.kind), Name: r.goName(&ev.name),
 		Value: goString(ev.value), Target: goString(ev.target),
@@ -136,7 +151,7 @@ func (r *Reader) Close() error {
 	if r.h != nil {
 		r.cleanup.Stop()
 		C.yaxml_reader_free(r.h)
-		r.h = nil
+		r.h, r.pending = nil, nil
 	}
 	return nil
 }

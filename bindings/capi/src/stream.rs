@@ -16,12 +16,14 @@ use crate::registry::Registry;
 use crate::types::*;
 use crate::*;
 
-/// The pull reader keeps each event's strings and attributes until the next
-/// call: the event itself borrows the reader and cannot be kept.
+/// The pull reader keeps a batch of events, their strings and attributes
+/// until the next call: the events themselves borrow the reader and cannot
+/// be kept.
 pub(crate) struct PullReader {
     reader: BufferedReader<Cursor<Vec<u8>>>,
     strings: Vec<String>,
     attributes: Records<yaxml_attribute>,
+    events: Records<yaxml_event>,
 }
 
 // `BufferedReader` and `PushParser` hold a `Send` (not `Sync`) resolver
@@ -38,15 +40,14 @@ fn exclusive<T>(m: &mut Mutex<T>) -> Result<&mut T, Fail> {
         .map_err(|_| Fail::new(ERR_POISONED, "an earlier call panicked"))
 }
 
-/// An event as its C record; strings go through `intern`, attributes into
-/// `attributes` (which the record points to).
+/// An event as its C record; strings go through `intern`, attributes are
+/// appended to `attributes` (the caller points the record at them).
 fn lower(
     event: &Event<'_>,
     origin: SourceOrigin,
     intern: &mut impl FnMut(&str) -> yaxml_str,
     attributes: &mut Vec<yaxml_attribute>,
 ) -> yaxml_event {
-    attributes.clear();
     let range = origin.input_range();
     let mut e = yaxml_event {
         start: range.as_ref().map_or(u64::MAX, |r| r.start as u64),
@@ -80,7 +81,7 @@ fn lower(
                 let value = intern(&attribute.value);
                 attributes.push(yaxml_attribute { name, value });
             }
-            (e.attributes, e.attribute_count) = (attributes.as_ptr(), attributes.len());
+            e.attribute_count = element.attributes.len();
         }
         Event::End(name) => (e.kind, e.name) = (5, name_of(name, intern)),
         Event::Text(t) => (e.kind, e.value) = (6, intern(t)),
@@ -96,31 +97,46 @@ fn lower(
 }
 
 impl PullReader {
-    fn next(&mut self) -> Result<Option<yaxml_event>, Fail> {
+    /// Up to `max` events, fewer at the end or before an error. An error
+    /// after some events is left for the next call: the reader repeats it.
+    fn batch(&mut self, max: usize) -> Result<&[yaxml_event], Fail> {
         let Self {
             reader,
             strings,
-            attributes,
+            attributes: Records(attributes),
+            events: Records(events),
         } = self;
-        let error = match reader.read_event() {
-            Ok(None) => return Ok(None),
-            Ok(Some((event, origin))) => {
-                // Each string goes into its own reused buffer, so earlier
-                // pointers survive the pool growing.
-                let mut used = 0;
-                let mut intern = |s: &str| {
-                    if used == strings.len() {
-                        strings.push(String::new());
-                    }
-                    let slot = &mut strings[used];
-                    used += 1;
-                    slot.clear();
-                    slot.push_str(s);
-                    yaxml_str::of(slot)
-                };
-                return Ok(Some(lower(&event, origin, &mut intern, &mut attributes.0)));
+        events.clear();
+        attributes.clear();
+        // Each string goes into its own reused buffer, so earlier pointers
+        // survive the pool growing.
+        let mut used = 0;
+        let mut intern = |s: &str| {
+            if used == strings.len() {
+                strings.push(String::new());
             }
-            Err(error) => error,
+            let slot = &mut strings[used];
+            used += 1;
+            slot.clear();
+            slot.push_str(s);
+            yaxml_str::of(slot)
+        };
+        let error = loop {
+            match (events.len() < max).then(|| reader.read_event()) {
+                Some(Ok(Some((event, origin)))) => {
+                    events.push(lower(&event, origin, &mut intern, attributes));
+                }
+                Some(Err(error)) if events.is_empty() => break error,
+                _ => {
+                    // `attributes` is complete: point each event at its own.
+                    let mut rest = &attributes[..];
+                    for e in events.iter_mut().filter(|e| e.attribute_count > 0) {
+                        let (these, tail) = rest.split_at(e.attribute_count);
+                        (e.attributes, rest) = (these.as_ptr(), tail);
+                    }
+                    return Ok(events);
+                }
+            }
         };
         Err(match error {
             ReadError::Xml(error) => Fail::xml(error, reader.get_ref().get_ref()),
@@ -151,6 +167,7 @@ pub unsafe extern "C" fn yaxml_reader_new(
             reader,
             strings: Vec::new(),
             attributes: Records(Vec::new()),
+            events: Records(Vec::new()),
         }));
         // SAFETY: yaxml.h: `out` is valid for writing a handle.
         unsafe { out.put(reader) };
@@ -168,9 +185,43 @@ pub unsafe extern "C" fn yaxml_reader_next(
 ) -> i32 {
     guard(err, || {
         let out = Out::new(out)?;
-        let event = READERS.get(reader)?.write(|r| exclusive(r)?.next())?;
+        let event = READERS
+            .get(reader)?
+            .write(|r| Ok(exclusive(r)?.batch(1)?.first().copied()))?;
         // SAFETY: yaxml.h: `out` is valid for writing an event.
         Ok(unsafe { out.reply(event) })
+    })
+}
+
+/// # Safety
+/// See include/yaxml.h.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yaxml_reader_next_batch(
+    reader: *mut yaxml_reader,
+    max: usize,
+    events: *mut *const yaxml_event,
+    count: *mut usize,
+    err: *mut yaxml_error,
+) -> i32 {
+    guard(err, || {
+        let (events, count) = (Out::new(events)?, Out::new(count)?);
+        if max == 0 {
+            return Err(Fail::argument("max must be at least 1"));
+        }
+        let len = READERS.get(reader)?.write(|r| {
+            let batch = exclusive(r)?.batch(max)?;
+            let ptr = if batch.is_empty() {
+                std::ptr::null()
+            } else {
+                batch.as_ptr()
+            };
+            // SAFETY: yaxml.h: `events` is valid for writing a pointer.
+            unsafe { events.put(ptr) };
+            Ok(batch.len())
+        })?;
+        // SAFETY: yaxml.h: `count` is valid for writing a size_t.
+        unsafe { count.put(len) };
+        Ok(if len == 0 { NONE } else { OK })
     })
 }
 
@@ -211,7 +262,9 @@ fn deliver(
     let Some(callback) = callback else {
         return ControlFlow::Continue(());
     };
-    let event = lower(event, origin, &mut yaxml_str::of, attributes);
+    attributes.clear();
+    let mut event = lower(event, origin, &mut yaxml_str::of, attributes);
+    event.attributes = attributes.as_ptr();
     // SAFETY: yaxml.h: `callback` is a yaxml_event_fn accepting `user`; the
     // event's strings and attributes live until it returns.
     match unsafe { emit(callback, user, &event) } {

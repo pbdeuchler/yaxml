@@ -1186,7 +1186,17 @@ fn created_and_cloned_documents() {
     free(doc);
 }
 
-fn events(xml: &str, flags: u32) -> Result<Vec<Ev>, (i32, i32)> {
+fn ev(event: &yaxml_event) -> Ev {
+    (
+        event.kind,
+        read(event.name.local).or(read(event.target)),
+        read(event.value),
+        event.attribute_count,
+    )
+}
+
+/// Every event through `yaxml_reader_next` (`max` 0) or in batches of `max`.
+fn events(xml: &str, flags: u32, max: usize) -> Result<Vec<Ev>, (i32, i32)> {
     let (mut reader, mut err) = (null_mut(), yaxml_error::default());
     let o = options(flags);
     // SAFETY: valid pointers.
@@ -1196,26 +1206,36 @@ fn events(xml: &str, flags: u32) -> Result<Vec<Ev>, (i32, i32)> {
         return Err((status, err.diagnostic.code));
     }
     let mut list = Vec::new();
+    let next = |list: &mut Vec<Ev>, err: *mut yaxml_error| {
+        let (mut event, mut batch, mut count) = (yaxml_event::default(), null(), 0);
+        let status = match max {
+            0 => unsafe { yaxml_reader_next(reader, &mut event, err) },
+            _ => unsafe { yaxml_reader_next_batch(reader, max, &mut batch, &mut count, err) },
+        };
+        match (status, max) {
+            (OK, 0) => list.push(ev(&event)),
+            (OK, _) => {
+                assert!((1..=max).contains(&count));
+                // SAFETY: the batch holds `count` events, all live together.
+                list.extend(unsafe { yaxml_capi_slice(batch, count) }.iter().map(ev));
+            }
+            (NONE, _) => assert!(batch.is_null() && count == 0),
+            _ => {}
+        }
+        status
+    };
     loop {
-        let mut event = yaxml_event::default();
-        // SAFETY: valid pointers.
-        match unsafe { yaxml_reader_next(reader, &mut event, &mut err) } {
-            OK => list.push((
-                event.kind,
-                read(event.name.local).or(read(event.target)),
-                read(event.value),
-                event.attribute_count,
-            )),
+        match next(&mut list, &mut err) {
+            OK => {}
             NONE => {
-                // SAFETY: as above; EOF repeats.
-                assert_eq!(
-                    unsafe { yaxml_reader_next(reader, &mut event, null_mut()) },
-                    NONE
-                );
+                // EOF repeats.
+                assert_eq!(next(&mut list, null_mut()), NONE);
                 break;
             }
             status => {
                 message(&err);
+                // Errors repeat.
+                assert_eq!(next(&mut list, null_mut()), status);
                 // SAFETY: handles are checked.
                 unsafe { yaxml_reader_free(reader) };
                 return Err((status, err.diagnostic.code));
@@ -1231,7 +1251,6 @@ fn events(xml: &str, flags: u32) -> Result<Vec<Ev>, (i32, i32)> {
 
 #[test]
 fn pull_reader_events_and_errors() {
-    let list = events("<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE r [<!ENTITY e 'v'>]><r a='1' b='&amp;'>t&e;<![CDATA[c]]><!--m--><?p d?><x/></r>", 0).unwrap();
     let expected = [
         (1, Some("UTF-8"), Some("1.0"), 0),
         (2, None, Some("r"), 0),
@@ -1250,12 +1269,16 @@ fn pull_reader_events_and_errors() {
         .iter()
         .map(|&(k, n, v, c)| (k, n.map(str::to_owned), v.map(str::to_owned), c))
         .collect();
-    assert_eq!(list, expected);
-    assert_eq!(events("<r><a></b></r>", 0), Err((ERR_XML, 76)));
-    // RECOVER: `</b>` ends `a`; DTDVALID needs a tree.
-    let recovered = events("<r><a></b></r>", 1).map(|list| list.len());
-    assert_eq!(recovered, Ok(4));
-    assert_eq!(events("<r/>", 1 << 4), Err((ERR_XML, 115)));
+    let xml = "<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE r [<!ENTITY e 'v'>]><r a='1' b='&amp;'>t&e;<![CDATA[c]]><!--m--><?p d?><x/></r>";
+    // One at a time, in batches that split the document anywhere, and in one.
+    for max in [0, 1, 2, 5, 12, 64] {
+        assert_eq!(events(xml, 0, max).unwrap(), expected, "max {max}");
+        assert_eq!(events("<r><a></b></r>", 0, max), Err((ERR_XML, 76)));
+        // RECOVER: `</b>` ends `a`; DTDVALID needs a tree.
+        let recovered = events("<r><a></b></r>", 1, max).map(|list| list.len());
+        assert_eq!(recovered, Ok(4));
+        assert_eq!(events("<r/>", 1 << 4, max), Err((ERR_XML, 115)));
+    }
     let mut err = yaxml_error::default();
     let mut event = yaxml_event::default();
     // SAFETY: handles are checked.
@@ -1264,6 +1287,84 @@ fn pull_reader_events_and_errors() {
         ERR_NULL
     );
     message(&err);
+}
+
+/// One `yaxml_reader_next_batch` into `out`, with the error message.
+fn batch(
+    reader: *mut yaxml_reader,
+    max: usize,
+    out: &mut (*const yaxml_event, usize),
+) -> (i32, String) {
+    let mut err = yaxml_error::default();
+    let status = unsafe { yaxml_reader_next_batch(reader, max, &mut out.0, &mut out.1, &mut err) };
+    (status, message(&err))
+}
+
+fn reader(xml: &str) -> *mut yaxml_reader {
+    let mut reader = null_mut();
+    let status =
+        unsafe { yaxml_reader_new(xml.as_ptr(), xml.len(), null(), &mut reader, null_mut()) };
+    assert_eq!(status, OK);
+    reader
+}
+
+#[test]
+fn pull_reader_batches() {
+    let r = reader("<r a='1' b='2'><x c='3'/>t<y/><z d='4' e='5'/></r><broken");
+    let mut out = (null(), 0);
+    // Every event's strings and attributes stay valid across its batch.
+    let attributes = |e: &yaxml_event| -> Vec<(String, String)> {
+        unsafe { yaxml_capi_slice(e.attributes, e.attribute_count) }
+            .iter()
+            .map(|a| (read(a.name.qname).unwrap(), read(a.value).unwrap()))
+            .collect()
+    };
+    let pairs = |list: &[(&str, &str)]| -> Vec<(String, String)> {
+        list.iter().map(|&(n, v)| (n.into(), v.into())).collect()
+    };
+    assert_eq!(batch(r, 2, &mut out).0, OK);
+    let first = unsafe { yaxml_capi_slice(out.0, out.1) };
+    assert_eq!(first.len(), 2);
+    assert_eq!(attributes(&first[0]), pairs(&[("a", "1"), ("b", "2")]));
+    assert_eq!(attributes(&first[1]), pairs(&[("c", "3")]));
+    // A batch that would pass the error ends before it; the error follows,
+    // repeats, and leaves the out-parameters alone.
+    assert_eq!(batch(r, 64, &mut out).0, OK);
+    let rest = unsafe { yaxml_capi_slice(out.0, out.1) };
+    let kinds: Vec<_> = rest.iter().map(|e| e.kind).collect();
+    assert_eq!(kinds, [6, 4, 4, 5]);
+    assert_eq!(read(rest[0].value).as_deref(), Some("t"));
+    assert!(rest[1].attributes.is_null());
+    assert_eq!(attributes(&rest[2]), pairs(&[("d", "4"), ("e", "5")]));
+    let kept = out;
+    for _ in 0..2 {
+        let (status, text) = batch(r, 64, &mut out);
+        assert_eq!(status, ERR_XML);
+        assert!(text.contains("Extra content"), "{text}");
+        assert_eq!(out, kept);
+    }
+    // Argument errors.
+    assert_eq!(batch(r, 0, &mut out).0, ERR_ARGUMENT);
+    let mut err = yaxml_error::default();
+    let status = unsafe { yaxml_reader_next_batch(r, 1, null_mut(), &mut out.1, &mut err) };
+    assert_eq!(status, ERR_NULL);
+    message(&err);
+    let status = unsafe { yaxml_reader_next_batch(r, 1, &mut out.0, null_mut(), &mut err) };
+    assert_eq!(status, ERR_NULL);
+    message(&err);
+    assert_eq!(unsafe { yaxml_reader_free(r) }, OK);
+    assert_eq!(batch(r, 1, &mut out).0, ERR_HANDLE);
+    assert_eq!(batch(null_mut(), 1, &mut out).0, ERR_NULL);
+    // Single events and batches mix; the end is NONE with an empty batch.
+    let r = reader("<r><a/></r>");
+    let mut event = yaxml_event::default();
+    assert_eq!(unsafe { yaxml_reader_next(r, &mut event, null_mut()) }, OK);
+    assert_eq!(event.kind, 3);
+    assert_eq!(batch(r, 64, &mut out).0, OK);
+    assert_eq!(out.1, 2);
+    assert_eq!(batch(r, 64, &mut out).0, NONE);
+    assert_eq!(out, (null(), 0));
+    assert_eq!(unsafe { yaxml_reader_free(r) }, OK);
 }
 
 #[derive(Default)]
