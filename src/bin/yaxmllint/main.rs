@@ -376,7 +376,8 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
 /// but `--valid`, `--relaxng` and `--schema` validation, which the reader does
 /// as it goes.
 fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
-    // The reader does not recover; it prints nothing, so blanks do not matter.
+    // xmllint's reader stops at the first error even with `--recover`, so the
+    // reader parses strictly; it prints nothing, so blanks do not matter.
     use yaxml::options::{NOBLANKS, RECOVER};
     let streamable = flags(o) & !(NOBLANKS | RECOVER);
     let options = ParseOptions::new(streamable).with_limits(limits(o));
