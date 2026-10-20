@@ -526,3 +526,240 @@ fn stream_resource_limits_stay_fatal() {
         assert_eq!(read, Err(error), "{input}");
     }
 }
+
+/// `xmllint --walker --debug` lines (depth, type, name, empty, has value,
+/// value) of the tree that a recovering stream's events build, as libxml2's
+/// reader walks it: an element without children is empty and has no end,
+/// adjacent text is one node, and references' content is not visited.
+#[derive(Default)]
+struct Walker {
+    out: String,
+    depth: usize,
+    start: Option<String>,
+    text: Option<String>,
+    hidden: usize,
+}
+
+impl Walker {
+    fn line(&mut self, kind: u8, name: &str, empty: bool, value: Option<&str>) {
+        let (empty, has) = (u8::from(empty), u8::from(value.is_some() || kind == 7));
+        let line = format!("{} {kind} {name} {empty} {has}", self.depth);
+        self.out.push_str(&line);
+        if let Some(value) = value.filter(|value| kind != 7 || !value.is_empty()) {
+            self.out.push(' ');
+            self.out.push_str(value);
+        }
+        self.out.push('\n');
+    }
+
+    /// The pending start tag, which has children.
+    fn opened(&mut self) {
+        if let Some(name) = self.start.take() {
+            self.line(1, &name, false, None);
+            self.depth += 1;
+        }
+    }
+
+    fn event(&mut self, event: &yaxml::Event<'_>) {
+        use yaxml::Event;
+        if self.hidden > 0 {
+            match event {
+                Event::EntityStart(_) => self.hidden += 1,
+                Event::EntityEnd => self.hidden -= 1,
+                _ => {}
+            }
+            return;
+        }
+        if let Event::Text(text) = event {
+            self.opened();
+            self.text.get_or_insert_default().push_str(text);
+            return;
+        }
+        if let Some(text) = self.text.take() {
+            let blank = text.bytes().all(|b| b" \t\r\n".contains(&b));
+            self.line(if blank { 14 } else { 3 }, "#text", false, Some(&text));
+        }
+        if !matches!(event, Event::End(_)) {
+            self.opened();
+        }
+        match event {
+            Event::End(name) => match self.start.take() {
+                Some(start) => self.line(1, &start, true, None),
+                None => {
+                    self.depth -= 1;
+                    self.line(15, name.qualified(), false, None);
+                }
+            },
+            Event::Start(element) => self.start = Some(element.name.qualified().to_owned()),
+            Event::Empty(element) => self.line(1, element.name.qualified(), true, None),
+            Event::Cdata(text) => self.line(4, "#cdata-section", false, Some(text)),
+            Event::Comment(text) => self.line(8, "#comment", false, Some(text)),
+            Event::ProcessingInstruction { target, data } => {
+                self.line(7, target, false, Some(data))
+            }
+            Event::EntityStart(name) => {
+                self.line(5, name, false, None);
+                self.hidden = 1;
+            }
+            Event::Doctype(doctype) => self.line(10, doctype.name, false, None),
+            Event::Declaration(_) | Event::EntityEnd | Event::Text(_) => {}
+        }
+    }
+}
+
+/// The text reader's `xmllint --stream --debug` lines.
+fn streamed(input: &[u8], flags: u32) -> String {
+    let options = ParseOptions::new(RECOVER | flags);
+    let mut reader = TextReader::with_options(input, options).unwrap();
+    let mut out = String::new();
+    while let Ok(true) = reader.read() {
+        let (depth, kind) = (reader.depth(), reader.node_type() as i32);
+        let (empty, has) = (reader.is_empty_element(), reader.has_value());
+        let name = reader.name().unwrap_or("--");
+        out.push_str(&format!(
+            "{depth} {kind} {name} {} {}",
+            u8::from(empty),
+            u8::from(has)
+        ));
+        if let Some(value) = reader.value() {
+            out.push(' ');
+            out.push_str(value);
+        }
+        out.push('\n');
+    }
+    out
+}
+
+/// The slice reader's events (the DOMs') as walked lines.
+fn walked_slice(input: &[u8]) -> String {
+    let mut walker = Walker::default();
+    if let Ok(mut reader) = Reader::with_options(input, ParseOptions::new(RECOVER)) {
+        while let Ok(Some(event)) = reader.read_event() {
+            walker.event(&event);
+        }
+    }
+    walker.out
+}
+
+/// The push parser's events as `walked` lines, or nothing on a fatal error.
+fn walked_push(input: &[u8], flags: u32) -> String {
+    let mut parser = PushParser::with_options(ParseOptions::new(RECOVER | flags)).unwrap();
+    let mut walker = Walker::default();
+    let mut emit = |event: &yaxml::Event<'_>, _| {
+        walker.event(event);
+        ControlFlow::Continue(())
+    };
+    let done = (input.chunks(4096))
+        .try_for_each(|chunk| parser.feed(chunk, &mut emit))
+        .and_then(|()| parser.finish(&mut emit));
+    done.map_or_else(|_| String::new(), |()| walker.out)
+}
+
+/// Streams under `RECOVER` against libxml2 2.15.4 (`YAXML_XMLLINT`), over
+/// libxml2's `test/errors` and the XMLTS not-wf documents: the push
+/// parser's tree against `xmllint --recover --push --walker --debug`
+/// (libxml2's push parser) and `--recover --walker --debug` (its pull
+/// parser, whose repairs the DOMs and streams share), also with
+/// `--noblanks`, and the text reader against `--recover --stream --debug`
+/// (libxml2's reader stops at its first error). Reports the rates.
+#[test]
+#[ignore = "requires YAXML_XMLLINT, the libxml2 source tree (YAXML_LIBXML2_SRC) and the XMLTS suites (YAXML_SUITES)"]
+fn streams_recover_against_xmllint() {
+    use std::path::PathBuf;
+    use yaxml::options::NOBLANKS;
+    let Some(xmllint) = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from) else {
+        eprintln!("YAXML_XMLLINT unset; skipping the stream --recover differential");
+        return;
+    };
+    let source = std::env::var_os("YAXML_LIBXML2_SRC").map_or(
+        "/Users/pbdeuchler/workspace/src/github.com/pbdeuchler/yaxml-oracle/libxml2-2.15.4".into(),
+        PathBuf::from,
+    );
+    let suites = std::env::var_os("YAXML_SUITES").map_or(
+        "/Users/pbdeuchler/workspace/src/github.com/pbdeuchler/yaxml-suites".into(),
+        PathBuf::from,
+    );
+    let mut errors: Vec<String> = std::fs::read_dir(source.join("test/errors"))
+        .map(|entries| {
+            entries
+                .flatten()
+                .map(|entry| entry.file_name())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|name| name.into_string().ok())
+        .filter(|name| name.ends_with(".xml"))
+        .map(|name| format!("errors/{name}"))
+        .collect();
+    errors.sort();
+    let catalog = std::fs::read_to_string(suites.join("xmlconf-catalog.tsv")).unwrap_or_default();
+    let xmlts: Vec<String> = (catalog.lines())
+        .filter_map(|line| {
+            let fields: Vec<_> = line.split('\t').collect();
+            (fields.get(1) == Some(&"not-wf"))
+                .then(|| fields.get(8).map(|path| path.to_string()))?
+        })
+        .collect();
+    let rate = |agree: usize, total: usize| 100.0 * agree as f64 / total.max(1) as f64;
+    let cases = [
+        ("errors", source.join("test"), errors),
+        ("XMLTS not-wf", suites.join("xmlconf"), xmlts),
+    ];
+    for (label, dir, inputs) in cases {
+        let xmllint = |file: &str, args: &[&str]| {
+            let output = std::process::Command::new(&xmllint)
+                .args(args)
+                .arg(file)
+                .current_dir(&dir)
+                .output()
+                .unwrap();
+            String::from_utf8_lossy(&output.stdout).into_owned()
+        };
+        // push vs libxml2's push and pull trees, --noblanks, text reader,
+        // libxml2's push tree against its pull tree, and the DOMs' events
+        // (the slice reader's) against the pull tree.
+        let mut agree = [0; 6];
+        for file in &inputs {
+            let input = std::fs::read(dir.join(file)).unwrap_or_default();
+            let pushed = walked_push(&input, 0);
+            let push = xmllint(file, &["--recover", "--push", "--walker", "--debug"]);
+            let pull = xmllint(file, &["--recover", "--walker", "--debug"]);
+            let blanks = ["--recover", "--push", "--noblanks", "--walker", "--debug"];
+            let checks = [
+                pushed == push,
+                pushed == pull,
+                walked_push(&input, NOBLANKS) == xmllint(file, &blanks),
+                streamed(&input, 0) == xmllint(file, &["--recover", "--stream", "--debug"]),
+                push == pull,
+                walked_slice(&input) == pull,
+            ];
+            for (count, agrees) in agree.iter_mut().zip(checks) {
+                *count += usize::from(agrees);
+            }
+            if std::env::var_os("YAXML_DIFF").is_some() && !checks[1] {
+                eprintln!("differs from libxml2's pull tree: {file}");
+            }
+        }
+        let total = inputs.len();
+        let [push, pull, blanks, text, libxml2, dom] =
+            agree.map(|agree| (agree, rate(agree, total)));
+        eprintln!(
+            "--recover {label} ({total}): push vs --push {}/{:.2}%, vs pull {}/{:.2}%, \
+             --noblanks {}/{:.2}%; text reader vs --stream {}/{:.2}%; libxml2 push vs pull \
+             {}/{:.2}%; DOM events vs pull {}/{:.2}%",
+            push.0,
+            push.1,
+            pull.0,
+            pull.1,
+            blanks.0,
+            blanks.1,
+            text.0,
+            text.1,
+            libxml2.0,
+            libxml2.1,
+            dom.0,
+            dom.1
+        );
+    }
+}
