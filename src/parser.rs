@@ -381,6 +381,35 @@ impl<'source> ParserState<'source> {
         }
     }
 
+    /// A fresh state for `limits` that keeps this one's emptied allocations;
+    /// every scalar, counter and budget starts over (`PushParser::reset`).
+    pub(crate) fn recycled(self, limits: Limits) -> Self {
+        fn emptied<T>(mut vec: Vec<T>) -> Vec<T> {
+            vec.clear();
+            vec
+        }
+        let lent = self.lent.map(|mut lent| {
+            lent[0].values.clear();
+            lent[0].ranges.clear();
+            lent
+        });
+        let (mut index, mut ids, mut names) =
+            (self.namespace_index, self.namespace_ids, self.frame_names);
+        index.clear();
+        ids.clear();
+        names.clear();
+        Self {
+            stack: emptied(self.stack),
+            frame_names: names,
+            attribute_storage: emptied(self.attribute_storage),
+            bindings: emptied(self.bindings),
+            namespace_index: index,
+            namespace_ids: ids,
+            lent,
+            ..Self::new(limits, 0)
+        }
+    }
+
     /// Recovery by the slice reader (`rereads`), which rereads a token from
     /// where libxml2 ends it (`take_rewind`) and, over input with
     /// `characters` outside `Char`, repairs them.

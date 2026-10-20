@@ -379,6 +379,44 @@ impl<R: BufRead> TextReader<R> {
         })
     }
 
+    /// Starts a new document on `input` with the same flags and limits,
+    /// keeping the parser's allocated capacity (`xmlReaderNewMemory` on an
+    /// existing reader), and returns the previous source. Read position,
+    /// sticky failure, queued nodes, namespace scope, schemas, counters and
+    /// the resolver are gone; the document URI is kept.
+    pub fn reset(&mut self, input: R) -> R {
+        let previous = self.source.reset(input);
+        self.resolver = false;
+        self.restart();
+        previous
+    }
+
+    /// [`TextReader::reset`] with new options (`base` is the new document
+    /// URI). Unsupported options are an error that leaves the reader as it was
+    /// (`input` is dropped).
+    pub fn reset_with(&mut self, input: R, options: ParseOptions) -> Result<R, Error> {
+        let (limits, _) = options.effective_limits();
+        let (flags, url, resolver) = (
+            Flags(options.flags),
+            options.base.clone(),
+            options.resolver.is_some(),
+        );
+        let previous = self.source.reset_with(input, options)?;
+        (self.limits, self.flags, self.url, self.resolver) = (limits, flags, url, resolver);
+        self.restart();
+        Ok(previous)
+    }
+
+    fn restart(&mut self) {
+        self.state = ReadState::Initial;
+        self.queue.clear();
+        self.buffered = 0;
+        self.pending = None;
+        self.attribute = None;
+        self.scope = Scope::default();
+        self.validators = Validators::default();
+    }
+
     /// `xmlTextReaderRead`: moves to the next node in document order.
     /// Returns false at the end of a well-formed document. Errors are sticky.
     pub fn read(&mut self) -> Result<bool, ReadError> {

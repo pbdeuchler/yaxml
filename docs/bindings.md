@@ -52,6 +52,32 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
    [Allocators](#allocators). That is a memory-accounting choice, not a
    correctness dependency.
 
+## Capabilities, versions and reuse
+
+- `yaxml::features::has(Feature)` / `has_code(u32)` answer `xmlHasFeature`
+  and keep libxml2's `XML_WITH_*` numbers (`Feature as u32`), so a binding
+  passes the int through. `all()` lists every `(Feature, bool)`; unknown
+  numbers and `XML_WITH_NONE` are false. `ALLOCATOR_API` reports the cargo
+  feature of that name. A binding should map its own module probes
+  (`HAVE_XPATH`, ...) onto these instead of hard-coding.
+- `yaxml::VERSION` is the crate version; `LIBXML2_COMPAT_VERSION` ("2.15.4")
+  and `LIBXML2_COMPAT_VERSION_NUMBER` (21504, `LIBXML_VERSION`) say which
+  libxml2 is matched; `features::check_version(v)` is `xmlCheckVersion`
+  returning a bool instead of printing.
+- `PushParser::reset`/`reset_with(options)`, `BufferedReader::reset(input)`/
+  `reset_with(input, options)` and `TextReader` likewise return the previous
+  source and keep allocation capacity (tokenizer buffer, namespace stack,
+  name buffers). Everything else starts over: positions, budgets
+  (`Limits` counters), sticky XML and I/O failures, finish state, DTD and
+  entity state, queued nodes, schemas, and the resolver. `reset()` keeps the
+  flags and limits but not the resolver; `reset_with` takes a full
+  `ParseOptions`, rejects unsupported options before changing anything, and
+  is how `xmlCtxtSetOptions` is spelled. Retained capacity is what the previous document needed, which `Limits`
+  bound (the tokenizer buffer by `max_token_bytes`); drop the parser to
+  release it.
+  Measured: 100k tiny documents (47 bytes, 6 events) 820 ns fresh vs 690 ns
+  reset (-16%), a 4-byte document 230 vs 200 ns (`examples/reset_bench.rs`).
+
 ## Allocators
 
 With the `allocator_api` feature (Rust 1.100), an adapter can charge document
