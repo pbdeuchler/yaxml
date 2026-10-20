@@ -11,12 +11,8 @@ readme = "README.md"
 keywords = ["xml", "parser", "libxml2", "xpath", "xsd"]
 categories = ["parser-implementations", "encoding"]
 # Benchmarks, fuzzing and the libxml2 differentials live in yaxml-harness.
-# The three docs are module docs (`#![doc = include_str!(..)]`).
 include = [
     "/src/**",
-    "/docs/c14n.md",
-    "/docs/relaxng.md",
-    "/docs/schematron.md",
     "/Cargo.toml",
     "/README.md",
     "/LICENSE-MIT",

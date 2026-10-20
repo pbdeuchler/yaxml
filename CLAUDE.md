@@ -1,6 +1,6 @@
 # yaxml agent notes
 
-Pure-Rust libxml2 2.15.4 rewrite. `#![forbid(unsafe_code)]`; memchr is the only library dep. Benchmarks, fuzzing, libxml2 differentials and the XMLTS run live in the sibling repo yaxml-harness (see Harness); paths written `yaxml-harness/...` are there. Package = src + 3 module docs (docs/{c14n,relaxng,schematron}.md, `include_str!`) + README + LICENSE-*; keep `include` in Cargo.toml in sync. FFI bindings live in `bindings/` (own Cargo workspace + lockfile; not in the package; approved, docs/bindings.md).
+Pure-Rust libxml2 2.15.4 rewrite. `#![forbid(unsafe_code)]`; memchr is the only library dep. Benchmarks, fuzzing, libxml2 differentials and the XMLTS run live in the sibling repo yaxml-harness (see Harness); paths written `yaxml-harness/...` are there. Package = src + README (doctested via cfg(doctest)) + LICENSE-*; src must not include_str! anything outside src; keep `include` in Cargo.toml in sync. FFI bindings live in `bindings/` (own Cargo workspace + lockfile; not in the package; approved, docs/bindings.md).
 
 ## Layout
 - One engine (src/parser.rs, src/tokenizer, src/stream) feeds Reader (slice), PushParser, BufferedReader, TextReader, Document (borrowed DOM), OwnedDocument (arena, `OwnedNodeId`). DTD-free input stays on the plain token loop; DTD stack = src/dtd*.

@@ -8,6 +8,7 @@ use std::ops::ControlFlow;
 use yaxml::{
     BufferedReader, Doctype, Document, Error, ErrorKind, Event, Limit, Limits, NodeKind,
     OwnedDocument, OwnedNode, OwnedNodeKind, ParseOptions, PushParser, ReadError, Reader, Writer,
+    options,
 };
 
 /// A compact, coalesced rendering shared by every surface.
@@ -688,12 +689,15 @@ fn oracle_xmllint_agrees_on_acceptance_and_serialized_root() {
                 .map_or(text.as_str(), |(_, body)| body);
             body.trim_end().to_owned()
         });
-        let ours = Document::parse(input).ok().map(|document| {
-            let mut writer = Writer::new(Vec::new());
-            write_element(&mut writer, document.root_element());
-            writer.finish().unwrap();
-            String::from_utf8(writer.into_inner()).unwrap()
-        });
+        let options = ParseOptions::new(options::NOENT | options::DTDATTR);
+        let ours = Document::parse_with(input.as_bytes(), options)
+            .ok()
+            .map(|document| {
+                let mut writer = Writer::new(Vec::new());
+                write_element(&mut writer, document.root_element());
+                writer.finish().unwrap();
+                String::from_utf8(writer.into_inner()).unwrap()
+            });
         if oracle != ours {
             differences.push(format!(
                 "{input}\n  libxml2: {oracle:?}\n  yaxml:   {ours:?}"
