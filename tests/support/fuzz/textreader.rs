@@ -420,10 +420,16 @@ fn content<R: BufRead>(reader: &mut TextReader<R>, nodes: &[Node]) -> Result<(),
     let outer = reader.read_outer_xml()?;
     let serializable = !matches!(nodes[0].kind, NodeType::DocumentType | NodeType::EndElement);
     assert_eq!(outer.is_some(), serializable);
-    // Kept entity references serialize as `&name;`, which needs their DTD.
-    let references = nodes[..=end]
-        .iter()
-        .any(|node| node.kind == NodeType::EntityReference);
+    // Kept entity references, in content or attribute values, serialize as
+    // `&name;` and need their DTD, as in libxml2. Only the escapes the
+    // serializer writes (and character references) are not kept references.
+    let references = outer.as_deref().is_some_and(|outer| {
+        outer.split('&').skip(1).any(|rest| {
+            !["amp;", "lt;", "gt;", "quot;", "#"]
+                .iter()
+                .any(|escape| rest.starts_with(escape))
+        })
+    });
     if nodes[0].kind == NodeType::Element && references {
         let expanded = reader.expand()?.expect("element expands");
         let name = expanded
