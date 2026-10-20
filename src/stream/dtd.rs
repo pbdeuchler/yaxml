@@ -101,6 +101,12 @@ impl StreamingSession {
         };
         *self = Self::with_stream(stream, limits, decode, flags);
     }
+    /// Starts over with other flags, keeping the resolver: only before input.
+    pub(crate) fn set_flags(&mut self, flags: Flags) {
+        let loader = self.loader.take();
+        self.reset(self.limits, self.decode, flags);
+        self.loader = loader.map(|loader| loader.with_flags(flags));
+    }
     /// [`Self::reset`] with the current limits and flags.
     pub(crate) fn reset_same(&mut self) {
         self.reset(self.limits, self.decode, self.options.flags);

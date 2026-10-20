@@ -1742,11 +1742,11 @@ tree.h	_xmlBuffer.content	field	yes	P0-P3	not-applicable	https://github.com/GNOM
 tree.h	_xmlBuffer.contentIO	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
 tree.h	_xmlBuffer.size	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
 tree.h	_xmlBuffer.use	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
-tree.h	_xmlDOMWrapCtxt	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	_xmlDOMWrapCtxt._private	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
-tree.h	_xmlDOMWrapCtxt.getNsForNodeFunc	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
-tree.h	_xmlDOMWrapCtxt.namespaceMap	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
-tree.h	_xmlDOMWrapCtxt.type	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
+tree.h	_xmlDOMWrapCtxt	struct	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt.getNsForNodeFunc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt.namespaceMap	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
 tree.h	_xmlDoc	struct	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document, OwnedDocument
 tree.h	_xmlDoc.URL	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::url, OwnedDocument::url
 tree.h	_xmlDoc._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no user pointer
@@ -1903,31 +1903,31 @@ tree.h	xmlBufferWriteQuotedString	function	not_marked	P0-P3	not-applicable	https
 tree.h	xmlBuildQName	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no line numbers)
 tree.h	xmlChildElementCount	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlChildrenNode	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
-tree.h	xmlCopyDoc	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyDtd	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNamespace	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNamespaceList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyProp	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyPropList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
+tree.h	xmlCopyDoc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::try_clone
+tree.h	xmlCopyDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::try_clone - copies the DTD with the document; no standalone DTD copy
+tree.h	xmlCopyNamespace	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	declarations are attributes; copied with their element
+tree.h	xmlCopyNamespaceList	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	declarations are attributes; copied with their element
+tree.h	xmlCopyNode	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::copy - deep, or extended 2 when shallow; extended 0 is not offered
+tree.h	xmlCopyNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::copy - one node at a time
+tree.h	xmlCopyProp	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
+tree.h	xmlCopyPropList	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
 tree.h	xmlCreateIntSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no detached nodes, entity-reference or DTD construction)
-tree.h	xmlDOMWrapAcquireNsFunction	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapAdoptNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapCloneNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapCtxt	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapCtxtPtr	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapFreeCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapNewCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapReconcileNamespaces	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapRemoveNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
+tree.h	xmlDOMWrapAcquireNsFunction	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no custom namespace callback; copies never rename
+tree.h	xmlDOMWrapAdoptNode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	handles name one document: Editor::import + remove_subtree (docs/bindings.md#moving-nodes-between-documents)
+tree.h	xmlDOMWrapCloneNode	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - declarations on the copy root; no prefix renaming or oldNs (docs/owned-dom.md#copying-and-importing)
+tree.h	xmlDOMWrapCtxt	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapCtxtPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapFreeCtxt	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapNewCtxt	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapReconcileNamespaces	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	every edit and copy reconciles before publishing
+tree.h	xmlDOMWrapRemoveNode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::unlink; namespaces need no fixup
 tree.h	xmlDefaultBufferSize	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	xmlDeregisterNodeDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlDeregisterNodeDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlDeregisterNodeFunc	callback	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	DocBook and node registration callbacks removed upstream
 tree.h	xmlDoc	typedef	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document, OwnedDocument
-tree.h	xmlDocCopyNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlDocCopyNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
+tree.h	xmlDocCopyNode	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - deep, or extended 2 when shallow
+tree.h	xmlDocCopyNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - one node at a time
 tree.h	xmlDocDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
 tree.h	xmlDocDumpFormatMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
 tree.h	xmlDocDumpFormatMemoryEnc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
@@ -2021,8 +2021,8 @@ tree.h	xmlNodeGetContent	function	not_marked	P0-P3	implemented	https://github.co
 tree.h	xmlNodeGetLang	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::lang, OwnedNode::lang
 tree.h	xmlNodeGetSpacePreserve	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::space_preserve, OwnedNode::space_preserve
 tree.h	xmlNodeIsText	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::kind, OwnedNode::kind
-tree.h	xmlNodeListGetRawString	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
-tree.h	xmlNodeListGetString	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlNodeListGetRawString	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
+tree.h	xmlNodeListGetString	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::list_string, OwnedNode::list_string
 tree.h	xmlNodePtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlNodeSetBase	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
 tree.h	xmlNodeSetContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_node_value
@@ -2068,11 +2068,11 @@ tree.h	xmlSearchNsByHref	function	not_marked	P0-P3	implemented	https://github.co
 tree.h	xmlSetBufferAllocationScheme	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	xmlSetCompressMode	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	xmlSetDocCompressMode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no compression
-tree.h	xmlSetListDoc	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
+tree.h	xmlSetListDoc	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	a node belongs to its arena; Editor::import copies
 tree.h	xmlSetNs	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_name
 tree.h	xmlSetNsProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute
 tree.h	xmlSetProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute
-tree.h	xmlSetTreeDoc	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
+tree.h	xmlSetTreeDoc	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	a node belongs to its arena; Editor::import copies
 tree.h	xmlSplitQName2	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (Name::new parses a whole QName)
 tree.h	xmlSplitQName3	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (Name::new parses a whole QName)
 tree.h	xmlStringGetNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
@@ -3289,21 +3289,21 @@ xmlreader.h	XML_PARSER_VALIDATE	enum_value	not_marked	P0-P2	implemented	https://
 xmlreader.h	XML_READER_TYPE_ATTRIBUTE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Attribute
 xmlreader.h	XML_READER_TYPE_CDATA	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Cdata
 xmlreader.h	XML_READER_TYPE_COMMENT	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Comment
-xmlreader.h	XML_READER_TYPE_DOCUMENT	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType has no such variant
-xmlreader.h	XML_READER_TYPE_DOCUMENT_FRAGMENT	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType has no such variant
+xmlreader.h	XML_READER_TYPE_DOCUMENT	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Document - never reported, as by libxml2's reader
+xmlreader.h	XML_READER_TYPE_DOCUMENT_FRAGMENT	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::DocumentFragment - never reported, as by libxml2's reader
 xmlreader.h	XML_READER_TYPE_DOCUMENT_TYPE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::DocumentType
 xmlreader.h	XML_READER_TYPE_ELEMENT	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Element
 xmlreader.h	XML_READER_TYPE_END_ELEMENT	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::EndElement
-xmlreader.h	XML_READER_TYPE_END_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType has no such variant
-xmlreader.h	XML_READER_TYPE_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType has no such variant
+xmlreader.h	XML_READER_TYPE_END_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::EndEntity - never reported, as by libxml2's reader
+xmlreader.h	XML_READER_TYPE_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Entity - never reported, as by libxml2's reader
 xmlreader.h	XML_READER_TYPE_ENTITY_REFERENCE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::EntityReference
 xmlreader.h	XML_READER_TYPE_NONE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::None
-xmlreader.h	XML_READER_TYPE_NOTATION	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType has no such variant
+xmlreader.h	XML_READER_TYPE_NOTATION	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Notation - never reported, as by libxml2's reader
 xmlreader.h	XML_READER_TYPE_PROCESSING_INSTRUCTION	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::ProcessingInstruction
 xmlreader.h	XML_READER_TYPE_SIGNIFICANT_WHITESPACE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::SignificantWhitespace
 xmlreader.h	XML_READER_TYPE_TEXT	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Text
-xmlreader.h	XML_READER_TYPE_WHITESPACE	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType has no such variant
-xmlreader.h	XML_READER_TYPE_XML_DECLARATION	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType has no such variant
+xmlreader.h	XML_READER_TYPE_WHITESPACE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Whitespace - never reported, as by libxml2's reader
+xmlreader.h	XML_READER_TYPE_XML_DECLARATION	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::XmlDeclaration - never reported, as by libxml2's reader
 xmlreader.h	XML_TEXTREADER_MODE_CLOSED	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState has no such variant
 xmlreader.h	XML_TEXTREADER_MODE_EOF	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState::Eof
 xmlreader.h	XML_TEXTREADER_MODE_ERROR	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState::Error
@@ -3331,7 +3331,7 @@ xmlreader.h	xmlReaderWalker	function	not_marked	P0-P2	not-started	https://github
 xmlreader.h	xmlTextReader	typedef	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader
 xmlreader.h	xmlTextReaderAttributeCount	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::attribute_count
 xmlreader.h	xmlTextReaderBaseUri	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::base_uri
-xmlreader.h	xmlTextReaderByteConsumed	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderByteConsumed	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::byte_consumed - exact bytes taken, libxml2 counts 4 KiB chunks
 xmlreader.h	xmlTextReaderClose	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Drop
 xmlreader.h	xmlTextReaderConstBaseUri	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::base_uri
 xmlreader.h	xmlTextReaderConstEncoding	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
@@ -3343,8 +3343,8 @@ xmlreader.h	xmlTextReaderConstString	function	not_marked	P0-P2	not-started	https
 xmlreader.h	xmlTextReaderConstValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::value
 xmlreader.h	xmlTextReaderConstXmlLang	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xml_lang
 xmlreader.h	xmlTextReaderConstXmlVersion	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
-xmlreader.h	xmlTextReaderCurrentDoc	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
-xmlreader.h	xmlTextReaderCurrentNode	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderCurrentDoc	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
+xmlreader.h	xmlTextReaderCurrentNode	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 xmlreader.h	xmlTextReaderDepth	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::depth
 xmlreader.h	xmlTextReaderErrorFunc	callback	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
 xmlreader.h	xmlTextReaderExpand	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::expand
@@ -3355,11 +3355,11 @@ xmlreader.h	xmlTextReaderGetErrorHandler	function	not_marked	P0-P2	not-started	h
 xmlreader.h	xmlTextReaderGetLastError	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
 xmlreader.h	xmlTextReaderGetParserColumnNumber	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
 xmlreader.h	xmlTextReaderGetParserLineNumber	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
-xmlreader.h	xmlTextReaderGetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::parser_property - VALIDATE not implemented
-xmlreader.h	xmlTextReaderGetRemainder	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderGetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::parser_property - VALIDATE is always false
+xmlreader.h	xmlTextReaderGetRemainder	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::into_remainder
 xmlreader.h	xmlTextReaderHasAttributes	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::has_attributes
 xmlreader.h	xmlTextReaderHasValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::has_value
-xmlreader.h	xmlTextReaderIsDefault	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderIsDefault	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_default - always false, as libxml2's
 xmlreader.h	xmlTextReaderIsEmptyElement	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_empty_element
 xmlreader.h	xmlTextReaderIsNamespaceDecl	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
 xmlreader.h	xmlTextReaderIsValid	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_valid
@@ -3380,14 +3380,14 @@ xmlreader.h	xmlTextReaderNamespaceUri	function	not_marked	P0-P2	implemented	http
 xmlreader.h	xmlTextReaderNext	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::next
 xmlreader.h	xmlTextReaderNextSibling	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
 xmlreader.h	xmlTextReaderNodeType	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::node_type
-xmlreader.h	xmlTextReaderNormalization	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderNormalization	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::normalization
 xmlreader.h	xmlTextReaderPrefix	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::prefix
-xmlreader.h	xmlTextReaderPreserve	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
-xmlreader.h	xmlTextReaderPreservePattern	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderPreserve	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
+xmlreader.h	xmlTextReaderPreservePattern	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 xmlreader.h	xmlTextReaderPtr	typedef	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	raw pointer alias
 xmlreader.h	xmlTextReaderQuoteChar	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
 xmlreader.h	xmlTextReaderRead	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read
-xmlreader.h	xmlTextReaderReadAttributeValue	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderReadAttributeValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read_attribute_value
 xmlreader.h	xmlTextReaderReadInnerXml	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read_inner_xml
 xmlreader.h	xmlTextReaderReadOuterXml	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read_outer_xml
 xmlreader.h	xmlTextReaderReadState	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read_state
@@ -3399,12 +3399,12 @@ xmlreader.h	xmlTextReaderSchemaValidate	function	not_marked	P0-P2	partial	https:
 xmlreader.h	xmlTextReaderSchemaValidateCtxt	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xsd_set_schema - schema is compiled by the caller
 xmlreader.h	xmlTextReaderSetErrorHandler	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
 xmlreader.h	xmlTextReaderSetMaxAmplification	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Limits::max_entity_amplification
-xmlreader.h	xmlTextReaderSetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::set_parser_property - VALIDATE not implemented
+xmlreader.h	xmlTextReaderSetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::set_parser_property - only before the first read; VALIDATE on is UnsupportedOption (docs/textreader.md)
 xmlreader.h	xmlTextReaderSetResourceLoader	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParseOptions::with_resolver
 xmlreader.h	xmlTextReaderSetSchema	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xsd_set_schema
 xmlreader.h	xmlTextReaderSetStructuredErrorHandler	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
 xmlreader.h	xmlTextReaderSetup	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::reset_with
-xmlreader.h	xmlTextReaderStandalone	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderStandalone	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::standalone
 xmlreader.h	xmlTextReaderValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::value
 xmlreader.h	xmlTextReaderXmlLang	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xml_lang
 xmlregexp.h	xmlRegExecCallbacks	callback	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	push execution contexts not started (docs/compatibility.md)

@@ -214,15 +214,18 @@ fn decoding_surfaces_agree(document: &[u8], flags: u32) {
             );
         }
     }
-    let mut text = TextReader::with_options(document, ParseOptions::new(stream)).unwrap();
-    let text_ok = loop {
-        match text.read() {
-            Ok(true) => {}
-            Ok(false) => break true,
-            Err(_) => break false,
-        }
-    };
-    assert_eq!(push_ok, text_ok, "TextReader acceptance under {flags:#x}");
+    // The text reader also drops blanks, which never changes acceptance.
+    for flags in [stream, stream | NOBLANKS] {
+        let mut text = TextReader::with_options(document, ParseOptions::new(flags)).unwrap();
+        let text_ok = loop {
+            match text.read() {
+                Ok(true) => {}
+                Ok(false) => break true,
+                Err(_) => break false,
+            }
+        };
+        assert_eq!(push_ok, text_ok, "TextReader acceptance under {flags:#x}");
+    }
     let owned = OwnedDocument::parse_with(document, ParseOptions::new(flags));
     assert_eq!(push_ok, owned.is_ok(), "owned acceptance under {flags:#x}");
 }

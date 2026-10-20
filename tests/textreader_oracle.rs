@@ -5,13 +5,16 @@
 //! as in `docs/textreader.md`) named by `YAXML_TEXTREADER_HELPER` on every case
 //! and compares its full per-node dump. `rde_results_match` replays libxml2's
 //! own `result/*.rde` reader expectations (`xmllint --stream --debug --noent`)
-//! from `YAXML_LIBXML2_SRC`. Both skip when their variable is unset.
+//! from `YAXML_LIBXML2_SRC`, and `noblanks_streams_match_xmllint` compares
+//! `xmllint --stream --debug --noblanks` (`YAXML_XMLLINT`). Each skips when its
+//! variable is unset.
 
 use std::fmt::Write;
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use yaxml::options::{DTDATTR, LEGACY, NOBLANKS, NOENT};
 use yaxml::{FileResolver, NodeType, ReadError, Request, Resolver, TextReader};
 
 /// Inputs for the helper comparison; intentional differences are in docs/textreader.md.
@@ -73,6 +76,8 @@ fn cursor<R: BufRead>(reader: &TextReader<R>, out: &mut String) {
     quoted(out, reader.value());
     let attributes = (reader.attribute_count(), reader.has_attributes());
     write!(out, " {} {}", attributes.0, u8::from(attributes.1)).unwrap();
+    let (standalone, default) = (reader.standalone() as i32, reader.is_default());
+    write!(out, " {standalone} {}", u8::from(default)).unwrap();
 }
 
 /// The helper's dump format, line for line.
@@ -81,7 +86,11 @@ fn describe<R: BufRead>(mut reader: TextReader<R>) -> String {
     loop {
         match reader.read() {
             Ok(true) => {}
-            Ok(false) => return out,
+            Ok(false) => {
+                let (standalone, consumed) = (reader.standalone() as i32, reader.byte_consumed());
+                let normalization = u8::from(reader.normalization());
+                return out + &format!("END {standalone} {normalization} {consumed}\n");
+            }
             Err(_) => return out + "ERROR\n",
         }
         cursor(&reader, &mut out);
@@ -113,6 +122,18 @@ fn describe<R: BufRead>(mut reader: TextReader<R>) -> String {
             quoted(&mut out, reader.get_attribute_ns(&local, uri.as_deref()));
             out.push('\n');
             reader.move_to_attribute(&name);
+            let mut walked = false;
+            while reader.read_attribute_value() {
+                out.push_str("  ~v");
+                cursor(&reader, &mut out);
+                out.push('\n');
+                walked = true;
+            }
+            if walked {
+                let next = u8::from(reader.move_to_next_attribute());
+                writeln!(out, "  ~next {next}").unwrap();
+                reader.move_to_attribute(&name);
+            }
         }
         write!(out, "  content {}", u8::from(reader.move_to_element())).unwrap();
         let mut content = || -> Result<[Option<String>; 3], ReadError> {
@@ -147,38 +168,108 @@ fn agree(oracle: &str, ours: &str) -> bool {
     }
 }
 
-#[test]
-fn cases_match_the_reader_helper() {
+/// Inputs with the parser flags they run under: kept and substituted entity
+/// references in attribute values (`ReadAttributeValue`), DTD defaults
+/// (`IsDefault`), `standalone`, and `NOBLANKS`.
+#[rustfmt::skip]
+const OPTION_CASES: &[(u32, &str)] = &[
+    (0, "<!DOCTYPE r [<!ENTITY e 'ex'><!ENTITY f '&e;&e;'>]><r a='1&e;2' b='&lt;&e;&amp;&#38;&f;' c='&e;' d='' xmlns:p='urn:p' xmlns='' p:z='&e;'/>"),
+    (NOENT, "<!DOCTYPE r [<!ENTITY e 'ex'><!ENTITY f '&e;&e;'>]><r a='1&e;2' b='&lt;&e;&amp;&#38;&f;' c='&e;' d='' p:z='&e;' xmlns:p='urn:p'/>"),
+    (0, "<!DOCTYPE r [<!ENTITY e ''>]><r a='&e;' b='x&e;' c='&#x20;&#9;a  b'/>"),
+    (NOENT, "<!DOCTYPE r [<!ENTITY e ''>]><r a='&e;' b='x&e;'/>"),
+    (0, "<!DOCTYPE r [<!ATTLIST r n NMTOKENS #IMPLIED>]><r n=' a  b '/>"),
+    (0, "<r a='' b='v' c='&lt;&gt;&amp;'/>"),
+    (0, "<r xmlns='' xmlns:p='urn:p' p:a='1'><s xmlns=''/></r>"),
+    (DTDATTR, "<!DOCTYPE r [<!ATTLIST r a CDATA 'dflt' b CDATA 'x' n NMTOKENS ' a  b '>]><r b='given'/>"),
+    (0, "<!DOCTYPE r [<!ATTLIST r a CDATA 'dflt' b CDATA 'x'>]><r b='given'/>"),
+    (DTDATTR, "<!DOCTYPE r [<!ENTITY e 'ex'><!ATTLIST r a CDATA 'p&e;q'>]><r/>"),
+    (DTDATTR | NOENT, "<!DOCTYPE r [<!ENTITY e 'ex'><!ATTLIST r a CDATA 'p&e;q'>]><r/>"),
+    (0, "<!DOCTYPE r [<!ATTLIST r xmlns:q CDATA 'urn:q'>]><r/>"),
+    (DTDATTR, "<!DOCTYPE r [<!ATTLIST r xmlns:q CDATA 'urn:q' xmlns CDATA 'urn:d'>]><r/>"),
+    (0, "<r/>"),
+    (0, "<?xml version='1.0'?><r/>"),
+    (0, "<?xml version='1.0' encoding='UTF-8'?>\n<r><a/></r>\n"),
+    (0, "<?xml version='1.0' standalone='yes'?><r/>"),
+    (0, "<?xml version=\"1.0\" standalone=\"no\"?><r>x</r><!--tail-->\n"),
+    (NOBLANKS, "<r>\n  <a>\n    <b/>\n  </a>\n  <c> </c>\n  <d>x <e/> y</d><f> <g/></f><h><i/> </h>\n</r>"),
+    (NOBLANKS, "<r> </r>"),
+    (NOBLANKS, "<r>  <a/>  </r>"),
+    (NOBLANKS, "<r><a/> <b/> <c/></r>"),
+    (NOBLANKS, "<r>x <a/> <b/> y</r>"),
+    (NOBLANKS, "<r> <a/>x</r>"),
+    (NOBLANKS, "<r>x<a/> </r>"),
+    (NOBLANKS, "<r>\r\n <a/>\r\n</r>"),
+    (NOBLANKS, "<r xml:space='preserve'> <a> </a><b xml:space='default'> <c/> </b></r>"),
+    (NOBLANKS, "<r xml:space='preserve'><a xml:space='other'> <b/> </a></r>"),
+    (NOBLANKS, "<r> <!--c--> <?p d?> <![CDATA[ ]]> </r>"),
+    (NOBLANKS, "<r>x<!--c--> <a/></r>"),
+    (NOBLANKS, "<r><a/>x<b/> <c/></r>"),
+    (NOBLANKS, "<r xml:space='default'><a/>x<b/> <c/></r>"),
+    (NOBLANKS, "<r><a/>x<b/><s><a/> <b/></s> <c/></r>"),
+    (NOBLANKS | NOENT, "<!DOCTYPE r [<!ENTITY e 'x'>]><r><a/>&e;<a/> <b/></r>"),
+    (NOBLANKS | NOENT, "<!DOCTYPE r [<!ELEMENT r (a|b)*><!ELEMENT a (#PCDATA)><!ELEMENT b ANY>]><r> <a> </a> <b> <a/> </b> </r>"),
+    (NOBLANKS, "<!DOCTYPE r [<!ELEMENT r (a|b)*><!ELEMENT a (#PCDATA)><!ELEMENT b ANY>]><r> <a> </a> <b> <a/> </b> </r>"),
+    (NOBLANKS, "<!DOCTYPE r [<!ELEMENT r (#PCDATA|a)*><!ELEMENT a EMPTY>]><r> <a/> <a/> </r>"),
+    (NOBLANKS, "<!DOCTYPE r [<!ENTITY e 'x'>]><r><a/> &e;<a/>  &e;  </r>"),
+    (NOBLANKS | NOENT, "<!DOCTYPE r [<!ENTITY e 'x'>]><r><a/> &e;<a/>  &e;  </r>"),
+    (NOBLANKS | NOENT, "<!DOCTYPE r [<!ENTITY e ' '>]><r><a/>&e;<a/></r>"),
+    (NOBLANKS, "<!DOCTYPE r [<!ENTITY e ' '>]><r><a/>&e;<a/></r>"),
+    (0, "<r>\n  <a>\n    <b/>\n  </a>\n</r>"),
+];
+
+/// Runs the helper on every `(flags, input)` and compares full dumps.
+fn compare_with_helper(name: &str, cases: &[(u32, &str)]) {
     let Some(helper) = std::env::var_os("YAXML_TEXTREADER_HELPER") else {
         eprintln!("skipping: YAXML_TEXTREADER_HELPER is unset");
         return;
     };
-    let directory = std::env::temp_dir().join(format!("yaxml-textreader-{}", std::process::id()));
+    let directory = std::env::temp_dir().join(format!("yaxml-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
     let mut mismatches = Vec::new();
-    for (index, case) in CASES.iter().enumerate() {
+    for (index, (flags, case)) in cases.iter().enumerate() {
         let path = directory.join(format!("case{index}.xml"));
         std::fs::write(&path, case).unwrap();
-        let output = Command::new(&helper).arg(&path).output().unwrap();
+        let output = Command::new(&helper)
+            .arg(&path)
+            .arg(flags.to_string())
+            .output()
+            .unwrap();
         assert!(output.status.success(), "helper failed on {case:?}");
         let oracle = String::from_utf8(output.stdout).unwrap();
         let base = path.to_str().unwrap();
         let options = yaxml::ParseOptions {
             base: Some(base.to_owned()),
-            ..Default::default()
+            ..yaxml::ParseOptions::new(*flags)
         };
         let ours = describe(TextReader::with_options(case.as_bytes(), options).unwrap());
         if !agree(&oracle, &ours) {
-            mismatches.push(format!("{case:?}\n--- libxml2\n{oracle}--- yaxml\n{ours}"));
+            let (mut theirs, mut mine) = (oracle.lines(), ours.lines());
+            let line = std::iter::from_fn(|| match (theirs.next(), mine.next()) {
+                (None, None) => None,
+                (a, b) => Some((a, b)),
+            });
+            let first = line.into_iter().find(|(a, b)| a != b);
+            mismatches.push(format!("{flags:#x} {case:?}\nfirst difference: {first:?}"));
         }
     }
     std::fs::remove_dir_all(&directory).ok();
     println!(
-        "{} of {} cases match",
-        CASES.len() - mismatches.len(),
-        CASES.len()
+        "{} of {} {name} match",
+        cases.len() - mismatches.len(),
+        cases.len()
     );
     assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
+}
+
+#[test]
+fn cases_match_the_reader_helper() {
+    let cases: Vec<_> = CASES.iter().map(|case| (LEGACY, *case)).collect();
+    compare_with_helper("cases", &cases);
+}
+
+#[test]
+fn option_cases_match_the_reader_helper() {
+    compare_with_helper("option cases", OPTION_CASES);
 }
 
 /// runtest.c's `processNode` line format for `.rdr`/`.rde` results.
@@ -265,4 +356,56 @@ fn reader(tests: &Path, name: &str, flags: u32) -> TextReader<std::io::BufReader
     let resolver = move |request: Request<'_>| files.resolve(request);
     let options = yaxml::ParseOptions::new(flags).with_resolver(name, Box::new(resolver));
     TextReader::with_options(std::io::BufReader::new(file), options).unwrap()
+}
+
+/// `xmllint --stream --debug --noblanks` against ours with `NOBLANKS` over the
+/// inputs of the `.rdr` results, without and with `NOENT`: needs `YAXML_XMLLINT`.
+#[test]
+fn noblanks_streams_match_xmllint() {
+    let Some(xmllint) = std::env::var_os("YAXML_XMLLINT") else {
+        eprintln!("skipping: YAXML_XMLLINT is unset");
+        return;
+    };
+    let source =
+        std::env::var_os("YAXML_LIBXML2_SRC").map_or(PathBuf::from(DEFAULT_SOURCE), PathBuf::from);
+    let tests = source.join("test");
+    let mut names: Vec<String> = std::fs::read_dir(source.join("result"))
+        .unwrap()
+        .filter_map(|entry| {
+            let name = entry.ok()?.file_name().into_string().ok()?;
+            Some(name.strip_suffix(".rdr")?.to_owned())
+        })
+        .collect();
+    names.sort();
+    // The pinned xmllint lacks ISO-8859-5, besides the unsupported encodings.
+    let known = [RDE_DIFFERENCES, &["iso-8859-5.xml"]].concat();
+    // With `NOENT`, libxml2 judges an entity's replacement text in a context
+    // of its own (blank at its start: dropped before an element, at its end:
+    // kept); here replacement text is never dropped.
+    let replaced = [known.clone(), vec!["ent10", "ent2"]].concat();
+    for (flags, arguments, known) in [
+        (NOBLANKS, &["--noblanks"][..], &known),
+        (NOBLANKS | NOENT, &["--noblanks", "--noent"], &replaced),
+    ] {
+        let (mut matched, mut differences) = (0, Vec::new());
+        for name in &names {
+            let output = Command::new(&xmllint)
+                .args(["--stream", "--debug"])
+                .args(arguments)
+                .arg(tests.join(name))
+                .current_dir(&tests)
+                .output()
+                .unwrap();
+            let expected = String::from_utf8_lossy(&output.stdout);
+            let ours = rde(reader(&tests, name, flags));
+            if ours == expected {
+                matched += 1;
+            } else if !known.contains(&name.as_str()) {
+                let first = ours.lines().zip(expected.lines()).find(|(a, b)| a != b);
+                differences.push(format!("{name}: {first:?}"));
+            }
+        }
+        println!("{matched} of {} match {arguments:?}", names.len());
+        assert!(differences.is_empty(), "{arguments:?}: {differences:?}");
+    }
 }

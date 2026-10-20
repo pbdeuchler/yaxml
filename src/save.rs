@@ -460,6 +460,17 @@ fn escaped(text: &str, table: &Table, ascii: bool) -> String {
     String::from_utf8(out.bytes).unwrap_or_default()
 }
 
+/// `xmlEscapeText` of content into `out`: [`encode_entities`] for an HTML
+/// document (`html`), one without an encoding (`ascii`) or one with.
+pub(crate) fn escape_text(out: &mut String, text: &str, html: bool, ascii: bool) {
+    let escape = match (html, ascii) {
+        (true, _) => Escape::Html,
+        (false, true) => Escape::Ascii,
+        (false, false) => Escape::Xml,
+    };
+    out.push_str(&encode_entities(text, escape));
+}
+
 /// Encoded output; the first character the encoding cannot write in markup
 /// is recorded and reported at the end, as libxml2's `buf->error`.
 struct Out {

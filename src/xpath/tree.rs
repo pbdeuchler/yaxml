@@ -317,6 +317,40 @@ pub(crate) fn skip_subtree<T: Navigate>(
     }
 }
 
+/// `xmlNodeListGetString`: the Text and CDATA of `id` and its following
+/// siblings, with each entity reference's content (`escape` `None`) or as
+/// `&name;` with the text escaped (`escape` is `(html, ascii)`, see
+/// `save::escape_text`). Other nodes are skipped.
+pub(crate) fn list_string<T: Navigate>(
+    tree: &T,
+    id: T::Id,
+    escape: Option<(bool, bool)>,
+) -> String {
+    let mut out = String::new();
+    for id in std::iter::successors(Some(id), |&id| tree.next_sibling(id)) {
+        match (tree.item(id), escape) {
+            (Item::Text(text), None) => out.push_str(text),
+            (Item::Text(text), Some((html, ascii))) => {
+                crate::save::escape_text(&mut out, text, html, ascii)
+            }
+            (Item::EntityRef(_), None) => {
+                for id in descendants(tree, id) {
+                    if let Item::Text(text) = tree.item(id) {
+                        out.push_str(text);
+                    }
+                }
+            }
+            (Item::EntityRef(name), Some(_)) => {
+                out.push('&');
+                out.push_str(name);
+                out.push(';');
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 /// Preorder from `first`, bounded by `stop`'s subtree when given.
 pub(crate) fn preorder<T: Navigate>(
     tree: &T,
@@ -647,10 +681,12 @@ pub(crate) fn attributes<T: Navigate>(
 }
 
 /// Whitespace-only Text nodes `XML_PARSE_NOBLANKS` drops, in document order,
-/// by libxml2's `areBlanks`: never under `xml:space="preserve"`; in elements
-/// the DTD declares with element content always; otherwise only when the
-/// text is not the only child and neither the first child nor the node
-/// before it is text, and it is not followed by an entity reference.
+/// by libxml2's `areBlanks`: never under `xml:space="preserve"`, nor after
+/// text in an element without `xml:space` (libxml2 sets `*ctxt->space = -2`
+/// when it keeps characters); in elements the DTD declares with element
+/// content always; otherwise only when the text is not the only child and
+/// neither the first child nor the node before it is text, and it is not
+/// followed by an entity reference.
 pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
     let text = |id: T::Id| matches!(tree.item(id), Item::Text(_)) && !tree.is_cdata(id);
     let blank = |id: T::Id| {
@@ -662,7 +698,8 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
         let Item::Element(name) = tree.item(parent) else {
             continue;
         };
-        if space_preserve(tree, parent) == Some(true) {
+        let space = space_preserve(tree, parent);
+        if space == Some(true) {
             continue;
         }
         let declared = tree
@@ -680,7 +717,12 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
             let reference = tree
                 .next_sibling(child)
                 .is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)));
-            match blank(child) && declared.unwrap_or(!reference && children.len() > 1 && leading) {
+            let spoken =
+                space.is_none() && kept.iter().any(|&id| text(id) && tree.offset(id).is_some());
+            match blank(child)
+                && !spoken
+                && declared.unwrap_or(!reference && children.len() > 1 && leading)
+            {
                 true => found.push(child),
                 false => kept.push(child),
             }

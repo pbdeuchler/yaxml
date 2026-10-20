@@ -264,7 +264,11 @@ READER_TYPE = {
     "ELEMENT": "Element", "END_ELEMENT": "EndElement", "ENTITY_REFERENCE": "EntityReference",
     "NONE": "None", "PROCESSING_INSTRUCTION": "ProcessingInstruction",
     "SIGNIFICANT_WHITESPACE": "SignificantWhitespace", "TEXT": "Text",
+    "DOCUMENT": "Document", "DOCUMENT_FRAGMENT": "DocumentFragment", "END_ENTITY": "EndEntity",
+    "ENTITY": "Entity", "NOTATION": "Notation", "WHITESPACE": "Whitespace", "XML_DECLARATION": "XmlDeclaration",
 }
+# Values libxml2 2.15.4's reader never reports (xmllint --stream --debug over its test tree).
+READER_TYPE_UNUSED = {"DOCUMENT", "DOCUMENT_FRAGMENT", "END_ENTITY", "ENTITY", "NOTATION", "WHITESPACE", "XML_DECLARATION"}
 READER_MODE = {"INITIAL": "Initial", "INTERACTIVE": "Interactive", "ERROR": "Error", "EOF": "Eof"}
 READER_PROP = {"LOADDTD": "LoadDtd", "DEFAULTATTRS": "DefaultAttributes", "VALIDATE": "Validate", "SUBST_ENTITIES": "SubstituteEntities"}
 RESOURCE = {"DTD": "DtdSubset", "GENERAL_ENTITY": "GeneralEntity", "PARAMETER_ENTITY": "ParameterEntity", "XINCLUDE": "XInclude", "XINCLUDE_TEXT": "XIncludeText"}
@@ -296,7 +300,7 @@ FIELD_DEFAULT = {
     "_xmlChRangeGroup": ("A", "the chars predicates keep their range tables private"),
     "_xmlCharEncodingHandler": ("N", "no public encoding handler registry"),
     "_xlinkHandler": ("N", "XLink callbacks not started"),
-    "_xmlDOMWrapCtxt": ("N", "no cross-document DOM wrapper"),
+    "_xmlDOMWrapCtxt": ("A", "no DOM-wrapper context; copies plan namespaces themselves"),
     "_xmlEntity": ("A", "tree links and bookkeeping; valid::Entity is a borrowed view"),
     "_xmlElement": ("A", "tree links and bookkeeping; valid::Element is a borrowed view"),
     "_xmlAttribute": ("A", "tree links and bookkeeping; valid::Attribute is a borrowed view"),
@@ -556,7 +560,9 @@ P|xmlFirstElementChild xmlLastElementChild xmlNextElementSibling xmlPreviousElem
 I|xmlNodeGetContent|Node::content, OwnedNode::content
 P|xmlNodeBufGetContent xmlBufGetNodeContent|Node::content, OwnedNode::content
 P|xmlNodeSetContent xmlNodeSetContentLen|Editor::set_node_value
-N|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat xmlTextMerge xmlNodeListGetString xmlNodeListGetRawString xmlStringGetNodeList xmlStringLenGetNodeList|not started
+N|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat xmlTextMerge xmlStringGetNodeList xmlStringLenGetNodeList|not started
+I|xmlNodeListGetString|Node::list_string, OwnedNode::list_string
+P|xmlNodeListGetRawString|OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
 I|xmlNodeSetName|Editor::set_name
 P|xmlSetNs|Editor::set_name
 I|xmlNodeGetBase xmlNodeGetBaseSafe|Node::base_uri, OwnedNode::base_uri
@@ -570,8 +576,21 @@ I|xmlGetNsList xmlGetNsListSafe|Node::namespaces, OwnedNode::namespaces
 I|xmlSearchNs|Node::search_ns, OwnedNode::search_ns
 I|xmlSearchNsByHref|Node::search_ns_by_href, OwnedNode::search_ns_by_href
 A|xmlReconciliateNs|automatic namespace reconciliation on every owned edit
-N|xmlCopyDoc xmlCopyDtd xmlCopyNamespace xmlCopyNamespaceList xmlCopyNode xmlCopyNodeList xmlCopyProp xmlCopyPropList xmlDocCopyNode xmlDocCopyNodeList|copy/import not started
-N|xmlDOMWrap* xmlSetTreeDoc xmlSetListDoc|cross-document ownership not started
+I|xmlCopyDoc|OwnedDocument::try_clone
+I|xmlCopyNode|Editor::copy - deep, or extended 2 when shallow; extended 0 is not offered
+I|xmlDocCopyNode|Editor::import - deep, or extended 2 when shallow
+P|xmlCopyNodeList|Editor::copy - one node at a time
+P|xmlDocCopyNodeList|Editor::import - one node at a time
+P|xmlCopyDtd|OwnedDocument::try_clone - copies the DTD with the document; no standalone DTD copy
+A|xmlCopyProp xmlCopyPropList|attributes are not nodes; copied with their element by Editor::import/copy
+A|xmlCopyNamespace xmlCopyNamespaceList|declarations are attributes; copied with their element
+P|xmlDOMWrapCloneNode|Editor::import - declarations on the copy root; no prefix renaming or oldNs (docs/owned-dom.md#copying-and-importing)
+A|xmlDOMWrapAdoptNode|handles name one document: Editor::import + remove_subtree (docs/bindings.md#moving-nodes-between-documents)
+A|xmlDOMWrapReconcileNamespaces|every edit and copy reconciles before publishing
+A|xmlDOMWrapRemoveNode|Editor::unlink; namespaces need no fixup
+A|xmlDOMWrapAcquireNsFunction|no custom namespace callback; copies never rename
+A|xmlDOMWrap*|no DOM-wrapper context; copies plan namespaces themselves
+A|xmlSetTreeDoc xmlSetListDoc|a node belongs to its arena; Editor::import copies
 P|xmlGetIntSubset|Document::doctype, OwnedDocument::doctype
 P|xmlDocDump xmlDocFormatDump xmlSaveFile xmlSaveFileEnc xmlSaveFileTo xmlSaveFormatFile xmlSaveFormatFileEnc xmlSaveFormatFileTo|save::to_vec - returns bytes; caller writes the file
 I|xmlDocDumpMemory xmlDocDumpFormatMemory xmlDocDumpMemoryEnc xmlDocDumpFormatMemoryEnc|save::to_vec
@@ -668,8 +687,15 @@ I|xmlTextReaderExpand|TextReader::expand
 I|xmlTextReaderGetAttribute|TextReader::get_attribute
 I|xmlTextReaderGetAttributeNo|TextReader::get_attribute_no
 I|xmlTextReaderGetAttributeNs|TextReader::get_attribute_ns
-P|xmlTextReaderGetParserProp|TextReader::parser_property - VALIDATE not implemented
-P|xmlTextReaderSetParserProp|TextReader::set_parser_property - VALIDATE not implemented
+P|xmlTextReaderGetParserProp|TextReader::parser_property - VALIDATE is always false
+P|xmlTextReaderSetParserProp|TextReader::set_parser_property - only before the first read; VALIDATE on is UnsupportedOption (docs/textreader.md)
+I|xmlTextReaderReadAttributeValue|TextReader::read_attribute_value
+I|xmlTextReaderIsDefault|TextReader::is_default - always false, as libxml2's
+I|xmlTextReaderNormalization|TextReader::normalization
+I|xmlTextReaderStandalone|TextReader::standalone
+I|xmlTextReaderByteConsumed|TextReader::byte_consumed - exact bytes taken, libxml2 counts 4 KiB chunks
+I|xmlTextReaderGetRemainder|TextReader::into_remainder
+N|xmlTextReaderCurrentDoc xmlTextReaderCurrentNode xmlTextReaderPreserve xmlTextReaderPreservePattern|live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 I|xmlTextReaderHasAttributes|TextReader::has_attributes
 I|xmlTextReaderHasValue|TextReader::has_value
 I|xmlTextReaderIsEmptyElement|TextReader::is_empty_element
@@ -692,13 +718,12 @@ I|xmlTextReaderSetSchema|TextReader::xsd_set_schema
 P|xmlTextReaderSchemaValidate xmlTextReaderSchemaValidateCtxt|TextReader::xsd_set_schema - schema is compiled by the caller
 P|xmlTextReaderSetResourceLoader|ParseOptions::with_resolver
 P|xmlTextReaderSetMaxAmplification|Limits::max_entity_amplification
-N|xmlTextReaderByteConsumed xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderCurrentDoc xmlTextReaderCurrentNode xmlTextReaderGetParserColumnNumber xmlTextReaderGetParserLineNumber xmlTextReaderGetRemainder xmlTextReaderIsDefault xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderNormalization xmlTextReaderPreserve xmlTextReaderPreservePattern xmlTextReaderQuoteChar xmlTextReaderReadAttributeValue xmlTextReaderStandalone xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
+N|xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderGetParserColumnNumber xmlTextReaderGetParserLineNumber xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderQuoteChar xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
 N|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler xmlTextReaderGetLastError|no error callback; xsd_diagnostics/relaxng_diagnostics return values
 I|xmlReaderTypes|NodeType
 I|xmlTextReaderMode|ReadState
 I|xmlParserProperties|ParserProperty
 N|xmlParserSeverities XML_PARSER_SEVERITY_*|no severity levels
-N|XML_READER_TYPE_ENTITY XML_READER_TYPE_DOCUMENT XML_READER_TYPE_DOCUMENT_FRAGMENT XML_READER_TYPE_NOTATION XML_READER_TYPE_WHITESPACE XML_READER_TYPE_END_ENTITY XML_READER_TYPE_XML_DECLARATION|NodeType has no such variant
 N|XML_TEXTREADER_MODE_CLOSED XML_TEXTREADER_MODE_READING|ReadState has no such variant
 # ---- xmlsave.h
 I|xmlSaveDoc xmlSaveTree|save::to_vec
@@ -1029,7 +1054,8 @@ def header_rule(h, i, k, ctx):
             return TREE_KIND[m.group(1)]
     if m := re.fullmatch(r"XML_READER_TYPE_(\w+)", i):
         if m.group(1) in READER_TYPE:
-            return "I", f"NodeType::{READER_TYPE[m.group(1)]}"
+            note = " - never reported, as by libxml2's reader" if m.group(1) in READER_TYPE_UNUSED else ""
+            return "I", f"NodeType::{READER_TYPE[m.group(1)]}{note}"
     if m := re.fullmatch(r"XML_TEXTREADER_MODE_(\w+)", i):
         if m.group(1) in READER_MODE:
             return "I", f"ReadState::{READER_MODE[m.group(1)]}"
