@@ -12,7 +12,9 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use parse_observer::{Observation, Observer};
-use yaxml::{BufferedReader, Document, Event, OwnedDocument, PushParser, Reader};
+use yaxml::{
+    BufferedReader, Document, Event, OwnedDocument, ParseOptions, PushParser, Reader, options,
+};
 
 const VERSION_LINE: &str = "YAXML-PARSE-BENCH-1\tengine=yaxml\tversion=0.1.0\n";
 const MAX_INPUT_BYTES: usize = 8 * 1024 * 1024;
@@ -67,6 +69,9 @@ struct Config {
     input: PathBuf,
     iterations: usize,
     chunk: usize,
+    /// The `dtd` profile: a DOCTYPE is accepted and entities are substituted
+    /// (`NOENT`), as the C helper's profile does.
+    flags: u32,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -111,14 +116,19 @@ fn parse_args(args: &[OsString]) -> Result<Command, String> {
     if args == [OsString::from("--version")] {
         return Ok(Command::Version);
     }
+    let (args, flags) = match args {
+        [rest @ .., profile] if args.len() == 5 && profile == "dtd" => (rest, options::NOENT),
+        _ => (args, 0),
+    };
     let [mode, input, iterations, chunk] = args else {
-        return Err("usage: parse_bench MODE INPUT ITERATIONS CHUNK".into());
+        return Err("usage: parse_bench MODE INPUT ITERATIONS CHUNK [dtd]".into());
     };
     Ok(Command::Run(Config {
         mode: Mode::parse(mode)?,
         input: PathBuf::from(input),
         iterations: decimal(iterations, "iterations", MAX_ITERATIONS)?,
         chunk: decimal(chunk, "chunk", MAX_CHUNK)?,
+        flags,
     }))
 }
 
@@ -179,7 +189,8 @@ fn benchmark(config: &Config, input: &[u8]) -> Result<(Observation, Times), Stri
     let mut first = None;
     let mut totals = Times::default();
     for _ in 0..config.iterations {
-        let (observed, parse, observe, drop) = measure_once(config.mode, input, config.chunk)?;
+        let (observed, parse, observe, drop) =
+            measure_once(config.mode, input, config.chunk, config.flags)?;
         if let Some(expected) = first {
             if observed != expected {
                 return Err("semantic observation changed between iterations".into());
@@ -221,11 +232,13 @@ fn measure_once(
     mode: Mode,
     input: &[u8],
     chunk: usize,
+    flags: u32,
 ) -> Result<(Observation, Duration, Duration, Duration), String> {
+    let options = || ParseOptions::new(flags);
     match mode {
         Mode::Dom => {
             let started = Instant::now();
-            let document = Document::parse_bytes(black_box(input))
+            let document = Document::parse_with(black_box(input), options())
                 .map_err(|error| format!("DOM parse failed: {error}"))?;
             black_box(&document);
             let parse = started.elapsed();
@@ -240,7 +253,7 @@ fn measure_once(
         }
         Mode::Owned => {
             let started = Instant::now();
-            let document = OwnedDocument::parse_bytes(black_box(input))
+            let document = OwnedDocument::parse_with(black_box(input), options())
                 .map_err(|error| format!("owned DOM parse failed: {error}"))?;
             black_box(&document);
             let parse = started.elapsed();
@@ -253,15 +266,18 @@ fn measure_once(
             let drop = started.elapsed();
             Ok((observed, parse, observe, drop))
         }
-        Mode::Reader => measure_reader(input),
-        Mode::Push => measure_push(input, chunk),
-        Mode::Buffered => measure_buffered(input, chunk),
+        Mode::Reader => measure_reader(input, options()),
+        Mode::Push => measure_push(input, chunk, options()),
+        Mode::Buffered => measure_buffered(input, chunk, options()),
     }
 }
 
-fn measure_reader(input: &[u8]) -> Result<(Observation, Duration, Duration, Duration), String> {
+fn measure_reader(
+    input: &[u8],
+    options: ParseOptions,
+) -> Result<(Observation, Duration, Duration, Duration), String> {
     let started = Instant::now();
-    let mut reader = Reader::new(black_box(input))
+    let mut reader = Reader::with_options(black_box(input), options)
         .map_err(|error| format!("reader construction failed: {error}"))?;
     let mut observer = Observer::new();
     while let Some(event) = reader
@@ -285,9 +301,11 @@ fn measure_reader(input: &[u8]) -> Result<(Observation, Duration, Duration, Dura
 fn measure_push(
     input: &[u8],
     chunk: usize,
+    options: ParseOptions,
 ) -> Result<(Observation, Duration, Duration, Duration), String> {
     let started = Instant::now();
-    let mut parser = PushParser::new();
+    let mut parser = PushParser::with_options(options)
+        .map_err(|error| format!("push parser construction failed: {error}"))?;
     let mut observer = Observer::new();
     for bytes in black_box(input).chunks(chunk) {
         parser
@@ -318,10 +336,12 @@ fn measure_push(
 fn measure_buffered(
     input: &[u8],
     chunk: usize,
+    options: ParseOptions,
 ) -> Result<(Observation, Duration, Duration, Duration), String> {
     let started = Instant::now();
     let source = BufReader::with_capacity(chunk, Cursor::new(black_box(input)));
-    let mut reader = BufferedReader::new(source);
+    let mut reader = BufferedReader::with_options(source, options)
+        .map_err(|error| format!("buffered reader construction failed: {error}"))?;
     let mut observer = Observer::new();
     while let Some((event, _)) = reader
         .read_event()
@@ -367,7 +387,23 @@ mod tests {
     const SEMANTIC_XML: &[u8] = b"<?xml version='1.0'?><!--pre--><?top d?><p:r a='x&#x9;y' xmlns='urn:d' p:b='&amp;' xmlns:p='urn:p'>x&amp;<![CDATA[y]]>&#x7a;<p:e/><!--c--><?pi data?></p:r><!--post-->";
 
     fn sample(mode: Mode, input: &[u8], chunk: usize) -> Result<Observation, String> {
-        measure_once(mode, input, chunk).map(|sample| sample.0)
+        measure_once(mode, input, chunk, 0).map(|sample| sample.0)
+    }
+
+    #[test]
+    fn dtd_profile_substitutes_entities_in_every_mode() {
+        let input =
+            b"<!DOCTYPE r [<!ENTITY e 'x<i>y</i>'><!ATTLIST r a CDATA 'd'>]><r>&e;&amp;</r>";
+        let mut expected = None;
+        for mode in Mode::ALL {
+            let observed = measure_once(mode, input, 3, options::NOENT).unwrap().0;
+            assert_eq!(
+                (observed.elements, observed.attributes, observed.text_bytes),
+                (2, 0, 3),
+                "{mode:?}"
+            );
+            assert_eq!(*expected.get_or_insert(observed), observed, "{mode:?}");
+        }
     }
 
     #[test]
@@ -414,6 +450,7 @@ mod tests {
             input: "ignored.xml".into(),
             iterations: 1,
             chunk: 1,
+            flags: 0,
         };
         assert!(benchmark(&config, b"<?xml version='1.0'?><r/>").is_ok());
         assert!(benchmark(&config, b"<r/>").is_ok());
@@ -441,6 +478,17 @@ mod tests {
                 input: "input.xml".into(),
                 iterations: 1,
                 chunk: 65_536,
+                flags: 0,
+            }))
+        );
+        assert_eq!(
+            parse_args(&["push", "input.xml", "2", "7", "dtd"].map(OsString::from)),
+            Ok(Command::Run(Config {
+                mode: Mode::Push,
+                input: "input.xml".into(),
+                iterations: 2,
+                chunk: 7,
+                flags: options::NOENT,
             }))
         );
         assert!(run("buffered", "10000", "1").is_ok());
@@ -448,6 +496,9 @@ mod tests {
             Vec::new(),
             vec![OsString::from("--version"), OsString::from("extra")],
             vec![OsString::from("dom"), OsString::from("input.xml")],
+            ["dom", "input.xml", "1", "1", "plain"]
+                .map(OsString::from)
+                .to_vec(),
         ] {
             assert!(parse_args(&bad).is_err(), "{bad:?}");
         }
@@ -479,6 +530,7 @@ mod tests {
             input: "ignored.xml".into(),
             iterations: 2,
             chunk: 7,
+            flags: 0,
         };
         let observed = Observation {
             elements: 1,

@@ -288,6 +288,7 @@ fn owned_leaf(observer: &mut Observer, node: OwnedNode<'_>) -> Result<(), String
             node.text()
                 .ok_or("owned processing instruction is missing its data")?,
         ),
+        OwnedNodeKind::DocumentType => {}
         OwnedNodeKind::Document => {
             return Err("document node appears below the owned synthetic root".into());
         }

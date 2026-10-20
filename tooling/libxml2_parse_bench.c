@@ -5,6 +5,12 @@
  * separately. Reader creation, complete event drain, and observation are one
  * parse interval. Buffered-reader callback reads and SAX push feeds are capped
  * to the requested chunk; their observation remains inside parse time.
+ *
+ * The optional `dtd` profile accepts a DOCTYPE and substitutes entities
+ * (XML_PARSE_NOENT) in every mode. Its push mode keeps the SAX2 DTD handlers
+ * (entity and attribute declarations) under the observing callbacks, and,
+ * like the tree builder without XML_PARSE_DTDATTR, ignores defaulted
+ * attributes.
  */
 #define _POSIX_C_SOURCE 200809L
 #include <libxml/parser.h>
@@ -62,6 +68,13 @@ struct Observation {
 /* Materialize every observed field before the ending clock call. The sink and
  * compiler fence are benchmark anchors, not synchronization between threads. */
 static volatile struct Observation observation_sink;
+
+/* The `dtd` profile (see above). */
+static int dtd_profile;
+
+static int xml_options(void) {
+    return XML_OPTIONS | (dtd_profile ? XML_PARSE_NOENT : 0);
+}
 
 static void anchor_observation(const struct Observation *obs) {
     observation_sink = *obs;
@@ -397,6 +410,8 @@ static void observe_dom(struct Observation *obs, xmlDocPtr doc) {
             observe_comment(obs, node->content);
         } else if (node->type == XML_PI_NODE) {
             observe_pi(obs, node->name, node->content);
+        } else if (node->type == XML_DTD_NODE && dtd_profile) {
+            /* The declarations are not content. */
         } else if (node->type == XML_DTD_NODE ||
                    node->type == XML_ENTITY_REF_NODE) {
             obs->doctype = 1;
@@ -511,6 +526,8 @@ static void reader_events(struct Observation *obs, xmlTextReaderPtr reader) {
                            xmlTextReaderConstValue(reader));
                 break;
             case XML_READER_TYPE_DOCUMENT_TYPE:
+                if (dtd_profile)
+                    break;
                 obs->doctype = 1;
                 return;
             case XML_READER_TYPE_ENTITY_REFERENCE:
@@ -568,6 +585,14 @@ static void reader_error(void *context, const char *message,
         obs->failed = 1;
 }
 
+/* SAX callbacks: the profile's SAX2 handlers need the parser context as user
+ * data, which then carries the observation. */
+static struct Observation *observation_of(void *context) {
+    if (dtd_profile)
+        return (struct Observation *)((xmlParserCtxtPtr)context)->_private;
+    return (struct Observation *)context;
+}
+
 static void structured_error(void *context, const xmlError *error) {
     struct Observation *obs = (struct Observation *)context;
     if (error != NULL && error->level >= XML_ERR_ERROR)
@@ -575,7 +600,7 @@ static void structured_error(void *context, const xmlError *error) {
 }
 
 static void sax_error(void *context, const char *message, ...) {
-    struct Observation *obs = (struct Observation *)context;
+    struct Observation *obs = observation_of(context);
     (void)message;
     obs->failed = 1;
 }
@@ -585,9 +610,10 @@ static void sax_start(void *context, const xmlChar *local,
                       int namespace_count, const xmlChar **namespaces,
                       int attribute_count, int defaulted,
                       const xmlChar **attributes) {
-    struct Observation *obs = (struct Observation *)context;
+    struct Observation *obs = observation_of(context);
     int index;
-    (void)defaulted;
+    if (dtd_profile)
+        attribute_count -= defaulted;
     if (namespace_count < 0 || attribute_count < 0) {
         obs->failed = 1;
         return;
@@ -619,7 +645,7 @@ static void sax_start(void *context, const xmlChar *local,
 
 static void sax_end(void *context, const xmlChar *local,
                     const xmlChar *prefix, const xmlChar *uri) {
-    struct Observation *obs = (struct Observation *)context;
+    struct Observation *obs = observation_of(context);
     if (obs->depth == 0U) {
         obs->failed = 1;
         return;
@@ -629,7 +655,7 @@ static void sax_end(void *context, const xmlChar *local,
 }
 
 static void sax_characters(void *context, const xmlChar *bytes, int length) {
-    struct Observation *obs = (struct Observation *)context;
+    struct Observation *obs = observation_of(context);
     if (length < 0) {
         obs->failed = 1;
         return;
@@ -638,18 +664,18 @@ static void sax_characters(void *context, const xmlChar *bytes, int length) {
 }
 
 static void sax_comment(void *context, const xmlChar *value) {
-    observe_comment((struct Observation *)context, value);
+    observe_comment(observation_of(context), value);
 }
 
 static void sax_pi(void *context, const xmlChar *target,
                    const xmlChar *data) {
-    observe_pi((struct Observation *)context, target, data);
+    observe_pi(observation_of(context), target, data);
 }
 
 static void sax_doctype(void *context, const xmlChar *name,
                         const xmlChar *external_id,
                         const xmlChar *system_id) {
-    struct Observation *obs = (struct Observation *)context;
+    struct Observation *obs = observation_of(context);
     (void)name;
     (void)external_id;
     (void)system_id;
@@ -679,7 +705,8 @@ static int accepted_encoding(const xmlChar *value) {
 }
 
 static void validate_dom(xmlDocPtr doc, struct Observation *obs) {
-    if (doc == NULL || doc->intSubset != NULL || doc->extSubset != NULL ||
+    if (doc == NULL || (doc->intSubset != NULL && !dtd_profile) ||
+        doc->extSubset != NULL ||
         !accepted_version(doc->version) || !accepted_encoding(doc->encoding))
         obs->failed = 1;
 }
@@ -694,7 +721,7 @@ static void run_dom(const struct Input *input, size_t iterations,
         xmlSetStructuredErrorFunc(&obs, structured_error);
         started = now_ns();
         doc = xmlReadMemory((const char *)input->bytes, (int)input->length,
-                            NULL, NULL, XML_OPTIONS);
+                            NULL, NULL, xml_options());
         totals->parse_ns = add_u64(totals->parse_ns, now_ns() - started,
                                    "parse time overflow");
         xmlSetStructuredErrorFunc(NULL, NULL);
@@ -747,12 +774,12 @@ static void run_reader_mode(const struct Input *input, size_t iterations,
         cursor.input = input;
         if (buffered) {
             reader = xmlReaderForIO(reader_io, reader_close, &cursor, NULL,
-                                    NULL, XML_OPTIONS);
+                                    NULL, xml_options());
         } else {
             /* xmlReaderForMemory copies its input into an input buffer. */
             reader = xmlReaderForMemory((const char *)input->bytes,
                                         (int)input->length, NULL, NULL,
-                                        XML_OPTIONS);
+                                        xml_options());
         }
         if (reader == NULL)
             obs.failed = 1;
@@ -795,6 +822,8 @@ static void run_push(const struct Input *input, size_t iterations,
         started = now_ns();
         obs = new_observation();
         memset(&sax, 0, sizeof(sax));
+        if (dtd_profile)
+            (void)xmlSAXVersion(&sax, 2);
         sax.initialized = XML_SAX2_MAGIC;
         sax.startElementNs = sax_start;
         sax.endElementNs = sax_end;
@@ -803,18 +832,22 @@ static void run_push(const struct Input *input, size_t iterations,
         sax.cdataBlock = sax_characters;
         sax.comment = sax_comment;
         sax.processingInstruction = sax_pi;
-        sax.internalSubset = sax_doctype;
-        sax.externalSubset = sax_doctype;
-        sax.getEntity = sax_get_entity;
+        if (!dtd_profile) {
+            sax.internalSubset = sax_doctype;
+            sax.externalSubset = sax_doctype;
+            sax.getEntity = sax_get_entity;
+        }
         sax.warning = sax_error;
         sax.error = sax_error;
         sax.fatalError = sax_error;
-        ctxt = xmlCreatePushParserCtxt(&sax, &obs, NULL, 0, NULL);
+        ctxt = xmlCreatePushParserCtxt(&sax, dtd_profile ? NULL : &obs, NULL,
+                                       0, NULL);
         if (ctxt == NULL)
             obs.failed = 1;
         else {
             obs.parser = ctxt;
-            (void)xmlCtxtSetOptions(ctxt, XML_OPTIONS);
+            ctxt->_private = &obs;
+            (void)xmlCtxtSetOptions(ctxt, xml_options());
             xmlCtxtSetErrorHandler(ctxt, structured_error, &obs);
             while (offset < input->length && result == 0) {
                 size_t count = input->length - offset;
@@ -843,6 +876,9 @@ static void run_push(const struct Input *input, size_t iterations,
                                    "parse time overflow");
         if (ctxt != NULL) {
             started = now_ns();
+            /* The profile's SAX2 handlers keep the declarations here. */
+            if (ctxt->myDoc != NULL)
+                xmlFreeDoc(ctxt->myDoc);
             xmlFreeParserCtxt(ctxt);
             totals->drop_ns = add_u64(totals->drop_ns, now_ns() - started,
                                       "drop time overflow");
@@ -877,8 +913,10 @@ int main(int argc, char **argv) {
         (void)printf("YAXML-PARSE-BENCH-1\tengine=libxml2\tversion=21504\n");
         return fflush(stdout) == 0 ? 0 : 74;
     }
-    if (argc != 5)
-        fail(64, "usage: libxml2-parse-bench MODE INPUT ITERATIONS CHUNK");
+    if (argc == 6 && strcmp(argv[5], "dtd") == 0)
+        dtd_profile = 1;
+    else if (argc != 5)
+        fail(64, "usage: libxml2-parse-bench MODE INPUT ITERATIONS CHUNK [dtd]");
     mode = parse_mode(argv[1]);
     iterations64 = parse_decimal(argv[3], MAX_ITERATIONS,
                                  "invalid iterations (expected 1..10000)");
