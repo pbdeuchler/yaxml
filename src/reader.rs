@@ -553,14 +553,19 @@ impl<'a> Reader<'a> {
             }
             None => self.read_session(),
         };
-        // Reading the prefix before a cut ends with the cut's error.
+        // Reading the prefix before a cut ends with the cut's error, unless
+        // memory ran out first.
         let cut = match self.ordinary {
             Some(_) => self.cut,
             None => self.dtd_cut,
         };
         let result = match (result, cut) {
             (Ok(None), Some(cut)) => Err(cut),
-            (Err(error), Some(cut)) if error.offset >= cut.offset => Err(cut),
+            (Err(error), Some(cut))
+                if error.offset >= cut.offset && error.kind != ErrorKind::Allocation =>
+            {
+                Err(cut)
+            }
             (result, _) => result,
         };
         if let Err(error) = result {

@@ -678,7 +678,10 @@ fn parse_unit<'raw>(
 ) -> Result<(DtdUnit<'raw>, Option<usize>), Error> {
     let located =
         |error: Error| Error::new(error.kind, unit_offset(encoding, origin, raw, error.offset));
-    let mut recover = |error| budget.recover(located(error)).map_err(|_| error);
+    let mut recover = |error: Error| {
+        let failure = budget.recover(located(error));
+        failure.map_err(|failure| Error::new(failure.kind, error.offset))
+    };
     let (unit, cut) = DtdUnit::parse_recovering(raw, limits, &mut recover).map_err(located)?;
     match valid_unit(kind, side, started, &unit) {
         true => Ok((unit, cut.map(|at| unit_offset(encoding, origin, raw, at)))),

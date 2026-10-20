@@ -644,7 +644,7 @@ fn next_prefix<A: Allocator>(
         candidate.clear();
         candidate.push_str("ns");
         use std::fmt::Write as _;
-        write!(&mut candidate, "{number}").map_err(|_| allocation_error())?;
+        write!(&mut candidate, "{number}").expect("a String accepts every write");
         if candidate.len() > limits.max_name_bytes {
             return Err(EditError::located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),

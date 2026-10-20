@@ -15,7 +15,7 @@ use crate::dtd::{
 use crate::dtd_catalog::DtdCatalog;
 use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::parser::Budget;
-use crate::{DecodeLimits, Doctype, Limits};
+use crate::{DecodeLimits, Doctype, Error, ErrorKind, Limits};
 
 pub(super) fn doctype(out: &mut Out<'_>, doctype: &Doctype<'_>) {
     out.raw("<!DOCTYPE ");
@@ -38,15 +38,18 @@ pub(super) fn doctype(out: &mut Out<'_>, doctype: &Doctype<'_>) {
     };
     let (mut notations, mut children) = (out.sibling(), out.sibling());
     match declarations(doctype.name, subset, &mut notations, &mut children) {
-        Some(true) => {
+        Ok(true) => {
             out.raw(" [\n");
             out.append(notations);
             out.append(children);
             out.raw("]>");
         }
-        Some(false) => out.raw(">"),
+        Ok(false) => out.raw(">"),
+        Err(error) if error.kind == ErrorKind::Allocation => {
+            out.fail(Error::new(error.kind, out.position()));
+        }
         // A subset this standalone pass cannot read is kept as written.
-        None => {
+        Err(_) => {
             out.raw(" [");
             out.raw(subset);
             out.raw("]>");
@@ -67,7 +70,7 @@ fn declarations(
     subset: &str,
     notations: &mut Out<'_>,
     out: &mut Out<'_>,
-) -> Option<bool> {
+) -> Result<bool, Error> {
     // The subset is source text; parsing normalizes its line ends.
     let subset = subset.replace("\r\n", "\n").replace('\r', "\n");
     let text = format!("<!DOCTYPE {name} [{subset}]>");
@@ -89,13 +92,13 @@ fn declarations(
             }
             Some(_) => {}
             None => {
-                controller.advance_borrowed(&mut budget).ok()?;
+                controller.advance_borrowed(&mut budget)?;
                 continue;
             }
         }
         controller.release();
     }
-    Some(declared)
+    Ok(declared)
 }
 
 /// Writes one unit unless it repeats a declaration; true for declarations.

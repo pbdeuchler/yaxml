@@ -105,6 +105,7 @@ const CASES: &[(&str, Expected)] = &[
 ];
 
 pub(super) fn exercise(input: &[u8]) {
+    check_classes(input);
     let selector = usize::from(input.first().copied().unwrap_or(0));
     let namespace = match input.get(1).copied().unwrap_or(0) % 4 {
         0 => None,
@@ -216,6 +217,50 @@ fn check_views(name: &Name<'_>, qualified: &str, namespace: Option<&str>) {
         }
         None => assert_eq!(name.local(), qualified),
     }
+}
+
+/// `chvalid` classes and `xmlHasFeature`/`xmlCheckVersion` on input-chosen
+/// code points and numbers: the Fourth Edition classes are disjoint `Char`s,
+/// and every spelling of a code point agrees.
+fn check_classes(input: &[u8]) {
+    use yaxml::{chars, features};
+    let words = input
+        .chunks(3)
+        .map(|w| w.iter().fold(0, |n, &b| n << 8 | u32::from(b)));
+    let text = String::from_utf8_lossy(input);
+    for c in words.chain(text.chars().map(u32::from)).take(256) {
+        let classes = [
+            chars::is_base_char(c),
+            chars::is_ideographic(c),
+            chars::is_combining(c),
+            chars::is_digit(c),
+            chars::is_extender(c),
+        ];
+        let count = classes.iter().filter(|&&class| class).count();
+        assert!(count <= 1 && (count == 0 || chars::is_char(c)), "{c:#x}");
+        assert!(!chars::is_pubid_char(c) || chars::is_char(c), "{c:#x}");
+        assert!(!chars::is_blank(c) || chars::is_char(c), "{c:#x}");
+        if let Some(character) = char::from_u32(c) {
+            assert_eq!(chars::is_base_char(character), classes[0]);
+        }
+        if let Ok(byte) = u8::try_from(c) {
+            assert_eq!(chars::is_pubid_char(byte), chars::is_pubid_char(c));
+        }
+        let code = c % 100_000;
+        let feature = features::Feature::from_code(code);
+        assert_eq!(feature.map(|f| f as u32), feature.and(Some(code)));
+        assert_eq!(features::has_code(code), feature.is_some_and(features::has));
+        let (major, minor) = (c / 10_000, c / 100);
+        assert_eq!(
+            features::check_version(c),
+            major == 2 && minor <= 215,
+            "{c}"
+        );
+    }
+    assert!(features::all().all(|(feature, on)| features::has(feature) == on));
+    assert!(features::check_version(
+        yaxml::LIBXML2_COMPAT_VERSION_NUMBER
+    ));
 }
 
 #[cfg(test)]

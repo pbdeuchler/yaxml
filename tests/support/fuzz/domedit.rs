@@ -145,7 +145,12 @@ pub fn exercise(input: &[u8]) {
             15 => editor.import(&other, source, deep).map(Some),
             16 => editor.copy(a, deep).map(Some),
             _ => {
+                let url = [None, Some("file:///d/x.xml"), Some("y.xml")][usize::from(c) % 3];
+                if editor.set_url(url).is_ok() {
+                    assert_eq!(editor.document().url(), url);
+                }
                 let clone = editor.document().try_clone().expect("cloning succeeds");
+                assert_eq!(clone.url(), editor.document().url());
                 assert_eq!(
                     snapshot(&clone).0,
                     before.0.0,
