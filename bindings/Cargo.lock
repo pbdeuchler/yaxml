@@ -138,6 +138,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "yaxml-capi"
+version = "0.1.0"
+dependencies = [
+ "yaxml",
+]
+
+[[package]]
 name = "yaxml-py"
 version = "0.1.0"
 dependencies = [

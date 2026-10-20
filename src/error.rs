@@ -11,6 +11,8 @@ pub enum Limit {
     DecodedTokenBytes,
     Depth,
     Attributes,
+    /// Attributes a DOM retains across the document, including namespace declarations and defaulted ones.
+    TotalAttributes,
     Events,
     OwnedBytes,
     /// Bytes in the document type declaration, including its internal subset.

@@ -10,6 +10,10 @@ publish = false
 [lib]
 name = "_yaxml"
 crate-type = ["cdylib"]
+# The extension links against the interpreter only when loaded: test it
+# from Python (pytest), not with a Rust test harness.
+test = false
+doctest = false
 
 [dependencies]
 pyo3 = { version = "0.30.1", features = ["extension-module"] }
@@ -17,10 +21,3 @@ yaxml = { path = "../.." }
 
 [lints.rust]
 unsafe_code = "forbid"
-
-[profile.release]
-lto = "thin"
-codegen-units = 1
-
-# Standalone workspace: the core crate's dependency graph and lockfile never see pyo3.
-[workspace]

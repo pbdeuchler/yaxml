@@ -712,6 +712,7 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
         let children: Vec<_> =
             std::iter::successors(tree.first_child(parent), |&id| tree.next_sibling(id)).collect();
         let mut kept: Vec<T::Id> = Vec::new();
+        let mut spoken_kept = false;
         for &child in &children {
             let leading = kept
                 .last()
@@ -721,14 +722,16 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
             let reference = tree
                 .next_sibling(child)
                 .is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)));
-            let spoken =
-                space.is_none() && kept.iter().any(|&id| text(id) && tree.offset(id).is_some());
+            let spoken = space.is_none() && spoken_kept;
             match blank(child)
                 && !spoken
                 && declared.unwrap_or(!reference && children.len() > 1 && leading)
             {
                 true => found.push(child),
-                false => kept.push(child),
+                false => {
+                    spoken_kept |= text(child) && tree.offset(child).is_some();
+                    kept.push(child);
+                }
             }
         }
     }

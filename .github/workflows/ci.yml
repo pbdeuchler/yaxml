@@ -24,6 +24,55 @@ jobs:
       - run: cargo test --all-targets
       - run: cargo test --doc
 
+  capi:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.97.0"
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - name: C test under ASan, UBSan and LeakSanitizer
+        run: capi/tests/c/run.sh
+
+  capi-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-10-18
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Fuzz the C ABI for one minute under ASan
+        working-directory: bindings/capi/fuzz
+        run: cargo fuzz run -O calls -- -max_total_time=60 -timeout=5
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.97.0"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.5"
+      - run: cargo build --release --manifest-path bindings/Cargo.toml -p yaxml-capi
+      - name: Test the Go package
+        working-directory: bindings/go
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -race ./...
+          GOEXPERIMENT=cgocheck2 go test ./...
+          go test -run '^$' -bench . -benchtime 20x ./...
+
   fuzz-smoke-coverage:
     runs-on: ubuntu-latest
     steps:

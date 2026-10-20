@@ -150,10 +150,16 @@ fn classic_attacks_stop_within_the_default_allowance_on_every_surface() {
         // An event ceiling at that bound would be hit first by a runaway.
         let bounded = limits.max_events(allowance / 20 + input.len());
         for surface in SURFACES {
-            assert_eq!(
-                run(surface, &input, bounded).map_err(|error| error.kind),
-                Err(ErrorKind::LimitExceeded(Limit::EntityExpansion)),
-                "{name} on {surface}"
+            // Nesting deeper than libxml2's 20 levels stops at the depth ceiling first.
+            let stopped = run(surface, &input, bounded).map_err(|error| error.kind);
+            assert!(
+                matches!(
+                    stopped,
+                    Err(ErrorKind::LimitExceeded(
+                        Limit::EntityExpansion | Limit::EntityDepth
+                    ))
+                ),
+                "{name} on {surface}: {stopped:?}"
             );
         }
     }
