@@ -529,11 +529,7 @@ impl<'a> Reader<'a> {
     /// The next event, or `None` at the end of the document.
     pub fn read_event(&mut self) -> Result<Option<Event<'a>>, Error> {
         if let Some(end) = self.end {
-            return match end {
-                End::Finished => Ok(None),
-                End::Failed(error) => Err(error),
-                End::Stopped(at) => self.close_next(at),
-            };
+            return self.ended(end);
         }
         // The DTD-free token loop stays on plain `Error` results; only a
         // DOCTYPE moves the reader onto the out-of-line session path.
@@ -557,10 +553,11 @@ impl<'a> Reader<'a> {
             },
             // Without a cut, the session's result is the reader's.
             None if self.dtd_cut.is_none() => {
-                return match self.read_session() {
-                    Err(error) => self.stop(error),
-                    result => result,
-                };
+                let result = self.read_session();
+                if let Err(error) = result {
+                    return self.stop(error);
+                }
+                return result;
             }
             None => self.read_session(),
         };
@@ -574,9 +571,20 @@ impl<'a> Reader<'a> {
             (Err(error), Some(cut)) if error.offset >= cut.offset => Err(cut),
             (result, _) => result,
         };
-        match result {
-            Err(error) => self.stop(error),
-            result => result,
+        if let Err(error) = result {
+            return self.stop(error);
+        }
+        result
+    }
+
+    /// A read after the end: `None`, the error again, or the next closing event.
+    #[cold]
+    #[inline(never)]
+    fn ended(&mut self, end: End) -> Result<Option<Event<'a>>, Error> {
+        match end {
+            End::Finished => Ok(None),
+            End::Failed(error) => Err(error),
+            End::Stopped(at) => self.close_next(at),
         }
     }
 
@@ -584,6 +592,7 @@ impl<'a> Reader<'a> {
     /// recorded, and what is open closes (`close_next`). Otherwise it is
     /// returned again by every later read.
     #[cold]
+    #[inline(never)]
     fn stop(&mut self, error: Error) -> Result<Option<Event<'a>>, Error> {
         if let Some(Ok(())) = self.budget().map(|budget| budget.recover(error)) {
             self.end = Some(End::Stopped(error.offset));
@@ -594,6 +603,8 @@ impl<'a> Reader<'a> {
     }
 
     /// The next event closing, at `at` where reading stopped, what is still open.
+    #[cold]
+    #[inline(never)]
     fn close_next(&mut self, at: usize) -> Result<Option<Event<'a>>, Error> {
         let event = match (&mut self.ordinary, self.session.first_mut()) {
             (Some(ordinary), _) => ordinary.state.close_open(at),
@@ -660,6 +671,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline(never)]
     fn start_dtd(&mut self, start: usize) -> Result<(), Error> {
         self.session
             .try_reserve_exact(1)

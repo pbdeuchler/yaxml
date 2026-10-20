@@ -178,7 +178,7 @@ impl<R: BufRead> BufferedReader<R> {
         if self.recovers {
             return self.read_recovering();
         }
-        self.read_lent()
+        self.read_lent::<false>()
     }
 
     /// [`Self::read_event`] under `RECOVER`: each event is copied out of the
@@ -194,7 +194,7 @@ impl<R: BufRead> BufferedReader<R> {
                         next.map(|(event, origin, _)| detach(event, origin))
                             .transpose()
                     }),
-                _ => (self.read_lent()).and_then(|next| {
+                _ => (self.read_lent::<true>()).and_then(|next| {
                     next.map(|(event, origin)| detach(event, origin))
                         .transpose()
                 }),
@@ -229,8 +229,11 @@ impl<R: BufRead> BufferedReader<R> {
         Ok(Some((event, origin)))
     }
 
+    /// The next event, lent; `RECOVERS`: the DTD-free stream rereads.
     #[inline(always)]
-    fn read_lent(&mut self) -> Result<Option<(Event<'_>, SourceOrigin)>, ReadError> {
+    fn read_lent<const RECOVERS: bool>(
+        &mut self,
+    ) -> Result<Option<(Event<'_>, SourceOrigin)>, ReadError> {
         match self.status {
             Status::Finished => return Ok(None),
             Status::Xml(error) => return Err(ReadError::Xml(error)),
@@ -246,13 +249,16 @@ impl<R: BufRead> BufferedReader<R> {
         if let Some(stream) = self.session.plain() {
             // DTD-free documents lend straight from the ordinary token loop.
             if std::mem::take(&mut self.pending) {
-                stream.release();
+                stream.release_in::<RECOVERS>();
             }
-            match self.prepare_plain() {
+            match self.prepare_plain::<RECOVERS>() {
                 Ok(Some(true)) => {
                     self.pending = true;
                     self.status = Status::Active;
-                    let lent = self.session.lend_plain();
+                    let lent = match RECOVERS {
+                        true => self.session.lend_recovering(),
+                        false => self.session.lend_plain(),
+                    };
                     if let Err(ReadError::Xml(error)) = &lent {
                         self.status = Status::Xml(*error);
                     }
@@ -352,31 +358,32 @@ impl<R: BufRead> BufferedReader<R> {
 
     /// The DTD-free counterpart of `prepare`: `Some(ready)` like `prepare`, or
     /// `None` once a DOCTYPE token is parked for the session.
-    fn prepare_plain(&mut self) -> Result<Option<bool>, ReadError> {
+    #[inline(always)]
+    fn prepare_plain<const RECOVERS: bool>(&mut self) -> Result<Option<bool>, ReadError> {
         loop {
             let stream = self.session.plain().expect("DTD-free stream");
-            if stream.ends_reference() {
+            if RECOVERS && stream.ends_reference() {
                 return Ok(Some(true));
             }
             match stream.token_kind() {
                 Some(TokenKind::Dtd) if stream.hands_over() => return Ok(None),
                 Some(_) if stream.is_non_event() => {
                     stream.skip_non_event().map_err(ReadError::Xml)?;
-                    stream.release();
+                    stream.release_in::<RECOVERS>();
                     continue;
                 }
                 Some(_) => return Ok(Some(true)),
                 None => {}
             }
-            if self.eof || stream.is_cut() {
-                if stream.finish_step().map_err(ReadError::Xml)? {
+            if self.eof || (RECOVERS && stream.is_cut()) {
+                if stream.finish_in::<RECOVERS>().map_err(ReadError::Xml)? {
                     continue;
                 }
                 stream.validate_finish().map_err(ReadError::Xml)?;
                 return Ok(Some(false));
             }
             // Replaying saved lookahead or decoded carry need not touch R.
-            stream.advance(&[]).map_err(ReadError::Xml)?;
+            stream.advance_in::<RECOVERS>(&[]).map_err(ReadError::Xml)?;
             if stream.has_token() {
                 continue;
             }
@@ -398,7 +405,7 @@ impl<R: BufRead> BufferedReader<R> {
                         0,
                     )));
                 }
-                stream.advance(&input[..input.len().min(remaining)])
+                stream.advance_in::<RECOVERS>(&input[..input.len().min(remaining)])
             };
             // Commit accepted transport before reporting a lexical error. The
             // stream takes the whole window unless a token is ready.

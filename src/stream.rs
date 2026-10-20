@@ -33,6 +33,13 @@ struct Recovery {
 }
 
 impl Recovery {
+    /// The state of a stream under `flags`, which recovers with `RECOVER`.
+    #[cold]
+    #[inline(never)]
+    fn new(flags: crate::options::Flags) -> Option<Box<Self>> {
+        flags.recovers().then(Box::default)
+    }
+
     fn pending(&self) -> Option<&[u8]> {
         self.replay.get(self.at..).filter(|rest| !rest.is_empty())
     }
@@ -70,7 +77,7 @@ impl Stream {
                 .with_flags(flags)
                 .rereading(true, false),
             decoded_token_limit: decode.max_decoded_token_bytes,
-            recovery: flags.recovers().then(Box::default),
+            recovery: Recovery::new(flags),
         }
     }
 
@@ -94,7 +101,7 @@ impl Stream {
                 .with_flags(flags)
                 .rereading(true, false),
             decoded_token_limit: decode.max_decoded_token_bytes,
-            recovery: flags.recovers().then(Box::default),
+            recovery: Recovery::new(flags),
         }
     }
 
@@ -150,15 +157,7 @@ impl Stream {
     /// Releases the token; a declaration that selected a byte charset takes
     /// effect here, before any byte after it is decoded.
     pub(crate) fn release(&mut self) {
-        // Recovery reads on inside a token libxml2 ends early.
-        match self
-            .recovery
-            .as_mut()
-            .and_then(|recovery| recovery.end.take())
-        {
-            Some((at, source)) => self.tokenizer.rewind(at, source),
-            None => self.tokenizer.release(),
-        }
+        self.tokenizer.release();
         let encoding = self.state.encoding();
         if matches!(encoding, crate::encoding::SourceEncoding::Byte(_)) {
             self.decoder.switch(encoding);
@@ -166,16 +165,41 @@ impl Stream {
         }
     }
 
+    /// [`Stream::release`] of a token loop that rereads (`REREADS`: under
+    /// `RECOVER`): the rest of a token libxml2 ends early is reread.
     #[inline(always)]
-    pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
-        if self.recovery.is_some() {
-            return self.advance_recovering(input);
+    pub(crate) fn release_in<const REREADS: bool>(&mut self) {
+        if REREADS
+            && let Some((at, source)) = self
+                .recovery
+                .as_mut()
+                .and_then(|recovery| recovery.end.take())
+        {
+            self.tokenizer.rewind(at, source);
         }
-        self.advance_input(input)
+        self.release();
+    }
+
+    /// [`Stream::advance`] of a token loop that rereads (`REREADS`).
+    #[inline(always)]
+    pub(crate) fn advance_in<const REREADS: bool>(&mut self, input: &[u8]) -> Result<usize, Error> {
+        match REREADS {
+            true => self.advance_recovering(input),
+            false => self.advance(input),
+        }
+    }
+
+    /// [`Stream::finish_step`] of a token loop that rereads (`REREADS`).
+    #[inline(always)]
+    pub(crate) fn finish_in<const REREADS: bool>(&mut self) -> Result<bool, Error> {
+        match REREADS {
+            true => self.finish_recovering(),
+            false => self.finish_step(),
+        }
     }
 
     #[inline(always)]
-    fn advance_input(&mut self, input: &[u8]) -> Result<usize, Error> {
+    pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
         // Plain UTF-8 below the decoded ceiling needs no decoding: the
         // tokenizer takes it directly and the decoder counts it as forwarded.
         // As in forwarding, empty input reaches no token state.
@@ -215,7 +239,7 @@ impl Stream {
         if self.is_cut() {
             return Ok(0);
         }
-        let consumed = self.advance_input(input)?;
+        let consumed = self.advance(input)?;
         self.screen().map(|()| consumed)
     }
 
@@ -250,9 +274,6 @@ impl Stream {
     }
 
     pub(crate) fn finish_step(&mut self) -> Result<bool, Error> {
-        if self.recovery.is_some() {
-            return self.finish_recovering();
-        }
         self.finish_input(true)
     }
 
@@ -335,10 +356,24 @@ impl Stream {
         last_origin: &mut Option<SourceOrigin>,
         emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(usize, Option<bool>), Error> {
-        match self.recovery.is_some() {
-            true => self.drive_tokens::<true>(input, finalizing, standalone, last_origin, emit),
-            false => self.drive_tokens::<false>(input, finalizing, standalone, last_origin, emit),
+        if self.recovery.is_some() {
+            return self.drive_recovering(input, finalizing, standalone, last_origin, emit);
         }
+        self.drive_tokens::<false>(input, finalizing, standalone, last_origin, emit)
+    }
+
+    /// [`Stream::drive`] under `RECOVER`, out of the strict path.
+    #[cold]
+    #[inline(never)]
+    fn drive_recovering(
+        &mut self,
+        input: &[u8],
+        finalizing: bool,
+        standalone: &mut bool,
+        last_origin: &mut Option<SourceOrigin>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    ) -> Result<(usize, Option<bool>), Error> {
+        self.drive_tokens::<true>(input, finalizing, standalone, last_origin, emit)
     }
 
     /// [`Stream::drive`]; `REREADS` is recovery ([`Recovery`]), so strict
@@ -358,15 +393,13 @@ impl Stream {
                 if kind == TokenKind::Dtd && self.hands_over() {
                     return Ok((consumed, None));
                 }
-                let (event, origin) = match &mut self.recovery {
-                    Some(recovery) if REREADS => {
-                        parse_recovering(&self.tokenizer, &mut self.state, recovery)?
-                    }
-                    _ => {
-                        let raw = validate(kind, bytes, span)?;
-                        let event = parse_valid(kind, raw, span, &mut self.state)?;
-                        (event, SourceOrigin::input(span.source.clone()))
-                    }
+                let (event, origin) = if REREADS {
+                    let recovery = self.recovery.as_mut().expect("recovering stream");
+                    parse_recovering(&self.tokenizer, &mut self.state, recovery)?
+                } else {
+                    let raw = validate(kind, bytes, span)?;
+                    let event = parse_valid(kind, raw, span, &mut self.state)?;
+                    (event, SourceOrigin::input(span.source.clone()))
                 };
                 deliver(
                     &mut self.state,
@@ -376,7 +409,7 @@ impl Stream {
                     last_origin,
                     emit,
                 )?;
-                self.release();
+                self.release_in::<REREADS>();
                 // A kept undeclared reference ends where it starts.
                 if REREADS && self.state.take_reference_end() {
                     let end = Some(Event::EntityEnd);
@@ -385,7 +418,7 @@ impl Stream {
                 continue;
             }
             if finalizing || (REREADS && self.is_cut()) {
-                if self.finish_step()? {
+                if self.finish_in::<REREADS>()? {
                     continue;
                 }
                 self.validate_finish()?;
@@ -397,7 +430,7 @@ impl Stream {
             if consumed == input.len() && !(REREADS && self.replaying()) {
                 return Ok((consumed, Some(false)));
             }
-            consumed += self.advance(&input[consumed..])?;
+            consumed += self.advance_in::<REREADS>(&input[consumed..])?;
             if !self.has_token() && !(REREADS && self.is_cut()) {
                 if consumed == input.len() {
                     return Ok((consumed, Some(false)));

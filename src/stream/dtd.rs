@@ -61,6 +61,9 @@ pub(crate) struct StreamingSession {
     physical: usize,
     finalizing: bool,
     finished: bool,
+    /// Under `RECOVER`, an error no site repairs ended the parse, which reads
+    /// nothing more.
+    stopped: bool,
     failure: Option<Failure>,
 }
 
@@ -85,6 +88,7 @@ impl StreamingSession {
             physical: 0,
             finalizing: false,
             finished: false,
+            stopped: false,
             failure: None,
         }
     }
@@ -170,33 +174,42 @@ impl StreamingSession {
     }
     /// Lends the plain stream's ready token, recording what a DTD session needs.
     /// Returns the reader's own result type so the event is not rewrapped.
-    /// `None`: recovery reads the token on as other tokens.
     pub(crate) fn lend_plain(
         &mut self,
     ) -> Result<Option<(Event<'_>, SourceOrigin)>, crate::ReadError> {
         let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
+        let at = ordinary.position();
+        let origin = super::token_origin(&ordinary.tokenizer);
+        let event = super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
+            .and_then(|event| event.ok_or_else(|| Error::new(ErrorKind::InvalidState, at)))
+            .map_err(crate::ReadError::Xml)?;
+        let (state, standalone) = (&mut ordinary.state, &mut self.standalone);
+        Ok(Some(lent(
+            state,
+            event,
+            origin,
+            standalone,
+            &mut self.origin,
+        )))
+    }
+    /// [`Self::lend_plain`] under `RECOVER`; `None` for a token recovery
+    /// reads on as other tokens.
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn lend_recovering(
+        &mut self,
+    ) -> Result<Option<(Event<'_>, SourceOrigin)>, crate::ReadError> {
+        let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
         // A kept undeclared reference ends where it starts.
-        if ordinary.state.reference_ends() {
-            ordinary.state.take_reference_end();
+        if ordinary.state.take_reference_end() {
             return Ok(self.origin.map(|origin| (Event::EntityEnd, origin)));
         }
-        let (event, origin) = match &mut ordinary.recovery {
-            Some(recovery) => {
-                super::parse_recovering(&ordinary.tokenizer, &mut ordinary.state, recovery)
-            }
-            None => super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
-                .map(|event| (event, super::token_origin(&ordinary.tokenizer))),
-        }
-        .map_err(crate::ReadError::Xml)?;
-        let Some(mut event) = event else {
-            return Ok(None);
-        };
-        ordinary.state.lend_event(&mut event);
-        if let Event::Declaration(declaration) = &event {
-            self.standalone = declaration.standalone == Some(true);
-        }
-        self.origin = Some(origin);
-        Ok(Some((event, origin)))
+        let recovery = ordinary.recovery.as_mut().expect("recovering stream");
+        let (event, origin) =
+            super::parse_recovering(&ordinary.tokenizer, &mut ordinary.state, recovery)
+                .map_err(crate::ReadError::Xml)?;
+        let (state, standalone) = (&mut ordinary.state, &mut self.standalone);
+        Ok(event.map(|event| lent(state, event, origin, standalone, &mut self.origin)))
     }
     /// Under `RECOVER`, where `error`, which no site repaired, stops the
     /// parse: it is recorded (as the slice reader reports it past a cut), and
@@ -205,7 +218,7 @@ impl StreamingSession {
     pub(crate) fn stop(&mut self, error: Error) -> Option<usize> {
         let error = (self.ordinary.as_ref()).map_or(error, |stream| stream.terminal(error));
         self.budget()?.recover(error).ok()?;
-        (self.failure, self.finished) = (None, true);
+        (self.failure, self.finalizing, self.finished, self.stopped) = (None, true, true, true);
         Some(error.offset)
     }
     /// The next event that closes, at `at` where a stopped parse stopped, what
@@ -232,16 +245,15 @@ impl StreamingSession {
         let event = controller.close_open(at)?;
         Ok(event.map(|event| (event, origin, controller.owned_budget())))
     }
-    /// The result of driving the parse; an error that only stops a
-    /// recovering parse closes what is open through `emit` instead.
+    /// An error driving the parse; one that only stops a recovering parse
+    /// closes what is open through `emit` instead.
+    #[cold]
+    #[inline(never)]
     fn closing(
         &mut self,
-        result: Result<(), Error>,
+        error: Error,
         emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        let Err(error) = result else {
-            return result;
-        };
         match self.stop(error) {
             Some(at) => {
                 while let Some((event, origin, budget)) = self.close_next(at)? {
@@ -294,7 +306,7 @@ impl StreamingSession {
     /// The stored error, or `InvalidState` once finished, if feeding would fail.
     pub(crate) fn terminal(&mut self) -> Option<Error> {
         self.stored_failure().or_else(|| {
-            self.finalizing
+            (self.finalizing && !self.stopped)
                 .then(|| Error::new(ErrorKind::InvalidState, self.position()))
         })
     }
@@ -306,8 +318,12 @@ impl StreamingSession {
         emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.remember(|s| {
+            // A stopped recovering parse reads nothing more.
             if s.finalizing {
-                return Err(Error::new(ErrorKind::InvalidState, s.position()));
+                return match s.stopped {
+                    true => Ok(()),
+                    false => Err(Error::new(ErrorKind::InvalidState, s.position())),
+                };
             }
             s.received = s
                 .received
@@ -317,12 +333,10 @@ impl StreamingSession {
                     ErrorKind::LimitExceeded(crate::Limit::InputBytes),
                     0,
                 ))?;
-            // A stopped recovering parse reads nothing more.
-            if s.finished {
-                return Ok(());
+            match s.drive(input, emit) {
+                Ok(_) => Ok(()),
+                Err(error) => s.closing(error, emit),
             }
-            let result = s.drive(input, emit).map(drop);
-            s.closing(result, emit)
         })
     }
     pub(crate) fn finish(
@@ -334,8 +348,10 @@ impl StreamingSession {
                 return Ok(());
             }
             s.finalizing = true;
-            let result = s.drive(&[], emit).map(drop);
-            s.closing(result, emit)
+            match s.drive(&[], emit) {
+                Ok(_) => Ok(()),
+                Err(error) => s.closing(error, emit),
+            }
         })
     }
     fn drive(
@@ -744,4 +760,22 @@ fn phase_decode(phase: &mut Phase, decoded: Decoded<'_>) -> Result<DecodeProgres
             })
         }
     }
+}
+
+/// A plain-stream event lent with its names' namespaces, recording what a
+/// DTD session needs.
+#[inline(always)]
+fn lent<'s>(
+    state: &'s mut ParserState<'static>,
+    mut event: Event<'s>,
+    origin: SourceOrigin,
+    standalone: &mut bool,
+    last: &mut Option<SourceOrigin>,
+) -> (Event<'s>, SourceOrigin) {
+    state.lend_event(&mut event);
+    if let Event::Declaration(declaration) = &event {
+        *standalone = declaration.standalone == Some(true);
+    }
+    *last = Some(origin);
+    (event, origin)
 }

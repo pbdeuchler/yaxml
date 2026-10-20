@@ -175,6 +175,7 @@ impl Budget {
 }
 
 /// A copy of `text`, failing at `offset` when it cannot be allocated.
+#[inline]
 pub(crate) fn copied(text: &str, offset: usize) -> Result<String, Error> {
     let mut copied = String::new();
     copied
@@ -1719,26 +1720,33 @@ impl<'source> ParserState<'source> {
                 };
                 Error::new(kind, start)
             });
-            // Recovery stops with nothing open.
-            if self.stack.is_empty() {
-                return Err(error);
-            }
-            self.recover_markup(error)?;
-            self.open_copy(error.offset)?
+            self.end_open(error)?
         };
-        self.close(qualified, start + 2).map(Some)
+        self.close(qualified, start + 2)
+    }
+
+    /// The open element's name: libxml2 ends it whatever a malformed or
+    /// mismatched end tag names. Recovery stops with nothing open.
+    fn end_open(&mut self, error: Error) -> Result<Cow<'static, str>, Error> {
+        if self.stack.is_empty() {
+            return Err(error);
+        }
+        self.recover_markup(error)?;
+        self.open_copy(error.offset)
     }
 
     /// Under `RECOVER`, the end of the innermost open element, which a parse
     /// stopped by an unrepaired error closes at `offset` (libxml2's tree keeps
     /// it); `None` once nothing is open.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn close_open(&mut self, offset: usize) -> Result<Option<Event<'source>>, Error> {
         if self.stack.is_empty() {
             return Ok(None);
         }
         self.settle();
         let qualified = self.open_copy(offset)?;
-        self.close(qualified, offset).map(Some)
+        self.close(qualified, offset)
     }
 
     /// A copy of the innermost open element's name.
@@ -1753,11 +1761,12 @@ impl<'source> ParserState<'source> {
 
     /// Ends the innermost element, named `qualified`; libxml2 ends it
     /// whatever a malformed or mismatched end tag names.
+    #[inline(always)]
     fn close<'event>(
         &mut self,
         qualified: Cow<'event, str>,
         offset: usize,
-    ) -> Result<Event<'event>, Error>
+    ) -> Result<Option<Event<'event>>, Error>
     where
         'source: 'event,
     {
@@ -1771,7 +1780,7 @@ impl<'source> ParserState<'source> {
         if self.stack.is_empty() {
             self.phase = Phase::Epilog;
         }
-        Ok(Event::End(name))
+        Ok(Some(Event::End(name)))
     }
 
     fn unwind_bindings(&mut self, start: usize) {
