@@ -423,6 +423,26 @@ pub fn to_vec<'document, 'input: 'document>(
     saver.out.finish()
 }
 
+/// `xmlEscapeText` of content into `out`: `&`, `<` and `>` in HTML;
+/// otherwise as text is saved, with non-ASCII as references when `ascii`
+/// (a document without an encoding).
+pub(crate) fn escape_text(out: &mut String, text: &str, html: bool, ascii: bool) {
+    if html {
+        for c in text.chars() {
+            match c {
+                '&' => out.push_str("&amp;"),
+                '<' => out.push_str("&lt;"),
+                '>' => out.push_str("&gt;"),
+                c => out.push(c),
+            }
+        }
+        return;
+    }
+    let mut escaped = Out::new(Output::Utf8, ascii);
+    escaped.text(text, false);
+    out.push_str(std::str::from_utf8(&escaped.bytes).unwrap_or_default());
+}
+
 /// Encoded output; the first character the encoding cannot write in markup
 /// is recorded and reported at the end, as libxml2's `buf->error`.
 struct Out {

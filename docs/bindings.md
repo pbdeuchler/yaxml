@@ -26,7 +26,8 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
 | A DOM that host code edits in place | `Editor`: `append_child`/`insert_before`/`insert_after`/`unlink`/`replace`, `set_attribute`/`remove_attribute`, `set_name`, `declare_namespace`, `set_url`; each call is atomic and keeps namespaces declared where used, so a wrapper never reconciles ([owned-dom.md](owned-dom.md#moving-unlinking-and-replacing)) |
 | Host objects for unlinked nodes | `unlink`/`replace` leave detached subtrees whose handles stay live until reinserted or `remove_subtree`d; a wrapper object needs no ownership transfer, only its handle |
 | Long-lived documents under repeated edits | `Editor::compact` reclaims pool and attribute garbage without changing any handle; removed slots stay as one tombstone record each |
-| DOM accessors hosts expect | `attribute`/`attribute_ns`, `content`, `path`, `base_uri`, `lang`, `space_preserve`, `search_ns`, `namespaces`, `previous_sibling` on `Node` and `OwnedNode` |
+| Copying nodes and documents (`copy.copy`, `deepcopy`, cross-tree append) | `Editor::import` (from any document, any allocator), `Editor::copy` (within one), `OwnedDocument::try_clone`; copies come back detached and namespace-consistent, with every reservation made before anything is published ([owned-dom.md](owned-dom.md#copying-and-importing)) |
+| DOM accessors hosts expect | `attribute`/`attribute_ns`, `content`, `list_string`, `path`, `base_uri`, `lang`, `space_preserve`, `search_ns`, `namespaces`, `previous_sibling` on `Node` and `OwnedNode` |
 | Pull streaming with no callbacks across the boundary | `TextReader` (xmlTextReader model), `BufferedReader` |
 | Bulk results instead of one call per node | XPath `select_nodes` returns id vectors; serializers write whole documents to a `Write` |
 | Errors that map onto host exceptions | `ErrorKind`, with a stable variant per libxml2 category, plus a byte offset |
@@ -107,6 +108,38 @@ example a wrapper over `PyMem_RawMalloc` or a counting quota allocator.
   validators and `Writer` accept any `A`. `save::to_vec`, HTML serialization
   and XInclude take global-heap documents only, and `parse_in` rejects
   `XINCLUDE`.
+
+## Moving nodes between documents
+
+lxml lets a program append an element of one tree into another; libxml2
+moves the node (`xmlDOMWrapAdoptNode`) and every Python proxy keeps pointing
+at the same `xmlNode`. yaxml cannot keep handles across documents: an
+`OwnedNodeId` is a document identity plus a slot in that document's arena, so
+a node in another arena is a different node. There is therefore no `adopt`;
+a move is two calls on two editors, which Rust allows because the documents
+are different values:
+
+```rust,ignore
+let mut from = source.edit(limits)?;
+let mut to = destination.edit(limits)?;
+let moved = to.import(from.document(), node, true)?; // on failure nothing changed
+from.remove_subtree(node)?;                         // fails only for the document element
+to.append_child(parent, moved)?;
+```
+
+`remove_subtree` fails only on the synthetic root and the document element,
+which the adapter checks first, so the move is atomic in practice; if it
+fails, removing the detached copy undoes the import. A document keeps its
+element, so moving another tree's root element is a copy. `append_child`
+returns the handle that holds the node: a Text merged into the last child
+returns that child. An adapter remaps its
+proxies by walking the source subtree and the copy's `descendants()`
+together before the removal: they visit corresponding nodes in the same
+order, except that a reference to an entity the destination does not declare
+is replaced by its content (the reference itself has no counterpart). The
+source's handles then become stale, which is what rejects a proxy the
+adapter forgot to remap. A single `adopt` call would save one line and hide
+which handles died, so it is left to the adapter.
 
 ## Open decisions
 

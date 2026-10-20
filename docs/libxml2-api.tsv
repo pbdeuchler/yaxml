@@ -1742,11 +1742,11 @@ tree.h	_xmlBuffer.content	field	yes	P0-P3	not-applicable	https://github.com/GNOM
 tree.h	_xmlBuffer.contentIO	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
 tree.h	_xmlBuffer.size	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
 tree.h	_xmlBuffer.use	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
-tree.h	_xmlDOMWrapCtxt	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	_xmlDOMWrapCtxt._private	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
-tree.h	_xmlDOMWrapCtxt.getNsForNodeFunc	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
-tree.h	_xmlDOMWrapCtxt.namespaceMap	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
-tree.h	_xmlDOMWrapCtxt.type	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no cross-document DOM wrapper
+tree.h	_xmlDOMWrapCtxt	struct	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt.getNsForNodeFunc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt.namespaceMap	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	_xmlDOMWrapCtxt.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
 tree.h	_xmlDoc	struct	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document, OwnedDocument
 tree.h	_xmlDoc.URL	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::url, OwnedDocument::url
 tree.h	_xmlDoc._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no user pointer
@@ -1903,31 +1903,31 @@ tree.h	xmlBufferWriteQuotedString	function	not_marked	P0-P3	not-applicable	https
 tree.h	xmlBuildQName	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no line numbers)
 tree.h	xmlChildElementCount	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlChildrenNode	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
-tree.h	xmlCopyDoc	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyDtd	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNamespace	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNamespaceList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyProp	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlCopyPropList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
+tree.h	xmlCopyDoc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::try_clone
+tree.h	xmlCopyDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::try_clone - copies the DTD with the document; no standalone DTD copy
+tree.h	xmlCopyNamespace	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	declarations are attributes; copied with their element
+tree.h	xmlCopyNamespaceList	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	declarations are attributes; copied with their element
+tree.h	xmlCopyNode	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::copy - deep, or extended 2 when shallow; extended 0 is not offered
+tree.h	xmlCopyNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::copy - one node at a time
+tree.h	xmlCopyProp	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
+tree.h	xmlCopyPropList	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
 tree.h	xmlCreateIntSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no detached nodes, entity-reference or DTD construction)
-tree.h	xmlDOMWrapAcquireNsFunction	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapAdoptNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapCloneNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapCtxt	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapCtxtPtr	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapFreeCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapNewCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapReconcileNamespaces	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
-tree.h	xmlDOMWrapRemoveNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
+tree.h	xmlDOMWrapAcquireNsFunction	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no custom namespace callback; copies never rename
+tree.h	xmlDOMWrapAdoptNode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	handles name one document: Editor::import + remove_subtree (docs/bindings.md#moving-nodes-between-documents)
+tree.h	xmlDOMWrapCloneNode	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - declarations on the copy root; no prefix renaming or oldNs (docs/owned-dom.md#copying-and-importing)
+tree.h	xmlDOMWrapCtxt	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapCtxtPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapFreeCtxt	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapNewCtxt	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no DOM-wrapper context; copies plan namespaces themselves
+tree.h	xmlDOMWrapReconcileNamespaces	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	every edit and copy reconciles before publishing
+tree.h	xmlDOMWrapRemoveNode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::unlink; namespaces need no fixup
 tree.h	xmlDefaultBufferSize	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	xmlDeregisterNodeDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlDeregisterNodeDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlDeregisterNodeFunc	callback	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	DocBook and node registration callbacks removed upstream
 tree.h	xmlDoc	typedef	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document, OwnedDocument
-tree.h	xmlDocCopyNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
-tree.h	xmlDocCopyNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	copy/import not started
+tree.h	xmlDocCopyNode	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - deep, or extended 2 when shallow
+tree.h	xmlDocCopyNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - one node at a time
 tree.h	xmlDocDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
 tree.h	xmlDocDumpFormatMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
 tree.h	xmlDocDumpFormatMemoryEnc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
@@ -2021,8 +2021,8 @@ tree.h	xmlNodeGetContent	function	not_marked	P0-P3	implemented	https://github.co
 tree.h	xmlNodeGetLang	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::lang, OwnedNode::lang
 tree.h	xmlNodeGetSpacePreserve	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::space_preserve, OwnedNode::space_preserve
 tree.h	xmlNodeIsText	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::kind, OwnedNode::kind
-tree.h	xmlNodeListGetRawString	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
-tree.h	xmlNodeListGetString	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlNodeListGetRawString	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
+tree.h	xmlNodeListGetString	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::list_string, OwnedNode::list_string
 tree.h	xmlNodePtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlNodeSetBase	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
 tree.h	xmlNodeSetContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_node_value
@@ -2068,11 +2068,11 @@ tree.h	xmlSearchNsByHref	function	not_marked	P0-P3	implemented	https://github.co
 tree.h	xmlSetBufferAllocationScheme	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	xmlSetCompressMode	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	xmlSetDocCompressMode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no compression
-tree.h	xmlSetListDoc	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
+tree.h	xmlSetListDoc	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	a node belongs to its arena; Editor::import copies
 tree.h	xmlSetNs	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_name
 tree.h	xmlSetNsProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute
 tree.h	xmlSetProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute
-tree.h	xmlSetTreeDoc	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	cross-document ownership not started
+tree.h	xmlSetTreeDoc	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	a node belongs to its arena; Editor::import copies
 tree.h	xmlSplitQName2	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (Name::new parses a whole QName)
 tree.h	xmlSplitQName3	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (Name::new parses a whole QName)
 tree.h	xmlStringGetNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started

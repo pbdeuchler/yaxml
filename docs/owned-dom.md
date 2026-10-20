@@ -2,8 +2,8 @@
 
 `OwnedDocument` survives destruction of its UTF-8 or UTF-16 input and supports
 bounded rooted construction, element/leaf insertion, value replacement, moves,
-unlink and replacement, attribute, name and namespace edits, compaction and
-permanent subtree removal.
+unlink and replacement, attribute, name and namespace edits, copies within and
+across documents, compaction and permanent subtree removal.
 Its parser uses the same XML grammar, namespaces, normalization and resource
 policy as `Document`; strings are copied into a document-owned UTF-8 pool.
 Records keep pool ranges and flat node links rather than references into their
@@ -451,14 +451,119 @@ function declares everything on the subtree root and may rename a prefix to
 reuse an in-scope binding of the URI (or invent `default1` for the default
 namespace). Reconciling automatically, per element and without renaming, keeps
 handles, spellings and XPath results stable; there is no separate
-reconciliation call because the tree is never inconsistent. Moves within one
-document are the only moves; detached subtrees resolve against their own root
-until inserted. `xmlSetNs` on an attribute is `remove_attribute` plus
+reconciliation call because the tree is never inconsistent. Moves stay within
+one document ([copies](#copying-and-importing) cross documents); detached
+subtrees resolve against their own root until inserted. `xmlSetNs` on an attribute is `remove_attribute` plus
 `set_attribute`.
 
 Each call charges `max_namespace_work` for every element step, examined
 attribute and planned declaration probe; declarations count toward
 `max_created_attributes` and their strings toward `max_owned_bytes`.
+
+## Copying and importing
+
+| Call | libxml2 | Result |
+| --- | --- | --- |
+| `editor.import(&source, node, deep)` | `xmlDocCopyNode(node, doc, deep ? 1 : 2)` | A copy of a node of another document (any allocator), detached in this one. |
+| `editor.copy(node, deep)` | `xmlCopyNode` | The same within this document; the copy shares the source's strings. |
+| `document.try_clone()` | `xmlCopyDoc(doc, 1)` | The whole document in the same allocator. |
+
+The copy comes back detached, without a source range; insert it with
+`append_child` or the other moves, which reconcile it against its new parent
+like any detached subtree. A shallow copy (`deep` false) keeps an element's
+attributes and declarations but no children (libxml2's `extended` 2; its 0,
+which drops the element's namespace, is not offered). An entity reference's
+content is part of the reference and is always copied. The document node and
+the DOCTYPE are `WrongNodeKind`; nodes inside entity content and detached
+subtrees can be copied.
+
+```rust
+use yaxml::{EditLimits, OwnedDocument, save};
+let source = OwnedDocument::parse("<r xmlns:p='urn:p'><a><p:b/><p:c/></a></r>")?;
+let a = source.root_element().first_child().unwrap().id();
+let mut document = OwnedDocument::parse("<t/>")?;
+let t = document.root_element().id();
+let mut editor = document.edit(EditLimits::default())?;
+let copy = editor.import(&source, a, true)?;
+editor.append_child(t, copy)?;
+let saved = String::from_utf8(save::to_vec(&document, &save::Options::default())?)?;
+assert!(saved.ends_with("<t><a xmlns:p=\"urn:p\"><p:b/><p:c/></a></t>\n"));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+**Namespaces.** A copy keeps every name's spelling and URI. Each binding its
+names took from outside it is declared once on the copy's root, in first-use
+order after the root's own declarations, which is where `xmlDocCopyNode`
+puts them; the copy is then namespace-consistent on its own. When that would
+need more declarations than placing each on the outermost element needing it
+(the root relies on the default namespace being unbound, which a consistent
+source cannot produce), declarations go there instead. A declaration that the
+new parent makes redundant stays, as with `xmlDocCopyNode` followed by
+`xmlAddChild`. Differences:
+
+- `xmlDOMWrapCloneNode` with a destination parent reuses any in-scope binding
+  of the URI, renaming the prefix (`p:b` under `xmlns:q="urn:p"` becomes
+  `q:b`), declares on each element that needs a binding rather than on the
+  root, and renames a conflicting prefix to `p_1`; without a parent it stores
+  bindings in `doc->oldNs`, which serialization never writes. yaxml never
+  renames, so handles, spellings and XPath results stay stable.
+- Inserting a copy whose unnamespaced element relied on the default namespace
+  being unbound declares `xmlns=""` on it; `xmlAddChild` does not, and its
+  output puts the element in the parent's default namespace.
+- A copy taken out of entity content keeps the namespaces of the reference's
+  scope, since yaxml expands each reference in its own scope where libxml2
+  parses the entity once outside any ([compatibility](compatibility.md#entity-references-without-noent)).
+
+**What the destination decides.**
+
+- *Entity references.* A reference the destination's DTD declares stays a
+  reference, with the source's content. One it does not declare is replaced
+  by copies of its content, and an attribute's kept references by its
+  substituted value; libxml2 keeps a reference that no longer reparses. A
+  copied node that is itself such a reference is `Hierarchy`. libxml2 binds a
+  kept reference to the destination's declaration, whose content is empty
+  until the destination first references the entity.
+- *IDs.* The destination types IDs, as `set_attribute` does: `xml:id`, HTML
+  `id` (and `name` on `a`) with a value, or a DTD-declared `ID`; the copies
+  join its ID table. `xmlDocCopyNode` asks the source's `xmlIsID`;
+  `xmlDOMWrapCloneNode` the destination's.
+- *DTD defaults* belong to the DTD, not the node, as in libxml2: `attribute()`
+  on a copy falls back to the destination's defaults. Defaults that `DTDATTR`
+  materialized are ordinary attributes and copy as such.
+- *HTML and XML.* libxml2 copies names verbatim, so an HTML node in an XML
+  document can write XML that does not parse. Into an XML document, what XML
+  cannot represent fails: a non-NCName or `xmlns` attribute name
+  (`InvalidName`), characters outside XML (`InvalidCharacter`), a comment
+  with `--` (`InvalidValue`). Into an HTML document, any name in a namespace,
+  `xml:` attributes included, is `Namespace`, as `set_attribute` refuses it.
+  A valueless HTML attribute keeps that flag only in an HTML destination and
+  is `a=""` in XML (boolean attributes such as `checked` already hold their
+  name as value).
+- *Source ranges.* Copies have none; libxml2 copies an element's line number.
+
+**Limits and atomicity.** The copy is staged from the source without changing
+anything: kind compatibility, `max_depth` (the copy's own height),
+`max_created_nodes` and `max_created_attributes` are checked in preorder as
+it goes. Then `max_owned_bytes` is checked for the copied strings (none for
+`copy`), every store is reserved, the records are appended unreachable, and
+the root's declarations are planned and added under `max_namespace_work`,
+`max_created_attributes` and `max_owned_bytes`. A failure there truncates every
+store back to its length before the call, so the document, its counters and
+its ID table are unchanged. Values come from a document that validated them
+and are not checked against `max_value_bytes`.
+
+**Moving between documents.** There is no `xmlDOMWrapAdoptNode`: a handle
+names one document, so a node moved to another arena is a new node. A move is
+`import` followed by `remove_subtree` on the source's editor; the
+[bindings guide](bindings.md#moving-nodes-between-documents) shows how an
+adapter remaps its proxies.
+
+**Whole documents.** `try_clone` copies everything a document holds,
+detached subtrees, tombstones, the DTD, URL, ID table, diagnostics and
+editing counters included, in clones of its allocator. The clone has a new
+identity, so handles of the original do not resolve in it, but its `nodes()`
+visit the same tree in the same order. It fails only on allocation
+(`Allocation`) and identity exhaustion (`IdentifierExhausted`).
 
 ## Compaction and memory growth
 
@@ -491,6 +596,7 @@ also serves `TextReader::base_uri`, XInclude, catalogs, XPath `lang()` and
 | `attribute(name)` | `xmlGetProp`/`xmlHasProp`: first attribute with that name (local name when namespaced) in any namespace, else the DTD default |
 | `attribute_ns(local, namespace)` | `xmlGetNsProp`; `None` is no namespace |
 | `content()` | `xmlNodeGetContent`: concatenated Text/CDATA of a container or entity reference, a leaf's payload; `None` for the DOCTYPE |
+| `list_string(substitute)` | `xmlNodeListGetString`: Text/CDATA of the node and its following siblings; entity references add their content, or without `substitute` are `&name;` with the text escaped as `xmlEscapeText` does (non-ASCII as `&#xH;` without a declared encoding; only `&<>` in HTML) |
 | `path()` | `xmlGetNodePath`, same format (`/*` for the default namespace, `[n]` among same-named siblings); `None` for the DOCTYPE and entity content |
 | `base_uri()` | `xmlNodeGetBase`, against `url()`; in HTML, the first `<base href>` |
 | `lang()`, `space_preserve()` | `xmlNodeGetLang`, `xmlNodeGetSpacePreserve` (elements only) |
@@ -506,7 +612,9 @@ internal entity's does, since the entity's URI is not retained.
 
 `tests/dom_edit_oracle.rs` compares these accessors on every node, and the tree
 after random `append_child`/`insert_before`/`insert_after`/`unlink`/`replace`
-and create-then-`xmlAddChild` scripts, with `tooling/libxml2_domedit.c`:
+and create-then-`xmlAddChild` scripts, or after copy scripts (`import` from a
+second document or `copy` within, then `append_child`, as `xmlDocCopyNode` then
+`xmlAddChild`; `try_clone` as `xmlCopyDoc`), with `tooling/libxml2_domedit.c`:
 
 ```sh
 cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -I../../yaxml-oracle/build \
@@ -516,11 +624,18 @@ YAXML_DOMEDIT_HELPER=$PWD/target/domedit-helper YAXML_DOMEDIT_CASES=100000 \
   cargo test --release --test dom_edit_oracle -- --nocapture
 ```
 
-At the last run (seeds 1-3, 100,000 documents each, about 62,000 accepted
-operations each) there were 0 mismatches. Namespaced documents run without
-edits, since libxml2 does not reconcile. The `domedit` fuzz target runs random
-edit scripts and checks link consistency, namespace resolution, atomic failure,
-stale-handle rejection and save-then-reparse equality after every operation.
+At the last run (seeds 1-3, 100,000 documents each, about 80,000 accepted
+operations each, 38,500 of them copies) there were 0 mismatches. Namespaced
+documents take copies but no moves, since libxml2 does not reconcile moves.
+About 3,400 copies per seed are not sent because they show one of the
+documented [copy divergences](#copying-and-importing) (`xmlns=""` on
+insertion, an entity the destination never referenced, a copy out of entity
+content with namespaces). The `domedit` fuzz target runs random edit scripts
+over two parses of one input, with imports between them, copies within one,
+clones and swaps, and checks link consistency, namespace resolution, atomic
+failure of both documents, stale-handle rejection and save-then-reparse
+equality after every operation, that a copy resolves its names on its own and
+saves as its source, and that a clone saves as its original.
 
 ## Editing limits
 
@@ -576,7 +691,7 @@ implemented behavior from pending coverage, review and performance evidence.
 
 Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
-adapters. Copy/import/adoption across documents, slot reuse (a renumbering
+adapters. Slot reuse (a renumbering
 rebuild), DOCTYPE and declaration editing, entity-interpreting setters
 (`xmlNodeSetContent`), foreign registries, an allocator-aware string pool,
 formatting and UTF-16 output remain separate work items. Comparative

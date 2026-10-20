@@ -18,7 +18,6 @@ pub(crate) use sealed::{Allocator, Global, Vec};
 #[cfg(not(feature = "allocator_api"))]
 mod sealed {
     use std::fmt;
-    use std::marker::PhantomData;
     use std::ops::{Deref, DerefMut};
 
     pub trait Allocator {}
@@ -29,11 +28,15 @@ mod sealed {
     impl Allocator for Global {}
 
     /// `std::vec::Vec<T, A>`'s subset that yaxml uses, over the global heap.
-    pub struct Vec<T, A>(std::vec::Vec<T>, PhantomData<A>);
+    pub struct Vec<T, A>(std::vec::Vec<T>, A);
 
     impl<T, A> Vec<T, A> {
-        pub fn new_in(_: A) -> Self {
-            Self(std::vec::Vec::new(), PhantomData)
+        pub fn new_in(allocator: A) -> Self {
+            Self(std::vec::Vec::new(), allocator)
+        }
+
+        pub fn allocator(&self) -> &A {
+            &self.1
         }
     }
 
