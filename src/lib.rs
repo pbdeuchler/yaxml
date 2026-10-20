@@ -60,6 +60,7 @@
 #[macro_use]
 mod setters;
 mod allocator;
+mod blanks;
 mod buffered;
 pub mod c14n;
 pub mod catalog;

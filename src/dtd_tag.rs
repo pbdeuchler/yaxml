@@ -40,6 +40,12 @@ impl<'c> TagDeclarations<'c> {
         self.element = self.catalog.element_decl(qualified);
     }
 
+    /// The element's declared content ([`crate::valid::Dtd::has_element_content`]).
+    pub(crate) fn content(&self) -> Option<bool> {
+        let element = &self.catalog.dtd().elements[self.element?];
+        element.element_content()
+    }
+
     /// Offsets are physical only outside entity replacement text.
     fn physical(&self, offset: usize) -> Option<usize> {
         (self.source == LiteralSource::Physical).then_some(offset)

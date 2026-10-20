@@ -421,7 +421,7 @@ impl<'a> Reader<'a> {
     /// As [`Reader::new`]; tree-only flags (`DTDVALID`, `NOBLANKS`,
     /// `RECOVER`, `XINCLUDE`) are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: &'a [u8], options: ParseOptions) -> Result<Self, Error> {
-        let flags = options.check(false, 0)?;
+        let flags = options.check(false, crate::options::NOBLANKS)?;
         let (limits, _) = options.effective_limits();
         let decode = DecodeLimits {
             max_decoded_bytes: usize::MAX,

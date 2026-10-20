@@ -1,5 +1,6 @@
 use std::ops::{ControlFlow, Range};
 
+use crate::blanks::Filter;
 use crate::options::Flags;
 use crate::parser::Budget;
 use crate::stream::dtd::StreamingSession;
@@ -34,6 +35,8 @@ use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, ParseOptions, ReadErr
 /// ```
 pub struct PushParser {
     session: StreamingSession,
+    /// `NOBLANKS`: the callbacks get no ignorable blank text.
+    blanks: Option<Box<Filter>>,
 }
 
 impl PushParser {
@@ -58,7 +61,7 @@ impl PushParser {
     ///
     /// # Errors
     ///
-    /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `RECOVER`, `XINCLUDE`) are
+    /// `DTDVALID` and `XINCLUDE`, which need a tree, are
     /// [`ErrorKind::UnsupportedOption`].
     pub fn with_options(options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;
@@ -77,7 +80,8 @@ impl PushParser {
         if let Some(resolver) = options.resolver {
             session.set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
         }
-        Self { session }
+        let blanks = flags.drops_blanks().then(Box::default);
+        Self { session, blanks }
     }
 
     /// Starts a new document with the same flags and limits, reusing
@@ -85,6 +89,7 @@ impl PushParser {
     /// included, is dropped.
     pub fn reset(&mut self) {
         self.session.reset_same();
+        self.blanks = self.blanks.take().map(|_| Box::default());
     }
 
     /// [`PushParser::reset`] with new options.
@@ -96,6 +101,7 @@ impl PushParser {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
         self.session.reset(limits, decode, flags);
+        self.blanks = flags.drops_blanks().then(Box::default);
         if let Some(resolver) = options.resolver {
             self.session
                 .set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
@@ -189,12 +195,29 @@ impl PushParser {
         input: &[u8],
         mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), Error> {
+        if self.blanks.is_some() {
+            return self.feed_filtered(input, emit);
+        }
         self.feed_with(input, |event, origin, _| {
             if emit(event, origin).is_break() {
                 Err(Error::new(ErrorKind::Aborted, origin.cancellation_offset()))
             } else {
                 Ok(())
             }
+        })
+    }
+
+    /// [`Self::feed`] under `NOBLANKS`.
+    #[inline(never)]
+    fn feed_filtered(
+        &mut self,
+        input: &[u8],
+        mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
+    ) -> Result<(), Error> {
+        let Self { session, blanks } = self;
+        let blanks = blanks.as_deref_mut().expect("NOBLANKS parser");
+        session.advance(input, &mut |event, origin, budget| {
+            filtered(blanks, event, origin, budget, &mut emit)
         })
     }
 
@@ -215,13 +238,22 @@ impl PushParser {
         &mut self,
         mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
     ) -> Result<(), Error> {
-        self.finish_with(|event, origin, _| {
-            if emit(event, origin).is_break() {
-                Err(Error::new(ErrorKind::Aborted, origin.cancellation_offset()))
-            } else {
-                Ok(())
-            }
-        })
+        if self.blanks.is_some() {
+            return self.finish_filtered(emit);
+        }
+        self.finish_with(|event, origin, _| call(&mut emit, event, origin))
+    }
+
+    /// [`Self::finish`] under `NOBLANKS`.
+    #[inline(never)]
+    fn finish_filtered(
+        &mut self,
+        mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
+    ) -> Result<(), Error> {
+        let Self { session, blanks } = self;
+        let blanks = blanks.as_deref_mut().expect("NOBLANKS parser");
+        session
+            .finish(&mut |event, origin, budget| filtered(blanks, event, origin, budget, &mut emit))
     }
 
     pub(crate) fn finish_with(
@@ -235,5 +267,38 @@ impl PushParser {
 impl Default for PushParser {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// `event` to a public callback, whose `Break` aborts.
+#[inline(always)]
+fn call(
+    emit: &mut impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
+    event: &Event<'_>,
+    origin: SourceOrigin,
+) -> Result<(), Error> {
+    match emit(event, origin) {
+        ControlFlow::Break(()) => Err(Error::new(ErrorKind::Aborted, origin.cancellation_offset())),
+        ControlFlow::Continue(()) => Ok(()),
+    }
+}
+
+/// [`call`] under `NOBLANKS`: the blank text the filter held and keeps
+/// comes first, and ignorable blank text not at all.
+#[inline(always)]
+fn filtered(
+    blanks: &mut Filter,
+    event: &Event<'_>,
+    origin: SourceOrigin,
+    budget: &Budget,
+    emit: &mut impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,
+) -> Result<(), Error> {
+    let (kept, passes) = blanks.event(event, origin, budget.content())?;
+    if let Some((text, at)) = kept {
+        call(emit, &Event::Text(text.into()), at)?;
+    }
+    match passes {
+        true => call(emit, event, origin),
+        false => Ok(()),
     }
 }

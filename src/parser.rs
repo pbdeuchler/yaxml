@@ -46,6 +46,9 @@ pub(crate) struct Budget {
     /// The last published start tag's kept-reference attribute forms
     /// (`dtd_tag::kept_form`) by attribute position, for the DOM builders.
     kept: Vec<(usize, String)>,
+    /// The last published start tag's declared content
+    /// ([`crate::valid::Dtd::has_element_content`]), for `NOBLANKS` streams.
+    content: Option<bool>,
 }
 
 impl Budget {
@@ -56,6 +59,7 @@ impl Budget {
             attributes_left: limits.max_total_attributes,
             recovered: None,
             kept: Vec::new(),
+            content: None,
         }
     }
 
@@ -127,6 +131,12 @@ impl Budget {
             budget.recover(error)?;
         }
         Ok(budget.recovered.take().unwrap_or_default())
+    }
+
+    /// The last start tag's declared content: element-only (true), mixed or
+    /// ANY (false).
+    pub(crate) fn content(&self) -> Option<bool> {
+        self.content
     }
 
     /// Kept-reference forms of the last start tag's attributes; DOM builders drain them.
@@ -1190,6 +1200,7 @@ impl<'source> ParserState<'source> {
         if let Some(declarations) = declarations.as_deref_mut() {
             declarations.element(qualified);
             self.budget.kept.clear();
+            self.budget.content = declarations.content();
         }
         let bindings_start = self.bindings.len();
         let mut attributes = self.take_attributes();
@@ -1890,8 +1901,6 @@ fn boxed<T>(value: T, offset: usize) -> Result<Box<[T; 1]>, Error> {
         .unwrap_or_else(|_| unreachable!("one element")))
 }
 
-/// An attribute list's allocation, emptied and so free of its lifetime. The
-/// conversion collects in place: only the allocation changes lifetime.
 /// A content event with every borrowed string copied, and charged to `budget`.
 pub(crate) fn owned_event(
     event: Event<'_>,
@@ -1945,6 +1954,9 @@ pub(crate) fn owned_event(
     })
 }
 
+/// An attribute list's allocation, emptied and so free of its lifetime. The
+/// conversion collects in place: only the allocation changes lifetime.
+#[inline(always)]
 pub(crate) fn emptied<'to>(mut attributes: Vec<Attribute<'_>>) -> Vec<Attribute<'to>> {
     attributes.clear();
     attributes

@@ -380,27 +380,6 @@ struct Frame {
     attributes: bool,
 }
 
-/// What `areBlanks` asks about the kept children of an element so far.
-#[derive(Clone, Copy, Default)]
-struct Kids {
-    kept: bool,
-    /// The first and the last are text.
-    first_text: bool,
-    last_text: bool,
-    /// Some text came from the document itself, which libxml2 notes as
-    /// `*ctxt->space = -2`: later blanks in an element without `xml:space`
-    /// are kept.
-    spoken: bool,
-}
-
-impl Kids {
-    /// Notes a kept child: `text`, from the document unless `replaced`.
-    fn push(&mut self, text: bool, replaced: bool) {
-        (self.first_text, self.kept) = (self.first_text || (!self.kept && text), true);
-        (self.last_text, self.spoken) = (text, self.spoken || (text && !replaced));
-    }
-}
-
 /// Namespace bindings, `xml:lang` and `xml:base` of the open elements.
 #[derive(Default)]
 struct Scope {
@@ -458,51 +437,6 @@ impl Scope {
     }
 }
 
-/// An element open at the parse front, for `NOBLANKS`.
-#[derive(Clone, Copy)]
-struct Open {
-    name: Span,
-    /// The `xml:space` in effect: `preserve` (true), `default` (false) or none.
-    space: Option<bool>,
-    kids: Kids,
-}
-
-/// libxml2's `areBlanks` (`XML_PARSE_NOBLANKS`) state: the elements open at
-/// the last node fetched, which can be ahead of the cursor.
-#[derive(Default)]
-struct Blanks {
-    text: String,
-    open: Vec<Open>,
-}
-
-impl Blanks {
-    fn open(&mut self, node: &Node) {
-        let space = (node.attributes.iter().rev())
-            .find_map(|a| {
-                let is = node.prefix(a.name) == Some("xml") && node.local(a.name) == "space";
-                match node.get(a.value) {
-                    _ if !is => None,
-                    "preserve" => Some(true),
-                    "default" => Some(false),
-                    _ => None,
-                }
-            })
-            .or_else(|| self.open.last().and_then(|open| open.space));
-        let name = push(&mut self.text, node.qualified(node.name));
-        self.open.push(Open {
-            name,
-            space,
-            kids: Kids::default(),
-        });
-    }
-
-    fn close(&mut self) {
-        if let Some(open) = self.open.pop() {
-            self.text.truncate(open.name.0);
-        }
-    }
-}
-
 /// A forward-only cursor over a document's nodes from any [`BufRead`],
 /// libxml2's `xmlTextReader`.
 ///
@@ -553,7 +487,7 @@ pub struct TextReader<R: BufRead> {
     value: Option<usize>,
     scope: Scope,
     /// `NOBLANKS` state at the parse front.
-    blanks: Blanks,
+    blanks: crate::blanks::Blanks,
     /// Validation of every event read from the source.
     validators: Validators,
     standalone: Standalone,
@@ -603,7 +537,7 @@ impl<R: BufRead> TextReader<R> {
             attribute: None,
             value: None,
             scope: Scope::default(),
-            blanks: Blanks::default(),
+            blanks: crate::blanks::Blanks::default(),
             validators: Validators::new(flags),
             standalone: Standalone::NoDeclaration,
         })
@@ -649,7 +583,7 @@ impl<R: BufRead> TextReader<R> {
         self.attribute = None;
         self.value = None;
         self.scope = Scope::default();
-        self.blanks = Blanks::default();
+        self.blanks = crate::blanks::Blanks::default();
         self.validators = Validators::new(self.flags);
         self.standalone = Standalone::NoDeclaration;
     }
@@ -817,30 +751,14 @@ impl<R: BufRead> TextReader<R> {
         if last > 0 && self.queue[last - 1].kind == Kind::Text {
             let (text, next) = (&self.queue[last - 1], &self.queue[last]);
             // Replacement text is never judged.
-            let blank =
-                !text.replaced && (text.get(text.value).bytes()).all(|b| b" \t\r\n".contains(&b));
-            let (reference, next) = (next.replaced || next.kind == Kind::EntityRef, next.kind);
-            let drop = self.blanks.open.last().is_some_and(|open| {
-                let name = get(&self.blanks.text, open.name);
-                let declared = (self.source.dtd()).and_then(|dtd| dtd.has_element_content(name));
-                let kids = open.kids;
-                // Outside declared element content, libxml2 sees the `&` of
-                // a following reference, and keeps a blank that is the only
-                // child or follows or precedes other text.
-                blank
-                    && open.space != Some(true)
-                    && !(open.space.is_none() && kids.spoken)
-                    && declared.unwrap_or(
-                        (kids.kept || next != Kind::End)
-                            && (!kids.kept || !(kids.first_text || kids.last_text))
-                            && !reference,
-                    )
-            });
-            let replaced = self.queue[last - 1].replaced;
-            if !drop && let Some(open) = self.blanks.open.last_mut() {
-                open.kids.push(true, replaced);
-            }
-            if drop && let Some(text) = self.queue.remove(last - 1) {
+            let blank = !text.replaced && crate::blanks::is_blank(text.get(text.value));
+            let (ends, reference) = (
+                next.kind == Kind::End,
+                next.replaced || next.kind == Kind::EntityRef,
+            );
+            if self.blanks.drops(blank, text.replaced, ends, reference)
+                && let Some(text) = self.queue.remove(last - 1)
+            {
                 self.recycle(text);
             }
         }
@@ -849,11 +767,16 @@ impl<R: BufRead> TextReader<R> {
             Kind::End => self.blanks.close(),
             Kind::Text | Kind::Doctype => {}
             kind => {
-                if let Some(open) = self.blanks.open.last_mut() {
-                    open.kids.push(false, false);
-                }
+                self.blanks.child();
                 if kind == Kind::Element {
-                    self.blanks.open(node);
+                    let space = (node.attributes.iter().rev()).find_map(|attribute| {
+                        let name = attribute.name;
+                        (node.prefix(name) == Some("xml") && node.local(name) == "space")
+                            .then(|| crate::blanks::space(node.get(attribute.value)))
+                            .flatten()
+                    });
+                    let declared = self.source.budget().and_then(|budget| budget.content());
+                    self.blanks.open(space, declared);
                 }
             }
         }

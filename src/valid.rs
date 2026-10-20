@@ -255,6 +255,15 @@ impl Dtd {
 }
 
 impl ElementDecl {
+    /// [`Dtd::has_element_content`] of this declaration.
+    pub(crate) fn element_content(&self) -> Option<bool> {
+        match self.content.as_ref()? {
+            Content::Children(_) => Some(true),
+            Content::Any | Content::Mixed(_) => Some(false),
+            Content::Empty => None,
+        }
+    }
+
     pub(crate) fn new(name: String) -> Self {
         Self {
             name,
@@ -339,16 +348,7 @@ impl Dtd {
     /// ANY or mixed content (`Some(false)`), or neither (`None`): the cases
     /// libxml2's `XML_PARSE_NOBLANKS` decides by declaration.
     pub fn has_element_content(&self, name: &str) -> Option<bool> {
-        match self
-            .elements
-            .get(*self.element_index.get(name)?)?
-            .content
-            .as_ref()?
-        {
-            Content::Children(_) => Some(true),
-            Content::Any | Content::Mixed(_) => Some(false),
-            Content::Empty => None,
-        }
+        (self.elements.get(*self.element_index.get(name)?)?).element_content()
     }
 
     fn element_for(&self, name: QName<'_>) -> Option<(usize, &ElementDecl)> {
