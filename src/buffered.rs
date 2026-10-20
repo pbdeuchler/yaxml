@@ -86,7 +86,7 @@ impl<R: BufRead> BufferedReader<R> {
     ///
     /// # Errors
     ///
-    /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `RECOVER`, `XINCLUDE`) are
+    /// `DTDVALID` and `XINCLUDE`, which need a tree, are
     /// [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;

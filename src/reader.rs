@@ -355,8 +355,9 @@ enum End {
 
 /// A pull parser over complete UTF-8 input, borrowing it.
 ///
-/// Namespace-aware and strict. Whitespace outside the root element is
-/// skipped. Errors are sticky, and EOF repeats `Ok(None)`. For other
+/// Namespace-aware, and strict unless `RECOVER` is set (see
+/// [`Reader::errors`]). Whitespace outside the root element is skipped.
+/// Errors are sticky, and EOF repeats `Ok(None)`. For other
 /// encodings or I/O sources, use [`PushParser`](crate::PushParser) or
 /// [`BufferedReader`](crate::BufferedReader).
 ///
@@ -418,8 +419,9 @@ impl<'a> Reader<'a> {
     ///
     /// # Errors
     ///
-    /// As [`Reader::new`]; tree-only flags (`DTDVALID`, `NOBLANKS`,
-    /// `RECOVER`, `XINCLUDE`) are [`ErrorKind::UnsupportedOption`].
+    /// As [`Reader::new`] (under `RECOVER` invalid UTF-8 and characters
+    /// outside `Char` are recovered from instead); `DTDVALID`, `NOBLANKS`
+    /// and `XINCLUDE` are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: &'a [u8], options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, crate::options::NOBLANKS)?;
         let (limits, _) = options.effective_limits();

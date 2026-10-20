@@ -128,6 +128,28 @@ impl PushParser {
 
     /// The well-formedness errors a `RECOVER` parse recovered from so far, in
     /// input order (the first 100, as libxml2 keeps); empty without `RECOVER`.
+    /// An error no site repairs stops a recovering parse: what is open
+    /// closes with `End` events, and later input is ignored.
+    ///
+    /// ```
+    /// use std::ops::ControlFlow;
+    /// use yaxml::{Event, ParseOptions, PushParser, options};
+    ///
+    /// let mut parser = PushParser::with_options(ParseOptions::new(options::RECOVER))?;
+    /// let mut ends = Vec::new();
+    /// let mut emit = |event: &Event<'_>, _| {
+    ///     if let Event::End(name) = event {
+    ///         ends.push(name.qualified().to_owned());
+    ///     }
+    ///     ControlFlow::Continue(())
+    /// };
+    /// parser.feed(b"<r><a>text</b>", &mut emit)?;
+    /// parser.finish(&mut emit)?;
+    /// // `</b>` ends `a`, as in libxml2; the end of input closes `r`.
+    /// assert_eq!(ends, ["a", "r"]);
+    /// assert_eq!(parser.errors().len(), 2);
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
     pub fn errors(&self) -> &[Error] {
         self.session.errors()
     }

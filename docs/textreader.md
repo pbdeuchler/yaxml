@@ -109,7 +109,9 @@ of XMLTS not-wf. Following libxml2:
   limits; kept references are written as their replacement there, since
   the copy has no DTD (outer XML writes `&name;`). The cursor does not move: later reads still visit the subtree.
 
-`NOBLANKS` is libxml2's `areBlanks` as the reader's push parser applies it:
+`NOBLANKS` is libxml2's `areBlanks` as the reader's push parser applies it
+(`src/blanks.rs`, which `PushParser` and `BufferedReader` share; a start
+tag's declared content comes with its event):
 a blank-only text node is dropped before it is queued, so `read_string`,
 inner/outer XML and `expand` see the tree libxml2 would hold. Never under
 `xml:space="preserve"` (`default` re-enables it); in an element the DTD declares
