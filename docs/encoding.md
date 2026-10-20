@@ -4,7 +4,8 @@
 detect UTF-8, UTF-16LE and UTF-16BE, and follow a BOM-less declaration naming
 one of libxml2 2.15.4's built-in single-byte encodings: US-ASCII, ISO-8859-1
 through ISO-8859-16 (no 12) and windows-1252. `Reader` and the borrowing
-`Document` remain UTF-8-only. Stored strings and event values always use UTF-8.
+`Document` take UTF-8; they read other input through [`Transcoded`](#transcoded-input).
+Stored strings and event values always use UTF-8.
 `Writer` emits UTF-8 only; `save` also writes UTF-16 and these single-byte
 encodings ([writer.md](writer.md)).
 
@@ -36,8 +37,8 @@ detected name (`UTF-8`, `UTF-16LE`, `UTF-16BE`), not the label. Malformed
 declaration grammar returns `InvalidDeclaration`. BOM-less UTF-16 still requires
 a declaration with an encoding (`EncodingMismatch`). An undetected source
 (no BOM) switches to a declared single-byte charset; in the borrowing reader any
-non-UTF-8 label returns `UnsupportedEncoding`. Declaration views preserve the
-original spelling.
+non-UTF-8 label returns `UnsupportedEncoding` (transcode it first). Declaration
+views preserve the original spelling.
 
 A single-byte encoding applies to the bytes after the ASCII declaration, which
 was forwarded as UTF-8. Bytes below 0x80 are forwarded in bulk; others map
@@ -63,8 +64,8 @@ lone low surrogate identifies itself; an odd final byte identifies that byte.
 If EOF leaves both a pending high surrogate and an odd byte, the high surrogate
 is reported first.
 
-Public positions, available exact input ranges, and current parse errors count
-original source bytes. Event metadata uses `SourceOrigin`; `input_range()`
+Public positions, available exact input ranges, and parse errors, returned or
+kept in `errors()`, count original source bytes. Event metadata uses `SourceOrigin`; `input_range()`
 returns its optional exact input span. All currently supported parsed origins
 have such a span. Semantic errors are translated once from the unnormalized token; consumer
 errors already use source coordinates. A declaration's source range includes its
@@ -89,3 +90,28 @@ budget. `Writer::write_owned_document` accepts such a tree, emits UTF-8, and
 rewrites a present declaration encoding to `UTF-8`; `save::to_vec` writes the
 declared or requested encoding. iconv-only encodings remain open work. Event-by-event callers remain responsible for
 supplying a declaration compatible with UTF-8 output.
+
+## Transcoded input
+
+`Transcoded::new(input, &options)` decodes complete input once for
+`Document::parse_transcoded` and `Reader::transcoded`, with the decoder and
+rules above; UTF-8 input (with or without a BOM) is borrowed, not copied. It
+checks `max_input_bytes` against the input and `max_decoded_bytes` while
+decoding, so the copy is bounded before it is made; `max_decoded_token_bytes`
+applies to the parse, and `max_token_bytes` there measures decoded tokens. The
+parser starts in the detected encoding, so declarations are checked as a stream
+checks them. `IGNORE_ENC` ignores a declared charset, as streams do; under
+`RECOVER` a declaration whose errors drop its label does not switch.
+
+A decoding error (`InvalidUtf16`, `UnmappedByte`, `UnsupportedEncoding`) is
+returned by `Transcoded::new` at its input offset, before any later markup
+error, as the slice reader reports invalid UTF-8 first. Under `RECOVER` it ends
+the text instead, and the parse recovers from it at that point, keeping the
+text decoded before it as `xmllint --recover` does (the streams drop text
+pending at the error).
+
+Errors, `errors()`, origins and `position()` of a transcoded parse count bytes
+of the UTF-8 text, not of the input, unlike the streams and `OwnedDocument`.
+`Transcoded::source_offset` maps one to the input (linear in the offset; no
+offset map is kept), and `LineIndex::transcoded` describes them with libxml2's
+lines and columns, which are the same for the decoded text.

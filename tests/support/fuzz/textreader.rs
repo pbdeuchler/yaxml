@@ -12,7 +12,7 @@ use std::io::{self, BufRead, Read};
 
 use yaxml::{
     ErrorKind, Event, Limits, NodeType, OwnedDocument, ParseOptions, ParserProperty, ReadError,
-    ReadState, Reader, Request, TextReader, Writer, options, relaxng, xsd,
+    ReadState, Reader, Request, TextReader, Transcoded, Writer, options, relaxng, xsd,
 };
 
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
@@ -40,7 +40,8 @@ fn node(depth: usize, kind: NodeType, name: &str, value: Option<&str>) -> Node {
 
 /// The expected nodes under `flags`, or None when the slice reader rejects the input.
 fn reference(input: &[u8], flags: u32) -> Option<Vec<Node>> {
-    let mut reader = Reader::with_options(input, ParseOptions::new(flags)).ok()?;
+    let text = Transcoded::new(input, &ParseOptions::new(flags)).ok()?;
+    let mut reader = Reader::transcoded(&text, ParseOptions::new(flags)).ok()?;
     let (mut nodes, mut depth, mut hidden) = (Vec::<Node>::new(), 0, 0_usize);
     while let Some(event) = reader.read_event().ok()? {
         // The reader does not visit entity-reference content.
@@ -502,7 +503,7 @@ pub fn exercise(input: &[u8]) {
     } else {
         0
     };
-    let comparable = flags == 0 || super::recover::comparable(document);
+    let comparable = flags == 0 || super::recover::comparable(document, flags).is_some();
     let expected = reference(document, flags).filter(|_| comparable);
     let trickle = control & 1 != 0;
     let mut nodes = Vec::new();
@@ -547,9 +548,11 @@ pub fn exercise(input: &[u8]) {
             skipped.push(reader.name().expect("named node").to_owned());
             more = reader.next().expect("accepted input");
         }
-        let mut slice = Reader::with_options(document, ParseOptions::new(flags)).unwrap();
+        let text = Transcoded::new(document, &ParseOptions::new(flags)).unwrap();
+        let mut slice = Reader::transcoded(&text, ParseOptions::new(flags)).unwrap();
         while slice.read_event().unwrap().is_some() {}
-        assert_eq!(reader.errors(), slice.errors(), "kept errors differ");
+        let errors = super::recover::sourced(&text, slice.errors());
+        assert_eq!(reader.errors(), errors, "kept errors differ");
         let top: Vec<_> = expected
             .iter()
             .filter(|node| node.depth == 0 && node.kind != NodeType::EndElement)

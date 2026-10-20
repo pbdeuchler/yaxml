@@ -410,6 +410,15 @@ impl<'s> LineIndex<'s> {
         }
     }
 
+    /// The index of [`Transcoded`](crate::Transcoded) text, whose offsets a
+    /// transcoded parse reports.
+    pub fn transcoded(input: &'s crate::Transcoded<'_>) -> Self {
+        match input.decoded {
+            Some(_) => Self::utf8(input.as_bytes()),
+            None => Self::new(input.as_bytes()),
+        }
+    }
+
     /// An index over UTF-8 text, whatever it declares.
     fn utf8(text: &'s [u8]) -> Self {
         let starts = std::iter::once(0)

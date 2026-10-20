@@ -169,7 +169,8 @@ end; DTD-free documents stay on the plain token loop, where options cost a
 flag test per CDATA section, declaration and namespace declaration. Streaming retains the
 declaration text (charged to `max_owned_bytes`) only until that event is
 delivered. Entity expansion resumes across arbitrary chunk splits, so events
-and errors do not depend on chunk boundaries. Complete-input borrowing remains UTF-8-only; push, pull,
-and owned parsing also support UTF-16. UTF-16 output, other encodings, external entities
+and errors do not depend on chunk boundaries. Complete-input borrowing reads UTF-8, and other
+input through `Transcoded` ([encoding](encoding.md#transcoded-input)); push, pull,
+and owned parsing decode UTF-16 directly. UTF-16 output, other encodings, external entities
 and allocator-backed collections remain open items in [the roadmap](roadmap.md). Streaming support does not establish complete
 libxml2 reader/SAX compatibility or the performance goal.

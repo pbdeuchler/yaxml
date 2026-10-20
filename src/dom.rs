@@ -147,14 +147,26 @@ impl<'input> Document<'input> {
     /// Parses with libxml2 parser options; see [`crate::options`].
     /// `XINCLUDE` needs an owned tree and is `UnsupportedOption` here.
     pub fn parse_with(input: &'input [u8], options: ParseOptions) -> Result<Self, Error> {
+        Self::borrowing(input, None, options)
+    }
+
+    /// Parses [`Transcoded`](crate::Transcoded) input with libxml2 parser
+    /// options, as [`Reader::transcoded`] reads it.
+    pub fn parse_transcoded(
+        input: &'input crate::Transcoded<'_>,
+        options: ParseOptions,
+    ) -> Result<Self, Error> {
+        Self::borrowing(input.as_bytes(), input.decoded.as_ref(), options)
+    }
+
+    fn borrowing(
+        input: &'input [u8],
+        decoded: Option<&(crate::encoding::SourceEncoding, Option<Error>)>,
+        options: ParseOptions,
+    ) -> Result<Self, Error> {
         let flags = options.check(true, crate::options::XINCLUDE)?;
-        let (limits, _) = options.effective_limits();
-        let decode = crate::DecodeLimits {
-            max_decoded_bytes: usize::MAX,
-            max_decoded_token_bytes: limits.max_token_bytes,
-        };
         let url = options.base.clone();
-        let reader = Reader::configured(input, limits, decode, flags, options)?;
+        let reader = Reader::borrowing(input, decoded, flags, options)?;
         let document = Self::from_reader(reader, input.len(), flags)?;
         Ok(Self { url, ..document })
     }

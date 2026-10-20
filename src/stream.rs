@@ -618,11 +618,31 @@ fn parse_valid<'token>(
     span: &TokenSpan,
     state: &mut ParserState<'static>,
 ) -> Result<Option<Event<'token>>, Error> {
+    if span.encoding != SourceEncoding::Utf8 {
+        return parse_decoded(kind, raw, span, state);
+    }
     state
         .process_token(kind, raw, span.decoded.clone(), |raw, offset, budget| {
             budget.copy(raw, offset)
         })
         .map_err(|error| span.map_error(raw, error))
+}
+
+/// [`parse_valid`] for a decoded token: kept errors count source bytes, as
+/// returned ones do.
+#[inline(never)]
+fn parse_decoded<'token>(
+    kind: TokenKind,
+    raw: &'token str,
+    span: &TokenSpan,
+    state: &mut ParserState<'static>,
+) -> Result<Option<Event<'token>>, Error> {
+    let recorded = state.errors().len();
+    let event = state.process_token(kind, raw, span.decoded.clone(), |raw, offset, budget| {
+        budget.copy(raw, offset)
+    });
+    (state.owned_budget()).remap(recorded, |error| span.map_error(raw, error));
+    event.map_err(|error| span.map_error(raw, error))
 }
 
 /// The ready token's event under `RECOVER`, with its origin, which ends
@@ -639,13 +659,13 @@ fn parse_recovering<'token>(
     let valid = std::str::from_utf8(bytes).map_or_else(|error| error.valid_up_to(), str::len);
     let raw = std::str::from_utf8(&bytes[..valid]).expect("valid prefix");
     let recorded = state.errors().len();
-    let event = state
-        .read_token::<true, _>(kind, raw, span.decoded.clone(), |raw, offset, budget| {
+    let event =
+        state.read_token::<true, _>(kind, raw, span.decoded.clone(), |raw, offset, budget| {
             budget.copy(raw, offset)
-        })
-        .map_err(|error| span.map_error(raw, error))?;
+        });
     // Recovered errors count source bytes, as returned ones do.
     (state.owned_budget()).remap(recorded, |error| span.map_error(raw, error));
+    let event = event.map_err(|error| span.map_error(raw, error))?;
     let Some(at) = state.take_rewind() else {
         return Ok((event, SourceOrigin::input(span.source.clone())));
     };

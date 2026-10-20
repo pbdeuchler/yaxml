@@ -5,12 +5,13 @@ use memchr::memchr;
 use crate::dtd::DtdLimits;
 use crate::dtd_controller::content::BorrowedContentController;
 use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
+use crate::encoding::SourceEncoding;
 use crate::escape::invalid_char;
 use crate::options::Flags;
 use crate::parser::{Budget, ParserState, space};
 use crate::resolve::Loader;
 use crate::tokenizer::{TokenKind, tag_close};
-use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, ParseOptions, SourceOrigin};
+use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, ParseOptions, SourceOrigin, Transcoded};
 
 /// Inclusive resource ceilings shared by every parser and DOM.
 ///
@@ -424,24 +425,60 @@ impl<'a> Reader<'a> {
     /// and `XINCLUDE` are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: &'a [u8], options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, crate::options::NOBLANKS)?;
-        let (limits, _) = options.effective_limits();
-        let decode = DecodeLimits {
-            max_decoded_bytes: usize::MAX,
-            max_decoded_token_bytes: limits.max_token_bytes,
+        Self::borrowing(input, None, flags, options)
+    }
+
+    /// A reader over [`Transcoded`] input, with libxml2 parser options as
+    /// [`Reader::with_options`]. Offsets count bytes of the transcoded text.
+    ///
+    /// # Errors
+    ///
+    /// As [`Reader::with_options`]; a decoding error [`Transcoded::new`]
+    /// kept under `RECOVER` ends the text and is recovered from there, and
+    /// without `RECOVER` is returned.
+    pub fn transcoded(input: &'a Transcoded<'_>, options: ParseOptions) -> Result<Self, Error> {
+        let flags = options.check(false, crate::options::NOBLANKS)?;
+        Self::borrowing(input.as_bytes(), input.decoded.as_ref(), flags, options)
+    }
+
+    /// A reader over `input`: UTF-8 as given (`decoded` absent; decode
+    /// limits do not apply), or text decoded from an encoding and ended by
+    /// a recovered decoding error (`Transcoded::decoded`).
+    pub(crate) fn borrowing(
+        input: &'a [u8],
+        decoded: Option<&(SourceEncoding, Option<Error>)>,
+        flags: Flags,
+        options: ParseOptions,
+    ) -> Result<Self, Error> {
+        let (limits, decode) = options.effective_limits();
+        let (limits, decode) = match decoded {
+            // `Transcoded::new` checked the source's length.
+            Some(_) => (
+                limits.max_input_bytes(limits.max_input_bytes.max(input.len())),
+                decode,
+            ),
+            None => (
+                limits,
+                DecodeLimits {
+                    max_decoded_bytes: usize::MAX,
+                    max_decoded_token_bytes: limits.max_token_bytes,
+                },
+            ),
         };
-        Self::configured(input, limits, decode, flags, options)
+        Self::configured(input, decoded, limits, decode, flags, options)
     }
 
     /// A reader for already checked flags and effective limits.
     pub(crate) fn configured(
         input: &'a [u8],
+        decoded: Option<&(SourceEncoding, Option<Error>)>,
         limits: Limits,
         decode: DecodeLimits,
         flags: Flags,
         options: ParseOptions,
     ) -> Result<Self, Error> {
         let (ordinary, cut, character) =
-            SliceReader::with_decode_limits(input, limits, decode, flags)?;
+            SliceReader::with_decode_limits(input, decoded, limits, decode, flags)?;
         // The DTD stack does not repair characters: it reads the prefix
         // before the first one outside `Char`.
         let dtd_cut = character.or(cut);
@@ -763,6 +800,7 @@ impl<'a> SliceReader<'a> {
     /// input and the first character outside `Char`, which it repairs.
     fn with_decode_limits(
         input: &'a [u8],
+        decoded: Option<&(SourceEncoding, Option<Error>)>,
         limits: Limits,
         decode: DecodeLimits,
         flags: Flags,
@@ -770,15 +808,18 @@ impl<'a> SliceReader<'a> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
-        if input.starts_with(&[0xff, 0xfe])
-            || input.starts_with(&[0xfe, 0xff])
-            || input.starts_with(&[0, 0, 0xfe, 0xff])
-            || input.starts_with(&[0, b'<', 0, b'?'])
+        if decoded.is_none()
+            && (input.starts_with(&[0xff, 0xfe])
+                || input.starts_with(&[0xfe, 0xff])
+                || input.starts_with(&[0, 0, 0xfe, 0xff])
+                || input.starts_with(&[0, b'<', 0, b'?']))
         {
             return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
         }
+        let (encoding, cut) = decoded.copied().unwrap_or((SourceEncoding::Utf8, None));
+        // Decoded text is UTF-8; its decoding error (`cut`) ends it.
         let (input, utf8) = match std::str::from_utf8(input) {
-            Ok(input) => (input, None),
+            Ok(input) => (input, cut),
             Err(e) => (
                 std::str::from_utf8(&input[..e.valid_up_to()]).expect("valid prefix"),
                 Some(Error::new(ErrorKind::InvalidUtf8, e.valid_up_to())),
@@ -791,7 +832,9 @@ impl<'a> SliceReader<'a> {
         if let Some(error) = utf8.or(character).filter(|_| !flags.recovers()) {
             return Err(error);
         }
-        let initial = if input.starts_with('\u{feff}') { 3 } else { 0 };
+        // A decoded U+FEFF is content: the decoder removed the BOM.
+        let bom = decoded.is_none() && input.starts_with('\u{feff}');
+        let initial = if bom { 3 } else { 0 };
         if input.len() - initial > decode.max_decoded_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
         }
@@ -806,14 +849,14 @@ impl<'a> SliceReader<'a> {
             limits,
             token_limit_kind: Limit::TokenBytes,
         };
-        if decode.max_decoded_token_bytes < limits.max_token_bytes {
+        let decoded_limit = decode.max_decoded_token_bytes < limits.max_token_bytes;
+        if decoded_limit {
             reader.limits.max_token_bytes = decode.max_decoded_token_bytes;
             reader.token_limit_kind = Limit::DecodedTokenBytes;
-            reader.state.set_encoding(
-                crate::encoding::SourceEncoding::Utf8,
-                initial,
-                decode.max_decoded_token_bytes,
-            );
+        }
+        if decoded_limit || decoded.is_some() {
+            let limit = decode.max_decoded_token_bytes;
+            reader.state.set_encoding(encoding, initial, limit);
         }
         Ok((reader, utf8, character))
     }
