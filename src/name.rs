@@ -95,26 +95,20 @@ impl<'a> Name<'a> {
         self.prefix_length
     }
 
-    pub(crate) fn qualified_source(&self) -> &Cow<'a, str> {
-        &self.qualified
-    }
-
-    pub(crate) fn try_into_static(self, offset: usize) -> Result<Name<'static>, Error> {
-        let Cow::Owned(qualified) = self.qualified else {
-            return Err(Error::new(ErrorKind::InvalidState, offset));
+    /// This name with its borrowed strings `copy`ed.
+    pub(crate) fn into_static(
+        self,
+        copy: &mut impl FnMut(&str) -> Result<Cow<'static, str>, Error>,
+    ) -> Result<Name<'static>, Error> {
+        let mut owned = |text: Cow<'a, str>| match text {
+            Cow::Owned(text) => Ok(Cow::Owned(text)),
+            Cow::Borrowed(text) => copy(text),
         };
-        let namespace = match self.namespace {
-            Some(Cow::Owned(namespace)) => Some(Cow::Owned(namespace)),
-            Some(Cow::Borrowed(_)) => {
-                return Err(Error::new(ErrorKind::InvalidState, offset));
-            }
-            None => None,
-        };
-        Ok(Name::from_validated_parts(
-            Cow::Owned(qualified),
-            self.prefix_length,
-            namespace,
-        ))
+        Ok(Name {
+            qualified: owned(self.qualified)?,
+            prefix_length: self.prefix_length,
+            namespace: self.namespace.map(&mut owned).transpose()?,
+        })
     }
 
     pub(crate) fn as_borrowed(&self) -> Name<'_> {
@@ -195,6 +189,27 @@ pub(crate) fn validate_name(name: &str, offset: usize, colon: bool) -> Result<()
         }
     }
     Ok(())
+}
+
+/// The length of the longest prefix of `text` made of name characters,
+/// colons included when `colon`; ASCII is classified by table.
+pub(crate) fn name_chars_length(text: &str, colon: bool) -> usize {
+    let bytes = text.as_bytes();
+    let ascii = bytes
+        .iter()
+        .position(|&byte| {
+            byte >= 0x80 || ASCII_NAME[usize::from(byte)] & 2 == 0 && !(colon && byte == b':')
+        })
+        .unwrap_or(bytes.len());
+    if bytes.get(ascii).is_none_or(|byte| *byte < 0x80) {
+        return ascii;
+    }
+    let rest = &text[ascii..];
+    ascii
+        + rest
+            .char_indices()
+            .find(|(_, c)| !name_char(*c, colon))
+            .map_or(rest.len(), |(i, _)| i)
 }
 
 pub(crate) fn name_char(c: char, colon: bool) -> bool {

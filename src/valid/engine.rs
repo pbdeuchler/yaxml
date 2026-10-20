@@ -172,7 +172,7 @@ impl<Id: Copy> Validator<Id> {
                 }
             }
         }
-        let mut missing: Vec<_> = (dtd.declared.values())
+        let mut missing: Vec<_> = (dtd.declared_ids())
             .filter_map(|id| match &dtd.entities[id.0].body {
                 EntityBody::External(external) => external.notation.as_deref(),
                 EntityBody::Internal(_) => None,
@@ -551,7 +551,7 @@ impl<Id: Copy> Validator<Id> {
         (kind, attribute): (&str, &str),
         value: &str,
     ) {
-        let entity = dtd.declared.get(value).map(|id| &dtd.entities[id.0].body);
+        let entity = dtd.declared(value).map(|id| &dtd.entities[id.0].body);
         let message = match entity {
             Some(EntityBody::External(external)) if external.notation.is_some() => return,
             None if predefined_entity(value).is_none() => {

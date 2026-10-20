@@ -534,7 +534,7 @@ pub(crate) fn complete_token(input: &[u8]) -> Option<(TokenKind, usize)> {
 }
 
 /// Complete markup whose `<` immediately precedes `rest`; the length excludes it.
-fn markup_after_lt(rest: &[u8]) -> Option<(TokenKind, usize)> {
+pub(crate) fn markup_after_lt(rest: &[u8]) -> Option<(TokenKind, usize)> {
     let delimited = |kind, prefix: usize, end: &[u8]| {
         find(&rest[prefix..], end).map(|at| (kind, prefix + at + end.len()))
     };
@@ -613,8 +613,6 @@ fn delimited_end(input: &[u8], marker: u8, run: u8) -> Result<usize, u8> {
 #[cfg(test)]
 #[path = "../tests/internal/tokenizer.rs"]
 mod tests;
-
-pub(crate) mod local;
 
 pub(crate) mod reference;
 

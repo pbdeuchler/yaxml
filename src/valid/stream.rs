@@ -213,7 +213,10 @@ impl StreamValidator {
 
 /// Whether the DTD declares anything, as libxml2's parser requires to validate.
 fn declares(dtd: &Dtd) -> bool {
-    !(dtd.elements.is_empty() && dtd.notations.is_empty() && dtd.declared.is_empty())
+    !(dtd.elements.is_empty()
+        && dtd.notations.is_empty()
+        && dtd.general.is_empty()
+        && dtd.unbound.is_empty())
 }
 
 fn owned((qualified, local, namespace): &(String, usize, Option<String>)) -> QName<'_> {

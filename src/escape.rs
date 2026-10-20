@@ -71,28 +71,6 @@ pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) 
     }
 }
 
-/// XML end-of-line and CDATA attribute normalization, appended to `out`. References are expanded after literal whitespace
-/// normalization: &#xA; must remain a newline. A malformed reference is
-/// `recover`ed from by dropping it as far as libxml2 reads it, except that
-/// an attribute value fails at a character reference libxml2 reads as zero
-/// (an `InvalidReference` error at the offset where libxml2 reads on).
-pub(crate) fn normalize_into(
-    raw: &str,
-    offset: usize,
-    attribute: bool,
-    references: bool,
-    out: &mut String,
-    recover: impl FnMut(Error) -> Result<(), Error>,
-) -> Result<(), Error> {
-    normalize(raw, offset, attribute, references, true, out, recover)
-}
-
-pub(crate) fn normalize_replacement_required(raw: &str, offset: usize) -> Result<String, Error> {
-    let mut out = String::new();
-    normalize(raw, offset, false, true, false, &mut out, Err)?;
-    Ok(out)
-}
-
 /// Recovery from characters outside `Char` in `raw`, as libxml2 does:
 /// dropped from text, U+FFFD in an `attribute` value.
 pub(crate) fn repair_characters(
@@ -119,12 +97,18 @@ pub(crate) fn repair_characters(
     Ok(out)
 }
 
-fn normalize(
+/// XML end-of-line (`physical_eol`: physical input, not replacement text,
+/// whose line ends were normalized when it was declared) and CDATA attribute
+/// normalization, appended to `out`. References are expanded after literal
+/// whitespace normalization: &#xA; must remain a newline. A malformed
+/// reference is `recover`ed from by dropping it as far as libxml2 reads it,
+/// except that an attribute value fails at a character reference libxml2
+/// reads as zero (an `InvalidReference` error at the offset where libxml2
+/// reads on).
+pub(crate) fn normalize_text(
     raw: &str,
     offset: usize,
-    attribute: bool,
-    references: bool,
-    physical_eol: bool,
+    (attribute, references, physical_eol): (bool, bool, bool),
     output: &mut String,
     mut recover: impl FnMut(Error) -> Result<(), Error>,
 ) -> Result<(), Error> {
@@ -159,7 +143,7 @@ fn normalize_runs(
     while let Some(&byte) = bytes.get(i) {
         let special = match byte {
             b'&' => references,
-            b'\r' => physical_eol,
+            b'\r' => physical_eol || attribute,
             b'\n' | b'\t' => attribute,
             _ => false,
         };
@@ -192,10 +176,12 @@ fn normalize_runs(
                     }
                 }
             }
-            b'\r' => {
+            b'\r' if physical_eol => {
                 i += 1 + usize::from(bytes.get(i + 1) == Some(&b'\n'));
                 out.push(if attribute { ' ' } else { '\n' });
             }
+            // A tab, newline or (replacement text's) carriage return in an
+            // attribute value.
             _ => {
                 i += 1;
                 out.push(' ');
@@ -301,10 +287,10 @@ mod tests {
                 Ok(())
             };
             let mut recovered = String::from("kept:");
-            normalize_into(text, 0, false, true, &mut recovered, recover).unwrap();
+            normalize_text(text, 0, (false, true, true), &mut recovered, recover).unwrap();
             assert_eq!(recovered, format!("kept:{value}"), "{text}");
             assert_eq!(found, *errors, "{text}");
-            let strict = normalize_into(text, 0, false, true, &mut String::new(), Err);
+            let strict = normalize_text(text, 0, (false, true, true), &mut String::new(), Err);
             let first = errors
                 .first()
                 .map(|&(kind, offset)| Error::new(kind, offset));

@@ -1,195 +1,184 @@
-//! DTD-aware start-tag preparation: attribute normalization and defaults.
+//! What a start tag reads from the declarations: attribute normalization,
+//! kept references and defaults (see `ParserState::start_element`).
 
 use std::borrow::Cow;
-use std::collections::HashSet;
 
 use crate::dtd_catalog::{AttributeKind, DtdCatalog, LiteralSource, StoredDefault};
 use crate::escape::predefined;
-use crate::name::qname;
-use crate::parser::{Budget, PreparedAttribute, PreparedTag, RawTag};
+use crate::parser::Budget;
 use crate::valid::Code;
-use crate::{DtdError, ErrorKind, Limit, Name};
+use crate::{Error, ErrorKind};
 
-/// Normalizes `raw`'s attributes and adds its defaults. Failure offsets are
-/// input offsets, or absent for a defaulted attribute. With `borrow`, an
-/// unchanged physical literal is not copied.
-pub(crate) fn prepare_dtd_tag<'event>(
-    catalog: &mut DtdCatalog,
-    budget: &mut Budget,
-    raw: RawTag<'event>,
+/// A defaulted attribute's name, value and kept form.
+pub(crate) type Defaulted = (Cow<'static, str>, Cow<'static, str>, Option<String>);
+
+/// The declarations one start tag reads, from `source`.
+pub(crate) struct TagDeclarations<'c> {
+    catalog: &'c mut DtdCatalog,
     source: LiteralSource,
-    borrow: bool,
-) -> Result<PreparedTag<'event>, DtdError> {
-    let input = |kind, offset| DtdError::new(kind, Some(offset));
-    let declared = |kind| DtdError::new(kind, None);
-    let mut explicit = HashSet::new();
-    explicit
-        .try_reserve(raw.attributes.len())
-        .map_err(|_| input(ErrorKind::Allocation, raw.start))?;
-    for attribute in &raw.attributes {
-        explicit.insert(attribute.qualified);
-    }
+    /// The element's declaration.
+    element: Option<usize>,
+    /// Which declared attributes the tag specifies: the first 64 by bit,
+    /// the others listed.
+    specified: u64,
+    more: Vec<usize>,
+}
 
-    let name = retained_name(
-        raw.qualified,
-        raw.prefix_length,
-        source,
-        raw.start + 1,
-        budget,
-    )?;
-    let mut names = Vec::new();
-    names
-        .try_reserve(raw.attributes.len())
-        .map_err(|_| input(ErrorKind::Allocation, raw.start))?;
-    for attribute in &raw.attributes {
-        debug_assert_eq!(
-            attribute.value_end.checked_sub(attribute.value_offset),
-            Some(attribute.literal.len())
-        );
-        names.push(retained_name(
-            attribute.qualified,
-            attribute.prefix_length,
+impl<'c> TagDeclarations<'c> {
+    pub(crate) fn new(catalog: &'c mut DtdCatalog, source: LiteralSource) -> Self {
+        Self {
+            catalog,
             source,
-            attribute.name_offset,
-            budget,
-        )?);
+            element: None,
+            specified: 0,
+            more: Vec::new(),
+        }
     }
 
-    // Offsets are physical only outside entity replacement text.
-    let physical = |offset| (source == LiteralSource::Physical).then_some(offset);
-    let standalone = catalog.standalone();
-    let mut attributes = Vec::new();
-    attributes
-        .try_reserve(raw.attributes.len())
-        .map_err(|_| input(ErrorKind::Allocation, raw.start))?;
-    for (attribute, name) in raw.attributes.into_iter().zip(names) {
+    /// Starts the tag of element `qualified`.
+    pub(crate) fn element(&mut self, qualified: &str) {
+        self.element = self.catalog.element_decl(qualified);
+    }
+
+    /// Offsets are physical only outside entity replacement text.
+    fn physical(&self, offset: usize) -> Option<usize> {
+        (self.source == LiteralSource::Physical).then_some(offset)
+    }
+
+    /// Specified attribute `name`'s value, normalized as declared, and its
+    /// kept form. Recovery empties a value whose references cannot be
+    /// expanded.
+    pub(crate) fn value<'e>(
+        &mut self,
+        budget: &mut Budget,
+        (element, name): (&str, &str),
+        literal: &'e str,
+        (start, name_offset, value_offset): (usize, usize, usize),
+    ) -> Result<(Cow<'e, str>, Option<String>), Error> {
+        let declared = self.element.and_then(|element| {
+            let index = self.catalog.attribute_position(element, name)?;
+            let decl = &self.catalog.element_attributes(element)[index];
+            Some((index, decl.kind != AttributeKind::Cdata, decl.internal))
+        });
+        let tokenized = declared.is_some_and(|(_, tokenized, _)| tokenized);
+        match declared {
+            Some((index @ ..64, ..)) => self.specified |= 1 << index,
+            Some((index, ..)) => {
+                self.more
+                    .try_reserve(1)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, name_offset))?;
+                self.more.push(index);
+            }
+            None => {}
+        }
         // libxml2's XML_ATTVAL_NORM_CHANGE, judged on the literal's whitespace.
-        if standalone
-            && catalog.attributes(raw.qualified).any(|binding| {
-                binding.name == attribute.qualified
-                    && !binding.internal
-                    && binding.kind != AttributeKind::Cdata
-            })
-            && tokenizing_changes(attribute.literal)
+        if self.catalog.standalone()
+            && declared.is_some_and(|(_, tokenized, internal)| tokenized && !internal)
+            && tokenizing_changes(literal)
         {
             let message = format!(
-                "standalone: normalization of attribute {} on {} by external subset declaration",
-                attribute.qualified, raw.qualified
+                "standalone: normalization of attribute {name} on {element} by external subset declaration"
             );
-            catalog.note(
-                Code::NotStandalone,
-                physical(attribute.name_offset),
-                message,
-            );
+            let offset = self.physical(name_offset);
+            self.catalog.note(Code::NotStandalone, offset, message);
         }
-        let (mut requested, mut kept) = (0, None);
-        let normalized = catalog.normalize_attribute(
-            raw.qualified,
-            attribute.qualified,
-            attribute.literal,
-            source,
-            borrow,
+        let mut requested = 0;
+        let normalized = self.catalog.normalize_value(
+            literal,
+            (self.source, true, tokenized),
             budget.remaining_owned(),
             &mut requested,
         );
-        budget.charge_owned(requested, attribute.value_offset)?;
+        budget.charge_owned(requested, value_offset)?;
         let value = match normalized {
-            Ok(value) if catalog.keeps_references(&attribute) => {
-                kept = kept_form(
-                    attribute.literal,
-                    catalog.tokenized_attribute(raw.qualified, attribute.qualified),
-                    source == LiteralSource::Physical,
-                    |name| catalog.keeps(name),
-                    |bytes| Ok(budget.charge_owned(bytes, attribute.value_offset)?),
-                )?;
-                value
-            }
             Ok(value) => value,
-            // Recovery empties a value whose references cannot be expanded.
             Err(error) if budget.recovers() => {
-                let offset = attribute.value_offset + error.offset.unwrap_or(0);
-                budget.recover(crate::Error::new(error.kind, offset))?;
-                Cow::Borrowed("")
+                let error = Error::new(error.kind, value_offset + error.offset.unwrap_or(0));
+                budget.recover(error)?;
+                return Ok((Cow::Borrowed(""), None));
             }
+            // A failure inside a referenced entity is the tag's.
             Err(error) => {
-                return Err(DtdError {
-                    offset: error.offset.map(|offset| attribute.value_offset + offset),
-                    ..error
-                });
+                let offset = error.offset.map_or(start, |offset| value_offset + offset);
+                return Err(Error::new(error.kind, offset));
             }
         };
-        attributes.push(PreparedAttribute {
-            name,
-            value,
-            name_offset: Some(attribute.name_offset),
-            kept,
-        });
-    }
-
-    // Copied defaults amplify output like entities do (libxml2 `expandedSize`).
-    let copied = catalog
-        .attributes(raw.qualified)
-        .filter(|binding| !explicit.contains(binding.name.as_str()))
-        .filter_map(|binding| {
-            let value = binding.default.value()?;
-            Some(binding.name.len() + value.len() + crate::dtd_controller::ENTITY_FIXED_COST)
-        })
-        .fold(0_usize, usize::saturating_add);
-    catalog.charge_default(copied).map_err(|error| DtdError {
-        offset: error.offset.map(|offset| raw.start + offset),
-        ..error
-    })?;
-    let mut defaulted = Vec::new();
-    // Without `DTDATTR` libxml2 applies only defaulted namespace declarations.
-    let complete = catalog.default_attributes();
-    for binding in catalog.attributes(raw.qualified) {
-        if explicit.contains(binding.name.as_str()) {
-            continue;
-        }
-        let StoredDefault::Value { value, kept, .. } = &binding.default else {
-            continue;
+        let kept = match self.catalog.keeps_references(name, literal) {
+            true => kept_form(
+                literal,
+                tokenized,
+                self.source == LiteralSource::Physical,
+                |name| self.catalog.keeps(name),
+                |bytes| budget.charge_owned(bytes, value_offset),
+            )?,
+            false => None,
         };
-        if standalone && !binding.internal {
-            defaulted.push(format!(
-                "standalone: attribute {} on {} defaulted from external subset",
-                binding.name, raw.qualified
-            ));
-        }
-        if !complete && binding.name != "xmlns" && !binding.name.starts_with("xmlns:") {
-            continue;
-        }
-        let (prefix, _) = qname(&binding.name, 0).map_err(|error| declared(error.kind))?;
-        if attributes.len() == budget.max_attributes() {
-            return Err(declared(ErrorKind::LimitExceeded(Limit::Attributes)));
-        }
-        attributes
-            .try_reserve(1)
-            .map_err(|_| declared(ErrorKind::Allocation))?;
-        let mut copy = |text| budget.copy(text, 0).map_err(|error| declared(error.kind));
-        let qualified = copy(&binding.name)?;
-        let value = copy(value)?;
-        let kept = kept.as_deref().map(copy).transpose()?;
-        attributes.push(PreparedAttribute {
-            name: Name::from_validated_parts(
-                qualified,
-                prefix.and_then(|value| std::num::NonZeroUsize::new(value.len())),
-                None,
-            ),
-            value,
-            name_offset: None,
-            kept: kept.map(Cow::into_owned),
-        });
+        Ok((value, kept))
     }
 
-    for message in defaulted {
-        catalog.note(Code::StandaloneDefaulted, physical(raw.start), message);
+    /// The defaults of the declared attributes the tag does not specify,
+    /// copied: namespace declarations, and with `DTDATTR` all. Every copy
+    /// libxml2 would make is charged as amplification first.
+    pub(crate) fn defaults(
+        &mut self,
+        budget: &mut Budget,
+        element: &str,
+        start: usize,
+    ) -> Result<Vec<Defaulted>, Error> {
+        let mut defaults = Vec::new();
+        let Some(index) = self.element else {
+            return Ok(defaults);
+        };
+        let (specified, more) = (self.specified, &self.more);
+        let unspecified = |index: usize| match index {
+            ..64 => specified & 1 << index == 0,
+            _ => !more.contains(&index),
+        };
+        // Copied defaults amplify output like entities do (libxml2 `expandedSize`).
+        let copied = (self.catalog.element_attributes(index).iter().enumerate())
+            .filter(|(index, _)| unspecified(*index))
+            .filter_map(|(_, decl)| {
+                let value = decl.default.value()?;
+                Some(decl.name.len() + value.len() + crate::dtd_controller::ENTITY_FIXED_COST)
+            })
+            .fold(0_usize, usize::saturating_add);
+        self.catalog
+            .charge_default(copied)
+            .map_err(|error| Error::new(error.kind, start + error.offset.unwrap_or(0)))?;
+        let declared = self.catalog.element_attributes(index);
+        let mut notes = Vec::new();
+        // Without `DTDATTR` libxml2 applies only defaulted namespace declarations.
+        let complete = self.catalog.default_attributes();
+        for (index, decl) in declared.iter().enumerate() {
+            let StoredDefault::Value { value, kept, .. } = &decl.default else {
+                continue;
+            };
+            if !unspecified(index) {
+                continue;
+            }
+            if self.catalog.standalone() && !decl.internal {
+                notes.push(format!(
+                    "standalone: attribute {} on {element} defaulted from external subset",
+                    decl.name
+                ));
+            }
+            if !complete && decl.name != "xmlns" && !decl.name.starts_with("xmlns:") {
+                continue;
+            }
+            defaults
+                .try_reserve(1)
+                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            let mut copy = |text| budget.copy(text, start);
+            let kept = kept.as_deref().map(&mut copy).transpose()?;
+            defaults.push((copy(&decl.name)?, copy(value)?, kept.map(Cow::into_owned)));
+        }
+        for message in notes {
+            let offset = self.physical(start);
+            self.catalog
+                .note(Code::StandaloneDefaulted, offset, message);
+        }
+        Ok(defaults)
     }
-    Ok(PreparedTag {
-        name,
-        attributes,
-        empty: raw.empty,
-        start: raw.start,
-    })
 }
 
 /// Whether discarding leading, trailing and repeated spaces changes a
@@ -204,20 +193,6 @@ fn tokenizing_changes(literal: &str) -> bool {
         previous = space;
     }
     previous && !literal.is_empty()
-}
-
-fn retained_name<'event>(
-    raw: &'event str,
-    prefix_length: Option<std::num::NonZeroUsize>,
-    source: LiteralSource,
-    offset: usize,
-    budget: &mut Budget,
-) -> Result<Name<'event>, DtdError> {
-    let qualified = match source {
-        LiteralSource::Physical => Cow::Borrowed(raw),
-        LiteralSource::Replacement => budget.copy(raw, offset)?,
-    };
-    Ok(Name::from_validated_parts(qualified, prefix_length, None))
 }
 
 /// What an attribute literal's next character or reference contributes to
@@ -244,8 +219,8 @@ pub(crate) fn kept_form(
     tokenized: bool,
     physical: bool,
     keep: impl Fn(&str) -> bool,
-    charge: impl FnOnce(usize) -> Result<(), DtdError>,
-) -> Result<Option<String>, DtdError> {
+    charge: impl FnOnce(usize) -> Result<(), Error>,
+) -> Result<Option<String>, Error> {
     // A validated literal: every `&` starts a reference ending at `;`.
     let name = |at: usize| {
         let end = literal[at..].find(';').map_or(at + 1, |end| at + end);
@@ -257,7 +232,7 @@ pub(crate) fn kept_form(
     charge(literal.len())?;
     let mut form = String::new();
     form.try_reserve_exact(literal.len())
-        .map_err(|_| DtdError::new(ErrorKind::Allocation, None))?;
+        .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
     let (mut in_space, mut at) = (true, 0);
     while let Some(c) = literal[at..].chars().next() {
         let piece = if c == '&' {

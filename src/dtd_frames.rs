@@ -16,8 +16,6 @@ pub(crate) struct EntityFrame {
     pub(crate) invocation: EntityInvocationId,
     /// Replacement bytes consumed by complete units and tokens.
     pub(crate) cursor: usize,
-    /// Replacement bytes scanned; lexical lookahead can run ahead of `cursor`.
-    pub(crate) scanned: usize,
     len: usize,
     pub(crate) physical_reference: ByteSpan,
     /// Element depth at entry, or `None` for a parameter entity.
@@ -83,10 +81,6 @@ impl EntityFrames {
         self.frames.last()
     }
 
-    pub(crate) fn top_mut(&mut self) -> Option<&mut EntityFrame> {
-        self.frames.last_mut()
-    }
-
     /// Enters `entity`, whose replacement text is `len` bytes, from the
     /// reference at `reference`: physical input when no entity is active,
     /// otherwise the top frame's replacement text, which resumes after it.
@@ -121,7 +115,6 @@ impl EntityFrames {
             entity,
             invocation,
             cursor: 0,
-            scanned: 0,
             len,
             physical_reference,
             element_depth,

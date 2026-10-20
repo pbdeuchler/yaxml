@@ -2,6 +2,8 @@
 
 use std::ops::Range;
 
+use memchr::{memchr, memchr2, memchr3};
+
 use crate::name::validate_name;
 use crate::parser::space;
 use crate::{Error, ErrorKind, Limit};
@@ -106,7 +108,16 @@ impl DtdScanner {
     /// Stop at one unit; the controller advances only without a ready unit
     /// and before the scanner completes or finalizes.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
-        for (index, &byte) in input.iter().enumerate() {
+        let mut index = 0;
+        while index < input.len() {
+            // Bytes that leave the state as it is are taken as one run.
+            let run = self.run(&input[index..]);
+            if run != 0 {
+                self.append_run(&input[index..index + run])?;
+                index += run;
+                continue;
+            }
+            let byte = input[index];
             if matches!(self.state, State::Whitespace) && !space(byte) {
                 self.ready = Some(ScanKind::Whitespace);
                 self.state = State::Between;
@@ -114,11 +125,72 @@ impl DtdScanner {
             }
             self.append(byte)?;
             self.consume(byte)?;
+            index += 1;
             if self.ready.is_some() {
-                return Ok(index + 1);
+                return Ok(index);
             }
         }
         Ok(input.len())
+    }
+
+    /// The length of the run at the front of `input` that `consume` would
+    /// read without a transition (comments and instructions drop their
+    /// pending closing marks).
+    fn run(&self, input: &[u8]) -> usize {
+        let until = |found: Option<usize>| found.unwrap_or(input.len());
+        match self.state {
+            State::Header(Some(quote)) | State::Declaration(Some(quote)) => {
+                until(memchr(quote, input))
+            }
+            State::Header(None) => until(
+                input
+                    .iter()
+                    .position(|byte| matches!(byte, b'\'' | b'"' | b'[' | b'>')),
+            ),
+            State::Declaration(None) => until(memchr3(b'\'', b'"', b'>', input)),
+            State::Comment(_) => until(memchr2(b'-', b'>', input)),
+            State::Instruction(_) => until(memchr2(b'?', b'>', input)),
+            State::ParameterReference => until(memchr(b';', input)),
+            State::Whitespace => input.iter().take_while(|byte| space(**byte)).count(),
+            _ => 0,
+        }
+    }
+
+    /// `append`s a run of bytes that `run` found leave the state as it is.
+    fn append_run(&mut self, run: &[u8]) -> Result<(), Error> {
+        // The first byte past either ceiling fails as `append` fails it.
+        let work = self.max_work.saturating_sub(self.position);
+        let unit = self.max_unit_bytes.saturating_sub(self.buffer.len());
+        if run.len() > work.min(unit) {
+            let fits = work.min(unit);
+            self.append_run(&run[..fits])?;
+            let byte = run[fits];
+            return self.append(byte);
+        }
+        if self.buffer.len() + run.len() > self.buffer.capacity() {
+            let needed = self.buffer.len() + run.len();
+            let target = self
+                .buffer
+                .capacity()
+                .saturating_mul(2)
+                .max(64)
+                .max(needed)
+                .min(self.max_unit_bytes);
+            self.buffer
+                .try_reserve_exact(target - self.buffer.len())
+                .map_err(|_| self.error(ErrorKind::Allocation))?;
+        }
+        if self.buffer.is_empty() {
+            self.start = self.position;
+        }
+        self.buffer.extend_from_slice(run);
+        self.position += run.len();
+        self.state = match self.state {
+            State::Comment(_) => State::Comment(0),
+            State::Instruction(_) => State::Instruction(false),
+            state => state,
+        };
+        Ok(())
     }
 
     /// Declare final EOF, draining a trailing whitespace unit before closure checks.
