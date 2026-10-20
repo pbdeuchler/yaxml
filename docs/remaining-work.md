@@ -20,6 +20,7 @@ Size: **S** is under a week, **M** a few weeks, **L** a quarter or more. Priorit
 | 10 | Error-callback model (`xmlCtxtSetErrorHandler`, `xmlGetLastError`) | S | P3 | Errors are returned instead. Known detail gaps: libxml2's column lag after entity values, and context lines for errors inside entities. |
 | 11 | Diagnostic wording | S | P3 | The IDREF line in DTD stream validation, and the tree content-model "expecting" list. |
 | 12 | Utility headers (`xmlunicode.h`, `xmlstring.h`, `debugXML.h` dumps) | S | P3 | `std` covers most of them. |
+| 33 | Namespace errors are fatal by default | M | P1 | libxml2 reports an unbound prefix (and other `XML_NS_ERR_*` errors) as a non-fatal namespace error and keeps the node with no namespace: `xmllint` accepts `<r><p:c/></r>` with exit 0. yaxml rejects it unless `RECOVER` is set, on every surface; this is also about 6% of the in-context parsing mismatches. Matching libxml2 means keeping those errors on the document and stream like recovered errors. |
 | 13 | Remaining API inventory | — | — | [libxml2-api.tsv](libxml2-api.tsv): 936 implemented, 506 partial and 1,247 not started, out of 4,060 identifiers. No P0 row is not started. Most of the not-started rows are libxml2 error-code constants (`xmlerror.h`), the schema component model (`schemasInternals.h`), SAX2 and the items above. |
 
 Declined, with reasons recorded in the linked docs: `xmlRelaxNGDump`, `xmlCatalogConvert`, the XSD stream `ID`/`ENTITY` and counter quirks (libxml2 validity bugs), `xmlSaveSetEscape`, compressed input (`UNZIP`), FTP and HTTP.
