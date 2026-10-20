@@ -26,6 +26,7 @@
 use std::io::Write;
 
 use crate::encoding::Output;
+use crate::fallible::{Text, concat, copied};
 use crate::save::{ATTRIBUTE, QUOT, char_reference};
 use crate::writer::{flush, write_all};
 use crate::{Error, ErrorKind, Limit, WriteError, WriterLimits};
@@ -73,9 +74,9 @@ type Step = Result<(), ErrorKind>;
 const MISUSE: Step = Err(ErrorKind::InvalidState);
 
 /// The writer state machine: everything but the sink. Each call appends its
-/// UTF-8 output to `out`.
+/// UTF-8 output to `out`; a refused allocation fails the call.
 struct Machine {
-    out: String,
+    out: Text,
     nodes: Vec<Entry>,
     /// None once libxml2 has deleted its namespace list (an `EndElement`
     /// with nothing open): namespaced calls and start-tag closing then fail.
@@ -126,13 +127,10 @@ impl Machine {
         if self.nodes.len() >= self.max_depth {
             return Err(ErrorKind::LimitExceeded(Limit::Depth));
         }
+        let name = copied(name).map_err(|_| ErrorKind::Allocation)?;
         self.ids += 1;
         let id = self.ids;
-        self.nodes.push(Entry {
-            name: name.to_owned(),
-            state,
-            id,
-        });
+        self.nodes.push(Entry { name, state, id });
         Ok(())
     }
 
@@ -146,7 +144,7 @@ impl Machine {
 
     /// `xmlSerializeText` with `table`; `hex` escapes non-ASCII as `&#xH;`.
     fn escape(&mut self, text: &str, table: &[Option<&'static str>; 128], hex: bool) {
-        crate::save::escape_into(&mut self.out, text, table, hex);
+        crate::save::escape_into(text, table, hex, |piece| self.out.push_str(piece));
     }
 
     /// `xmlTextWriterOutputNSDecl`: every pending declaration, newest first.
@@ -165,9 +163,10 @@ impl Machine {
         if namespaces.len() >= self.max_namespaces {
             return Err(ErrorKind::LimitExceeded(Limit::Attributes));
         }
+        let uri = copied(uri).map_err(|_| ErrorKind::Allocation)?;
         namespaces.push(Namespace {
             attribute,
-            uri: uri.to_owned(),
+            uri,
             element,
         });
         Ok(())
@@ -330,11 +329,11 @@ impl Machine {
         if name.is_empty() {
             return Err(ErrorKind::InvalidName);
         }
-        self.start_element(&qualified(prefix, name))?;
+        self.start_element(&qualified(prefix, name)?)?;
         match uri {
             Some(uri) => {
                 let element = self.nodes.last().map_or(0, |entry| entry.id);
-                self.push_namespace(declaration(prefix), uri, element)
+                self.push_namespace(declaration(prefix)?, uri, element)
             }
             None => Ok(()),
         }
@@ -489,7 +488,7 @@ impl Machine {
             return Err(ErrorKind::InvalidName);
         }
         if let Some(uri) = uri {
-            let attribute = declaration(prefix);
+            let attribute = declaration(prefix)?;
             let element = self.nodes.last().map_or(0, |entry| entry.id);
             let declared = namespaces
                 .iter()
@@ -501,7 +500,7 @@ impl Machine {
                 None => self.push_namespace(attribute, uri, element)?,
             }
         }
-        self.start_attribute(&qualified(prefix, name))
+        self.start_attribute(&qualified(prefix, name)?)
     }
 
     fn end_attribute(&mut self) -> Step {
@@ -887,13 +886,17 @@ impl Machine {
 }
 
 /// `prefix:name`, or `name` without a prefix.
-fn qualified(prefix: Option<&str>, name: &str) -> String {
-    prefix.map_or_else(|| name.to_owned(), |prefix| format!("{prefix}:{name}"))
+fn qualified(prefix: Option<&str>, name: &str) -> Result<String, ErrorKind> {
+    let (prefix, colon) = prefix.map_or(("", ""), |prefix| (prefix, ":"));
+    concat(&[prefix, colon, name]).map_err(|_| ErrorKind::Allocation)
 }
 
 /// `xmlns:prefix`, or `xmlns` without a prefix.
-fn declaration(prefix: Option<&str>) -> String {
-    prefix.map_or_else(|| "xmlns".to_owned(), |prefix| format!("xmlns:{prefix}"))
+fn declaration(prefix: Option<&str>) -> Result<String, ErrorKind> {
+    match prefix {
+        Some(prefix) => qualified(Some("xmlns"), prefix),
+        None => qualified(None, "xmlns"),
+    }
 }
 
 /// libxml2's `xmlTextWriter` over any [`Write`] sink.
@@ -901,7 +904,7 @@ fn declaration(prefix: Option<&str>) -> String {
 /// Output is converted to the encoding `start_document` names; characters
 /// it lacks become `&#N;`. A call libxml2 rejects with -1 is a
 /// [`WriteError::Xml`] that leaves libxml2's state and partial output, and
-/// the writer stays usable; a limit or I/O failure is terminal.
+/// the writer stays usable; a limit, allocation or I/O failure is terminal.
 ///
 /// [`WriterLimits`] applies `max_output_bytes`, `max_token_bytes` (one
 /// call's output), `max_depth` (open elements, comments, PIs, CDATA and DTD
@@ -936,7 +939,7 @@ impl<W: Write> TextWriter<W> {
         Self {
             sink,
             machine: Machine {
-                out: String::new(),
+                out: Text::default(),
                 nodes: Vec::new(),
                 namespaces: Some(Vec::new()),
                 ids: 0,
@@ -1127,18 +1130,21 @@ impl<W: Write> TextWriter<W> {
                 self.position,
             )));
         }
-        let result = step(&mut self.machine);
+        let mut result = step(&mut self.machine);
+        if std::mem::take(&mut self.machine.out.refused) {
+            result = Err(ErrorKind::Allocation);
+        }
         let committed = match result {
-            Err(ErrorKind::LimitExceeded(_)) => Ok(()),
+            Err(ErrorKind::LimitExceeded(_) | ErrorKind::Allocation) => Ok(()),
             _ => self.commit(),
         };
-        self.machine.out.clear();
+        self.machine.out.text.clear();
         let result = committed
             .and_then(|()| result.map_err(|kind| WriteError::Xml(Error::new(kind, self.position))));
         if let Err(
             WriteError::Io(_)
             | WriteError::Xml(Error {
-                kind: ErrorKind::LimitExceeded(_),
+                kind: ErrorKind::LimitExceeded(_) | ErrorKind::Allocation,
                 ..
             }),
         ) = result
@@ -1154,7 +1160,8 @@ impl<W: Write> TextWriter<W> {
         let limit =
             |limit| WriteError::Xml(Error::new(ErrorKind::LimitExceeded(limit), self.position));
         let machine = &mut self.machine;
-        if machine.out.len() > self.limits.max_token_bytes {
+        // The encoded form is bounded by this ceiling.
+        if machine.out.text.len() > self.limits.max_token_bytes {
             return Err(limit(Limit::TokenBytes));
         }
         let bytes = match machine.output {
@@ -1163,7 +1170,7 @@ impl<W: Write> TextWriter<W> {
                 if std::mem::take(&mut machine.bom) {
                     self.encoded.extend_from_slice(output.bom());
                 }
-                for c in machine.out.chars() {
+                for c in machine.out.text.chars() {
                     if !output.push(&mut self.encoded, c) {
                         let mut buffer = [0; 12];
                         self.encoded
@@ -1172,7 +1179,7 @@ impl<W: Write> TextWriter<W> {
                 }
                 &self.encoded[..]
             }
-            _ => machine.out.as_bytes(),
+            _ => machine.out.text.as_bytes(),
         };
         if bytes.len() > self.limits.max_output_bytes.saturating_sub(self.position) {
             return Err(limit(Limit::OutputBytes));

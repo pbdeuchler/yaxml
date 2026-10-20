@@ -146,10 +146,11 @@ impl Stream {
     }
 
     /// The error that ends a recovering parse: past invalid UTF-8 that ended
-    /// the input, that error, as the slice reader reports it.
+    /// the input, that error, as the slice reader reports it; a refused
+    /// allocation stays itself.
     pub(crate) fn terminal(&self, error: Error) -> Error {
         match self.recovery.as_ref().and_then(|recovery| recovery.cut) {
-            Some(cut) if error.offset >= cut.offset => cut,
+            Some(cut) if error.offset >= cut.offset && error.kind != ErrorKind::Allocation => cut,
             _ => error,
         }
     }

@@ -4,8 +4,9 @@
 //! are checked for duplicates when a selected node ends, and node tables
 //! bubble up to the elements whose keyrefs refer to them.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, TryReserveError};
 
+use crate::fallible::TryPush;
 use crate::pattern::StreamMatcher;
 
 use super::Code;
@@ -241,7 +242,7 @@ impl Engine {
         value: FieldValue<'_>,
         scopes: &mut [Scope<Id>],
         report: &mut dyn FnMut(Id, Code, String),
-    ) {
+    ) -> Result<(), TryReserveError> {
         let mut remove = Vec::new();
         for i in (0..self.states.len()).rev() {
             let state = &mut self.states[i];
@@ -337,13 +338,11 @@ impl Engine {
                                 } else if self.keys < self.schema.data.max_idc_keys {
                                     self.keys += 1;
                                     if definition.kind != IdcKind::KeyRef {
-                                        matcher
-                                            .index
-                                            .entry(hash)
-                                            .or_default()
-                                            .push(matcher.targets.len());
+                                        matcher.index.try_reserve(1)?;
+                                        let hits = matcher.index.entry(hash).or_default();
+                                        hits.try_push(matcher.targets.len())?;
                                     }
-                                    matcher.targets.push(Target { node, keys });
+                                    matcher.targets.try_push(Target { node, keys })?;
                                 }
                             }
                         }
@@ -358,6 +357,7 @@ impl Engine {
         for i in remove {
             self.states.remove(i);
         }
+        Ok(())
     }
 
     /// `xmlSchemaIDCFillNodeTables`, the keyref check and
@@ -367,9 +367,9 @@ impl Engine {
         depth: usize,
         scopes: &mut Vec<Scope<Id>>,
         report: &mut dyn FnMut(Id, Code, String),
-    ) {
+    ) -> Result<(), TryReserveError> {
         let Some(mut scope) = scopes.pop() else {
-            return;
+            return Ok(());
         };
         if self.keyrefs {
             for matcher in std::mem::take(&mut scope.matchers) {
@@ -399,9 +399,9 @@ impl Engine {
                     {
                         Some(j) => {
                             let duplicate = binding.nodes.swap_remove(j);
-                            binding.dupls.push(duplicate);
+                            binding.dupls.try_push(duplicate)?;
                         }
-                        None => binding.nodes.push(target),
+                        None => binding.nodes.try_push(target)?,
                     }
                 }
             }
@@ -413,13 +413,14 @@ impl Engine {
                     continue;
                 };
                 let table = scope.bindings.iter().find(|b| b.idc == refer);
-                let index: HashMap<u64, Vec<usize>> = table.map_or_else(HashMap::new, |b| {
-                    let mut index: HashMap<u64, Vec<usize>> = HashMap::new();
-                    for (i, node) in b.nodes.iter().enumerate() {
-                        index.entry(sequence_hash(&node.keys)).or_default().push(i);
-                    }
+                let mut index: HashMap<u64, Vec<usize>> = HashMap::new();
+                for (i, node) in table.iter().flat_map(|b| b.nodes.iter().enumerate()) {
+                    index.try_reserve(1)?;
                     index
-                });
+                        .entry(sequence_hash(&node.keys))
+                        .or_default()
+                        .try_push(i)?;
+                }
                 for target in &matcher.targets {
                     let found = table.is_some_and(|b| {
                         index.get(&sequence_hash(&target.keys)).is_some_and(|hits| {
@@ -473,9 +474,9 @@ impl Engine {
                                 Some(j) => {
                                     old -= 1;
                                     let duplicate = target.nodes.remove(j);
-                                    target.dupls.push(duplicate);
+                                    target.dupls.try_push(duplicate)?;
                                 }
-                                None => target.nodes.push(node),
+                                None => target.nodes.try_push(node)?,
                             }
                         }
                     }
@@ -487,6 +488,7 @@ impl Engine {
                 *slot = None;
             }
         }
+        Ok(())
     }
 }
 

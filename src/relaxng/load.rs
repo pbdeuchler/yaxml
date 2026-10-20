@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use super::pattern::is_whitespace;
 use super::{Limits, RNG_NS, SchemaCode, SchemaError};
+use crate::fallible::TryPush;
 use crate::xpath::tree::{Item, Navigate, QName, XML_NAMESPACE, attributes, namespaces};
 use crate::{OwnedDocument, Request, Resolver, ResourceKind, Uri};
 
@@ -122,6 +123,14 @@ impl<'l> Loader<'l> {
             resources: vec![base.to_owned()],
             stack: vec![base.to_owned()],
         }
+    }
+
+    fn refused(&self, at: Loc) -> SchemaError {
+        self.error(
+            SchemaCode::Allocation,
+            at,
+            "Memory allocation failed".into(),
+        )
     }
 
     pub(super) fn error(&self, code: SchemaCode, at: Loc, message: String) -> SchemaError {
@@ -257,9 +266,10 @@ impl<'l> Loader<'l> {
                     ));
                 }
                 Item::Element(qname) if qname.namespace == Some(RNG_NS) => {
-                    children.push(self.convert(tree, child, qname, &here)?)
+                    let el = self.convert(tree, child, qname, &here)?;
+                    children.try_push(el).map_err(|_| self.refused(at))?;
                 }
-                Item::Text(value) => text.push_str(value),
+                Item::Text(value) => text.try_push(value).map_err(|_| self.refused(at))?,
                 _ => {}
             }
         }
@@ -435,7 +445,7 @@ impl<'l> Loader<'l> {
         self.bytes += bytes.len();
         OwnedDocument::parse_legacy(&bytes, *xml).map_err(|error| {
             self.error(
-                SchemaCode::ParseError,
+                SchemaCode::loading(error),
                 at,
                 format!("xmlRelaxNG: could not load {uri}: {error}"),
             )

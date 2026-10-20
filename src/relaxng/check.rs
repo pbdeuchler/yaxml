@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::SchemaCode;
 use super::pattern::{Id, NOT_ALLOWED, NameClass, Pat, Store, Tables};
+use crate::fallible::cloned;
 
 const ATTRIBUTE: u8 = 1;
 const ONE_OR_MORE: u8 = 2;
@@ -42,6 +43,8 @@ struct Checker<'a> {
     attributes: HashMap<Id, Vec<u32>>,
     content: HashMap<Id, Option<ContentType>>,
     errors: Vec<Violation>,
+    /// An allocation was refused, which spent the budget.
+    refused: bool,
 }
 
 /// Every violation in the patterns reachable from `start`.
@@ -61,6 +64,7 @@ pub(super) fn restrictions(
         attributes: HashMap::new(),
         content: HashMap::new(),
         errors: Vec::new(),
+        refused: false,
     };
     checker.walk(start, START);
     while let Some(element) = checker.queue.pop()
@@ -71,30 +75,49 @@ pub(super) fn restrictions(
         if checker.content_type(content).is_none() {
             let name = tables.describe(class).unwrap_or("");
             let message = format!("Element {name} has a content type error");
-            checker
-                .errors
-                .push((SchemaCode::ElemContentError, content, message));
+            checker.report(SchemaCode::ElemContentError, content, message);
         }
     }
-    if checker.budget == 0 {
-        let message = "schema work limit exceeded".into();
-        checker
-            .errors
-            .push((SchemaCode::ResourceLimit, start, message));
+    match (checker.refused, checker.budget) {
+        (true, _) => {
+            let message = "Memory allocation failed".into();
+            vec![(SchemaCode::Allocation, start, message)]
+        }
+        (false, 0) => {
+            let message = "schema work limit exceeded".into();
+            checker
+                .errors
+                .push((SchemaCode::ResourceLimit, start, message));
+            checker.errors
+        }
+        _ => checker.errors,
     }
-    checker.errors
 }
 
 impl Checker<'_> {
+    /// `room`, or a refused allocation, which spends the budget and ends the checks.
+    fn room(&mut self, room: bool) -> bool {
+        self.refused |= !room;
+        self.budget *= usize::from(room);
+        room
+    }
+
+    fn report(&mut self, code: SchemaCode, id: Id, message: String) {
+        let room = self.errors.try_reserve(1).is_ok();
+        if self.room(room) {
+            self.errors.push((code, id, message));
+        }
+    }
+
     fn forbid(&mut self, id: Id, context: u8, rules: &[(u8, SchemaCode, &str)]) {
         if let Some(&(_, code, path)) = rules.iter().find(|(flag, ..)| context & flag != 0) {
-            self.errors
-                .push((code, id, format!("Found forbidden pattern {path}")));
+            self.report(code, id, format!("Found forbidden pattern {path}"));
         }
     }
 
     fn walk(&mut self, id: Id, context: u8) {
-        if !self.walked.insert((id, context)) {
+        let room = self.walked.try_reserve(1).is_ok();
+        if !self.room(room) || !self.walked.insert((id, context)) {
             return;
         }
         use SchemaCode::*;
@@ -109,7 +132,8 @@ impl Checker<'_> {
                         (EXCEPT, PatDataExceptElem, "data/except//element(ref)"),
                     ],
                 );
-                if self.elements.insert(element) {
+                let room = self.elements.try_reserve(1).and(self.queue.try_reserve(1));
+                if self.room(room.is_ok()) && self.elements.insert(element) {
                     self.queue.push(element);
                 }
             }
@@ -138,7 +162,7 @@ impl Checker<'_> {
                     && let Some((code, what)) = self.infinite(class)
                 {
                     let message = format!("Found {what} attribute without oneOrMore ancestor");
-                    self.errors.push((code, id, message));
+                    self.report(code, id, message);
                 }
                 self.walk(content, context | ATTRIBUTE);
             }
@@ -263,8 +287,7 @@ impl Checker<'_> {
     fn attribute_conflict(&mut self, id: Id, a: Id, b: Id, code: SchemaCode, what: &str) {
         let (xs, ys) = (self.attribute_classes(a), self.attribute_classes(b));
         if self.overlapping(&xs, &ys) {
-            self.errors
-                .push((code, id, format!("Attributes conflicts in {what}")));
+            self.report(code, id, format!("Attributes conflicts in {what}"));
         }
     }
 
@@ -272,31 +295,38 @@ impl Checker<'_> {
     fn interleave_conflict(&mut self, id: Id, a: Id, b: Id) {
         let ((xs, x_text), (ys, y_text)) = (self.top_level(a), self.top_level(b));
         if (x_text && y_text) || self.overlapping(&xs, &ys) {
-            self.errors.push((
-                SchemaCode::ElemTextConflict,
-                id,
-                "Element or text conflicts in interleave".into(),
-            ));
+            let message = "Element or text conflicts in interleave".into();
+            self.report(SchemaCode::ElemTextConflict, id, message);
         }
     }
 
     /// Name classes of the attributes a pattern contains outside elements.
+    /// Empty once an allocation is refused.
     fn attribute_classes(&mut self, id: Id) -> Vec<u32> {
         if let Some(found) = self.attributes.get(&id) {
-            return found.clone();
+            let found = cloned(found);
+            self.room(found.is_ok());
+            return found.unwrap_or_default();
         }
         let found = match self.store.pat(id) {
             Pat::Attribute(class, _) => vec![class],
             Pat::Choice(a, b) | Pat::Group(a, b) | Pat::Interleave(a, b) => {
                 let mut found = self.attribute_classes(a);
-                found.extend(self.attribute_classes(b));
+                let more = self.attribute_classes(b);
+                if self.room(found.try_reserve(more.len()).is_ok()) {
+                    found.extend(more);
+                }
                 found
             }
             Pat::OneOrMore(a) => self.attribute_classes(a),
             _ => Vec::new(),
         };
         self.budget = self.budget.saturating_sub(found.len());
-        self.attributes.insert(id, found.clone());
+        let memo = cloned(&found);
+        let room = memo.is_ok() && self.attributes.try_reserve(1).is_ok();
+        if self.room(room) {
+            self.attributes.insert(id, memo.unwrap_or_default());
+        }
         found
     }
 
@@ -307,6 +337,10 @@ impl Checker<'_> {
         let mut seen = HashSet::new();
         let mut stack = vec![id];
         while let Some(id) = stack.pop() {
+            let room = seen.try_reserve(1).and(stack.try_reserve(2));
+            if !self.room(room.and(classes.try_reserve(1)).is_ok()) {
+                break;
+            }
             if !seen.insert(id) {
                 continue;
             }
@@ -329,7 +363,10 @@ impl Checker<'_> {
             return found;
         }
         let found = self.compute_content_type(id);
-        self.content.insert(id, found);
+        let room = self.content.try_reserve(1).is_ok();
+        if self.room(room) {
+            self.content.insert(id, found);
+        }
         found
     }
 

@@ -1,9 +1,10 @@
 //! libxml2's `xmlTextReader` cursor, built on the bounded [`BufferedReader`].
 
-use std::collections::VecDeque;
+use std::collections::{TryReserveError, VecDeque};
 use std::io::BufRead;
 use std::ops::RangeInclusive;
 
+use crate::fallible::{Text, TryPush, copied};
 use crate::options::{DTDATTR, DTDLOAD, DTDVALID, Flags, NOBLANKS, NOENT};
 use crate::valid::{self, Dtd};
 use crate::{
@@ -171,10 +172,10 @@ fn get(pool: &str, (start, end): Span) -> &str {
     &pool[start..end]
 }
 
-fn push(pool: &mut String, value: &str) -> Span {
+fn push(pool: &mut String, value: &str) -> Result<Span, TryReserveError> {
     let start = pool.len();
-    pool.push_str(value);
-    (start, pool.len())
+    pool.try_push(value)?;
+    Ok((start, pool.len()))
 }
 
 impl Node {
@@ -182,16 +183,19 @@ impl Node {
         get(&self.text, span)
     }
 
-    fn push(&mut self, value: &str) -> Span {
+    fn push(&mut self, value: &str) -> Result<Span, TryReserveError> {
         push(&mut self.text, value)
     }
 
-    fn qname(&mut self, name: &Name<'_>) -> QName {
-        QName {
-            qualified: self.push(name.qualified()),
+    fn qname(&mut self, name: &Name<'_>) -> Result<QName, TryReserveError> {
+        Ok(QName {
+            qualified: self.push(name.qualified())?,
             prefix: name.prefix().map_or(0, str::len),
-            namespace: name.namespace().map(|namespace| self.push(namespace)),
-        }
+            namespace: name
+                .namespace()
+                .map(|namespace| self.push(namespace))
+                .transpose()?,
+        })
     }
 
     fn qualified(&self, name: QName) -> &str {
@@ -214,7 +218,7 @@ impl Node {
 
     /// ` name="value"` as `xmlNodeDump` writes it: kept entity references as
     /// `&name;`, unless `expanded`.
-    fn write_attribute(&self, out: &mut String, attribute: &Attr, expanded: bool) {
+    fn write_attribute(&self, out: &mut Text, attribute: &Attr, expanded: bool) {
         let (start, end) = attribute.parts;
         let name = self.qualified(attribute.name);
         if expanded || start == end {
@@ -238,7 +242,7 @@ impl Node {
 
     /// Splits kept forms (`dtd_tag::kept_form`: `&name;` for a kept reference,
     /// `&#38;` for a literal `&`) into the children of their attributes.
-    fn keep(&mut self, kept: Vec<(usize, String)>) {
+    fn keep(&mut self, kept: Vec<(usize, String)>) -> Result<(), TryReserveError> {
         for (position, form) in kept {
             let Some(index) = self.attributes.iter().position(|a| a.position == position) else {
                 continue;
@@ -246,37 +250,39 @@ impl Node {
             let start = self.parts.len();
             let (mut text, mut rest) = (String::new(), form.as_str());
             while let Some(at) = rest.find('&') {
-                text.push_str(&rest[..at]);
+                text.try_push(&rest[..at])?;
                 let end = at + rest[at..].find(';').unwrap_or(rest.len() - at - 1);
                 match &rest[at + 1..end] {
-                    "#38" => text.push('&'),
+                    "#38" => text.try_push("&")?,
                     name => {
-                        self.part_text(&mut text);
-                        let span = self.push(name);
-                        self.parts.push(Part {
+                        self.part_text(&mut text)?;
+                        let span = self.push(name)?;
+                        self.parts.try_push(Part {
                             reference: true,
                             span,
-                        });
+                        })?;
                     }
                 }
                 rest = &rest[end + 1..];
             }
-            text.push_str(rest);
-            self.part_text(&mut text);
+            text.try_push(rest)?;
+            self.part_text(&mut text)?;
             self.attributes[index].parts = (start, self.parts.len());
         }
+        Ok(())
     }
 
     /// Ends a run of text in the current attribute's parts.
-    fn part_text(&mut self, text: &mut String) {
+    fn part_text(&mut self, text: &mut String) -> Result<(), TryReserveError> {
         if !text.is_empty() {
-            let span = self.push(text);
-            self.parts.push(Part {
+            let span = self.push(text)?;
+            self.parts.try_push(Part {
                 reference: false,
                 span,
-            });
+            })?;
             text.clear();
         }
+        Ok(())
     }
 
     fn prefix(&self, name: QName) -> Option<&str> {
@@ -292,7 +298,7 @@ impl Node {
     }
 
     /// Fills this node from an event; false for the unreported XML declaration.
-    fn load(&mut self, event: &Event<'_>, merge: bool) -> bool {
+    fn load(&mut self, event: &Event<'_>, merge: bool) -> Result<bool, TryReserveError> {
         if !merge {
             self.text.clear();
             self.attributes.clear();
@@ -300,30 +306,30 @@ impl Node {
             self.declarations = 0;
         }
         self.kind = match event {
-            Event::Declaration(_) => return false,
+            Event::Declaration(_) => return Ok(false),
             Event::Doctype(doctype) => {
                 self.name = QName {
-                    qualified: self.push(doctype.name),
+                    qualified: self.push(doctype.name)?,
                     ..QName::default()
                 };
                 Kind::Doctype
             }
             Event::Start(element) | Event::Empty(element) => {
-                self.name = self.qname(&element.name);
+                self.name = self.qname(&element.name)?;
                 for declarations in [true, false] {
                     for (position, attribute) in element.attributes.iter().enumerate() {
                         let name = &attribute.name;
                         if declarations
                             == (name.prefix() == Some("xmlns") || name.qualified() == "xmlns")
                         {
-                            let name = self.qname(name);
-                            let value = self.push(&attribute.value);
-                            self.attributes.push(Attr {
+                            let name = self.qname(name)?;
+                            let value = self.push(&attribute.value)?;
+                            self.attributes.try_push(Attr {
                                 name,
                                 value,
                                 position,
                                 parts: (0, 0),
-                            });
+                            })?;
                         }
                     }
                     if declarations {
@@ -337,11 +343,11 @@ impl Node {
                 }
             }
             Event::End(name) => {
-                self.name = self.qname(name);
+                self.name = self.qname(name)?;
                 Kind::End
             }
             Event::Text(value) | Event::Cdata(value) | Event::Comment(value) => {
-                let (start, end) = self.push(value);
+                let (start, end) = self.push(value)?;
                 self.value = (if merge { self.value.0 } else { start }, end);
                 match event {
                     Event::Text(_) => Kind::Text,
@@ -351,22 +357,22 @@ impl Node {
             }
             Event::ProcessingInstruction { target, data } => {
                 self.name = QName {
-                    qualified: self.push(target),
+                    qualified: self.push(target)?,
                     ..QName::default()
                 };
-                self.value = self.push(data);
+                self.value = self.push(data)?;
                 Kind::Pi
             }
             Event::EntityStart(name) => {
                 self.name = QName {
-                    qualified: self.push(name),
+                    qualified: self.push(name)?,
                     ..QName::default()
                 };
                 Kind::EntityRef
             }
-            Event::EntityEnd => return false,
+            Event::EntityEnd => return Ok(false),
         };
-        true
+        Ok(true)
     }
 }
 
@@ -393,7 +399,7 @@ impl Scope {
         get(&self.text, span)
     }
 
-    fn push(&mut self, node: &Node) {
+    fn push(&mut self, node: &Node) -> Result<(), TryReserveError> {
         let mut frame = Frame {
             text: self.text.len(),
             bindings: self.bindings.len(),
@@ -405,16 +411,17 @@ impl Scope {
             let (prefix, local) = (node.prefix(attribute.name), node.local(attribute.name));
             let value = node.get(attribute.value);
             if index < node.declarations {
-                let prefix = prefix.map(|_| push(&mut self.text, local));
-                let uri = push(&mut self.text, value);
-                self.bindings.push((prefix, uri));
+                let prefix = prefix.map(|_| push(&mut self.text, local)).transpose()?;
+                let uri = push(&mut self.text, value)?;
+                self.bindings.try_push((prefix, uri))?;
             } else if prefix == Some("xml") && local == "lang" {
-                frame.lang = Some(push(&mut self.text, value));
+                frame.lang = Some(push(&mut self.text, value)?);
             } else if prefix == Some("xml") && local == "base" {
-                frame.base = Some(push(&mut self.text, value));
+                frame.base = Some(push(&mut self.text, value)?);
             }
         }
         self.frames.push(frame);
+        Ok(())
     }
 
     fn pop(&mut self) {
@@ -614,8 +621,11 @@ impl<R: BufRead> TextReader<R> {
                 {
                     node.kind = Kind::Whitespace;
                 }
-                if matches!(node.kind, Kind::Element | Kind::Empty) {
-                    self.scope.push(node);
+                if matches!(node.kind, Kind::Element | Kind::Empty)
+                    && self.scope.push(node).is_err()
+                {
+                    self.state = ReadState::Error;
+                    return Err(self.refused());
                 }
                 self.state = ReadState::Interactive;
                 Ok(true)
@@ -677,9 +687,13 @@ impl<R: BufRead> TextReader<R> {
             match self.fetch() {
                 Ok(true) => {}
                 // Deliver the text first. The source repeats an XML failure
-                // but reports an I/O failure only once.
+                // but reports an I/O failure, as this reader its own refused
+                // allocations, only once.
                 done => {
-                    self.pending = done.err().filter(|error| matches!(error, ReadError::Io(_)));
+                    self.pending = done.err().filter(|error| {
+                        matches!(error, ReadError::Io(_))
+                            || matches!(error, ReadError::Xml(e) if e.kind == ErrorKind::Allocation)
+                    });
                     break;
                 }
             }
@@ -690,6 +704,7 @@ impl<R: BufRead> TextReader<R> {
     /// Appends the next node to the queue, merging adjacent text. False at EOF.
     fn fetch(&mut self) -> Result<bool, ReadError> {
         loop {
+            self.queue.try_reserve(1).map_err(|_| self.refused())?;
             let Some((event, origin)) = self.source.read_event()? else {
                 return Ok(false);
             };
@@ -713,16 +728,22 @@ impl<R: BufRead> TextReader<R> {
             let before = if merge { node.text.len() } else { 0 };
             let loaded = node.load(&event, merge);
             self.validators.sync(self.source.dtd());
-            if !loaded {
-                self.queue.pop_back();
-                continue;
+            match loaded {
+                Ok(true) => {}
+                Ok(false) => {
+                    self.queue.pop_back();
+                    continue;
+                }
+                Err(_) => return Err(self.refused()),
             }
+            let node = self.queue.back_mut().expect("queued node");
             node.replaced = (merge && node.replaced) || origin.replacement_range().is_some();
             if matches!(node.kind, Kind::Element | Kind::Empty)
                 && let Some(budget) = self.source.budget()
                 && !budget.kept().is_empty()
+                && node.keep(std::mem::take(budget.kept())).is_err()
             {
-                node.keep(std::mem::take(budget.kept()));
+                return Err(self.refused());
             }
             self.buffered += node.text.len() - before;
             if node.kind == Kind::Doctype
@@ -790,6 +811,10 @@ impl<R: BufRead> TextReader<R> {
     fn skip_entity(&mut self) -> Result<(), ReadError> {
         let node = self.queue.back_mut().expect("entity reference node");
         let start = node.text.len();
+        let mut out = Text {
+            text: std::mem::take(&mut node.text),
+            refused: false,
+        };
         let mut depth = 0_usize;
         let result = loop {
             let event = match self.source.read_event() {
@@ -810,8 +835,18 @@ impl<R: BufRead> TextReader<R> {
                 Event::EntityStart(_) => depth += 1,
                 Event::EntityEnd if depth == 0 => break Ok(()),
                 Event::EntityEnd => depth -= 1,
-                event => write_event(&mut node.text, &event),
+                event => write_event(&mut out, &event),
             }
+        };
+        let position = self.source.position();
+        let node = self.queue.back_mut().expect("entity reference node");
+        node.text = out.text;
+        let result = match out.refused {
+            true => result.and(Err(ReadError::Xml(Error::new(
+                ErrorKind::Allocation,
+                position,
+            )))),
+            false => result,
         };
         match result {
             Ok(()) => {
@@ -872,7 +907,8 @@ impl<R: BufRead> TextReader<R> {
     /// concatenated descendant text of an element with children.
     pub fn read_string(&mut self) -> Result<Option<String>, ReadError> {
         if let Some((node, part)) = self.part() {
-            return Ok((!part.reference).then(|| node.get(part.span).to_owned()));
+            let text = (!part.reference).then(|| copied(node.get(part.span)));
+            return text.transpose().map_err(|_| self.refused());
         }
         if self.attribute.is_some() {
             return Ok(None);
@@ -881,17 +917,15 @@ impl<R: BufRead> TextReader<R> {
         let Some(node) = self.node() else {
             return Ok(None);
         };
-        Ok(match node.kind {
-            Kind::Text | Kind::Whitespace | Kind::Cdata => Some(node.get(node.value).to_owned()),
-            Kind::Element if end > 1 => Some(
-                self.queue
-                    .range(1..end)
-                    .filter(|node| matches!(node.kind, Kind::Text | Kind::Cdata))
-                    .map(|node| node.get(node.value))
-                    .collect(),
-            ),
-            _ => None,
-        })
+        let mut out = Text::default();
+        match node.kind {
+            Kind::Text | Kind::Whitespace | Kind::Cdata => out.push_str(node.get(node.value)),
+            Kind::Element if end > 1 => (self.queue.range(1..end))
+                .filter(|node| matches!(node.kind, Kind::Text | Kind::Cdata))
+                .for_each(|node| out.push_str(node.get(node.value))),
+            _ => return Ok(None),
+        }
+        self.finished(out)
     }
 
     /// `xmlTextReaderReadInnerXml`: the serialized children of the current
@@ -901,7 +935,7 @@ impl<R: BufRead> TextReader<R> {
         if !self.serializable() {
             return Ok(None);
         }
-        let (mut out, mut start, mut depth) = (String::new(), 1, 0usize);
+        let (mut out, mut start, mut depth) = (Text::default(), 1, 0usize);
         for index in 1..end {
             match self.queue[index].kind {
                 Kind::Element => depth += 1,
@@ -913,7 +947,7 @@ impl<R: BufRead> TextReader<R> {
                 start = index + 1;
             }
         }
-        Ok(Some(out))
+        self.finished(out)
     }
 
     /// `xmlTextReaderReadOuterXml`: the current node and its subtree, with the
@@ -929,9 +963,19 @@ impl<R: BufRead> TextReader<R> {
         if !self.serializable() {
             return Ok(None);
         }
-        let mut out = String::new();
+        let mut out = Text::default();
         self.dump(0..=end, expanded, &mut out);
-        Ok(Some(out))
+        self.finished(out)
+    }
+
+    /// Serialized output, unless an allocation was refused.
+    fn finished(&self, out: Text) -> Result<Option<String>, ReadError> {
+        out.finish().map(Some).ok_or_else(|| self.refused())
+    }
+
+    /// A refused allocation, at the parsing point.
+    fn refused(&self) -> ReadError {
+        ReadError::Xml(Error::new(ErrorKind::Allocation, self.source.position()))
     }
 
     /// `xmlTextReaderExpand` for an element: its subtree as a standalone
@@ -955,7 +999,7 @@ impl<R: BufRead> TextReader<R> {
 
     /// `xmlNodeDump` of a copy of one queued subtree: namespaces it uses but
     /// does not declare are added to its root in first-use order.
-    fn dump(&self, nodes: RangeInclusive<usize>, expanded: bool, out: &mut String) {
+    fn dump(&self, nodes: RangeInclusive<usize>, expanded: bool, out: &mut Text) {
         let (mut added, mut declared, mut marks) = (Vec::new(), Vec::new(), Vec::new());
         for node in self.queue.range(nodes.clone()) {
             match node.kind {
@@ -1592,7 +1636,7 @@ fn source<R: BufRead>(input: R, options: ParseOptions) -> Result<BufferedReader<
 }
 
 /// Serializes one replacement-text event of a skipped entity reference.
-fn write_event(out: &mut String, event: &Event<'_>) {
+fn write_event(out: &mut Text, event: &Event<'_>) {
     match event {
         Event::Start(element) | Event::Empty(element) => {
             out.push('<');
@@ -1634,7 +1678,7 @@ fn write_event(out: &mut String, event: &Event<'_>) {
 }
 
 /// ` prefix:name="value"` with libxml2's attribute escaping.
-fn write_attribute(out: &mut String, prefix: Option<&str>, name: &str, value: &str) {
+fn write_attribute(out: &mut Text, prefix: Option<&str>, name: &str, value: &str) {
     out.push(' ');
     if let Some(prefix) = prefix {
         out.push_str(prefix);
@@ -1647,7 +1691,7 @@ fn write_attribute(out: &mut String, prefix: Option<&str>, name: &str, value: &s
 }
 
 /// libxml2's content and attribute escaping.
-fn escape(out: &mut String, value: &str, attribute: bool) {
+fn escape(out: &mut Text, value: &str, attribute: bool) {
     let mut start = 0;
     for (index, byte) in value.bytes().enumerate() {
         let escaped = match byte {

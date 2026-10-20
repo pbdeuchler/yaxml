@@ -216,13 +216,13 @@ impl StreamingSession {
     }
     /// Under `RECOVER`, where `error`, which no site repaired, stops the
     /// parse: it is recorded (as the slice reader reports it past a cut), and
-    /// [`Self::close_next`] closes what is open at its offset. `None`: the
-    /// error ends the parse.
-    pub(crate) fn stop(&mut self, error: Error) -> Option<usize> {
+    /// [`Self::close_next`] closes what is open at its offset. `Err`: the
+    /// error that ends the parse, `error` or a refused allocation.
+    pub(crate) fn stop(&mut self, error: Error) -> Result<usize, Error> {
         let error = (self.ordinary.as_ref()).map_or(error, |stream| stream.terminal(error));
-        self.budget()?.recover(error).ok()?;
+        self.budget().ok_or(error)?.recover(error)?;
         (self.failure, self.finalizing, self.finished, self.stopped) = (None, true, true, true);
-        Some(error.offset)
+        Ok(error.offset)
     }
     /// The next event that closes, at `at` where a stopped parse stopped, what
     /// it left open.
@@ -257,15 +257,11 @@ impl StreamingSession {
         error: Error,
         emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        match self.stop(error) {
-            Some(at) => {
-                while let Some((event, origin, budget)) = self.close_next(at)? {
-                    emit(&event, origin, budget)?;
-                }
-                Ok(())
-            }
-            None => Err(error),
+        let at = self.stop(error)?;
+        while let Some((event, origin, budget)) = self.close_next(at)? {
+            emit(&event, origin, budget)?;
         }
+        Ok(())
     }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
     pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, Error> {

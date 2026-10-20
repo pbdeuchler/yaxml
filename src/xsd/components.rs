@@ -41,6 +41,8 @@ pub(crate) struct QName {
 pub(crate) struct Names {
     map: HashMap<Box<str>, Sym>,
     strings: Vec<Box<str>>,
+    /// An allocation was refused: names since are `""`, and the build fails.
+    pub(crate) refused: bool,
 }
 
 impl Names {
@@ -53,6 +55,15 @@ impl Names {
     pub(crate) fn intern(&mut self, s: &str) -> Sym {
         if let Some(&sym) = self.map.get(s) {
             return sym;
+        }
+        if self
+            .strings
+            .try_reserve(1)
+            .and(self.map.try_reserve(1))
+            .is_err()
+        {
+            self.refused = true;
+            return 0;
         }
         let sym = self.strings.len() as Sym;
         self.strings.push(s.into());

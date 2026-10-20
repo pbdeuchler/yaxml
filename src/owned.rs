@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::TryReserveError;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -11,6 +12,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::allocator::{self, Allocator, Global};
+use crate::fallible::collected;
 use crate::options::Flags;
 use crate::parser::Budget;
 use crate::xpath::tree::{self, NamespaceBinding};
@@ -962,14 +964,17 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     /// Preorder rank per slot, or `None` while slots are already preorder.
-    pub(crate) fn preorder_ranks(&self) -> Option<Vec<usize>> {
-        (!self.slots_are_preorder).then(|| {
-            let mut ranks = vec![0; self.nodes.len()];
-            for (rank, node) in self.nodes().enumerate() {
-                ranks[node.record.id.0] = rank;
-            }
-            ranks
-        })
+    pub(crate) fn preorder_ranks(&self) -> Result<Option<Vec<usize>>, TryReserveError> {
+        if self.slots_are_preorder {
+            return Ok(None);
+        }
+        let mut ranks = Vec::new();
+        ranks.try_reserve_exact(self.nodes.len())?;
+        ranks.resize(self.nodes.len(), 0);
+        for (rank, node) in self.nodes().enumerate() {
+            ranks[node.record.id.0] = rank;
+        }
+        Ok(Some(ranks))
     }
 
     fn name_parts(&self, name: &StoredName) -> (&str, Option<&str>) {
@@ -1744,15 +1749,17 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             Vec::new()
         } else if crate::xpath::tree::declares_ids(document.dtd()) {
             crate::xpath::tree::find_ids(&document, document.dtd())
+                .map_err(|_| Error::new(ErrorKind::Allocation, position))?
         } else {
             let document = document.identity;
-            xml_ids
-                .into_iter()
-                .map(|(slot, index)| (OwnedNodeId { document, slot }, index))
-                .collect()
+            let ids = xml_ids.into_iter();
+            collected(ids.map(|(slot, index)| (OwnedNodeId { document, slot }, index)))
+                .map_err(|_| Error::new(ErrorKind::Allocation, position))?
         };
         if flags.drops_blanks() {
-            for blank in crate::xpath::tree::blanks(&document, content) {
+            let blanks = crate::xpath::tree::blanks(&document, content)
+                .map_err(|_| Error::new(ErrorKind::Allocation, position))?;
+            for blank in blanks {
                 document.remove(blank.slot.0);
             }
         }

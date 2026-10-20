@@ -626,10 +626,15 @@ impl<'a> Reader<'a> {
     #[cold]
     #[inline(never)]
     fn stop(&mut self, error: Error) -> Result<Option<Event<'a>>, Error> {
-        if let Some(Ok(())) = self.budget().map(|budget| budget.recover(error)) {
-            self.end = Some(End::Stopped(error.offset));
-            return self.close_next(error.offset);
-        }
+        let error = match self.budget().map(|budget| budget.recover(error)) {
+            Some(Ok(())) => {
+                self.end = Some(End::Stopped(error.offset));
+                return self.close_next(error.offset);
+            }
+            // A refused allocation, not `error`, ends the parse.
+            Some(Err(refused)) => refused,
+            None => error,
+        };
         self.end = Some(End::Failed(error));
         Err(error)
     }

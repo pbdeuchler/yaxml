@@ -9,6 +9,7 @@ use super::parse::{
 };
 use super::tree::{self, Item, Navigate};
 use super::{Context, Error, ErrorKind, Limit, Node, Value};
+use crate::fallible::{TryPush, collected, copied};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -194,7 +195,7 @@ fn round(value: f64) -> f64 {
 }
 
 /// libxml2 `xmlXPathSubstringFunction` over 1-based character positions.
-fn substring(text: &str, start: f64, length: Option<f64>) -> String {
+fn substring(text: &str, start: f64, length: Option<f64>) -> &str {
     let max = f64::from(i32::MAX);
     let first = if start.is_nan() || start >= max {
         max
@@ -212,24 +213,35 @@ fn substring(text: &str, start: f64, length: Option<f64>) -> String {
         }
     });
     let (first, end) = (first as usize, end as usize);
-    match end.checked_sub(first) {
-        Some(count) if count > 0 => text.chars().skip(first - 1).take(count).collect(),
-        _ => String::new(),
+    // The byte offset of 0-based character `chars`.
+    let at = |chars: usize| {
+        text.char_indices()
+            .nth(chars)
+            .map_or(text.len(), |(at, _)| at)
+    };
+    match end > first {
+        true => &text[at(first - 1)..at(end - 1)],
+        false => "",
     }
 }
 
-fn translate(text: &str, from: &str, to: &str) -> String {
-    let to: Vec<char> = to.chars().collect();
+fn translate(text: &str, from: &str, to: &str) -> Result<String> {
+    let to = collected(to.chars())?;
     let mut map = HashMap::new();
     for (index, c) in from.chars().enumerate() {
+        map.try_reserve(1)?;
         map.entry(c).or_insert(index);
     }
-    text.chars()
-        .filter_map(|c| match map.get(&c) {
+    let translated = || {
+        text.chars().filter_map(|c| match map.get(&c) {
             Some(&index) => to.get(index).copied(),
             None => Some(c),
         })
-        .collect()
+    };
+    let mut out = String::new();
+    out.try_reserve_exact(translated().map(char::len_utf8).sum())?;
+    out.extend(translated());
+    Ok(out)
 }
 
 fn words(text: &str) -> impl Iterator<Item = &str> {
@@ -249,11 +261,12 @@ impl<'a, T: Navigate> Eval<'a, T> {
         Ok(())
     }
 
-    fn reserve(&self, length: usize) -> Result<()> {
-        if length > self.context.limits.max_nodes {
+    /// Room for `additional` more nodes in `nodes`, within the node ceiling.
+    fn reserve(&self, nodes: &mut Vec<Node<T::Id>>, additional: usize) -> Result<()> {
+        if nodes.len() + additional > self.context.limits.max_nodes {
             return error(ErrorKind::LimitExceeded(Limit::Nodes));
         }
-        Ok(())
+        Ok(nodes.try_reserve(additional)?)
     }
 
     fn namespace(&self, prefix: Span) -> Result<&'a str> {
@@ -269,12 +282,21 @@ impl<'a, T: Navigate> Eval<'a, T> {
         Ok((uri, name.local.text(self.source)))
     }
 
+    /// Requires [`Self::ranked`].
     fn rank(&self, id: T::Id) -> usize {
         let slot = self.tree.slot(id);
-        match self.ranks.get_or_init(|| self.tree.ranks()) {
-            Some(ranks) => ranks.get(slot).copied().unwrap_or(usize::MAX),
-            None => slot,
+        match self.ranks.get() {
+            Some(Some(ranks)) => ranks.get(slot).copied().unwrap_or(usize::MAX),
+            _ => slot,
         }
+    }
+
+    /// Computes the document-order ranks [`Self::rank`] reads, once.
+    fn ranked(&self) -> Result<()> {
+        if self.ranks.get().is_none() {
+            let _ = self.ranks.set(self.tree.ranks()?);
+        }
+        Ok(())
     }
 
     /// Document order: a node, then its namespace nodes, then its attributes.
@@ -286,24 +308,26 @@ impl<'a, T: Navigate> Eval<'a, T> {
         }
     }
 
-    fn sort(&self, mut nodes: Vec<Node<T::Id>>) -> Vec<Node<T::Id>> {
+    /// Document order without duplicates, sorted in place: equal keys are
+    /// the same node, so an unstable sort is exact.
+    fn sort(&self, mut nodes: Vec<Node<T::Id>>) -> Result<Vec<Node<T::Id>>> {
+        self.ranked()?;
         if !nodes
             .windows(2)
             .all(|pair| self.key(pair[0]) < self.key(pair[1]))
         {
-            // A stable sort merges presorted runs, such as union operands, in linear time.
-            nodes.sort_by_key(|&node| self.key(node));
+            nodes.sort_unstable_by_key(|&node| self.key(node));
             nodes.dedup();
         }
-        nodes
+        Ok(nodes)
     }
 
     /// Validates caller-supplied node-sets and restores document order.
     fn checked(&mut self, value: Value<T::Id>) -> Result<Value<T::Id>> {
-        let Value::NodeSet(nodes) = value else {
+        let Value::NodeSet(mut nodes) = value else {
             return Ok(value);
         };
-        self.reserve(nodes.len())?;
+        self.reserve(&mut nodes, 0)?;
         let tree = self.tree;
         for &node in &nodes {
             let valid = match node {
@@ -317,7 +341,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
                 return error(ErrorKind::InvalidContext);
             }
         }
-        Ok(Value::NodeSet(self.sort(nodes)))
+        Ok(Value::NodeSet(self.sort(nodes)?))
     }
 
     /// [`tree::namespaces`], charging one operation per ancestor.
@@ -333,29 +357,24 @@ impl<'a, T: Navigate> Eval<'a, T> {
         let tree = self.tree;
         let id = match node {
             Node::Attribute(id, index) => {
-                return Ok(tree
-                    .attribute(id, index)
-                    .map_or("", |(_, value)| value)
-                    .to_owned());
+                let value = tree.attribute(id, index).map_or("", |(_, value)| value);
+                return Ok(copied(value)?);
             }
             Node::Namespace(id, index) => {
-                return Ok(self
-                    .namespaces(id)?
-                    .get(index)
-                    .map_or("", |&(_, uri)| uri)
-                    .to_owned());
+                let uri = self.namespaces(id)?.get(index).map_or("", |&(_, uri)| uri);
+                return Ok(copied(uri)?);
             }
             Node::Tree(id) => id,
         };
         if let Item::Text(text) | Item::Comment(text) | Item::Pi(_, text) = tree.item(id) {
-            return Ok(text.to_owned());
+            return Ok(copied(text)?);
         }
         let mut value = String::new();
         for id in tree::descendants(tree, id) {
             self.tick(1)?;
             if let Item::Text(text) = tree.item(id) {
                 self.tick(text.len() as u64 / 64)?;
-                value.push_str(text);
+                value.try_push(text)?;
             }
         }
         Ok(value)
@@ -406,7 +425,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
         let ast = self.ast;
         Ok(match ast.exprs[id as usize] {
             Expr::Number(value) => Value::Number(value),
-            Expr::Literal(text) => Value::String(text.text(self.source).to_owned()),
+            Expr::Literal(text) => Value::String(copied(text.text(self.source))?),
             Expr::Variable(name) => {
                 let (uri, local) = self.expand(name)?;
                 let context = self.context;
@@ -417,7 +436,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
                 self.checked(
                     value
                         .ok_or(Error::at(ErrorKind::UndefinedVariable, name.start()))?
-                        .clone(),
+                        .try_clone()?,
                 )?
             }
             Expr::Call(function, args) => self.call(function, &ast.lists[args.range()], focus)?,
@@ -453,11 +472,27 @@ impl<'a, T: Navigate> Eval<'a, T> {
             BinOp::Or => Value::Boolean(self.boolean(left, focus)? || self.boolean(right, focus)?),
             BinOp::And => Value::Boolean(self.boolean(left, focus)? && self.boolean(right, focus)?),
             BinOp::Union => {
-                let mut nodes = self.nodes(left, focus)?;
-                let other = self.nodes(right, focus)?;
-                self.reserve(nodes.len() + other.len())?;
-                nodes.extend(other);
-                Value::NodeSet(self.sort(nodes))
+                let left = self.nodes(left, focus)?;
+                let right = self.nodes(right, focus)?;
+                let (left, right) = (self.sort(left)?, self.sort(right)?);
+                // Merged in document order: a sort of the concatenation would
+                // not be linear without a buffer.
+                let mut nodes = Vec::new();
+                self.reserve(&mut nodes, left.len() + right.len())?;
+                let (mut left, mut right) =
+                    (left.into_iter().peekable(), right.into_iter().peekable());
+                while let (Some(&a), Some(&b)) = (left.peek(), right.peek()) {
+                    let order = self.key(a).cmp(&self.key(b));
+                    nodes.push(if order.is_le() { a } else { b });
+                    if order.is_le() {
+                        left.next();
+                    }
+                    if order.is_ge() {
+                        right.next();
+                    }
+                }
+                nodes.extend(left.chain(right));
+                Value::NodeSet(nodes)
             }
             BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod => {
                 let (left, right) = (self.number(left, focus)?, self.number(right, focus)?);
@@ -477,7 +512,12 @@ impl<'a, T: Navigate> Eval<'a, T> {
     }
 
     fn strings(&mut self, nodes: &[Node<T::Id>]) -> Result<Vec<String>> {
-        nodes.iter().map(|&node| self.string_value(node)).collect()
+        let mut strings = Vec::new();
+        strings.try_reserve_exact(nodes.len())?;
+        for &node in nodes {
+            strings.push(self.string_value(node)?);
+        }
+        Ok(strings)
     }
 
     fn compare(&mut self, op: BinOp, left: Value<T::Id>, right: Value<T::Id>) -> Result<bool> {
@@ -491,7 +531,9 @@ impl<'a, T: Navigate> Eval<'a, T> {
         };
         Ok(match op {
             BinOp::Eq => {
-                let set: HashSet<&str> = left.iter().map(String::as_str).collect();
+                let mut set = HashSet::new();
+                set.try_reserve(left.len())?;
+                set.extend(left.iter().map(String::as_str));
                 right.iter().any(|value| set.contains(value.as_str()))
             }
             BinOp::Ne => left.first().is_some_and(|first| {
@@ -600,7 +642,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
         for node in nodes {
             self.tick(1)?;
             if self.matches(node, axis, matcher) {
-                self.reserve(out.len() + 1)?;
+                self.reserve(out, 1)?;
                 out.push(node);
             }
         }
@@ -722,7 +764,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
                     })
                     .map(|(index, _)| Node::Namespace(id, index));
                 self.tick(namespaces.len() as u64)?;
-                self.reserve(out.len() + namespaces.len())?;
+                self.reserve(out, namespaces.len())?;
                 out.extend(hits);
                 Ok(())
             }
@@ -741,10 +783,10 @@ impl<'a, T: Navigate> Eval<'a, T> {
             scratch.clear();
             self.axis(node, step.axis, matcher, &mut scratch)?;
             self.filter(&mut scratch, step.predicates)?;
-            self.reserve(output.len() + scratch.len())?;
+            self.reserve(&mut output, scratch.len())?;
             output.extend_from_slice(&scratch);
         }
-        Ok(self.sort(output))
+        self.sort(output)
     }
 
     /// Applies predicates in turn; positions follow the order of `nodes`.
@@ -808,12 +850,11 @@ impl<'a, T: Navigate> Eval<'a, T> {
                 ("", prefix, prefix)
             }
         };
-        Ok(match core {
+        Ok(copied(match core {
             Core::LocalName => local,
             Core::NamespaceUri => uri,
             _ => qualified,
-        }
-        .to_owned())
+        })?)
     }
 
     fn lang(&mut self, node: Node<T::Id>, lang: &str) -> Result<bool> {
@@ -834,11 +875,15 @@ impl<'a, T: Navigate> Eval<'a, T> {
     /// `id()` finds elements by `xml:id` and DTD-declared `ID` attributes;
     /// for a repeated value only the first element counts, as in `xmlGetID`.
     fn id(&mut self, value: Value<T::Id>) -> Result<Vec<Node<T::Id>>> {
-        let text = match value {
-            Value::NodeSet(nodes) => self.strings(&nodes)?.join(" "),
-            other => self.cast_string(other)?,
+        let texts = match value {
+            Value::NodeSet(nodes) => self.strings(&nodes)?,
+            other => vec![self.cast_string(other)?],
         };
-        let mut tokens: HashSet<&str> = words(&text).collect();
+        let mut tokens = HashSet::new();
+        for word in texts.iter().flat_map(|text| words(text)) {
+            tokens.try_reserve(1)?;
+            tokens.insert(word);
+        }
         let tree = self.tree;
         let mut found = Vec::new();
         for &(id, index) in tree.ids() {
@@ -850,7 +895,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
             if value.is_some_and(|value| tokens.remove(value))
                 && found.last() != Some(&Node::Tree(id))
             {
-                found.push(Node::Tree(id));
+                found.try_push(Node::Tree(id))?;
             }
         }
         Ok(found)
@@ -899,7 +944,7 @@ impl<'a, T: Navigate> Eval<'a, T> {
             Core::Concat => {
                 let mut joined = String::new();
                 for index in 0..args.len() {
-                    joined.push_str(&string(self, index)?);
+                    joined.try_push(&string(self, index)?)?;
                 }
                 Value::String(joined)
             }
@@ -910,13 +955,9 @@ impl<'a, T: Navigate> Eval<'a, T> {
                     Core::StartsWith => Value::Boolean(text.starts_with(&pattern)),
                     Core::Contains => Value::Boolean(found.is_some()),
                     Core::SubstringBefore => {
-                        Value::String(found.map_or("", |at| &text[..at]).to_owned())
+                        Value::String(copied(found.map_or("", |at| &text[..at]))?)
                     }
-                    _ => Value::String(
-                        found
-                            .map_or("", |at| &text[at + pattern.len()..])
-                            .to_owned(),
-                    ),
+                    _ => Value::String(copied(found.map_or("", |at| &text[at + pattern.len()..]))?),
                 }
             }
             Core::Substring => {
@@ -926,15 +967,25 @@ impl<'a, T: Navigate> Eval<'a, T> {
                     .get(2)
                     .map(|&arg| self.number(arg, focus))
                     .transpose()?;
-                Value::String(substring(&text, start, length))
+                Value::String(copied(substring(&text, start, length))?)
             }
             Core::StringLength => Value::Number(string(self, 0)?.chars().count() as f64),
             Core::NormalizeSpace => {
-                Value::String(words(&string(self, 0)?).collect::<Vec<_>>().join(" "))
+                let text = string(self, 0)?;
+                // No longer than the text.
+                let mut joined = String::new();
+                joined.try_reserve_exact(text.len())?;
+                for word in words(&text) {
+                    if !joined.is_empty() {
+                        joined.push(' ');
+                    }
+                    joined.push_str(word);
+                }
+                Value::String(joined)
             }
             Core::Translate => {
                 let (text, from, to) = (string(self, 0)?, string(self, 1)?, string(self, 2)?);
-                Value::String(translate(&text, &from, &to))
+                Value::String(translate(&text, &from, &to)?)
             }
             Core::Boolean => Value::Boolean(self.boolean(args[0], focus)?),
             Core::Not => Value::Boolean(!self.boolean(args[0], focus)?),

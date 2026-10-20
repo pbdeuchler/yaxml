@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::TryReserveError;
 use std::ops::Range;
 
 use crate::options::Flags;
@@ -274,15 +275,17 @@ impl<'input> Document<'input> {
         let dtd = reader.take_dtd().map(Box::new);
         let mut document = Self { dtd, ..document };
         if flags.drops_blanks() {
-            let blanks = crate::xpath::tree::blanks(&document, false);
-            document.remove_leaves(&blanks);
+            let refused = |_| Error::new(ErrorKind::Allocation, reader.position());
+            let blanks = crate::xpath::tree::blanks(&document, false).map_err(refused)?;
+            document.remove_leaves(&blanks).map_err(refused)?;
         }
         // Without DTD-declared ID attributes or removed nodes, the `xml:id`s
         // noted while building are exactly what a full traversal would find.
         let traverse = flags.drops_blanks() || crate::xpath::tree::declares_ids(document.dtd());
         document.ids = match (flags.records_ids(), traverse) {
             (false, _) => Vec::new(),
-            (true, true) => crate::xpath::tree::find_ids(&document, document.dtd()),
+            (true, true) => crate::xpath::tree::find_ids(&document, document.dtd())
+                .map_err(|_| Error::new(ErrorKind::Allocation, reader.position()))?,
             (true, false) => std::mem::take(&mut document.ids),
         };
         if flags.validates() {
@@ -293,12 +296,13 @@ impl<'input> Document<'input> {
 
     /// Removes leaves (sorted, never the root or an element with children),
     /// keeping preorder storage and relinking the survivors.
-    fn remove_leaves(&mut self, leaves: &[NodeId]) {
+    fn remove_leaves(&mut self, leaves: &[NodeId]) -> Result<(), TryReserveError> {
         if leaves.is_empty() {
-            return;
+            return Ok(());
         }
         // `kept[i]`: survivors before slot `i`, which is slot `i`'s new index.
-        let mut kept = Vec::with_capacity(self.nodes.len() + 1);
+        let mut kept = Vec::new();
+        kept.try_reserve_exact(self.nodes.len() + 1)?;
         let mut removed = leaves.iter().peekable();
         let mut count = 0;
         for index in 0..=self.nodes.len() {
@@ -330,6 +334,7 @@ impl<'input> Document<'input> {
         for (element, _, _) in &mut self.kept {
             *element = map(*element);
         }
+        Ok(())
     }
 
     /// The well-formedness errors a `RECOVER` parse recovered from, in the

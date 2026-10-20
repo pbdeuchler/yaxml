@@ -121,9 +121,15 @@ fn rounding_substring_and_translate_follow_libxml2() {
         );
     }
 
-    assert_eq!(translate("bar", "abc", "ABC"), "BAr");
-    assert_eq!(translate("aaa", "aa", "xy"), "xxx");
-    assert_eq!(translate("abc", "", "xyz"), "abc");
-    assert_eq!(translate("abc", "abc", ""), "");
-    assert_eq!(translate("", "a", "b"), "");
+    for (text, from, to, expected) in [
+        ("bar", "abc", "ABC", "BAr"),
+        ("aaa", "aa", "xy", "xxx"),
+        ("abc", "", "xyz", "abc"),
+        ("abc", "abc", "", ""),
+        ("", "a", "b", ""),
+        // Replacements wider than what they replace.
+        ("abc", "b", "\u{e9}\u{1d11e}", "a\u{e9}c"),
+    ] {
+        assert_eq!(translate(text, from, to), Ok(expected.to_owned()), "{text}");
+    }
 }

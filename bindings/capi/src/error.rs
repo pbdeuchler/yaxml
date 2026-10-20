@@ -155,6 +155,7 @@ impl Fail {
             InvalidUri(_) => 91,
             RelativeNamespace(_) => 1955,
             Io(_) => 1546,
+            Allocation => 2,
             _ => 1953,
         };
         Self::with(ERR_C14N, C14N, code, error.to_string())
@@ -206,4 +207,26 @@ pub(crate) fn guard(err: *mut yaxml_error, body: impl FnOnce() -> Outcome) -> i3
         unsafe { out.put(fail.record()) };
     }
     fail.status
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{C14N, Fail};
+    use crate::ERR_C14N;
+    use yaxml::c14n::Error;
+
+    #[test]
+    fn c14n_errors_map_to_libxml2_codes() {
+        let cases = [
+            (Error::Allocation, 2),
+            (Error::InvalidUri("u".into()), 91),
+            (Error::RelativeNamespace("r".into()), 1955),
+            (Error::NotXml("x".into()), 1953),
+        ];
+        for (error, code) in cases {
+            let fail = Fail::c14n(error);
+            assert_eq!((fail.status, fail.diagnostic.domain), (ERR_C14N, C14N));
+            assert_eq!(fail.diagnostic.code, code);
+        }
+    }
 }

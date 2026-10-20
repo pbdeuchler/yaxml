@@ -3,13 +3,14 @@
 //! constraints, `combine`, grammars, `ref`/`parentRef`, inlined defines,
 //! `notAllowed` and `empty` simplification) and the datatypes.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, TryReserveError};
 use std::sync::Arc;
 
 use super::datatype::{Datatype, Problem, ValueDef};
 use super::load::{El, Loader, Loc};
 use super::pattern::{Arena, EMPTY, Id, NOT_ALLOWED, NameClass, Pat, Store, TEXT, Tables};
 use super::{SchemaCode, SchemaError, check};
+use crate::fallible::{TryPush, cloned};
 use crate::name::{name_char, name_start};
 use crate::schema_types::Type;
 use crate::xpath::tree::XML_NAMESPACE;
@@ -96,18 +97,24 @@ pub(super) fn compile(
             .map(|(code, id, message)| loader.error(code, at(id), message))
             .collect());
     }
-    compiler.tables.ids = id_attributes(&compiler.store, &compiler.tables);
+    compiler.tables.ids = id_attributes(&compiler.store, &compiler.tables)
+        .map_err(|_| vec![compiler.refused(root)])?;
     Ok((compiler.store.into_arena(), compiler.tables, start))
 }
 
 /// The attributes typed `xsd:ID`, `xsd:IDREF` or `xsd:IDREFS` of each element
 /// (the RELAX NG DTD compatibility ID feature, as libxml2 implements it).
-fn id_attributes(store: &Store, tables: &Tables) -> Vec<(u32, u32, Type)> {
+fn id_attributes(
+    store: &Store,
+    tables: &Tables,
+) -> std::result::Result<Vec<(u32, u32, Type)>, TryReserveError> {
     let mut found = Vec::new();
     for &(element, content) in &tables.elements {
         let mut stack = vec![content];
         let mut seen = std::collections::HashSet::new();
         while let Some(id) = stack.pop() {
+            seen.try_reserve(1)?;
+            stack.try_reserve(2)?;
             if !seen.insert(id) {
                 continue;
             }
@@ -121,19 +128,28 @@ fn id_attributes(store: &Store, tables: &Tables) -> Vec<(u32, u32, Type)> {
                         && let Datatype::Xsd(ty @ (Type::Id | Type::IdRef | Type::IdRefs), _) =
                             tables.datatypes[datatype as usize]
                     {
-                        found.push((element, class, ty));
+                        found.try_push((element, class, ty))?;
                     }
                 }
                 _ => {}
             }
         }
     }
-    found
+    Ok(found)
 }
 
 impl<'e> Compiler<'e, '_> {
     fn error(&self, code: SchemaCode, el: &El, message: String) -> SchemaError {
         self.loader.error(code, el.at, message)
+    }
+
+    /// A refused allocation while compiling `el`.
+    fn refused(&self, el: &El) -> SchemaError {
+        self.error(
+            SchemaCode::Allocation,
+            el,
+            "Memory allocation failed".into(),
+        )
     }
 
     fn schema(&mut self, root: &'e El, max_work: usize) -> Result<Id> {
@@ -143,6 +159,9 @@ impl<'e> Compiler<'e, '_> {
         };
         let mut next_define = 0;
         loop {
+            if self.store.refused {
+                return Err(self.refused(root));
+            }
             if self.store.work > max_work {
                 return Err(self.error(
                     SchemaCode::ResourceLimit,
@@ -189,6 +208,9 @@ impl<'e> Compiler<'e, '_> {
         }?;
         self.depth -= 1;
         let missing = self.store.len() - self.origin.len();
+        self.origin
+            .try_reserve(missing)
+            .map_err(|_| self.refused(el))?;
         self.origin.extend(std::iter::repeat_n(el.at, missing));
         Ok(id)
     }
@@ -202,6 +224,9 @@ impl<'e> Compiler<'e, '_> {
                 "xmlRelaxNGParseElement: element has no content".into(),
             ));
         }
+        let room = self.tables.elements.try_reserve(1);
+        room.and(self.pending.try_reserve(1))
+            .map_err(|_| self.refused(el))?;
         let index = self.tables.elements.len();
         self.tables.elements.push((class, NOT_ALLOWED));
         self.pending.push((index, body, grammar));
@@ -304,7 +329,9 @@ impl<'e> Compiler<'e, '_> {
                 format!("Element {} is empty", parent.name),
             ));
         }
-        let mut ids = Vec::with_capacity(els.len());
+        let mut ids = Vec::new();
+        ids.try_reserve_exact(els.len())
+            .map_err(|_| self.refused(parent))?;
         for el in els {
             ids.push(self.pattern(el, grammar)?);
         }
@@ -327,6 +354,10 @@ impl<'e> Compiler<'e, '_> {
                     false => &el.ns,
                 };
                 let (ns, local) = self.qname(qname, ns, el)?;
+                self.tables
+                    .names
+                    .try_reserve(1)
+                    .map_err(|_| self.refused(el))?;
                 (
                     self.push_class(NameClass::Name(ns, local)),
                     &el.children[..],
@@ -443,6 +474,8 @@ impl<'e> Compiler<'e, '_> {
                     .iter()
                     .map(|child| self.name_class(child, any, ns))
                     .collect::<Result<Vec<_>>>()?;
+                let room = self.tables.names.try_reserve(classes.len());
+                room.map_err(|_| self.refused(el))?;
                 return Ok(fold(self, &classes, |this, a, b| {
                     this.push_class(NameClass::Choice(a, b))
                 }));
@@ -462,6 +495,10 @@ impl<'e> Compiler<'e, '_> {
                 "name has element children".into(),
             ));
         }
+        self.tables
+            .names
+            .try_reserve(1)
+            .map_err(|_| self.refused(el))?;
         Ok(self.push_class(class))
     }
 
@@ -474,6 +511,8 @@ impl<'e> Compiler<'e, '_> {
                     .iter()
                     .map(|child| self.name_class(child, any, ns))
                     .collect::<Result<Vec<_>>>()?;
+                let room = self.tables.names.try_reserve(classes.len());
+                room.map_err(|_| self.refused(el))?;
                 Ok(Some(fold(self, &classes, |this, a, b| {
                     this.push_class(NameClass::Choice(a, b))
                 })))
@@ -549,6 +588,9 @@ impl<'e> Compiler<'e, '_> {
             None => self.grammars[grammar].start,
             Some(name) => self.grammars[grammar].defines.get(name).copied(),
         };
+        let room = self.defines.try_reserve(1);
+        let room = room.and(self.grammars[grammar].defines.try_reserve(1));
+        room.map_err(|_| self.refused(el))?;
         let index = existing.unwrap_or_else(|| {
             self.defines.push(Define {
                 name: name.unwrap_or(""),
@@ -594,8 +636,7 @@ impl<'e> Compiler<'e, '_> {
         let define = &mut self.defines[index];
         define.combine = define.combine.or(combine);
         define.uncombined += usize::from(combine.is_none());
-        define.parts.push(el);
-        Ok(())
+        define.parts.try_push(el).map_err(|_| self.refused(el))
     }
 
     /// A definition's pattern, inlined (section 4.19); `at` is the reference.
@@ -615,7 +656,7 @@ impl<'e> Compiler<'e, '_> {
         let Define {
             grammar, combine, ..
         } = self.defines[index];
-        let parts = self.defines[index].parts.clone();
+        let parts = cloned(&self.defines[index].parts).map_err(|_| self.refused(at))?;
         if let Some(start) = parts
             .iter()
             .find(|part| part.name == "start" && part.children.len() > 1)
@@ -626,7 +667,9 @@ impl<'e> Compiler<'e, '_> {
                 "start has more than one pattern".into(),
             ));
         }
-        let mut ids = Vec::with_capacity(parts.len());
+        let mut ids = Vec::new();
+        ids.try_reserve_exact(parts.len())
+            .map_err(|_| self.refused(at))?;
         for part in &parts {
             ids.push(self.group(&part.children, Some(grammar), part)?);
         }
@@ -708,6 +751,10 @@ impl<'e> Compiler<'e, '_> {
             }
         }
         let datatype = self.datatype(el, &el.library, name, &params)?;
+        self.tables
+            .datatypes
+            .try_reserve(1)
+            .map_err(|_| self.refused(el))?;
         self.tables.datatypes.push(datatype);
         let index = self.tables.datatypes.len() as u32 - 1;
         Ok(self.store.make(Pat::Data(index, except)))
@@ -722,6 +769,10 @@ impl<'e> Compiler<'e, '_> {
         let datatype = self.datatype(el, library, name, &[])?;
         let value = ValueDef::new(datatype, &el.text, el)
             .map_err(|problem| self.problem(el, problem, library, name))?;
+        self.tables
+            .values
+            .try_reserve(1)
+            .map_err(|_| self.refused(el))?;
         self.tables.values.push(value);
         Ok(self
             .store

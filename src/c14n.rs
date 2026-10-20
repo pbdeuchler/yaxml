@@ -24,11 +24,12 @@
 //! ```
 
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashSet, TryReserveError};
 use std::fmt;
 use std::io::{self, BufWriter, Write};
 use std::iter::successors;
 
+use crate::fallible::Text;
 use crate::uri::{self, Uri};
 use crate::xpath::tree::{self, Item, Navigate, QName, XML_NAMESPACE};
 use crate::xpath::{Node, Tree};
@@ -89,6 +90,8 @@ pub enum Error {
     /// `XML_C14N_INVALID_NODE`: the tree keeps an entity reference, which
     /// canonical XML cannot represent; parse with `NOENT`.
     EntityReference(String),
+    /// `XML_ERR_NO_MEMORY`: an allocation the document sized failed.
+    Allocation,
 }
 
 impl fmt::Display for Error {
@@ -98,6 +101,7 @@ impl fmt::Display for Error {
             Self::RelativeNamespace(uri) => write!(f, "C14N error: relative namespace {uri:?}"),
             Self::Io(error) => write!(f, "C14N output error: {error}"),
             Self::NotXml(problem) => write!(f, "C14N error: {problem}"),
+            Self::Allocation => f.write_str("C14N error: allocation failed"),
             Self::EntityReference(name) => {
                 write!(
                     f,
@@ -137,9 +141,9 @@ pub fn write<T: Tree>(
 
 /// The canonical form as a string (`xmlC14NDocDumpMemory`).
 pub fn to_string<T: Tree>(tree: &T, options: &Options<'_, T::Id>) -> Result<String, Error> {
-    let mut out = String::new();
+    let mut out = Text::default();
     canonicalize(tree, options, |text| out.push_str(text))?;
-    Ok(out)
+    out.finish().ok_or(Error::Allocation)
 }
 
 /// `xmlC14NPosition`: where top-level comments and PIs get their newline.
@@ -192,7 +196,10 @@ struct Subset<'t, Id> {
     namespaces: HashSet<(Id, &'t str)>,
 }
 
-fn subset<'t, T: Navigate>(tree: &'t T, nodes: &[Node<T::Id>]) -> Subset<'t, T::Id> {
+fn subset<'t, T: Navigate>(
+    tree: &'t T,
+    nodes: &[Node<T::Id>],
+) -> Result<Subset<'t, T::Id>, TryReserveError> {
     let mut namespaces = HashSet::new();
     // Sorted node-sets list an element's namespace nodes together: compute its scope once.
     let (mut element, mut scope) = (None, Vec::new());
@@ -202,14 +209,18 @@ fn subset<'t, T: Navigate>(tree: &'t T, nodes: &[Node<T::Id>]) -> Subset<'t, T::
                 (element, scope) = (Some(owner), tree::namespaces(tree, owner));
             }
             if let Some(&(prefix, _)) = scope.get(index) {
+                namespaces.try_reserve(1)?;
                 namespaces.insert((owner, prefix));
             }
         }
     }
-    Subset {
-        nodes: nodes.iter().copied().collect(),
+    let mut set = HashSet::new();
+    set.try_reserve(nodes.len())?;
+    set.extend(nodes.iter().copied());
+    Ok(Subset {
+        nodes: set,
         namespaces,
-    }
+    })
 }
 
 /// An open element and the state its end tag restores.
@@ -249,7 +260,8 @@ fn canonicalize<T: Navigate>(
     let mut c14n = C14n {
         tree,
         options,
-        subset: options.nodes.map(|nodes| subset(tree, nodes)),
+        subset: (options.nodes.map(|nodes| subset(tree, nodes)).transpose())
+            .map_err(|_| Error::Allocation)?,
         emit,
         scope: Vec::new(),
         rendered: Vec::new(),

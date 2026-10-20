@@ -26,12 +26,13 @@
 
 use std::fmt;
 
+use crate::fallible::{TryPush, collected};
 use crate::pattern::{self, Pattern as Matcher};
 use crate::xpath::tree::{
     Item, Navigate, Tree, attributes, descendants, namespaces, visible_preorder,
 };
 use crate::xpath::{self, Context, Node, Value, XPath, truthy};
-use crate::{Document, LineIndex, ParseOptions, Resolver, options};
+use crate::{Document, ErrorKind, LineIndex, ParseOptions, Resolver, options};
 
 /// The ISO Schematron and Schematron 1.5 namespaces, both accepted.
 const NAMESPACES: [&str; 2] = [
@@ -52,6 +53,8 @@ pub const OUT_ERROR: u32 = 1 << 3;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Code {
+    /// `XML_ERR_NO_MEMORY`: an allocation the schema or document sized failed.
+    Allocation,
     /// `XML_ERR_INTERNAL_ERROR`: a `let` failed to evaluate.
     Internal,
     /// `XML_SCHEMAP_FAILED_LOAD`: the schema document is not well-formed.
@@ -72,6 +75,7 @@ impl Code {
     /// libxml2's `xmlParserErrors` number.
     pub fn number(self) -> u16 {
         match self {
+            Self::Allocation => 2,
             Self::Internal => 1,
             Self::FailedLoad => 1757,
             Self::NoRoot => 1759,
@@ -276,9 +280,15 @@ impl Schema {
         let message = format!("xmlSchematronParse: could not load '{base}'.\n");
         let options = ParseOptions::new(options::NOENT).with_limits(limits.xml);
         let document = Document::parse_with(input, options.with_resolver(base, resolver));
-        let document = document.map_err(|_| SchemaErrors {
+        let document = document.map_err(|error| SchemaErrors {
             uri: base.to_owned(),
-            errors: vec![Diagnostic::new(Code::FailedLoad, message)],
+            errors: vec![Diagnostic::new(
+                match error.kind {
+                    ErrorKind::Allocation => Code::Allocation,
+                    _ => Code::FailedLoad,
+                },
+                message,
+            )],
         })?;
         Self::from_tree(&document, base, input, limits)
     }
@@ -402,7 +412,7 @@ struct Parser<'a, T: Navigate> {
 
 impl<'a, T: Navigate> Parser<'a, T> {
     fn error(&mut self, code: Code, id: T::Id, message: String) {
-        self.errors.push(Diagnostic {
+        self.push(Diagnostic {
             node: Some(()),
             line: self.lines.node_line(self.tree, id).unwrap_or(0),
             element: local_name(self.tree, id),
@@ -410,11 +420,35 @@ impl<'a, T: Navigate> Parser<'a, T> {
         });
     }
 
-    /// The Schematron elements among `id`'s children.
-    fn children(&self, id: T::Id) -> Vec<(T::Id, String)> {
-        (children(self.tree, id))
-            .filter_map(|child| Some((child, schematron_name(self.tree, child)?.to_owned())))
-            .collect()
+    fn push(&mut self, diagnostic: Diagnostic<()>) {
+        if self.errors.try_push(diagnostic).is_err() {
+            self.refuse();
+        }
+    }
+
+    /// A refused allocation fails the schema; its diagnostic replaces the others.
+    fn refuse(&mut self) {
+        let message = "Memory allocation failed\n".into();
+        self.errors = vec![Diagnostic::new(Code::Allocation, message)];
+    }
+
+    /// Room for one more of `items`, else the schema is refused.
+    fn room<I>(&mut self, items: &mut Vec<I>) -> bool {
+        let room = items.try_reserve(1).is_ok();
+        if !room {
+            self.refuse();
+        }
+        room
+    }
+
+    /// The Schematron elements among `id`'s children; none once refused.
+    fn children(&mut self, id: T::Id) -> Vec<(T::Id, String)> {
+        let found = (children(self.tree, id))
+            .filter_map(|child| Some((child, schematron_name(self.tree, child)?.to_owned())));
+        collected(found).unwrap_or_else(|_| {
+            self.refuse();
+            Vec::new()
+        })
     }
 
     /// `xmlXPathCtxtCompile` with `XML_XPATH_CHECKNS` and the `ns` prefixes.
@@ -426,7 +460,7 @@ impl<'a, T: Navigate> Parser<'a, T> {
             .and_then(|xpath| xpath.check_prefixes(bound).map(|()| xpath));
         compiled
             .map_err(|error| {
-                self.errors.push(xpath_error(error, expression, true));
+                self.push(xpath_error(error, expression, true));
                 let message = format!("Failed to compile {what} expression {expression}");
                 self.error(code, id, message);
             })
@@ -468,6 +502,10 @@ impl<'a, T: Navigate> Parser<'a, T> {
                 self.error(Code::NoRoot, id, "ns element has no prefix".into());
             }
             if let (Some(prefix), Some(uri)) = (prefix, uri) {
+                if self.namespaces.try_reserve(1).is_err() {
+                    self.refuse();
+                    return None;
+                }
                 self.namespaces.push((prefix.to_owned(), uri.to_owned()));
             }
         }
@@ -475,6 +513,7 @@ impl<'a, T: Navigate> Parser<'a, T> {
         let mut count = 0;
         for (id, name) in children {
             match name.as_str() {
+                "pattern" if !self.room(&mut patterns) => return None,
                 "pattern" => {
                     patterns.extend(self.pattern(id));
                     count += 1;
@@ -505,6 +544,7 @@ impl<'a, T: Navigate> Parser<'a, T> {
         let mut count = 0;
         for (child, local) in self.children(id) {
             match local.as_str() {
+                "rule" if !self.room(&mut rules) => return None,
                 "rule" => {
                     rules.extend(self.rule(child));
                     count += 1;
@@ -554,6 +594,9 @@ impl<'a, T: Navigate> Parser<'a, T> {
                     let name = self.required(child, "let", "name")?;
                     let value = self.required(child, "let", "value")?;
                     let value = self.xpath(child, value, "let", Code::NoRoot)?;
+                    if !self.room(&mut lets) {
+                        return None;
+                    }
                     lets.insert(0, (name.to_owned(), value));
                 }
                 "assert" | "report" => {
@@ -563,6 +606,9 @@ impl<'a, T: Navigate> Parser<'a, T> {
                         continue;
                     };
                     let message = self.message(child);
+                    if !self.room(&mut tests) {
+                        return None;
+                    }
                     if let Some(test) = self.xpath(child, test, "test", Code::NoRoot) {
                         let report = local == "report";
                         tests.push(Test {
@@ -595,6 +641,9 @@ impl<'a, T: Navigate> Parser<'a, T> {
         let tree = self.tree;
         let mut parts = Vec::new();
         for child in children(tree, id) {
+            if !self.room(&mut parts) {
+                break;
+            }
             match (tree.item(child), schematron_name(tree, child)) {
                 (Item::Text(text), _) => parts.push(Part::Text(text.to_owned())),
                 (_, Some("name")) => {
@@ -623,6 +672,13 @@ impl<'a, T: Navigate> Parser<'a, T> {
 /// Validation stopped with libxml2's internal error.
 struct Abort;
 
+/// A refused allocation stops validation; its diagnostic replaces the output.
+fn refuse<Id>(output: &mut Vec<Output<Id>>) -> Abort {
+    let message = "Memory allocation failed\n".into();
+    *output = vec![Output::Error(Diagnostic::new(Code::Allocation, message))];
+    Abort
+}
+
 struct Run<'a, T: Navigate> {
     schema: &'a Schema,
     tree: &'a T,
@@ -646,9 +702,9 @@ impl<'a, T: Navigate> Run<'a, T> {
         {
             return Err(Abort);
         }
-        let elements: Vec<_> = visible_preorder(tree, Some(root), Some(root))
-            .filter(|&id| matches!(tree.item(id), Item::Element(_)))
-            .collect();
+        let elements = visible_preorder(tree, Some(root), Some(root))
+            .filter(|&id| matches!(tree.item(id), Item::Element(_)));
+        let elements = collected(elements).map_err(|_| refuse(&mut self.output))?;
         let rules = |pattern: &'a Pattern| pattern.rules.iter().map(move |rule| (pattern, rule));
         if flags & OUT_QUIET != 0 || flags == 0 {
             // One pass: every rule of every pattern at each element.
@@ -662,7 +718,7 @@ impl<'a, T: Navigate> Run<'a, T> {
         for pattern in &schema.patterns {
             if flags & (OUT_ERROR | OUT_XML) == 0 {
                 let header = truncate(format!("Pattern: {}\n", pattern.name));
-                self.output.push(Output::Text(header));
+                self.emit(Output::Text(header))?;
             }
             for &node in &elements {
                 for (pattern, rule) in rules(pattern) {
@@ -682,14 +738,23 @@ impl<'a, T: Navigate> Run<'a, T> {
     ) -> Result<Option<Value<T::Id>>, Abort> {
         let value = xpath.evaluate_within(self.tree, Node::Tree(node), context, &mut self.budget);
         value.map(Some).or_else(|error| {
+            if error.kind == xpath::ErrorKind::Allocation {
+                return Err(refuse(&mut self.output));
+            }
             let diagnostic = xpath_error(error, xpath.as_str(), false);
-            self.output.push(Output::Error(diagnostic));
+            self.emit(Output::Error(diagnostic))?;
             if self.budget == 0 {
                 Err(Abort)
             } else {
                 Ok(None)
             }
         })
+    }
+
+    fn emit(&mut self, item: Output<T::Id>) -> Result<(), Abort> {
+        self.output
+            .try_push(item)
+            .map_err(|_| refuse(&mut self.output))
     }
 
     /// Runs a matching rule's tests with its `let`s registered in the
@@ -711,19 +776,20 @@ impl<'a, T: Navigate> Run<'a, T> {
                 .fold(context, |context, (prefix, uri)| {
                     context.with_namespace(prefix, uri)
                 });
-            (variables.iter()).fold(context, |context, (name, value)| {
-                context.with_variable(name.as_str(), value.clone())
+            (variables.iter()).try_fold(context, |context, (name, value)| {
+                (value.try_clone()).map(|value| context.with_variable(name.as_str(), value))
             })
         };
         for (name, value) in &rule.lets {
-            let Some(value) = self.eval(value, node, &context(&self.variables))? else {
+            let context = context(&self.variables).map_err(|_| refuse(&mut self.output))?;
+            let Some(value) = self.eval(value, node, &context)? else {
                 self.internal("Evaluation of compiled expression failed\n", one_pass)?;
                 break;
             };
             self.variables.retain(|(known, _)| known != name);
             self.variables.push((name.clone(), value));
         }
-        let context = context(&self.variables);
+        let context = context(&self.variables).map_err(|_| refuse(&mut self.output))?;
         for test in &rule.tests {
             self.test(pattern, test, node, &context)?;
         }
@@ -740,7 +806,7 @@ impl<'a, T: Navigate> Run<'a, T> {
     fn internal(&mut self, message: &str, one_pass: bool) -> Result<(), Abort> {
         self.errors += 1;
         let diagnostic = Diagnostic::new(Code::Internal, message.to_owned());
-        self.output.push(Output::Error(diagnostic));
+        self.emit(Output::Error(diagnostic))?;
         if one_pass { Err(Abort) } else { Ok(()) }
     }
 
@@ -766,9 +832,10 @@ impl<'a, T: Navigate> Run<'a, T> {
         let path = crate::xpath::tree::path(self.tree, node).unwrap_or_default();
         let kind = if test.report { "report" } else { "assert" };
         let text = self.format(&test.message, node, context)?;
-        let text = text.unwrap_or_else(|| format!("node failed {kind}"));
+        // What the message cuts off is never copied.
+        let text = truncate(text.unwrap_or_else(|| format!("node failed {kind}")));
         let message = truncate(format!("{path} line {line}: {text}\n"));
-        self.output.push(match flags & OUT_ERROR {
+        self.emit(match flags & OUT_ERROR {
             0 => Output::Text(message),
             _ => Output::Error(Diagnostic {
                 code: if test.report {
@@ -782,8 +849,7 @@ impl<'a, T: Navigate> Run<'a, T> {
                 pattern: Some(pattern.name.clone()),
                 message,
             }),
-        });
-        Ok(())
+        })
     }
 
     /// `xmlSchematronFormatReport`: `None` until something is appended.
@@ -795,8 +861,10 @@ impl<'a, T: Navigate> Run<'a, T> {
     ) -> Result<Option<String>, Abort> {
         let tree = self.tree;
         let mut out: Option<String> = None;
-        let push =
-            |out: &mut Option<String>, text: &str| out.get_or_insert_default().push_str(text);
+        let mut refused = false;
+        let mut push = |out: &mut Option<String>, text: &str| {
+            refused |= out.get_or_insert_default().try_push(text).is_err();
+        };
         for part in parts {
             match part {
                 Part::Text(text) => push(&mut out, text),
@@ -810,7 +878,7 @@ impl<'a, T: Navigate> Run<'a, T> {
                         }
                         Some((path, Err(error))) => {
                             let diagnostic = xpath_error(*error, path, true);
-                            self.output.push(Output::Error(diagnostic));
+                            self.emit(Output::Error(diagnostic))?;
                         }
                         None => {}
                     }
@@ -827,7 +895,7 @@ impl<'a, T: Navigate> Run<'a, T> {
                     name.into_iter().for_each(|name| push(&mut out, name));
                 }
                 Part::ValueOf(xpath) => match self.eval(xpath, node, context)? {
-                    None => return Ok(out),
+                    None => break,
                     Some(Value::NodeSet(nodes)) => {
                         for (index, &member) in nodes.iter().enumerate() {
                             if index > 0 {
@@ -854,7 +922,10 @@ impl<'a, T: Navigate> Run<'a, T> {
                 }
             }
         }
-        Ok(out)
+        match refused {
+            true => Err(refuse(&mut self.output)),
+            false => Ok(out),
+        }
     }
 }
 

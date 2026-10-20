@@ -76,6 +76,7 @@ mod dtd_tag;
 mod encoding;
 mod error;
 mod escape;
+mod fallible;
 pub mod features;
 pub mod html;
 mod name;

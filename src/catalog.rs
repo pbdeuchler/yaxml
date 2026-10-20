@@ -31,9 +31,10 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, TryReserveError};
 use std::{fmt, io};
 
+use crate::fallible::TryPush;
 use crate::save::{ATTRIBUTE, escape_into};
 use crate::uri::{canonic_path, resolve as build};
 use crate::xpath::tree::XML_NAMESPACE;
@@ -95,6 +96,8 @@ pub enum Error {
     /// [`Catalog::add`] refused the entry: an unknown type, an SGML entry
     /// without a name or whose name is taken.
     Rejected,
+    /// An allocation the catalog sized failed.
+    Allocation,
 }
 
 impl fmt::Display for Error {
@@ -105,7 +108,14 @@ impl fmt::Display for Error {
             Self::LimitExceeded => f.write_str("catalog load limit exceeded"),
             Self::Malformed => f.write_str("malformed catalog"),
             Self::Rejected => f.write_str("catalog entry rejected"),
+            Self::Allocation => f.write_str("catalog allocation failed"),
         }
+    }
+}
+
+impl From<TryReserveError> for Error {
+    fn from(_: TryReserveError) -> Self {
+        Self::Allocation
     }
 }
 
@@ -261,6 +271,8 @@ struct Fetcher {
     limits: Limits,
     loads: usize,
     bytes: usize,
+    /// An SGML catalog's entries outgrew what the allocator gave.
+    refused: bool,
 }
 
 impl Fetcher {
@@ -270,6 +282,7 @@ impl Fetcher {
             limits,
             loads: 0,
             bytes: 0,
+            refused: false,
         }
     }
 
@@ -346,12 +359,18 @@ impl Catalog {
         let body = match first {
             Some(b'<') => Body::Xml {
                 root: url.to_owned(),
-                files: vec![parse_xml(input, url, true).ok_or(Error::Malformed)?],
+                files: vec![parse_xml(input, url, true)?],
                 cache: HashMap::from([(url.to_owned(), 0)]),
             },
             _ => {
                 let mut map = HashMap::new();
-                parse_sgml(&mut map, &mut fetch, input, url, 0).ok_or(Error::Malformed)?;
+                let parsed = parse_sgml(&mut map, &mut fetch, input, url, 0);
+                // A refusal in a nested catalog fails the whole.
+                match (fetch.refused, parsed) {
+                    (true, _) => return Err(Error::Allocation),
+                    (false, None) => return Err(Error::Malformed),
+                    (false, Some(())) => {}
+                }
                 Body::Sgml(map)
             }
         };
@@ -763,7 +782,7 @@ impl<'a> Query<'a> {
         }
         let (url, prefer_public) = (entry.url.clone(), entry.prefer_public);
         let child = self.cache.get(&url).copied().or_else(|| {
-            let entries = parse_xml(&self.fetch.get(&url).ok()?, &url, prefer_public)?;
+            let entries = parse_xml(&self.fetch.get(&url).ok()?, &url, prefer_public).ok()?;
             self.files.push(entries);
             self.cache.insert(url, self.files.len() - 1);
             Some(self.files.len() - 1)
@@ -850,9 +869,14 @@ fn prefer(node: OwnedNode<'_>, inherited: bool) -> bool {
 }
 
 /// `xmlParseXMLCatalogFile`: the entries of an XML catalog, `group`
-/// members flattened in document order. `None` if malformed.
-fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>> {
-    let document = OwnedDocument::parse_legacy(input, crate::Limits::default()).ok()?;
+/// members flattened in document order.
+fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Result<Vec<Entry>, Error> {
+    let document = OwnedDocument::parse_legacy(input, crate::Limits::default()).map_err(
+        |error| match error.kind {
+            crate::ErrorKind::Allocation => Error::Allocation,
+            _ => Error::Malformed,
+        },
+    )?;
     let local = |node: OwnedNode<'_>| {
         (node.name())
             .filter(|name| name.namespace() == Some(NAMESPACE))
@@ -860,7 +884,7 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
     };
     let root = document.root_element();
     if local(root).as_deref() != Some("catalog") {
-        return None;
+        return Err(Error::Malformed);
     }
     let document_url = canonic_path(url);
     // Elements whose children are entries (the root and nested groups):
@@ -874,6 +898,7 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
         };
         if element == "group" {
             let (id, now) = (scopes.len(), prefer(node, prefer_public));
+            scopes.try_reserve(1)?;
             scopes.insert(node.id(), (id, now));
             let base = (node.attributes())
                 .find(|attribute| {
@@ -881,7 +906,7 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
                         && attribute.name.namespace() == Some(XML_NAMESPACE)
                 })
                 .map(|attribute| attribute.value.into_owned());
-            entries.push(Entry {
+            entries.try_push(Entry {
                 kind: Kind::Group {
                     id,
                     prefer: property(node, "prefer").map(|_| now),
@@ -892,7 +917,7 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
                 prefer_public,
                 group,
                 file: None,
-            });
+            })?;
             continue;
         }
         let Some(&(_, kind, name, target)) = ENTRIES.iter().find(|entry| entry.0 == element) else {
@@ -923,7 +948,7 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
                 && other.group == group
         };
         if kind != Kind::NextCatalog || !entries.iter().any(repeated) {
-            entries.push(Entry {
+            entries.try_push(Entry {
                 kind,
                 name,
                 value: Some(target),
@@ -931,10 +956,10 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
                 prefer_public,
                 group,
                 file: None,
-            });
+            })?;
         }
     }
-    Some(entries)
+    Ok(entries)
 }
 
 /// The name an entry of `kind` stores for `name`: public identifiers are
@@ -982,7 +1007,7 @@ fn dump_group(entries: &[Entry], group: usize, depth: usize) -> String {
         out.push_str(&format!("{indent}<{element}"));
         for (attribute, value) in attributes.into_iter().filter_map(|(a, v)| Some((a, v?))) {
             out.push_str(&format!(" {attribute}=\""));
-            escape_into(&mut out, value, &ATTRIBUTE, true);
+            escape_into(value, &ATTRIBUTE, true, |piece| out.push_str(piece));
             out.push('"');
         }
         match members.is_empty() {
@@ -1136,6 +1161,10 @@ fn parse_sgml(
                 // libxml2 parses DELEGATE but keeps no entry for it.
                 let keep = keyword != b"DELEGATE" && !(kind == Sgml::Public && name.is_empty());
                 if let Some(url) = url.filter(|_| keep) {
+                    if map.try_reserve(1).is_err() {
+                        fetch.refused = true;
+                        return None;
+                    }
                     let value = Some(url);
                     map.entry(name.clone())
                         .or_insert(Named { kind, name, value });
@@ -1158,6 +1187,10 @@ fn parse_sgml(
                         name: literal,
                         value: None,
                     };
+                    if map.try_reserve(1).is_err() {
+                        fetch.refused = true;
+                        return None;
+                    }
                     map.insert(url.clone(), named);
                     // Nested failures are ignored, as by xmlExpandCatalog.
                     if let Ok(nested) = fetch.get(&url) {

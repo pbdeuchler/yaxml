@@ -54,11 +54,14 @@ use components::{
 
 /// A schema or validity diagnostic code; the discriminant is libxml2's
 /// `xmlParserErrors` value (`XML_SCHEMAP_*` 1700..=3091, `XML_SCHEMAV_*`
-/// 1801..=1879).
+/// 1801..=1879, `XML_ERR_NO_MEMORY` 2).
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(u16)]
 #[non_exhaustive]
 pub enum Code {
+    /// An allocation the schema or document sized failed; building or
+    /// validation stopped.
+    Allocation = 2,
     /// `XML_SCHEMAP_ATTRFORMDEFAULT_VALUE`.
     AttrFormDefaultValue = 1701,
     /// `XML_SCHEMAP_ELEMFORMDEFAULT_VALUE`.
