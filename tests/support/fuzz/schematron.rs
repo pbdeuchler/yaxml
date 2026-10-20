@@ -145,7 +145,9 @@ pub fn exercise(input: &[u8]) {
                 "reuse changed the result"
             );
             assert_eq!(validation.is_valid(), validation.errors == Some(0));
+            let lines = yaxml::LineIndex::new(instance);
             for diagnostic in errors(&validation) {
+                super::check_described(diagnostic.describe(), &lines);
                 assert!(diagnostic.node.is_some() || diagnostic.line == 0);
                 assert!(diagnostic.code.number() > 0);
             }

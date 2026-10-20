@@ -168,30 +168,53 @@ fn render(event: &Event<'_>) -> String {
 /// Push, buffered and text readers, and the owned DOM, decode alike.
 fn decoding_surfaces_agree(document: &[u8], flags: u32) {
     let stream = flags & !DTDVALID;
-    let mut push = PushParser::with_options(ParseOptions::new(stream)).unwrap();
-    let mut pushed = Vec::new();
-    let push_ok = push
-        .feed(document, |event, _| {
-            pushed.push(render(event));
-            ControlFlow::Continue(())
-        })
-        .and_then(|()| {
-            push.finish(|event, _| {
+    let push_all = |push: &mut PushParser| {
+        let mut pushed = Vec::new();
+        let ok = push
+            .feed(document, |event, _| {
                 pushed.push(render(event));
                 ControlFlow::Continue(())
             })
-        })
-        .is_ok();
-    let reader = BufReader::with_capacity(7, document);
-    let mut buffered = BufferedReader::with_options(reader, ParseOptions::new(stream)).unwrap();
-    let mut pulled = Vec::new();
-    let pull_ok = loop {
-        match buffered.read_event() {
-            Ok(Some((event, _))) => pulled.push(render(&event)),
-            Ok(None) => break true,
-            Err(_) => break false,
-        }
+            .and_then(|()| {
+                push.finish(|event, _| {
+                    pushed.push(render(event));
+                    ControlFlow::Continue(())
+                })
+            })
+            .is_ok();
+        (ok, pushed)
     };
+    // A reset session parses as a fresh one, with new or kept options.
+    let mut push = PushParser::with_options(ParseOptions::new(stream)).unwrap();
+    let (push_ok, pushed) = push_all(&mut push);
+    push.reset_with(ParseOptions::new(stream)).unwrap();
+    assert_eq!(push_all(&mut push), (push_ok, pushed.clone()), "reset_with");
+    push.reset();
+    assert_eq!(push_all(&mut push), (push_ok, pushed.clone()), "reset");
+    let pull_all = |buffered: &mut BufferedReader<BufReader<&[u8]>>| {
+        let mut pulled = Vec::new();
+        let ok = loop {
+            match buffered.read_event() {
+                Ok(Some((event, _))) => pulled.push(render(&event)),
+                Ok(None) => break true,
+                Err(_) => break false,
+            }
+        };
+        (ok, pulled)
+    };
+    let reader = || BufReader::with_capacity(7, document);
+    let mut buffered = BufferedReader::with_options(reader(), ParseOptions::new(stream)).unwrap();
+    let (pull_ok, pulled) = pull_all(&mut buffered);
+    buffered
+        .reset_with(reader(), ParseOptions::new(stream))
+        .unwrap();
+    assert_eq!(
+        pull_all(&mut buffered),
+        (pull_ok, pulled.clone()),
+        "reset_with"
+    );
+    buffered.reset(reader());
+    assert_eq!(pull_all(&mut buffered), (pull_ok, pulled.clone()), "reset");
     assert_eq!(
         push_ok, pull_ok,
         "push/buffered acceptance under {flags:#x}"
@@ -218,16 +241,21 @@ fn decoding_surfaces_agree(document: &[u8], flags: u32) {
         check_blanks(document, flags & !DTDVALID, &pushed);
     }
     // The text reader also drops blanks, which never changes acceptance.
+    let read_all = |text: &mut TextReader<&[u8]>| loop {
+        match text.read() {
+            Ok(true) => {}
+            Ok(false) => break true,
+            Err(_) => break false,
+        }
+    };
     for flags in [stream, stream | NOBLANKS] {
         let mut text = TextReader::with_options(document, ParseOptions::new(flags)).unwrap();
-        let text_ok = loop {
-            match text.read() {
-                Ok(true) => {}
-                Ok(false) => break true,
-                Err(_) => break false,
-            }
-        };
+        let text_ok = read_all(&mut text);
         assert_eq!(push_ok, text_ok, "TextReader acceptance under {flags:#x}");
+        text.reset_with(document, ParseOptions::new(flags)).unwrap();
+        assert_eq!(read_all(&mut text), text_ok, "TextReader reset_with");
+        text.reset(document);
+        assert_eq!(read_all(&mut text), text_ok, "TextReader reset");
     }
     let owned = OwnedDocument::parse_with(document, ParseOptions::new(flags));
     assert_eq!(push_ok, owned.is_ok(), "owned acceptance under {flags:#x}");

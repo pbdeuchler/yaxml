@@ -47,7 +47,7 @@ fn options(seed: u64) -> Options {
             limits.max_input_bytes = (seed >> 29 & 255) as usize;
         }
     }
-    Options::DEFAULT.flags(flags).limits(limits)
+    Options::default().flags(flags).limits(limits)
 }
 
 fn allowed(error: Error) {

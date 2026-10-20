@@ -6,9 +6,9 @@ use std::io::{BufReader, Cursor};
 use std::ops::ControlFlow;
 
 use yaxml::{
-    BufferedReader, Doctype, Document, Error, ErrorKind, Event, Limit, Limits, NodeKind,
-    OwnedDocument, OwnedNode, OwnedNodeKind, ParseOptions, PushParser, ReadError, Reader, Writer,
-    options,
+    BufferedReader, DecodeLimits, Doctype, Document, Error, ErrorKind, Event, Limit, Limits,
+    NodeKind, OwnedDocument, OwnedNode, OwnedNodeKind, ParseOptions, PushParser, ReadError, Reader,
+    Writer, options,
 };
 
 /// A compact, coalesced rendering shared by every surface.
@@ -910,6 +910,47 @@ fn declaration_token_and_default_ceilings_fail_identically() {
     };
     assert_eq!(reader(input, owned), error(56));
     assert_eq!(push(input, &[], owned), error(45));
+}
+
+#[test]
+fn reference_token_ceiling_is_inclusive_for_any_chunking() {
+    // A reference read in place and one collected across chunks are the same
+    // token: `&name;` fits a ceiling of exactly its length.
+    let nested = "<!DOCTYPE doc [<!ENTITY YN '\"Yes\"' ><!ENTITY WhatHeSaid \"He said &YN;\" >]>\
+        <doc>&WhatHeSaid;</doc>";
+    for (input, boundary, offset) in [
+        (
+            "<!DOCTYPE r [<!ENTITY reference 'x'>]><r>&reference;</r>",
+            11,
+            41,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY reference 'x'>]><r>text&reference;</r>",
+            11,
+            45,
+        ),
+        (nested, 12, 79),
+    ] {
+        for ceiling in [boundary - 1, boundary] {
+            let decoded = DecodeLimits::DEFAULT.max_decoded_token_bytes(ceiling);
+            let expected = (ceiling < boundary).then_some(Error {
+                kind: ErrorKind::LimitExceeded(Limit::DecodedTokenBytes),
+                offset,
+            });
+            for size in [input.len(), 7, 3, 1] {
+                let mut parser = PushParser::with_decode_limits(Limits::default(), decoded);
+                let result = input
+                    .as_bytes()
+                    .chunks(size)
+                    .try_for_each(|chunk| parser.feed(chunk, |_, _| ControlFlow::Continue(())))
+                    .and_then(|()| parser.finish(|_, _| ControlFlow::Continue(())));
+                assert_eq!(result.err(), expected, "{input} {ceiling} {size}");
+            }
+            let owned =
+                OwnedDocument::with_decode_limits(input.as_bytes(), Limits::default(), decoded);
+            assert_eq!(owned.err(), expected, "{input} {ceiling}");
+        }
+    }
 }
 
 #[test]

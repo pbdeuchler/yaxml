@@ -81,6 +81,7 @@ pub(super) fn exercise(input: &[u8], limits: Limits, borrowed: Result<&Document<
 
 fn check_document(owned: &OwnedDocument, borrowed: &Document<'_>) {
     assert_eq!(owned.declaration(), borrowed.declaration().copied());
+    assert_eq!(owned.url(), borrowed.url());
     check_nodes(owned, borrowed, |range| range);
 }
 
@@ -196,6 +197,13 @@ pub(super) fn check_nodes(
                 .map(|n| n.id())
                 .eq(expected.descendants().map(|n| handles[&n.id()]))
         );
+        check_accessors(actual, expected, &handles);
+        let (document, slot) = actual.id().parts();
+        assert_eq!(
+            yaxml::OwnedNodeId::from_parts(document, slot),
+            Some(actual.id())
+        );
+        assert_eq!(yaxml::OwnedNodeId::from_parts(0, slot), None);
         let resolved = owned.node(actual.id()).unwrap();
         assert_eq!(resolved.id(), actual.id());
         assert_eq!(resolved.kind(), actual.kind());
@@ -230,6 +238,69 @@ pub(super) fn check_nodes(
         assert!(small.node(last.id()).is_none());
         assert!(small.node(owned.root().id()).is_none());
         assert!(owned.node(small.root().id()).is_none());
+    }
+}
+
+/// libxml2's tree accessors (`xmlGetProp`, `xmlNodeGetContent`, ...) agree
+/// across both DOMs; an attribute is found by its expanded name.
+fn check_accessors(
+    actual: yaxml::OwnedNode<'_>,
+    expected: yaxml::Node<'_, '_>,
+    handles: &std::collections::HashMap<yaxml::NodeId, yaxml::OwnedNodeId>,
+) {
+    assert_eq!(
+        actual.previous_sibling().map(|n| n.id()),
+        expected.previous_sibling().map(|n| handles[&n.id()])
+    );
+    assert_eq!(actual.content(), expected.content());
+    for substitute in [false, true] {
+        assert_eq!(
+            actual.list_string(substitute),
+            expected.list_string(substitute)
+        );
+    }
+    assert_eq!(actual.path(), expected.path());
+    assert_eq!(actual.base_uri(), expected.base_uri());
+    assert_eq!(actual.lang(), expected.lang());
+    assert_eq!(actual.space_preserve(), expected.space_preserve());
+    let bindings = expected.namespaces();
+    assert_eq!(actual.namespaces(), bindings);
+    let unbound = yaxml::NamespaceBinding {
+        prefix: Some("q"),
+        uri: "u",
+    };
+    for binding in bindings.iter().chain([&unbound]) {
+        assert_eq!(
+            actual.search_ns(binding.prefix),
+            expected.search_ns(binding.prefix)
+        );
+        assert_eq!(
+            actual.search_ns_by_href(binding.uri),
+            expected.search_ns_by_href(binding.uri)
+        );
+    }
+    // libxml2's attribute name: a name in no namespace is its QName (one a
+    // namespace error left prefixed included), and a lookup finds the first
+    // match, which kept duplicate expanded names make ambiguous.
+    fn key<'n>(name: &'n yaxml::Name<'_>) -> &'n str {
+        match name.namespace() {
+            Some(_) => name.local(),
+            None => name.qualified(),
+        }
+    }
+    for attribute in expected.attributes() {
+        let name = &attribute.name;
+        let (local, namespace) = (key(name), name.namespace());
+        assert_eq!(actual.attribute(local), expected.attribute(local));
+        if name.qualified() != "xmlns" && name.prefix() != Some("xmlns") {
+            let first = expected
+                .attributes()
+                .iter()
+                .find(|other| key(&other.name) == local && other.name.namespace() == namespace)
+                .map(|other| &*other.value);
+            assert_eq!(expected.attribute_ns(local, namespace), first);
+            assert_eq!(actual.attribute_ns(local, namespace), first);
+        }
     }
 }
 

@@ -28,6 +28,13 @@ pub fn span(origin: yaxml::SourceOrigin) -> Range<usize> {
         .unwrap_or_else(|| origin.physical_context())
 }
 
+#[allow(
+    dead_code,
+    reason = "used by the allocfail target and fuzz smoke tests only"
+)]
+#[path = "allocfail.rs"]
+mod allocfail;
+
 #[path = "writer.rs"]
 mod writer;
 
@@ -569,6 +576,24 @@ pub fn exercise_valid(input: &[u8]) {
     valid::exercise(input);
 }
 
+/// One parse surface for allocation-failure injection; see `allocfail.rs`.
+#[allow(
+    dead_code,
+    reason = "used by the allocfail target and fuzz smoke tests only"
+)]
+pub fn allocfail_run(input: &[u8]) -> allocfail::Run {
+    allocfail::run(input)
+}
+
+/// What an armed allocation-failure run may return, given the unarmed one.
+#[allow(
+    dead_code,
+    reason = "used by the allocfail target and fuzz smoke tests only"
+)]
+pub fn allocfail_check(baseline: &allocfail::Run, armed: &allocfail::Run) {
+    allocfail::check(baseline, armed);
+}
+
 /// Exercise the libxml2-style node cursor; see `textreader.rs` for the testcase format.
 pub fn exercise_textreader(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
@@ -939,6 +964,27 @@ pub fn check_diagnostics(input: &[u8], errors: &[Error]) {
     let lines = yaxml::LineIndex::new(input);
     let last = lines.line(input.len());
     let (described, work, ceiling) = lines.describe_counted(errors);
+    // Failures the input does not explain get the context-free wording.
+    for (kind, message) in [
+        (ErrorKind::Allocation, "Memory allocation failed"),
+        (ErrorKind::InvalidState, "internal error"),
+        (ErrorKind::IdentifierExhausted, "IdentifierExhausted"),
+    ] {
+        let error = Error {
+            kind,
+            offset: input.len(),
+        };
+        let described = error.describe(&lines);
+        assert_eq!(described.message, message);
+        assert_eq!(described.code, kind.libxml2_code().1);
+    }
+    let owned = yaxml::LineIndex::owned(input.to_vec());
+    assert_eq!(owned.input(), input);
+    assert_eq!(owned.describe_all(errors), described);
+    if let (Some(error), Some(first)) = (errors.first(), described.first()) {
+        assert_eq!(&error.describe(&lines), first);
+        assert!(lines.column(error.offset) >= 1);
+    }
     // The re-reader's work, entity expansion included, stays linear in the
     // input (whose UTF-8 transcoding is at most three times as long).
     assert!(
@@ -965,6 +1011,16 @@ pub fn check_diagnostics(input: &[u8], errors: &[Error]) {
             "{report}"
         );
     }
+}
+
+/// A validator's diagnostic as libxml2 reports it: worded, on a line of the
+/// validated input (0: none recorded).
+pub fn check_described(diagnostic: yaxml::Diagnostic, lines: &yaxml::LineIndex<'_>) {
+    assert!(!diagnostic.message.is_empty(), "{diagnostic:?}");
+    assert!(
+        diagnostic.line <= lines.line(lines.input().len()),
+        "{diagnostic:?}"
+    );
 }
 
 // Formatting is also a fallible output boundary. Exercise actual errors with
