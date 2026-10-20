@@ -7,7 +7,7 @@ use std::path::Path;
 use yaxml::options::{DTDLOAD, LEGACY};
 use yaxml::{
     BufferedReader, Document, Error, FileResolver, Limits, OwnedDocument, ParseOptions, PushParser,
-    ReadError, Reader,
+    ReadError, Reader, Transcoded,
 };
 
 pub const SURFACES: [&str; 5] = ["reader", "document", "owned", "push", "buffered"];
@@ -49,16 +49,23 @@ pub fn observe(
     // keeps (libxml2's `xmlNsErr`) rejects the case.
     let kept = |errors: &[Error]| errors.first().map_or(Ok(()), |&error| Err(error));
     match surface {
+        // The borrowing surfaces read UTF-16 and declared charsets transcoded.
         "reader" => {
             let options = options()?;
             let result = (|| {
-                let mut reader = Reader::with_options(input, options)?;
+                let input = Transcoded::new(input, &options)?;
+                let mut reader = Reader::transcoded(&input, options)?;
                 while reader.read_event()?.is_some() {}
                 kept(reader.errors())
             })();
             Ok(result)
         }
-        "document" => Ok(Document::parse_with(input, options()?).and_then(|d| kept(d.errors()))),
+        "document" => {
+            let options = options()?;
+            Ok(Transcoded::new(input, &options).and_then(|input| {
+                Document::parse_transcoded(&input, options).and_then(|d| kept(d.errors()))
+            }))
+        }
         "owned" => Ok(OwnedDocument::parse_with(input, options()?).and_then(|d| kept(d.errors()))),
         "push" => {
             const CHUNKS: [usize; 3] = [1, 7, 4096];
@@ -144,19 +151,9 @@ mod tests {
     }
 
     #[test]
-    fn owning_and_streaming_surfaces_decode_utf16() {
+    fn every_surface_decodes_utf16() {
         let input = utf16_le("<?xml version='1.0' encoding='UTF-16'?><r/>");
-        for surface in ["reader", "document"] {
-            assert_eq!(
-                inner(surface, &input),
-                Err(Error {
-                    kind: ErrorKind::UnsupportedEncoding,
-                    offset: 0,
-                }),
-                "{surface}"
-            );
-        }
-        for surface in ["owned", "push", "buffered"] {
+        for surface in SURFACES {
             assert_eq!(inner(surface, &input), Ok(()), "{surface}");
         }
     }
