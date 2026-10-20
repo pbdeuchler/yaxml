@@ -218,53 +218,53 @@ catalog.h	xmlLoadCatalogs	function	not_marked	P2	not-started	https://github.com/
 catalog.h	xmlLoadSGMLSuperCatalog	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog editing/dumping and the catalog PI not started (docs/catalog.md)
 catalog.h	xmlNewCatalog	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse
 catalog.h	xmlParseCatalogFile	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse
-chvalid.h	_xmlChLRange	struct	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	_xmlChLRange.high	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	_xmlChLRange.low	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	_xmlChRangeGroup	struct	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	_xmlChRangeGroup.longRange	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	_xmlChRangeGroup.nbLongRange	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	_xmlChRangeGroup.nbShortRange	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	_xmlChRangeGroup.shortRange	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	_xmlChSRange	struct	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	_xmlChSRange.high	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	_xmlChSRange.low	field	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private
-chvalid.h	xmlChLRange	typedef	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlChLRangePtr	typedef	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlChRangeGroup	typedef	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlChRangeGroupPtr	typedef	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlChSRange	typedef	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlChSRangePtr	typedef	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlCharInRange	function	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsBaseChar	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsBaseCharGroup	variable	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsBaseCharQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsBaseChar_ch	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsBlank	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsBlankQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsBlank_ch	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsChar	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsCharGroup	variable	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsCharQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsChar_ch	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsCombining	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsCombiningGroup	variable	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsCombiningQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsDigit	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsDigitGroup	variable	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsDigitQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsDigit_ch	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsExtender	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsExtenderGroup	variable	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsExtenderQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsExtender_ch	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsIdeographic	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsIdeographicGroup	variable	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsIdeographicQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsPubidChar	function	yes	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsPubidCharQ	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsPubidChar_ch	macro	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
-chvalid.h	xmlIsPubidChar_tab	variable	not_marked	P0	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	character classes are private (roadmap 22)
+chvalid.h	_xmlChLRange	struct	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChLRange.high	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChLRange.low	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChRangeGroup	struct	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChRangeGroup.longRange	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChRangeGroup.nbLongRange	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChRangeGroup.nbShortRange	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChRangeGroup.shortRange	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChSRange	struct	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChSRange.high	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	_xmlChSRange.low	field	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlChLRange	typedef	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlChLRangePtr	typedef	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlChRangeGroup	typedef	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlChRangeGroupPtr	typedef	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlChSRange	typedef	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlChSRangePtr	typedef	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlCharInRange	function	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlIsBaseChar	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_base_char
+chvalid.h	xmlIsBaseCharGroup	variable	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlIsBaseCharQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_base_char
+chvalid.h	xmlIsBaseChar_ch	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_base_char
+chvalid.h	xmlIsBlank	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_blank
+chvalid.h	xmlIsBlankQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_blank
+chvalid.h	xmlIsBlank_ch	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_blank
+chvalid.h	xmlIsChar	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_char
+chvalid.h	xmlIsCharGroup	variable	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlIsCharQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_char
+chvalid.h	xmlIsChar_ch	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_char
+chvalid.h	xmlIsCombining	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_combining
+chvalid.h	xmlIsCombiningGroup	variable	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlIsCombiningQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_combining
+chvalid.h	xmlIsDigit	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_digit
+chvalid.h	xmlIsDigitGroup	variable	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlIsDigitQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_digit
+chvalid.h	xmlIsDigit_ch	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_digit
+chvalid.h	xmlIsExtender	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_extender
+chvalid.h	xmlIsExtenderGroup	variable	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlIsExtenderQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_extender
+chvalid.h	xmlIsExtender_ch	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_extender
+chvalid.h	xmlIsIdeographic	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_ideographic
+chvalid.h	xmlIsIdeographicGroup	variable	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
+chvalid.h	xmlIsIdeographicQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_ideographic
+chvalid.h	xmlIsPubidChar	function	yes	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_pubid_char
+chvalid.h	xmlIsPubidCharQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_pubid_char
+chvalid.h	xmlIsPubidChar_ch	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_pubid_char
+chvalid.h	xmlIsPubidChar_tab	variable	not_marked	P0	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_pubid_char - a predicate, no table
 debugXML.h	xmlDebugCheckDocument	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
 debugXML.h	xmlDebugDumpAttr	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
 debugXML.h	xmlDebugDumpAttrList	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
@@ -379,53 +379,53 @@ encoding.h	xmlOpenCharEncodingHandler	function	not_marked	P1	not-started	https:/
 encoding.h	xmlParseCharEncoding	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
 encoding.h	xmlRegisterCharEncodingHandler	function	yes	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
 encoding.h	xmlUTF8ToIsolat1	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-entities.h	XML_EXTERNAL_GENERAL_PARSED_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	XML_EXTERNAL_GENERAL_UNPARSED_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	XML_EXTERNAL_PARAMETER_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	XML_INTERNAL_GENERAL_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	XML_INTERNAL_PARAMETER_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	XML_INTERNAL_PREDEFINED_ENTITY	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
+entities.h	XML_EXTERNAL_GENERAL_PARSED_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::ExternalParsedGeneral
+entities.h	XML_EXTERNAL_GENERAL_UNPARSED_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::ExternalUnparsedGeneral
+entities.h	XML_EXTERNAL_PARAMETER_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::ExternalParameter
+entities.h	XML_INTERNAL_GENERAL_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::InternalGeneral
+entities.h	XML_INTERNAL_PARAMETER_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::InternalParameter
+entities.h	XML_INTERNAL_PREDEFINED_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::Predefined
 entities.h	XML_TREE_INTERNALS	macro	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	internal parser state or flag
-entities.h	_xmlEntity	struct	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public DTD declaration model
-entities.h	_xmlEntity.ExternalID	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.SystemID	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.URI	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity._private	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.children	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.content	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.doc	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.etype	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.expandedSize	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.flags	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.last	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.length	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.name	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.next	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.nexte	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.orig	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.owner	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.parent	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.prev	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	_xmlEntity.type	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity model
-entities.h	xmlAddDocEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlAddDtdEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlAddEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
+entities.h	_xmlEntity	struct	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Entity - a borrowed view
+entities.h	_xmlEntity.ExternalID	field	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Entity::public_id
+entities.h	_xmlEntity.SystemID	field	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Entity::system_id
+entities.h	_xmlEntity.URI	field	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Entity::uri - resolved only when a resolver supplies the base
+entities.h	_xmlEntity._private	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.children	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.content	field	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Entity::content - also the text of loaded external entities, which libxml2 leaves unset
+entities.h	_xmlEntity.doc	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.etype	field	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Entity::kind
+entities.h	_xmlEntity.expandedSize	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.flags	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.last	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.length	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	str::len of valid::Entity::content
+entities.h	_xmlEntity.name	field	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Entity::name
+entities.h	_xmlEntity.next	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.nexte	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.orig	field	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	the literal as written is not kept
+entities.h	_xmlEntity.owner	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.parent	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.prev	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	_xmlEntity.type	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
+entities.h	xmlAddDocEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
+entities.h	xmlAddDtdEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
+entities.h	xmlAddEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
 entities.h	xmlCopyEntitiesTable	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
 entities.h	xmlCreateEntitiesTable	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
 entities.h	xmlDumpEntitiesTable	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
 entities.h	xmlDumpEntityDecl	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
-entities.h	xmlEncodeEntitiesReentrant	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlEncodeSpecialChars	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlEntitiesTable	typedef	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
+entities.h	xmlEncodeEntitiesReentrant	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	save::encode_entities
+entities.h	xmlEncodeSpecialChars	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	save::encode_special_chars
+entities.h	xmlEntitiesTable	typedef	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Dtd::entities - an iterator, no table type
 entities.h	xmlEntitiesTablePtr	typedef	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	raw pointer alias
-entities.h	xmlEntityType	enum	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
+entities.h	xmlEntityType	enum	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind
 entities.h	xmlFreeEntitiesTable	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
-entities.h	xmlFreeEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlGetDocEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlGetDtdEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlGetParameterEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlGetPredefinedEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
-entities.h	xmlNewEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no public entity lookup or declaration model (docs/compatibility.md entity row)
+entities.h	xmlFreeEntity	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	Drop
+entities.h	xmlGetDocEntity	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Dtd::entity
+entities.h	xmlGetDtdEntity	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Dtd::entities, valid::Entity::external_subset - filter; a name both subsets declare keeps only its internal declaration
+entities.h	xmlGetParameterEntity	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Dtd::parameter_entity
+entities.h	xmlGetPredefinedEntity	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::predefined_entity
+entities.h	xmlNewEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
 hash.h	XML_CAST_FPTR	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/hash.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 hash.h	xmlHashAdd	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/hash.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 hash.h	xmlHashAdd2	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/hash.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
@@ -1008,25 +1008,25 @@ parser.h	xmlThrDefLoadExtDtdDefaultValue	function	yes	P0-P3	not-applicable	https
 parser.h	xmlThrDefPedanticParserDefaultValue	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlThrDefSubstituteEntitiesDefaultValue	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlTreeIndentString	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
-parserInternals.h	IS_ASCII_DIGIT	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_ASCII_LETTER	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_BASECHAR	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_BLANK	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_BLANK_CH	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_BYTE_CHAR	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_CHAR	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_CHAR_CH	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_COMBINING	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_COMBINING_CH	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_DIGIT	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_DIGIT_CH	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_EXTENDER	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_EXTENDER_CH	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_IDEOGRAPHIC	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_LETTER	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_LETTER_CH	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_PUBIDCHAR	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
-parserInternals.h	IS_PUBIDCHAR_CH	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
+parserInternals.h	IS_ASCII_DIGIT	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	u8::is_ascii_digit and u8::is_ascii_alphabetic
+parserInternals.h	IS_ASCII_LETTER	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	u8::is_ascii_digit and u8::is_ascii_alphabetic
+parserInternals.h	IS_BASECHAR	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_base_char
+parserInternals.h	IS_BLANK	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_blank
+parserInternals.h	IS_BLANK_CH	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_blank
+parserInternals.h	IS_BYTE_CHAR	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_char
+parserInternals.h	IS_CHAR	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_char
+parserInternals.h	IS_CHAR_CH	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_char
+parserInternals.h	IS_COMBINING	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_combining
+parserInternals.h	IS_COMBINING_CH	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_combining
+parserInternals.h	IS_DIGIT	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_digit
+parserInternals.h	IS_DIGIT_CH	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_digit
+parserInternals.h	IS_EXTENDER	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_extender
+parserInternals.h	IS_EXTENDER_CH	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_extender
+parserInternals.h	IS_IDEOGRAPHIC	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_ideographic
+parserInternals.h	IS_LETTER	macro	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_base_char, chars::is_ideographic - Letter is their union
+parserInternals.h	IS_LETTER_CH	macro	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_base_char, chars::is_ideographic - Letter is their union
+parserInternals.h	IS_PUBIDCHAR	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_pubid_char
+parserInternals.h	IS_PUBIDCHAR_CH	macro	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_pubid_char
 parserInternals.h	XML_MAX_DICTIONARY_LIMIT	macro	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	Limits
 parserInternals.h	XML_MAX_HUGE_LENGTH	macro	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	Limits::max_token_bytes
 parserInternals.h	XML_MAX_LOOKUP_LIMIT	macro	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	Limits
@@ -1051,7 +1051,7 @@ parserInternals.h	xmlCtxtPopInput	function	not_marked	P3	not-applicable	https://
 parserInternals.h	xmlCtxtPushInput	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	internal parser plumbing
 parserInternals.h	xmlCurrentChar	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	deprecated in 2.15.4
 parserInternals.h	xmlFreeInputStream	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	Drop
-parserInternals.h	xmlIsLetter	function	yes	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	character classes are private (roadmap 22)
+parserInternals.h	xmlIsLetter	function	yes	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	chars::is_base_char, chars::is_ideographic - Letter is their union
 parserInternals.h	xmlNewEntityInputStream	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	deprecated in 2.15.4
 parserInternals.h	xmlNewInputFromFile	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	internal parser plumbing
 parserInternals.h	xmlNewInputStream	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	internal parser plumbing
@@ -1636,22 +1636,22 @@ threads.h	xmlRMutexPtr	typedef	not_marked	P3	not-applicable	https://github.com/G
 threads.h	xmlRMutexUnlock	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/threads.h	no global state; types are Send
 threads.h	xmlUnlockLibrary	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/threads.h	no global state; types are Send
 tree.h	LIBXML2_NEW_BUFFER	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
-tree.h	XML_ATTRIBUTE_CDATA	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_ENTITIES	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_ENTITY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_ENUMERATION	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_FIXED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_ID	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_IDREF	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_IDREFS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_IMPLIED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_NMTOKEN	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_NMTOKENS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	XML_ATTRIBUTE_CDATA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Cdata
+tree.h	XML_ATTRIBUTE_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
+tree.h	XML_ATTRIBUTE_ENTITIES	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Entities
+tree.h	XML_ATTRIBUTE_ENTITY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Entity
+tree.h	XML_ATTRIBUTE_ENUMERATION	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Enumeration
+tree.h	XML_ATTRIBUTE_FIXED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeDefault::Fixed
+tree.h	XML_ATTRIBUTE_ID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Id
+tree.h	XML_ATTRIBUTE_IDREF	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::IdRef
+tree.h	XML_ATTRIBUTE_IDREFS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::IdRefs
+tree.h	XML_ATTRIBUTE_IMPLIED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeDefault::Implied
+tree.h	XML_ATTRIBUTE_NMTOKEN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::NmToken
+tree.h	XML_ATTRIBUTE_NMTOKENS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::NmTokens
 tree.h	XML_ATTRIBUTE_NODE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; Node::attributes yields Attribute
-tree.h	XML_ATTRIBUTE_NONE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_NOTATION	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ATTRIBUTE_REQUIRED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	XML_ATTRIBUTE_NONE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeDefault::Value
+tree.h	XML_ATTRIBUTE_NOTATION	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Notation
+tree.h	XML_ATTRIBUTE_REQUIRED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeDefault::Required
 tree.h	XML_BUFFER_ALLOC_BOUNDED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	XML_BUFFER_ALLOC_DOUBLEIT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	XML_BUFFER_ALLOC_EXACT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
@@ -1673,21 +1673,21 @@ tree.h	XML_DOC_USERBUILT	enum_value	not_marked	P0-P3	not-started	https://github.
 tree.h	XML_DOC_WELLFORMED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
 tree.h	XML_DOC_XINCLUDE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
 tree.h	XML_DTD_NODE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Doctype, OwnedNodeKind::DocumentType - the DTD node is the doctype node
-tree.h	XML_ELEMENT_CONTENT_ELEMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_CONTENT_MULT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_CONTENT_ONCE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_CONTENT_OPT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_CONTENT_OR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_CONTENT_PCDATA	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_CONTENT_PLUS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_CONTENT_SEQ	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	XML_ELEMENT_CONTENT_ELEMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_MULT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_ONCE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_OPT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_OR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_PCDATA	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_PLUS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_SEQ	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
 tree.h	XML_ELEMENT_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
 tree.h	XML_ELEMENT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Element, OwnedNodeKind::Element
-tree.h	XML_ELEMENT_TYPE_ANY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_TYPE_ELEMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_TYPE_EMPTY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_TYPE_MIXED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	XML_ELEMENT_TYPE_UNDEFINED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	XML_ELEMENT_TYPE_ANY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Any
+tree.h	XML_ELEMENT_TYPE_ELEMENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Element
+tree.h	XML_ELEMENT_TYPE_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Empty
+tree.h	XML_ELEMENT_TYPE_MIXED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Mixed
+tree.h	XML_ELEMENT_TYPE_UNDEFINED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Undefined
 tree.h	XML_ENTITY_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
 tree.h	XML_ENTITY_NODE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no entity-declaration node
 tree.h	XML_ENTITY_REF_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::EntityRef, OwnedNodeKind::EntityRef
@@ -1719,23 +1719,23 @@ tree.h	_xmlAttr.parent	field	not_marked	P0-P3	not-started	https://github.com/GNO
 tree.h	_xmlAttr.prev	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attributes - iteration replaces links
 tree.h	_xmlAttr.psvi	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no schema PSVI
 tree.h	_xmlAttr.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes
-tree.h	_xmlAttribute	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute._private	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.atype	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.children	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.def	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.defaultValue	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.doc	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.elem	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.last	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.name	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.next	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.nexth	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.parent	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.prefix	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlAttribute.prev	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlAttribute	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute - a borrowed view
+tree.h	_xmlAttribute._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
+tree.h	_xmlAttribute.atype	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::kind
+tree.h	_xmlAttribute.children	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
+tree.h	_xmlAttribute.def	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::default
+tree.h	_xmlAttribute.defaultValue	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::default
+tree.h	_xmlAttribute.doc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
+tree.h	_xmlAttribute.elem	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::element
+tree.h	_xmlAttribute.last	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
+tree.h	_xmlAttribute.name	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::name
+tree.h	_xmlAttribute.next	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
+tree.h	_xmlAttribute.nexth	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
+tree.h	_xmlAttribute.parent	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
+tree.h	_xmlAttribute.prefix	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	names are qualified as declared
+tree.h	_xmlAttribute.prev	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
 tree.h	_xmlAttribute.tree	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
-tree.h	_xmlAttribute.type	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlAttribute.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Attribute is a borrowed view
 tree.h	_xmlBuffer	struct	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	_xmlBuffer.alloc	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
 tree.h	_xmlBuffer.content	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String replace xmlBuffer
@@ -1775,36 +1775,36 @@ tree.h	_xmlDoc.version	field	not_marked	P0-P3	partial	https://github.com/GNOME/l
 tree.h	_xmlDtd	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd
 tree.h	_xmlDtd.ExternalID	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not exposed
 tree.h	_xmlDtd.SystemID	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not exposed
-tree.h	_xmlDtd._private	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.attributes	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.children	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.doc	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.elements	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.entities	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.last	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
+tree.h	_xmlDtd._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
+tree.h	_xmlDtd.attributes	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::attributes
+tree.h	_xmlDtd.children	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
+tree.h	_xmlDtd.doc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
+tree.h	_xmlDtd.elements	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd::elements
+tree.h	_xmlDtd.entities	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd::entities - an iterator over both subsets
+tree.h	_xmlDtd.last	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
 tree.h	_xmlDtd.name	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd::name
-tree.h	_xmlDtd.next	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.notations	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.parent	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.pentities	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.prev	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlDtd.type	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd is opaque
-tree.h	_xmlElement	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement._private	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.attributes	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.children	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlDtd.next	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
+tree.h	_xmlDtd.notations	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd::notations
+tree.h	_xmlDtd.parent	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
+tree.h	_xmlDtd.pentities	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd::entities - an iterator over both subsets
+tree.h	_xmlDtd.prev	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
+tree.h	_xmlDtd.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
+tree.h	_xmlElement	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element - a borrowed view; the content model is printed, not a tree
+tree.h	_xmlElement._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
+tree.h	_xmlElement.attributes	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::attributes
+tree.h	_xmlElement.children	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
 tree.h	_xmlElement.contModel	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
-tree.h	_xmlElement.content	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.doc	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.etype	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.last	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.name	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.next	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.parent	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.prefix	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.prev	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElement.type	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlElementContent	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlElement.content	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::model - printed as xmlDumpElementDecl writes it
+tree.h	_xmlElement.doc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
+tree.h	_xmlElement.etype	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::kind
+tree.h	_xmlElement.last	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
+tree.h	_xmlElement.name	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::name
+tree.h	_xmlElement.next	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
+tree.h	_xmlElement.parent	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
+tree.h	_xmlElement.prefix	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	names are qualified as declared
+tree.h	_xmlElement.prev	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
+tree.h	_xmlElement.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
+tree.h	_xmlElementContent	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
 tree.h	_xmlElementContent.c1	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlElementContent.c2	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlElementContent.name	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1812,10 +1812,10 @@ tree.h	_xmlElementContent.ocur	field	yes	P0-P3	removed-upstream	https://github.c
 tree.h	_xmlElementContent.parent	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlElementContent.prefix	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlElementContent.type	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
-tree.h	_xmlEnumeration	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlEnumeration	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::values
 tree.h	_xmlEnumeration.name	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlEnumeration.next	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
-tree.h	_xmlID	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlID	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
 tree.h	_xmlID.attr	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlID.doc	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlID.lineno	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1839,10 +1839,10 @@ tree.h	_xmlNode.prev	field	not_marked	P0-P3	implemented	https://github.com/GNOME
 tree.h	_xmlNode.properties	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attributes, OwnedNode::attributes
 tree.h	_xmlNode.psvi	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no schema PSVI
 tree.h	_xmlNode.type	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::kind, OwnedNode::kind
-tree.h	_xmlNotation	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlNotation.PublicID	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlNotation.SystemID	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	_xmlNotation.name	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlNotation	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Notation - a borrowed view
+tree.h	_xmlNotation.PublicID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Notation::public_id
+tree.h	_xmlNotation.SystemID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Notation::system_id
+tree.h	_xmlNotation.name	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Notation::name
 tree.h	_xmlNs	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NamespaceBinding
 tree.h	_xmlNs._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no user pointer
 tree.h	_xmlNs.context	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1850,7 +1850,7 @@ tree.h	_xmlNs.href	field	not_marked	P0-P3	implemented	https://github.com/GNOME/l
 tree.h	_xmlNs.next	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::namespaces - iteration replaces links
 tree.h	_xmlNs.prefix	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NamespaceBinding::prefix
 tree.h	_xmlNs.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	namespace nodes carry no type tag
-tree.h	_xmlRef	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	_xmlRef	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
 tree.h	_xmlRef.attr	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlRef.lineno	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlRef.name	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1864,10 +1864,10 @@ tree.h	xmlAddSibling	function	not_marked	P0-P3	not-started	https://github.com/GN
 tree.h	xmlAttr	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Attribute
 tree.h	xmlAttrPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlAttrSerializeTxtContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec, save::Tree
-tree.h	xmlAttribute	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	xmlAttributeDefault	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlAttribute	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute - a borrowed view
+tree.h	xmlAttributeDefault	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeDefault
 tree.h	xmlAttributePtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
-tree.h	xmlAttributeType	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlAttributeType	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind
 tree.h	xmlBuf	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	xmlBufContent	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	xmlBufEnd	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
@@ -1941,17 +1941,17 @@ tree.h	xmlDocSetRootElement	function	not_marked	P0-P3	partial	https://github.com
 tree.h	xmlDtd	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd
 tree.h	xmlDtdPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlElemDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec, save::Tree
-tree.h	xmlElement	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	xmlElementContent	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	xmlElementContentOccur	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlElement	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element - a borrowed view; the content model is printed, not a tree
+tree.h	xmlElementContent	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	xmlElementContentOccur	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
 tree.h	xmlElementContentPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
-tree.h	xmlElementContentType	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlElementContentType	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
 tree.h	xmlElementPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlElementType	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind, OwnedNodeKind
-tree.h	xmlElementTypeVal	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
-tree.h	xmlEntity	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlElementTypeVal	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind
+tree.h	xmlEntity	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Entity - a borrowed view
 tree.h	xmlEntityPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
-tree.h	xmlEnumeration	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlEnumeration	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::values
 tree.h	xmlEnumerationPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlFirstElementChild	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlFreeDoc	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Drop
@@ -1976,7 +1976,7 @@ tree.h	xmlGetNsProp	function	not_marked	P0-P3	implemented	https://github.com/GNO
 tree.h	xmlGetProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attribute, OwnedNode::attribute
 tree.h	xmlHasNsProp	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attribute_ns, OwnedNode::attribute_ns - returns the value, not the attribute node
 tree.h	xmlHasProp	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attribute_ns, OwnedNode::attribute_ns - returns the value, not the attribute node
-tree.h	xmlID	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlID	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
 tree.h	xmlIDPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlIsBlankNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no line numbers)
 tree.h	xmlIsXHTML	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no line numbers)
@@ -2030,7 +2030,7 @@ tree.h	xmlNodeSetContentLen	function	not_marked	P0-P3	partial	https://github.com
 tree.h	xmlNodeSetLang	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
 tree.h	xmlNodeSetName	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_name
 tree.h	xmlNodeSetSpacePreserve	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
-tree.h	xmlNotation	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlNotation	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Notation - a borrowed view
 tree.h	xmlNotationPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlNs	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NamespaceBinding
 tree.h	xmlNsPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
@@ -2045,7 +2045,7 @@ tree.h	xmlParserInputBufferPtr	typedef	not_marked	P0-P3	not-applicable	https://g
 tree.h	xmlParserInputPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	input stream or raw pointer alias
 tree.h	xmlPreviousElementSibling	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlReconciliateNs	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	automatic namespace reconciliation on every owned edit
-tree.h	xmlRef	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration model
+tree.h	xmlRef	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
 tree.h	xmlRefPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlRegisterNodeDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlRegisterNodeDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
@@ -2144,8 +2144,8 @@ valid.h	xmlAddID	function	not_marked	P2	not-started	https://github.com/GNOME/lib
 valid.h	xmlAddIDSafe	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
 valid.h	xmlAddNotationDecl	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
 valid.h	xmlAddRef	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlAttributeTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlAttributeTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
+valid.h	xmlAttributeTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Element::attributes - an iterator, no table type
+valid.h	xmlAttributeTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
 valid.h	xmlCopyAttributeTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlCopyDocElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlCopyElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
@@ -2159,8 +2159,8 @@ valid.h	xmlDumpElementDecl	function	yes	P2	removed-upstream	https://github.com/G
 valid.h	xmlDumpElementTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlDumpNotationDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlDumpNotationTable	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlElementTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlElementTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
+valid.h	xmlElementTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::elements - an iterator, no table type
+valid.h	xmlElementTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
 valid.h	xmlFreeAttributeTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlFreeDocElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlFreeElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
@@ -2170,11 +2170,11 @@ valid.h	xmlFreeIDTable	function	not_marked	P2	not-applicable	https://github.com/
 valid.h	xmlFreeNotationTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlFreeRefTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlFreeValidCtxt	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Drop
-valid.h	xmlGetDtdAttrDesc	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlGetDtdElementDesc	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlGetDtdNotationDesc	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlGetDtdQAttrDesc	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlGetDtdQElementDesc	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
+valid.h	xmlGetDtdAttrDesc	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::attribute
+valid.h	xmlGetDtdElementDesc	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::element
+valid.h	xmlGetDtdNotationDesc	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::notation
+valid.h	xmlGetDtdQAttrDesc	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::attribute - takes qualified names
+valid.h	xmlGetDtdQElementDesc	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::element - takes the qualified name
 valid.h	xmlGetID	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Document::element_by_id, OwnedDocument::element_by_id
 valid.h	xmlGetRefs	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlIDTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
@@ -2185,8 +2185,8 @@ valid.h	xmlIsRef	function	yes	P2	removed-upstream	https://github.com/GNOME/libxm
 valid.h	xmlNewDocElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlNewElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlNewValidCtxt	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Drop
-valid.h	xmlNotationTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlNotationTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
+valid.h	xmlNotationTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::notations - an iterator, no table type
+valid.h	xmlNotationTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
 valid.h	xmlRefTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
 valid.h	xmlRefTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
 valid.h	xmlRemoveID	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)

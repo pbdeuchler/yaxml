@@ -10,7 +10,9 @@ value edits, insertion, moves, attribute and namespace edits and permanent
 subtree removal. Internal DTD subsets
 are processed (entities, attribute normalization and, on request, default
 attributes) and the declaration is reported as `Event::Doctype`; entity
-references are kept or substituted as libxml2 options select. External subsets and entities
+references are kept or substituted as libxml2 options select. `Document::dtd`/`OwnedDocument::dtd` expose the parsed declarations as
+borrowed views (`valid::Entity`, `valid::Element`, `valid::Attribute`,
+`valid::Notation`), and `yaxml::chars` the XML character classes. External subsets and entities
 load only through a caller-supplied `Resolver` (see below). Other encodings
 return structured errors.
 `Node::text_chunks` and `OwnedNode::text_chunks` visit string values without

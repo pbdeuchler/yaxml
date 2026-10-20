@@ -28,7 +28,7 @@ use crate::{
     NodeKind, OwnedDocument, OwnedNode, OwnedNodeKind,
 };
 
-mod dtd;
+pub(crate) mod dtd;
 
 /// `XML_SAVE_FORMAT`: indent element content, except inside elements with
 /// text or CDATA children.
@@ -423,6 +423,43 @@ pub fn to_vec<'document, 'input: 'document>(
     saver.out.finish()
 }
 
+/// How [`encode_entities`] escapes text, after the document it is meant
+/// for (`xmlEncodeEntitiesReentrant`'s `doc`).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Escape {
+    /// An XML document with a declared encoding: non-ASCII is written as is.
+    Xml,
+    /// No document, or one without a declared encoding: non-ASCII becomes
+    /// `&#xH;` (U+FFFE and U+FFFF become `&#xFFFD;`).
+    Ascii,
+    /// An HTML document: only `&`, `<` and `>` are escaped.
+    Html,
+}
+
+/// `xmlEncodeEntitiesReentrant`: `&`, `<` and `>` become predefined
+/// references; for XML also `\r` becomes `&#13;` and other C0 controls
+/// `&#xFFFD;` (libxml2 ends a C string at NUL, which is escaped here).
+pub fn encode_entities(text: &str, escape: Escape) -> String {
+    let table = match escape {
+        Escape::Html => &HTML,
+        Escape::Xml | Escape::Ascii => &CONTENT,
+    };
+    escaped(text, table, escape == Escape::Ascii)
+}
+
+/// `xmlEncodeSpecialChars`: `&`, `<`, `>` and `"` become predefined
+/// references, `\r` `&#13;` and other C0 controls `&#xFFFD;`; non-ASCII is
+/// written as is.
+pub fn encode_special_chars(text: &str) -> String {
+    escaped(text, &QUOT, false)
+}
+
+fn escaped(text: &str, table: &Table, ascii: bool) -> String {
+    let mut out = Out::new(Output::Utf8, ascii);
+    out.escaped(text, table);
+    String::from_utf8(out.bytes).unwrap_or_default()
+}
+
 /// Encoded output; the first character the encoding cannot write in markup
 /// is recorded and reported at the end, as libxml2's `buf->error`.
 struct Out {
@@ -433,8 +470,11 @@ struct Out {
     error: Option<Error>,
 }
 
+/// Escapes for ASCII bytes; `None` is written as is.
+type Table = [Option<&'static str>; 128];
+
 /// `xmlEscapeTabAttr`: other C0 controls become U+FFFD.
-const ATTRIBUTE: [Option<&str>; 128] = {
+const ATTRIBUTE: Table = {
     let mut table = [None; 128];
     let mut byte = 0;
     while byte < 0x20 {
@@ -452,9 +492,25 @@ const ATTRIBUTE: [Option<&str>; 128] = {
 };
 
 /// `xmlEscapeTab`: tabs, newlines and quotes are written as they are.
-const CONTENT: [Option<&str>; 128] = {
+const CONTENT: Table = {
     let mut table = ATTRIBUTE;
     (table[9], table[10], table[34]) = (None, None, None);
+    table
+};
+
+/// `xmlEscapeTabQuot`: content escapes and `"`.
+const QUOT: Table = {
+    let mut table = CONTENT;
+    table[b'"' as usize] = ATTRIBUTE[b'"' as usize];
+    table
+};
+
+/// `htmlEscapeTab`: only `&`, `<` and `>`.
+const HTML: Table = {
+    let mut table = [None; 128];
+    table[b'&' as usize] = CONTENT[b'&' as usize];
+    table[b'<' as usize] = CONTENT[b'<' as usize];
+    table[b'>' as usize] = CONTENT[b'>' as usize];
     table
 };
 
@@ -520,7 +576,11 @@ impl Out {
     /// `xmlSerializeText` followed by the encoder: escaped text and
     /// attribute values, with references for what the encoding lacks.
     fn text(&mut self, text: &str, attribute: bool) {
-        let table = if attribute { &ATTRIBUTE } else { &CONTENT };
+        self.escaped(text, if attribute { &ATTRIBUTE } else { &CONTENT });
+    }
+
+    /// [`Out::text`] with escapes from `table`.
+    fn escaped(&mut self, text: &str, table: &Table) {
         let unicode = self.output == Output::Utf8 && !self.ascii;
         let bytes = text.as_bytes();
         let (mut start, mut index) = (0, 0);
@@ -541,6 +601,11 @@ impl Out {
                 self.raw(&text[start..index]);
                 let c = text[index..].chars().next().unwrap_or_default();
                 if self.ascii {
+                    let c = if matches!(c, '\u{fffe}' | '\u{ffff}') {
+                        '\u{fffd}'
+                    } else {
+                        c
+                    };
                     self.reference(c, true);
                 } else if !self.output.push(&mut self.bytes, c) {
                     self.reference(c, false);

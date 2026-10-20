@@ -72,6 +72,8 @@ mod xpath;
 #[path = "c14n.rs"]
 mod c14n;
 
+#[path = "dtd.rs"]
+mod dtd;
 #[path = "html.rs"]
 mod html;
 #[path = "valid.rs"]
@@ -190,6 +192,7 @@ pub fn exercise_dtd(input: &[u8]) -> Outcome {
 /// cancellation point, so budget and abort paths inside DTDs are reached.
 fn exercise_doctype(input: &[u8]) -> Outcome {
     exercise_valid(input);
+    dtd::exercise(input);
     owned(input);
     exercise_serialize(input);
     exercise_push(input);

@@ -1,0 +1,8 @@
+<!DOCTYPE animal SYSTEM "ibm32i03.dtd" [
+   <!ELEMENT animal EMPTY>
+]>
+<!-- This ith values!containing character reference.
+-->
+<animal class="   NMTOKEN_w
+
+

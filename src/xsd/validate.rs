@@ -732,8 +732,12 @@ impl<Id: Copy> Validator<Id> {
             scope.extend(inner.map(|(prefix, uri)| (&**prefix, &**uri)));
             scope
         };
-        let entity =
-            |name: &str| dtd.is_some_and(|dtd| dtd.entities.get(name).is_some_and(Option::is_some));
+        let entity = |name: &str| {
+            dtd.is_some_and(|dtd| {
+                dtd.entity(name)
+                    .is_some_and(|entity| entity.notation.is_some())
+            })
+        };
         let mut scope = Scope::new(
             &load,
             &self.schema.data.names,

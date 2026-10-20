@@ -12,7 +12,7 @@ mod model;
 use std::collections::{HashMap, HashSet};
 
 use crate::dtd::{ElementContentView, ElementDeclarationView, ModelTokenView};
-use crate::dtd_catalog::{AttributeKind, StoredDefault};
+use crate::dtd_catalog::{EntityBody, EntityDecl, EntityId, StoredDefault};
 use crate::name::{name_char, name_start};
 use crate::xpath::tree::{self, Item, Navigate, QName, Tree, attributes, preorder};
 use crate::{Error, Limits, Resolver};
@@ -136,10 +136,17 @@ pub struct Dtd {
     pub(crate) standalone: bool,
     pub(crate) element_index: HashMap<String, usize>,
     pub(crate) elements: Vec<ElementDecl>,
-    /// Notation name and whether it was declared in the internal subset.
-    pub(crate) notations: HashMap<String, bool>,
-    /// General entities: the notation of an unparsed entity, `None` if parsed.
-    pub(crate) entities: HashMap<String, Option<String>>,
+    pub(crate) notation_index: HashMap<String, usize>,
+    pub(crate) notations: Vec<NotationDecl>,
+    /// Entity declarations in declaration order, duplicates dropped.
+    pub(crate) entities: Vec<EntityDecl>,
+    /// General entities references find; a standalone document's external
+    /// declarations are not bound.
+    pub(crate) general: HashMap<String, EntityId>,
+    pub(crate) parameter: HashMap<String, EntityId>,
+    /// The first declaration of each general entity, bound or not, as
+    /// ENTITY attribute validation finds it.
+    pub(crate) declared: HashMap<String, EntityId>,
     /// Diagnostics libxml2 reports while parsing, with their input offsets.
     pub(crate) issues: Vec<(Code, Option<usize>, String)>,
 }
@@ -149,9 +156,19 @@ pub(crate) struct ElementDecl {
     pub(crate) name: String,
     /// `None` until an `<!ELEMENT>` declaration; attribute lists may come first.
     pub(crate) content: Option<Content>,
+    /// The content model as libxml2 prints it; empty unless mixed or children.
+    pub(crate) model: String,
     pub(crate) internal: bool,
     pub(crate) attributes: Vec<AttributeDecl>,
     pub(crate) index: HashMap<String, usize>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct NotationDecl {
+    pub(crate) name: String,
+    pub(crate) public: Option<String>,
+    pub(crate) system: Option<String>,
+    pub(crate) internal: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -189,6 +206,7 @@ impl ElementDecl {
         Self {
             name,
             content: None,
+            model: String::new(),
             internal: false,
             attributes: Vec::new(),
             index: HashMap::new(),
@@ -246,7 +264,7 @@ impl Dtd {
         }
     }
 
-    fn element(&self, name: QName<'_>) -> Option<(usize, &ElementDecl)> {
+    fn element_for(&self, name: QName<'_>) -> Option<(usize, &ElementDecl)> {
         let index = self.element_index.get(name.qualified).or_else(|| {
             (name.qualified != name.local)
                 .then(|| self.element_index.get(name.local))
@@ -275,7 +293,7 @@ impl Dtd {
     }
 
     /// The declaration of attribute `attribute` on `element`, qualified name first.
-    fn attribute(&self, element: QName<'_>, attribute: &str) -> Option<&AttributeDecl> {
+    fn attribute_for(&self, element: QName<'_>, attribute: &str) -> Option<&AttributeDecl> {
         let declared = |name: &str| {
             let element = &self.elements[*self.element_index.get(name)?];
             Some(&element.attributes[*element.index.get(attribute)?])
@@ -301,6 +319,12 @@ impl Dtd {
             self.issues.push((Code::ElementRedefined, None, message));
             return Ok(0);
         }
+        let model = match view.content() {
+            ElementContentView::Mixed(tokens) | ElementContentView::Children(tokens) => {
+                crate::save::dtd::content_model(tokens)
+            }
+            ElementContentView::Empty | ElementContentView::Any => String::new(),
+        };
         let (content, bytes) = match view.content() {
             ElementContentView::Empty => (Content::Empty, 0),
             ElementContentView::Any => (Content::Any, 0),
@@ -329,22 +353,27 @@ impl Dtd {
                 (Content::Children(model), bytes)
             }
         };
+        let bytes = bytes + model.len();
         let element = &mut self.elements[index];
         element.content = Some(content);
+        element.model = model;
         element.internal = internal;
         Ok(bytes)
     }
 
     /// Records a notation declaration.
-    pub(crate) fn declare_notation(&mut self, name: &str, internal: bool) {
-        match self.notations.get(name) {
-            Some(&seen) if seen == internal => {
+    pub(crate) fn declare_notation(&mut self, notation: NotationDecl) {
+        let name = &notation.name;
+        match self.notation_index.get(name) {
+            Some(&seen) if self.notations[seen].internal == notation.internal => {
                 let message = format!("xmlAddNotationDecl: {name} already defined");
                 self.issues.push((Code::NotationRedefined, None, message));
             }
             Some(_) => {}
             None => {
-                self.notations.insert(name.to_owned(), internal);
+                self.notation_index
+                    .insert(name.clone(), self.notations.len());
+                self.notations.push(notation);
             }
         }
     }
@@ -407,6 +436,316 @@ impl Dtd {
     }
 }
 
+/// A declared attribute type; the discriminant is libxml2's `xmlAttributeType`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum AttributeKind {
+    /// `CDATA`
+    Cdata = 1,
+    /// `ID`
+    Id = 2,
+    /// `IDREF`
+    IdRef = 3,
+    /// `IDREFS`
+    IdRefs = 4,
+    /// `ENTITY`
+    Entity = 5,
+    /// `ENTITIES`
+    Entities = 6,
+    /// `NMTOKEN`
+    NmToken = 7,
+    /// `NMTOKENS`
+    NmTokens = 8,
+    /// An enumeration, `(a | b)`.
+    Enumeration = 9,
+    /// `NOTATION (a | b)`
+    Notation = 10,
+}
+
+/// What an entity declares; the discriminant is libxml2's `xmlEntityType`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum EntityKind {
+    /// `<!ENTITY name "value">`
+    InternalGeneral = 1,
+    /// `<!ENTITY name SYSTEM "uri">`
+    ExternalParsedGeneral = 2,
+    /// `<!ENTITY name SYSTEM "uri" NDATA notation>`
+    ExternalUnparsedGeneral = 3,
+    /// `<!ENTITY % name "value">`
+    InternalParameter = 4,
+    /// `<!ENTITY % name SYSTEM "uri">`
+    ExternalParameter = 5,
+    /// `lt`, `gt`, `amp`, `apos` or `quot`, unless the DTD redeclares it.
+    Predefined = 6,
+}
+
+/// An entity declaration (libxml2's `xmlEntity`), borrowed from its [`Dtd`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Entity<'a> {
+    pub name: &'a str,
+    pub kind: EntityKind,
+    /// The replacement text (libxml2's `content`): an internal entity's
+    /// literal with character and parameter-entity references expanded and
+    /// general references kept; an external parsed entity's text once a
+    /// resolver has loaded it; an unparsed entity's notation, as libxml2
+    /// stores it; otherwise `None`.
+    pub content: Option<&'a str>,
+    pub public_id: Option<&'a str>,
+    pub system_id: Option<&'a str>,
+    /// The system identifier resolved against the base of the resource that
+    /// declares it (libxml2's `URI`); without a resolver, the system
+    /// identifier as written.
+    pub uri: Option<&'a str>,
+    /// An unparsed entity's `NDATA` notation.
+    pub notation: Option<&'a str>,
+    /// Declared in the external subset (libxml2's `doc->extSubset`), not in
+    /// the internal subset or a parameter entity it references.
+    pub external_subset: bool,
+}
+
+/// An element's declared content; the discriminant is libxml2's `xmlElementTypeVal`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum ContentKind {
+    /// Only attribute lists name the element; no `<!ELEMENT>` declaration.
+    Undefined = 0,
+    /// `EMPTY`
+    Empty = 1,
+    /// `ANY`
+    Any = 2,
+    /// `(#PCDATA | ...)*`
+    Mixed = 3,
+    /// Element content, `(a , b)`.
+    Element = 4,
+}
+
+/// An element type (libxml2's `xmlElement`), borrowed from its [`Dtd`].
+#[derive(Clone, Copy)]
+#[non_exhaustive]
+pub struct Element<'a> {
+    pub name: &'a str,
+    pub kind: ContentKind,
+    /// Mixed or element content as libxml2 prints it, e.g. `(a , (b | c)*)`.
+    pub model: Option<&'a str>,
+    decl: &'a ElementDecl,
+}
+
+impl<'a> Element<'a> {
+    /// The element's attribute declarations, in declaration order.
+    pub fn attributes(self) -> impl Iterator<Item = Attribute<'a>> {
+        let element = self.decl.name.as_str();
+        (self.decl.attributes.iter()).map(move |decl| Attribute::new(element, decl))
+    }
+}
+
+impl std::fmt::Debug for Element<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Element")
+            .field("name", &self.name)
+            .field("kind", &self.kind)
+            .field("model", &self.model)
+            .finish_non_exhaustive()
+    }
+}
+
+/// An attribute's default declaration; libxml2's `xmlAttributeDefault` and
+/// `defaultValue`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AttributeDefault<'a> {
+    /// A default value, normalized, as libxml2's `defaultValue`: general
+    /// entity references expanded under `NOENT`, otherwise kept (`&name;`,
+    /// with a literal `&` as `&#38;`).
+    Value(&'a str),
+    /// `#REQUIRED`
+    Required,
+    /// `#IMPLIED`
+    Implied,
+    /// `#FIXED "value"`, spelled as [`AttributeDefault::Value`].
+    Fixed(&'a str),
+}
+
+/// An attribute declaration (libxml2's `xmlAttribute`), borrowed from its [`Dtd`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Attribute<'a> {
+    /// The declaring element type's name.
+    pub element: &'a str,
+    /// The qualified name as declared.
+    pub name: &'a str,
+    pub kind: AttributeKind,
+    pub default: AttributeDefault<'a>,
+    /// An enumeration's or `NOTATION` type's tokens, in declaration order.
+    pub values: &'a [String],
+}
+
+impl<'a> Attribute<'a> {
+    fn new(element: &'a str, decl: &'a AttributeDecl) -> Self {
+        let default = match &decl.default {
+            StoredDefault::Required => AttributeDefault::Required,
+            StoredDefault::Implied => AttributeDefault::Implied,
+            StoredDefault::Value { fixed, value, kept } => {
+                let value = kept.as_deref().unwrap_or(value);
+                match fixed {
+                    true => AttributeDefault::Fixed(value),
+                    false => AttributeDefault::Value(value),
+                }
+            }
+        };
+        Self {
+            element,
+            name: &decl.name,
+            kind: decl.kind,
+            default,
+            values: &decl.values,
+        }
+    }
+}
+
+/// A notation declaration (libxml2's `xmlNotation`), borrowed from its [`Dtd`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Notation<'a> {
+    pub name: &'a str,
+    pub public_id: Option<&'a str>,
+    pub system_id: Option<&'a str>,
+}
+
+/// The five predefined entities and their replacement text.
+const PREDEFINED: [(&str, &str); 5] = [
+    ("lt", "<"),
+    ("gt", ">"),
+    ("amp", "&"),
+    ("apos", "'"),
+    ("quot", "\""),
+];
+
+/// A predefined entity, `lt`, `gt`, `amp`, `apos` or `quot`
+/// (`xmlGetPredefinedEntity`).
+pub fn predefined_entity(name: &str) -> Option<Entity<'static>> {
+    let &(name, content) = PREDEFINED.iter().find(|(entity, _)| *entity == name)?;
+    Some(Entity {
+        name,
+        kind: EntityKind::Predefined,
+        content: Some(content),
+        public_id: None,
+        system_id: None,
+        uri: None,
+        notation: None,
+        external_subset: false,
+    })
+}
+
+impl Dtd {
+    fn entity_view(&self, id: EntityId) -> Entity<'_> {
+        let decl = &self.entities[id.0];
+        let (kind, external) = match (&decl.body, decl.parameter) {
+            (EntityBody::Internal(_), false) => (EntityKind::InternalGeneral, None),
+            (EntityBody::Internal(_), true) => (EntityKind::InternalParameter, None),
+            (EntityBody::External(external), true) => {
+                (EntityKind::ExternalParameter, Some(external))
+            }
+            (EntityBody::External(external), false) => match external.notation {
+                Some(_) => (EntityKind::ExternalUnparsedGeneral, Some(external)),
+                None => (EntityKind::ExternalParsedGeneral, Some(external)),
+            },
+        };
+        Entity {
+            name: &decl.name,
+            kind,
+            content: decl
+                .body
+                .text()
+                .or(external.and_then(|e| e.notation.as_deref())),
+            public_id: external.and_then(|external| external.public.as_deref()),
+            system_id: external.and_then(|external| external.system.as_deref()),
+            uri: external
+                .and_then(|external| external.uri.as_deref().or(external.system.as_deref())),
+            notation: external.and_then(|external| external.notation.as_deref()),
+            external_subset: decl.external_subset,
+        }
+    }
+
+    /// The general entity `name` as references find it, else a predefined
+    /// entity (`xmlGetDocEntity`). A standalone document's externally
+    /// declared entities are not found; [`Dtd::entities`] lists them.
+    pub fn entity(&self, name: &str) -> Option<Entity<'_>> {
+        match self.general.get(name) {
+            Some(&id) => Some(self.entity_view(id)),
+            None => predefined_entity(name),
+        }
+    }
+
+    /// The parameter entity `name` (`xmlGetParameterEntity`).
+    pub fn parameter_entity(&self, name: &str) -> Option<Entity<'_>> {
+        Some(self.entity_view(*self.parameter.get(name)?))
+    }
+
+    /// Every general and parameter entity declaration in declaration order,
+    /// a repeated name keeping its first (libxml2's entity tables); filter
+    /// on [`Entity::external_subset`] for `xmlGetDtdEntity`.
+    pub fn entities(&self) -> impl Iterator<Item = Entity<'_>> {
+        (0..self.entities.len()).map(|index| self.entity_view(EntityId(index)))
+    }
+
+    fn element_view<'a>(&'a self, decl: &'a ElementDecl) -> Element<'a> {
+        let kind = match decl.content {
+            None => ContentKind::Undefined,
+            Some(Content::Empty) => ContentKind::Empty,
+            Some(Content::Any) => ContentKind::Any,
+            Some(Content::Mixed(_)) => ContentKind::Mixed,
+            Some(Content::Children(_)) => ContentKind::Element,
+        };
+        Element {
+            name: &decl.name,
+            kind,
+            model: (!decl.model.is_empty()).then_some(decl.model.as_str()),
+            decl,
+        }
+    }
+
+    /// The element type `name`, qualified as declared (`xmlGetDtdElementDesc`).
+    pub fn element(&self, name: &str) -> Option<Element<'_>> {
+        Some(self.element_view(&self.elements[*self.element_index.get(name)?]))
+    }
+
+    /// Every element type in order of first declaration or attribute list.
+    pub fn elements(&self) -> impl Iterator<Item = Element<'_>> {
+        self.elements.iter().map(|decl| self.element_view(decl))
+    }
+
+    /// Attribute `name` of element type `element`, both qualified as
+    /// declared (`xmlGetDtdAttrDesc`, `xmlGetDtdQAttrDesc`).
+    pub fn attribute(&self, element: &str, name: &str) -> Option<Attribute<'_>> {
+        let decl = &self.elements[*self.element_index.get(element)?];
+        Some(Attribute::new(
+            &decl.name,
+            &decl.attributes[*decl.index.get(name)?],
+        ))
+    }
+
+    /// The notation `name` (`xmlGetDtdNotationDesc`).
+    pub fn notation(&self, name: &str) -> Option<Notation<'_>> {
+        Some(notation_view(
+            &self.notations[*self.notation_index.get(name)?],
+        ))
+    }
+
+    /// Every notation in declaration order.
+    pub fn notations(&self) -> impl Iterator<Item = Notation<'_>> {
+        self.notations.iter().map(notation_view)
+    }
+}
+
+fn notation_view(decl: &NotationDecl) -> Notation<'_> {
+    Notation {
+        name: &decl.name,
+        public_id: decl.public.as_deref(),
+        system_id: decl.system.as_deref(),
+    }
+}
+
 fn is_name(value: &str) -> bool {
     let mut characters = value.chars();
     characters.next().is_some_and(|c| name_start(c, true)) && characters.all(|c| name_char(c, true))
@@ -449,8 +788,6 @@ fn lexical(kind: AttributeKind, value: &str) -> bool {
 fn children<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Item = T::Id> + '_ {
     tree::flattened_children(tree, id)
 }
-
-const PREDEFINED: [&str; 5] = ["lt", "gt", "amp", "apos", "quot"];
 
 /// Checks `tree` against `dtd` as libxml2's `xmlValidateDtd`: the root,
 /// every element and attribute, then IDREFs. Declaration-time checks of
@@ -555,8 +892,13 @@ impl<'a, T: Navigate> Run<'a, T> {
                 }
             }
         }
-        let mut missing: Vec<_> = (self.dtd.entities.values().flatten())
-            .filter(|notation| !self.dtd.notations.contains_key(*notation))
+        let dtd = self.dtd;
+        let mut missing: Vec<_> = (dtd.declared.values())
+            .filter_map(|id| match &dtd.entities[id.0].body {
+                EntityBody::External(external) => external.notation.as_deref(),
+                EntityBody::Internal(_) => None,
+            })
+            .filter(|notation| !dtd.notation_index.contains_key(*notation))
             .collect();
         missing.sort_unstable();
         for notation in missing {
@@ -572,7 +914,7 @@ impl<'a, T: Navigate> Run<'a, T> {
     fn element(&mut self, id: T::Id, name: QName<'a>) {
         let (tree, dtd) = (self.tree, self.dtd);
         let attributes: Vec<_> = attributes(tree, id).collect();
-        match dtd.element(name) {
+        match dtd.element_for(name) {
             Some((index, decl)) if decl.content.is_some() => {
                 self.content(id, name, index, decl);
                 self.required(id, name, decl, &attributes);
@@ -736,7 +1078,7 @@ impl<'a, T: Navigate> Run<'a, T> {
         };
         let owner = element.local;
         let dtd = self.dtd;
-        let Some(decl) = dtd.attribute(element, attribute.qualified) else {
+        let Some(decl) = dtd.attribute_for(element, attribute.qualified) else {
             let message = format!("No declaration for attribute {shown} of element {owner}");
             return self.report(Code::UnknownAttribute, Some(id), message);
         };
@@ -811,16 +1153,21 @@ impl<'a, T: Navigate> Run<'a, T> {
     }
 
     fn notation(&mut self, id: T::Id, message: String, value: &str) {
-        if !self.dtd.notations.contains_key(value) {
+        if !self.dtd.notation_index.contains_key(value) {
             self.report(Code::UnknownNotation, Some(id), message);
         }
     }
 
     fn entity(&mut self, id: T::Id, attribute: &str, value: &str) {
-        let code = match self.dtd.entities.get(value) {
-            Some(Some(_)) => return,
-            Some(None) => Code::EntityType,
-            None if PREDEFINED.contains(&value) => Code::EntityType,
+        let entity = self
+            .dtd
+            .declared
+            .get(value)
+            .map(|id| &self.dtd.entities[id.0]);
+        let code = match entity.map(|entity| &entity.body) {
+            Some(EntityBody::External(external)) if external.notation.is_some() => return,
+            Some(_) => Code::EntityType,
+            None if predefined_entity(value).is_some() => Code::EntityType,
             None => Code::UnknownEntity,
         };
         let message = match code {

@@ -54,6 +54,13 @@ pub(super) fn doctype(out: &mut Out, doctype: &Doctype<'_>) {
     }
 }
 
+/// A mixed or children content model as `xmlBufDumpElementContent` prints it.
+pub(crate) fn content_model<'a>(tokens: impl Iterator<Item = ModelTokenView<'a>>) -> String {
+    let mut out = Out::new(crate::encoding::Output::Utf8, false);
+    Model::parse(tokens).write(&mut out);
+    String::from_utf8(out.bytes).unwrap_or_default()
+}
+
 /// Writes the subset's declarations; true when it declared anything.
 fn declarations(name: &str, subset: &str, notations: &mut Out, out: &mut Out) -> Option<bool> {
     // The subset is source text; parsing normalizes its line ends.

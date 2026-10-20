@@ -291,17 +291,17 @@ FIELD_DEFAULT = {
     "_xmlXPathFunct": ("A", "functions registered through Context::with_function"),
     "_xmlXPathType": ("A", "no custom XPath types"),
     "_xmlXPathVariable": ("A", "variables registered through Context::with_variable"),
-    "_xmlChLRange": ("N", "character classes are private"),
-    "_xmlChSRange": ("N", "character classes are private"),
-    "_xmlChRangeGroup": ("N", "character classes are private"),
+    "_xmlChLRange": ("A", "the chars predicates keep their range tables private"),
+    "_xmlChSRange": ("A", "the chars predicates keep their range tables private"),
+    "_xmlChRangeGroup": ("A", "the chars predicates keep their range tables private"),
     "_xmlCharEncodingHandler": ("N", "no public encoding handler registry"),
     "_xlinkHandler": ("N", "XLink callbacks not started"),
     "_xmlDOMWrapCtxt": ("N", "no cross-document DOM wrapper"),
-    "_xmlEntity": ("N", "no public entity model"),
-    "_xmlElement": ("N", "no public DTD declaration model"),
-    "_xmlAttribute": ("N", "no public DTD declaration model"),
-    "_xmlNotation": ("N", "no public DTD declaration model"),
-    "_xmlDtd": ("N", "valid::Dtd is opaque"),
+    "_xmlEntity": ("A", "tree links and bookkeeping; valid::Entity is a borrowed view"),
+    "_xmlElement": ("A", "tree links and bookkeeping; valid::Element is a borrowed view"),
+    "_xmlAttribute": ("A", "tree links and bookkeeping; valid::Attribute is a borrowed view"),
+    "_xmlNotation": ("A", "valid::Notation is a borrowed view"),
+    "_xmlDtd": ("A", "tree links; valid::Dtd is read through its accessors"),
     "_xmlElementContent": ("N", "no public content-model tree"),
     "_xmlEnumeration": ("N", "no public enumeration list"),
     "_xmlID": ("N", "IDs via Document::element_by_id"),
@@ -443,7 +443,16 @@ P|xmlParserCtxt|PushParser
 A|xmlParserInput xmlParserCtxtPtr xmlParserInputPtr xmlParserNodeInfoPtr xmlParserNodeInfoSeqPtr|input stream or raw pointer alias
 A|xmlParserInputBuffer xmlParserInputBufferPtr xmlOutputBuffer xmlOutputBufferPtr|std::io::Read/Write
 # ---- parserInternals.h
-N|IS_ASCII_DIGIT IS_ASCII_LETTER IS_BASECHAR IS_BLANK IS_BLANK_CH IS_BYTE_CHAR IS_CHAR IS_CHAR_CH IS_COMBINING IS_COMBINING_CH IS_DIGIT IS_DIGIT_CH IS_EXTENDER IS_EXTENDER_CH IS_IDEOGRAPHIC IS_LETTER IS_LETTER_CH IS_PUBIDCHAR IS_PUBIDCHAR_CH|character classes are private (roadmap 22)
+I|IS_CHAR IS_CHAR_CH IS_BYTE_CHAR|chars::is_char
+I|IS_BLANK IS_BLANK_CH|chars::is_blank
+I|IS_BASECHAR|chars::is_base_char
+I|IS_DIGIT IS_DIGIT_CH|chars::is_digit
+I|IS_COMBINING IS_COMBINING_CH|chars::is_combining
+I|IS_EXTENDER IS_EXTENDER_CH|chars::is_extender
+I|IS_IDEOGRAPHIC|chars::is_ideographic
+I|IS_PUBIDCHAR IS_PUBIDCHAR_CH|chars::is_pubid_char
+P|IS_LETTER IS_LETTER_CH xmlIsLetter|chars::is_base_char, chars::is_ideographic - Letter is their union
+A|IS_ASCII_DIGIT IS_ASCII_LETTER|u8::is_ascii_digit and u8::is_ascii_alphabetic
 P|XML_MAX_DICTIONARY_LIMIT XML_MAX_LOOKUP_LIMIT|Limits
 P|XML_MAX_HUGE_LENGTH XML_MAX_TEXT_LENGTH XML_MAX_NAME_LENGTH XML_MAX_NAMELEN|Limits::max_token_bytes
 P|xmlParserMaxDepth|Limits::max_depth
@@ -462,9 +471,53 @@ A|xmlNsType|namespace nodes carry no type tag
 P|xmlDtd|valid::Dtd
 I|xmlElementType|NodeKind, OwnedNodeKind
 A|xmlDocPtr xmlNodePtr xmlAttrPtr xmlNsPtr xmlDtdPtr xmlElementPtr xmlAttributePtr xmlEntityPtr xmlNotationPtr xmlIDPtr xmlRefPtr xmlEnumerationPtr xmlElementContentPtr xmlBufferPtr xmlBufPtr xmlErrorPtr|raw pointer alias; references and OwnedNodeId
-N|xmlEntity xmlElement xmlAttribute xmlNotation xmlElementContent xmlEnumeration xmlID xmlRef|no public DTD declaration model
-N|xmlAttributeDefault xmlAttributeType xmlElementContentOccur xmlElementContentType xmlElementTypeVal|no public DTD declaration model
-N|XML_ATTRIBUTE_* XML_ELEMENT_CONTENT_* XML_ELEMENT_TYPE_*|no public DTD declaration model
+P|xmlEntity|valid::Entity - a borrowed view
+P|xmlElement|valid::Element - a borrowed view; the content model is printed, not a tree
+P|xmlAttribute|valid::Attribute - a borrowed view
+P|xmlNotation|valid::Notation - a borrowed view
+P|xmlEnumeration|valid::Attribute::values
+N|xmlElementContent xmlElementContentOccur xmlElementContentType XML_ELEMENT_CONTENT_*|no content-model tree; valid::Element::model prints it
+N|xmlID xmlRef|no public ID/IDREF tables
+I|xmlAttributeType|valid::AttributeKind
+I|XML_ATTRIBUTE_CDATA|valid::AttributeKind::Cdata
+I|XML_ATTRIBUTE_ID|valid::AttributeKind::Id
+I|XML_ATTRIBUTE_IDREF|valid::AttributeKind::IdRef
+I|XML_ATTRIBUTE_IDREFS|valid::AttributeKind::IdRefs
+I|XML_ATTRIBUTE_ENTITY|valid::AttributeKind::Entity
+I|XML_ATTRIBUTE_ENTITIES|valid::AttributeKind::Entities
+I|XML_ATTRIBUTE_NMTOKEN|valid::AttributeKind::NmToken
+I|XML_ATTRIBUTE_NMTOKENS|valid::AttributeKind::NmTokens
+I|XML_ATTRIBUTE_ENUMERATION|valid::AttributeKind::Enumeration
+I|XML_ATTRIBUTE_NOTATION|valid::AttributeKind::Notation
+I|xmlAttributeDefault|valid::AttributeDefault
+I|XML_ATTRIBUTE_NONE|valid::AttributeDefault::Value
+I|XML_ATTRIBUTE_REQUIRED|valid::AttributeDefault::Required
+I|XML_ATTRIBUTE_IMPLIED|valid::AttributeDefault::Implied
+I|XML_ATTRIBUTE_FIXED|valid::AttributeDefault::Fixed
+I|xmlElementTypeVal|valid::ContentKind
+I|XML_ELEMENT_TYPE_UNDEFINED|valid::ContentKind::Undefined
+I|XML_ELEMENT_TYPE_EMPTY|valid::ContentKind::Empty
+I|XML_ELEMENT_TYPE_ANY|valid::ContentKind::Any
+I|XML_ELEMENT_TYPE_MIXED|valid::ContentKind::Mixed
+I|XML_ELEMENT_TYPE_ELEMENT|valid::ContentKind::Element
+N|XML_ATTRIBUTE_*|no public DTD declaration nodes
+I|_xmlElement.name|valid::Element::name
+I|_xmlElement.etype|valid::Element::kind
+P|_xmlElement.content|valid::Element::model - printed as xmlDumpElementDecl writes it
+I|_xmlElement.attributes|valid::Element::attributes
+A|_xmlElement.prefix _xmlAttribute.prefix|names are qualified as declared
+R|_xmlAttribute.tree _xmlElement.contModel|deprecated in 2.15.4
+I|_xmlAttribute.elem|valid::Attribute::element
+I|_xmlAttribute.name|valid::Attribute::name
+I|_xmlAttribute.atype|valid::Attribute::kind
+I|_xmlAttribute.def _xmlAttribute.defaultValue|valid::Attribute::default
+I|_xmlNotation.name|valid::Notation::name
+I|_xmlNotation.PublicID|valid::Notation::public_id
+I|_xmlNotation.SystemID|valid::Notation::system_id
+P|_xmlDtd.entities _xmlDtd.pentities|valid::Dtd::entities - an iterator over both subsets
+P|_xmlDtd.elements|valid::Dtd::elements
+P|_xmlDtd.attributes|valid::Element::attributes
+P|_xmlDtd.notations|valid::Dtd::notations
 P|XML_DOC_HTML|OwnedDocument::is_html
 N|XML_DOC_*|no document property flags
 N|xmlDocProperties|no document property flags
@@ -527,7 +580,30 @@ P|xmlValidateNCName xmlValidateNMToken xmlValidateName xmlValidateQName|Name::ne
 N|xmlSplitQName2 xmlSplitQName3|not started (Name::new parses a whole QName)
 R|xmlIsMixedElement xmlIsRef|deprecated in 2.15.4
 # ---- entities.h
-N|xmlAddDocEntity xmlAddDtdEntity xmlAddEntity xmlEncodeEntitiesReentrant xmlEncodeSpecialChars xmlEntitiesTable xmlEntityType xmlFreeEntity xmlGetDocEntity xmlGetDtdEntity xmlGetParameterEntity xmlGetPredefinedEntity xmlNewEntity XML_EXTERNAL_*_ENTITY XML_INTERNAL_*_ENTITY|no public entity lookup or declaration model (docs/compatibility.md entity row)
+I|xmlGetDocEntity|valid::Dtd::entity
+I|xmlGetParameterEntity|valid::Dtd::parameter_entity
+P|xmlGetDtdEntity|valid::Dtd::entities, valid::Entity::external_subset - filter; a name both subsets declare keeps only its internal declaration
+I|xmlGetPredefinedEntity|valid::predefined_entity
+I|xmlEncodeEntitiesReentrant|save::encode_entities
+I|xmlEncodeSpecialChars|save::encode_special_chars
+I|xmlEntityType|valid::EntityKind
+I|XML_INTERNAL_GENERAL_ENTITY|valid::EntityKind::InternalGeneral
+I|XML_EXTERNAL_GENERAL_PARSED_ENTITY|valid::EntityKind::ExternalParsedGeneral
+I|XML_EXTERNAL_GENERAL_UNPARSED_ENTITY|valid::EntityKind::ExternalUnparsedGeneral
+I|XML_INTERNAL_PARAMETER_ENTITY|valid::EntityKind::InternalParameter
+I|XML_EXTERNAL_PARAMETER_ENTITY|valid::EntityKind::ExternalParameter
+I|XML_INTERNAL_PREDEFINED_ENTITY|valid::EntityKind::Predefined
+P|xmlEntitiesTable|valid::Dtd::entities - an iterator, no table type
+A|xmlFreeEntity|Drop
+N|xmlAddDocEntity xmlAddDtdEntity xmlAddEntity xmlNewEntity|no declaration construction (roadmap 8)
+I|_xmlEntity.name|valid::Entity::name
+I|_xmlEntity.etype|valid::Entity::kind
+P|_xmlEntity.content|valid::Entity::content - also the text of loaded external entities, which libxml2 leaves unset
+I|_xmlEntity.ExternalID|valid::Entity::public_id
+I|_xmlEntity.SystemID|valid::Entity::system_id
+P|_xmlEntity.URI|valid::Entity::uri - resolved only when a resolver supplies the base
+A|_xmlEntity.length|str::len of valid::Entity::content
+N|_xmlEntity.orig|the literal as written is not kept
 # ---- xmlerror.h
 A|xmlLastError __xmlStructuredError*|no global error state
 A|xmlGetLastError xmlResetLastError xmlResetError xmlCopyError xmlCtxtResetLastError xmlSetGenericErrorFunc xmlSetStructuredErrorFunc initGenericErrorDefaultFunc xmlGenericError* xmlStructuredError* xmlParserError xmlParserWarning xmlParserValidityError xmlParserValidityWarning xmlParserPrintFileInfo xmlParserPrintFileContext xmlFormatError __xmlGenericError*|no global error state or printing; diagnostics are returned values
@@ -644,8 +720,16 @@ N|xmlTextWriterWriteBase64 xmlTextWriterWriteBinHex xmlTextWriterWriteRaw xmlTex
 P|xmlValidateDocument xmlValidateDtd xmlValidateElement|valid::validate, Document::validate, OwnedDocument::validate
 P|xmlGetID|Document::element_by_id, OwnedDocument::element_by_id
 A|xmlNewValidCtxt xmlFreeValidCtxt xmlFreeIDTable xmlFreeEnumeration|Drop
-N|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl xmlAddID xmlAddIDSafe xmlRemoveID xmlGetDtdAttrDesc xmlGetDtdElementDesc xmlGetDtdNotationDesc xmlGetDtdQAttrDesc xmlGetDtdQElementDesc xmlIsID xmlValidGetPotentialChildren xmlValidGetValidElements xmlValidateNameValue xmlValidateNamesValue xmlValidateNmtokenValue xmlValidateNmtokensValue xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
-N|xmlAttributeTable xmlAttributeTablePtr xmlElementTable xmlElementTablePtr xmlIDTable xmlIDTablePtr xmlNotationTable xmlNotationTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
+I|xmlGetDtdElementDesc|valid::Dtd::element
+P|xmlGetDtdQElementDesc|valid::Dtd::element - takes the qualified name
+I|xmlGetDtdAttrDesc|valid::Dtd::attribute
+P|xmlGetDtdQAttrDesc|valid::Dtd::attribute - takes qualified names
+I|xmlGetDtdNotationDesc|valid::Dtd::notation
+P|xmlElementTable|valid::Dtd::elements - an iterator, no table type
+P|xmlAttributeTable|valid::Element::attributes - an iterator, no table type
+P|xmlNotationTable|valid::Dtd::notations - an iterator, no table type
+N|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl xmlAddID xmlAddIDSafe xmlRemoveID xmlIsID xmlValidGetPotentialChildren xmlValidGetValidElements xmlValidateNameValue xmlValidateNamesValue xmlValidateNmtokenValue xmlValidateNmtokensValue xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
+N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
 N|xmlValidCtxt xmlValidCtxtPtr|valid::validate takes no context
 # ---- encoding.h
 P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum
@@ -808,7 +892,16 @@ N|xmlSAX2* xmlSAXVersion|SAX2 handler table not started (roadmap 15)
 N|xlink* XLINK_*|XLink callbacks not started
 # ---- xmlstring.h chvalid.h dict.h hash.h list.h debugXML.h threads.h xmlmemory.h xmlmodule.h nanohttp.h
 A|BAD_CAST xmlChar xmlStr* xmlCharStr* xmlCheckUTF8 xmlGetUTF8Char xmlUTF8*|str/String/char replace xmlChar helpers (Rust strings are valid UTF-8)
-N|xmlChLRange* xmlChRange* xmlChSRange* xmlCharInRange xmlIs*|character classes are private (roadmap 22)
+I|xmlIsChar xmlIsCharQ xmlIsChar_ch|chars::is_char
+I|xmlIsBlank xmlIsBlankQ xmlIsBlank_ch|chars::is_blank
+I|xmlIsBaseChar xmlIsBaseCharQ xmlIsBaseChar_ch|chars::is_base_char
+I|xmlIsDigit xmlIsDigitQ xmlIsDigit_ch|chars::is_digit
+I|xmlIsCombining xmlIsCombiningQ|chars::is_combining
+I|xmlIsExtender xmlIsExtenderQ xmlIsExtender_ch|chars::is_extender
+I|xmlIsIdeographic xmlIsIdeographicQ|chars::is_ideographic
+I|xmlIsPubidChar xmlIsPubidCharQ xmlIsPubidChar_ch|chars::is_pubid_char
+P|xmlIsPubidChar_tab|chars::is_pubid_char - a predicate, no table
+A|xmlChLRange* xmlChRange* xmlChSRange* xmlCharInRange xmlIs*Group|the chars predicates keep their range tables private
 A|xmlDict* xmlInitializeDict xmlHash* xmlLink* xmlList* XML_CAST_FPTR|no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 N|xmlDebug*|diagnostic dumps not started (roadmap 22)
 A|xmlMem* xmlGcMem* xmlMalloc* xmlRealloc* xmlFree xmlFreeFunc xmlCleanupMemory xmlInitMemory xmlMemoryStrdup xmlMemoryDump xmlStrdupFunc __xmlFree __xmlMalloc __xmlMallocAtomic __xmlMemStrdup __xmlRealloc|global allocator and Drop; no allocation callbacks

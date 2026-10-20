@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc At NMTOKEN "
+">$$$<!ATTLIST doc Ok NMTOKEN "1abc_2">
+<!ATTLIST doc bad IDREF "">
+<!ATTLIST doc bad2 IDREFS "abc:1 1abc_2">
+<#ATTLIST doc okTTLIST doc At NMTOKEN "$$$">
+oc O val="v1"È/>
+

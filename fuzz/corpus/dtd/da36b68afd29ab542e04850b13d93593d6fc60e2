@@ -1,1 +1,0 @@
-;<!DOCTYPE r [<!ENTITY a SYSTEM 'file://host/x'>]><r>&a;</r>

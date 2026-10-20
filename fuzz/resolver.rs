@@ -333,6 +333,7 @@ pub(super) fn exercise_load(
             return Some(error);
         }
     };
+    super::dtd::check(&dtd);
     if let (Ok(borrowed), Ok(owned)) = (
         Document::parse_bytes(document),
         OwnedDocument::parse_bytes(document),

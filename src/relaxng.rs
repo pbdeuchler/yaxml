@@ -474,11 +474,14 @@ impl Context for Bindings {
     }
 
     fn has_notation(&self, name: &str) -> bool {
-        (self.dtd.as_ref()).is_some_and(|dtd| dtd.notations.contains_key(name))
+        (self.dtd.as_ref()).is_some_and(|dtd| dtd.notation(name).is_some())
     }
 
     fn has_unparsed_entity(&self, name: &str) -> bool {
-        (self.dtd.as_ref()).is_some_and(|dtd| matches!(dtd.entities.get(name), Some(Some(_))))
+        (self.dtd.as_ref()).is_some_and(|dtd| {
+            dtd.entity(name)
+                .is_some_and(|entity| entity.notation.is_some())
+        })
     }
 }
 
@@ -535,11 +538,14 @@ impl<T: Navigate> Context for Scope<'_, T> {
     }
 
     fn has_notation(&self, name: &str) -> bool {
-        (self.tree.dtd()).is_some_and(|dtd| dtd.notations.contains_key(name))
+        (self.tree.dtd()).is_some_and(|dtd| dtd.notation(name).is_some())
     }
 
     fn has_unparsed_entity(&self, name: &str) -> bool {
-        (self.tree.dtd()).is_some_and(|dtd| matches!(dtd.entities.get(name), Some(Some(_))))
+        (self.tree.dtd()).is_some_and(|dtd| {
+            dtd.entity(name)
+                .is_some_and(|entity| entity.notation.is_some())
+        })
     }
 }
 
