@@ -383,6 +383,16 @@ impl StreamingSession {
                 None => consumed = accepted,
             }
         }
+        self.drive_session(input, consumed, emit)
+    }
+    /// [`Self::drive`] on the DTD session path, out of the plain stream's line.
+    #[inline(never)]
+    fn drive_session(
+        &mut self,
+        input: &[u8],
+        mut consumed: usize,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    ) -> Result<usize, Error> {
         loop {
             consumed += self.drive_chunk(&input[consumed..], emit)?;
             let step = self.prepare_inner(&input[consumed..])?;
