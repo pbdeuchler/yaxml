@@ -213,6 +213,9 @@ impl<'input> Document<'input> {
                         let kept = kept.drain(..).map(|(index, form)| (id, index, form));
                         document.kept.extend(kept);
                     }
+                    reader
+                        .owned_budget()
+                        .charge_attributes(element.attributes.len(), origin.error_offset())?;
                     document.append_element(parent, element, origin)?;
                     if parent == NodeId(0) {
                         document.root_element = id;

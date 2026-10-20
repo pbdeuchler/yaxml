@@ -1763,6 +1763,7 @@ fn store_content<A: Allocator>(
             })
         }
         Event::Start(element) | Event::Empty(element) => {
+            budget.charge_attributes(element.attributes.len(), offset)?;
             let name = pool.name(&element.name, offset, budget)?;
             let start = attributes.len();
             attributes

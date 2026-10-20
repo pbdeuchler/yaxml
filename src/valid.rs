@@ -296,10 +296,15 @@ impl Dtd {
     }
 
     /// The declaration of attribute `attribute` on `element`, qualified name first.
-    fn attribute_for(&self, element: QName<'_>, attribute: &str) -> Option<&AttributeDecl> {
+    fn attribute_for(
+        &self,
+        element: QName<'_>,
+        attribute: &str,
+    ) -> Option<((usize, usize), &AttributeDecl)> {
         let declared = |name: &str| {
-            let element = &self.elements[*self.element_index.get(name)?];
-            Some(&element.attributes[*element.index.get(attribute)?])
+            let owner = *self.element_index.get(name)?;
+            let slot = *self.elements[owner].index.get(attribute)?;
+            Some(((owner, slot), &self.elements[owner].attributes[slot]))
         };
         declared(element.qualified).or_else(|| {
             (element.qualified != element.local)
@@ -333,11 +338,12 @@ impl Dtd {
             ElementContentView::Any => (Content::Any, 0),
             ElementContentView::Mixed(tokens) => {
                 let mut names: Vec<String> = Vec::new();
+                let mut seen = std::collections::HashSet::new();
                 for token in tokens {
                     let ModelTokenView::Name(name) = token else {
                         continue;
                     };
-                    if names.iter().any(|seen| seen == name) {
+                    if !seen.insert(name) {
                         let message = format!(
                             "Definition of {} has duplicate references of {name}",
                             view.name()
@@ -387,8 +393,9 @@ impl Dtd {
     pub(crate) fn check_attribute(&mut self, element: usize, attribute: &AttributeDecl) {
         let decl = &self.elements[element];
         let (name, owner) = (&attribute.name, &decl.name);
-        for (index, value) in attribute.values.iter().enumerate() {
-            if attribute.values[..index].contains(value) {
+        let mut seen = std::collections::HashSet::new();
+        for value in &attribute.values {
+            if !seen.insert(value) {
                 let kind = match attribute.kind {
                     AttributeKind::Notation => "notation",
                     _ => "enumeration",

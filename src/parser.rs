@@ -42,6 +42,8 @@ const MAX_RECOVERED: usize = 100;
 pub(crate) struct Budget {
     limits: Limits,
     owned_bytes: usize,
+    /// Attributes a DOM builder may still retain (`max_total_attributes`).
+    attributes_left: usize,
     recovered: Option<Vec<Error>>,
     /// The last published start tag's kept-reference attribute forms
     /// (`dtd_tag::kept_form`) by attribute position, for the DOM builders.
@@ -53,6 +55,7 @@ impl Budget {
         Self {
             limits,
             owned_bytes: 0,
+            attributes_left: limits.max_total_attributes,
             recovered: None,
             kept: Vec::new(),
         }
@@ -130,6 +133,15 @@ impl Budget {
 
     pub(crate) fn remaining_owned(&self) -> usize {
         self.limits.max_owned_bytes - self.owned_bytes
+    }
+
+    /// Counts the attributes a DOM builder retains for one start tag.
+    pub(crate) fn charge_attributes(&mut self, count: usize, offset: usize) -> Result<(), Error> {
+        self.attributes_left = self.attributes_left.checked_sub(count).ok_or(Error::new(
+            ErrorKind::LimitExceeded(Limit::TotalAttributes),
+            offset,
+        ))?;
+        Ok(())
     }
 
     pub(crate) fn charge_owned(&mut self, bytes: usize, offset: usize) -> Result<(), Error> {
