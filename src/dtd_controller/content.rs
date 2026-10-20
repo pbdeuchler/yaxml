@@ -715,6 +715,13 @@ impl<'input> ContentControllerCore<'input> {
         Ok(())
     }
 
+    /// Where a parse stopped by an error at `offset` closes what it left
+    /// open: past the reference being expanded, which its node spans.
+    pub(crate) fn stopped_at(&self, offset: usize) -> usize {
+        let frame = self.body.frames.top();
+        frame.map_or(offset, |frame| frame.physical_reference.end.max(offset))
+    }
+
     /// Under `RECOVER`, the next event that closes, at `at`, what a parse
     /// stopped by an unrepaired error left open: the innermost entity's
     /// elements, then its reference, out to the document's elements; `None`

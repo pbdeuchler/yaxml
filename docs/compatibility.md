@@ -359,7 +359,8 @@ the document not well-formed, but SAX keeps building the tree, and
 error site, `Budget::recover`: strict parsing returns the error, recovery
 records it and the site continues with libxml2's repair. An error no site
 repairs ends parsing: the reader closes what is still open with `End` (and
-`EntityEnd`) events at that error's offset, so the DOMs, built from those
+`EntityEnd`) events at that error's offset (past the reference, for an error
+in entity replacement text, so every node's range holds its children's), so the DOMs, built from those
 events, and every stream (`Reader`, `PushParser`, `BufferedReader`,
 `TextReader`) recover alike. `errors()` on each lists the recovered errors
 (the first 100, as libxml2's `XML_MAX_ERRORS`); a well-formed document has
@@ -382,7 +383,7 @@ that a successful parse has an element.
 | Mismatched or malformed end tag | Ends the open element. With none open (after the root) parsing stops. |
 | End of input inside content | Closes the open elements. A start tag cut off by the end is an empty element (UTF-8 documents without a DOCTYPE; elsewhere parsing stops before it). |
 | Malformed attribute (`a=1`, `a="1"b`, no value), a character reference libxml2 reads as zero in a value (`&#0;`, `&#12a;`) | The element ends there, empty, with the attributes before it; the rest of the tag is reread as content (`<a b=1>x` gives `<a/>1&gt;x`). |
-| `<` in an attribute value, duplicate attributes | Kept. |
+| `<` in an attribute value (declared or not; replacement text's `<` empties the value), duplicate attributes | Kept. |
 | Namespace errors | As without `RECOVER` ([Namespace errors](#namespace-errors)). |
 | A prefix declared again in one tag | Dropped. |
 | Malformed reference | Dropped as far as libxml2 reads it (`&`, `&name`, `&#x4` of `&#x4G;`); a complete reference to a non-character is U+FFFD, `&#0;` nothing. |
@@ -405,18 +406,18 @@ the partial tree), entity loops, allocation failure and resolver failures.
 `tests/recover.rs` covers each row, and `yaxmllint --recover` is compared
 with `xmllint --recover` (`tests/yaxmllint.rs`): libxml2's `test/errors`
 agree on 37/45 inputs (82.22%; 23/45 before the repairs below), the XMLTS
-not-wf documents on 1305/1498 (87.12%; 717/1498 before), give or take three
+not-wf documents on 1315/1498 (87.78%; 717/1498 before), give or take three
 that flip between runs as libxml2 writes notations in hash order.
 `streams_recover_against_xmllint` (`tests/recover.rs`) compares the push
 parser's tree, as `xmllint --walker --debug` lists it, with libxml2's: its
-pull tree (`--recover`) on 36/45 `test/errors` inputs (80.00%) and 1290/1498
-XMLTS not-wf documents (86.11%), the same as the DOMs' events (80.00%,
-86.05%), its push tree (`--recover --push`) on 33/45 (73.33%) and 1270/1498
-(84.78%), with `--noblanks` on 34/45 (75.56%) and 1268/1498 (84.65%).
+pull tree (`--recover`) on 36/45 `test/errors` inputs (80.00%) and 1292/1498
+XMLTS not-wf documents (86.25%), the same as the DOMs' events (80.00%,
+86.18%), its push tree (`--recover --push`) on 33/45 (73.33%) and 1272/1498
+(84.91%), with `--noblanks` on 34/45 (75.56%) and 1270/1498 (84.78%).
 libxml2's push and pull trees differ on 4/45 and 20/1498 themselves (its push
 parser drops a nameless tag that its pull parser reads as text); yaxml has
 one recovery. The text reader agrees with `xmllint --recover --stream --debug`
-on 10/45 (22.22%) and 541/1498 (36.11%) only, since libxml2's reader stops at
+on 10/45 (22.22%) and 543/1498 (36.25%) only, since libxml2's reader stops at
 its first well-formedness error even with `RECOVER`. The known differences,
 by design:
 

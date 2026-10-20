@@ -49,6 +49,13 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     // the end of input closes what is open
     ("<r><a>text", "<r><a>text</a></r>", &[UnexpectedEof]),
     ("<r><a b=\"x<y\"/></r>", "<r><a b=\"x&lt;y\"/></r>", &[Syntax]),
+    // ... declared too, where only replacement text's `<` empties a value
+    ("<!DOCTYPE r [<!ATTLIST r a CDATA #IMPLIED b NMTOKEN #IMPLIED>]><r a=\"x<y\" b=\" p<q \"/>",
+     "<!DOCTYPE r [\n<!ATTLIST r a CDATA #IMPLIED>\n<!ATTLIST r b NMTOKEN #IMPLIED>\n]>\n<r a=\"x&lt;y\" b=\"p&lt;q\"/>", &[Syntax; 2]),
+    ("<!DOCTYPE p:r [<!ATTLIST p:r xmlns:p CDATA #FIXED \"u\">]><p:r xmlns:p=\"a<b\"/>",
+     "<!DOCTYPE p:r [\n<!ATTLIST p:r xmlns:p CDATA #FIXED \"u\">\n]>\n<p:r xmlns:p=\"a&lt;b\"/>", &[Syntax]),
+    ("<!DOCTYPE r [<!ENTITY e \"&#60;\"><!ATTLIST r a CDATA #IMPLIED>]><r a=\"x&e;\"/>",
+     "<!DOCTYPE r [\n<!ENTITY e \"&#60;\">\n<!ATTLIST r a CDATA #IMPLIED>\n]>\n<r a=\"\"/>", &[Syntax]),
     // duplicates are kept, as libxml2 keeps them
     ("<r a=\"1\" a=\"2\"/>", "<r a=\"1\" a=\"2\"/>", &[DuplicateAttribute]),
     // ... but only the first declaration of a prefix
@@ -152,7 +159,9 @@ const ROOTLESS: &[(&str, &str, &[ErrorKind])] = &[
      "<!DOCTYPE r [\n<!ATTLIST r a CDATA #REQUIRED>\n]>\n", &[InvalidName, TextOutsideRoot]),
     ("<!DOCTYPE r [<!ATTLIST r a CDATA #REQUIRED b NAME #IMPLIED>]><r/>",
      "<!DOCTYPE r [\n<!ATTLIST r a CDATA #REQUIRED>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
-    // ... but not an element it did not read to its end
+    // ... but not an attribute default holding `<`
+    ("<!DOCTYPE r [<!ATTLIST r a CDATA \"x<y\">]><r/>", "<!DOCTYPE r>\n", &[InvalidDtd, UnexpectedEof]),
+    // ... nor an element it did not read to its end
     ("<!DOCTYPE r [<!ELEMENT r ANY x>]><r/>", "<!DOCTYPE r>\n", &[InvalidDtd, TextOutsideRoot]),
 ];
 
@@ -489,6 +498,58 @@ fn a_stopped_stream_closes_what_is_open_and_reads_no_more() {
         Err(UnexpectedEof)
     );
     assert!(strict.errors().is_empty());
+}
+
+#[test]
+fn a_parse_stopped_in_replacement_text_closes_past_the_reference() {
+    // (input, the root element's range, the closing `End` events' offset)
+    let cases: &[(&str, std::ops::Range<usize>, usize)] = &[
+        (
+            "<!DOCTYPE r [<!ENTITY e '<a>x</a>'>]><r>&e;</r>",
+            37..47,
+            47,
+        ),
+        // an element left open, or a malformed end tag, in the entity
+        ("<!DOCTYPE r [<!ENTITY e '<a>x'>]><r>&e;", 33..39, 39),
+        (
+            "<!DOCTYPE r [<!ENTITY e '<a></-a>'>]><r>&e;</r>",
+            37..43,
+            43,
+        ),
+        // an error outside replacement text closes at its offset
+        ("<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;\u{1}</r>", 30..36, 36),
+    ];
+    for (input, root, at) in cases {
+        let options = || ParseOptions::new(RECOVER);
+        let borrowed = Document::parse_with(input.as_bytes(), options()).unwrap();
+        let owned = OwnedDocument::parse_with(input.as_bytes(), options()).unwrap();
+        let element = borrowed.document_element().unwrap();
+        assert_eq!(element.range().as_ref(), Some(root), "{input}");
+        let owned_element = owned.document_element().unwrap();
+        assert_eq!(owned_element.range().as_ref(), Some(root), "{input}");
+        // Every child's range lies inside its parent's.
+        for node in element.descendants() {
+            let (Some(child), Some(parent)) = (node.range(), node.parent().and_then(|p| p.range()))
+            else {
+                continue;
+            };
+            assert!(
+                parent.start <= child.start && child.end <= parent.end,
+                "{input}"
+            );
+        }
+        let mut parser = PushParser::with_options(options()).unwrap();
+        let mut ends = Vec::new();
+        let mut emit = |event: &yaxml::Event<'_>, origin: yaxml::SourceOrigin| {
+            if let (yaxml::Event::End(_), Some(range)) = (event, origin.input_range()) {
+                ends.push(range.end);
+            }
+            ControlFlow::Continue(())
+        };
+        parser.feed(input.as_bytes(), &mut emit).unwrap();
+        parser.finish(&mut emit).unwrap();
+        assert_eq!(ends.last(), Some(at), "{input}");
+    }
 }
 
 #[test]
