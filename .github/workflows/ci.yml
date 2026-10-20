@@ -41,6 +41,39 @@ jobs:
       - name: C test under ASan, UBSan and LeakSanitizer
         run: capi/tests/c/run.sh
 
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.97.0"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+      - name: libxml2 test corpus for the lxml differential
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --max-time 120 \
+            https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz \
+            --output "$RUNNER_TEMP/libxml2.tar.xz"
+          echo "98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821  $RUNNER_TEMP/libxml2.tar.xz" | sha256sum --check
+          tar -xJf "$RUNNER_TEMP/libxml2.tar.xz" -C "$RUNNER_TEMP"
+          echo "YAXML_LIBXML2_SOURCE=$RUNNER_TEMP/libxml2-2.15.4" >> "$GITHUB_ENV"
+      - name: Build the extension (maturin) and install it with lxml
+        run: uv sync --group compare
+      - name: Type stubs match the extension
+        run: |
+          uv run mypy python/yaxml
+          uv run python -m mypy.stubtest yaxml._yaxml
+      - name: pytest, including the lxml differential
+        run: uv run pytest -q -rs
+      - name: Benchmark smoke
+        run: uv run python bench/bench_parse.py --repeat 1 --fixture tiny --fixture flat
+
   capi-fuzz:
     runs-on: ubuntu-latest
     steps:

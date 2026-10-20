@@ -1,8 +1,9 @@
 # Language binding boundary
 
-Status: the C ABI (`bindings/capi`, crate `yaxml-capi`) and a Go package over
-it (`bindings/go`) exist; see [C ABI](#c-abi) and [Go](#go). Python and Node
-adapters are not written.
+Status: the C ABI (`bindings/capi`, crate `yaxml-capi`), a Go package over
+it (`bindings/go`) and a Python package (`bindings/python`, crate `yaxml-py`)
+exist; see [C ABI](#c-abi), [Go](#go) and [Python](#python). A Node adapter
+is not written.
 
 ## Where unsafe lives
 
@@ -532,7 +533,80 @@ is 90, the ABI (handle lookup, event lowering into reused buffers) 40 and
 the Go side (cgo call, string copies; names are interned) 150. Code that
 walks a parsed document or asks XPath for nodes stays on the DOM side.
 
+## Python
+
+`bindings/python` is the `yaxml` package: an `lxml.etree`-style API built
+with PyO3 and maturin as a member of the `bindings/` workspace. The crate
+forbids `unsafe`; PyO3 contains all of it. API, build and the differences
+from lxml: [bindings/python/README.md](../bindings/python/README.md).
+
+- **Proxies.** `_Element` holds `Arc<Doc>` plus an `OwnedNodeId`. `Doc` is
+  the `OwnedDocument` behind an `RwLock` (with `LineIndex::owned` keeping the
+  input for `sourceline` and validator lines), a weak-reference registry
+  that keeps one live proxy per node (so `is` works as in lxml), and a side
+  table for tails of parentless nodes. Locks are taken with PyO3's
+  `*_py_attached`, Python objects are built after locks are released, and
+  two documents are locked in address order.
+- **Moves.** A same-document move is an `Editor` move (handles survive).
+  `append(element_of_other_doc)` follows [Moving nodes between
+  documents](#moving-nodes-between-documents): import (and the tail text),
+  insert, pair the source subtree with the copy's `descendants()` (skipping
+  references the destination inlined), remove the source, then repoint the
+  live proxies. A document element, or entity content, is copied instead.
+  A proxy whose node is gone raises `StaleElementError`.
+- **Edits** use `EditLimits::DEFAULT`; iterparse builds its tree with the
+  per-value ceilings lifted, because the parser's `Limits` already bounded
+  that input. Text and tail follow lxml's `_collectText`/`_setNodeText`
+  (runs of Text/CDATA); removed children that no proxy observes are
+  `remove_subtree`d, observed ones unlinked.
+- **Errors** are `xmlError` rows (`describe`, `describe_all`, validators'
+  `describe`) raised as `XMLSyntaxError` and friends with libxml2's code,
+  domain, level, line and column; XPath errors use `xpath::Error::libxml2`.
+- **GIL.** Parsing, serialization, `xpath()`, C14N and validation run
+  detached. The module declares `gil_used = false`; the suite passes on
+  free-threaded CPython 3.15t (beta) with the GIL off.
+
+Differential against lxml 6.1.3 (bundling libxml2 2.14.6), both sides with
+`XMLParser()` defaults, over the 764 `test/**/*.xml` files of libxml2
+2.15.4 (`tests/test_lxml_differential.py`):
+
+| Compared | Agree |
+| --- | --- |
+| accept/reject | 728/764 (95.29%) |
+| element tree (tags, attributes, text, tails, comments, PIs) where both parse | 663/663 (100.00%) |
+| `tostring(tree)` bytes | 649/663 (97.89%) |
+| `tostring(tree, method="c14n")` | 663/663 (100.00%) |
+| error code and line where both reject | 54/65 (83.08%) |
+
+The rejections are lxml's: it raises when libxml2 logged an error it
+recovered from (undeclared entities in documents with an unread external
+subset, `xml:id` errors), and libxml2 2.14 reports some different codes.
+The `tostring` differences are 2.14's `<?pi ?>` spacing, lxml dropping
+some DOCTYPEs, and non-ASCII names and comments under ASCII output.
+
+Benchmark (`bench/bench_parse.py`, the core's `benches/parse.rs` fixtures,
+Apple M-series, CPython 3.14, release build, median of 5; host not idle, so
+treat ratios to about 10%):
+
+| Fixture | parse yaxml | lxml | xml.etree | `iter()` yaxml | lxml |
+| --- | --- | --- | --- | --- | --- |
+| tiny (23 B) | 1.44 µs | 1.28 µs | 3.48 µs | 0.32 µs | 0.40 µs |
+| flat (270 KB) | 2.25 ms | 2.28 ms | 4.80 ms | 2.91 ms | 0.71 ms |
+| text (500 KB) | 0.16 ms | 0.33 ms | 1.12 ms | | |
+| normalized (300 KB) | 2.77 ms | 3.68 ms | 6.15 ms | 2.29 ms | 0.71 ms |
+| namespaces (170 KB) | 1.72 ms | 2.01 ms | 5.20 ms | 1.85 ms | 0.71 ms |
+| dtd (320 KB) | 31.7 ms | 9.07 ms | 10.7 ms | 10.5 ms | 1.75 ms |
+
+Parsing matches or beats lxml except DTD-heavy input (the core's known ~3x
+on entity references; yaxml also keeps references, lxml substitutes them).
+Walking the tree from Python is 2.5-4x slower than lxml: each proxy costs a
+Python object, a weak reference and a registry insert (lxml stores the proxy
+pointer in the C node). `tostring` is 0.8-1.1x lxml on markup and 4x slower
+on one 500 KB text node (ASCII output encodes per character); `findall` runs
+through the XPath engine, 3x lxml and 11x on a name that never matches.
+
 ## Open decisions
 
 - Packaging and CI matrices for each language beyond the Linux CI jobs
-  (`capi`, `capi-fuzz`, `go`); a Python or Node adapter.
+  (`capi`, `capi-fuzz`, `go`, `python`): Python wheels (manylinux, macOS,
+  free-threaded) and their publishing; a Node adapter.

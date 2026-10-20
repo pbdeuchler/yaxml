@@ -11,7 +11,7 @@ mod parse;
 mod query;
 mod validate;
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn _yaxml(m: &Bound<'_, PyModule>) -> PyResult<()> {
     element::register(m)?;
     parse::register(m)?;

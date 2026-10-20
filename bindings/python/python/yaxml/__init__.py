@@ -13,7 +13,7 @@ from typing import IO, Any, Callable, Union
 
 from . import _errors
 from ._errors import *  # noqa: F403
-from ._errors import DocumentInvalid, ErrorLog, XMLSyntaxError, log
+from ._errors import DocumentInvalid, ErrorLog, SerialisationError, XMLSyntaxError, log
 from ._yaxml import (
     CDATA,
     LIBXML2_COMPAT_VERSION,
@@ -222,7 +222,8 @@ def fromstring(
     """Parses a document from bytes or str and returns its root element."""
     if not isinstance(text, (bytes, bytearray, str)):
         raise TypeError("fromstring() takes bytes or str")
-    root = _document(text, parser, base_url, resolver, options).getroot()
+    data = bytes(text) if isinstance(text, bytearray) else text
+    root = _document(data, parser, base_url, resolver, options).getroot()
     if root is None:
         raise XMLSyntaxError("Document has no root element", 4, 0, 0)
     return root
@@ -264,6 +265,15 @@ def _is_unicode(encoding: Any) -> bool:
     return encoding is str or (isinstance(encoding, str) and encoding.lower() == "unicode")
 
 
+def _target(element_or_tree: _Element | _ElementTree) -> _Element | _Document:
+    """What the native serializers take: an element, or a tree's document."""
+    if isinstance(element_or_tree, _ElementTree):
+        if element_or_tree._doc is None:
+            raise ValueError("ElementTree has no document")
+        return element_or_tree._doc
+    return element_or_tree
+
+
 def c14n(
     element_or_tree: _Element | _ElementTree,
     *,
@@ -273,8 +283,7 @@ def c14n(
     version: str = "1.0",
 ) -> bytes:
     """Canonical XML 1.0/1.1 or Exclusive C14N of a tree or subtree."""
-    target = element_or_tree._doc if isinstance(element_or_tree, _ElementTree) else element_or_tree
-    return target._c14n(exclusive, with_comments, inclusive_ns_prefixes, version)
+    return _target(element_or_tree)._c14n(exclusive, with_comments, inclusive_ns_prefixes, version)
 
 
 def tostring(
@@ -313,13 +322,17 @@ def tostring(
     if xml_declaration is None:
         normalized = label.upper().replace("_", "-")
         xml_declaration = not unicode and normalized not in ("US-ASCII", "ASCII", "UTF-8", "UTF8")
-    tree = isinstance(element_or_tree, _ElementTree)
-    if tree:
-        document = element_or_tree._doc
-        data = document._serialize(label, pretty_print, method)
-    else:
-        data = element_or_tree._serialize(label, pretty_print, method)
-        tail = element_or_tree.tail if with_tail else None
+    target = _target(element_or_tree)
+    try:
+        data = target._serialize(label, pretty_print, method)
+    except SerialisationError:
+        if encoding is not None:
+            raise
+        # ASCII cannot spell a non-ASCII name, comment or PI (libxml2 would
+        # write a character reference and change it): keep those as UTF-8.
+        data = target._serialize(None, pretty_print, method)
+    if isinstance(target, _Element):
+        tail = target.tail if with_tail else None
         if tail:
             escaped = tail if method == "text" else _escape_text(tail)
             data += escaped.encode("utf-8" if method == "text" else label, "xmlcharrefreplace")
@@ -329,7 +342,7 @@ def tostring(
         text = data.decode("utf-8")
         return text if unicode else text.encode(label if encoding else "ascii", "strict")
     if xml_declaration and method == "xml":
-        version = element_or_tree._doc.xml_version if tree else "1.0"
+        version = target.xml_version if isinstance(target, _Document) else "1.0"
         declaration = f"<?xml version='{version}' encoding='{label}'"
         if standalone is not None:
             declaration += f" standalone='{'yes' if standalone else 'no'}'"

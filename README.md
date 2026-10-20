@@ -575,3 +575,13 @@ if err != nil {
 defer doc.Close()
 nodes, err := doc.XPath("//item")
 ```
+
+`bindings/python` is the `yaxml` Python package, an `lxml.etree`-style API
+on PyO3 ([its README](bindings/python/README.md)):
+
+```python
+import yaxml as etree
+
+root = etree.fromstring(b"<r><item n='1'/><item n='2'/></r>")
+print([item.get("n") for item in root.iter("item")], etree.tostring(root[0]))
+```

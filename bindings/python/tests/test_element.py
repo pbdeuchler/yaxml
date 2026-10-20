@@ -381,10 +381,8 @@ def test_proxy_identity():
     assert root[0] == root[0]
     assert hash(root[0]) == hash(root[0])
     assert root[0] != root
-    ids = set()
-    for _ in range(3):
-        ids.add(id(root[0]))
-    assert len(ids) == 1
+    first = root[0]
+    assert all(root[0] is first for _ in range(3))
 
 
 def test_identity_survives_proxy_churn():
