@@ -256,3 +256,35 @@ fn doubling_input_does_not_quadruple_time() {
         );
     }
 }
+
+/// libxml2's input-stack ceiling: 20 by default, 40 with `HUGE`.
+#[test]
+fn entity_depth_defaults_match_libxml2_and_huge_raises_them() {
+    let nested = |levels: usize| {
+        let mut dtd = String::from("<!ENTITY e0 'x'>");
+        for i in 1..=levels {
+            dtd += &format!("<!ENTITY e{i} '&e{}; '>", i - 1);
+        }
+        format!("<!DOCTYPE r [{dtd}]><r>&e{levels};</r>")
+    };
+    for (levels, flags, ok) in [
+        (15, 0, true),
+        (30, 0, false),
+        (30, HUGE, true),
+        (60, HUGE, false),
+    ] {
+        let options = ParseOptions::DEFAULT.flags(flags | yaxml::options::NOENT);
+        let result = Document::parse_with(nested(levels).as_bytes(), options)
+            .map(drop)
+            .map_err(kind);
+        match ok {
+            true => assert_eq!(result, Ok(()), "{levels} {flags:#x}"),
+            false => assert_eq!(
+                result,
+                Err(ErrorKind::LimitExceeded(Limit::EntityDepth)),
+                "{levels} {flags:#x}"
+            ),
+        }
+    }
+    assert_eq!(Limits::DEFAULT.max_entity_depth, 20);
+}

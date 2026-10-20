@@ -69,7 +69,7 @@ impl Limits {
         max_entity_expansion_bytes: 1_000_000,
         max_entity_amplification: 5,
         max_entity_references: 1024 * 1024,
-        max_entity_depth: 40,
+        max_entity_depth: 20,
         max_external_loads: 256,
         max_external_bytes: 16 * 1024 * 1024,
     };
