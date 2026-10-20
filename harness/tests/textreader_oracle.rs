@@ -291,8 +291,10 @@ fn rde<R: BufRead>(mut reader: TextReader<R>) -> String {
     out
 }
 
-const DEFAULT_SOURCE: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../yaxml-oracle/libxml2-2.15.4");
+const DEFAULT_SOURCE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../yaxml-oracle/libxml2-2.15.4"
+);
 
 /// Inputs whose `.rde` differs for documented reasons: EBCDIC and EUC-JP are
 /// unsupported encodings, and `&#13;` in replacement text stays CR.

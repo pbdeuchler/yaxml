@@ -11,8 +11,10 @@ use std::{env, fs};
 
 use yaxml::{LineIndex, OwnedDocument, ParseOptions};
 
-const DEFAULT_SOURCE: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../yaxml-oracle/libxml2-2.15.4");
+const DEFAULT_SOURCE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../yaxml-oracle/libxml2-2.15.4"
+);
 const DEFAULT_SUITES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../yaxml-suites");
 
 /// libxml2's first error-level record for a file: code, line, message.

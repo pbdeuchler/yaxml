@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 """Union per-target coverage exports into one per-file table.
 
-Usage: coverage_merge.py OUT_DIR  (reads every OUT_DIR/<target>/{lcov.info,export.json})
+Usage: coverage_merge.py OUT_DIR [SRC_ROOT]  (reads every OUT_DIR/<target>/{lcov.info,export.json})
 
 `llvm-cov report` with several `-object` binaries maps each function from the
 first binary that contains it, so a binary that never calls a function hides
@@ -64,7 +64,7 @@ for (file, *_), taken in branches.items():
     table[file][6] += 1
     table[file][7] += taken == 0
 
-root = str(Path.cwd() / "src") + "/"
+root = (sys.argv[2] if len(sys.argv) > 2 else str(Path.cwd() / "src")).rstrip("/") + "/"
 pct = lambda total, missed: f"{100 * (total - missed) / total:.2f}%" if total else "-"
 print(f"{'Filename':<30}{'Regions':>9}{'Missed':>8}{'Cover':>9}{'Functions':>11}{'Missed':>8}{'Cover':>9}"
       f"{'Lines':>8}{'Missed':>8}{'Cover':>9}{'Branches':>10}{'Missed':>8}{'Cover':>9}")

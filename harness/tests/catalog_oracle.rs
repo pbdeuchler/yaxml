@@ -12,9 +12,9 @@ use std::path::Path;
 use std::time::Duration;
 
 use process::ProcessLimits;
-use yaxml::options::{CATALOG_PI, DTDLOAD, NOENT};
-use yaxml::{Document, FileResolver, ParseOptions, Request};
 use yaxml::catalog::{Catalog, CatalogResolver, Limits};
+use yaxml::options::{CATALOG_PI, DTDLOAD, NOENT};
+use yaxml::{Document, FileResolver, ParseOptions, Request, Resolver};
 
 const CASES: usize = 400;
 const QUERIES: usize = 12;

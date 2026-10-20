@@ -4,7 +4,7 @@ Usage: fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]. Inputs over MAX_INPUT_BYTES 
 import hashlib, os, re, sys
 from pathlib import Path
 
-W = Path.home() / "workspace/src/github.com/pbdeuchler"
+W = Path(__file__).resolve().parent.parent.parent  # the directory holding yaxml-harness
 conf = Path(sys.argv[1] if len(sys.argv) > 2 else W / "yaxml-suites/xmlconf")
 lt = Path(sys.argv[2] if len(sys.argv) > 2 else W / "yaxml-oracle/libxml2-2.15.4/test")
 out = Path(__file__).resolve().parent / "corpus"

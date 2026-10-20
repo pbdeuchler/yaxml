@@ -12,8 +12,7 @@ use std::process::Command;
 use yaxml::Document;
 use yaxml::xpath::{Context, Value, XPath};
 
-const DEFAULT_XMLLINT: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../yaxml-oracle/build/xmllint");
+const DEFAULT_XMLLINT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../yaxml-oracle/build/xmllint");
 
 const FIXTURE: &str = r#"<?xml version="1.0"?>
 <!-- lead -->
