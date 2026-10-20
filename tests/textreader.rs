@@ -4,9 +4,10 @@ use std::cell::Cell;
 use std::io::{self, BufRead, Read};
 use std::rc::Rc;
 
+use yaxml::options::{DTDATTR, NOBLANKS, NOENT};
 use yaxml::{
     ErrorKind, Limit, Limits, NodeType, OwnedDocument, ParseOptions, ParserProperty, ReadError,
-    ReadState, Request, TextReader, Writer,
+    ReadState, Request, Standalone, TextReader, Writer,
 };
 
 /// `xmllint --stream --debug` lines: depth, type, name, empty, has value, value.
@@ -647,40 +648,96 @@ fn eof_and_initial_states() {
     }
 }
 
+/// `xmlTextReaderSetParserProp`: (resolver, property, value, outcome before
+/// the first read, outcome after it, the property then read before the read).
 #[test]
-fn parser_properties_accept_only_the_fixed_behavior() {
+fn parser_properties_change_flags_before_the_first_read() {
+    use ParserProperty::{DefaultAttributes, LoadDtd, SubstituteEntities, Validate};
+    let (no, late) = (ErrorKind::UnsupportedOption, ErrorKind::InvalidState);
     let resolver = || -> Box<dyn yaxml::Resolver> { Box::new(|_: Request<'_>| Ok(None)) };
-    for (loads, property, value, accepted) in [
-        (false, ParserProperty::LoadDtd, false, true),
-        (false, ParserProperty::LoadDtd, true, false),
-        (true, ParserProperty::LoadDtd, true, true),
-        (true, ParserProperty::LoadDtd, false, false),
-        (false, ParserProperty::DefaultAttributes, false, true),
-        (false, ParserProperty::DefaultAttributes, true, false),
-        (true, ParserProperty::DefaultAttributes, true, true),
-        (false, ParserProperty::SubstituteEntities, false, true),
-        (false, ParserProperty::SubstituteEntities, true, false),
-        (true, ParserProperty::SubstituteEntities, true, true),
-        (false, ParserProperty::Validate, false, true),
-        (false, ParserProperty::Validate, true, false),
+    for (loads, property, value, before, after, reads) in [
+        (false, LoadDtd, false, None, None, false),
+        (false, LoadDtd, true, Some(no), Some(no), false),
+        (true, LoadDtd, true, None, None, true),
+        // `DTDATTR` still loads the subset, as libxml2's `loadsubset` does.
+        (true, LoadDtd, false, None, Some(late), true),
+        (false, DefaultAttributes, false, None, None, false),
+        (false, DefaultAttributes, true, None, Some(late), true),
+        (true, DefaultAttributes, true, None, None, true),
+        (true, DefaultAttributes, false, None, Some(late), false),
+        (false, SubstituteEntities, false, None, None, false),
+        (false, SubstituteEntities, true, None, Some(late), true),
+        (true, SubstituteEntities, true, None, None, true),
+        (true, SubstituteEntities, false, None, Some(late), false),
+        (false, Validate, false, None, None, false),
+        (false, Validate, true, Some(no), Some(no), false),
     ] {
-        let input = b"<r/>".as_slice();
-        let mut reader = if loads {
-            TextReader::with_options(input, loading(Limits::default(), "doc.xml", resolver()))
-                .unwrap()
-        } else {
-            TextReader::new(input)
+        let make = || {
+            let input = b"<r/>".as_slice();
+            match loads {
+                true => {
+                    let options = loading(Limits::default(), "doc.xml", resolver());
+                    TextReader::with_options(input, options).unwrap()
+                }
+                false => TextReader::new(input),
+            }
         };
-        let result = reader.set_parser_property(property, value);
-        assert_eq!(result.is_ok(), accepted, "{property:?} {value}");
-        if let Err(error) = result {
-            assert_eq!(error.kind, ErrorKind::UnsupportedOption);
-        }
+        let (mut early, mut late_reader) = (make(), make());
+        late_reader.read().unwrap();
+        let name = format!("{property:?} {value} loads={loads}");
+        let kinds = [&mut early, &mut late_reader].map(|reader| {
+            reader
+                .set_parser_property(property, value)
+                .err()
+                .map(|e| e.kind)
+        });
+        assert_eq!(kinds, [before, after], "{name}");
+        assert_eq!(early.parser_property(property), reads, "{name}");
+        // A refused or redundant change leaves the property as it was.
         assert_eq!(
-            reader.parser_property(property),
-            if accepted { value } else { !value }
+            late_reader.parser_property(property),
+            make().parser_property(property),
+            "{name}"
         );
     }
+}
+
+#[test]
+fn set_parser_property_reconfigures_the_stream() {
+    let input = b"<!DOCTYPE r [<!ENTITY e 'ex'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>".as_slice();
+    let plain = lines(TextReader::new(input)).unwrap();
+    assert_eq!(plain[2], "1 5 e 0 0");
+    for (property, check) in [
+        (ParserProperty::SubstituteEntities, "1 3 #text 0 1 ex"),
+        (ParserProperty::DefaultAttributes, "1 5 e 0 0"),
+    ] {
+        let mut reader = TextReader::new(input);
+        reader.set_parser_property(property, true).unwrap();
+        let mut seen = Vec::new();
+        while reader.read().unwrap() {
+            seen.push((line(&reader), reader.get_attribute("a").map(str::to_owned)));
+        }
+        assert_eq!(seen[2].0, check, "{property:?}");
+        let defaulted = property == ParserProperty::DefaultAttributes;
+        assert_eq!(
+            seen[1].1.as_deref(),
+            defaulted.then_some("d"),
+            "{property:?}"
+        );
+    }
+    // The resolver survives a change: the external subset is still loaded.
+    let dtd = |request: Request<'_>| {
+        Ok((request.uri == "x.dtd").then(|| b"<!ATTLIST r d CDATA 'x'>".to_vec()))
+    };
+    let options = loading(Limits::default(), "doc.xml", Box::new(dtd));
+    let mut reader =
+        TextReader::with_options(b"<!DOCTYPE r SYSTEM 'x.dtd'><r/>".as_slice(), options).unwrap();
+    reader
+        .set_parser_property(ParserProperty::SubstituteEntities, false)
+        .unwrap();
+    reader.read().unwrap();
+    reader.read().unwrap();
+    assert_eq!(reader.get_attribute("d"), Some("x"));
 }
 
 #[test]
@@ -888,5 +945,431 @@ fn push_parser_exposes_its_dtd() {
         assert!(parser.dtd().is_none(), "before input");
         parser.feed(xml, |_, _| ControlFlow::Continue(())).unwrap();
         assert_eq!(parser.dtd().and_then(|dtd| dtd.name()), root);
+    }
+}
+
+/// `ReadAttributeValue`: (flags, document, attribute index, children as
+/// type, name, value, depth). A value is text unless it keeps a reference.
+#[test]
+fn read_attribute_value_walks_the_children_of_an_attribute() {
+    const TEXT: i32 = NodeType::Text as i32;
+    const REF: i32 = NodeType::EntityReference as i32;
+    let defs = "<!DOCTYPE r [<!ENTITY e 'ex'>]>";
+    let text = |value: &'static str| (TEXT, "#text", Some(value), 2);
+    let reference = |name: &'static str| (REF, name, None, 2);
+    type Child = (i32, &'static str, Option<&'static str>, usize);
+    let cases: [(u32, String, usize, Vec<Child>); 9] = [
+        (
+            0,
+            format!("{defs}<r a='1&e;2'/>"),
+            0,
+            vec![text("1"), reference("e"), text("2")],
+        ),
+        (0, format!("{defs}<r a='&e;'/>"), 0, vec![reference("e")]),
+        (
+            NOENT,
+            format!("{defs}<r a='1&e;2'/>"),
+            0,
+            vec![text("1ex2")],
+        ),
+        (
+            0,
+            format!("{defs}<r a='x&amp;&e;&lt;&#38;'/>"),
+            0,
+            vec![text("x&"), reference("e"), text("<&")],
+        ),
+        (0, "<r a='plain'/>".into(), 0, vec![text("plain")]),
+        // An empty value is one empty text, as is an empty namespace URI.
+        (0, "<r a=''/>".into(), 0, vec![text("")]),
+        (0, "<r xmlns='' xmlns:p='urn:p'/>".into(), 0, vec![text("")]),
+        (
+            0,
+            "<r xmlns='' xmlns:p='urn:p'/>".into(),
+            1,
+            vec![text("urn:p")],
+        ),
+        (
+            0,
+            "<r xmlns:p='urn:p' a='1' p:b='2'/>".into(),
+            2,
+            vec![text("2")],
+        ),
+    ];
+    for (flags, xml, index, expected) in cases {
+        let mut reader =
+            TextReader::with_options(xml.as_bytes(), ParseOptions::new(flags)).unwrap();
+        while reader.node_type() != NodeType::Element {
+            reader.read().unwrap();
+        }
+        assert!(reader.move_to_attribute_no(index), "{xml}");
+        let mut children = Vec::new();
+        while reader.read_attribute_value() {
+            children.push((
+                reader.node_type() as i32,
+                reader.name().unwrap().to_owned(),
+                reader.value().map(str::to_owned),
+                reader.depth(),
+            ));
+            assert_eq!(reader.has_value(), reader.value().is_some());
+            assert_eq!(reader.local_name(), reader.name());
+            assert!(
+                !reader.has_attributes() && !reader.is_empty_element(),
+                "{xml}"
+            );
+            assert_eq!((reader.attribute_count(), reader.prefix()), (0, None));
+        }
+        let expected: Vec<_> = expected
+            .into_iter()
+            .map(|(t, n, v, d)| (t, n.to_owned(), v.map(str::to_owned), d))
+            .collect();
+        assert_eq!(children, expected, "{xml}");
+        // At the end the cursor stays on the last child.
+        assert!(!reader.read_attribute_value());
+        assert_eq!(reader.node_type() as i32, expected.last().unwrap().0);
+    }
+}
+
+#[test]
+fn attribute_values_are_navigated_like_libxml2() {
+    let xml = "<!DOCTYPE r [<!ENTITY e 'ex'>]><r a='1&e;2' b='y'/>";
+    let mut reader = TextReader::new(xml.as_bytes());
+    // Sad paths: nothing under the cursor but a document or an element.
+    assert!(!reader.read_attribute_value());
+    reader.read().unwrap();
+    assert!(!reader.read_attribute_value(), "DOCTYPE");
+    reader.read().unwrap();
+    assert!(!reader.read_attribute_value(), "element, not an attribute");
+    assert_eq!(reader.node_type(), NodeType::Element);
+    // From a value: no next attribute, no lookups, and `read_string` is the text.
+    assert!(reader.move_to_first_attribute());
+    assert!(reader.read_attribute_value());
+    assert_eq!(
+        (
+            reader.read_string().unwrap().as_deref(),
+            reader.get_attribute_no(0)
+        ),
+        (Some("1"), None)
+    );
+    assert!(!reader.move_to_next_attribute());
+    assert!(reader.read_attribute_value());
+    assert_eq!(reader.read_string().unwrap(), None, "reference");
+    assert!(reader.move_to_first_attribute(), "back to the attribute");
+    assert_eq!(
+        (reader.node_type(), reader.value()),
+        (NodeType::Attribute, Some("1ex2"))
+    );
+    assert!(reader.read_attribute_value() && reader.move_to_element());
+    assert_eq!(reader.node_type(), NodeType::Element);
+    assert!(!reader.read_attribute_value());
+    // Another attribute starts its own walk.
+    assert!(reader.move_to_attribute("b") && reader.read_attribute_value());
+    assert_eq!(reader.value(), Some("y"));
+    assert!(!reader.read().unwrap());
+    assert!(!reader.read_attribute_value(), "end of document");
+    // Outer XML keeps the reference; the expanded copy substitutes it.
+    let mut reader = TextReader::new(xml.as_bytes());
+    reader.read().unwrap();
+    reader.read().unwrap();
+    assert_eq!(
+        reader.read_outer_xml().unwrap().as_deref(),
+        Some("<r a=\"1&e;2\" b=\"y\"/>")
+    );
+    let copy = reader.expand().unwrap().unwrap();
+    assert_eq!(copy.root_element().attribute("a"), Some("1ex2"));
+}
+
+/// `xmlTextReaderStandalone` after the first read; -1 before.
+#[test]
+fn standalone_follows_the_xml_declaration() {
+    for (xml, expected) in [
+        ("<r/>", Standalone::NoDeclaration),
+        ("<?xml version='1.0'?><r/>", Standalone::Unspecified),
+        (
+            "<?xml version='1.0' encoding='UTF-8'?><r/>",
+            Standalone::Unspecified,
+        ),
+        ("<?xml version='1.0' standalone='no'?><r/>", Standalone::No),
+        (
+            "<?xml version='1.0' standalone='yes'?><r/>",
+            Standalone::Yes,
+        ),
+    ] {
+        let mut reader = TextReader::new(xml.as_bytes());
+        assert_eq!(
+            reader.standalone(),
+            Standalone::NoDeclaration,
+            "before: {xml}"
+        );
+        reader.read().unwrap();
+        assert_eq!(reader.standalone(), expected, "{xml}");
+        while reader.read().unwrap() {}
+        assert_eq!(reader.standalone(), expected, "end: {xml}");
+        // A new document forgets the old one's declaration.
+        reader.reset(b"<s/>".as_slice());
+        assert_eq!(
+            reader.standalone(),
+            Standalone::NoDeclaration,
+            "reset: {xml}"
+        );
+    }
+    assert_eq!(
+        [-1, -2, 0, 1],
+        [
+            Standalone::NoDeclaration,
+            Standalone::Unspecified,
+            Standalone::No,
+            Standalone::Yes
+        ]
+        .map(|s| s as i32)
+    );
+}
+
+/// libxml2's `IsDefault` returns 0 and `Normalization` 1 for every node.
+#[test]
+fn is_default_and_normalization_are_constant() {
+    let xml = "<!DOCTYPE r [<!ATTLIST r d CDATA 'x'>]><r a='1'>t</r>";
+    for flags in [0, DTDATTR] {
+        let mut reader =
+            TextReader::with_options(xml.as_bytes(), ParseOptions::new(flags)).unwrap();
+        assert!(
+            !reader.is_default() && reader.normalization(),
+            "before the first node"
+        );
+        while reader.read().unwrap() {
+            assert!(!reader.is_default() && reader.normalization());
+            let mut next = reader.move_to_first_attribute();
+            while next {
+                assert!(!reader.is_default(), "{flags:#x} {:?}", reader.name());
+                next = reader.move_to_next_attribute();
+            }
+        }
+        assert!(!reader.is_default() && reader.normalization(), "at the end");
+    }
+}
+
+#[test]
+fn byte_consumed_counts_the_input_the_parser_took() {
+    let utf16: Vec<u8> = "\u{feff}<r>a<b/>c</r>"
+        .encode_utf16()
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    for input in [
+        b"<r>a<b/>c</r>\n".to_vec(),
+        "<?xml version='1.0'?><!--é--><r a='é'/>".into(),
+        utf16,
+    ] {
+        for capacity in [1, 4, 4096] {
+            let source = io::BufReader::with_capacity(capacity, input.as_slice());
+            let mut reader = TextReader::new(source);
+            assert_eq!(reader.byte_consumed(), 0);
+            let mut last = 0;
+            while reader.read().unwrap() {
+                let consumed = reader.byte_consumed();
+                assert!(
+                    last <= consumed && consumed <= input.len(),
+                    "{consumed} of {}",
+                    input.len()
+                );
+                last = consumed;
+            }
+            assert_eq!(
+                reader.byte_consumed(),
+                input.len(),
+                "end of {} bytes, capacity {capacity}",
+                input.len()
+            );
+        }
+    }
+}
+
+/// `xmlTextReaderGetRemainder`: the source after what the parser took.
+#[test]
+fn remainder_is_the_unparsed_rest_of_the_source() {
+    let xml = format!("<r>{}</r>", "<i>x</i>".repeat(40));
+    let source = || io::BufReader::with_capacity(16, io::Cursor::new(xml.clone().into_bytes()));
+    let mut reader = TextReader::new(source());
+    reader.read().unwrap();
+    let consumed = reader.byte_consumed();
+    let mut rest = Vec::new();
+    reader
+        .into_remainder()
+        .expect("current node")
+        .read_to_end(&mut rest)
+        .unwrap();
+    assert!(consumed < xml.len());
+    assert_eq!(rest, &xml.as_bytes()[consumed..]);
+    // No current node: before the first read, at the end, after an error.
+    assert!(TextReader::new(source()).into_remainder().is_none());
+    let mut done = TextReader::new(source());
+    while done.read().unwrap() {}
+    assert!(done.into_remainder().is_none());
+    let mut broken = TextReader::new(io::Cursor::new(b"<r></x>".to_vec()));
+    assert!(broken.read().unwrap() || broken.read().is_err());
+    while broken.read().is_ok_and(|more| more) {}
+    assert!(broken.into_remainder().is_none());
+}
+
+/// `NOBLANKS` as libxml2's reader: (document, nodes), from
+/// `xmllint --stream --debug --noblanks`.
+#[test]
+fn noblanks_drops_ignorable_blanks_while_reading() {
+    let cases: [(u32, &str, &[&str]); 7] = [
+        (
+            NOBLANKS,
+            "<r>\n <a>\n  <b/>\n </a>\n <c> </c>\n</r>",
+            &[
+                "0 1 r 0 0",
+                "1 1 a 0 0",
+                "2 1 b 1 0",
+                "1 15 a 0 0",
+                "1 1 c 0 0",
+                "2 14 #text 0 1  ",
+                "1 15 c 0 0",
+                "0 15 r 0 0",
+            ],
+        ),
+        // `xml:space="preserve"` keeps blanks below it, `default` does not.
+        (
+            NOBLANKS,
+            "<r xml:space='preserve'> <a> </a><b xml:space='default'> <c/> </b></r>",
+            &[
+                "0 1 r 0 0",
+                "1 14 #text 0 1  ",
+                "1 1 a 0 0",
+                "2 14 #text 0 1  ",
+                "1 15 a 0 0",
+                "1 1 b 0 0",
+                "2 1 c 1 0",
+                "1 15 b 0 0",
+                "0 15 r 0 0",
+            ],
+        ),
+        // Element content declared by the DTD is dropped, #PCDATA is kept.
+        (
+            NOBLANKS,
+            "<!DOCTYPE r [<!ELEMENT r (a)*><!ELEMENT a (#PCDATA)>]><r> <a> </a> </r>",
+            &[
+                "0 10 r 0 0",
+                "0 1 r 0 0",
+                "1 1 a 0 0",
+                "2 14 #text 0 1  ",
+                "1 15 a 0 0",
+                "0 15 r 0 0",
+            ],
+        ),
+        // Text that the document spoke makes later blanks significant.
+        (
+            NOBLANKS,
+            "<r><a/>x<b/> <c/></r>",
+            &[
+                "0 1 r 0 0",
+                "1 1 a 1 0",
+                "1 3 #text 0 1 x",
+                "1 1 b 1 0",
+                "1 14 #text 0 1  ",
+                "1 1 c 1 0",
+                "0 15 r 0 0",
+            ],
+        ),
+        // So does a blank before a reference.
+        (
+            NOBLANKS,
+            "<!DOCTYPE r [<!ENTITY e 'x'>]><r><a/> &e;<a/></r>",
+            &[
+                "0 10 r 0 0",
+                "0 1 r 0 0",
+                "1 1 a 1 0",
+                "1 14 #text 0 1  ",
+                "1 5 e 0 0",
+                "1 1 a 1 0",
+                "0 15 r 0 0",
+            ],
+        ),
+        // Without the flag nothing is dropped, and no type 13 is ever reported.
+        (
+            0,
+            "<r xml:space='default'> <a> </a> </r>",
+            &[
+                "0 1 r 0 0",
+                "1 14 #text 0 1  ",
+                "1 1 a 0 0",
+                "2 14 #text 0 1  ",
+                "1 15 a 0 0",
+                "1 14 #text 0 1  ",
+                "0 15 r 0 0",
+            ],
+        ),
+        (
+            NOBLANKS,
+            "<r> </r>",
+            &["0 1 r 0 0", "1 14 #text 0 1  ", "0 15 r 0 0"],
+        ),
+    ];
+    for (flags, xml, expected) in cases {
+        let reader = TextReader::with_options(xml.as_bytes(), ParseOptions::new(flags)).unwrap();
+        assert_eq!(lines(reader).unwrap(), expected, "{xml}");
+    }
+    // The buffered subtree is what the tree would hold.
+    let xml = b"<r>\n <a>\n  <b/>\n </a>\n <c> </c><d>x <e/> y</d>\n</r>".as_slice();
+    let mut reader = TextReader::with_options(xml, ParseOptions::new(NOBLANKS)).unwrap();
+    assert!(reader.read().unwrap());
+    assert_eq!(reader.read_string().unwrap().as_deref(), Some(" x  y"));
+    assert_eq!(
+        reader.read_inner_xml().unwrap().as_deref(),
+        Some("<a><b/></a><c> </c><d>x <e/> y</d>")
+    );
+    assert_eq!(
+        reader.read_outer_xml().unwrap().as_deref(),
+        Some("<r><a><b/></a><c> </c><d>x <e/> y</d></r>")
+    );
+    let copy = reader.expand().unwrap().unwrap();
+    assert_eq!(copy.root_element().children().count(), 3);
+    // `next` skips the rest, and the following reads agree.
+    assert!(reader.read().unwrap() && reader.next().unwrap());
+    assert_eq!((reader.depth(), reader.name()), (1, Some("c")));
+}
+
+/// The integer values of `xmlReaderTypes`; the unlisted ones are never reported.
+#[test]
+fn node_types_carry_libxml2_values() {
+    for (kind, value) in [
+        (NodeType::None, 0),
+        (NodeType::Element, 1),
+        (NodeType::Attribute, 2),
+        (NodeType::Text, 3),
+        (NodeType::Cdata, 4),
+        (NodeType::EntityReference, 5),
+        (NodeType::Entity, 6),
+        (NodeType::ProcessingInstruction, 7),
+        (NodeType::Comment, 8),
+        (NodeType::Document, 9),
+        (NodeType::DocumentType, 10),
+        (NodeType::DocumentFragment, 11),
+        (NodeType::Notation, 12),
+        (NodeType::Whitespace, 13),
+        (NodeType::SignificantWhitespace, 14),
+        (NodeType::EndElement, 15),
+        (NodeType::EndEntity, 16),
+        (NodeType::XmlDeclaration, 17),
+    ] {
+        assert_eq!(kind as i32, value, "{kind:?}");
+    }
+    let xml = "<?xml version='1.0'?><!DOCTYPE r [<!ENTITY e 'x'><!NOTATION n SYSTEM 'n'>]>\n<r xml:space='default'>\n<a b='&e;'/> <![CDATA[ ]]>&e;<?p?><!--c--></r>";
+    for flags in [0, NOENT, NOBLANKS, NOENT | DTDATTR] {
+        let mut reader =
+            TextReader::with_options(xml.as_bytes(), ParseOptions::new(flags)).unwrap();
+        while reader.read().unwrap() {
+            let kind = reader.node_type();
+            let never = [
+                NodeType::Entity,
+                NodeType::Document,
+                NodeType::DocumentFragment,
+                NodeType::Notation,
+                NodeType::Whitespace,
+                NodeType::EndEntity,
+                NodeType::XmlDeclaration,
+            ];
+            assert!(!never.contains(&kind), "{flags:#x} {kind:?}");
+        }
     }
 }

@@ -1,5 +1,5 @@
-//! Complete-document output through `Writer` sinks and `save::to_vec`; trees
-//! are constructed outside timed batches.
+//! Complete-document output through `Writer` sinks, `save::to_vec` and
+//! `save::to_writer`; trees are constructed outside timed batches.
 
 use std::hint::black_box;
 use std::io::{self, BufWriter, Write};
@@ -97,6 +97,15 @@ impl Tree<'_, '_> {
         }
         .expect("saved")
     }
+    /// `save::to_writer` into a counting sink: chunked output, no Vec.
+    fn stream(self, sink: &mut Counter) {
+        let options = save::Options::default();
+        match self {
+            Self::Borrowed(tree) => save::to_writer(tree, &options, sink),
+            Self::Owned(tree) => save::to_writer(tree, &options, sink),
+        }
+        .expect("saved")
+    }
     fn label(self) -> &'static str {
         match self {
             Self::Borrowed(_) => "borrowed",
@@ -114,12 +123,12 @@ struct Sample<'a> {
 }
 
 fn measure(tree: Tree<'_, '_>, sample: &Sample<'_>) {
-    for sink in ["counting", "buffered", "save"] {
+    for sink in ["counting", "buffered", "save", "stream"] {
         if !selected("YAXML_SERIALIZE_SINK", sink) {
             continue;
         }
-        if sink == "save" {
-            measure_save(tree, sample);
+        if sink == "save" || sink == "stream" {
+            measure_save(tree, sample, sink);
             continue;
         }
         let iterations = number(
@@ -183,8 +192,9 @@ fn measure(tree: Tree<'_, '_>, sample: &Sample<'_>) {
     }
 }
 
-/// `save::to_vec` with default options into a fresh vector per iteration.
-fn measure_save(tree: Tree<'_, '_>, sample: &Sample<'_>) {
+/// `save::to_vec` into a fresh vector per iteration (`save`), or
+/// `save::to_writer` into a counting sink (`stream`).
+fn measure_save(tree: Tree<'_, '_>, sample: &Sample<'_>, sink: &str) {
     let iterations = number(
         "YAXML_SERIALIZE_ITERATIONS",
         if cfg!(debug_assertions) {
@@ -196,13 +206,18 @@ fn measure_save(tree: Tree<'_, '_>, sample: &Sample<'_>) {
     let mut bytes = 0;
     let started = Instant::now();
     for _ in 0..iterations {
-        let output = tree.save();
-        bytes += output.len();
-        black_box(output);
+        bytes += if sink == "save" {
+            let output = tree.save();
+            black_box(&output).len()
+        } else {
+            let mut counter = Counter::default();
+            tree.stream(&mut counter);
+            black_box(counter).bytes
+        };
     }
     let elapsed = started.elapsed();
     println!(
-        "shape={} tree={} sink=save siblings={} depth={} input_bytes={} status=complete iterations={iterations} output_bytes_total={bytes} elapsed_ns={} output_mib_per_s={:.2}",
+        "shape={} tree={} sink={sink} siblings={} depth={} input_bytes={} status=complete iterations={iterations} output_bytes_total={bytes} elapsed_ns={} output_mib_per_s={:.2}",
         sample.shape,
         tree.label(),
         sample.siblings,
@@ -222,7 +237,7 @@ fn main() {
         ("YAXML_SERIALIZE_TREE", &["borrowed", "owned"][..]),
         (
             "YAXML_SERIALIZE_SINK",
-            &["counting", "buffered", "save"][..],
+            &["counting", "buffered", "save", "stream"][..],
         ),
     ] {
         if let Some(choice) = parameter(name) {

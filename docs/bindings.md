@@ -29,6 +29,7 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
 | Copying nodes and documents (`copy.copy`, `deepcopy`, cross-tree append) | `Editor::import` (from any document, any allocator), `Editor::copy` (within one), `OwnedDocument::try_clone`; copies come back detached and namespace-consistent, with every reservation made before anything is published ([owned-dom.md](owned-dom.md#copying-and-importing)) |
 | DOM accessors hosts expect | `attribute`/`attribute_ns`, `content`, `list_string`, `path`, `base_uri`, `lang`, `space_preserve`, `search_ns`, `namespaces`, `previous_sibling` on `Node` and `OwnedNode` |
 | Pull streaming with no callbacks across the boundary | `TextReader` (xmlTextReader model), `BufferedReader` |
+| Streaming output without a `Vec` | `save::to_writer` (`xmlSaveToIO`: any `io::Write`, a host file or stream object, in 32 KiB chunks; I/O failures come back as `WriteError::Io`); `TextWriter` (`xmlTextWriter`, one sink write per call) |
 | Bulk results instead of one call per node | XPath `select_nodes` returns id vectors; serializers write whole documents to a `Write` |
 | Errors that map onto host exceptions | `Error { kind, offset }`, described on demand as libxml2's `xmlError` ([Error mapping](#error-mapping)) |
 | Hostile-input policy | `Limits` with finite defaults; no I/O unless a `Resolver` is supplied |
@@ -215,8 +216,8 @@ example a wrapper over `PyMem_RawMalloc` or a counting quota allocator.
   node. The string pool, ID and diagnostic lists, the DTD, parser working
   memory and all consumer output stay on the global heap. See
   [allocator strategy](design.md#allocator-strategy). XPath, C14N,
-  validators and `Writer` accept any `A`. `save::to_vec`, HTML serialization
-  and XInclude take global-heap documents only, and `parse_in` rejects
+  validators and `Writer` accept any `A`. `save::to_vec`/`to_writer`, HTML
+  serialization and XInclude take global-heap documents only, and `parse_in` rejects
   `XINCLUDE`.
 
 ## Moving nodes between documents

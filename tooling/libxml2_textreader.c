@@ -1,11 +1,14 @@
 /* Fixed xmlTextReader oracle only; Cargo never compiles or links this file.
  *
- * Usage: textreader-helper FILE
- * Reads FILE with xmlReaderForFile(FILE, NULL, NOENT | DTDATTR | NONET) and
- * prints one line per node (see tests/textreader_oracle.rs for the format):
- * cursor properties, every attribute through MoveToNextAttribute, indexed and
- * named attribute lookups, then ReadString/ReadInnerXml/ReadOuterXml except on
- * DocumentType and EndElement nodes.
+ * Usage: textreader-helper FILE [FLAGS]
+ * Reads FILE with xmlReaderForFile(FILE, NULL, FLAGS | NONET) (FLAGS is a
+ * decimal XML_PARSE_* mask, default NOENT | DTDATTR) and prints one line per
+ * node (see tests/textreader_oracle.rs for the format): cursor properties
+ * (with Standalone and IsDefault), every attribute through
+ * MoveToNextAttribute and the nodes of its value through ReadAttributeValue,
+ * indexed and named attribute lookups, then ReadString/ReadInnerXml/
+ * ReadOuterXml except on DocumentType and EndElement nodes. A final END line
+ * has Standalone, Normalization and ByteConsumed after the last node.
  * Strings are C-escaped inside quotes; NULL is "~". A failed read prints ERROR. */
 #include <libxml/xmlreader.h>
 #include <stdio.h>
@@ -41,13 +44,14 @@ static void cursor(xmlTextReaderPtr r) {
     printf(" %d %d", xmlTextReaderIsEmptyElement(r), xmlTextReaderHasValue(r));
     str(xmlTextReaderConstValue(r));
     printf(" %d %d", xmlTextReaderAttributeCount(r), xmlTextReaderHasAttributes(r));
+    printf(" %d %d", xmlTextReaderStandalone(r), xmlTextReaderIsDefault(r));
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2) return 2;
+    if (argc != 2 && argc != 3) return 2;
+    int flags = argc == 3 ? atoi(argv[2]) : XML_PARSE_NOENT | XML_PARSE_DTDATTR;
     xmlTextReaderPtr r = xmlReaderForFile(argv[1], NULL,
-        XML_PARSE_NOENT | XML_PARSE_DTDATTR | XML_PARSE_NONET | XML_PARSE_NOERROR |
-        XML_PARSE_NOWARNING);
+        flags | XML_PARSE_NONET | XML_PARSE_NOERROR | XML_PARSE_NOWARNING);
     if (r == NULL) return 1;
     int ret;
     while ((ret = xmlTextReaderRead(r)) == 1) {
@@ -79,6 +83,18 @@ int main(int argc, char **argv) {
             owned(xmlTextReaderGetAttributeNs(r, local, uri));
             putchar('\n');
             xmlTextReaderMoveToAttribute(r, name);
+            int walked = 0;
+            while (xmlTextReaderReadAttributeValue(r) == 1) {
+                printf("  ~v");
+                cursor(r);
+                putchar('\n');
+                walked++;
+            }
+            if (walked) {
+                /* From a value there is no next attribute. */
+                printf("  ~next %d\n", xmlTextReaderMoveToNextAttribute(r));
+                xmlTextReaderMoveToAttribute(r, name);
+            }
             xmlFree(name);
             xmlFree(local);
             xmlFree(uri);
@@ -90,6 +106,8 @@ int main(int argc, char **argv) {
         putchar('\n');
     }
     if (ret != 0) puts("ERROR");
+    else printf("END %d %d %ld\n", xmlTextReaderStandalone(r), xmlTextReaderNormalization(r),
+                xmlTextReaderByteConsumed(r));
     xmlFreeTextReader(r);
     return 0;
 }

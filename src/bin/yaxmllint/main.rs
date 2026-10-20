@@ -167,6 +167,7 @@ fn save(o: &Opts, document: &OwnedDocument, out: &mut Vec<u8>) -> i32 {
         flags,
         encoding: o.encode.as_deref(),
         indent: &indent,
+        ..save::Options::default()
     };
     let saved = match o.c14n {
         Some(mode) => {

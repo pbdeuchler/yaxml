@@ -262,20 +262,19 @@ pub(super) fn output(label: Option<&str>) -> Result<Option<Output>, Error> {
     }
 }
 
-/// Converts UTF-8 output; unrepresentable characters become decimal
-/// character references, or entity names for the "HTML" converter.
-pub(super) fn encode(output: Option<Output>, text: Vec<u8>) -> Vec<u8> {
+/// Appends UTF-8 `text` converted to `out`, without a byte-order mark;
+/// unrepresentable characters become decimal character references, or
+/// entity names for the "HTML" converter.
+pub(super) fn encode(output: Option<Output>, text: &[u8], out: &mut Vec<u8>) {
     let ascii = !matches!(output, Some(Output::Utf16 { .. })) && text.is_ascii();
     if output == Some(Output::Utf8) || ascii {
-        return text;
+        return out.extend_from_slice(text);
     }
-    let text = String::from_utf8(text)
-        .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned());
-    let mut out = output.map_or(&[][..], Output::bom).to_vec();
+    let text = String::from_utf8_lossy(text);
     out.reserve(text.len());
     for c in text.chars() {
         let pushed = match output {
-            Some(output) => output.push(&mut out, c),
+            Some(output) => output.push(out, c),
             None => {
                 c.is_ascii() && {
                     out.push(c as u8);
@@ -291,5 +290,4 @@ pub(super) fn encode(output: Option<Output>, text: Vec<u8>) -> Vec<u8> {
             }
         }
     }
-    out
 }

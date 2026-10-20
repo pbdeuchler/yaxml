@@ -1,49 +1,90 @@
 //! HTML output, ported from libxml2 2.15.4 `HTMLtree.c` (htmlNodeDumpInternal,
 //! htmlAttrDumpOutput, htmlSerializeUri, htmlDtdDumpOutput) and the HTML
-//! escape tables of `xmlIO.c`. The walk is iterative.
+//! escape tables of `xmlIO.c`. The walk is iterative; output reaches the
+//! sink in chunks of `save::CHUNK` bytes.
+
+use std::io::Write;
 
 use super::encoding::{content_charset, encode, output};
 use super::tables;
 use super::tokenizer::blank;
-use crate::{Doctype, Error, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind};
+use crate::encoding::Output;
+use crate::save::CHUNK;
+use crate::{
+    Doctype, Error, ErrorKind, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, WriteError,
+};
 
 /// `htmlDocDumpMemory`: formatted, in the document's encoding (ASCII with
 /// HTML 4 entities when it has none), leaving `<meta>` declarations alone.
 pub fn to_html(document: &OwnedDocument) -> Result<Vec<u8>, Error> {
-    dump(document, true, None)
+    to_vec(document.root(), true, None)
 }
 
 /// `xmlSaveDoc` for an HTML document, which is what `xmllint --html` prints:
 /// `<meta>` charset declarations name the output encoding and a top-level
 /// head without one gains `<meta charset>`. `format` is XML_SAVE_FORMAT.
 pub fn save(document: &OwnedDocument, format: bool) -> Result<Vec<u8>, Error> {
-    save_as(document, format, document.html_encoding().unwrap_or("HTML"))
+    to_vec(
+        document.root(),
+        format,
+        Some(document.html_encoding().unwrap_or("HTML")),
+    )
 }
 
-/// `xmlSaveDoc` with `XML_SAVE_AS_HTML` and encoding `label`, which names both
-/// the output converter and the `<meta>` charset.
-pub(crate) fn save_as(
-    document: &OwnedDocument,
+/// `xmlSaveTree` with `XML_SAVE_AS_HTML` (`htmlNodeDumpOutputInternal`) and
+/// encoding `label`, which names both the output converter and the `<meta>`
+/// charset; a document node is `xmlSaveDoc`.
+pub(crate) fn save_node(
+    node: OwnedNode<'_>,
     format: bool,
     label: &str,
-) -> Result<Vec<u8>, Error> {
-    dump(document, format, Some(label))
+    sink: &mut dyn Write,
+) -> Result<(), WriteError> {
+    dump(node, format, Some(label), sink)
 }
 
-fn dump(document: &OwnedDocument, format: bool, encoding: Option<&str>) -> Result<Vec<u8>, Error> {
-    let output = output(encoding.or(document.html_encoding()))?;
+fn to_vec(node: OwnedNode<'_>, format: bool, encoding: Option<&str>) -> Result<Vec<u8>, Error> {
+    let mut bytes = Vec::new();
+    match dump(node, format, encoding, &mut bytes) {
+        Ok(()) => Ok(bytes),
+        Err(WriteError::Xml(error)) => Err(error),
+        Err(WriteError::Io(_)) => Err(Error::new(ErrorKind::Allocation, bytes.len())),
+    }
+}
+
+fn dump(
+    node: OwnedNode<'_>,
+    format: bool,
+    encoding: Option<&str>,
+    sink: &mut dyn Write,
+) -> Result<(), WriteError> {
+    let output = output(encoding.or(node.document().html_encoding())).map_err(WriteError::Xml)?;
     let mut dumper = Dumper {
         out: Vec::new(),
+        encoded: output.map_or(&[][..], Output::bom).to_vec(),
+        sink,
+        output,
+        error: None,
         format,
         encoding,
         meta_head: None,
     };
-    dumper.document(document);
-    Ok(encode(output, dumper.out))
+    dumper.node(node);
+    dumper.drain(0);
+    match dumper.error {
+        Some(error) => Err(error),
+        None => crate::writer::flush(dumper.sink),
+    }
 }
 
 struct Dumper<'a> {
+    /// UTF-8 output not yet encoded.
     out: Vec<u8>,
+    /// Encoded output not yet written.
+    encoded: Vec<u8>,
+    sink: &'a mut dyn Write,
+    output: Option<Output>,
+    error: Option<WriteError>,
     format: bool,
     /// Encoding for `<meta>` declarations; None leaves them unchanged.
     encoding: Option<&'a str>,
@@ -127,6 +168,24 @@ fn meta_encoding(node: OwnedNode<'_>) -> Option<(usize, usize, usize)> {
 impl Dumper<'_> {
     fn write(&mut self, text: &str) {
         self.out.extend_from_slice(text.as_bytes());
+        self.drain(CHUNK);
+    }
+
+    /// Encodes and writes the buffered output once it holds `threshold`
+    /// bytes. It breaks only between characters: `escape` pushes every
+    /// non-ASCII byte and calls `write` only for ASCII.
+    fn drain(&mut self, threshold: usize) {
+        if self.out.len() < threshold {
+            return;
+        }
+        encode(self.output, &self.out, &mut self.encoded);
+        self.out.clear();
+        if self.error.is_none()
+            && let Err(error) = crate::writer::write_all(self.sink, &self.encoded, &mut 0)
+        {
+            self.error = Some(error);
+        }
+        self.encoded.clear();
     }
 
     /// `xmlSerializeText` with the HTML tables: `&`, `<`, `>`, and `"` in attributes.
@@ -191,17 +250,22 @@ impl Dumper<'_> {
         self.write(">\n");
     }
 
-    fn document(&mut self, document: &OwnedDocument) {
-        if let Some(doctype) = document.doctype() {
-            self.doctype(doctype);
-        }
-        let Some(mut current) = document.root().first_child() else {
-            self.write("\n");
-            return;
-        };
+    /// `htmlNodeDumpInternal` from `root`: a document writes its DOCTYPE and
+    /// ends with a newline.
+    fn node(&mut self, root: OwnedNode<'_>) {
+        let mut current = root;
         let mut raw = false;
         loop {
             let descend = match current.kind() {
+                OwnedNodeKind::Document => {
+                    if let Some(doctype) = current.document().doctype() {
+                        self.doctype(doctype);
+                    }
+                    if current.first_child().is_none() {
+                        self.write("\n");
+                    }
+                    true
+                }
                 OwnedNodeKind::Element => self.start(current, &mut raw),
                 OwnedNodeKind::Text if raw => {
                     self.write(current.text().unwrap_or(""));
@@ -238,20 +302,24 @@ impl Dumper<'_> {
                 continue;
             }
             loop {
+                if current.id() == root.id() {
+                    return;
+                }
                 if let Some(next) = current.next_sibling() {
                     current = next;
                     break;
                 }
                 raw = false;
-                let Some(parent) = current
-                    .parent()
-                    .filter(|parent| parent.kind() == OwnedNodeKind::Element)
-                else {
-                    self.write("\n");
+                // Below `root`, every node has a parent.
+                let Some(parent) = current.parent() else {
                     return;
                 };
-                self.end(parent);
                 current = parent;
+                if parent.kind() == OwnedNodeKind::Element {
+                    self.end(parent);
+                } else {
+                    self.write("\n");
+                }
             }
         }
     }

@@ -264,7 +264,11 @@ READER_TYPE = {
     "ELEMENT": "Element", "END_ELEMENT": "EndElement", "ENTITY_REFERENCE": "EntityReference",
     "NONE": "None", "PROCESSING_INSTRUCTION": "ProcessingInstruction",
     "SIGNIFICANT_WHITESPACE": "SignificantWhitespace", "TEXT": "Text",
+    "DOCUMENT": "Document", "DOCUMENT_FRAGMENT": "DocumentFragment", "END_ENTITY": "EndEntity",
+    "ENTITY": "Entity", "NOTATION": "Notation", "WHITESPACE": "Whitespace", "XML_DECLARATION": "XmlDeclaration",
 }
+# Values libxml2 2.15.4's reader never reports (xmllint --stream --debug over its test tree).
+READER_TYPE_UNUSED = {"DOCUMENT", "DOCUMENT_FRAGMENT", "END_ENTITY", "ENTITY", "NOTATION", "WHITESPACE", "XML_DECLARATION"}
 READER_MODE = {"INITIAL": "Initial", "INTERACTIVE": "Interactive", "ERROR": "Error", "EOF": "Eof"}
 READER_PROP = {"LOADDTD": "LoadDtd", "DEFAULTATTRS": "DefaultAttributes", "VALIDATE": "Validate", "SUBST_ENTITIES": "SubstituteEntities"}
 RESOURCE = {"DTD": "DtdSubset", "GENERAL_ENTITY": "GeneralEntity", "PARAMETER_ENTITY": "ParameterEntity", "XINCLUDE": "XInclude", "XINCLUDE_TEXT": "XIncludeText"}
@@ -622,8 +626,15 @@ I|xmlTextReaderExpand|TextReader::expand
 I|xmlTextReaderGetAttribute|TextReader::get_attribute
 I|xmlTextReaderGetAttributeNo|TextReader::get_attribute_no
 I|xmlTextReaderGetAttributeNs|TextReader::get_attribute_ns
-P|xmlTextReaderGetParserProp|TextReader::parser_property - VALIDATE not implemented
-P|xmlTextReaderSetParserProp|TextReader::set_parser_property - VALIDATE not implemented
+P|xmlTextReaderGetParserProp|TextReader::parser_property - VALIDATE is always false
+P|xmlTextReaderSetParserProp|TextReader::set_parser_property - only before the first read; VALIDATE on is UnsupportedOption (docs/textreader.md)
+I|xmlTextReaderReadAttributeValue|TextReader::read_attribute_value
+I|xmlTextReaderIsDefault|TextReader::is_default - always false, as libxml2's
+I|xmlTextReaderNormalization|TextReader::normalization
+I|xmlTextReaderStandalone|TextReader::standalone
+I|xmlTextReaderByteConsumed|TextReader::byte_consumed - exact bytes taken, libxml2 counts 4 KiB chunks
+I|xmlTextReaderGetRemainder|TextReader::into_remainder
+N|xmlTextReaderCurrentDoc xmlTextReaderCurrentNode xmlTextReaderPreserve xmlTextReaderPreservePattern|live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 I|xmlTextReaderHasAttributes|TextReader::has_attributes
 I|xmlTextReaderHasValue|TextReader::has_value
 I|xmlTextReaderIsEmptyElement|TextReader::is_empty_element
@@ -648,13 +659,12 @@ P|xmlTextReaderSetResourceLoader|ParseOptions::with_resolver
 P|xmlTextReaderSetMaxAmplification|Limits::max_entity_amplification
 I|xmlTextReaderGetParserLineNumber|TextReader::line_number - takes the caller's LineIndex
 I|xmlTextReaderGetParserColumnNumber|TextReader::column_number - takes the caller's LineIndex
-N|xmlTextReaderByteConsumed xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderCurrentDoc xmlTextReaderCurrentNode xmlTextReaderGetRemainder xmlTextReaderIsDefault xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderNormalization xmlTextReaderPreserve xmlTextReaderPreservePattern xmlTextReaderQuoteChar xmlTextReaderReadAttributeValue xmlTextReaderStandalone xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
+N|xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderQuoteChar xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
 N|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler xmlTextReaderGetLastError|no error callback; xsd_diagnostics/relaxng_diagnostics return values
 I|xmlReaderTypes|NodeType
 I|xmlTextReaderMode|ReadState
 I|xmlParserProperties|ParserProperty
 N|xmlParserSeverities XML_PARSER_SEVERITY_*|no severity levels
-N|XML_READER_TYPE_ENTITY XML_READER_TYPE_DOCUMENT XML_READER_TYPE_DOCUMENT_FRAGMENT XML_READER_TYPE_NOTATION XML_READER_TYPE_WHITESPACE XML_READER_TYPE_END_ENTITY XML_READER_TYPE_XML_DECLARATION|NodeType has no such variant
 N|XML_TEXTREADER_MODE_CLOSED XML_TEXTREADER_MODE_READING|ReadState has no such variant
 # ---- xmlsave.h
 I|xmlSaveDoc xmlSaveTree|save::to_vec
@@ -990,7 +1000,8 @@ def header_rule(h, i, k, ctx):
             return TREE_KIND[m.group(1)]
     if m := re.fullmatch(r"XML_READER_TYPE_(\w+)", i):
         if m.group(1) in READER_TYPE:
-            return "I", f"NodeType::{READER_TYPE[m.group(1)]}"
+            note = " - never reported, as by libxml2's reader" if m.group(1) in READER_TYPE_UNUSED else ""
+            return "I", f"NodeType::{READER_TYPE[m.group(1)]}{note}"
     if m := re.fullmatch(r"XML_TEXTREADER_MODE_(\w+)", i):
         if m.group(1) in READER_MODE:
             return "I", f"ReadState::{READER_MODE[m.group(1)]}"

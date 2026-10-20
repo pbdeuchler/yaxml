@@ -20,12 +20,13 @@
 //! ```
 
 use std::borrow::Cow;
+use std::io::Write;
 
 use crate::allocator::Allocator;
 use crate::encoding::Output;
 use crate::{
     Attribute, Declaration, Doctype, Document, Error, ErrorKind, Event, Limit, Name, Node,
-    NodeKind, OwnedDocument, OwnedNode, OwnedNodeKind,
+    NodeKind, OwnedDocument, OwnedNode, OwnedNodeKind, WriteError,
 };
 
 mod dtd;
@@ -59,6 +60,8 @@ const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 const XHTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
 /// libxml2's `MAX_INDENT`: the longest indent string and widest indentation.
 const MAX_INDENT: usize = 60;
+/// The deepest starting level `xmlNodeDump` accepts.
+const MAX_LEVEL: usize = 100;
 
 /// `xmlSaveOption` flags, the output encoding and the indent string.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -74,6 +77,9 @@ pub struct Options<'a> {
     /// `xmlSaveSetIndentString`: 1 to 60 spaces or tabs, two spaces by
     /// default. libxml2 takes any string, which can make the output malformed.
     pub indent: &'a str,
+    /// The indentation level of a subtree's root (`xmlNodeDump`'s `level`),
+    /// at most 100; documents always start at 0.
+    pub level: usize,
 }
 
 impl Default for Options<'_> {
@@ -82,6 +88,7 @@ impl Default for Options<'_> {
             flags: 0,
             encoding: None,
             indent: "  ",
+            level: 0,
         }
     }
 }
@@ -357,24 +364,42 @@ pub(crate) fn owned_leaf<A: Allocator>(node: OwnedNode<'_, A>) -> Option<Event<'
     })
 }
 
-/// Serializes `tree`: `xmlSaveDoc` for a document node, otherwise
-/// `xmlSaveTree` with the namespace declarations the subtree uses but does
-/// not declare added to its root, as on a copy (`xmlDocCopyNode`).
+/// Serializes `tree` to memory; [`to_writer`] into a `Vec`.
+pub fn to_vec<'document, 'input: 'document>(
+    tree: impl Into<Tree<'document, 'input>>,
+    options: &Options<'_>,
+) -> Result<Vec<u8>, Error> {
+    let mut bytes = Vec::new();
+    match to_writer(tree, options, &mut bytes) {
+        Ok(()) => Ok(bytes),
+        Err(WriteError::Xml(error)) => Err(error),
+        // Writing to a Vec cannot fail.
+        Err(WriteError::Io(_)) => Err(Error::new(ErrorKind::InvalidState, bytes.len())),
+    }
+}
+
+/// Serializes `tree` to `sink` (`xmlSaveToIO`, `xmlSaveToFd`): `xmlSaveDoc`
+/// for a document node, otherwise `xmlSaveTree` at [`Options::level`] with
+/// the namespace declarations the subtree uses but does not declare added
+/// to its root, as on a copy (`xmlDocCopyNode`). Output reaches the sink in
+/// chunks of [`CHUNK`] bytes, then the sink is flushed.
 ///
 /// Unknown flags or another indent are `UnsupportedOption`;
 /// an unknown encoding is `UnsupportedEncoding`. Text and attribute values
 /// write characters the encoding lacks as `&#N;`; in names, comments, PIs,
 /// CDATA and DOCTYPE identifiers, where libxml2 writes such references too
 /// and changes the content, they are `InvalidCharacter` at their output
-/// offset. HTML documents use the HTML serializer unless [`AS_XML`] or
-/// [`XHTML`] is set; [`AS_HTML`] needs an owned document node, and HTML
-/// subtrees need [`AS_XML`].
-pub fn to_vec<'document, 'input: 'document>(
+/// offset, and nothing after that offset is written. Nodes of HTML
+/// documents use the HTML serializer unless [`AS_XML`] or [`XHTML`] is set;
+/// [`AS_HTML`] needs an owned node. An I/O failure is `WriteError::Io`;
+/// the sink can hold part of the output.
+pub fn to_writer<'document, 'input: 'document>(
     tree: impl Into<Tree<'document, 'input>>,
     options: &Options<'_>,
-) -> Result<Vec<u8>, Error> {
+    mut sink: impl Write,
+) -> Result<(), WriteError> {
     let tree = tree.into();
-    let unsupported = Error::new(ErrorKind::UnsupportedOption, 0);
+    let unsupported = WriteError::Xml(Error::new(ErrorKind::UnsupportedOption, 0));
     let indent = &options.indent;
     if options.flags & !SUPPORTED != 0
         || !(1..=MAX_INDENT).contains(&indent.len())
@@ -383,26 +408,27 @@ pub fn to_vec<'document, 'input: 'document>(
         return Err(unsupported);
     }
     let document = tree.is_document();
+    let html = tree.owned_document().is_some_and(OwnedDocument::is_html);
+    if options.has(AS_HTML) || html && !options.has(AS_XML) && !options.has(XHTML) {
+        let Tree::Owned(node) = tree else {
+            return Err(unsupported);
+        };
+        // `htmlNodeDumpOutputInternal` falls back to the document's encoding.
+        let encoding = options.encoding.or(tree.encoding()).unwrap_or("HTML");
+        return crate::html::save_node(node, options.has(FORMAT), encoding, &mut sink);
+    }
     let encoding = options
         .encoding
         .or_else(|| document.then(|| tree.encoding()).flatten());
-    let html = tree.owned_document().is_some_and(OwnedDocument::is_html);
-    if options.has(AS_HTML) || html && !options.has(AS_XML) && !options.has(XHTML) {
-        return match tree.owned_document().filter(|_| document) {
-            Some(owned) => {
-                crate::html::save_as(owned, options.has(FORMAT), encoding.unwrap_or("HTML"))
-            }
-            None => Err(unsupported),
-        };
-    }
     let output = match encoding {
-        Some(label) => {
-            Output::for_label(label).ok_or(Error::new(ErrorKind::UnsupportedEncoding, 0))?
-        }
+        Some(label) => Output::for_label(label).ok_or(WriteError::Xml(Error::new(
+            ErrorKind::UnsupportedEncoding,
+            0,
+        )))?,
         None => Output::Utf8,
     };
     let mut saver = Saver {
-        out: Out::new(output, encoding.is_none()),
+        out: Out::new(output, encoding.is_none(), Some(&mut sink)),
         options,
         format: if options.has(FORMAT) {
             1
@@ -411,7 +437,7 @@ pub fn to_vec<'document, 'input: 'document>(
         } else {
             0
         },
-        level: 0,
+        level: options.level.min(MAX_LEVEL),
         xhtml_attributes: options.has(XHTML),
         encoding,
     };
@@ -438,23 +464,31 @@ pub(crate) fn escape_text(out: &mut String, text: &str, html: bool, ascii: bool)
         }
         return;
     }
-    let mut escaped = Out::new(Output::Utf8, ascii);
+    let mut escaped = Out::new(Output::Utf8, ascii, None);
     escaped.text(text, false);
     out.push_str(std::str::from_utf8(&escaped.bytes).unwrap_or_default());
 }
 
-/// Encoded output; the first character the encoding cannot write in markup
-/// is recorded and reported at the end, as libxml2's `buf->error`.
-struct Out {
+/// Bytes buffered before they are handed to the sink.
+pub const CHUNK: usize = 32 * 1024;
+
+/// Encoded output, handed to `sink` in chunks of [`CHUNK`] bytes (a sibling
+/// without a sink keeps everything). The first character the encoding cannot
+/// write in markup is recorded, as libxml2's `buf->error`, and nothing after
+/// it reaches the sink.
+struct Out<'s> {
     bytes: Vec<u8>,
+    sink: Option<&'s mut dyn Write>,
+    /// Bytes before `bytes`, already handed to the sink.
+    written: usize,
     output: Output,
     /// No encoding: text escapes non-ASCII as hexadecimal references.
     ascii: bool,
-    error: Option<Error>,
+    error: Option<WriteError>,
 }
 
 /// `xmlEscapeTabAttr`: other C0 controls become U+FFFD.
-const ATTRIBUTE: [Option<&str>; 128] = {
+pub(crate) const ATTRIBUTE: [Option<&str>; 128] = {
     let mut table = [None; 128];
     let mut byte = 0;
     while byte < 0x20 {
@@ -473,50 +507,96 @@ const ATTRIBUTE: [Option<&str>; 128] = {
 
 /// `xmlEscapeTab`: tabs, newlines and quotes are written as they are.
 const CONTENT: [Option<&str>; 128] = {
-    let mut table = ATTRIBUTE;
-    (table[9], table[10], table[34]) = (None, None, None);
+    let mut table = QUOT;
+    table[b'"' as usize] = None;
     table
 };
 
-impl Out {
-    fn new(output: Output, ascii: bool) -> Self {
+/// `xmlEscapeTabQuot` (`xmlEncodeSpecialChars`): content escaping and `"`.
+pub(crate) const QUOT: [Option<&str>; 128] = {
+    let mut table = ATTRIBUTE;
+    (table[9], table[10]) = (None, None);
+    table
+};
+
+impl<'s> Out<'s> {
+    fn new(output: Output, ascii: bool, sink: Option<&'s mut dyn Write>) -> Self {
         Self {
             bytes: output.bom().to_vec(),
+            sink,
+            written: 0,
             output,
             ascii,
             error: None,
         }
     }
 
-    /// An empty buffer with the same encoding, for [`Out::append`].
-    fn sibling(&self) -> Self {
-        Self {
+    /// An empty in-memory buffer with the same encoding, for [`Out::append`].
+    fn sibling(&self) -> Out<'static> {
+        Out {
             bytes: Vec::new(),
-            ..*self
+            ..Out::new(self.output, self.ascii, None)
         }
     }
 
-    fn append(&mut self, other: Self) {
-        if self.error.is_none()
-            && let Some(error) = other.error
-        {
-            self.error = Some(Error::new(error.kind, self.bytes.len() + error.offset));
+    fn append(&mut self, other: Out<'_>) {
+        if let Some(WriteError::Xml(error)) = other.error {
+            self.fail(Error::new(error.kind, self.position() + error.offset));
         }
         self.bytes.extend_from_slice(&other.bytes);
     }
 
-    fn finish(self) -> Result<Vec<u8>, Error> {
-        self.error.map_or(Ok(self.bytes), Err)
+    /// The output offset of the next byte.
+    fn position(&self) -> usize {
+        self.written + self.bytes.len()
+    }
+
+    fn fail(&mut self, error: Error) {
+        if self.error.is_none() {
+            self.error = Some(WriteError::Xml(error));
+        }
+    }
+
+    /// Spills once the buffer holds [`CHUNK`] bytes: called between nodes,
+    /// so a chunk can exceed it by one node's markup or text.
+    fn checkpoint(&mut self) {
+        if self.bytes.len() >= CHUNK {
+            self.spill();
+        }
+    }
+
+    /// Hands the buffer to the sink; after a failure it is discarded.
+    #[inline(never)]
+    fn spill(&mut self) {
+        if let Some(sink) = self.sink.as_mut() {
+            if self.error.is_none() {
+                let mut confirmed = 0;
+                if let Err(error) = crate::writer::write_all(sink, &self.bytes, &mut confirmed) {
+                    self.error = Some(error);
+                }
+            }
+            self.written += self.bytes.len();
+            self.bytes.clear();
+        }
+    }
+
+    fn finish(mut self) -> Result<(), WriteError> {
+        self.spill();
+        if let (None, Some(sink)) = (&self.error, self.sink.as_mut()) {
+            crate::writer::flush(sink)?;
+        }
+        self.error.map_or(Ok(()), Err)
     }
 
     /// Markup, names, comments, PIs and CDATA, which cannot hold references.
     fn raw(&mut self, text: &str) {
         if self.output == Output::Utf8 {
-            return self.bytes.extend_from_slice(text.as_bytes());
-        }
-        for c in text.chars() {
-            if !self.output.push(&mut self.bytes, c) && self.error.is_none() {
-                self.error = Some(Error::new(ErrorKind::InvalidCharacter, self.bytes.len()));
+            self.bytes.extend_from_slice(text.as_bytes());
+        } else {
+            for c in text.chars() {
+                if !self.output.push(&mut self.bytes, c) {
+                    self.fail(Error::new(ErrorKind::InvalidCharacter, self.position()));
+                }
             }
         }
     }
@@ -572,22 +652,8 @@ impl Out {
         self.raw(&text[start..]);
     }
 
-    /// `&#xH;` as `xmlSerializeHexCharRef` writes it, or the encoder's `&#N;`.
     fn reference(&mut self, c: char, hex: bool) {
-        let (base, prefix) = if hex { (16, "&#x") } else { (10, "&#") };
-        let mut digits = [0; 8];
-        let (mut value, mut start) = (u32::from(c), digits.len());
-        loop {
-            start -= 1;
-            digits[start] = b"0123456789ABCDEF"[(value % base) as usize];
-            value /= base;
-            if value == 0 {
-                break;
-            }
-        }
-        self.raw(prefix);
-        self.raw(std::str::from_utf8(&digits[start..]).unwrap_or_default());
-        self.raw(";");
+        self.raw(char_reference(c, hex, &mut [0; 12]));
     }
 
     /// An attribute value with kept references, as `xmlSaveWriteAttrContent`
@@ -637,11 +703,29 @@ impl Out {
     }
 }
 
+/// `&#xH;` as `xmlSerializeHexCharRef` writes it, or the encoders' `&#N;`.
+pub(crate) fn char_reference(c: char, hex: bool, buffer: &mut [u8; 12]) -> &str {
+    let (base, prefix) = if hex { (16, "&#x") } else { (10, "&#") };
+    let (mut value, mut start) = (u32::from(c), buffer.len() - 1);
+    buffer[start] = b';';
+    loop {
+        start -= 1;
+        buffer[start] = b"0123456789ABCDEF"[(value % base) as usize];
+        value /= base;
+        if value == 0 {
+            break;
+        }
+    }
+    start -= prefix.len();
+    buffer[start..start + prefix.len()].copy_from_slice(prefix.as_bytes());
+    std::str::from_utf8(&buffer[start..]).unwrap_or_default()
+}
+
 /// An attribute value and its kept-reference form, if any.
 type Value<'v> = (&'v str, Option<&'v str>);
 
-struct Saver<'a> {
-    out: Out,
+struct Saver<'a, 's> {
+    out: Out<'s>,
     options: &'a Options<'a>,
     /// libxml2's `ctxt->format`: 0, 1 for [`FORMAT`], 2 for [`WSNONSIG`].
     format: u8,
@@ -651,7 +735,7 @@ struct Saver<'a> {
     encoding: Option<&'a str>,
 }
 
-impl<'a> Saver<'a> {
+impl<'a> Saver<'a, '_> {
     /// `xmlSaveWriteIndent`.
     fn indent(&mut self, extra: usize) {
         if !self.options.has(NO_INDENT) {
@@ -713,6 +797,7 @@ impl<'a> Saver<'a> {
         let mut attributes = Vec::new();
         let mut current = root;
         loop {
+            self.out.checkpoint();
             let is_root = current.same(root);
             if let Some(name) = current.name() {
                 let added = if is_root { added } else { &[] };
@@ -796,8 +881,8 @@ impl<'a> Saver<'a> {
         let qualified = name.qualified();
         self.out.raw("<");
         self.out.raw(qualified);
-        if let Err(error) = node.attributes(attributes, usize::MAX, self.out.bytes.len()) {
-            self.out.error.get_or_insert(error);
+        if let Err(error) = node.attributes(attributes, usize::MAX, self.out.position()) {
+            self.out.fail(error);
         }
         let mut declared = false;
         for attribute in attributes.iter().filter(|a| is_declaration(a)) {

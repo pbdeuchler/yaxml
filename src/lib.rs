@@ -37,6 +37,7 @@ pub mod schematron;
 mod serialize;
 mod stream;
 mod textreader;
+mod textwriter;
 mod tokenizer;
 pub mod uri;
 pub mod valid;
@@ -66,7 +67,8 @@ pub use owned::{
 pub use push::PushParser;
 pub use reader::{Attribute, Attributes, Declaration, Doctype, Element, Event, Limits, Reader};
 pub use resolve::{FileResolver, Request, Resolver, ResourceKind};
-pub use textreader::{NodeType, ParserProperty, ReadState, TextReader};
+pub use textreader::{NodeType, ParserProperty, ReadState, Standalone, TextReader};
+pub use textwriter::TextWriter;
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
 pub use xpath::tree::NamespaceBinding;
