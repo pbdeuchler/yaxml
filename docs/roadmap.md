@@ -350,6 +350,6 @@ Audit of every feature row in [compatibility.md](compatibility.md) against `src/
 17. XML 1.1 and the namespace-unaware profile (611 unscored XMLTS cases per surface, 9 namespace-off cases) - L - migration, low (rare in practice).
 18. HTML gaps from [html.md](html.md) (multi-byte converters, SAX callbacks, `HTML_PARSE_HTML5`, `htmlCtxtParseContent`, line numbers) - M - migration for HTML users.
 19. Schema and catalog remainders (`xmlRelaxNGDump`, XSD stream `ID`/`ENTITY` verdicts, two XSD counter quirks, catalog editing/dumping and the catalog PI, `CATALOG_PI` flag) - S each - migration, low.
-20. Fill the `status` column of `docs/libxml2-api.tsv` (4,056 rows `unmapped`) from the feature rows, and add a per-symbol Rust mapping - M, mostly scripting - process: no inventory row reflects what exists.
+20. **Done** - `docs/libxml2-api.tsv` carries `status` and `rust` for all 4,060 rows (`tooling/api_status.py`, checked by `tests/api_inventory.rs`; counts in [compatibility.md](compatibility.md)). Keep it current: a feature that adds or removes public API reruns the script and fixes its override table.
 21. Language bindings and any C ABI (`yaxml-capi`, Python, Node, Ruby, Go) - L - bindings; blocked on owner sign-off for unsafe adapters per [bindings.md](bindings.md), and easier once 1, 3 and 7 land.
 22. Public utility helpers (`xmlunicode.h` category/block queries, `xmlstring.h`, `chvalid.h`, `debugXML.h` dumps) - S - migration, low; `std` covers dictionaries, hashes and lists.
