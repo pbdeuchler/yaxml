@@ -45,18 +45,21 @@ pub fn observe(
         Ok(options.with_resolver(path, Box::new(resolver)))
     };
 
+    // XMLTS scores namespace well-formedness: a namespace error the parser
+    // keeps (libxml2's `xmlNsErr`) rejects the case.
+    let kept = |errors: &[Error]| errors.first().map_or(Ok(()), |&error| Err(error));
     match surface {
         "reader" => {
             let options = options()?;
             let result = (|| {
                 let mut reader = Reader::with_options(input, options)?;
                 while reader.read_event()?.is_some() {}
-                Ok(())
+                kept(reader.errors())
             })();
             Ok(result)
         }
-        "document" => Ok(Document::parse_with(input, options()?).map(drop)),
-        "owned" => Ok(OwnedDocument::parse_with(input, options()?).map(drop)),
+        "document" => Ok(Document::parse_with(input, options()?).and_then(|d| kept(d.errors()))),
+        "owned" => Ok(OwnedDocument::parse_with(input, options()?).and_then(|d| kept(d.errors()))),
         "push" => {
             const CHUNKS: [usize; 3] = [1, 7, 4096];
             let mut parser =
@@ -71,7 +74,8 @@ pub fn observe(
                     cursor = end;
                     next_chunk += 1;
                 }
-                parser.finish(|_, _| ControlFlow::Continue(()))
+                parser.finish(|_, _| ControlFlow::Continue(()))?;
+                kept(parser.errors())
             })();
             Ok(result)
         }
@@ -82,7 +86,7 @@ pub fn observe(
             loop {
                 match reader.read_event() {
                     Ok(Some(_)) => {}
-                    Ok(None) => return Ok(Ok(())),
+                    Ok(None) => return Ok(kept(reader.errors())),
                     Err(ReadError::Xml(error)) => return Ok(Err(error)),
                     Err(ReadError::Io(error)) => {
                         return Err(format!("buffered input failed: {error}"));

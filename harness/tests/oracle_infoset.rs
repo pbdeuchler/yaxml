@@ -339,7 +339,6 @@ fn malformed_and_unsupported_documents_are_errors() {
         b"<r>",
         b"<!DOCTYPE r><r>&missing;</r>",
         b"<r/>\0",
-        b"<p:r/>",
     ] {
         let error = Projection::from_input(input).unwrap_err();
         assert!(

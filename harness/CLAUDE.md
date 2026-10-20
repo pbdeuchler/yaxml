@@ -14,6 +14,7 @@ Benchmarks, fuzzing, libxml2 2.15.4 differentials and XMLTS conformance for yaxm
 - bench.sh: parse_benchmark with the parse_bench helper; ratio = libxml2 median / yaxml median of (parse_ns+drop_ns)/iterations; Cargo.toml release profile matches core's (thin LTO, 1 CGU).
 - Tests building examples (`*_cli.rs`, oracle_cli) run `cargo build --example` in this package; fixtures for them in tests/fixtures (fake_*.rs, create_oracle_expected.tsv); conformance baseline tests/fixtures/xmlconf-20130923-required.tsv (9,728 pairs, 1,962 IDs).
 - fuzz/fuzz_targets/allocfail.rs: the only unsafe code here (`#[global_allocator]` failing one chosen allocation, `#![feature(alloc_error_hook)]`); logic in core tests/support/fuzz/allocfail.rs; env YAXML_ALLOCFAIL_{SWEEP,TRACE,MIN_SIZE}; regressions/allocfail replay only with SWEEP (the chosen index shifts with code).
+- Core keeps namespace errors without failing (`errors()`); conformance_worker (XMLTS scores namespace well-formedness), fuzz_replay (xmllint `--strict-namespace`) and parse_bench (the C helper fails on any error) count a kept error as rejection.
 - Corpus: committed as is (21.5 MB real bytes, 46k files <= 4 KiB, already edge-only cmin'd); don't commit smoke-run additions (`git clean fuzz/corpus`).
 
 ## Gate (every merge)
