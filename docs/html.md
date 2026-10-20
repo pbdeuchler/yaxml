@@ -116,8 +116,8 @@ line where its last character-data run began, because libxml2 updates its
 line only after a run and moves a merged text node's line forward. Lines are
 counted in the decoded text and never capped at 65535; constructed nodes have
 none. Counting lines, recording them (four bytes per node) and the
-diagnostic positions cost 0-6% of parse time (best of 40 parses of 4.6-7.9
-MB generated documents, before/after: 228/245 ms for small elements, 113/115
+diagnostic positions cost 2-7% of parse time (best of 40 parses of 4.6-7.9
+MB generated documents, before/after: 228/245 ms for small elements, 112/115
 ms for attribute-heavy markup, 25.2/26.8 ms for text).
 
 Each `Diagnostic` carries libxml2's message, line and position (`offset` in the
@@ -228,7 +228,7 @@ list, errors).
 | Mode | Before (2026-10-19, 0576991) | After |
 | --- | --- | --- |
 | xmllint tree, output, error count (5 modes) | 7,044 / 7,044 each | 7,044 / 7,044 each |
-| xmllint stderr reports (5 modes) | 0 (not rendered) | see below |
+| xmllint stderr reports (5 modes) | 0 (not rendered) | 7,044 / 7,044 each, except `--push`: 7,043 (`doc3.htm`, where xmllint's own push and pull reports differ) |
 | SAX callbacks: default, NOBLANKS, NOIMPLIED, HTML5 | not implemented | 7,044 / 7,044 each |
 | node lines: default, HTML5 | not implemented | 7,044 / 7,044 each |
 | fragments | not implemented | 7,044 / 7,044 |
@@ -248,6 +248,18 @@ chunk-dependence bugs, and an earlier run an over-strict reparse invariant
 resulting corpus covers 99.8% of tokenizer lines (98.7% of branches), 98.8%
 of tree lines (92.9%), 94.2% of serializer lines (92.3%), 94.9% of encoding
 lines (93.6%) and 98.3% of the driver (90.4%).
+
+Targets `html_events` (events: push equals pull, the SAX2 replay of the
+events equals `parse`'s tree and diagnostics, `Break` ends them) and
+`html_fragment` cover the new entry points; `HTML5` is one of the derived
+options in all three. On 2026-10-20, 10 minutes each on nightly-2026-10-18
+(`-fork=1 -timeout=2 -max_len=16384`, seeded with `fuzz/corpus/html`):
+`html` 134,586 inputs, `html_events` 504,791, `html_fragment` 739,904, no
+failures. A first `html` run found an over-strict invariant: an HTML5 tree
+can have several top-level `html` elements, and libxml2 (and this
+serializer) gives only the first head a generated `<meta charset>` when that
+head is empty, so per-subtree output differs
+(`fuzz/regressions/html/html5-subtrees.html`).
 
 ## Known differences
 

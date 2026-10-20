@@ -459,7 +459,12 @@ fn seed(input: &[u8]) -> u64 {
 pub(super) fn exercise_events(input: &[u8]) {
     let seed = seed(input);
     let options = options(seed);
-    events(input, options, seed, html::parse(input, options).ok().as_ref());
+    events(
+        input,
+        options,
+        seed,
+        html::parse(input, options).ok().as_ref(),
+    );
 }
 
 /// Target `html_fragment`: in-context parsing.

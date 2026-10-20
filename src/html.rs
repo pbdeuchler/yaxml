@@ -595,8 +595,6 @@ impl<'a, S: Sink> Engine<'a, S> {
         self.malformed = self.malformed.or(at.map(|at| self.dropped + at));
     }
 
-
-
     /// Drops consumed push input once it dominates the buffer.
     fn compact(&mut self) {
         if self.pos > 4096 && self.pos > self.text.len() / 2 && self.pending.is_empty() {
@@ -639,7 +637,6 @@ impl<'a, S: Sink> Engine<'a, S> {
         self.lines.column = (to, column);
         column
     }
-
 
     /// Gives new diagnostics their column; their context follows once the
     /// text it shows is there.
