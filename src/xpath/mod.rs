@@ -150,7 +150,7 @@ impl Error {
 
     /// libxml2's `xmlXPathError` number and message for this error in
     /// `expression`, naming the prefix, variable or function as `xmlXPathErrFmt` does.
-    pub(crate) fn libxml2(&self, expression: &str) -> (u16, String) {
+    pub fn libxml2(&self, expression: &str) -> (u16, String) {
         let rest = (self.offset.and_then(|offset| expression.get(offset..))).unwrap_or("");
         let name = |colon| {
             let end = rest.find(|c| !crate::name::name_char(c, colon));

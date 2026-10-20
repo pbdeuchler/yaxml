@@ -211,9 +211,9 @@ impl ErrorKind {
 /// declaring a built-in single-byte charset are indexed through their UTF-8
 /// transcoding, so offsets stay input bytes.
 pub struct LineIndex<'s> {
-    input: &'s [u8],
-    /// The input as UTF-8.
-    text: Cow<'s, [u8]>,
+    input: Cow<'s, [u8]>,
+    /// The input transcoded to UTF-8; `None` when the input is UTF-8 itself.
+    text: Option<Vec<u8>>,
     /// Text offset of each line's first byte.
     starts: Vec<usize>,
     /// Transcoded input: its decoder and the input offset of each line's first byte.
@@ -294,8 +294,8 @@ impl<'s> LineIndex<'s> {
             }
         }
         Self {
-            input,
-            text: Cow::Owned(text.into_bytes()),
+            input: Cow::Borrowed(input),
+            text: Some(text.into_bytes()),
             starts,
             decoded: Some((decoder, raw)),
         }
@@ -307,22 +307,44 @@ impl<'s> LineIndex<'s> {
             .chain(memchr::memchr_iter(b'\n', text).map(|i| i + 1))
             .collect();
         Self {
-            input: text,
-            text: Cow::Borrowed(text),
+            input: Cow::Borrowed(text),
+            text: None,
             starts,
             decoded: None,
         }
     }
 
+    /// An index that owns its input, for callers that keep it beside a
+    /// long-lived tree (a language binding's `sourceline`).
+    pub fn owned(input: Vec<u8>) -> LineIndex<'static> {
+        let LineIndex {
+            text,
+            starts,
+            decoded,
+            ..
+        } = LineIndex::new(&input);
+        LineIndex {
+            input: Cow::Owned(input),
+            text,
+            starts,
+            decoded,
+        }
+    }
+
+    /// The indexed input.
+    pub fn input(&self) -> &[u8] {
+        &self.input
+    }
+
     /// The input as UTF-8.
     fn text(&self) -> &[u8] {
-        &self.text
+        self.text.as_deref().unwrap_or(&self.input)
     }
 
     /// The text offset of an input offset (clamped to the input).
     fn to_text(&self, offset: usize) -> usize {
         let Some((decoder, raw)) = &self.decoded else {
-            return offset.min(self.text.len());
+            return offset.min(self.text().len());
         };
         let line = raw.partition_point(|&start| start <= offset).max(1) - 1;
         let (mut at, mut width) = (raw[line], 0);
@@ -333,7 +355,7 @@ impl<'s> LineIndex<'s> {
             at += length;
             width += c.len_utf8();
         }
-        (self.starts[line] + width).min(self.text.len())
+        (self.starts[line] + width).min(self.text().len())
     }
 
     /// 1-based line of an input offset.
@@ -352,7 +374,7 @@ impl<'s> LineIndex<'s> {
 
     fn text_column(&self, at: usize) -> usize {
         let start = self.starts[self.text_line(at) - 1].min(at);
-        1 + self.text[start..at]
+        1 + self.text()[start..at]
             .iter()
             .filter(|&&b| b & 0xc0 != 0x80)
             .count()
@@ -361,7 +383,7 @@ impl<'s> LineIndex<'s> {
     /// The text offset of a 1-based line and column.
     fn text_at(&self, line: usize, column: usize) -> usize {
         let start = self.starts[line.clamp(1, self.starts.len()) - 1];
-        let rest = &self.text[start.min(self.text.len())..];
+        let rest = &self.text()[start.min(self.text().len())..];
         let width = rest
             .iter()
             .enumerate()
@@ -374,7 +396,7 @@ impl<'s> LineIndex<'s> {
     /// libxml2's line for the element whose start tag begins at text offset
     /// `start`: where the tag ends, as `xmlSAX2StartElementNs` records it.
     fn tag_line(&self, start: usize) -> usize {
-        self.text_line(unquoted(&self.text, start + 1, b">").unwrap_or(self.text.len()))
+        self.text_line(unquoted(self.text(), start + 1, b">").unwrap_or(self.text().len()))
     }
 
     /// `xmlGetLineNo` for a parsed node: elements count where their start
@@ -454,7 +476,7 @@ impl LineIndex<'_> {
     /// ceiling, for tests and fuzzing.
     #[doc(hidden)]
     pub fn describe_counted(&self, errors: &[Error]) -> (Vec<Diagnostic>, usize, usize) {
-        let work = Work::new(self.text.len());
+        let work = Work::new(self.text().len());
         let mut scan = Scan::default();
         let mut described: Vec<Diagnostic> = Vec::new();
         for error in errors {
@@ -557,7 +579,7 @@ impl Error {
     /// ```
     pub fn describe(&self, lines: &LineIndex<'_>) -> Diagnostic {
         let at = lines.to_text(self.offset);
-        let work = Work::new(lines.text.len());
+        let work = Work::new(lines.text().len());
         lines.diagnostic(
             found(self.kind, lines, at, &mut Scan::default(), &work),
             &work,
@@ -606,7 +628,7 @@ impl Diagnostic {
         let at = lines.text_at(self.line, self.column);
         let cursor = lines.cursor(self.code, at);
         // Only input read without a converter shows its bytes.
-        if self.code == INVALID_ENCODING && lines.decoded.is_none() && at < lines.text.len() {
+        if self.code == INVALID_ENCODING && lines.decoded.is_none() && at < lines.text().len() {
             let bytes = lines.text()[at..].iter().take(4);
             out += "Bytes:";
             out.extend(bytes.map(|b| format!(" 0x{b:02X}")));
@@ -635,7 +657,7 @@ impl LineIndex<'_> {
     ) -> Diagnostic {
         let at = offset
             .map(|offset| self.to_text(offset))
-            .filter(|&at| at < self.text.len());
+            .filter(|&at| at < self.text().len());
         let element = at.filter(|_| named).and_then(|at| {
             let work = Work::new(0);
             let name = Cur::new(self, &work, at + 1).name(true)?;
