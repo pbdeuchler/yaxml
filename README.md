@@ -8,7 +8,7 @@ A safe, fast XML toolkit for Rust that behaves like libxml2.
 - **Compatible**: libxml2 2.15.4 is the reference. Parse results, error codes
   and messages, serialized bytes and validation verdicts are tested against
   it, and option flags keep libxml2's names and numbers.
-- **Fast**: faster than libxml2 on 63 of 65 DOM and streaming benchmark
+- **Fast**: faster than libxml2 on all 65 DTD-free DOM and streaming benchmark
   workloads ([benchmarks](docs/benchmarks.md)).
 - **Broad**: borrowed and editable DOMs; pull, push and `xmlTextReader`
   streaming; XPath 1.0; DTD, XML Schema, RELAX NG and Schematron validation;

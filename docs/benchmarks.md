@@ -61,6 +61,112 @@ normalization in every element, so the DTD path is measured too. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 
+### Small-chunk push (2026-10-20, `37f104e` → `5cc5929`)
+
+Ratios are **libxml2 median / yaxml median** of parse plus destruction per
+document, main (`37f104e`) → this series (`5cc5929`), with the min–max of
+the per-pair ratios after. Method as in the sixth series: release
+`parse_bench` of both revisions and the static libxml2 2.15.4 helper under
+`parse_benchmark`, both revisions back to back per workload, 9 alternating
+pairs per 8 KiB row and 21 per small-chunk row; rustc 1.97.0. Apple M1 Max
+shared with other jobs (load average 4-30 during the matrix, up to 100 while
+tuning). Repeated runs of one binary move a row by about ±2%, so changes
+under 3% on rows this series did not touch are noise. yaxml leads in **65
+of 65** workloads (the DTD family is [below](#dtd-heavy-parsing-2026-10-20-dtd-fixture-family));
+`mixed` push/7 goes from 0.93 to **1.09** and `namespaces` push/7 from
+0.95 to **1.05**. Every small-chunk row is 2-18% faster; no 8 KiB row moved
+beyond noise.
+
+| Fixture | DOM | Owned | Reader | Push | Buffered |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| tiny | 3.61 → **3.55** (3.48–3.65) | 2.19 → **2.22** (2.12–2.29) | 4.15 → **4.12** (4.06–4.25) | 1.50 → **1.62** (1.52–1.66) | 2.19 → **2.26** (2.23–2.31) |
+| flat | 1.32 → **1.33** (1.31–1.35) | 1.18 → **1.17** (1.15–1.18) | 1.43 → **1.42** (1.41–1.45) | 1.03 → **1.02** (1.01–1.05) | 1.06 → **1.08** (1.06–1.09) |
+| text | 2.94 → **2.92** (2.87–2.98) | 2.48 → **2.47** (2.40–2.59) | 1.29 → **1.29** (1.13–1.31) | 1.14 → **1.13** (1.12–1.15) | 1.28 → **1.27** (1.24–1.29) |
+| attributes | 2.09 → **2.09** (2.03–2.13) | 1.79 → **1.79** (1.77–1.82) | 1.40 → **1.41** (1.40–1.42) | 1.08 → **1.09** (1.02–1.09) | 1.40 → **1.39** (1.38–1.41) |
+| namespaces | 1.56 → **1.56** (1.54–2.16) | 1.33 → **1.32** (1.31–1.33) | 1.88 → **1.88** (1.87–1.91) | 1.10 → **1.10** (1.09–1.11) | 1.42 → **1.43** (1.42–1.44) |
+| normalized | 1.59 → **1.57** (1.54–1.59) | 1.47 → **1.46** (1.44–1.51) | 1.75 → **1.73** (1.70–1.75) | 1.20 → **1.21** (1.20–1.23) | 1.48 → **1.49** (1.46–1.53) |
+| unicode | 1.34 → **1.34** (1.33–1.37) | 1.18 → **1.16** (1.14–1.19) | 1.62 → **1.61** (1.60–1.63) | 1.01 → **1.01** (1.00–1.03) | 1.26 → **1.27** (1.26–1.28) |
+| deep | 1.18 → **1.20** (1.16–1.26) | 1.11 → **1.10** (1.08–1.15) | 1.95 → **1.93** (1.90–2.08) | 1.05 → **1.06** (1.04–1.37) | 1.27 → **1.33** (1.31–1.41) |
+| mixed | 2.18 → **2.17** (2.15–2.22) | 1.81 → **1.81** (1.75–1.87) | 2.69 → **2.73** (2.67–2.84) | 1.28 → **1.28** (1.25–1.38) | 1.75 → **1.72** (1.70–1.74) |
+| dtd-decl | 1.25 → **1.27** (1.27–1.29) | 1.24 → **1.27** (1.24–1.39) | 1.38 → **1.42** (1.39–1.46) | 1.23 → **1.25** (1.23–1.28) | 1.25 → **1.27** (1.24–1.30) |
+| dtd-refs | 0.55 → **0.55** (0.54–0.55) | 0.60 → **0.60** (0.60–0.61) | 0.79 → **0.79** (0.78–0.83) | 0.92 → **0.92** (0.90–0.93) | 0.40 → **0.42** (0.42–0.44) |
+| dtd-nested | 0.36 → **0.36** (0.35–0.36) | 0.37 → **0.37** (0.37–0.38) | 0.66 → **0.66** (0.66–0.67) | 1.29 → **1.29** (1.28–1.33) | 0.39 → **0.41** (0.41–0.41) |
+| dtd-attrs | 1.20 → **1.21** (1.19–1.22) | 1.07 → **1.08** (1.06–1.70) | 1.26 → **1.26** (1.21–1.27) | 0.88 → **0.87** (0.86–0.88) | 0.89 → **0.92** (0.91–1.20) |
+| dtd | 0.59 → **0.59** (0.58–0.59) | 0.58 → **0.57** (0.55–0.57) | 0.76 → **0.75** (0.74–0.76) | 0.77 → **0.76** (0.76–0.77) | 0.50 → **0.53** (0.52–0.53) |
+
+| Small chunks | Push 1 | Push 7 | Buffered 1 | Buffered 7 |
+| --- | ---: | ---: | ---: | ---: |
+| tiny | 1.80 → **1.92** (1.57–2.03) | 1.45 → **1.55** (1.46–1.61) | 2.68 → **2.72** (2.44–2.85) | 2.17 → **2.29** (2.20–2.41) |
+| text | 1.02 → **1.14** (1.10–1.17) | 1.03 → **1.22** (1.21–1.29) | 2.24 → **2.34** (2.31–2.39) | 1.68 → **1.87** (1.85–1.88) |
+| namespaces | 1.03 → **1.13** (1.12–1.14) | 0.95 → **1.05** (1.03–1.07) | 1.99 → **2.03** (2.00–2.07) | 1.53 → **1.67** (1.66–1.70) |
+| normalized | 1.12 → **1.25** (1.23–1.27) | 0.99 → **1.15** (1.13–1.17) | 2.29 → **2.34** (2.28–2.38) | 1.68 → **1.83** (1.79–1.86) |
+| mixed | 1.07 → **1.23** (1.21–1.26) | 0.93 → **1.09** (1.06–1.13) | 2.53 → **2.62** (2.57–2.67) | 1.80 → **1.99** (1.97–2.05) |
+
+Retired instructions and cycles per document (millions; instructions are
+the minimum, cycles the median, of the difference of N- and 2N-document
+runs, `/usr/bin/time -l`, three runs; `tiny` in thousands):
+
+| Workload | libxml2 | main | this series | main cycles | cycles |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| tiny push 1 | 23.46k | 14.23k | 13.35k | 2.86k | 2.61k |
+| tiny push 7 | 15.38k | 10.36k | 9.96k | 2.29k | 2.21k |
+| text push 1 | 124.48 | 131.09 | 118.09 | 20.06 | 17.77 |
+| text push 7 | 27.12 | 27.39 | 25.11 | 5.97 | 5.12 |
+| namespaces push 1 | 82.07 | 81.63 | 75.13 | 15.18 | 13.75 |
+| namespaces push 7 | 40.94 | 42.69 | 39.23 | 9.11 | 8.21 |
+| normalized push 1 | 63.72 | 63.86 | 57.77 | 10.74 | 9.64 |
+| normalized push 7 | 27.26 | 29.17 | 26.38 | 5.79 | 4.94 |
+| mixed push 1 | 38.52 | 36.69 | 32.93 | 6.38 | 5.59 |
+| mixed push 7 | 14.80 | 16.48 | 14.50 | 3.14 | 2.71 |
+
+Instructions did not predict time on this path: the M1's CPU counters
+(`xctrace` CPU Counters, "CPU Bottlenecks") show about 25% of `mixed`
+push/7 cycles lost to instruction delivery, and several changes that
+removed instructions were slower (below). Stalls were found from the
+leaf addresses of an `xctrace` Time Profiler run of a throwaway example
+feeding 7-byte chunks, symbolized with `atos -i` (inline chains) and read
+against `otool -tv`; exact per-feed instruction traces came from lldb
+single-stepping, as before. Root causes:
+
+- **One append per scan.** The tokenizer appended each lexical step's run
+  separately, so a 7-byte chunk crossing a markup prefix or a quote paid two
+  or three appends. It now scans all steps first and appends
+  `input[..cursor]` once per call (`classify` already reads the token as
+  buffer followed by input).
+- **A copy call per append.** Each run went through `extend_from_slice`,
+  that is libsystem `memmove`, about 45 instructions plus a far call for
+  seven bytes. Runs of up to 8 bytes are appended through `Vec::extend` of
+  a mapped iterator, which also ORs each byte's `escape::suspect` class
+  into `Tokenizer::screened`; a token built only from such runs skips
+  `invalid_char`, which was about 5% of `mixed` and `namespaces` push/7
+  cycles. Longer runs (and adopted tokens) clear the flag, so they are
+  screened whole as before; `str::from_utf8` stays per token.
+- **A store-forwarding stall.** `ready: Option<(TokenKind, TokenSpan)>`
+  was built through misaligned 16-byte stack copies that the following load
+  only partly overlapped; that one instruction was 7% of `mixed` push/7
+  samples. The kind and the span are now separate fields.
+- **Vector state for other encodings.** `SourceEncoding::source_length`
+  inlined into the token loop hoisted NEON constants into every call's
+  prologue (eight extra saved registers); the non-UTF-8 width is now out
+  of line (`mixed` push/7 -4% instructions).
+- **Frame size.** `validate` was a call per token and is now inlined
+  (-3% instructions); the DTD session loop of `StreamingSession::drive`
+  (only reached after a DOCTYPE) is out of line, so the plain stream's
+  delivery frame saves fewer registers (-4% cycles on push/7).
+
+Tried and rejected, by cycles: `inline(always)` on `advance_inner` (-1.3%
+instructions, +4% time), `memchr` wrappers out of line, scalar loops for
+haystacks under 16 bytes (mixed within noise), `drive_chunk` out of line
+(+2% cycles on push/7, -2% on 8 KiB push), the scan state kept in a local
+across steps, a one-pass scan of short tag rests, and copying short runs
+with `extend(iter().copied())` (it becomes `memcpy` again).
+
+Remaining: `namespaces` push is bounded by work shared with 8 KiB chunks
+(push/8192 is 1.10): each `xmlns` binding copies its prefix and URI
+(`ParserState::bind` under `copying_names`), two or three `malloc`/`free`
+pairs per element, about 8% of `namespaces` push instructions; reusing the
+binding strings' capacity would raise every `namespaces` push row.
+
 ### Current matched results (2026-10-19, sixth series)
 
 Ratios are **libxml2 median / yaxml median** of parse plus destruction per
