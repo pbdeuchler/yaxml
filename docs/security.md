@@ -86,6 +86,8 @@ Bounded, not removed:
 - Defaulted attributes with `DTDATTR` (about 100 ns each) and entity replacement text are charged to `max_entity_expansion_bytes` and the amplification rule, so a 4-byte `<a/>` cannot yield more than about five times the input consumed in copied defaults once the 1 MB allowance is spent. With defaults the 1,000-attribute case fails in 7 ms.
 - XPath, regexp and content-model matching have their own work budgets (`max_operations`, pattern and automaton units).
 
+With the default limits every family above, fed 60 MiB, finishes or fails with a limit error within 0.75 s (the borrowed DOM, same machine), except the 1.4 s content-model case, and the validation families within 1.3 s.
+
 There is deliberately no generic CPU budget: with the fixes above, parsing time is linear in input, DTD-controlled work is bounded by byte budgets that are already enforced, and deadlines belong to the embedding application. Regression coverage: `tests/budgets.rs` (inclusive attribute ceiling on the DOM builders and its absence on the streaming readers, `HUGE` interaction, and the formerly quadratic paths under a generous time bound; the three-size series is `--ignored`).
 
 ### Defaults against libxml2 2.15.4
