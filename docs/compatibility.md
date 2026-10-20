@@ -364,7 +364,7 @@ parser's tree, as `xmllint --walker --debug` lists it, with libxml2's: its
 pull tree (`--recover`) on 36/45 `test/errors` inputs (80.00%) and 1290/1498
 XMLTS not-wf documents (86.11%), the same as the DOMs' events (80.00%,
 86.05%), its push tree (`--recover --push`) on 33/45 (73.33%) and 1270/1498
-(84.78%), with `--noblanks` on 34/45 (75.56%) and 1264/1498 (84.38%).
+(84.78%), with `--noblanks` on 34/45 (75.56%) and 1268/1498 (84.65%).
 libxml2's push and pull trees differ on 4/45 and 20/1498 themselves (its push
 parser drops a nameless tag that its pull parser reads as text); yaxml has
 one recovery. The text reader agrees with `xmllint --recover --stream --debug`
