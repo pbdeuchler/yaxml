@@ -276,17 +276,6 @@ impl<'a> Doctype<'a> {
     }
 }
 
-/// The first `&Name;` in `text` that names no predefined entity: its offset
-/// and the name.
-fn undeclared_reference(text: &str) -> Option<(usize, &str)> {
-    memchr::memchr_iter(b'&', text.as_bytes()).find_map(|at| {
-        let rest = &text[at + 1..];
-        let name = &rest[..crate::parser::name_length(rest)];
-        let complete = !name.is_empty() && rest[name.len()..].starts_with(';');
-        (complete && crate::escape::predefined(name).is_none()).then_some((at, name))
-    })
-}
-
 /// Recovery from a DTD error at `at` in `raw`, the declaration read so far
 /// from `<!DOCTYPE`, with the internal subset kept up to `unit` (offsets
 /// into `raw`): the DOCTYPE keeps the header and those declarations, and the
@@ -354,6 +343,16 @@ enum Phase<'input> {
     Content(BorrowedContentController<'input>),
 }
 
+/// How a reader's document ended.
+#[derive(Clone, Copy)]
+enum End {
+    Finished,
+    Failed(Error),
+    /// Under `RECOVER`, at an error no site repairs: what is open closes
+    /// at its offset.
+    Stopped(usize),
+}
+
 /// A pull parser over complete UTF-8 input, borrowing it.
 ///
 /// Namespace-aware and strict. Whitespace outside the root element is
@@ -385,8 +384,8 @@ pub struct Reader<'a> {
     doctype_start: usize,
     origin: Option<SourceOrigin>,
     physical: usize,
-    failure: Option<Error>,
-    finished: bool,
+    /// How reading ended, once it has.
+    end: Option<End>,
     /// Under `RECOVER`, the invalid UTF-8 sequence that ends the parsed
     /// prefix of the input, and the earlier character outside `Char` that
     /// ends it after a DOCTYPE.
@@ -462,8 +461,7 @@ impl<'a> Reader<'a> {
             loader,
             doctype_start: 0,
             origin: None,
-            failure: None,
-            finished: false,
+            end: None,
             cut,
             dtd_cut,
         })
@@ -492,6 +490,19 @@ impl<'a> Reader<'a> {
         })
     }
 
+    /// The well-formedness errors a `RECOVER` parse recovered from so far, in
+    /// input order (the first 100, as libxml2 keeps); empty without `RECOVER`.
+    pub fn errors(&self) -> &[Error] {
+        if let Some(ordinary) = &self.ordinary {
+            return ordinary.state.errors();
+        }
+        match self.session.first() {
+            Some(Phase::Declarations { parser, .. }) => parser.errors(),
+            Some(Phase::Content(controller)) => controller.errors(),
+            None => &[],
+        }
+    }
+
     /// Byte position after the most recently consumed input.
     pub fn position(&self) -> usize {
         if let Some(ordinary) = &self.ordinary {
@@ -517,11 +528,12 @@ impl<'a> Reader<'a> {
 
     /// The next event, or `None` at the end of the document.
     pub fn read_event(&mut self) -> Result<Option<Event<'a>>, Error> {
-        if let Some(error) = self.failure {
-            return Err(error);
-        }
-        if self.finished {
-            return Ok(None);
+        if let Some(end) = self.end {
+            return match end {
+                End::Finished => Ok(None),
+                End::Failed(error) => Err(error),
+                End::Stopped(at) => self.close_next(at),
+            };
         }
         // The DTD-free token loop stays on plain `Error` results; only a
         // DOCTYPE moves the reader onto the out-of-line session path.
@@ -536,7 +548,7 @@ impl<'a> Reader<'a> {
                 }
                 Ok(None) => match ordinary.doctype.take() {
                     None => {
-                        self.finished = true;
+                        self.end = Some(End::Finished);
                         Ok(None)
                     }
                     Some(start) => self.start_dtd(start).and_then(|()| self.read_session()),
@@ -545,11 +557,10 @@ impl<'a> Reader<'a> {
             },
             // Without a cut, the session's result is the reader's.
             None if self.dtd_cut.is_none() => {
-                let result = self.read_session();
-                if let Err(error) = &result {
-                    self.failure = Some(*error);
-                }
-                return result;
+                return match self.read_session() {
+                    Err(error) => self.stop(error),
+                    result => result,
+                };
             }
             None => self.read_session(),
         };
@@ -563,10 +574,38 @@ impl<'a> Reader<'a> {
             (Err(error), Some(cut)) if error.offset >= cut.offset => Err(cut),
             (result, _) => result,
         };
-        if let Err(error) = result {
-            self.failure = Some(error);
+        match result {
+            Err(error) => self.stop(error),
+            result => result,
         }
-        result
+    }
+
+    /// An error no site repaired. Under `RECOVER` it stops reading: it is
+    /// recorded, and what is open closes (`close_next`). Otherwise it is
+    /// returned again by every later read.
+    #[cold]
+    fn stop(&mut self, error: Error) -> Result<Option<Event<'a>>, Error> {
+        if let Some(Ok(())) = self.budget().map(|budget| budget.recover(error)) {
+            self.end = Some(End::Stopped(error.offset));
+            return self.close_next(error.offset);
+        }
+        self.end = Some(End::Failed(error));
+        Err(error)
+    }
+
+    /// The next event closing, at `at` where reading stopped, what is still open.
+    fn close_next(&mut self, at: usize) -> Result<Option<Event<'a>>, Error> {
+        let event = match (&mut self.ordinary, self.session.first_mut()) {
+            (Some(ordinary), _) => ordinary.state.close_open(at),
+            (None, Some(Phase::Content(controller))) => controller.close_open(at),
+            _ => Ok(None),
+        };
+        match &event {
+            Ok(Some(_)) => self.origin = Some(SourceOrigin::input(at..at)),
+            Ok(None) => self.end = Some(End::Finished),
+            Err(error) => self.end = Some(End::Failed(*error)),
+        }
+        event
     }
 
     #[inline(never)]
@@ -612,7 +651,7 @@ impl<'a> Reader<'a> {
                     let event = controller.next_stable();
                     match &event {
                         Ok(Some(_)) => self.origin = Some(controller.origin()),
-                        Ok(None) => self.finished = true,
+                        Ok(None) => self.end = Some(End::Finished),
                         Err(_) => {}
                     }
                     return event;
@@ -667,8 +706,6 @@ struct SliceReader<'a> {
     doctype: Option<usize>,
     limits: Limits,
     token_limit_kind: Limit,
-    /// The end of a recovered undeclared entity reference.
-    reference_end: Option<SourceOrigin>,
 }
 
 impl<'a> SliceReader<'a> {
@@ -718,7 +755,6 @@ impl<'a> SliceReader<'a> {
                 .rereading(true, character.is_some()),
             limits,
             token_limit_kind: Limit::TokenBytes,
-            reference_end: None,
         };
         if decode.max_decoded_token_bytes < limits.max_token_bytes {
             reader.limits.max_token_bytes = decode.max_decoded_token_bytes;
@@ -757,8 +793,9 @@ impl<'a> SliceReader<'a> {
     /// The next event; `REREADS` is recovery (see [`ParserState::rereads`]).
     #[inline(always)]
     fn step<const REREADS: bool>(&mut self) -> Result<Option<Event<'a>>, Error> {
-        if REREADS && self.reference_end.is_some() {
-            return Ok(Some(self.end_reference()));
+        // A kept undeclared reference ends where it started.
+        if REREADS && self.state.take_reference_end() {
+            return Ok(Some(Event::EntityEnd));
         }
         loop {
             if !self.state.in_content() {
@@ -784,14 +821,7 @@ impl<'a> SliceReader<'a> {
                 let rest = &self.input.as_bytes()[start..];
                 let end = start + memchr(b'<', rest).unwrap_or(rest.len());
                 self.check_token(start, end)?;
-                if REREADS && self.state.keeps_undeclared() && self.state.in_content() {
-                    match self.undeclared(start, end)? {
-                        Ok(event) => return Ok(Some(event)),
-                        Err(end) => (TokenKind::Text, end),
-                    }
-                } else {
-                    (TokenKind::Text, end)
-                }
+                (TokenKind::Text, end)
             } else if tail.starts_with("<!--") {
                 (TokenKind::Comment, self.delimited(start, 4, b"-->")?)
             } else if tail.starts_with("<![CDATA[") {
@@ -872,33 +902,6 @@ impl<'a> SliceReader<'a> {
                 return Ok(Some(event));
             }
         }
-    }
-
-    /// The end of a recovered undeclared entity reference.
-    #[cold]
-    fn end_reference(&mut self) -> Event<'a> {
-        self.origin = self.reference_end.take();
-        Event::EntityEnd
-    }
-
-    /// Recovery keeps a reference to an undeclared entity in the text from
-    /// `start` to `end`, as libxml2 does without `NOENT`, as an empty
-    /// reference: its start event, or where the text before it ends.
-    #[cold]
-    fn undeclared(&mut self, start: usize, end: usize) -> Result<Result<Event<'a>, usize>, Error> {
-        let input = self.input;
-        Ok(match undeclared_reference(&input[start..end]) {
-            Some((0, name)) => {
-                let end = start + name.len() + 2;
-                let event = self.state.undeclared_reference(name, start)?;
-                let origin = SourceOrigin::input(start..end);
-                (self.cursor, self.origin) = (end, Some(origin));
-                self.reference_end = Some(origin);
-                Ok(event)
-            }
-            Some((at, _)) => Err(start + at),
-            None => Err(end),
-        })
     }
 
     fn check_token(&self, start: usize, end: usize) -> Result<(), Error> {

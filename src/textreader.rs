@@ -582,7 +582,7 @@ impl<R: BufRead> TextReader<R> {
     ///
     /// # Errors
     ///
-    /// `RECOVER` and `XINCLUDE` are [`ErrorKind::UnsupportedOption`].
+    /// `XINCLUDE` is [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         // `BufferedReader` rejects the flags a reader does not support.
         let flags = Flags(options.flags);
@@ -716,6 +716,13 @@ impl<R: BufRead> TextReader<R> {
             }
         }
         self.read()
+    }
+
+    /// The well-formedness errors a `RECOVER` parse recovered from so far, in
+    /// input order (the first 100, as libxml2 keeps), possibly from nodes
+    /// read ahead of the cursor; empty without `RECOVER`.
+    pub fn errors(&self) -> &[Error] {
+        self.source.errors()
     }
 
     /// The reader's state (`xmlTextReaderReadState`).

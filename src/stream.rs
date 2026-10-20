@@ -12,6 +12,51 @@ pub(crate) struct Stream {
     decoder: Decoder,
     state: ParserState<'static>,
     decoded_token_limit: usize,
+    /// Under `RECOVER`; boxed, so strict streams stay small.
+    recovery: Option<Box<Recovery>>,
+}
+
+/// `RECOVER` as the slice reader recovers ([`ParserState::rereads`]): a
+/// token libxml2 ends early has its rest replayed as content, and invalid
+/// UTF-8 ends the input.
+#[derive(Default)]
+struct Recovery {
+    /// Decoded bytes scanned again before any further input, from `at`.
+    replay: Vec<u8>,
+    at: usize,
+    /// The decoded offset of `replay[0]`.
+    base: usize,
+    /// Where the ready token ends once released (decoded, source offsets).
+    end: Option<(usize, usize)>,
+    /// The invalid UTF-8 where the input ends; it ends the parse.
+    cut: Option<Error>,
+}
+
+impl Recovery {
+    fn pending(&self) -> Option<&[u8]> {
+        self.replay.get(self.at..).filter(|rest| !rest.is_empty())
+    }
+
+    /// Ends the ready token at `keep` of its `bytes`, starting at decoded
+    /// `start`, and replays the rest, then the `<` a text token consumed: by
+    /// stepping back when the token was itself replayed, else as a copy.
+    fn unread(&mut self, bytes: &[u8], start: usize, keep: usize, lt: bool) -> Result<(), Error> {
+        if self.pending().is_some() {
+            self.at = start + keep - self.base;
+            return Ok(());
+        }
+        let rest = &bytes[keep..];
+        self.replay.clear();
+        self.replay
+            .try_reserve(rest.len() + 1)
+            .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+        self.replay.extend_from_slice(rest);
+        if lt {
+            self.replay.push(b'<');
+        }
+        (self.at, self.base) = (0, start + keep);
+        Ok(())
+    }
 }
 
 impl Stream {
@@ -22,8 +67,10 @@ impl Stream {
             state: ParserState::new(limits, 0)
                 .copying_names()
                 .lending_namespaces()
-                .with_flags(flags),
+                .with_flags(flags)
+                .rereading(true, false),
             decoded_token_limit: decode.max_decoded_token_bytes,
+            recovery: flags.recovers().then(Box::default),
         }
     }
 
@@ -44,8 +91,10 @@ impl Stream {
                 .recycled(limits)
                 .copying_names()
                 .lending_namespaces()
-                .with_flags(flags),
+                .with_flags(flags)
+                .rereading(true, false),
             decoded_token_limit: decode.max_decoded_token_bytes,
+            recovery: flags.recovers().then(Box::default),
         }
     }
 
@@ -69,10 +118,47 @@ impl Stream {
             .is_some_and(|(kind, bytes, _)| self.state.is_non_event(kind, bytes))
     }
 
+    /// Whether a ready DOCTYPE token starts the DTD session: recovery reads
+    /// one inside the root as invalid markup.
+    pub(crate) fn hands_over(&self) -> bool {
+        !(self.state.recovers() && self.state.in_content())
+    }
+
+    /// Under `RECOVER`, whether a kept undeclared reference ends next.
+    pub(crate) fn ends_reference(&self) -> bool {
+        self.state.reference_ends()
+    }
+
+    /// Under `RECOVER`, whether invalid UTF-8 ended the input.
+    pub(crate) fn is_cut(&self) -> bool {
+        (self.recovery.as_ref()).is_some_and(|recovery| recovery.cut.is_some())
+    }
+
+    fn replaying(&self) -> bool {
+        (self.recovery.as_ref()).is_some_and(|recovery| recovery.pending().is_some())
+    }
+
+    /// The error that ends a recovering parse: past invalid UTF-8 that ended
+    /// the input, that error, as the slice reader reports it.
+    pub(crate) fn terminal(&self, error: Error) -> Error {
+        match self.recovery.as_ref().and_then(|recovery| recovery.cut) {
+            Some(cut) if error.offset >= cut.offset => cut,
+            _ => error,
+        }
+    }
+
     /// Releases the token; a declaration that selected a byte charset takes
     /// effect here, before any byte after it is decoded.
     pub(crate) fn release(&mut self) {
-        self.tokenizer.release();
+        // Recovery reads on inside a token libxml2 ends early.
+        match self
+            .recovery
+            .as_mut()
+            .and_then(|recovery| recovery.end.take())
+        {
+            Some((at, source)) => self.tokenizer.rewind(at, source),
+            None => self.tokenizer.release(),
+        }
         let encoding = self.state.encoding();
         if matches!(encoding, crate::encoding::SourceEncoding::Byte(_)) {
             self.decoder.switch(encoding);
@@ -82,6 +168,14 @@ impl Stream {
 
     #[inline(always)]
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
+        if self.recovery.is_some() {
+            return self.advance_recovering(input);
+        }
+        self.advance_input(input)
+    }
+
+    #[inline(always)]
+    fn advance_input(&mut self, input: &[u8]) -> Result<usize, Error> {
         // Plain UTF-8 below the decoded ceiling needs no decoding: the
         // tokenizer takes it directly and the decoder counts it as forwarded.
         // As in forwarding, empty input reaches no token state.
@@ -105,28 +199,119 @@ impl Stream {
             .map(|progress| progress.consumed)
     }
 
+    /// [`Stream::advance`] under `RECOVER`: replayed bytes come first, input
+    /// past a cut is ignored, and each token is screened.
+    #[cold]
+    #[inline(never)]
+    fn advance_recovering(&mut self, input: &[u8]) -> Result<usize, Error> {
+        let recovery = self.recovery.as_mut().expect("recovering stream");
+        if let Some(replay) = recovery.pending() {
+            let replayed = self.tokenizer.advance(replay)?;
+            recovery.at += replayed;
+            if self.has_token() {
+                return self.screen().map(|()| 0);
+            }
+        }
+        if self.is_cut() {
+            return Ok(0);
+        }
+        let consumed = self.advance_input(input)?;
+        self.screen().map(|()| consumed)
+    }
+
+    /// Recovery screens the ready token: invalid UTF-8 ends the input there,
+    /// the token's bytes before it replayed, and a character outside `Char`
+    /// makes the parser repair from then on.
+    fn screen(&mut self) -> Result<(), Error> {
+        let Some((kind, bytes, span)) = self.tokenizer.current() else {
+            return Ok(());
+        };
+        let valid = match std::str::from_utf8(bytes) {
+            Ok(valid) => valid,
+            // Invalid markup can end inside a character the next bytes complete.
+            Err(error) if kind == TokenKind::InvalidMarkup && error.error_len().is_none() => {
+                std::str::from_utf8(&bytes[..error.valid_up_to()]).expect("valid prefix")
+            }
+            Err(error) => {
+                let (keep, start, source) =
+                    (error.valid_up_to(), span.decoded.start, span.source.start);
+                let recovery = self.recovery.as_mut().expect("recovering stream");
+                recovery.replay.clear();
+                recovery.unread(&bytes[..keep], start, 0, false)?;
+                recovery.cut = Some(Error::new(ErrorKind::InvalidUtf8, source + keep));
+                self.tokenizer.rewind(start, source);
+                return Ok(());
+            }
+        };
+        if invalid_char(valid).is_some() {
+            self.state.repair_characters();
+        }
+        Ok(())
+    }
+
     pub(crate) fn finish_step(&mut self) -> Result<bool, Error> {
+        if self.recovery.is_some() {
+            return self.finish_recovering();
+        }
+        self.finish_input(true)
+    }
+
+    /// Ends the input: the decoder's, unless recovery cut it, then the
+    /// tokenizer's.
+    fn finish_input(&mut self, decoder: bool) -> Result<bool, Error> {
         let tokenizer = &mut self.tokenizer;
         let state = &mut self.state;
         let limit = self.decoded_token_limit;
-        if !self
-            .decoder
-            .finish_step(|decoded| decode(tokenizer, state, decoded, limit))?
+        if !decoder
+            || !self
+                .decoder
+                .finish_step(|decoded| decode(tokenizer, state, decoded, limit))?
         {
-            // A token cut off by EOF fails its start check first, as in
-            // the slice reader.
-            tokenizer.finish_step().map_err(|error| {
-                tokenizer
-                    .cut_kind()
-                    .and_then(|kind| state.check_token_start(kind, error.offset).err())
-                    .unwrap_or(error)
+            tokenizer.finish_step().or_else(|error| {
+                // Recovery reads a start tag cut off by the end as an empty
+                // element. Otherwise a token cut off by EOF fails its start
+                // check first, as in the slice reader.
+                if error.kind == ErrorKind::UnexpectedEof
+                    && state.rereads()
+                    && tokenizer.finish_cut_start()
+                {
+                    return Ok(());
+                }
+                let cut = tokenizer.cut_kind();
+                Err(
+                    (cut.and_then(|kind| state.check_token_start(kind, error.offset).err()))
+                        .unwrap_or(error),
+                )
             })?;
         }
         Ok(self.has_token())
     }
 
+    /// [`Stream::finish_step`] under `RECOVER`: replayed bytes come first,
+    /// and a cut input has nothing more to decode.
+    #[cold]
+    #[inline(never)]
+    fn finish_recovering(&mut self) -> Result<bool, Error> {
+        loop {
+            self.advance_recovering(&[])?;
+            if self.has_token() {
+                return Ok(true);
+            }
+            let decoder = !self.is_cut();
+            self.finish_input(decoder)?;
+            self.screen()?;
+            // A cut replays the bytes before it.
+            if self.has_token() || !self.replaying() {
+                return Ok(self.has_token());
+            }
+        }
+    }
+
     pub(crate) fn validate_finish(&self) -> Result<(), Error> {
-        self.state.validate_finish(self.position())
+        match self.recovery.as_ref().and_then(|recovery| recovery.cut) {
+            Some(cut) => Err(cut),
+            None => self.state.validate_finish(self.position()),
+        }
     }
 
     #[cfg(test)]
@@ -150,16 +335,39 @@ impl Stream {
         last_origin: &mut Option<SourceOrigin>,
         emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
     ) -> Result<(usize, Option<bool>), Error> {
+        match self.recovery.is_some() {
+            true => self.drive_tokens::<true>(input, finalizing, standalone, last_origin, emit),
+            false => self.drive_tokens::<false>(input, finalizing, standalone, last_origin, emit),
+        }
+    }
+
+    /// [`Stream::drive`]; `REREADS` is recovery ([`Recovery`]), so strict
+    /// parsing compiles without its checks.
+    #[inline(always)]
+    fn drive_tokens<const REREADS: bool>(
+        &mut self,
+        input: &[u8],
+        finalizing: bool,
+        standalone: &mut bool,
+        last_origin: &mut Option<SourceOrigin>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    ) -> Result<(usize, Option<bool>), Error> {
         let mut consumed = 0;
         loop {
             if let Some((kind, bytes, span)) = self.tokenizer.current() {
-                // Recovery reads a DOCTYPE inside the root as invalid markup.
-                if kind == TokenKind::Dtd && !(self.state.recovers() && self.state.in_content()) {
+                if kind == TokenKind::Dtd && self.hands_over() {
                     return Ok((consumed, None));
                 }
-                let origin = SourceOrigin::input(span.source.clone());
-                let raw = validate(kind, bytes, span)?;
-                let event = parse_valid(kind, raw, span, &mut self.state)?;
+                let (event, origin) = match &mut self.recovery {
+                    Some(recovery) if REREADS => {
+                        parse_recovering(&self.tokenizer, &mut self.state, recovery)?
+                    }
+                    _ => {
+                        let raw = validate(kind, bytes, span)?;
+                        let event = parse_valid(kind, raw, span, &mut self.state)?;
+                        (event, SourceOrigin::input(span.source.clone()))
+                    }
+                };
                 deliver(
                     &mut self.state,
                     event,
@@ -169,21 +377,28 @@ impl Stream {
                     emit,
                 )?;
                 self.release();
+                // A kept undeclared reference ends where it starts.
+                if REREADS && self.state.take_reference_end() {
+                    let end = Some(Event::EntityEnd);
+                    deliver(&mut self.state, end, origin, standalone, last_origin, emit)?;
+                }
                 continue;
             }
-            if finalizing {
+            if finalizing || (REREADS && self.is_cut()) {
                 if self.finish_step()? {
                     continue;
                 }
                 self.validate_finish()?;
-                return Ok((consumed, Some(true)));
+                return Ok((input.len(), Some(true)));
             }
-            self.drive_chunk(input, &mut consumed, standalone, last_origin, emit)?;
-            if consumed == input.len() {
+            if !REREADS {
+                self.drive_chunk(input, &mut consumed, standalone, last_origin, emit)?;
+            }
+            if consumed == input.len() && !(REREADS && self.replaying()) {
                 return Ok((consumed, Some(false)));
             }
             consumed += self.advance(&input[consumed..])?;
-            if !self.has_token() {
+            if !self.has_token() && !(REREADS && self.is_cut()) {
                 if consumed == input.len() {
                     return Ok((consumed, Some(false)));
                 }
@@ -375,6 +590,42 @@ fn parse_valid<'token>(
             budget.copy(raw, offset)
         })
         .map_err(|error| span.map_error(raw, error))
+}
+
+/// The ready token's event under `RECOVER`, with its origin, which ends
+/// where recovery rereads the token's rest (replayed once it is released).
+#[cold]
+#[inline(never)]
+fn parse_recovering<'token>(
+    tokenizer: &'token Tokenizer,
+    state: &mut ParserState<'static>,
+    recovery: &mut Recovery,
+) -> Result<(Option<Event<'token>>, SourceOrigin), Error> {
+    let (kind, bytes, span) = tokenizer.current().expect("a ready token");
+    // Screened: only invalid markup can end inside a character.
+    let valid = std::str::from_utf8(bytes).map_or_else(|error| error.valid_up_to(), str::len);
+    let raw = std::str::from_utf8(&bytes[..valid]).expect("valid prefix");
+    let recorded = state.errors().len();
+    let event = state
+        .read_token::<true, _>(kind, raw, span.decoded.clone(), |raw, offset, budget| {
+            budget.copy(raw, offset)
+        })
+        .map_err(|error| span.map_error(raw, error))?;
+    // Recovered errors count source bytes, as returned ones do.
+    (state.owned_budget()).remap(recorded, |error| span.map_error(raw, error));
+    let Some(at) = state.take_rewind() else {
+        return Ok((event, SourceOrigin::input(span.source.clone())));
+    };
+    // From a character boundary past the start, as the slice reader rereads.
+    let keep = (1..=(at - span.decoded.start).min(bytes.len()))
+        .rev()
+        .find(|&keep| bytes.get(keep).is_none_or(|&byte| (byte as i8) >= -0x40))
+        .unwrap_or(bytes.len());
+    let end = span.source.start + span.encoding.source_length(&bytes[..keep]);
+    let start = span.decoded.start;
+    recovery.unread(bytes, start, keep, tokenizer.has_lookahead())?;
+    recovery.end = Some((start + keep, end));
+    Ok((event, SourceOrigin::input(span.source.start..end)))
 }
 
 fn validate<'token>(

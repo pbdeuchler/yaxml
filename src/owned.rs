@@ -1709,16 +1709,6 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         errors: Vec<Error>,
     ) -> Result<OwnedDocument<A>, Error> {
         let xml_ids = std::mem::take(&mut self.xml_ids);
-        // A recovered parse can stop with elements open: close them where
-        // reading stopped (one opened by entity replacement text keeps its span).
-        let (stop, count) = (SourceOrigin::input(position..position), self.nodes.len());
-        for id in std::mem::take(&mut self.parents) {
-            let record = &mut self.nodes[id.0];
-            record.subtree_size = count - id.0;
-            if let (Content::Element { .. }, Some(source)) = (&record.content, record.source) {
-                record.source = Some(source.close_element(stop));
-            }
-        }
         // Recovery keeps a document without an element unless the input is
         // empty, as libxml2 does (otherwise the reader failed already).
         let input = self.nodes[0].source.and_then(SourceOrigin::input_range);

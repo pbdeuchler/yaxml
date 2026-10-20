@@ -149,27 +149,108 @@ impl StreamingSession {
         })
     }
 
+    /// The errors a `RECOVER` parse recovered from so far.
+    pub(crate) fn errors(&self) -> &[Error] {
+        if let Some(ordinary) = &self.ordinary {
+            return ordinary.state.errors();
+        }
+        match self
+            .session
+            .first()
+            .and_then(|session| session.phase.as_ref())
+        {
+            Some(Phase::Declarations { parser, .. }) => parser.errors(),
+            Some(Phase::Content(controller)) => controller.errors(),
+            None => &[],
+        }
+    }
     /// The DTD-free stream, before a DOCTYPE hands over to the session.
     pub(crate) fn plain(&mut self) -> Option<&mut Stream> {
         self.ordinary.as_mut()
     }
     /// Lends the plain stream's ready token, recording what a DTD session needs.
     /// Returns the reader's own result type so the event is not rewrapped.
+    /// `None`: recovery reads the token on as other tokens.
     pub(crate) fn lend_plain(
         &mut self,
     ) -> Result<Option<(Event<'_>, SourceOrigin)>, crate::ReadError> {
         let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
-        let at = ordinary.position();
-        let origin = super::token_origin(&ordinary.tokenizer);
-        let mut event = super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
-            .and_then(|event| event.ok_or_else(|| Error::new(ErrorKind::InvalidState, at)))
-            .map_err(crate::ReadError::Xml)?;
+        // A kept undeclared reference ends where it starts.
+        if ordinary.state.reference_ends() {
+            ordinary.state.take_reference_end();
+            return Ok(self.origin.map(|origin| (Event::EntityEnd, origin)));
+        }
+        let (event, origin) = match &mut ordinary.recovery {
+            Some(recovery) => {
+                super::parse_recovering(&ordinary.tokenizer, &mut ordinary.state, recovery)
+            }
+            None => super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
+                .map(|event| (event, super::token_origin(&ordinary.tokenizer))),
+        }
+        .map_err(crate::ReadError::Xml)?;
+        let Some(mut event) = event else {
+            return Ok(None);
+        };
         ordinary.state.lend_event(&mut event);
         if let Event::Declaration(declaration) = &event {
             self.standalone = declaration.standalone == Some(true);
         }
         self.origin = Some(origin);
         Ok(Some((event, origin)))
+    }
+    /// Under `RECOVER`, where `error`, which no site repaired, stops the
+    /// parse: it is recorded (as the slice reader reports it past a cut), and
+    /// [`Self::close_next`] closes what is open at its offset. `None`: the
+    /// error ends the parse.
+    pub(crate) fn stop(&mut self, error: Error) -> Option<usize> {
+        let error = (self.ordinary.as_ref()).map_or(error, |stream| stream.terminal(error));
+        self.budget()?.recover(error).ok()?;
+        (self.failure, self.finished) = (None, true);
+        Some(error.offset)
+    }
+    /// The next event that closes, at `at` where a stopped parse stopped, what
+    /// it left open.
+    pub(crate) fn close_next(
+        &mut self,
+        at: usize,
+    ) -> Result<Option<(Event<'_>, SourceOrigin, &mut Budget)>, Error> {
+        let origin = SourceOrigin::input(at..at);
+        self.origin = Some(origin);
+        if let Some(ordinary) = &mut self.ordinary {
+            let Some(event) = ordinary.state.close_open(at)? else {
+                return Ok(None);
+            };
+            let mut event: Event<'_> = event;
+            let budget = ordinary.state.lend_event(&mut event);
+            return Ok(Some((event, origin, budget)));
+        }
+        let Some(Phase::Content(controller)) =
+            self.session.first_mut().and_then(|s| s.phase.as_mut())
+        else {
+            return Ok(None);
+        };
+        let event = controller.close_open(at)?;
+        Ok(event.map(|event| (event, origin, controller.owned_budget())))
+    }
+    /// The result of driving the parse; an error that only stops a
+    /// recovering parse closes what is open through `emit` instead.
+    fn closing(
+        &mut self,
+        result: Result<(), Error>,
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let Err(error) = result else {
+            return result;
+        };
+        match self.stop(error) {
+            Some(at) => {
+                while let Some((event, origin, budget)) = self.close_next(at)? {
+                    emit(&event, origin, budget)?;
+                }
+                Ok(())
+            }
+            None => Err(error),
+        }
     }
     /// Park one source token; refeed any unconsumed transport suffix after acknowledgment.
     pub(crate) fn prepare(&mut self, input: &[u8]) -> Result<SessionStep, Error> {
@@ -236,7 +317,12 @@ impl StreamingSession {
                     ErrorKind::LimitExceeded(crate::Limit::InputBytes),
                     0,
                 ))?;
-            s.drive(input, emit).map(drop)
+            // A stopped recovering parse reads nothing more.
+            if s.finished {
+                return Ok(());
+            }
+            let result = s.drive(input, emit).map(drop);
+            s.closing(result, emit)
         })
     }
     pub(crate) fn finish(
@@ -248,7 +334,8 @@ impl StreamingSession {
                 return Ok(());
             }
             s.finalizing = true;
-            s.drive(&[], emit).map(|_| ())
+            let result = s.drive(&[], emit).map(drop);
+            s.closing(result, emit)
         })
     }
     fn drive(
@@ -499,7 +586,8 @@ impl DtdSession {
                     }
                 }
                 Phase::Content(controller) => {
-                    let step = if !self.replay.is_empty() {
+                    let replayed = !self.replay.is_empty();
+                    let step = if replayed {
                         let step = controller.advance(&self.replay)?;
                         self.replay.drain(..step.consumed);
                         step
@@ -516,7 +604,9 @@ impl DtdSession {
                             }
                             return Ok(SessionOutcome::Ready);
                         }
+                        // Replayed input wanting more reads on into what follows.
                         ContentOutcome::Progress => {}
+                        ContentOutcome::NeedPhysicalInput if replayed => {}
                         ContentOutcome::NeedPhysicalInput => return Ok(SessionOutcome::NeedInput),
                         ContentOutcome::Complete => return Ok(SessionOutcome::Complete),
                     }

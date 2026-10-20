@@ -38,9 +38,9 @@ fn node(depth: usize, kind: NodeType, name: &str, value: Option<&str>) -> Node {
     }
 }
 
-/// The expected nodes, or None when the slice reader rejects the input.
-fn reference(input: &[u8]) -> Option<Vec<Node>> {
-    let mut reader = Reader::new(input).ok()?;
+/// The expected nodes under `flags`, or None when the slice reader rejects the input.
+fn reference(input: &[u8], flags: u32) -> Option<Vec<Node>> {
+    let mut reader = Reader::with_options(input, ParseOptions::new(flags)).ok()?;
     let (mut nodes, mut depth, mut hidden) = (Vec::<Node>::new(), 0, 0_usize);
     while let Some(event) = reader.read_event().ok()? {
         // The reader does not visit entity-reference content.
@@ -451,19 +451,26 @@ pub fn exercise(input: &[u8]) {
     if special(control, document) {
         return;
     }
-    let expected = reference(document);
+    // Mode 3 recovers; its trees need not reparse, so content is not checked.
+    let flags = if control >> 5 == 3 {
+        options::RECOVER
+    } else {
+        0
+    };
+    let comparable = flags == 0 || super::recover::comparable(document);
+    let expected = reference(document, flags).filter(|_| comparable);
     let trickle = control & 1 != 0;
     let mut nodes = Vec::new();
     let failed = if trickle {
         walk(
-            TextReader::new(Trickle(document)),
+            TextReader::with_options(Trickle(document), ParseOptions::new(flags)).unwrap(),
             control,
             expected.as_deref(),
             &mut nodes,
         )
     } else {
         let base = (control >> 5 == 4).then(|| "http://h/d/doc.xml".to_owned());
-        let options = ParseOptions::default().base(base);
+        let options = ParseOptions::new(flags).base(base);
         walk(
             TextReader::with_options(document, options).unwrap(),
             control,
@@ -478,18 +485,23 @@ pub fn exercise(input: &[u8]) {
         }
         // Slice validation rejects encodings and characters before any event,
         // so a streamed prefix is not compared.
-        None => assert!(failed || slice_rejects_encoding(document)),
+        None => assert!(failed || !comparable || slice_rejects_encoding(document)),
     }
     if control & 0x0e == 0x0e {
         validated(document, control);
     }
     if let Some(expected) = &expected {
-        let mut reader = TextReader::new(document);
+        let mut reader = TextReader::with_options(document, ParseOptions::new(flags)).unwrap();
         let mut skipped = Vec::new();
         let mut more = reader.read().expect("accepted input");
         while more {
             skipped.push(reader.name().expect("named node").to_owned());
             more = reader.next().expect("accepted input");
+        }
+        if flags != 0 {
+            let mut slice = Reader::with_options(document, ParseOptions::new(flags)).unwrap();
+            while slice.read_event().unwrap().is_some() {}
+            assert_eq!(reader.errors(), slice.errors(), "recovered errors differ");
         }
         let top: Vec<_> = expected
             .iter()
@@ -541,7 +553,7 @@ fn walk<R: BufRead>(
             if check & 2 != 0 {
                 navigate(&mut reader, &reference[0].attributes);
             }
-            if check & 4 != 0 && content(&mut reader, reference).is_err() {
+            if check & 4 != 0 && control >> 5 != 3 && content(&mut reader, reference).is_err() {
                 return true;
             }
         }
@@ -581,7 +593,7 @@ fn validated(document: &[u8], control: u8) {
     let state = Err(ErrorKind::InvalidState);
     assert_eq!(reader.relaxng_set_schema(None).map_err(|e| e.kind), state);
     assert_eq!(reader.xsd_set_schema(None).map_err(|e| e.kind), state);
-    let tree_only = ParseOptions::new(options::RECOVER);
+    let tree_only = ParseOptions::new(options::XINCLUDE);
     let rejected = TextReader::with_options(document, tree_only).map(drop);
     assert_eq!(
         rejected.map_err(|e| e.kind),

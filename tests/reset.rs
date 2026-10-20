@@ -8,7 +8,7 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use yaxml::options::{DTDLOAD, DTDVALID, LEGACY, NOENT, RECOVER};
+use yaxml::options::{DTDLOAD, DTDVALID, LEGACY, NOENT, XINCLUDE};
 use yaxml::{
     BufferedReader, ErrorKind, Event, Limit, Limits, ParseOptions, PushParser, ReadError, Request,
     Resolver, TextReader,
@@ -349,7 +349,7 @@ fn text_reader_reset_starts_a_clean_document() {
 
     assert_eq!(
         reader
-            .reset_with(Cursor::new(b"<r/>".as_slice()), ParseOptions::new(RECOVER))
+            .reset_with(Cursor::new(b"<r/>".as_slice()), ParseOptions::new(XINCLUDE))
             .unwrap_err()
             .kind,
         ErrorKind::UnsupportedOption

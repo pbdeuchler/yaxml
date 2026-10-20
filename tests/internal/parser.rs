@@ -41,7 +41,7 @@ fn replacement(
     let copy = &mut |raw: &str, offset, budget: &mut Budget| budget.copy(raw, offset);
     let event = publish_replacement(state, &mut catalog, (kind, raw, offset, origin), copy)?;
     event
-        .map(|event| owned_event(event, state.owned_budget(), offset))
+        .map(|event| owned_event(event, Some(state.owned_budget()), offset))
         .transpose()
 }
 

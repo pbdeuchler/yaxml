@@ -120,6 +120,12 @@ impl PushParser {
         self.session.budget()
     }
 
+    /// The well-formedness errors a `RECOVER` parse recovered from so far, in
+    /// input order (the first 100, as libxml2 keeps); empty without `RECOVER`.
+    pub fn errors(&self) -> &[Error] {
+        self.session.errors()
+    }
+
     /// Source bytes consumed, lookahead included. After a failure, part of
     /// the last chunk may be unconsumed.
     pub fn position(&self) -> usize {

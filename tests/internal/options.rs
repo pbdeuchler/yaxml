@@ -30,7 +30,7 @@ fn check_accepts_supported_flags_and_rejects_the_rest() {
         (XINCLUDE, false, 0, false),
         (XINCLUDE, true, XINCLUDE, false),
         (RECOVER, true, 0, true),
-        (RECOVER, false, 0, false),
+        (RECOVER, false, 0, true),
         (OLD10, true, 0, false),
         (OLDSAX, true, 0, false),
         (UNZIP, true, 0, false),

@@ -175,6 +175,7 @@ impl<'a> Oracle<'a> {
 }
 
 pub(super) fn exercise(input: &[u8], control: u8) {
+    super::recover::exercise(input, 0, control);
     let oracle = Oracle::new(input);
     let capacity =
         CAPACITIES[usize::from(control) % CAPACITIES.len()].max(input.len().div_ceil(4096));

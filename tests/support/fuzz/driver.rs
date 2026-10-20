@@ -40,6 +40,9 @@ mod encoding;
 #[path = "pull.rs"]
 mod pull;
 
+#[path = "recover.rs"]
+mod recover;
+
 #[path = "serialize.rs"]
 mod serialize;
 
@@ -365,9 +368,11 @@ pub fn exercise_save(input: &[u8]) {
     save::exercise(input);
 }
 
-/// Push, chunked and `read_from` parity with the slice reader.
+/// Push, chunked and `read_from` parity with the slice reader, strict and
+/// under `RECOVER`.
 pub fn exercise_push(input: &[u8]) {
     check_finish_abort(input);
+    recover::exercise(input, 0, selector(input));
     if let Some(document) = parse_utf8(input) {
         check_streaming(input, document.err());
     }

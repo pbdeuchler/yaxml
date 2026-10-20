@@ -191,6 +191,9 @@ impl<'input> ContentControllerCore<'input> {
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
         self.parser.owned_budget()
     }
+    pub(crate) fn errors(&self) -> &[Error] {
+        self.parser.errors()
+    }
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.body.catalog
     }
@@ -303,7 +306,7 @@ impl<'input> ContentControllerCore<'input> {
                 publish_replacement(parser, catalog, event, copy).and_then(|event| {
                     let budget = self.parser.owned_budget();
                     event
-                        .map(|event| owned_event(event, budget, origin.error_offset()))
+                        .map(|event| owned_event(event, Some(budget), origin.error_offset()))
                         .transpose()
                 })
             }
@@ -710,6 +713,24 @@ impl<'input> ContentControllerCore<'input> {
             self.pending = Some((Marker::End, origin));
         }
         Ok(())
+    }
+
+    /// Under `RECOVER`, the next event that closes, at `at`, what a parse
+    /// stopped by an unrepaired error left open: the innermost entity's
+    /// elements, then its reference, out to the document's elements; `None`
+    /// once nothing is open.
+    pub(crate) fn close_open(&mut self, at: usize) -> Result<Option<Event<'input>>, Error> {
+        self.origin = FragmentOrigin::input(at..at).expect("empty range");
+        while let Some(frame) = self.body.frames.top() {
+            if frame.element_depth < Some(self.parser.element_depth()) {
+                break;
+            }
+            self.body.frames.leave();
+            if self.open.pop().is_some() {
+                return Ok(Some(Event::EntityEnd));
+            }
+        }
+        self.parser.close_open(at)
     }
 
     fn share_expansion(&mut self) {

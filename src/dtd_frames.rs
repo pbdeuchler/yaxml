@@ -19,7 +19,7 @@ pub(crate) struct EntityFrame {
     len: usize,
     pub(crate) physical_reference: ByteSpan,
     /// Element depth at entry, or `None` for a parameter entity.
-    element_depth: Option<usize>,
+    pub(crate) element_depth: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

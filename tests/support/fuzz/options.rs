@@ -281,11 +281,16 @@ fn inherited<'a>(element: yaxml::Node<'a, '_>, prefix: &str) -> Option<&'a str> 
     })
 }
 
-/// `RECOVER` (DOMs only): a well-formed document parses as without it; a
+/// `RECOVER`: the streams recover alike (see `recover`); a well-formed document parses as without it; a
 /// recovered tree is structurally sound, lists only recoverable errors and
 /// saves to bytes that recover to themselves; both DOMs agree; resource
 /// limits still fail the parse.
 fn check_recovered(flags: u32, document: &[u8]) {
+    super::recover::exercise(
+        document,
+        flags & !(TREE_ONLY | RECOVER),
+        super::selector(document),
+    );
     let saved = |tree: &Document<'_>| save::to_vec(tree, &Default::default()).expect("save");
     let strict = Document::parse_with(document, ParseOptions::new(flags & !RECOVER));
     let recovered = Document::parse_with(document, ParseOptions::new(flags));

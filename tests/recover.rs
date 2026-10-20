@@ -3,9 +3,14 @@
 //! `XML_PARSE_RECOVER` builds and list the errors recovered from; limits,
 //! loops and a document without an element stay errors.
 
+use std::ops::ControlFlow;
 use yaxml::ErrorKind::{self, *};
 use yaxml::options::{NOENT, RECOVER};
-use yaxml::{Document, Limit, Limits, OwnedDocument, ParseOptions, save};
+
+use yaxml::{
+    BufferedReader, Document, Limit, Limits, OwnedDocument, ParseOptions, PushParser, Reader,
+    TextReader, save,
+};
 
 /// Both DOMs' `save` output and recovered error kinds, or the error.
 fn recover(input: &[u8], flags: u32) -> Result<(String, Vec<ErrorKind>), ErrorKind> {
@@ -204,7 +209,7 @@ fn recovery_reads_invalid_utf8_as_libxml2() {
 fn recovery_decodes_utf16_like_utf8() {
     let decoded = |case: &&(&str, &str, &[ErrorKind])| case.0.is_ascii();
     let options = save::Options::DEFAULT.encoding(Some("UTF-8"));
-    for &(input, _, errors) in CASES.iter().chain(ROOTLESS).filter(decoded) {
+    for &(input, _, errors) in CASES.iter().chain(SLICE).chain(ROOTLESS).filter(decoded) {
         let utf16: Vec<u8> = "\u{feff}"
             .encode_utf16()
             .chain(input.encode_utf16())
@@ -313,5 +318,211 @@ fn recovered_errors_survive_xinclude_and_validation() {
         let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
         assert_eq!(kinds, [MismatchedEndTag]);
         assert_eq!(!document.validity().is_empty(), invalid);
+    }
+}
+
+/// A recovering stream's events with their input ranges, then its errors.
+type Stream = (Vec<String>, Vec<yaxml::Error>);
+
+fn line(event: &yaxml::Event<'_>, origin: Option<yaxml::SourceOrigin>) -> String {
+    format!(
+        "{event:?} {:?}",
+        origin.and_then(yaxml::SourceOrigin::input_range)
+    )
+}
+
+/// The slice reader's events, or its error.
+fn sliced(input: &[u8], flags: u32) -> Result<Stream, ErrorKind> {
+    let mut reader = Reader::with_options(input, ParseOptions::new(RECOVER | flags))
+        .map_err(|error| error.kind)?;
+    let mut lines = Vec::new();
+    while let Some(event) = reader.read_event().map_err(|error| error.kind)? {
+        lines.push(line(&event, reader.event_origin()));
+    }
+    Ok((lines, reader.errors().to_vec()))
+}
+
+/// The push parser's events with `input` fed in `chunks`, or its error.
+fn pushed(chunks: &[&[u8]], flags: u32) -> Result<Stream, ErrorKind> {
+    let mut parser = PushParser::with_options(ParseOptions::new(RECOVER | flags)).unwrap();
+    let mut lines = Vec::new();
+    let mut emit = |event: &yaxml::Event<'_>, origin| {
+        lines.push(line(event, Some(origin)));
+        ControlFlow::Continue(())
+    };
+    for chunk in chunks {
+        parser.feed(chunk, &mut emit).map_err(|error| error.kind)?;
+    }
+    parser.finish(&mut emit).map_err(|error| error.kind)?;
+    Ok((lines, parser.errors().to_vec()))
+}
+
+/// The buffered reader's events over a source that yields `window` bytes
+/// at a time, or its error.
+fn pulled(input: &[u8], window: usize, flags: u32) -> Result<Stream, ErrorKind> {
+    let source = std::io::BufReader::with_capacity(window, input);
+    let mut reader = BufferedReader::with_options(source, ParseOptions::new(RECOVER | flags))
+        .map_err(|error| error.kind)?;
+    let mut lines = Vec::new();
+    while let Some((event, origin)) = reader
+        .read_event()
+        .map_err(|error| error.to_string())
+        .map_err(|_| InvalidState)?
+    {
+        lines.push(line(&event, Some(origin)));
+    }
+    Ok((lines, reader.errors().to_vec()))
+}
+
+/// The text reader's nodes (depth, type, name, value), or its error.
+fn text_nodes(input: &[u8], window: usize) -> Result<(Vec<String>, Vec<yaxml::Error>), ErrorKind> {
+    let source = std::io::BufReader::with_capacity(window, input);
+    let mut reader =
+        TextReader::with_options(source, ParseOptions::new(RECOVER)).map_err(|error| error.kind)?;
+    let mut nodes = Vec::new();
+    while reader.read().map_err(|_| InvalidState)? {
+        let node = (
+            reader.depth(),
+            reader.node_type() as i32,
+            reader.name(),
+            reader.value(),
+        );
+        nodes.push(format!("{node:?}"));
+    }
+    Ok((nodes, reader.errors().to_vec()))
+}
+
+/// Chunk boundaries that a test feeds: one byte at a time, small primes,
+/// and every two-way split.
+fn splits(input: &[u8]) -> Vec<Vec<&[u8]>> {
+    let mut splits: Vec<Vec<&[u8]>> = [1, 2, 3, 5, 7, 64]
+        .iter()
+        .map(|&size| input.chunks(size).collect())
+        .collect();
+    splits.extend((0..=input.len()).map(|at| vec![&input[..at], &input[at..]]));
+    splits
+}
+
+#[test]
+fn streams_recover_as_the_slice_reader_whatever_the_chunks() {
+    let inputs = CASES
+        .iter()
+        .chain(SLICE)
+        .chain(ROOTLESS)
+        .map(|case| case.0.as_bytes());
+    let invalid: &[&[u8]] = &[
+        b"<r>ab\xffcd</r>",
+        b"<r>\xc3",
+        b"<r><a b='\xff'/></r>",
+        b"<r>x</r>\xff",
+        b"<r>a<!\xc3\xa9>b</r>",
+        b"\xff",
+    ];
+    for input in inputs.chain(invalid.iter().copied()) {
+        for flags in [0, NOENT] {
+            let expected = sliced(input, flags);
+            for chunks in splits(input) {
+                assert_eq!(pushed(&chunks, flags), expected, "{input:?} in {chunks:?}");
+            }
+            for window in [1, 2, 3, 8, 4096] {
+                assert_eq!(
+                    pulled(input, window, flags),
+                    expected,
+                    "{input:?} by {window}"
+                );
+            }
+        }
+        let nodes = text_nodes(input, 4096);
+        for window in [1, 3, 7] {
+            assert_eq!(text_nodes(input, window), nodes, "{input:?} by {window}");
+        }
+        let errors = |stream: Result<Stream, ErrorKind>| stream.map(|stream| stream.1);
+        assert_eq!(errors(nodes), errors(sliced(input, 0)), "{input:?}");
+    }
+}
+
+#[test]
+fn a_stopped_stream_closes_what_is_open_and_reads_no_more() {
+    // (input, closing events)
+    let cases: &[(&[u8], &[&str])] = &[
+        (b"<r><a>text", &["a", "r"]),
+        (b"<r><p:a xmlns:p='u'><b>", &["b", "p:a", "r"]),
+        (b"<r>\xff<a>", &["r"]),
+    ];
+    for &(input, closed) in cases {
+        let mut parser = PushParser::with_options(ParseOptions::new(RECOVER)).unwrap();
+        let mut ends = Vec::new();
+        let mut emit = |event: &yaxml::Event<'_>, origin: yaxml::SourceOrigin| {
+            if let yaxml::Event::End(name) = event {
+                assert!(origin.input_range().is_some_and(|range| range.is_empty()));
+                ends.push(name.qualified().to_owned());
+            }
+            ControlFlow::Continue(())
+        };
+        parser.feed(input, &mut emit).unwrap();
+        parser.finish(&mut emit).unwrap();
+        assert_eq!(ends, closed, "{input:?}");
+        assert!(!parser.errors().is_empty());
+        // Recovery past the end of the document reads nothing more.
+        let mut late = PushParser::with_options(ParseOptions::new(RECOVER)).unwrap();
+        late.feed(b"<r/><s/>", |_, _| ControlFlow::Continue(()))
+            .unwrap();
+        let more = late.feed(b"<t>", |_, _| panic!("read past the stop"));
+        assert_eq!(more, Ok(()));
+        assert_eq!(late.finish(|_, _| panic!("read past the stop")), Ok(()));
+        assert_eq!(late.errors()[0].kind, MultipleRoots);
+    }
+    // Without RECOVER, the error is returned and sticky; nothing is recorded.
+    let mut strict = PushParser::new();
+    let error = strict.feed(b"<r><a>", |_, _| ControlFlow::Continue(()));
+    assert_eq!(error, Ok(()));
+    assert_eq!(
+        strict
+            .finish(|_, _| ControlFlow::Continue(()))
+            .map_err(|e| e.kind),
+        Err(UnexpectedEof)
+    );
+    assert!(strict.errors().is_empty());
+}
+
+#[test]
+fn stream_resource_limits_stay_fatal() {
+    let deep = "<a>".repeat(300);
+    let limits = Limits::default().max_events(3);
+    // (input, limits, error)
+    let cases = [
+        (
+            "<!DOCTYPE r [<!ENTITY a '&a;'>]><r>&a;</r>",
+            Limits::default(),
+            EntityLoop,
+        ),
+        (
+            deep.as_str(),
+            Limits::default(),
+            LimitExceeded(Limit::Depth),
+        ),
+        (
+            "<r><a></b><c></d></r>",
+            limits,
+            LimitExceeded(Limit::Events),
+        ),
+    ];
+    for (input, limits, error) in cases {
+        let options = || ParseOptions::new(RECOVER).with_limits(limits);
+        let mut parser = PushParser::with_options(options()).unwrap();
+        let result = parser
+            .feed(input.as_bytes(), |_, _| ControlFlow::Continue(()))
+            .and_then(|()| parser.finish(|_, _| ControlFlow::Continue(())));
+        assert_eq!(result.map_err(|e| e.kind), Err(error), "{input}");
+        let mut reader = BufferedReader::with_options(input.as_bytes(), options()).unwrap();
+        let read = loop {
+            match reader.read_event() {
+                Ok(Some(_)) => {}
+                Ok(None) => break Ok(()),
+                Err(yaxml::ReadError::Xml(error)) => break Err(error.kind),
+                Err(error) => panic!("{error}"),
+            }
+        };
+        assert_eq!(read, Err(error), "{input}");
     }
 }
