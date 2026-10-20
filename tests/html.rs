@@ -513,7 +513,7 @@ fn save_declares_the_output_encoding() {
 
 #[test]
 fn options_are_checked() {
-    for flags in [html::HTML5, 1 << 3, 1 << 30] {
+    for flags in [1 << 3, 1 << 30] {
         let error = html::parse(b"", Options::new(flags)).unwrap_err();
         assert_eq!(error.kind, ErrorKind::UnsupportedOption, "{flags:#x}");
         assert!(PushParser::new(Options::new(flags)).is_err());

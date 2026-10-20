@@ -1036,3 +1036,25 @@ fn evaluation_errors_locate_unknown_names() {
         assert_eq!((error.kind, error.offset), (kind, offset), "{expression}");
     }
 }
+
+#[test]
+fn errors_carry_libxml2_codes_and_messages() {
+    let cases = [
+        ("//[", 1207, "Invalid expression"),
+        ("'open", 1202, "Unfinished literal"),
+        ("unknown-fn()", 1209, "Unregistered function: unknown-fn"),
+        ("//q:x", 1219, "Undefined namespace prefix: q"),
+        ("$missing", 1205, "Undefined variable: missing"),
+    ];
+    let document = Document::parse("<r/>").unwrap();
+    for (expression, code, message) in cases {
+        let error = XPath::compile(expression)
+            .and_then(|x| x.evaluate(&document, document.root().id(), &Context::new()))
+            .unwrap_err();
+        assert_eq!(
+            error.libxml2(expression),
+            (code, message.to_owned()),
+            "{expression}"
+        );
+    }
+}

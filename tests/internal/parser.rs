@@ -277,15 +277,10 @@ fn retention_budget_differs_from_borrowing_without_changing_xml_semantics() {
 
 #[test]
 fn copy_budget_is_cumulative_and_checks_overflow() {
-    let mut budget = Budget {
-        limits: Limits {
-            max_owned_bytes: 3,
-            ..Limits::default()
-        },
-        owned_bytes: 0,
-        recovered: None,
-        kept: Vec::new(),
-    };
+    let mut budget = Budget::new(Limits {
+        max_owned_bytes: 3,
+        ..Limits::default()
+    });
     assert_eq!(budget.copy("abc", 0).unwrap(), "abc");
     assert_eq!(
         budget.copy("d", 7).unwrap_err(),

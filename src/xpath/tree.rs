@@ -86,6 +86,10 @@ pub trait Navigate {
     fn offset(&self, id: Self::Id) -> Option<usize> {
         self.range(id).map(|range| range.start)
     }
+    /// Node origins are where libxml2 takes their line (HTML documents).
+    fn marks_lines(&self) -> bool {
+        false
+    }
     /// Content XML output cannot represent (only possible in HTML documents).
     fn xml_violation(&self) -> Option<String> {
         None
@@ -237,6 +241,10 @@ impl<A: crate::allocator::Allocator> Navigate for OwnedDocument<A> {
 
     fn range(&self, id: OwnedNodeId) -> Option<std::ops::Range<usize>> {
         self.node(id)?.range()
+    }
+
+    fn marks_lines(&self) -> bool {
+        self.is_html()
     }
 
     fn dtd(&self) -> Option<&Dtd> {
@@ -712,6 +720,7 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
         let children: Vec<_> =
             std::iter::successors(tree.first_child(parent), |&id| tree.next_sibling(id)).collect();
         let mut kept: Vec<T::Id> = Vec::new();
+        let mut spoken_kept = false;
         for &child in &children {
             let leading = kept
                 .last()
@@ -721,14 +730,16 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
             let reference = tree
                 .next_sibling(child)
                 .is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)));
-            let spoken =
-                space.is_none() && kept.iter().any(|&id| text(id) && tree.offset(id).is_some());
+            let spoken = space.is_none() && spoken_kept;
             match blank(child)
                 && !spoken
                 && declared.unwrap_or(!reference && children.len() > 1 && leading)
             {
                 true => found.push(child),
-                false => kept.push(child),
+                false => {
+                    spoken_kept |= text(child) && tree.offset(child).is_some();
+                    kept.push(child);
+                }
             }
         }
     }

@@ -5,6 +5,8 @@ edition = "2024"
 rust-version = "1.97"
 description = "A safe Rust XML processor pursuing libxml2 compatibility"
 license = "MIT OR Apache-2.0"
+# Language bindings are their own workspace (bindings/Cargo.toml).
+exclude = ["/bindings"]
 
 [dependencies]
 memchr = "2.8.0"

@@ -149,8 +149,15 @@ impl Error {
     }
 
     /// libxml2's `xmlXPathError` number and message for this error in
-    /// `expression`, naming the prefix, variable or function as `xmlXPathErrFmt` does.
-    pub(crate) fn libxml2(&self, expression: &str) -> (u16, String) {
+    /// `expression`, naming the prefix, variable or function as `xmlXPathErrFmt` does
+    /// (domain `XML_FROM_XPATH`, code 1200 + `xmlXPathError`).
+    ///
+    /// ```
+    /// use yaxml::xpath::XPath;
+    /// let error = XPath::compile("'open").unwrap_err();
+    /// assert_eq!(error.libxml2("'open"), (1202, "Unfinished literal".to_owned()));
+    /// ```
+    pub fn libxml2(&self, expression: &str) -> (u16, String) {
         let rest = (self.offset.and_then(|offset| expression.get(offset..))).unwrap_or("");
         let name = |colon| {
             let end = rest.find(|c| !crate::name::name_char(c, colon));

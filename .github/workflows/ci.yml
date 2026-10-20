@@ -24,6 +24,88 @@ jobs:
       - run: cargo test --all-targets
       - run: cargo test --doc
 
+  capi:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.97.0"
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - name: C test under ASan, UBSan and LeakSanitizer
+        run: capi/tests/c/run.sh
+
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.97.0"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+      - name: libxml2 test corpus for the lxml differential
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --max-time 120 \
+            https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz \
+            --output "$RUNNER_TEMP/libxml2.tar.xz"
+          echo "98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821  $RUNNER_TEMP/libxml2.tar.xz" | sha256sum --check
+          tar -xJf "$RUNNER_TEMP/libxml2.tar.xz" -C "$RUNNER_TEMP"
+          echo "YAXML_LIBXML2_SOURCE=$RUNNER_TEMP/libxml2-2.15.4" >> "$GITHUB_ENV"
+      - name: Build the extension (maturin) and install it with lxml
+        run: uv sync --group compare
+      - name: Type stubs match the extension
+        run: |
+          uv run mypy python/yaxml
+          uv run python -m mypy.stubtest yaxml._yaxml
+      - name: pytest, including the lxml differential
+        run: uv run pytest -q -rs
+      - name: Benchmark smoke
+        run: uv run python bench/bench_parse.py --repeat 1 --fixture tiny --fixture flat
+
+  capi-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-10-18
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Fuzz the C ABI for one minute under ASan
+        working-directory: bindings/capi/fuzz
+        run: cargo fuzz run -O calls -- -max_total_time=60 -timeout=5
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.97.0"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.5"
+      - run: cargo build --release --manifest-path bindings/Cargo.toml -p yaxml-capi
+      - name: Test the Go package
+        working-directory: bindings/go
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -race ./...
+          GOEXPERIMENT=cgocheck2 go test ./...
+          go test -run '^$' -bench . -benchtime 20x ./...
+
   fuzz-smoke-coverage:
     runs-on: ubuntu-latest
     steps:

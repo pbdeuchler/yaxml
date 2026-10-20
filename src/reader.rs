@@ -20,6 +20,13 @@ pub struct Limits {
     pub max_token_bytes: usize,
     pub max_depth: usize,
     pub max_attributes: usize,
+    /// Attributes a DOM retains across the whole document, counting namespace
+    /// declarations and defaulted attributes; `Document`, `OwnedDocument` and
+    /// `TextReader::expand` fail with `Limit::TotalAttributes` beyond it.
+    /// A borrowed DOM keeps about 135 bytes per attribute that `max_owned_bytes`
+    /// does not charge, and events do not bound them (an element may carry
+    /// `max_attributes`). Streaming readers retain none and ignore it.
+    pub max_total_attributes: usize,
     /// Number of emitted events, including the declaration and empty elements.
     pub max_events: usize,
     /// Cumulative requested string capacity for normalization, namespace copies,
@@ -47,7 +54,7 @@ pub struct Limits {
     pub max_external_bytes: usize,
 }
 
-setters!(const Limits { max_input_bytes: usize, max_token_bytes: usize, max_depth: usize, max_attributes: usize, max_events: usize, max_owned_bytes: usize, max_dtd_bytes: usize, max_entity_expansion_bytes: usize, max_entity_amplification: usize, max_entity_references: usize, max_entity_depth: usize, max_external_loads: usize, max_external_bytes: usize });
+setters!(const Limits { max_input_bytes: usize, max_token_bytes: usize, max_depth: usize, max_attributes: usize, max_total_attributes: usize, max_events: usize, max_owned_bytes: usize, max_dtd_bytes: usize, max_entity_expansion_bytes: usize, max_entity_amplification: usize, max_entity_references: usize, max_entity_depth: usize, max_external_loads: usize, max_external_bytes: usize });
 
 impl Limits {
     pub const DEFAULT: Self = Self {
@@ -55,13 +62,14 @@ impl Limits {
         max_token_bytes: 1024 * 1024,
         max_depth: 256,
         max_attributes: 1024,
+        max_total_attributes: 4_000_000,
         max_events: 1_000_000,
         max_owned_bytes: 64 * 1024 * 1024,
         max_dtd_bytes: 16 * 1024 * 1024,
         max_entity_expansion_bytes: 1_000_000,
         max_entity_amplification: 5,
         max_entity_references: 1024 * 1024,
-        max_entity_depth: 40,
+        max_entity_depth: 20,
         max_external_loads: 256,
         max_external_bytes: 16 * 1024 * 1024,
     };
@@ -569,10 +577,11 @@ impl<'a> Reader<'a> {
             .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
         self.physical = self.position();
         self.doctype_start = start;
-        let ordinary = self.ordinary.take().expect("checked ordinary owner");
+        let mut ordinary = self.ordinary.take().expect("checked ordinary owner");
         let mut controller =
             DtdController::stable_utf8(self.source, 0, start, self.options, self.standalone);
-        if let Some(loader) = self.loader.take() {
+        if let Some(mut loader) = self.loader.take() {
+            (ordinary.state.take_catalogs().iter()).for_each(|url| loader.catalog_pi(url));
             controller.set_loader(loader);
         }
         // The DTD stack neither rereads nor repairs characters.

@@ -49,6 +49,16 @@ pub struct Request<'a> {
 /// with [`ErrorKind::ExternalResource`]. Closures implement this trait.
 pub trait Resolver: Send {
     fn resolve(&mut self, request: Request<'_>) -> io::Result<Option<Vec<u8>>>;
+
+    /// Called with the `catalog` of each `<?oasis-xml-catalog catalog="..."?>`
+    /// processing instruction the document has outside its DTD, when
+    /// `options::CATALOG_PI` is set (libxml2's `xmlCatalogAddLocal`). A
+    /// resolver that maps identifiers through catalogs may use it for the rest
+    /// of the parse; the default ignores it, so nothing happens unless the
+    /// caller chose a resolver that acts on it ([`crate::catalog::CatalogResolver`]).
+    fn catalog_pi(&mut self, catalog: &str) {
+        let _ = catalog;
+    }
 }
 
 impl<F: FnMut(Request<'_>) -> io::Result<Option<Vec<u8>>> + Send> Resolver for F {
@@ -135,16 +145,22 @@ impl Resolver for FileResolver {
 /// Handles to one resolver for several consumers in turn (parsing, then
 /// XInclude); calls never overlap.
 pub(crate) fn share(resolver: Box<dyn Resolver>) -> impl Fn() -> Box<dyn Resolver> {
-    let shared = std::sync::Arc::new(std::sync::Mutex::new(resolver));
-    move || {
-        let shared = shared.clone();
-        Box::new(move |request: Request<'_>| {
-            let mut resolver = shared
-                .lock()
-                .map_err(|_| io::Error::other("resolver panicked"))?;
+    struct Shared(std::sync::Arc<std::sync::Mutex<Box<dyn Resolver>>>);
+    impl Resolver for Shared {
+        fn resolve(&mut self, request: Request<'_>) -> io::Result<Option<Vec<u8>>> {
+            let mut resolver =
+                (self.0.lock()).map_err(|_| io::Error::other("resolver panicked"))?;
             resolver.resolve(request)
-        })
+        }
+
+        fn catalog_pi(&mut self, catalog: &str) {
+            if let Ok(mut resolver) = self.0.lock() {
+                resolver.catalog_pi(catalog);
+            }
+        }
     }
+    let shared = std::sync::Arc::new(std::sync::Mutex::new(resolver));
+    move || Box::new(Shared(shared.clone()))
 }
 
 /// The resolver with its document base and cumulative budgets.
@@ -174,6 +190,11 @@ impl Loader {
     /// Declines what `flags` do not load, without consulting the resolver.
     pub(crate) fn with_flags(self, flags: crate::options::Flags) -> Self {
         Self { flags, ..self }
+    }
+
+    /// Passes a document's `oasis-xml-catalog` instruction to the resolver.
+    pub(crate) fn catalog_pi(&mut self, catalog: &str) {
+        self.resolver.catalog_pi(catalog);
     }
 
     /// Bytes the resolver has returned so far.

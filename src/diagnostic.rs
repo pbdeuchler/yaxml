@@ -32,6 +32,7 @@ pub enum Domain {
     #[default]
     Parser = 1,
     Namespace = 3,
+    Html = 5,
     Io = 8,
     XInclude = 11,
     XPath = 12,
@@ -148,6 +149,7 @@ pub mod code {
     pub const NS_QNAME: u16 = 202;
     pub const NS_ATTRIBUTE_REDEFINED: u16 = 203;
     pub const NS_COLON: u16 = 205;
+    pub const HTML_STRUCTURE_ERROR: u16 = 800;
     pub const IO_LOAD_ERROR: u16 = 1549;
     pub const XINCLUDE_BUILD_FAILED: u16 = 1609;
 }
@@ -211,13 +213,16 @@ impl ErrorKind {
 /// declaring a built-in single-byte charset are indexed through their UTF-8
 /// transcoding, so offsets stay input bytes.
 pub struct LineIndex<'s> {
-    input: &'s [u8],
-    /// The input as UTF-8.
-    text: Cow<'s, [u8]>,
+    input: Cow<'s, [u8]>,
+    /// The input transcoded to UTF-8; `None` when the input is UTF-8 itself.
+    text: Option<Vec<u8>>,
     /// Text offset of each line's first byte.
     starts: Vec<usize>,
     /// Transcoded input: its decoder and the input offset of each line's first byte.
     decoded: Option<(Decoder, Vec<usize>)>,
+    /// HTML input re-decoded after a charset switch, before conversion:
+    /// what earlier reports show.
+    raw: Option<&'s [u8]>,
 }
 
 /// The decoders of transcoded input.
@@ -294,10 +299,11 @@ impl<'s> LineIndex<'s> {
             }
         }
         Self {
-            input,
-            text: Cow::Owned(text.into_bytes()),
+            input: Cow::Borrowed(input),
+            text: Some(text.into_bytes()),
             starts,
             decoded: Some((decoder, raw)),
+            raw: None,
         }
     }
 
@@ -307,22 +313,46 @@ impl<'s> LineIndex<'s> {
             .chain(memchr::memchr_iter(b'\n', text).map(|i| i + 1))
             .collect();
         Self {
-            input: text,
-            text: Cow::Borrowed(text),
+            input: Cow::Borrowed(text),
+            text: None,
             starts,
             decoded: None,
+            raw: None,
         }
+    }
+
+    /// An index that owns its input, for callers that keep it beside a
+    /// long-lived tree (a language binding's `sourceline`).
+    pub fn owned(input: Vec<u8>) -> LineIndex<'static> {
+        let LineIndex {
+            text,
+            starts,
+            decoded,
+            ..
+        } = LineIndex::new(&input);
+        LineIndex {
+            input: Cow::Owned(input),
+            text,
+            starts,
+            decoded,
+            raw: None,
+        }
+    }
+
+    /// The indexed input.
+    pub fn input(&self) -> &[u8] {
+        &self.input
     }
 
     /// The input as UTF-8.
     fn text(&self) -> &[u8] {
-        &self.text
+        self.text.as_deref().unwrap_or(&self.input)
     }
 
     /// The text offset of an input offset (clamped to the input).
     fn to_text(&self, offset: usize) -> usize {
         let Some((decoder, raw)) = &self.decoded else {
-            return offset.min(self.text.len());
+            return offset.min(self.text().len());
         };
         let line = raw.partition_point(|&start| start <= offset).max(1) - 1;
         let (mut at, mut width) = (raw[line], 0);
@@ -333,7 +363,7 @@ impl<'s> LineIndex<'s> {
             at += length;
             width += c.len_utf8();
         }
-        (self.starts[line] + width).min(self.text.len())
+        (self.starts[line] + width).min(self.text().len())
     }
 
     /// 1-based line of an input offset.
@@ -346,13 +376,56 @@ impl<'s> LineIndex<'s> {
         self.text_column(self.to_text(offset))
     }
 
-    fn text_line(&self, at: usize) -> usize {
+    /// The index of an HTML document's input: offsets count bytes of the
+    /// text the HTML parser decoded (BOM skipped, `<meta>` and guessed
+    /// charsets applied), which is what HTML node origins and
+    /// [`html::Diagnostic`](crate::html::Diagnostic) offsets are. `document`
+    /// must be the one parsed from `input` ([`html::parse`](crate::html::parse)
+    /// or [`html::parse_fragment`](crate::html::parse_fragment)); for another
+    /// document this is [`LineIndex::new`].
+    pub fn html(input: &'s [u8], document: &crate::OwnedDocument) -> Self {
+        match document.html_decoding() {
+            Some(decoding) => Self::decoded_html(input, decoding),
+            None => Self::new(input),
+        }
+    }
+
+    pub(crate) fn decoded_html(input: &'s [u8], decoding: &crate::html::Decoding) -> Self {
+        let (text, raw) = decoding.text(input);
+        let starts = std::iter::once(0)
+            .chain(memchr::memchr_iter(b'\n', &text).map(|i| i + 1))
+            .collect();
+        // Unconverted text is the input itself (after a BOM).
+        let (input, text) = match text {
+            Cow::Borrowed(body) => (Cow::Borrowed(body), None),
+            Cow::Owned(text) => (Cow::Borrowed(input), Some(text)),
+        };
+        Self {
+            input,
+            text,
+            starts,
+            decoded: None,
+            raw,
+        }
+    }
+
+    /// libxml2's context lines for an HTML report at text offset `at`, from
+    /// the text before a charset switch when it was raised `early`.
+    pub(crate) fn html_context(&self, at: usize, early: bool, bytes: bool) -> String {
+        let text = self.raw.filter(|_| early).unwrap_or(self.text());
+        let at = at.min(text.len());
+        // The window reaches 80 bytes back and forward.
+        let (from, to) = (at.saturating_sub(100), (at + 100).min(text.len()));
+        context(&text[from..to], at - from, bytes)
+    }
+
+    pub(crate) fn text_line(&self, at: usize) -> usize {
         self.starts.partition_point(|&start| start <= at).max(1)
     }
 
-    fn text_column(&self, at: usize) -> usize {
+    pub(crate) fn text_column(&self, at: usize) -> usize {
         let start = self.starts[self.text_line(at) - 1].min(at);
-        1 + self.text[start..at]
+        1 + self.text()[start..at]
             .iter()
             .filter(|&&b| b & 0xc0 != 0x80)
             .count()
@@ -361,7 +434,7 @@ impl<'s> LineIndex<'s> {
     /// The text offset of a 1-based line and column.
     fn text_at(&self, line: usize, column: usize) -> usize {
         let start = self.starts[line.clamp(1, self.starts.len()) - 1];
-        let rest = &self.text[start.min(self.text.len())..];
+        let rest = &self.text()[start.min(self.text().len())..];
         let width = rest
             .iter()
             .enumerate()
@@ -374,7 +447,7 @@ impl<'s> LineIndex<'s> {
     /// libxml2's line for the element whose start tag begins at text offset
     /// `start`: where the tag ends, as `xmlSAX2StartElementNs` records it.
     fn tag_line(&self, start: usize) -> usize {
-        self.text_line(unquoted(&self.text, start + 1, b">").unwrap_or(self.text.len()))
+        self.text_line(unquoted(self.text(), start + 1, b">").unwrap_or(self.text().len()))
     }
 
     /// `xmlGetLineNo` for a parsed node: elements count where their start
@@ -391,16 +464,20 @@ impl<'s> LineIndex<'s> {
             let parent = tree.parent(id)?;
             let siblings =
                 std::iter::successors(tree.first_child(parent), |&s| tree.next_sibling(s));
+            // Navigation hides a DOCTYPE from its siblings: it has none.
             let previous = siblings
                 .take_while(|&s| s != id)
                 .last()
-                .filter(|&s| own(s).is_some());
+                .filter(|&s| tree.next_sibling(s) == Some(id) && own(s).is_some());
             let from = previous.or((own(parent) == Some(true)).then_some(parent))?;
             return self.node_line(tree, from);
         };
-        let range = tree
-            .range(id)
-            .filter(|range| range.start < self.input.len())?;
+        let range = tree.range(id)?;
+        if tree.marks_lines() {
+            // The text offset whose line libxml2 recorded.
+            return Some(self.text_line(range.start));
+        }
+        let range = Some(range).filter(|range| range.start < self.input.len())?;
         Some(if element {
             self.tag_line(self.to_text(range.start))
         } else {
@@ -454,7 +531,7 @@ impl LineIndex<'_> {
     /// ceiling, for tests and fuzzing.
     #[doc(hidden)]
     pub fn describe_counted(&self, errors: &[Error]) -> (Vec<Diagnostic>, usize, usize) {
-        let work = Work::new(self.text.len());
+        let work = Work::new(self.text().len());
         let mut scan = Scan::default();
         let mut described: Vec<Diagnostic> = Vec::new();
         for error in errors {
@@ -557,7 +634,7 @@ impl Error {
     /// ```
     pub fn describe(&self, lines: &LineIndex<'_>) -> Diagnostic {
         let at = lines.to_text(self.offset);
-        let work = Work::new(lines.text.len());
+        let work = Work::new(lines.text().len());
         lines.diagnostic(
             found(self.kind, lines, at, &mut Scan::default(), &work),
             &work,
@@ -570,6 +647,25 @@ impl Diagnostic {
     /// MESSAGE`, then for parser, namespace and I/O errors the input's line
     /// around the position with a caret (and the bytes, for an encoding error).
     pub fn render(&self, file: &str, lines: &LineIndex<'_>) -> String {
+        let mut out = self.header(file);
+        if self.line == 0
+            || self.entity
+            || !matches!(self.domain, Domain::Parser | Domain::Namespace | Domain::Io)
+        {
+            return out;
+        }
+        let at = lines.text_at(self.line, self.column);
+        let cursor = lines.cursor(self.code, at);
+        // Only input read without a converter shows its bytes.
+        out += &lines.context(
+            cursor,
+            self.code == INVALID_ENCODING && lines.decoded.is_none(),
+        );
+        out
+    }
+
+    /// The report's first line: `FILE:LINE: [element NAME: ]DOMAIN LEVEL : MESSAGE`.
+    pub(crate) fn header(&self, file: &str) -> String {
         let mut out = match self.line {
             line if self.entity => format!("Entity: line {line}: "),
             0 => format!("{file}: "),
@@ -581,6 +677,7 @@ impl Diagnostic {
         out += match self.domain {
             Domain::Parser => "parser ",
             Domain::Namespace => "namespace ",
+            Domain::Html => "HTML parser ",
             Domain::Io => "I/O ",
             Domain::XInclude => "XInclude ",
             Domain::XPath => "XPath ",
@@ -597,24 +694,32 @@ impl Diagnostic {
         };
         out += &self.message;
         out.push('\n');
-        if self.line == 0
-            || self.entity
-            || !matches!(self.domain, Domain::Parser | Domain::Namespace | Domain::Io)
-        {
-            return out;
-        }
-        let at = lines.text_at(self.line, self.column);
-        let cursor = lines.cursor(self.code, at);
-        // Only input read without a converter shows its bytes.
-        if self.code == INVALID_ENCODING && lines.decoded.is_none() && at < lines.text.len() {
-            let bytes = lines.text()[at..].iter().take(4);
+        out
+    }
+}
+
+/// libxml2's context lines at `cur` in UTF-8 `text`, as `xmlFormatError`
+/// prints them, with the next bytes first when `bytes`.
+pub(crate) fn context(text: &[u8], cur: usize, bytes: bool) -> String {
+    LineIndex::utf8(text).context(cur, bytes)
+}
+
+impl LineIndex<'_> {
+    /// The input's bytes at `at` (for an invalid encoding), its line and a caret.
+    fn context(&self, at: usize, bytes: bool) -> String {
+        let mut out = String::new();
+        if bytes && at < self.text().len() {
             out += "Bytes:";
-            out.extend(bytes.map(|b| format!(" 0x{b:02X}")));
+            out.extend(
+                self.text()[at..]
+                    .iter()
+                    .take(4)
+                    .map(|b| format!(" 0x{b:02X}")),
+            );
             out.push('\n');
         }
-        let (content, caret) = lines.window(cursor);
-        out += &format!("{content}\n{caret}\n");
-        out
+        let (content, caret) = self.window(at);
+        out + &format!("{content}\n{caret}\n")
     }
 }
 
@@ -635,7 +740,7 @@ impl LineIndex<'_> {
     ) -> Diagnostic {
         let at = offset
             .map(|offset| self.to_text(offset))
-            .filter(|&at| at < self.text.len());
+            .filter(|&at| at < self.text().len());
         let element = at.filter(|_| named).and_then(|at| {
             let work = Work::new(0);
             let name = Cur::new(self, &work, at + 1).name(true)?;
@@ -737,7 +842,8 @@ impl crate::Node<'_, '_> {
 // Kept here, beside `Node::line`, rather than in the owned module.
 impl<A: crate::allocator::Allocator> crate::OwnedNode<'_, A> {
     /// `xmlGetLineNo` in the input `lines` indexes, as [`crate::Node::line`];
-    /// `None` for constructed nodes.
+    /// `None` for constructed nodes. HTML nodes keep the line the parser
+    /// recorded, so `lines` is not consulted for them.
     pub fn line(self, lines: &LineIndex<'_>) -> Option<usize> {
         lines.node_line(self.document(), self.id())
     }

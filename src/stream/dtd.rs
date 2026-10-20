@@ -375,7 +375,8 @@ impl StreamingSession {
             self.options,
             self.standalone,
         );
-        if let Some(loader) = self.loader.take() {
+        if let Some(mut loader) = self.loader.take() {
+            (state.take_catalogs().iter()).for_each(|url| loader.catalog_pi(url));
             controller.set_loader(loader);
         }
         // Existing scanner work charges the nine-byte grammar rescan. These are

@@ -1034,12 +1034,20 @@ where
 {
     let result = match kind {
         TokenKind::Start if !catalog.plain_tag(raw) => {
-            let declarations = (catalog, LiteralSource::Physical);
+            let declarations = (&mut *catalog, LiteralSource::Physical);
             parser.process_dtd_start(raw, span.decoded.start, declarations, retain)
         }
         _ => parser.process_token(kind, raw, span.decoded.clone(), retain),
     };
+    note_catalogs(parser, catalog, kind);
     result.map_err(|error| span.map_error(raw, error))
+}
+
+/// Hands the catalogs of `oasis-xml-catalog` instructions to the resolver.
+fn note_catalogs(parser: &mut ParserState<'_>, catalog: &mut DtdCatalog, kind: TokenKind) {
+    if kind == TokenKind::Instruction {
+        (parser.take_catalogs().iter()).for_each(|url| catalog.catalog_pi(url));
+    }
 }
 
 /// Publishes a replacement-text token from `raw`: as physical input, but
@@ -1060,12 +1068,13 @@ where
         .check_token_limit(raw.len(), offset)
         .and_then(|()| match kind {
             TokenKind::Start if !catalog.plain_tag(raw) => {
-                let declarations = (catalog, LiteralSource::Replacement);
+                let declarations = (&mut *catalog, LiteralSource::Replacement);
                 parser.process_dtd_start(raw, offset, declarations, retain)
             }
             _ => parser.process_token(kind, raw, offset..offset + raw.len(), retain),
         });
     parser.set_replacement(false);
+    note_catalogs(parser, catalog, kind);
     result.map_err(|error| Error::new(error.kind, origin.error_offset()))
 }
 

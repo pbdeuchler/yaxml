@@ -913,3 +913,40 @@ fn describe_all_is_bounded_across_errors() {
         }
     }
 }
+
+#[test]
+fn owned_line_index_matches_borrowed() {
+    let utf16: Vec<u8> = "<a>\n<b/>\u{e9}\n</a>"
+        .encode_utf16()
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    let inputs: [&[u8]; 4] = [
+        b"",
+        b"<a>\n  <b></c>\n</a>",
+        b"\xef\xbb\xbf<a>\r\n<b/></a>",
+        &utf16,
+    ];
+    for input in inputs {
+        let (borrowed, owned) = (LineIndex::new(input), LineIndex::owned(input.to_vec()));
+        assert_eq!(owned.input(), input);
+        for offset in 0..=input.len() + 1 {
+            assert_eq!(
+                owned.line(offset),
+                borrowed.line(offset),
+                "{input:?} @ {offset}"
+            );
+            assert_eq!(
+                owned.column(offset),
+                borrowed.column(offset),
+                "{input:?} @ {offset}"
+            );
+        }
+    }
+    let input = "<a>\n  <b></c>\n</a>";
+    let error = Document::parse(input).unwrap_err();
+    let owned = LineIndex::owned(input.as_bytes().to_vec());
+    assert_eq!(
+        error.describe(&owned),
+        error.describe(&LineIndex::new(input.as_bytes()))
+    );
+}

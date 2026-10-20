@@ -9,6 +9,7 @@ fn render(token: &Token<'_>) -> String {
             name,
             attributes,
             end,
+            ..
         } => {
             let mut out = format!("S({name}");
             for (name, value) in attributes {
@@ -292,13 +293,49 @@ fn ceilings_stop_scanning() {
     assert!(short.next(b"<a b>", true).is_ok());
 }
 
+/// Where libxml2's input is when it reports the first invalid byte: the
+/// start of the text chunk, value, comment or name being scanned.
 #[test]
-fn invalid_bytes_are_flagged_once_seen() {
+fn invalid_bytes_are_reported_from_the_scan_start() {
+    let cases: &[(&[u8], Option<usize>)] = &[
+        (b"<p a=b>ok", None),
+        (b"\xff", Some(0)),
+        (b"x\xff", Some(0)),
+        (b"<p>ab\xffc\xff", Some(3)),
+        (b"<p a=\"x\xff\">", Some(6)),
+        (b"<p a=x\xff>", Some(5)),
+        (b"<p\xff>", Some(1)),
+        (b"<!--a\xff-->", Some(4)),
+        (b"  <!--a\xff-->", Some(6)),
+    ];
+    for &(input, expected) in cases {
+        let mut tokenizer = tokenizer(Mode::Data, "");
+        tokenizer.fragment();
+        let (mut position, mut first) = (0, None);
+        while let Some((token, used)) = tokenizer.next(&input[position..], true).unwrap() {
+            if let Some(token) = token {
+                react(&mut tokenizer, &token);
+            }
+            first = first.or(tokenizer.invalid.take().map(|at| position + at));
+            position += used;
+        }
+        assert_eq!(first, expected, "{input:?}");
+    }
+}
+
+#[test]
+fn only_the_prolog_skips_blanks() {
     let mut tokenizer = tokenizer(Mode::Data, "");
-    assert!(scan(&mut tokenizer, b"<p a=b>ok").is_ok());
-    assert!(!tokenizer.invalid.get());
-    assert!(scan(&mut tokenizer, b"x\xff").is_ok());
-    assert!(tokenizer.invalid.get());
+    let (token, used) = tokenizer.next(b" \n<!--c-->", true).unwrap().unwrap();
+    assert_eq!((token.is_some(), used, tokenizer.skipped), (true, 10, 2));
+    tokenizer.skipped = 0;
+    assert!(tokenizer.next(b"<p>", true).unwrap().is_some());
+    assert!(tokenizer.next(b" x", true).unwrap().is_some());
+    assert_eq!(tokenizer.skipped, 0);
+    let mut fragment = super::Tokenizer::new(1 << 20, 50_000, 64);
+    fragment.fragment();
+    let (_, used) = fragment.next(b" <!--c-->", true).unwrap().unwrap();
+    assert_eq!((used, fragment.skipped), (1, 0));
 }
 
 #[test]

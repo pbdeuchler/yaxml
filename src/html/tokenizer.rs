@@ -39,6 +39,8 @@ pub(super) enum Token<'a> {
     Literal(&'static str),
     StartTag {
         name: String,
+        /// Where the name ends, relative to the token.
+        name_end: usize,
         attributes: Vec<Attribute>,
         end: TagEnd,
     },
@@ -95,8 +97,13 @@ pub(super) struct Tokenizer {
     end_name: String,
     phase: Phase,
     pub(super) has_encoding: bool,
-    /// Set at the first invalid byte sequence, which libxml2 reports once.
-    pub(super) invalid: Cell<bool>,
+    /// Where the scan that met an invalid byte sequence started (libxml2's
+    /// input position when it reports one), relative to the step's input
+    /// after skipped blanks.
+    pub(super) invalid: Cell<Option<usize>>,
+    /// Prolog blanks the last step skipped before its token; the reader
+    /// takes it (it stays 0 in content).
+    pub(super) skipped: usize,
     value_limit: usize,
     name_limit: usize,
     max_attributes: usize,
@@ -260,17 +267,31 @@ impl Tokenizer {
             end_name: String::new(),
             phase: Phase::Misc,
             has_encoding: false,
-            invalid: Cell::new(false),
+            invalid: Cell::new(None),
+            skipped: 0,
             value_limit,
             name_limit,
             max_attributes,
         }
     }
 
+    /// Records the start of a scan that met invalid bytes; the first one counts.
+    fn mark(&self, at: usize) {
+        if self.invalid.get().is_none() {
+            self.invalid.set(Some(at));
+        }
+    }
+
+    /// Starts in content, as a fragment does: no prolog blanks are skipped.
+    pub(super) fn fragment(&mut self) {
+        self.phase = Phase::Content;
+    }
+
     /// `htmlParseHTMLName`: lowercased ASCII, NUL and invalid bytes as U+FFFD,
     /// at most 100 bytes kept. Attribute names also stop at `=` after the first.
     fn name(&self, buf: &[u8], mut i: usize, eof: bool, attribute: bool) -> Scan<(String, usize)> {
         const MAX: usize = 100;
+        let start = i;
         let mut out = Vec::new();
         let replacement = |out: &mut Vec<u8>| {
             if out.len() + 3 <= MAX {
@@ -300,7 +321,7 @@ impl Tokenizer {
                 }
                 size = length;
             } else {
-                self.invalid.set(true);
+                self.mark(start);
                 replacement(&mut out);
             }
             i += size;
@@ -326,7 +347,9 @@ impl Tokenizer {
         let start = if self.phase == Phase::Content {
             0
         } else {
-            blanks(buf, 0)
+            let start = blanks(buf, 0);
+            self.skipped = start;
+            start
         };
         let rest = &buf[start..];
         if rest.is_empty() {
@@ -383,7 +406,7 @@ impl Tokenizer {
             b'\r' => Some((Cow::Borrowed("\n"), 1)),
             0x80..=0xFF if !self.has_encoding => return Err(Stop::Switch(i)),
             0x80..=0xFF if utf8(buf, i, eof)?.is_none() => {
-                self.invalid.set(true);
+                self.mark(i);
                 Some((Cow::Borrowed("\u{FFFD}"), 1))
             }
             _ => None,
@@ -428,7 +451,11 @@ impl Tokenizer {
                 0x80..=0xFF if !self.has_encoding => break,
                 0x80..=0xFF => match utf8(buf, i, eof)? {
                     Some(length) => size = length,
-                    None => break,
+                    None => {
+                        // libxml2 reports it from the start of this chunk.
+                        self.mark(0);
+                        break;
+                    }
                 },
                 b'&' | 0 | b'\r' if self.replacement(buf, i, eof, mode)?.is_some() => break,
                 _ => {}
@@ -499,6 +526,7 @@ impl Tokenizer {
         limit: usize,
     ) -> Scan<(String, usize)> {
         let mut out = Vec::new();
+        let start = i;
         let mut chunk = i;
         let (end, resume) = loop {
             let Some(&c) = buf.get(i) else {
@@ -534,7 +562,7 @@ impl Tokenizer {
                         None
                     }
                     None => {
-                        self.invalid.set(true);
+                        self.mark(start);
                         Some((Cow::Borrowed("\u{FFFD}"), 1))
                     }
                 },
@@ -610,12 +638,13 @@ impl Tokenizer {
     }
 
     fn start_tag<'a>(&self, buf: &'a [u8], eof: bool) -> Scan<(Token<'a>, usize)> {
-        let (name, i) = self.name(buf, 1, eof, false)?;
-        let (mut attributes, end, used) = self.attributes(buf, i, eof)?;
+        let (name, name_end) = self.name(buf, 1, eof, false)?;
+        let (mut attributes, end, used) = self.attributes(buf, name_end, eof)?;
         dedupe(&mut attributes);
         Ok((
             Token::StartTag {
                 name,
+                name_end,
                 attributes,
                 end,
             },

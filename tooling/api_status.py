@@ -168,10 +168,10 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "OLD10": ("N", "constant defined, rejected with UnsupportedOption"),
     "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
     "UNZIP": ("N", "constant defined, rejected with UnsupportedOption"),
-    "CATALOG_PI": ("N", "constant defined, rejected with UnsupportedOption"),
+    "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver)"),
 }
 OPT_ALL = "RECOVER NOENT DTDLOAD DTDATTR DTDVALID NOERROR NOWARNING PEDANTIC NOBLANKS SAX1 XINCLUDE NONET NODICT NSCLEAN NOCDATA NOXINCNODE COMPACT OLD10 NOBASEFIX HUGE OLDSAX IGNORE_ENC BIG_LINES NO_XXE UNZIP NO_SYS_CATALOG CATALOG_PI SKIP_IDS".split()
-HTML_OPT = {"HTML5": ("N", "constant defined, rejected with UnsupportedOption")}
+HTML_OPT = {"HTML5": ("I", "token-level events; trees follow them unbalanced, as in libxml2")}
 FEATURE = {
     "THREAD": "Thread", "TREE": "Tree", "OUTPUT": "Output", "PUSH": "Push", "READER": "Reader",
     "PATTERN": "Pattern", "WRITER": "Writer", "SAX1": "Sax1", "FTP": "Ftp", "HTTP": "Http",
@@ -414,7 +414,8 @@ P|xmlReadFd xmlReadIO xmlReadFile xmlParseFile xmlCtxtReadDoc xmlCtxtReadFd xmlC
 P|xmlRecoverDoc xmlRecoverMemory xmlRecoverFile|OwnedDocument::parse_with, options::RECOVER
 I|xmlParseDTD|valid::Dtd::parse
 P|xmlCtxtParseDtd xmlIOParseDTD|valid::Dtd::parse
-N|xmlCtxtParseContent xmlParseBalancedChunkMemory xmlParseBalancedChunkMemoryRecover xmlParseInNodeContext xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|fragment and in-context parsing not started (roadmap 13)
+P|xmlCtxtParseContent xmlParseInNodeContext|html::parse_fragment - HTML context documents only; XML fragments not started (roadmap 13)
+N|xmlParseBalancedChunkMemory xmlParseBalancedChunkMemoryRecover xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|fragment and in-context parsing not started (roadmap 13)
 N|xmlSAXParse* xmlSAXUserParse*|SAX2 handler table not started (roadmap 15)
 I|xmlCreatePushParserCtxt|PushParser::new
 I|xmlParseChunk|PushParser::feed, PushParser::finish
@@ -434,7 +435,7 @@ P|xmlCtxtGetDocTypeDecl|Doctype
 P|xmlCtxtGetInputPosition xmlByteConsumed|PushParser::position
 N|xmlCtxtGetDocument xmlCtxtGetNode xmlCtxtGetInputWindow xmlCtxtGetStatus xmlCtxtGetValidCtxt xmlCtxtIsHtml xmlCtxtIsInSubset xmlCtxtIsStopped|no inspectable parser context
 N|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|SAX2 handler table not started
-P|xmlStopParser|PushParser::feed - ControlFlow cancellation of the event callback
+P|xmlStopParser|PushParser::feed, html::parse_events - ControlFlow cancellation of the event callback
 P|xmlCtxtValidateDocument xmlCtxtValidateDtd|valid::validate
 I|xmlHasFeature|features::has
 A|xmlInitParser xmlCleanupParser xmlInitGlobals xmlCleanupGlobals|no global state
@@ -786,11 +787,14 @@ P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtPar
 I|htmlCreatePushParserCtxt|html::PushParser::new
 I|htmlParseChunk|html::PushParser::feed, html::PushParser::finish
 P|htmlCreateFileParserCtxt htmlCreateMemoryParserCtxt htmlNewParserCtxt htmlCtxtSetOptions htmlCtxtUseOptions|html::Options::new
-N|htmlCtxtReset htmlNewSAXParserCtxt|SAX callbacks and ctxt reuse not started (docs/html.md)
+P|htmlNewSAXParserCtxt|html::parse_events, html::EventParser::new - a closure receives each callback as an html::Event
+N|htmlCtxtReset|ctxt reuse not started (docs/html.md)
 A|htmlFreeParserCtxt|Drop
 P|htmlParserCtxt|html::PushParser
 A|htmlDocPtr htmlNodePtr htmlParserCtxtPtr htmlParserInputPtr htmlSAXHandlerPtr htmlElemDescPtr htmlEntityDescPtr|raw pointer alias
-N|htmlSAXHandler htmlParserInput htmlParserNodeInfo htmlElemDesc htmlEntityDesc|SAX callbacks and element/entity tables not public (docs/html.md)
+P|htmlSAXHandler|html::Event - the callbacks HTML parsing makes, as events
+I|XML_HTML_STRUCURE_ERROR|diagnostic::code::HTML_STRUCTURE_ERROR, html::DiagnosticKind::MisplacedTag
+N|htmlParserInput htmlParserNodeInfo htmlElemDesc htmlEntityDesc|node info and element/entity tables not public (docs/html.md)
 I|htmlDocDumpMemory htmlDocDumpMemoryFormat|html::to_html, html::save
 P|htmlDocDump htmlSaveFile htmlSaveFileEnc htmlSaveFileFormat|html::save - returns bytes
 N|htmlNodeDump htmlNodeDumpFile htmlNodeDumpFileFormat htmlNodeDumpFormatOutput htmlNodeDumpOutput htmlDocContentDumpOutput htmlDocContentDumpFormatOutput htmlSetMetaEncoding htmlNewDoc htmlNewDocNoDtD|HTML subtree output and construction not started (docs/html.md)
@@ -822,10 +826,17 @@ P|xmlNewCatalog xmlParseCatalogFile|catalog::Catalog::parse
 I|xmlACatalogResolve xmlACatalogResolvePublic xmlACatalogResolveSystem xmlCatalogResolve xmlCatalogResolvePublic xmlCatalogResolveSystem|catalog::Catalog::resolve
 I|xmlACatalogResolveURI xmlCatalogResolveURI|catalog::Catalog::resolve_uri
 P|xmlCatalogLocalResolve xmlCatalogLocalResolveURI|catalog::CatalogResolver::new
-N|xmlACatalogAdd xmlACatalogRemove xmlACatalogDump xmlCatalogAdd xmlCatalogRemove xmlCatalogDump xmlCatalogDumpDoc xmlCatalogAddLocal xmlCatalogFreeLocal xmlLoadCatalogs xmlCatalogConvert xmlConvertSGMLCatalog xmlLoadSGMLSuperCatalog xmlCatalogGetPublic xmlCatalogGetSystem xmlCatalogIsEmpty|catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+I|xmlACatalogAdd|catalog::Catalog::add
+I|xmlACatalogRemove|catalog::Catalog::remove
+I|xmlACatalogDump|catalog::Catalog::dump
+P|xmlCatalogAddLocal|catalog::CatalogResolver::catalog_pi - the resolver of a CATALOG_PI parse keeps the list
+A|xmlCatalogFreeLocal|the resolver owns the list and drops it with the parse
+A|xmlCatalogAdd xmlCatalogRemove xmlCatalogDump xmlCatalogDumpDoc xmlLoadCatalogs xmlCatalogGetPublic xmlCatalogGetSystem|operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+A|xmlCatalogConvert xmlConvertSGMLCatalog|declined: 2.15.4 passes the address of its argument as the catalog, and converting through the right one moves nothing (docs/catalog.md)
+N|xmlLoadSGMLSuperCatalog xmlCatalogIsEmpty|not started (docs/catalog.md)
 A|xmlCatalogCleanup xmlInitializeCatalog xmlCatalogSetDefaults xmlCatalogGetDefaults xmlCatalogSetDefaultPrefer xmlCatalogSetDebug xmlCatalogAllow xmlCatalogPrefer XML_CATA_ALLOW_* XML_CATA_PREFER_NONE xmlFreeCatalog|no global catalog state
 P|XML_CATA_PREFER_PUBLIC XML_CATA_PREFER_SYSTEM|catalog::Catalog::parse - read from the catalog file's prefer attribute
-N|XML_CATALOGS_NAMESPACE XML_CATALOG_PI|catalog PI not started
+A|XML_CATALOGS_NAMESPACE XML_CATALOG_PI|private constants of catalog::Catalog and the parser
 A|xmlCatalogPtr|raw pointer alias
 # ---- xmlschemas.h
 I|xmlSchemaParse|xsd::Schema::parse
@@ -866,7 +877,8 @@ I|xmlRelaxNGParse|relaxng::Schema::parse
 P|xmlRelaxNGNewParserCtxt xmlRelaxNGNewMemParserCtxt xmlRelaxNGNewDocParserCtxt xmlRelaxNGSetResourceLoader|relaxng::Schema::parse, relaxng::Schema::from_tree
 I|xmlRelaxNGValidateDoc|relaxng::Schema::validate
 P|xmlRelaxNGValidatePushElement xmlRelaxNGValidatePopElement xmlRelaxNGValidatePushCData|relaxng::Stream::event
-N|xmlRelaxNGValidateFullElement xmlRelaxNGDump xmlRelaxNGDumpTree XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|not started (docs/relaxng.md)
+N|xmlRelaxNGValidateFullElement XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|not started (docs/relaxng.md)
+A|xmlRelaxNGDump xmlRelaxNGDumpTree|declined: debug printers of libxml2's define tree and of the schema document it rewrites in place; yaxml keeps neither (docs/relaxng.md)
 P|xmlRelaxParserSetIncLImit|relaxng::Limits::max_include_depth
 A|XML_RELAXNGP_FREE_DOC XML_RELAXNGP_NONE XML_RELAXNG_OK|no parser flags or success code
 A|xmlRelaxNGNewValidCtxt xmlRelaxNGFree xmlRelaxNGFreeParserCtxt xmlRelaxNGFreeValidCtxt xmlRelaxNGPtr xmlRelaxNGParserCtxt xmlRelaxNGParserCtxtPtr xmlRelaxNGValidCtxt xmlRelaxNGValidCtxtPtr xmlRelaxNGInitTypes xmlRelaxNGCleanupTypes xmlRelaxNGValidCtxtClearErrors xmlRelaxNGSet*Errors xmlRelaxNGGet*Errors xmlRelaxNGValidity*Func|Drop, raw pointer alias, or diagnostics returned as Vec
@@ -1000,7 +1012,7 @@ DIAG_CODES = set(re.findall(r"pub const (\w+): u16", (SRC / "diagnostic.rs").rea
 DIAG_LEVEL = {"XML_ERR_WARNING": "Warning", "XML_ERR_ERROR": "Error", "XML_ERR_FATAL": "Fatal"}
 DIAG_DOMAIN = {
     f"XML_FROM_{c}": rust
-    for c, rust in [("PARSER", "Parser"), ("NAMESPACE", "Namespace"), ("IO", "Io"), ("XINCLUDE", "XInclude"),
+    for c, rust in [("PARSER", "Parser"), ("NAMESPACE", "Namespace"), ("HTML", "Html"), ("IO", "Io"), ("XINCLUDE", "XInclude"),
                     ("XPATH", "XPath"), ("SCHEMASP", "SchemasParser"), ("SCHEMASV", "SchemasValidity"),
                     ("RELAXNGV", "RelaxNgValidity"), ("VALID", "Valid"), ("SCHEMATRONV", "SchematronValidity")]
 }

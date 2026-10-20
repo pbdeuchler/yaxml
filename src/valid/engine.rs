@@ -14,7 +14,7 @@
 //! not allowed`, `Expecting more children`); [`run`] words it as
 //! `xmlValidateElementContent` does.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::{
     AttributeDecl, AttributeKind, Code, Content, Diagnostic, Dtd, blank, lexical, predefined_entity,
@@ -78,6 +78,12 @@ pub(crate) struct Validator<Id> {
     ids: HashSet<Box<str>>,
     references: Vec<Reference<Id>>,
     nondeterministic: HashSet<usize>,
+    /// Local names of each mixed-content declaration, built on first use so a child
+    /// test is one lookup rather than a scan of the declared list.
+    mixed: HashMap<usize, HashSet<Box<str>>>,
+    /// Tokens of each enumerated or notation attribute declaration, by
+    /// (element, attribute) slot, built on first use.
+    enumerated: HashMap<(usize, usize), HashSet<Box<str>>>,
     out: Vec<Diagnostic<Id>>,
     keys: Vec<Key>,
 }
@@ -92,6 +98,8 @@ impl<Id: Copy> Validator<Id> {
             ids: HashSet::new(),
             references: Vec::new(),
             nondeterministic: HashSet::new(),
+            mixed: HashMap::new(),
+            enumerated: HashMap::new(),
             out: Vec::new(),
             keys: Vec::new(),
         }
@@ -332,7 +340,13 @@ impl<Id: Copy> Validator<Id> {
             Content::Any => {}
             Content::Mixed(names) if names.is_empty() => self.once(dtd, Code::NotPcdata),
             Content::Mixed(names) => {
-                if !(names.iter()).any(|allowed| allowed.rsplit(':').next() == Some(name.local)) {
+                let allowed = self.mixed.entry(index).or_insert_with(|| {
+                    names
+                        .iter()
+                        .map(|allowed| allowed.rsplit(':').next().unwrap_or_default().into())
+                        .collect()
+                });
+                if !allowed.contains(name.local) {
                     let (key, node) = ((frame.ordinal, CONTENT), frame.node);
                     let message = format!(
                         "Element {} is not declared in {} list of possible children",
@@ -388,41 +402,37 @@ impl<Id: Copy> Validator<Id> {
         (ordinal, node): (usize, Node<Id>),
         name: QName<'_>,
         declared: &[AttributeDecl],
-        present: impl Iterator<Item = (QName<'x>, &'x str)> + Clone,
+        present: impl Iterator<Item = (QName<'x>, &'x str)>,
     ) {
+        // Indexed once per element so each required attribute is one lookup,
+        // not a scan of the present attributes.
+        let mut namespaces = HashSet::new();
+        let mut ordinary: HashMap<&str, (bool, HashSet<Option<&str>>)> = HashMap::new();
+        for (name, _) in present {
+            if name.is_namespace_declaration() {
+                namespaces.insert(name.qualified);
+            } else {
+                let prefix = name.qualified.split_once(':').map(|(prefix, _)| prefix);
+                let (prefixed, prefixes) = ordinary.entry(name.local).or_default();
+                *prefixed |= prefix.is_some();
+                prefixes.insert(prefix);
+            }
+        }
         for attribute in declared {
             if !matches!(attribute.default, StoredDefault::Required) {
                 continue;
             }
             let wanted = attribute.name.as_str();
             let namespace = wanted == "xmlns" || wanted.starts_with("xmlns:");
-            let candidates = (present.clone())
-                .map(|(name, _)| name)
-                .filter(|name| name.is_namespace_declaration() == namespace);
             let code = match wanted.split_once(':') {
-                _ if namespace => (candidates.clone())
-                    .all(|name| name.qualified != wanted)
-                    .then_some(Code::MissingAttribute),
-                None => (candidates.clone())
-                    .all(|name| name.local != wanted)
-                    .then_some(Code::MissingAttribute),
-                Some((prefix, local)) => {
-                    let mut prefixes = candidates
-                        .filter(|name| name.local == local)
-                        .map(|name| name.qualified.split_once(':').map(|(prefix, _)| prefix));
-                    let (mut any, mut prefixed) = (false, false);
-                    let matched = prefixes.any(|found| {
-                        any = true;
-                        prefixed |= found.is_some();
-                        found == Some(prefix)
-                    });
-                    match () {
-                        _ if matched => None,
-                        _ if prefixed => Some(Code::DifferentPrefix),
-                        _ if !any => Some(Code::MissingAttribute),
-                        _ => Some(Code::NoPrefix),
-                    }
-                }
+                _ if namespace => (!namespaces.contains(wanted)).then_some(Code::MissingAttribute),
+                None => (!ordinary.contains_key(wanted)).then_some(Code::MissingAttribute),
+                Some((prefix, local)) => match ordinary.get(local) {
+                    None => Some(Code::MissingAttribute),
+                    Some((_, prefixes)) if prefixes.contains(&Some(prefix)) => None,
+                    Some((true, _)) => Some(Code::DifferentPrefix),
+                    Some((false, _)) => Some(Code::NoPrefix),
+                },
             };
             let element = name.local;
             let message = match code {
@@ -462,7 +472,7 @@ impl<Id: Copy> Validator<Id> {
             false => attribute.local,
         };
         let owner = element.local;
-        let Some(decl) = dtd.attribute_for(element, attribute.qualified) else {
+        let Some((slot, decl)) = dtd.attribute_for(element, attribute.qualified) else {
             let message = format!("No declaration for attribute {shown} of element {owner}");
             return self.report(key, Code::UnknownAttribute, Some(node), message);
         };
@@ -504,14 +514,14 @@ impl<Id: Copy> Validator<Id> {
                     );
                     self.report(key, Code::UnknownNotation, Some(node), message);
                 }
-                if !decl.values.iter().any(|token| token == value) {
+                if !self.enumerated(slot, decl).contains(value) {
                     let message = format!(
                         "Value \"{value}\" for attribute {shown} of {owner} is not among the enumerated notations"
                     );
                     self.report(key, Code::NotationValue, Some(node), message);
                 }
             }
-            AttributeKind::Enumeration if !decl.values.iter().any(|token| token == value) => {
+            AttributeKind::Enumeration if !self.enumerated(slot, decl).contains(value) => {
                 let message = format!(
                     "Value \"{value}\" for attribute {shown} of {owner} is not among the enumerated set"
                 );
@@ -542,6 +552,15 @@ impl<Id: Copy> Validator<Id> {
             }
             _ => {}
         }
+    }
+
+    fn enumerated(&mut self, slot: (usize, usize), decl: &AttributeDecl) -> &HashSet<Box<str>> {
+        self.enumerated.entry(slot).or_insert_with(|| {
+            decl.values
+                .iter()
+                .map(|token| token.as_str().into())
+                .collect()
+        })
     }
 
     fn entity(

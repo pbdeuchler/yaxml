@@ -86,7 +86,10 @@ pub const NO_XXE: u32 = 1 << 23;
 pub const UNZIP: u32 = 1 << 24;
 /// `XML_PARSE_NO_SYS_CATALOG`: accepted; there is never a system catalog.
 pub const NO_SYS_CATALOG: u32 = 1 << 25;
-/// `XML_PARSE_CATALOG_PI`: `<?oasis-xml-catalog?>` handling; not implemented, rejected.
+/// `XML_PARSE_CATALOG_PI`: a `<?oasis-xml-catalog catalog="URL"?>` instruction
+/// outside the DTD is passed to the resolver ([`Resolver::catalog_pi`]), which
+/// [`crate::catalog::CatalogResolver`] adds as a catalog for the rest of the parse.
+/// Without such a resolver it has no effect.
 pub const CATALOG_PI: u32 = 1 << 26;
 /// `XML_PARSE_SKIP_IDS`: record no ID attributes (`element_by_id`, XPath `id()`).
 pub const SKIP_IDS: u32 = 1 << 27;
@@ -95,7 +98,7 @@ pub const SKIP_IDS: u32 = 1 << 27;
 pub const LEGACY: u32 = NOENT | DTDATTR;
 
 /// Flags with no implementation on any surface.
-const NEVER: u32 = OLD10 | OLDSAX | UNZIP | CATALOG_PI;
+const NEVER: u32 = OLD10 | OLDSAX | UNZIP;
 /// Flags only a tree can implement.
 const TREE_ONLY: u32 = RECOVER | DTDVALID | NOBLANKS | XINCLUDE;
 const KNOWN: u32 = (1 << 28) - 1;
@@ -267,6 +270,10 @@ impl Flags {
 
     pub(crate) fn fixes_base(self) -> bool {
         !self.has(NOBASEFIX)
+    }
+
+    pub(crate) fn catalog_pi(self) -> bool {
+        self.has(CATALOG_PI)
     }
 
     /// Whether libxml2 would load `kind` with these flags (`xmlSAX2ExternalSubset`,

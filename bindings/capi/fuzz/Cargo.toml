@@ -1,0 +1,22 @@
+[package]
+name = "yaxml-capi-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+yaxml-capi = { path = ".." }
+
+# Standalone workspace, like the core's fuzz/.
+[workspace]
+
+[[bin]]
+name = "calls"
+path = "fuzz_targets/calls.rs"
+test = false
+doc = false
+bench = false

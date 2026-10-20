@@ -5,7 +5,9 @@
 //! auto-close tables, end-tag priorities), not the WHATWG tree builder.
 //! Malformed input is recovered, as libxml2 always does for HTML, and the
 //! problems libxml2 reports are collected as [`Diagnostic`]s. Documents are
-//! [`OwnedDocument`]s marked as HTML. See `docs/html.md` for the contract.
+//! [`OwnedDocument`]s marked as HTML; [`parse_events`] and [`EventParser`]
+//! deliver libxml2's SAX callbacks as [`Event`]s instead. See `docs/html.md`
+//! for the contract.
 //!
 //! ```
 //! use yaxml::html;
@@ -23,10 +25,12 @@
 //! ```
 
 use std::borrow::Cow;
+use std::ops::ControlFlow;
 
+use crate::diagnostic::{self, Domain, Level, code};
 use crate::encoding::WINDOWS_1252;
 use crate::owned::HtmlBuilder;
-use crate::{Error, ErrorKind, Limit, Limits, OwnedDocument};
+use crate::{Error, ErrorKind, Limit, Limits, LineIndex, OwnedDocument};
 
 mod encoding;
 mod entities;
@@ -37,7 +41,7 @@ mod tree;
 
 use encoding::{Decoder, meta_charset, prescan, sniff};
 use tokenizer::{Stop, TagEnd, Token, Tokenizer};
-use tree::{Reaction, Settings, Tree};
+use tree::{Document, Events, Place, Reaction, Settings, Sink, Tree};
 
 pub(crate) use serialize::save_node;
 pub use serialize::{save, to_html};
@@ -65,9 +69,11 @@ pub const COMPACT: u32 = 1 << 16;
 pub const HUGE: u32 = 1 << 19;
 /// `HTML_PARSE_IGNORE_ENC`: ignore `<meta>` encoding declarations.
 pub const IGNORE_ENC: u32 = 1 << 21;
-/// `HTML_PARSE_BIG_LINES`: accepted; nodes carry no line numbers.
+/// `HTML_PARSE_BIG_LINES`: accepted; lines are never capped at 65535.
 pub const BIG_LINES: u32 = 1 << 22;
-/// `HTML_PARSE_HTML5`: libxml2's HTML5 mode is not implemented; rejected.
+/// `HTML_PARSE_HTML5`: report every tag as it is read, as libxml2 2.15.4
+/// does: no implied elements, auto-closing, misplaced-tag checks or end-tag
+/// matching. Meant for [`parse_events`]; a tree follows the unbalanced calls.
 pub const HTML5: u32 = 1 << 26;
 /// `XML_PARSE_NOENT`, which libxml2 accepts and ignores for HTML.
 const NOENT: u32 = 1 << 1;
@@ -83,16 +89,18 @@ const SUPPORTED: u32 = RECOVER
     | COMPACT
     | HUGE
     | IGNORE_ENC
-    | BIG_LINES;
+    | BIG_LINES
+    | HTML5;
 
 /// `htmlParserOption` flags plus resource ceilings.
 ///
-/// `max_depth` is libxml2's open-element ceiling (256 by default, 2048 with
-/// [`HUGE`]) and `max_token_bytes` bounds attribute values, comments and
-/// merged text nodes; exceeding either stops parsing with a
+/// `max_depth` is libxml2's open-element ceiling for trees (256 by default,
+/// 2048 with [`HUGE`]) and `max_token_bytes` bounds attribute values,
+/// comments and merged text nodes; exceeding either stops parsing with a
 /// [`DiagnosticKind::ResourceLimit`] and keeps the tree built so far, as
-/// libxml2 does. The other ceilings (input bytes, attributes per tag, nodes
-/// as `max_events`, owned bytes) fail with [`ErrorKind::LimitExceeded`].
+/// libxml2 does. Events have no depth ceiling, as with libxml2's SAX. The
+/// other ceilings (input bytes, attributes per tag, nodes as `max_events`,
+/// owned bytes) fail with [`ErrorKind::LimitExceeded`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Options {
@@ -123,12 +131,25 @@ impl Options {
     }
 }
 
-/// A problem libxml2 reports while recovering. Offsets count bytes of the
-/// decoded UTF-8 text at the start of the token concerned.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// A problem libxml2 reports while recovering. `offset` counts bytes of the
+/// decoded text and is where libxml2's input is when it reports; its line,
+/// column and report come from [`LineIndex::html`] or
+/// [`Summary::line_index`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Diagnostic {
     pub kind: DiagnosticKind,
     pub offset: usize,
+    /// libxml2's message, without its trailing newline.
+    pub message: String,
+    /// A text offset on the line libxml2 reports (its `input->line` lags
+    /// within a character-data run).
+    mark: usize,
+    domain: Domain,
+    level: Level,
+    /// Reported before a `<meta>` or guessed charset re-decoded the text
+    /// after it: libxml2's context line shows the bytes as they were.
+    early: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -148,6 +169,83 @@ pub enum DiagnosticKind {
     ResourceLimit,
 }
 
+impl Diagnostic {
+    fn new(
+        kind: DiagnosticKind,
+        offset: usize,
+        mark: usize,
+        message: String,
+        (domain, level): (Domain, Level),
+    ) -> Self {
+        Self {
+            kind,
+            offset,
+            message,
+            mark,
+            domain,
+            level,
+            early: false,
+        }
+    }
+
+    /// libxml2's `xmlError` for this diagnostic, in the input `lines`
+    /// indexes: its line, and a column counted in characters.
+    pub fn describe(&self, lines: &LineIndex<'_>) -> diagnostic::Diagnostic {
+        let code = match self.kind {
+            DiagnosticKind::InvalidEncoding => code::INVALID_ENCODING,
+            DiagnosticKind::UnsupportedEncoding => code::UNSUPPORTED_ENCODING,
+            DiagnosticKind::MisplacedTag => code::HTML_STRUCTURE_ERROR,
+            DiagnosticKind::UnexpectedEndTag | DiagnosticKind::TagMismatch => {
+                code::TAG_NAME_MISMATCH
+            }
+            DiagnosticKind::ResourceLimit => code::RESOURCE_LIMIT,
+        };
+        diagnostic::Diagnostic {
+            domain: self.domain,
+            code,
+            level: self.level,
+            line: lines.text_line(self.mark),
+            column: lines.text_column(self.offset),
+            message: self.message.clone(),
+            ..diagnostic::Diagnostic::default()
+        }
+    }
+
+    /// The report `xmllint --html` prints for this diagnostic in `file`,
+    /// whose input `lines` indexes.
+    pub fn render(&self, file: &str, lines: &LineIndex<'_>) -> String {
+        // Unconverted input shows its bytes at an invalid sequence.
+        let bytes = self.kind == DiagnosticKind::InvalidEncoding && self.domain == Domain::Html;
+        self.describe(lines).header(file) + &lines.html_context(self.offset, self.early, bytes)
+    }
+}
+
+/// One libxml2 SAX callback (`htmlSAXHandler`). Names are lowercase; text
+/// arrives in libxml2's pieces, so adjacent `Text` events may continue one
+/// another.
+#[derive(Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Event<'a> {
+    /// `internalSubset`, for every DOCTYPE wherever it appears; an empty
+    /// name stands for a DOCTYPE without one.
+    Doctype(crate::Doctype<'a>),
+    /// `startElement`, including implied elements; valueless attributes
+    /// have no value, the first of a repeated name is kept.
+    Start {
+        name: &'a str,
+        attributes: &'a [(String, Option<String>)],
+    },
+    /// `endElement`.
+    End(&'a str),
+    /// `characters`.
+    Text(&'a str),
+
+    /// `cdataBlock`: raw text of `script`, `style` and similar elements.
+    Cdata(&'a str),
+    /// `comment`.
+    Comment(&'a str),
+}
+
 /// A parsed HTML document and what recovery reported.
 #[derive(Debug)]
 pub struct Parsed {
@@ -157,34 +255,192 @@ pub struct Parsed {
     pub stopped: bool,
 }
 
+/// What event parsing reported.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Summary {
+    pub diagnostics: Vec<Diagnostic>,
+    /// A resource ceiling or the handler stopped parsing early.
+    pub stopped: bool,
+    decoding: Decoding,
+}
+
+impl Summary {
+    /// The line index of `input`, the parsed bytes, as the parser decoded
+    /// them: lines and reports for [`Diagnostic`]s.
+    pub fn line_index<'s>(&self, input: &'s [u8]) -> LineIndex<'s> {
+        LineIndex::decoded_html(input, &self.decoding)
+    }
+}
+
+/// How the parser turned its input into the text offsets point into: a
+/// byte-order mark skipped, a first converter, and at most one switch from
+/// unconverted input to another converter at a text offset (a `<meta>`
+/// charset or the windows-1252/prescan guess). Lines are counted from it
+/// only when asked for.
+#[derive(Clone, Debug)]
+pub(crate) struct Decoding {
+    skip: usize,
+    initial: Decoder,
+    switch: Option<(usize, Decoder)>,
+}
+
+impl Decoding {
+    /// The decoded text, and the unconverted text when a switch re-decoded
+    /// part of it.
+    pub(crate) fn text<'a>(&self, input: &'a [u8]) -> (Cow<'a, [u8]>, Option<&'a [u8]>) {
+        let body = &input[self.skip.min(input.len())..];
+        let decode = |decoder: &Decoder, bytes: &[u8], text: &mut Vec<u8>| {
+            decoder.fresh().decode(bytes, true, text);
+        };
+        match (&self.initial, &self.switch) {
+            (Decoder::Utf8, None) => (Cow::Borrowed(body), None),
+            (Decoder::Utf8, Some((at, decoder))) => {
+                let at = (*at).min(body.len());
+                let mut text = body[..at].to_vec();
+                decode(decoder, &body[at..], &mut text);
+                (Cow::Owned(text), Some(body))
+            }
+            (decoder, _) => {
+                let mut text = Vec::new();
+                decode(decoder, body, &mut text);
+                (Cow::Owned(text), None)
+            }
+        }
+    }
+}
+
 /// Parses a complete HTML document, like `htmlReadMemory`.
 pub fn parse(input: &[u8], options: Options) -> Result<Parsed, Error> {
-    let mut engine = Engine::new(options)?;
+    let mut engine = Engine::new(options, document(options)?, false)?;
+    engine.whole(Cow::Borrowed(input))?;
+    engine.document()
+}
+
+/// Parses `input` as content in an HTML document, like
+/// `xmlParseInNodeContext`/`xmlCtxtParseContent` on an HTML node: no implied
+/// elements, a DOCTYPE is ignored, and the nodes become the top-level
+/// children of the returned document (copy them over with
+/// [`Editor::import`](crate::Editor::import)). The input is read in the
+/// context document's `encoding` ([`OwnedDocument::html_encoding`]); without
+/// one it is sniffed from `<meta>` or the first non-ASCII byte, never from a
+/// byte-order mark.
+pub fn parse_fragment(
+    input: &[u8],
+    encoding: Option<&str>,
+    options: Options,
+) -> Result<Parsed, Error> {
+    let mut engine = Engine::new(options, document(options)?.fragment(), true)?;
     engine.count(input.len())?;
-    engine.start(Cow::Borrowed(input), true);
+    let decoder = encoding.and_then(Decoder::for_label);
+    engine.encoding = encoding.filter(|_| decoder.is_some()).map(str::to_owned);
+    engine.tokenizer.has_encoding = decoder.is_some();
+    engine.begin(
+        decoder.unwrap_or(Decoder::Utf8),
+        Cow::Borrowed(input),
+        0,
+        true,
+    );
     engine.run(true)?;
-    engine.finish()
+    engine.document()
+}
+
+/// Parses a complete HTML document into events, like `htmlCtxtReadMemory`
+/// with custom SAX callbacks: `handler` receives each one and may stop
+/// parsing by returning [`ControlFlow::Break`]. No tree is built.
+pub fn parse_events<F>(input: &[u8], options: Options, handler: F) -> Result<Summary, Error>
+where
+    F: FnMut(Event<'_>) -> ControlFlow<()>,
+{
+    let mut engine = Engine::new(options, Events::new(handler), false)?;
+    engine.whole(Cow::Borrowed(input))?;
+    Ok(engine.summary())
+}
+
+/// The tree builder `options` configure.
+fn document(options: Options) -> Result<Document, Error> {
+    let (value_limit, _, max_depth) = ceilings(&options);
+    let builder = HtmlBuilder::new(0, options.limits)?;
+    Ok(Document::new(builder, max_depth, value_limit))
+}
+
+/// Value, name and depth ceilings, raised by [`HUGE`].
+fn ceilings(options: &Options) -> (usize, usize, usize) {
+    let limits = options.limits;
+    if options.has(HUGE) {
+        let value = limits.max_token_bytes.max(1_000_000_000);
+        (value, value, limits.max_depth.max(2048))
+    } else {
+        let value = limits.max_token_bytes;
+        (value, value.min(50_000), limits.max_depth)
+    }
 }
 
 /// Incremental parsing, like `htmlParseChunk`. The resulting document does
 /// not depend on how the input is split.
-pub struct PushParser {
-    engine: Engine<'static>,
-    raw: Vec<u8>,
-    failed: bool,
-}
+pub struct PushParser(Push<Document>);
 
 impl PushParser {
     pub fn new(options: Options) -> Result<Self, Error> {
-        Ok(Self {
-            engine: Engine::new(options)?,
-            raw: Vec::new(),
-            failed: false,
-        })
+        Ok(Self(Push::new(Engine::new(
+            options,
+            document(options)?,
+            false,
+        )?)))
     }
 
     /// Consumes a chunk. Errors are terminal; later calls return `InvalidState`.
     pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
+        self.0.feed(chunk)
+    }
+
+    /// Signals the end of input and returns the document.
+    pub fn finish(self) -> Result<Parsed, Error> {
+        self.0.finish()?.document()
+    }
+}
+
+/// Incremental event parsing, like `htmlParseChunk` with custom SAX
+/// callbacks. Events do not depend on how the input is split.
+pub struct EventParser<F: FnMut(Event<'_>) -> ControlFlow<()>>(Push<Events<F>>);
+
+impl<F: FnMut(Event<'_>) -> ControlFlow<()>> EventParser<F> {
+    pub fn new(options: Options, handler: F) -> Result<Self, Error> {
+        Ok(Self(Push::new(Engine::new(
+            options,
+            Events::new(handler),
+            false,
+        )?)))
+    }
+
+    /// Consumes a chunk. Errors are terminal; later calls return `InvalidState`.
+    pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
+        self.0.feed(chunk)
+    }
+
+    /// Signals the end of input.
+    pub fn finish(self) -> Result<Summary, Error> {
+        Ok(self.0.finish()?.summary())
+    }
+}
+
+/// The push driver both push parsers share.
+struct Push<S: Sink> {
+    engine: Engine<'static, S>,
+    raw: Vec<u8>,
+    failed: bool,
+}
+
+impl<S: Sink> Push<S> {
+    fn new(engine: Engine<'static, S>) -> Self {
+        Self {
+            engine,
+            raw: Vec::new(),
+            failed: false,
+        }
+    }
+
+    fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
         if self.failed {
             return Err(Error::new(ErrorKind::InvalidState, self.engine.offset()));
         }
@@ -211,8 +467,7 @@ impl PushParser {
         Ok(())
     }
 
-    /// Signals the end of input and returns the document.
-    pub fn finish(mut self) -> Result<Parsed, Error> {
+    fn finish(mut self) -> Result<Engine<'static, S>, Error> {
         if self.failed {
             return Err(Error::new(ErrorKind::InvalidState, self.engine.offset()));
         }
@@ -223,19 +478,69 @@ impl PushParser {
             self.engine.append(&[], true);
         }
         self.engine.run(true)?;
-        self.engine.finish()
+        Ok(self.engine)
+    }
+}
+
+/// libxml2's I/O error for malformed converted input, raised where the parser
+/// is: at the token holding the first malformed character, so that it does
+/// not depend on how much input was converted. Reported once, as invalid
+/// UTF-8 is.
+fn converted<S: Sink>(tree: &mut Tree<S>, invalid: &mut bool, offset: usize) {
+    if !std::mem::replace(invalid, true) {
+        let message = "Invalid bytes in character encoding".to_owned();
+        let kind = DiagnosticKind::InvalidEncoding;
+        tree.report(kind, offset, offset, message, (Domain::Io, Level::Fatal));
+    }
+}
+
+/// Invalid input met by the step at `tree.at`: a converter's first malformed
+/// character inside it, or invalid UTF-8 where the scan started at `invalid`
+/// (`text`: a character-data step, whose line is the run's).
+#[cold]
+#[inline(never)]
+fn irregular<S: Sink>(
+    tree: &mut Tree<S>,
+    reported: &mut bool,
+    malformed: &mut Option<usize>,
+    invalid: Option<usize>,
+    text: bool,
+) {
+    let at = tree.at;
+    if malformed.is_some_and(|malformed| malformed < at.end) {
+        *malformed = None;
+        converted(tree, reported, at.start);
+    }
+    if let Some(invalid) = invalid.filter(|_| !*reported) {
+        *reported = true;
+        let offset = at.start + invalid;
+        // Within a character-data run libxml2's line lags.
+        let mark = if text {
+            tree.run.unwrap_or(at.start)
+        } else {
+            offset
+        };
+        let message = "Invalid bytes in character encoding".to_owned();
+        let raised = (Domain::Html, Level::Error);
+        tree.report(
+            DiagnosticKind::InvalidEncoding,
+            offset,
+            mark,
+            message,
+            raised,
+        );
     }
 }
 
 /// Shared pull/push driver: decoded text, the tokenizer and the tree.
-struct Engine<'a> {
+struct Engine<'a, S: Sink> {
     text: Cow<'a, [u8]>,
     pos: usize,
     /// Text bytes compacted away, for diagnostic offsets.
     dropped: usize,
     decoder: Option<Decoder>,
     tokenizer: Tokenizer,
-    tree: Tree,
+    tree: Tree<S>,
     options: Options,
     /// `doc->encoding`.
     encoding: Option<String>,
@@ -243,51 +548,51 @@ struct Engine<'a> {
     /// Rescan an incomplete token only once this much text is pending, so
     /// small chunks cost amortized linear time.
     retry: usize,
-    /// Where malformed input was first seen; libxml2 reports it once.
-    invalid_at: Option<usize>,
+    decoding: Decoding,
+    /// Invalid input was reported; libxml2 reports it once.
+    invalid: bool,
+    /// Where converted text is first malformed, until reported.
+    malformed: Option<usize>,
     stopped: bool,
 }
 
-impl<'a> Engine<'a> {
-    fn new(options: Options) -> Result<Self, Error> {
+impl<'a, S: Sink> Engine<'a, S> {
+    fn new(options: Options, sink: S, fragment: bool) -> Result<Self, Error> {
         if options.flags & !SUPPORTED != 0 {
             return Err(Error::new(ErrorKind::UnsupportedOption, 0));
         }
-        let limits = options.limits;
-        let huge = options.has(HUGE);
-        let value_limit = if huge {
-            limits.max_token_bytes.max(1_000_000_000)
-        } else {
-            limits.max_token_bytes
-        };
-        let name_limit = if huge {
-            value_limit
-        } else {
-            value_limit.min(50_000)
-        };
+        let (value_limit, name_limit, _) = ceilings(&options);
         let settings = Settings {
-            implied: !options.has(NOIMPLIED),
+            // In context, libxml2 adds no implied elements.
+            implied: !options.has(NOIMPLIED) && !fragment,
             keep_blanks: !options.has(NOBLANKS),
             report: !options.has(NOERROR),
-            max_depth: if huge {
-                limits.max_depth.max(2048)
-            } else {
-                limits.max_depth
-            },
-            text_limit: value_limit,
+            html5: options.has(HTML5),
         };
+        let mut tree = Tree::new(sink, settings);
+        let mut tokenizer = Tokenizer::new(value_limit, name_limit, options.limits.max_attributes);
+        if fragment {
+            tree.fragment();
+            tokenizer.fragment();
+        }
         Ok(Self {
             text: Cow::Borrowed(&[]),
             pos: 0,
             dropped: 0,
             decoder: None,
-            tokenizer: Tokenizer::new(value_limit, name_limit, limits.max_attributes),
-            tree: Tree::new(HtmlBuilder::new(0, limits)?, settings),
+            tokenizer,
+            tree,
             options,
             encoding: None,
             input_bytes: 0,
             retry: 0,
-            invalid_at: None,
+            decoding: Decoding {
+                skip: 0,
+                initial: Decoder::Utf8,
+                switch: None,
+            },
+            invalid: false,
+            malformed: None,
             stopped: false,
         })
     }
@@ -308,40 +613,52 @@ impl<'a> Engine<'a> {
         Ok(())
     }
 
+    /// Parses a complete input.
+    fn whole(&mut self, input: Cow<'a, [u8]>) -> Result<(), Error> {
+        self.count(input.len())?;
+        self.start(input, true);
+        self.run(true)
+    }
+
     /// Sniffs the first bytes and starts decoding.
     fn start(&mut self, input: Cow<'a, [u8]>, last: bool) {
         let sniffed = sniff(&input);
         self.tokenizer.has_encoding = sniffed.has_encoding;
         self.encoding = sniffed.name.map(str::to_owned);
-        let mut decoder = sniffed.decoder;
+        self.begin(sniffed.decoder, input, sniffed.bom, last);
+    }
+
+    /// Starts decoding after `skip` bytes.
+    fn begin(&mut self, mut decoder: Decoder, input: Cow<'a, [u8]>, skip: usize, last: bool) {
+        self.decoding.skip = skip;
+        self.decoding.initial = decoder.fresh();
+        let mut malformed = None;
         self.text = match (&mut decoder, input) {
-            (Decoder::Utf8, Cow::Borrowed(input)) => Cow::Borrowed(&input[sniffed.bom..]),
+            (Decoder::Utf8, Cow::Borrowed(input)) => Cow::Borrowed(&input[skip..]),
             (Decoder::Utf8, Cow::Owned(mut input)) => {
-                input.drain(..sniffed.bom);
+                input.drain(..skip);
                 Cow::Owned(input)
             }
             (decoder, input) => {
                 let mut text = Vec::new();
-                let malformed = decoder.decode(&input[sniffed.bom..], last, &mut text);
-                self.invalid(malformed);
+                malformed = decoder.decode(&input[skip..], last, &mut text);
                 Cow::Owned(text)
             }
         };
         self.decoder = Some(decoder);
+        self.malformed(malformed);
     }
 
     fn append(&mut self, chunk: &[u8], last: bool) {
         if let Some(decoder) = &mut self.decoder {
             let malformed = decoder.decode(chunk, last, self.text.to_mut());
-            self.invalid(malformed);
+            self.malformed(malformed);
         }
     }
 
-    /// Records malformed input at a text offset; the earliest one is reported.
-    fn invalid(&mut self, at: Option<usize>) {
-        if let Some(at) = at.map(|at| self.dropped + at) {
-            self.invalid_at = Some(self.invalid_at.map_or(at, |first| first.min(at)));
-        }
+    /// Records where a converter first met malformed input (a text offset).
+    fn malformed(&mut self, at: Option<usize>) {
+        self.malformed = self.malformed.or(at.map(|at| self.dropped + at));
     }
 
     /// Drops consumed push input once it dominates the buffer.
@@ -357,14 +674,21 @@ impl<'a> Engine<'a> {
     fn switch(&mut self, decoder: Decoder, at: usize, last: bool) {
         self.tokenizer.has_encoding = true;
         let mut decoder = decoder;
+        let mut malformed = None;
         if !matches!(decoder, Decoder::Utf8) {
+            // Earlier reports show the text as it was.
+            for diagnostic in &mut self.tree.diagnostics {
+                diagnostic.early = true;
+            }
+            self.decoding.switch = Some((self.dropped + at, decoder.fresh()));
+            self.malformed = self.malformed.filter(|&m| m < self.dropped + at);
             let tail = self.text[at..].to_vec();
             let text = self.text.to_mut();
             text.truncate(at);
-            let malformed = decoder.decode(&tail, last, text);
-            self.invalid(malformed);
+            malformed = decoder.decode(&tail, last, text);
         }
         self.decoder = Some(decoder);
+        self.malformed(malformed);
     }
 
     /// The first non-ASCII byte without a known encoding: htmlFindEncoding,
@@ -381,38 +705,103 @@ impl<'a> Engine<'a> {
         self.switch(decoder, at, true);
     }
 
-    /// `htmlCheckMeta` and `xmlSetDeclaredEncoding` for a `<meta>` charset.
-    fn declare(&mut self, label: String, last: bool) {
+    /// `htmlCheckMeta` and `xmlSetDeclaredEncoding` for a `<meta>` charset,
+    /// which libxml2 checks with its input at the tag's `>`.
+    fn declare(&mut self, label: String, last: bool, at: Place) {
+        let gt = at.end - 1;
         match Decoder::for_label(&label) {
             Some(decoder) if decoder.ascii_compatible() => {
                 self.encoding = Some(label);
                 self.switch(decoder, self.pos, last);
             }
-            _ => self.tree.report(DiagnosticKind::UnsupportedEncoding),
+            Some(_) => {
+                let message = format!("Encoding {label} isn't ASCII-compatible");
+                self.error(DiagnosticKind::UnsupportedEncoding, gt, message);
+            }
+            None => {
+                let message = format!("Unsupported encoding: {label}");
+                self.error(DiagnosticKind::UnsupportedEncoding, gt, message);
+            }
         }
+    }
+
+    fn error(&mut self, kind: DiagnosticKind, offset: usize, message: String) {
+        let raised = (Domain::Html, Level::Error);
+        self.tree.report(kind, offset, offset, message, raised);
     }
 
     fn located(&self, error: Error) -> Error {
         Error::new(error.kind, self.offset())
     }
 
+    /// Where the token `used` bytes long, after `skipped` blanks, lies.
+    fn place(&self, skipped: usize, used: usize) -> Place {
+        Place {
+            start: self.offset() + skipped,
+            end: self.offset() + used,
+        }
+    }
+
     fn run(&mut self, eof: bool) -> Result<(), Error> {
+        let result = self.steps(eof);
+        // Malformed input after the last token, such as a cut-off unit.
+        if eof && !self.stopped && self.malformed.take().is_some() {
+            let offset = self.offset();
+            converted(&mut self.tree, &mut self.invalid, offset);
+        }
+        result
+    }
+
+    fn steps(&mut self, eof: bool) -> Result<(), Error> {
         while !self.stopped {
             let rest = &self.text[self.pos..];
             let available = rest.len();
             if !eof && available < self.retry {
                 return Ok(());
             }
-            self.tree.offset = self.dropped + self.pos;
-            match self.tokenizer.next(rest, eof) {
+            let step = self.tokenizer.next(rest, eof);
+            let invalid = self.tokenizer.invalid.take();
+            // The prolog's blanks are skipped before its tokens.
+            let skipped = std::mem::take(&mut self.tokenizer.skipped);
+            match step {
                 Ok(None) => return Ok(()),
-                Ok(Some((None, used))) => self.pos += used,
-                Ok(Some((Some(token), used))) => {
+                Ok(Some((None, used))) => {
+                    if invalid.is_some() || self.malformed.is_some() {
+                        self.tree.at = self.place(skipped, used);
+                        irregular(
+                            &mut self.tree,
+                            &mut self.invalid,
+                            &mut self.malformed,
+                            invalid,
+                            false,
+                        );
+                    }
+                    // A tokenless step of markup (`</>`) ends a run of
+                    // character data; one of text (a dropped NUL) does not.
+                    if self.text[self.pos + skipped] == b'<' {
+                        self.tree.run = None;
+                    }
+                    self.pos += used;
+                }
+                Ok(Some((Some(token), mut used))) => {
+                    let at = self.place(skipped, used);
+                    self.tree.at = at;
+                    if invalid.is_some() || self.malformed.is_some() {
+                        let text = matches!(token, Token::Text { .. });
+                        irregular(
+                            &mut self.tree,
+                            &mut self.invalid,
+                            &mut self.malformed,
+                            invalid,
+                            text,
+                        );
+                    }
                     let charset = match &token {
                         Token::StartTag {
                             name,
                             attributes,
                             end,
+                            ..
                         } if name == "meta"
                             && *end != TagEnd::Eof
                             && !self.tokenizer.has_encoding
@@ -423,15 +812,19 @@ impl<'a> Engine<'a> {
                         _ => None,
                     };
                     let reaction = self.tree.consume(token)?;
-                    self.pos += used;
                     self.retry = 0;
                     match reaction {
                         Reaction::Continue => {}
-                        Reaction::Enter(mode) => self.tokenizer.enter(mode, self.tree.top_name()),
+                        Reaction::Enter(mode) => {
+                            self.tokenizer.enter(mode, self.tree.top_name());
+                        }
+                        // The tag's end is read again, as text.
+                        Reaction::Reread(bytes) => used -= bytes,
                         Reaction::Halt => self.stopped = true,
                     }
+                    self.pos += used;
                     if let Some(label) = charset {
-                        self.declare(label, eof);
+                        self.declare(label, eof, at);
                     }
                 }
                 Err(Stop::More) => {
@@ -445,7 +838,9 @@ impl<'a> Engine<'a> {
                 }
                 Err(Stop::Switch(at)) => self.fallback(self.pos + at),
                 Err(Stop::TooLong) => {
-                    self.tree.halt();
+                    let (offset, raised) = (self.offset(), (Domain::Html, Level::Error));
+                    self.tree
+                        .halt(offset, offset, "value too long".to_owned(), raised);
                     self.stopped = true;
                 }
                 Err(Stop::Attributes) => {
@@ -454,25 +849,32 @@ impl<'a> Engine<'a> {
                     );
                 }
             }
-            if self.tokenizer.invalid.get() {
-                self.invalid(Some(self.pos));
-            }
         }
         Ok(())
     }
 
-    fn finish(mut self) -> Result<Parsed, Error> {
-        if let Some(at) = self.invalid_at {
-            self.tree.offset = at;
-            self.tree.report(DiagnosticKind::InvalidEncoding);
+    fn summary(self) -> Summary {
+        let (_, diagnostics, stopped) = self.tree.finish();
+        Summary {
+            diagnostics,
+            stopped,
+            decoding: self.decoding,
         }
-        let (document, diagnostics, stopped) = self
-            .tree
-            .finish(!self.options.has(NODEFDTD), self.encoding)?;
+    }
+}
+
+impl Engine<'_, Document> {
+    fn document(self) -> Result<Parsed, Error> {
+        let default_doctype = !self.options.has(NODEFDTD);
+        let (document, diagnostics, stopped) = self.tree.finish();
         Ok(Parsed {
-            document,
+            document: document.finish(default_doctype, self.encoding, self.decoding)?,
             diagnostics,
             stopped,
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/internal/html_events.rs"]
+mod tests;

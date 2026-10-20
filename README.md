@@ -427,8 +427,34 @@ assert!(output.ends_with(b"<body><p>a</p><p>b &amp; c</p></body></html>\n"));
 # Ok::<(), yaxml::Error>(())
 ```
 
+`html::parse_events` hands libxml2's SAX callbacks to a closure instead
+(`HTML_PARSE_HTML5` gives one per tag, as libxml2's tokenizer mode does),
+`html::parse_fragment` parses content in an HTML context, nodes keep
+libxml2's line numbers (counted on demand, through `LineIndex::html`) and
+diagnostics render as `xmllint --html` prints them:
+
+```rust
+use std::ops::ControlFlow;
+use yaxml::html::{self, Event};
+
+let mut tags = Vec::new();
+let input = b"<p>a</i>";
+let summary = html::parse_events(input, html::Options::default(), |event| {
+    if let Event::Start { name, .. } = event {
+        tags.push(name.to_owned());
+    }
+    ControlFlow::Continue(())
+})?;
+assert_eq!(tags, ["html", "body", "p"]);
+assert_eq!(
+    summary.diagnostics[0].render("f.html", &summary.line_index(input)),
+    "f.html:1: HTML parser error : Unexpected end tag : i\n<p>a</i>\n        ^\n"
+);
+# Ok::<(), yaxml::Error>(())
+```
+
 The [HTML contract](docs/html.md) lists options, encodings, limits, the
-xmllint differential and known differences.
+xmllint and libxml2 differentials and known differences.
 
 `yaxml::catalog` resolves public, system and URI identifiers through OASIS XML
 or SGML catalogs as libxml2's `catalog.c` does (rewrite, delegate,
@@ -557,4 +583,31 @@ let found: Vec<_> = lines.describe_all(document.errors()).into_iter().map(|d| d.
 assert_eq!(found, ["Opening and ending tag mismatch: a line 1 and b", "Namespace prefix p on c is not defined"]);
 assert_eq!(document.root_element().line(&lines), Some(1));
 # Ok::<(), yaxml::Error>(())
+```
+
+Bindings live in their own Cargo workspace under `bindings/`, outside this
+crate's dependency graph ([bindings](docs/bindings.md)). `bindings/capi`
+(`yaxml-capi`) is a yaxml-specific C ABI with a hand-written header,
+`include/yaxml.h`: checked opaque handles, value node handles, UTF-8
+pointer/length strings, libxml2's numbers for flags, node types and
+diagnostics, and no panic across the boundary. `bindings/go` is a Go package
+over it (cgo, statically linked):
+
+```go
+doc, err := yaxml.Parse(data)
+if err != nil {
+	return err // *yaxml.Error wrapping libxml2's diagnostic
+}
+defer doc.Close()
+nodes, err := doc.XPath("//item")
+```
+
+`bindings/python` is the `yaxml` Python package, an `lxml.etree`-style API
+on PyO3 ([its README](bindings/python/README.md)):
+
+```python
+import yaxml as etree
+
+root = etree.fromstring(b"<r><item n='1'/><item n='2'/></r>")
+print([item.get("n") for item in root.iter("item")], etree.tostring(root[0]))
 ```

@@ -10,7 +10,7 @@ use crate::{Error, ErrorKind};
 
 /// Converts input to the UTF-8 text the tokenizer reads. `Utf8` passes bytes
 /// through; the tokenizer validates them as libxml2 does.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) enum Decoder {
     Utf8,
     /// A libxml2 single-byte table for bytes 0x80..=0xFF; 0 is unmapped.
@@ -75,6 +75,18 @@ impl Decoder {
                 pending: Vec::new(),
             },
         })
+    }
+
+    /// The same converter with no input pending.
+    pub(super) fn fresh(&self) -> Self {
+        match self {
+            Self::Utf8 => Self::Utf8,
+            Self::Byte(table) => Self::Byte(table),
+            Self::Utf16 { big_endian, .. } => Self::Utf16 {
+                big_endian: *big_endian,
+                pending: Vec::new(),
+            },
+        }
     }
 
     /// `htmlCharEncCheckAsciiCompatible`.
