@@ -418,10 +418,10 @@ impl<'a> Reader<'a> {
         })
     }
 
-    /// Element/attribute names declared `ID`, once content has started.
-    pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
-        match self.session.first() {
-            Some(Phase::Content(controller)) => Some(controller.catalog()),
+    /// The finished document's declarations, moved out of the reader.
+    pub(crate) fn take_dtd(&mut self) -> Option<crate::valid::Dtd> {
+        match self.session.first_mut() {
+            Some(Phase::Content(controller)) => Some(controller.catalog_mut().take_dtd()),
             _ => None,
         }
     }

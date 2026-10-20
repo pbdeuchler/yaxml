@@ -188,6 +188,9 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.catalog
     }
+    pub(crate) fn catalog_mut(&mut self) -> &mut DtdCatalog {
+        &mut self.catalog
+    }
     pub(crate) fn encoding(&self) -> SourceEncoding {
         self.encoding
     }
