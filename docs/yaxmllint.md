@@ -40,9 +40,22 @@ canonicalization failed, 9 `--maxmem` exceeded, 10 XPath error, 11 XPath
 node-set empty. With several files the last failure wins.
 
 Verdict lines (`FILE validates`, `FILE fails to validate`, `Document FILE does
-not validate`) go to stderr, as in xmllint. Diagnostics read
-`file:LINE: parser error : Kind` followed by the source line and a caret; the
-line and column come from the error's byte offset, and the wording is yaxml's.
+not validate`) go to stderr, as in xmllint. Parse errors and validity
+diagnostics are libxml2's: `Error::describe` (or `LineIndex::describe_all`
+under `--recover`) and the validators' `describe`, printed by
+`Diagnostic::render` (`FILE:LINE: [element NAME: ]DOMAIN error : MESSAGE`,
+then for parse errors the context line and caret;
+[bindings.md](bindings.md#error-mapping)). yaxml stops at the first parse
+error where libxml2 goes on reporting, so later lines differ.
+`parse_errors_against_xmllint` compares stderr with xmllint's over
+libxml2's `test/errors` and the XMLTS not-wf documents: the first error line
+agrees on 38/41 (92.68%) and 1063/1065 (99.81%), that error's report with
+its context lines on 38/41 and 1059/1065 (99.44%), the whole stderr on 22/41
+(53.66%) and 454/1065 (42.63%); before, with yaxml's own wording, none
+agreed. Validity lines (`--postvalid` over `test/valid` and `test/VC`,
+`--relaxng` and `--schema` over their corpora) agree on 47 of 80 runs
+(30 before), where the validators' messages differ.
+`--maxmem` failures print xmllint's `Maximum memory exceeded (N bytes)`.
 
 ## Behavior notes
 
@@ -63,8 +76,8 @@ line and column come from the error's byte offset, and the wording is yaxml's.
   `--huge` sets `HUGE` and raises the owned-byte budget.
 - `--stream` walks the whole document through `TextReader` and prints nothing
   but `--relaxng` and `--schema` results: the reader validates as it reads,
-  printing the diagnostics (`file:line:` without the source line, as the reader
-  reports) and one verdict, then `failed to parse` if reading failed, as
+  printing the diagnostics (without context lines, as the reader reports)
+  and one verdict, then `failed to parse` if reading failed, as
   xmllint does. DTD and Schematron checks need the tree and do not run.
 - A missing DTD under `--valid` is reported but not fatal, as in xmllint;
   under `--postvalid` it fails.

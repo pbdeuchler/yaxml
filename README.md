@@ -522,3 +522,22 @@ let saved = save::to_vec(&document, &Default::default()).unwrap();
 assert_eq!(saved, b"<?xml version=\"1.0\"?>\n<r><a>text</a><p:c/></r>\n");
 # Ok::<(), yaxml::Error>(())
 ```
+
+Errors stay the cheap `Error { kind, offset }`; a caller that wants
+libxml2's `xmlError` describes one from the input it parsed, or a recovered
+document's list: domain, code, level, line, column and libxml2's message,
+and `render` prints xmllint's report ([error mapping](docs/bindings.md#error-mapping)).
+`LineIndex` also gives node lines (`xmlGetLineNo`) and the validators'
+diagnostics convert to the same shape:
+
+```rust
+use yaxml::{Document, LineIndex, ParseOptions, options};
+
+let input = b"<r><a>text</b><p:c/>";
+let document = Document::parse_with(input, ParseOptions::new(options::RECOVER))?;
+let lines = LineIndex::new(input);
+let found: Vec<_> = lines.describe_all(document.errors()).into_iter().map(|d| d.message).collect();
+assert_eq!(found, ["Opening and ending tag mismatch: a line 1 and b", "Namespace prefix p on c is not defined"]);
+assert_eq!(document.root_element().line(&lines), Some(1));
+# Ok::<(), yaxml::Error>(())
+```

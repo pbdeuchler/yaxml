@@ -126,7 +126,11 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
 
 - No `XML_PARSE_NOBLANKS`, no DTD validation,
   no `xmlTextReaderSetParserProp` changes, no `xmlTextReaderPreserve`,
-  patterns, `ReadAttributeValue`, `Close`, line/column or encoding getters.
+  patterns, `ReadAttributeValue`, `Close` or encoding getters.
+- `line_number`/`column_number` give the parsing point (input consumed,
+  ahead of the current node by one node of lookahead) in a caller's
+  `LineIndex`, since the reader keeps no input; libxml2's point also
+  depends on its 512-byte chunking.
 - Attributes are not kept for EndElement nodes: libxml2 lets the `move_to_*`
   calls visit them there.
 - A PI with only whitespace after its target (`<?p ?>`) has no value and
