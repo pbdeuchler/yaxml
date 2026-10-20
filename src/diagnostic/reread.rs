@@ -9,6 +9,54 @@ use super::code::*;
 use crate::name::{name_char, name_start};
 use crate::{ErrorKind, Limit};
 
+// ---- the work budget ----
+
+/// Bytes of input libxml2's amplification factor (5) lets a document expand
+/// to, plus three passes over the input: the skeleton scan, construct
+/// re-reads and declaration lookups.
+const WORK_PER_BYTE: usize = 8;
+/// Work every input may use, so small documents always get full context.
+const WORK_FLOOR: usize = 64 * 1024;
+/// The code of a description that ran out of work; never reported.
+const EXHAUSTED: u16 = 0;
+
+/// The re-reader's budget: bytes scanned, re-read and expanded (entity
+/// replacement text, charged per expansion) for every error one call
+/// describes. The first error to exhaust it, and every later one, gets
+/// the context-free mapping instead.
+pub(super) struct Work {
+    used: std::cell::Cell<usize>,
+    ceiling: usize,
+}
+
+impl Work {
+    /// The budget for describing errors in `input_len` bytes of text.
+    pub(super) fn new(input_len: usize) -> Self {
+        let ceiling = WORK_PER_BYTE
+            .saturating_mul(input_len)
+            .saturating_add(WORK_FLOOR);
+        Self {
+            used: 0.into(),
+            ceiling,
+        }
+    }
+
+    /// Work used, and the ceiling it never exceeds.
+    pub(super) fn spent(&self) -> (usize, usize) {
+        (self.used.get(), self.ceiling)
+    }
+
+    /// Takes `bytes` of work, or fails without taking any when it is gone.
+    pub(super) fn charge(&self, bytes: usize) -> Check {
+        let used = self.used.get().saturating_add(bytes);
+        if used > self.ceiling {
+            return Err(fail(EXHAUSTED, 0, ""));
+        }
+        self.used.set(used);
+        Ok(())
+    }
+}
+
 // ---- the markup skeleton ----
 
 /// The kind of construct holding an error position.
@@ -38,6 +86,9 @@ pub(super) struct Scan {
     rooted: bool,
     /// Inside the internal subset.
     subset: bool,
+    /// The construct the last call stopped at, so a later error inside it
+    /// does not search for its end again.
+    held: Option<(Part, usize, Option<usize>)>,
 }
 
 /// The first of `stops` at or after `from` outside quotes.
@@ -111,16 +162,33 @@ impl Scan {
         self.pos = end;
     }
 
-    /// Advances to the construct holding text offset `at`: its part and start.
-    pub(super) fn to(&mut self, t: &[u8], at: usize) -> (Part, usize) {
+    /// Advances to the construct holding text offset `at`: its part, start
+    /// and end when terminated. Each byte searched is charged once.
+    pub(super) fn to(
+        &mut self,
+        t: &[u8],
+        at: usize,
+        work: &Work,
+    ) -> Result<(Part, usize, Option<usize>), Found> {
         while self.pos < t.len() {
             let pos = self.pos;
-            match part_at(t, pos, self.subset) {
-                (part, Some(end)) if end <= at => self.advance(t, part, pos, end),
-                (part, _) => return (part, pos),
+            let (part, end) = match self.held.take() {
+                Some((part, held, end)) if held == pos => (part, end),
+                _ => {
+                    let (part, end) = part_at(t, pos, self.subset);
+                    work.charge(end.unwrap_or(t.len()) - pos)?;
+                    (part, end)
+                }
+            };
+            match end {
+                Some(end) if end <= at => self.advance(t, part, pos, end),
+                _ => {
+                    self.held = Some((part, pos, end));
+                    return Ok((part, pos, end));
+                }
             }
         }
-        (Part::Text, t.len())
+        Ok((Part::Text, t.len(), None))
     }
 }
 
@@ -185,6 +253,7 @@ pub(super) struct Cur<'t> {
     pub(super) lines: &'t LineIndex<'t>,
     /// The document, whose internal subset declares the entities.
     pub(super) doc: &'t LineIndex<'t>,
+    pub(super) work: &'t Work,
 }
 
 impl<'t> Cur<'t> {
@@ -267,21 +336,24 @@ impl<'t> Cur<'t> {
     }
 
     /// A cursor at `i` in the document `lines` indexes.
-    pub(super) fn new(lines: &'t LineIndex<'t>, i: usize) -> Self {
+    pub(super) fn new(lines: &'t LineIndex<'t>, work: &'t Work, i: usize) -> Self {
         Self {
             t: lines.text(),
             i,
             lines,
             doc: lines,
+            work,
         }
     }
 
-    /// A cursor at the start of entity text `lines` indexes, in this document.
-    fn inner(&self, lines: &'t LineIndex<'t>) -> Self {
-        Self {
+    /// A cursor at the start of entity text `lines` indexes, in this
+    /// document, charged for reading that text.
+    fn inner(&self, lines: &'t LineIndex<'t>) -> Result<Self, Found> {
+        self.work.charge(lines.text().len())?;
+        Ok(Self {
             doc: self.doc,
-            ..Self::new(lines, 0)
-        }
+            ..Self::new(lines, self.work, 0)
+        })
     }
 }
 
@@ -416,20 +488,23 @@ enum Declared {
 /// The internal subset's first declaration of entity `name` (a parameter
 /// entity with `parameter`); internal entities with character references
 /// replaced, as their replacement text has them.
-fn declared(lines: &LineIndex<'_>, name: &str, parameter: bool) -> Declared {
-    let t = lines.text();
-    let Some(mut pos) = memchr::memmem::find(t, b"<!DOCTYPE")
+fn declared(r: &Cur<'_>, name: &str, parameter: bool) -> Result<Declared, Found> {
+    let (lines, t) = (r.doc, r.doc.text());
+    let doctype = memchr::memmem::find(t, b"<!DOCTYPE");
+    r.work.charge(doctype.unwrap_or(t.len()))?;
+    let Some(mut pos) = doctype
         .and_then(|doctype| unquoted(t, doctype + 9, b"[>"))
         .filter(|&i| t[i] == b'[')
     else {
-        return Declared::No;
+        return Ok(Declared::No);
     };
     pos += 1;
     while let (part, Some(end)) = part_at(t, pos, true) {
+        r.work.charge(end - pos)?;
         if matches!(part, Part::Doctype | Part::Subset) {
             break;
         }
-        let mut c = Cur::new(lines, pos + 8);
+        let mut c = Cur::new(lines, r.work, pos + 8);
         if part == Part::Decl && t[pos..].starts_with(b"<!ENTITY") {
             c.blanks();
             let declares = c.b() == b'%';
@@ -438,40 +513,45 @@ fn declared(lines: &LineIndex<'_>, name: &str, parameter: bool) -> Declared {
             if declares == parameter && c.name(true) == Some(name) {
                 c.blanks();
                 let quote = c.b();
-                return match memchr::memchr(quote, &t[c.i + 1..end])
-                    .filter(|_| matches!(quote, b'"' | b'\''))
-                {
-                    Some(close) => Declared::Internal(expand(
-                        &String::from_utf8_lossy(&t[c.i + 1..c.i + 1 + close]),
-                        false,
-                    )),
-                    None => Declared::External {
-                        unparsed: memchr::memmem::find(&t[c.i..end], b"NDATA").is_some(),
+                return Ok(
+                    match memchr::memchr(quote, &t[c.i + 1..end])
+                        .filter(|_| matches!(quote, b'"' | b'\''))
+                    {
+                        Some(close) => Declared::Internal(expand(
+                            &String::from_utf8_lossy(&t[c.i + 1..c.i + 1 + close]),
+                            false,
+                        )),
+                        None => Declared::External {
+                            unparsed: memchr::memmem::find(&t[c.i..end], b"NDATA").is_some(),
+                        },
                     },
-                };
+                );
             }
         }
         pos = end;
     }
-    Declared::No
+    Ok(Declared::No)
 }
 
 /// Whether undeclared entities are only warnings: the document has an
 /// external subset or parameter-entity references (`XML_WAR_UNDECLARED_ENTITY`).
-fn lenient(lines: &LineIndex<'_>) -> bool {
-    let t = lines.text();
-    let Some(doctype) = memchr::memmem::find(t, b"<!DOCTYPE") else {
-        return false;
+fn lenient(r: &Cur<'_>) -> Result<bool, Found> {
+    let t = r.doc.text();
+    let doctype = memchr::memmem::find(t, b"<!DOCTYPE");
+    r.work.charge(doctype.unwrap_or(t.len()))?;
+    let Some(doctype) = doctype else {
+        return Ok(false);
     };
     let end = after(t, doctype, b"]>")
         .or_else(|| unquoted(t, doctype + 9, b">"))
         .unwrap_or(t.len());
+    r.work.charge(end - doctype)?;
     let head = unquoted(t, doctype + 9, b"[>").unwrap_or(end);
     let body = &t[doctype..end];
-    memchr::memmem::find(&t[doctype..head], b"SYSTEM")
+    Ok(memchr::memmem::find(&t[doctype..head], b"SYSTEM")
         .or(memchr::memmem::find(&t[doctype..head], b"PUBLIC"))
         .is_some()
-        || memchr::memchr(b'%', body).is_some()
+        || memchr::memchr(b'%', body).is_some())
 }
 
 /// The text a reference contributes to an attribute value
@@ -484,9 +564,9 @@ fn entity_text(c: &Cur<'_>, name: &str, seen: &mut Vec<String>) -> Result<String
     if let Some(c) = predefined(name) {
         return Ok(c.into());
     }
-    let text = match declared(c.doc, name, false) {
+    let text = match declared(c, name, false)? {
         Declared::Internal(text) => text,
-        Declared::No if lenient(c.doc) => return Ok(String::new()),
+        Declared::No if lenient(c)? => return Ok(String::new()),
         Declared::No => {
             return Err(c
                 .here(UNDECLARED_ENTITY, format!("Entity '{name}' not defined"))
@@ -508,33 +588,27 @@ fn entity_text(c: &Cur<'_>, name: &str, seen: &mut Vec<String>) -> Result<String
         let message = format!("'<' in entity '{name}' is not allowed in attributes values");
         return Err(c.here(LT_IN_ATTRIBUTE, message).strs(name, None));
     }
+    let inner = LineIndex::utf8(text.as_bytes());
+    let mut r = c.inner(&inner)?;
     seen.push(name.to_owned());
     let mut out = String::new();
-    let mut rest = text.as_str();
-    while let Some(amp) = rest.find('&') {
-        out.push_str(&rest[..amp]);
-        rest = &rest[amp + 1..];
-        let inner = LineIndex::utf8(rest.as_bytes());
-        let mut r = c.inner(&inner);
-        let nested = if r.b() == b'#' {
-            Some("")
-        } else {
-            r.name(true)
-        };
-        let Some(nested) = nested else {
+    let mut from = 0;
+    while let Some(amp) = memchr::memchr(b'&', &r.t[from..]).map(|amp| from + amp) {
+        out.push_str(&text[from..amp]);
+        r.i = amp + 1;
+        let character = r.b() == b'#';
+        if !character && r.name(true).is_none() {
             return c.fail(NAME_REQUIRED, "xmlParseStringEntityRef: no name");
-        };
-        let end = rest
-            .find(';')
-            .filter(|_| r.b() == b';' || nested.is_empty());
-        let Some(end) = end else {
+        }
+        let end = memchr::memchr(b';', &r.t[r.i..]).map(|end| r.i + end);
+        let Some(end) = end.filter(|_| character || r.b() == b';') else {
             return c.fail(ENTITYREF_SEMICOL_MISSING, "EntityRef: expecting ';'");
         };
-        out += &entity_text(c, &rest[..end], seen)?;
-        rest = &rest[end + 1..];
+        out += &entity_text(c, &text[amp + 1..end], seen)?;
+        from = end + 1;
     }
     seen.pop();
-    Ok(out + rest)
+    Ok(out + &text[from..])
 }
 
 /// An attribute of a start tag: qualified name and value.
@@ -675,11 +749,15 @@ fn start_tag<'t>(
             return c.fail(SPACE_REQUIRED, "attributes construct error");
         }
     }
-    // Declarations in scope, innermost last.
-    let mut scope: Vec<Attr<'t>> = open
-        .iter()
-        .flat_map(|&tag| attributes(&mut Cur { i: tag, ..*c }))
-        .collect();
+    // Declarations in scope, innermost last; reading the ancestors is charged.
+    for &tag in open {
+        c.work
+            .charge(unquoted(c.t, tag + 1, b">").unwrap_or(c.t.len()) - tag)?;
+    }
+    let mut scope: Vec<Attr<'t>> = Vec::new();
+    for &tag in open {
+        scope.extend(attributes(&mut Cur { i: tag, ..*c })?);
+    }
     scope.extend(attrs.iter().map(|a| Attr {
         name: a.name,
         value: a.value.clone(),
@@ -752,19 +830,25 @@ fn start_tag<'t>(
 }
 
 /// The attributes of the well-formed start tag at `c`.
-fn attributes<'t>(c: &mut Cur<'t>) -> Vec<Attr<'t>> {
+/// Only running out of work is an error here.
+fn attributes<'t>(c: &mut Cur<'t>) -> Result<Vec<Attr<'t>>, Found> {
     c.i += 1;
     c.name(true);
-    std::iter::from_fn(|| {
+    let mut attrs = Vec::new();
+    loop {
         c.blanks();
-        let name = c.name(true)?;
+        let Some(name) = c.name(true) else {
+            return Ok(attrs);
+        };
         c.blanks();
         c.i += usize::from(c.b() == b'=');
         c.blanks();
-        let value = att_value(c, ErrorKind::Syntax, usize::MAX).ok()?;
-        Some(Attr { name, value })
-    })
-    .collect()
+        match att_value(c, ErrorKind::Syntax, usize::MAX) {
+            Ok(value) => attrs.push(Attr { name, value }),
+            Err(found) if found.code == EXHAUSTED => return Err(found),
+            Err(_) => return Ok(attrs),
+        }
+    }
 }
 
 /// `xmlParseEndTag2` for the end tag at `c` closing the element at `open`.
@@ -1316,13 +1400,19 @@ fn attlist_decl(c: &mut Cur<'_>) -> Check {
     Ok(())
 }
 
-/// `xmlParseElementChildrenContentDeclPriv` after its `(`.
-fn children(c: &mut Cur<'_>) -> Check {
+/// `xmlParseElementChildrenContentDeclPriv` after its `(`, `depth` groups deep.
+fn children(c: &mut Cur<'_>, depth: usize) -> Check {
+    if depth > 256 {
+        let message = format!(
+            "xmlParseElementChildrenContentDecl : depth {depth} too deep, use XML_PARSE_HUGE"
+        );
+        return Err(c.here(RESOURCE_LIMIT, message).int(depth as i64));
+    }
     let particle = |c: &mut Cur<'_>| -> Check {
         c.blanks();
         if c.b() == b'(' {
             c.i += 1;
-            return children(c);
+            return children(c, depth + 1);
         }
         if c.name(true).is_none() {
             return c.fail(
@@ -1374,7 +1464,7 @@ fn element_decl(c: &mut Cur<'_>) -> Check {
         c.i += 1;
         c.blanks();
         if !c.has(b"#PCDATA") {
-            children(c)?;
+            children(c, 1)?;
         } else {
             c.i += 7;
             c.blanks();
@@ -1529,9 +1619,9 @@ fn text_run(
                 if c.t[amp + 1] == b'#' || predefined(&name).is_some() {
                     continue;
                 }
-                let text = match declared(c.doc, &name, false) {
+                let text = match declared(c, &name, false)? {
                     Declared::Internal(text) => text,
-                    Declared::No if !seen.is_empty() && !lenient(c.doc) => {
+                    Declared::No if !seen.is_empty() && !lenient(c)? => {
                         let message = format!("Entity '{name}' not defined");
                         return Err(c.here(UNDECLARED_ENTITY, message).strs(&name, None));
                     }
@@ -1542,9 +1632,12 @@ fn text_run(
                 }
                 seen.push(name);
                 let inner = LineIndex::utf8(text.as_bytes());
-                let found = content(&inner, c.doc, seen);
+                let found = content(c.inner(&inner)?, seen);
                 seen.pop();
                 if let Some(found) = found {
+                    if found.code == EXHAUSTED {
+                        return Err(found);
+                    }
                     let place = found.place.or_else(|| {
                         (!seen.is_empty()).then(|| (c.line(c.i), c.lines.text_column(c.i)))
                     });
@@ -1571,18 +1664,13 @@ fn text_run(
 }
 
 /// libxml2's first error in an entity's replacement text read as content.
-fn content(lines: &LineIndex<'_>, doc: &LineIndex<'_>, seen: &mut Vec<String>) -> Option<Found> {
-    let t = lines.text();
+fn content(at: Cur<'_>, seen: &mut Vec<String>) -> Option<Found> {
+    let t = at.t;
     let mut scan = Scan::default();
     while scan.pos < t.len() {
         let pos = scan.pos;
         let (part, end) = part_at(t, pos, false);
-        let mut c = Cur {
-            t,
-            i: pos,
-            lines,
-            doc,
-        };
+        let mut c = Cur { i: pos, ..at };
         let checked = match part {
             Part::Text => text_run(
                 &mut c,
@@ -1606,23 +1694,36 @@ fn content(lines: &LineIndex<'_>, doc: &LineIndex<'_>, seen: &mut Vec<String>) -
         scan.advance(t, part, pos, end?);
     }
     let &open = scan.open.last()?;
-    Some(premature(
-        &Cur {
-            t,
-            i: t.len(),
-            lines,
-            doc,
-        },
-        open,
-    ))
+    Some(premature(&Cur { i: t.len(), ..at }, open))
 }
 
 // ---- the error at an offset ----
 
 /// libxml2's error for a failure of `kind` at text offset `at`.
-pub(super) fn found(kind: ErrorKind, lines: &LineIndex<'_>, at: usize, scan: &mut Scan) -> Found {
+pub(super) fn found(
+    kind: ErrorKind,
+    lines: &LineIndex<'_>,
+    at: usize,
+    scan: &mut Scan,
+    work: &Work,
+) -> Found {
+    let found = described(kind, lines, at, scan, work);
+    if found.code == EXHAUSTED {
+        fallback(kind, at)
+    } else {
+        found
+    }
+}
+
+fn described(
+    kind: ErrorKind,
+    lines: &LineIndex<'_>,
+    at: usize,
+    scan: &mut Scan,
+    work: &Work,
+) -> Found {
     let t = lines.text();
-    let c = Cur::new(lines, at);
+    let c = Cur::new(lines, work, at);
     let semantic = match kind {
         ErrorKind::InvalidUtf8
         | ErrorKind::InvalidUtf16
@@ -1640,7 +1741,7 @@ pub(super) fn found(kind: ErrorKind, lines: &LineIndex<'_>, at: usize, scan: &mu
                 declared
                     .then(|| xml_decl(&mut d).err())
                     .flatten()
-                    .unwrap_or_else(|| unsupported_encoding(lines)),
+                    .unwrap_or_else(|| unsupported_encoding(&c)),
             )
         }
         ErrorKind::LimitExceeded(Limit::EntityExpansion) => {
@@ -1676,8 +1777,8 @@ pub(super) fn found(kind: ErrorKind, lines: &LineIndex<'_>, at: usize, scan: &mu
         {
             reference(&c, kind, at)
         }
-        ErrorKind::LimitExceeded(_)
-        | ErrorKind::ExternalResource
+        ErrorKind::LimitExceeded(limit) if limit != Limit::Depth => Some(fallback(kind, at)),
+        ErrorKind::ExternalResource
         | ErrorKind::XInclude
         | ErrorKind::UnsupportedOption
         | ErrorKind::Allocation
@@ -1692,23 +1793,18 @@ pub(super) fn found(kind: ErrorKind, lines: &LineIndex<'_>, at: usize, scan: &mu
     if at < scan.pos {
         *scan = Scan::default();
     }
-    let (part, start) = scan.to(t, at);
-    reread(kind, lines, at, part, start, scan)
-        .err()
-        .unwrap_or_else(|| fallback(kind, at))
+    let checked = scan.to(t, at, work).and_then(|(part, start, end)| {
+        // Each re-read of a construct is charged again.
+        work.charge(end.unwrap_or(t.len()) - start)?;
+        reread(kind, &Cur::new(lines, work, start), at, part, scan)
+    });
+    checked.err().unwrap_or_else(|| fallback(kind, at))
 }
 
 /// Re-reads the construct at `start` as libxml2 does; its first error.
-fn reread(
-    kind: ErrorKind,
-    lines: &LineIndex<'_>,
-    at: usize,
-    part: Part,
-    start: usize,
-    scan: &Scan,
-) -> Check {
-    let t = lines.text();
-    let mut c = Cur::new(lines, start);
+fn reread(kind: ErrorKind, c: &Cur<'_>, at: usize, part: Part, scan: &Scan) -> Check {
+    let (t, lines, start) = (c.t, c.lines, c.i);
+    let mut c = Cur { ..*c };
     let document = lines.starts[0];
     match part {
         Part::Pi if start == document && c.has(b"<?xml") && blank(c.nb(5)) => xml_decl(&mut c),
@@ -1720,11 +1816,11 @@ fn reread(
             }
             pe_reference(&mut c)?;
             let name = std::str::from_utf8(&t[start + 1..c.i - 1]).unwrap_or_default();
-            let Declared::Internal(text) = declared(lines, name, true) else {
+            let Declared::Internal(text) = declared(&c, name, true)? else {
                 return Ok(());
             };
             let inner = LineIndex::utf8(text.as_bytes());
-            let checked = subset(&mut c.inner(&inner), true);
+            let checked = subset(&mut c.inner(&inner)?, true);
             checked.map_err(|found| Found { at: c.i, ..found })
         }
         Part::Decl => markup_decl(&mut c),
@@ -1780,11 +1876,13 @@ fn reread(
 }
 
 /// `Unsupported encoding: NAME` after the declaration's encoding value.
-fn unsupported_encoding(lines: &LineIndex<'_>) -> Found {
-    let t = lines.text();
-    let start = lines.starts[0];
+fn unsupported_encoding(r: &Cur<'_>) -> Found {
+    let (t, start) = (r.t, r.lines.starts[0]);
     let end = after(t, start, b"?>").unwrap_or(t.len());
-    let mut c = Cur::new(lines, start);
+    if let Err(exhausted) = r.work.charge(end - start) {
+        return exhausted;
+    }
+    let mut c = Cur { i: start, ..*r };
     let value = memchr::memmem::find(&t[start..end], b"encoding").and_then(|at| {
         c.i = start + at;
         let label = |c: &mut Cur<'_>| {

@@ -118,6 +118,20 @@ libxml2's 1-118, the namespace codes 200-203 and 205, 1549 and 1609.
   libxml2's list: in order, without the "Premature end of data" and "Start
   tag expected" errors libxml2 raises only while the document is still
   well-formed.
+- The re-reader is a second parser over untrusted input, so it has its own
+  explicit budget rather than relying on the parser's limits having fired
+  first: bytes scanned, re-read and expanded (entity replacement text,
+  charged per expansion) count against 8 per input byte plus 64 KiB, shared
+  by every error one `describe`/`describe_all` call handles. That is
+  libxml2's default amplification factor of 5 for expansion plus three
+  passes (skeleton scan, construct re-reads, declaration lookups). It is
+  derived from the input rather than taken from `Limits` because describing
+  needs no caller policy: a document the parser accepted with a raised
+  `max_entity_amplification` only loses context on the errors past the
+  budget, which then get the context-free code, a generic message and column
+  0. The skeleton scan resumes across errors in offset order and never
+  searches a construct's end twice; content-model nesting stops at libxml2's
+  256, entity nesting at 20.
 - `Diagnostic::render` prints `xmlFormatError`'s report: the
   `FILE:LINE: [element NAME: ]DOMAIN LEVEL : MESSAGE` line, then for parser,
   namespace and I/O errors `xmlParserInputGetWindow`'s context line and

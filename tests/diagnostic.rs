@@ -19,6 +19,20 @@ fn describe(input: &[u8]) -> yaxml::Diagnostic {
 fn describe_matches_libxml2() {
     // (input, code, line, column, message)
     let cases: &[(&[u8], u16, usize, usize, &str)] = &[
+        // libxml2's nesting limit for content models, which the re-reader keeps too.
+        (
+            format!(
+                "<!DOCTYPE r [<!ELEMENT r {}a{}>]><r/>",
+                "(".repeat(300),
+                ")".repeat(300)
+            )
+            .leak()
+            .as_bytes(),
+            114,
+            1,
+            283,
+            "xmlParseElementChildrenContentDecl : depth 257 too deep, use XML_PARSE_HUGE",
+        ),
         // Prefixes bound on ancestors, one of them prefixed itself.
         (
             b"<a xmlns:p=\"u\"><p:b xmlns:q=\"v\"><c q:x=\"1\" q:x=\"2\"/></p:b></a>",
@@ -855,4 +869,47 @@ fn validators_describe_as_libxml2() {
         (26, 0, None, "m")
     );
     assert_eq!(d.render("f", &lines), "f: validity error : m\n");
+}
+
+/// Errors in children of an element whose attribute references a large
+/// internal entity: each description re-reads the ancestors' attributes for
+/// namespace bindings and expands the entity again, which the parser did
+/// once. The shared budget bounds the total; once it is spent, the later
+/// errors get the context-free mapping.
+#[test]
+fn describe_all_is_bounded_across_errors() {
+    for (entity, errors) in [(400, 20), (4000, 100), (40_000, 100)] {
+        let input = format!(
+            "<!DOCTYPE r [<!ENTITY e '{}'>]><r a='&e;'>{}</r>",
+            "x".repeat(entity),
+            "<c x='' x=''/>".repeat(errors)
+        );
+        let parsed =
+            OwnedDocument::parse_with(input.as_bytes(), ParseOptions::new(RECOVER)).unwrap();
+        assert_eq!(parsed.errors().len(), errors);
+        let lines = LineIndex::new(input.as_bytes());
+        let (found, used, ceiling) = lines.describe_counted(parsed.errors());
+        assert_eq!(found.len(), errors);
+        assert!(
+            used <= ceiling && ceiling == 8 * input.len() + 64 * 1024,
+            "{used} {ceiling}"
+        );
+        let full = found
+            .iter()
+            .take_while(|d| d.message == "Attribute x redefined")
+            .count();
+        // Each description costs about the entity: the budget decides how many.
+        assert_eq!(
+            full == errors,
+            entity * errors < ceiling / 2,
+            "{entity} {errors} {full}"
+        );
+        assert!(full >= 1);
+        for d in &found[full..] {
+            assert_eq!(
+                (d.code, d.column, d.message.as_str()),
+                (42, 0, "DuplicateAttribute")
+            );
+        }
+    }
 }

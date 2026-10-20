@@ -23,7 +23,7 @@ use crate::{Error, ErrorKind};
 
 mod reread;
 
-use reread::{Cur, Found, Scan, found, local, unquoted};
+use reread::{Cur, Found, Scan, Work, found, local, unquoted};
 
 /// `xmlErrorDomain`; `as u8` is the C constant.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -410,11 +410,16 @@ impl<'s> LineIndex<'s> {
 }
 
 impl LineIndex<'_> {
-    fn diagnostic(&self, found: Found) -> Diagnostic {
+    fn diagnostic(&self, found: Found, work: &Work) -> Diagnostic {
         let (domain, level) = raised(found.code);
-        let (line, column) = found
-            .place
-            .unwrap_or_else(|| (self.text_line(found.at), self.text_column(found.at)));
+        let line = self.text_line(found.at);
+        // Counting a column's characters is charged too; without work it is unknown.
+        let start = self.starts[line - 1].min(found.at);
+        let column = || {
+            work.charge(found.at - start)
+                .map_or(0, |()| self.text_column(found.at))
+        };
+        let (line, column) = found.place.unwrap_or_else(|| (line, column()));
         Diagnostic {
             domain,
             code: found.code,
@@ -434,12 +439,28 @@ impl LineIndex<'_> {
     /// reports them: each described, without the end-of-input errors libxml2
     /// raises only for a still well-formed document. One forward scan
     /// serves errors in increasing offset order, as the parse records them.
+    ///
+    /// All of them share one work budget, linear in the input (eight bytes
+    /// of work per input byte, libxml2's amplification factor of five for
+    /// entity expansion and three passes, plus 64 KiB): what is scanned to
+    /// reach an error, re-read and expanded for it. Once it is spent the
+    /// remaining errors get the context-free [`ErrorKind::libxml2_code`],
+    /// a generic message and no column.
     pub fn describe_all(&self, errors: &[Error]) -> Vec<Diagnostic> {
+        self.describe_counted(errors).0
+    }
+
+    /// [`describe_all`](Self::describe_all) and the work it used against its
+    /// ceiling, for tests and fuzzing.
+    #[doc(hidden)]
+    pub fn describe_counted(&self, errors: &[Error]) -> (Vec<Diagnostic>, usize, usize) {
+        let work = Work::new(self.text.len());
         let mut scan = Scan::default();
         let mut described: Vec<Diagnostic> = Vec::new();
         for error in errors {
             let at = self.to_text(error.offset);
-            let diagnostic = self.diagnostic(found(error.kind, self, at, &mut scan));
+            let found = found(error.kind, self, at, &mut scan, &work);
+            let diagnostic = self.diagnostic(found, &work);
             let late = matches!(diagnostic.code, TAG_NOT_FINISHED | DOCUMENT_EMPTY);
             if !(late
                 && described
@@ -449,18 +470,22 @@ impl LineIndex<'_> {
                 described.push(diagnostic);
             }
         }
-        described
+        let (used, ceiling) = work.spent();
+        (described, used, ceiling)
     }
 
     /// Where libxml2's input cursor is when it raises `code` at `at`: for a
     /// misplaced `]]>` the ASCII fast path of `xmlParseCharDataInternal` has
-    /// not moved past the text run's start or its last `\r\n`.
+    /// not moved past the text run's start or its last `\r\n`. Character
+    /// data holds no `<`, so the run starts after the `>` that ends the
+    /// markup before it.
     fn cursor(&self, code: u16, at: usize) -> usize {
         let t = self.text();
         if code != MISPLACED_CDATA_END {
             return at;
         }
-        let (_, start) = Scan::default().to(t, at);
+        let markup = memchr::memrchr(b'<', &t[..at]).unwrap_or(0);
+        let start = memchr::memchr(b'>', &t[markup..at]).map_or(markup, |gt| markup + gt + 1);
         let run = &t[start..at];
         if run
             .iter()
@@ -494,8 +519,8 @@ impl LineIndex<'_> {
             }
         }
         let (start, col) = (p, cur.saturating_sub(p));
-        let mut n = 0;
-        while let Some((_, len)) = Cur::new(self, start + n)
+        let (mut n, work) = (0, Work::new(0));
+        while let Some((_, len)) = Cur::new(self, &work, start + n)
             .ch()
             .filter(|&(c, _)| !matches!(c, '\0' | '\n' | '\r'))
         {
@@ -532,7 +557,11 @@ impl Error {
     /// ```
     pub fn describe(&self, lines: &LineIndex<'_>) -> Diagnostic {
         let at = lines.to_text(self.offset);
-        lines.diagnostic(found(self.kind, lines, at, &mut Scan::default()))
+        let work = Work::new(lines.text.len());
+        lines.diagnostic(
+            found(self.kind, lines, at, &mut Scan::default(), &work),
+            &work,
+        )
     }
 }
 
@@ -608,7 +637,8 @@ impl LineIndex<'_> {
             .map(|offset| self.to_text(offset))
             .filter(|&at| at < self.text.len());
         let element = at.filter(|_| named).and_then(|at| {
-            let name = Cur::new(self, at + 1).name(true)?;
+            let work = Work::new(0);
+            let name = Cur::new(self, &work, at + 1).name(true)?;
             Some(local(name).to_owned())
         });
         Diagnostic {
