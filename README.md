@@ -145,7 +145,7 @@ covers the W3C test suite results.
 
 Not yet supported: XML 1.1, encodings that libxml2 reads only through iconv or
 ICU (Shift_JIS, EUC-JP, GBK and others), and the SAX2 handler table. The
-[roadmap](docs/roadmap.md) lists what is left.
+[remaining work](docs/remaining-work.md) lists what is left.
 
 ## Cargo features
 
