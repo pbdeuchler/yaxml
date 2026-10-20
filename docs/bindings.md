@@ -280,10 +280,19 @@ source's handles then become stale, which is what rejects a proxy the
 adapter forgot to remap. A single `adopt` call would save one line and hide
 which handles died, so it is left to the adapter.
 
+## Decisions (owner, 2026-10-19)
+
+- **Adapters are approved, in separate crates** under `bindings/`. Unsafe code
+  and binding dependencies (PyO3, napi-rs, cgo glue) stay there; the core crate
+  remains `forbid(unsafe_code)` and memchr-only, and no binding dependency may
+  enter its dependency graph or lockfile.
+- **The C ABI is yaxml-specific**, not libxml2 symbol-compatible: libxml2's
+  public structs expose mutable pointer graphs that an index arena cannot
+  reproduce faithfully. Go (cgo) and C/C++ callers use it; Python and Node use
+  native framework adapters over the safe core.
+- **iconv-only encodings** (UCS-4, UCS-2, EBCDIC and others that distro
+  libxml2 builds accept through iconv) are wanted, at low priority.
+
 ## Open decisions
 
-- Whether a C ABI should imitate libxml2 symbol names. Its public structs
-  expose mutable pointer graphs that an index arena cannot reproduce
-  faithfully (see [design](design.md)). A yaxml-specific C API is simpler and
-  safer.
 - Packaging and CI matrices for each language.
