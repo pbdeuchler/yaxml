@@ -478,6 +478,15 @@ impl IterParse {
                 .ok_or_else(|| PyValueError::new_err(format!("invalid event name '{event}'")))?;
             wanted[index] = true;
         }
+        // Recovered events can name unbound prefixes, which the tree built
+        // here cannot hold, so the streaming reader does not recover.
+        if flags & options::RECOVER != 0 {
+            let unsupported = yaxml::Error {
+                kind: yaxml::ErrorKind::UnsupportedOption,
+                offset: 0,
+            };
+            return Err(errors::bare(py, unsupported));
+        }
         let options = ParseOptions::new(flags).base(base_url).resolver(resolver);
         let reader = TextReader::with_options(reader, options).map_err(|e| errors::bare(py, e))?;
         Ok(Self {

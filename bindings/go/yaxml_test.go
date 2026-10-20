@@ -373,7 +373,7 @@ func TestReader(t *testing.T) {
 	if _, err := bad.Next(); err == nil || !strings.Contains(err.Error(), "mismatch") {
 		t.Fatalf("%v", err)
 	}
-	if _, err := NewReader([]byte("<r/>"), WithFlags(Recover)); err == nil {
+	if _, err := NewReader([]byte("<r/>"), WithFlags(DTDValid)); err == nil {
 		t.Fatal("tree-only flag")
 	}
 }

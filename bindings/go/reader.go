@@ -79,8 +79,8 @@ func (r *Reader) goName(n *C.yaxml_name) Name {
 	return Name{Qualified: q, Prefix: p, Local: q[len(q)-int(n.local.len):], URI: r.name(n.uri)}
 }
 
-// NewReader starts reading data. Tree-only flags (Recover, DTDValid,
-// NoBlanks) are rejected.
+// NewReader starts reading data. DTDValid and XInclude, which need a tree,
+// are rejected; Recover recovers as the document parser does.
 func NewReader(data []byte, opts ...Option) (*Reader, error) {
 	o, free := options(opts)
 	defer free()

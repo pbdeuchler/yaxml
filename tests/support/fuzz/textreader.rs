@@ -144,7 +144,9 @@ impl BufRead for Trickle<'_> {
     }
 }
 
-fn current<R: BufRead>(reader: &mut TextReader<R>) -> Node {
+/// The current node; `probe`d unless recovering, where an unbound prefix
+/// leaves a qualified attribute name unresolvable (as in libxml2).
+fn current<R: BufRead>(reader: &mut TextReader<R>, recovering: bool) -> Node {
     let mut node = node(
         reader.depth(),
         reader.node_type(),
@@ -164,7 +166,9 @@ fn current<R: BufRead>(reader: &mut TextReader<R>) -> Node {
     if node.kind == NodeType::Element {
         assert_eq!(reader.has_attributes(), !node.attributes.is_empty());
     }
-    probe(reader);
+    if !recovering {
+        probe(reader);
+    }
     node
 }
 
@@ -546,14 +550,15 @@ fn walk<R: BufRead>(
                 return true;
             }
         }
-        let node = current(&mut reader);
+        let recovering = control >> 5 == 3;
+        let node = current(&mut reader, recovering);
         let reference = expected.and_then(|expected| expected.get(nodes.len()..));
         if let Some(reference) = reference.filter(|reference| !reference.is_empty()) {
             let check = control.rotate_left(nodes.len() as u32);
-            if check & 2 != 0 {
+            if check & 2 != 0 && !recovering {
                 navigate(&mut reader, &reference[0].attributes);
             }
-            if check & 4 != 0 && control >> 5 != 3 && content(&mut reader, reference).is_err() {
+            if check & 4 != 0 && !recovering && content(&mut reader, reference).is_err() {
                 return true;
             }
         }
