@@ -8,13 +8,15 @@
 //!
 //! An infallible allocation (`Vec::push`, `String` formatting, ...) that hits
 //! the null aborts in std; the alloc error hook unwinds instead so the run is
-//! dropped quietly, as std's policy makes those failures fatal anyway.
+//! dropped quietly, as std's policy makes those failures fatal anyway, except
+//! in the audit below.
 //!
 //! Triage: `YAXML_ALLOCFAIL_TRACE=1` prints a backtrace at the failed
 //! allocation; `YAXML_ALLOCFAIL_SWEEP=1` fails each allocation in turn, which
-//! is how `regressions/allocfail` replays. Audit: `YAXML_ALLOCFAIL_MIN_SIZE=n` instead fails every armed
-//! allocation of at least n bytes, so with the trace, large inputs show the
-//! infallible allocations that grow with them (docs/security.md).
+//! is how `regressions/allocfail` replays. Audit: `YAXML_ALLOCFAIL_MIN_SIZE=n`
+//! sweeps only the allocations of at least n bytes and fails on an
+//! infallible one, so with the trace, large inputs show the infallible
+//! allocations that grow with them (docs/security.md).
 #![no_main]
 #![feature(alloc_error_hook)]
 
@@ -30,29 +32,27 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 #[path = "../../../yaxml/tests/support/fuzz/driver.rs"]
 mod driver;
 
-/// Allocations since the last reset, the one to fail (0: none) and the
-/// smallest size that fails (audit mode).
+/// Allocations of at least `MIN_SIZE` bytes since the last reset, and the
+/// one to fail (0: none).
 static COUNT: AtomicUsize = AtomicUsize::new(0);
 static FAIL_AT: AtomicUsize = AtomicUsize::new(0);
-static FAIL_SIZE: AtomicUsize = AtomicUsize::new(usize::MAX);
+static MIN_SIZE: AtomicUsize = AtomicUsize::new(0);
 static TRACE: AtomicBool = AtomicBool::new(false);
 
 struct Failing;
 
 impl Failing {
     fn fails(size: usize) -> bool {
-        let hit = COUNT.fetch_add(1, Relaxed) + 1 == FAIL_AT.load(Relaxed)
-            || size >= FAIL_SIZE.load(Relaxed);
+        let hit = size >= MIN_SIZE.load(Relaxed)
+            && COUNT.fetch_add(1, Relaxed) + 1 == FAIL_AT.load(Relaxed);
         if hit && TRACE.load(Relaxed) {
-            // Triage only: the capture re-enters this allocator, with sizes
-            // disarmed; a write error is ignored, as `alloc` must not unwind.
-            let armed = FAIL_SIZE.swap(usize::MAX, Relaxed);
+            // Triage only: the capture re-enters this allocator past the
+            // failed index; a write error is ignored, as `alloc` must not unwind.
             let trace = Backtrace::force_capture();
             let _ = writeln!(
                 std::io::stderr(),
                 "failed allocation of {size} bytes\n{trace}"
             );
-            FAIL_SIZE.store(armed, Relaxed);
         }
         hit
     }
@@ -98,11 +98,10 @@ struct Infallible;
 enum Mode {
     /// The one its first four bytes choose.
     Chosen,
-    /// Each in turn (`YAXML_ALLOCFAIL_SWEEP`): replays a regression without
+    /// Each in turn (`YAXML_ALLOCFAIL_SWEEP`, or `YAXML_ALLOCFAIL_MIN_SIZE`
+    /// for those of at least that many bytes): replays a regression without
     /// depending on how many allocations precede the faulty one.
     Sweep,
-    /// Every one of at least this many bytes (`YAXML_ALLOCFAIL_MIN_SIZE`).
-    Size(usize),
 }
 
 /// Installs the hooks once; the mode comes from the environment.
@@ -124,10 +123,11 @@ fn install() -> Mode {
             }
         }));
         let size = std::env::var("YAXML_ALLOCFAIL_MIN_SIZE").ok();
-        match size.and_then(|size| size.parse().ok()) {
-            Some(size) => Mode::Size(size),
-            None if std::env::var_os("YAXML_ALLOCFAIL_SWEEP").is_some() => Mode::Sweep,
-            None => Mode::Chosen,
+        let size = size.and_then(|size| size.parse().ok());
+        MIN_SIZE.store(size.unwrap_or(0), Relaxed);
+        match size.is_some() || std::env::var_os("YAXML_ALLOCFAIL_SWEEP").is_some() {
+            true => Mode::Sweep,
+            false => Mode::Chosen,
         }
     })
 }
@@ -141,26 +141,22 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let baseline = driver::allocfail_run(input);
     let count = COUNT.load(Relaxed);
     let chosen = 1 + u32::from_le_bytes(*choice) as usize % count.max(1);
-    // The allocation index each armed run fails (0: by size instead).
+    // The allocation index each armed run fails.
     let runs = match mode {
         Mode::Chosen => chosen..=chosen,
         Mode::Sweep => 1..=count,
-        Mode::Size(_) => 0..=0,
     };
     for at in runs {
-        let size = match mode {
-            Mode::Size(size) => size,
-            _ => usize::MAX,
-        };
         COUNT.store(0, Relaxed);
         FAIL_AT.store(at, Relaxed);
-        FAIL_SIZE.store(size, Relaxed);
         let armed = catch_unwind(AssertUnwindSafe(|| driver::allocfail_run(input)));
         FAIL_AT.store(0, Relaxed);
-        FAIL_SIZE.store(usize::MAX, Relaxed);
         match armed {
             Ok(armed) => driver::allocfail_check(&baseline, &armed),
-            Err(payload) if payload.is::<Infallible>() => {}
+            Err(payload) if payload.is::<Infallible>() => {
+                let size = MIN_SIZE.load(Relaxed);
+                assert_eq!(size, 0, "infallible allocation of {size} bytes or more");
+            }
             Err(payload) => resume_unwind(payload),
         }
         let rerun = driver::allocfail_run(input);
