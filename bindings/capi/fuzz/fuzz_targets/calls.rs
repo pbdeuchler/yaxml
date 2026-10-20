@@ -456,11 +456,27 @@ fn step(state: &mut State, input: &mut Input<'_>) -> bool {
                 status
             }
             34 => {
-                let mut event = yaxml_event::default();
                 let reader = State::pick(&state.readers, input, null_mut());
-                let status = yaxml_reader_next(reader, out!(event), errp);
-                touch_event(&event);
-                status
+                match input.below(3) {
+                    0 => {
+                        let mut event = yaxml_event::default();
+                        let status = yaxml_reader_next(reader, out!(event), errp);
+                        touch_event(&event);
+                        status
+                    }
+                    _ => {
+                        // Batches of 0 (an argument error) to 7 events.
+                        let (mut events, mut count) = (null(), 0);
+                        let max = input.below(8);
+                        let status = yaxml_reader_next_batch(reader, max, out!(events), &raw mut count, errp);
+                        if status == OK {
+                            std::slice::from_raw_parts(events, count).iter().for_each(|e| {
+                                touch_event(e);
+                            });
+                        }
+                        status
+                    }
+                }
             }
             35 => yaxml_reader_free(State::pick(&state.readers, input, null_mut())),
             36 => {

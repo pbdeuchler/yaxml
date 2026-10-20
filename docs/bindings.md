@@ -374,8 +374,9 @@ Results come in two kinds:
 
 - *Borrowed* `yaxml_str`: from a document they point into its string pool
   and stay valid until the next editing call on that document or
-  `yaxml_doc_free`; from `yaxml_reader_next` until the next call on that
-  reader; in an event callback until the callback returns.
+  `yaxml_doc_free`; from `yaxml_reader_next` and `yaxml_reader_next_batch`
+  (the event array too) until the next call on that reader; in an event
+  callback until the callback returns.
 - *Owned*: `yaxml_buffer`, every array (`yaxml_diagnostics.items`, which also
   holds the messages, `yaxml_xpath_value.items` and `.string`) and every error
   message. `yaxml_free(ptr)` frees each; NULL, unknown and already freed
@@ -427,11 +428,28 @@ with edits.
 | Output | `yaxml_save` (`xmlSaveDoc` for the document node, else `xmlNodeDump`; `XML_SAVE_*` flags, encoding), `yaxml_save_to` (the same through a write callback, in 32 KiB chunks), `yaxml_c14n` (three modes, comments, node-set, inclusive prefixes) |
 | Validation | `yaxml_validate_dtd`, `yaxml_schema_new` (XSD, RELAX NG, Schematron; nothing referenced is loaded), `yaxml_validate`, `yaxml_schema_free`; diagnostics as `yaxml_diagnostics` arrays of `yaxml_diagnostic` (domain, code, level, line, column, message) with an `errors` count |
 | Editing | `yaxml_append_element`, `yaxml_append_leaf` (text, CDATA, comment, PI), `yaxml_set_value`, `yaxml_set_attribute`, `yaxml_remove_attribute` (`NONE` when absent), `yaxml_declare_namespace`, `yaxml_set_name`, `yaxml_set_url`, `yaxml_move` (append child, insert before/after, replace), `yaxml_unlink`, `yaxml_remove`, `yaxml_copy`, `yaxml_import` (from another document; the same one is `ERR_BUSY`), `yaxml_compact` |
-| Streaming | `yaxml_reader_new` (copies the input; `BufferedReader`), `yaxml_reader_next` (`NONE` at the end), `yaxml_reader_free`; `yaxml_push_new`, `yaxml_push_feed`, `yaxml_push_finish`, `yaxml_push_free` (`PushParser`; the callback gets a borrowed `yaxml_event` and a user pointer, and a nonzero return stops with `ERR_CALLBACK`) |
+| Streaming | `yaxml_reader_new` (copies the input; `BufferedReader`), `yaxml_reader_next` (`NONE` at the end), `yaxml_reader_next_batch` (up to `max` events per call), `yaxml_reader_free`; `yaxml_push_new`, `yaxml_push_feed`, `yaxml_push_finish`, `yaxml_push_free` (`PushParser`; the callback gets a borrowed `yaxml_event` and a user pointer, and a nonzero return stops with `ERR_CALLBACK`) |
 
 `yaxml_event` carries the kind, name, value, target, system id, internal
 subset, attributes (borrowed array) and input byte range (`UINT64_MAX`
 without one); the header's kind table says which field holds what.
+
+`yaxml_reader_next_batch(reader, max, &events, &count, err)` returns up to
+`max` events in one call: `events` points to an array the reader owns, and
+it, every string and every attribute array of its events stay valid until
+the next call on the reader, so a caller reads a whole batch before asking
+for the next. A batch is shorter than `max` only at the end of the document
+or before an error; `NONE` (`events` NULL, `count` 0) is the end, `max` 0 is
+`ERR_ARGUMENT`. Errors keep `yaxml_reader_next`'s order: a batch that meets
+an error ends with the event before it, the next call returns the error
+(the reader's errors are sticky, so every later call repeats it), and
+nothing is written on an error. The reader keeps the batch's records, a
+reused string buffer per string and one attribute array (pointed at once
+the batch is complete), so a batch allocates nothing once warm and its
+memory is bounded by `max` events. The array is internal rather than
+caller-provided so that strings are copied once (into the reader) and the
+caller needs no sizing or truncation rules; `yaxml_reader_next` is a batch
+of one.
 
 **Unsafe code.** All of it is in `src/ffi.rs`: `slice` (pointer and length
 to a slice, after NULL, alignment and size checks), `get`, `text` (plus
@@ -508,7 +526,8 @@ out, err := doc.Save(yaxml.Format)
 - `CompileSchema(XSD|RelaxNG|Schematron, data, base)`,
   `Schema.Validate(doc)`, `Valid(diagnostics)`.
 - `NewReader(data, ...Option)` and `Reader.Next` (`io.EOF` at the end):
-  events copied into Go, names interned per reader (at most 4,096).
+  events fetched 64 per cgo call (`yaxml_reader_next_batch`) and copied
+  into Go one `Next` at a time, names interned per reader (at most 4,096).
 - Errors are `*Error{Status, Offset, Diagnostic}`; `Unwrap` gives the
   `Diagnostic`. `LiveObjects()` exposes `yaxml_live_objects`; `TestMain`
   fails if a test leaks.
@@ -517,21 +536,26 @@ out, err := doc.Save(yaxml.Format)
   under `-race` and `GOEXPERIMENT=cgocheck2`.
 
 **FFI overhead** (`go test -bench . -benchmem`, `bench_test.go`; Apple M-series,
-2026-10-20, medians of 5): a cgo call costs about 37 ns, and the copy into
-Go is the rest.
+2026-10-20, medians of 5).
 
 | Input | yaxml DOM (`Parse`+`Close`) | yaxml `Reader` (all events into Go) | `encoding/xml` `Token` loop |
 | --- | --- | --- | --- |
-| 10-byte `<r a="1"/>` | 1.39 µs, 10 allocs | 1.95 µs, 15 allocs | 0.39 µs, 10 allocs |
-| 100 KB, 1,000 namespaced items (9,003 events) | 0.70 ms (142 MB/s), 10 allocs | 2.52 ms (39 MB/s), 5,032 allocs | 1.82 ms (56 MB/s), 27,025 allocs |
+| 10-byte `<r a="1"/>` | 1.38 µs, 10 allocs | 1.98 µs, 15 allocs | 0.41 µs, 10 allocs |
+| 100 KB, 1,000 namespaced items (9,003 events) | 0.71 ms (140 MB/s), 10 allocs | 1.47 ms (68 MB/s), 5,032 allocs | 1.85 ms (54 MB/s), 27,025 allocs |
 
 The DOM is one call per document, so a large document parses 2.6x faster
 than `encoding/xml` tokenizes it; a tiny one pays a fixed 1 µs (handle
-table, options, input copy, cleanup registration). The `Reader` pays a call
-and a copy per event: of its 280 ns per event, the core's `BufferedReader`
-is 90, the ABI (handle lookup, event lowering into reused buffers) 40 and
-the Go side (cgo call, string copies; names are interned) 150. Code that
-walks a parsed document or asks XPath for nodes stays on the DOM side.
+table, options, input copy, cleanup registration). The `Reader` was 2.65 ms
+(38 MB/s, 294 ns per event, 1.4x slower than `encoding/xml`) with one cgo
+call per event; batching made it 1.26x faster than `encoding/xml` at 164 ns
+per event. Of those, the C side is 111 ns (the same loop in C:
+`yaxml_reader_next_batch` of 64; `yaxml_reader_next` costs 120 ns per event
+before batching and 126 after, the extra being the batch of one) and Go's
+copies and name interning the rest. Each cgo call saved was worth about
+130 ns, well above an empty call's 37 ns. Batch size barely matters past 16
+(16: 1.56 ms, 64 and 256: 1.49 ms) and 1,024 is slower (1.62 ms: the
+records alone are 172 KB). Code that walks a parsed document or asks XPath
+for nodes stays on the DOM side.
 
 ## Python
 

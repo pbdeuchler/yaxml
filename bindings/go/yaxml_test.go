@@ -3,6 +3,7 @@ package yaxml
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"runtime"
@@ -379,6 +380,64 @@ func TestReader(t *testing.T) {
 	}
 	if _, err := NewReader([]byte("<r/>"), WithFlags(DTDValid)); err == nil {
 		t.Fatal("tree-only flag")
+	}
+}
+
+// TestReaderBatches reads documents whose events and errors fall before,
+// on and after batch boundaries: every event keeps its own strings and
+// attributes, and an error comes after every event before it, then repeats.
+func TestReaderBatches(t *testing.T) {
+	for _, tc := range []struct {
+		items int
+		end   string
+	}{
+		{0, "</r>"}, {21, "</r>"}, {batchSize, "</r>"}, {3 * batchSize, "</r>"},
+		{0, "</x>"}, {20, "</x>"}, {21, "</x>"}, {22, "</x>"}, {2 * batchSize, "</x>"},
+	} {
+		var b strings.Builder
+		b.WriteString("<r>")
+		for i := range tc.items {
+			fmt.Fprintf(&b, `<e i="%d" j="v%d">t%d</e>`, i, i, i)
+		}
+		b.WriteString(tc.end)
+		r, err := NewReader([]byte(b.String()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		closed := tc.end == "</r>"
+		var events []Event
+		for {
+			ev, err := r.Next()
+			if err != nil {
+				if (err == io.EOF) != closed {
+					t.Fatalf("%d items, %s: %v", tc.items, tc.end, err)
+				}
+				if _, again := r.Next(); again == nil || again.Error() != err.Error() {
+					t.Fatalf("%v, then %v", err, again)
+				}
+				break
+			}
+			events = append(events, ev)
+		}
+		r.Close()
+		if want := 1 + 3*tc.items + boolInt(closed); len(events) != want {
+			t.Fatalf("%d items, %s: %d events, want %d", tc.items, tc.end, len(events), want)
+		}
+		for i := range tc.items {
+			start, text := events[1+3*i], events[2+3*i]
+			n := fmt.Sprint(i)
+			if start.Name.Local != "e" || len(start.Attrs) != 2 || start.Attrs[0].Value != n ||
+				start.Attrs[1].Name.Local != "j" || start.Attrs[1].Value != "v"+n || text.Value != "t"+n {
+				t.Fatalf("item %d: %+v %+v", i, start, text)
+			}
+		}
+	}
+	// A closed reader keeps no batch.
+	r, _ := NewReader([]byte("<r><a/></r>"))
+	r.Next()
+	r.Close()
+	if _, err := r.Next(); err == nil {
+		t.Fatal("Next after Close")
 	}
 }
 

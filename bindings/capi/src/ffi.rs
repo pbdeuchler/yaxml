@@ -71,6 +71,7 @@ mod sealed {
     impl Sealed for crate::types::yaxml_edit_limits {}
     impl Sealed for crate::types::yaxml_attribute {}
     impl Sealed for crate::types::yaxml_diagnostic {}
+    impl Sealed for crate::types::yaxml_event {}
 }
 
 impl Versioned for crate::types::yaxml_parse_options {}
@@ -183,7 +184,7 @@ pub(crate) unsafe fn write(callback: WriteFn, user: *mut c_void, bytes: &[u8]) -
     unsafe { callback(user, bytes.as_ptr(), bytes.len()) }
 }
 
-/// C records (attributes, diagnostics) kept beside the strings their
+/// C records (attributes, diagnostics, events) kept beside the strings their
 /// pointers address, by the same owner.
 pub(crate) struct Records<T>(pub(crate) Vec<T>);
 
@@ -191,6 +192,7 @@ pub(crate) struct Records<T>(pub(crate) Vec<T>);
 pub(crate) trait Record: sealed::Sealed {}
 impl Record for yaxml_attribute {}
 impl Record for yaxml_diagnostic {}
+impl Record for yaxml_event {}
 
 // SAFETY: the pointers in these records address heap strings owned by the
 // same registry entry as the records; Rust never dereferences them, so moving

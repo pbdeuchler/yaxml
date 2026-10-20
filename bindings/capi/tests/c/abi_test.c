@@ -430,6 +430,42 @@ static void streaming_reader(void) {
   yaxml_reader_free(reader);
 }
 
+static void streaming_batches(void) {
+  const char *xml = "<r a='1'><x b='2'/>t<y/></r>";
+  yaxml_reader *reader = NULL;
+  EXPECT(yaxml_reader_new((const uint8_t *)xml, strlen(xml), NULL, &reader, &err), YAXML_OK);
+  const yaxml_event *events = NULL;
+  size_t count = 9;
+  EXPECT(yaxml_reader_next_batch(reader, 0, &events, &count, &err), YAXML_ERR_ARGUMENT);
+  CHECK(events == NULL && count == 9);
+  EXPECT(yaxml_reader_next_batch(reader, 2, &events, NULL, &err), YAXML_ERR_NULL);
+  /* Batches of 2: every string and attribute of a batch stays readable. */
+  EXPECT(yaxml_reader_next_batch(reader, 2, &events, &count, &err), YAXML_OK);
+  CHECK(count == 2 && events[0].kind == YAXML_EVENT_START && events[1].kind == YAXML_EVENT_EMPTY);
+  CHECK(eq(events[0].name.local, "r") && eq(events[1].name.local, "x"));
+  CHECK(events[0].attribute_count == 1 && eq(events[0].attributes[0].value, "1"));
+  CHECK(events[1].attribute_count == 1 && eq(events[1].attributes[0].name.qname, "b") &&
+        eq(events[1].attributes[0].value, "2"));
+  EXPECT(yaxml_reader_next_batch(reader, 2, &events, &count, &err), YAXML_OK);
+  CHECK(count == 2 && eq(events[0].value, "t") && eq(events[1].name.local, "y"));
+  EXPECT(yaxml_reader_next_batch(reader, 2, &events, &count, &err), YAXML_OK);
+  CHECK(count == 1 && events[0].kind == YAXML_EVENT_END);
+  EXPECT(yaxml_reader_next_batch(reader, 2, &events, &count, &err), YAXML_NONE);
+  CHECK(events == NULL && count == 0);
+  EXPECT(yaxml_reader_next_batch(reader, 2, &events, &count, &err), YAXML_NONE);
+  yaxml_reader_free(reader);
+  EXPECT(yaxml_reader_next_batch(reader, 2, &events, &count, &err), YAXML_ERR_HANDLE);
+
+  /* An error ends the batch before it, then repeats. */
+  EXPECT(yaxml_reader_new((const uint8_t *)"<r><a/></x>", 11, NULL, &reader, &err), YAXML_OK);
+  EXPECT(yaxml_reader_next_batch(reader, 16, &events, &count, &err), YAXML_OK);
+  CHECK(count == 2 && eq(events[1].name.local, "a"));
+  EXPECT(yaxml_reader_next_batch(reader, 16, &events, &count, &err), YAXML_ERR_XML);
+  CHECK(count == 2);
+  EXPECT(yaxml_reader_next_batch(reader, 16, &events, &count, &err), YAXML_ERR_XML);
+  yaxml_reader_free(reader);
+}
+
 struct pushed {
   int events;
   int stop_after;
@@ -479,6 +515,7 @@ int main(void) {
   schemas();
   editing();
   streaming_reader();
+  streaming_batches();
   streaming_push();
   size_t handles = 1, allocations = 1;
   CHECK(yaxml_live_objects(&handles, &allocations) == YAXML_OK);

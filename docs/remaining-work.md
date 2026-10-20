@@ -35,7 +35,7 @@ Measured on an Apple M1 Max only ([benchmarks.md](benchmarks.md)).
 | 15 | DTD-heavy documents: yaxml leads on 9 of 25 rows | M–L | `BufferedReader` is at 0.40–0.88 because of the per-event layering. DOM/owned with nested entity references is at 0.44–0.72, because yaxml re-parses each reference where libxml2 copies a cached node list. Caching parsed entity content means working through namespace, ID and error semantics. |
 | 16 | `pe_chain`: 5.5% more instructions since the DTD work | S | A long chain of parameter-entity references in the internal subset. |
 | 17 | Benchmarks on Linux x86-64 and in CI | S | Every number so far is from one machine. |
-| 18 | Binding overhead | M | Python tree iteration is 2.5–4× slower than lxml (proxy objects), and DTD parsing is slower than lxml. The Go streaming reader is slower than `encoding/xml` (one cgo call per event; needs batching). |
+| 18 | Binding overhead | M | Python tree iteration is 2.5–4× slower than lxml (proxy objects), and DTD parsing is slower than lxml. (The Go streaming reader now fetches 64 events per cgo call and is 1.26× faster than `encoding/xml`; [bindings.md](bindings.md#go). Python's iterparse runs on the core directly, with no per-event FFI call to batch.) |
 
 ## Security and fuzzing
 

@@ -17,7 +17,7 @@
  *   input, ptr == NULL means "absent" where documented (else len must be 0).
  *   yaxml_str results are borrowed: from a document they stay valid until the
  *   next editing call on it or yaxml_doc_free; from a reader until the next
- *   yaxml_reader_next; in an event callback until it returns. yaxml_buffer
+ *   call on that reader; in an event callback until it returns. yaxml_buffer
  *   results and every array result are owned: free them with yaxml_free.
  * - No panic crosses this boundary: one becomes YAXML_ERR_PANIC and poisons
  *   the handle involved (later calls: YAXML_ERR_POISONED; free still works).
@@ -451,6 +451,16 @@ yaxml_status yaxml_reader_new(const uint8_t *bytes, size_t len,
 /* NONE at the end of the document. */
 yaxml_status yaxml_reader_next(yaxml_reader *reader, yaxml_event *out,
                                yaxml_error *err);
+/* Up to max (>= 1) events in one call: *events points to *count events
+   that, with their strings and attributes, the reader owns until the next
+   call on it. OK with *count >= 1 (fewer than max only at the end of the
+   document or before an error); NONE with *events NULL and *count 0 at the
+   end. Events and errors arrive as from yaxml_reader_next: an error is
+   returned by the call that reaches it with no event yet in its batch, and
+   every later call repeats it. */
+yaxml_status yaxml_reader_next_batch(yaxml_reader *reader, size_t max,
+                                     const yaxml_event **events, size_t *count,
+                                     yaxml_error *err);
 yaxml_status yaxml_reader_free(yaxml_reader *reader);
 yaxml_status yaxml_push_new(const yaxml_parse_options *options, yaxml_push **out,
                             yaxml_error *err);

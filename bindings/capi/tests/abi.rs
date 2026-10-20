@@ -44,7 +44,7 @@ fn header_declares_exactly_the_exported_functions() {
         );
     }
     assert_eq!(declared, exported);
-    assert_eq!(exported.len(), 55);
+    assert_eq!(exported.len(), 56);
 }
 
 #[test]
