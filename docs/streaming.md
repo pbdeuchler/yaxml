@@ -60,9 +60,10 @@ reader. Async adapters remain separate work.
 
 `PushParser::with_options` and `BufferedReader::with_options` (like
 `Reader::with_options`) take the [`ParseOptions`](compatibility.md#option-compatibility)
-flags a stream can honor; `DTDVALID`, `NOBLANKS` and `XINCLUDE` need a tree
-and are `UnsupportedOption`. `NOCDATA`, `NSCLEAN` and `IGNORE_ENC` change
-tokens on every surface.
+flags a stream can honor; `DTDVALID` and `XINCLUDE` need a tree and are
+`UnsupportedOption`, as is `NOBLANKS` on `Reader`. `NOCDATA`, `NSCLEAN` and
+`IGNORE_ENC` change tokens on every surface; `RECOVER` and `NOBLANKS` are
+[below](#recovery-and-blanks).
 
 Without `NOENT` a general entity reference in content is reported as
 `Event::EntityStart(name)`, then the replacement text's events, then
@@ -79,6 +80,37 @@ reference's origin: the `&name;` span, or for a reference inside replacement
 text its replacement range under the outermost reference. They do not count
 toward `max_events`; `max_entity_references` bounds them. `Writer` writes
 nothing for them, so copying events writes the replacement text.
+
+## Recovery and blanks
+
+With `RECOVER` every stream (`Reader`, `PushParser`, `BufferedReader`,
+`TextReader`) recovers as the DOMs do, because the DOMs are built from these
+events ([compatibility.md](compatibility.md#recovery-recover)): each error
+site records its error and applies libxml2's repair, and an error no site
+repairs stops the parse, which then closes what is open with `End` (and
+`EntityEnd`) events at that error's offset and ends normally. `errors()`
+lists what was recovered from (the first 100); resource limits, loops,
+allocation and resolver failures stay errors. A stopped `PushParser` ignores
+further input, and `finish` succeeds. The DTD-free stream recovers as the
+slice reader does: the rest of a tag libxml2 ends early is reread from a
+replay buffer, characters outside `Char` are repaired once one is seen, an
+undeclared reference is an empty `EntityStart`/`EntityEnd` pair, a start tag
+cut off by the end is empty, and invalid UTF-8 ends the input. Events,
+ranges and errors do not depend on chunking. `BufferedReader` copies each
+event out of the session while recovering, so it can stop the parse after
+an error met lending one; strict reading lends as before. libxml2's own
+reader (`xmlTextReaderRead`) stops at its first error even with `RECOVER`;
+`TextReader` recovers instead ([textreader.md](textreader.md#semantics)).
+
+`NOBLANKS` on `PushParser` and `BufferedReader` drops the text events
+libxml2's `areBlanks` finds ignorable, with the text reader's rules
+([textreader.md](textreader.md#semantics), `src/blanks.rs`): a run of blank
+text is held until the event after it decides it, so a kept blank arrives
+just before that event, as one `Text`. Entity references' content passes
+unfiltered. A start tag's declared content reaches the filter through the
+parse budget, so filtering needs no DTD lookup while an event is lent.
+`BufferedReader` copies events under `NOBLANKS` too. `Reader` rejects the
+flag.
 
 ## Shared semantics and storage
 
@@ -134,7 +166,6 @@ flag test per CDATA section, declaration and namespace declaration. Streaming re
 declaration text (charged to `max_owned_bytes`) only until that event is
 delivered. Entity expansion resumes across arbitrary chunk splits, so events
 and errors do not depend on chunk boundaries. Complete-input borrowing remains UTF-8-only; push, pull,
-and owned parsing also support UTF-16. UTF-16 output, other encodings, external entities,
-allocator-backed collections and recovery modes remain open
-items in [the roadmap](roadmap.md). Streaming support does not establish complete
+and owned parsing also support UTF-16. UTF-16 output, other encodings, external entities
+and allocator-backed collections remain open items in [the roadmap](roadmap.md). Streaming support does not establish complete
 libxml2 reader/SAX compatibility or the performance goal.

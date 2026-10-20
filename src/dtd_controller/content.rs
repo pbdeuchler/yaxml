@@ -1053,6 +1053,8 @@ fn publish_physical<'source, 'raw>(
 where
     'source: 'raw,
 {
+    // Recovered errors count source bytes, as returned ones do.
+    let recorded = (span.encoding != SourceEncoding::Utf8).then(|| parser.errors().len());
     let result = match kind {
         TokenKind::Start if !catalog.plain_tag(raw) => {
             let declarations = (&mut *catalog, LiteralSource::Physical);
@@ -1061,6 +1063,9 @@ where
         _ => parser.process_token(kind, raw, span.decoded.clone(), retain),
     };
     note_catalogs(parser, catalog, kind);
+    if let Some(recorded) = recorded {
+        (parser.owned_budget()).remap(recorded, |error| span.map_error(raw, error));
+    }
     result.map_err(|error| span.map_error(raw, error))
 }
 
@@ -1085,6 +1090,7 @@ where
     'source: 'raw,
 {
     parser.set_replacement(true);
+    let recorded = parser.errors().len();
     let result = parser
         .check_token_limit(raw.len(), offset)
         .and_then(|()| match kind {
@@ -1096,7 +1102,9 @@ where
         });
     parser.set_replacement(false);
     note_catalogs(parser, catalog, kind);
-    result.map_err(|error| Error::new(error.kind, origin.error_offset()))
+    let at = |error: Error| Error::new(error.kind, origin.error_offset());
+    (parser.owned_budget()).remap(recorded, at);
+    result.map_err(at)
 }
 
 /// A budgeted copy of an entity name for its `EntityStart` marker.

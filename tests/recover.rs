@@ -763,3 +763,39 @@ fn streams_recover_against_xmllint() {
         );
     }
 }
+
+#[test]
+fn recovered_errors_count_source_bytes_in_decoded_input() {
+    // (input, where its first error is): ISO-8859-1 decodes `é` to two
+    // UTF-8 bytes, on the DTD-free stream and on the DTD stack; an error in
+    // an entity's replacement text is at the reference.
+    let latin1 = b"<?xml version='1.0' encoding='ISO-8859-1'?>";
+    let cases: [(Vec<u8>, &[u8]); 3] = [
+        ([&latin1[..], b"<r>\xe9<a></b></r>"].concat(), b"</b>"),
+        (
+            [&latin1[..], b"<!DOCTYPE r><r>\xe9<a></b></r>"].concat(),
+            b"</b>",
+        ),
+        (
+            [
+                &latin1[..],
+                b"<!DOCTYPE r [<!ENTITY e '<p:a/>'>]><r>\xe9&e;</r>",
+            ]
+            .concat(),
+            b"&e;",
+        ),
+    ];
+    for (input, at) in cases {
+        let offset = input.windows(at.len()).position(|w| w == at).unwrap();
+        let mut parser = PushParser::with_options(ParseOptions::new(RECOVER)).unwrap();
+        parser
+            .feed(&input, |_, _| ControlFlow::Continue(()))
+            .unwrap();
+        parser.finish(|_, _| ControlFlow::Continue(())).unwrap();
+        let owned = OwnedDocument::parse_with(&input, ParseOptions::new(RECOVER)).unwrap();
+        for errors in [parser.errors(), owned.errors()] {
+            assert_eq!(errors[0].offset, offset, "{input:?}");
+            assert!(errors.iter().all(|error| error.offset <= input.len()));
+        }
+    }
+}
