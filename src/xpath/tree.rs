@@ -317,6 +317,40 @@ pub(crate) fn skip_subtree<T: Navigate>(
     }
 }
 
+/// `xmlNodeListGetString`: the Text and CDATA of `id` and its following
+/// siblings, with each entity reference's content (`escape` `None`) or as
+/// `&name;` with the text escaped (`escape` is `(html, ascii)`, see
+/// `save::escape_text`). Other nodes are skipped.
+pub(crate) fn list_string<T: Navigate>(
+    tree: &T,
+    id: T::Id,
+    escape: Option<(bool, bool)>,
+) -> String {
+    let mut out = String::new();
+    for id in std::iter::successors(Some(id), |&id| tree.next_sibling(id)) {
+        match (tree.item(id), escape) {
+            (Item::Text(text), None) => out.push_str(text),
+            (Item::Text(text), Some((html, ascii))) => {
+                crate::save::escape_text(&mut out, text, html, ascii)
+            }
+            (Item::EntityRef(_), None) => {
+                for id in descendants(tree, id) {
+                    if let Item::Text(text) = tree.item(id) {
+                        out.push_str(text);
+                    }
+                }
+            }
+            (Item::EntityRef(name), Some(_)) => {
+                out.push('&');
+                out.push_str(name);
+                out.push(';');
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 /// Preorder from `first`, bounded by `stop`'s subtree when given.
 pub(crate) fn preorder<T: Navigate>(
     tree: &T,
