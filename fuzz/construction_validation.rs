@@ -714,11 +714,7 @@ fn binding_spec<'a>(items: &'a [ElementItem<'static>]) -> ElementSpec<'a> {
 }
 
 fn binding_limits(variant: u8) -> EditLimits {
-    {
-        let mut cfg = EditLimits::default();
-        cfg.max_name_bytes = if variant == 1 { 3 } else { 2 };
-        cfg
-    }
+    EditLimits::default().max_name_bytes(if variant == 1 { 3 } else { 2 })
 }
 
 fn binding_expected_error(variant: u8) -> EditError {

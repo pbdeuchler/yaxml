@@ -297,17 +297,9 @@ fn document_budgets_bound_loading() {
         (built.is_ok(), count)
     };
     assert_eq!(run(Limits::default()), (true, 51));
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_documents = 10;
-        cfg
-    };
+    let limits = Limits::default().max_documents(10);
     assert_eq!(run(limits), (false, 10));
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_bytes = 1000;
-        cfg
-    };
+    let limits = Limits::default().max_bytes(1000);
     let (_, count) = run(limits);
     assert!(count < 51);
 }
@@ -400,11 +392,7 @@ fn deep_and_wide_models_stay_bounded() {
         valid(&schema, "<r><e299/><e1/></r>"),
         vec![Code::ElementContent]
     );
-    let small = {
-        let mut cfg = Limits::default();
-        cfg.max_model_work = 1 << 18;
-        cfg
-    };
+    let small = Limits::default().max_model_work(1 << 18);
     assert_eq!(
         timed("too wide", || build_with(&wide(20_000), small).err()),
         Some(vec![Code::Internal])
@@ -470,11 +458,7 @@ fn model_work_budget_reports_internal_error() {
         "{}<xs:element name='r'><xs:complexType><xs:sequence><xs:element name='a'/><xs:element name='b'/></xs:sequence></xs:complexType></xs:element></xs:schema>",
         head("")
     );
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_model_work = 3;
-        cfg
-    };
+    let limits = Limits::default().max_model_work(3);
     let error = Schema::with_resolver(text.as_bytes(), "p.xsd", None, limits).unwrap_err();
     assert_eq!(error.diagnostics[0].code, Code::Internal);
     assert!(Schema::with_resolver(text.as_bytes(), "p.xsd", None, Limits::default()).is_ok());

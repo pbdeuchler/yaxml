@@ -21,31 +21,27 @@ const DOCUMENT: &str = "<?t d?><r xmlns:p='urn:p' xml:lang='en'><a id='1' xml:id
 const FOREIGN: &str = "<r><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/>\
 <a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/><a/></r>";
 
-const LIMITS: Limits = {
-    let mut cfg = Limits::DEFAULT;
-    cfg.max_expression_bytes = 4096;
-    cfg.max_depth = 64;
-    cfg.max_operations = 200_000;
-    cfg.max_nodes = 20_000;
-    cfg
-};
+const LIMITS: Limits = Limits::DEFAULT
+    .max_expression_bytes(4096)
+    .max_depth(64)
+    .max_operations(200_000)
+    .max_nodes(20_000);
 
 /// Small ceilings chosen by the expression bytes.
 fn tight(expression: &str) -> Limits {
     let hash = expression.bytes().fold(0u32, |hash, byte| {
         hash.wrapping_mul(31).wrapping_add(byte.into())
     });
-    {
-        let mut cfg = Limits::DEFAULT;
-        cfg.max_expression_bytes = expression
-            .len()
-            .saturating_sub((hash & 1) as usize)
-            .min(LIMITS.max_expression_bytes);
-        cfg.max_depth = 1 + (hash >> 1 & 7) as usize;
-        cfg.max_operations = u64::from(hash >> 4 & 63);
-        cfg.max_nodes = (hash >> 10 & 7) as usize;
-        cfg
-    }
+    Limits::DEFAULT
+        .max_expression_bytes(
+            expression
+                .len()
+                .saturating_sub((hash & 1) as usize)
+                .min(LIMITS.max_expression_bytes),
+        )
+        .max_depth(1 + (hash >> 1 & 7) as usize)
+        .max_operations(u64::from(hash >> 4 & 63))
+        .max_nodes((hash >> 10 & 7) as usize)
 }
 
 /// A DOM-independent value: nodes become (preorder rank, kind, index).

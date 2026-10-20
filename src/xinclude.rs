@@ -67,6 +67,8 @@ pub struct Options {
     pub parse_flags: u32,
 }
 
+setters!(const Options { base_fixup: bool, lang_fixup: bool, max_depth: usize, limits: Limits, xpath: xpath::Limits, parse_flags: u32 });
+
 impl Options {
     pub const DEFAULT: Self = Self {
         base_fixup: true,

@@ -19,12 +19,7 @@ const MAX_LOADS: usize = 16;
 const MAX_WORK: usize = 200_000;
 
 fn limits(max_work: usize) -> Limits {
-    let mut limits = {
-        let mut cfg = Limits::default();
-        cfg.max_work = max_work;
-        cfg.max_include_depth = 8;
-        cfg
-    };
+    let mut limits = Limits::default().max_work(max_work).max_include_depth(8);
     limits.xml.max_external_loads = MAX_LOADS;
     limits.xml.max_external_bytes = 1 << 16;
     limits
@@ -35,12 +30,9 @@ fn tight(schema: &[u8]) -> Limits {
     let hash = schema.iter().fold(0u32, |hash, &byte| {
         hash.wrapping_mul(31).wrapping_add(byte.into())
     });
-    let mut limits = {
-        let mut cfg = Limits::default();
-        cfg.max_work = 1 + (hash & 1023) as usize * 8;
-        cfg.max_include_depth = (hash >> 10 & 3) as usize;
-        cfg
-    };
+    let mut limits = Limits::default()
+        .max_work(1 + (hash & 1023) as usize * 8)
+        .max_include_depth((hash >> 10 & 3) as usize);
     limits.xml.max_external_loads = (hash >> 12 & 3) as usize;
     limits.xml.max_external_bytes = (hash >> 14 & 511) as usize;
     limits

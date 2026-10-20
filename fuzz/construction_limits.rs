@@ -42,11 +42,7 @@ fn namespace_location(
 }
 
 fn namespace_limits(max_namespace_work: usize) -> EditLimits {
-    {
-        let mut cfg = EditLimits::default();
-        cfg.max_namespace_work = max_namespace_work;
-        cfg
-    }
+    EditLimits::default().max_namespace_work(max_namespace_work)
 }
 
 fn expect_namespace_work_rejection(
@@ -366,13 +362,7 @@ fn generated_prefix_name_boundary() {
         attribute_location(0, Some(EditComponent::Prefix), Some(2)),
     );
     let before = public_snapshot(&below);
-    let mut editor = below
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_name_bytes = 2;
-            cfg
-        })
-        .unwrap();
+    let mut editor = below.edit(EditLimits::default().max_name_bytes(2)).unwrap();
     let actual = editor
         .append_element(root, spec)
         .expect_err("over-limit generated prefix was accepted");
@@ -387,11 +377,7 @@ fn generated_prefix_name_boundary() {
         let mut document = OwnedDocument::parse("<r/>").unwrap();
         let root = document.root_element().id();
         let child = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = limit;
-                cfg
-            })
+            .edit(EditLimits::default().max_name_bytes(limit))
             .unwrap()
             .append_element(root, spec)
             .expect("exact/above generated-prefix name bound was rejected");
@@ -423,13 +409,7 @@ fn generated_item_count_boundary() {
     let root = below.root_element().id();
     let expected = global(EditErrorKind::LimitExceeded(EditLimit::Attributes));
     let before = public_snapshot(&below);
-    let mut editor = below
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_attributes = 1;
-            cfg
-        })
-        .unwrap();
+    let mut editor = below.edit(EditLimits::default().max_attributes(1)).unwrap();
     let actual = editor
         .append_element(root, spec)
         .expect_err("generated declaration exceeded the item ceiling");
@@ -443,11 +423,7 @@ fn generated_item_count_boundary() {
         let mut document = OwnedDocument::parse("<r/>").unwrap();
         let root = document.root_element().id();
         let child = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_attributes = limit;
-                cfg
-            })
+            .edit(EditLimits::default().max_attributes(limit))
             .unwrap()
             .append_element(root, spec)
             .expect("exact/above generated item count was rejected");
@@ -474,13 +450,7 @@ fn generated_item_count_precedes_later_namespace_semantics() {
     let mut below = OwnedDocument::parse("<r/>").unwrap();
     let root = below.root_element().id();
     let before = public_snapshot(&below);
-    let mut editor = below
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_attributes = 2;
-            cfg
-        })
-        .unwrap();
+    let mut editor = below.edit(EditLimits::default().max_attributes(2)).unwrap();
     let actual = editor
         .append_element(root, invalid)
         .expect_err("generated declaration exceeded the item ceiling");
@@ -497,11 +467,7 @@ fn generated_item_count_precedes_later_namespace_semantics() {
     let root = semantic.root_element().id();
     let before = public_snapshot(&semantic);
     let mut editor = semantic
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_attributes = 3;
-            cfg
-        })
+        .edit(EditLimits::default().max_attributes(3))
         .unwrap();
     let actual = editor
         .append_element(root, invalid)
@@ -529,11 +495,7 @@ fn generated_item_count_precedes_later_namespace_semantics() {
     let mut document = OwnedDocument::parse("<r/>").unwrap();
     let root = document.root_element().id();
     let child = document
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_attributes = 3;
-            cfg
-        })
+        .edit(EditLimits::default().max_attributes(3))
         .unwrap()
         .append_element(root, valid)
         .expect("exact generated-item control was rejected");
@@ -567,13 +529,7 @@ fn append_depth_boundary() {
     let parent = below.root_element().first_child().unwrap().id();
     let expected = global(EditErrorKind::LimitExceeded(EditLimit::Depth));
     let before = public_snapshot(&below);
-    let mut editor = below
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_depth = 2;
-            cfg
-        })
-        .unwrap();
+    let mut editor = below.edit(EditLimits::default().max_depth(2)).unwrap();
     let actual = editor
         .append_element(parent, spec)
         .expect_err("over-depth append was accepted");
@@ -587,11 +543,7 @@ fn append_depth_boundary() {
         let mut document = OwnedDocument::parse("<r><p/></r>").unwrap();
         let parent = document.root_element().first_child().unwrap().id();
         let child = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_depth = limit;
-                cfg
-            })
+            .edit(EditLimits::default().max_depth(limit))
             .unwrap()
             .append_element(parent, spec)
             .expect("exact/above append depth was rejected");
@@ -618,13 +570,7 @@ fn append_explicit_item_boundary() {
     let root = below.root_element().id();
     let expected = global(EditErrorKind::LimitExceeded(EditLimit::Attributes));
     let before = public_snapshot(&below);
-    let mut editor = below
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_attributes = 1;
-            cfg
-        })
-        .unwrap();
+    let mut editor = below.edit(EditLimits::default().max_attributes(1)).unwrap();
     let actual = editor
         .append_element(root, spec)
         .expect_err("over-count explicit items were accepted");
@@ -638,11 +584,7 @@ fn append_explicit_item_boundary() {
         let mut document = OwnedDocument::parse("<r/>").unwrap();
         let root = document.root_element().id();
         let child = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_attributes = limit;
-                cfg
-            })
+            .edit(EditLimits::default().max_attributes(limit))
             .unwrap()
             .append_element(root, spec)
             .expect("exact/above explicit item count was rejected");
@@ -671,12 +613,11 @@ fn persistent_created_nodes() {
     let root = document.root_element().id();
     let child = {
         let mut editor = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_created_nodes = 1;
-                cfg.max_created_attributes = 1;
-                cfg
-            })
+            .edit(
+                EditLimits::default()
+                    .max_created_nodes(1)
+                    .max_created_attributes(1),
+            )
             .unwrap();
         let child = editor
             .append_element(root, attributed)
@@ -697,24 +638,22 @@ fn persistent_created_nodes() {
     let after_removal = public_snapshot(&document);
     let expected_reopen = global(EditErrorKind::LimitExceeded(EditLimit::CreatedNodes));
     let actual_reopen = document
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_created_nodes = 0;
-            cfg.max_created_attributes = 1;
-            cfg
-        })
+        .edit(
+            EditLimits::default()
+                .max_created_nodes(0)
+                .max_created_attributes(1),
+        )
         .err()
         .expect("removal refunded the created-node expenditure");
     assert_error(actual_reopen, expected_reopen);
     assert_eq!(public_snapshot(&document), after_removal);
 
     let replacement = document
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_created_nodes = 2;
-            cfg.max_created_attributes = 1;
-            cfg
-        })
+        .edit(
+            EditLimits::default()
+                .max_created_nodes(2)
+                .max_created_attributes(1),
+        )
         .unwrap()
         .append_element(root, empty_spec("replacement"))
         .expect("higher created-node ceiling did not recover");
@@ -734,12 +673,11 @@ fn persistent_created_attributes() {
     let root = document.root_element().id();
     {
         let mut editor = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_created_nodes = 2;
-                cfg.max_created_attributes = 1;
-                cfg
-            })
+            .edit(
+                EditLimits::default()
+                    .max_created_nodes(2)
+                    .max_created_attributes(1),
+            )
             .unwrap();
         let child = editor
             .append_element(root, attributed)
@@ -759,24 +697,22 @@ fn persistent_created_attributes() {
     let after_removal = public_snapshot(&document);
     let expected_reopen = global(EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes));
     let actual_reopen = document
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_created_nodes = 1;
-            cfg.max_created_attributes = 0;
-            cfg
-        })
+        .edit(
+            EditLimits::default()
+                .max_created_nodes(1)
+                .max_created_attributes(0),
+        )
         .err()
         .expect("removal refunded the created-attribute expenditure");
     assert_error(actual_reopen, expected_reopen);
     assert_eq!(public_snapshot(&document), after_removal);
 
     document
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_created_nodes = 2;
-            cfg.max_created_attributes = 2;
-            cfg
-        })
+        .edit(
+            EditLimits::default()
+                .max_created_nodes(2)
+                .max_created_attributes(2),
+        )
         .unwrap()
         .append_element(root, attributed)
         .expect("higher created-attribute ceiling did not recover");
@@ -841,108 +777,83 @@ fn length_item(case: LengthCase) -> ElementItem<'static> {
 fn length_limits(case: LengthCase, exact: bool) -> (EditLimits, EditError) {
     match case {
         LengthCase::NamespacePrefix => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = if exact { 4 } else { 3 };
-                cfg.max_supplied_bytes = usize::MAX;
-                cfg
-            },
+            EditLimits::default()
+                .max_name_bytes(if exact { 4 } else { 3 })
+                .max_supplied_bytes(usize::MAX),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
                 namespace_location(0, Some(EditComponent::Prefix), Some(3)),
             ),
         ),
         LengthCase::NamespaceUri => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = if exact { 5 } else { 4 };
-                cfg.max_supplied_bytes = usize::MAX;
-                cfg
-            },
+            EditLimits::default()
+                .max_name_bytes(if exact { 5 } else { 4 })
+                .max_supplied_bytes(usize::MAX),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
                 namespace_location(0, Some(EditComponent::NamespaceUri), Some(4)),
             ),
         ),
         LengthCase::AttributeLocal => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = if exact { 4 } else { 3 };
-                cfg.max_supplied_bytes = if exact { usize::MAX } else { 3 };
-                cfg
-            },
+            EditLimits::default()
+                .max_name_bytes(if exact { 4 } else { 3 })
+                .max_supplied_bytes(if exact { usize::MAX } else { 3 }),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
                 attribute_location(0, Some(EditComponent::LocalName), Some(3)),
             ),
         ),
         LengthCase::AttributeNamespace => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = if exact { 5 } else { 4 };
-                cfg.max_supplied_bytes = if exact { usize::MAX } else { 6 };
-                cfg
-            },
+            EditLimits::default()
+                .max_name_bytes(if exact { 5 } else { 4 })
+                .max_supplied_bytes(if exact { usize::MAX } else { 6 }),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
                 attribute_location(0, Some(EditComponent::NamespaceUri), Some(4)),
             ),
         ),
         LengthCase::AttributePrefix => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = if exact { 3 } else { 2 };
-                cfg.max_supplied_bytes = if exact { usize::MAX } else { 5 };
-                cfg
-            },
+            EditLimits::default()
+                .max_name_bytes(if exact { 3 } else { 2 })
+                .max_supplied_bytes(if exact { usize::MAX } else { 5 }),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
                 attribute_location(0, Some(EditComponent::Prefix), Some(2)),
             ),
         ),
         LengthCase::AttributeValue => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_value_bytes = if exact { 4 } else { 3 };
-                cfg.max_supplied_bytes = if exact { usize::MAX } else { 5 };
-                cfg
-            },
+            EditLimits::default()
+                .max_value_bytes(if exact { 4 } else { 3 })
+                .max_supplied_bytes(if exact { usize::MAX } else { 5 }),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::ValueBytes),
                 attribute_location(0, Some(EditComponent::Value), Some(3)),
             ),
         ),
         LengthCase::AggregateNamespacePrefix => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = 4; // c (1) + éé (4) + u (1) = 6 supplied bytes.
-                cfg.max_supplied_bytes = if exact { 6 } else { 4 };
-                cfg
-            },
+            EditLimits::default()
+                .max_name_bytes(4)
+                // c (1) + éé (4) + u (1) = 6 supplied bytes.
+                .max_supplied_bytes(if exact { 6 } else { 4 }),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
                 namespace_location(0, Some(EditComponent::Prefix), Some(3)),
             ),
         ),
         LengthCase::AggregateNamespaceUri => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_name_bytes = 5; // c (1) + p (1) + urn:u (5) = 7 supplied bytes.
-                cfg.max_supplied_bytes = if exact { 7 } else { 6 };
-                cfg
-            },
+            EditLimits::default()
+                .max_name_bytes(5)
+                // c (1) + p (1) + urn:u (5) = 7 supplied bytes.
+                .max_supplied_bytes(if exact { 7 } else { 6 }),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
                 namespace_location(0, Some(EditComponent::NamespaceUri), Some(4)),
             ),
         ),
         LengthCase::AggregateValue => (
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_value_bytes = 4;
-                cfg.max_supplied_bytes = if exact { 6 } else { 5 };
-                cfg
-            },
+            EditLimits::default()
+                .max_value_bytes(4)
+                .max_supplied_bytes(if exact { 6 } else { 5 }),
             located(
                 EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
                 attribute_location(0, Some(EditComponent::Value), Some(3)),
@@ -983,13 +894,13 @@ fn length_precedence_family(variant: u8) {
         .expect("length rejection poisoned the editor");
 
     let (exact_limits, _) = length_limits(case, true);
-    for limits in [exact_limits, {
-        let mut cfg = exact_limits;
-        cfg.max_name_bytes = exact_limits.max_name_bytes.saturating_add(1);
-        cfg.max_value_bytes = exact_limits.max_value_bytes.saturating_add(1);
-        cfg.max_supplied_bytes = exact_limits.max_supplied_bytes.saturating_add(1);
-        cfg
-    }] {
+    for limits in [
+        exact_limits,
+        exact_limits
+            .max_name_bytes(exact_limits.max_name_bytes.saturating_add(1))
+            .max_value_bytes(exact_limits.max_value_bytes.saturating_add(1))
+            .max_supplied_bytes(exact_limits.max_supplied_bytes.saturating_add(1)),
+    ] {
         let mut document = OwnedDocument::parse("<r/>").unwrap();
         let root = document.root_element().id();
         let child = document

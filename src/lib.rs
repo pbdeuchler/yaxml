@@ -3,6 +3,8 @@
 // The allocator API is stable from Rust 1.100: the feature raises the MSRV.
 #![cfg_attr(feature = "allocator_api", allow(clippy::incompatible_msrv))]
 
+#[macro_use]
+mod setters;
 mod allocator;
 mod buffered;
 pub mod c14n;

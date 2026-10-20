@@ -136,11 +136,7 @@ fn rejects_invalid_documents_and_limit_failures() {
             "{input:?}"
         );
     }
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_depth = 1;
-        cfg
-    };
+    let limits = Limits::default().max_depth(1);
     assert!(Document::with_limits(b"<r/>", limits).is_ok());
     assert_eq!(
         Document::with_limits(b"<r><s/></r>", limits)
@@ -159,11 +155,7 @@ fn deep_and_wide_trees_preserve_navigation_without_recursion() {
             "<leaf/>".repeat(width),
             "</r>".repeat(depth - 1)
         );
-        let limits = {
-            let mut cfg = Limits::default();
-            cfg.max_depth = depth + 1;
-            cfg
-        };
+        let limits = Limits::default().max_depth(depth + 1);
         let document = Document::with_limits(input.as_bytes(), limits).unwrap();
         assert_eq!(document.nodes().len(), depth + width + 1);
         let mut parent = document.root_element();

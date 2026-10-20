@@ -179,6 +179,8 @@ pub struct Limits {
     pub max_operations: u64,
 }
 
+setters!(const Limits { xml: crate::Limits, xpath: xpath::Limits, max_operations: u64 });
+
 impl Limits {
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,

@@ -14,11 +14,7 @@ pub const SURFACES: [&str; 5] = ["reader", "document", "owned", "push", "buffere
 pub const MAX_CASE_BYTES: usize = 1 << 20;
 
 fn limits() -> Limits {
-    {
-        let mut cfg = Limits::default();
-        cfg.max_input_bytes = MAX_CASE_BYTES;
-        cfg
-    }
+    Limits::default().max_input_bytes(MAX_CASE_BYTES)
 }
 
 /// Runs one public parsing surface through terminal EOF validation. With
@@ -45,11 +41,7 @@ pub fn observe(
             return Ok(options);
         };
         let resolver = FileResolver::new(root).map_err(|error| error.to_string())?;
-        let options = {
-            let mut cfg = options;
-            cfg.flags = LEGACY | DTDLOAD;
-            cfg
-        };
+        let options = options.flags(LEGACY | DTDLOAD);
         Ok(options.with_resolver(path, Box::new(resolver)))
     };
 

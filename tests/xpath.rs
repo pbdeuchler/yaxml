@@ -878,14 +878,11 @@ fn edited_owned_documents_keep_document_order() {
 #[test]
 fn limits_are_enforced_before_work() {
     let document = Document::parse(XML).unwrap();
-    let small = {
-        let mut cfg = Limits::DEFAULT;
-        cfg.max_expression_bytes = 16;
-        cfg.max_depth = 4;
-        cfg.max_operations = 20;
-        cfg.max_nodes = 3;
-        cfg
-    };
+    let small = Limits::DEFAULT
+        .max_expression_bytes(16)
+        .max_depth(4)
+        .max_operations(20)
+        .max_nodes(3);
     let compile = |expression: &str| {
         XPath::compile_with_limits(expression, &small)
             .map(|_| ())
@@ -923,16 +920,7 @@ fn limits_are_enforced_before_work() {
             .map(|_| ())
             .map_err(|error| error.kind)
     };
-    let evaluate = |expression: &str| {
-        evaluate_with(
-            {
-                let mut cfg = small;
-                cfg.max_operations = u64::MAX;
-                cfg
-            },
-            expression,
-        )
-    };
+    let evaluate = |expression: &str| evaluate_with(small.max_operations(u64::MAX), expression);
     assert_eq!(evaluate("/r/a"), Ok(()));
     assert_eq!(evaluate("//*"), Err(ErrorKind::LimitExceeded(Limit::Nodes)));
     assert_eq!(
@@ -944,25 +932,11 @@ fn limits_are_enforced_before_work() {
         Err(ErrorKind::LimitExceeded(Limit::Nodes))
     );
     assert_eq!(
-        evaluate_with(
-            {
-                let mut cfg = small;
-                cfg.max_nodes = usize::MAX;
-                cfg
-            },
-            "count(//node()[1])"
-        ),
+        evaluate_with(small.max_nodes(usize::MAX), "count(//node()[1])"),
         Err(ErrorKind::LimitExceeded(Limit::Operations))
     );
     assert_eq!(
-        evaluate_with(
-            {
-                let mut cfg = small;
-                cfg.max_nodes = usize::MAX;
-                cfg
-            },
-            "string(/)"
-        ),
+        evaluate_with(small.max_nodes(usize::MAX), "string(/)"),
         Err(ErrorKind::LimitExceeded(Limit::Operations))
     );
 

@@ -326,11 +326,7 @@ fn accessors_and_moves_match_libxml2() {
         let namespaces = !moves && (!copies || random.next(2) == 0);
         let xml = document(&mut random, namespaces, entities);
         let url = urls[random.next(urls.len())];
-        let options = {
-            let mut cfg = ParseOptions::default();
-            cfg.base = url.map(str::to_owned);
-            cfg
-        };
+        let options = ParseOptions::default().base(url.map(str::to_owned));
         let mut owned = OwnedDocument::parse_with(xml.as_bytes(), options).unwrap();
         let source_namespaces = random.next(2) == 0;
         let source = copies.then(|| document(&mut random, source_namespaces, entities));

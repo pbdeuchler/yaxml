@@ -34,6 +34,8 @@ pub struct Options<'a, Id> {
     pub inclusive_prefixes: &'a [&'a str],
 }
 
+setters!(const Options['a, Id] { mode: Mode, with_comments: bool, nodes: Option<&'a [Node<Id>]>, inclusive_prefixes: &'a [&'a str] });
+
 impl<Id> Options<'_, Id> {
     /// The whole document, without comments.
     pub const fn new(mode: Mode) -> Self {

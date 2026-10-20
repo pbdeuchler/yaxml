@@ -262,101 +262,41 @@ fn resource_limits_are_inclusive() {
     for (input, limits, expected) in [
         (
             b"<r/>".as_slice(),
-            {
-                let mut cfg = Limits::default();
-                cfg.max_input_bytes = 3;
-                cfg
-            },
+            Limits::default().max_input_bytes(3),
             Limit::InputBytes,
         ),
         (
             b"<r/>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_token_bytes = 3;
-                cfg
-            },
+            Limits::default().max_token_bytes(3),
             Limit::TokenBytes,
         ),
         (
             b"<r>abcd</r>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_token_bytes = 3;
-                cfg
-            },
+            Limits::default().max_token_bytes(3),
             Limit::TokenBytes,
         ),
         (
             b"<!--x--><r/>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_token_bytes = 7;
-                cfg
-            },
+            Limits::default().max_token_bytes(7),
             Limit::TokenBytes,
         ),
-        (
-            b"<r/>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_depth = 0;
-                cfg
-            },
-            Limit::Depth,
-        ),
-        (
-            b"<r><c/></r>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_depth = 1;
-                cfg
-            },
-            Limit::Depth,
-        ),
+        (b"<r/>", Limits::default().max_depth(0), Limit::Depth),
+        (b"<r><c/></r>", Limits::default().max_depth(1), Limit::Depth),
         (
             b"<r a='v'/>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_attributes = 0;
-                cfg
-            },
+            Limits::default().max_attributes(0),
             Limit::Attributes,
         ),
-        (
-            b"<r/>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_events = 0;
-                cfg
-            },
-            Limit::Events,
-        ),
-        (
-            b"<r></r>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_events = 1;
-                cfg
-            },
-            Limit::Events,
-        ),
+        (b"<r/>", Limits::default().max_events(0), Limit::Events),
+        (b"<r></r>", Limits::default().max_events(1), Limit::Events),
         (
             b"<r>&amp;</r>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_owned_bytes = 4;
-                cfg
-            },
+            Limits::default().max_owned_bytes(4),
             Limit::OwnedBytes,
         ),
         (
             b"<r>\r</r>",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_owned_bytes = 0;
-                cfg
-            },
+            Limits::default().max_owned_bytes(0),
             Limit::OwnedBytes,
         ),
     ] {
@@ -371,36 +311,20 @@ fn resource_limits_are_inclusive() {
         );
     }
     for (input, limits) in [
-        (b"<r/>".as_slice(), {
-            let mut cfg = Limits::default();
-            cfg.max_input_bytes = 4;
-            cfg.max_token_bytes = 4;
-            cfg.max_depth = 1;
-            cfg.max_attributes = 0;
-            cfg.max_events = 1;
-            cfg.max_owned_bytes = 0;
-            cfg
-        }),
-        (b"<r a='v'/>", {
-            let mut cfg = Limits::default();
-            cfg.max_attributes = 1;
-            cfg
-        }),
-        (b"<r>&amp;</r>", {
-            let mut cfg = Limits::default();
-            cfg.max_owned_bytes = 5;
-            cfg
-        }),
-        (b"<r></r>", {
-            let mut cfg = Limits::default();
-            cfg.max_events = 2;
-            cfg
-        }),
-        (b"<r>plain</r>", {
-            let mut cfg = Limits::default();
-            cfg.max_owned_bytes = 0;
-            cfg
-        }),
+        (
+            b"<r/>".as_slice(),
+            Limits::default()
+                .max_input_bytes(4)
+                .max_token_bytes(4)
+                .max_depth(1)
+                .max_attributes(0)
+                .max_events(1)
+                .max_owned_bytes(0),
+        ),
+        (b"<r a='v'/>", Limits::default().max_attributes(1)),
+        (b"<r>&amp;</r>", Limits::default().max_owned_bytes(5)),
+        (b"<r></r>", Limits::default().max_events(2)),
+        (b"<r>plain</r>", Limits::default().max_owned_bytes(0)),
     ] {
         let mut reader = Reader::with_limits(input, limits).unwrap();
         while reader.read_event().unwrap().is_some() {}
@@ -536,23 +460,13 @@ fn unchanged_values_borrow_input() {
 fn normalized_namespace_copies_share_one_cumulative_budget() {
     let input = b"<r xmlns:p='u&#x72;n'><p:c/><p:c/></r>";
     // 8 bytes for normalization, 3 each for the interner and binding, then 3 per name.
-    let mut reader = Reader::with_limits(input, {
-        let mut cfg = Limits::default();
-        cfg.max_owned_bytes = 20;
-        cfg
-    })
-    .unwrap();
+    let mut reader = Reader::with_limits(input, Limits::default().max_owned_bytes(20)).unwrap();
     assert!(reader.read_event().unwrap().is_some());
     assert!(reader.read_event().unwrap().is_some());
     assert!(reader.read_event().unwrap().is_some());
     assert!(reader.read_event().unwrap().is_some());
     assert!(reader.read_event().unwrap().is_none());
-    let mut reader = Reader::with_limits(input, {
-        let mut cfg = Limits::default();
-        cfg.max_owned_bytes = 19;
-        cfg
-    })
-    .unwrap();
+    let mut reader = Reader::with_limits(input, Limits::default().max_owned_bytes(19)).unwrap();
     reader.read_event().unwrap();
     reader.read_event().unwrap();
     assert_eq!(
@@ -576,12 +490,7 @@ fn namespace_interning_preserves_aliases_and_scope() {
     }
     assert!(read(b"<r xmlns:p='urn:a' xmlns:q='urn:b' p:a='1' q:a='2'/>").is_ok());
     let input = b"<r xmlns:p='u&#x72;n' xmlns:q='urn'><p:a q:b=''/><q:a/></r>";
-    let mut reader = Reader::with_limits(input, {
-        let mut cfg = Limits::default();
-        cfg.max_owned_bytes = 17;
-        cfg
-    })
-    .unwrap();
+    let mut reader = Reader::with_limits(input, Limits::default().max_owned_bytes(17)).unwrap();
     while reader.read_event().unwrap().is_some() {}
 }
 
@@ -597,12 +506,8 @@ fn long_namespace_uri_with_many_qualified_attributes() {
     tag.push_str("/>");
     input.push_str(&tag.repeat(32));
     input.push_str("</r>");
-    let mut reader = Reader::with_limits(input.as_bytes(), {
-        let mut cfg = Limits::default();
-        cfg.max_owned_bytes = 0;
-        cfg
-    })
-    .unwrap();
+    let mut reader =
+        Reader::with_limits(input.as_bytes(), Limits::default().max_owned_bytes(0)).unwrap();
     let mut children = 0;
     while let Some(event) = reader.read_event().unwrap() {
         if let Event::Empty(element) = event {

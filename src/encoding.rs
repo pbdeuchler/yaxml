@@ -13,6 +13,8 @@ pub struct DecodeLimits {
     pub max_decoded_token_bytes: usize,
 }
 
+setters!(const DecodeLimits { max_decoded_bytes: usize, max_decoded_token_bytes: usize });
+
 impl DecodeLimits {
     pub const DEFAULT: Self = Self {
         max_decoded_bytes: 64 * 1024 * 1024,

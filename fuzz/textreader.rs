@@ -324,12 +324,9 @@ impl BufRead for Failing<'_> {
 fn special(control: u8, document: &[u8]) -> bool {
     match control >> 5 {
         5 => {
-            let limits = {
-                let mut cfg = Limits::default();
-                cfg.max_owned_bytes = usize::from(control & 31) * 4;
-                cfg.max_depth = 2 + usize::from(control & 7);
-                cfg
-            };
+            let limits = Limits::default()
+                .max_owned_bytes(usize::from(control & 31) * 4)
+                .max_depth(2 + usize::from(control & 7));
             drain(TextReader::with_limits(document, limits));
         }
         6 => {
@@ -466,11 +463,7 @@ pub fn exercise(input: &[u8]) {
         )
     } else {
         let base = (control >> 5 == 4).then(|| "http://h/d/doc.xml".to_owned());
-        let options = {
-            let mut cfg = ParseOptions::default();
-            cfg.base = base;
-            cfg
-        };
+        let options = ParseOptions::default().base(base);
         walk(
             TextReader::with_options(document, options).unwrap(),
             control,

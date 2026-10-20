@@ -13,8 +13,7 @@
 //!     save::to_vec(&document, &options)?,
 //!     b"<?xml version=\"1.0\"?>\n<r>\n  <a>caf&#xE9;</a>\n  <b/>\n</r>\n"
 //! );
-//! let mut latin1 = options;
-//! latin1.encoding = Some("ISO-8859-1");
+//! let latin1 = options.encoding(Some("ISO-8859-1"));
 //! let a = document.root_element().first_child().unwrap();
 //! assert_eq!(save::to_vec(a, &latin1)?, b"<a>caf\xe9</a>");
 //! # Ok::<(), yaxml::Error>(())
@@ -83,6 +82,8 @@ pub struct Options<'a> {
     /// at most 100; documents always start at 0.
     pub level: usize,
 }
+
+setters!(const Options['a] { flags: u32, encoding: Option<&'a str>, indent: &'a str, level: usize });
 
 impl Options<'_> {
     pub const DEFAULT: Self = Self {

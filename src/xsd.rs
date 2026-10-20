@@ -298,6 +298,8 @@ pub struct Limits {
     pub max_idc_keys: usize,
 }
 
+setters!(const Limits { xml: crate::Limits, max_documents: usize, max_bytes: usize, max_depth: usize, max_model_work: usize, max_counter_vectors: usize, max_idc_keys: usize });
+
 impl Limits {
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,

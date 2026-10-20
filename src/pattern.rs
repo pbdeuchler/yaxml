@@ -83,6 +83,8 @@ pub struct Limits {
     pub max_depth: usize,
 }
 
+setters!(const Limits { max_bytes: usize, max_steps: usize, max_depth: usize });
+
 impl Limits {
     pub const DEFAULT: Self = Self {
         max_bytes: 64 * 1024,

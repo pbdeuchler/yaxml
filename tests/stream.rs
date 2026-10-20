@@ -283,11 +283,7 @@ fn resource_boundaries_are_chunk_independent() {
 #[test]
 fn large_input_small_tokens_and_long_single_token() {
     let input = format!("<r>{}</r>", "<c/>".repeat(8192));
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_token_bytes = 8;
-        cfg
-    };
+    let limits = Limits::default().max_token_bytes(8);
     assert!(capture::push_events(input.as_bytes(), &[input.len()], limits).is_ok());
     let input = format!("<r>{}</r>", "]-?".repeat(4096));
     let expected = capture::slice_events(input.as_bytes()).unwrap();
@@ -295,11 +291,7 @@ fn large_input_small_tokens_and_long_single_token() {
         capture::push_events(input.as_bytes(), &vec![1; input.len()], Limits::default()).unwrap(),
         expected
     );
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_token_bytes = 32;
-        cfg
-    };
+    let limits = Limits::default().max_token_bytes(32);
     assert_eq!(
         capture::push_events(input.as_bytes(), &vec![1; input.len()], limits)
             .unwrap_err()
@@ -310,11 +302,7 @@ fn large_input_small_tokens_and_long_single_token() {
 
 #[test]
 fn input_ceiling_is_cumulative_whole_chunk_and_sticky() {
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_input_bytes = 6;
-        cfg
-    };
+    let limits = Limits::default().max_input_bytes(6);
     // (chunks, failing chunk index): each chunk is checked whole before any byte.
     for (chunks, failing) in [
         (&[b"<r>".as_slice(), b"</r>"][..], Some(1)),

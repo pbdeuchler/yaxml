@@ -387,12 +387,7 @@ fn check_recovered(flags: u32, document: &[u8]) {
     });
     assert_eq!(saved(&again), bytes, "recovery is not a fixed point");
     // Tight limits hold under recovery.
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_depth = 4;
-        cfg.max_attributes = 2;
-        cfg
-    };
+    let limits = Limits::default().max_depth(4).max_attributes(2);
     if let Ok(tree) = Document::parse_with(document, ParseOptions::new(flags).with_limits(limits)) {
         for node in tree.nodes() {
             let elements = std::iter::successors(node.parent(), |node| node.parent());

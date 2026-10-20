@@ -213,6 +213,8 @@ pub struct Limits {
     pub max_work: usize,
 }
 
+setters!(const Limits { xml: crate::Limits, max_include_depth: usize, max_work: usize });
+
 impl Limits {
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,

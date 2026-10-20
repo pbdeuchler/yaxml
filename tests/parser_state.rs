@@ -26,11 +26,7 @@ fn slice_failures_preserve_consumed_positions_and_early_structural_checks() {
             }
         }
     }
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_token_bytes = 0;
-        cfg
-    };
+    let limits = Limits::default().max_token_bytes(0);
     let mut reader = Reader::with_limits(b"<!DOCTYPE", limits).unwrap();
     assert_eq!(
         reader.read_event().unwrap_err().kind,

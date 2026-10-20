@@ -583,60 +583,16 @@ fn limits_bound_loading_and_nesting() {
     let total: usize = files.iter().map(|(_, text)| text.len()).sum();
     let cases = [
         ("defaults", Limits::default(), Some("end")),
-        (
-            "loads",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_loads = 5;
-                cfg
-            },
-            None,
-        ),
-        (
-            "enough loads",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_loads = 6;
-                cfg
-            },
-            Some("end"),
-        ),
-        (
-            "bytes",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_bytes = total - 1;
-                cfg
-            },
-            None,
-        ),
+        ("loads", Limits::default().max_loads(5), None),
+        ("enough loads", Limits::default().max_loads(6), Some("end")),
+        ("bytes", Limits::default().max_bytes(total - 1), None),
         (
             "enough bytes",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_bytes = total;
-                cfg
-            },
+            Limits::default().max_bytes(total),
             Some("end"),
         ),
-        (
-            "depth",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_depth = 4;
-                cfg
-            },
-            None,
-        ),
-        (
-            "enough depth",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_depth = 5;
-                cfg
-            },
-            Some("end"),
-        ),
+        ("depth", Limits::default().max_depth(4), None),
+        ("enough depth", Limits::default().max_depth(5), Some("end")),
     ];
     for (name, limits, expected) in cases {
         let (resolver, _) = served(&files);
@@ -660,20 +616,12 @@ fn building_a_catalog_fails_cleanly() {
         ("missing.xml", Limits::default(), Error::Missing),
         (
             "c.xml",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_loads = 0;
-                cfg
-            },
+            Limits::default().max_loads(0),
             Error::LimitExceeded,
         ),
         (
             "c.xml",
-            {
-                let mut cfg = Limits::default();
-                cfg.max_bytes = 3;
-                cfg
-            },
+            Limits::default().max_bytes(3),
             Error::LimitExceeded,
         ),
         ("unclosed.xml", Limits::default(), Error::Malformed),
@@ -887,11 +835,7 @@ fn sgml_catalog_entries_load_eagerly_once() {
     }
     // Nesting beyond max_depth is skipped, not an error.
     let (resolver, _) = served(&[("c.sgml", "CATALOG c.sgml\nPUBLIC p x\n")]);
-    let shallow = {
-        let mut cfg = Limits::default();
-        cfg.max_depth = 0;
-        cfg
-    };
+    let shallow = Limits::default().max_depth(0);
     let mut catalog = Catalog::load("c.sgml", shallow, resolver).unwrap();
     assert_eq!(catalog.resolve(Some("p"), None).as_deref(), Some("x"));
 }

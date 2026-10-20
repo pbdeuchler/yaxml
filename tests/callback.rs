@@ -85,11 +85,7 @@ fn borrowed_and_buffered_tokens_are_indistinguishable() {
             }
         }
     }
-    let tight = {
-        let mut cfg = Limits::default();
-        cfg.max_token_bytes = 12;
-        cfg
-    };
+    let tight = Limits::default().max_token_bytes(12);
     let cases: &[&[u8]] = &[
         b"<r a='>' b=\"'\">t&amp;x\r\n</r >",
         b"<?xml version='1.0'?><!--c-->\n<?p d?><r><![CDATA[x]]>y<e/><!---->z</r>",

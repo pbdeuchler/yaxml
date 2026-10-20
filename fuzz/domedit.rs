@@ -43,23 +43,13 @@ const XML: &str = "http://www.w3.org/XML/1998/namespace";
 fn limits(control: u8) -> EditLimits {
     match control % 4 {
         0 => EditLimits::default(),
-        1 => {
-            let mut cfg = EditLimits::default();
-            cfg.max_namespace_work = usize::from(control) / 4;
-            cfg
-        }
-        2 => {
-            let mut cfg = EditLimits::default();
-            cfg.max_depth = usize::from(control) / 16 + 1;
-            cfg.max_created_attributes = usize::from(control) / 4;
-            cfg
-        }
-        _ => {
-            let mut cfg = EditLimits::default();
-            cfg.max_owned_bytes = usize::from(control) * 8;
-            cfg.max_value_bytes = usize::from(control) / 8;
-            cfg
-        }
+        1 => EditLimits::default().max_namespace_work(usize::from(control) / 4),
+        2 => EditLimits::default()
+            .max_depth(usize::from(control) / 16 + 1)
+            .max_created_attributes(usize::from(control) / 4),
+        _ => EditLimits::default()
+            .max_owned_bytes(usize::from(control) * 8)
+            .max_value_bytes(usize::from(control) / 8),
     }
 }
 

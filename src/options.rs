@@ -118,6 +118,8 @@ pub struct ParseOptions {
     pub resolver: Option<Box<dyn Resolver>>,
 }
 
+setters!(fn ParseOptions { flags: u32, limits: Limits, decode_limits: DecodeLimits, base: Option<String>, resolver: Option<Box<dyn Resolver>> });
+
 impl Default for ParseOptions {
     fn default() -> Self {
         Self::DEFAULT

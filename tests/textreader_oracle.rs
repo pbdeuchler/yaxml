@@ -237,11 +237,7 @@ fn compare_with_helper(name: &str, cases: &[(u32, &str)]) {
         assert!(output.status.success(), "helper failed on {case:?}");
         let oracle = String::from_utf8(output.stdout).unwrap();
         let base = path.to_str().unwrap();
-        let options = {
-            let mut cfg = yaxml::ParseOptions::new(*flags);
-            cfg.base = Some(base.to_owned());
-            cfg
-        };
+        let options = yaxml::ParseOptions::new(*flags).base(Some(base.to_owned()));
         let ours = describe(TextReader::with_options(case.as_bytes(), options).unwrap());
         if !agree(&oracle, &ours) {
             let (mut theirs, mut mine) = (oracle.lines(), ours.lines());

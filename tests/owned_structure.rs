@@ -343,12 +343,9 @@ fn quota(limit: EditLimit) -> EditError {
     error(EditErrorKind::LimitExceeded(limit), None)
 }
 fn limits(created: usize, owned: usize) -> EditLimits {
-    {
-        let mut cfg = EditLimits::default();
-        cfg.max_created_nodes = created;
-        cfg.max_owned_bytes = owned;
-        cfg
-    }
+    EditLimits::default()
+        .max_created_nodes(created)
+        .max_owned_bytes(owned)
 }
 
 #[test]
@@ -679,11 +676,7 @@ fn pi_target_names_have_independent_validation_and_precise_argument_precedence()
     let parent = document.root_element().id();
     let model = Model::initial(&document);
     let mut editor = document
-        .edit({
-            let mut cfg = EditLimits::default();
-            cfg.max_value_bytes = 0;
-            cfg
-        })
+        .edit(EditLimits::default().max_value_bytes(0))
         .unwrap();
     assert_eq!(
         editor.append_processing_instruction(parent, "", "\0"),
@@ -701,13 +694,7 @@ fn placement_handle_and_protection_checks_precede_payloads_and_quotas() {
         let children: Vec<_> = document.root_element().children().map(|n| n.id()).collect();
         let foreign = parse("<r/>", mode);
         let mut model = Model::initial(&document);
-        let mut editor = document
-            .edit({
-                let mut cfg = limits(1, 0);
-                cfg.max_value_bytes = 0;
-                cfg
-            })
-            .unwrap();
+        let mut editor = document.edit(limits(1, 0).max_value_bytes(0)).unwrap();
         remove(&mut editor, &mut model, children[4]);
         for id in [
             foreign.root().id(),
@@ -766,11 +753,7 @@ fn byte_and_created_node_ceilings_are_inclusive_and_do_not_mask_validation() {
                 let parent = document.root_element().id();
                 let mut model = Model::initial(&document);
                 let mut editor = document
-                    .edit({
-                        let mut cfg = EditLimits::default();
-                        cfg.max_value_bytes = ceiling;
-                        cfg
-                    })
+                    .edit(EditLimits::default().max_value_bytes(ceiling))
                     .unwrap();
                 let result = leaf.append(&mut editor, parent, "é🙂");
                 if ceiling == 5 {
@@ -790,11 +773,7 @@ fn byte_and_created_node_ceilings_are_inclusive_and_do_not_mask_validation() {
             let parent = document.root_element().id();
             let mut model = Model::initial(&document);
             let mut editor = document
-                .edit({
-                    let mut cfg = EditLimits::default();
-                    cfg.max_value_bytes = ceiling;
-                    cfg
-                })
+                .edit(EditLimits::default().max_value_bytes(ceiling))
                 .unwrap();
             let result = editor.append_processing_instruction(parent, "é🙂", "é🙂");
             if ceiling == 5 {
@@ -1006,11 +985,10 @@ fn deep_removal_and_wide_tombstone_navigation_are_iterative() {
                 "<n>".repeat(DEPTH),
                 "</n>".repeat(DEPTH)
             );
-            let mut document = OwnedDocument::with_limits(input.as_bytes(), {
-                let mut cfg = Limits::default();
-                cfg.max_depth = DEPTH + 1;
-                cfg
-            })
+            let mut document = OwnedDocument::with_limits(
+                input.as_bytes(),
+                Limits::default().max_depth(DEPTH + 1),
+            )
             .unwrap();
             let subtree = document.root_element().first_child().unwrap();
             let id = subtree.id();

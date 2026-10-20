@@ -334,11 +334,8 @@ fn exact_input_quota_probes_eof_without_consuming_an_excess_byte() {
             for tail in [b"".as_slice(), b"tail"] {
                 let bytes = [root.as_slice(), tail].concat();
                 let (source, trace) = Source::new(bytes, capacity, Faults::default());
-                let mut reader = BufferedReader::with_limits(source, {
-                    let mut cfg = Limits::default();
-                    cfg.max_input_bytes = quota;
-                    cfg
-                });
+                let mut reader =
+                    BufferedReader::with_limits(source, Limits::default().max_input_bytes(quota));
                 let (event, range) = reader.read_event().unwrap().unwrap();
                 assert!(matches!(event, Event::Empty(_)));
                 assert_eq!(range.input_range(), Some(start..quota));
@@ -378,11 +375,8 @@ fn exact_input_quota_probes_eof_without_consuming_an_excess_byte() {
                 ..Faults::default()
             },
         );
-        let mut reader = BufferedReader::with_limits(source, {
-            let mut cfg = Limits::default();
-            cfg.max_input_bytes = quota;
-            cfg
-        });
+        let mut reader =
+            BufferedReader::with_limits(source, Limits::default().max_input_bytes(quota));
         assert!(reader.read_event().unwrap().is_some());
         let before = trace.borrow().fills;
         assert!(matches!(reader.read_event().unwrap_err(), ReadError::Io(_)));
@@ -402,11 +396,8 @@ fn input_quota_counts_the_delimiter_needed_to_deliver_text() {
         ] {
             for capacity in [1, 7, 65536] {
                 let (source, trace) = Source::new(bytes.clone(), capacity, Faults::default());
-                let mut reader = BufferedReader::with_limits(source, {
-                    let mut cfg = Limits::default();
-                    cfg.max_input_bytes = quota;
-                    cfg
-                });
+                let mut reader =
+                    BufferedReader::with_limits(source, Limits::default().max_input_bytes(quota));
                 assert!(matches!(
                     reader.read_event().unwrap().unwrap().0,
                     Event::Start(_)
@@ -444,11 +435,7 @@ fn zero_input_quota_distinguishes_empty_source_from_excess_input() {
         (b"<r/>", ErrorKind::LimitExceeded(Limit::InputBytes)),
     ] {
         let (source, trace) = Source::new(bytes.to_vec(), 65536, Faults::default());
-        let mut reader = BufferedReader::with_limits(source, {
-            let mut cfg = Limits::default();
-            cfg.max_input_bytes = 0;
-            cfg
-        });
+        let mut reader = BufferedReader::with_limits(source, Limits::default().max_input_bytes(0));
         let error = xml(reader.read_event().unwrap_err());
         assert_eq!(
             error,

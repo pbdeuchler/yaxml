@@ -369,21 +369,21 @@ pub fn exercise_writer(input: &[u8]) {
 /// Input-derived resource ceilings across every parsing API.
 pub fn exercise_limits(input: &[u8]) -> Outcome {
     let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
-    exercise_with_limits(input, {
-        let mut cfg = Limits::default();
-        cfg.max_input_bytes = if byte(5) & 1 == 0 {
-            MAX_INPUT_BYTES
-        } else {
-            input.len().saturating_sub(1)
-        };
-        cfg.max_token_bytes = byte(0);
-        cfg.max_depth = byte(1) & 15;
-        cfg.max_attributes = byte(2) & 15;
-        cfg.max_events = byte(3);
-        cfg.max_owned_bytes = byte(4);
-        cfg.max_entity_expansion_bytes = byte(6);
-        cfg
-    })
+    exercise_with_limits(
+        input,
+        Limits::default()
+            .max_input_bytes(if byte(5) & 1 == 0 {
+                MAX_INPUT_BYTES
+            } else {
+                input.len().saturating_sub(1)
+            })
+            .max_token_bytes(byte(0))
+            .max_depth(byte(1) & 15)
+            .max_attributes(byte(2) & 15)
+            .max_events(byte(3))
+            .max_owned_bytes(byte(4))
+            .max_entity_expansion_bytes(byte(6)),
+    )
 }
 
 /// UTF-16/UTF-32 detection and decoding, returning the outcome for recognized
@@ -393,12 +393,12 @@ pub fn exercise_encoding(input: &[u8]) -> Option<Outcome> {
         return Some(encoding::exercise(input));
     }
     let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
-    encoding::exercise_decode_limits(input, {
-        let mut cfg = yaxml::DecodeLimits::DEFAULT;
-        cfg.max_decoded_bytes = byte(6);
-        cfg.max_decoded_token_bytes = byte(7);
-        cfg
-    });
+    encoding::exercise_decode_limits(
+        input,
+        yaxml::DecodeLimits::DEFAULT
+            .max_decoded_bytes(byte(6))
+            .max_decoded_token_bytes(byte(7)),
+    );
     None
 }
 

@@ -173,3 +173,28 @@ fn a_changed_default_is_detected() {
     limits.max_depth += 1;
     assert_ne!(format!("{limits:?}"), xml());
 }
+
+#[test]
+fn setters_are_named_after_fields_and_chain() {
+    // A field missing from its `setters!` list fails to compile in the crate.
+    let limits = Limits::DEFAULT.max_depth(3).max_attributes(10);
+    assert_eq!((limits.max_depth, limits.max_attributes), (3, 10));
+    assert_eq!(limits.max_events, Limits::DEFAULT.max_events);
+    const STATIC: Limits = Limits::DEFAULT.max_depth(7);
+    assert_eq!(STATIC.max_depth, 7);
+
+    let options = ParseOptions::DEFAULT
+        .flags(8)
+        .limits(limits)
+        .base(Some("b".into()));
+    assert_eq!(
+        (options.flags, options.limits, options.base.as_deref()),
+        (8, limits, Some("b"))
+    );
+
+    let save = save::Options::DEFAULT.encoding(Some("UTF-8")).level(2);
+    assert_eq!(
+        (save.encoding, save.level, save.indent),
+        (Some("UTF-8"), 2, "  ")
+    );
+}

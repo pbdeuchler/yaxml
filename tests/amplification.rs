@@ -148,11 +148,7 @@ fn classic_attacks_stop_within_the_default_allowance_on_every_surface() {
             .max_entity_expansion_bytes
             .max(input.len() * limits.max_entity_amplification);
         // An event ceiling at that bound would be hit first by a runaway.
-        let bounded = {
-            let mut cfg = limits;
-            cfg.max_events = allowance / 20 + input.len();
-            cfg
-        };
+        let bounded = limits.max_events(allowance / 20 + input.len());
         for surface in SURFACES {
             assert_eq!(
                 run(surface, &input, bounded).map_err(|error| error.kind),
@@ -169,10 +165,9 @@ type Builder = fn(usize) -> Vec<u8>;
 /// Smallest fixed allowance that accepts `input` with amplification disabled.
 fn threshold(input: &[u8]) -> usize {
     let limits = |floor| {
-        let mut cfg = Limits::default();
-        cfg.max_entity_expansion_bytes = floor;
-        cfg.max_entity_amplification = 0;
-        cfg
+        Limits::default()
+            .max_entity_expansion_bytes(floor)
+            .max_entity_amplification(0)
     };
     let (mut low, mut high) = (0, 1 << 22);
     assert_eq!(kind(input, limits(high)), None);
@@ -247,10 +242,9 @@ fn amplification_scales_with_consumed_input_above_the_floor() {
         )
     };
     let limits = |amplification| {
-        let mut cfg = Limits::default();
-        cfg.max_entity_expansion_bytes = 0;
-        cfg.max_entity_amplification = amplification;
-        cfg
+        Limits::default()
+            .max_entity_expansion_bytes(0)
+            .max_entity_amplification(amplification)
     };
     // Each use consumes three input bytes and costs about thirty: ratio ~10.
     assert_eq!(

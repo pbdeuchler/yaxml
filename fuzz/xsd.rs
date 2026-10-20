@@ -24,15 +24,12 @@ use yaxml::{Document, OwnedDocument, ParseOptions, PushParser, Request, Resolver
 
 fn limits(control: u8, schema: usize) -> Limits {
     let pick = |bit: u8, tight, roomy| if control & bit != 0 { tight } else { roomy };
-    let mut limits = {
-        let mut cfg = Limits::default();
-        cfg.max_documents = pick(1, 1, 4);
-        cfg.max_bytes = pick(2, 256, 1 << 16);
-        cfg.max_depth = pick(4, 2, 32);
-        cfg.max_model_work = pick(8, 16 + schema * 7 % 1024, 1 << 16);
-        cfg.max_counter_vectors = pick(2, 1, 16);
-        cfg
-    };
+    let mut limits = Limits::default()
+        .max_documents(pick(1, 1, 4))
+        .max_bytes(pick(2, 256, 1 << 16))
+        .max_depth(pick(4, 2, 32))
+        .max_model_work(pick(8, 16 + schema * 7 % 1024, 1 << 16))
+        .max_counter_vectors(pick(2, 1, 16));
     limits.xml.max_depth = pick(4, 8, limits.xml.max_depth);
     limits
 }

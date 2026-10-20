@@ -55,14 +55,11 @@ pub(super) fn exercise(input: &[u8]) {
     } else {
         flags
     };
-    let options = {
-        let mut cfg = save::Options::DEFAULT;
-        cfg.flags = flags;
-        cfg.encoding = ENCODINGS[(seed >> 8) as usize % ENCODINGS.len()];
-        cfg.indent = INDENTS[(seed >> 11) as usize % INDENTS.len()];
-        cfg.level = (seed >> 40) as usize % 4;
-        cfg
-    };
+    let options = save::Options::DEFAULT
+        .flags(flags)
+        .encoding(ENCODINGS[(seed >> 8) as usize % ENCODINGS.len()])
+        .indent(INDENTS[(seed >> 11) as usize % INDENTS.len()])
+        .level((seed >> 40) as usize % 4);
     if seed >> 24 & 7 == 0 {
         rejected_options(&owned, seed);
     }
@@ -88,11 +85,7 @@ pub(super) fn exercise(input: &[u8]) {
         .all(|node| node.entity_name().is_none() || node.first_child().is_some());
     match output {
         Ok(_) if !resolvable => {}
-        Ok(output) => fixed_point(&output, parse, &{
-            let mut cfg = options;
-            cfg.encoding = label;
-            cfg
-        }),
+        Ok(output) => fixed_point(&output, parse, &options.encoding(label)),
         Err(error) => assert_lossy(error.kind, label),
     }
     // One subtree, chosen by the hash.
@@ -137,17 +130,9 @@ fn rejected_options(owned: &OwnedDocument, seed: u64) {
     let unsupported = Err(ErrorKind::UnsupportedOption);
     let flags = save::Options::new(1 << (11 + (seed >> 29 & 15)));
     assert_eq!(save::to_vec(owned, &flags).map_err(|e| e.kind), unsupported);
-    let bad = {
-        let mut cfg = save::Options::new(0);
-        cfg.indent = indent;
-        cfg
-    };
+    let bad = save::Options::new(0).indent(indent);
     assert_eq!(save::to_vec(owned, &bad).map_err(|e| e.kind), unsupported);
-    let bogus = {
-        let mut cfg = save::Options::new(0);
-        cfg.encoding = Some("x-bogus");
-        cfg
-    };
+    let bogus = save::Options::new(0).encoding(Some("x-bogus"));
     let kind = save::to_vec(owned, &bogus).map_err(|e| e.kind);
     assert_eq!(kind, Err(ErrorKind::UnsupportedEncoding));
     let html = save::Options::new(save::AS_HTML);

@@ -64,9 +64,13 @@ Every public `Limits`/`Options` struct (`Limits`, `DecodeLimits`,
 breaking change, but a struct literal, even with `..Default::default()`, no
 longer compiles outside the crate. One convention applies to all of them:
 
-- Fields stay `pub`. A binding sets any field by name on a value it owns:
-  `let mut l = Limits::DEFAULT; l.max_depth = 64;` (the struct is `Copy` except
-  `ParseOptions`).
+- Fields stay `pub`, and every field has a chainable setter named after it
+  (`src/setters.rs`, one `setters!(Struct { field: Type, .. })` per struct; a
+  field missing from the list fails to compile): `Limits::DEFAULT.max_depth(64)
+  .max_attributes(10)`. Setters are `const fn` except on `ParseOptions`, whose
+  `Box<dyn Resolver>` and `String` fields have drop glue. A binding sets any
+  field by name through its setter, or by assigning the pub field on a value it
+  owns.
 - `Default` and `pub const DEFAULT: Self` exist and agree, so statics and
   binding tables need no runtime call. `Default::default()` is
   `Self::DEFAULT`. `tests/defaults.rs` pins every default value; changing a
@@ -74,8 +78,8 @@ longer compiles outside the crate. One convention applies to all of them:
 - Types with no meaningful default take their required input in a `const fn
   new` (`c14n::Options::new(mode)`); `html::Options::new(flags)`,
   `save::Options::new(flags)` and `ParseOptions::new(flags)` are shorthands.
-- No per-field `with_*` builders. The only ones are composites that earn their
-  keep: `ParseOptions::with_limits`, `with_decode_limits`, `with_resolver`.
+- There are no `with_*` builders; `ParseOptions::with_limits`,
+  `with_decode_limits` and `with_resolver` are older composites.
 - Defaults are the hostile-input policy. A binding exposes the field names
   as-is and never substitutes its own limits.
 

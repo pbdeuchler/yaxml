@@ -58,11 +58,7 @@ fn utf16le(text: &str) -> Vec<u8> {
 
 #[test]
 fn parse_in_matches_parse_with_for_every_allocator() {
-    let tiny = {
-        let mut cfg = Limits::default();
-        cfg.max_input_bytes = 4;
-        cfg
-    };
+    let tiny = Limits::default().max_input_bytes(4);
     let cases: [(&str, Vec<u8>, u32, Limits, bool); 11] = [
         (
             "plain",
@@ -282,11 +278,7 @@ fn create_in_reports_the_same_errors_as_create() {
         ),
         (
             root("r"),
-            {
-                let mut cfg = EditLimits::default();
-                cfg.max_created_nodes = 0;
-                cfg
-            },
+            EditLimits::default().max_created_nodes(0),
             Some(EditErrorKind::LimitExceeded(yaxml::EditLimit::CreatedNodes)),
         ),
     ];

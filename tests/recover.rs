@@ -203,11 +203,7 @@ fn recovery_reads_invalid_utf8_as_libxml2() {
 #[test]
 fn recovery_decodes_utf16_like_utf8() {
     let decoded = |case: &&(&str, &str, &[ErrorKind])| case.0.is_ascii();
-    let options = {
-        let mut cfg = save::Options::DEFAULT;
-        cfg.encoding = Some("UTF-8");
-        cfg
-    };
+    let options = save::Options::DEFAULT.encoding(Some("UTF-8"));
     for &(input, _, errors) in CASES.iter().chain(ROOTLESS).filter(decoded) {
         let utf16: Vec<u8> = "\u{feff}"
             .encode_utf16()
@@ -265,12 +261,7 @@ fn resource_limits_and_loops_stay_fatal() {
         "<r {}/>",
         (0..5).map(|i| format!("a{i}='' ")).collect::<String>()
     );
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_attributes = 4;
-        cfg.max_events = 3;
-        cfg
-    };
+    let limits = Limits::default().max_attributes(4).max_events(3);
     // (input, limits, error)
     let cases = [
         (

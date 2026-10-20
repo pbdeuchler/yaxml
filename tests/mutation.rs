@@ -183,11 +183,7 @@ fn owned_limit() -> EditError {
 }
 
 fn limits(owned: usize) -> EditLimits {
-    {
-        let mut cfg = EditLimits::default();
-        cfg.max_owned_bytes = owned;
-        cfg
-    }
+    EditLimits::default().max_owned_bytes(owned)
 }
 
 #[test]
@@ -395,12 +391,7 @@ fn target_resolution_and_value_length_precede_character_and_lexical_checks() {
         let foreign = parse("<r a='x'>t</r>", mode);
         let expected = snapshot(&document);
         let mut editor = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_value_bytes = 0;
-                cfg.max_owned_bytes = 0;
-                cfg
-            })
+            .edit(EditLimits::default().max_value_bytes(0).max_owned_bytes(0))
             .unwrap();
         for id in [
             foreign.root().id(),
@@ -471,11 +462,7 @@ fn value_byte_ceilings_are_inclusive_for_both_setters_and_all_leaf_kinds() {
             let ids: Vec<_> = document.root_element().children().map(|n| n.id()).collect();
             let mut expected = snapshot(&document);
             let mut editor = document
-                .edit({
-                    let mut cfg = EditLimits::default();
-                    cfg.max_value_bytes = ceiling;
-                    cfg
-                })
+                .edit(EditLimits::default().max_value_bytes(ceiling))
                 .unwrap();
             for id in ids {
                 let result = editor.set_node_value(id, "é🙂");
@@ -557,12 +544,7 @@ fn exact_full_capacity_and_persistent_reopen_quotas_match_literal_goldens() {
         let id = document.root_element().first_child().unwrap().id();
         let mut expected = snapshot(&document);
         let mut editor = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_value_bytes = 1;
-                cfg.max_owned_bytes = 3;
-                cfg
-            })
+            .edit(EditLimits::default().max_value_bytes(1).max_owned_bytes(3))
             .unwrap();
         assert_eq!(
             editor.set_node_value(id, "\0"),
@@ -726,12 +708,9 @@ fn deep_and_wide_edits_serialize_and_drop_without_recursive_traversal() {
             const DEPTH: usize = 8192;
             let input = format!("{}old{}", "<n>".repeat(DEPTH), "</n>".repeat(DEPTH));
             let expected = format!("{}é🙂{}", "<n>".repeat(DEPTH), "</n>".repeat(DEPTH));
-            let mut document = OwnedDocument::with_limits(input.as_bytes(), {
-                let mut cfg = Limits::default();
-                cfg.max_depth = DEPTH;
-                cfg
-            })
-            .unwrap();
+            let mut document =
+                OwnedDocument::with_limits(input.as_bytes(), Limits::default().max_depth(DEPTH))
+                    .unwrap();
             let id = document.nodes().last().unwrap().id();
             let root = document.root_element().id();
             let range = document.node(id).unwrap().range();
@@ -744,11 +723,7 @@ fn deep_and_wide_edits_serialize_and_drop_without_recursive_traversal() {
             assert_eq!(document.root_element().id(), root);
             assert_eq!(document.nodes().count(), DEPTH + 2);
             assert_eq!(
-                output_with_limits(&document, {
-                    let mut cfg = WriterLimits::default();
-                    cfg.max_depth = DEPTH;
-                    cfg
-                }),
+                output_with_limits(&document, WriterLimits::default().max_depth(DEPTH)),
                 expected.as_bytes()
             );
         })

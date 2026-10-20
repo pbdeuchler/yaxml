@@ -27,15 +27,12 @@ struct Schemas {
 fn limits(o: &Opts) -> Limits {
     let base = Limits::default();
     let huge = |value: usize| if o.huge { value << 6 } else { value };
-    {
-        let mut cfg = base;
-        cfg.max_input_bytes = o
-            .maxmem
-            .map_or(base.max_input_bytes, |m| m.min(base.max_input_bytes));
-        cfg.max_owned_bytes = o.maxmem.unwrap_or_else(|| huge(base.max_owned_bytes));
-        cfg.max_entity_amplification = o.max_ampl.unwrap_or(base.max_entity_amplification);
-        cfg
-    }
+    base.max_input_bytes(
+        o.maxmem
+            .map_or(base.max_input_bytes, |m| m.min(base.max_input_bytes)),
+    )
+    .max_owned_bytes(o.maxmem.unwrap_or_else(|| huge(base.max_owned_bytes)))
+    .max_entity_amplification(o.max_ampl.unwrap_or(base.max_entity_amplification))
 }
 
 /// Reads files from disk, trying the `--path` directories for the file name
@@ -151,12 +148,10 @@ fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Err
         let noblanks = o.noblanks || o.format == 1;
         let flags = o.html_flags | yaxml::html::COMPACT | yaxml::html::BIG_LINES;
         let flags = flags | if noblanks { yaxml::html::NOBLANKS } else { 0 };
-        return Ok(yaxml::html::parse(input, {
-            let mut cfg = yaxml::html::Options::DEFAULT;
-            cfg.flags = flags;
-            cfg.limits = limits;
-            cfg
-        })?
+        return Ok(yaxml::html::parse(
+            input,
+            yaxml::html::Options::DEFAULT.flags(flags).limits(limits),
+        )?
         .document);
     }
     let options = ParseOptions::new(flags(o)).with_limits(limits);
@@ -170,20 +165,13 @@ fn save(o: &Opts, document: &OwnedDocument, out: &mut Vec<u8>) -> i32 {
         2 => save::WSNONSIG,
         _ => 0,
     } | if o.xmlout { save::AS_XML } else { 0 };
-    let options = {
-        let mut cfg = save::Options::default();
-        cfg.flags = flags;
-        cfg.encoding = o.encode.as_deref();
-        cfg.indent = &indent;
-        cfg
-    };
+    let options = save::Options::default()
+        .flags(flags)
+        .encoding(o.encode.as_deref())
+        .indent(&indent);
     let saved = match o.c14n {
         Some(mode) => {
-            let options = {
-                let mut cfg = c14n::Options::new(mode);
-                cfg.with_comments = true;
-                cfg
-            };
+            let options = c14n::Options::new(mode).with_comments(true);
             c14n::write(document, &options, &mut *out).map_err(|_| "Failed to canonicalize")
         }
         None => save::to_vec(document, &options)
@@ -341,13 +329,10 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
     };
     let mut out = Vec::new();
     let included = if o.xinclude {
-        let options = {
-            let mut cfg = yaxml::xinclude::Options::DEFAULT;
-            cfg.base_fixup = !o.nofixup_base;
-            cfg.limits = limits(o);
-            cfg.parse_flags = flags(o) & !yaxml::options::XINCLUDE;
-            cfg
-        };
+        let options = yaxml::xinclude::Options::DEFAULT
+            .base_fixup(!o.nofixup_base)
+            .limits(limits(o))
+            .parse_flags(flags(o) & !yaxml::options::XINCLUDE);
         match yaxml::xinclude::process(&document, file, resolver(o), &options) {
             Ok(result) => {
                 document = result;

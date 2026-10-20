@@ -199,11 +199,11 @@ fn borrowing_reader_keeps_its_utf8_contract() {
 fn decoded_ceilings_count_utf8_output() {
     let input = document("ISO-8859-15", b"\xa4\xa4");
     let limit = |max_decoded_bytes| {
-        OwnedDocument::with_decode_limits(&input, Limits::default(), {
-            let mut cfg = DecodeLimits::default();
-            cfg.max_decoded_bytes = max_decoded_bytes;
-            cfg
-        })
+        OwnedDocument::with_decode_limits(
+            &input,
+            Limits::default(),
+            DecodeLimits::default().max_decoded_bytes(max_decoded_bytes),
+        )
         .map(|_| ())
     };
     // Each U+20AC is three UTF-8 bytes for one source byte.
@@ -221,11 +221,7 @@ fn decoded_ceilings_count_utf8_output() {
 fn declared_charset_errors_follow_token_order_and_borrowing_utf8_precedes() {
     let valid = b"<?xml version='1.0' encoding='latin1'?><r>\xe9</r>";
     let bad_decl = b"<?xml version='1.0' encoding='latin1'\xe9?><r/>";
-    let limit = |max_token_bytes| {
-        let mut cfg = Limits::default();
-        cfg.max_token_bytes = max_token_bytes;
-        cfg
-    };
+    let limit = |max_token_bytes| Limits::default().max_token_bytes(max_token_bytes);
     let token = ErrorKind::LimitExceeded(Limit::TokenBytes);
     // (input, limits, borrowed, streaming)
     for (input, limits, borrowed, streaming) in [

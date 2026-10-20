@@ -608,11 +608,7 @@ fn owned_pool_normalization_and_streaming_retention_share_one_budget() {
         for order in ORDERS {
             let bytes = encode(input, order, true);
             for ceiling in [boundary - 1, boundary, boundary + 1] {
-                let limits = {
-                    let mut cfg = Limits::default();
-                    cfg.max_owned_bytes = ceiling;
-                    cfg
-                };
+                let limits = Limits::default().max_owned_bytes(ceiling);
                 let result =
                     OwnedDocument::with_decode_limits(&bytes, limits, DecodeLimits::default());
                 if ceiling < boundary {
@@ -639,11 +635,7 @@ fn owned_pool_normalization_and_streaming_retention_share_one_budget() {
     // Each consumer fits separately in eight bytes; their combined use does not.
     for order in ORDERS {
         let bytes = encode("<r>&amp;</r>", order, true);
-        let limits = {
-            let mut cfg = Limits::default();
-            cfg.max_owned_bytes = 8;
-            cfg
-        };
+        let limits = Limits::default().max_owned_bytes(8);
         limited_stream(&bytes, limits, DecodeLimits::default()).unwrap();
         assert_eq!(
             OwnedDocument::with_limits(&bytes, limits).unwrap_err().kind,

@@ -1095,6 +1095,8 @@ pub struct EditLimits {
     pub max_namespace_work: usize,
 }
 
+setters!(const EditLimits { max_value_bytes: usize, max_owned_bytes: usize, max_created_nodes: usize, max_name_bytes: usize, max_supplied_bytes: usize, max_attributes: usize, max_depth: usize, max_created_attributes: usize, max_namespace_work: usize });
+
 /// A lexical prefix choice for a constructed element or attribute name.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrefixPolicy<'a> {

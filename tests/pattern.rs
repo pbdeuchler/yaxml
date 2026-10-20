@@ -160,13 +160,7 @@ fn compile_errors() {
         let error = Pattern::compile(source, NS, flags).expect_err(source);
         assert_eq!(error.kind, kind, "{source:?} flags {flags}");
     }
-    let tiny = {
-        let mut cfg = Limits::DEFAULT;
-        cfg.max_bytes = 8;
-        cfg.max_steps = 3;
-        cfg.max_depth = 8;
-        cfg
-    };
+    let tiny = Limits::DEFAULT.max_bytes(8).max_steps(3).max_depth(8);
     for (source, limit) in [("a/b/c/d", Limit::Steps), ("abcdefghi", Limit::Bytes)] {
         let error = Pattern::compile_with_limits(source, &[], 0, tiny).unwrap_err();
         assert_eq!(error.kind, ErrorKind::LimitExceeded(limit), "{source}");
@@ -507,11 +501,7 @@ fn stream_availability_and_needs() {
 
 #[test]
 fn stream_depth_is_bounded() {
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_depth = 3;
-        cfg
-    };
+    let limits = Limits::default().max_depth(3);
     let pattern = Pattern::compile_with_limits("//a", &[], 0, limits).unwrap();
     let mut stream = pattern.stream().unwrap();
     for _ in 0..3 {

@@ -25,6 +25,8 @@ pub struct WriterLimits {
     pub max_owned_bytes: usize,
 }
 
+setters!(const WriterLimits { max_output_bytes: usize, max_token_bytes: usize, max_depth: usize, max_attributes: usize, max_events: usize, max_owned_bytes: usize });
+
 impl WriterLimits {
     pub const DEFAULT: Self = Self {
         max_output_bytes: 64 * 1024 * 1024,

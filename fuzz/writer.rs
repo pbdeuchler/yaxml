@@ -26,12 +26,12 @@ fn roundtrip(input: &[u8]) {
     let ceiling = super::expanded_bound(input.len())
         .saturating_mul(6)
         .saturating_add(1024);
-    let mut writer = Writer::with_limits(Vec::new(), {
-        let mut cfg = WriterLimits::default();
-        cfg.max_output_bytes = ceiling;
-        cfg.max_token_bytes = ceiling;
-        cfg
-    });
+    let mut writer = Writer::with_limits(
+        Vec::new(),
+        WriterLimits::default()
+            .max_output_bytes(ceiling)
+            .max_token_bytes(ceiling),
+    );
     let mut reader = Reader::new(input).unwrap();
     while let Some(event) = reader.read_event().unwrap() {
         if let Err(error) = writer.write_event(&event) {
@@ -51,12 +51,9 @@ fn roundtrip(input: &[u8]) {
     assert_eq!(position, output.len());
     assert!(output.len() <= ceiling);
     limited(input, &output);
-    let limits = {
-        let mut cfg = yaxml::Limits::default();
-        cfg.max_input_bytes = ceiling;
-        cfg.max_token_bytes = ceiling;
-        cfg
-    };
+    let limits = yaxml::Limits::default()
+        .max_input_bytes(ceiling)
+        .max_token_bytes(ceiling);
     assert!(
         logical(Reader::with_limits(&output, limits).unwrap())
             == logical(Reader::new(input).unwrap()),
@@ -78,36 +75,12 @@ fn limited(input: &[u8], expected: &[u8]) {
     let fraction = |total: usize| total * usize::from(control >> 3) / 32;
     let generous = WriterLimits::default();
     let limits = match control & 7 {
-        0 => {
-            let mut cfg = generous;
-            cfg.max_output_bytes = fraction(expected.len());
-            cfg
-        }
-        1 => {
-            let mut cfg = generous;
-            cfg.max_token_bytes = fraction(expected.len());
-            cfg
-        }
-        2 => {
-            let mut cfg = generous;
-            cfg.max_depth = usize::from(control >> 3) & 7;
-            cfg
-        }
-        3 => {
-            let mut cfg = generous;
-            cfg.max_attributes = usize::from(control >> 3) & 3;
-            cfg
-        }
-        4 => {
-            let mut cfg = generous;
-            cfg.max_events = usize::from(control >> 3);
-            cfg
-        }
-        5 => {
-            let mut cfg = generous;
-            cfg.max_owned_bytes = fraction(4 * expected.len());
-            cfg
-        }
+        0 => generous.max_output_bytes(fraction(expected.len())),
+        1 => generous.max_token_bytes(fraction(expected.len())),
+        2 => generous.max_depth(usize::from(control >> 3) & 7),
+        3 => generous.max_attributes(usize::from(control >> 3) & 3),
+        4 => generous.max_events(usize::from(control >> 3)),
+        5 => generous.max_owned_bytes(fraction(4 * expected.len())),
         _ => return,
     };
     let limit_error = |error: &WriteError| matches!(error, WriteError::Xml(error) if matches!(error.kind, ErrorKind::LimitExceeded(_)));
@@ -169,12 +142,9 @@ fn assert_terminal<W: Write>(writer: &mut Writer<W>) {
 
 fn operations(input: &[u8]) {
     let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
-    let mut limits = {
-        let mut cfg = WriterLimits::default();
-        cfg.max_output_bytes = 16 * 1024;
-        cfg.max_token_bytes = 4096;
-        cfg
-    };
+    let mut limits = WriterLimits::default()
+        .max_output_bytes(16 * 1024)
+        .max_token_bytes(4096);
     if byte(0) & 1 == 0 {
         limits.max_output_bytes = byte(1) * 8;
         limits.max_token_bytes = byte(2);
@@ -481,14 +451,11 @@ fn text_scripts(input: &[u8]) {
     let well_formed = mode & 1 == 0;
     let limits = match mode & 2 == 0 || well_formed {
         true => WriterLimits::default(),
-        false => {
-            let mut cfg = WriterLimits::default();
-            cfg.max_output_bytes = 16 + next(256) * 4;
-            cfg.max_token_bytes = 8 + next(256);
-            cfg.max_depth = 1 + next(8);
-            cfg.max_attributes = next(4);
-            cfg
-        }
+        false => WriterLimits::default()
+            .max_output_bytes(16 + next(256) * 4)
+            .max_token_bytes(8 + next(256))
+            .max_depth(1 + next(8))
+            .max_attributes(next(4)),
     };
     let script = match well_formed {
         true => text_script::well_formed(&mut next, calls),

@@ -78,12 +78,9 @@ fn linked_walk_and_drop_are_iterative_on_deep_and_wide_trees() {
         .spawn(|| {
             let depth = 8192;
             let input = format!("{}{}", "<n>".repeat(depth), "</n>".repeat(depth));
-            let document = OwnedDocument::with_limits(input.as_bytes(), {
-                let mut cfg = Limits::default();
-                cfg.max_depth = depth;
-                cfg
-            })
-            .unwrap();
+            let document =
+                OwnedDocument::with_limits(input.as_bytes(), Limits::default().max_depth(depth))
+                    .unwrap();
             {
                 let mut nodes = document.nodes();
                 for index in 0..=depth {

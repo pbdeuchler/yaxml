@@ -660,11 +660,7 @@ fn scalar_decoded_total_is_charged_before_malformed_prefix_recognition() {
                 let mut reader = BufferedReader::with_decode_limits(
                     Window::new(&bytes, capacity, bytes.len()),
                     Limits::default(),
-                    {
-                        let mut cfg = DecodeLimits::default();
-                        cfg.max_decoded_bytes = maximum;
-                        cfg
-                    },
+                    DecodeLimits::default().max_decoded_bytes(maximum),
                 );
                 assert_eq!(collect(&mut reader).unwrap_err(), expected);
             }

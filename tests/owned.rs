@@ -511,11 +511,7 @@ fn parser_normalization_and_pool_reservations_share_one_cumulative_budget() {
         ("<r a='&#9;'/>", 10, None),
     ] {
         for ceiling in [boundary - 1, boundary, boundary + 1] {
-            let limits = {
-                let mut cfg = Limits::default();
-                cfg.max_owned_bytes = ceiling;
-                cfg
-            };
+            let limits = Limits::default().max_owned_bytes(ceiling);
             let result = OwnedDocument::with_limits(input.as_bytes(), limits);
             if ceiling < boundary {
                 let error = result.expect_err("aggregate budget was not enforced");
@@ -533,11 +529,7 @@ fn parser_normalization_and_pool_reservations_share_one_cumulative_budget() {
             }
         }
     }
-    let parser_only = {
-        let mut cfg = Limits::default();
-        cfg.max_owned_bytes = 5;
-        cfg
-    };
+    let parser_only = Limits::default().max_owned_bytes(5);
     assert!(Document::with_limits(b"<r>&amp;</r>", parser_only).is_ok());
     assert_eq!(
         OwnedDocument::with_limits(b"<r>&amp;</r>", parser_only)
@@ -547,11 +539,7 @@ fn parser_normalization_and_pool_reservations_share_one_cumulative_budget() {
     );
     let uri = format!("urn:{}", "🙂".repeat(256));
     let input = format!("<p:r xmlns:p='{uri}' p:a='v'/>");
-    let limits = {
-        let mut cfg = Limits::default();
-        cfg.max_owned_bytes = uri.len() - 1;
-        cfg
-    };
+    let limits = Limits::default().max_owned_bytes(uri.len() - 1);
     assert!(Document::with_limits(input.as_bytes(), limits).is_ok());
     assert_eq!(
         OwnedDocument::with_limits(input.as_bytes(), limits)
@@ -573,11 +561,7 @@ fn generated_topology_and_deep_wide_destruction_are_iterative() {
                     "<leaf/>".repeat(width),
                     "</r>".repeat(depth)
                 );
-                let limits = {
-                    let mut cfg = Limits::default();
-                    cfg.max_depth = depth + 1;
-                    cfg
-                };
+                let limits = Limits::default().max_depth(depth + 1);
                 let document = OwnedDocument::with_limits(input.as_bytes(), limits).unwrap();
                 drop(input);
                 assert_eq!(document.nodes().count(), 1 + depth + width);

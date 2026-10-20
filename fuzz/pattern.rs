@@ -11,13 +11,10 @@ const DOCUMENT: &str = "<r xmlns:p='urn:p' xmlns='urn:d'><a x='1' p:y='2'><b/><p
 
 const NAMESPACES: &[(&str, &str)] = &[("p", "urn:p"), ("d", "urn:d")];
 
-const LIMITS: Limits = {
-    let mut cfg = Limits::DEFAULT;
-    cfg.max_bytes = 4096;
-    cfg.max_steps = 32;
-    cfg.max_depth = 1024;
-    cfg
-};
+const LIMITS: Limits = Limits::DEFAULT
+    .max_bytes(4096)
+    .max_steps(32)
+    .max_depth(1024);
 
 type Element<'d> = Dom<'d, 'd>;
 
@@ -105,13 +102,10 @@ pub fn exercise(input: &[u8]) {
     let hash = rest.iter().fold(0u32, |hash, &byte| {
         hash.wrapping_mul(31).wrapping_add(byte.into())
     });
-    let small = {
-        let mut cfg = Limits::DEFAULT;
-        cfg.max_bytes = source.len().saturating_sub((hash & 1) as usize);
-        cfg.max_steps = 1 + (hash >> 1 & 3) as usize;
-        cfg.max_depth = 1 + (hash >> 3 & 3) as usize;
-        cfg
-    };
+    let small = Limits::DEFAULT
+        .max_bytes(source.len().saturating_sub((hash & 1) as usize))
+        .max_steps(1 + (hash >> 1 & 3) as usize)
+        .max_depth(1 + (hash >> 3 & 3) as usize);
     let tight = Pattern::compile_with_limits(&source, NAMESPACES, flags, small);
     let pattern = match Pattern::compile_with_limits(&source, NAMESPACES, flags, LIMITS) {
         Ok(pattern) => pattern,

@@ -232,11 +232,7 @@ fn append_expected(
     // lookup or comparison; at or above it, it builds the same element.
     for max_namespace_work in [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89] {
         let mut editor = document
-            .edit({
-                let mut cfg = EditLimits::default();
-                cfg.max_namespace_work = max_namespace_work;
-                cfg
-            })
+            .edit(EditLimits::default().max_namespace_work(max_namespace_work))
             .unwrap();
         match editor.append_element(parent, spec) {
             Ok(child) => {

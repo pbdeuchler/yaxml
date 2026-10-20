@@ -75,6 +75,8 @@ pub struct Limits {
     pub max_nodes: usize,
 }
 
+setters!(const Limits { max_expression_bytes: usize, max_depth: usize, max_operations: u64, max_nodes: usize });
+
 impl Limits {
     pub const DEFAULT: Self = Self {
         max_expression_bytes: 64 * 1024,

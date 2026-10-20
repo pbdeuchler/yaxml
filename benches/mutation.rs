@@ -142,18 +142,12 @@ fn measure(case: &Case, encoding: &str, config: &Config) {
     // Fixture generation and transport encoding are outside all three phases.
     let input = encode(&case.xml(), encoding);
     let depth = case.depth.checked_add(1).expect("depth overflow");
-    let parse = {
-        let mut cfg = Limits::default();
-        cfg.max_depth = depth;
-        cfg.max_attributes = case.attributes.max(1024);
-        cfg
-    };
-    let output = {
-        let mut cfg = WriterLimits::default();
-        cfg.max_depth = depth;
-        cfg.max_attributes = parse.max_attributes;
-        cfg
-    };
+    let parse = Limits::default()
+        .max_depth(depth)
+        .max_attributes(case.attributes.max(1024));
+    let output = WriterLimits::default()
+        .max_depth(depth)
+        .max_attributes(parse.max_attributes);
     let selector = case.attribute.map(|index| format!("a{index:04}"));
     let mut setup = Duration::ZERO;
     let mut elapsed = Duration::ZERO;
@@ -302,18 +296,15 @@ fn main() {
     let config = Config {
         iterations: number("YAXML_MUTATION_ITERATIONS", if debug { 1 } else { 5 }),
         operations: number("YAXML_MUTATION_OPERATIONS", if debug { 32 } else { 10_000 }),
-        edit: {
-            let mut cfg = EditLimits::default();
-            cfg.max_value_bytes = number(
+        edit: EditLimits::default()
+            .max_value_bytes(number(
                 "YAXML_MUTATION_MAX_VALUE_BYTES",
                 EditLimits::default().max_value_bytes,
-            );
-            cfg.max_owned_bytes = number(
+            ))
+            .max_owned_bytes(number(
                 "YAXML_MUTATION_MAX_OWNED_BYTES",
                 EditLimits::default().max_owned_bytes,
-            );
-            cfg
-        },
+            )),
     };
     assert!(config.iterations > 0 && config.operations > 0 && attributes > 0);
     if selected("YAXML_MUTATION_CASE", "growth_shrink") {

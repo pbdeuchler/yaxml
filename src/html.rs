@@ -100,6 +100,8 @@ pub struct Options {
     pub limits: Limits,
 }
 
+setters!(const Options { flags: u32, limits: Limits });
+
 impl Default for Options {
     fn default() -> Self {
         Self::DEFAULT

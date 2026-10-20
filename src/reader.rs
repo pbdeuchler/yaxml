@@ -47,6 +47,8 @@ pub struct Limits {
     pub max_external_bytes: usize,
 }
 
+setters!(const Limits { max_input_bytes: usize, max_token_bytes: usize, max_depth: usize, max_attributes: usize, max_events: usize, max_owned_bytes: usize, max_dtd_bytes: usize, max_entity_expansion_bytes: usize, max_entity_amplification: usize, max_entity_references: usize, max_entity_depth: usize, max_external_loads: usize, max_external_bytes: usize });
+
 impl Limits {
     pub const DEFAULT: Self = Self {
         max_input_bytes: 64 * 1024 * 1024,
