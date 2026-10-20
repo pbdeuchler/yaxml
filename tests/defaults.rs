@@ -10,9 +10,9 @@ const MIB: u64 = 1024 * KIB;
 
 fn xml() -> String {
     format!(
-        "Limits {{ max_input_bytes: {}, max_token_bytes: {}, max_depth: 256, max_attributes: 1024, \
+        "Limits {{ max_input_bytes: {}, max_token_bytes: {}, max_depth: 256, max_attributes: 1024, max_total_attributes: 4000000, \
          max_events: 1000000, max_owned_bytes: {}, max_dtd_bytes: {}, max_entity_expansion_bytes: 1000000, \
-         max_entity_amplification: 5, max_entity_references: {}, max_entity_depth: 40, \
+         max_entity_amplification: 5, max_entity_references: {}, max_entity_depth: 20, \
          max_external_loads: 256, max_external_bytes: {} }}",
         64 * MIB,
         MIB,

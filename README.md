@@ -584,3 +584,30 @@ assert_eq!(found, ["Opening and ending tag mismatch: a line 1 and b", "Namespace
 assert_eq!(document.root_element().line(&lines), Some(1));
 # Ok::<(), yaxml::Error>(())
 ```
+
+Bindings live in their own Cargo workspace under `bindings/`, outside this
+crate's dependency graph ([bindings](docs/bindings.md)). `bindings/capi`
+(`yaxml-capi`) is a yaxml-specific C ABI with a hand-written header,
+`include/yaxml.h`: checked opaque handles, value node handles, UTF-8
+pointer/length strings, libxml2's numbers for flags, node types and
+diagnostics, and no panic across the boundary. `bindings/go` is a Go package
+over it (cgo, statically linked):
+
+```go
+doc, err := yaxml.Parse(data)
+if err != nil {
+	return err // *yaxml.Error wrapping libxml2's diagnostic
+}
+defer doc.Close()
+nodes, err := doc.XPath("//item")
+```
+
+`bindings/python` is the `yaxml` Python package, an `lxml.etree`-style API
+on PyO3 ([its README](bindings/python/README.md)):
+
+```python
+import yaxml as etree
+
+root = etree.fromstring(b"<r><item n='1'/><item n='2'/></r>")
+print([item.get("n") for item in root.iter("item")], etree.tostring(root[0]))
+```
