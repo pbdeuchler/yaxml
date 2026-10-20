@@ -27,6 +27,28 @@ impl Stream {
         }
     }
 
+    /// A new stream that keeps this one's emptied allocations.
+    pub(crate) fn recycled(
+        self,
+        limits: Limits,
+        decode: DecodeLimits,
+        flags: crate::options::Flags,
+    ) -> Self {
+        Self {
+            tokenizer: self
+                .tokenizer
+                .recycled(limits.max_token_bytes, decode.max_decoded_token_bytes),
+            decoder: Decoder::new(decode.max_decoded_bytes),
+            state: self
+                .state
+                .recycled(limits)
+                .copying_names()
+                .lending_namespaces()
+                .with_flags(flags),
+            decoded_token_limit: decode.max_decoded_token_bytes,
+        }
+    }
+
     pub(crate) fn position(&self) -> usize {
         self.tokenizer
             .source_position()
