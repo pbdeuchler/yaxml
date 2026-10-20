@@ -139,6 +139,10 @@ impl Budget {
         self.content
     }
 
+    pub(crate) fn set_content(&mut self, content: Option<bool>) {
+        self.content = content;
+    }
+
     /// Kept-reference forms of the last start tag's attributes; DOM builders drain them.
     pub(crate) fn kept(&mut self) -> &mut Vec<(usize, String)> {
         &mut self.kept
@@ -311,6 +315,10 @@ impl<'source> ParserState<'source> {
 
     pub(crate) fn errors(&self) -> &[Error] {
         self.budget.errors()
+    }
+
+    pub(crate) fn drops_blanks(&self) -> bool {
+        self.flags.drops_blanks()
     }
 
     pub(crate) fn new(limits: Limits, initial_offset: usize) -> Self {
@@ -1200,7 +1208,6 @@ impl<'source> ParserState<'source> {
         if let Some(declarations) = declarations.as_deref_mut() {
             declarations.element(qualified);
             self.budget.kept.clear();
-            self.budget.content = declarations.content();
         }
         let bindings_start = self.bindings.len();
         let mut attributes = self.take_attributes();

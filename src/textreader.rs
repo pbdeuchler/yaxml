@@ -775,7 +775,9 @@ impl<R: BufRead> TextReader<R> {
                             .then(|| crate::blanks::space(node.get(attribute.value)))
                             .flatten()
                     });
-                    let declared = self.source.budget().and_then(|budget| budget.content());
+                    let name = node.qualified(node.name);
+                    let dtd = self.source.dtd();
+                    let declared = dtd.and_then(|dtd| dtd.has_element_content(name));
                     self.blanks.open(space, declared);
                 }
             }

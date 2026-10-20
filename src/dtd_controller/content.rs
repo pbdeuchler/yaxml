@@ -1063,10 +1063,27 @@ where
         _ => parser.process_token(kind, raw, span.decoded.clone(), retain),
     };
     note_catalogs(parser, catalog, kind);
+    note_content(parser, catalog, &result);
     if let Some(recorded) = recorded {
         (parser.owned_budget()).remap(recorded, |error| span.map_error(raw, error));
     }
     result.map_err(|error| span.map_error(raw, error))
+}
+
+/// Under `NOBLANKS`, records a start tag's declared content for the blank
+/// filters (`Budget::content`).
+fn note_content(
+    parser: &mut ParserState<'_>,
+    catalog: &mut DtdCatalog,
+    event: &Result<Option<Event<'_>>, Error>,
+) {
+    if let Ok(Some(Event::Start(element) | Event::Empty(element))) = event
+        && parser.drops_blanks()
+    {
+        let declared = catalog.element_decl(element.name.qualified());
+        let content = declared.and_then(|index| catalog.dtd().elements[index].element_content());
+        parser.owned_budget().set_content(content);
+    }
 }
 
 /// Hands the catalogs of `oasis-xml-catalog` instructions to the resolver.
@@ -1102,6 +1119,7 @@ where
         });
     parser.set_replacement(false);
     note_catalogs(parser, catalog, kind);
+    note_content(parser, catalog, &result);
     let at = |error: Error| Error::new(error.kind, origin.error_offset());
     (parser.owned_budget()).remap(recorded, at);
     result.map_err(at)

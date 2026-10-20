@@ -357,6 +357,12 @@ fn noblanks_drops_ignorable_blank_events_whatever_the_chunks() {
             "<!DOCTYPE r [<!ELEMENT r (a)*><!ELEMENT a (#PCDATA)>]><r> <a> </a> </r>",
             &[" "],
         ),
+        // Mixed content keeps every blank, whatever the tags declare.
+        (
+            0,
+            "<!DOCTYPE r [<!ELEMENT r (#PCDATA|a)*><!ELEMENT a EMPTY>]><r> <a/> <a/> </r>",
+            &[" ", " ", " "],
+        ),
         // Text that the document spoke makes later blanks significant.
         (0, "<r><a/>x<b/> <c/></r>", &["x", " "]),
         // So does a blank before a reference, whose content passes.
@@ -405,6 +411,17 @@ fn noblanks_drops_ignorable_blank_events_whatever_the_chunks() {
                 }
             }
             assert_eq!(seen, kept, "{xml} by {window}");
+        }
+        // So does the text reader.
+        let mut reader = yaxml::TextReader::with_options(input, options()).unwrap();
+        let mut seen = Vec::new();
+        while reader.read().unwrap() {
+            if matches!(reader.node_type() as i32, 3 | 14) && reader.depth() > 0 {
+                seen.push(reader.value().unwrap_or_default().to_owned());
+            }
+        }
+        if !xml.contains('&') {
+            assert_eq!(seen, kept, "text reader: {xml}");
         }
         // The DOM drops the same blanks, references aside.
         if !xml.contains('&') {
