@@ -732,17 +732,6 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
     found
 }
 
-/// Children with entity references replaced by their content, recursively:
-/// what validators see of a tree parsed without `NOENT`.
-pub(crate) fn flattened_children<T: Navigate>(
-    tree: &T,
-    id: T::Id,
-) -> impl Iterator<Item = T::Id> + '_ {
-    std::iter::successors(flattened_first(tree, id), move |&child| {
-        flattened_next(tree, id, child)
-    })
-}
-
 /// The first of `parent`'s [`flattened_children`].
 pub(crate) fn flattened_first<T: Navigate>(tree: &T, parent: T::Id) -> Option<T::Id> {
     past_references(tree, parent, tree.first_child(parent))

@@ -38,6 +38,10 @@ harness = false
 name = "regexp"
 harness = false
 
+[[bench]]
+name = "valid"
+harness = false
+
 [lints.rust]
 unsafe_code = "forbid"
 

@@ -670,7 +670,9 @@ fn parser_properties_change_flags_before_the_first_read() {
         (true, SubstituteEntities, true, None, None, true),
         (true, SubstituteEntities, false, None, Some(late), false),
         (false, Validate, false, None, None, false),
-        (false, Validate, true, Some(no), Some(no), false),
+        (false, Validate, true, None, Some(late), true),
+        (true, Validate, true, None, Some(late), true),
+        (true, Validate, false, None, None, false),
     ] {
         let make = || {
             let input = b"<r/>".as_slice();

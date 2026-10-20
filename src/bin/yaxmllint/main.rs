@@ -413,11 +413,12 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
 }
 
 /// `--stream`: read every node through the pull interface, printing nothing
-/// but `--relaxng` and `--schema` validation, which the reader does as it goes.
+/// but `--valid`, `--relaxng` and `--schema` validation, which the reader does
+/// as it goes.
 fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
-    // The reader does not validate DTDs, drop blanks or recover; it prints nothing anyway.
-    use yaxml::options::{DTDVALID, NOBLANKS, RECOVER};
-    let streamable = flags(o) & !(DTDVALID | NOBLANKS | RECOVER);
+    // The reader does not recover; it prints nothing, so blanks do not matter.
+    use yaxml::options::{NOBLANKS, RECOVER};
+    let streamable = flags(o) & !(NOBLANKS | RECOVER);
     let options = ParseOptions::new(streamable).with_limits(limits(o));
     let reader = yaxml::TextReader::with_options(input, options.with_resolver(file, resolver(o)));
     let mut reader = match reader {
@@ -438,6 +439,12 @@ fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
             done => break done,
         }
     };
+    let dtd = reader.dtd_diagnostics();
+    let dtd_valid = print_all(file, input, "validity error", dtd);
+    let dtd_code = (o.valid && !dtd_valid).then(|| {
+        eprintln!("Document {file} does not validate");
+        VALID
+    });
     print_found(
         false,
         file,
@@ -452,13 +459,16 @@ fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
         "Schemas validity error",
         reader.xsd_diagnostics(),
     );
-    let code = (rng.is_some() || xsd.is_some()).then(|| verdict(o, file, reader.is_valid()));
+    // The schema verdict, as libxml2's reader reports the last validation set.
+    let schemas_valid =
+        reader.relaxng_diagnostics().is_empty() && yaxml::xsd::is_valid(reader.xsd_diagnostics());
+    let code = (rng.is_some() || xsd.is_some()).then(|| verdict(o, file, schemas_valid));
     match read {
         Err(error) => {
             eprintln!("{file} : failed to parse: {error:?}");
             UNCLASS
         }
-        Ok(_) => code.unwrap_or(0),
+        Ok(_) => last_failure([dtd_code, code].into_iter().flatten()),
     }
 }
 

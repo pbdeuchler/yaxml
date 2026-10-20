@@ -7,17 +7,20 @@
 //! (`xmlValidateDtd`, `xmllint --dtdvalid`). Validity errors are never fatal:
 //! each is a [`Diagnostic`] whose [`Code`] carries libxml2's `XML_DTD_*` number.
 
+mod engine;
 mod model;
+mod stream;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::dtd::{ElementContentView, ElementDeclarationView, ModelTokenView};
 use crate::dtd_catalog::{AttributeKind, StoredDefault};
 use crate::name::{name_char, name_start};
-use crate::xpath::tree::{self, Item, Navigate, QName, Tree, attributes, preorder};
+use crate::xpath::tree::{Navigate, QName, Tree};
 use crate::{Error, Limits, Resolver};
 
 pub(crate) use model::{Model, TooComplex};
+pub use stream::StreamValidator;
 
 /// A validity diagnostic code; the discriminant is libxml2's `xmlParserErrors` value.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -357,7 +360,12 @@ impl Dtd {
         let (name, owner) = (&attribute.name, &decl.name);
         for (index, value) in attribute.values.iter().enumerate() {
             if attribute.values[..index].contains(value) {
-                let message = format!("attribute value token {value} duplicated");
+                let kind = match attribute.kind {
+                    AttributeKind::Notation => "notation",
+                    _ => "enumeration",
+                };
+                let message =
+                    format!("standalone: attribute {kind} value token {value} duplicated");
                 self.issues.push((Code::DuplicateToken, None, message));
             }
         }
@@ -385,8 +393,21 @@ impl Dtd {
                         );
                         self.issues.push((Code::IdFixed, None, message));
                     }
-                    if decl.attributes.iter().any(|a| a.kind == AttributeKind::Id) {
-                        let message = format!("Element {owner} has too many ID attributes: {name}");
+                    // xmlValidateAttributeDecl: the element's internal IDs, then all.
+                    let ids = decl
+                        .attributes
+                        .iter()
+                        .filter(|a| a.kind == AttributeKind::Id);
+                    let internal = ids.clone().filter(|a| a.internal).count();
+                    let (count, subset) = match attribute.internal {
+                        true => (internal + 1, "internal"),
+                        false if internal > 1 => (internal, "internal"),
+                        false => (ids.count() + 1, "external"),
+                    };
+                    if count > 1 {
+                        let message = format!(
+                            "Element {owner} has {count} ID attribute defined in the {subset} subset : {name}"
+                        );
                         self.issues.push((Code::IdSubset, None, message));
                     }
                 }
@@ -444,19 +465,13 @@ fn lexical(kind: AttributeKind, value: &str) -> bool {
     }
 }
 
-/// Children for content models: entity references are transparent, as
-/// libxml2 validates through `XML_ENTITY_REF_NODE`s.
-fn children<T: Navigate>(tree: &T, id: T::Id) -> impl Iterator<Item = T::Id> + '_ {
-    tree::flattened_children(tree, id)
-}
-
 const PREDEFINED: [&str; 5] = ["lt", "gt", "amp", "apos", "quot"];
 
 /// Checks `tree` against `dtd` as libxml2's `xmlValidateDtd`: the root,
 /// every element and attribute, then IDREFs. Declaration-time checks of
 /// `dtd` and the DOCTYPE name are not repeated.
 pub fn validate<T: Tree>(tree: &T, dtd: &Dtd) -> Vec<Diagnostic<T::Id>> {
-    run(tree, dtd, false)
+    engine::run(tree, dtd, false)
 }
 
 /// `xmlValidateDocument` with the checks libxml2 makes while parsing.
@@ -465,393 +480,13 @@ pub(crate) fn validate_document<T: Navigate>(
     dtd: Option<&Dtd>,
 ) -> Vec<Diagnostic<T::Id>> {
     match dtd {
-        Some(dtd) => run(tree, dtd, true),
+        Some(dtd) => engine::run(tree, dtd, true),
         None => vec![Diagnostic {
             code: Code::NoDtd,
             node: None,
             offset: None,
             message: "no DTD found!".into(),
         }],
-    }
-}
-
-struct Run<'a, T: Navigate> {
-    tree: &'a T,
-    dtd: &'a Dtd,
-    out: Vec<Diagnostic<T::Id>>,
-    ids: HashSet<&'a str>,
-    /// `(element, attribute, value, IDREFS)` in document order.
-    references: Vec<(T::Id, &'a str, &'a str, bool)>,
-    nondeterministic: HashSet<usize>,
-}
-
-fn run<T: Navigate>(tree: &T, dtd: &Dtd, document: bool) -> Vec<Diagnostic<T::Id>> {
-    let mut run = Run {
-        tree,
-        dtd,
-        out: Vec::new(),
-        ids: HashSet::new(),
-        references: Vec::new(),
-        nondeterministic: HashSet::new(),
-    };
-    if document {
-        for (code, offset, message) in &dtd.issues {
-            run.out.push(Diagnostic {
-                code: *code,
-                node: None,
-                offset: *offset,
-                message: message.clone(),
-            });
-        }
-        run.declarations();
-    }
-    let root = std::iter::successors(tree.first_child(tree.root()), |&id| tree.next_sibling(id))
-        .find(|&id| matches!(tree.item(id), Item::Element(_)));
-    if let (Some(root), Item::Element(name)) = (root, root.map_or(Item::Root, |id| tree.item(id))) {
-        if let Some(expected) = dtd.name.as_deref().filter(|_| document)
-            && expected != name.local
-            && expected != name.qualified
-            && !(expected == "HTML" && name.local == "html")
-        {
-            let message = format!(
-                "root and DTD name do not match '{}' and '{expected}'",
-                name.local
-            );
-            run.report(Code::RootName, Some(root), message);
-        }
-        for id in preorder(tree, Some(root), Some(root)) {
-            if let Item::Element(name) = tree.item(id) {
-                run.element(id, name);
-            }
-        }
-    }
-    run.references();
-    run.out
-}
-
-impl<'a, T: Navigate> Run<'a, T> {
-    fn report(&mut self, code: Code, node: Option<T::Id>, message: String) {
-        let offset = node.and_then(|id| self.tree.offset(id));
-        self.out.push(Diagnostic {
-            code,
-            node,
-            offset,
-            message,
-        });
-    }
-
-    /// `xmlValidateDtdFinal`: notation attributes and unparsed entities.
-    fn declarations(&mut self) {
-        for decl in &self.dtd.elements {
-            for attribute in &decl.attributes {
-                if attribute.kind == AttributeKind::Notation
-                    && matches!(decl.content, Some(Content::Empty))
-                {
-                    let message = format!(
-                        "NOTATION attribute {} declared for EMPTY element {}",
-                        attribute.name, decl.name
-                    );
-                    self.report(Code::EmptyNotation, None, message);
-                }
-            }
-        }
-        let mut missing: Vec<_> = (self.dtd.entities.values().flatten())
-            .filter(|notation| !self.dtd.notations.contains_key(*notation))
-            .collect();
-        missing.sort_unstable();
-        for notation in missing {
-            self.report(
-                Code::UnknownNotation,
-                None,
-                format!("NOTATION {notation} is not declared"),
-            );
-        }
-    }
-
-    /// `xmlValidateOneElement` and `xmlValidateOneAttribute` for every attribute.
-    fn element(&mut self, id: T::Id, name: QName<'a>) {
-        let (tree, dtd) = (self.tree, self.dtd);
-        let attributes: Vec<_> = attributes(tree, id).collect();
-        match dtd.element(name) {
-            Some((index, decl)) if decl.content.is_some() => {
-                self.content(id, name, index, decl);
-                self.required(id, name, decl, &attributes);
-            }
-            _ => {
-                let message = format!("No declaration for element {}", name.local);
-                self.report(Code::UnknownElement, Some(id), message);
-            }
-        }
-        // libxml2 keeps no namespace node for the predefined `xml` binding.
-        let (namespaces, ordinary): (Vec<_>, Vec<_>) = attributes
-            .into_iter()
-            .filter(|(_, attribute, _)| attribute.qualified != "xmlns:xml")
-            .partition(|(_, attribute, _)| attribute.is_namespace_declaration());
-        for (_, attribute, value) in ordinary.into_iter().chain(namespaces) {
-            self.attribute(id, name, attribute, value);
-        }
-    }
-
-    fn content(&mut self, id: T::Id, name: QName<'a>, index: usize, decl: &ElementDecl) {
-        let tree = self.tree;
-        let children = || children(tree, id).map(|child| (child, tree.item(child)));
-        let element = |item: &Item<'_>| matches!(item, Item::Element(_));
-        match decl.content.as_ref().expect("declared") {
-            Content::Empty if children().next().is_some() => {
-                let message = format!(
-                    "Element {} was declared EMPTY this one has content",
-                    name.local
-                );
-                self.report(Code::NotEmpty, Some(id), message);
-            }
-            Content::Empty | Content::Any => {}
-            Content::Mixed(names) if names.is_empty() => {
-                if children().any(|(_, item)| element(&item)) {
-                    let message = format!(
-                        "Element {} was declared #PCDATA but contains non text nodes",
-                        name.local
-                    );
-                    self.report(Code::NotPcdata, Some(id), message);
-                }
-            }
-            Content::Mixed(names) => {
-                let allowed = |child: &str| {
-                    names
-                        .iter()
-                        .any(|name| name.rsplit(':').next() == Some(child))
-                };
-                let invalid: Vec<_> = children()
-                    .filter_map(|(_, item)| match item {
-                        Item::Element(child) if !allowed(child.local) => Some(child.local),
-                        _ => None,
-                    })
-                    .collect();
-                for child in invalid {
-                    let message = format!(
-                        "Element {child} is not declared in {} list of possible children",
-                        name.local
-                    );
-                    self.report(Code::InvalidChild, Some(id), message);
-                }
-            }
-            Content::Children(model) => {
-                let whitespace = |(child, item): (T::Id, Item<'_>)| matches!(item, Item::Text(text) if !tree.is_cdata(child) && text.chars().all(blank));
-                if self.dtd.standalone && !decl.internal && children().any(whitespace) {
-                    let message = format!(
-                        "standalone: {} declared in the external subset contains white spaces nodes",
-                        name.local
-                    );
-                    self.report(Code::StandaloneWhiteSpace, Some(id), message);
-                }
-                if !model.deterministic() {
-                    if self.nondeterministic.insert(index) {
-                        let message =
-                            format!("Content model of {} is not deterministic", name.local);
-                        self.report(Code::ContentNotDeterministic, None, message);
-                    }
-                    return;
-                }
-                let end = children().try_fold(0, |state, (child, item)| match item {
-                    Item::Element(child) => model.step(state, child.qualified),
-                    Item::Text(text) if tree.is_cdata(child) || !text.chars().all(blank) => None,
-                    _ => Some(state),
-                });
-                if !end.is_some_and(|state| model.accepts(state)) {
-                    let message = format!("Element {} content does not follow the DTD", name.local);
-                    self.report(Code::ContentModel, Some(id), message);
-                }
-            }
-        }
-    }
-
-    /// VC: Required Attribute, with libxml2's prefix leniency.
-    fn required(
-        &mut self,
-        id: T::Id,
-        name: QName<'a>,
-        decl: &ElementDecl,
-        present: &[(usize, QName<'a>, &'a str)],
-    ) {
-        for attribute in &decl.attributes {
-            if !matches!(attribute.default, StoredDefault::Required) {
-                continue;
-            }
-            let wanted = attribute.name.as_str();
-            let namespace = wanted == "xmlns" || wanted.starts_with("xmlns:");
-            let candidates = present
-                .iter()
-                .map(|(_, name, _)| name)
-                .filter(|name| name.is_namespace_declaration() == namespace);
-            let code = match wanted.split_once(':') {
-                _ if namespace => candidates
-                    .clone()
-                    .all(|name| name.qualified != wanted)
-                    .then_some(Code::MissingAttribute),
-                None => candidates
-                    .clone()
-                    .all(|name| name.local != wanted)
-                    .then_some(Code::MissingAttribute),
-                Some((prefix, local)) => {
-                    let prefixes: Vec<_> = candidates
-                        .filter(|name| name.local == local)
-                        .map(|name| name.qualified.split_once(':').map(|(prefix, _)| prefix))
-                        .collect();
-                    if prefixes.contains(&Some(prefix)) {
-                        None
-                    } else if prefixes.iter().any(Option::is_some) {
-                        Some(Code::DifferentPrefix)
-                    } else if prefixes.is_empty() {
-                        Some(Code::MissingAttribute)
-                    } else {
-                        Some(Code::NoPrefix)
-                    }
-                }
-            };
-            let message = match code {
-                None => continue,
-                Some(Code::MissingAttribute) => {
-                    format!("Element {} does not carry attribute {wanted}", name.local)
-                }
-                Some(Code::NoPrefix) => {
-                    format!(
-                        "Element {} required attribute {wanted} has no prefix",
-                        name.local
-                    )
-                }
-                Some(_) => format!(
-                    "Element {} required attribute {wanted} has different prefix",
-                    name.local
-                ),
-            };
-            self.report(code.expect("reported"), Some(id), message);
-        }
-    }
-
-    /// `xmlValidateOneAttribute`, or `xmlValidateOneNamespace` for declarations.
-    fn attribute(&mut self, id: T::Id, element: QName<'a>, attribute: QName<'a>, value: &'a str) {
-        let namespace = attribute.is_namespace_declaration();
-        let shown = match namespace {
-            true => attribute.qualified,
-            false => attribute.local,
-        };
-        let owner = element.local;
-        let dtd = self.dtd;
-        let Some(decl) = dtd.attribute(element, attribute.qualified) else {
-            let message = format!("No declaration for attribute {shown} of element {owner}");
-            return self.report(Code::UnknownAttribute, Some(id), message);
-        };
-        if !lexical(decl.kind, value) {
-            let code = match namespace {
-                true => Code::InvalidDefault,
-                false => Code::AttributeValue,
-            };
-            let message = format!("Syntax of value for attribute {shown} of {owner} is not valid");
-            self.report(code, Some(id), message);
-        }
-        let fixed = decl.fixed().filter(|&fixed| fixed != value);
-        if let Some(fixed) = fixed {
-            let message = format!(
-                "Value for attribute {shown} of {owner} is different from default \"{fixed}\""
-            );
-            self.report(Code::AttributeDefault, Some(id), message);
-        }
-        match decl.kind {
-            AttributeKind::Id if !namespace => {
-                // libxml2's xmlAddID refuses an empty value as a duplicate.
-                let fresh = !value.is_empty() && self.ids.insert(value);
-                if !fresh {
-                    let message = format!("ID {value} already defined");
-                    self.report(Code::IdRedefined, Some(id), message);
-                }
-            }
-            AttributeKind::IdRef | AttributeKind::IdRefs if !namespace => {
-                let multiple = decl.kind == AttributeKind::IdRefs;
-                self.references.push((id, attribute.local, value, multiple));
-            }
-            AttributeKind::Notation => {
-                self.notation(id, format!("Value \"{value}\" for attribute {shown} of {owner} is not a declared Notation"), value);
-                if !decl.values.iter().any(|token| token == value) {
-                    let message = format!(
-                        "Value \"{value}\" for attribute {shown} of {owner} is not among the enumerated notations"
-                    );
-                    self.report(Code::NotationValue, Some(id), message);
-                }
-            }
-            AttributeKind::Enumeration if !decl.values.iter().any(|token| token == value) => {
-                let message = format!(
-                    "Value \"{value}\" for attribute {shown} of {owner} is not among the enumerated set"
-                );
-                self.report(Code::AttributeValue, Some(id), message);
-            }
-            _ => {}
-        }
-        if let Some(fixed) = fixed {
-            let code = match namespace {
-                true => Code::ElementNamespace,
-                false => Code::AttributeValue,
-            };
-            let message = format!("Value for attribute {shown} of {owner} must be \"{fixed}\"");
-            self.report(code, Some(id), message);
-        }
-        // xmlValidateAttributeValue2
-        match decl.kind {
-            AttributeKind::Entity => self.entity(id, shown, value),
-            AttributeKind::Entities => {
-                for name in value.split(blank).filter(|name| !name.is_empty()) {
-                    self.entity(id, shown, name);
-                }
-            }
-            AttributeKind::Notation => self.notation(
-                id,
-                format!("NOTATION attribute {shown} reference an unknown notation \"{value}\""),
-                value,
-            ),
-            _ => {}
-        }
-    }
-
-    fn notation(&mut self, id: T::Id, message: String, value: &str) {
-        if !self.dtd.notations.contains_key(value) {
-            self.report(Code::UnknownNotation, Some(id), message);
-        }
-    }
-
-    fn entity(&mut self, id: T::Id, attribute: &str, value: &str) {
-        let code = match self.dtd.entities.get(value) {
-            Some(Some(_)) => return,
-            Some(None) => Code::EntityType,
-            None if PREDEFINED.contains(&value) => Code::EntityType,
-            None => Code::UnknownEntity,
-        };
-        let message = match code {
-            Code::EntityType => {
-                format!(
-                    "ENTITY attribute {attribute} reference an entity \"{value}\" of wrong type"
-                )
-            }
-            _ => format!("ENTITY attribute {attribute} reference an unknown entity \"{value}\""),
-        };
-        self.report(code, Some(id), message);
-    }
-
-    /// `xmlValidateDocumentFinal`: every IDREF names an ID.
-    fn references(&mut self) {
-        for (id, attribute, value, multiple) in std::mem::take(&mut self.references) {
-            let names = match multiple {
-                true => value.split(blank).filter(|name| !name.is_empty()).collect(),
-                false => vec![value],
-            };
-            let missing: Vec<_> = names
-                .into_iter()
-                .filter(|name| !self.ids.contains(name))
-                .collect();
-            for name in missing {
-                let kind = if multiple { "IDREFS" } else { "IDREF" };
-                let message =
-                    format!("{kind} attribute {attribute} references an unknown ID \"{name}\"");
-                self.report(Code::UnknownId, Some(id), message);
-            }
-        }
     }
 }
 

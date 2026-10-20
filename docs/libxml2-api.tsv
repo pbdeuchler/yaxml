@@ -545,7 +545,7 @@ parser.h	XML_PARSE_COMPACT	enum_value	not_marked	P0-P3	implemented	https://githu
 parser.h	XML_PARSE_DOM	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_DTDATTR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::DTDATTR
 parser.h	XML_PARSE_DTDLOAD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::DTDLOAD
-parser.h	XML_PARSE_DTDVALID	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::DTDVALID - DOMs only
+parser.h	XML_PARSE_DTDVALID	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::DTDVALID - DOMs and TextReader; valid::StreamValidator for other streams
 parser.h	XML_PARSE_HUGE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::HUGE
 parser.h	XML_PARSE_IGNORE_ENC	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::IGNORE_ENC
 parser.h	XML_PARSE_NOBASEFIX	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NOBASEFIX
@@ -2121,23 +2121,23 @@ uri.h	xmlURIEscapeStr	function	not_marked	P2	implemented	https://github.com/GNOM
 uri.h	xmlURIPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Drop
 uri.h	xmlURIUnescapeString	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	uri::unescape
 valid.h	XML_TREE_INTERNALS	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	internal parser state or flag
-valid.h	_xmlValidCtxt	struct	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate takes no context
-valid.h	_xmlValidCtxt.am	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.doc	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.error	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.flags	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.node	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.nodeMax	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.nodeNr	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.nodeTab	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.state	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.userData	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.valid	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.vstate	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.vstateMax	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.vstateNr	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.vstateTab	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
-valid.h	_xmlValidCtxt.warning	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate returns diagnostics; no context struct
+valid.h	_xmlValidCtxt	struct	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator - one document's push validation state; tree validation takes none
+valid.h	_xmlValidCtxt.am	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.doc	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.error	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.flags	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.node	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.nodeMax	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.nodeNr	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.nodeTab	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.state	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.userData	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.valid	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.vstate	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.vstateMax	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.vstateNr	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.vstateTab	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
+valid.h	_xmlValidCtxt.warning	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
 valid.h	xmlAddAttributeDecl	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
 valid.h	xmlAddElementDecl	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
 valid.h	xmlAddID	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
@@ -2194,9 +2194,9 @@ valid.h	xmlRemoveRef	function	yes	P2	removed-upstream	https://github.com/GNOME/l
 valid.h	xmlSnprintfElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlSprintfElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidBuildContentModel	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidCtxt	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate takes no context
+valid.h	xmlValidCtxt	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator - one document's push validation state; tree validation takes none
 valid.h	xmlValidCtxtNormalizeAttributeValue	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidCtxtPtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate takes no context
+valid.h	xmlValidCtxtPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
 valid.h	xmlValidGetPotentialChildren	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
 valid.h	xmlValidGetValidElements	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
 valid.h	xmlValidNormalizeAttributeValue	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
@@ -2205,7 +2205,7 @@ valid.h	xmlValidStatePtr	typedef	not_marked	P2	not-started	https://github.com/GN
 valid.h	xmlValidateAttributeDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateAttributeValue	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateDocument	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate, Document::validate, OwnedDocument::validate
-valid.h	xmlValidateDocumentFinal	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
+valid.h	xmlValidateDocumentFinal	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator::finish - deprecated in 2.15.4; IDREFs resolve when the document element ends
 valid.h	xmlValidateDtd	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate, Document::validate, OwnedDocument::validate
 valid.h	xmlValidateDtdFinal	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateElement	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate, Document::validate, OwnedDocument::validate
@@ -2219,9 +2219,9 @@ valid.h	xmlValidateNotationUse	function	yes	P2	removed-upstream	https://github.c
 valid.h	xmlValidateOneAttribute	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateOneElement	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateOneNamespace	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidatePopElement	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidatePushCData	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidatePushElement	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
+valid.h	xmlValidatePopElement	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator::event - deprecated in 2.15.4; parser events instead of nodes
+valid.h	xmlValidatePushCData	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator::event - deprecated in 2.15.4; parser events instead of nodes
+valid.h	xmlValidatePushElement	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator::event - deprecated in 2.15.4; parser events instead of nodes
 valid.h	xmlValidateRoot	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidityErrorFunc	callback	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
 valid.h	xmlValidityWarningFunc	callback	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
@@ -3355,7 +3355,7 @@ xmlreader.h	xmlTextReaderGetErrorHandler	function	not_marked	P0-P2	not-started	h
 xmlreader.h	xmlTextReaderGetLastError	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
 xmlreader.h	xmlTextReaderGetParserColumnNumber	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
 xmlreader.h	xmlTextReaderGetParserLineNumber	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
-xmlreader.h	xmlTextReaderGetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::parser_property - VALIDATE is always false
+xmlreader.h	xmlTextReaderGetParserProp	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::parser_property
 xmlreader.h	xmlTextReaderGetRemainder	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::into_remainder
 xmlreader.h	xmlTextReaderHasAttributes	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::has_attributes
 xmlreader.h	xmlTextReaderHasValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::has_value
@@ -3399,7 +3399,7 @@ xmlreader.h	xmlTextReaderSchemaValidate	function	not_marked	P0-P2	partial	https:
 xmlreader.h	xmlTextReaderSchemaValidateCtxt	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xsd_set_schema - schema is compiled by the caller
 xmlreader.h	xmlTextReaderSetErrorHandler	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
 xmlreader.h	xmlTextReaderSetMaxAmplification	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Limits::max_entity_amplification
-xmlreader.h	xmlTextReaderSetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::set_parser_property - only before the first read; VALIDATE on is UnsupportedOption (docs/textreader.md)
+xmlreader.h	xmlTextReaderSetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::set_parser_property - only before the first read (docs/textreader.md)
 xmlreader.h	xmlTextReaderSetResourceLoader	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParseOptions::with_resolver
 xmlreader.h	xmlTextReaderSetSchema	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xsd_set_schema
 xmlreader.h	xmlTextReaderSetStructuredErrorHandler	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values

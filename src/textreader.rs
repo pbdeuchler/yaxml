@@ -4,8 +4,8 @@ use std::collections::VecDeque;
 use std::io::BufRead;
 use std::ops::RangeInclusive;
 
-use crate::options::{DTDATTR, DTDLOAD, Flags, NOBLANKS, NOENT};
-use crate::valid::Dtd;
+use crate::options::{DTDATTR, DTDLOAD, DTDVALID, Flags, NOBLANKS, NOENT};
+use crate::valid::{self, Dtd};
 use crate::{
     BufferedReader, DecodeLimits, Error, ErrorKind, Event, Limit, Limits, Name, OwnedDocument,
     ParseOptions, ReadError, ResourceKind, SourceOrigin,
@@ -87,11 +87,7 @@ pub enum ParserProperty {
     LoadDtd = 1,
     /// Insert DTD default attributes: `DTDATTR`.
     DefaultAttributes = 2,
-    /// DTD validation while reading: not implemented, always false, and
-    /// turning it on is `UnsupportedOption`. `src/valid.rs` validates a whole
-    /// tree after the fact (content models walk each element's children,
-    /// IDREFs resolve against every ID, diagnostics come in preorder), so it
-    /// cannot take events as `relaxng::Stream` and `xsd::StreamValidator` do.
+    /// DTD validation while reading: `DTDVALID`, with a [`valid::StreamValidator`].
     Validate = 3,
     /// Substitute entity references: `NOENT`.
     SubstituteEntities = 4,
@@ -565,8 +561,8 @@ impl<R: BufRead> TextReader<R> {
 
     /// A reader with libxml2 parser options, like `xmlReaderForMemory`'s
     /// `options`; see [`crate::options`]. `base` is the document URI.
-    /// `NOBLANKS` drops ignorable blanks as libxml2's reader does; the other
-    /// tree-only flags (`DTDVALID`, `XINCLUDE`) are `UnsupportedOption`.
+    /// `NOBLANKS` drops ignorable blanks and `DTDVALID` validates against the
+    /// DTD as libxml2's reader does; `RECOVER` and `XINCLUDE` are `UnsupportedOption`.
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         // `BufferedReader` rejects the flags a reader does not support.
         let flags = Flags(options.flags);
@@ -574,7 +570,7 @@ impl<R: BufRead> TextReader<R> {
         let url = options.base.clone();
         let resolver = options.resolver.is_some();
         Ok(Self {
-            source: BufferedReader::with_options(input, streaming(options))?,
+            source: source(input, options)?,
             limits,
             url,
             resolver,
@@ -588,7 +584,7 @@ impl<R: BufRead> TextReader<R> {
             value: None,
             scope: Scope::default(),
             blanks: Blanks::default(),
-            validators: Validators::default(),
+            validators: Validators::new(flags),
             standalone: Standalone::NoDeclaration,
         })
     }
@@ -615,7 +611,11 @@ impl<R: BufRead> TextReader<R> {
             options.base.clone(),
             options.resolver.is_some(),
         );
+        let validates = options.flags & DTDVALID != 0;
         let previous = self.source.reset_with(input, streaming(options))?;
+        if validates {
+            self.source.set_flags(streaming_flags(flags));
+        }
         (self.limits, self.flags, self.url, self.resolver) = (limits, flags, url, resolver);
         self.restart();
         Ok(previous)
@@ -630,7 +630,7 @@ impl<R: BufRead> TextReader<R> {
         self.value = None;
         self.scope = Scope::default();
         self.blanks = Blanks::default();
-        self.validators = Validators::default();
+        self.validators = Validators::new(self.flags);
         self.standalone = Standalone::NoDeclaration;
     }
 
@@ -749,7 +749,9 @@ impl<R: BufRead> TextReader<R> {
             }
             let node = self.queue.back_mut().expect("queued node");
             let before = if merge { node.text.len() } else { 0 };
-            if !node.load(&event, merge) {
+            let loaded = node.load(&event, merge);
+            self.validators.sync(self.source.dtd());
+            if !loaded {
                 self.queue.pop_back();
                 continue;
             }
@@ -1450,19 +1452,18 @@ impl<R: BufRead> TextReader<R> {
             ParserProperty::LoadDtd => self.resolver && self.flags.loads(ResourceKind::DtdSubset),
             ParserProperty::DefaultAttributes => self.flags.default_attributes(),
             ParserProperty::SubstituteEntities => self.flags.substitutes(),
-            ParserProperty::Validate => false,
+            ParserProperty::Validate => self.flags.validates(),
         }
     }
 
-    /// `xmlTextReaderSetParserProp`: sets the `DTDLOAD`, `DTDATTR` or `NOENT`
+    /// `xmlTextReaderSetParserProp`: sets the `DTDLOAD`, `DTDATTR`, `DTDVALID` or `NOENT`
     /// flag of [`with_options`](Self::with_options). Setting the current
     /// value always succeeds. Changing one is only possible before the first
     /// read (`InvalidState` afterwards; libxml2 allows some changes
     /// mid-stream, the stream here is configured when it starts). Clearing
     /// `LoadDtd` clears `DTDLOAD` only, so it stays true while `DTDATTR` or
-    /// `DTDVALID` load the subset, as libxml2's. `UnsupportedOption`: turning
-    /// `Validate` on (see [`ParserProperty::Validate`]) and `LoadDtd` without
-    /// a resolver (nothing could be loaded).
+    /// `DTDVALID` load the subset, as libxml2's. `LoadDtd` on without a
+    /// resolver is `UnsupportedOption` (nothing could be loaded).
     pub fn set_parser_property(
         &mut self,
         property: ParserProperty,
@@ -1472,10 +1473,10 @@ impl<R: BufRead> TextReader<R> {
             ParserProperty::LoadDtd => DTDLOAD,
             ParserProperty::DefaultAttributes => DTDATTR,
             ParserProperty::SubstituteEntities => NOENT,
-            ParserProperty::Validate => 0,
+            ParserProperty::Validate => DTDVALID,
         };
         let (unsupported, position) = (ErrorKind::UnsupportedOption, self.source.position());
-        if value && (flag == 0 || flag == DTDLOAD && !self.resolver) {
+        if value && flag == DTDLOAD && !self.resolver {
             return Err(Error::new(unsupported, position));
         }
         let flags = Flags(if value {
@@ -1491,6 +1492,7 @@ impl<R: BufRead> TextReader<R> {
         }
         self.source.set_flags(streaming_flags(flags));
         self.flags = flags;
+        self.validators.dtd = flags.validates().then(valid::StreamValidator::new);
         Ok(())
     }
 
@@ -1531,22 +1533,49 @@ impl<R: BufRead> TextReader<R> {
         (self.validators.xsd.as_ref()).map_or(&[], xsd::StreamValidator::diagnostics)
     }
 
-    /// `xmlTextReaderIsValid`: true when a schema is set and no validity error
-    /// was found so far by any validator.
+    /// The DTD validity diagnostics so far (`DTDVALID` or the `Validate`
+    /// property), as [`valid::StreamValidator::diagnostics`]; they can concern
+    /// nodes read ahead of the cursor.
+    pub fn dtd_diagnostics(&self) -> &[valid::Diagnostic<usize>] {
+        (self.validators.dtd.as_ref()).map_or(&[], valid::StreamValidator::diagnostics)
+    }
+
+    /// `xmlTextReaderIsValid`: true when DTD validation or a schema is set and
+    /// no validity error was found so far by any validator.
     pub fn is_valid(&self) -> bool {
         self.validators.is_valid()
     }
 }
 
-/// The schema validators attached to a reader; each sees every source event.
+/// The validators attached to a reader; each sees every source event.
 #[derive(Default)]
 struct Validators {
+    dtd: Option<valid::StreamValidator>,
     relaxng: Option<relaxng::Stream>,
     xsd: Option<xsd::StreamValidator>,
 }
 
 impl Validators {
+    /// DTD validation when the flags ask for it.
+    fn new(flags: Flags) -> Self {
+        Self {
+            dtd: flags.validates().then(valid::StreamValidator::new),
+            ..Self::default()
+        }
+    }
+
+    /// After an event: the source's DTD, complete once the document element
+    /// started, and the validity errors its parser recorded.
+    fn sync(&mut self, dtd: Option<&Dtd>) {
+        if let Some(validation) = &mut self.dtd {
+            validation.sync(dtd);
+        }
+    }
+
     fn event(&mut self, event: &Event<'_>, origin: SourceOrigin) {
+        if let Some(validation) = &mut self.dtd {
+            validation.event(event, origin);
+        }
         if let Some(validation) = &mut self.relaxng {
             validation.event(event, origin);
         }
@@ -1566,25 +1595,37 @@ impl Validators {
 
     /// True when some validator is attached and none found an error.
     fn is_valid(&self) -> bool {
+        let dtd = self.dtd.as_ref().map(|v| valid::is_valid(v.diagnostics()));
         let relaxng = self.relaxng.as_ref().map(|v| v.diagnostics().is_empty());
         let xsd = self.xsd.as_ref().map(|v| xsd::is_valid(v.diagnostics()));
-        matches!(
-            (relaxng, xsd),
-            (Some(true), Some(true) | None) | (None, Some(true))
-        )
+        let mut verdicts = [dtd, relaxng, xsd].into_iter().flatten().peekable();
+        verdicts.peek().is_some() && verdicts.all(|valid| valid)
     }
 }
 
-/// The options the source sees: it rejects `NOBLANKS`, which the reader applies.
+/// The options a source accepts: without `NOBLANKS`, which the reader applies,
+/// and `DTDVALID`, which its validator applies.
 fn streaming(options: ParseOptions) -> ParseOptions {
     ParseOptions {
-        flags: streaming_flags(Flags(options.flags)).0,
+        flags: options.flags & !(NOBLANKS | DTDVALID),
         ..options
     }
 }
 
+/// The flags a source parses with: `DTDVALID` loads what libxml2 loads to
+/// validate (the external subset and entities).
 fn streaming_flags(flags: Flags) -> Flags {
     Flags(flags.0 & !NOBLANKS)
+}
+
+/// A source for `options`.
+fn source<R: BufRead>(input: R, options: ParseOptions) -> Result<BufferedReader<R>, Error> {
+    let flags = streaming_flags(Flags(options.flags));
+    let mut source = BufferedReader::with_options(input, streaming(options))?;
+    if flags.validates() {
+        source.set_flags(flags);
+    }
+    Ok(source)
 }
 
 /// Serializes one replacement-text event of a skipped entity reference.

@@ -224,6 +224,9 @@ fn cases() -> Vec<Case> {
         // streaming
         case("stream", &["--stream", "a.xml"], 0, Empty),
         err(on(case("stream malformed", &["--stream", "a.xml"], 1, Empty), &[("a.xml", "<a>")], ""), "failed to parse"),
+        err(on(case("stream valid", &["--stream", "--valid", "a.xml"], 0, Empty), &[("a.xml", DTD_OK)], ""), ""),
+        err(on(case("stream invalid", &["--stream", "--valid", "a.xml"], 3, Empty), &[("a.xml", DTD_BAD)], ""), "validity error : Element a content does not follow the DTD, Misplaced c"),
+        err(case("stream valid without DTD fails", &["--stream", "--valid", "a.xml"], 3, Empty), "validity error : Validation failed: no DTD found !\n<a><b k=\"1\">x</b><b>y</b></a>\n^\nDocument a.xml does not validate"),
         err(on(case("stream relaxng", &["--stream", "--relaxng", "s.rng", "a.xml"], 0, Empty), &[("a.xml", BARE), ("s.rng", RNG)], ""), "a.xml validates"),
         err(on(case("stream relaxng fails", &["--stream", "--relaxng", "s.rng", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.rng", RNG)], ""), "a.xml:1: Relax-NG validity error : Expecting element b, got c"),
         err(on(case("stream relaxng malformed", &["--stream", "--relaxng", "s.rng", "a.xml"], 1, Empty), &[("a.xml", "<a><b>x</b>"), ("s.rng", RNG)], ""), "a.xml validates\na.xml : failed to parse"),
@@ -467,6 +470,12 @@ fn differential_against_xmllint() {
         (
             "--valid --noout",
             vec!["--valid", "--noout"],
+            supported.clone(),
+            true,
+        ),
+        (
+            "--stream --valid --noout",
+            vec!["--stream", "--valid", "--noout"],
             supported.clone(),
             true,
         ),

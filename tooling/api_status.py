@@ -162,7 +162,7 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "SAX1": ("P", "accepted; no SAX1 handlers"),
     "XINCLUDE": ("P", "OwnedDocument only"),
     "RECOVER": ("P", "DOMs only"),
-    "DTDVALID": ("P", "DOMs only"),
+    "DTDVALID": ("P", "DOMs and TextReader; valid::StreamValidator for other streams"),
     "NOBLANKS": ("P", "DOMs only"),
     "PEDANTIC": ("P", "accepted; libxml2 only prints more warnings"),
     "OLD10": ("N", "constant defined, rejected with UnsupportedOption"),
@@ -286,7 +286,7 @@ FIELD_DEFAULT = {
     "_xmlBuffer": ("A", "Vec<u8>/String replace xmlBuffer"),
     "_xmlOutputBuffer": ("A", "std::io::Write replaces xmlOutputBuffer"),
     "_xmlParserInputBuffer": ("A", "std::io::Read replaces xmlParserInputBuffer"),
-    "_xmlValidCtxt": ("A", "valid::validate returns diagnostics; no context struct"),
+    "_xmlValidCtxt": ("A", "valid::StreamValidator keeps its state private; valid::validate takes none"),
     "_xmlXPathContext": ("A", "xpath::Context is a builder; no public fields"),
     "_xmlXPathParserContext": ("A", "evaluation stack is internal"),
     "_xmlXPathObject": ("P", "xpath::Value"),
@@ -611,8 +611,8 @@ I|xmlTextReaderExpand|TextReader::expand
 I|xmlTextReaderGetAttribute|TextReader::get_attribute
 I|xmlTextReaderGetAttributeNo|TextReader::get_attribute_no
 I|xmlTextReaderGetAttributeNs|TextReader::get_attribute_ns
-P|xmlTextReaderGetParserProp|TextReader::parser_property - VALIDATE is always false
-P|xmlTextReaderSetParserProp|TextReader::set_parser_property - only before the first read; VALIDATE on is UnsupportedOption (docs/textreader.md)
+I|xmlTextReaderGetParserProp|TextReader::parser_property
+P|xmlTextReaderSetParserProp|TextReader::set_parser_property - only before the first read (docs/textreader.md)
 I|xmlTextReaderReadAttributeValue|TextReader::read_attribute_value
 I|xmlTextReaderIsDefault|TextReader::is_default - always false, as libxml2's
 I|xmlTextReaderNormalization|TextReader::normalization
@@ -671,7 +671,10 @@ P|xmlGetID|Document::element_by_id, OwnedDocument::element_by_id
 A|xmlNewValidCtxt xmlFreeValidCtxt xmlFreeIDTable xmlFreeEnumeration|Drop
 N|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl xmlAddID xmlAddIDSafe xmlRemoveID xmlGetDtdAttrDesc xmlGetDtdElementDesc xmlGetDtdNotationDesc xmlGetDtdQAttrDesc xmlGetDtdQElementDesc xmlIsID xmlValidGetPotentialChildren xmlValidGetValidElements xmlValidateNameValue xmlValidateNamesValue xmlValidateNmtokenValue xmlValidateNmtokensValue xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
 N|xmlAttributeTable xmlAttributeTablePtr xmlElementTable xmlElementTablePtr xmlIDTable xmlIDTablePtr xmlNotationTable xmlNotationTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
-N|xmlValidCtxt xmlValidCtxtPtr|valid::validate takes no context
+P|xmlValidatePushElement xmlValidatePushCData xmlValidatePopElement|valid::StreamValidator::event - deprecated in 2.15.4; parser events instead of nodes
+P|xmlValidateDocumentFinal|valid::StreamValidator::finish - deprecated in 2.15.4; IDREFs resolve when the document element ends
+P|xmlValidCtxt|valid::StreamValidator - one document's push validation state; tree validation takes none
+A|xmlValidCtxtPtr|raw pointer alias
 # ---- encoding.h
 P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum
 N|XML_CHAR_ENCODING_UCS4BE XML_CHAR_ENCODING_UCS4LE XML_CHAR_ENCODING_UCS4_2143 XML_CHAR_ENCODING_UCS4_3412 XML_CHAR_ENCODING_UCS2 XML_CHAR_ENCODING_EBCDIC XML_CHAR_ENCODING_2022_JP XML_CHAR_ENCODING_SHIFT_JIS XML_CHAR_ENCODING_EUC_JP XML_CHAR_ENCODING_HTML XML_CHAR_ENCODING_NONE XML_CHAR_ENCODING_ERROR|encoding unsupported (docs/encoding.md)

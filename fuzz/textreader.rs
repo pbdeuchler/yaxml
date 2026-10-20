@@ -586,7 +586,7 @@ fn validated(document: &[u8], control: u8) {
     let state = Err(ErrorKind::InvalidState);
     assert_eq!(reader.relaxng_set_schema(None).map_err(|e| e.kind), state);
     assert_eq!(reader.xsd_set_schema(None).map_err(|e| e.kind), state);
-    let tree_only = ParseOptions::new(options::DTDVALID);
+    let tree_only = ParseOptions::new(options::RECOVER);
     let rejected = TextReader::with_options(document, tree_only).map(drop);
     assert_eq!(
         rejected.map_err(|e| e.kind),

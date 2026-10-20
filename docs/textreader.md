@@ -20,6 +20,7 @@ single-byte encodings from `&[u8]` or any `BufRead` in bounded memory.
 | `Standalone`, `IsDefault`, `Normalization` | `standalone` (`Standalone`), `is_default`, `normalization` |
 | `ByteConsumed`, `GetRemainder` | `byte_consumed`, `into_remainder` |
 | `GetParserProp`, `SetParserProp` | `parser_property`, `set_parser_property` |
+| `XML_PARSE_DTDVALID`, `SetParserProp(VALIDATE)` | `DTDVALID` in `with_options`, `set_parser_property(Validate, true)`, `dtd_diagnostics` |
 | `RelaxNGSetSchema`, `SetSchema`, `IsValid` (`RelaxNGValidate` and `SchemaValidate` are `Schema::parse` plus `SetSchema`) | `relaxng_set_schema`, `xsd_set_schema`, `is_valid`, `relaxng_diagnostics`, `xsd_diagnostics` |
 
 `NodeType`, `ReadState`, `ParserProperty` and `Standalone` carry libxml2's
@@ -43,8 +44,9 @@ The reader behaves like `xmlReaderForMemory(..., options)`. By default (no
 flags) an entity reference is one EntityReference node (type 5) named after
 the entity, with no value, whose content is not visited, and no DTD default
 attributes appear; with `NOENT` the replacement's nodes appear in its place
-and with `DTDATTR` the defaults. `NOBLANKS` drops ignorable blanks (below).
-`DTDVALID`, `XINCLUDE` and `RECOVER` are `UnsupportedOption`. Following libxml2:
+and with `DTDATTR` the defaults. `NOBLANKS` drops ignorable blanks (below) and
+`DTDVALID` validates against the DTD ([below](#dtd-validation)). `XINCLUDE` and
+`RECOVER` are `UnsupportedOption`. Following libxml2:
 
 - `<a/>` is one Element with `is_empty_element`; `<a></a>` has an EndElement.
 - Adjacent text, including substituted replacement text, is one node; text
@@ -130,25 +132,88 @@ XML errors are sticky. An I/O error is returned once; later reads return
 
 Parser properties report the options: `LoadDtd` is true when a resolver was
 supplied and the flags load the external subset, `DefaultAttributes` is
-`DTDATTR`, `SubstituteEntities` is `NOENT` and `Validate` is false.
-`set_parser_property` sets `DTDLOAD`, `DTDATTR` or `NOENT` before the first
-read and rebuilds the stream with the resolver kept (`InvalidState` for a
-change afterwards; setting the current value always succeeds). Clearing
-`LoadDtd` clears `DTDLOAD` only, so it reads true while `DTDATTR` loads the
-subset, as libxml2's `loadsubset` does. `LoadDtd` on without a resolver and
-`Validate` on are `UnsupportedOption`.
+`DTDATTR`, `SubstituteEntities` is `NOENT` and `Validate` is `DTDVALID`.
+`set_parser_property` sets `DTDLOAD`, `DTDATTR`, `DTDVALID` or `NOENT` before
+the first read and rebuilds the stream with the resolver kept (`InvalidState`
+for a change afterwards; setting the current value always succeeds). Clearing
+`LoadDtd` clears `DTDLOAD` only, so it reads true while `DTDATTR` or
+`DTDVALID` loads the subset, as libxml2's `loadsubset` does. `LoadDtd` on
+without a resolver is `UnsupportedOption`.
 
-`Validate` (DTD validation while streaming) is rejected, not deferred
-cheaply: `src/valid.rs` is a pass over a whole tree through `Navigate`.
-A content model is checked by walking an element's children after the fact,
-IDREFs are resolved against every ID of the document, and diagnostics come in
-preorder with node ids. `relaxng::Stream` and `xsd::StreamValidator` exist
-because those validators were written as event engines (`start`/`text`/`end`)
-that the tree walk also drives. Doing the same for the DTD means splitting
-`Run` the same way (a model state per open element, ID and IDREF tables,
-attribute checks at the start tag, the standalone rule and entity
-transparency) and proving stream == tree on the suite, as xsd did; it is
-roadmap item 12's remaining work, not a reader change.
+## DTD validation
+
+`DTDVALID` in `with_options`, or `set_parser_property(Validate, true)` before
+the first read, validates the document against its DTD as it is read, as
+`xmlReaderForMemory(..., XML_PARSE_DTDVALID)` and `xmllint --stream --valid`
+do. The source then loads what libxml2 loads to validate (the external
+subset and external entities, through the resolver). A
+`valid::StreamValidator` sees every source event,
+including the content of kept entity references, and the reader passes it
+the source's DTD after each event: the external subset is loaded while the
+document element's start tag is read, so that tag is checked once its event
+has been consumed. Diagnostics accumulate in `dtd_diagnostics` and can
+concern the node of lookahead. `is_valid` is true while DTD or schema
+validation is set and no validator has reported an error, as
+`xmlTextReaderIsValid`.
+
+`valid.rs` is one event engine (`src/valid/engine.rs`: `start`, `text`,
+`other`, `flush`, `end`) that tree validation drives by walking the tree and
+`StreamValidator` drives with parser events, as libxml2's push validation
+(`xmlValidatePushElement`, `xmlValidatePushCData`, `xmlValidatePopElement`
+over `vstateTab`) does. Each element type's `children` model is compiled once
+per DTD into its Glushkov automaton (`src/valid/model.rs`, deterministic by
+Appendix E, one transition lookup per child); an open element keeps its
+declaration and its automaton state, and the attribute checks, `ID` table
+and `IDREF` list are fed at the start tag. `IDREF`s are resolved when the
+document element ends, as `xmlValidateDocumentFinal` does at the end of the
+document. Memory is one small frame per open element (depth is bounded by
+`Limits::max_depth`), the `ID` values and the `IDREF` attributes (bounded by
+the input and entity limits), and the diagnostics.
+
+Diagnostics come in document order, each as soon as it is known; `node` is
+the element's index in document order. Tree validation reports the same
+diagnostics, sorted into `xmlValidateDocument`'s preorder (an element's
+content, its required attributes, its attribute values, then its
+descendants) by a key the engine gives each. Differences in wording follow
+libxml2's two modes:
+
+- A content-model mismatch is worded as the push validator words it and
+  reported at the child or end tag that shows it, once per element:
+  `Element r content does not follow the DTD, Misplaced b`, `..., Text not
+  allowed` or `..., Expecting more children`. The tree reports `Element r
+  content does not follow the DTD` (libxml2's tree validation adds
+  `expecting (a , b), got (b a)`, which needs the children). libxml2's reader
+  reports most content problems twice, once from its parser
+  (`xmlValidateOneElement` at the end tag) and once more per later child
+  from the push validator; the reader here reports each once.
+- No DTD, or a DTD that declares nothing, is `Validation failed: no DTD found
+  !` at the document element and nothing else is checked, as libxml2's parser
+  does; tree validation (`xmlValidateDocument`) says `no DTD found!` without
+  a DTD and validates against an empty one.
+- `IDREF attribute a references an unknown ID "x"`: libxml2's reader has no
+  attribute node left to name and says `attribute a line N references ...`;
+  without line numbers (they wait for `work/errors`) the tree's wording is kept.
+- A blank `CDATA` section in element content is invalid in both modes (as
+  libxml2's tree validation decides); libxml2's push validator only rejects
+  non-blank character data, so its reader reports it once, not twice.
+
+Differential results, with the pinned libxml2 source and the XMLTS suites
+(`cargo test --release --test valid_stream -- --ignored`, `YAXML_XMLLINT`,
+`YAXML_LIBXML2_SRC`, `YAXML_SUITES`): over libxml2's `test/valid`,
+`test/errors` and `test/*.xml` and the 1,054 XMLTS `valid` and `invalid`
+cases, read with and without `NOENT` (2,202 parsed runs), stream and tree
+diagnostics are equal, content-model wording aside, except for the 4 runs
+whose DTD declares nothing. Against `xmllint --stream --valid` 1,095 of 1,095
+verdicts agree and for 1,087 documents every message the reader prints is
+one libxml2 prints; against `xmllint --valid` 1,095 of 1,095 tree verdicts
+agree and 1,083 message lists are equal (content-model wording aside). The
+remaining messages are worded differently in both modes: parameter-entity
+nesting (`Element declaration doesn't start and stop in the same entity`,
+four files), `duplicate references of`/`to` in mixed content, the two blank
+`CDATA` cases above, and an undeclared prefix in entity content
+(`errors/ns-ent.xml`). `yaxmllint --stream --valid` agrees with `xmllint` on
+stdout and exit code on all 120 documents of the `tests/yaxmllint.rs`
+differential.
 
 ## Schema validation
 
@@ -224,7 +289,6 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
   forbids. `expand` is the safe form: an owned copy of the current subtree,
   which a caller keeps or drops. A pattern-driven collector (`pattern::StreamMatcher`
   plus `expand` at each match) would be a new API, not `PreservePattern`.
-- DTD validation while reading: above. `DTDVALID` stays `UnsupportedOption`.
 - `NOBLANKS` differences: above. `RECOVER` and `XINCLUDE` are rejected.
 - Attributes are not kept for EndElement nodes: libxml2 lets the `move_to_*`
   calls visit them there.
