@@ -68,7 +68,8 @@ pub struct Options {
     /// Limits for parsing included documents and for the result.
     /// `max_external_loads` and `max_external_bytes` are cumulative over the
     /// whole call, including the included documents' DTDs; `max_events`
-    /// bounds result nodes and, separately, nodes visited while expanding;
+    /// bounds result nodes and, separately, nodes visited while expanding
+    /// (document nodes aside, as in parsing);
     /// `max_owned_bytes` bounds the result's strings.
     pub limits: Limits,
     /// Ceilings for each XPointer evaluation.
@@ -343,7 +344,8 @@ impl Processor<'_> {
     ) -> Result<(), Error> {
         let mut next = Some(top);
         while let Some(node) = next {
-            self.visited += 1;
+            // A document node is no event, as in the parse's node ceiling.
+            self.visited += usize::from(node.kind() != OwnedNodeKind::Document);
             if self.visited > self.options.limits.max_events {
                 let error = crate::Error::new(crate::ErrorKind::LimitExceeded(Limit::Events), 0);
                 return Err(fail(local, None, ErrorKind::Xml(error)));

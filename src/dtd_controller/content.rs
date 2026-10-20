@@ -1028,14 +1028,14 @@ fn scan(text: &str, at: usize, token: TokenLimit) -> Result<Scanned, Error> {
 /// its `;`, as the reference scratch collects it.
 fn reference(text: &str, start: usize, token: TokenLimit) -> Result<(ReferenceKind, usize), Error> {
     let bytes = text.as_bytes();
-    let window = start.saturating_add(token.bytes).saturating_add(1);
-    let window = &bytes[start..bytes.len().min(window)];
+    // The `;` must fall within the ceiling, as the reference scratch checks.
+    let window = &bytes[start..bytes.len().min(start.saturating_add(token.bytes))];
     match memchr(b';', window) {
         Some(at) => {
             let end = start + at + 1;
             Ok((classify(&text[start..end], start, true)?, end))
         }
-        None if window.len() > token.bytes => Err(token.error(start)),
+        None if window.len() == token.bytes => Err(token.error(start)),
         None => {
             classify(&text[start..], start, false)?;
             Err(Error::new(ErrorKind::UnexpectedEof, text.len()))

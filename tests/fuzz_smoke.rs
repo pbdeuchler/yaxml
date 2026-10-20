@@ -1076,6 +1076,7 @@ fn fuzz_regressions_replay() {
                     driver::exercise_pull(&data, data.get(data.len() / 2).copied().unwrap_or(0));
                 }
                 "dtd" => drop(driver::exercise_dtd(&data)),
+                "encoding" => drop(driver::exercise_encoding(&data)),
                 "c14n" => driver::exercise_c14n(&data),
                 "limits" => drop(driver::exercise_limits(&data)),
                 "valid" => driver::exercise_valid(&data),
