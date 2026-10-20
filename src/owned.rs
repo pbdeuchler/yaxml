@@ -166,6 +166,23 @@ impl OwnedNodeId {
     pub(crate) fn slot(self) -> usize {
         self.slot.0
     }
+
+    /// The handle as plain integers `(document identity, slot)`, for foreign
+    /// handle tables such as a C ABI; [`from_parts`](Self::from_parts)
+    /// rebuilds it. Lookups validate a rebuilt handle like any other.
+    pub fn parts(self) -> (usize, usize) {
+        (self.document.get(), self.slot.0)
+    }
+
+    /// Rebuilds a handle from [`parts`](Self::parts); `None` for identity 0,
+    /// which no document has. Any other pair is accepted here: `node(id)`
+    /// and every editor call reject a forged, foreign, stale or out-of-range one.
+    pub fn from_parts(document: usize, slot: usize) -> Option<Self> {
+        Some(Self {
+            document: NonZeroUsize::new(document)?,
+            slot: NodeId(slot),
+        })
+    }
 }
 
 /// The content category of a node in an owned document.
