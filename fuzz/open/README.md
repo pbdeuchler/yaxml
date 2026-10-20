@@ -36,9 +36,20 @@ not reparse.
   declaration and DOCTYPE; `RECOVER` output reparses to a different document
   (options.rs "recovery is not a fixed point"). Reproduces on main
   `d30e423fd`; diagnostics are not involved.
-- `textreader/outer-xml-kept-attribute-reference.bin` (2026-10-20, stream
-  recovery work): the driver's `content` check reparses an element's outer
-  XML without its DTD, but an attribute whose value keeps a reference
-  (`newline="&newline;"`) is written with it, so the reparse fails with
-  `UnknownEntity`. The check only routes element references to `expand`;
-  attribute kept forms need the same. Reproduces on main `cdc363b54`.
+- `encoding/2cb101abf3950cb2d16e120a8388cdf3fa696b74`,
+  `encoding/7af10d0ae984ef19d8db1268df1eec2d420f1374` (moved out of
+  `corpus/encoding` 2026-10-20; they failed `./coverage.sh` on core main
+  `cdc363b54`): DOCTYPE documents with entity references (an internal
+  entity whose value references another; an external subset with a PE in
+  CDATA) under the hash-derived `DecodeLimits` of `exercise_decode_limits`
+  (bytes 6 and 7: `max_decoded_bytes` 89 and `max_decoded_token_bytes` 80
+  for the first) are accepted when fed whole and rejected when fed in
+  4 KiB-or-smaller chunks, or the reverse: `encoding.rs` "decoded ceilings
+  depend on chunk boundaries".
+- `dtd/xinclude-changes-acceptance-tight-limits.bin` (2026-10-20 campaign,
+  `dtd` target; reproduces with core main's `src/`): control `0xcb` (the
+  resolver wrapper, template 2, limits profile 3: small `max_dtd_bytes`,
+  `max_owned_bytes` and similar ceilings), document `<!DOCTYPE r><r/>`. The
+  owned parse succeeds and the same parse with `XINCLUDE` and no include
+  element fails (resolver.rs "XINCLUDE changed acceptance"): XInclude
+  processing seems to spend a ceiling the plain parse does not.
