@@ -329,6 +329,8 @@ Delegated work is reviewed before it reaches local main. Review the actual diff,
 
 ## Remaining gaps (2026-10-19)
 
+The current, complete list is [remaining-work.md](remaining-work.md); this section keeps the history and design notes.
+
 Audit of every feature row in [compatibility.md](compatibility.md) against `src/`, `tests/` and the module docs. Size: S under about a week, M a few weeks, L a quarter or more. Ordered by migration value first, then security, then bindings; items 1-7 are mostly API surface over data the parsers already hold.
 
 1. Structured error record (`xmlError`) - **done**: `Error::describe`/`LineIndex::describe_all` build libxml2's domain, code, level, line, column and message on demand, `Diagnostic::render` prints `xmlFormatError`'s report, validators convert with `describe` ([bindings.md](bindings.md#error-mapping)). Left: an error callback (`xmlCtxtSetErrorHandler`, `xmlGetLastError`) has no counterpart since errors are returned; libxml2's column lag after entity values and the context lines of errors inside entities.
