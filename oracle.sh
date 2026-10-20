@@ -26,7 +26,7 @@ need_oracle
 	die "no XML test suite at $YAXML_SUITES; run ./setup.sh or set YAXML_SUITES"
 export YAXML_XMLLINT="$LIBXML2_BUILD/xmllint" YAXML_LIBXML2_SRC="$LIBXML2_SOURCE" \
 	YAXML_LIBXML2_SOURCE="$LIBXML2_SOURCE" YAXML_SUITES YAXML_XMLCONF="$YAXML_SUITES/xmlconf"
-for pair in CATALOG:catalog DOMEDIT:domedit DTD:dtd ERRORS:errors HTML:html \
+for pair in CATALOG:catalog DOMEDIT:domedit DTD:dtd ERRORS:errors FRAGMENT:fragment HTML:html \
 	SCHEMA_TYPES:schema_types TEXTREADER:textreader TEXTWRITER:textwriter URI:uri \
 	XSD:xsd XMLCONF:xmlconf_catalog PARSE_LIBXML2:parse_bench; do
 	export "YAXML_${pair%%:*}_HELPER=$(helper "${pair#*:}")"
