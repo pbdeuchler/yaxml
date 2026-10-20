@@ -6,6 +6,18 @@
 //! [`validate`] checks any tree against a separately parsed [`Dtd`]
 //! (`xmlValidateDtd`, `xmllint --dtdvalid`). Validity errors are never fatal:
 //! each is a [`Diagnostic`] whose [`Code`] carries libxml2's `XML_DTD_*` number.
+//! [`StreamValidator`] validates parser events without a tree.
+//!
+//! ```
+//! use yaxml::valid::{self, Code};
+//!
+//! let xml = "<!DOCTYPE r [<!ELEMENT r (a)><!ATTLIST r id ID #REQUIRED>]><r/>";
+//! let diagnostics = yaxml::Document::parse(xml)?.validate();
+//! let codes: Vec<_> = diagnostics.iter().map(|d| d.code).collect();
+//! assert_eq!(codes, [Code::ContentModel, Code::MissingAttribute]);
+//! assert!(!valid::is_valid(&diagnostics));
+//! # Ok::<(), yaxml::Error>(())
+//! ```
 
 mod engine;
 mod model;
@@ -112,6 +124,7 @@ impl Code {
 /// One validity error or warning.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic<Id> {
+    /// What went wrong.
     pub code: Code,
     /// The element concerned; `None` for declaration-level diagnostics.
     pub node: Option<Id>,
@@ -128,7 +141,8 @@ pub fn is_valid<Id>(diagnostics: &[Diagnostic<Id>]) -> bool {
         .all(|diagnostic| diagnostic.code.is_warning())
 }
 
-/// Element and attribute-list declarations, notations and entity kinds.
+/// A DTD's element, attribute-list, entity and notation declarations
+/// (libxml2's `xmlDtd`).
 ///
 /// A parsed document keeps the DTD its internal and external subsets
 /// declared; [`Dtd::load`] and [`Dtd::parse`] read a standalone external DTD.
@@ -582,7 +596,9 @@ pub enum EntityKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Entity<'a> {
+    /// The entity's name.
     pub name: &'a str,
+    /// What the entity declares.
     pub kind: EntityKind,
     /// The replacement text (libxml2's `content`): an internal entity's
     /// literal with character and parameter-entity references expanded and
@@ -590,7 +606,9 @@ pub struct Entity<'a> {
     /// resolver has loaded it; an unparsed entity's notation, as libxml2
     /// stores it; otherwise `None`.
     pub content: Option<&'a str>,
+    /// The public identifier.
     pub public_id: Option<&'a str>,
+    /// The system identifier as written.
     pub system_id: Option<&'a str>,
     /// The system identifier resolved against the base of the resource that
     /// declares it (libxml2's `URI`); without a resolver, the system
@@ -623,7 +641,9 @@ pub enum ContentKind {
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 pub struct Element<'a> {
+    /// The element type's name.
     pub name: &'a str,
+    /// The declared content.
     pub kind: ContentKind,
     /// Mixed or element content as libxml2 prints it, e.g. `(a , (b | c)*)`.
     pub model: Option<&'a str>,
@@ -672,7 +692,9 @@ pub struct Attribute<'a> {
     pub element: &'a str,
     /// The qualified name as declared.
     pub name: &'a str,
+    /// The declared type.
     pub kind: AttributeKind,
+    /// The default declaration.
     pub default: AttributeDefault<'a>,
     /// An enumeration's or `NOTATION` type's tokens, in declaration order.
     pub values: &'a [String],
@@ -705,8 +727,11 @@ impl<'a> Attribute<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Notation<'a> {
+    /// The notation's name.
     pub name: &'a str,
+    /// The public identifier.
     pub public_id: Option<&'a str>,
+    /// The system identifier.
     pub system_id: Option<&'a str>,
 }
 

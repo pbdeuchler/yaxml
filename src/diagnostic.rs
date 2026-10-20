@@ -1,20 +1,26 @@
 //! libxml2's structured error record (`xmlError`), built on demand.
 //!
-//! [`Error`] stays the cheap `{ kind, offset }` value the parser returns; no
-//! error site allocates or records more. [`Error::describe`] turns it into a
+//! [`Error`] is a cheap `{ kind, offset }` value; [`Error::describe`] or
+//! [`LineIndex::describe_all`] re-reads the input around the offset to build a
 //! [`Diagnostic`] with libxml2's domain, code, level, line, column and
-//! message, and the validators' diagnostics convert to the same shape.
+//! message. The validators' diagnostics convert to the same shape. Codes and
+//! domains are stable; see the
+//! [error mapping](https://github.com/pbdeuchler/yaxml/blob/main/docs/bindings.md#error-mapping).
 //!
-//! Messages need context the error does not carry (tag, attribute and entity
-//! names, the open element and its line). `describe` recovers it from the
-//! input: a forward scan of the markup skeleton finds the construct holding
-//! the offset and the open elements, and that construct is re-read the way
-//! libxml2's parser reads it, so its first error, position and wording are
-//! libxml2's. The parser accepted everything before a strict error, so the
-//! scan is exact there; after recovered errors it follows libxml2's repair in
-//! the common case (an end tag closes the innermost element). Codes, domains
-//! and the context-free fallback per [`ErrorKind`] are stable; see
-//! docs/bindings.md#error-mapping.
+//! ```
+//! use yaxml::{Document, LineIndex, ParseOptions, options};
+//!
+//! let input = b"<r><a>text</b><p:c/>";
+//! let document = Document::parse_with(input, ParseOptions::new(options::RECOVER))?;
+//! let lines = LineIndex::new(input);
+//! let messages: Vec<_> = lines.describe_all(document.errors()).into_iter().map(|d| d.message).collect();
+//! assert_eq!(messages, [
+//!     "Opening and ending tag mismatch: a line 1 and b",
+//!     "Namespace prefix p on c is not defined",
+//! ]);
+//! assert_eq!(document.root_element().line(&lines), Some(1));
+//! # Ok::<(), yaxml::Error>(())
+//! ```
 
 use std::borrow::Cow;
 
@@ -25,39 +31,57 @@ mod reread;
 
 use reread::{Cur, Found, Scan, Work, found, local, unquoted};
 
-/// `xmlErrorDomain`; `as u8` is the C constant.
+/// The subsystem that raised a [`Diagnostic`] (libxml2's `xmlErrorDomain`);
+/// `as u8` is the C constant.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Domain {
+    /// `XML_FROM_PARSER`.
     #[default]
     Parser = 1,
+    /// `XML_FROM_NAMESPACE`.
     Namespace = 3,
+    /// `XML_FROM_HTML`.
     Html = 5,
+    /// `XML_FROM_IO`.
     Io = 8,
+    /// `XML_FROM_XINCLUDE`.
     XInclude = 11,
+    /// `XML_FROM_XPATH`.
     XPath = 12,
+    /// `XML_FROM_SCHEMASP`.
     SchemasParser = 16,
+    /// `XML_FROM_SCHEMASV`.
     SchemasValidity = 17,
+    /// `XML_FROM_RELAXNGV`.
     RelaxNgValidity = 19,
+    /// `XML_FROM_VALID`.
     Valid = 23,
+    /// `XML_FROM_SCHEMATRONV`.
     SchematronValidity = 28,
 }
 
-/// `xmlErrorLevel`; `as u8` is the C constant.
+/// A [`Diagnostic`]'s severity (libxml2's `xmlErrorLevel`); `as u8` is the
+/// C constant.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Level {
+    /// `XML_ERR_WARNING`.
     Warning = 1,
+    /// `XML_ERR_ERROR`.
     #[default]
     Error = 2,
+    /// `XML_ERR_FATAL`.
     Fatal = 3,
 }
 
 /// One `xmlError`: what a libxml2 structured error handler receives.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Diagnostic {
+    /// The subsystem that raised it.
     pub domain: Domain,
     /// The `xmlParserErrors` number (`xmlError.code`).
     pub code: u16,
+    /// Severity.
     pub level: Level,
     /// 1-based line; 0 when unknown.
     pub line: usize,
@@ -66,8 +90,11 @@ pub struct Diagnostic {
     /// libxml2's text without its trailing newline (`xmlError.message` is
     /// this plus `"\n"`).
     pub message: String,
+    /// libxml2's first string argument (`xmlError.str1`), such as a name.
     pub str1: Option<String>,
+    /// libxml2's second string argument (`xmlError.str2`).
     pub str2: Option<String>,
+    /// libxml2's integer argument (`xmlError.int1`), such as a line.
     pub int1: i64,
     /// Local name of the element `xmlError.node` names, which
     /// `xmlFormatError` prints as `element NAME: `.
@@ -78,79 +105,151 @@ pub struct Diagnostic {
     pub entity: bool,
 }
 
-/// `xmlParserErrors` numbers the mapping produces (include/libxml/xmlerror.h).
+/// The libxml2 `xmlParserErrors` numbers that [`Diagnostic::code`] takes.
 pub mod code {
+    /// `XML_ERR_INTERNAL_ERROR`.
     pub const INTERNAL_ERROR: u16 = 1;
+    /// `XML_ERR_NO_MEMORY`.
     pub const NO_MEMORY: u16 = 2;
+    /// `XML_ERR_DOCUMENT_EMPTY`.
     pub const DOCUMENT_EMPTY: u16 = 4;
+    /// `XML_ERR_DOCUMENT_END`.
     pub const DOCUMENT_END: u16 = 5;
+    /// `XML_ERR_INVALID_HEX_CHARREF`.
     pub const INVALID_HEX_CHARREF: u16 = 6;
+    /// `XML_ERR_INVALID_DEC_CHARREF`.
     pub const INVALID_DEC_CHARREF: u16 = 7;
+    /// `XML_ERR_INVALID_CHARREF`.
     pub const INVALID_CHARREF: u16 = 8;
+    /// `XML_ERR_INVALID_CHAR`.
     pub const INVALID_CHAR: u16 = 9;
+    /// `XML_ERR_ENTITYREF_SEMICOL_MISSING`.
     pub const ENTITYREF_SEMICOL_MISSING: u16 = 23;
+    /// `XML_ERR_PEREF_NO_NAME`.
     pub const PEREF_NO_NAME: u16 = 24;
+    /// `XML_ERR_PEREF_SEMICOL_MISSING`.
     pub const PEREF_SEMICOL_MISSING: u16 = 25;
+    /// `XML_ERR_UNDECLARED_ENTITY`.
     pub const UNDECLARED_ENTITY: u16 = 26;
+    /// `XML_ERR_UNPARSED_ENTITY`.
     pub const UNPARSED_ENTITY: u16 = 28;
+    /// `XML_ERR_ENTITY_IS_EXTERNAL`.
     pub const ENTITY_IS_EXTERNAL: u16 = 29;
+    /// `XML_ERR_UNSUPPORTED_ENCODING`.
     pub const UNSUPPORTED_ENCODING: u16 = 32;
+    /// `XML_ERR_STRING_NOT_STARTED`.
     pub const STRING_NOT_STARTED: u16 = 33;
+    /// `XML_ERR_STRING_NOT_CLOSED`.
     pub const STRING_NOT_CLOSED: u16 = 34;
+    /// `XML_ERR_ENTITY_NOT_FINISHED`.
     pub const ENTITY_NOT_FINISHED: u16 = 37;
+    /// `XML_ERR_LT_IN_ATTRIBUTE`.
     pub const LT_IN_ATTRIBUTE: u16 = 38;
+    /// `XML_ERR_ATTRIBUTE_NOT_STARTED`.
     pub const ATTRIBUTE_NOT_STARTED: u16 = 39;
+    /// `XML_ERR_ATTRIBUTE_NOT_FINISHED`.
     pub const ATTRIBUTE_NOT_FINISHED: u16 = 40;
+    /// `XML_ERR_ATTRIBUTE_WITHOUT_VALUE`.
     pub const ATTRIBUTE_WITHOUT_VALUE: u16 = 41;
+    /// `XML_ERR_ATTRIBUTE_REDEFINED`.
     pub const ATTRIBUTE_REDEFINED: u16 = 42;
+    /// `XML_ERR_LITERAL_NOT_STARTED`.
     pub const LITERAL_NOT_STARTED: u16 = 43;
+    /// `XML_ERR_LITERAL_NOT_FINISHED`.
     pub const LITERAL_NOT_FINISHED: u16 = 44;
+    /// `XML_ERR_COMMENT_NOT_FINISHED`.
     pub const COMMENT_NOT_FINISHED: u16 = 45;
+    /// `XML_ERR_PI_NOT_STARTED`.
     pub const PI_NOT_STARTED: u16 = 46;
+    /// `XML_ERR_PI_NOT_FINISHED`.
     pub const PI_NOT_FINISHED: u16 = 47;
+    /// `XML_ERR_NOTATION_NOT_STARTED`.
     pub const NOTATION_NOT_STARTED: u16 = 48;
+    /// `XML_ERR_NOTATION_NOT_FINISHED`.
     pub const NOTATION_NOT_FINISHED: u16 = 49;
+    /// `XML_ERR_ATTLIST_NOT_STARTED`.
     pub const ATTLIST_NOT_STARTED: u16 = 50;
+    /// `XML_ERR_ATTLIST_NOT_FINISHED`.
     pub const ATTLIST_NOT_FINISHED: u16 = 51;
+    /// `XML_ERR_MIXED_NOT_STARTED`.
     pub const MIXED_NOT_STARTED: u16 = 52;
+    /// `XML_ERR_ELEMCONTENT_NOT_STARTED`.
     pub const ELEMCONTENT_NOT_STARTED: u16 = 54;
+    /// `XML_ERR_ELEMCONTENT_NOT_FINISHED`.
     pub const ELEMCONTENT_NOT_FINISHED: u16 = 55;
+    /// `XML_ERR_XMLDECL_NOT_FINISHED`.
     pub const XMLDECL_NOT_FINISHED: u16 = 57;
+    /// `XML_ERR_DOCTYPE_NOT_FINISHED`.
     pub const DOCTYPE_NOT_FINISHED: u16 = 61;
+    /// `XML_ERR_MISPLACED_CDATA_END`.
     pub const MISPLACED_CDATA_END: u16 = 62;
+    /// `XML_ERR_CDATA_NOT_FINISHED`.
     pub const CDATA_NOT_FINISHED: u16 = 63;
+    /// `XML_ERR_RESERVED_XML_NAME`.
     pub const RESERVED_XML_NAME: u16 = 64;
+    /// `XML_ERR_SPACE_REQUIRED`.
     pub const SPACE_REQUIRED: u16 = 65;
+    /// `XML_ERR_SEPARATOR_REQUIRED`.
     pub const SEPARATOR_REQUIRED: u16 = 66;
+    /// `XML_ERR_NMTOKEN_REQUIRED`.
     pub const NMTOKEN_REQUIRED: u16 = 67;
+    /// `XML_ERR_NAME_REQUIRED`.
     pub const NAME_REQUIRED: u16 = 68;
+    /// `XML_ERR_GT_REQUIRED`.
     pub const GT_REQUIRED: u16 = 73;
+    /// `XML_ERR_EQUAL_REQUIRED`.
     pub const EQUAL_REQUIRED: u16 = 75;
+    /// `XML_ERR_TAG_NAME_MISMATCH`.
     pub const TAG_NAME_MISMATCH: u16 = 76;
+    /// `XML_ERR_TAG_NOT_FINISHED`.
     pub const TAG_NOT_FINISHED: u16 = 77;
+    /// `XML_ERR_STANDALONE_VALUE`.
     pub const STANDALONE_VALUE: u16 = 78;
+    /// `XML_ERR_ENCODING_NAME`.
     pub const ENCODING_NAME: u16 = 79;
+    /// `XML_ERR_HYPHEN_IN_COMMENT`.
     pub const HYPHEN_IN_COMMENT: u16 = 80;
+    /// `XML_ERR_INVALID_ENCODING`.
     pub const INVALID_ENCODING: u16 = 81;
+    /// `XML_ERR_VALUE_REQUIRED`.
     pub const VALUE_REQUIRED: u16 = 84;
+    /// `XML_ERR_NOT_WELL_BALANCED`.
     pub const NOT_WELL_BALANCED: u16 = 85;
+    /// `XML_ERR_ENTITY_CHAR_ERROR`.
     pub const ENTITY_CHAR_ERROR: u16 = 87;
+    /// `XML_ERR_ENTITY_PE_INTERNAL`.
     pub const ENTITY_PE_INTERNAL: u16 = 88;
+    /// `XML_ERR_ENTITY_LOOP`.
     pub const ENTITY_LOOP: u16 = 89;
+    /// `XML_ERR_VERSION_MISSING`.
     pub const VERSION_MISSING: u16 = 96;
+    /// `XML_ERR_NOTATION_PROCESSING`.
     pub const NOTATION_PROCESSING: u16 = 105;
+    /// `XML_ERR_UNKNOWN_VERSION`.
     pub const UNKNOWN_VERSION: u16 = 108;
+    /// `XML_ERR_USER_STOP`.
     pub const USER_STOP: u16 = 111;
+    /// `XML_ERR_RESOURCE_LIMIT`.
     pub const RESOURCE_LIMIT: u16 = 114;
+    /// `XML_ERR_ARGUMENT`.
     pub const ARGUMENT: u16 = 115;
+    /// `XML_ERR_INT_SUBSET_NOT_FINISHED`.
     pub const INT_SUBSET_NOT_FINISHED: u16 = 118;
+    /// `XML_NS_ERR_XML_NAMESPACE`.
     pub const NS_XML_NAMESPACE: u16 = 200;
+    /// `XML_NS_ERR_UNDEFINED_NAMESPACE`.
     pub const NS_UNDEFINED_NAMESPACE: u16 = 201;
+    /// `XML_NS_ERR_QNAME`.
     pub const NS_QNAME: u16 = 202;
+    /// `XML_NS_ERR_ATTRIBUTE_REDEFINED`.
     pub const NS_ATTRIBUTE_REDEFINED: u16 = 203;
+    /// `XML_NS_ERR_COLON`.
     pub const NS_COLON: u16 = 205;
+    /// `XML_HTML_STRUCURE_ERROR`.
     pub const HTML_STRUCTURE_ERROR: u16 = 800;
+    /// `XML_IO_LOAD_ERROR`.
     pub const IO_LOAD_ERROR: u16 = 1549;
+    /// `XML_XINCLUDE_BUILD_FAILED`.
     pub const XINCLUDE_BUILD_FAILED: u16 = 1609;
 }
 
@@ -168,8 +267,8 @@ const fn raised(code: u16) -> (Domain, Level) {
 }
 
 impl ErrorKind {
-    /// The libxml2 domain and code for this kind when no input is at hand;
-    /// [`Error::describe`] refines it from the input. New kinds only add rows.
+    /// libxml2's domain and code for this kind without the input;
+    /// [`Error::describe`] refines it from the input.
     pub const fn libxml2_code(self) -> (Domain, u16) {
         let code = match self {
             Self::InvalidUtf8
@@ -207,11 +306,11 @@ impl ErrorKind {
 
 // ---- positions ----
 
-/// Offset-to-position index over one input, counting as libxml2 does: lines
-/// end at `\n`, columns count characters from 1, and a leading byte order
-/// mark is not a column. UTF-16 input (by BOM or `<?` pattern) and input
-/// declaring a built-in single-byte charset are indexed through their UTF-8
-/// transcoding, so offsets stay input bytes.
+/// Maps input byte offsets to libxml2's lines and columns.
+///
+/// Lines end at `\n`; columns count characters from 1, and a leading byte
+/// order mark is not a column. UTF-16 and single-byte encoded input is
+/// handled too; offsets are always input bytes.
 pub struct LineIndex<'s> {
     input: Cow<'s, [u8]>,
     /// The input transcoded to UTF-8; `None` when the input is UTF-8 itself.
@@ -266,6 +365,7 @@ impl Decoder {
 }
 
 impl<'s> LineIndex<'s> {
+    /// Indexes `input`, the bytes that were parsed.
     pub fn new(input: &'s [u8]) -> Self {
         use crate::encoding::{Charset, charset, declared_label};
         let decoder = match input {
@@ -321,8 +421,7 @@ impl<'s> LineIndex<'s> {
         }
     }
 
-    /// An index that owns its input, for callers that keep it beside a
-    /// long-lived tree (a language binding's `sourceline`).
+    /// [`LineIndex::new`] over an input it owns, to keep beside a long-lived tree.
     pub fn owned(input: Vec<u8>) -> LineIndex<'static> {
         let LineIndex {
             text,
@@ -512,17 +611,12 @@ impl LineIndex<'_> {
         }
     }
 
-    /// The errors of a recovered parse (at most libxml2's 100) as libxml2
-    /// reports them: each described, without the end-of-input errors libxml2
-    /// raises only for a still well-formed document. One forward scan
-    /// serves errors in increasing offset order, as the parse records them.
+    /// The errors of a recovered parse as libxml2 reports them, up to its 100.
     ///
-    /// All of them share one work budget, linear in the input (eight bytes
-    /// of work per input byte, libxml2's amplification factor of five for
-    /// entity expansion and three passes, plus 64 KiB): what is scanned to
-    /// reach an error, re-read and expanded for it. Once it is spent the
-    /// remaining errors get the context-free [`ErrorKind::libxml2_code`],
-    /// a generic message and no column.
+    /// Work is linear in the input (eight bytes of work per input byte plus
+    /// 64 KiB, shared by all errors); once it is spent, the remaining errors
+    /// get the context-free [`ErrorKind::libxml2_code`], a generic message
+    /// and no column.
     pub fn describe_all(&self, errors: &[Error]) -> Vec<Diagnostic> {
         self.describe_counted(errors).0
     }

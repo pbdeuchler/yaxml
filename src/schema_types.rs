@@ -1,9 +1,18 @@
-//! XML Schema 1.0 built-in datatypes (Part 2) as libxml2 2.15.4
-//! `xmlschemastypes.c` validates, compares and constrains them, for use by
-//! XML Schema and RELAX NG validation (see `docs/schema-types.md`).
+//! The 45 XML Schema 1.0 built-in datatypes, libxml2's `xmlschemastypes.c`.
 //!
 //! [`Type::parse`] normalizes whitespace and computes a [`Value`];
 //! [`Value::compare`] orders values partially; a [`Facet`] constrains them.
+//! XML Schema and RELAX NG validation build on this module. Differences from
+//! libxml2: <https://github.com/pbdeuchler/yaxml/blob/main/docs/schema-types.md>.
+//!
+//! ```
+//! use yaxml::schema_types::{Comparison, Type};
+//!
+//! let late = Type::DateTime.parse("2001-10-26T21:32:52Z", None).unwrap();
+//! let early = Type::DateTime.parse("2001-10-26T23:32:52+04:00", None).unwrap();
+//! assert_eq!(early.compare(&late), Comparison::Less);
+//! assert!(Type::Byte.parse("128", None).is_err());
+//! ```
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -23,50 +32,95 @@ const XML_NAMESPACE: &str = "http://www.w3.org/XML/1998/namespace";
 /// A built-in simple type.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Type {
+    /// `xs:anySimpleType`.
     AnySimpleType,
+    /// `xs:string`.
     String,
+    /// `xs:normalizedString`.
     NormalizedString,
+    /// `xs:token`.
     Token,
+    /// `xs:language`.
     Language,
+    /// `xs:NMTOKEN`.
     NmToken,
+    /// `xs:NMTOKENS`.
     NmTokens,
+    /// `xs:Name`.
     Name,
+    /// `xs:NCName`.
     NCName,
+    /// `xs:ID`.
     Id,
+    /// `xs:IDREF`.
     IdRef,
+    /// `xs:IDREFS`.
     IdRefs,
+    /// `xs:ENTITY`.
     Entity,
+    /// `xs:ENTITIES`.
     Entities,
+    /// `xs:QName`.
     QName,
+    /// `xs:NOTATION`.
     Notation,
+    /// `xs:anyURI`.
     AnyUri,
+    /// `xs:boolean`.
     Boolean,
+    /// `xs:decimal`.
     Decimal,
+    /// `xs:integer`.
     Integer,
+    /// `xs:nonPositiveInteger`.
     NonPositiveInteger,
+    /// `xs:negativeInteger`.
     NegativeInteger,
+    /// `xs:long`.
     Long,
+    /// `xs:int`.
     Int,
+    /// `xs:short`.
     Short,
+    /// `xs:byte`.
     Byte,
+    /// `xs:nonNegativeInteger`.
     NonNegativeInteger,
+    /// `xs:unsignedLong`.
     UnsignedLong,
+    /// `xs:unsignedInt`.
     UnsignedInt,
+    /// `xs:unsignedShort`.
     UnsignedShort,
+    /// `xs:unsignedByte`.
     UnsignedByte,
+    /// `xs:positiveInteger`.
     PositiveInteger,
+    /// `xs:float`.
     Float,
+    /// `xs:double`.
     Double,
+    /// `xs:duration`.
     Duration,
+    /// `xs:dateTime`.
     DateTime,
+    /// `xs:time`.
     Time,
+    /// `xs:date`.
     Date,
+    /// `xs:gYearMonth`.
     GYearMonth,
+    /// `xs:gYear`.
     GYear,
+    /// `xs:gMonthDay`.
     GMonthDay,
+    /// `xs:gDay`.
     GDay,
+    /// `xs:gMonth`.
     GMonth,
+    /// `xs:hexBinary`.
     HexBinary,
+    /// `xs:base64Binary`.
     Base64Binary,
 }
 
@@ -142,6 +196,7 @@ const INTEGER_RANGES: &[(Type, &str, &str)] = &[
 /// A `whiteSpace` facet value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WhiteSpace {
+    /// Unchanged.
     Preserve,
     /// Tab, newline and carriage return become spaces.
     Replace,
@@ -217,6 +272,7 @@ impl Type {
         TYPES.iter().find(|row| row.1 == name).map(|row| row.0)
     }
 
+    /// The XML Schema local name, such as `"dateTime"`.
     pub fn name(self) -> &'static str {
         TYPES[self as usize].1
     }
@@ -504,8 +560,11 @@ enum Data {
 /// The result of comparing two values.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Comparison {
+    /// The first value is smaller.
     Less,
+    /// The values are equal.
     Equal,
+    /// The first value is greater.
     Greater,
     /// Comparable types, but no order (partially ordered dates and
     /// durations, differing strings or QNames).
@@ -615,6 +674,7 @@ fn compare_text(x: &str, xt: Type, y: &str, yt: Type) -> Comparison {
 }
 
 impl Value {
+    /// The value's type.
     pub fn ty(&self) -> Type {
         self.ty
     }
@@ -724,17 +784,29 @@ impl Value {
 /// derivation step, need only one match.
 #[derive(Clone, Debug)]
 pub enum Facet {
+    /// `length`.
     Length(u64),
+    /// `minLength`.
     MinLength(u64),
+    /// `maxLength`.
     MaxLength(u64),
+    /// `pattern`.
     Pattern(Regex),
+    /// One `enumeration` value.
     Enumeration(Value),
+    /// `whiteSpace`.
     WhiteSpace(WhiteSpace),
+    /// `minInclusive`.
     MinInclusive(Value),
+    /// `maxInclusive`.
     MaxInclusive(Value),
+    /// `minExclusive`.
     MinExclusive(Value),
+    /// `maxExclusive`.
     MaxExclusive(Value),
+    /// `totalDigits`.
     TotalDigits(u64),
+    /// `fractionDigits`.
     FractionDigits(u64),
 }
 
@@ -746,6 +818,7 @@ pub enum FacetError {
     Unknown,
     /// The facet's value is not valid for it or for the base type.
     Value,
+    /// The `pattern` facet's expression does not compile.
     Pattern(regexp::Error),
 }
 

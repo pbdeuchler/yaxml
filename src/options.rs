@@ -1,22 +1,29 @@
-//! libxml2's `xmlParserOption` flags and [`ParseOptions`], the one options
-//! value every XML parser and DOM accepts.
+//! libxml2's `xmlParserOption` flags and [`ParseOptions`], which every XML
+//! parser and DOM takes.
 //!
-//! Flags carry libxml2's numeric values, so bindings can pass an `int` from
-//! existing code unchanged. Each surface accepts exactly the flags it
-//! implements and returns [`ErrorKind::UnsupportedOption`] for the rest; no
-//! flag is silently ignored unless libxml2 2.15.4 itself gives it no
-//! observable effect. See `docs/compatibility.md#option-compatibility`.
+//! Flags keep libxml2's names and numeric values, so a binding can pass an
+//! existing `int`. A surface that does not implement a flag returns
+//! [`ErrorKind::UnsupportedOption`] instead of ignoring it; flags that have no
+//! observable effect in libxml2 2.15.4 are accepted. See
+//! [option compatibility](https://github.com/pbdeuchler/yaxml/blob/main/docs/compatibility.md#option-compatibility).
+//!
+//! The default is libxml2's: entity references stay in the tree as
+//! [`NodeKind::EntityRef`](crate::NodeKind::EntityRef) nodes and no DTD
+//! defaults are added. String values see through references.
 //!
 //! ```
 //! use yaxml::{Document, ParseOptions, options};
 //!
-//! let xml = b"<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;</r>";
-//! // libxml2's default keeps the reference as a node ...
-//! let kept = Document::parse_with(xml, ParseOptions::default())?;
+//! let xml = "<!DOCTYPE r [<!ENTITY e '<b>x</b>'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
+//! let kept = Document::parse(xml)?;
 //! assert_eq!(kept.root_element().first_child().unwrap().entity_name(), Some("e"));
-//! // ... and XML_PARSE_NOENT substitutes it.
-//! let substituted = Document::parse_with(xml, ParseOptions::new(options::NOENT))?;
-//! assert_eq!(substituted.root_element().first_child().unwrap().text(), Some("x"));
+//! assert_eq!(kept.root_element().text_chunks().collect::<String>(), "x");
+//! assert!(kept.root_element().attributes().is_empty());
+//!
+//! let options = ParseOptions::new(options::NOENT | options::DTDATTR);
+//! let complete = Document::parse_with(xml.as_bytes(), options)?;
+//! assert_eq!(complete.root_element().first_child().unwrap().name().unwrap().local(), "b");
+//! assert_eq!(complete.root_element().attributes()[0].value, "d");
 //! # Ok::<(), yaxml::Error>(())
 //! ```
 
@@ -24,9 +31,25 @@ use std::fmt;
 
 use crate::{DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
 
-/// `XML_PARSE_RECOVER`: build what is parsable of a malformed document
-/// (DOMs only); `Document::errors`/`OwnedDocument::errors` list the
-/// well-formedness errors recovered from.
+/// `XML_PARSE_RECOVER`: build what is parsable of a malformed document, as
+/// libxml2 does (DOMs only).
+///
+/// [`Document::errors`](crate::Document::errors) and
+/// [`OwnedDocument::errors`](crate::OwnedDocument::errors) list the errors
+/// recovered from. Resource limits stay fatal, and input without any element
+/// is still an error. See
+/// [the repairs](https://github.com/pbdeuchler/yaxml/blob/main/docs/compatibility.md#recovery-recover).
+///
+/// ```
+/// use yaxml::{Document, ErrorKind, ParseOptions, options, save};
+///
+/// let document = Document::parse_with(b"<r><a>text</b><p:c/>", ParseOptions::new(options::RECOVER))?;
+/// let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
+/// assert_eq!(kinds, [ErrorKind::MismatchedEndTag, ErrorKind::Namespace, ErrorKind::UnexpectedEof]);
+/// let saved = save::to_vec(&document, &Default::default()).unwrap();
+/// assert_eq!(saved, b"<?xml version=\"1.0\"?>\n<r><a>text</a><p:c/></r>\n");
+/// # Ok::<(), yaxml::Error>(())
+/// ```
 pub const RECOVER: u32 = 1 << 0;
 /// `XML_PARSE_NOENT`: substitute entity references instead of keeping
 /// entity-reference nodes, and load external parsed entities (with a resolver).
@@ -69,8 +92,8 @@ pub const COMPACT: u32 = 1 << 16;
 pub const OLD10: u32 = 1 << 17;
 /// `XML_PARSE_NOBASEFIX`: no `xml:base` fixup of XInclude results.
 pub const NOBASEFIX: u32 = 1 << 18;
-/// `XML_PARSE_HUGE`: raise the token (1 GB), depth (2048) and entity-depth
-/// (40) ceilings to libxml2's huge values.
+/// `XML_PARSE_HUGE`: raise the token and DTD byte ceilings (1 GB), depth
+/// (2048) and entity depth (40) to libxml2's huge values.
 pub const HUGE: u32 = 1 << 19;
 /// `XML_PARSE_OLDSAX`: legacy predefined-entity lookup order; not
 /// implemented, rejected.
@@ -94,7 +117,7 @@ pub const CATALOG_PI: u32 = 1 << 26;
 /// `XML_PARSE_SKIP_IDS`: record no ID attributes (`element_by_id`, XPath `id()`).
 pub const SKIP_IDS: u32 = 1 << 27;
 
-/// `NOENT | DTDATTR`: the substituting behavior yaxml had before options.
+/// `NOENT | DTDATTR`: substitute entities and add default attributes.
 pub const LEGACY: u32 = NOENT | DTDATTR;
 
 /// Flags with no implementation on any surface.
@@ -103,21 +126,22 @@ const NEVER: u32 = OLD10 | OLDSAX | UNZIP;
 const TREE_ONLY: u32 = RECOVER | DTDVALID | NOBLANKS | XINCLUDE;
 const KNOWN: u32 = (1 << 28) - 1;
 
-/// libxml2 parser options, resource ceilings and the resource loader.
+/// Parser flags, resource ceilings and the resource loader.
 ///
-/// `flags` is a bitwise or of this module's constants (libxml2's
-/// `xmlParserOption` values). The default is libxml2's default: no flags, so
-/// entity references stay in the tree, no default attributes are added and
-/// nothing external is loaded. `resolver` is consulted only for what the
-/// flags request (`DTDLOAD`, `DTDATTR`, `DTDVALID`, `NOENT`, `XINCLUDE`)
-/// and never with `NO_XXE`; `base` is the document's URI or path, against
-/// which relative system identifiers resolve.
+/// The default has no flags and no resolver, so nothing external is loaded.
 #[non_exhaustive]
 pub struct ParseOptions {
+    /// Bitwise or of this module's flag constants.
     pub flags: u32,
+    /// Parser ceilings.
     pub limits: Limits,
+    /// Ceilings on decoded UTF-8.
     pub decode_limits: DecodeLimits,
+    /// The document's URI or path, against which relative system identifiers resolve.
     pub base: Option<String>,
+    /// Loader for external resources, consulted only for what the flags
+    /// request (`DTDLOAD`, `DTDATTR`, `DTDVALID`, `NOENT`, `XINCLUDE`) and
+    /// never with `NO_XXE`.
     pub resolver: Option<Box<dyn Resolver>>,
 }
 
@@ -142,6 +166,7 @@ impl fmt::Debug for ParseOptions {
 }
 
 impl ParseOptions {
+    /// No flags, default limits, no base and no resolver.
     pub const DEFAULT: Self = Self {
         flags: 0,
         limits: Limits::DEFAULT,
@@ -150,6 +175,7 @@ impl ParseOptions {
         resolver: None,
     };
 
+    /// Default options with `flags` set.
     pub fn new(flags: u32) -> Self {
         Self {
             flags,
@@ -157,10 +183,12 @@ impl ParseOptions {
         }
     }
 
+    /// Replaces the parser ceilings.
     pub fn with_limits(self, limits: Limits) -> Self {
         Self { limits, ..self }
     }
 
+    /// Replaces the decoded-UTF-8 ceilings.
     pub fn with_decode_limits(self, decode_limits: DecodeLimits) -> Self {
         Self {
             decode_limits,
@@ -178,12 +206,12 @@ impl ParseOptions {
         }
     }
 
+    /// Whether any bit of `flag` is set.
     pub fn has(&self, flag: u32) -> bool {
         self.flags & flag != 0
     }
 
-    /// The ceilings in effect: `HUGE` raises the token, depth and
-    /// entity-depth limits to libxml2's huge values.
+    /// The ceilings in effect, after [`HUGE`] raises them.
     pub fn effective_limits(&self) -> (Limits, DecodeLimits) {
         if !self.has(HUGE) {
             return (self.limits, self.decode_limits);

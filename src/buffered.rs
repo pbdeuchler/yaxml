@@ -14,18 +14,15 @@ enum Status {
     Poisoned,
 }
 
-/// A bounded UTF-8/UTF-16 event reader over caller-provided buffered input.
+/// A pull parser over any [`BufRead`], in bounded memory.
 ///
-/// Each event can borrow the current token until the next mutable operation.
-/// No input is read at construction, and the caller's buffer is not copied in
-/// full. Event ranges and positions count original source bytes relative to
-/// construction; a text event's terminating `<`, or in a DOCTYPE document its
-/// terminating general entity reference `&name;`, is consumed lookahead.
-///
-/// Read to `Ok(None)` to validate final EOF. Dropping the reader or extracting
-/// its input does not drain or validate the remaining document. XML failures
-/// are sticky. An I/O error preserves its original cause once; subsequent calls
-/// and calls after a recovered source panic return `InvalidState` without I/O.
+/// Events borrow the reader until the next read. Input is read lazily and
+/// consumed only as far as the parser needs (a text event's closing `<` is
+/// lookahead), so the rest stays in the source. Ranges and positions count
+/// source bytes from construction. Only reading to `Ok(None)` checks the
+/// document is complete. XML errors are sticky; an I/O error is returned
+/// once, then `InvalidState`. See the
+/// [streaming contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/streaming.md).
 ///
 /// ```
 /// use yaxml::{BufferedReader, Event};
@@ -59,22 +56,29 @@ pub struct BufferedReader<R: BufRead> {
 }
 
 impl<R: BufRead> BufferedReader<R> {
+    /// A reader with default options.
     pub fn new(input: R) -> Self {
         Self::with_limits(input, Limits::default())
     }
 
+    /// A reader with custom limits and no flags.
     pub fn with_limits(input: R, limits: Limits) -> Self {
         Self::with_decode_limits(input, limits, DecodeLimits::default())
     }
 
+    /// A reader with custom parse and decode limits and no flags.
     pub fn with_decode_limits(input: R, limits: Limits, decode_limits: DecodeLimits) -> Self {
         let options = ParseOptions::default().with_limits(limits);
         Self::with_options(input, options.with_decode_limits(decode_limits))
             .expect("convenience flags are supported")
     }
 
-    /// A reader with libxml2 parser options; see [`crate::options`]. Tree-only
-    /// flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
+    /// A reader with libxml2 parser options; see [`crate::options`].
+    ///
+    /// # Errors
+    ///
+    /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `RECOVER`, `XINCLUDE`) are
+    /// [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
@@ -93,17 +97,18 @@ impl<R: BufRead> BufferedReader<R> {
     }
 
     /// Starts a new document on `input` with the same flags and limits,
-    /// keeping allocated capacity (`xmlCtxtReset`), and returns the previous
-    /// source. The sticky failure, finish, I/O error, positions, counters,
-    /// DTD and resolver are gone.
+    /// reusing allocations (`xmlCtxtReset`), and returns the previous source.
+    /// All other state, the resolver included, is dropped.
     pub fn reset(&mut self, input: R) -> R {
         self.session.reset_same();
         self.restart(input)
     }
 
-    /// [`BufferedReader::reset`] with new options. Unsupported options are an
-    /// error that leaves the reader as it was (`input` is dropped); on success
-    /// the previous source is returned.
+    /// [`BufferedReader::reset`] with new options.
+    ///
+    /// # Errors
+    ///
+    /// Unsupported options leave the reader unchanged and drop `input`.
     pub fn reset_with(&mut self, input: R, options: ParseOptions) -> Result<R, Error> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
@@ -123,8 +128,7 @@ impl<R: BufRead> BufferedReader<R> {
         std::mem::replace(&mut self.input, input)
     }
 
-    /// Original bytes consumed, including encoding carry and text lookahead.
-    /// Bytes merely prefetched by the underlying source are excluded.
+    /// Source bytes consumed, lookahead included.
     pub fn position(&self) -> usize {
         self.session.position()
     }
@@ -143,17 +147,17 @@ impl<R: BufRead> BufferedReader<R> {
         self.session.set_flags(flags);
     }
 
+    /// The source.
     pub fn get_ref(&self) -> &R {
         &self.input
     }
 
-    /// Returns the source at its consumed position, without draining it.
+    /// The source, positioned after the consumed bytes.
     pub fn into_inner(self) -> R {
         self.input
     }
 
-    /// Advances to one logical event, borrowing the retained decoded token.
-    /// Successful EOF repeats `None` without further source operations.
+    /// The next event and its origin, or `None` at the end of the document.
     pub fn read_event(&mut self) -> Result<Option<(Event<'_>, SourceOrigin)>, ReadError> {
         match self.status {
             Status::Finished => return Ok(None),

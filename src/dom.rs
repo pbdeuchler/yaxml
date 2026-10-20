@@ -9,22 +9,30 @@ use crate::{
     Reader, SourceOrigin,
 };
 
-/// A document-local node index. IDs must only be used with their originating document.
+/// A node's index in its [`Document`]; meaningless in any other document.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NodeId(pub(crate) usize);
 
-/// The content of a DOM node. XML declarations are stored on the document.
+/// The content of a [`Node`]. The XML declaration lives on the [`Document`].
 #[derive(Debug)]
 pub enum NodeKind<'input> {
+    /// The synthetic document root.
     Document,
     /// The document type declaration, a child of the document root.
     Doctype(Doctype<'input>),
+    /// An element.
     Element(Element<'input>),
+    /// Character data.
     Text(Cow<'input, str>),
+    /// A CDATA section.
     Cdata(Cow<'input, str>),
+    /// A comment.
     Comment(Cow<'input, str>),
+    /// A processing instruction.
     ProcessingInstruction {
+        /// The target name.
         target: Cow<'input, str>,
+        /// Everything after the target and its separating whitespace.
         data: Cow<'input, str>,
     },
     /// A kept general entity reference (libxml2's `XML_ENTITY_REF_NODE`),
@@ -86,11 +94,22 @@ pub(crate) fn append_record<K>(
     Ok(id)
 }
 
-/// An immutable, flat XML tree that borrows unchanged strings from its input.
+/// An immutable XML tree that borrows unchanged strings from its input.
 ///
-/// Parsing and destruction use no recursion. A successful document has one
-/// element beneath its synthetic document root; under `RECOVER` it can have
-/// none.
+/// Parsing and dropping never recurse, so depth is bounded only by
+/// [`Limits::max_depth`]. Use [`OwnedDocument`](crate::OwnedDocument) to
+/// edit a tree or keep it past its input.
+///
+/// ```
+/// use yaxml::Document;
+///
+/// let document = Document::parse("<r xmlns='urn:x'><item key='v'>a&amp;b</item></r>")?;
+/// let item = document.root_element().first_child().unwrap();
+/// assert_eq!(item.name().unwrap().namespace(), Some("urn:x"));
+/// assert_eq!(item.attribute("key"), Some("v"));
+/// assert_eq!(item.content().as_deref(), Some("a&b"));
+/// # Ok::<(), yaxml::Error>(())
+/// ```
 #[derive(Debug)]
 pub struct Document<'input> {
     nodes: Vec<Record<NodeKind<'input>>>,
@@ -110,7 +129,7 @@ pub struct Document<'input> {
 }
 
 impl<'input> Document<'input> {
-    /// Parses UTF-8 XML with the default resource limits.
+    /// Parses UTF-8 XML with default options.
     pub fn parse(input: &'input str) -> Result<Self, Error> {
         Self::parse_bytes(input.as_bytes())
     }
@@ -120,7 +139,7 @@ impl<'input> Document<'input> {
         Self::with_limits(input, Limits::default())
     }
 
-    /// Parses a complete input with explicit resource ceilings.
+    /// Parses with custom limits and no flags.
     pub fn with_limits(input: &'input [u8], limits: Limits) -> Result<Self, Error> {
         Self::parse_with(input, ParseOptions::default().with_limits(limits))
     }
@@ -418,7 +437,8 @@ impl<'input> Document<'input> {
         Ok(Some(last))
     }
 
-    /// Returns the synthetic document root, including surrounding comments and PIs.
+    /// The synthetic document root, parent of the document element and of
+    /// the comments and PIs around it.
     pub fn root(&self) -> Node<'_, 'input> {
         Node {
             document: self,
@@ -426,10 +446,8 @@ impl<'input> Document<'input> {
         }
     }
 
-    /// Returns the single document element, guaranteed by successful parsing
-    /// except under `RECOVER`: a document that recovered none returns its
-    /// synthetic root, as an HTML document without one does
-    /// ([`Self::document_element`] tells them apart).
+    /// The document element, or the synthetic root for a `RECOVER` parse
+    /// that found none ([`Self::document_element`] tells them apart).
     pub fn root_element(&self) -> Node<'_, 'input> {
         Node {
             document: self,
@@ -443,10 +461,8 @@ impl<'input> Document<'input> {
         (self.root_element != NodeId(0)).then(|| self.root_element())
     }
 
-    /// Looks up a document-local ID, returning `None` when it is out of range.
-    ///
-    /// IDs carry no document identity. An in-range ID from a different document
-    /// can refer to an unrelated node; callers must retain the originating document.
+    /// The node `id` names, or `None` when out of range. An ID from another
+    /// document may name an unrelated node.
     pub fn node(&self, id: NodeId) -> Option<Node<'_, 'input>> {
         self.nodes.get(id.0).map(|_| Node { document: self, id })
     }
@@ -456,12 +472,12 @@ impl<'input> Document<'input> {
         self.root().descendants()
     }
 
-    /// Returns the XML declaration when present.
+    /// The XML declaration.
     pub fn declaration(&self) -> Option<&Declaration<'input>> {
         self.declaration.as_ref()
     }
 
-    /// Returns the document type declaration when present.
+    /// The document type declaration.
     pub fn doctype(&self) -> Option<&Doctype<'input>> {
         self.root().children().find_map(|node| match node.kind() {
             NodeKind::Doctype(doctype) => Some(doctype),
@@ -535,17 +551,17 @@ impl<'document, 'input> Node<'document, 'input> {
         &self.document.nodes[self.id.0]
     }
 
-    /// Returns this node's document-local ID.
+    /// The node's ID in its document.
     pub fn id(self) -> NodeId {
         self.id
     }
 
-    /// Returns the node content without allocating or copying normalized strings.
+    /// The node's content.
     pub fn kind(self) -> &'document NodeKind<'input> {
         &self.record().kind
     }
 
-    /// Returns an element's name, or `None` for other node kinds.
+    /// An element's name; `None` for other kinds.
     pub fn name(self) -> Option<&'document Name<'input>> {
         match self.kind() {
             NodeKind::Element(element) => Some(&element.name),
@@ -553,10 +569,8 @@ impl<'document, 'input> Node<'document, 'input> {
         }
     }
 
-    /// Returns a text, CDATA, comment, or PI payload.
-    ///
-    /// Elements and the document root return `None`; this method does not join
-    /// descendant text or search for a first text child.
+    /// A Text, CDATA, comment or PI payload; `None` for other kinds. See
+    /// [`content`](Self::content) for an element's text.
     pub fn text(self) -> Option<&'document str> {
         match self.kind() {
             NodeKind::Text(value) | NodeKind::Cdata(value) | NodeKind::Comment(value) => {
@@ -578,12 +592,10 @@ impl<'document, 'input> Node<'document, 'input> {
         }
     }
 
-    /// Visits the node's string value as borrowed chunks without allocating.
+    /// The node's string value as borrowed chunks, without allocating.
     ///
-    /// Documents and elements yield descendant Text/CDATA payloads in document
-    /// order, ignoring comments and PIs. Leaves yield their own payload once,
-    /// including an empty payload. Chunk boundaries are retained; `text()`
-    /// continues to return only a direct leaf payload.
+    /// Containers yield descendant Text/CDATA in document order; leaves yield
+    /// their own payload once, even when empty.
     ///
     /// ```
     /// let document = yaxml::Document::parse("<r>a<c>b</c><!--skip--><![CDATA[c]]></r>")?;
@@ -601,7 +613,7 @@ impl<'document, 'input> Node<'document, 'input> {
         self.text().into_iter().chain(descendants)
     }
 
-    /// Returns an element's attributes in source order, including namespace declarations.
+    /// An element's attributes in source order, namespace declarations included.
     pub fn attributes(self) -> &'document [Attribute<'input>] {
         match self.kind() {
             NodeKind::Element(element) => &element.attributes,
@@ -609,12 +621,10 @@ impl<'document, 'input> Node<'document, 'input> {
         }
     }
 
-    /// The attribute at `position` as libxml2 keeps it when parsing without
-    /// `NOENT` (the attribute's text and entity-reference children, which
-    /// `save` writes): `&name;` for each kept general entity reference, `&#38;`
-    /// for a literal `&`, other references resolved. `None` when it kept no
-    /// reference, the usual case; [`attributes`](Self::attributes) always has
-    /// the substituted value, which XPath, validation and C14N use.
+    /// The attribute at `position` with its general entity references kept
+    /// (`&name;`, a literal `&` as `&#38;`), as libxml2 keeps it without
+    /// `NOENT` and [`save`](crate::save) writes it; `None` when it has none.
+    /// [`attributes`](Self::attributes) holds the substituted value.
     ///
     /// ```
     /// use yaxml::{Document, ParseOptions, options::NOENT};
@@ -632,18 +642,18 @@ impl<'document, 'input> Node<'document, 'input> {
         self.document.kept(self.id, position)
     }
 
-    /// Exact original input span, including delimiters and the element's end tag.
-    /// The range is independent of the node's normalized logical value.
+    /// The node's input span, delimiters and an element's end tag included;
+    /// `None` for content produced by entity expansion.
     pub fn range(self) -> Option<Range<usize>> {
         self.origin().input_range()
     }
 
-    /// Parsed origin, independent of the node's logical value.
+    /// Where the node came from in the input.
     pub fn origin(self) -> SourceOrigin {
         self.record().origin
     }
 
-    /// Returns the parent; only the synthetic document root has no parent.
+    /// The parent; `None` only for the synthetic root.
     pub fn parent(self) -> Option<Self> {
         self.record().parent.map(|id| Self {
             document: self.document,
@@ -651,7 +661,7 @@ impl<'document, 'input> Node<'document, 'input> {
         })
     }
 
-    /// Returns the first direct child, if any.
+    /// The first child.
     pub fn first_child(self) -> Option<Self> {
         self.record().first_child.map(|id| Self {
             document: self.document,
@@ -659,7 +669,7 @@ impl<'document, 'input> Node<'document, 'input> {
         })
     }
 
-    /// Returns the last direct child, if any.
+    /// The last child.
     pub fn last_child(self) -> Option<Self> {
         self.record().last_child.map(|id| Self {
             document: self.document,
@@ -667,7 +677,7 @@ impl<'document, 'input> Node<'document, 'input> {
         })
     }
 
-    /// Returns the next direct sibling, if any.
+    /// The next sibling.
     pub fn next_sibling(self) -> Option<Self> {
         self.record().next_sibling.map(|id| Self {
             document: self.document,
@@ -675,8 +685,7 @@ impl<'document, 'input> Node<'document, 'input> {
         })
     }
 
-    /// Returns the previous direct sibling, if any. Storage is preorder, so
-    /// the slot before this node is its parent or lies in that sibling's subtree.
+    /// The previous sibling.
     pub fn previous_sibling(self) -> Option<Self> {
         let parent = self.record().parent?;
         let mut id = NodeId(self.id.0 - 1);
@@ -690,12 +699,12 @@ impl<'document, 'input> Node<'document, 'input> {
         None
     }
 
-    /// Iterates direct children in source order without a traversal stack.
+    /// The children in document order.
     pub fn children(self) -> impl Iterator<Item = Self> + 'document {
         std::iter::successors(self.first_child(), |node| node.next_sibling())
     }
 
-    /// Visits this node and its descendants in preorder, without recursion.
+    /// This node and its descendants in document order.
     pub fn descendants(self) -> impl ExactSizeIterator<Item = Self> + 'document {
         (self.id.0..self.record().subtree_end).map(move |index| Self {
             document: self.document,

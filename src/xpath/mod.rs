@@ -1,5 +1,10 @@
-//! XPath 1.0 over the borrowed [`Document`](crate::Document) and the
-//! [`OwnedDocument`](crate::OwnedDocument).
+//! XPath 1.0 over [`Document`](crate::Document) and
+//! [`OwnedDocument`](crate::OwnedDocument), libxml2's `xpath.c`.
+//!
+//! All axes, the 27 core functions, variables and extension functions are
+//! supported; number formatting and string edge cases follow libxml2. Work
+//! is bounded by [`Limits`]. See the
+//! [XPath contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/xpath.md).
 //!
 //! ```
 //! use yaxml::Document;
@@ -30,8 +35,11 @@ pub use tree::Tree;
 /// slot 0 is the implicit `xml` binding, then inherited bindings outermost first.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Node<Id> {
+    /// A tree node.
     Tree(Id),
+    /// An element and an attribute index.
     Attribute(Id, usize),
+    /// An element and an in-scope namespace index.
     Namespace(Id, usize),
 }
 
@@ -45,19 +53,27 @@ impl<Id> From<Id> for Node<Id> {
 /// without duplicates.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value<Id> {
+    /// A node-set.
     NodeSet(Vec<Node<Id>>),
+    /// A boolean.
     Boolean(bool),
+    /// A number.
     Number(f64),
+    /// A string.
     String(String),
 }
 
-/// A ceiling on compilation or evaluation work.
+/// The [`Limits`] field an XPath error exceeded.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Limit {
+    /// [`Limits::max_expression_bytes`].
     ExpressionBytes,
+    /// [`Limits::max_depth`].
     Depth,
+    /// [`Limits::max_operations`].
     Operations,
+    /// [`Limits::max_nodes`].
     Nodes,
 }
 
@@ -78,6 +94,7 @@ pub struct Limits {
 setters!(const Limits { max_expression_bytes: usize, max_depth: usize, max_operations: u64, max_nodes: usize });
 
 impl Limits {
+    /// The default ceilings.
     pub const DEFAULT: Self = Self {
         max_expression_bytes: 64 * 1024,
         max_depth: 200,
@@ -126,12 +143,13 @@ pub enum ErrorKind {
     LimitExceeded(Limit),
 }
 
-/// A compilation error carries the expression byte offset; an evaluation
-/// error carries one only when an unknown prefix, variable or function name
-/// caused it (the offset of that name).
+/// An XPath compilation or evaluation error.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Error {
+    /// What went wrong.
     pub kind: ErrorKind,
+    /// The expression byte offset: always set for a compilation error, and
+    /// for an evaluation error caused by an unknown name.
     pub offset: Option<usize>,
 }
 
@@ -238,6 +256,7 @@ impl<Id> fmt::Debug for Context<Id> {
 }
 
 impl<Id> Context<Id> {
+    /// An empty context with default limits.
     pub fn new() -> Self {
         Self::default()
     }
@@ -248,10 +267,12 @@ impl<Id> Context<Id> {
         self
     }
 
+    /// Binds the unprefixed variable `$local`.
     pub fn with_variable(self, local: impl Into<String>, value: Value<Id>) -> Self {
         self.with_variable_ns("", local, value)
     }
 
+    /// Binds the variable `local` in namespace `uri`.
     pub fn with_variable_ns(
         mut self,
         uri: impl Into<String>,
@@ -270,6 +291,7 @@ impl<Id> Context<Id> {
         self.with_function_ns("", local, function)
     }
 
+    /// Registers an extension function `local` in namespace `uri`.
     pub fn with_function_ns(
         mut self,
         uri: impl Into<String>,
@@ -305,10 +327,12 @@ pub struct XPath {
 }
 
 impl XPath {
+    /// Compiles an expression with default limits (`xmlXPathCompile`).
     pub fn compile(expression: &str) -> Result<Self, Error> {
         Self::compile_with_limits(expression, &Limits::default())
     }
 
+    /// Compiles an expression within `limits`.
     pub fn compile_with_limits(expression: &str, limits: &Limits) -> Result<Self, Error> {
         Ok(Self {
             ast: parse::parse(expression, limits)?,
@@ -316,11 +340,13 @@ impl XPath {
         })
     }
 
+    /// The source expression.
     pub fn as_str(&self) -> &str {
         &self.source
     }
 
-    /// Evaluates with `node` as the context node, at position 1 of 1.
+    /// Evaluates with `node` as the context node, at position 1 of 1
+    /// (`xmlXPathCompiledEval`).
     pub fn evaluate<T: Tree>(
         &self,
         tree: &T,
@@ -360,6 +386,10 @@ impl XPath {
     }
 
     /// Evaluates an expression that must produce a node-set.
+    ///
+    /// # Errors
+    ///
+    /// `InvalidType` for any other result.
     pub fn select_nodes<T: Tree>(
         &self,
         tree: &T,

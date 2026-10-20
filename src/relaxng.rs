@@ -1,4 +1,33 @@
-#![doc = include_str!("../docs/relaxng.md")]
+//! RELAX NG validation (XML syntax), libxml2's `relaxng.c`.
+//!
+//! [`Schema::parse`] (`xmlRelaxNGParse`) loads a schema and any `include` or
+//! `externalRef` documents through a [`Resolver`]; [`Schema::validate`]
+//! (`xmlRelaxNGValidateDoc`) checks either DOM, and [`Schema::stream`]
+//! (`xmlRelaxNGValidatePushElement`) checks parser events without a tree.
+//! A schema is immutable, `Send + Sync` and reusable. Validation uses
+//! derivatives instead of libxml2's backtracking, bounded by
+//! [`Limits::max_work`]. Built-in and XML Schema datatypes are supported;
+//! the compact syntax is not. Details and differences:
+//! <https://github.com/pbdeuchler/yaxml/blob/main/docs/relaxng.md>.
+//!
+//! ```
+//! use yaxml::relaxng::{Code, Limits, Schema};
+//!
+//! let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"
+//!     datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+//!   <interleave>
+//!     <oneOrMore><element name="i"><data type="int"/></element></oneOrMore>
+//!     <element name="b"><empty/></element>
+//!   </interleave>
+//! </element>"#;
+//! let none = |_: yaxml::Request<'_>| Ok(None);
+//! let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
+//! let check = |xml| schema.validate(&yaxml::Document::parse(xml).unwrap());
+//! assert!(check("<r><b/><i>1</i><i>2</i></r>").is_empty());
+//! assert_eq!(check("<r><b/><i>x</i></r>")[0].code, Code::Datatype);
+//! assert_eq!(check("<r><b/></r>")[0].code, Code::MissingElement);
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 mod check;
 mod compile;
@@ -27,93 +56,165 @@ pub(crate) const RNG_NS: &str = "http://relaxng.org/ns/structure/1.0";
 pub enum SchemaCode {
     /// A load or work limit was reached.
     ResourceLimit = 114,
+    /// An `anyName` attribute outside `oneOrMore` (section 7.3).
     AnyNameAttrAncestor = 1000,
     /// Attributes of interleaved patterns overlap.
     AttrConflict = 1001,
+    /// An `attribute` with more than one pattern.
     AttributeChildren = 1002,
+    /// Unexpected content in `data`.
     DataContent = 1009,
+    /// A `define` combined with both `choice` and `interleave`.
     DefChoiceAndInterleave = 1010,
+    /// An `include` overrides a `define` the included grammar lacks.
     DefineMissing = 1013,
     /// An element's content has no content type (section 7.2).
     ElemContentError = 1016,
+    /// An element that needs children has none.
     ElementEmpty = 1017,
     /// A malformed name class or name.
     ElementName = 1019,
+    /// An `element` without a content pattern.
     ElementNoContent = 1020,
     /// Elements or text of interleaved patterns overlap.
     ElemTextConflict = 1021,
     /// The document element is not a RELAX NG pattern.
     Empty = 1022,
+    /// A pattern element with no pattern inside.
     EmptyConstruct = 1023,
+    /// An `empty` with content.
     EmptyNotEmpty = 1025,
+    /// More than one `except` in a name class.
     ExceptMultiple = 1029,
+    /// An `externalRef` document failed to load.
     ExternalRefFailure = 1032,
+    /// An `externalRef` refers to itself.
     ExternalRefRecurse = 1033,
+    /// An attribute not allowed on this RELAX NG element.
     ForbiddenAttribute = 1034,
+    /// An unexpected child of `grammar`.
     GrammarContent = 1036,
+    /// An included document is not a `grammar`.
     GrammarMissing = 1038,
+    /// A `grammar` without `start`.
     GrammarNoStart = 1039,
+    /// Attributes of grouped patterns overlap.
     GroupAttrConflict = 1040,
+    /// An invalid `href` URI.
     HrefError = 1041,
+    /// An `include` document failed to load.
     IncludeFailure = 1043,
+    /// An `include` refers to itself.
     IncludeRecurse = 1044,
+    /// A `define` without an NCName `name`.
     InvalidDefineName = 1049,
+    /// A `value` its datatype does not accept.
     InvalidValue = 1051,
+    /// An `include` or `externalRef` without `href`.
     MissingHref = 1052,
+    /// Several `define`s (or `start`s) of one name, without `combine`.
     NeedCombine = 1054,
+    /// An `nsName` attribute outside `oneOrMore` (section 7.3).
     NsNameAttrAncestor = 1056,
+    /// A `param` for a datatype library that takes none.
     ParamForbidden = 1058,
+    /// A `param` without `name`.
     ParamNameMissing = 1059,
+    /// A `parentRef` outside a nested grammar.
     ParentRefNoParent = 1063,
     /// A schema document is not well-formed or nesting is too deep.
     ParseError = 1065,
+    /// `anyName/except//anyName`.
     PatAnyNameExceptAnyName = 1066,
+    /// `attribute//attribute` (section 7.1).
     PatAttrAttr = 1067,
+    /// `attribute//element`.
     PatAttrElem = 1068,
+    /// `data/except//attribute`.
     PatDataExceptAttr = 1069,
+    /// `data/except//element`.
     PatDataExceptElem = 1070,
+    /// `data/except//empty`.
     PatDataExceptEmpty = 1071,
+    /// `data/except//group`.
     PatDataExceptGroup = 1072,
+    /// `data/except//interleave`.
     PatDataExceptInterleave = 1073,
+    /// `data/except//list`.
     PatDataExceptList = 1074,
+    /// `data/except//oneOrMore`.
     PatDataExceptOneMore = 1075,
+    /// `data/except//text`.
     PatDataExceptText = 1077,
+    /// `list//attribute`.
     PatListAttr = 1078,
+    /// `list//element`.
     PatListElem = 1079,
+    /// `list//interleave`.
     PatListInterleave = 1080,
+    /// `list//list`.
     PatListList = 1081,
+    /// `list//text`.
     PatListText = 1083,
+    /// `nsName/except//anyName`.
     PatNsNameExceptAnyName = 1084,
+    /// `nsName/except//nsName`.
     PatNsNameExceptNsName = 1085,
+    /// `oneOrMore//group//attribute`.
     PatOneMoreGroupAttr = 1086,
+    /// `oneOrMore//interleave//attribute`.
     PatOneMoreInterleaveAttr = 1087,
+    /// `start//attribute`.
     PatStartAttr = 1088,
+    /// `start//data`.
     PatStartData = 1089,
+    /// `start//empty`.
     PatStartEmpty = 1090,
+    /// `start//group`.
     PatStartGroup = 1091,
+    /// `start//interleave`.
     PatStartInterleave = 1092,
+    /// `start//list`.
     PatStartList = 1093,
+    /// `start//oneOrMore`.
     PatStartOneMore = 1094,
+    /// `start//text`.
     PatStartText = 1095,
+    /// `start//value`.
     PatStartValue = 1096,
+    /// An undeclared namespace prefix in a name.
     PrefixUndefined = 1097,
+    /// A reference cycle not broken by an `element`.
     RefCycle = 1099,
+    /// A `ref` naming no `define`.
     RefNoDef = 1101,
+    /// A `ref` or `parentRef` without `name`.
     RefNoName = 1102,
+    /// `start` combined with both `choice` and `interleave`.
     StartChoiceAndInterleave = 1104,
+    /// A `start` with more than one pattern.
     StartContent = 1105,
+    /// An `include` overrides `start` but the included grammar has none.
     StartMissing = 1107,
     /// Text where the RELAX NG syntax allows none.
     TextExpected = 1108,
+    /// A `data` without `type`.
     TypeMissing = 1110,
+    /// A datatype its library does not define.
     TypeNotFound = 1111,
     /// An invalid datatype parameter.
     TypeValue = 1112,
+    /// A `combine` other than `choice` or `interleave`.
     UnknownCombine = 1114,
+    /// An element that is not a RELAX NG pattern.
     UnknownConstruct = 1115,
+    /// An unsupported `datatypeLibrary`.
     UnknownTypeLib = 1116,
+    /// A `datatypeLibrary` or `href` with a fragment.
     UriFragment = 1117,
+    /// A `datatypeLibrary` that is not an absolute URI.
     UriNotAbsolute = 1118,
+    /// An attribute named `xmlns` or in the xmlns namespace.
     XmlnsName = 1121,
 }
 
@@ -121,8 +222,11 @@ pub enum SchemaCode {
 /// of the offending element when it has one.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SchemaError {
+    /// What went wrong.
     pub code: SchemaCode,
+    /// The schema document holding the error.
     pub uri: String,
+    /// Byte offset of the offending element in that document.
     pub offset: Option<usize>,
     /// A libxml2-style description.
     pub message: String,
@@ -130,7 +234,10 @@ pub struct SchemaError {
 
 /// The errors that rejected a schema; never empty.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SchemaErrors(pub Vec<SchemaError>);
+pub struct SchemaErrors(
+    /// The errors, in the order found.
+    pub Vec<SchemaError>,
+);
 
 impl fmt::Display for SchemaErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -187,6 +294,7 @@ pub enum Code {
 /// One validity error.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic<Id> {
+    /// What went wrong.
     pub code: Code,
     /// The element concerned.
     pub node: Option<Id>,
@@ -216,6 +324,7 @@ pub struct Limits {
 setters!(const Limits { xml: crate::Limits, max_include_depth: usize, max_work: usize });
 
 impl Limits {
+    /// The defaults: 64 nested includes and 100 million work units.
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,
         max_include_depth: 64,
@@ -337,16 +446,16 @@ impl Schema {
     }
 }
 
-/// Validates one document from its events, as libxml2's
-/// `xmlRelaxNGValidatePushElement`, `PushCData` and `PopElement` do, but
-/// for every schema: derivatives need no subtree, so libxml2's
-/// `xmlRelaxNGValidateFullElement` fallback has no counterpart. Feed it the
-/// events of a [`Reader`](crate::Reader), [`PushParser`](crate::PushParser)
-/// or [`BufferedReader`](crate::BufferedReader) in order; the diagnostics
-/// equal [`Schema::validate`]'s on the same document, with
-/// [`Diagnostic::node`] the element's index in document order. Memory is
-/// the open elements' text and namespace bindings, the derivative memo,
-/// bounded by [`Limits::max_work`], and the `xsd:ID` values seen.
+/// A validator for one document fed as events, libxml2's
+/// `xmlRelaxNGValidatePushElement`, `PushCData` and `PopElement`.
+///
+/// Feed it every event of a [`Reader`](crate::Reader),
+/// [`PushParser`](crate::PushParser) or
+/// [`BufferedReader`](crate::BufferedReader) in order. Its diagnostics equal
+/// [`Schema::validate`]'s, with [`Diagnostic::node`] the element's index in
+/// document order. It works for every schema (no `FullElement` fallback) and
+/// holds only the open elements' text and bindings, the `xsd:ID`s seen, and
+/// a memo bounded by [`Limits::max_work`].
 ///
 /// ```
 /// use std::ops::ControlFlow;

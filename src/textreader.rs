@@ -16,42 +16,46 @@ const XML: &str = "http://www.w3.org/XML/1998/namespace";
 /// Recycled node buffers kept after a subtree expansion drains.
 const SPARE_NODES: usize = 4;
 
-/// libxml2 `xmlReaderTypes` values; `node_type as i32` is the C constant.
-/// libxml2 2.15.4's reader never reports `Entity`, `Document`,
-/// `DocumentFragment`, `Notation`, `Whitespace`, `EndEntity` or
-/// `XmlDeclaration` (checked with `xmllint --stream --debug` over its whole
-/// `test` tree under default, `NOENT`, `NOBLANKS` and `DTDVALID` options), nor
-/// does this reader; they exist so the integer values round-trip. Entity
-/// references are reported, unless `NOENT` substitutes them.
+/// A [`TextReader`] node type, libxml2's `xmlReaderTypes`; `as i32` is the C
+/// value.
+///
+/// As in libxml2 2.15.4, the variants marked "never reported" exist only so
+/// the numbers round-trip.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum NodeType {
+    /// No current node.
     None = 0,
+    /// A start tag or empty element.
     Element = 1,
+    /// An attribute or namespace declaration.
     Attribute = 2,
+    /// Character data.
     Text = 3,
+    /// A CDATA section.
     Cdata = 4,
     /// A kept entity reference (no `NOENT`); its content is not visited.
     EntityReference = 5,
     /// Never reported: entity declarations are not tree nodes.
     Entity = 6,
+    /// A processing instruction.
     ProcessingInstruction = 7,
+    /// A comment.
     Comment = 8,
     /// Never reported: the reader starts at the root element.
     Document = 9,
+    /// The document type declaration.
     DocumentType = 10,
     /// Never reported.
     DocumentFragment = 11,
     /// Never reported: notations are not tree nodes.
     Notation = 12,
-    /// Never reported: libxml2 asks `xmlNodeGetSpacePreserve` about the text
-    /// node, which answers -1 for anything but an element, so every
-    /// whitespace-only text is `SignificantWhitespace`.
+    /// Never reported: whitespace-only text is `SignificantWhitespace`.
     Whitespace = 13,
-    /// Whitespace-only text. libxml2's reader reports all of it as
-    /// significant, whatever `xml:space` says; `NOBLANKS` drops the ignorable
-    /// ones instead.
+    /// Whitespace-only text, whatever `xml:space` says; `NOBLANKS` drops
+    /// the ignorable ones.
     SignificantWhitespace = 14,
+    /// An end tag.
     EndElement = 15,
     /// Never reported.
     EndEntity = 16,
@@ -66,21 +70,29 @@ pub enum Standalone {
     NoDeclaration = -1,
     /// An XML declaration without a `standalone` pseudo-attribute.
     Unspecified = -2,
+    /// `standalone='no'`.
     No = 0,
+    /// `standalone='yes'`.
     Yes = 1,
 }
 
-/// libxml2 `xmlTextReaderMode` values; `as i32` is the C constant.
+/// A [`TextReader`]'s state, libxml2's `xmlTextReaderMode`; `as i32` is the
+/// C value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ReadState {
+    /// Nothing read yet.
     Initial = 0,
+    /// On a node.
     Interactive = 1,
+    /// A read failed; reads repeat the error.
     Error = 2,
+    /// The document has ended.
     Eof = 3,
 }
 
-/// libxml2 `xmlParserProperties` values; `as i32` is the C constant.
+/// A [`TextReader`] parser property, libxml2's `xmlParserProperties`; `as
+/// i32` is the C value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParserProperty {
     /// Load the external subset: a resolver was supplied and the options load it.
@@ -491,30 +503,33 @@ impl Blanks {
     }
 }
 
-/// A forward-only cursor over the nodes of a document, as libxml2's
-/// `xmlTextReader` (`xmlreader.h`), over any [`BufRead`] including `&[u8]`.
+/// A forward-only cursor over a document's nodes from any [`BufRead`],
+/// libxml2's `xmlTextReader`.
 ///
 /// Node types, names, values, depths and attribute order follow libxml2:
-/// namespace declarations are attributes listed before ordinary ones, an
-/// empty element (`<a/>`) has no `EndElement`, adjacent text (including
-/// substituted replacement text) is one node, and the XML declaration and
-/// whitespace outside the root are not reported. Without options an entity
-/// reference is an `EntityReference` node and no DTD defaults are added;
-/// see [`with_options`](Self::with_options). String getters borrow the reader
-/// until it moves.
+/// namespace declarations are attributes listed first, `<a/>` has no
+/// `EndElement`, adjacent text is one node, and nothing outside the root
+/// element but comments, PIs and the DOCTYPE is reported.
 ///
-/// Memory is that of the [`BufferedReader`] plus one node of lookahead,
-/// except that [`expand`](Self::expand) and the `read_*` methods buffer the
-/// current subtree, within `Limits::max_owned_bytes` of node text.
+/// Memory is that of a [`BufferedReader`] plus one node of lookahead;
+/// [`expand`](Self::expand) and the `read_*_xml` methods also buffer the
+/// current subtree, within [`Limits::max_owned_bytes`].
 ///
 /// ```
 /// use yaxml::{NodeType, TextReader};
-/// let mut reader = TextReader::new(b"<r a='1'><i>text</i><e/></r>".as_slice());
+///
+/// let input = b"<r xmlns:p='urn:p'><p:i k='v'>x</p:i><e/></r>";
+/// let mut reader = TextReader::new(input.as_slice());
 /// let mut seen = Vec::new();
 /// while reader.read()? {
 ///     seen.push((reader.depth(), reader.node_type(), reader.name().unwrap().to_owned()));
+///     if reader.node_type() == NodeType::Element && reader.local_name() == Some("i") {
+///         assert_eq!(reader.get_attribute("k"), Some("v"));
+///         let outer = reader.read_outer_xml()?.unwrap();
+///         assert_eq!(outer, r#"<p:i xmlns:p="urn:p" k="v">x</p:i>"#);
+///     }
 /// }
-/// assert_eq!(seen[0], (0, NodeType::Element, "r".to_owned()));
+/// assert_eq!(seen[1], (1, NodeType::Element, "p:i".to_owned()));
 /// assert_eq!(seen[2], (2, NodeType::Text, "#text".to_owned()));
 /// assert_eq!(seen.len(), 6);
 /// # Ok::<(), yaxml::ReadError>(())
@@ -545,24 +560,29 @@ pub struct TextReader<R: BufRead> {
 }
 
 impl<R: BufRead> TextReader<R> {
+    /// A reader with default options (`xmlReaderForIO`).
     pub fn new(input: R) -> Self {
         Self::with_limits(input, Limits::default())
     }
 
+    /// A reader with custom limits and no flags.
     pub fn with_limits(input: R, limits: Limits) -> Self {
         Self::with_decode_limits(input, limits, DecodeLimits::default())
     }
 
+    /// A reader with custom parse and decode limits and no flags.
     pub fn with_decode_limits(input: R, limits: Limits, decode_limits: DecodeLimits) -> Self {
         let options = ParseOptions::default().with_limits(limits);
         Self::with_options(input, options.with_decode_limits(decode_limits))
             .expect("convenience flags are supported")
     }
 
-    /// A reader with libxml2 parser options, like `xmlReaderForMemory`'s
-    /// `options`; see [`crate::options`]. `base` is the document URI.
-    /// `NOBLANKS` drops ignorable blanks and `DTDVALID` validates against the
-    /// DTD as libxml2's reader does; `RECOVER` and `XINCLUDE` are `UnsupportedOption`.
+    /// A reader with libxml2 parser options (`xmlReaderForIO`'s `options`);
+    /// `base` is the document URI.
+    ///
+    /// # Errors
+    ///
+    /// `RECOVER` and `XINCLUDE` are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         // `BufferedReader` rejects the flags a reader does not support.
         let flags = Flags(options.flags);
@@ -589,11 +609,9 @@ impl<R: BufRead> TextReader<R> {
         })
     }
 
-    /// Starts a new document on `input` with the same flags and limits,
-    /// keeping the parser's allocated capacity (`xmlReaderNewMemory` on an
-    /// existing reader), and returns the previous source. Read position,
-    /// sticky failure, queued nodes, namespace scope, schemas, counters and
-    /// the resolver are gone; the document URI is kept.
+    /// Starts a new document on `input` with the same flags, limits and
+    /// document URI, reusing allocations (`xmlReaderNewIO`), and returns the
+    /// previous source. State, schemas and the resolver are dropped.
     pub fn reset(&mut self, input: R) -> R {
         let previous = self.source.reset(input);
         self.resolver = false;
@@ -601,9 +619,11 @@ impl<R: BufRead> TextReader<R> {
         previous
     }
 
-    /// [`TextReader::reset`] with new options (`base` is the new document
-    /// URI). Unsupported options are an error that leaves the reader as it was
-    /// (`input` is dropped).
+    /// [`TextReader::reset`] with new options.
+    ///
+    /// # Errors
+    ///
+    /// Unsupported options leave the reader unchanged and drop `input`.
     pub fn reset_with(&mut self, input: R, options: ParseOptions) -> Result<R, Error> {
         let (limits, _) = options.effective_limits();
         let (flags, url, resolver) = (
@@ -634,8 +654,8 @@ impl<R: BufRead> TextReader<R> {
         self.standalone = Standalone::NoDeclaration;
     }
 
-    /// `xmlTextReaderRead`: moves to the next node in document order.
-    /// Returns false at the end of a well-formed document. Errors are sticky.
+    /// Moves to the next node in document order; false at the end
+    /// (`xmlTextReaderRead`). Errors are sticky.
     pub fn read(&mut self) -> Result<bool, ReadError> {
         match self.state {
             ReadState::Eof => return Ok(false),
@@ -698,6 +718,7 @@ impl<R: BufRead> TextReader<R> {
         self.read()
     }
 
+    /// The reader's state (`xmlTextReaderReadState`).
     pub fn read_state(&self) -> ReadState {
         self.state
     }
@@ -1132,6 +1153,7 @@ impl<R: BufRead> TextReader<R> {
         Some((node, node.part(self.attribute?, self.value?)?))
     }
 
+    /// The current node's type (`xmlTextReaderNodeType`).
     pub fn node_type(&self) -> NodeType {
         let Some(node) = self.node() else {
             return NodeType::None;
@@ -1188,6 +1210,7 @@ impl<R: BufRead> TextReader<R> {
         }
     }
 
+    /// The prefix of an element or attribute name.
     pub fn prefix(&self) -> Option<&str> {
         self.qname().and_then(|(node, name)| node.prefix(name))
     }
@@ -1214,6 +1237,7 @@ impl<R: BufRead> TextReader<R> {
         }
     }
 
+    /// Whether the node type carries a value (`xmlTextReaderHasValue`).
     pub fn has_value(&self) -> bool {
         if let Some((_, part)) = self.part() {
             return !part.reference;
@@ -1227,10 +1251,9 @@ impl<R: BufRead> TextReader<R> {
         })
     }
 
-    /// `xmlTextReaderGetParserLineNumber`: the line of the parsing point,
-    /// the input consumed so far (ahead of the current node by the reader's
-    /// lookahead), in the input `lines` indexes; the reader keeps no input.
-    /// libxml2's point also depends on its 512-byte chunking.
+    /// The line of the parsing point in the input `lines` indexes
+    /// (`xmlTextReaderGetParserLineNumber`). The point can be ahead of the
+    /// current node by the reader's lookahead.
     pub fn line_number(&self, lines: &crate::LineIndex<'_>) -> usize {
         lines.line(self.source.position())
     }
@@ -1249,6 +1272,7 @@ impl<R: BufRead> TextReader<R> {
         })
     }
 
+    /// Whether the current node is an empty-element tag, `<a/>`.
     pub fn is_empty_element(&self) -> bool {
         self.attribute.is_none() && self.node().is_some_and(|node| node.kind == Kind::Empty)
     }
@@ -1336,6 +1360,7 @@ impl<R: BufRead> TextReader<R> {
         self.move_to(self.find(name, false))
     }
 
+    /// Moves to the attribute with this local name and namespace.
     pub fn move_to_attribute_ns(&mut self, local: &str, namespace: &str) -> bool {
         self.move_to(self.find_ns(local, Some(namespace)))
     }
@@ -1349,6 +1374,7 @@ impl<R: BufRead> TextReader<R> {
         self.attribute.is_some()
     }
 
+    /// Moves to the element's first attribute.
     pub fn move_to_first_attribute(&mut self) -> bool {
         self.move_to(
             self.element()
@@ -1357,8 +1383,8 @@ impl<R: BufRead> TextReader<R> {
         )
     }
 
-    /// From an attribute's value ([`read_attribute_value`](Self::read_attribute_value))
-    /// there is no next attribute, as in libxml2.
+    /// Moves to the next attribute; false from inside an attribute's value,
+    /// as in libxml2.
     pub fn move_to_next_attribute(&mut self) -> bool {
         if self.value.is_some() {
             return false;
@@ -1371,20 +1397,16 @@ impl<R: BufRead> TextReader<R> {
         )
     }
 
-    /// Returns from an attribute to its element; false if not on one.
+    /// Moves from an attribute back to its element; false if not on one.
     pub fn move_to_element(&mut self) -> bool {
         self.value = None;
         self.attribute.take().is_some()
     }
 
-    /// `xmlTextReaderReadAttributeValue`: from an attribute, moves to the
-    /// first Text or EntityReference child of its value, then to each next
-    /// one. False when there is none (an empty value) or no more, leaving the
-    /// cursor where it was. A child is a Text (depth + 2) named `#text` with
-    /// the text as value, or an EntityReference named after the entity with no
-    /// value; without `NOENT` a declared general entity reference in the value
-    /// is one, otherwise the value is one Text. A namespace declaration's
-    /// value is one Text, even when empty.
+    /// Moves to the next child of the current attribute's value: a Text, or,
+    /// without `NOENT`, an EntityReference for a declared entity
+    /// (`xmlTextReaderReadAttributeValue`). False when there are no more,
+    /// leaving the cursor where it was.
     pub fn read_attribute_value(&mut self) -> bool {
         let (Some(node), Some(index)) = (self.node(), self.attribute) else {
             return false;
@@ -1397,47 +1419,40 @@ impl<R: BufRead> TextReader<R> {
         found
     }
 
-    /// `xmlTextReaderIsDefault`: always false. libxml2 2.15.4 documents it as
-    /// "an Attribute node generated from the default value defined in the
-    /// DTD" but returns 0 for every node, defaulted attributes included, and
-    /// so does this reader.
+    /// Always false, as libxml2 2.15.4's `xmlTextReaderIsDefault` returns
+    /// for every node, defaulted attributes included.
     pub fn is_default(&self) -> bool {
         false
     }
 
-    /// `xmlTextReaderNormalization`: always true; libxml2 returns 1 and has
-    /// no setter.
+    /// Always true, as libxml2's `xmlTextReaderNormalization`.
     pub fn normalization(&self) -> bool {
         true
     }
 
-    /// `xmlTextReaderStandalone`: the XML declaration's `standalone`, once the
-    /// first node was read.
+    /// The XML declaration's `standalone`, once a node has been read
+    /// (`xmlTextReaderStandalone`).
     pub fn standalone(&self) -> Standalone {
         self.standalone
     }
 
-    /// `xmlTextReaderByteConsumed`: input bytes the parser has taken, which
-    /// includes the lookahead that completes the current node (a text node is
-    /// complete only once its successor is known). libxml2 pushes 4 KiB
-    /// chunks and counts whole ones, so only the value at the end of a
-    /// document, its length, is the same.
+    /// Input bytes the parser has consumed, lookahead included
+    /// (`xmlTextReaderByteConsumed`). libxml2 counts whole 4 KiB chunks, so
+    /// only the final value matches it.
     pub fn byte_consumed(&self) -> usize {
         self.source.position()
     }
 
-    /// `xmlTextReaderGetRemainder`: stops the reader and returns the source
-    /// as the parser left it, `None` when no node is current (before the first
-    /// read, at the end or after an error). The parser takes whole windows
-    /// of a `BufRead`, so what it already holds is not in the remainder: for
-    /// a slice, which is one window, nothing is left.
+    /// Stops the reader and returns the source as the parser left it
+    /// (`xmlTextReaderGetRemainder`); `None` when no node is current. Bytes
+    /// already taken from the `BufRead` window are not in it.
     pub fn into_remainder(self) -> Option<R> {
         self.node()?;
         Some(self.source.into_inner())
     }
 
-    /// `xmlNodeGetBase`: the innermost `xml:base` resolved against enclosing
-    /// ones and the document URI (`http://`, `ftp://` and `urn:` stop early).
+    /// The current node's base URI: `xml:base` values resolved outwards and
+    /// against the document URI (`xmlTextReaderBaseUri`).
     pub fn base_uri(&self) -> Option<String> {
         self.node()?;
         let frames = self.scope.frames.iter().rev();
@@ -1459,7 +1474,7 @@ impl<R: BufRead> TextReader<R> {
         self.scope.lookup(prefix)
     }
 
-    /// `xmlTextReaderGetParserProp`.
+    /// Whether a parser property is on (`xmlTextReaderGetParserProp`).
     pub fn parser_property(&self, property: ParserProperty) -> bool {
         match property {
             ParserProperty::LoadDtd => self.resolver && self.flags.loads(ResourceKind::DtdSubset),
@@ -1469,14 +1484,14 @@ impl<R: BufRead> TextReader<R> {
         }
     }
 
-    /// `xmlTextReaderSetParserProp`: sets the `DTDLOAD`, `DTDATTR`, `DTDVALID` or `NOENT`
-    /// flag of [`with_options`](Self::with_options). Setting the current
-    /// value always succeeds. Changing one is only possible before the first
-    /// read (`InvalidState` afterwards; libxml2 allows some changes
-    /// mid-stream, the stream here is configured when it starts). Clearing
-    /// `LoadDtd` clears `DTDLOAD` only, so it stays true while `DTDATTR` or
-    /// `DTDVALID` load the subset, as libxml2's. `LoadDtd` on without a
-    /// resolver is `UnsupportedOption` (nothing could be loaded).
+    /// Sets the `DTDLOAD`, `DTDATTR`, `DTDVALID` or `NOENT` flag
+    /// (`xmlTextReaderSetParserProp`).
+    ///
+    /// # Errors
+    ///
+    /// Changing a value after the first read is `InvalidState` (libxml2
+    /// allows some changes mid-stream); turning `LoadDtd` on without a
+    /// resolver is `UnsupportedOption`.
     pub fn set_parser_property(
         &mut self,
         property: ParserProperty,
@@ -1509,10 +1524,12 @@ impl<R: BufRead> TextReader<R> {
         Ok(())
     }
 
-    /// `xmlTextReaderRelaxNGSetSchema`: validates the document against `schema`
-    /// while it is read, or stops validating with `None`. Only before the first
-    /// read; afterwards `InvalidState`. `xmlTextReaderRelaxNGValidate` is
-    /// [`Schema::parse`](relaxng::Schema::parse) followed by this call.
+    /// Validates the document against a RELAX NG `schema` while reading it,
+    /// or stops with `None` (`xmlTextReaderRelaxNGSetSchema`).
+    ///
+    /// # Errors
+    ///
+    /// `InvalidState` after the first read.
     pub fn relaxng_set_schema(&mut self, schema: Option<&relaxng::Schema>) -> Result<(), Error> {
         if self.state != ReadState::Initial {
             return Err(Error::new(ErrorKind::InvalidState, self.source.position()));
@@ -1527,11 +1544,12 @@ impl<R: BufRead> TextReader<R> {
         (self.validators.relaxng.as_ref()).map_or(&[], relaxng::Stream::diagnostics)
     }
 
-    /// `xmlTextReaderSetSchema`: validates the document against the XML Schema
-    /// `schema` while it is read, alongside any RELAX NG schema, or stops
-    /// validating with `None`. Only before the first read; afterwards
-    /// `InvalidState`. `xmlTextReaderSchemaValidate` is
-    /// [`Schema::parse`](xsd::Schema::parse) followed by this call.
+    /// Validates the document against an XML Schema while reading it, or
+    /// stops with `None` (`xmlTextReaderSetSchema`).
+    ///
+    /// # Errors
+    ///
+    /// `InvalidState` after the first read.
     pub fn xsd_set_schema(&mut self, schema: Option<&xsd::Schema>) -> Result<(), Error> {
         if self.state != ReadState::Initial {
             return Err(Error::new(ErrorKind::InvalidState, self.source.position()));

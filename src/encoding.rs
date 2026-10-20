@@ -2,8 +2,8 @@ use std::ops::Range;
 
 use crate::{Error, ErrorKind, Limit};
 
-/// Ceilings for the UTF-8 representation produced by input decoding.
-/// Transport byte-order marks are excluded from both counters.
+/// Ceilings on the UTF-8 that input decoding produces; a byte order mark
+/// counts toward neither.
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub struct DecodeLimits {
@@ -16,6 +16,7 @@ pub struct DecodeLimits {
 setters!(const DecodeLimits { max_decoded_bytes: usize, max_decoded_token_bytes: usize });
 
 impl DecodeLimits {
+    /// 64 MiB in total and 1 MiB per token.
     pub const DEFAULT: Self = Self {
         max_decoded_bytes: 64 * 1024 * 1024,
         max_decoded_token_bytes: 1024 * 1024,

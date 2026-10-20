@@ -1,6 +1,6 @@
 //! URI parsing, serialization, escaping and reference resolution following
 //! libxml2 2.15.4 `uri.c` on Unix, including its deviations from RFC 3986
-//! (see `docs/uri.md`).
+//! ([URI differences](https://github.com/pbdeuchler/yaxml/blob/main/docs/uri.md)).
 //!
 //! Inputs end at the first NUL, as C strings do. Unescaped components must be
 //! UTF-8 (`InvalidUtf8` otherwise) and are cut at a decoded NUL.
@@ -13,24 +13,33 @@ use memchr::memchr;
 /// [`Uri::parse_raw`]) except `query`, which is always as written.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Uri {
+    /// Scheme, without the `:`.
     pub scheme: Option<String>,
+    /// User information, without the `@`.
     pub user: Option<String>,
+    /// Host name or address.
     pub host: Option<String>,
     /// Never zero: libxml2 cannot tell port 0 from no port.
     pub port: Option<u32>,
     /// `scheme://` followed by neither host nor port (libxml2's port -1).
     pub empty_authority: bool,
+    /// Path.
     pub path: Option<String>,
+    /// Query, without the `?`.
     pub query: Option<String>,
+    /// Fragment, without the `#`.
     pub fragment: Option<String>,
 }
 
-/// URI failure.
+/// A URI parsing or unescaping failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum UriError {
     /// Invalid syntax; the offset is the furthest byte either grammar reached.
-    Syntax { offset: usize },
+    Syntax {
+        /// Byte offset into the input.
+        offset: usize,
+    },
     /// Percent-decoding produced bytes that are not UTF-8.
     InvalidUtf8,
 }

@@ -287,21 +287,21 @@ fn stage<A: Allocator, B: Allocator>(
 }
 
 impl<A: Allocator> Editor<'_, A> {
-    /// `xmlDocCopyNode`: copies `node` of another document (`deep`: with its
-    /// descendants; otherwise an element keeps its attributes and
-    /// declarations, `xmlDocCopyNode(node, doc, 2)`) into this one, detached.
-    /// Insert it with [`append_child`](Self::append_child) and the other
-    /// moves. Each binding the copy's names took from outside it is declared
-    /// on the copy's root, so it is namespace-consistent wherever it goes.
+    /// Copies `node` of another document into this one, detached
+    /// (`xmlDocCopyNode`); `deep` includes descendants, otherwise an element
+    /// keeps only its attributes. Insert the copy with
+    /// [`append_child`](Self::append_child) or another move. Bindings it
+    /// needs are declared on its root.
     ///
-    /// This document decides what the copy means: its DTD types IDs, an
-    /// entity reference it does not declare is replaced by the reference's
-    /// content (`Hierarchy` for the copied node itself) and an attribute's
-    /// kept references by its substituted value. An HTML document takes no
-    /// names in a namespace (`Namespace`); an XML one fails on what XML
-    /// cannot write (`InvalidName`, `InvalidCharacter`, `InvalidValue`).
-    /// The document node and the DOCTYPE are `WrongNodeKind`; use
-    /// [`OwnedDocument::try_clone`]. Copied nodes have no source range.
+    /// This document's DTD decides IDs; an entity reference it does not
+    /// declare is replaced by its content.
+    ///
+    /// # Errors
+    ///
+    /// The document node and DOCTYPE are `WrongNodeKind` (use
+    /// [`OwnedDocument::try_clone`]); an HTML destination rejects namespaced
+    /// names (`Namespace`), and an XML one what XML cannot write
+    /// (`InvalidName`, `InvalidCharacter`, `InvalidValue`).
     ///
     /// ```
     /// use yaxml::{EditLimits, OwnedDocument, save};
@@ -317,9 +317,8 @@ impl<A: Allocator> Editor<'_, A> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     ///
-    /// Moving a node between documents (`xmlDOMWrapAdoptNode`, lxml's
-    /// cross-tree append) is this followed by `remove_subtree` in the
-    /// source: handles name one document, so the moved nodes get new ones.
+    /// To move a node between documents (`xmlDOMWrapAdoptNode`), import it
+    /// and `remove_subtree` it from the source.
     pub fn import<B: Allocator>(
         &mut self,
         source: &OwnedDocument<B>,
@@ -335,9 +334,8 @@ impl<A: Allocator> Editor<'_, A> {
         self.publish(staged, Some(&source.pool.0))
     }
 
-    /// `xmlCopyNode`: [`import`](Self::import) from this document. The copy
-    /// shares the source's strings, so it takes no pool storage beyond the
-    /// declarations its root needs.
+    /// [`import`](Self::import) from this document (`xmlCopyNode`). The copy
+    /// shares the source's strings.
     pub fn copy(&mut self, node: OwnedNodeId, deep: bool) -> Result<OwnedNodeId, EditError> {
         let target = Target {
             document: self.document,
@@ -489,12 +487,13 @@ fn cloned<T: Clone, A: Allocator + Clone>(
 }
 
 impl<A: Allocator + Clone> OwnedDocument<A> {
-    /// `xmlCopyDoc(doc, 1)`: a copy of the whole document, DTD, URL, ID
-    /// table and detached subtrees included, in the same allocator. It has
-    /// a new identity, so handles of this document do not resolve in it, but
-    /// its [`nodes`](Self::nodes) visit the same tree in the same order.
-    /// Editing counters carry over. Fails only on allocation and identity
-    /// exhaustion.
+    /// A copy of the whole document in the same allocator, DTD and detached
+    /// subtrees included (`xmlCopyDoc`). It has a new identity, so this
+    /// document's handles do not resolve in it. Editing counters carry over.
+    ///
+    /// # Errors
+    ///
+    /// Allocation failure or identity exhaustion only.
     ///
     /// ```
     /// use yaxml::OwnedDocument;

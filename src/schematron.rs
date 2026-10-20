@@ -1,4 +1,28 @@
-#![doc = include_str!("../docs/schematron.md")]
+//! Schematron validation, libxml2's `schematron.c`.
+//!
+//! The same subset of ISO Schematron and Schematron 1.5 as libxml2, with its
+//! report text byte for byte. Rule contexts are [`pattern`] patterns;
+//! tests, `let`, `name` and `value-of` are [`xpath`] expressions.
+//! [`Schema::parse`] (`xmlSchematronParse`) builds a schema that is
+//! immutable, `Send + Sync` and reusable; [`Schema::validate`] (`xmlSchematronValidateDoc`) checks
+//! either DOM, with output chosen by the `OUT_*` flags.
+//! Details: <https://github.com/pbdeuchler/yaxml/blob/main/docs/schematron.md>.
+//!
+//! ```
+//! use yaxml::schematron::{Limits, OUT_TEXT, Schema};
+//!
+//! let sct = br#"<schema xmlns="http://purl.oclc.org/dsdl/schematron">
+//!   <pattern id="ids"><rule context="item">
+//!     <assert test="@id">An <name/> needs an id</assert>
+//!   </rule></pattern></schema>"#;
+//! let none = |_: yaxml::Request<'_>| Ok(None);
+//! let schema = Schema::parse(sct, "s.sct", Box::new(none), &Limits::default())?;
+//! let input = b"<list>\n<item id='a'/>\n<item/>\n</list>";
+//! let validation = schema.validate(&yaxml::Document::parse_bytes(input)?, OUT_TEXT, input);
+//! assert_eq!(validation.errors, Some(1));
+//! assert_eq!(validation.render("d.xml"), "Pattern: ids\n/list/item[2] line 3: An item needs an id\n");
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 use std::fmt;
 
@@ -62,6 +86,7 @@ impl Code {
 /// One structured error, as libxml2 raises it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic<Id> {
+    /// What is reported.
     pub code: Code,
     /// The element concerned: an instance element for asserts and reports,
     /// `Some(())` for a schema element in [`SchemaErrors`].
@@ -117,6 +142,7 @@ impl<Id> Diagnostic<Id> {
 pub struct SchemaErrors {
     /// The schema document's URI.
     pub uri: String,
+    /// The errors.
     pub errors: Vec<Diagnostic<()>>,
 }
 
@@ -147,10 +173,12 @@ pub struct Validation<Id> {
     /// fired reports and failed `let`s, or `None` for its internal error
     /// (-1): no rules, a failed `let` in one-pass mode, or no operations left.
     pub errors: Option<usize>,
+    /// The report, in libxml2's order.
     pub output: Vec<Output<Id>>,
 }
 
 impl<Id> Validation<Id> {
+    /// Whether nothing failed (`errors == Some(0)`).
     pub fn is_valid(&self) -> bool {
         self.errors == Some(0)
     }
@@ -182,6 +210,7 @@ pub struct Limits {
 setters!(const Limits { xml: crate::Limits, xpath: xpath::Limits, max_operations: u64 });
 
 impl Limits {
+    /// The defaults: 500 million XPath operations per validation.
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,
         xpath: xpath::Limits::DEFAULT,

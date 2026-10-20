@@ -1,25 +1,25 @@
-//! HTML parsing and serialization with libxml2 2.15.4's behavior.
+//! HTML parsing and serialization as libxml2 2.15.4's `HTMLparser.c` and
+//! `HTMLtree.c` do.
 //!
-//! The tokenizer follows libxml2's HTML5-style tokenization; tree construction
-//! is libxml2's own legacy algorithm (implied html/head/body, start-tag
-//! auto-close tables, end-tag priorities), not the WHATWG tree builder.
-//! Malformed input is recovered, as libxml2 always does for HTML, and the
-//! problems libxml2 reports are collected as [`Diagnostic`]s. Documents are
-//! [`OwnedDocument`]s marked as HTML; [`parse_events`] and [`EventParser`]
-//! deliver libxml2's SAX callbacks as [`Event`]s instead. See `docs/html.md`
-//! for the contract.
+//! Tokenization is HTML5-style; tree construction is libxml2's legacy
+//! algorithm (implied html/head/body, auto-close tables), not the WHATWG
+//! tree builder. Malformed input is always recovered, and what libxml2
+//! reports is collected as [`Diagnostic`]s. [`parse`] builds an
+//! [`OwnedDocument`] marked as HTML; [`parse_events`] and [`EventParser`]
+//! deliver libxml2's SAX callbacks as [`Event`]s instead. See the
+//! [HTML contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/html.md).
 //!
 //! ```
 //! use yaxml::html;
 //!
-//! let parsed = html::parse(b"<p class=x>Hello<br>world", html::Options::default())?;
+//! let parsed = html::parse(b"<p class=x>Hello<br>world<p>b &amp; c", html::Options::default())?;
 //! let body = parsed.document.root_element().last_child().unwrap();
 //! assert_eq!(body.name().unwrap().local(), "body");
 //! assert_eq!(
 //!     html::save(&parsed.document, false)?,
 //!     b"<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\" \
 //!       \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n\
-//!       <html><body><p class=\"x\">Hello<br>world</p></body></html>\n"
+//!       <html><body><p class=\"x\">Hello<br>world</p><p>b &amp; c</p></body></html>\n"
 //! );
 //! # Ok::<(), yaxml::Error>(())
 //! ```
@@ -92,19 +92,17 @@ const SUPPORTED: u32 = RECOVER
     | BIG_LINES
     | HTML5;
 
-/// `htmlParserOption` flags plus resource ceilings.
-///
-/// `max_depth` is libxml2's open-element ceiling for trees (256 by default,
-/// 2048 with [`HUGE`]) and `max_token_bytes` bounds attribute values,
-/// comments and merged text nodes; exceeding either stops parsing with a
-/// [`DiagnosticKind::ResourceLimit`] and keeps the tree built so far, as
-/// libxml2 does. Events have no depth ceiling, as with libxml2's SAX. The
-/// other ceilings (input bytes, attributes per tag, nodes as `max_events`,
-/// owned bytes) fail with [`ErrorKind::LimitExceeded`].
+/// HTML parser options: `htmlParserOption` flags and resource ceilings.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Options {
+    /// `HTML_PARSE_*` flags from this module's constants.
     pub flags: u32,
+    /// Resource ceilings. As in libxml2, exceeding `max_depth` (trees only)
+    /// or `max_token_bytes` (attribute values, comments, merged text) stops
+    /// parsing with [`DiagnosticKind::ResourceLimit`] and keeps the tree
+    /// built so far; the other ceilings fail with
+    /// [`ErrorKind::LimitExceeded`].
     pub limits: Limits,
 }
 
@@ -117,8 +115,10 @@ impl Default for Options {
 }
 
 impl Options {
+    /// No flags and default limits.
     pub const DEFAULT: Self = Self::new(0);
 
+    /// `flags` with default limits.
     pub const fn new(flags: u32) -> Self {
         Self {
             flags,
@@ -138,7 +138,9 @@ impl Options {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Diagnostic {
+    /// The problem's category.
     pub kind: DiagnosticKind,
+    /// Byte offset in the decoded text.
     pub offset: usize,
     /// libxml2's message, without its trailing newline.
     pub message: String,
@@ -152,6 +154,7 @@ pub struct Diagnostic {
     early: bool,
 }
 
+/// The category of an HTML [`Diagnostic`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum DiagnosticKind {
@@ -232,7 +235,9 @@ pub enum Event<'a> {
     /// `startElement`, including implied elements; valueless attributes
     /// have no value, the first of a repeated name is kept.
     Start {
+        /// The element name.
         name: &'a str,
+        /// `(name, value)` pairs in source order.
         attributes: &'a [(String, Option<String>)],
     },
     /// `endElement`.
@@ -249,7 +254,9 @@ pub enum Event<'a> {
 /// A parsed HTML document and what recovery reported.
 #[derive(Debug)]
 pub struct Parsed {
+    /// The document, marked as HTML.
     pub document: OwnedDocument,
+    /// What recovery reported, in input order.
     pub diagnostics: Vec<Diagnostic>,
     /// A resource ceiling stopped parsing early; the tree holds what was built.
     pub stopped: bool,
@@ -259,6 +266,7 @@ pub struct Parsed {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Summary {
+    /// What recovery reported, in input order.
     pub diagnostics: Vec<Diagnostic>,
     /// A resource ceiling or the handler stopped parsing early.
     pub stopped: bool,
@@ -317,14 +325,14 @@ pub fn parse(input: &[u8], options: Options) -> Result<Parsed, Error> {
     engine.document()
 }
 
-/// Parses `input` as content in an HTML document, like
-/// `xmlParseInNodeContext`/`xmlCtxtParseContent` on an HTML node: no implied
-/// elements, a DOCTYPE is ignored, and the nodes become the top-level
-/// children of the returned document (copy them over with
-/// [`Editor::import`](crate::Editor::import)). The input is read in the
-/// context document's `encoding` ([`OwnedDocument::html_encoding`]); without
-/// one it is sniffed from `<meta>` or the first non-ASCII byte, never from a
-/// byte-order mark.
+/// Parses `input` as content of an HTML node, like `xmlCtxtParseContent`.
+///
+/// Nothing is implied and a DOCTYPE is ignored; the nodes become the
+/// returned document's top-level children, ready for
+/// [`Editor::import`](crate::Editor::import). The input is decoded as
+/// `encoding` (the context's [`OwnedDocument::html_encoding`]), or else
+/// sniffed from `<meta>` or the first non-ASCII byte, never a byte-order
+/// mark.
 pub fn parse_fragment(
     input: &[u8],
     encoding: Option<&str>,
@@ -345,9 +353,29 @@ pub fn parse_fragment(
     engine.document()
 }
 
-/// Parses a complete HTML document into events, like `htmlCtxtReadMemory`
-/// with custom SAX callbacks: `handler` receives each one and may stop
-/// parsing by returning [`ControlFlow::Break`]. No tree is built.
+/// Parses a complete HTML document into events without building a tree,
+/// like `htmlCtxtReadMemory` with SAX callbacks. `handler` may stop parsing
+/// by returning [`ControlFlow::Break`].
+///
+/// ```
+/// use std::ops::ControlFlow;
+/// use yaxml::html::{self, Event};
+///
+/// let input = b"<p>a</i>";
+/// let mut tags = Vec::new();
+/// let summary = html::parse_events(input, html::Options::default(), |event| {
+///     if let Event::Start { name, .. } = event {
+///         tags.push(name.to_owned());
+///     }
+///     ControlFlow::Continue(())
+/// })?;
+/// assert_eq!(tags, ["html", "body", "p"]);
+/// assert_eq!(
+///     summary.diagnostics[0].render("f.html", &summary.line_index(input)),
+///     "f.html:1: HTML parser error : Unexpected end tag : i\n<p>a</i>\n        ^\n"
+/// );
+/// # Ok::<(), yaxml::Error>(())
+/// ```
 pub fn parse_events<F>(input: &[u8], options: Options, handler: F) -> Result<Summary, Error>
 where
     F: FnMut(Event<'_>) -> ControlFlow<()>,
@@ -381,6 +409,11 @@ fn ceilings(options: &Options) -> (usize, usize, usize) {
 pub struct PushParser(Push<Document>);
 
 impl PushParser {
+    /// A parser for `options`.
+    ///
+    /// # Errors
+    ///
+    /// Unsupported flags.
     pub fn new(options: Options) -> Result<Self, Error> {
         Ok(Self(Push::new(Engine::new(
             options,
@@ -405,6 +438,11 @@ impl PushParser {
 pub struct EventParser<F: FnMut(Event<'_>) -> ControlFlow<()>>(Push<Events<F>>);
 
 impl<F: FnMut(Event<'_>) -> ControlFlow<()>> EventParser<F> {
+    /// A parser delivering events to `handler`.
+    ///
+    /// # Errors
+    ///
+    /// Unsupported flags.
     pub fn new(options: Options, handler: F) -> Result<Self, Error> {
         Ok(Self(Push::new(Engine::new(
             options,

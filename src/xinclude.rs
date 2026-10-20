@@ -1,17 +1,29 @@
-//! XInclude 1.0 as libxml2 2.15 processes it (`xinclude.c`), over owned
-//! documents: [`process`] returns a new document and never changes its input.
+//! XInclude 1.0 as libxml2 2.15's `xinclude.c` processes it.
+//!
+//! [`process`] returns a new [`OwnedDocument`] and never changes its input.
+//! It handles XML and text inclusion, fallbacks, `xml:base` fixup, XPointer
+//! selection and loop detection; resources load only through the given
+//! [`Resolver`], within cumulative budgets. See the
+//! [XInclude contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/xinclude.md).
 //!
 //! ```
 //! use yaxml::{OwnedDocument, Request, Writer, xinclude};
 //!
 //! let main = OwnedDocument::parse(
-//!     "<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='p.xml'/></r>",
+//!     "<r xmlns:xi='http://www.w3.org/2001/XInclude'>\
+//!      <xi:include href='p.xml'/><xi:include href='a.xml' xpointer='element(/1/2)'/></r>",
 //! )?;
-//! let resolver = |request: Request<'_>| Ok((request.uri == "p.xml").then(|| b"<p/>".to_vec()));
+//! let resolver = |request: Request<'_>| {
+//!     Ok(match request.uri {
+//!         "p.xml" => Some(b"<p/>".to_vec()),
+//!         "a.xml" => Some(b"<a><b/><c/></a>".to_vec()),
+//!         _ => None,
+//!     })
+//! };
 //! let result = xinclude::process(&main, "main.xml", Box::new(resolver), &Default::default())?;
 //! let mut writer = Writer::new(Vec::new());
 //! writer.write_owned_document(&result)?;
-//! assert_eq!(writer.into_inner(), br#"<r xmlns:xi="http://www.w3.org/2001/XInclude"><p/></r>"#);
+//! assert_eq!(writer.into_inner(), br#"<r xmlns:xi="http://www.w3.org/2001/XInclude"><p/><c/></r>"#);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
@@ -70,6 +82,7 @@ pub struct Options {
 setters!(const Options { base_fixup: bool, lang_fixup: bool, max_depth: usize, limits: Limits, xpath: xpath::Limits, parse_flags: u32 });
 
 impl Options {
+    /// libxml2's `XML_PARSE_XINCLUDE` behavior.
     pub const DEFAULT: Self = Self {
         base_fixup: true,
         lang_fixup: false,
@@ -86,12 +99,14 @@ impl Default for Options {
     }
 }
 
-/// An XInclude failure in the document `uri`, at the failing element's
-/// source `offset` when it has one.
+/// An XInclude failure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Error {
+    /// What went wrong.
     pub kind: ErrorKind,
+    /// The document holding the failing element.
     pub uri: String,
+    /// The failing element's source offset in that document, when it has one.
     pub offset: Option<usize>,
 }
 
@@ -147,13 +162,12 @@ pub enum ErrorKind {
 }
 
 /// Replaces every `xi:include` in `document`, whose URI is `base`, and
-/// returns the result. Resources load only through `resolver`.
+/// returns the result (`xmlXIncludeProcess`).
 ///
-/// Each failure libxml2 counts as an error fails the call; a resource that
-/// cannot be loaded uses its `xi:fallback`. Documents and texts are loaded
-/// once per call and cached by URI. No `XINCLUDE_START`/`END` marker nodes
-/// are produced (libxml2's `XML_PARSE_NOXINCNODE` tree), adjacent Text nodes
-/// are not merged, and namespace declarations precede other attributes.
+/// A resource that cannot be loaded uses its `xi:fallback`; any other
+/// libxml2 error fails the call. Each URI is loaded once per call. The
+/// result has no `XINCLUDE_START`/`END` nodes (as with
+/// `XML_PARSE_NOXINCNODE`), and adjacent Text nodes are not merged.
 pub fn process(
     document: &OwnedDocument,
     base: &str,

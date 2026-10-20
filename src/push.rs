@@ -5,49 +5,61 @@ use crate::parser::Budget;
 use crate::stream::dtd::StreamingSession;
 use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, ParseOptions, ReadError, SourceOrigin};
 
-/// Incremental XML 1.0 parsing with a bounded scratch token and no retained input.
+/// An incremental parser fed byte chunks of any size, in bounded memory.
 ///
-/// `feed` accepts UTF-8, UTF-16 or a declared single-byte encoding (see
-/// `docs/encoding.md`) at arbitrary byte boundaries, including inside
-/// a code unit, surrogate pair, or markup delimiter.
-/// `finish` declares final EOF and validates the complete document. Text is
-/// emitted once per lexical run, so event boundaries do not depend on chunks.
-/// Callbacks receive each event by reference, lent for the call: its
-/// attribute list, normalized values and namespace URIs live in storage the
-/// parser reuses, so copy what you retain (`Attributes::to_vec`,
-/// `Cow::to_string`).
+/// Input may be UTF-8, UTF-16 or a declared single-byte
+/// [encoding](https://github.com/pbdeuchler/yaxml/blob/main/docs/encoding.md),
+/// split anywhere. Events do not depend on the split: each text run is one
+/// event. Callbacks receive events lent for the call, so copy what you
+/// keep. Events before an error are delivered before the error is found.
 ///
-/// Source tokens are limited by `max_token_bytes`; decoded scratch tokens have
-/// the separate `DecodeLimits` ceiling. Retained names, namespace
-/// state, normalization, and owned namespace copies spend `max_owned_bytes`.
-/// Streaming consequently needs more of that budget than the borrowing reader.
-/// Inactive namespace entries are released when their scope ends.
+/// ```
+/// use std::ops::ControlFlow;
+/// use yaxml::{Event, PushParser};
 ///
-/// Validation occurs as tokens arrive. Earlier events can be delivered before
-/// a later invalid byte is discovered, and the first reported error can differ
-/// from the slice reader's whole-input UTF-8/character validation.
+/// let xml = b"<root xmlns='urn:example'><item key='v'>text&amp;more</item></root>";
+/// let mut parser = PushParser::new();
+/// let mut text = String::new();
+/// for chunk in xml.chunks(7) {
+///     parser.feed(chunk, |event, _origin| {
+///         if let Event::Text(value) = event {
+///             text.push_str(value);
+///         }
+///         ControlFlow::Continue(())
+///     })?;
+/// }
+/// parser.finish(|_, _| ControlFlow::Continue(()))?;
+/// assert_eq!(text, "text&more");
+/// # Ok::<(), yaxml::Error>(())
+/// ```
 pub struct PushParser {
     session: StreamingSession,
 }
 
 impl PushParser {
+    /// A parser with default options.
     pub fn new() -> Self {
         Self::with_limits(Limits::default())
     }
 
+    /// A parser with custom limits and no flags.
     pub fn with_limits(limits: Limits) -> Self {
         Self::with_decode_limits(limits, DecodeLimits::default())
     }
 
-    /// Parses UTF-8 or UTF-16 with independent source and decoded ceilings.
+    /// A parser with custom parse and decode limits and no flags.
     pub fn with_decode_limits(limits: Limits, decode_limits: DecodeLimits) -> Self {
         let options = ParseOptions::default().with_limits(limits);
         Self::with_options(options.with_decode_limits(decode_limits))
             .expect("convenience flags are supported")
     }
 
-    /// A parser with libxml2 parser options; see [`crate::options`]. Tree-only
-    /// flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
+    /// A parser with libxml2 parser options; see [`crate::options`].
+    ///
+    /// # Errors
+    ///
+    /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `RECOVER`, `XINCLUDE`) are
+    /// [`ErrorKind::UnsupportedOption`].
     pub fn with_options(options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
@@ -68,16 +80,18 @@ impl PushParser {
         Self { session }
     }
 
-    /// Starts a new document with the same flags and limits, keeping
-    /// allocated capacity (`xmlCtxtResetPush`). Every counter, the sticky
-    /// failure or finish, the DTD, loaded resources and the resolver are gone.
+    /// Starts a new document with the same flags and limits, reusing
+    /// allocations (`xmlCtxtResetPush`). All other state, the resolver
+    /// included, is dropped.
     pub fn reset(&mut self) {
         self.session.reset_same();
     }
 
-    /// [`PushParser::reset`] with new options, like `xmlCtxtSetOptions`
-    /// followed by a reset. Unsupported options are an error and leave the
-    /// parser untouched.
+    /// [`PushParser::reset`] with new options.
+    ///
+    /// # Errors
+    ///
+    /// Unsupported options leave the parser unchanged.
     pub fn reset_with(&mut self, options: ParseOptions) -> Result<(), Error> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
@@ -106,29 +120,29 @@ impl PushParser {
         self.session.budget()
     }
 
-    /// Source bytes consumed, including encoding detection and one scalar of lookahead
-    /// when a `<` terminates text. On failure, a chunk's suffix can be unconsumed.
+    /// Source bytes consumed, lookahead included. After a failure, part of
+    /// the last chunk may be unconsumed.
     pub fn position(&self) -> usize {
         self.session.position()
     }
 
-    /// Origin of the latest delivered event; absent before the first event.
-    /// Stored before the callback, and retained after cancellation, failure or EOF.
+    /// Origin of the latest delivered event; kept after the end or a failure.
     pub fn event_origin(&self) -> Option<SourceOrigin> {
         self.session.event_origin()
     }
 
-    /// Exact original input span of the latest delivered event, when available.
+    /// Input span of the latest delivered event.
     pub fn event_range(&self) -> Option<Range<usize>> {
         self.event_origin().and_then(SourceOrigin::input_range)
     }
 
-    /// Consumes this parser and a caller-provided reader, delivering events until
-    /// final EOF or failure. Interrupted reads are retried; other I/O errors are
-    /// preserved. No document-controlled resource is opened by this operation.
-    /// Existing state can precede the reader, for example after feeding a prefix.
-    /// A terminal parser error is returned before I/O; a successfully finished
-    /// parser returns `InvalidState` before touching the source.
+    /// Feeds everything `reader` yields, then finishes. The parser may
+    /// already have been fed a prefix. Interrupted reads are retried.
+    ///
+    /// # Errors
+    ///
+    /// An earlier error, or `InvalidState` after a finish, is returned
+    /// before any I/O.
     pub fn read_from(
         mut self,
         mut input: impl std::io::Read,
@@ -156,13 +170,14 @@ impl PushParser {
         }
     }
 
-    /// Processes a chunk. Empty chunks are no-ops before final EOF.
+    /// Parses a chunk, calling `emit` for each complete event. An empty
+    /// chunk does nothing.
     ///
-    /// Returning `Break(())` from the callback delivers that event, then returns
-    /// `Aborted` at its end offset. Every later call returns the same error.
-    /// A feed after successful `finish`, including an empty feed, instead starts
-    /// a terminal `InvalidState` error. The supplied chunk's full size is checked
-    /// against the cumulative input ceiling before processing any of its bytes.
+    /// # Errors
+    ///
+    /// Errors are sticky. `Break` from `emit` stops with `Aborted`; feeding
+    /// after [`finish`](Self::finish) is `InvalidState`. A chunk that would
+    /// exceed `max_input_bytes` fails before any of it is parsed.
     pub fn feed(
         &mut self,
         input: &[u8],
@@ -188,8 +203,8 @@ impl PushParser {
         self.session.advance(input, &mut emit)
     }
 
-    /// Declares final EOF, emits any pending text, and checks document closure.
-    /// Repeating a successful finish is harmless and delivers no further events.
+    /// Ends the input, emits pending text and checks the document is
+    /// complete. Repeating it is a no-op.
     pub fn finish(
         &mut self,
         mut emit: impl FnMut(&Event<'_>, SourceOrigin) -> ControlFlow<()>,

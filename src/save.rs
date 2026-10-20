@@ -1,8 +1,10 @@
-//! Tree output with libxml2 2.15.4's `xmlsave.c` behavior: `xmlSaveDoc` for
-//! a document and `xmlSaveTree`/`xmlNodeDump` for any other node of either
-//! DOM, under `xmlSaveOption` flags and an output encoding. The internal
-//! subset is regenerated from its declarations, as libxml2 dumps its parsed
-//! DTD. See `docs/writer.md` for the contract and the differences.
+//! Tree output as libxml2 2.15.4's `xmlsave.c` writes it: `xmlSaveDoc` for
+//! a document and `xmlSaveTree` for any other node of either DOM, under
+//! `xmlSaveOption` flags and an output encoding.
+//!
+//! The internal subset is regenerated from its declarations, as libxml2
+//! does. See the
+//! [writer contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/writer.md#libxml2-tree-output-save).
 //!
 //! ```
 //! use yaxml::{OwnedDocument, save};
@@ -67,16 +69,16 @@ const MAX_LEVEL: usize = 100;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Options<'a> {
+    /// `XML_SAVE_*` flags from this module's constants.
     pub flags: u32,
     /// The output encoding: UTF-8, UTF-16 (little-endian with a BOM),
-    /// UTF-16LE, UTF-16BE, US-ASCII, ISO-8859-x or windows-1252, under any
-    /// libxml2 alias. The label is written verbatim into the XML declaration.
-    /// `None` uses a document's declared encoding; with no encoding at all,
-    /// text and attribute values escape non-ASCII characters as hexadecimal
-    /// references and the declaration names none.
+    /// UTF-16LE/BE, US-ASCII, ISO-8859-x or windows-1252, under any libxml2
+    /// alias, written verbatim into the declaration. `None` uses the
+    /// document's declared encoding; with none, non-ASCII text is written as
+    /// `&#xH;`.
     pub encoding: Option<&'a str>,
-    /// `xmlSaveSetIndentString`: 1 to 60 spaces or tabs, two spaces by
-    /// default. libxml2 takes any string, which can make the output malformed.
+    /// The indent string (`xmlSaveSetIndentString`): 1 to 60 spaces or tabs.
+    /// Default: two spaces.
     pub indent: &'a str,
     /// The indentation level of a subtree's root (`xmlNodeDump`'s `level`),
     /// at most 100; documents always start at 0.
@@ -86,6 +88,7 @@ pub struct Options<'a> {
 setters!(const Options['a] { flags: u32, encoding: Option<&'a str>, indent: &'a str, level: usize });
 
 impl Options<'_> {
+    /// No flags, the document's encoding, two-space indent, level 0.
     pub const DEFAULT: Self = Self {
         flags: 0,
         encoding: None,
@@ -101,6 +104,7 @@ impl Default for Options<'_> {
 }
 
 impl Options<'_> {
+    /// `flags` with default settings.
     pub fn new(flags: u32) -> Self {
         Self {
             flags,
@@ -116,7 +120,9 @@ impl Options<'_> {
 /// A node of either DOM. A document node saves the whole document.
 #[derive(Clone, Copy, Debug)]
 pub enum Tree<'document, 'input> {
+    /// A [`Document`] node.
     Borrowed(Node<'document, 'input>),
+    /// An [`OwnedDocument`] node.
     Owned(OwnedNode<'document>),
 }
 
@@ -371,7 +377,7 @@ pub(crate) fn owned_leaf<A: Allocator>(node: OwnedNode<'_, A>) -> Option<Event<'
     })
 }
 
-/// Serializes `tree` to memory; [`to_writer`] into a `Vec`.
+/// Serializes `tree` to memory, as [`to_writer`] does.
 pub fn to_vec<'document, 'input: 'document>(
     tree: impl Into<Tree<'document, 'input>>,
     options: &Options<'_>,
@@ -385,21 +391,24 @@ pub fn to_vec<'document, 'input: 'document>(
     }
 }
 
-/// Serializes `tree` to `sink` (`xmlSaveToIO`, `xmlSaveToFd`): `xmlSaveDoc`
-/// for a document node, otherwise `xmlSaveTree` at [`Options::level`] with
-/// the namespace declarations the subtree uses but does not declare added
-/// to its root, as on a copy (`xmlDocCopyNode`). Output reaches the sink in
-/// chunks of [`CHUNK`] bytes, then the sink is flushed.
+/// Serializes `tree` to `sink` in [`CHUNK`]-byte writes, then flushes it
+/// (`xmlSaveToIO`).
 ///
-/// Unknown flags or another indent are `UnsupportedOption`;
-/// an unknown encoding is `UnsupportedEncoding`. Text and attribute values
-/// write characters the encoding lacks as `&#N;`; in names, comments, PIs,
-/// CDATA and DOCTYPE identifiers, where libxml2 writes such references too
-/// and changes the content, they are `InvalidCharacter` at their output
-/// offset, and nothing after that offset is written. Nodes of HTML
-/// documents use the HTML serializer unless [`AS_XML`] or [`XHTML`] is set;
-/// [`AS_HTML`] needs an owned node. An I/O failure is `WriteError::Io`;
-/// the sink can hold part of the output.
+/// A document node is saved with `xmlSaveDoc`; any other node with
+/// `xmlSaveTree` at [`Options::level`], with the namespace declarations it
+/// uses added to its root. Text and attribute characters the encoding lacks
+/// become `&#N;`. HTML documents use the HTML serializer unless [`AS_XML`]
+/// or [`XHTML`] is set.
+///
+/// # Errors
+///
+/// - `UnsupportedOption`: unknown flags, an invalid indent, or [`AS_HTML`]
+///   on a borrowed node.
+/// - `UnsupportedEncoding`: an unknown encoding.
+/// - `InvalidCharacter`: a character the encoding lacks in a name, comment,
+///   PI, CDATA section or DOCTYPE identifier (where libxml2 would change
+///   the content); nothing after it is written.
+/// - [`WriteError::Io`]: the sink failed, possibly after partial output.
 pub fn to_writer<'document, 'input: 'document>(
     tree: impl Into<Tree<'document, 'input>>,
     options: &Options<'_>,
@@ -469,9 +478,9 @@ pub enum Escape {
     Html,
 }
 
-/// `xmlEncodeEntitiesReentrant`: `&`, `<` and `>` become predefined
-/// references; for XML also `\r` becomes `&#13;` and other C0 controls
-/// `&#xFFFD;` (libxml2 ends a C string at NUL, which is escaped here).
+/// Escapes text for content (`xmlEncodeEntitiesReentrant`): `&`, `<` and
+/// `>` become references; for XML also `\r` becomes `&#13;` and other C0
+/// controls, NUL included, `&#xFFFD;`.
 pub fn encode_entities(text: &str, escape: Escape) -> String {
     let mut out = String::new();
     escape_text(
@@ -483,9 +492,9 @@ pub fn encode_entities(text: &str, escape: Escape) -> String {
     out
 }
 
-/// `xmlEncodeSpecialChars`: `&`, `<`, `>` and `"` become predefined
-/// references, `\r` `&#13;` and other C0 controls `&#xFFFD;`; non-ASCII is
-/// written as is.
+/// Escapes text for content or attribute values (`xmlEncodeSpecialChars`):
+/// `&`, `<`, `>` and `"` become references, `\r` `&#13;` and other C0
+/// controls `&#xFFFD;`; non-ASCII is kept.
 pub fn encode_special_chars(text: &str) -> String {
     let mut out = String::new();
     escape_into(&mut out, text, &QUOT, false);
@@ -529,7 +538,7 @@ fn unicode_char(c: char) -> char {
     }
 }
 
-/// Bytes buffered before they are handed to the sink.
+/// Bytes [`to_writer`] buffers before handing them to the sink.
 pub const CHUNK: usize = 32 * 1024;
 
 /// Encoded output, handed to `sink` in chunks of [`CHUNK`] bytes (a sibling

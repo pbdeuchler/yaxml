@@ -10,24 +10,28 @@ use crate::{
     OwnedDocument, WriteError,
 };
 
-/// Inclusive writer ceilings. Token bytes count one complete encoded event.
+/// Inclusive ceilings for a [`Writer`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct WriterLimits {
+    /// Total bytes written.
     pub max_output_bytes: usize,
+    /// Bytes of one encoded event.
     pub max_token_bytes: usize,
+    /// Element nesting depth.
     pub max_depth: usize,
+    /// Attributes on one element, namespace declarations included.
     pub max_attributes: usize,
-    /// Shared semantic events; empty Text and top-level whitespace are ignored.
+    /// Events written; empty Text and top-level whitespace are not counted.
     pub max_events: usize,
-    /// Cumulative normalization and retained-name/namespace string capacity.
-    /// The encoded scratch token is bounded separately by max_token_bytes.
+    /// Cumulative string capacity for normalization and retained names.
     pub max_owned_bytes: usize,
 }
 
 setters!(const WriterLimits { max_output_bytes: usize, max_token_bytes: usize, max_depth: usize, max_attributes: usize, max_events: usize, max_owned_bytes: usize });
 
 impl WriterLimits {
+    /// The default ceilings.
     pub const DEFAULT: Self = Self {
         max_output_bytes: 64 * 1024 * 1024,
         max_token_bytes: 1024 * 1024,
@@ -52,17 +56,29 @@ enum Status {
     Failed,
 }
 
-/// Validates and serializes namespace-aware UTF-8 XML events to an explicit sink.
+/// A checked XML serializer for [`Event`]s or whole DOMs, writing UTF-8 to
+/// any [`Write`].
 ///
-/// Each complete event is encoded and validated before any of its bytes are
-/// written. Names and namespace declarations must agree with the active scope;
-/// namespaces are not repaired. Attributes use double quotes. Text/attribute
-/// references preserve logical values; raw CR in comments, CDATA and PI data,
-/// and leading PI whitespace, follow XML normalization when reparsed.
+/// Each event is validated and encoded before any of its bytes are written,
+/// and escaping keeps every value as given. Names must agree with the
+/// namespace declarations in scope; nothing is repaired. A failure is
+/// terminal (later calls return `InvalidState`), and partial output stays
+/// written. Dropping performs no I/O. See the
+/// [writer contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/writer.md).
 ///
-/// A failure or recovered sink panic makes later calls return InvalidState.
-/// Partial output cannot be rolled back. The writer performs no closing or I/O
-/// on drop; the sink's own destructor retains its usual behavior.
+/// ```
+/// use yaxml::{Reader, Writer};
+///
+/// let input = br#"<p:root xmlns:p="urn:example" key="a&amp;b"/>"#;
+/// let mut reader = Reader::new(input)?;
+/// let mut writer = Writer::new(Vec::new());
+/// while let Some(event) = reader.read_event()? {
+///     writer.write_event(&event)?;
+/// }
+/// writer.finish()?;
+/// assert_eq!(writer.into_inner(), input);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub struct Writer<W: Write> {
     sink: W,
     state: ParserState<'static>,
@@ -73,10 +89,12 @@ pub struct Writer<W: Write> {
 }
 
 impl<W: Write> Writer<W> {
+    /// A writer with default limits.
     pub fn new(sink: W) -> Self {
         Self::with_limits(sink, WriterLimits::default())
     }
 
+    /// A writer with custom limits.
     pub fn with_limits(sink: W, limits: WriterLimits) -> Self {
         Self {
             sink,
@@ -105,19 +123,17 @@ impl<W: Write> Writer<W> {
         }
     }
 
-    /// Bytes confirmed by successful sink write returns, including partial I/O.
-    /// Bytes accepted inside a panicking sink call cannot be measured.
+    /// Bytes the sink has accepted so far.
     pub fn position(&self) -> usize {
         self.position
     }
 
-    /// Consumes the writer without implicit validation, flushing or closing.
+    /// The sink, without flushing it or checking the document is complete.
     pub fn into_inner(self) -> W {
         self.sink
     }
 
-    /// Writes one complete event after validation. Adjacent Text events can
-    /// coalesce into a larger lexical token when the output is parsed again.
+    /// Validates and writes one event.
     pub fn write_event(&mut self, event: &Event<'_>) -> Result<(), WriteError> {
         if !matches!(self.status, Status::Fresh | Status::Active) {
             self.status = Status::Failed;
@@ -131,9 +147,9 @@ impl<W: Write> Writer<W> {
         Ok(())
     }
 
-    /// Serializes a complete borrowing DOM as UTF-8, then validates and flushes.
-    /// Requires a fresh writer and leaves it finished on success. A present
-    /// declaration encoding is rewritten to UTF-8; childless elements use `/>`.
+    /// Writes a whole document and finishes; the writer must be fresh. A
+    /// declared encoding is rewritten to UTF-8, and childless elements use
+    /// `/>`. For libxml2's `xmlSaveDoc` output, use [`save`](crate::save).
     pub fn write_document(&mut self, document: &Document<'_>) -> Result<(), WriteError> {
         self.begin_document()?;
         crate::serialize::borrowed(self, document, self.limits.max_attributes)?;
@@ -142,8 +158,8 @@ impl<W: Write> Writer<W> {
         Ok(())
     }
 
-    /// Serializes a complete owned DOM, with the same policy as write_document.
-    /// Its original UTF-8 or UTF-16 source encoding does not affect output bytes.
+    /// [`write_document`](Self::write_document) for an
+    /// [`OwnedDocument`].
     pub fn write_owned_document<A: crate::allocator::Allocator>(
         &mut self,
         document: &OwnedDocument<A>,
@@ -184,8 +200,8 @@ impl<W: Write> Writer<W> {
         )
     }
 
-    /// Requires a complete document and flushes the sink. Repeating a successful
-    /// finish performs no I/O. A write after finish starts terminal InvalidState.
+    /// Checks the document is complete and flushes the sink. Repeating it is
+    /// a no-op; writing afterwards is `InvalidState`.
     pub fn finish(&mut self) -> Result<(), WriteError> {
         match self.status {
             Status::Finished => return Ok(()),

@@ -12,35 +12,36 @@ use crate::resolve::Loader;
 use crate::tokenizer::{TokenKind, tag_close};
 use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, ParseOptions, SourceOrigin};
 
-/// Inclusive resource ceilings. An element's start tag counts as one token.
+/// Inclusive resource ceilings shared by every parser and DOM.
+///
+/// Build one with field setters: `Limits::DEFAULT.max_depth(64)`.
+/// [`options::HUGE`](crate::options::HUGE) lifts them as libxml2's
+/// `XML_PARSE_HUGE` does.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Limits {
+    /// Total input bytes.
     pub max_input_bytes: usize,
+    /// Raw bytes in one token; a whole start tag is one token.
     pub max_token_bytes: usize,
+    /// Element nesting depth.
     pub max_depth: usize,
+    /// Attributes on one element, namespace declarations included.
     pub max_attributes: usize,
-    /// Attributes a DOM retains across the whole document, counting namespace
-    /// declarations and defaulted attributes; `Document`, `OwnedDocument` and
-    /// `TextReader::expand` fail with `Limit::TotalAttributes` beyond it.
-    /// A borrowed DOM keeps about 135 bytes per attribute that `max_owned_bytes`
-    /// does not charge, and events do not bound them (an element may carry
-    /// `max_attributes`). Streaming readers retain none and ignore it.
+    /// Attributes a DOM keeps across the whole document, namespace
+    /// declarations and defaults included. Streaming readers ignore it.
     pub max_total_attributes: usize,
     /// Number of emitted events, including the declaration and empty elements.
     pub max_events: usize,
-    /// Cumulative requested string capacity for normalization, namespace copies,
-    /// streaming names and full new owned-DOM pool capacities, including buffers
-    /// already released. Borrowed slice text is free; retaining owned storage
-    /// can spend more of this budget.
+    /// Cumulative string capacity requested for copies (normalized values,
+    /// names, owned-DOM storage), released buffers included. Borrowed text
+    /// is free.
     pub max_owned_bytes: usize,
     /// Source bytes in the document type declaration, from `<!DOCTYPE` to `>`.
     pub max_dtd_bytes: usize,
-    /// Entity expansion always allowed: replacement text entered (in content,
-    /// attribute values and the internal subset), copied default attributes,
-    /// plus a fixed cost per reference. Beyond it, expansion may not exceed
-    /// `max_entity_amplification` times the input consumed so far, as with
-    /// libxml2's `xmlParserEntityCheck`.
+    /// Entity expansion bytes always allowed; beyond it, expansion may not
+    /// exceed `max_entity_amplification` times the input read so far
+    /// (libxml2's `xmlParserEntityCheck`).
     pub max_entity_expansion_bytes: usize,
     /// Expansion-to-consumed-input ratio permitted above the fixed allowance.
     pub max_entity_amplification: usize,
@@ -57,6 +58,7 @@ pub struct Limits {
 setters!(const Limits { max_input_bytes: usize, max_token_bytes: usize, max_depth: usize, max_attributes: usize, max_total_attributes: usize, max_events: usize, max_owned_bytes: usize, max_dtd_bytes: usize, max_entity_expansion_bytes: usize, max_entity_amplification: usize, max_entity_references: usize, max_entity_depth: usize, max_external_loads: usize, max_external_bytes: usize });
 
 impl Limits {
+    /// The default ceilings (libxml2's where it has one).
     pub const DEFAULT: Self = Self {
         max_input_bytes: 64 * 1024 * 1024,
         max_token_bytes: 1024 * 1024,
@@ -81,25 +83,31 @@ impl Default for Limits {
     }
 }
 
+/// An attribute of a start tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Attribute<'a> {
+    /// The expanded name.
     pub name: Name<'a>,
+    /// The normalized value, entity references substituted.
     pub value: Cow<'a, str>,
 }
 
+/// A start or empty-element tag.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Element<'a> {
+    /// The expanded name.
     pub name: Name<'a>,
     /// Source order, including namespace declarations in the XMLNS namespace.
     pub attributes: Attributes<'a>,
 }
 
-/// An element's attributes in source order: an owned list, or a borrowed
-/// one (as events built from a tree lend). Both dereference to a slice;
-/// `into_owned` keeps a borrowed list.
+/// An element's attributes in source order, owned or borrowed; dereferences
+/// to a slice.
 #[derive(Clone, Debug)]
 pub enum Attributes<'a> {
+    /// A list lent by a tree or parser.
     Borrowed(&'a [Attribute<'a>]),
+    /// An owned list.
     Owned(Vec<Attribute<'a>>),
 }
 
@@ -179,21 +187,27 @@ impl<'a> IntoIterator for Attributes<'a> {
     }
 }
 
+/// The XML declaration, `<?xml ...?>`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Declaration<'a> {
+    /// The `version` pseudo-attribute.
     pub version: &'a str,
+    /// The `encoding` pseudo-attribute, as written.
     pub encoding: Option<&'a str>,
+    /// The `standalone` pseudo-attribute.
     pub standalone: Option<bool>,
 }
 
-/// A document type declaration. Identifiers are literal contents without
-/// quotes; the internal subset is the exact text between `[` and `]`.
-/// Its declarations have already been applied to the events that follow.
+/// A document type declaration, already applied to the events that follow.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Doctype<'a> {
+    /// The root element name it declares.
     pub name: &'a str,
+    /// The public identifier, without quotes.
     pub public_id: Option<&'a str>,
+    /// The system identifier, without quotes.
     pub system_id: Option<&'a str>,
+    /// The exact text between `[` and `]`.
     pub internal_subset: Option<&'a str>,
 }
 
@@ -297,19 +311,30 @@ pub(crate) fn recovered_doctype(raw: &str, unit: Option<usize>, at: usize) -> (D
     (doctype, resume)
 }
 
-/// Logical events borrow the input except where XML normalization changes it.
+/// One parse event; borrows the input except where normalization changes it.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Event<'a> {
+    /// The XML declaration.
     Declaration(Declaration<'a>),
+    /// The document type declaration.
     Doctype(Doctype<'a>),
+    /// A start tag.
     Start(Element<'a>),
+    /// An empty-element tag, `<a/>`; no [`Event::End`] follows.
     Empty(Element<'a>),
+    /// An end tag.
     End(Name<'a>),
+    /// Character data, references substituted.
     Text(Cow<'a, str>),
+    /// A CDATA section's content.
     Cdata(Cow<'a, str>),
+    /// A comment's content.
     Comment(Cow<'a, str>),
+    /// A processing instruction.
     ProcessingInstruction {
+        /// The target name.
         target: Cow<'a, str>,
+        /// Everything after the target and its separating whitespace.
         data: Cow<'a, str>,
     },
     /// A general entity reference in content, reported when entities are not
@@ -329,17 +354,26 @@ enum Phase<'input> {
     Content(BorrowedContentController<'input>),
 }
 
-/// Strict, namespace-aware XML 1.0 event reader over a complete UTF-8 input.
+/// A pull parser over complete UTF-8 input, borrowing it.
 ///
-/// This borrows the complete input; bounded-memory I/O streaming is a separate API.
-/// Top-level whitespace is skipped, while whitespace inside the root is kept.
-/// After an error, every call returns that same error. EOF repeatedly returns
-/// `Ok(None)`. Encodings other than UTF-8 are explicitly unsupported.
+/// Namespace-aware and strict. Whitespace outside the root element is
+/// skipped. Errors are sticky, and EOF repeats `Ok(None)`. For other
+/// encodings or I/O sources, use [`PushParser`](crate::PushParser) or
+/// [`BufferedReader`](crate::BufferedReader).
 ///
-/// A document type declaration is reported as one [`Event::Doctype`]. Its
-/// internal subset supplies entity replacement, default attributes and
-/// attribute-type normalization; external entities and subsets are not read.
-/// A document without a DOCTYPE never leaves the plain token loop.
+/// ```
+/// use yaxml::{Event, Reader};
+///
+/// let mut reader = Reader::new(b"<log><entry>a</entry><entry>b</entry></log>")?;
+/// let mut entries = 0;
+/// while let Some(event) = reader.read_event()? {
+///     if let Event::Start(element) = event {
+///         entries += usize::from(element.name.local() == "entry");
+///     }
+/// }
+/// assert_eq!(entries, 2);
+/// # Ok::<(), yaxml::Error>(())
+/// ```
 pub struct Reader<'a> {
     source: &'a str,
     ordinary: Option<SliceReader<'a>>,
@@ -361,17 +395,32 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
+    /// A reader with default options.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the input is not UTF-8, holds a character outside XML's
+    /// `Char`, or exceeds `max_input_bytes`.
     pub fn new(input: &'a [u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }
 
+    /// A reader with custom limits and no flags.
+    ///
+    /// # Errors
+    ///
+    /// As [`Reader::new`].
     pub fn with_limits(input: &'a [u8], limits: Limits) -> Result<Self, Error> {
         Self::with_options(input, ParseOptions::default().with_limits(limits))
     }
 
-    /// Reads with libxml2 parser options; see [`crate::options`]. Tree-only
-    /// flags (`DTDVALID`, `NOBLANKS`, `XINCLUDE`) are `UnsupportedOption`.
-    /// Borrowed UTF-8 needs no decoding, so `decode_limits` do not apply.
+    /// A reader with libxml2 parser options; see [`crate::options`].
+    /// `decode_limits` do not apply, since nothing is decoded.
+    ///
+    /// # Errors
+    ///
+    /// As [`Reader::new`]; tree-only flags (`DTDVALID`, `NOBLANKS`,
+    /// `RECOVER`, `XINCLUDE`) are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: &'a [u8], options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;
         let (limits, _) = options.effective_limits();
@@ -466,6 +515,7 @@ impl<'a> Reader<'a> {
         self.event_origin().and_then(SourceOrigin::input_range)
     }
 
+    /// The next event, or `None` at the end of the document.
     pub fn read_event(&mut self) -> Result<Option<Event<'a>>, Error> {
         if let Some(error) = self.failure {
             return Err(error);

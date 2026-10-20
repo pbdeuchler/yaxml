@@ -1,6 +1,10 @@
-//! libxml2 `pattern.c`: the XPath subset of `xmlPatterncompile` (steps joined
-//! by `/` and `//`, `.`, `*`, `p:*`, `p:n`, `@a`, `child::`/`attribute::`, `|`),
-//! DOM matching over either tree, and the incremental `xmlStream*` matcher.
+//! XPath patterns, libxml2's `pattern.c`.
+//!
+//! [`Pattern::compile`] (`xmlPatterncompile`) accepts steps joined by `/`
+//! and `//`, `.`, `*`, `p:*`, `p:n`, `@a`, `child::`/`attribute::` and `|`. A
+//! pattern matches nodes of either DOM, or element events incrementally
+//! through a [`StreamMatcher`] (`xmlStream*`) in memory bounded by
+//! [`Limits`].
 //!
 //! ```
 //! use yaxml::{Document, pattern::Pattern};
@@ -38,25 +42,33 @@ const FROM_CUR: u32 = 1 << 9;
 /// A ceiling on compilation or streaming state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Limit {
+    /// [`Limits::max_bytes`].
     Bytes,
+    /// [`Limits::max_steps`].
     Steps,
+    /// [`Limits::max_depth`].
     Depth,
 }
 
+/// What went wrong.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
+    /// The pattern is malformed.
     Syntax,
     /// A stream's states disagree with its level (libxml2's `-1`).
     State,
     /// A name test uses a prefix with no binding.
     UnboundPrefix,
+    /// A [`Limits`] ceiling was reached.
     LimitExceeded(Limit),
 }
 
-/// A compilation error carries the pattern byte offset; streaming errors do not.
+/// A compilation or streaming error.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Error {
+    /// What went wrong.
     pub kind: ErrorKind,
+    /// The byte offset in the pattern; `None` for streaming errors.
     pub offset: Option<usize>,
 }
 
@@ -76,6 +88,7 @@ impl std::error::Error for Error {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Limits {
+    /// Pattern source bytes.
     pub max_bytes: usize,
     /// Compiled steps per `|` alternative.
     pub max_steps: usize,
@@ -86,6 +99,7 @@ pub struct Limits {
 setters!(const Limits { max_bytes: usize, max_steps: usize, max_depth: usize });
 
 impl Limits {
+    /// The defaults: 64 KiB of source, 256 steps and depth 1024.
     pub const DEFAULT: Self = Self {
         max_bytes: 64 * 1024,
         max_steps: 256,
@@ -583,6 +597,7 @@ impl Pattern {
         Self::compile_with_limits(source, namespaces, flags, Limits::default())
     }
 
+    /// [`Pattern::compile`] with explicit `limits`.
     pub fn compile_with_limits(
         source: &str,
         namespaces: &[(&str, &str)],
