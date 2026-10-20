@@ -198,19 +198,14 @@ impl<R: BufRead> BufferedReader<R> {
             let recovers = detached.recovers;
             let next = match self.status {
                 Status::Closing(at) => (self.session.close_next(at).map_err(ReadError::Xml))
-                    .and_then(|next| {
-                        next.map(|(event, origin, _)| detach(event, origin))
-                            .transpose()
-                    }),
-                _ if recovers => (self.read_lent::<true>()).and_then(|next| {
-                    next.map(|(event, origin)| detach(event, origin))
-                        .transpose()
-                }),
-                _ => (self.read_lent::<false>()).and_then(|next| {
-                    next.map(|(event, origin)| detach(event, origin))
-                        .transpose()
-                }),
+                    .map(|next| next.map(|(event, origin, _)| (event, origin))),
+                _ if recovers => self.read_lent::<true>(),
+                _ => self.read_lent::<false>(),
             };
+            let next = next.and_then(|next| {
+                next.map(|(event, origin)| detach(event, origin))
+                    .transpose()
+            });
             match next {
                 Ok(Some((event, origin))) => self.queue(event, origin)?,
                 // Recovery reads the token on as other tokens.
