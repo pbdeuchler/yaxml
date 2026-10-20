@@ -223,3 +223,10 @@ path = "fuzz_targets/domedit.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "allocfail"
+path = "fuzz_targets/allocfail.rs"
+test = false
+doc = false
+bench = false
