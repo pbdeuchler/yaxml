@@ -612,7 +612,11 @@ impl Fix {
         }
         for g in 0..self.d.groups.len() {
             // Cloned, not taken: a self-reference must still see the model.
-            if let Some((compositor, mut particles, loc)) = self.d.groups[g].model.clone() {
+            if let Some((compositor, particles, loc)) = &self.d.groups[g].model {
+                let (compositor, loc) = (*compositor, *loc);
+                let Ok(mut particles) = super::parse::copies(particles) else {
+                    return self.d.refuse();
+                };
                 for particle in &mut particles {
                     self.resolve_particle(particle);
                 }
@@ -2016,6 +2020,8 @@ impl Fix {
         }
         self.fixed[id] = true;
         let index = id - Drafts::FIRST_TYPE;
+        // Taken, not cloned: only this pass reads it.
+        let own = self.d.types[index].particle.take();
         let draft = self.d.types[index].clone();
         let loc = draft.loc;
         let Some(base) = self.bases[id] else {
@@ -2101,7 +2107,6 @@ impl Fix {
                 _ => Content::Empty,
             }
         } else {
-            let own = draft.particle.clone();
             let empty = own.as_ref().is_none_or(|p| match self.top_group(p) {
                 Some((Compositor::Choice, children)) => p.min == 0 && children.is_empty(),
                 Some((_, children)) => children.is_empty(),
@@ -2118,7 +2123,10 @@ impl Fix {
                 true => dummy.then(|| sequence(Vec::new())),
                 false => own,
             };
-            let base_particle = self.particles.get(&base).cloned();
+            let Ok(base_particle) = self.particles.get(&base).map(Particle::copy).transpose()
+            else {
+                return self.d.refuse();
+            };
             let elements = Content::Elements {
                 mixed: draft.mixed,
                 model: placeholder_model(),
@@ -2165,7 +2173,8 @@ impl Fix {
         if self.particles.try_reserve(1).is_err() {
             return self.d.refuse();
         }
-        if let Some(particle) = particle.clone()
+        let has_particle = particle.is_some();
+        if let Some(particle) = particle
             && matches!(content, Content::Elements { .. })
         {
             self.particles.insert(id, particle);
@@ -2257,7 +2266,7 @@ impl Fix {
                 let ok = match (&content, base_c) {
                     (Content::Simple(a), Content::Simple(b)) => a == b,
                     (Content::Empty, Content::Empty) => true,
-                    _ if particle.is_none() => {
+                    _ if !has_particle => {
                         self.report(
                             loc,
                             Code::CosCtExtends1_1,
@@ -2576,17 +2585,19 @@ impl Fix {
 
     /// `xmlSchemaBuildContentModel` for every complex type with element content.
     fn content_models(&mut self) {
-        let Ok(mut ids) = collected(self.particles.keys().copied()) else {
+        // Taken: nothing reads the particles after their models are built.
+        let particles = std::mem::take(&mut self.particles);
+        let Ok(mut ids) = collected(particles.keys().copied()) else {
             return self.d.refuse();
         };
         ids.sort_unstable();
         for id in ids {
-            let particle = self.particles[&id].clone();
+            let particle = &particles[&id];
             let loc = match id {
                 ANY_TYPE => particle.loc,
                 id => self.d.types[id - Drafts::FIRST_TYPE].loc,
             };
-            match self.compile(&particle) {
+            match self.compile(particle) {
                 Ok(Some(model)) => {
                     if let Kind::Complex(ComplexType {
                         content: Content::Elements { model: slot, .. },

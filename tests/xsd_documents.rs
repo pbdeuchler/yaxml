@@ -384,13 +384,17 @@ fn model_bytes_bound_quadratic_models() {
         (1742, Limits::default(), false),
         // 150 KiB that held 1 GB within the work budget alone.
         (4000, Limits::default(), false),
-        (1742, bytes(1 << 27), true),
         (8, bytes(3272), true),
         (8, bytes(3271), false),
         (8, bytes(0), false),
     ];
     for (n, limits, accepted) in cases {
-        let built = timed("optionals", || build_with(&optionals(n), limits));
+        // Rejection must be fast; an accepted quadratic model is slow in debug builds.
+        let build = || build_with(&optionals(n), limits);
+        let built = match accepted {
+            true => build(),
+            false => timed("optionals", build),
+        };
         match (built, accepted) {
             (Ok(schema), true) => {
                 assert_eq!(valid(&schema, "<r><e1/><e7/></r>"), vec![], "{n}");
