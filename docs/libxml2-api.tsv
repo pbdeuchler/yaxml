@@ -549,7 +549,7 @@ parser.h	XML_PARSE_DTDVALID	enum_value	not_marked	P0-P3	partial	https://github.c
 parser.h	XML_PARSE_HUGE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::HUGE
 parser.h	XML_PARSE_IGNORE_ENC	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::IGNORE_ENC
 parser.h	XML_PARSE_NOBASEFIX	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NOBASEFIX
-parser.h	XML_PARSE_NOBLANKS	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NOBLANKS - DOMs only
+parser.h	XML_PARSE_NOBLANKS	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NOBLANKS - every surface but the slice Reader
 parser.h	XML_PARSE_NOCDATA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NOCDATA
 parser.h	XML_PARSE_NODICT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NODICT
 parser.h	XML_PARSE_NOENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NOENT
@@ -566,7 +566,7 @@ parser.h	XML_PARSE_PEDANTIC	enum_value	not_marked	P0-P3	partial	https://github.c
 parser.h	XML_PARSE_PUSH_DOM	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_PUSH_SAX	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_READER	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
-parser.h	XML_PARSE_RECOVER	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::RECOVER - DOMs only
+parser.h	XML_PARSE_RECOVER	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::RECOVER - every surface; repair differences in compatibility.md#recovery-recover
 parser.h	XML_PARSE_SAX	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_SAX1	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::SAX1 - accepted; no SAX1 handlers
 parser.h	XML_PARSE_SKIP_IDS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::SKIP_IDS

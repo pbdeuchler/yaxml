@@ -161,9 +161,9 @@ def rust_codes(file, enum):
 OPT = {  # XML_PARSE_<x> -> (status, note)
     "SAX1": ("P", "accepted; no SAX1 handlers"),
     "XINCLUDE": ("P", "OwnedDocument only"),
-    "RECOVER": ("P", "DOMs only"),
+    "RECOVER": ("P", "every surface; repair differences in compatibility.md#recovery-recover"),
     "DTDVALID": ("P", "DOMs and TextReader; valid::StreamValidator for other streams"),
-    "NOBLANKS": ("P", "DOMs only"),
+    "NOBLANKS": ("P", "every surface but the slice Reader"),
     "PEDANTIC": ("P", "accepted; libxml2 only prints more warnings"),
     "OLD10": ("N", "constant defined, rejected with UnsupportedOption"),
     "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
