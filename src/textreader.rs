@@ -154,8 +154,8 @@ struct Node {
     attributes: Vec<Attr>,
     declarations: usize,
     parts: Vec<Part>,
-    /// Text any of which came from an entity's replacement text, or the
-    /// first node of one.
+    /// From an entity's replacement text: a node of it, or text any part of
+    /// which is.
     replaced: bool,
 }
 
