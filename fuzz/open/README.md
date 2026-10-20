@@ -9,6 +9,13 @@ file to both once fixed. Replay:
 
 Open findings:
 
+- `push/recover-byte-charset-reference-offset.xml` (2026-10-20, `push`
+  target, `-fork=1` 300 s run on core `5cc5929e4`; reproduces on main
+  `37f104e10`): under `RECOVER`, in an ISO-8859-1 document, the
+  `InvalidReference` for `&` followed by byte `FF` in an attribute value is
+  reported one byte earlier by the stream than by the slice reader
+  (`tests/support/fuzz/recover.rs` "stream/slice recovery differ"); `FF`
+  decodes to two UTF-8 bytes, so one side maps a decoded offset.
 
 The entity-amplification, event-bound, output-bound, buffered invalid-markup
 and DOM text-join reproducers from the seeded corpus run were fixed and moved
