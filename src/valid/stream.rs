@@ -60,9 +60,8 @@ pub struct StreamValidator {
 /// parser loads the external subset while it reads this tag, so the tag is
 /// checked against the DTD passed after its event.
 struct Root {
-    /// The element's name, then each attribute's: the qualified name, where
-    /// the local part starts, and the namespace.
-    names: Vec<(String, usize, Option<String>)>,
+    /// The element's name, then each attribute's: the qualified name and the namespace.
+    names: Vec<(String, Option<String>)>,
     values: Vec<String>,
     offset: Option<usize>,
     empty: bool,
@@ -124,11 +123,8 @@ impl StreamValidator {
             }
             Event::Start(element) | Event::Empty(element) if validator.elements() == 0 => {
                 let name = |name: &crate::Name<'_>| {
-                    let qualified = name.qualified();
-                    let local = qualified.len() - name.local().len();
                     (
-                        qualified.to_owned(),
-                        local,
+                        name.qualified().to_owned(),
                         name.namespace().map(str::to_owned),
                     )
                 };
@@ -216,10 +212,6 @@ fn declares(dtd: &Dtd) -> bool {
         && dtd.unbound.is_empty())
 }
 
-fn owned((qualified, local, namespace): &(String, usize, Option<String>)) -> QName<'_> {
-    QName {
-        qualified,
-        local: &qualified[*local..],
-        namespace: namespace.as_deref().filter(|uri| !uri.is_empty()),
-    }
+fn owned((qualified, namespace): &(String, Option<String>)) -> QName<'_> {
+    QName::new((qualified, namespace.as_deref()))
 }
