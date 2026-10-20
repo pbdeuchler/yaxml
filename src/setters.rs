@@ -17,7 +17,7 @@ macro_rules! setters {
         };
     };
     (@one const $f:ident $t:ty) => {
-        #[doc = concat!("Sets `", stringify!($f), "`.")]
+        #[doc = concat!("Sets [`", stringify!($f), "`](#structfield.", stringify!($f), ").")]
         #[must_use]
         pub const fn $f(mut self, $f: $t) -> Self {
             self.$f = $f;
@@ -25,7 +25,7 @@ macro_rules! setters {
         }
     };
     (@one fn $f:ident $t:ty) => {
-        #[doc = concat!("Sets `", stringify!($f), "`.")]
+        #[doc = concat!("Sets [`", stringify!($f), "`](#structfield.", stringify!($f), ").")]
         #[must_use]
         pub fn $f(mut self, $f: $t) -> Self {
             self.$f = $f;
