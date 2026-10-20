@@ -51,7 +51,9 @@ is not well-formed, uses the fallback (`NoFallback` without one).
 `Options::limits` applies to each included document's parse.
 `max_external_loads` and `max_external_bytes` are cumulative across the call,
 including the included documents' DTDs; `max_events` bounds result nodes and
-nodes visited while expanding, and `max_owned_bytes` the result's strings, so
+nodes visited while expanding (document nodes are not counted, as in parsing,
+so a document without inclusions is accepted whenever its parse is), and
+`max_owned_bytes` the result's strings, so
 inclusion bombs (documents that include the next level many times) stop with
 `LimitExceeded` even though each document loads once. `Options::xpath` bounds
 each pointer.

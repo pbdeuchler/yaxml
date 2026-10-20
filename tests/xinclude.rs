@@ -546,6 +546,44 @@ fn budgets_stop_inclusion_bombs() {
     );
 }
 
+#[test]
+fn no_inclusion_keeps_the_parse_node_ceiling() {
+    // `max_events` bounds the parse's nodes less the document node; walking
+    // a document without inclusions must accept exactly what parsing does.
+    // Each input has as many nodes as events (no element has an end tag).
+    let events = yaxml::ErrorKind::LimitExceeded(Limit::Events);
+    for (input, nodes) in [
+        ("<!DOCTYPE r><r/>", 2),
+        ("<r/>", 1),
+        ("<?p?><!--c--><r/>", 3),
+        (format!("<r {XI}/>").as_str(), 1),
+    ] {
+        for (max_events, accepted) in [(nodes - 1, false), (nodes, true)] {
+            let limits = Limits::default().max_events(max_events);
+            for flags in [0, yaxml::options::XINCLUDE] {
+                let mut options = loading(limits, "main.xml", memory(&[]).0);
+                options.flags |= flags;
+                let result = OwnedDocument::parse_with(input.as_bytes(), options);
+                assert_eq!(
+                    result.err().map(|error| error.kind),
+                    (!accepted).then_some(events),
+                    "{input} {flags}"
+                );
+            }
+            let document = OwnedDocument::parse(input).unwrap();
+            let options = Options::default().limits(limits);
+            let result = xinclude::process(&document, "main.xml", memory(&[]).0, &options);
+            match accepted {
+                true => assert_eq!(result.unwrap().nodes().count(), nodes + 1, "{input}"),
+                false => assert!(
+                    matches!(result.unwrap_err().kind, ErrorKind::Xml(error) if error.kind == events),
+                    "{input}"
+                ),
+            }
+        }
+    }
+}
+
 /// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
 fn loading(
     limits: yaxml::Limits,
