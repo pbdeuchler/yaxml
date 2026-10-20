@@ -750,15 +750,15 @@ I|xmlSaveOption|save::Options
 P|xmlSaveCtxt|save::Options
 A|xmlSaveCtxtPtr|raw pointer alias
 # ---- xmlwriter.h
-P|xmlNewTextWriter xmlNewTextWriterFilename xmlNewTextWriterMemory|Writer::new
+P|xmlNewTextWriter xmlNewTextWriterFilename xmlNewTextWriterMemory|TextWriter::new - any Write sink; the caller opens files
 N|xmlNewTextWriterDoc xmlNewTextWriterTree xmlNewTextWriterPushParser|not started
-P|xmlTextWriter|Writer
+I|xmlTextWriter|TextWriter
 A|xmlTextWriterPtr xmlFreeTextWriter|Drop
-P|xmlTextWriterStartDocument|Writer::write_event
-P|xmlTextWriterEndDocument xmlTextWriterClose|Writer::finish
-P|xmlTextWriterStartElement xmlTextWriterStartElementNS xmlTextWriterEndElement xmlTextWriterFullEndElement xmlTextWriterWriteElement xmlTextWriterWriteElementNS xmlTextWriterStartAttribute xmlTextWriterStartAttributeNS xmlTextWriterEndAttribute xmlTextWriterWriteAttribute xmlTextWriterWriteAttributeNS xmlTextWriterWriteString xmlTextWriterStartCDATA xmlTextWriterEndCDATA xmlTextWriterWriteCDATA xmlTextWriterStartComment xmlTextWriterEndComment xmlTextWriterWriteComment xmlTextWriterStartPI xmlTextWriterEndPI xmlTextWriterWritePI xmlTextWriterWriteProcessingInstruction xmlTextWriterStartDTD xmlTextWriterEndDTD xmlTextWriterWriteDTD xmlTextWriterWriteDocType|Writer::write_event - event at a time; attributes travel on the start event
 A|xmlTextWriterWriteFormat* xmlTextWriterWriteVFormat*|format!/write! replace printf-style formatting
-N|xmlTextWriterWriteBase64 xmlTextWriterWriteBinHex xmlTextWriterWriteRaw xmlTextWriterWriteRawLen xmlTextWriterFlush xmlTextWriterSetIndent xmlTextWriterSetIndentString xmlTextWriterSetQuoteChar xmlTextWriter*DTD*|not started (docs/writer.md)
+I|xmlTextWriterStart* xmlTextWriterEnd* xmlTextWriterFullEndElement xmlTextWriterWrite*|TextWriter::start_element - one method per call, named in snake_case (xmlTextWriterWriteDTDElement is TextWriter::write_dtd_element)
+I|xmlTextWriterWriteRawLen|TextWriter::write_raw
+I|xmlTextWriterFlush xmlTextWriterSetIndent xmlTextWriterSetIndentString xmlTextWriterSetQuoteChar|TextWriter::flush, TextWriter::set_indent, TextWriter::set_indent_string, TextWriter::set_quote_char
+P|xmlTextWriterClose|TextWriter::into_inner - end_document, then drop or take the sink
 # ---- valid.h
 P|xmlValidateDocument xmlValidateDtd xmlValidateElement|valid::validate, Document::validate, OwnedDocument::validate
 P|xmlGetID|Document::element_by_id, OwnedDocument::element_by_id
