@@ -9,13 +9,6 @@ file to both once fixed. Replay:
 
 Open findings:
 
-- `dtd/valid-unbound-prefix-attribute-name.xml` (2026-10-20, `dtd` target,
-  `-fork=1` 300 s run on core `3618215d5`; reproduces on main `ad6669ffd`):
-  DTD validation of an undeclared attribute with an unbound prefix
-  (`Kxmlns:p='urn:q'`) names it `Kxmlns:p` in the stream validator's
-  "No declaration for attribute" message but `p` in the tree's
-  (`valid::engine` `attribute` shows `attribute.local`), so
-  `tests/support/fuzz/valid.rs` "stream and tree validation agree" fails.
 
 The entity-amplification, event-bound, output-bound, buffered invalid-markup
 and DOM text-join reproducers from the seeded corpus run were fixed and moved
