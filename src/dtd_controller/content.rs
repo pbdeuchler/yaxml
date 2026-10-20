@@ -117,6 +117,9 @@ impl<'input> ContentControllerCore<'input> {
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.body.catalog
     }
+    pub(crate) fn catalog_mut(&mut self) -> &mut DtdCatalog {
+        &mut self.body.catalog
+    }
 
     /// Scans `input` (none after `finish_step`).
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<ContentStep, Error> {

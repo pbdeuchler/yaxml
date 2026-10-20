@@ -93,6 +93,10 @@ impl PushParser {
         self.session.catalog()
     }
 
+    pub(crate) fn take_dtd(&mut self) -> Option<crate::valid::Dtd> {
+        self.session.take_dtd()
+    }
+
     /// The declarations of the document's DTD, once its DOCTYPE was read.
     pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
         self.catalog().map(|catalog| catalog.dtd())
