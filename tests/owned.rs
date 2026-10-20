@@ -612,3 +612,42 @@ fn owned_ids_reject_foreign_documents_and_survive_moves() {
         assert_eq!(larger.node(node.id()).unwrap().id(), node.id());
     }
 }
+
+#[test]
+fn node_id_parts_round_trip_and_forged_parts_are_rejected() {
+    let mut document = OwnedDocument::parse("<r><a/><b/></r>").unwrap();
+    let other = OwnedDocument::parse("<r><a/><b/></r>").unwrap();
+    let a = document.root_element().first_child().unwrap().id();
+    let (identity, slot) = a.parts();
+    assert_eq!(yaxml::OwnedNodeId::from_parts(identity, slot), Some(a));
+    let (foreign, _) = other.root().id().parts();
+    let cases: [(usize, usize, bool); 5] = [
+        (identity, slot, true),
+        (identity, usize::MAX, false),
+        (identity, 1_000, false),
+        (foreign, slot, false),
+        (identity.wrapping_add(1_000_000), slot, false),
+    ];
+    for (document_part, slot_part, live) in cases {
+        let id = yaxml::OwnedNodeId::from_parts(document_part, slot_part).unwrap();
+        assert_eq!(
+            document.node(id).is_some(),
+            live,
+            "{document_part} {slot_part}"
+        );
+    }
+    assert_eq!(yaxml::OwnedNodeId::from_parts(0, slot), None);
+    document
+        .edit(yaxml::EditLimits::default())
+        .unwrap()
+        .remove_subtree(a)
+        .unwrap();
+    let stale = yaxml::OwnedNodeId::from_parts(identity, slot).unwrap();
+    assert!(document.node(stale).is_none());
+    let error = document
+        .edit(yaxml::EditLimits::default())
+        .unwrap()
+        .unlink(stale)
+        .unwrap_err();
+    assert_eq!(error.kind, yaxml::EditErrorKind::InvalidHandle);
+}
