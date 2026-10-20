@@ -46,7 +46,7 @@ Measured on an Apple M1 Max only ([benchmarks.md](benchmarks.md)).
 | 21 | Sustained fuzzing | S | OSS-Fuzz or ClusterFuzzLite onboarding. Today, campaigns run by hand. |
 | 22 | Independent security review | M | An external audit of the parser, DTD and entity handling, and the budgets before 1.0. |
 | 23 | Error-site codes instead of the diagnostic re-reader | M | `src/diagnostic/reread.rs` re-parses a failing construct to find libxml2's error code. Setting the code at each error site would delete about 1,000–1,200 lines, about 55–65% of that file, and shrink the attack surface. `Error` grows by a private field. |
-| 34 | XML Schema content-model memory | S | A 150 KiB schema whose content model is a sequence of 4,000 optional elements allocates more than 2 GB while compiling it, within the default `max_model_work` (16 Mi units, roughly 130 B each here). The growth fails cleanly now; the budget should charge memory, or its default shrink. |
+| 34 | ~~XML Schema content-model memory~~ | — | **Done 2026-10-20.** Transitions shrank from about 150 to 44 bytes and `xsd::Limits::max_model_bytes` (64 MiB) bounds what content-model compilation holds: the 150 KiB schema of 4,000 optional elements fails within 115 MB resident instead of 1 GB, and 1,741 still compile ([security.md](security.md#allocation-failure)). libxml2 is quadratic here too and accepts 4,000 in 170 s and 468 MB. |
 
 ## Bindings
 

@@ -13,7 +13,7 @@ use crate::schema_types::{Comparison, Facet, Type, WhiteSpace};
 
 use super::automaton;
 use super::components::*;
-use super::model::{AllGroup, Graph, Kind as NodeKind, Leaf, Model, Node, TooComplex};
+use super::model::{AllGroup, Budget, Graph, Kind as NodeKind, Leaf, Model, Node, TooComplex};
 use super::parse::{
     AttrItem, Compositor, Drafts, GlobalKind, Loc, Particle, RawFacet, Ref, Shape, Term,
 };
@@ -289,7 +289,7 @@ struct Fix {
     particles: HashMap<TypeId, Particle>,
     elem_values: Vec<Option<ValueConstraint>>,
     members_of: Vec<Vec<ElemId>>,
-    model_work: usize,
+    model: Budget,
 }
 
 /// Builds the schema, or fails with every diagnostic.
@@ -350,7 +350,10 @@ pub(crate) fn build(drafts: Drafts, limits: &Limits) -> Result<Schema, Error> {
             notations: HashSet::new(),
             own_facets: HashMap::new(),
             particles: HashMap::new(),
-            model_work: limits.max_model_work,
+            model: Budget {
+                work: limits.max_model_work,
+                bytes: limits.max_model_bytes,
+            },
         })
     };
     let mut fix = fix().map_err(|_| refusal)?;
@@ -2562,11 +2565,13 @@ impl Fix {
             })));
         }
         let node = self.node(particle, 0)?;
-        let (deterministic, shadowed) = automaton::deterministic(&node, &mut self.model_work)?;
+        let mut scratch = self.model;
+        let (deterministic, shadowed) = automaton::deterministic(&node, &mut scratch)?;
+        self.model.work = scratch.work;
         if !deterministic {
             return Ok(None);
         }
-        Graph::compile(&node, shadowed, &mut self.model_work).map(|graph| Some(Model::Graph(graph)))
+        Graph::compile(&node, shadowed, &mut self.model).map(|graph| Some(Model::Graph(graph)))
     }
 
     /// `xmlSchemaBuildContentModel` for every complex type with element content.

@@ -429,6 +429,13 @@ pub struct Limits {
     /// Work units for compiling all content models (positions, follow-set
     /// entries and determinism comparisons).
     pub max_model_work: usize,
+    /// Bytes the compiled content models and the automaton compiling the
+    /// current one may hold, counted by entry size (allocator slack comes
+    /// on top). Transitions can be quadratic in the particles: compiling
+    /// a sequence of `n` optional elements holds about 22·n² bytes, so the
+    /// default stops at n = 1,741. Exceeding it is reported like
+    /// `max_model_work`.
+    pub max_model_bytes: usize,
     /// Counter vectors one element's content may track; only nested
     /// repetitions like `(a{2,3}){2}` need more than one.
     pub max_counter_vectors: usize,
@@ -438,17 +445,19 @@ pub struct Limits {
     pub max_idc_keys: usize,
 }
 
-setters!(const Limits { xml: crate::Limits, max_documents: usize, max_bytes: usize, max_depth: usize, max_model_work: usize, max_counter_vectors: usize, max_idc_keys: usize });
+setters!(const Limits { xml: crate::Limits, max_documents: usize, max_bytes: usize, max_depth: usize, max_model_work: usize, max_model_bytes: usize, max_counter_vectors: usize, max_idc_keys: usize });
 
 impl Limits {
     /// The defaults: 256 documents, 64 MiB, depth 256, 16 Mi model work
-    /// units, 1024 counter vectors and 1 Mi identity-constraint keys.
+    /// units, 64 MiB of model memory, 1024 counter vectors and 1 Mi
+    /// identity-constraint keys.
     pub const DEFAULT: Self = Self {
         xml: crate::Limits::DEFAULT,
         max_documents: 256,
         max_bytes: 64 << 20,
         max_depth: 256,
         max_model_work: 1 << 24,
+        max_model_bytes: 64 << 20,
         max_counter_vectors: 1024,
         max_idc_keys: 1 << 20,
     };

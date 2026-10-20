@@ -189,6 +189,26 @@ impl From<TryReserveError> for TooComplex {
     }
 }
 
+/// What compiling content models may still spend: work units, and bytes
+/// for the entries automata hold (counted by size, not capacity).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Budget {
+    pub(crate) work: usize,
+    pub(crate) bytes: usize,
+}
+
+impl Budget {
+    pub(crate) fn charge(&mut self, work: usize) -> Result<(), TooComplex> {
+        self.work = self.work.checked_sub(work).ok_or(TooComplex::Work)?;
+        Ok(())
+    }
+
+    pub(crate) fn hold(&mut self, bytes: usize) -> Result<(), TooComplex> {
+        self.bytes = self.bytes.checked_sub(bytes).ok_or(TooComplex::Work)?;
+        Ok(())
+    }
+}
+
 #[derive(Default)]
 struct Fragment {
     nullable: bool,
@@ -201,15 +221,10 @@ struct Builder {
     chains: Vec<Vec<u32>>,
     counters: Vec<Counter>,
     edges: Vec<Edge>,
-    budget: usize,
+    budget: Budget,
 }
 
 impl Builder {
-    fn charge(&mut self, work: usize) -> Result<(), TooComplex> {
-        self.budget = self.budget.checked_sub(work).ok_or(TooComplex::Work)?;
-        Ok(())
-    }
-
     fn link(
         &mut self,
         from: &[u32],
@@ -217,9 +232,11 @@ impl Builder {
         keep: usize,
         bump: bool,
     ) -> Result<(), TooComplex> {
-        self.charge(from.len().saturating_mul(to.len()))?;
+        let count = from.len().saturating_mul(to.len());
+        self.budget.charge(count)?;
+        self.budget.hold(count.saturating_mul(size_of::<Edge>()))?;
         let keep = u16::try_from(keep).map_err(|_| TooComplex::Work)?;
-        self.edges.try_reserve(from.len() * to.len())?;
+        self.edges.try_reserve(count)?;
         for &from in from {
             for &to in to {
                 self.edges.push(Edge {
@@ -234,7 +251,7 @@ impl Builder {
     }
 
     fn join(&mut self, mut left: Vec<u32>, right: &[u32]) -> Result<Vec<u32>, TooComplex> {
-        self.charge(right.len())?;
+        self.budget.charge(right.len())?;
         left.try_reserve(right.len())?;
         left.extend_from_slice(right);
         Ok(left)
@@ -255,6 +272,8 @@ impl Builder {
             Kind::Abstract | Kind::Empty => whole.nullable = true,
             Kind::Leaves { leaves, .. } => {
                 for leaf in leaves {
+                    let chained = size_of::<Vec<u32>>() + size_of_val(&chain[..]);
+                    self.budget.hold(size_of::<Leaf>() + chained)?;
                     self.leaves.try_push(leaf.clone())?;
                     self.chains.try_push(chain.clone())?;
                     let state = self.leaves.len() as u32;
@@ -296,7 +315,7 @@ impl Builder {
 
     /// States of the positions; `chain` holds the counters enclosing `node`.
     fn build(&mut self, node: &Node, chain: &mut Vec<u32>) -> Result<Fragment, TooComplex> {
-        self.charge(1)?;
+        self.budget.charge(1)?;
         let (min, max) = (node.min, node.max);
         if max == Some(0) {
             return Ok(Fragment {
@@ -334,7 +353,7 @@ impl Graph {
     pub(crate) fn compile(
         node: &Node,
         shadowed: Vec<(Matched, Matched)>,
-        budget: &mut usize,
+        budget: &mut Budget,
     ) -> Result<Graph, TooComplex> {
         let mut builder = Builder {
             leaves: Vec::new(),
