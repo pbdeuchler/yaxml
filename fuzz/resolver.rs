@@ -15,20 +15,22 @@ use yaxml::{
     ReadError, Reader, Request, Resolver,
 };
 
-pub(super) const LIMITS: Limits = Limits {
-    max_input_bytes: 1 << 20,
-    max_token_bytes: 1 << 16,
-    max_depth: 64,
-    max_attributes: 64,
-    max_events: 1 << 16,
-    max_owned_bytes: 1 << 22,
-    max_dtd_bytes: 1 << 16,
-    max_entity_expansion_bytes: 1 << 16,
-    max_entity_amplification: 5,
-    max_entity_references: 1 << 12,
-    max_entity_depth: 8,
-    max_external_loads: 8,
-    max_external_bytes: 1 << 14,
+pub(super) const LIMITS: Limits = {
+    let mut cfg = Limits::DEFAULT;
+    cfg.max_input_bytes = 1 << 20;
+    cfg.max_token_bytes = 1 << 16;
+    cfg.max_depth = 64;
+    cfg.max_attributes = 64;
+    cfg.max_events = 1 << 16;
+    cfg.max_owned_bytes = 1 << 22;
+    cfg.max_dtd_bytes = 1 << 16;
+    cfg.max_entity_expansion_bytes = 1 << 16;
+    cfg.max_entity_amplification = 5;
+    cfg.max_entity_references = 1 << 12;
+    cfg.max_entity_depth = 8;
+    cfg.max_external_loads = 8;
+    cfg.max_external_bytes = 1 << 14;
+    cfg
 };
 
 /// Resources are named `s`, `e`, `p` and `0`..`9` relative to the base.
@@ -67,36 +69,40 @@ pub(super) fn profile(profile: u8, seed: u64, len: usize) -> Limits {
     let small = |shift: u32, modulus: u64| ((seed >> shift) % modulus) as usize;
     match profile & 3 {
         0 => LIMITS,
-        1 => Limits {
-            max_external_loads: small(0, 4),
-            max_external_bytes: small(2, 96),
-            ..LIMITS
-        },
-        2 if seed >> 16 & 15 != 0 => Limits {
-            max_entity_expansion_bytes: small(0, 128),
-            max_entity_amplification: small(8, 3),
-            max_entity_references: small(10, 12),
-            max_entity_depth: small(14, 4),
-            ..LIMITS
-        },
+        1 => {
+            let mut cfg = LIMITS;
+            cfg.max_external_loads = small(0, 4);
+            cfg.max_external_bytes = small(2, 96);
+            cfg
+        }
+        2 if seed >> 16 & 15 != 0 => {
+            let mut cfg = LIMITS;
+            cfg.max_entity_expansion_bytes = small(0, 128);
+            cfg.max_entity_amplification = small(8, 3);
+            cfg.max_entity_references = small(10, 12);
+            cfg.max_entity_depth = small(14, 4);
+            cfg
+        }
         // A token ceiling too large to address fails DTD content.
-        2 => Limits {
-            max_token_bytes: usize::MAX,
-            ..LIMITS
-        },
-        _ => Limits {
-            max_dtd_bytes: small(0, 160),
-            max_token_bytes: 4 + small(8, 48),
-            max_owned_bytes: small(14, 512),
-            max_depth: small(24, 6),
-            max_attributes: small(28, 4),
-            max_events: 2 + small(32, 24),
-            max_input_bytes: match seed >> 39 & 1 {
+        2 => {
+            let mut cfg = LIMITS;
+            cfg.max_token_bytes = usize::MAX;
+            cfg
+        }
+        _ => {
+            let mut cfg = LIMITS;
+            cfg.max_dtd_bytes = small(0, 160);
+            cfg.max_token_bytes = 4 + small(8, 48);
+            cfg.max_owned_bytes = small(14, 512);
+            cfg.max_depth = small(24, 6);
+            cfg.max_attributes = small(28, 4);
+            cfg.max_events = 2 + small(32, 24);
+            cfg.max_input_bytes = match seed >> 39 & 1 {
                 0 => LIMITS.max_input_bytes,
                 _ => len.saturating_sub(small(40, 24)),
-            },
-            ..LIMITS
-        },
+            };
+            cfg
+        }
     }
 }
 

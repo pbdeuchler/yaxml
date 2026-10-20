@@ -843,14 +843,12 @@ fn check_document(
 }
 
 fn serialized(state: &State) -> Vec<u8> {
-    let mut writer = Writer::with_limits(
-        Vec::new(),
-        WriterLimits {
-            max_output_bytes: OUTPUT_BYTES,
-            max_token_bytes: 16 * 1024,
-            ..WriterLimits::default()
-        },
-    );
+    let mut writer = Writer::with_limits(Vec::new(), {
+        let mut cfg = WriterLimits::default();
+        cfg.max_output_bytes = OUTPUT_BYTES;
+        cfg.max_token_bytes = 16 * 1024;
+        cfg
+    });
     writer.write_owned_document(&state.document).unwrap();
     // Structural edits leave slots out of document order; XPath must still
     // return every node in document order.
@@ -1171,18 +1169,19 @@ pub(super) fn exercise(input: &[u8]) {
     let start = input.len().min(8);
     let end = start + count * 8;
     let payload = &input[end..input.len().min(end + 256)];
-    let limits = EditLimits {
-        max_value_bytes: if byte(2) & 1 == 0 {
+    let limits = {
+        let mut cfg = EditLimits::default();
+        cfg.max_value_bytes = if byte(2) & 1 == 0 {
             EditLimits::default().max_value_bytes
         } else {
             usize::from(byte(3))
-        },
-        max_created_nodes: if byte(2) & 2 == 0 {
+        };
+        cfg.max_created_nodes = if byte(2) & 2 == 0 {
             EditLimits::default().max_created_nodes
         } else {
             usize::from(byte(5) & 63)
-        },
-        ..EditLimits::default()
+        };
+        cfg
     };
     for operation in input[start..end].as_chunks::<8>().0 {
         let target = usize::from(operation[1] & 1);
@@ -1282,9 +1281,10 @@ pub(super) fn exercise(input: &[u8]) {
                 assert_eq!(
                     states[target]
                         .document
-                        .edit(EditLimits {
-                            max_created_nodes: maximum,
-                            ..limits
+                        .edit({
+                            let mut cfg = limits;
+                            cfg.max_created_nodes = maximum;
+                            cfg
                         })
                         .err(),
                     (maximum < count).then(|| error(
@@ -1371,10 +1371,11 @@ fn empty(encoding: u8) -> State {
 }
 
 fn structural_limits(created: usize, owned: usize) -> EditLimits {
-    EditLimits {
-        max_created_nodes: created,
-        max_owned_bytes: owned,
-        ..EditLimits::default()
+    {
+        let mut cfg = EditLimits::default();
+        cfg.max_created_nodes = created;
+        cfg.max_owned_bytes = owned;
+        cfg
     }
 }
 
@@ -1479,9 +1480,10 @@ fn structure_quota(case: u8, boundary: u8, encoding: u8) {
         }
         6 => {
             state.structure(
-                EditLimits {
-                    max_value_bytes: [5, 6, 7][boundary],
-                    ..EditLimits::default()
+                {
+                    let mut cfg = EditLimits::default();
+                    cfg.max_value_bytes = [5, 6, 7][boundary];
+                    cfg
                 },
                 append(Kind::Pi, "é🙂", "é🙂"),
                 true,
@@ -1516,9 +1518,10 @@ fn quota_case(case: u8, boundary: u8, encoding: u8, reopen: bool) {
             _ => "x",
         },
     };
-    let limits = |maximum| EditLimits {
-        max_owned_bytes: maximum,
-        ..EditLimits::default()
+    let limits = |maximum| {
+        let mut cfg = EditLimits::default();
+        cfg.max_owned_bytes = maximum;
+        cfg
     };
     match case {
         0 => {
@@ -1549,9 +1552,10 @@ fn quota_case(case: u8, boundary: u8, encoding: u8, reopen: bool) {
         }
         3 => state.session(limits(0), &[(request, true), (request, false)], false),
         4 => state.session(
-            EditLimits {
-                max_value_bytes: [3, 4, 5][usize::from(boundary % 3)],
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_value_bytes = [3, 4, 5][usize::from(boundary % 3)];
+                cfg
             },
             &[(request, true)],
             false,
@@ -1590,10 +1594,11 @@ fn quota_case(case: u8, boundary: u8, encoding: u8, reopen: bool) {
             state.session(limits(maximum), &[(request, maximum >= 7)], false);
         }
         7 => state.session(
-            EditLimits {
-                max_value_bytes: 0,
-                max_owned_bytes: 0,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_value_bytes = 0;
+                cfg.max_owned_bytes = 0;
+                cfg
             },
             &[(request, true)],
             false,
@@ -1706,9 +1711,10 @@ mod tests {
             ),
             (
                 append(parent, Kind::Pi, "", "\0"),
-                EditLimits {
-                    max_value_bytes: 0,
-                    ..normal
+                {
+                    let mut cfg = normal;
+                    cfg.max_value_bytes = 0;
+                    cfg
                 },
                 error(EditErrorKind::LimitExceeded(EditLimit::ValueBytes), None),
             ),

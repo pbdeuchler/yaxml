@@ -93,17 +93,26 @@ const SUPPORTED: u32 = RECOVER
 /// [`DiagnosticKind::ResourceLimit`] and keeps the tree built so far, as
 /// libxml2 does. The other ceilings (input bytes, attributes per tag, nodes
 /// as `max_events`, owned bytes) fail with [`ErrorKind::LimitExceeded`].
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Options {
     pub flags: u32,
     pub limits: Limits,
 }
 
+impl Default for Options {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl Options {
-    pub fn new(flags: u32) -> Self {
+    pub const DEFAULT: Self = Self::new(0);
+
+    pub const fn new(flags: u32) -> Self {
         Self {
             flags,
-            limits: Limits::default(),
+            limits: Limits::DEFAULT,
         }
     }
 

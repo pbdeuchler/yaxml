@@ -12,6 +12,7 @@ use crate::{
 
 /// Inclusive writer ceilings. Token bytes count one complete encoded event.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct WriterLimits {
     pub max_output_bytes: usize,
     pub max_token_bytes: usize,
@@ -24,16 +25,20 @@ pub struct WriterLimits {
     pub max_owned_bytes: usize,
 }
 
+impl WriterLimits {
+    pub const DEFAULT: Self = Self {
+        max_output_bytes: 64 * 1024 * 1024,
+        max_token_bytes: 1024 * 1024,
+        max_depth: 256,
+        max_attributes: 1024,
+        max_events: 1_000_000,
+        max_owned_bytes: 64 * 1024 * 1024,
+    };
+}
+
 impl Default for WriterLimits {
     fn default() -> Self {
-        Self {
-            max_output_bytes: 64 * 1024 * 1024,
-            max_token_bytes: 1024 * 1024,
-            max_depth: 256,
-            max_attributes: 1024,
-            max_events: 1_000_000,
-            max_owned_bytes: 64 * 1024 * 1024,
-        }
+        Self::DEFAULT
     }
 }
 

@@ -276,6 +276,7 @@ pub fn is_valid<Id>(diagnostics: &[Diagnostic<Id>]) -> bool {
 
 /// Ceilings on schema construction and validation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Limits {
     /// Limits for parsing each schema document.
     pub xml: crate::Limits,
@@ -297,17 +298,21 @@ pub struct Limits {
     pub max_idc_keys: usize,
 }
 
+impl Limits {
+    pub const DEFAULT: Self = Self {
+        xml: crate::Limits::DEFAULT,
+        max_documents: 256,
+        max_bytes: 64 << 20,
+        max_depth: 256,
+        max_model_work: 1 << 24,
+        max_counter_vectors: 1024,
+        max_idc_keys: 1 << 20,
+    };
+}
+
 impl Default for Limits {
     fn default() -> Self {
-        Self {
-            xml: crate::Limits::default(),
-            max_documents: 256,
-            max_bytes: 64 << 20,
-            max_depth: 256,
-            max_model_work: 1 << 24,
-            max_counter_vectors: 1024,
-            max_idc_keys: 1 << 20,
-        }
+        Self::DEFAULT
     }
 }
 

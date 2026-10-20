@@ -198,6 +198,7 @@ pub struct Diagnostic<Id> {
 
 /// Bounds for parsing a schema and for each validation.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct Limits {
     /// Limits for parsing the schema document and every document it
     /// includes; `max_external_loads` and `max_external_bytes` bound the
@@ -212,13 +213,17 @@ pub struct Limits {
     pub max_work: usize,
 }
 
+impl Limits {
+    pub const DEFAULT: Self = Self {
+        xml: crate::Limits::DEFAULT,
+        max_include_depth: 64,
+        max_work: 100_000_000,
+    };
+}
+
 impl Default for Limits {
     fn default() -> Self {
-        Self {
-            xml: crate::Limits::default(),
-            max_include_depth: 64,
-            max_work: 100_000_000,
-        }
+        Self::DEFAULT
     }
 }
 

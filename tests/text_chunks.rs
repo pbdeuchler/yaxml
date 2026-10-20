@@ -169,9 +169,10 @@ fn deeply_nested_chunks_are_iterative_before_and_after_owned_edits() {
                 "<n>".repeat(DEPTH),
                 "</n>".repeat(DEPTH)
             );
-            let limits = Limits {
-                max_depth: DEPTH + 1,
-                ..Limits::default()
+            let limits = {
+                let mut cfg = Limits::default();
+                cfg.max_depth = DEPTH + 1;
+                cfg
             };
             let borrowed = Document::with_limits(source.as_bytes(), limits).unwrap();
             assert_chunks(

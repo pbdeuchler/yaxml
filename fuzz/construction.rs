@@ -791,9 +791,10 @@ fn rejection_catalog(input: &[u8], selector: u8) {
     let (spec, limits, expected) = match selector % 8 {
         0 => (
             base,
-            EditLimits {
-                max_name_bytes: local.len() - 1,
-                ..defaults
+            {
+                let mut cfg = defaults;
+                cfg.max_name_bytes = local.len() - 1;
+                cfg
             },
             located(
                 EditErrorKind::LimitExceeded(EditLimit::NameBytes),
@@ -802,9 +803,10 @@ fn rejection_catalog(input: &[u8], selector: u8) {
         ),
         1 => (
             base,
-            EditLimits {
-                max_supplied_bytes: local.len() - 1,
-                ..defaults
+            {
+                let mut cfg = defaults;
+                cfg.max_supplied_bytes = local.len() - 1;
+                cfg
             },
             located(
                 EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
@@ -813,41 +815,46 @@ fn rejection_catalog(input: &[u8], selector: u8) {
         ),
         2 => (
             base,
-            EditLimits {
-                max_attributes: 0,
-                ..defaults
+            {
+                let mut cfg = defaults;
+                cfg.max_attributes = 0;
+                cfg
             },
             global(EditErrorKind::LimitExceeded(EditLimit::Attributes)),
         ),
         3 => (
             base,
-            EditLimits {
-                max_depth: 0,
-                ..defaults
+            {
+                let mut cfg = defaults;
+                cfg.max_depth = 0;
+                cfg
             },
             global(EditErrorKind::LimitExceeded(EditLimit::Depth)),
         ),
         4 => (
             base,
-            EditLimits {
-                max_created_nodes: 0,
-                ..defaults
+            {
+                let mut cfg = defaults;
+                cfg.max_created_nodes = 0;
+                cfg
             },
             global(EditErrorKind::LimitExceeded(EditLimit::CreatedNodes)),
         ),
         5 => (
             base,
-            EditLimits {
-                max_created_attributes: 0,
-                ..defaults
+            {
+                let mut cfg = defaults;
+                cfg.max_created_attributes = 0;
+                cfg
             },
             global(EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes)),
         ),
         6 => (
             base,
-            EditLimits {
-                max_value_bytes: value.len().saturating_sub(1),
-                ..defaults
+            {
+                let mut cfg = defaults;
+                cfg.max_value_bytes = value.len().saturating_sub(1);
+                cfg
             },
             located(
                 EditErrorKind::LimitExceeded(EditLimit::ValueBytes),
@@ -894,9 +901,10 @@ fn repeated_borrowed_strings(input: &[u8]) {
                 name: spec_name(&shared, None, exact(None)),
                 items: &items,
             },
-            EditLimits {
-                max_supplied_bytes: supplied - 1,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_supplied_bytes = supplied - 1;
+                cfg
             },
         )
         .expect_err("repeated strings were counted by pointer identity");
@@ -905,9 +913,10 @@ fn repeated_borrowed_strings(input: &[u8]) {
                 name: spec_name(&shared, None, exact(None)),
                 items: &items,
             },
-            EditLimits {
-                max_supplied_bytes: supplied,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_supplied_bytes = supplied;
+                cfg
             },
         )
         .expect("exact repeated-string supplied budget was rejected");
@@ -936,9 +945,10 @@ fn persistent_counters(input: &[u8]) {
     let before = snapshot(&document);
     let expected_depth = global(EditErrorKind::LimitExceeded(EditLimit::Depth));
     let actual = document
-        .edit(EditLimits {
-            max_depth: 1,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_depth = 1;
+            cfg
         })
         .unwrap()
         .append_element(
@@ -953,10 +963,11 @@ fn persistent_counters(input: &[u8]) {
     assert_eq!(snapshot(&document), before, "failed append published state");
 
     let child = document
-        .edit(EditLimits {
-            max_created_nodes: 2,
-            max_created_attributes: 2,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 2;
+            cfg.max_created_attributes = 2;
+            cfg
         })
         .unwrap()
         .append_element(
@@ -977,9 +988,10 @@ fn persistent_counters(input: &[u8]) {
     let stable = snapshot(&document);
     assert_error(
         document
-            .edit(EditLimits {
-                max_created_nodes: 1,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_created_nodes = 1;
+                cfg
             })
             .err()
             .expect("removal refunded the created-node counter"),
@@ -987,10 +999,11 @@ fn persistent_counters(input: &[u8]) {
     );
     assert_error(
         document
-            .edit(EditLimits {
-                max_created_nodes: 2,
-                max_created_attributes: 1,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_created_nodes = 2;
+                cfg.max_created_attributes = 1;
+                cfg
             })
             .err()
             .expect("removal refunded the created-attribute counter"),
@@ -1075,9 +1088,10 @@ fn long_inherited_prefix(input: &[u8]) {
 
     let before = snapshot(&document);
     let rejection = document
-        .edit(EditLimits {
-            max_name_bytes: prefix.len() - 1,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_name_bytes = prefix.len() - 1;
+            cfg
         })
         .unwrap()
         .append_element(parent, child)

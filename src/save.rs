@@ -13,7 +13,8 @@
 //!     save::to_vec(&document, &options)?,
 //!     b"<?xml version=\"1.0\"?>\n<r>\n  <a>caf&#xE9;</a>\n  <b/>\n</r>\n"
 //! );
-//! let latin1 = save::Options { encoding: Some("ISO-8859-1"), ..options };
+//! let mut latin1 = options;
+//! latin1.encoding = Some("ISO-8859-1");
 //! let a = document.root_element().first_child().unwrap();
 //! assert_eq!(save::to_vec(a, &latin1)?, b"<a>caf\xe9</a>");
 //! # Ok::<(), yaxml::Error>(())
@@ -65,6 +66,7 @@ const MAX_LEVEL: usize = 100;
 
 /// `xmlSaveOption` flags, the output encoding and the indent string.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Options<'a> {
     pub flags: u32,
     /// The output encoding: UTF-8, UTF-16 (little-endian with a BOM),
@@ -82,14 +84,18 @@ pub struct Options<'a> {
     pub level: usize,
 }
 
+impl Options<'_> {
+    pub const DEFAULT: Self = Self {
+        flags: 0,
+        encoding: None,
+        indent: "  ",
+        level: 0,
+    };
+}
+
 impl Default for Options<'_> {
     fn default() -> Self {
-        Self {
-            flags: 0,
-            encoding: None,
-            indent: "  ",
-            level: 0,
-        }
+        Self::DEFAULT
     }
 }
 

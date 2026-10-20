@@ -97,9 +97,10 @@ fn invalid_prefix_uses_the_shared_event_ceiling_before_syntax() {
         for little_endian in [false, true] {
             let input = utf16(text, little_endian);
             for split in 0..=input.len() {
-                let mut parser = PushParser::with_limits(Limits {
-                    max_events: events,
-                    ..Limits::default()
+                let mut parser = PushParser::with_limits({
+                    let mut cfg = Limits::default();
+                    cfg.max_events = events;
+                    cfg
                 });
                 let expected = Error {
                     kind: ErrorKind::LimitExceeded(Limit::Events),

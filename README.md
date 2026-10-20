@@ -96,6 +96,7 @@ across an entire operation, including released buffers; it is not a precise
 process memory quota. `DecodeLimits` separately bounds decoded UTF-8 bytes and
 decoded token bytes, including on the UTF-8 owning/streaming paths. Scratch token
 storage is bounded by both token ceilings. Streaming copies spend more of the string budget than borrowing slices.
+Configuration structs are `#[non_exhaustive]` with public fields: start from `Limits::DEFAULT` (or `Default::default()`) and assign, e.g. `let mut limits = Limits::DEFAULT; limits.max_depth = 64;`.
 Parsing opens no files or network connections; `read_from` reads only its supplied
 source and preserves underlying I/O errors in `ReadError`.
 

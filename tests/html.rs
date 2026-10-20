@@ -560,42 +560,48 @@ fn depth_and_length_ceilings_stop_parsing() {
 fn hard_limits_fail() {
     let cases: &[(Limits, &[u8], Limit)] = &[
         (
-            Limits {
-                max_input_bytes: 3,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_input_bytes = 3;
+                cfg
             },
             b"<p>x",
             Limit::InputBytes,
         ),
         (
-            Limits {
-                max_attributes: 2,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_attributes = 2;
+                cfg
             },
             b"<p a b c>",
             Limit::Attributes,
         ),
         (
-            Limits {
-                max_events: 3,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_events = 3;
+                cfg
             },
             b"<p>a<p>b",
             Limit::Events,
         ),
         (
-            Limits {
-                max_owned_bytes: 8,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_owned_bytes = 8;
+                cfg
             },
             b"<p>aaaaaaaaaaaa",
             Limit::OwnedBytes,
         ),
     ];
     for (limits, input, limit) in cases {
-        let options = Options {
-            flags: 0,
-            limits: *limits,
+        let options = {
+            let mut cfg = Options::DEFAULT;
+            cfg.flags = 0;
+            cfg.limits = *limits;
+            cfg
         };
         let error = html::parse(input, options).unwrap_err();
         assert_eq!(error.kind, ErrorKind::LimitExceeded(*limit), "{input:?}");
@@ -638,12 +644,15 @@ fn push_parsing_is_chunk_independent() {
 
 #[test]
 fn push_errors_are_terminal() {
-    let options = Options {
-        flags: 0,
-        limits: Limits {
-            max_input_bytes: 4,
-            ..Limits::default()
-        },
+    let options = {
+        let mut cfg_ = Options::DEFAULT;
+        cfg_.flags = 0;
+        cfg_.limits = {
+            let mut cfg = Limits::default();
+            cfg.max_input_bytes = 4;
+            cfg
+        };
+        cfg_
     };
     let mut parser = PushParser::new(options).unwrap();
     parser.feed(b"<p>").unwrap();

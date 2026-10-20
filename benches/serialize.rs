@@ -289,20 +289,22 @@ fn main() {
                 item.repeat(*siblings),
                 "</r>".repeat(depth)
             );
-            let parse = Limits {
-                max_depth: depth + 1,
-                max_attributes: attributes.saturating_add(1).max(1024),
-                ..Limits::default()
+            let parse = {
+                let mut cfg = Limits::default();
+                cfg.max_depth = depth + 1;
+                cfg.max_attributes = attributes.saturating_add(1).max(1024);
+                cfg
             };
             let sample = Sample {
                 shape,
                 siblings: *siblings,
                 depth,
                 input_bytes: input.len(),
-                limits: WriterLimits {
-                    max_depth: parse.max_depth,
-                    max_attributes: parse.max_attributes,
-                    ..WriterLimits::default()
+                limits: {
+                    let mut cfg = WriterLimits::default();
+                    cfg.max_depth = parse.max_depth;
+                    cfg.max_attributes = parse.max_attributes;
+                    cfg
                 },
             };
             if selected("YAXML_SERIALIZE_TREE", "borrowed") {

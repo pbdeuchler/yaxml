@@ -415,32 +415,30 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
     super::check_io_schedule(input);
     super::writer::exercise(input, false);
     let byte = |index| input.get(index).copied().unwrap_or(0) as usize;
-    exercise_with_limits(
-        input,
-        Limits {
-            max_input_bytes: input.len(),
-            max_token_bytes: byte(0),
-            max_depth: byte(1) & 15,
-            max_attributes: byte(2) & 15,
-            max_events: byte(3),
-            max_owned_bytes: byte(4),
-            ..Limits::default()
-        },
-    );
-    exercise_decode_limits(
-        input,
-        DecodeLimits {
-            max_decoded_bytes: byte(5),
-            max_decoded_token_bytes: byte(6),
-        },
-    );
+    exercise_with_limits(input, {
+        let mut cfg = Limits::default();
+        cfg.max_input_bytes = input.len();
+        cfg.max_token_bytes = byte(0);
+        cfg.max_depth = byte(1) & 15;
+        cfg.max_attributes = byte(2) & 15;
+        cfg.max_events = byte(3);
+        cfg.max_owned_bytes = byte(4);
+        cfg
+    });
+    exercise_decode_limits(input, {
+        let mut cfg = DecodeLimits::DEFAULT;
+        cfg.max_decoded_bytes = byte(5);
+        cfg.max_decoded_token_bytes = byte(6);
+        cfg
+    });
     if let Some(minimum) = reference.as_ref().and_then(owned_minimum) {
         for maximum in [minimum - 1, minimum] {
             owned_limit_profile(
                 input,
-                Limits {
-                    max_owned_bytes: maximum,
-                    ..Limits::default()
+                {
+                    let mut cfg = Limits::default();
+                    cfg.max_owned_bytes = maximum;
+                    cfg
                 },
                 Some(minimum),
             );
@@ -547,11 +545,9 @@ pub(super) fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
     owned_limit_profile(input, limits, minimum)
 }
 
-fn aggregate_only(limits: Limits) -> bool {
-    Limits {
-        max_owned_bytes: Limits::default().max_owned_bytes,
-        ..limits
-    } == Limits::default()
+fn aggregate_only(mut limits: Limits) -> bool {
+    limits.max_owned_bytes = Limits::DEFAULT.max_owned_bytes;
+    limits == Limits::DEFAULT
 }
 
 fn owned_minimum(reference: &Reference) -> Option<usize> {
@@ -625,9 +621,11 @@ pub(super) fn exercise_decode_limits(input: &[u8], limits: DecodeLimits) {
             if !profiles.iter().any(|profile| {
                 profile.max_decoded_bytes == total && profile.max_decoded_token_bytes == token
             }) {
-                profiles.push(DecodeLimits {
-                    max_decoded_bytes: total,
-                    max_decoded_token_bytes: token,
+                profiles.push({
+                    let mut cfg = DecodeLimits::DEFAULT;
+                    cfg.max_decoded_bytes = total;
+                    cfg.max_decoded_token_bytes = token;
+                    cfg
                 });
             }
         }
@@ -640,9 +638,10 @@ pub(super) fn exercise_decode_limits(input: &[u8], limits: DecodeLimits) {
 }
 
 fn reference_limits(input: &str) -> Limits {
-    Limits {
-        max_token_bytes: input.len(),
-        ..Limits::default()
+    {
+        let mut cfg = Limits::default();
+        cfg.max_token_bytes = input.len();
+        cfg
     }
 }
 

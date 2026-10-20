@@ -314,13 +314,11 @@ fn each_writer_ceiling_counts_emitted_utf8_events_and_expansion() {
         }
     }
     for owned in [false, true] {
-        let mut writer = Writer::with_limits(
-            Vec::new(),
-            WriterLimits {
-                max_owned_bytes: 0,
-                ..WriterLimits::default()
-            },
-        );
+        let mut writer = Writer::with_limits(Vec::new(), {
+            let mut cfg = WriterLimits::default();
+            cfg.max_owned_bytes = 0;
+            cfg
+        });
         if owned {
             writer
                 .write_owned_document(&OwnedDocument::parse("<r></r>").unwrap())
@@ -339,13 +337,11 @@ fn failure_offsets_use_emitted_utf8_coordinates_after_discarded_input_prefixes()
     const INPUT: &str = " \r\n<r>é🙂<c/></r>";
     let borrowed = Document::parse(INPUT).unwrap();
     for mode in 0..5 {
-        let mut writer = Writer::with_limits(
-            Vec::new(),
-            WriterLimits {
-                max_events: 2,
-                ..WriterLimits::default()
-            },
-        );
+        let mut writer = Writer::with_limits(Vec::new(), {
+            let mut cfg = WriterLimits::default();
+            cfg.max_events = 2;
+            cfg
+        });
         let result = if mode == 0 {
             writer.write_document(&borrowed)
         } else {
@@ -376,13 +372,15 @@ fn deep_and_wide_trees_serialize_without_call_stack_growth_or_lost_siblings() {
                 "<n>".repeat(DEPTH - 1),
                 "</n>".repeat(DEPTH - 1)
             );
-            let parse_limits = Limits {
-                max_depth: DEPTH,
-                ..Limits::default()
+            let parse_limits = {
+                let mut cfg = Limits::default();
+                cfg.max_depth = DEPTH;
+                cfg
             };
-            let write_limits = WriterLimits {
-                max_depth: DEPTH,
-                ..WriterLimits::default()
+            let write_limits = {
+                let mut cfg = WriterLimits::default();
+                cfg.max_depth = DEPTH;
+                cfg
             };
             let borrowed = Document::with_limits(input.as_bytes(), parse_limits).unwrap();
             assert_eq!(

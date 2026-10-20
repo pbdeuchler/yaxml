@@ -681,9 +681,10 @@ fn operation_budget_stops_validation() {
     let instance = Document::parse("<r><a/><b/><c/></r>").unwrap();
     let cases: [(u64, Option<usize>); 3] = [(1_000, Some(0)), (30, None), (0, None)];
     for (max_operations, errors) in cases {
-        let limits = Limits {
-            max_operations,
-            ..Limits::default()
+        let limits = {
+            let mut cfg = Limits::default();
+            cfg.max_operations = max_operations;
+            cfg
         };
         let schema = Schema::parse(text.as_bytes(), "s.sct", none(), &limits).unwrap();
         let validation: Validation<_> = schema.validate(&instance, OUT_TEXT, b"");

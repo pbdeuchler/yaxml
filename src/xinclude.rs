@@ -42,6 +42,7 @@ const MAX_URI: usize = 2000;
 
 /// Processing options; the defaults match `XML_PARSE_XINCLUDE`.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct Options {
     /// Set `xml:base` on included elements whose base URI differs from the
     /// inclusion point's. `false` is libxml2's `XML_PARSE_NOBASEFIX`.
@@ -66,16 +67,20 @@ pub struct Options {
     pub parse_flags: u32,
 }
 
+impl Options {
+    pub const DEFAULT: Self = Self {
+        base_fixup: true,
+        lang_fixup: false,
+        max_depth: 40,
+        limits: Limits::DEFAULT,
+        xpath: xpath::Limits::DEFAULT,
+        parse_flags: crate::options::LEGACY,
+    };
+}
+
 impl Default for Options {
     fn default() -> Self {
-        Self {
-            base_fixup: true,
-            lang_fixup: false,
-            max_depth: 40,
-            limits: Limits::default(),
-            xpath: xpath::Limits::default(),
-            parse_flags: crate::options::LEGACY,
-        }
+        Self::DEFAULT
     }
 }
 

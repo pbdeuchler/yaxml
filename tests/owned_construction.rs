@@ -703,14 +703,12 @@ fn namespace_and_duplicate_errors_identify_the_implicated_input() {
 
 #[test]
 fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
-    let name_error = OwnedDocument::create(
-        empty("four"),
-        EditLimits {
-            max_name_bytes: 3,
-            max_supplied_bytes: 0,
-            ..EditLimits::default()
-        },
-    );
+    let name_error = OwnedDocument::create(empty("four"), {
+        let mut cfg = EditLimits::default();
+        cfg.max_name_bytes = 3;
+        cfg.max_supplied_bytes = 0;
+        cfg
+    });
     assert_error(
         name_error,
         EditErrorKind::LimitExceeded(EditLimit::NameBytes),
@@ -720,15 +718,13 @@ fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
         }),
     );
     assert!(
-        OwnedDocument::create(
-            empty("four"),
-            EditLimits {
-                max_name_bytes: 4,
-                max_supplied_bytes: 4,
-                max_owned_bytes: 4,
-                ..EditLimits::default()
-            }
-        )
+        OwnedDocument::create(empty("four"), {
+            let mut cfg = EditLimits::default();
+            cfg.max_name_bytes = 4;
+            cfg.max_supplied_bytes = 4;
+            cfg.max_owned_bytes = 4;
+            cfg
+        })
         .is_ok()
     );
 
@@ -821,9 +817,10 @@ fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
                     name: case.name,
                     items: &case.items,
                 },
-                EditLimits {
-                    max_name_bytes: limit,
-                    ..EditLimits::default()
+                {
+                    let mut cfg = EditLimits::default();
+                    cfg.max_name_bytes = limit;
+                    cfg
                 },
             ),
             EditErrorKind::LimitExceeded(EditLimit::NameBytes),
@@ -841,9 +838,10 @@ fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
                 name: exact("root", Some("urn:u"), Some("p")),
                 items: &exact_name_items,
             },
-            EditLimits {
-                max_name_bytes: 5,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_name_bytes = 5;
+                cfg
             },
         )
         .is_ok()
@@ -856,9 +854,10 @@ fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
                 name: exact("r", None, None),
                 items: &value_items,
             },
-            EditLimits {
-                max_value_bytes: 3,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_value_bytes = 3;
+                cfg
             },
         ),
         EditErrorKind::LimitExceeded(EditLimit::ValueBytes),
@@ -874,9 +873,10 @@ fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
                 name: exact("r", None, None),
                 items: &value_items,
             },
-            EditLimits {
-                max_value_bytes: 4,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_value_bytes = 4;
+                cfg
             },
         )
         .is_ok()
@@ -893,9 +893,10 @@ fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
                 name: exact("r", None, None),
                 items: &repeated_items,
             },
-            EditLimits {
-                max_supplied_bytes: 10,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_supplied_bytes = 10;
+                cfg
             },
         ),
         EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
@@ -910,23 +911,22 @@ fn component_and_aggregate_byte_limits_are_inclusive_and_ordered() {
             name: exact("r", None, None),
             items: &repeated_items,
         },
-        EditLimits {
-            max_supplied_bytes: 11,
-            ..EditLimits::default()
+        {
+            let mut cfg = EditLimits::default();
+            cfg.max_supplied_bytes = 11;
+            cfg
         },
     )
     .unwrap();
     assert_eq!(output(&repeated), "<r a=\"same\" b=\"same\"/>");
 
     assert_error(
-        OwnedDocument::create(
-            empty("bad:name"),
-            EditLimits {
-                max_name_bytes: 8,
-                max_supplied_bytes: 7,
-                ..EditLimits::default()
-            },
-        ),
+        OwnedDocument::create(empty("bad:name"), {
+            let mut cfg = EditLimits::default();
+            cfg.max_name_bytes = 8;
+            cfg.max_supplied_bytes = 7;
+            cfg
+        }),
         EditErrorKind::LimitExceeded(EditLimit::SuppliedBytes),
         Some(EditLocation::ElementName {
             component: EditComponent::LocalName,
@@ -947,10 +947,11 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
                 name: exact(":bad", None, None),
                 items: &invalid_items,
             },
-            EditLimits {
-                max_depth: 0,
-                max_attributes: 0,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_depth = 0;
+                cfg.max_attributes = 0;
+                cfg
             },
         ),
         EditErrorKind::LimitExceeded(EditLimit::Depth),
@@ -962,9 +963,10 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
                 name: exact("r", None, None),
                 items: &invalid_items,
             },
-            EditLimits {
-                max_attributes: 1,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_attributes = 1;
+                cfg
             },
         ),
         EditErrorKind::LimitExceeded(EditLimit::Attributes),
@@ -972,13 +974,11 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
     );
 
     assert_error(
-        OwnedDocument::create(
-            empty("r"),
-            EditLimits {
-                max_created_nodes: 0,
-                ..EditLimits::default()
-            },
-        ),
+        OwnedDocument::create(empty("r"), {
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 0;
+            cfg
+        }),
         EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
         None,
     );
@@ -989,23 +989,22 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
                 name: exact("r", None, None),
                 items: &one_attribute,
             },
-            EditLimits {
-                max_created_nodes: 0,
-                max_created_attributes: 0,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_created_nodes = 0;
+                cfg.max_created_attributes = 0;
+                cfg
             },
         ),
         EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
         None,
     );
     assert!(
-        OwnedDocument::create(
-            empty("r"),
-            EditLimits {
-                max_created_nodes: 1,
-                ..EditLimits::default()
-            }
-        )
+        OwnedDocument::create(empty("r"), {
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 1;
+            cfg
+        })
         .is_ok()
     );
 
@@ -1016,9 +1015,10 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
                 name: exact("r", None, None),
                 items: &generated_items,
             },
-            EditLimits {
-                max_created_attributes: 1,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_created_attributes = 1;
+                cfg
             },
         ),
         EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes),
@@ -1030,9 +1030,10 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
                 name: exact("r", None, None),
                 items: &generated_items,
             },
-            EditLimits {
-                max_created_attributes: 2,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_created_attributes = 2;
+                cfg
             },
         )
         .is_ok()
@@ -1048,30 +1049,33 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
     )
     .unwrap();
     assert_error(
-        document.edit(EditLimits {
-            max_created_nodes: 0,
-            max_owned_bytes: 0,
-            max_created_attributes: 0,
-            ..EditLimits::default()
+        document.edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 0;
+            cfg.max_owned_bytes = 0;
+            cfg.max_created_attributes = 0;
+            cfg
         }),
         EditErrorKind::LimitExceeded(EditLimit::CreatedNodes),
         None,
     );
     assert_error(
-        document.edit(EditLimits {
-            max_created_nodes: 1,
-            max_owned_bytes: 0,
-            max_created_attributes: 0,
-            ..EditLimits::default()
+        document.edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 1;
+            cfg.max_owned_bytes = 0;
+            cfg.max_created_attributes = 0;
+            cfg
         }),
         EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
         None,
     );
     assert_error(
-        document.edit(EditLimits {
-            max_created_nodes: 1,
-            max_created_attributes: 0,
-            ..EditLimits::default()
+        document.edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 1;
+            cfg.max_created_attributes = 0;
+            cfg
         }),
         EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes),
         None,
@@ -1095,19 +1099,21 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
     }
     let before = snapshot(&document);
     assert_error(
-        document.edit(EditLimits {
-            max_created_nodes: 2,
-            max_created_attributes: 1,
-            ..EditLimits::default()
+        document.edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 2;
+            cfg.max_created_attributes = 1;
+            cfg
         }),
         EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes),
         None,
     );
     let mut editor = document
-        .edit(EditLimits {
-            max_created_nodes: 2,
-            max_created_attributes: 2,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 2;
+            cfg.max_created_attributes = 2;
+            cfg
         })
         .unwrap();
     assert_error(
@@ -1122,10 +1128,11 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
     );
 
     let mut editor = document
-        .edit(EditLimits {
-            max_created_nodes: 3,
-            max_created_attributes: 2,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 3;
+            cfg.max_created_attributes = 2;
+            cfg
         })
         .unwrap();
     assert_error(
@@ -1144,10 +1151,11 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
     let mut precedence = OwnedDocument::create(empty("r"), EditLimits::default()).unwrap();
     let precedence_root = precedence.root_element().id();
     let mut editor = precedence
-        .edit(EditLimits {
-            max_created_nodes: 1,
-            max_created_attributes: 0,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_created_nodes = 1;
+            cfg.max_created_attributes = 0;
+            cfg
         })
         .unwrap();
     assert_error(
@@ -1166,28 +1174,25 @@ fn item_depth_and_persistent_limits_cover_exact_boundaries_and_reopen() {
 #[test]
 fn owned_byte_growth_is_cumulative_from_creation() {
     assert_error(
-        OwnedDocument::create(
-            empty("r"),
-            EditLimits {
-                max_owned_bytes: 0,
-                ..EditLimits::default()
-            },
-        ),
+        OwnedDocument::create(empty("r"), {
+            let mut cfg = EditLimits::default();
+            cfg.max_owned_bytes = 0;
+            cfg
+        }),
         EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
         None,
     );
-    let mut document = OwnedDocument::create(
-        empty("r"),
-        EditLimits {
-            max_owned_bytes: 1,
-            ..EditLimits::default()
-        },
-    )
+    let mut document = OwnedDocument::create(empty("r"), {
+        let mut cfg = EditLimits::default();
+        cfg.max_owned_bytes = 1;
+        cfg
+    })
     .unwrap();
     assert_error(
-        document.edit(EditLimits {
-            max_owned_bytes: 0,
-            ..EditLimits::default()
+        document.edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_owned_bytes = 0;
+            cfg
         }),
         EditErrorKind::LimitExceeded(EditLimit::OwnedBytes),
         None,
@@ -1195,9 +1200,10 @@ fn owned_byte_growth_is_cumulative_from_creation() {
     let root = document.root_element().id();
     assert_error(
         document
-            .edit(EditLimits {
-                max_owned_bytes: 2,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_owned_bytes = 2;
+                cfg
             })
             .unwrap()
             .append_element(root, empty("c")),
@@ -1206,9 +1212,10 @@ fn owned_byte_growth_is_cumulative_from_creation() {
     );
     assert!(
         document
-            .edit(EditLimits {
-                max_owned_bytes: 3,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_owned_bytes = 3;
+                cfg
             })
             .unwrap()
             .append_element(root, empty("c"))
@@ -1218,14 +1225,15 @@ fn owned_byte_growth_is_cumulative_from_creation() {
 
 #[test]
 fn looser_construction_ceilings_never_create_scratch_overflow_failures() {
-    let loose = EditLimits {
-        max_name_bytes: usize::MAX,
-        max_supplied_bytes: usize::MAX,
-        max_attributes: usize::MAX,
-        max_depth: usize::MAX,
-        max_created_attributes: usize::MAX,
-        max_namespace_work: usize::MAX,
-        ..EditLimits::default()
+    let loose = {
+        let mut cfg = EditLimits::default();
+        cfg.max_name_bytes = usize::MAX;
+        cfg.max_supplied_bytes = usize::MAX;
+        cfg.max_attributes = usize::MAX;
+        cfg.max_depth = usize::MAX;
+        cfg.max_created_attributes = usize::MAX;
+        cfg.max_namespace_work = usize::MAX;
+        cfg
     };
     let mut document = OwnedDocument::create(empty("r"), loose).unwrap();
     let root = document.root_element().id();
@@ -1236,9 +1244,10 @@ fn looser_construction_ceilings_never_create_scratch_overflow_failures() {
         .unwrap();
     assert_eq!(output(&document), "<r><child/></r>");
 
-    let namespace_only = EditLimits {
-        max_namespace_work: usize::MAX,
-        ..EditLimits::default()
+    let namespace_only = {
+        let mut cfg = EditLimits::default();
+        cfg.max_namespace_work = usize::MAX;
+        cfg
     };
     let mut document = OwnedDocument::create(empty("r"), namespace_only).unwrap();
     let root = document.root_element().id();
@@ -1253,13 +1262,11 @@ fn looser_construction_ceilings_never_create_scratch_overflow_failures() {
 #[test]
 fn namespace_work_counts_empty_ancestors_and_every_wide_attribute() {
     assert!(
-        OwnedDocument::create(
-            empty("r"),
-            EditLimits {
-                max_namespace_work: 0,
-                ..EditLimits::default()
-            },
-        )
+        OwnedDocument::create(empty("r"), {
+            let mut cfg = EditLimits::default();
+            cfg.max_namespace_work = 0;
+            cfg
+        },)
         .is_ok()
     );
 
@@ -1274,9 +1281,10 @@ fn namespace_work_counts_empty_ancestors_and_every_wide_attribute() {
     let before = snapshot(&empty_chain);
     assert_error(
         empty_chain
-            .edit(EditLimits {
-                max_namespace_work: 2,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_namespace_work = 2;
+                cfg
             })
             .unwrap()
             .append_element(parent, empty("g")),
@@ -1286,9 +1294,10 @@ fn namespace_work_counts_empty_ancestors_and_every_wide_attribute() {
     assert_eq!(snapshot(&empty_chain), before);
     assert!(
         empty_chain
-            .edit(EditLimits {
-                max_namespace_work: 3,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_namespace_work = 3;
+                cfg
             })
             .unwrap()
             .append_element(parent, empty("g"))
@@ -1305,9 +1314,10 @@ fn namespace_work_counts_empty_ancestors_and_every_wide_attribute() {
         .id();
     let before = snapshot(&wide);
     assert_error(
-        wide.edit(EditLimits {
-            max_namespace_work: 4,
-            ..EditLimits::default()
+        wide.edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_namespace_work = 4;
+            cfg
         })
         .unwrap()
         .append_element(wide_parent, empty("g")),
@@ -1316,9 +1326,10 @@ fn namespace_work_counts_empty_ancestors_and_every_wide_attribute() {
     );
     assert_eq!(snapshot(&wide), before);
     assert!(
-        wide.edit(EditLimits {
-            max_namespace_work: 5,
-            ..EditLimits::default()
+        wide.edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_namespace_work = 5;
+            cfg
         })
         .unwrap()
         .append_element(wide_parent, empty("g"))
@@ -1377,9 +1388,10 @@ fn generated_attribute_count_precedes_later_namespace_semantics() {
                 name: exact("r", None, None),
                 items: &items,
             },
-            EditLimits {
-                max_attributes: 2,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_attributes = 2;
+                cfg
             },
         ),
         EditErrorKind::LimitExceeded(EditLimit::Attributes),
@@ -1391,9 +1403,10 @@ fn generated_attribute_count_precedes_later_namespace_semantics() {
                 name: exact("r", None, None),
                 items: &items,
             },
-            EditLimits {
-                max_attributes: 3,
-                ..EditLimits::default()
+            {
+                let mut cfg = EditLimits::default();
+                cfg.max_attributes = 3;
+                cfg
             },
         ),
         EditErrorKind::Namespace,
@@ -1426,9 +1439,10 @@ fn namespace_work_stops_at_the_first_default_binding_uri_comparison() {
     // comparison exhausts the operation's budget.
     assert_error(
         document
-            .edit(EditLimits {
-                max_namespace_work: 12,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_namespace_work = 12;
+                cfg
             })
             .unwrap()
             .append_element(
@@ -1443,9 +1457,10 @@ fn namespace_work_stops_at_the_first_default_binding_uri_comparison() {
     );
     assert_eq!(snapshot(&document), before);
     let child = document
-        .edit(EditLimits {
-            max_namespace_work: 13,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_namespace_work = 13;
+            cfg
         })
         .unwrap()
         .append_element(
@@ -1481,9 +1496,10 @@ fn inherited_long_automatic_prefix_grows_scratch_and_keeps_failures_atomic() {
 
     assert_error(
         document
-            .edit(EditLimits {
-                max_name_bytes: prefix.len() - 1,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_name_bytes = prefix.len() - 1;
+                cfg
             })
             .unwrap()
             .append_element(parent, child),
@@ -1498,9 +1514,10 @@ fn inherited_long_automatic_prefix_grows_scratch_and_keeps_failures_atomic() {
 
     assert_error(
         document
-            .edit(EditLimits {
-                max_namespace_work: 0,
-                ..EditLimits::default()
+            .edit({
+                let mut cfg = EditLimits::default();
+                cfg.max_namespace_work = 0;
+                cfg
             })
             .unwrap()
             .append_element(parent, child),
@@ -1594,10 +1611,11 @@ fn append_precedence_is_handle_kind_depth_items_then_input() {
     assert_eq!(snapshot(editor.document()), before);
 
     let mut editor = document
-        .edit(EditLimits {
-            max_depth: 1,
-            max_attributes: 0,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_depth = 1;
+            cfg.max_attributes = 0;
+            cfg
         })
         .unwrap();
     assert_error(
@@ -1608,10 +1626,11 @@ fn append_precedence_is_handle_kind_depth_items_then_input() {
     assert_eq!(snapshot(editor.document()), before);
 
     let mut editor = document
-        .edit(EditLimits {
-            max_depth: 2,
-            max_attributes: 1,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_depth = 2;
+            cfg.max_attributes = 1;
+            cfg
         })
         .unwrap();
     assert_error(
@@ -1715,9 +1734,10 @@ fn failed_namespace_plans_are_atomic_and_the_editor_recovers() {
     assert_eq!(snapshot(editor.document()), before);
 
     let mut editor = document
-        .edit(EditLimits {
-            max_attributes: 1,
-            ..EditLimits::default()
+        .edit({
+            let mut cfg = EditLimits::default();
+            cfg.max_attributes = 1;
+            cfg
         })
         .unwrap();
     assert_error(

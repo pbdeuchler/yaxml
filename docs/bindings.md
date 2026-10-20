@@ -55,6 +55,30 @@ bytes in and results out, which makes it the lowest-risk JavaScript route.
    [Allocators](#allocators). That is a memory-accounting choice, not a
    correctness dependency.
 
+## Configuration structs
+
+Every public `Limits`/`Options` struct (`Limits`, `DecodeLimits`,
+`WriterLimits`, `EditLimits`, `ParseOptions`, and the `Limits`/`Options` of
+`pattern`, `html`, `xsd`, `relaxng`, `schematron`, `catalog`, `xinclude`,
+`xpath`, `save`, `c14n`) is `#[non_exhaustive]`: adding a field is not a
+breaking change, but a struct literal, even with `..Default::default()`, no
+longer compiles outside the crate. One convention applies to all of them:
+
+- Fields stay `pub`. A binding sets any field by name on a value it owns:
+  `let mut l = Limits::DEFAULT; l.max_depth = 64;` (the struct is `Copy` except
+  `ParseOptions`).
+- `Default` and `pub const DEFAULT: Self` exist and agree, so statics and
+  binding tables need no runtime call. `Default::default()` is
+  `Self::DEFAULT`. `tests/defaults.rs` pins every default value; changing a
+  default is a security decision.
+- Types with no meaningful default take their required input in a `const fn
+  new` (`c14n::Options::new(mode)`); `html::Options::new(flags)`,
+  `save::Options::new(flags)` and `ParseOptions::new(flags)` are shorthands.
+- No per-field `with_*` builders. The only ones are composites that earn their
+  keep: `ParseOptions::with_limits`, `with_decode_limits`, `with_resolver`.
+- Defaults are the hostile-input policy. A binding exposes the field names
+  as-is and never substitutes its own limits.
+
 ## Error mapping
 
 The parser returns `Error { kind, offset }`: `Copy`, two words, built

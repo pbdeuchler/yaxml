@@ -14,6 +14,7 @@ use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, ParseOptions, SourceOri
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Limits {
     pub max_input_bytes: usize,
     pub max_token_bytes: usize,
@@ -46,23 +47,27 @@ pub struct Limits {
     pub max_external_bytes: usize,
 }
 
+impl Limits {
+    pub const DEFAULT: Self = Self {
+        max_input_bytes: 64 * 1024 * 1024,
+        max_token_bytes: 1024 * 1024,
+        max_depth: 256,
+        max_attributes: 1024,
+        max_events: 1_000_000,
+        max_owned_bytes: 64 * 1024 * 1024,
+        max_dtd_bytes: 16 * 1024 * 1024,
+        max_entity_expansion_bytes: 1_000_000,
+        max_entity_amplification: 5,
+        max_entity_references: 1024 * 1024,
+        max_entity_depth: 40,
+        max_external_loads: 256,
+        max_external_bytes: 16 * 1024 * 1024,
+    };
+}
+
 impl Default for Limits {
     fn default() -> Self {
-        Self {
-            max_input_bytes: 64 * 1024 * 1024,
-            max_token_bytes: 1024 * 1024,
-            max_depth: 256,
-            max_attributes: 1024,
-            max_events: 1_000_000,
-            max_owned_bytes: 64 * 1024 * 1024,
-            max_dtd_bytes: 16 * 1024 * 1024,
-            max_entity_expansion_bytes: 1_000_000,
-            max_entity_amplification: 5,
-            max_entity_references: 1024 * 1024,
-            max_entity_depth: 40,
-            max_external_loads: 256,
-            max_external_bytes: 16 * 1024 * 1024,
-        }
+        Self::DEFAULT
     }
 }
 

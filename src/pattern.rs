@@ -74,6 +74,7 @@ impl std::error::Error for Error {}
 /// Finite ceilings. State of a [`StreamMatcher`] is at most
 /// `steps * depth` entries per alternative.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Limits {
     pub max_bytes: usize,
     /// Compiled steps per `|` alternative.
@@ -82,13 +83,17 @@ pub struct Limits {
     pub max_depth: usize,
 }
 
+impl Limits {
+    pub const DEFAULT: Self = Self {
+        max_bytes: 64 * 1024,
+        max_steps: 256,
+        max_depth: 1024,
+    };
+}
+
 impl Default for Limits {
     fn default() -> Self {
-        Self {
-            max_bytes: 64 * 1024,
-            max_steps: 256,
-            max_depth: 1024,
-        }
+        Self::DEFAULT
     }
 }
 

@@ -563,13 +563,11 @@ fn owned_storage_growth_and_aggregate_limits() {
         b"<r a='&#9;'/>",
     ] {
         for maximum in 0..=80 {
-            driver::exercise_with_limits(
-                input,
-                yaxml::Limits {
-                    max_owned_bytes: maximum,
-                    ..yaxml::Limits::default()
-                },
-            );
+            driver::exercise_with_limits(input, {
+                let mut cfg = yaxml::Limits::default();
+                cfg.max_owned_bytes = maximum;
+                cfg
+            });
         }
     }
 }
@@ -646,57 +644,64 @@ fn each_resource_budget() {
     for (input, limits, expected) in [
         (
             b"<r/>".as_slice(),
-            Limits {
-                max_input_bytes: 3,
-                ..default
+            {
+                let mut cfg = default;
+                cfg.max_input_bytes = 3;
+                cfg
             },
             Limit::InputBytes,
         ),
         (
             b"<r/>",
-            Limits {
-                max_token_bytes: 3,
-                ..default
+            {
+                let mut cfg = default;
+                cfg.max_token_bytes = 3;
+                cfg
             },
             Limit::TokenBytes,
         ),
         (
             b"    <r/>",
-            Limits {
-                max_token_bytes: 3,
-                ..default
+            {
+                let mut cfg = default;
+                cfg.max_token_bytes = 3;
+                cfg
             },
             Limit::TokenBytes,
         ),
         (
             b"<r><c/></r>",
-            Limits {
-                max_depth: 1,
-                ..default
+            {
+                let mut cfg = default;
+                cfg.max_depth = 1;
+                cfg
             },
             Limit::Depth,
         ),
         (
             b"<r a='1'/>",
-            Limits {
-                max_attributes: 0,
-                ..default
+            {
+                let mut cfg = default;
+                cfg.max_attributes = 0;
+                cfg
             },
             Limit::Attributes,
         ),
         (
             b"<r>x</r>",
-            Limits {
-                max_events: 1,
-                ..default
+            {
+                let mut cfg = default;
+                cfg.max_events = 1;
+                cfg
             },
             Limit::Events,
         ),
         (
             b"<r>&amp;</r>",
-            Limits {
-                max_owned_bytes: 0,
-                ..default
+            {
+                let mut cfg = default;
+                cfg.max_owned_bytes = 0;
+                cfg
             },
             Limit::OwnedBytes,
         ),
@@ -711,13 +716,11 @@ fn each_resource_budget() {
         assert!(driver::exercise_with_limits(input, default).error.is_none());
     }
     assert_eq!(
-        driver::exercise_with_limits(
-            b"    <r/>",
-            Limits {
-                max_token_bytes: 3,
-                ..default
-            },
-        )
+        driver::exercise_with_limits(b"    <r/>", {
+            let mut cfg = default;
+            cfg.max_token_bytes = 3;
+            cfg
+        },)
         .error,
         Some(Error {
             kind: ErrorKind::LimitExceeded(Limit::TokenBytes),
@@ -914,13 +917,11 @@ fn grammar_regression_corpus() {
         (b"<r><!--abcdefgh--></r>", 8),
     ] {
         assert_eq!(
-            driver::exercise_with_limits(
-                input,
-                yaxml::Limits {
-                    max_token_bytes: ceiling,
-                    ..yaxml::Limits::default()
-                }
-            )
+            driver::exercise_with_limits(input, {
+                let mut cfg = yaxml::Limits::default();
+                cfg.max_token_bytes = ceiling;
+                cfg
+            })
             .error
             .unwrap()
             .kind,
@@ -995,13 +996,11 @@ fn encoded_equivalents_and_every_truncation() {
             assert!(driver::exercise(&utf16(body, little, true)).error.is_none());
         }
         for maximum in 0..=80 {
-            driver::exercise_with_limits(
-                &utf16("<r>&amp;</r>", little, true),
-                yaxml::Limits {
-                    max_owned_bytes: maximum,
-                    ..yaxml::Limits::default()
-                },
-            );
+            driver::exercise_with_limits(&utf16("<r>&amp;</r>", little, true), {
+                let mut cfg = yaxml::Limits::default();
+                cfg.max_owned_bytes = maximum;
+                cfg
+            });
         }
     }
 }

@@ -395,13 +395,15 @@ fn inclusion_failures_are_structured() {
 
 #[test]
 fn fixups_follow_options() {
-    let no_base = Options {
-        base_fixup: false,
-        ..Options::default()
+    let no_base = {
+        let mut cfg = Options::default();
+        cfg.base_fixup = false;
+        cfg
     };
-    let lang = Options {
-        lang_fixup: true,
-        ..Options::default()
+    let lang = {
+        let mut cfg = Options::default();
+        cfg.lang_fixup = true;
+        cfg
     };
     let lang_main = |href: &str| format!("<r xml:lang='fr' {XI}><xi:include href='{href}'/></r>");
     let cases: &[(&str, String, &Options, &str)] = &[
@@ -510,36 +512,41 @@ fn budgets_stop_inclusion_bombs() {
         .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
         .collect();
     let main = level("l1.xml");
-    let limited = |limits: Limits| Options {
-        limits,
-        ..Options::default()
+    let limited = |limits: Limits| {
+        let mut cfg = Options::default();
+        cfg.limits = limits;
+        cfg
     };
     let cases = [
         (
-            limited(Limits {
-                max_events: 50_000,
-                ..Limits::default()
+            limited({
+                let mut cfg = Limits::default();
+                cfg.max_events = 50_000;
+                cfg
             }),
             Limit::Events,
         ),
         (
-            limited(Limits {
-                max_owned_bytes: 4096,
-                ..Limits::default()
+            limited({
+                let mut cfg = Limits::default();
+                cfg.max_owned_bytes = 4096;
+                cfg
             }),
             Limit::OwnedBytes,
         ),
         (
-            limited(Limits {
-                max_external_loads: 3,
-                ..Limits::default()
+            limited({
+                let mut cfg = Limits::default();
+                cfg.max_external_loads = 3;
+                cfg
             }),
             Limit::ExternalLoads,
         ),
         (
-            limited(Limits {
-                max_external_bytes: 100,
-                ..Limits::default()
+            limited({
+                let mut cfg = Limits::default();
+                cfg.max_external_bytes = 100;
+                cfg
             }),
             Limit::ExternalBytes,
         ),
@@ -552,9 +559,10 @@ fn budgets_stop_inclusion_bombs() {
         }
     }
     // Within budget, each document is still loaded once.
-    let small = Options {
-        max_depth: 3,
-        ..Options::default()
+    let small = {
+        let mut cfg = Options::default();
+        cfg.max_depth = 3;
+        cfg
     };
     assert_eq!(
         run_with(&main, &files, &small).unwrap_err().kind,

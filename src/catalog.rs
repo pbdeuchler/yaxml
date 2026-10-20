@@ -40,6 +40,7 @@ const MAX_DELEGATE: usize = 50;
 
 /// Budgets for catalog files fetched through the resolver. libxml2 has none.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Limits {
     /// Catalog files requested, including the one [`Catalog::load`] fetches.
     pub max_loads: usize,
@@ -50,13 +51,17 @@ pub struct Limits {
     pub max_depth: usize,
 }
 
+impl Limits {
+    pub const DEFAULT: Self = Self {
+        max_loads: 64,
+        max_bytes: 1 << 24,
+        max_depth: 50,
+    };
+}
+
 impl Default for Limits {
     fn default() -> Self {
-        Self {
-            max_loads: 64,
-            max_bytes: 1 << 24,
-            max_depth: 50,
-        }
+        Self::DEFAULT
     }
 }
 

@@ -5,6 +5,7 @@ use crate::{Error, ErrorKind, Limit};
 /// Ceilings for the UTF-8 representation produced by input decoding.
 /// Transport byte-order marks are excluded from both counters.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct DecodeLimits {
     /// Total UTF-8 bytes produced, excluding the transport BOM (default 64 MiB).
     pub max_decoded_bytes: usize,
@@ -12,12 +13,16 @@ pub struct DecodeLimits {
     pub max_decoded_token_bytes: usize,
 }
 
+impl DecodeLimits {
+    pub const DEFAULT: Self = Self {
+        max_decoded_bytes: 64 * 1024 * 1024,
+        max_decoded_token_bytes: 1024 * 1024,
+    };
+}
+
 impl Default for DecodeLimits {
     fn default() -> Self {
-        Self {
-            max_decoded_bytes: 64 * 1024 * 1024,
-            max_decoded_token_bytes: 1024 * 1024,
-        }
+        Self::DEFAULT
     }
 }
 

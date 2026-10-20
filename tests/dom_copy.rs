@@ -58,16 +58,18 @@ type Case = (
     Result<&'static str, EditErrorKind>,
 );
 
-const DEFAULT: EditLimits = EditLimits {
-    max_value_bytes: 1024 * 1024,
-    max_owned_bytes: 64 * 1024 * 1024,
-    max_created_nodes: 1_000_000,
-    max_name_bytes: 1024 * 1024,
-    max_supplied_bytes: 8 * 1024 * 1024,
-    max_attributes: 1024,
-    max_depth: 256,
-    max_created_attributes: 1_000_000,
-    max_namespace_work: 64 * 1024 * 1024,
+const DEFAULT: EditLimits = {
+    let mut cfg = EditLimits::DEFAULT;
+    cfg.max_value_bytes = 1024 * 1024;
+    cfg.max_owned_bytes = 64 * 1024 * 1024;
+    cfg.max_created_nodes = 1_000_000;
+    cfg.max_name_bytes = 1024 * 1024;
+    cfg.max_supplied_bytes = 8 * 1024 * 1024;
+    cfg.max_attributes = 1024;
+    cfg.max_depth = 256;
+    cfg.max_created_attributes = 1_000_000;
+    cfg.max_namespace_work = 64 * 1024 * 1024;
+    cfg
 };
 
 const fn limit(limits: EditLimits) -> EditLimits {
@@ -305,9 +307,10 @@ const CASES: &[Case] = &[
         "<r><a/><b/></r>",
         "<t/>",
         Op::Import("/r", "/t", true),
-        limit(EditLimits {
-            max_created_nodes: 2,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_created_nodes = 2;
+            cfg
         }),
         Err(EditErrorKind::LimitExceeded(EditLimit::CreatedNodes)),
     ),
@@ -316,9 +319,10 @@ const CASES: &[Case] = &[
         "<r><a/><b/></r>",
         "<t/>",
         Op::Import("/r", "/t", true),
-        limit(EditLimits {
-            max_created_nodes: 3,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_created_nodes = 3;
+            cfg
         }),
         Ok("<t><r><a/><b/></r></t>"),
     ),
@@ -327,9 +331,10 @@ const CASES: &[Case] = &[
         "<r a='1' b='2'/>",
         "<t/>",
         Op::Import("/r", "/t", true),
-        limit(EditLimits {
-            max_created_attributes: 1,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_created_attributes = 1;
+            cfg
         }),
         Err(EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes)),
     ),
@@ -338,9 +343,10 @@ const CASES: &[Case] = &[
         "<r xmlns:p='urn:p'><p:a k='1'/></r>",
         "<t/>",
         Op::Import("/r/p:a", "/t", true),
-        limit(EditLimits {
-            max_created_attributes: 1,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_created_attributes = 1;
+            cfg
         }),
         Err(EditErrorKind::LimitExceeded(EditLimit::CreatedAttributes)),
     ),
@@ -349,9 +355,10 @@ const CASES: &[Case] = &[
         "<r>a long text value</r>",
         "<t/>",
         Op::Import("/r", "/t", true),
-        limit(EditLimits {
-            max_owned_bytes: 8,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_owned_bytes = 8;
+            cfg
         }),
         Err(EditErrorKind::LimitExceeded(EditLimit::OwnedBytes)),
     ),
@@ -360,9 +367,10 @@ const CASES: &[Case] = &[
         "<r/>",
         "<r><a k='v'>a long text value</a></r>",
         Op::Copy("/r/a", "/r", true),
-        limit(EditLimits {
-            max_owned_bytes: 0,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_owned_bytes = 0;
+            cfg
         }),
         Ok("<r><a k=\"v\">a long text value</a><a k=\"v\">a long text value</a></r>"),
     ),
@@ -371,9 +379,10 @@ const CASES: &[Case] = &[
         "<r><a><b/></a></r>",
         "<t/>",
         Op::Import("/r", "/t", true),
-        limit(EditLimits {
-            max_depth: 2,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_depth = 2;
+            cfg
         }),
         Err(EditErrorKind::LimitExceeded(EditLimit::Depth)),
     ),
@@ -382,9 +391,10 @@ const CASES: &[Case] = &[
         "<r xmlns:p='urn:p'><p:a/></r>",
         "<t/>",
         Op::Import("/r/p:a", "/t", true),
-        limit(EditLimits {
-            max_namespace_work: 1,
-            ..DEFAULT
+        limit({
+            let mut cfg = DEFAULT;
+            cfg.max_namespace_work = 1;
+            cfg
         }),
         Err(EditErrorKind::LimitExceeded(EditLimit::NamespaceWork)),
     ),
@@ -595,9 +605,10 @@ fn copies_are_independent_of_their_source() {
 fn try_clone_copies_the_whole_document() {
     let input =
         "<!DOCTYPE r [<!ATTLIST a id ID #IMPLIED><!ENTITY e 'v'>]><r><a id='k'>&e;</a><b/></r>";
-    let options = yaxml::ParseOptions {
-        base: Some("http://h/d.xml".to_owned()),
-        ..yaxml::ParseOptions::default()
+    let options = {
+        let mut cfg = yaxml::ParseOptions::default();
+        cfg.base = Some("http://h/d.xml".to_owned());
+        cfg
     };
     let mut document = OwnedDocument::parse_with(input.as_bytes(), options).unwrap();
     let b = at(&document, "/r/b");

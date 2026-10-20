@@ -55,9 +55,10 @@ fn input_failures_preserve_xml_errors_and_limits() {
             "{input:?}"
         );
     }
-    let error = PushParser::with_limits(Limits {
-        max_input_bytes: 3,
-        ..Limits::default()
+    let error = PushParser::with_limits({
+        let mut cfg = Limits::default();
+        cfg.max_input_bytes = 3;
+        cfg
     })
     .read_from(b"<r/>".as_slice(), |_, _| ControlFlow::Continue(()))
     .unwrap_err();

@@ -1065,6 +1065,7 @@ fn xml_problem<A: Allocator>(node: OwnedNode<'_, A>) -> Option<(EditErrorKind, S
 
 /// Inclusive ceilings for supplied strings and cumulative editing work.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct EditLimits {
     /// UTF-8 bytes per supplied value or PI target, checked before scanning.
     /// Default: 1 MiB.
@@ -1148,19 +1149,23 @@ pub struct ElementSpec<'a> {
     pub items: &'a [ElementItem<'a>],
 }
 
+impl EditLimits {
+    pub const DEFAULT: Self = Self {
+        max_value_bytes: 1024 * 1024,
+        max_owned_bytes: 64 * 1024 * 1024,
+        max_created_nodes: 1_000_000,
+        max_name_bytes: 1024 * 1024,
+        max_supplied_bytes: 8 * 1024 * 1024,
+        max_attributes: 1024,
+        max_depth: 256,
+        max_created_attributes: 1_000_000,
+        max_namespace_work: 64 * 1024 * 1024,
+    };
+}
+
 impl Default for EditLimits {
     fn default() -> Self {
-        Self {
-            max_value_bytes: 1024 * 1024,
-            max_owned_bytes: 64 * 1024 * 1024,
-            max_created_nodes: 1_000_000,
-            max_name_bytes: 1024 * 1024,
-            max_supplied_bytes: 8 * 1024 * 1024,
-            max_attributes: 1024,
-            max_depth: 256,
-            max_created_attributes: 1_000_000,
-            max_namespace_work: 64 * 1024 * 1024,
-        }
+        Self::DEFAULT
     }
 }
 

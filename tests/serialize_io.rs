@@ -270,17 +270,19 @@ fn xml_limits_emit_no_rejected_event_and_never_flush_on_failure() {
     for owned in [false, true] {
         for (limits, category, expected) in [
             (
-                WriterLimits {
-                    max_attributes: 0,
-                    ..WriterLimits::default()
+                {
+                    let mut cfg = WriterLimits::default();
+                    cfg.max_attributes = 0;
+                    cfg
                 },
                 Limit::Attributes,
                 b"".as_slice(),
             ),
             (
-                WriterLimits {
-                    max_output_bytes: 14,
-                    ..WriterLimits::default()
+                {
+                    let mut cfg = WriterLimits::default();
+                    cfg.max_output_bytes = 14;
+                    cfg
                 },
                 Limit::OutputBytes,
                 &OUTPUT[..11],

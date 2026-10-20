@@ -51,9 +51,10 @@ fn flags_shape_output_like_xmllint() {
         ),
         (
             "<r><a><b/></a></r>",
-            save::Options {
-                indent: "\t",
-                ..options(save::FORMAT)
+            {
+                let mut cfg = options(save::FORMAT);
+                cfg.indent = "\t";
+                cfg
             },
             "<r>\n\t<a>\n\t\t<b/>\n\t</a>\n</r>\n",
         ),
@@ -112,9 +113,11 @@ fn indentation_stops_at_sixty_columns() {
         .map(|line| line.len() - line.trim_start().len())
         .max();
     assert_eq!(widest, Some(60));
-    let wide = save::Options {
-        indent: &"\t".repeat(60),
-        ..options(save::FORMAT)
+    let tabs = "\t".repeat(60);
+    let wide = {
+        let mut cfg = options(save::FORMAT);
+        cfg.indent = &tabs;
+        cfg
     };
     let output = String::from_utf8(saved("<r><a><b/></a></r>", &wide).unwrap()).unwrap();
     assert!(output.contains(&format!("\n{}<b/>", "\t".repeat(60))));
@@ -160,9 +163,10 @@ fn encodings_reference_what_they_lack() {
         ("<r><![CDATA[\u{e9}]]></r>", Some("ASCII"), Err(ErrorKind::InvalidCharacter)),
     ];
     for (input, encoding, expected) in cases {
-        let options = save::Options {
-            encoding: *encoding,
-            ..options(0)
+        let options = {
+            let mut cfg = options(0);
+            cfg.encoding = *encoding;
+            cfg
         };
         let owned = save::to_vec(
             &OwnedDocument::parse_bytes(input.as_bytes()).unwrap(),
@@ -174,13 +178,11 @@ fn encodings_reference_what_they_lack() {
             "{input} {encoding:?}"
         );
     }
-    let utf16 = saved(
-        "<r>&#233;</r>",
-        &save::Options {
-            encoding: Some("UTF-16"),
-            ..options(0)
-        },
-    )
+    let utf16 = saved("<r>&#233;</r>", &{
+        let mut cfg = options(0);
+        cfg.encoding = Some("UTF-16");
+        cfg
+    })
     .unwrap();
     let units: Vec<u16> = utf16
         .chunks(2)
@@ -190,13 +192,11 @@ fn encodings_reference_what_they_lack() {
         String::from_utf16(&units).unwrap(),
         "\u{feff}<?xml version=\"1.0\" encoding=\"UTF-16\"?>\n<r>\u{e9}</r>\n"
     );
-    let big = saved(
-        "<r/>",
-        &save::Options {
-            encoding: Some("UTF-16BE"),
-            ..options(0)
-        },
-    )
+    let big = saved("<r/>", &{
+        let mut cfg = options(0);
+        cfg.encoding = Some("UTF-16BE");
+        cfg
+    })
     .unwrap();
     assert_eq!(&big[..4], b"\0<\0?");
     // The output reparses to the same document.
@@ -210,24 +210,29 @@ fn encodings_reference_what_they_lack() {
 #[test]
 fn invalid_requests_are_rejected() {
     let document = OwnedDocument::parse("<r/>").unwrap();
+    let spaces = " ".repeat(61);
     for options in [
         options(1 << 11),
         options(u32::MAX),
-        save::Options {
-            indent: "",
-            ..options(0)
+        {
+            let mut cfg = options(0);
+            cfg.indent = "";
+            cfg
         },
-        save::Options {
-            indent: " -",
-            ..options(0)
+        {
+            let mut cfg = options(0);
+            cfg.indent = " -";
+            cfg
         },
-        save::Options {
-            indent: "\n",
-            ..options(0)
+        {
+            let mut cfg = options(0);
+            cfg.indent = "\n";
+            cfg
         },
-        save::Options {
-            indent: &" ".repeat(61),
-            ..options(0)
+        {
+            let mut cfg = options(0);
+            cfg.indent = &spaces;
+            cfg
         },
     ] {
         assert_eq!(
@@ -268,9 +273,10 @@ fn subtrees_declare_the_namespaces_they_use() {
         (
             "encoded",
             &[0],
-            save::Options {
-                encoding: Some("UTF-8"),
-                ..options(0)
+            {
+                let mut cfg = options(0);
+                cfg.encoding = Some("UTF-8");
+                cfg
             },
             "<a:x xmlns:a=\"urn:a\" xmlns=\"urn:d\" a:y=\"\u{e9}\"><c/><!--k--></a:x>",
         ),
@@ -359,9 +365,10 @@ fn internal_subsets_are_regenerated() {
     // Entity values allow references for what the encoding lacks; the
     // regenerated subset parses again.
     let input = "<!DOCTYPE r [<!ENTITY e \"\u{e9}\"><!ATTLIST r a CDATA \"\u{e9}\">]><r>&e;</r>";
-    let ascii = save::Options {
-        encoding: Some("ASCII"),
-        ..options(0)
+    let ascii = {
+        let mut cfg = options(0);
+        cfg.encoding = Some("ASCII");
+        cfg
     };
     let output = saved(input, &ascii).unwrap();
     let text = String::from_utf8(output.clone()).unwrap();
@@ -411,9 +418,10 @@ fn xhtml_documents_follow_appendix_c() {
         (
             "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"x\"><html><head>\
              <meta http-equiv=\"content-type\" content=\"x\"/></head></html>",
-            save::Options {
-                encoding: Some("ISO-8859-1"),
-                ..options(0)
+            {
+                let mut cfg = options(0);
+                cfg.encoding = Some("ISO-8859-1");
+                cfg
             },
             format!(
                 "{doctype}<html xmlns=\"http://www.w3.org/1999/xhtml\"><head>\
@@ -556,9 +564,10 @@ fn saved_with(input: &str, flags: u32, options: &save::Options<'_>) -> Result<St
 fn attribute_references_are_written_like_xmllint() {
     use yaxml::options::{DTDATTR, NOBLANKS, NOENT};
     let plain = options(save::NO_DECL);
-    let latin1 = save::Options {
-        encoding: Some("ISO-8859-1"),
-        ..options(save::NO_DECL)
+    let latin1 = {
+        let mut cfg = options(save::NO_DECL);
+        cfg.encoding = Some("ISO-8859-1");
+        cfg
     };
     // (input, parse flags, save options, last line of pinned xmllint output)
     let table: &[(&str, u32, &save::Options<'_>, &str)] = &[
@@ -661,9 +670,10 @@ fn attribute_references_are_written_like_xmllint() {
 
 #[test]
 fn attribute_reference_names_an_encoding_lacks_fail() {
-    let ascii = save::Options {
-        encoding: Some("US-ASCII"),
-        ..options(0)
+    let ascii = {
+        let mut cfg = options(0);
+        cfg.encoding = Some("US-ASCII");
+        cfg
     };
     // libxml2 writes `&&#233;;`, which does not reparse.
     let cases: &[(&str, Result<&str, ErrorKind>)] = &[
@@ -689,9 +699,10 @@ fn attribute_reference_names_an_encoding_lacks_fail() {
 fn entity_value_references_are_markup_in_single_byte_encodings() {
     let encoded = |input: &str, encoding| {
         let document = OwnedDocument::parse(input).unwrap();
-        let options = save::Options {
-            encoding: Some(encoding),
-            ..options(save::NO_DECL)
+        let options = {
+            let mut cfg = options(save::NO_DECL);
+            cfg.encoding = Some(encoding);
+            cfg
         };
         save::to_vec(&document, &options)
             .map(|bytes| {
@@ -796,9 +807,10 @@ fn to_writer_streams_what_to_vec_returns() {
     let owned = OwnedDocument::parse(&xml).unwrap();
     let borrowed = Document::parse(&xml).unwrap();
     let parsed = html::parse(xml.as_bytes(), html::Options::default()).unwrap();
-    let latin1 = save::Options {
-        encoding: Some("ISO-8859-1"),
-        ..options(save::FORMAT)
+    let latin1 = {
+        let mut cfg = options(save::FORMAT);
+        cfg.encoding = Some("ISO-8859-1");
+        cfg
     };
     let cases: &[(save::Tree<'_, '_>, save::Options<'_>)] = &[
         ((&owned).into(), options(0)),
@@ -830,9 +842,10 @@ fn to_writer_streams_what_to_vec_returns() {
 fn to_writer_reports_sink_and_encoding_failures() {
     let xml = format!("<r>{}<\u{105}/></r>", "<a>t</a>".repeat(9000));
     let document = OwnedDocument::parse(&xml).unwrap();
-    let latin1 = save::Options {
-        encoding: Some("ISO-8859-1"),
-        ..options(0)
+    let latin1 = {
+        let mut cfg = options(0);
+        cfg.encoding = Some("ISO-8859-1");
+        cfg
     };
     let expected = save::to_vec(&document, &options(0)).unwrap();
     // (options, fail_at, fail_flush, error, bytes the sink holds)
@@ -865,9 +878,10 @@ fn to_writer_reports_sink_and_encoding_failures() {
     }
     // Option errors come first, without I/O.
     let mut sink = Sink::new(usize::MAX, 0, true);
-    let bogus = save::Options {
-        encoding: Some("x-bogus"),
-        ..options(0)
+    let bogus = {
+        let mut cfg = options(0);
+        cfg.encoding = Some("x-bogus");
+        cfg
     };
     assert!(matches!(
         save::to_writer(&document, &bogus, &mut sink),
@@ -893,17 +907,19 @@ fn subtree_levels_indent_like_xml_node_dump() {
         ),
     ];
     for (level, flags, expected) in cases {
-        let options = save::Options {
-            level: *level,
-            ..options(*flags)
+        let options = {
+            let mut cfg = options(*flags);
+            cfg.level = *level;
+            cfg
         };
         let saved = String::from_utf8(save::to_vec(a, &options).unwrap()).unwrap();
         assert_eq!(saved, *expected, "{level} {flags}");
     }
     // Documents start at level 0 regardless.
-    let options = save::Options {
-        level: 3,
-        ..options(save::FORMAT | save::NO_DECL)
+    let options = {
+        let mut cfg = options(save::FORMAT | save::NO_DECL);
+        cfg.level = 3;
+        cfg
     };
     assert_eq!(
         save::to_vec(&document, &options).unwrap(),

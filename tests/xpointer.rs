@@ -102,9 +102,10 @@ fn pointers_locate_libxml2_nodes() {
 fn pointers_work_on_the_borrowed_dom_and_respect_limits() {
     let document = Document::parse(XML).unwrap();
     assert_eq!(names(&document, "i/2").unwrap(), ["c"]);
-    let limits = Limits {
-        max_operations: 3,
-        ..Limits::default()
+    let limits = {
+        let mut cfg = Limits::default();
+        cfg.max_operations = 3;
+        cfg
     };
     assert!(matches!(
         evaluate(&document, "xpointer(//*)", &limits),

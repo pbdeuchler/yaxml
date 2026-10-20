@@ -229,10 +229,11 @@ fn matches_xmllint() {
                 continue;
             };
             compared += 1;
-            let options = save::Options {
-                flags: mode.flags,
-                encoding: mode.encoding,
-                ..save::Options::default()
+            let options = {
+                let mut cfg = save::Options::default();
+                cfg.flags = mode.flags;
+                cfg.encoding = mode.encoding;
+                cfg
             };
             let ours = save::to_vec(&document, &options);
             if ours.as_deref() == Ok(&theirs[..]) {

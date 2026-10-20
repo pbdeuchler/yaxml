@@ -14,9 +14,10 @@ pub const SURFACES: [&str; 5] = ["reader", "document", "owned", "push", "buffere
 pub const MAX_CASE_BYTES: usize = 1 << 20;
 
 fn limits() -> Limits {
-    Limits {
-        max_input_bytes: MAX_CASE_BYTES,
-        ..Limits::default()
+    {
+        let mut cfg = Limits::default();
+        cfg.max_input_bytes = MAX_CASE_BYTES;
+        cfg
     }
 }
 
@@ -44,9 +45,10 @@ pub fn observe(
             return Ok(options);
         };
         let resolver = FileResolver::new(root).map_err(|error| error.to_string())?;
-        let options = ParseOptions {
-            flags: LEGACY | DTDLOAD,
-            ..options
+        let options = {
+            let mut cfg = options;
+            cfg.flags = LEGACY | DTDLOAD;
+            cfg
         };
         Ok(options.with_resolver(path, Box::new(resolver)))
     };

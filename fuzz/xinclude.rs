@@ -10,27 +10,31 @@ use std::sync::{Arc, Mutex};
 use yaxml::xinclude::{self, ErrorKind, Options};
 use yaxml::{Document, Limits, OwnedDocument, OwnedNodeKind, Request, Resolver, Writer, xpath};
 
-const LIMITS: Limits = Limits {
-    max_input_bytes: 1 << 20,
-    max_token_bytes: 1 << 16,
-    max_depth: 64,
-    max_attributes: 64,
-    max_events: 1 << 14,
-    max_owned_bytes: 1 << 22,
-    max_dtd_bytes: 1 << 16,
-    max_entity_expansion_bytes: 1 << 16,
-    max_entity_amplification: 5,
-    max_entity_references: 1 << 12,
-    max_entity_depth: 8,
-    max_external_loads: 16,
-    max_external_bytes: 1 << 16,
+const LIMITS: Limits = {
+    let mut cfg = Limits::DEFAULT;
+    cfg.max_input_bytes = 1 << 20;
+    cfg.max_token_bytes = 1 << 16;
+    cfg.max_depth = 64;
+    cfg.max_attributes = 64;
+    cfg.max_events = 1 << 14;
+    cfg.max_owned_bytes = 1 << 22;
+    cfg.max_dtd_bytes = 1 << 16;
+    cfg.max_entity_expansion_bytes = 1 << 16;
+    cfg.max_entity_amplification = 5;
+    cfg.max_entity_references = 1 << 12;
+    cfg.max_entity_depth = 8;
+    cfg.max_external_loads = 16;
+    cfg.max_external_bytes = 1 << 16;
+    cfg
 };
 
-const XPATH: xpath::Limits = xpath::Limits {
-    max_expression_bytes: 4096,
-    max_depth: 64,
-    max_operations: 100_000,
-    max_nodes: 10_000,
+const XPATH: xpath::Limits = {
+    let mut cfg = xpath::Limits::DEFAULT;
+    cfg.max_expression_bytes = 4096;
+    cfg.max_depth = 64;
+    cfg.max_operations = 100_000;
+    cfg.max_nodes = 10_000;
+    cfg
 };
 
 const NAMES: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -120,18 +124,21 @@ fn tight(input: &[u8]) -> Options {
     let hash = input.iter().fold(0u32, |hash, &byte| {
         hash.wrapping_mul(31).wrapping_add(byte.into())
     });
-    Options {
-        base_fixup: true,
-        lang_fixup: false,
-        max_depth: (hash >> 20 & 3) as usize,
-        limits: Limits {
-            max_external_loads: (hash & 3) as usize,
-            max_external_bytes: (hash >> 2 & 1023) as usize,
-            max_events: 4 + (hash >> 12 & 63) as usize,
-            ..LIMITS
-        },
-        xpath: XPATH,
-        parse_flags: yaxml::options::LEGACY,
+    {
+        let mut cfg_ = Options::DEFAULT;
+        cfg_.base_fixup = true;
+        cfg_.lang_fixup = false;
+        cfg_.max_depth = (hash >> 20 & 3) as usize;
+        cfg_.limits = {
+            let mut cfg = LIMITS;
+            cfg.max_external_loads = (hash & 3) as usize;
+            cfg.max_external_bytes = (hash >> 2 & 1023) as usize;
+            cfg.max_events = 4 + (hash >> 12 & 63) as usize;
+            cfg
+        };
+        cfg_.xpath = XPATH;
+        cfg_.parse_flags = yaxml::options::LEGACY;
+        cfg_
     }
 }
 
@@ -146,21 +153,24 @@ pub fn exercise(input: &[u8]) {
     ) else {
         return;
     };
-    let options = |base_fixup, lang_fixup| Options {
-        base_fixup,
-        lang_fixup,
-        max_depth: 8,
-        limits: LIMITS,
-        xpath: XPATH,
-        parse_flags: yaxml::options::LEGACY,
+    let options = |base_fixup, lang_fixup| {
+        let mut cfg = Options::DEFAULT;
+        cfg.base_fixup = base_fixup;
+        cfg.lang_fixup = lang_fixup;
+        cfg.max_depth = 8;
+        cfg.limits = LIMITS;
+        cfg.xpath = XPATH;
+        cfg.parse_flags = yaxml::options::LEGACY;
+        cfg
     };
     let (result, requests) = run(&document, &resources, &options(true, false));
     // Processing is deterministic and never changes its input; the default
     // options differ only in a deeper nesting limit.
-    let defaults = Options {
-        limits: LIMITS,
-        xpath: XPATH,
-        ..Options::default()
+    let defaults = {
+        let mut cfg = Options::default();
+        cfg.limits = LIMITS;
+        cfg.xpath = XPATH;
+        cfg
     };
     if result != Err(ErrorKind::RecursionDepth) {
         assert_eq!(

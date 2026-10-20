@@ -10,10 +10,12 @@ use std::sync::{Arc, Mutex};
 use yaxml::catalog::{Catalog, CatalogResolver, Limits};
 use yaxml::{Document, Request, Resolver};
 
-const LIMITS: Limits = Limits {
-    max_loads: 16,
-    max_bytes: 1 << 16,
-    max_depth: 50,
+const LIMITS: Limits = {
+    let mut cfg = Limits::DEFAULT;
+    cfg.max_loads = 16;
+    cfg.max_bytes = 1 << 16;
+    cfg.max_depth = 50;
+    cfg
 };
 
 const NAMES: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -75,10 +77,12 @@ fn tight(input: &[u8]) -> Limits {
     let hash = input.iter().fold(0u32, |hash, &byte| {
         hash.wrapping_mul(31).wrapping_add(byte.into())
     });
-    Limits {
-        max_loads: (hash & 3) as usize,
-        max_bytes: (hash >> 2 & 1023) as usize,
-        max_depth: (hash >> 12 & 3) as usize,
+    {
+        let mut cfg = Limits::DEFAULT;
+        cfg.max_loads = (hash & 3) as usize;
+        cfg.max_bytes = (hash >> 2 & 1023) as usize;
+        cfg.max_depth = (hash >> 12 & 3) as usize;
+        cfg
     }
 }
 
@@ -144,19 +148,21 @@ pub fn exercise(input: &[u8]) {
         (answers, requests)
     );
     run(Some(root), &resources, &queries, tight(input));
-    let defaults = Limits {
-        max_loads: LIMITS.max_loads,
-        max_bytes: LIMITS.max_bytes,
-        ..Limits::default()
+    let defaults = {
+        let mut cfg = Limits::default();
+        cfg.max_loads = LIMITS.max_loads;
+        cfg.max_bytes = LIMITS.max_bytes;
+        cfg
     };
     run(None, &resources, &queries, defaults);
     // Loading the root itself can fail in the resolver or on the load budget.
     let failed = |uri, limits| Catalog::load(uri, limits, resolver(&resources, &Log::default()));
     let io = failed("d/err", defaults).map(drop);
     assert!(matches!(io, Err(yaxml::catalog::Error::Io(_))), "{io:?}");
-    let none = Limits {
-        max_loads: 0,
-        ..defaults
+    let none = {
+        let mut cfg = defaults;
+        cfg.max_loads = 0;
+        cfg
     };
     let limit = failed("d/0", none).map(drop);
     assert_eq!(limit, Err(yaxml::catalog::Error::LimitExceeded));

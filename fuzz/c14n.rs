@@ -98,11 +98,12 @@ fn canonical<T: Tree>(tree: &T, root: T::Id, selector: u8) -> Option<Result<Stri
             Some(xpath.select_nodes(tree, root, &context).ok()?)
         }
     };
-    let options = Options {
-        with_comments: selector & 4 != 0,
-        nodes: nodes.as_deref(),
-        inclusive_prefixes: if selector & 128 != 0 { &PREFIXES } else { &[] },
-        ..Options::new(mode)
+    let options = {
+        let mut cfg = Options::new(mode);
+        cfg.with_comments = selector & 4 != 0;
+        cfg.nodes = nodes.as_deref();
+        cfg.inclusive_prefixes = if selector & 128 != 0 { &PREFIXES } else { &[] };
+        cfg
     };
     let result = c14n::to_string(tree, &options);
     if let Err(error) = &result {

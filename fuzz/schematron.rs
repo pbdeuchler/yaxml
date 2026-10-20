@@ -30,9 +30,10 @@ const MODES: [u32; 6] = [
 ];
 
 fn limits(max_operations: u64) -> Limits {
-    let mut limits = Limits {
-        max_operations,
-        ..Limits::default()
+    let mut limits = {
+        let mut cfg = Limits::default();
+        cfg.max_operations = max_operations;
+        cfg
     };
     limits.xpath.max_operations = 100_000;
     limits.xml.max_external_loads = 0;

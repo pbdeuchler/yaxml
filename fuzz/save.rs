@@ -55,11 +55,13 @@ pub(super) fn exercise(input: &[u8]) {
     } else {
         flags
     };
-    let options = save::Options {
-        flags,
-        encoding: ENCODINGS[(seed >> 8) as usize % ENCODINGS.len()],
-        indent: INDENTS[(seed >> 11) as usize % INDENTS.len()],
-        level: (seed >> 40) as usize % 4,
+    let options = {
+        let mut cfg = save::Options::DEFAULT;
+        cfg.flags = flags;
+        cfg.encoding = ENCODINGS[(seed >> 8) as usize % ENCODINGS.len()];
+        cfg.indent = INDENTS[(seed >> 11) as usize % INDENTS.len()];
+        cfg.level = (seed >> 40) as usize % 4;
+        cfg
     };
     if seed >> 24 & 7 == 0 {
         rejected_options(&owned, seed);
@@ -86,14 +88,11 @@ pub(super) fn exercise(input: &[u8]) {
         .all(|node| node.entity_name().is_none() || node.first_child().is_some());
     match output {
         Ok(_) if !resolvable => {}
-        Ok(output) => fixed_point(
-            &output,
-            parse,
-            &save::Options {
-                encoding: label,
-                ..options
-            },
-        ),
+        Ok(output) => fixed_point(&output, parse, &{
+            let mut cfg = options;
+            cfg.encoding = label;
+            cfg
+        }),
         Err(error) => assert_lossy(error.kind, label),
     }
     // One subtree, chosen by the hash.
@@ -138,14 +137,16 @@ fn rejected_options(owned: &OwnedDocument, seed: u64) {
     let unsupported = Err(ErrorKind::UnsupportedOption);
     let flags = save::Options::new(1 << (11 + (seed >> 29 & 15)));
     assert_eq!(save::to_vec(owned, &flags).map_err(|e| e.kind), unsupported);
-    let bad = save::Options {
-        indent,
-        ..save::Options::new(0)
+    let bad = {
+        let mut cfg = save::Options::new(0);
+        cfg.indent = indent;
+        cfg
     };
     assert_eq!(save::to_vec(owned, &bad).map_err(|e| e.kind), unsupported);
-    let bogus = save::Options {
-        encoding: Some("x-bogus"),
-        ..save::Options::new(0)
+    let bogus = {
+        let mut cfg = save::Options::new(0);
+        cfg.encoding = Some("x-bogus");
+        cfg
     };
     let kind = save::to_vec(owned, &bogus).map_err(|e| e.kind);
     assert_eq!(kind, Err(ErrorKind::UnsupportedEncoding));

@@ -4,13 +4,11 @@ use std::ops::ControlFlow;
 use yaxml::{Error, ErrorKind, Event, Limit, Limits, PushParser, Reader};
 
 fn read_with_limits(input: &str, max_owned_bytes: usize) -> Result<Vec<Event<'_>>, Error> {
-    let mut reader = Reader::with_limits(
-        input.as_bytes(),
-        Limits {
-            max_owned_bytes,
-            ..Limits::default()
-        },
-    )?;
+    let mut reader = Reader::with_limits(input.as_bytes(), {
+        let mut cfg = Limits::default();
+        cfg.max_owned_bytes = max_owned_bytes;
+        cfg
+    })?;
     let mut events = Vec::new();
     while let Some(event) = reader.read_event()? {
         events.push(event);
@@ -167,9 +165,10 @@ impl Encoding {
 }
 
 fn push_result(input: &[u8], split: usize, max_owned_bytes: usize) -> Result<(), Error> {
-    let mut parser = PushParser::with_limits(Limits {
-        max_owned_bytes,
-        ..Limits::default()
+    let mut parser = PushParser::with_limits({
+        let mut cfg = Limits::default();
+        cfg.max_owned_bytes = max_owned_bytes;
+        cfg
     });
     let mut emit = |_: &Event<'_>, _: yaxml::SourceOrigin| ControlFlow::Continue(());
     parser.feed(&input[..split], &mut emit)?;

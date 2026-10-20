@@ -48,9 +48,10 @@ fn namespaces(document: &OwnedDocument, id: OwnedNodeId) -> Vec<(String, String)
 }
 
 fn node(document: &OwnedDocument, node: Node<OwnedNodeId>) -> Vec<u8> {
-    let utf8 = save::Options {
-        encoding: Some("UTF-8"),
-        ..save::Options::new(0)
+    let utf8 = {
+        let mut cfg = save::Options::new(0);
+        cfg.encoding = Some("UTF-8");
+        cfg
     };
     match node {
         Node::Tree(id) => document

@@ -43,10 +43,11 @@ fn limits(input: &[u8]) -> WriterLimits {
     let ceiling = super::expanded_bound(input.len())
         .saturating_mul(6)
         .saturating_add(1024);
-    WriterLimits {
-        max_output_bytes: ceiling,
-        max_token_bytes: ceiling,
-        ..WriterLimits::default()
+    {
+        let mut cfg = WriterLimits::default();
+        cfg.max_output_bytes = ceiling;
+        cfg.max_token_bytes = ceiling;
+        cfg
     }
 }
 
@@ -74,14 +75,12 @@ fn exercise(tree: Tree<'_, '_>, expected: &Document<'_>, input: &[u8]) {
     let output = writer.into_inner();
     assert_eq!(position, output.len());
     assert!(output.len() <= limits.max_output_bytes);
-    let reparsed = Document::with_limits(
-        &output,
-        Limits {
-            max_input_bytes: limits.max_output_bytes,
-            max_token_bytes: limits.max_token_bytes,
-            ..Limits::default()
-        },
-    )
+    let reparsed = Document::with_limits(&output, {
+        let mut cfg = Limits::default();
+        cfg.max_input_bytes = limits.max_output_bytes;
+        cfg.max_token_bytes = limits.max_token_bytes;
+        cfg
+    })
     .unwrap();
     // The writer expands kept entity references: compare with the substituted tree.
     let substituted = expected
@@ -115,30 +114,36 @@ fn limited(tree: Tree<'_, '_>, expected: &[u8], control: u8) {
     let scale = usize::from(control >> 3);
     let generous = WriterLimits::default();
     let limits = match control & 7 {
-        0 => WriterLimits {
-            max_output_bytes: expected.len() * scale / 32,
-            ..generous
-        },
-        1 => WriterLimits {
-            max_token_bytes: expected.len() * scale / 32,
-            ..generous
-        },
-        2 => WriterLimits {
-            max_depth: scale & 7,
-            ..generous
-        },
-        3 => WriterLimits {
-            max_attributes: scale & 3,
-            ..generous
-        },
-        4 => WriterLimits {
-            max_events: scale,
-            ..generous
-        },
-        5 => WriterLimits {
-            max_owned_bytes: expected.len() * scale / 8,
-            ..generous
-        },
+        0 => {
+            let mut cfg = generous;
+            cfg.max_output_bytes = expected.len() * scale / 32;
+            cfg
+        }
+        1 => {
+            let mut cfg = generous;
+            cfg.max_token_bytes = expected.len() * scale / 32;
+            cfg
+        }
+        2 => {
+            let mut cfg = generous;
+            cfg.max_depth = scale & 7;
+            cfg
+        }
+        3 => {
+            let mut cfg = generous;
+            cfg.max_attributes = scale & 3;
+            cfg
+        }
+        4 => {
+            let mut cfg = generous;
+            cfg.max_events = scale;
+            cfg
+        }
+        5 => {
+            let mut cfg = generous;
+            cfg.max_owned_bytes = expected.len() * scale / 8;
+            cfg
+        }
         _ => return,
     };
     let mut writer = Writer::with_limits(Vec::new(), limits);

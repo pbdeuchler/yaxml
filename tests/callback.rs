@@ -85,9 +85,10 @@ fn borrowed_and_buffered_tokens_are_indistinguishable() {
             }
         }
     }
-    let tight = Limits {
-        max_token_bytes: 12,
-        ..Limits::default()
+    let tight = {
+        let mut cfg = Limits::default();
+        cfg.max_token_bytes = 12;
+        cfg
     };
     let cases: &[&[u8]] = &[
         b"<r a='>' b=\"'\">t&amp;x\r\n</r >",

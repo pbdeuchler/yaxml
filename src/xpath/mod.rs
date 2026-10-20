@@ -63,6 +63,7 @@ pub enum Limit {
 
 /// Finite resource ceilings, checked before the work they bound.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Limits {
     /// Bytes in one compiled expression.
     pub max_expression_bytes: usize,
@@ -74,14 +75,18 @@ pub struct Limits {
     pub max_nodes: usize,
 }
 
+impl Limits {
+    pub const DEFAULT: Self = Self {
+        max_expression_bytes: 64 * 1024,
+        max_depth: 200,
+        max_operations: 50_000_000,
+        max_nodes: 10_000_000,
+    };
+}
+
 impl Default for Limits {
     fn default() -> Self {
-        Self {
-            max_expression_bytes: 64 * 1024,
-            max_depth: 200,
-            max_operations: 50_000_000,
-            max_nodes: 10_000_000,
-        }
+        Self::DEFAULT
     }
 }
 

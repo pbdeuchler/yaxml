@@ -23,6 +23,7 @@ pub enum Mode {
 
 /// What to canonicalize and how; the arguments of `xmlC14NDocSaveTo`.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct Options<'a, Id> {
     pub mode: Mode,
     pub with_comments: bool,

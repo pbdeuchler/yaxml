@@ -597,13 +597,11 @@ fn each_limit_is_inclusive_and_counts_encoded_growth() {
             }
         }
     }
-    let mut writer = Writer::with_limits(
-        Vec::new(),
-        WriterLimits {
-            max_output_bytes: 3,
-            ..defaults
-        },
-    );
+    let mut writer = Writer::with_limits(Vec::new(), {
+        let mut cfg = defaults;
+        cfg.max_output_bytes = 3;
+        cfg
+    });
     writer.write_event(&root(true)).unwrap_err();
     assert_eq!(writer.position(), 0);
     assert!(writer.into_inner().is_empty());

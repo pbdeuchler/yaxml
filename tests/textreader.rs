@@ -317,9 +317,10 @@ fn attribute_navigation_follows_libxml2() {
 #[test]
 fn scope_reports_namespaces_language_and_base() {
     let input = "<r xmlns:p='urn:p' xml:lang='en' xml:base='http://h/a/'><s xmlns:p='urn:q' xml:base='b/'>t</s><u xml:lang='' xml:base='urn:x'/></r>";
-    let options = ParseOptions {
-        base: Some("file:///doc.xml".into()),
-        ..ParseOptions::default()
+    let options = {
+        let mut cfg = ParseOptions::default();
+        cfg.base = Some("file:///doc.xml".into());
+        cfg
     };
     let mut reader = TextReader::with_options(input.as_bytes(), options).unwrap();
     let mut seen = Vec::new();
@@ -518,9 +519,10 @@ fn content_strings_cover_each_node_kind() {
 #[test]
 fn subtree_buffering_is_bounded_and_recoverable() {
     let input = format!("<r><big>{}</big><after/></r>", "<i>text</i>".repeat(100));
-    let limits = Limits {
-        max_owned_bytes: 200,
-        ..Limits::default()
+    let limits = {
+        let mut cfg = Limits::default();
+        cfg.max_owned_bytes = 200;
+        cfg
     };
     let mut reader = TextReader::with_limits(input.as_bytes(), limits);
     reader.read().unwrap();

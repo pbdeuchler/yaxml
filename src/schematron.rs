@@ -168,6 +168,7 @@ impl<Id> Validation<Id> {
 
 /// Bounds for parsing a schema and for each validation.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct Limits {
     /// Limits for parsing the schema document.
     pub xml: crate::Limits,
@@ -178,13 +179,17 @@ pub struct Limits {
     pub max_operations: u64,
 }
 
+impl Limits {
+    pub const DEFAULT: Self = Self {
+        xml: crate::Limits::DEFAULT,
+        xpath: xpath::Limits::DEFAULT,
+        max_operations: 500_000_000,
+    };
+}
+
 impl Default for Limits {
     fn default() -> Self {
-        Self {
-            xml: crate::Limits::default(),
-            xpath: xpath::Limits::default(),
-            max_operations: 500_000_000,
-        }
+        Self::DEFAULT
     }
 }
 

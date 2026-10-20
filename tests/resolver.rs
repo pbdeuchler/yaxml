@@ -210,9 +210,10 @@ fn resolver_receives_resolved_uris_public_ids_and_remaining_bytes() {
         ("dir/p.ent", "<!ENTITY g PUBLIC '-//g//EN' '../g.ent'>"),
         ("g.ent", "g"),
     ];
-    let limits = Limits {
-        max_external_bytes: 1000,
-        ..Limits::default()
+    let limits = {
+        let mut cfg = Limits::default();
+        cfg.max_external_bytes = 1000;
+        cfg
     };
     for surface in SURFACES {
         let (result, requests) = run(surface, input, &files, limits);
@@ -340,36 +341,40 @@ fn external_resources_share_the_document_budgets() {
         (
             laughs,
             &files,
-            Limits {
-                max_entity_expansion_bytes: 64 * 1024,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_entity_expansion_bytes = 64 * 1024;
+                cfg
             },
             ErrorKind::LimitExceeded(Limit::EntityExpansion),
         ),
         (
             "<!DOCTYPE r [<!ENTITY a SYSTEM 'a'><!ENTITY b SYSTEM 'b'>]><r>&a;&b;</r>".into(),
             &[("dir/a", "1"), ("dir/b", "2")],
-            Limits {
-                max_external_loads: 1,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_external_loads = 1;
+                cfg
             },
             ErrorKind::LimitExceeded(Limit::ExternalLoads),
         ),
         (
             "<!DOCTYPE r [<!ENTITY a SYSTEM 'a'>]><r>&a;</r>".into(),
             &[("dir/a", "huge")],
-            Limits {
-                max_external_bytes: 3,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_external_bytes = 3;
+                cfg
             },
             ErrorKind::LimitExceeded(Limit::ExternalBytes),
         ),
         (
             "<!DOCTYPE r [<!ENTITY % a SYSTEM 'a'>%a;]><r/>".into(),
             &[("dir/a", "<!ENTITY % b SYSTEM 'b'>%b;"), ("dir/b", "")],
-            Limits {
-                max_entity_depth: 1,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_entity_depth = 1;
+                cfg
             },
             ErrorKind::LimitExceeded(Limit::EntityDepth),
         ),
@@ -379,9 +384,10 @@ fn external_resources_share_the_document_budgets() {
                 "dir/s",
                 "<!ENTITY e 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'>",
             )],
-            Limits {
-                max_token_bytes: 32,
-                ..Limits::default()
+            {
+                let mut cfg = Limits::default();
+                cfg.max_token_bytes = 32;
+                cfg
             },
             ErrorKind::LimitExceeded(Limit::TokenBytes),
         ),
@@ -390,10 +396,11 @@ fn external_resources_share_the_document_budgets() {
         assert_eq!(all(&input, files, limits), Err(kind), "{input}");
     }
     // At the ceilings, the same kind of document succeeds.
-    let ok = Limits {
-        max_external_loads: 2,
-        max_external_bytes: 2,
-        ..Limits::default()
+    let ok = {
+        let mut cfg = Limits::default();
+        cfg.max_external_loads = 2;
+        cfg.max_external_bytes = 2;
+        cfg
     };
     let input = "<!DOCTYPE r [<!ENTITY a SYSTEM 'a'><!ENTITY b SYSTEM 'b'>]><r>&a;&b;</r>";
     assert_eq!(

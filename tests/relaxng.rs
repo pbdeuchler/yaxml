@@ -859,12 +859,14 @@ fn include_and_external_ref_load_through_the_resolver() {
     .unwrap_err();
     assert_eq!(error.0[0].code, SchemaCode::ExternalRefRecurse);
 
-    let limited = Limits {
-        xml: yaxml::Limits {
-            max_external_loads: 1,
-            ..Default::default()
-        },
-        ..Default::default()
+    let limited = {
+        let mut cfg_ = Limits::DEFAULT;
+        cfg_.xml = {
+            let mut cfg = yaxml::Limits::DEFAULT;
+            cfg.max_external_loads = 1;
+            cfg
+        };
+        cfg_
     };
     let error =
         Schema::parse(main.as_bytes(), "main.rng", map_resolver(files), &limited).unwrap_err();
@@ -933,9 +935,10 @@ fn pathological_schemas_stay_bounded() {
     assert!(codes(&schema, &long).is_empty());
 
     // Exhausted budgets: building fails, validation stops with one diagnostic.
-    let tight = |max_work| Limits {
-        max_work,
-        ..Default::default()
+    let tight = |max_work| {
+        let mut cfg = Limits::DEFAULT;
+        cfg.max_work = max_work;
+        cfg
     };
     let error = Schema::parse(interleave.as_bytes(), "s", none(), &tight(100)).unwrap_err();
     assert_eq!(error.0[0].code, SchemaCode::ResourceLimit);

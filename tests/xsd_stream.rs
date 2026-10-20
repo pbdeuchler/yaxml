@@ -326,9 +326,10 @@ fn diagnostics_name_elements_by_document_order() {
 
 #[test]
 fn identity_constraint_tables_are_bounded() {
-    let limits = Limits {
-        max_idc_keys: 2,
-        ..Limits::default()
+    let limits = {
+        let mut cfg = Limits::default();
+        cfg.max_idc_keys = 2;
+        cfg
     };
     let schema = schema_with(KEYS, limits);
     for (instance, want) in [

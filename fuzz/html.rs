@@ -43,7 +43,12 @@ fn options(seed: u64) -> Options {
             limits.max_input_bytes = (seed >> 29 & 255) as usize;
         }
     }
-    Options { flags, limits }
+    {
+        let mut cfg = Options::DEFAULT;
+        cfg.flags = flags;
+        cfg.limits = limits;
+        cfg
+    }
 }
 
 fn allowed(error: Error) {

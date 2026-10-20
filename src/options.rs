@@ -109,13 +109,19 @@ const KNOWN: u32 = (1 << 28) - 1;
 /// flags request (`DTDLOAD`, `DTDATTR`, `DTDVALID`, `NOENT`, `XINCLUDE`)
 /// and never with `NO_XXE`; `base` is the document's URI or path, against
 /// which relative system identifiers resolve.
-#[derive(Default)]
+#[non_exhaustive]
 pub struct ParseOptions {
     pub flags: u32,
     pub limits: Limits,
     pub decode_limits: DecodeLimits,
     pub base: Option<String>,
     pub resolver: Option<Box<dyn Resolver>>,
+}
+
+impl Default for ParseOptions {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
 }
 
 impl fmt::Debug for ParseOptions {
@@ -131,6 +137,14 @@ impl fmt::Debug for ParseOptions {
 }
 
 impl ParseOptions {
+    pub const DEFAULT: Self = Self {
+        flags: 0,
+        limits: Limits::DEFAULT,
+        decode_limits: DecodeLimits::DEFAULT,
+        base: None,
+        resolver: None,
+    };
+
     pub fn new(flags: u32) -> Self {
         Self {
             flags,

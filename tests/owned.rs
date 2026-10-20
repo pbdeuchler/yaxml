@@ -511,9 +511,10 @@ fn parser_normalization_and_pool_reservations_share_one_cumulative_budget() {
         ("<r a='&#9;'/>", 10, None),
     ] {
         for ceiling in [boundary - 1, boundary, boundary + 1] {
-            let limits = Limits {
-                max_owned_bytes: ceiling,
-                ..Limits::default()
+            let limits = {
+                let mut cfg = Limits::default();
+                cfg.max_owned_bytes = ceiling;
+                cfg
             };
             let result = OwnedDocument::with_limits(input.as_bytes(), limits);
             if ceiling < boundary {
@@ -532,9 +533,10 @@ fn parser_normalization_and_pool_reservations_share_one_cumulative_budget() {
             }
         }
     }
-    let parser_only = Limits {
-        max_owned_bytes: 5,
-        ..Limits::default()
+    let parser_only = {
+        let mut cfg = Limits::default();
+        cfg.max_owned_bytes = 5;
+        cfg
     };
     assert!(Document::with_limits(b"<r>&amp;</r>", parser_only).is_ok());
     assert_eq!(
@@ -545,9 +547,10 @@ fn parser_normalization_and_pool_reservations_share_one_cumulative_budget() {
     );
     let uri = format!("urn:{}", "🙂".repeat(256));
     let input = format!("<p:r xmlns:p='{uri}' p:a='v'/>");
-    let limits = Limits {
-        max_owned_bytes: uri.len() - 1,
-        ..Limits::default()
+    let limits = {
+        let mut cfg = Limits::default();
+        cfg.max_owned_bytes = uri.len() - 1;
+        cfg
     };
     assert!(Document::with_limits(input.as_bytes(), limits).is_ok());
     assert_eq!(
@@ -570,9 +573,10 @@ fn generated_topology_and_deep_wide_destruction_are_iterative() {
                     "<leaf/>".repeat(width),
                     "</r>".repeat(depth)
                 );
-                let limits = Limits {
-                    max_depth: depth + 1,
-                    ..Limits::default()
+                let limits = {
+                    let mut cfg = Limits::default();
+                    cfg.max_depth = depth + 1;
+                    cfg
                 };
                 let document = OwnedDocument::with_limits(input.as_bytes(), limits).unwrap();
                 drop(input);

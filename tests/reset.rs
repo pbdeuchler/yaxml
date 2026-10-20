@@ -43,12 +43,13 @@ fn options(limits: Limits, flags: u32) -> ParseOptions {
 }
 
 fn strict() -> Limits {
-    Limits {
-        max_depth: 4,
-        max_events: 8,
-        max_input_bytes: 60,
-        max_owned_bytes: 64,
-        ..Limits::default()
+    {
+        let mut cfg = Limits::default();
+        cfg.max_depth = 4;
+        cfg.max_events = 8;
+        cfg.max_input_bytes = 60;
+        cfg.max_owned_bytes = 64;
+        cfg
     }
 }
 
@@ -194,9 +195,10 @@ const EXTERNAL: &[u8] = b"<!DOCTYPE r SYSTEM 's.dtd'><r/>";
 fn reset_drops_the_resolver_and_its_load_budget() {
     let flags = LEGACY | DTDLOAD;
     let count = Arc::new(AtomicUsize::new(0));
-    let one_load = Limits {
-        max_external_loads: 1,
-        ..Limits::default()
+    let one_load = {
+        let mut cfg = Limits::default();
+        cfg.max_external_loads = 1;
+        cfg
     };
     let resolving =
         |c: &Arc<AtomicUsize>| options(one_load, flags).with_resolver("d/doc.xml", counting(c));
@@ -218,9 +220,10 @@ fn reset_drops_the_resolver_and_its_load_budget() {
     }
 
     // The load limit still applies to the new document: zero loads allowed.
-    let none = Limits {
-        max_external_loads: 0,
-        ..one_load
+    let none = {
+        let mut cfg = one_load;
+        cfg.max_external_loads = 0;
+        cfg
     };
     parser
         .reset_with(options(none, flags).with_resolver("d/doc.xml", counting(&count)))
@@ -308,9 +311,10 @@ fn buffered_reader_reset_clears_failures_and_returns_the_source() {
     // Limits persist across reset and are replaced by reset_with.
     let mut reader = BufferedReader::with_options(
         flaky(b"<a><b/></a>", false),
-        ParseOptions::default().with_limits(Limits {
-            max_events: 2,
-            ..Limits::default()
+        ParseOptions::default().with_limits({
+            let mut cfg = Limits::default();
+            cfg.max_events = 2;
+            cfg
         }),
     )
     .unwrap();
@@ -351,9 +355,10 @@ fn text_reader_reset_starts_a_clean_document() {
     assert_eq!(names(&mut reader).unwrap(), ["r", "i", "#text", "r"]);
 
     // reset_with replaces the document URI and options.
-    let options = ParseOptions {
-        base: Some("n.xml".into()),
-        ..ParseOptions::default()
+    let options = {
+        let mut cfg = ParseOptions::default();
+        cfg.base = Some("n.xml".into());
+        cfg
     };
     reader
         .reset_with(Cursor::new(b"<r/>".as_slice()), options)

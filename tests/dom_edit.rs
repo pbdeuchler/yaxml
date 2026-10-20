@@ -199,9 +199,10 @@ fn base_lang_and_space_inherit_with_libxml2_rules() {
 #[test]
 fn base_resolves_against_the_document_url() {
     let xml = b"<r xml:base='sub/'><a xml:base='f.xml'/><b/></r>";
-    let options = || ParseOptions {
-        base: Some("/doc/main.xml".to_owned()),
-        ..ParseOptions::default()
+    let options = || {
+        let mut cfg = ParseOptions::default();
+        cfg.base = Some("/doc/main.xml".to_owned());
+        cfg
     };
     let borrowed = Document::parse_with(xml, options()).unwrap();
     let owned = OwnedDocument::parse_with(xml, options()).unwrap();
@@ -218,9 +219,10 @@ fn base_resolves_against_the_document_url() {
         .set_url(None)
         .unwrap();
     assert_eq!(owned.root().base_uri(), None);
-    let limits = EditLimits {
-        max_value_bytes: 2,
-        ..EditLimits::default()
+    let limits = {
+        let mut cfg = EditLimits::default();
+        cfg.max_value_bytes = 2;
+        cfg
     };
     let error = owned
         .edit(limits)
@@ -948,9 +950,10 @@ fn merged_text_removes_the_moved_node() {
     assert_eq!(editor.append_child(r, first).unwrap(), last);
     assert!(editor.document().node(first).is_none());
     assert_eq!(editor.document().node(last).unwrap().text(), Some("ca"));
-    let limits = EditLimits {
-        max_value_bytes: 2,
-        ..EditLimits::default()
+    let limits = {
+        let mut cfg = EditLimits::default();
+        cfg.max_value_bytes = 2;
+        cfg
     };
     let t = editor.append_text(r, "x").unwrap();
     let b = at(editor.document(), "/r/b");
@@ -970,35 +973,39 @@ fn merged_text_removes_the_moved_node() {
 #[test]
 fn moves_respect_depth_namespace_work_and_attribute_quotas() {
     let deep = "<r><a><b><c/></b></a><d><e/></d></r>";
-    let limits = EditLimits {
-        max_depth: 5,
-        ..EditLimits::default()
+    let limits = {
+        let mut cfg = EditLimits::default();
+        cfg.max_depth = 5;
+        cfg
     };
     let mut document = parse(deep);
     let error = apply(&mut document, Op::Append("/r/d/e", "/r/a"), limits).unwrap_err();
     assert_eq!(error.kind, EditErrorKind::LimitExceeded(EditLimit::Depth));
     apply(&mut document, Op::Append("/r/d", "/r/a"), limits).unwrap();
     // Shallower and equal-depth moves stay allowed above the ceiling.
-    let tight = EditLimits {
-        max_depth: 1,
-        ..EditLimits::default()
+    let tight = {
+        let mut cfg = EditLimits::default();
+        cfg.max_depth = 1;
+        cfg
     };
     apply(&mut document, Op::Append("/r", "/r/d"), tight).unwrap();
 
     let namespaced = "<r><p:a xmlns:p='urn:p'><p:b/></p:a><c/></r>";
     let mut document = parse(namespaced);
-    let work = EditLimits {
-        max_namespace_work: 2,
-        ..EditLimits::default()
+    let work = {
+        let mut cfg = EditLimits::default();
+        cfg.max_namespace_work = 2;
+        cfg
     };
     let error = apply(&mut document, Op::Append("/r/c", "/r/p:a/p:b"), work).unwrap_err();
     assert_eq!(
         error.kind,
         EditErrorKind::LimitExceeded(EditLimit::NamespaceWork)
     );
-    let created = EditLimits {
-        max_created_attributes: 0,
-        ..EditLimits::default()
+    let created = {
+        let mut cfg = EditLimits::default();
+        cfg.max_created_attributes = 0;
+        cfg
     };
     let error = apply(&mut document, Op::Append("/r/c", "/r/p:a/p:b"), created).unwrap_err();
     assert_eq!(
@@ -1029,9 +1036,10 @@ fn moves_respect_depth_namespace_work_and_attribute_quotas() {
         written(&document),
         "<r><p:a xmlns:p=\"urn:p\"><p:b/></p:a><c/></r>"
     );
-    let names = EditLimits {
-        max_name_bytes: 1,
-        ..EditLimits::default()
+    let names = {
+        let mut cfg = EditLimits::default();
+        cfg.max_name_bytes = 1;
+        cfg
     };
     let error = apply(
         &mut document,
@@ -1043,9 +1051,10 @@ fn moves_respect_depth_namespace_work_and_attribute_quotas() {
         error.kind,
         EditErrorKind::LimitExceeded(EditLimit::NameBytes)
     );
-    let bytes = EditLimits {
-        max_owned_bytes: 0,
-        ..EditLimits::default()
+    let bytes = {
+        let mut cfg = EditLimits::default();
+        cfg.max_owned_bytes = 0;
+        cfg
     };
     let long = "l".repeat(64 * 1024);
     let root = document.root_element().id();
@@ -1082,9 +1091,10 @@ fn compaction_reclaims_storage_and_keeps_handles() {
         OwnedDocument::parse_with(input.as_bytes(), ParseOptions::default()).unwrap();
     let (r, b) = (at(&document, "/r"), at(&document, "/r/b"));
     let text = at(&document, "/r/b/text()");
-    let limits = EditLimits {
-        max_owned_bytes: 4096,
-        ..EditLimits::default()
+    let limits = {
+        let mut cfg = EditLimits::default();
+        cfg.max_owned_bytes = 4096;
+        cfg
     };
     let mut editor = document.edit(limits).unwrap();
     for round in 0..200 {

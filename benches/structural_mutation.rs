@@ -250,13 +250,15 @@ fn measure(
     };
     let input = encode(&xml, encoding);
     let max_depth = depth.checked_add(2).expect("depth overflow");
-    let parse = Limits {
-        max_depth,
-        ..Limits::default()
+    let parse = {
+        let mut cfg = Limits::default();
+        cfg.max_depth = max_depth;
+        cfg
     };
-    let output = WriterLimits {
-        max_depth,
-        ..WriterLimits::default()
+    let output = {
+        let mut cfg = WriterLimits::default();
+        cfg.max_depth = max_depth;
+        cfg
     };
 
     let mut setup = Duration::ZERO;
@@ -607,20 +609,21 @@ fn main() {
             "YAXML_STRUCTURE_SERIALIZATION_PASSES",
             if debug { 1 } else { 4 },
         ),
-        edit: EditLimits {
-            max_value_bytes: number(
+        edit: {
+            let mut cfg = EditLimits::default();
+            cfg.max_value_bytes = number(
                 "YAXML_STRUCTURE_MAX_VALUE_BYTES",
                 EditLimits::default().max_value_bytes,
-            ),
-            max_owned_bytes: number(
+            );
+            cfg.max_owned_bytes = number(
                 "YAXML_STRUCTURE_MAX_OWNED_BYTES",
                 EditLimits::default().max_owned_bytes,
-            ),
-            max_created_nodes: number(
+            );
+            cfg.max_created_nodes = number(
                 "YAXML_STRUCTURE_MAX_CREATED_NODES",
                 EditLimits::default().max_created_nodes,
-            ),
-            ..EditLimits::default()
+            );
+            cfg
         },
     };
     if export_path.is_some() {

@@ -458,15 +458,17 @@ fn entity_amplification_and_dtd_ceilings_are_enforced() {
         ErrorKind::LimitExceeded(Limit::EntityExpansion)
     );
     // Every surface enforces the same ceilings.
-    let small = Limits {
-        max_entity_references: 50,
-        max_entity_expansion_bytes: 100,
-        max_entity_amplification: 0,
-        ..Limits::default()
+    let small = {
+        let mut cfg = Limits::default();
+        cfg.max_entity_references = 50;
+        cfg.max_entity_expansion_bytes = 100;
+        cfg.max_entity_amplification = 0;
+        cfg
     };
-    let few = Limits {
-        max_entity_references: 50,
-        ..Limits::default()
+    let few = {
+        let mut cfg = Limits::default();
+        cfg.max_entity_references = 50;
+        cfg
     };
     assert_eq!(
         limited(&laughs, few),
@@ -479,27 +481,27 @@ fn entity_amplification_and_dtd_ceilings_are_enforced() {
         ErrorKind::LimitExceeded(Limit::EntityExpansion)
     );
     let nested = "<!DOCTYPE r [<!ENTITY a '&b;'><!ENTITY b '&c;'><!ENTITY c 'x'>]><r>&a;</r>";
-    let depth = Limits {
-        max_entity_depth: 2,
-        ..Limits::default()
+    let depth = {
+        let mut cfg = Limits::default();
+        cfg.max_entity_depth = 2;
+        cfg
     };
     assert_eq!(
         limited(nested, depth),
         ErrorKind::LimitExceeded(Limit::EntityDepth)
     );
     assert!(
-        all(
-            nested.as_bytes(),
-            Limits {
-                max_entity_depth: 3,
-                ..depth
-            }
-        )
+        all(nested.as_bytes(), {
+            let mut cfg = depth;
+            cfg.max_entity_depth = 3;
+            cfg
+        })
         .is_ok()
     );
-    let dtd = Limits {
-        max_dtd_bytes: 20,
-        ..Limits::default()
+    let dtd = {
+        let mut cfg = Limits::default();
+        cfg.max_dtd_bytes = 20;
+        cfg
     };
     assert_eq!(
         limited("<!DOCTYPE r [<!ENTITY e 'x'>]><r/>", dtd),
@@ -507,10 +509,11 @@ fn entity_amplification_and_dtd_ceilings_are_enforced() {
     );
     assert!(all(b"<!DOCTYPE r [ ]><r/>", dtd).is_ok());
     // One use costs its three replacement bytes plus libxml2's fixed 20.
-    let expansion = Limits {
-        max_entity_expansion_bytes: 23,
-        max_entity_amplification: 0,
-        ..Limits::default()
+    let expansion = {
+        let mut cfg = Limits::default();
+        cfg.max_entity_expansion_bytes = 23;
+        cfg.max_entity_amplification = 0;
+        cfg
     };
     let three = "<!DOCTYPE r [<!ENTITY e 'xyz'>]><r>&e;</r>";
     assert!(all(three.as_bytes(), expansion).is_ok());
@@ -518,9 +521,10 @@ fn entity_amplification_and_dtd_ceilings_are_enforced() {
         limited(&three.replace("&e;", "&e;&e;"), expansion),
         ErrorKind::LimitExceeded(Limit::EntityExpansion)
     );
-    let one = Limits {
-        max_entity_references: 1,
-        ..Limits::default()
+    let one = {
+        let mut cfg = Limits::default();
+        cfg.max_entity_references = 1;
+        cfg
     };
     assert!(all(three.as_bytes(), one).is_ok());
     assert_eq!(
@@ -834,93 +838,110 @@ fn declaration_token_and_default_ceilings_fail_identically() {
         ),
         (
             "<!DOCTYPE r [<!ATTLIST r a CDATA 'x'><!ATTLIST r b CDATA 'y'>]><r/>",
-            Limits {
-                max_attributes: 1,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_attributes = 1;
+                cfg
             },
             LimitExceeded(Limit::Attributes),
             63,
         ),
         (
             "<!DOCTYPE r [<!ATTLIST r a CDATA 'x'>]><r c='z'/>",
-            Limits {
-                max_attributes: 1,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_attributes = 1;
+                cfg
             },
             LimitExceeded(Limit::Attributes),
             39,
         ),
         (
             "<!DOCTYPE r [<!ELEMENT r ((((a))))>]><r/>",
-            Limits { max_depth: 2, ..d },
+            {
+                let mut cfg = d;
+                cfg.max_depth = 2;
+                cfg
+            },
             LimitExceeded(Limit::Depth),
             27,
         ),
         (
             "<!DOCTYPE r [<!ELEMENT r (#PCDATA)>]><r/>",
-            Limits { max_depth: 0, ..d },
+            {
+                let mut cfg = d;
+                cfg.max_depth = 0;
+                cfg
+            },
             LimitExceeded(Limit::Depth),
             25,
         ),
         (
             &long_reference,
-            Limits {
-                max_token_bytes: 32,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_token_bytes = 32;
+                cfg
             },
             LimitExceeded(Limit::TokenBytes),
             33,
         ),
         (
             "<!DOCTYPE r [<!ENTITY a 'x'>]><r>xxxxxxxxxxxxxxxxxxxxxxxxxxxx&#x41;</r>",
-            Limits {
-                max_token_bytes: 32,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_token_bytes = 32;
+                cfg
             },
             LimitExceeded(Limit::TokenBytes),
             33,
         ),
         (
             "<!DOCTYPE r [<!ENTITY a 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx&#x41;'>]><r>&a;</r>",
-            Limits {
-                max_token_bytes: 32,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_token_bytes = 32;
+                cfg
             },
             LimitExceeded(Limit::TokenBytes),
             45,
         ),
         (
             &long_value,
-            Limits {
-                max_token_bytes: 32,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_token_bytes = 32;
+                cfg
             },
             LimitExceeded(Limit::TokenBytes),
             45,
         ),
         (
             "<!DOCTYPE r [<!-- a long comment here -->]><r/>",
-            Limits {
-                max_dtd_bytes: 20,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_dtd_bytes = 20;
+                cfg
             },
             LimitExceeded(Limit::DtdBytes),
             20,
         ),
         (
             "<!DOCTYPE r [<!ENTITY e 'xyz'>]><r>&e;&e;</r>",
-            Limits {
-                max_entity_references: 1,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_entity_references = 1;
+                cfg
             },
             LimitExceeded(Limit::EntityReferences),
             38,
         ),
         (
             "<!DOCTYPE r [<!ENTITY e 'xyz'>]><r a='&e;&e;'/>",
-            Limits {
-                max_entity_references: 1,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_entity_references = 1;
+                cfg
             },
             LimitExceeded(Limit::EntityReferences),
             41,
@@ -933,9 +954,10 @@ fn declaration_token_and_default_ceilings_fail_identically() {
         ),
         (
             "<!DOCTYPE r [<!ENTITY % p ''>%p;%p;]><r/>",
-            Limits {
-                max_entity_references: 1,
-                ..d
+            {
+                let mut cfg = d;
+                cfg.max_entity_references = 1;
+                cfg
             },
             LimitExceeded(Limit::EntityReferences),
             32,
@@ -952,9 +974,10 @@ fn declaration_token_and_default_ceilings_fail_identically() {
     // surfaces copy names too, so they stop earlier.
     let input = b"<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]>\
         <r a='   xxxxxxxxxxxxxxxxxxxxxxxx    yyyyyyyyyyyyyyyyyyyyy   '/>";
-    let owned = Limits {
-        max_owned_bytes: 60,
-        ..d
+    let owned = {
+        let mut cfg = d;
+        cfg.max_owned_bytes = 60;
+        cfg
     };
     let error = |offset| {
         Err(Error {
@@ -972,13 +995,15 @@ fn dtd_bytes_bound_only_the_doctype_and_input_bytes_the_document() {
     let body = "<e a='v'>text &e;</e>".repeat(20);
     let small = format!("<!DOCTYPE r [<!ENTITY e 'x'>]><r>{body}</r>");
     let large = format!("<!DOCTYPE r [<!ENTITY e '{}'>]><r>&e;</r>", "x".repeat(200));
-    let dtd = |max_dtd_bytes| Limits {
-        max_dtd_bytes,
-        ..Limits::default()
+    let dtd = |max_dtd_bytes| {
+        let mut cfg = Limits::default();
+        cfg.max_dtd_bytes = max_dtd_bytes;
+        cfg
     };
-    let input = Limits {
-        max_input_bytes: small.len() - 1,
-        ..Limits::default()
+    let input = {
+        let mut cfg = Limits::default();
+        cfg.max_input_bytes = small.len() - 1;
+        cfg
     };
     type Case<'a> = (&'a str, Limits, Option<(ErrorKind, usize)>);
     let cases: &[Case<'_>] = &[

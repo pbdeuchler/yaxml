@@ -55,11 +55,12 @@ fn canonical<T: Tree>(
             .select_nodes(tree, root, &context)
             .expect("expression selects nodes")
     });
-    let options = Options {
-        with_comments,
-        nodes: nodes.as_deref(),
-        inclusive_prefixes: prefixes,
-        ..Options::new(mode)
+    let options = {
+        let mut cfg = Options::new(mode);
+        cfg.with_comments = with_comments;
+        cfg.nodes = nodes.as_deref();
+        cfg.inclusive_prefixes = prefixes;
+        cfg
     };
     c14n::to_string(tree, &options)
 }

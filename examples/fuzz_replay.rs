@@ -227,14 +227,12 @@ fn serialize_for_oracle(input: &[u8]) -> io::Result<Option<Vec<u8>>> {
     // UTF-16 can decode to at most three UTF-8 bytes per code unit; escaping a
     // quote can then expand sixfold. The input is already capped at one MiB.
     let ceiling = input.len().saturating_mul(9).saturating_add(1024);
-    let mut writer = Writer::with_limits(
-        Vec::new(),
-        WriterLimits {
-            max_output_bytes: ceiling,
-            max_token_bytes: ceiling,
-            ..WriterLimits::default()
-        },
-    );
+    let mut writer = Writer::with_limits(Vec::new(), {
+        let mut cfg = WriterLimits::default();
+        cfg.max_output_bytes = ceiling;
+        cfg.max_token_bytes = ceiling;
+        cfg
+    });
     let result = match Document::parse_bytes(input) {
         Ok(document) => writer.write_document(&document),
         Err(_) => match OwnedDocument::parse_bytes(input) {
