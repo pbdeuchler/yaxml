@@ -1239,7 +1239,10 @@ fn pull_reader_events_and_errors() {
         .collect();
     assert_eq!(list, expected);
     assert_eq!(events("<r><a></b></r>", 0), Err((ERR_XML, 76)));
-    assert_eq!(events("<r/>", 1), Err((ERR_XML, 115)));
+    // RECOVER: `</b>` ends `a`; DTDVALID needs a tree.
+    let recovered = events("<r><a></b></r>", 1).map(|list| list.len());
+    assert_eq!(recovered, Ok(4));
+    assert_eq!(events("<r/>", 1 << 4), Err((ERR_XML, 115)));
     let mut err = yaxml_error::default();
     let mut event = yaxml_event::default();
     // SAFETY: handles are checked.

@@ -261,19 +261,9 @@ impl<'input> Document<'input> {
                 }
             }
         };
-        // Recovery stops at an error no site repairs, closing what is open
-        // where reading stopped (an element opened by entity replacement text
-        // keeps its span there).
+        // Recovery stops at an error no site repairs; the reader closed what
+        // was open.
         document.errors = Budget::conclude(reader.budget(), end)?;
-        let stop = SourceOrigin::input(reader.position()..reader.position());
-        let count = document.nodes.len();
-        for id in parents {
-            let record = &mut document.nodes[id.0];
-            record.subtree_end = count;
-            if let NodeKind::Element(_) = record.kind {
-                record.origin = record.origin.close_element(stop);
-            }
-        }
         // Recovery keeps a document without an element, as libxml2 does
         // unless the input is empty (otherwise the reader failed already).
         if document.root_element == NodeId(0) && length == 0 {

@@ -123,7 +123,7 @@ pub const LEGACY: u32 = NOENT | DTDATTR;
 /// Flags with no implementation on any surface.
 const NEVER: u32 = OLD10 | OLDSAX | UNZIP;
 /// Flags only a tree can implement.
-const TREE_ONLY: u32 = RECOVER | DTDVALID | NOBLANKS | XINCLUDE;
+const TREE_ONLY: u32 = DTDVALID | XINCLUDE;
 const KNOWN: u32 = (1 << 28) - 1;
 
 /// Parser flags, resource ceilings and the resource loader.

@@ -38,9 +38,9 @@ fn node(depth: usize, kind: NodeType, name: &str, value: Option<&str>) -> Node {
     }
 }
 
-/// The expected nodes, or None when the slice reader rejects the input.
-fn reference(input: &[u8]) -> Option<Vec<Node>> {
-    let mut reader = Reader::new(input).ok()?;
+/// The expected nodes under `flags`, or None when the slice reader rejects the input.
+fn reference(input: &[u8], flags: u32) -> Option<Vec<Node>> {
+    let mut reader = Reader::with_options(input, ParseOptions::new(flags)).ok()?;
     let (mut nodes, mut depth, mut hidden) = (Vec::<Node>::new(), 0, 0_usize);
     while let Some(event) = reader.read_event().ok()? {
         // The reader does not visit entity-reference content.
@@ -144,7 +144,9 @@ impl BufRead for Trickle<'_> {
     }
 }
 
-fn current<R: BufRead>(reader: &mut TextReader<R>) -> Node {
+/// The current node; `probe`d unless recovering, where an unbound prefix
+/// leaves a qualified attribute name unresolvable (as in libxml2).
+fn current<R: BufRead>(reader: &mut TextReader<R>, recovering: bool) -> Node {
     let mut node = node(
         reader.depth(),
         reader.node_type(),
@@ -164,7 +166,9 @@ fn current<R: BufRead>(reader: &mut TextReader<R>) -> Node {
     if node.kind == NodeType::Element {
         assert_eq!(reader.has_attributes(), !node.attributes.is_empty());
     }
-    probe(reader);
+    if !recovering {
+        probe(reader);
+    }
     node
 }
 
@@ -451,19 +455,26 @@ pub fn exercise(input: &[u8]) {
     if special(control, document) {
         return;
     }
-    let expected = reference(document);
+    // Mode 3 recovers; its trees need not reparse, so content is not checked.
+    let flags = if control >> 5 == 3 {
+        options::RECOVER
+    } else {
+        0
+    };
+    let comparable = flags == 0 || super::recover::comparable(document);
+    let expected = reference(document, flags).filter(|_| comparable);
     let trickle = control & 1 != 0;
     let mut nodes = Vec::new();
     let failed = if trickle {
         walk(
-            TextReader::new(Trickle(document)),
+            TextReader::with_options(Trickle(document), ParseOptions::new(flags)).unwrap(),
             control,
             expected.as_deref(),
             &mut nodes,
         )
     } else {
         let base = (control >> 5 == 4).then(|| "http://h/d/doc.xml".to_owned());
-        let options = ParseOptions::default().base(base);
+        let options = ParseOptions::new(flags).base(base);
         walk(
             TextReader::with_options(document, options).unwrap(),
             control,
@@ -478,18 +489,23 @@ pub fn exercise(input: &[u8]) {
         }
         // Slice validation rejects encodings and characters before any event,
         // so a streamed prefix is not compared.
-        None => assert!(failed || slice_rejects_encoding(document)),
+        None => assert!(failed || !comparable || slice_rejects_encoding(document)),
     }
     if control & 0x0e == 0x0e {
         validated(document, control);
     }
     if let Some(expected) = &expected {
-        let mut reader = TextReader::new(document);
+        let mut reader = TextReader::with_options(document, ParseOptions::new(flags)).unwrap();
         let mut skipped = Vec::new();
         let mut more = reader.read().expect("accepted input");
         while more {
             skipped.push(reader.name().expect("named node").to_owned());
             more = reader.next().expect("accepted input");
+        }
+        if flags != 0 {
+            let mut slice = Reader::with_options(document, ParseOptions::new(flags)).unwrap();
+            while slice.read_event().unwrap().is_some() {}
+            assert_eq!(reader.errors(), slice.errors(), "recovered errors differ");
         }
         let top: Vec<_> = expected
             .iter()
@@ -534,14 +550,15 @@ fn walk<R: BufRead>(
                 return true;
             }
         }
-        let node = current(&mut reader);
+        let recovering = control >> 5 == 3;
+        let node = current(&mut reader, recovering);
         let reference = expected.and_then(|expected| expected.get(nodes.len()..));
         if let Some(reference) = reference.filter(|reference| !reference.is_empty()) {
             let check = control.rotate_left(nodes.len() as u32);
-            if check & 2 != 0 {
+            if check & 2 != 0 && !recovering {
                 navigate(&mut reader, &reference[0].attributes);
             }
-            if check & 4 != 0 && content(&mut reader, reference).is_err() {
+            if check & 4 != 0 && !recovering && content(&mut reader, reference).is_err() {
                 return true;
             }
         }
@@ -581,7 +598,7 @@ fn validated(document: &[u8], control: u8) {
     let state = Err(ErrorKind::InvalidState);
     assert_eq!(reader.relaxng_set_schema(None).map_err(|e| e.kind), state);
     assert_eq!(reader.xsd_set_schema(None).map_err(|e| e.kind), state);
-    let tree_only = ParseOptions::new(options::RECOVER);
+    let tree_only = ParseOptions::new(options::XINCLUDE);
     let rejected = TextReader::with_options(document, tree_only).map(drop);
     assert_eq!(
         rejected.map_err(|e| e.kind),

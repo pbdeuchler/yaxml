@@ -60,18 +60,22 @@ fn surfaces_accept_exactly_the_flags_they_implement() {
         | NO_XXE
         | NO_SYS_CATALOG
         | CATALOG_PI
-        | SKIP_IDS;
+        | SKIP_IDS
+        | RECOVER;
     assert_eq!(verdicts(accepted), [None; 6]);
     for flag in [OLD10, OLDSAX, UNZIP, 1 << 28, 1 << 31] {
         assert_eq!(verdicts(flag), [unsupported; 6], "{flag:#x}");
     }
-    // Only trees recover; the text reader also drops blanks and validates.
-    for flag in [DTDVALID, NOBLANKS, RECOVER] {
-        let text_reader = if flag == RECOVER { unsupported } else { None };
-        let streaming = [unsupported, unsupported, unsupported, text_reader];
-        assert_eq!(verdicts(flag)[..4], streaming, "{flag:#x}");
-        assert_eq!(verdicts(flag)[4..], [None, None], "{flag:#x}");
-    }
+    // Only trees and the text reader validate; all but the slice reader drop blanks.
+    let none = None;
+    assert_eq!(
+        verdicts(DTDVALID),
+        [unsupported, unsupported, unsupported, none, none, none]
+    );
+    assert_eq!(
+        verdicts(NOBLANKS),
+        [unsupported, none, none, none, none, none]
+    );
     // XInclude results are owned documents.
     assert_eq!(
         verdicts(XINCLUDE),

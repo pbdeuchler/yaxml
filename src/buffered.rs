@@ -1,5 +1,9 @@
 use std::io::{self, BufRead};
 
+use std::collections::VecDeque;
+
+use crate::blanks::Filter;
+use crate::options::Flags;
 use crate::stream::dtd::{SessionOutcome, StreamingSession};
 use crate::tokenizer::TokenKind;
 use crate::{
@@ -9,6 +13,9 @@ use crate::{
 #[derive(Clone, Copy)]
 enum Status {
     Active,
+    /// Under `RECOVER`, after an error no site repairs: what is open closes
+    /// at its offset.
+    Closing(usize),
     Finished,
     Xml(Error),
     Poisoned,
@@ -53,6 +60,8 @@ pub struct BufferedReader<R: BufRead> {
     /// The previously lent event awaits acknowledgment before advancing.
     pending: bool,
     status: Status,
+    /// `RECOVER` or `NOBLANKS`: events are copied out of the session.
+    detached: Option<Box<Detached>>,
 }
 
 impl<R: BufRead> BufferedReader<R> {
@@ -77,7 +86,7 @@ impl<R: BufRead> BufferedReader<R> {
     ///
     /// # Errors
     ///
-    /// Tree-only flags (`DTDVALID`, `NOBLANKS`, `RECOVER`, `XINCLUDE`) are
+    /// `DTDVALID` and `XINCLUDE`, which need a tree, are
     /// [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;
@@ -93,6 +102,7 @@ impl<R: BufRead> BufferedReader<R> {
             eof: false,
             pending: false,
             status: Status::Active,
+            detached: Detached::new(flags),
         })
     }
 
@@ -122,10 +132,17 @@ impl<R: BufRead> BufferedReader<R> {
     }
 
     fn restart(&mut self, input: R) -> R {
+        self.detached = Detached::new(self.session.flags());
         self.eof = false;
         self.pending = false;
         self.status = Status::Active;
         std::mem::replace(&mut self.input, input)
+    }
+
+    /// The well-formedness errors a `RECOVER` parse recovered from so far, in
+    /// input order (the first 100, as libxml2 keeps); empty without `RECOVER`.
+    pub fn errors(&self) -> &[Error] {
+        self.session.errors()
     }
 
     /// Source bytes consumed, lookahead included.
@@ -145,6 +162,7 @@ impl<R: BufRead> BufferedReader<R> {
     /// Changes the flags of a reader that has not been read yet.
     pub(crate) fn set_flags(&mut self, flags: crate::options::Flags) {
         self.session.set_flags(flags);
+        self.detached = Detached::new(flags);
     }
 
     /// The source.
@@ -159,6 +177,100 @@ impl<R: BufRead> BufferedReader<R> {
 
     /// The next event and its origin, or `None` at the end of the document.
     pub fn read_event(&mut self) -> Result<Option<(Event<'_>, SourceOrigin)>, ReadError> {
+        if self.detached.is_some() {
+            return self.read_detached();
+        }
+        self.read_lent::<false>()
+    }
+
+    /// [`Self::read_event`] under `RECOVER` or `NOBLANKS`: each event is
+    /// copied out of the session, so that an error met reading it can stop a
+    /// recovering parse (which then closes what is open) instead of ending
+    /// reading, and blank text can wait for the event that decides it.
+    #[cold]
+    #[inline(never)]
+    fn read_detached(&mut self) -> Result<Option<(Event<'_>, SourceOrigin)>, ReadError> {
+        let (next, origin) = loop {
+            let detached = self.detached.as_deref_mut().expect("detached reader");
+            if let Some(next) = detached.ready.pop_front() {
+                break next;
+            }
+            let recovers = detached.recovers;
+            let next = match self.status {
+                Status::Closing(at) => (self.session.close_next(at).map_err(ReadError::Xml))
+                    .map(|next| next.map(|(event, origin, _)| (event, origin))),
+                _ if recovers => self.read_lent::<true>(),
+                _ => self.read_lent::<false>(),
+            };
+            let next = next.and_then(|next| {
+                next.map(|(event, origin)| detach(event, origin))
+                    .transpose()
+            });
+            match next {
+                Ok(Some((event, origin))) => self.queue(event, origin)?,
+                // Recovery reads the token on as other tokens.
+                Ok(None) if matches!(self.status, Status::Active) => {}
+                Ok(None) => {
+                    self.status = Status::Finished;
+                    return Ok(None);
+                }
+                Err(ReadError::Xml(error))
+                    if recovers && !matches!(self.status, Status::Closing(_)) =>
+                {
+                    let Some(at) = self.session.stop(error) else {
+                        self.status = Status::Xml(error);
+                        return Err(ReadError::Xml(error));
+                    };
+                    (self.status, self.pending) = (Status::Closing(at), false);
+                }
+                Err(error) => {
+                    if let ReadError::Xml(error) = error {
+                        self.status = Status::Xml(error);
+                    }
+                    return Err(error);
+                }
+            }
+        };
+        let event = match next {
+            Ok(event) => event,
+            Err(declared) => {
+                let detached = self.detached.as_deref_mut().expect("detached reader");
+                detached.held.insert(declared).event()
+            }
+        };
+        Ok(Some((event, origin)))
+    }
+
+    /// Queues a copied event after the blank text it decides `NOBLANKS` keeps.
+    fn queue(
+        &mut self,
+        event: Result<Event<'static>, Declared>,
+        origin: SourceOrigin,
+    ) -> Result<(), ReadError> {
+        let content = self.session.budget().and_then(|budget| budget.content());
+        let detached = self.detached.as_deref_mut().expect("detached reader");
+        let passes = match (&mut detached.blanks, &event) {
+            (Some(blanks), Ok(lent)) => {
+                let (kept, passes) =
+                    (blanks.event(lent, origin, content)).map_err(ReadError::Xml)?;
+                if let Some((text, at)) = kept {
+                    detached.ready.push_back((Ok(Event::Text(text.into())), at));
+                }
+                passes
+            }
+            _ => true,
+        };
+        if passes {
+            detached.ready.push_back((event, origin));
+        }
+        Ok(())
+    }
+
+    /// The next event, lent; `RECOVERS`: the DTD-free stream rereads.
+    #[inline(always)]
+    fn read_lent<const RECOVERS: bool>(
+        &mut self,
+    ) -> Result<Option<(Event<'_>, SourceOrigin)>, ReadError> {
         match self.status {
             Status::Finished => return Ok(None),
             Status::Xml(error) => return Err(ReadError::Xml(error)),
@@ -166,7 +278,7 @@ impl<R: BufRead> BufferedReader<R> {
                 let error = Error::new(ErrorKind::InvalidState, self.position());
                 return Err(ReadError::Xml(error));
             }
-            Status::Active => {}
+            Status::Active | Status::Closing(_) => {}
         }
         // Poison before releasing tokens, mutating semantic state, or calling
         // the source. A caught panic cannot resume uncertain stream progress.
@@ -174,13 +286,16 @@ impl<R: BufRead> BufferedReader<R> {
         if let Some(stream) = self.session.plain() {
             // DTD-free documents lend straight from the ordinary token loop.
             if std::mem::take(&mut self.pending) {
-                stream.release();
+                stream.release_in::<RECOVERS>();
             }
-            match self.prepare_plain() {
+            match self.prepare_plain::<RECOVERS>() {
                 Ok(Some(true)) => {
                     self.pending = true;
                     self.status = Status::Active;
-                    let lent = self.session.lend_plain();
+                    let lent = match RECOVERS {
+                        true => self.session.lend_recovering(),
+                        false => self.session.lend_plain(),
+                    };
                     if let Err(ReadError::Xml(error)) = &lent {
                         self.status = Status::Xml(*error);
                     }
@@ -280,28 +395,32 @@ impl<R: BufRead> BufferedReader<R> {
 
     /// The DTD-free counterpart of `prepare`: `Some(ready)` like `prepare`, or
     /// `None` once a DOCTYPE token is parked for the session.
-    fn prepare_plain(&mut self) -> Result<Option<bool>, ReadError> {
+    #[inline(always)]
+    fn prepare_plain<const RECOVERS: bool>(&mut self) -> Result<Option<bool>, ReadError> {
         loop {
             let stream = self.session.plain().expect("DTD-free stream");
+            if RECOVERS && stream.ends_reference() {
+                return Ok(Some(true));
+            }
             match stream.token_kind() {
-                Some(TokenKind::Dtd) => return Ok(None),
+                Some(TokenKind::Dtd) if stream.hands_over() => return Ok(None),
                 Some(_) if stream.is_non_event() => {
                     stream.skip_non_event().map_err(ReadError::Xml)?;
-                    stream.release();
+                    stream.release_in::<RECOVERS>();
                     continue;
                 }
                 Some(_) => return Ok(Some(true)),
                 None => {}
             }
-            if self.eof {
-                if stream.finish_step().map_err(ReadError::Xml)? {
+            if self.eof || (RECOVERS && stream.is_cut()) {
+                if stream.finish_in::<RECOVERS>().map_err(ReadError::Xml)? {
                     continue;
                 }
                 stream.validate_finish().map_err(ReadError::Xml)?;
                 return Ok(Some(false));
             }
             // Replaying saved lookahead or decoded carry need not touch R.
-            stream.advance(&[]).map_err(ReadError::Xml)?;
+            stream.advance_in::<RECOVERS>(&[]).map_err(ReadError::Xml)?;
             if stream.has_token() {
                 continue;
             }
@@ -323,12 +442,96 @@ impl<R: BufRead> BufferedReader<R> {
                         0,
                     )));
                 }
-                stream.advance(&input[..input.len().min(remaining)])
+                stream.advance_in::<RECOVERS>(&input[..input.len().min(remaining)])
             };
             // Commit accepted transport before reporting a lexical error. The
             // stream takes the whole window unless a token is ready.
             self.input.consume(stream.position() - before);
             result.map_err(ReadError::Xml)?;
         }
+    }
+}
+
+/// A declaration or DOCTYPE copied out of the session, which its event borrows.
+enum Declared {
+    Declaration(String, Option<String>, Option<bool>),
+    /// Name, public and system identifiers, internal subset.
+    Doctype([Option<String>; 4]),
+}
+
+impl Declared {
+    fn event(&self) -> Event<'_> {
+        match self {
+            Self::Declaration(version, encoding, standalone) => {
+                Event::Declaration(crate::Declaration {
+                    version,
+                    encoding: encoding.as_deref(),
+                    standalone: *standalone,
+                })
+            }
+            Self::Doctype([name, public_id, system_id, internal_subset]) => {
+                Event::Doctype(crate::Doctype {
+                    name: name.as_deref().unwrap_or_default(),
+                    public_id: public_id.as_deref(),
+                    system_id: system_id.as_deref(),
+                    internal_subset: internal_subset.as_deref(),
+                })
+            }
+        }
+    }
+}
+
+/// `event` copied out of the session, uncharged: owned, or a declaration
+/// whose event borrows the copy.
+fn detach(
+    event: Event<'_>,
+    origin: SourceOrigin,
+) -> Result<(Result<Event<'static>, Declared>, SourceOrigin), ReadError> {
+    let offset = origin.error_offset();
+    let copy = |text: &str| crate::parser::copied(text, offset).map_err(ReadError::Xml);
+    let detached = match event {
+        Event::Declaration(declaration) => Err(Declared::Declaration(
+            copy(declaration.version)?,
+            declaration.encoding.map(copy).transpose()?,
+            declaration.standalone,
+        )),
+        Event::Doctype(doctype) => {
+            let parts = [Some(doctype.name), doctype.public_id, doctype.system_id];
+            let [name, public_id, system_id] = parts.map(|part| part.map(copy).transpose());
+            let internal_subset = doctype.internal_subset.map(copy).transpose()?;
+            Err(Declared::Doctype([
+                name?,
+                public_id?,
+                system_id?,
+                internal_subset,
+            ]))
+        }
+        event => Ok(crate::parser::owned_event(event, None, offset).map_err(ReadError::Xml)?),
+    };
+    Ok((detached, origin))
+}
+
+/// What `read_detached` reads through.
+struct Detached {
+    recovers: bool,
+    blanks: Option<Filter>,
+    /// Copied events to return, in order: at most a kept blank and the
+    /// event after it.
+    ready: VecDeque<(Result<Event<'static>, Declared>, SourceOrigin)>,
+    /// The declaration or DOCTYPE returned last, which its event borrows.
+    held: Option<Declared>,
+}
+
+impl Detached {
+    /// The copies a reader under `flags` reads through, if any.
+    fn new(flags: Flags) -> Option<Box<Self>> {
+        (flags.recovers() || flags.drops_blanks()).then(|| {
+            Box::new(Self {
+                recovers: flags.recovers(),
+                blanks: flags.drops_blanks().then(Filter::default),
+                ready: VecDeque::with_capacity(2),
+                held: None,
+            })
+        })
     }
 }

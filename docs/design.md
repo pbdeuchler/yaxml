@@ -150,12 +150,12 @@ parser shortcut. DTD-driven attribute normalization is a later semantic layer.
 Keep `ErrorKind` and a zero-based byte offset machine-readable. Add source IDs
 when external inputs arrive; add line/column mapping without replacing offsets.
 Distinguish malformed XML, unsupported features, exhausted resource budgets,
-allocation failure, and underlying I/O errors. Recovery (`RECOVER`, DOMs only)
-returns the tree plus its errors (`errors()`, non-empty exactly when the input
-is malformed), so failure never looks like a valid strict document. Each error
-site decides through the shared `Budget`: strict parsing fails, recovery
+allocation failure, and underlying I/O errors. Recovery (`RECOVER`) returns
+the tree or events plus the errors (`errors()`, non-empty exactly when the
+input is malformed), so failure never looks like a valid strict document. Each
+error site decides through the shared `Budget`: strict parsing fails, recovery
 records the error and continues with libxml2's repair; an error no site
-repairs ends parsing and the builder closes what is open. Limits stay fatal
+repairs ends parsing and the reader closes what is open with events. Limits stay fatal
 ([compatibility](compatibility.md#recovery-recover)).
 
 ## Output validation

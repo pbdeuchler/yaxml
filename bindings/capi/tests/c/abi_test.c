@@ -421,7 +421,13 @@ static void streaming_reader(void) {
   memset(&o, 0, sizeof o);
   o.struct_size = sizeof o;
   o.flags = YAXML_PARSE_RECOVER;
-  EXPECT(yaxml_reader_new((const uint8_t *)"<r/>", 4, &o, &reader, &err), YAXML_ERR_XML);
+  /* Recovery: `</x>` ends `r`, and the document ends. */
+  EXPECT(yaxml_reader_new((const uint8_t *)"<r></x>", 7, &o, &reader, &err), YAXML_OK);
+  EXPECT(yaxml_reader_next(reader, &e, &err), YAXML_OK);
+  EXPECT(yaxml_reader_next(reader, &e, &err), YAXML_OK);
+  CHECK(e.kind == YAXML_EVENT_END);
+  EXPECT(yaxml_reader_next(reader, &e, &err), YAXML_NONE);
+  yaxml_reader_free(reader);
 }
 
 struct pushed {
@@ -460,7 +466,7 @@ static void streaming_push(void) {
   yaxml_parse_options o;
   memset(&o, 0, sizeof o);
   o.struct_size = sizeof o;
-  o.flags = YAXML_PARSE_NOBLANKS;
+  o.flags = YAXML_PARSE_DTDVALID;
   EXPECT(yaxml_push_new(&o, &push, &err), YAXML_ERR_XML);
 }
 

@@ -104,7 +104,8 @@ validate a stream without building a tree.
 `ParseOptions` takes libxml2's `XML_PARSE_*` flags. A surface that does not
 support a flag rejects it rather than ignoring it. An `Error` is small (a
 `kind` and a byte `offset`), and `describe` expands it into libxml2's domain,
-code, line, column and message.
+code, line, column and message. `RECOVER` works on the DOMs and every stream,
+which delivers the recovered tree's events and the same `errors()`.
 
 ```rust
 use yaxml::{Document, LineIndex, ParseOptions, options};

@@ -191,6 +191,9 @@ impl<'input> ContentControllerCore<'input> {
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
         self.parser.owned_budget()
     }
+    pub(crate) fn errors(&self) -> &[Error] {
+        self.parser.errors()
+    }
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.body.catalog
     }
@@ -303,7 +306,7 @@ impl<'input> ContentControllerCore<'input> {
                 publish_replacement(parser, catalog, event, copy).and_then(|event| {
                     let budget = self.parser.owned_budget();
                     event
-                        .map(|event| owned_event(event, budget, origin.error_offset()))
+                        .map(|event| owned_event(event, Some(budget), origin.error_offset()))
                         .transpose()
                 })
             }
@@ -712,6 +715,24 @@ impl<'input> ContentControllerCore<'input> {
         Ok(())
     }
 
+    /// Under `RECOVER`, the next event that closes, at `at`, what a parse
+    /// stopped by an unrepaired error left open: the innermost entity's
+    /// elements, then its reference, out to the document's elements; `None`
+    /// once nothing is open.
+    pub(crate) fn close_open(&mut self, at: usize) -> Result<Option<Event<'input>>, Error> {
+        self.origin = FragmentOrigin::input(at..at).expect("empty range");
+        while let Some(frame) = self.body.frames.top() {
+            if frame.element_depth < Some(self.parser.element_depth()) {
+                break;
+            }
+            self.body.frames.leave();
+            if self.open.pop().is_some() {
+                return Ok(Some(Event::EntityEnd));
+            }
+        }
+        self.parser.close_open(at)
+    }
+
     fn share_expansion(&mut self) {
         let body = &mut self.body;
         share_expansion(
@@ -1032,6 +1053,8 @@ fn publish_physical<'source, 'raw>(
 where
     'source: 'raw,
 {
+    // Recovered errors count source bytes, as returned ones do.
+    let recorded = (span.encoding != SourceEncoding::Utf8).then(|| parser.errors().len());
     let result = match kind {
         TokenKind::Start if !catalog.plain_tag(raw) => {
             let declarations = (&mut *catalog, LiteralSource::Physical);
@@ -1040,7 +1063,27 @@ where
         _ => parser.process_token(kind, raw, span.decoded.clone(), retain),
     };
     note_catalogs(parser, catalog, kind);
+    note_content(parser, catalog, &result);
+    if let Some(recorded) = recorded {
+        (parser.owned_budget()).remap(recorded, |error| span.map_error(raw, error));
+    }
     result.map_err(|error| span.map_error(raw, error))
+}
+
+/// Under `NOBLANKS`, records a start tag's declared content for the blank
+/// filters (`Budget::content`).
+fn note_content(
+    parser: &mut ParserState<'_>,
+    catalog: &mut DtdCatalog,
+    event: &Result<Option<Event<'_>>, Error>,
+) {
+    if let Ok(Some(Event::Start(element) | Event::Empty(element))) = event
+        && parser.drops_blanks()
+    {
+        let declared = catalog.element_decl(element.name.qualified());
+        let content = declared.and_then(|index| catalog.dtd().elements[index].element_content());
+        parser.owned_budget().set_content(content);
+    }
 }
 
 /// Hands the catalogs of `oasis-xml-catalog` instructions to the resolver.
@@ -1064,6 +1107,7 @@ where
     'source: 'raw,
 {
     parser.set_replacement(true);
+    let recorded = parser.errors().len();
     let result = parser
         .check_token_limit(raw.len(), offset)
         .and_then(|()| match kind {
@@ -1075,7 +1119,10 @@ where
         });
     parser.set_replacement(false);
     note_catalogs(parser, catalog, kind);
-    result.map_err(|error| Error::new(error.kind, origin.error_offset()))
+    note_content(parser, catalog, &result);
+    let at = |error: Error| Error::new(error.kind, origin.error_offset());
+    (parser.owned_budget()).remap(recorded, at);
+    result.map_err(at)
 }
 
 /// A budgeted copy of an entity name for its `EntityStart` marker.

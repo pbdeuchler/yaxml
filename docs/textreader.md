@@ -45,8 +45,13 @@ flags) an entity reference is one EntityReference node (type 5) named after
 the entity, with no value, whose content is not visited, and no DTD default
 attributes appear; with `NOENT` the replacement's nodes appear in its place
 and with `DTDATTR` the defaults. `NOBLANKS` drops ignorable blanks (below) and
-`DTDVALID` validates against the DTD ([below](#dtd-validation)). `XINCLUDE` and
-`RECOVER` are `UnsupportedOption`. Following libxml2:
+`DTDVALID` validates against the DTD ([below](#dtd-validation)). `XINCLUDE` is
+`UnsupportedOption`. `RECOVER` recovers as the streams and DOMs do
+([streaming.md](streaming.md#recovery-and-blanks)), with the recovered errors in
+`errors()`; libxml2's reader instead fails at its first well-formedness error
+(`xmlTextReaderPushData` returns -1 once `wellFormed` is 0, `RECOVER` or not), so
+`xmllint --recover --stream --debug` agrees on 22.22% of `test/errors` and 36.11%
+of XMLTS not-wf. Following libxml2:
 
 - `<a/>` is one Element with `is_empty_element`; `<a></a>` has an EndElement.
 - Adjacent text, including substituted replacement text, is one node; text
@@ -104,7 +109,8 @@ and with `DTDATTR` the defaults. `NOBLANKS` drops ignorable blanks (below) and
   limits; kept references are written as their replacement there, since
   the copy has no DTD (outer XML writes `&name;`). The cursor does not move: later reads still visit the subtree.
 
-`NOBLANKS` is libxml2's `areBlanks` as the reader's push parser applies it:
+`NOBLANKS` is libxml2's `areBlanks` as the reader's push parser applies it
+(`src/blanks.rs`, which `PushParser` and `BufferedReader` share):
 a blank-only text node is dropped before it is queued, so `read_string`,
 inner/outer XML and `expand` see the tree libxml2 would hold. Never under
 `xml:space="preserve"` (`default` re-enables it); in an element the DTD declares
@@ -293,7 +299,8 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
   forbids. `expand` is the safe form: an owned copy of the current subtree,
   which a caller keeps or drops. A pattern-driven collector (`pattern::StreamMatcher`
   plus `expand` at each match) would be a new API, not `PreservePattern`.
-- `NOBLANKS` differences: above. `RECOVER` and `XINCLUDE` are rejected.
+- `NOBLANKS` differences: above. `RECOVER` recovers (above). `XINCLUDE` is
+  rejected.
 - Attributes are not kept for EndElement nodes: libxml2 lets the `move_to_*`
   calls visit them there.
 - A PI with only whitespace after its target (`<?p ?>`) has no value and

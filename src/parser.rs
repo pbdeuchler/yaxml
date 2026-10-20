@@ -46,6 +46,9 @@ pub(crate) struct Budget {
     /// The last published start tag's kept-reference attribute forms
     /// (`dtd_tag::kept_form`) by attribute position, for the DOM builders.
     kept: Vec<(usize, String)>,
+    /// The last published start tag's declared content
+    /// ([`crate::valid::Dtd::has_element_content`]), for `NOBLANKS` streams.
+    content: Option<bool>,
 }
 
 impl Budget {
@@ -56,6 +59,7 @@ impl Budget {
             attributes_left: limits.max_total_attributes,
             recovered: None,
             kept: Vec::new(),
+            content: None,
         }
     }
 
@@ -92,6 +96,19 @@ impl Budget {
         self.recovered.is_some()
     }
 
+    /// The errors recovered from so far.
+    pub(crate) fn errors(&self) -> &[Error] {
+        self.recovered.as_deref().unwrap_or_default()
+    }
+
+    /// Maps the errors recovered from since the first `from`.
+    pub(crate) fn remap(&mut self, from: usize, map: impl Fn(Error) -> Error) {
+        let recovered = self.recovered.as_deref_mut().unwrap_or_default();
+        recovered[from..]
+            .iter_mut()
+            .for_each(|error| *error = map(*error));
+    }
+
     /// This budget under `RECOVER`.
     pub(crate) fn recovering(self) -> Self {
         Self {
@@ -114,6 +131,16 @@ impl Budget {
             budget.recover(error)?;
         }
         Ok(budget.recovered.take().unwrap_or_default())
+    }
+
+    /// The last start tag's declared content: element-only (true), mixed or
+    /// ANY (false).
+    pub(crate) fn content(&self) -> Option<bool> {
+        self.content
+    }
+
+    pub(crate) fn set_content(&mut self, content: Option<bool>) {
+        self.content = content;
     }
 
     /// Kept-reference forms of the last start tag's attributes; DOM builders drain them.
@@ -157,13 +184,19 @@ impl Budget {
         offset: usize,
     ) -> Result<Cow<'result, str>, Error> {
         self.charge_owned(text.len(), offset)?;
-        let mut copied = String::new();
-        copied
-            .try_reserve(text.len())
-            .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-        copied.push_str(text);
-        Ok(Cow::Owned(copied))
+        copied(text, offset).map(Cow::Owned)
     }
+}
+
+/// A copy of `text`, failing at `offset` when it cannot be allocated.
+#[inline]
+pub(crate) fn copied(text: &str, offset: usize) -> Result<String, Error> {
+    let mut copied = String::new();
+    copied
+        .try_reserve(text.len())
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    copied.push_str(text);
+    Ok(copied)
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -246,6 +279,9 @@ pub(crate) struct ParserState<'source> {
     rereads: bool,
     /// Recovery: where libxml2 reads on, as content, inside the latest token.
     rewind: Option<usize>,
+    /// Recovery: the kept reference to an undeclared entity just started
+    /// ends before the next token (`take_reference_end`).
+    reference_end: bool,
     /// The token being processed comes from entity replacement text: its
     /// line ends were normalized when it was declared, and libxml2 stops at
     /// the markup errors that physical input recovers from.
@@ -279,6 +315,14 @@ impl<'source> ParserState<'source> {
         self.stack.len()
     }
 
+    pub(crate) fn errors(&self) -> &[Error] {
+        self.budget.errors()
+    }
+
+    pub(crate) fn drops_blanks(&self) -> bool {
+        self.flags.drops_blanks()
+    }
+
     pub(crate) fn new(limits: Limits, initial_offset: usize) -> Self {
         Self {
             initial: initial_offset,
@@ -307,6 +351,7 @@ impl<'source> ParserState<'source> {
             repairs_characters: false,
             rereads: false,
             rewind: None,
+            reference_end: false,
             replacement: false,
             lent: None,
             catalogs: None,
@@ -389,8 +434,8 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Recovery by the slice reader (`rereads`), which rereads a token from
-    /// where libxml2 ends it (`take_rewind`) and, over input with
+    /// Recovery by a DTD-free token loop (`rereads`), which rereads a token
+    /// from where libxml2 ends it (`take_rewind`) and, over input with
     /// `characters` outside `Char`, repairs them.
     /// Field assignments, not struct-update syntax: rustc 1.95-1.96 miscompile
     /// `Self { rereads, repairs_characters: rereads && characters, ..self }`
@@ -401,32 +446,59 @@ impl<'source> ParserState<'source> {
         self
     }
 
-    /// Whether this is the slice reader's recovery, which rereads tokens.
+    /// Whether this is a token loop's recovery, which rereads tokens.
     pub(crate) fn rereads(&self) -> bool {
         self.rereads
     }
 
-    /// Whether recovery keeps undeclared entity references (a rereading
-    /// frontend without `NOENT`; see `undeclared_reference`).
-    pub(crate) fn keeps_undeclared(&self) -> bool {
-        self.rereads && !self.flags.substitutes()
+    /// A streamed token held a character outside `Char`: recovery repairs
+    /// from now on, as the slice reader does over such input.
+    pub(crate) fn repair_characters(&mut self) {
+        self.repairs_characters = true;
     }
 
-    /// Recovery from a reference to an undeclared entity `name` at `start`,
-    /// which libxml2 keeps as an empty reference.
-    pub(crate) fn undeclared_reference<'event>(
+    /// Recovery keeps a reference to an undeclared entity in text `raw` at
+    /// `start`, as libxml2 does without `NOENT`, as an empty reference: its
+    /// start (its end follows, `take_reference_end`), or the text before it.
+    /// The rest is reread.
+    #[cold]
+    fn undeclared<'event>(
         &mut self,
-        name: &'event str,
+        raw: &'event str,
         start: usize,
-    ) -> Result<Event<'event>, Error> {
-        self.check_event_limit(start)?;
-        self.budget
-            .recover(Error::new(ErrorKind::UnknownEntity, start))?;
-        self.events += 1;
-        Ok(Event::EntityStart(Cow::Borrowed(name)))
+    ) -> Result<Result<Event<'event>, &'event str>, Error> {
+        let found = memchr::memchr_iter(b'&', raw.as_bytes()).find_map(|at| {
+            let rest = &raw[at + 1..];
+            let name = &rest[..name_length(rest)];
+            let complete = !name.is_empty() && rest[name.len()..].starts_with(';');
+            (complete && crate::escape::predefined(name).is_none()).then_some((at, name))
+        });
+        Ok(match found {
+            Some((0, name)) => {
+                self.budget
+                    .recover(Error::new(ErrorKind::UnknownEntity, start))?;
+                (self.rewind, self.reference_end) = (Some(start + name.len() + 2), true);
+                Ok(Event::EntityStart(Cow::Borrowed(name)))
+            }
+            Some((at, _)) => {
+                self.rewind = Some(start + at);
+                Err(&raw[..at])
+            }
+            None => Err(raw),
+        })
     }
 
-    /// Where the slice reader rereads the latest token's rest as content.
+    /// Whether a kept undeclared reference ends before the next token.
+    pub(crate) fn reference_ends(&self) -> bool {
+        self.reference_end
+    }
+
+    /// [`Self::reference_ends`], which the caller now publishes.
+    pub(crate) fn take_reference_end(&mut self) -> bool {
+        std::mem::take(&mut self.reference_end)
+    }
+
+    /// Where a rereading token loop reads the latest token's rest as content.
     pub(crate) fn take_rewind(&mut self) -> Option<usize> {
         self.rewind.take()
     }
@@ -836,7 +908,14 @@ impl<'source> ParserState<'source> {
                 self.start_element::<REREADS, false, F>(raw, start, &mut retain, None)
             }
             TokenKind::End => self.end_element(raw, start),
-            TokenKind::Text => {
+            TokenKind::Text => 'text: {
+                let raw = match REREADS && !self.flags.substitutes() {
+                    true => match self.undeclared(raw, start)? {
+                        Ok(reference) => break 'text Ok(Some(reference)),
+                        Err(text) => text,
+                    },
+                    false => raw,
+                };
                 if let Some(relative) = crate::tokenizer::find(raw.as_bytes(), b"]]>") {
                     self.recover_markup(Error::new(ErrorKind::Syntax, start + relative))?;
                 }
@@ -1677,17 +1756,7 @@ impl<'source> ParserState<'source> {
             });
             self.end_open(error)?
         };
-        // Split as the start tag did: a recovered malformed QName has no prefix.
-        let prefix_length = memchr(b':', qualified.as_bytes())
-            .filter(|_| qname(&qualified, start).is_ok())
-            .and_then(NonZeroUsize::new);
-        let name = self.resolve_name(qualified, prefix_length, start + 2, false)?;
-        let frame = self.pop_frame();
-        self.close_scope(frame.bindings_start);
-        if self.stack.is_empty() && !self.fragment {
-            self.phase = Phase::Epilog;
-        }
-        Ok(Some(Event::End(name)))
+        self.close(qualified, start + 2)
     }
 
     /// The open element's name: libxml2 ends it whatever a malformed or
@@ -1697,12 +1766,55 @@ impl<'source> ParserState<'source> {
             return Err(error);
         }
         self.recover_markup(error)?;
+        self.open_copy(error.offset)
+    }
+
+    /// Under `RECOVER`, the end of the innermost open element, which a parse
+    /// stopped by an unrepaired error closes at `offset` (libxml2's tree keeps
+    /// it); `None` once nothing is open.
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn close_open(&mut self, offset: usize) -> Result<Option<Event<'source>>, Error> {
+        if self.stack.is_empty() {
+            return Ok(None);
+        }
+        self.settle();
+        let qualified = self.open_copy(offset)?;
+        self.close(qualified, offset)
+    }
+
+    /// A copy of the innermost open element's name.
+    fn open_copy(&mut self, offset: usize) -> Result<Cow<'static, str>, Error> {
         let frame = self.stack.last().expect("an open element");
         let name = match &frame.qualified {
             FrameName::Retained(name) => name.as_ref(),
             FrameName::Pooled(range) => &self.frame_names[range.clone()],
         };
-        self.budget.copy(name, error.offset)
+        self.budget.copy(name, offset)
+    }
+
+    /// Ends the innermost element, named `qualified`; libxml2 ends it
+    /// whatever a malformed or mismatched end tag names.
+    #[inline(always)]
+    fn close<'event>(
+        &mut self,
+        qualified: Cow<'event, str>,
+        offset: usize,
+    ) -> Result<Option<Event<'event>>, Error>
+    where
+        'source: 'event,
+    {
+        // Split as the start tag did: a recovered malformed QName has no prefix.
+        let prefix_length = memchr(b':', qualified.as_bytes())
+            .filter(|_| qname(&qualified, offset).is_ok())
+            .and_then(NonZeroUsize::new);
+        let name = self.resolve_name(qualified, prefix_length, offset, false)?;
+        let frame = self.pop_frame();
+        self.close_scope(frame.bindings_start);
+        if self.stack.is_empty() && !self.fragment {
+            self.phase = Phase::Epilog;
+        }
+        Ok(Some(Event::End(name)))
     }
 
     fn unwind_bindings(&mut self, start: usize) {
@@ -1812,15 +1924,16 @@ fn boxed<T>(value: T, offset: usize) -> Result<Box<[T; 1]>, Error> {
         .unwrap_or_else(|_| unreachable!("one element")))
 }
 
-/// An attribute list's allocation, emptied and so free of its lifetime. The
-/// conversion collects in place: only the allocation changes lifetime.
-/// A content event with every borrowed string copied and charged.
+/// A content event with every borrowed string copied, and charged to `budget`.
 pub(crate) fn owned_event(
     event: Event<'_>,
-    budget: &mut Budget,
+    mut budget: Option<&mut Budget>,
     offset: usize,
 ) -> Result<Event<'static>, Error> {
-    let mut copy = |text: &str| budget.copy(text, offset);
+    let mut copy = |text: &str| match budget.as_deref_mut() {
+        Some(budget) => budget.copy(text, offset),
+        None => copied(text, offset).map(Cow::Owned),
+    };
     let mut owned = |text: Cow<'_, str>| match text {
         Cow::Owned(text) => Ok(Cow::Owned(text)),
         Cow::Borrowed(text) => copy(text),
@@ -1864,6 +1977,9 @@ pub(crate) fn owned_event(
     })
 }
 
+/// An attribute list's allocation, emptied and so free of its lifetime. The
+/// conversion collects in place: only the allocation changes lifetime.
+#[inline(always)]
 pub(crate) fn emptied<'to>(mut attributes: Vec<Attribute<'_>>) -> Vec<Attribute<'to>> {
     attributes.clear();
     attributes

@@ -112,6 +112,29 @@ impl Tokenizer {
         self.source_start
     }
 
+    /// Whether a text token's terminating `<` was consumed as lookahead.
+    pub(crate) fn has_lookahead(&self) -> bool {
+        self.lookahead.is_some()
+    }
+
+    /// Recovery: releases the ready token as read only up to decoded offset
+    /// `at` (source offset `source`), where scanning resumes; the caller
+    /// replays the rest, and a text token's `<`.
+    pub(crate) fn rewind(&mut self, at: usize, source: usize) {
+        (self.position, self.source_position, self.lookahead) = (at, source, None);
+        self.release();
+    }
+
+    /// Recovery: a start tag cut off by the end of input becomes a token,
+    /// which libxml2 reads as an empty element.
+    pub(crate) fn finish_cut_start(&mut self) -> bool {
+        let start = self.cut_kind() == Some(TokenKind::Start);
+        if start {
+            self.mark(TokenKind::Start, self.position);
+        }
+        start
+    }
+
     pub(crate) fn release(&mut self) {
         if self.ready.take().is_some() {
             self.buffer.clear();

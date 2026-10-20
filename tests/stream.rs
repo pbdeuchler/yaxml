@@ -334,3 +334,103 @@ fn input_ceiling_is_cumulative_whole_chunk_and_sticky() {
         }
     }
 }
+
+/// `NOBLANKS` on push and pull as on the text reader (whose expectations
+/// are `xmllint --stream --debug --noblanks` output): the text events that
+/// stay, for every chunk split and read window, and the DOM's text nodes.
+#[test]
+fn noblanks_drops_ignorable_blank_events_whatever_the_chunks() {
+    use yaxml::options::{NOBLANKS, NOENT, RECOVER};
+    use yaxml::{BufferedReader, Document, Event, NodeKind, ParseOptions};
+    // (flags, document, text events kept)
+    let cases: &[(u32, &str, &[&str])] = &[
+        (0, "<r>\n <a>\n  <b/>\n </a>\n <c> </c>\n</r>", &[" "]),
+        // `xml:space="preserve"` keeps blanks below it, `default` does not.
+        (
+            0,
+            "<r xml:space='preserve'> <a> </a><b xml:space='default'> <c/> </b></r>",
+            &[" ", " "],
+        ),
+        // Element content declared by the DTD is dropped, #PCDATA is kept.
+        (
+            0,
+            "<!DOCTYPE r [<!ELEMENT r (a)*><!ELEMENT a (#PCDATA)>]><r> <a> </a> </r>",
+            &[" "],
+        ),
+        // Mixed content keeps every blank, whatever the tags declare.
+        (
+            0,
+            "<!DOCTYPE r [<!ELEMENT r (#PCDATA|a)*><!ELEMENT a EMPTY>]><r> <a/> <a/> </r>",
+            &[" ", " ", " "],
+        ),
+        // Text that the document spoke makes later blanks significant.
+        (0, "<r><a/>x<b/> <c/></r>", &["x", " "]),
+        // So does a blank before a reference, whose content passes.
+        (
+            0,
+            "<!DOCTYPE r [<!ENTITY e ' x '>]><r><a/> &e;<a/></r>",
+            &[" ", " x "],
+        ),
+        (
+            NOENT,
+            "<!DOCTYPE r [<!ENTITY e ' '>]><r><a/> &e;<a/></r>",
+            &[" ", " "],
+        ),
+        (0, "<r> </r>", &[" "]),
+        (0, "<r>\n<a/>\n<a/>\n</r>", &[]),
+        // Recovery closes elements as events, which decide blanks too: an only
+        // child is kept.
+        (RECOVER, "<r><a/>\n<b>\n", &["\n"]),
+    ];
+    for &(flags, xml, kept) in cases {
+        let options = || ParseOptions::new(flags | NOBLANKS);
+        let input = xml.as_bytes();
+        let splits = (0..=input.len()).map(|at| vec![&input[..at], &input[at..]]);
+        for chunks in splits.chain([input.chunks(1).collect()]) {
+            let mut parser = PushParser::with_options(options()).unwrap();
+            let mut seen = Vec::new();
+            let mut emit = |event: &Event<'_>, _| {
+                if let Event::Text(text) = event {
+                    seen.push(text.to_string());
+                }
+                ControlFlow::Continue(())
+            };
+            for chunk in chunks {
+                parser.feed(chunk, &mut emit).unwrap();
+            }
+            parser.finish(&mut emit).unwrap();
+            assert_eq!(seen, kept, "{xml}");
+        }
+        for window in [1, 2, 5, 4096] {
+            let source = std::io::BufReader::with_capacity(window, input);
+            let mut reader = BufferedReader::with_options(source, options()).unwrap();
+            let mut seen = Vec::new();
+            while let Some((event, _)) = reader.read_event().unwrap() {
+                if let Event::Text(text) = event {
+                    seen.push(text.to_string());
+                }
+            }
+            assert_eq!(seen, kept, "{xml} by {window}");
+        }
+        // So does the text reader.
+        let mut reader = yaxml::TextReader::with_options(input, options()).unwrap();
+        let mut seen = Vec::new();
+        while reader.read().unwrap() {
+            if matches!(reader.node_type() as i32, 3 | 14) && reader.depth() > 0 {
+                seen.push(reader.value().unwrap_or_default().to_owned());
+            }
+        }
+        if !xml.contains('&') {
+            assert_eq!(seen, kept, "text reader: {xml}");
+        }
+        // The DOM drops the same blanks, references aside.
+        if !xml.contains('&') {
+            let document = Document::parse_with(input, options()).unwrap();
+            let nodes = document.nodes().filter_map(|node| match node.kind() {
+                NodeKind::Text(text) => Some(text.to_string()),
+                _ => None,
+            });
+            assert_eq!(nodes.collect::<Vec<_>>(), kept, "{xml}");
+        }
+    }
+}

@@ -14,7 +14,7 @@ use yaxml::{
     PushParser, Reader, TextReader, save,
 };
 
-/// Flags only trees implement; streams get the rest.
+/// Flags the slice reader lacks; push and pull streams drop blanks too.
 const TREE_ONLY: u32 = NOBLANKS | DTDVALID;
 
 /// Bits 0..=6 of a selector byte, in order.
@@ -167,7 +167,7 @@ fn render(event: &Event<'_>) -> String {
 
 /// Push, buffered and text readers, and the owned DOM, decode alike.
 fn decoding_surfaces_agree(document: &[u8], flags: u32) {
-    let stream = flags & !TREE_ONLY;
+    let stream = flags & !DTDVALID;
     let mut push = PushParser::with_options(ParseOptions::new(stream)).unwrap();
     let mut pushed = Vec::new();
     let push_ok = push
@@ -200,19 +200,22 @@ fn decoding_surfaces_agree(document: &[u8], flags: u32) {
         assert_eq!(pushed, pulled, "push/buffered events under {flags:#x}");
         assert_eq!(push.dtd().is_some(), buffered.dtd().is_some());
     }
-    // The streams refuse tree-only flags.
-    if flags & TREE_ONLY != 0 {
-        let options = || ParseOptions::new(flags);
-        for refused in [
-            Reader::with_options(document, options()).err(),
-            PushParser::with_options(options()).err(),
+    // The slice reader refuses what it lacks; push and pull need no tree but to validate.
+    let options = || ParseOptions::new(flags);
+    for (refused, lacks) in [
+        (Reader::with_options(document, options()).err(), TREE_ONLY),
+        (PushParser::with_options(options()).err(), DTDVALID),
+        (
             BufferedReader::with_options(document, options()).err(),
-        ] {
-            assert_eq!(
-                refused.map(|error| error.kind),
-                Some(ErrorKind::UnsupportedOption)
-            );
-        }
+            DTDVALID,
+        ),
+    ] {
+        let unsupported = refused.is_some_and(|error| error.kind == ErrorKind::UnsupportedOption);
+        assert_eq!(unsupported, flags & lacks != 0, "{flags:#x}");
+    }
+    // Push and pull drop blanks as the text reader does.
+    if flags & NOBLANKS != 0 && push_ok {
+        check_blanks(document, flags & !DTDVALID, &pushed);
     }
     // The text reader also drops blanks, which never changes acceptance.
     for flags in [stream, stream | NOBLANKS] {
@@ -281,11 +284,16 @@ fn inherited<'a>(element: yaxml::Node<'a, '_>, prefix: &str) -> Option<&'a str> 
     })
 }
 
-/// `RECOVER` (DOMs only): a well-formed document parses as without it; a
+/// `RECOVER`: the streams recover alike (see `recover`); a well-formed document parses as without it; a
 /// recovered tree is structurally sound, lists only recoverable errors and
 /// saves to bytes that recover to themselves; both DOMs agree; resource
 /// limits still fail the parse.
 fn check_recovered(flags: u32, document: &[u8]) {
+    super::recover::exercise(
+        document,
+        flags & !(TREE_ONLY | RECOVER),
+        super::selector(document),
+    );
     let saved = |tree: &Document<'_>| save::to_vec(tree, &Default::default()).expect("save");
     let strict = Document::parse_with(document, ParseOptions::new(flags & !RECOVER));
     let recovered = Document::parse_with(document, ParseOptions::new(flags));
@@ -394,5 +402,34 @@ fn check_recovered(flags: u32, document: &[u8]) {
             let depth = elements.filter(|node| node.name().is_some()).count();
             assert!(depth <= limits.max_depth, "depth {depth}");
         }
+    }
+}
+
+/// `NOBLANKS` on push and pull, which deliver `kept`: only blank text is
+/// dropped from the slice reader's events, and outside entity references
+/// (whose content passes as it is) what is kept projects onto the DOM.
+fn check_blanks(document: &[u8], flags: u32, kept: &[String]) {
+    let Some(events) = events(document, flags & !NOBLANKS) else {
+        return;
+    };
+    let mut remaining = kept.iter().peekable();
+    let mut filtered = Vec::new();
+    for event in events {
+        if remaining.peek() == Some(&&render(&event)) {
+            remaining.next();
+            filtered.push(event);
+        } else {
+            let blank = matches!(&event, Event::Text(text) if text.bytes().all(|b| b" \t\r\n".contains(&b)));
+            assert!(blank, "NOBLANKS dropped {event:?} from {document:?}");
+        }
+    }
+    assert!(
+        remaining.next().is_none(),
+        "NOBLANKS changed events of {document:?}"
+    );
+    if !document.contains(&b'&')
+        && let Ok(tree) = Document::parse_with(document, ParseOptions::new(flags))
+    {
+        super::check_projection(&tree, &filtered);
     }
 }
