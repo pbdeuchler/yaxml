@@ -1,6 +1,5 @@
 //! `yaxmllint`: xmllint's command line over yaxml. See `docs/yaxmllint.md`.
 
-mod diag;
 mod dump;
 mod opts;
 
@@ -9,13 +8,13 @@ use std::path::Path;
 use std::time::Instant;
 use std::{env, fs};
 
-use diag::{report, report_with};
 use opts::{Opts, *};
 use yaxml::catalog::{Catalog, CatalogResolver};
+use yaxml::diagnostic::Level;
 use yaxml::xpath::{Context, XPath};
 use yaxml::{
-    ErrorKind, Limit, Limits, OwnedDocument, ParseOptions, Request, Resolver, c14n, relaxng, save,
-    schematron, valid, xsd,
+    Diagnostic, ErrorKind, Limit, Limits, LineIndex, OwnedDocument, ParseOptions, Request,
+    Resolver, c14n, relaxng, save, schematron, valid, xsd,
 };
 
 /// Compiled `--schematron`, `--relaxng` and `--schema` documents, shared by every input.
@@ -95,7 +94,7 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
             errors
                 .0
                 .iter()
-                .for_each(|e| report(&e.uri, &[], None, "Relax-NG parser error", &e.message));
+                .for_each(|e| eprintln!("{}: Relax-NG parser error : {}", e.uri, e.message));
             failed("Relax-NG", path)
         })
     });
@@ -107,7 +106,7 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
             error
                 .diagnostics
                 .iter()
-                .for_each(|d| report(&d.uri, &[], None, "Schemas parser error", &d.message));
+                .for_each(|d| eprintln!("{}: Schemas parser error : {}", d.uri, d.message));
             failed("WXS", path)
         })
     });
@@ -118,45 +117,12 @@ fn compile(o: &Opts) -> Result<Schemas, i32> {
     })
 }
 
-/// A validation diagnostic of any of the validators: offset, message, warning?
-trait Finding {
-    fn parts(&self) -> (Option<usize>, &str, bool);
-}
-
-macro_rules! finding {
-    ($($module:ident),*) => {$(
-        impl<Id> Finding for $module::Diagnostic<Id> {
-            fn parts(&self) -> (Option<usize>, &str, bool) {
-                (self.offset, &self.message, self.code.is_warning())
-            }
-        }
-    )*};
-}
-finding!(valid, xsd);
-
-impl<Id> Finding for relaxng::Diagnostic<Id> {
-    fn parts(&self) -> (Option<usize>, &str, bool) {
-        (self.offset, &self.message, false)
-    }
-}
-
-/// Prints the diagnostics, with source context when `context`; true when none is an error.
-fn print_found(
-    context: bool,
-    file: &str,
-    input: &[u8],
-    kind: &str,
-    found: &[impl Finding],
-) -> bool {
-    found.iter().fold(true, |ok, finding| {
-        let (offset, message, warning) = finding.parts();
-        report_with(context, file, input, offset, kind, message);
-        ok && warning
+/// Prints diagnostics as xmllint does; true when none is an error.
+fn print_all(file: &str, lines: &LineIndex, found: impl IntoIterator<Item = Diagnostic>) -> bool {
+    found.into_iter().fold(true, |ok, diagnostic| {
+        eprint!("{}", diagnostic.render(file, lines));
+        ok && diagnostic.level == Level::Warning
     })
-}
-
-fn print_all(file: &str, input: &[u8], kind: &str, found: &[impl Finding]) -> bool {
-    print_found(true, file, input, kind, found)
 }
 
 /// xmllint's parser options for the command line.
@@ -201,6 +167,7 @@ fn save(o: &Opts, document: &OwnedDocument, out: &mut Vec<u8>) -> i32 {
         flags,
         encoding: o.encode.as_deref(),
         indent: &indent,
+        ..save::Options::default()
     };
     let saved = match o.c14n {
         Some(mode) => {
@@ -266,8 +233,10 @@ fn verdict(o: &Opts, file: &str, ok: bool) -> i32 {
 
 fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &OwnedDocument) -> i32 {
     let verdict = |ok| verdict(o, file, ok);
+    let lines = LineIndex::new(input);
     let dtd_valid = (o.valid || o.postvalid).then(|| {
-        let ok = print_all(file, input, "validity error", &document.validate());
+        let found = document.validate();
+        let ok = print_all(file, &lines, found.iter().map(|d| d.describe(&lines)));
         if !ok && o.postvalid {
             eprintln!("Document {file} does not validate");
         }
@@ -283,12 +252,8 @@ fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &Owne
             eprintln!("Could not parse DTD {path}");
             return DTD;
         };
-        if print_all(
-            file,
-            input,
-            "validity error",
-            &valid::validate(document, &dtd),
-        ) {
+        let found = valid::validate(document, &dtd);
+        if print_all(file, &lines, found.iter().map(|d| d.describe(&lines))) {
             return 0;
         }
         eprintln!("Document {file} does not validate against {path}");
@@ -307,19 +272,19 @@ fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &Owne
         }
     });
     let relaxng = schemas.relaxng.as_ref().map(|schema| {
+        let found = schema.validate(document);
         verdict(print_all(
             file,
-            input,
-            "Relax-NG validity error",
-            &schema.validate(document),
+            &lines,
+            found.iter().map(|d| d.describe(&lines)),
         ))
     });
     let xsd = schemas.xsd.as_ref().map(|schema| {
+        let found = schema.validate(document);
         verdict(print_all(
             file,
-            input,
-            "Schemas validity error",
-            &schema.validate(document),
+            &lines,
+            found.iter().map(|d| d.describe(&lines)),
         ))
     });
     last_failure(
@@ -345,29 +310,24 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
     if o.stream {
         return stream(o, schemas, file, &input);
     }
+    let lines = LineIndex::new(&input);
     let mut document = match parse(o, file, &input) {
         Ok(document) => {
             // `--recover` reports what it recovered from and keeps the tree.
-            for error in document.errors() {
-                let message = format!("{:?}", error.kind);
-                report(file, &input, Some(error.offset), "parser error", &message);
-            }
+            print_all(file, &lines, lines.describe_all(document.errors()));
             document
         }
         Err(error) => {
-            report(
-                file,
-                &input,
-                Some(error.offset),
-                "parser error",
-                &format!("{:?}", error.kind),
+            let memory = matches!(
+                error.kind,
+                ErrorKind::LimitExceeded(Limit::OwnedBytes | Limit::InputBytes)
             );
-            let memory = o.maxmem.is_some()
-                && matches!(
-                    error.kind,
-                    ErrorKind::LimitExceeded(Limit::OwnedBytes | Limit::InputBytes)
-                );
-            return if memory { MEM } else { RDFILE };
+            if let Some(maxmem) = o.maxmem.filter(|_| memory) {
+                eprintln!("Maximum memory exceeded ({maxmem} bytes)");
+                return MEM;
+            }
+            eprint!("{}", error.describe(&lines).render(file, &lines));
+            return RDFILE;
         }
     };
     let mut out = Vec::new();
@@ -439,26 +399,19 @@ fn stream(o: &Opts, schemas: &Schemas, file: &str, input: &[u8]) -> i32 {
             done => break done,
         }
     };
-    let dtd = reader.dtd_diagnostics();
-    let dtd_valid = print_all(file, input, "validity error", dtd);
-    let dtd_code = (o.valid && !dtd_valid).then(|| {
+    let lines = LineIndex::new(input);
+    let found = reader.dtd_diagnostics().iter().map(|d| d.describe(&lines));
+    let dtd_code = (o.valid && !print_all(file, &lines, found)).then(|| {
         eprintln!("Document {file} does not validate");
         VALID
     });
-    print_found(
-        false,
-        file,
-        input,
-        "Relax-NG validity error",
-        reader.relaxng_diagnostics(),
-    );
-    print_found(
-        false,
-        file,
-        input,
-        "Schemas validity error",
-        reader.xsd_diagnostics(),
-    );
+    let found = reader
+        .relaxng_diagnostics()
+        .iter()
+        .map(|d| d.describe(&lines));
+    print_all(file, &lines, found);
+    let found = reader.xsd_diagnostics().iter().map(|d| d.describe(&lines));
+    print_all(file, &lines, found);
     // The schema verdict, as libxml2's reader reports the last validation set.
     let schemas_valid =
         reader.relaxng_diagnostics().is_empty() && yaxml::xsd::is_valid(reader.xsd_diagnostics());

@@ -1,5 +1,0 @@
-<!DOCTYPE doc [
-<!ATTLIS<!ELEMENT doc (#PCDATA)>
-]>
-<doc a1="foo
-bar"></doc>

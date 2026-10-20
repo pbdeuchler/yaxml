@@ -1,7 +1,0 @@
-<!DOCTYPE root [
-<!ENTITY foo 'abc'>
-<!ENTITY bar 'def'>
-]>
-<rNTITY baroot attribute="&foo;">
-   <element>&bar;</element>
-</root>

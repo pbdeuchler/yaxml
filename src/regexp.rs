@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Mutex;
 
-mod unicode;
+pub(crate) mod unicode;
 
 /// Budget of [`Regex::new`]: NFA instructions, repetition copies and
 /// distinct class ranges.

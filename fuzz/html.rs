@@ -143,7 +143,8 @@ fn xml_output(document: &OwnedDocument) {
 }
 
 /// `save::to_vec` on an HTML document: the HTML serializer unless `AS_XML`
-/// or `XHTML` asks for XML output; `AS_HTML` needs the document node.
+/// or `XHTML` asks for XML output. Saved as HTML, the top-level subtrees
+/// concatenate to the document's output after its DOCTYPE.
 fn saved_as_xml(document: &OwnedDocument, seed: u64) {
     let format = (seed >> 50 & 1) as u32 * save::FORMAT;
     let html = save::to_vec(
@@ -151,12 +152,21 @@ fn saved_as_xml(document: &OwnedDocument, seed: u64) {
         &save::Options::new(format | ((seed >> 51 & 1) as u32 * save::AS_HTML)),
     );
     assert_eq!(html, html::save(document, format != 0));
-    if let Some(node) = document.root().first_child() {
-        let subtree = save::to_vec(node, &save::Options::new(save::AS_HTML));
-        assert_eq!(
-            subtree.map_err(|e| e.kind),
-            Err(ErrorKind::UnsupportedOption)
+    if let Ok(html) = &html
+        && document.root().first_child().is_some()
+    {
+        let mut subtrees = Vec::new();
+        for node in document.root().children() {
+            let flags = format | ((seed >> 52 & 1) as u32 * save::AS_HTML);
+            subtrees.extend(save::to_vec(node, &save::Options::new(flags)).unwrap());
+        }
+        subtrees.push(b'\n');
+        assert!(
+            html.ends_with(&subtrees),
+            "subtrees differ from the document"
         );
+    }
+    if let Some(node) = document.root().first_child() {
         let _ = save::to_vec(node, &save::Options::new(save::AS_XML | format));
     }
     for flags in [save::AS_XML, save::XHTML, save::XHTML | save::NO_EMPTY] {

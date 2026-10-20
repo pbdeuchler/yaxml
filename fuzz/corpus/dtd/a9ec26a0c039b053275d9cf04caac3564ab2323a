@@ -1,0 +1,6 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n' p 'pa$sed'>
+<!ENTITY % pe '														'>
+%pe;
+<!ATTLIST r i fID EI DREF #IMPLIED s I#DREFS #IMPLIED e

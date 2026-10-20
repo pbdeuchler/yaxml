@@ -1,4 +1,6 @@
-//! `save::to_vec` over save options and output encodings, derived from a hash
+//! `save::to_vec` and `save::to_writer` (through short writes, which must
+//! give the same bytes) over save options, subtree levels and output
+//! encodings, derived from a hash
 //! of the input so every input is a document. Both DOMs must agree, only
 //! markup an encoding lacks may fail, and saving the reparsed output again
 //! must reproduce it byte for byte: the output is a fixed point, which
@@ -57,11 +59,13 @@ pub(super) fn exercise(input: &[u8]) {
         flags,
         encoding: ENCODINGS[(seed >> 8) as usize % ENCODINGS.len()],
         indent: INDENTS[(seed >> 11) as usize % INDENTS.len()],
+        level: (seed >> 40) as usize % 4,
     };
     if seed >> 24 & 7 == 0 {
         rejected_options(&owned, seed);
     }
     let output = save::to_vec(&owned, &options);
+    assert_streamed(&owned, &options, &output, seed);
     let borrowed = || Document::parse_with(input, ParseOptions::new(parse));
     if let Ok(borrowed) = borrowed() {
         assert_eq!(
@@ -96,6 +100,7 @@ pub(super) fn exercise(input: &[u8]) {
     let count = owned.nodes().len();
     let node = owned.nodes().nth((seed >> 16) as usize % count).unwrap();
     let subtree = save::to_vec(node, &options);
+    assert_streamed(node, &options, &subtree, seed);
     if let Ok(borrowed) = borrowed() {
         let view = borrowed.nodes().nth((seed >> 16) as usize % count).unwrap();
         assert_eq!(save::to_vec(view, &options), subtree, "DOM disagreement");
@@ -126,8 +131,7 @@ pub(super) fn exercise(input: &[u8]) {
 }
 
 /// Unknown flags and indents outside 1..=60 spaces or tabs are rejected;
-/// `AS_HTML` writes an XML document node with the HTML serializer and
-/// rejects any other node.
+/// `AS_HTML` writes any owned node with the HTML serializer.
 fn rejected_options(owned: &OwnedDocument, seed: u64) {
     let long = " ".repeat(61);
     let indent = ["", "x", " \n", &long][(seed >> 27) as usize & 3];
@@ -150,8 +154,12 @@ fn rejected_options(owned: &OwnedDocument, seed: u64) {
         let lossy = [ErrorKind::UnsupportedEncoding, ErrorKind::InvalidCharacter];
         assert!(lossy.contains(&error.kind), "{error:?}");
     }
+    // An owned subtree is saved as HTML too.
     let child = owned.root().first_child().expect("a document has a child");
-    assert_eq!(save::to_vec(child, &html).map_err(|e| e.kind), unsupported);
+    if let Err(error) = save::to_vec(child, &html) {
+        let lossy = [ErrorKind::UnsupportedEncoding, ErrorKind::InvalidCharacter];
+        assert!(lossy.contains(&error.kind), "{error:?}");
+    }
 }
 
 /// Only markup an encoding cannot represent fails.
@@ -190,5 +198,41 @@ fn fixed_point(output: &[u8], parse: u32, options: &save::Options<'_>) {
     let second = resave(output);
     if second != output {
         assert_eq!(resave(&second), second, "saved output does not settle");
+    }
+}
+
+/// A sink that accepts at most `step` bytes per call.
+struct Trickle {
+    bytes: Vec<u8>,
+    step: usize,
+}
+
+impl std::io::Write for Trickle {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        let length = bytes.len().min(self.step);
+        self.bytes.extend_from_slice(&bytes[..length]);
+        Ok(length)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// `to_writer` through short writes produces what `to_vec` returns.
+fn assert_streamed<'d, 'i: 'd>(
+    tree: impl Into<save::Tree<'d, 'i>>,
+    options: &save::Options<'_>,
+    expected: &Result<Vec<u8>, yaxml::Error>,
+    seed: u64,
+) {
+    let mut sink = Trickle {
+        bytes: Vec::new(),
+        step: 1 + (seed >> 44) as usize % 4096,
+    };
+    match (save::to_writer(tree, options, &mut sink), expected) {
+        (Ok(()), Ok(bytes)) => assert_eq!(&sink.bytes, bytes, "streamed output differs"),
+        (Err(yaxml::WriteError::Xml(error)), Err(expected)) => assert_eq!(&error, expected),
+        (result, expected) => panic!("streamed {result:?}, in memory {expected:?}"),
     }
 }

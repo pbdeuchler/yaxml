@@ -275,9 +275,13 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
 ## Gaps
 
 - Error handlers (`SetErrorHandler`, `SetStructuredErrorHandler`,
-  `GetErrorHandler`, `GetLastError`), `GetParserLineNumber`/`ColumnNumber` and
-  the locator functions depend on the structured diagnostics with line and
-  column of `work/errors` and are not done here.
+  `GetErrorHandler`, `GetLastError`) and the locator functions: errors are
+  returned, and `Error::describe` gives libxml2's record
+  ([bindings.md](bindings.md#error-mapping)).
+- `line_number`/`column_number` (`GetParserLineNumber`/`ColumnNumber`) give
+  the parsing point (input consumed, ahead of the current node by one node
+  of lookahead) in a caller's `LineIndex`, since the reader keeps no input;
+  libxml2's point also depends on its 512-byte chunking.
 - `CurrentNode`, `CurrentDoc`, `Preserve` and `PreservePattern` do not fit.
   They hand out pointers into the tree libxml2's SAX handlers build as the
   reader advances, which the reader frees behind itself: `CurrentDoc` is

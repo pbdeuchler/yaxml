@@ -1,0 +1,11 @@
+<!DOCTYPE animal SYSTEM "ibm32i03.dtd" [
+   <!ELEMENT animal EMPTY>
+]>
+<!-- This is against VC: S{andalone Document Declaration in P32
+ The standalone docntaining character reference.
+-->
+<animal class="   NMTOKEN_with_leading_and_trailing_space	 "/>
+
+
+
+

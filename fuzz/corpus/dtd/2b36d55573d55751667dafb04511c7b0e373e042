@@ -1,0 +1,22 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYST/>
+  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿr="out" b:attr="sorted"/e4>
+   <e5 a:attr="out" b:attr="sorted" attr2="all" attr="I'm"
+       xmlns:b="http://www.ietf.org"
+       xmlns:a="http:/exam/">
+   <e1   />
+ á <e2   ></e2>
+   <e3    naem = "_lem3"   id="elem3"    />
+  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿm3"   id="elem3"    />
+  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ <e4    name="elem4"   id="elem4"    ></e4>
+  EM 'n'>
+<!ENTITY % pe ''>
+%pe;
+<!ATTLIST r       <e8 xmlns="" xmlns:a="http://www.w3.org" a:foo="bar">
+ttp://www.ietf.or   <e4    name="elem4"   id="elem4"    ></e4>
+   <e5 a:attr="out" b:.at=rt"sorted" attr2="all" attr="I'm"
+       xmlns:b<doc xmlns:foo="http://wD 'c' q CDATA #REQUIRED xmlns:p CDATA #FIXED 'urn:q' j ID 'd'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s=ww.bar'a HHHHH.org" x

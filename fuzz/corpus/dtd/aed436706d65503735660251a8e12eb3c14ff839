@@ -1,0 +1,10 @@
+<!DOCTYPE collection [
+
+<!ELEMENT collection ANY>
+
+<!ELEMENT identifier EMPTY>
+<!ATTLIST identifier
+    value	IDREFS	"i-Am!-not-a-number 21" >  <!-- tests the "attribute default legcl" vcD-->
+
+<!ELEmENT identiffault legal" v/>
+</collection>

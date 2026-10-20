@@ -1,0 +1,7 @@
+<!DOCTYPE doc [<!ATTLIST normId id ID #IMPLIED>]>
+<doc>
+   <text>FirltOs ne&#x0d;&#10;Second line</text>
+   <value>&#x32;</value>
+   <compute><![CDATA[value>"0" && value<"10" ?"valid":"error"]]></compute>
+   <compute expr='value>"0" &amp;&amp; value&lt;"10;&#xa;&#9;   ;&#13;&#xa;&#9;   &apos; '/>
+</doc>

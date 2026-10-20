@@ -318,6 +318,7 @@ fn check_recovered(flags: u32, document: &[u8]) {
     let owned = OwnedDocument::parse_with(document, ParseOptions::new(flags));
     if let Ok(owned) = &owned {
         assert!(owned.errors().len() <= 100);
+        super::check_diagnostics(document, owned.errors());
         assert!(owned.errors().iter().all(|error| !matches!(
             error.kind,
             ErrorKind::LimitExceeded(_) | ErrorKind::Allocation | ErrorKind::EntityLoop

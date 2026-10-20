@@ -54,7 +54,10 @@ impl<A: Allocator> OwnedDocument<A> {
     /// Whether the DTD declares the parsed general entity `name`.
     fn declares_entity(&self, name: &str) -> bool {
         self.dtd()
-            .is_some_and(|dtd| dtd.entities.get(name).is_some_and(Option::is_none))
+            .and_then(|dtd| dtd.entity(name))
+            .is_some_and(|entity| {
+                entity.notation.is_none() && entity.kind != crate::valid::EntityKind::Predefined
+            })
     }
 
     /// One declaration on `root` per prefix that `plan` binds to a single

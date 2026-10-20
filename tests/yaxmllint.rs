@@ -142,8 +142,8 @@ fn cases() -> Vec<Case> {
         case("wellformed noout", &["--noout", "a.xml"], 0, Empty),
         case("default output", &["a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n<a><b k=\"1\">x</b><b>y</b></a>\n")),
         err(on(case("malformed", &["a.xml"], 4, Empty), &[("a.xml", "<a>\n<b>\n</a>")], ""), "a.xml:3: parser error"),
-        err(on(case("recover", &["--recover", "a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n<a>\n<b>\n</b></a>\n")), &[("a.xml", "<a>\n<b>\n</a>")], ""), "a.xml:3: parser error : MismatchedEndTag"),
-        err(on(case("recover without an element", &["--recover", "a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n")), &[("a.xml", "text")], ""), "TextOutsideRoot"),
+        err(on(case("recover", &["--recover", "a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n<a>\n<b>\n</b></a>\n")), &[("a.xml", "<a>\n<b>\n</a>")], ""), "a.xml:3: parser error : Opening and ending tag mismatch: b line 2 and a\n</a>\n    ^\n"),
+        err(on(case("recover without an element", &["--recover", "a.xml"], 0, Exact("<?xml version=\"1.0\"?>\n")), &[("a.xml", "text")], ""), "a.xml:1: parser error : Start tag expected, '<' not found\ntext\n^\n"),
         on(case("recover is ignored by stream", &["--recover", "--stream", "a.xml"], 0, Empty), &[("a.xml", "<a/>")], ""),
         err(case("missing file", &["nope.xml"], 4, Empty), "failed to load"),
         err(case("no arguments", &[], 1, Empty), "Usage"),
@@ -151,7 +151,7 @@ fn cases() -> Vec<Case> {
         err(case("unsupported option", &["--shell", "a.xml"], 1, Empty), "unsupported option --shell"),
         err(case("missing value", &["a.xml", "--xpath"], 1, Empty), "missing value"),
         err(case("bad integer", &["--maxmem", "lots", "a.xml"], 1, Empty), "invalid integer"),
-        err(case("memory limit", &["--maxmem", "10", "a.xml"], 9, Empty), "LimitExceeded"),
+        err(case("memory limit", &["--maxmem", "10", "a.xml"], 9, Empty), "Maximum memory exceeded (10 bytes)\n"),
         case("version", &["--version"], 0, Has("yaxmllint using yaxml")),
         case("no-op options", &["--nonet", "--noent", "--nowarning", "--push", "--noout", "a.xml"], 0, Empty),
         case("huge", &["--huge", "--noout", "a.xml"], 0, Empty),
@@ -226,9 +226,9 @@ fn cases() -> Vec<Case> {
         err(on(case("stream malformed", &["--stream", "a.xml"], 1, Empty), &[("a.xml", "<a>")], ""), "failed to parse"),
         err(on(case("stream valid", &["--stream", "--valid", "a.xml"], 0, Empty), &[("a.xml", DTD_OK)], ""), ""),
         err(on(case("stream invalid", &["--stream", "--valid", "a.xml"], 3, Empty), &[("a.xml", DTD_BAD)], ""), "validity error : Element a content does not follow the DTD, Misplaced c"),
-        err(case("stream valid without DTD fails", &["--stream", "--valid", "a.xml"], 3, Empty), "validity error : Validation failed: no DTD found !\n<a><b k=\"1\">x</b><b>y</b></a>\n^\nDocument a.xml does not validate"),
+        err(case("stream valid without DTD fails", &["--stream", "--valid", "a.xml"], 3, Empty), "validity error : Validation failed: no DTD found !\nDocument a.xml does not validate"),
         err(on(case("stream relaxng", &["--stream", "--relaxng", "s.rng", "a.xml"], 0, Empty), &[("a.xml", BARE), ("s.rng", RNG)], ""), "a.xml validates"),
-        err(on(case("stream relaxng fails", &["--stream", "--relaxng", "s.rng", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.rng", RNG)], ""), "a.xml:1: Relax-NG validity error : Expecting element b, got c"),
+        err(on(case("stream relaxng fails", &["--stream", "--relaxng", "s.rng", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.rng", RNG)], ""), "a.xml:1: element c: Relax-NG validity error : Expecting element b, got c"),
         err(on(case("stream relaxng malformed", &["--stream", "--relaxng", "s.rng", "a.xml"], 1, Empty), &[("a.xml", "<a><b>x</b>"), ("s.rng", RNG)], ""), "a.xml validates\na.xml : failed to parse"),
         err(on(case("stream schema", &["--stream", "--schema", "s.xsd", "a.xml"], 0, Empty), &[("a.xml", BARE), ("s.xsd", XSD)], ""), "a.xml validates"),
         err(on(case("stream schema fails", &["--stream", "--schema", "s.xsd", "a.xml"], 3, Empty), &[("a.xml", "<a><c/></a>"), ("s.xsd", XSD)], ""), "a.xml:1: Schemas validity error : Element 'c': This element is not expected. Expected is ( b ).\na.xml fails to validate"),
@@ -294,12 +294,10 @@ fn error_positions_name_line_and_column() {
     let dir = scratch(&[("a.xml", "<a>\n  <b></c>\n</a>")]);
     let run = yaxmllint(&["a.xml"], &dir, "", &[]);
     assert_eq!(run.code, 4);
-    assert!(
-        run.stderr.starts_with("a.xml:2: parser error : "),
-        "{}",
-        run.stderr
+    assert_eq!(
+        run.stderr,
+        "a.xml:2: parser error : Opening and ending tag mismatch: b line 2 and c\n  <b></c>\n         ^\n"
     );
-    assert!(run.stderr.contains("\n  <b></c>\n"), "{}", run.stderr);
 }
 
 // ---- differential against the pinned xmllint ----
@@ -802,4 +800,83 @@ fn attribute_references_against_xmllint() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// The first `error :` line of a report and the context lines under it.
+fn first_error(stderr: &str) -> Option<String> {
+    let mut lines = stderr
+        .lines()
+        .skip_while(|line| !line.contains(" error : "));
+    let first = lines.next()?;
+    let header = |line: &&str| {
+        line.starts_with("Entity: line")
+            || line.split(": ").next().is_some_and(|head| {
+                head.rsplit_once(':')
+                    .is_some_and(|(_, n)| n.parse::<u32>().is_ok())
+            })
+    };
+    let context: Vec<_> = lines.take_while(|line| !header(line)).collect();
+    Some(
+        std::iter::once(first)
+            .chain(context)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
+/// Parse-error stderr against xmllint over libxml2's `test/errors` and the
+/// XMLTS not-wf documents: the first error line, that error's report with
+/// its context lines, and the whole stderr. yaxml stops at the first error
+/// where libxml2 goes on reporting, so whole stderr agrees less often.
+#[test]
+fn parse_errors_against_xmllint() {
+    let Some(xmllint) = std::env::var_os("YAXML_XMLLINT").map(PathBuf::from) else {
+        eprintln!("YAXML_XMLLINT unset; skipping the parse-error stderr differential");
+        return;
+    };
+    let xmlts: Vec<String> = fs::read_to_string(suites().join("xmlconf-catalog.tsv"))
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| {
+            let fields: Vec<_> = line.split('\t').collect();
+            (fields.get(1) == Some(&"not-wf"))
+                .then(|| fields.get(8).map(|path| path.to_string()))?
+        })
+        .collect();
+    for (label, dir, inputs) in [
+        ("errors", source().join("test"), files("errors", "xml")),
+        ("XMLTS not-wf", suites().join("xmlconf"), xmlts),
+    ] {
+        let (mut total, mut lines, mut reports, mut whole) = (0, 0, 0, 0);
+        for input in &inputs {
+            let args = ["--noout", input.as_str()];
+            let theirs = run_program(&xmllint, &args, &dir, "", &[]).stderr;
+            let Some(expected) = first_error(&theirs) else {
+                continue;
+            };
+            let ours = yaxmllint(&args, &dir, "", &[]).stderr;
+            let found = first_error(&ours).unwrap_or_default();
+            total += 1;
+            lines += usize::from(found.lines().next() == expected.lines().next());
+            reports += usize::from(found == expected);
+            whole += usize::from(ours == theirs);
+        }
+        let rate = |n: usize| {
+            format!(
+                "{n}/{total} ({:.2}%)",
+                100.0 * n as f64 / total.max(1) as f64
+            )
+        };
+        eprintln!(
+            "{label}: first error line {}, its report {}, whole stderr {}",
+            rate(lines),
+            rate(reports),
+            rate(whole)
+        );
+        assert!(
+            lines * 10 >= total * 9,
+            "{label}: first error lines agree on {}",
+            rate(lines)
+        );
+    }
 }

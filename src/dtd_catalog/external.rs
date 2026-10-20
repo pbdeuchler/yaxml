@@ -72,6 +72,7 @@ pub(crate) fn external_dtd(
     loader.base = uri;
     let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
     catalog.set_loader(loader);
+    catalog.reading_external_subset = true;
     let mut frames = vec![Frame {
         source: Source::Subset,
         cursor: 0,
@@ -90,7 +91,7 @@ impl DtdCatalog {
 
     /// Loads an external parsed entity once; `false` when it has no text.
     pub(crate) fn load(&mut self, id: EntityId) -> Result<bool, DtdError> {
-        let entity = &mut self.entities[id.0];
+        let entity = &mut self.dtd.entities[id.0];
         let (Some(loader), EntityBody::External(external)) = (&mut self.loader, &mut entity.body)
         else {
             return Ok(false);
@@ -114,7 +115,7 @@ impl DtdCatalog {
 
     /// Loads the external general entity `name` before content lookup.
     pub(crate) fn load_general(&mut self, name: &str) -> Result<(), DtdError> {
-        match self.general.get(name) {
+        match self.dtd.general.get(name) {
             Some(&id) => self.load(id).map(drop),
             None => Ok(()),
         }
@@ -147,6 +148,7 @@ impl DtdCatalog {
             return Ok(());
         };
         let base = Some(std::mem::replace(&mut loader.base, uri));
+        self.reading_external_subset = true;
         let mut frames = vec![Frame {
             source: Source::Subset,
             cursor: 0,
@@ -158,7 +160,7 @@ impl DtdCatalog {
     fn text<'a>(&'a self, subset: &'a str, source: Source) -> &'a str {
         match source {
             Source::Subset => subset,
-            Source::Entity(id) => self.entities[id.0].body.text().expect("entered text"),
+            Source::Entity(id) => self.dtd.entities[id.0].body.text().expect("entered text"),
         }
     }
 
@@ -201,7 +203,7 @@ impl DtdCatalog {
         if depth >= self.limits.depth {
             return Err(error(ErrorKind::LimitExceeded(Limit::EntityDepth)));
         }
-        if !self.load(id)? && matches!(self.entities[id.0].body, EntityBody::External(_)) {
+        if !self.load(id)? && matches!(self.dtd.entities[id.0].body, EntityBody::External(_)) {
             return Ok(());
         }
         let length = self.text("", Source::Entity(id)).len();
@@ -212,7 +214,7 @@ impl DtdCatalog {
             ErrorKind::LimitExceeded(Limit::EntityExpansion),
             LOCATION,
         )?;
-        let base = match (&mut self.loader, &self.entities[id.0].body) {
+        let base = match (&mut self.loader, &self.dtd.entities[id.0].body) {
             (Some(loader), EntityBody::External(external)) => Some(std::mem::replace(
                 &mut loader.base,
                 external.uri.clone().expect("loader resolves identifiers"),
@@ -243,7 +245,7 @@ impl DtdCatalog {
         let Some((_, Reference::Named(name))) = parse_reference(rest) else {
             return Err(error(ErrorKind::InvalidReference));
         };
-        let id = self.parameter.get(name).copied();
+        let id = self.dtd.parameter.get(name).copied();
         frames.last_mut().expect("active frame").cursor += end + 1;
         self.parameter_reference = true;
         match id {

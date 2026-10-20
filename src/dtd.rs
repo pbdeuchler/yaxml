@@ -120,19 +120,7 @@ pub(crate) enum Occurrence {
     OneOrMore,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum AttributeKind {
-    Cdata,
-    Id,
-    IdRef,
-    IdRefs,
-    Entity,
-    Entities,
-    NmToken,
-    NmTokens,
-    Notation,
-    Enumeration,
-}
+pub(crate) use crate::valid::AttributeKind;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ModelSyntax {

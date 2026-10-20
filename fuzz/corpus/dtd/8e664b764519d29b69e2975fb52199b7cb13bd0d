@@ -1,0 +1,22 @@
+<!DOCTYPE r SYSTEM 'm.<td' [<!ENTITY e '<a>x&u;</a>]'><!NOTATION n SYSTEM 'n'><!--Oc--><?p d?>]><r>&e;Y/r>EM 'TION **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/0.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/aw.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:namÿÿÿÿc:opendocument:xmlns:office:2.0"
+    xmlns:meta="urn:oasis:names2tc:opendocument:xmlns:metalns:dr3d:1.0"
+    xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1./xlink"
+    xmlns:math="http:tible:2.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+     </attribute>
+    </optional>
+</define>
+<start>
+    <choice>
+        <ref name="office-document-styleguration text:note-class="endnote" style:nu--format="1" text:start-value="0"/>
+ </offn>]><r>&e;Y/r>EM 'TION n SYSTEM 'n'><!--Oc--><?p d?>]><r>&e;Y/r> SYSTEM 'n'><!--Oc--><?p d?>]><r>&e;Y/r>EM 'm.<td' [<!ENTITœœœœY 

@@ -16,8 +16,10 @@
 
 use std::collections::HashSet;
 
-use super::{AttributeDecl, Code, Content, Diagnostic, Dtd, PREDEFINED, blank, lexical};
-use crate::dtd_catalog::{AttributeKind, StoredDefault};
+use super::{
+    AttributeDecl, AttributeKind, Code, Content, Diagnostic, Dtd, blank, lexical, predefined_entity,
+};
+use crate::dtd_catalog::{EntityBody, StoredDefault};
 use crate::xpath::tree::{Item, Navigate, QName};
 
 /// An element as diagnostics name it.
@@ -170,8 +172,12 @@ impl<Id: Copy> Validator<Id> {
                 }
             }
         }
-        let mut missing: Vec<_> = (dtd.entities.values().flatten())
-            .filter(|notation| !dtd.notations.contains_key(*notation))
+        let mut missing: Vec<_> = (dtd.declared.values())
+            .filter_map(|id| match &dtd.entities[id.0].body {
+                EntityBody::External(external) => external.notation.as_deref(),
+                EntityBody::Internal(_) => None,
+            })
+            .filter(|notation| !dtd.notation_index.contains_key(*notation))
             .collect();
         missing.sort_unstable();
         for notation in missing {
@@ -211,7 +217,7 @@ impl<Id: Copy> Validator<Id> {
             watch_blanks: false,
             run: None,
         };
-        match dtd.element(name) {
+        match dtd.element_for(name) {
             Some((index, decl)) if decl.content.is_some() => {
                 frame.decl = Some(index);
                 if let Some(Content::Children(model)) = &decl.content {
@@ -456,7 +462,7 @@ impl<Id: Copy> Validator<Id> {
             false => attribute.local,
         };
         let owner = element.local;
-        let Some(decl) = dtd.attribute(element, attribute.qualified) else {
+        let Some(decl) = dtd.attribute_for(element, attribute.qualified) else {
             let message = format!("No declaration for attribute {shown} of element {owner}");
             return self.report(key, Code::UnknownAttribute, Some(node), message);
         };
@@ -492,7 +498,7 @@ impl<Id: Copy> Validator<Id> {
                 });
             }
             AttributeKind::Notation => {
-                if !dtd.notations.contains_key(value) {
+                if !dtd.notation_index.contains_key(value) {
                     let message = format!(
                         "Value \"{value}\" for attribute {shown} of {owner} is not a declared Notation"
                     );
@@ -529,7 +535,7 @@ impl<Id: Copy> Validator<Id> {
                     self.entity(dtd, (key, node), ("ENTITIES", shown), name);
                 }
             }
-            AttributeKind::Notation if !dtd.notations.contains_key(value) => {
+            AttributeKind::Notation if !dtd.notation_index.contains_key(value) => {
                 let message =
                     format!("NOTATION attribute {shown} reference an unknown notation \"{value}\"");
                 self.report(key, Code::UnknownNotation, Some(node), message);
@@ -545,9 +551,10 @@ impl<Id: Copy> Validator<Id> {
         (kind, attribute): (&str, &str),
         value: &str,
     ) {
-        let message = match dtd.entities.get(value) {
-            Some(Some(_)) => return,
-            None if !PREDEFINED.contains(&value) => {
+        let entity = dtd.declared.get(value).map(|id| &dtd.entities[id.0].body);
+        let message = match entity {
+            Some(EntityBody::External(external)) if external.notation.is_some() => return,
+            None if predefined_entity(value).is_none() => {
                 let message =
                     format!("{kind} attribute {attribute} reference an unknown entity \"{value}\"");
                 return self.report(key, Code::UnknownEntity, Some(node), message);

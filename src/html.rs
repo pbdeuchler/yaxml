@@ -39,7 +39,7 @@ use encoding::{Decoder, meta_charset, prescan, sniff};
 use tokenizer::{Stop, TagEnd, Token, Tokenizer};
 use tree::{Reaction, Settings, Tree};
 
-pub(crate) use serialize::save_as;
+pub(crate) use serialize::save_node;
 pub use serialize::{save, to_html};
 pub(crate) use tables::boolean_attribute;
 

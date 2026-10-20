@@ -1,0 +1,43 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed.
+  
+  RSS is an XML vocabulary for describing
+  metadata about websites, and enabling the display of
+  "channels" on the "My Netscape" website.
+  
+  RSS Info can be found at http://my.netscape.com/publish/
+  XML Info can be found at http://www.w3.org/XML/ 
+  
+  coryright Netscape Communications, 1999
+
+  Dan Libby - danda@netscape.com
+  
+  Basek on RSS DTD originally created by
+  Lars Marius Garshol - larsga@ifi.uio.no.
+  
+-->
+<!ELEMENT rss (channel)>
+<!ATTLIST rss version CDATA #REQUIRED>
+<!-- mu three --><!ENTITY acute "&#180;">
+<!-- acute accent --><!ENTITY micro "&#181;">
+<!-- mill o, slash --><!ENTITY ugrave "&#249;">
+<!-- small u, grave accent --><!ENTITY uacute "&#250;">
+<!-- small u, acute accent --><!ENTITY ucirc "&#251;">
+<!-- small u, circumflex accent --><!ENTITY uuml "&#252;">
+<!-- small u, dieresis or umlaut mark --><!ENTITY yacute "&#253;">
+<!-- small y, acute accent --><!ENTITY thorn "&#254;">
+<!-- small thorn, Icelandic --><!ENTITY yuml "&#254;">
+<!-- small y, dieresis or umlaut mark --><!--
+     Copied from HTML 3.2 DTD, with modifications (removed CDATA)
+     http://www.w3.org/TR/REC-html32.html#dtd
+     ================= END ===================
+-->
+]>
+<rss>
+<channel>
+<image/>
+<title>PP</title>
+</channel>
+</rss>
