@@ -142,6 +142,7 @@ const FILES: &[(&str, &[u8])] = &[
     ("ids.xml", b"<!DOCTYPE d [<!ATTLIST e k ID #IMPLIED>]><d><e k='one'/><e k='two'/></d>"),
     ("ns.xml", b"<p:a xmlns:p='urn:p'><p:b q:c='1' xmlns:q='urn:q'/><x xmlns='urn:d'><y/></x></p:a>"),
     ("plain.xml", b"<y><z/></y>"),
+    ("unbound.xml", b"<x xmlns='urn:d'><y q:a='1'/><z xmlns=''/></x>"),
     ("lang.xml", b"<l xml:lang='en'><m/></l>"),
     ("abs.xml", b"<h xml:base='http://example.org/h/'/>"),
     ("t.txt", b"a < b & c\r\n"),
@@ -259,6 +260,13 @@ fn inclusions_match_libxml2() {
             "default namespace declared outside the copy",
             include("href='ns.xml' xpointer='xmlns(d=urn:d) xpointer(//d:y)'"),
             r#"<y xmlns="urn:d"/>"#,
+        ),
+        (
+            "a prefix a namespace error left unbound stays undeclared",
+            format!(
+                "<r xmlns='urn:r' {XI}><xi:include href='unbound.xml' xpointer='xmlns(d=urn:d) xpointer(//d:y|//z)'/></r>"
+            ),
+            r#"<r xmlns="urn:r" xmlns:xi="http://www.w3.org/2001/XInclude"><y xmlns="urn:d" q:a="1"/><z xmlns=""/></r>"#,
         ),
         (
             "unqualified element under a default namespace: libxml2 omits xmlns=\"\"",

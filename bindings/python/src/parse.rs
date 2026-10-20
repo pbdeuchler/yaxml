@@ -176,6 +176,10 @@ pub fn parse_document(
     let mut rows: Vec<Row> = (lines.describe_all(doc.errors()).iter())
         .map(|d| row(d, filename))
         .collect();
+    // lxml raises the namespace errors libxml2 only reports, unless recovering.
+    if flags & options::RECOVER == 0 && !rows.is_empty() {
+        return Err(errors::syntax_from(py, &rows));
+    }
     let validity: Vec<Row> = (doc.validity().iter())
         .map(|d| row(&d.describe(&lines), filename))
         .collect();
@@ -423,6 +427,10 @@ impl State {
             }
             Err(error) => return Err(self.fail(py, error)),
         }
+        // As lxml, a namespace error stops the iteration.
+        if let Some(&error) = self.reader.errors().first() {
+            return Err(self.fail(py, ReadError::Xml(error)));
+        }
         match self.reader.node_type() {
             NodeType::Element => self.start(py),
             NodeType::EndElement => self.end(py),
@@ -479,7 +487,8 @@ impl IterParse {
             wanted[index] = true;
         }
         // Recovered events can name unbound prefixes, which the tree built
-        // here cannot hold, so the streaming reader does not recover.
+        // here cannot hold, so the streaming reader does not recover (and
+        // stops at a namespace error, as lxml does).
         if flags & options::RECOVER != 0 {
             let unsupported = yaxml::Error {
                 kind: yaxml::ErrorKind::UnsupportedOption,

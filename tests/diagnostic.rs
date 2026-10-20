@@ -10,8 +10,13 @@ use yaxml::{
     ParseOptions, TextReader, relaxng, schematron, xsd,
 };
 
+/// The first error: the one that stopped the parse, or a namespace error
+/// it kept.
 fn describe(input: &[u8]) -> yaxml::Diagnostic {
-    let error = OwnedDocument::parse_with(input, ParseOptions::default()).expect_err("malformed");
+    let error = match OwnedDocument::parse_with(input, ParseOptions::default()) {
+        Ok(document) => *document.errors().first().expect("malformed"),
+        Err(error) => error,
+    };
     error.describe(&LineIndex::new(input))
 }
 

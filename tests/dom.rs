@@ -123,7 +123,6 @@ fn rejects_invalid_documents_and_limit_failures() {
         (b"<r>".as_slice(), ErrorKind::UnexpectedEof),
         (b"<r></x>".as_slice(), ErrorKind::MismatchedEndTag),
         (b"<r/><s/>".as_slice(), ErrorKind::MultipleRoots),
-        (b"<p:r/>".as_slice(), ErrorKind::Namespace),
         (
             b"<r a='1' a='2'/>".as_slice(),
             ErrorKind::DuplicateAttribute,

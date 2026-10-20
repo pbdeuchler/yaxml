@@ -729,6 +729,11 @@ fn start_tag<'t>(
     let Some(name) = qname(c)? else {
         return c.fail(NAME_REQUIRED, "StartTag: invalid element name");
     };
+    // The element's namespace error, at its name, follows its attributes'.
+    let before_element = |found| match at == start + 1 {
+        true => Ok(()),
+        false => Err(found),
+    };
     c.blanks();
     let mut attrs: Vec<Attr<'t>> = Vec::new();
     let ended = |c: &Cur<'_>| c.b() == b'>' || (c.b() == b'/' && c.nb(1) == b'>');
@@ -749,7 +754,7 @@ fn start_tag<'t>(
             name: attr,
             value: att_value(c, kind, at)?,
         };
-        declaration(c, &attr, &attrs)?;
+        declaration(c, &attr, &attrs).or_else(before_element)?;
         attrs.push(attr);
         if ended(c) {
             break;
@@ -773,15 +778,19 @@ fn start_tag<'t>(
     }));
     let lookup = |prefix: &str| match prefix {
         "xml" => Some(XML_NS.to_owned()),
+        "xmlns" => None,
         _ => scope
             .iter()
             .rev()
             .find(|a| a.declares() == Some(prefix))
             .map(|a| a.value.clone())
-            .filter(|uri| !uri.is_empty()),
+            .filter(|uri| !["", XML_NS, XMLNS_NS].contains(&uri.as_str())),
     };
     let element = local(name);
-    let plain: Vec<_> = attrs.iter().filter(|a| a.declares().is_none()).collect();
+    let plain: Vec<_> = attrs
+        .iter()
+        .filter(|a| a.declares().is_none() && at != start + 1)
+        .collect();
     let mut resolved = Vec::with_capacity(plain.len());
     for attr in &plain {
         let uri = match attr.name.split_once(':') {

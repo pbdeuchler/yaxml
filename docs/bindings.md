@@ -576,11 +576,14 @@ Differential against lxml 6.1.3 (bundling libxml2 2.14.6), both sides with
 | element tree (tags, attributes, text, tails, comments, PIs) where both parse | 663/663 (100.00%) |
 | `tostring(tree)` bytes | 649/663 (97.89%) |
 | `tostring(tree, method="c14n")` | 663/663 (100.00%) |
-| error code and line where both reject | 54/65 (83.08%) |
+| error code and line where both reject | 53/65 (81.54%) |
 
 The rejections are lxml's: it raises when libxml2 logged an error it
 recovered from (undeclared entities in documents with an unread external
 subset, `xml:id` errors), and libxml2 2.14 reports some different codes.
+Namespace errors raise as in lxml, but a parse that a later error stops
+reports that error, where lxml reports the namespace error before it
+(`test/errors/758588.xml`).
 The `tostring` differences are 2.14's `<?pi ?>` spacing, lxml dropping
 some DOCTYPEs, and non-ASCII names and comments under ASCII output.
 

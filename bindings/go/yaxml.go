@@ -344,8 +344,8 @@ func diagnostics(list C.yaxml_diagnostics) []Diagnostic {
 	return out
 }
 
-// Diagnostics lists the errors a Recover parse repaired and the validity
-// errors of a DTDValid parse.
+// Diagnostics lists the namespace errors a parse kept (Recover or not), the
+// errors a Recover parse repaired and the validity errors of a DTDValid parse.
 func (d *Document) Diagnostics() ([]Diagnostic, error) {
 	var list C.yaxml_diagnostics
 	var e C.yaxml_error

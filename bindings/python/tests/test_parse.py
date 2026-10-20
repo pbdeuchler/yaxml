@@ -97,6 +97,26 @@ def test_namespace_error_domain():
     assert info.value.code == 201
 
 
+@pytest.mark.parametrize(
+    ("text", "code", "saved"),
+    [
+        ("<r><p:c/></r>", 201, b"<r><p:c/></r>"),
+        ("<r xmlns:p=''/>", 200, b"<r/>"),
+        ("<a:b:c/>", 202, b"<a:b:c/>"),
+        ("<?a:b?><r/>", 205, b"<r/>"),
+    ],
+)
+def test_namespace_errors_raise_unless_recovering(text, code, saved):
+    # As lxml: libxml2 only reports these, lxml raises them.
+    with pytest.raises(et.XMLSyntaxError) as info:
+        et.fromstring(text)
+    assert info.value.code == code
+    parser = et.XMLParser(recover=True)
+    root = et.fromstring(text, parser)
+    assert et.tostring(root) == saved
+    assert parser.error_log[0].type == code
+
+
 def test_recover_keeps_tree_and_logs_errors():
     parser = et.XMLParser(recover=True)
     root = et.fromstring("<r><a></r>", parser)

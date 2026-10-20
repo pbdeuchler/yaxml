@@ -279,19 +279,27 @@ fn check_accessors(
             expected.search_ns_by_href(binding.uri)
         );
     }
+    // libxml2's attribute name: a name in no namespace is its QName (one a
+    // namespace error left prefixed included), and a lookup finds the first
+    // match, which kept duplicate expanded names make ambiguous.
+    fn key<'n>(name: &'n yaxml::Name<'_>) -> &'n str {
+        match name.namespace() {
+            Some(_) => name.local(),
+            None => name.qualified(),
+        }
+    }
     for attribute in expected.attributes() {
         let name = &attribute.name;
-        let (local, namespace) = (name.local(), name.namespace());
+        let (local, namespace) = (key(name), name.namespace());
         assert_eq!(actual.attribute(local), expected.attribute(local));
         if name.qualified() != "xmlns" && name.prefix() != Some("xmlns") {
-            assert_eq!(
-                expected.attribute_ns(local, namespace),
-                Some(&*attribute.value)
-            );
-            assert_eq!(
-                actual.attribute_ns(local, namespace),
-                Some(&*attribute.value)
-            );
+            let first = expected
+                .attributes()
+                .iter()
+                .find(|other| key(&other.name) == local && other.name.namespace() == namespace)
+                .map(|other| &*other.value);
+            assert_eq!(expected.attribute_ns(local, namespace), first);
+            assert_eq!(actual.attribute_ns(local, namespace), first);
         }
     }
 }

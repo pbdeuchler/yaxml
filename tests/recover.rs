@@ -60,7 +60,7 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     ("<r><p:a q:b=\"1\" b=\"2\"/></r>", "<r><p:a q:b=\"1\" b=\"2\"/></r>", &[Namespace, Namespace]),
     ("<r><a:b xmlns:a=\"\"/></r>", "<r><a:b/></r>", &[Namespace, Namespace]),
     ("<r xmlns:xml=\"u\"/>", "<r/>", &[Namespace]),
-    ("<r><a:b:c/></r>", "<r><a:b:c/></r>", &[InvalidName]),
+    ("<r><a:b:c/></r>", "<r><a:b:c/></r>", &[Namespace]),
     // references: dropped as far as libxml2 reads them, U+FFFD for bad characters
     ("<r>a & b &x c</r>", "<r>a  b  c</r>", &[InvalidReference, InvalidReference]),
     ("<r>&#x4G;</r>", "<r>G;</r>", &[InvalidReference]),
@@ -161,10 +161,16 @@ fn recovery_builds_libxml2s_tree_and_lists_the_errors() {
     for &(input, saved, errors) in CASES.iter().chain(SLICE) {
         let expected = (format!("{DECL}{saved}\n"), errors.to_vec());
         assert_eq!(recover(input.as_bytes(), 0), Ok(expected), "{input}");
-        let strict = Document::parse(input).map(drop).map_err(|error| error.kind);
-        assert_eq!(strict.is_ok(), errors.is_empty(), "{input}");
-        if let Err(kind) = strict {
-            assert!(errors.contains(&kind), "strict error of {input}: {kind:?}");
+        // Strict parsing keeps namespace errors too, and stops at any other.
+        let strict = Document::parse(input).map_err(|error| error.kind);
+        let namespace = errors.iter().all(|kind| *kind == Namespace);
+        assert_eq!(strict.is_ok(), namespace, "{input}");
+        match strict {
+            Ok(document) => {
+                let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
+                assert_eq!(kinds, errors, "{input}");
+            }
+            Err(kind) => assert!(errors.contains(&kind), "strict error of {input}: {kind:?}"),
         }
     }
 }

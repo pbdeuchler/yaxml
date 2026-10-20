@@ -517,8 +517,10 @@ impl<'a> Reader<'a> {
         })
     }
 
-    /// The well-formedness errors a `RECOVER` parse recovered from so far, in
-    /// input order (the first 100, as libxml2 keeps); empty without `RECOVER`.
+    /// The errors kept so far, in input order (the first 100, as libxml2
+    /// keeps): namespace errors, which never stop a parse (libxml2's
+    /// `xmlNsErr`), and under `RECOVER` every well-formedness error recovered
+    /// from.
     pub fn errors(&self) -> &[Error] {
         if let Some(ordinary) = &self.ordinary {
             return ordinary.state.errors();

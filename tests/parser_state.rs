@@ -8,7 +8,7 @@ fn slice_failures_preserve_consumed_positions_and_early_structural_checks() {
         ("<r>&bad;</r>", ErrorKind::UnknownEntity, 8),
         ("<r><!--a--b--></r>", ErrorKind::Syntax, 3),
         ("<?xml?><r/>", ErrorKind::InvalidDeclaration, 7),
-        ("<?a:b?><r/>", ErrorKind::InvalidName, 0),
+        ("<?1?><r/>", ErrorKind::InvalidName, 0),
         ("<r/><s", ErrorKind::MultipleRoots, 4),
         ("<![CDATA[", ErrorKind::TextOutsideRoot, 0),
     ] {

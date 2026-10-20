@@ -226,10 +226,11 @@ fn name_views_preserve_default_prefixed_and_empty_namespace_ranges() {
 
 #[test]
 fn empty_prefixes_are_rejected_before_storage() {
-    assert_eq!(
-        OwnedDocument::parse("<p:r/>").unwrap_err().kind,
-        ErrorKind::Namespace
-    );
+    // An unbound prefix is a namespace error: the name stays unbound.
+    let document = OwnedDocument::parse("<p:r/>").unwrap();
+    assert_eq!(document.errors(), [Error::new(ErrorKind::Namespace, 1)]);
+    let name = document.root_element().name().unwrap();
+    assert_eq!((name.qualified(), name.namespace()), ("p:r", None));
     assert_eq!(
         Name::new(":r", Some(Cow::Borrowed("urn:p"))).unwrap_err(),
         Error::new(ErrorKind::InvalidName, 0),

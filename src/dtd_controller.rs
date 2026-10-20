@@ -479,6 +479,17 @@ impl<'input> DtdControllerCore<'input> {
             }
         };
         self.commit_source(side, raw_len)?;
+        // A colon in an entity or notation name is a namespace error
+        // (libxml2's `XML_NS_ERR_COLON`).
+        let colon = match unit.view() {
+            DtdUnitView::Entity(entity) => entity.name().contains(':'),
+            DtdUnitView::Notation(notation) => notation.name().contains(':'),
+            _ => false,
+        };
+        if colon {
+            let offset = unit_offset(encoding, origin, unit.raw(), 0);
+            budget.recover(Error::new(ErrorKind::Namespace, offset))?;
+        }
         let literals = match side {
             Side::Physical => LiteralSource::Physical,
             Side::Replacement => LiteralSource::Replacement,

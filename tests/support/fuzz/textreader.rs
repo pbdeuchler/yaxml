@@ -182,11 +182,14 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
         None => assert_eq!(name, local),
     }
     if reader.node_type() == NodeType::Element {
+        // A name a namespace error left in no namespace has no prefix.
+        let unbound = reader.namespace_uri().is_none() && name.contains(':');
         let bound = reader.lookup_namespace(reader.prefix());
-        assert_eq!(bound.filter(|uri| !uri.is_empty()), reader.namespace_uri());
+        assert!(unbound || bound.filter(|uri| !uri.is_empty()) == reader.namespace_uri());
         assert_eq!(reader.lookup_namespace(Some("xml")), Some(XML));
         let count = reader.attribute_count();
         assert_eq!(reader.move_to_first_attribute(), count > 0);
+        let mut index = 0;
         while reader.node_type() == NodeType::Attribute {
             let qualified = reader.name().expect("attribute name").to_owned();
             let value = reader.value().expect("attribute value").to_owned();
@@ -197,7 +200,14 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
             assert_eq!(reader.get_attribute(&qualified), None);
             assert!(matches!(reader.read_string(), Ok(None)));
             assert!(reader.move_to_element());
-            assert_eq!(reader.get_attribute(&qualified), Some(value.as_str()));
+            // A namespace error can leave a qualified name unresolvable, as
+            // in libxml2: an unbound prefix, a malformed QName, or a second
+            // attribute with the same expanded name (lookups find the first).
+            let first = reader.get_attribute_ns(&local, namespace.as_deref()) == Some(&value);
+            let resolvable = (!qualified.contains(':') || namespace.is_some()) && first;
+            if resolvable {
+                assert_eq!(reader.get_attribute(&qualified), Some(value.as_str()));
+            }
             assert!(
                 reader
                     .get_attribute_ns(&local, namespace.as_deref())
@@ -207,7 +217,12 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
                 assert!(reader.move_to_attribute_ns(&local, namespace));
                 assert!(reader.move_to_element());
             }
-            assert!(reader.move_to_attribute(&qualified));
+            // Back on this attribute: by name when that finds it.
+            let back = |reader: &mut TextReader<R>| match resolvable {
+                true => reader.move_to_attribute(&qualified),
+                false => reader.move_to_attribute_no(index),
+            };
+            assert!(back(reader));
             assert_eq!(reader.value(), Some(value.as_str()));
             // The value's children: Text, or EntityReference without NOENT.
             let mut parts = Vec::new();
@@ -219,7 +234,8 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
                 let joined: String = parts.iter().filter_map(|(_, v)| v.as_deref()).collect();
                 assert_eq!(joined, value);
             }
-            assert!(reader.move_to_attribute(&qualified));
+            assert!(back(reader));
+            index += 1;
             assert!(!reader.is_default() && reader.normalization());
             if !reader.move_to_next_attribute() {
                 assert!(reader.move_to_element());
@@ -387,11 +403,18 @@ fn navigate<R: BufRead>(reader: &mut TextReader<R>, expected: &[(String, String)
     while reader.move_to_next_attribute() {
         assert_eq!(reader.node_type(), NodeType::Attribute);
         let name = reader.name().expect("attribute name").to_owned();
-        visited.push((
-            name.clone(),
-            reader.value().expect("attribute value").to_owned(),
-        ));
+        let local = reader.local_name().expect("local name").to_owned();
+        let namespace = reader.namespace_uri().map(str::to_owned);
+        let value = reader.value().expect("attribute value").to_owned();
+        visited.push((name.clone(), value.clone()));
         assert!(reader.move_to_element());
+        // As in `probe`: a namespace error can leave the name unresolvable.
+        let first = reader.get_attribute_ns(&local, namespace.as_deref()) == Some(&value);
+        let resolvable = (!name.contains(':') || namespace.is_some()) && first;
+        if !resolvable {
+            assert!(reader.move_to_attribute_no(visited.len() - 1));
+            continue;
+        }
         assert_eq!(
             reader.get_attribute(&name),
             visited.last().map(|(_, value)| value.as_str())
@@ -524,11 +547,9 @@ pub fn exercise(input: &[u8]) {
             skipped.push(reader.name().expect("named node").to_owned());
             more = reader.next().expect("accepted input");
         }
-        if flags != 0 {
-            let mut slice = Reader::with_options(document, ParseOptions::new(flags)).unwrap();
-            while slice.read_event().unwrap().is_some() {}
-            assert_eq!(reader.errors(), slice.errors(), "recovered errors differ");
-        }
+        let mut slice = Reader::with_options(document, ParseOptions::new(flags)).unwrap();
+        while slice.read_event().unwrap().is_some() {}
+        assert_eq!(reader.errors(), slice.errors(), "kept errors differ");
         let top: Vec<_> = expected
             .iter()
             .filter(|node| node.depth == 0 && node.kind != NodeType::EndElement)

@@ -89,7 +89,9 @@ events ([compatibility.md](compatibility.md#recovery-recover)): each error
 site records its error and applies libxml2's repair, and an error no site
 repairs stops the parse, which then closes what is open with `End` (and
 `EntityEnd`) events at that error's offset and ends normally. `errors()`
-lists what was recovered from (the first 100); resource limits, loops,
+lists what was recovered from (the first 100), as it lists namespace errors
+with or without `RECOVER` ([compatibility.md](compatibility.md#namespace-errors));
+resource limits, loops,
 allocation and resolver failures stay errors. A stopped `PushParser` ignores
 further input, and `finish` succeeds. Input without an element ends with
 `MissingRoot` or `TextOutsideRoot` in `errors()` (the DOMs keep a rootless

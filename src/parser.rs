@@ -36,13 +36,15 @@ const SMALL_ATTRIBUTES: usize = 8;
 const MAX_RECOVERED: usize = 100;
 
 /// Per-parse state every layer shares: accounting for normalized strings and
-/// retained structural strings, and under `RECOVER` the errors recovered from.
+/// retained structural strings, and the errors recovered from: namespace
+/// errors always, every well-formedness error under `RECOVER`.
 pub(crate) struct Budget {
     limits: Limits,
     owned_bytes: usize,
     /// Attributes a DOM builder may still retain (`max_total_attributes`).
     attributes_left: usize,
-    recovered: Option<Vec<Error>>,
+    recovers: bool,
+    recovered: Vec<Error>,
     /// The last published start tag's kept-reference attribute forms
     /// (`dtd_tag::kept_form`) by attribute position, for the DOM builders.
     kept: Vec<(usize, String)>,
@@ -57,16 +59,20 @@ impl Budget {
             limits,
             owned_bytes: 0,
             attributes_left: limits.max_total_attributes,
-            recovered: None,
+            recovers: false,
+            recovered: Vec::new(),
             kept: Vec::new(),
             content: None,
         }
     }
 
-    /// An error site's decision: strict parsing fails with `error`. Under
-    /// `RECOVER` a well-formedness error is recorded and the site continues
-    /// with its repair; resource limits, allocation failure, entity loops and
-    /// failed loads stay fatal.
+    /// An error site's decision: strict parsing fails with `error`, except
+    /// that a namespace error is recorded and the site continues with its
+    /// repair, as libxml2's `xmlNsErr` does. Under `RECOVER` every
+    /// well-formedness error is; resource limits, allocation failure, entity
+    /// loops and failed loads stay fatal.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn recover(&mut self, error: Error) -> Result<(), Error> {
         let fatal = matches!(
             error.kind,
@@ -80,31 +86,30 @@ impl Budget {
                 | ErrorKind::ExternalResource
                 | ErrorKind::XInclude
         );
-        let Some(recovered) = self.recovered.as_mut().filter(|_| !fatal) else {
+        if fatal || !(self.recovers || error.kind == ErrorKind::Namespace) {
             return Err(error);
-        };
-        if recovered.len() < MAX_RECOVERED {
-            recovered
+        }
+        if self.recovered.len() < MAX_RECOVERED {
+            self.recovered
                 .try_reserve(1)
                 .map_err(|_| Error::new(ErrorKind::Allocation, error.offset))?;
-            recovered.push(error);
+            self.recovered.push(error);
         }
         Ok(())
     }
 
     pub(crate) fn recovers(&self) -> bool {
-        self.recovered.is_some()
+        self.recovers
     }
 
     /// The errors recovered from so far.
     pub(crate) fn errors(&self) -> &[Error] {
-        self.recovered.as_deref().unwrap_or_default()
+        &self.recovered
     }
 
     /// Maps the errors recovered from since the first `from`.
     pub(crate) fn remap(&mut self, from: usize, map: impl Fn(Error) -> Error) {
-        let recovered = self.recovered.as_deref_mut().unwrap_or_default();
-        recovered[from..]
+        self.recovered[from..]
             .iter_mut()
             .for_each(|error| *error = map(*error));
     }
@@ -112,13 +117,13 @@ impl Budget {
     /// This budget under `RECOVER`.
     pub(crate) fn recovering(self) -> Self {
         Self {
-            recovered: Some(Vec::new()),
+            recovers: true,
             ..self
         }
     }
 
-    /// How a parse with this budget ended: under `RECOVER`, the errors
-    /// recovered from, including the terminal `end` error that stopped it.
+    /// How a parse with this budget ended: the errors recovered from,
+    /// under `RECOVER` including the terminal `end` error that stopped it.
     /// Strict parsing and fatal errors return `end`'s error.
     pub(crate) fn conclude(
         budget: Option<&mut Self>,
@@ -128,9 +133,12 @@ impl Budget {
             return end.map(|()| Vec::new());
         };
         if let Err(error) = end {
+            if !budget.recovers {
+                return Err(error);
+            }
             budget.recover(error)?;
         }
-        Ok(budget.recovered.take().unwrap_or_default())
+        Ok(std::mem::take(&mut budget.recovered))
     }
 
     /// The last start tag's declared content: element-only (true), mixed or
@@ -542,7 +550,7 @@ impl<'source> ParserState<'source> {
     /// Applies the token-level parser options (`NOCDATA`, `NSCLEAN`, `IGNORE_ENC`).
     pub(crate) fn with_flags(mut self, flags: crate::options::Flags) -> Self {
         self.flags = flags;
-        self.budget.recovered = flags.recovers().then(Vec::new);
+        self.budget.recovers = flags.recovers();
         self
     }
 
@@ -1095,15 +1103,23 @@ impl<'source> ParserState<'source> {
     ) -> Result<Option<Event<'event>>, Error> {
         let body = delimited_body(raw, "<?", "?>", start)?;
         let mut name_end = body.bytes().position(space).unwrap_or(body.len());
-        if let Err(error) = validate_name(&body[..name_end], start + 2, false) {
+        match validate_name(&body[..name_end], start + 2, false) {
+            Ok(()) => {}
+            // A colon in a valid Name is a namespace error.
+            Err(error) if validate_name(&body[..name_end], start + 2, true).is_ok() => {
+                let error = Error::new(ErrorKind::Namespace, error.offset);
+                self.budget.recover(error)?;
+            }
             // libxml2 targets the longest Name there, colons included, and
             // reads a PI without one as text after `<?`.
-            name_end = name_length(body);
-            if name_end == 0 {
-                self.markup_as_text(error)?;
-                return self.text_after::<REREADS>(raw, 2, start);
+            Err(error) => {
+                name_end = name_length(body);
+                if name_end == 0 {
+                    self.markup_as_text(error)?;
+                    return self.text_after::<REREADS>(raw, 2, start);
+                }
+                self.recover_markup(error)?;
             }
-            self.recover_markup(error)?;
         }
         let target = &body[..name_end];
         if target == "xml" && start == self.initial && !self.replacement {
@@ -1324,21 +1340,28 @@ impl<'source> ParserState<'source> {
                 self.default_attribute(&mut attributes, default, start, retain)?;
             }
         }
-        let name = self.resolve_name(Cow::Borrowed(qualified), element_prefix, start + 1, true)?;
+        let name = self.resolve_name(Cow::Borrowed(qualified), element_prefix, start + 1)?;
         // Expanded-name uniqueness: equal URIs have equal namespace IDs, so
         // short lists compare resolved names directly instead of hashing.
-        // Recovery keeps duplicates, as libxml2 does.
-        let duplicate = Error::new(ErrorKind::DuplicateAttribute, start);
+        // Duplicates are kept, as libxml2 does; a QName repeated is a
+        // well-formedness error, other prefixes a namespace error.
+        let duplicate = |lexical| match lexical {
+            true => Error::new(ErrorKind::DuplicateAttribute, start),
+            false => Error::new(ErrorKind::Namespace, start),
+        };
         if attributes.len() <= SMALL_ATTRIBUTES {
             for index in 0..attributes.len() {
-                self.resolve_namespace(&mut attributes[index].name, true, start, true)?;
+                self.resolve_namespace(&mut attributes[index].name, true, start)?;
                 let (prior, rest) = attributes.split_at(index);
                 let name = &rest[0].name;
                 if prior
                     .iter()
                     .any(|other| self.same_expanded(&other.name, name))
                 {
-                    self.budget.recover(duplicate)?;
+                    let lexical = prior
+                        .iter()
+                        .any(|other| other.name.qualified() == name.qualified());
+                    self.budget.recover(duplicate(lexical))?;
                 }
             }
         } else {
@@ -1351,7 +1374,7 @@ impl<'source> ParserState<'source> {
                 .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
             let mut failure = None;
             for attribute in &mut attributes {
-                match self.resolve_namespace(&mut attribute.name, true, start, true) {
+                match self.resolve_namespace(&mut attribute.name, true, start) {
                     Ok(identity) => identities.push(identity),
                     Err(error) => {
                         failure = Some(error);
@@ -1374,11 +1397,18 @@ impl<'source> ParserState<'source> {
             );
             names.sort_unstable();
             if names.windows(2).any(|pair| pair[0] == pair[1]) {
-                self.budget.recover(duplicate)?;
+                self.budget
+                    .recover(duplicate(repeated(&attributes, start)?))?;
             }
             if let Some(error) = failure {
                 return Err(error);
             }
+        }
+        // An unbound element prefix is reported after its attributes', as
+        // in libxml2.
+        if element_prefix.is_some() && name.namespace().is_none() {
+            let error = Error::new(ErrorKind::Namespace, start + 1);
+            self.budget.recover(error)?;
         }
         let element = Element {
             name,
@@ -1528,8 +1558,10 @@ impl<'source> ParserState<'source> {
         };
         let value: Cow<'event, str> = value;
         if let Some(bound_prefix) = declaration {
+            // libxml2 reports no error for a defaulted declaration: it
+            // binds any but `xml`, where yaxml drops any it cannot bind.
             if invalid_namespace_binding(bound_prefix, &value) {
-                return Err(fail(ErrorKind::Namespace));
+                return Ok(());
             }
             let redundant = self.redundant(bound_prefix, &value);
             self.bind(bound_prefix, None, &value, start, retain)?;
@@ -1625,28 +1657,28 @@ impl<'source> ParserState<'source> {
     }
 
     /// Resolves an element QName whose prefix split was already validated;
-    /// `report` as in [`Self::unbound`].
+    /// an unbound prefix leaves it in no namespace, unreported.
     fn resolve_name<'event>(
         &mut self,
         qualified: Cow<'event, str>,
         prefix_length: Option<NonZeroUsize>,
         offset: usize,
-        report: bool,
     ) -> Result<Name<'event>, Error>
     where
         'source: 'event,
     {
         let mut name = Name::from_validated_parts(qualified, prefix_length, None);
-        self.resolve_namespace(&mut name, false, offset, report)?;
+        self.resolve_namespace(&mut name, false, offset)?;
         Ok(name)
     }
 
+    /// Resolves `name`; an attribute's unbound prefix is a namespace error
+    /// at `offset`, its start tag.
     fn resolve_namespace<'event>(
         &mut self,
         name: &mut Name<'event>,
         attribute: bool,
         offset: usize,
-        report: bool,
     ) -> Result<Option<NamespaceId>, Error>
     where
         'source: 'event,
@@ -1655,10 +1687,7 @@ impl<'source> ParserState<'source> {
         let qualified = name.qualified();
         let (namespace, identity) = match prefix {
             Some("xmlns") if attribute => (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns)),
-            Some("xmlns") => {
-                self.unbound(offset, report)?;
-                (None, None)
-            }
+            Some("xmlns") => (None, None),
             Some("xml") => (Some(Cow::Borrowed(XML)), Some(NamespaceId::Xml)),
             None if attribute && qualified == "xmlns" => {
                 (Some(Cow::Borrowed(XMLNS)), Some(NamespaceId::Xmlns))
@@ -1689,8 +1718,9 @@ impl<'source> ParserState<'source> {
                         self.bindings[index].namespace,
                     )
                 }
-                _ if prefix.is_some() => {
-                    self.unbound(offset, report)?;
+                _ if prefix.is_some() && attribute => {
+                    let error = Error::new(ErrorKind::Namespace, offset);
+                    self.budget.recover(error)?;
                     (None, None)
                 }
                 _ => (None, None),
@@ -1700,27 +1730,18 @@ impl<'source> ParserState<'source> {
         Ok(identity)
     }
 
-    /// A prefix with no binding: strict parsing fails, and recovery leaves
-    /// the name in no namespace, reporting it (`report`) at its start tag.
-    fn unbound(&mut self, offset: usize, report: bool) -> Result<(), Error> {
-        match report || !self.budget.recovers() {
-            true => self
-                .budget
-                .recover(Error::new(ErrorKind::Namespace, offset)),
-            false => Ok(()),
-        }
-    }
-
-    /// A QName's prefix and local part; recovery reads a malformed QName as
-    /// an unprefixed name.
+    /// A QName's prefix and local part; a malformed QName (a namespace
+    /// error) reads as an unprefixed name.
     fn qname_parts<'n>(
         &mut self,
         name: &'n str,
         split: Option<Option<NonZeroUsize>>,
         offset: usize,
     ) -> Result<(Option<&'n str>, &'n str), Error> {
-        split_qname(name, split, offset)
-            .or_else(|error| self.budget.recover(error).map(|()| (None, name)))
+        split_qname(name, split, offset).or_else(|error| {
+            let error = Error::new(ErrorKind::Namespace, error.offset);
+            self.budget.recover(error).map(|()| (None, name))
+        })
     }
 
     fn end_element<'event>(
@@ -1808,7 +1829,7 @@ impl<'source> ParserState<'source> {
         let prefix_length = memchr(b':', qualified.as_bytes())
             .filter(|_| qname(&qualified, offset).is_ok())
             .and_then(NonZeroUsize::new);
-        let name = self.resolve_name(qualified, prefix_length, offset, false)?;
+        let name = self.resolve_name(qualified, prefix_length, offset)?;
         let frame = self.pop_frame();
         self.close_scope(frame.bindings_start);
         if self.stack.is_empty() && !self.fragment {
@@ -1893,6 +1914,22 @@ fn split_qname(
         Some(Some(prefix)) => Ok((Some(&name[..prefix.get()]), &name[prefix.get() + 1..])),
         None => qname(name, offset),
     }
+}
+
+/// Whether a QName repeats among `attributes` (sorting a copy of the names).
+#[cold]
+fn repeated(attributes: &[Attribute<'_>], offset: usize) -> Result<bool, Error> {
+    let mut names = Vec::new();
+    names
+        .try_reserve(attributes.len())
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    names.extend(
+        attributes
+            .iter()
+            .map(|attribute| attribute.name.qualified()),
+    );
+    names.sort_unstable();
+    Ok(names.windows(2).any(|pair| pair[0] == pair[1]))
 }
 
 /// An attribute's identity for uniqueness: its expanded name, or its QName

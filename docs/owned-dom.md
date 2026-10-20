@@ -621,7 +621,11 @@ Parse budgets (`options.limits`) apply as to a document; edit limits as to an
 `value_offset` the error's offset in `input`; `Error { kind, offset }.describe(&LineIndex::content(input))`
 gives libxml2's diagnostic (an end tag with nothing open is
 `XML_ERR_NOT_WELL_BALANCED`, 85). That is libxml2's first error;
-`xmlParseInNodeContext` returns its last one. Under `RECOVER` only limits
+`xmlParseInNodeContext` returns its last one. A namespace error (an unbound
+prefix, `xmlns:p=""`) never fails: the nodes come back with it in
+`Fragment::errors`, an unbound name in no namespace, as libxml2 keeps them
+([compatibility](compatibility.md#namespace-errors)); inserted, such a node
+keeps its prefix undeclared, as libxml2 links it. Under `RECOVER` only limits
 fail: the nodes come back with `Fragment::errors`, as libxml2 returns its
 list (and `XML_ERR_OK`) once it built one. A DOCTYPE node or an HTML document
 is `WrongNodeKind` (`XML_ERR_INTERNAL_ERROR` in libxml2; HTML has
@@ -632,8 +636,6 @@ is `WrongNodeKind` (`XML_ERR_INTERNAL_ERROR` in libxml2; HTML has
   declared encoding, which its documentation calls "typically not what you
   want"; a text declaration (`xmlCtxtParseContent`'s `hasTextDecl`) is not
   offered.
-- A namespace error (an unbound prefix, `xmlns:p=""`) fails without
-  `RECOVER`, as in a document; libxml2 reports it and keeps the node.
 - A reference is parsed where it stands, in the context's scope and under
   `options`. libxml2 reuses the content it parsed at the document's first
   reference to the entity, outside any namespace scope and under the
@@ -662,14 +664,15 @@ YAXML_FRAGMENT_HELPER=$(sh -c '. ./lib.sh; helper fragment') YAXML_FRAGMENT_CASE
   YAXML_FRAGMENT_SEED=1 cargo test --release --test fragment_oracle -- --nocapture
 ```
 
-At the last run (seeds 1-4, 20,000 chunks each) 92.02-92.36% of chunks agree
-exactly and none differ unexplained. The rest are documented: strict
-namespace errors (about 6%), entities libxml2 reuses from the document
-(0.6-0.7%), and about 1% that show the same difference when the chunk is the
+At the last run (seeds 1-4, 20,000 chunks each) 98.38-98.55% of chunks agree
+exactly (92.02-92.36% while namespace errors were fatal) and none differ
+unexplained. The rest are documented: entities libxml2 reuses from the
+document (about 0.5%), and about 1% that show the same difference when the chunk is the
 content of a whole document (`RECOVER` repairs and `NOBLANKS`, see
 [compatibility](compatibility.md#recovery-recover)), which the test checks by
-parsing that document on both sides. First error codes agree on 97.7-98.0%
-of chunks; the others are whole-document diagnostic differences (an invalid
+parsing that document on both sides. First error codes agree on 93.7-94.3%
+of chunks (97.7-98.0% while namespace errors were fatal; the chunks they
+stopped are now compared past them); the others are whole-document diagnostic differences (an invalid
 character reported before earlier errors, the offset of a malformed reference
 on the DTD path, libxml2's load warning). libxml2's return code (its last
 error) equals yaxml's first on 61-63% of failures. The `fragment` fuzz target

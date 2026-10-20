@@ -599,7 +599,7 @@ fn known_acceptance() {
         (b"<!DOCTYPE r><r/>", true),
         (b"<!DOCTYPE r [<!ENTITY e '&lt;n/>'>]><r>&e;</r>", true),
         (b"<!DOCTYPE r [<!ENTITY e '&e;'>]><r>&e;</r>", false),
-        (b"<p:r/>", false),
+        (b"<p:r/>", true),
         (b"\xff", false),
     ] {
         assert_eq!(
@@ -823,25 +823,17 @@ fn grammar_regression_corpus() {
             "<?xml version='1.0' standalone='no' encoding='UTF-8'?><r/>",
             Some(InvalidDeclaration),
         ),
-        (
-            "<r xmlns:p='u' xmlns:q='u' p:a='' q:a=''/>",
-            Some(DuplicateAttribute),
-        ),
-        ("<r xmlns:xml='u'/>", Some(Namespace)),
-        ("<r xmlns:p=''/>", Some(Namespace)),
-        (
-            "<r xmlns='http://www.w3.org/XML/1998/namespace'/>",
-            Some(Namespace),
-        ),
-        ("<r xmlns:xmlns='u'/>", Some(Namespace)),
-        (
-            "<r xmlns='http://www.w3.org/2000/xmlns/'/>",
-            Some(Namespace),
-        ),
-        ("<xmlns:r/>", Some(Namespace)),
+        // Namespace errors do not stop a parse.
+        ("<r xmlns:p='u' xmlns:q='u' p:a='' q:a=''/>", None),
+        ("<r xmlns:xml='u'/>", None),
+        ("<r xmlns:p=''/>", None),
+        ("<r xmlns='http://www.w3.org/XML/1998/namespace'/>", None),
+        ("<r xmlns:xmlns='u'/>", None),
+        ("<r xmlns='http://www.w3.org/2000/xmlns/'/>", None),
+        ("<xmlns:r/>", None),
         ("<r a='v'b='v'/>", Some(Syntax)),
         ("<r></r x>", Some(Syntax)),
-        ("<r a:b:c=''/>", Some(InvalidName)),
+        ("<r a:b:c=''/>", None),
         ("<r a\u{2190}=''/>", Some(InvalidName)),
         ("<r>\u{fffe}</r>", Some(InvalidCharacter)),
     ] {

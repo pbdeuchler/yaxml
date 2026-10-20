@@ -212,6 +212,10 @@ func TestValidation(t *testing.T) {
 	if diags, _ := mustParse(t, "<r><b/></r>", WithFlags(Recover)).Diagnostics(); len(diags) != 0 {
 		t.Fatalf("%v", diags)
 	}
+	// A namespace error does not stop a parse; it is listed without Recover.
+	if diags, _ := mustParse(t, "<r><p:c/></r>").Diagnostics(); len(diags) != 1 || diags[0].Domain != 3 || diags[0].Code != 201 {
+		t.Fatalf("%v", diags)
+	}
 	cases := []struct {
 		kind      SchemaKind
 		schema    string

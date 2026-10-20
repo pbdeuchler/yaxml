@@ -36,8 +36,9 @@ use crate::{DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
 ///
 /// [`Document::errors`](crate::Document::errors) and
 /// [`OwnedDocument::errors`](crate::OwnedDocument::errors) list the errors
-/// recovered from. Resource limits stay fatal, and input without any element
-/// is still an error. See
+/// recovered from; namespace errors are listed without `RECOVER` too.
+/// Resource limits stay fatal, and input without any element is still an
+/// error. See
 /// [the repairs](https://github.com/pbdeuchler/yaxml/blob/main/docs/compatibility.md#recovery-recover).
 ///
 /// ```

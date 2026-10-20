@@ -459,14 +459,6 @@ impl DtdCatalog {
         {
             return Err(DtdError::new(ErrorKind::InvalidDtd, Some(offset)));
         }
-        let colon = match unit.view() {
-            DtdUnitView::Entity(entity) => entity.name().contains(':'),
-            DtdUnitView::Notation(notation) => notation.name().contains(':'),
-            _ => false,
-        };
-        if colon {
-            return Err(DtdError::new(ErrorKind::Namespace, at));
-        }
         match unit.view() {
             DtdUnitView::Header(header) => {
                 self.dtd.name = Some(copy_string(header.root_name())?);

@@ -621,10 +621,10 @@ impl StreamValidator {
                     let id = attribute.name.qualified() == "xml:id"
                         || dtd
                             .is_some_and(|d| d.declares_id(qualified, attribute.name.qualified()));
-                    (name(&attribute.name), &*attribute.value, id)
+                    (NodeName::of(&attribute.name), &*attribute.value, id)
                 });
                 self.validator
-                    .start(node, name(&element.name), attributes, dtd);
+                    .start(node, NodeName::of(&element.name), attributes, dtd);
                 if matches!(event, Event::Empty(_)) {
                     self.validator.end();
                 }
@@ -649,13 +649,5 @@ impl StreamValidator {
     /// The diagnostics, once the document has ended.
     pub fn finish(self) -> Vec<Diagnostic<usize>> {
         self.validator.finish()
-    }
-}
-
-fn name<'a>(name: &'a crate::Name<'_>) -> NodeName<'a> {
-    NodeName {
-        qualified: name.qualified(),
-        local: name.local(),
-        namespace: name.namespace(),
     }
 }

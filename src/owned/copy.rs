@@ -504,8 +504,8 @@ impl<A: Allocator> Editor<'_, A> {
     ///
     /// Malformed content is [`EditErrorKind::Parse`] at its byte offset
     /// ([`LineIndex::content`](crate::LineIndex::content) gives libxml2's
-    /// diagnostic); under `RECOVER` only limits fail, and
-    /// [`Fragment::errors`] lists the rest. A DOCTYPE context or an HTML
+    /// diagnostic); namespace errors never fail, and under `RECOVER` only
+    /// limits fail: [`Fragment::errors`] lists the rest. A DOCTYPE context or an HTML
     /// document is `WrongNodeKind` (see
     /// [`html::parse_fragment`](crate::html::parse_fragment)); `XINCLUDE`
     /// and `DTDVALID` are `Parse(UnsupportedOption)`.
@@ -591,7 +591,8 @@ impl<A: Allocator> Editor<'_, A> {
 pub struct Fragment {
     /// The top-level nodes in input order, each detached.
     pub nodes: Vec<OwnedNodeId>,
-    /// What `RECOVER` recovered from, as [`OwnedDocument::errors`].
+    /// The errors the parse kept (namespace errors, and under `RECOVER` what
+    /// it recovered from), as [`OwnedDocument::errors`].
     pub errors: Vec<Error>,
 }
 

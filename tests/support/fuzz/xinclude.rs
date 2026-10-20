@@ -95,10 +95,22 @@ fn check(result: &OwnedDocument) -> Vec<u8> {
             );
         }
     }
+    // A namespace error can leave a prefix unbound (in no namespace) where
+    // the result binds it, as libxml2 copies such a node; the checked
+    // writer refuses that.
+    let unbound = |name: yaxml::Name<'_>| name.prefix().is_some() && name.namespace().is_none();
+    let unbound = result
+        .nodes()
+        .any(|node| node.name().is_some_and(unbound) || node.attributes().any(|a| unbound(a.name)));
     let mut writer = Writer::new(Vec::new());
-    writer
-        .write_owned_document(result)
-        .expect("the result is writable");
+    match writer.write_owned_document(result) {
+        Err(yaxml::WriteError::Xml(error))
+            if unbound && error.kind == yaxml::ErrorKind::Namespace =>
+        {
+            return Vec::new();
+        }
+        written => written.expect("the result is writable"),
+    }
     let bytes = writer.into_inner();
     let reparsed = OwnedDocument::parse_bytes(&bytes).expect("the written result reparses");
     let elements = |document: &OwnedDocument| {

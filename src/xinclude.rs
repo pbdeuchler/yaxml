@@ -1083,9 +1083,10 @@ fn declarations<'d>(top: OwnedNode<'d>, local: bool, default: &str) -> Vec<(&'d 
                 {
                     continue;
                 }
+                // A prefix a namespace error left unbound stays undeclared.
                 match namespace {
                     Some(namespace) => added.push((prefix, namespace)),
-                    None if !default.is_empty() => added.push(("", "")),
+                    None if prefix.is_empty() && !default.is_empty() => added.push(("", "")),
                     None => {}
                 }
             }

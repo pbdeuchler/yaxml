@@ -139,8 +139,10 @@ impl<R: BufRead> BufferedReader<R> {
         std::mem::replace(&mut self.input, input)
     }
 
-    /// The well-formedness errors a `RECOVER` parse recovered from so far, in
-    /// input order (the first 100, as libxml2 keeps); empty without `RECOVER`.
+    /// The errors kept so far, in input order (the first 100, as libxml2
+    /// keeps): namespace errors, which never stop a parse (libxml2's
+    /// `xmlNsErr`), and under `RECOVER` every well-formedness error recovered
+    /// from.
     pub fn errors(&self) -> &[Error] {
         self.session.errors()
     }

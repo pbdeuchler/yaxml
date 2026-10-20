@@ -16,7 +16,9 @@ pub trait Tree: Navigate {}
 
 impl<T: Navigate> Tree for T {}
 
-/// An element or attribute name; an empty namespace means none.
+/// An element or attribute name; an empty namespace means none. A name in
+/// no namespace is its own local part, as libxml2 stores it, even when a
+/// namespace error left it prefixed.
 #[derive(Clone, Copy, Debug)]
 pub struct QName<'a> {
     pub qualified: &'a str,
@@ -26,11 +28,19 @@ pub struct QName<'a> {
 
 impl<'a> QName<'a> {
     fn new((qualified, namespace): (&'a str, Option<&'a str>)) -> Self {
+        let namespace = namespace.filter(|uri| !uri.is_empty());
         Self {
             qualified,
-            local: qualified.rsplit(':').next().unwrap_or(qualified),
-            namespace: namespace.filter(|uri| !uri.is_empty()),
+            local: match namespace {
+                Some(_) => qualified.rsplit(':').next().unwrap_or(qualified),
+                None => qualified,
+            },
+            namespace,
         }
+    }
+
+    pub(crate) fn of(name: &'a crate::Name<'_>) -> Self {
+        Self::new((name.qualified(), name.namespace()))
     }
 
     pub(crate) fn is_namespace_declaration(&self) -> bool {
@@ -124,10 +134,7 @@ impl Navigate for Document<'_> {
     fn item(&self, id: NodeId) -> Item<'_> {
         match self.node(id).map(|node| node.kind()) {
             None | Some(NodeKind::Document | NodeKind::Doctype(_)) => Item::Root,
-            Some(NodeKind::Element(element)) => Item::Element(QName::new((
-                element.name.qualified(),
-                element.name.namespace(),
-            ))),
+            Some(NodeKind::Element(element)) => Item::Element(QName::of(&element.name)),
             Some(NodeKind::Text(text) | NodeKind::Cdata(text)) => Item::Text(text),
             Some(NodeKind::Comment(text)) => Item::Comment(text),
             Some(NodeKind::ProcessingInstruction { target, data }) => Item::Pi(target, data),
@@ -138,10 +145,7 @@ impl Navigate for Document<'_> {
     fn attribute(&self, id: NodeId, index: usize) -> Option<(QName<'_>, &str)> {
         let attribute = self.node(id)?.attributes().get(index)?;
         let name = &attribute.name;
-        Some((
-            QName::new((name.qualified(), name.namespace())),
-            &attribute.value,
-        ))
+        Some((QName::of(name), &attribute.value))
     }
 
     fn slot(&self, id: NodeId) -> usize {

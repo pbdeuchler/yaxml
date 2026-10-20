@@ -233,14 +233,17 @@ impl<W: Write> Writer<W> {
             return self.check_doctype(doctype);
         }
         let raw = &self.buffer.text;
+        let kept = self.state.errors().len();
         let parsed = self.state.process_token(
             kind,
             raw,
             self.position..self.position + raw.len(),
             |raw, offset, budget| budget.copy(raw, offset),
         )?;
-        check_event(event, parsed.as_ref(), self.position)?;
-        Ok(())
+        // An event that does not reparse as given fails with the namespace
+        // error that explains it (a declaration the parser drops), if any.
+        check_event(event, parsed.as_ref(), self.position)
+            .map_err(|error| self.state.errors().get(kept).copied().unwrap_or(error))
     }
 
     /// Reparses the encoded declaration, including its whole internal subset.
