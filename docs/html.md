@@ -16,8 +16,8 @@ the WHATWG tree builder.
 | `html::parse_events(bytes, Options, handler) -> Result<Summary, Error>` | `htmlNewSAXParserCtxt` + `htmlCtxtReadMemory` with custom SAX callbacks |
 | `html::EventParser::{new, feed, finish}` | `htmlCreatePushParserCtxt` with custom SAX callbacks |
 | `html::parse_fragment(bytes, encoding, Options)` | `xmlParseInNodeContext` / `xmlCtxtParseContent` on a node of an HTML document |
-| `Diagnostic::{line, column, message, describe, render}` | `xmlError` (`describe`), `xmlFormatError`'s report as `xmllint --html` prints it (`render`) |
-| `OwnedNode::line` on an HTML node | `xmlGetLineNo` |
+| `Diagnostic::{describe, render}` with `LineIndex::html(input, &document)` or `Summary::line_index(input)` | `xmlError` (`describe`), `xmlFormatError`'s report as `xmllint --html` prints it (`render`) |
+| `OwnedNode::line(&LineIndex::html(input, &document))` on an HTML node | `xmlGetLineNo` |
 | `html::to_html(&OwnedDocument)` | `htmlDocDumpMemory` (formatted, `<meta>` untouched) |
 | `html::save(&OwnedDocument, format)` | `xmlSaveDoc` on an HTML document, as `xmllint --html [--format]` prints |
 | `Parsed { document, diagnostics, stopped }` | `ctxt->myDoc`, reported errors, `XML_ERR_RESOURCE_LIMIT` halt |
@@ -107,28 +107,44 @@ it here.
 
 ## Lines and diagnostics
 
-Every parsed element, text and comment records the line libxml2's input is on
-when the SAX2 builder creates it, which `OwnedNode::line` returns as
-`xmlGetLineNo` does (other nodes take their previous sibling's or parent
-element's line): an element the line of its start tag's `>` (an implied one,
-of the token that implied it), a comment the line where it ends, and text the
-line where its last character-data run began, because libxml2 updates its
-line only after a run and moves a merged text node's line forward. Lines are
-counted in the decoded text and never capped at 65535; constructed nodes have
-none. Counting lines, recording them (four bytes per node) and the
-diagnostic positions cost 2-7% of parse time (best of 40 parses of 4.6-7.9
-MB generated documents, before/after: 228/245 ms for small elements, 112/115
-ms for attribute-heavy markup, 25.2/26.8 ms for text).
+Lines cost nothing while parsing: as for XML, positions are recorded and
+lines are counted from the input only when asked for. Every parsed element,
+text and comment has as its origin (`OwnedNode::range`) the empty range, in
+the decoded text, where libxml2 takes its line when the SAX2 builder creates
+it: an element at its start tag's `>` (an implied one at the token that
+implied it), a comment where it ends, and text where its last
+character-data run began, because libxml2 updates its line only after a run
+and moves a merged text node's line forward. `LineIndex::html(input,
+&document)` (or `Summary::line_index(input)` for events) re-decodes the input
+the way the parser did, from a record of the decoding the document keeps (a
+skipped BOM, the first converter, and at most one switch at a text offset,
+for a `<meta>` charset or the windows-1252/prescan guess); `OwnedNode::line`
+then returns `xmlGetLineNo`'s line (other nodes take their previous
+sibling's or parent element's line). Lines are never capped at 65535;
+constructed nodes have none. For BOM-less UTF-8 or ASCII input
+`LineIndex::new(input)` gives the same lines.
 
-Each `Diagnostic` carries libxml2's message, line and position (`offset` in the
-decoded text, where libxml2's input is when it raises the error: after an end
-tag, after a misplaced tag's name, at a `<meta>`'s `>`, at the start of the
-scan that met invalid bytes) and a `column` counted in characters from the
-line's start. `describe()` gives the `xmlError` (domain HTML, or parser for the
-depth ceiling, I/O for a converter error; code, level, message) and
-`render(file)` the report `xmllint --html` prints, context line and caret
-included, as `yaxmllint --html` now does. As in libxml2 at most 100 errors are
-reported, resource limits aside.
+Each `Diagnostic` keeps libxml2's message, its `offset` in the decoded text
+(where libxml2's input is when it raises the error: after an end tag, after a
+misplaced tag's name, at a `<meta>`'s `>`, at the start of the scan that met
+invalid bytes) and the offset libxml2 takes its line from. With the index,
+`describe(&lines)` gives the `xmlError` (domain HTML, or parser for the depth
+ceiling, I/O for a converter error; code, level, message, line, a column
+counted in characters) and `render(file, &lines)` the report `xmllint --html`
+prints, context line and caret included, as `yaxmllint --html` now does. The
+one state recorded while parsing is whether an error came before a charset
+switch: its context line then shows the text as it was, before re-decoding.
+As in libxml2 at most 100 errors are reported, resource limits aside.
+
+Parse cost, in retired instructions for 10 parses (median of 3) and best of
+40 wall-clock parses of generated 4.6-7.9 MB documents, against the
+pre-branch base (0576991): small elements 33.70G → 26.79G instructions,
+236 → 204 ms; attribute-heavy markup 16.55G → 14.86G, 115 → 107 ms; text
+3.61G → 3.10G, 26.3 → 23.6 ms. Most of that is an unrelated fix in the
+same pass: end tags looked up the eleven priority elements in a SipHash map
+(up to thirteen hashes per element); they are now an array. Against the base
+with that fix alone, the SAX sink, positions and decoding record cost 1.3%,
+0.5% and 1.0% of instructions.
 
 ## Encodings
 
@@ -255,7 +271,8 @@ events equals `parse`'s tree and diagnostics, `Break` ends them) and
 options in all three. On 2026-10-20, 10 minutes each on nightly-2026-10-18
 (`-fork=1 -timeout=2 -max_len=16384`, seeded with `fuzz/corpus/html`):
 `html` 134,586 inputs, `html_events` 504,791, `html_fragment` 739,904, no
-failures. A first `html` run found an over-strict invariant: an HTML5 tree
+failures; after lines became lazy, another 10 minutes each (seeded with
+those corpora): 199,919, 423,770 and 710,571 inputs, no failures. A first `html` run found an over-strict invariant: an HTML5 tree
 can have several top-level `html` elements, and libxml2 (and this
 serializer) gives only the first head a generated `<meta charset>` when that
 head is empty, so per-subtree output differs
@@ -279,9 +296,8 @@ head is empty, so per-subtree output differs
   character (libxml2: wherever the parser is when it converts that buffer,
   which depends on its buffering), and parsing continues with U+FFFD
   instead of stopping.
-- Push input shows an error's context once 84 more bytes or a line end
-  arrived; a `<meta>` charset that re-decodes text inside that window
-  before then can change it. libxml2's push contexts depend on chunking.
+- Push and pull give the same context lines (they are computed from the
+  input afterwards); libxml2's push contexts depend on its chunking.
 - Warnings for unusable prescan labels are not reported.
 - A DOCTYPE in a fragment is dropped; libxml2 replaces the context document's
   DOCTYPE only in its prolog state, which content parsing never is.

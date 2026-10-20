@@ -86,9 +86,9 @@ pub trait Navigate {
     fn offset(&self, id: Self::Id) -> Option<usize> {
         self.range(id).map(|range| range.start)
     }
-    /// The line the HTML parser recorded for the node (libxml2's `node->line`).
-    fn line(&self, _: Self::Id) -> Option<usize> {
-        None
+    /// Node origins are where libxml2 takes their line (HTML documents).
+    fn marks_lines(&self) -> bool {
+        false
     }
     /// Content XML output cannot represent (only possible in HTML documents).
     fn xml_violation(&self) -> Option<String> {
@@ -243,9 +243,8 @@ impl<A: crate::allocator::Allocator> Navigate for OwnedDocument<A> {
         self.node(id)?.range()
     }
 
-    fn line(&self, id: OwnedNodeId) -> Option<usize> {
-        self.node(id)?;
-        self.html_line(id.slot())
+    fn marks_lines(&self) -> bool {
+        self.is_html()
     }
 
     fn dtd(&self) -> Option<&Dtd> {

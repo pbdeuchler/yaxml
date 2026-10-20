@@ -232,8 +232,8 @@ fn fragments_parse_in_context() {
 }
 
 /// `(name, line)` of every node in preorder.
-fn lines(document: &OwnedDocument) -> Vec<(String, Option<usize>)> {
-    let index = LineIndex::new(b"");
+fn lines(input: &[u8], document: &OwnedDocument) -> Vec<(String, Option<usize>)> {
+    let index = LineIndex::html(input, document);
     document
         .root()
         .descendants()
@@ -251,11 +251,9 @@ fn lines(document: &OwnedDocument) -> Vec<(String, Option<usize>)> {
 
 #[test]
 fn nodes_carry_libxml2_lines() {
-    let parsed = html::parse(
-        b"\n<!DOCTYPE html>\n<p\nclass=a>one\ntwo</i>\nthree<!--\nc-->\n<script>\nx</script>",
-        Options::DEFAULT,
-    )
-    .unwrap();
+    let input =
+        b"\n<!DOCTYPE html>\n<p\nclass=a>one\ntwo</i>\nthree<!--\nc-->\n<script>\nx</script>";
+    let parsed = html::parse(input, Options::DEFAULT).unwrap();
     let expected: Vec<(String, Option<usize>)> = [
         ("DocumentType", None),
         ("html", Some(3)),
@@ -273,7 +271,23 @@ fn nodes_carry_libxml2_lines() {
     .into_iter()
     .map(|(name, line)| (name.to_owned(), line))
     .collect();
-    assert_eq!(lines(&parsed.document), expected);
+    assert_eq!(lines(input, &parsed.document), expected);
+    // Lines survive a re-decoding charset (here windows-1252 guessed at the
+    // first non-ASCII byte, and a UTF-16 BOM) and a byte-order mark.
+    for input in [
+        &b"\xef\xbb\xbf<p>\n\xe9\n<b>x"[..],
+        b"<p>\xe9\xe9\n\n<b>x",
+        b"\xff\xfe<\0p\0>\0\n\0<\0b\0>\0x\0",
+        b"<meta charset=iso-8859-2>\n\xe9\n<b>x",
+    ] {
+        let parsed = html::parse(input, Options::DEFAULT).unwrap();
+        let b = lines(input, &parsed.document)
+            .into_iter()
+            .find(|(name, _)| name == "b")
+            .unwrap();
+        let line = 1 + input.iter().filter(|&&c| c == b'\n').count();
+        assert_eq!(b.1, Some(line), "{input:?}");
+    }
     // Constructed nodes have none.
     let mut document = parsed.document;
     let p = document
@@ -315,6 +329,12 @@ fn diagnostics_render_as_xmllint_does() {
              <meta charset=nope>\n                  ^\n",
         ),
         (
+            // Reported before the charset re-decoded the text after it.
+            b"</i><meta charset=iso-8859-1>\xe9t",
+            "f:1: HTML parser error : Unexpected end tag : i\n\
+             </i><meta charset=iso-8859-1>\n    ^\n",
+        ),
+        (
             b"<meta charset=utf-8>\n<p>ab\xffc",
             "f:2: HTML parser error : Invalid bytes in character encoding\n\
              Bytes: 0x61 0x62 0xFF 0x63\n<p>ab\n   ^\n",
@@ -322,24 +342,27 @@ fn diagnostics_render_as_xmllint_does() {
     ];
     for &(input, expected) in cases {
         let parsed = html::parse(input, Options::DEFAULT).unwrap();
-        let rendered: String = parsed.diagnostics.iter().map(|d| d.render("f")).collect();
+        let lines = LineIndex::html(input, &parsed.document);
+        let rendered: String = parsed
+            .diagnostics
+            .iter()
+            .map(|d| d.render("f", &lines))
+            .collect();
         assert_eq!(rendered, expected, "{:?}", String::from_utf8_lossy(input));
     }
     let parsed = html::parse(b"<p>\n  </i>", Options::DEFAULT).unwrap();
     let diagnostic = &parsed.diagnostics[0];
-    assert_eq!(
-        (diagnostic.line, diagnostic.column, diagnostic.offset),
-        (2, 7, 10)
-    );
-    let record = diagnostic.describe();
+    let record = diagnostic.describe(&LineIndex::html(b"<p>\n  </i>", &parsed.document));
+    assert_eq!((record.line, record.column, diagnostic.offset), (2, 7, 10));
     assert_eq!(
         (record.domain, record.code, record.level, record.line),
         (Domain::Html, 76, Level::Error, 2)
     );
     assert_eq!(record.message, "Unexpected end tag : i");
     // Depth: a parser-domain fatal error.
-    let deep = html::parse("<div>".repeat(300).as_bytes(), Options::DEFAULT).unwrap();
-    let record = deep.diagnostics[0].describe();
+    let input = "<div>".repeat(300);
+    let deep = html::parse(input.as_bytes(), Options::DEFAULT).unwrap();
+    let record = deep.diagnostics[0].describe(&LineIndex::html(input.as_bytes(), &deep.document));
     assert_eq!(
         (record.domain, record.code, record.level),
         (Domain::Parser, 114, Level::Fatal)

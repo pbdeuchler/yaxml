@@ -430,14 +430,16 @@ assert!(output.ends_with(b"<body><p>a</p><p>b &amp; c</p></body></html>\n"));
 `html::parse_events` hands libxml2's SAX callbacks to a closure instead
 (`HTML_PARSE_HTML5` gives one per tag, as libxml2's tokenizer mode does),
 `html::parse_fragment` parses content in an HTML context, nodes keep
-libxml2's line numbers and diagnostics render as `xmllint --html` prints them:
+libxml2's line numbers (counted on demand, through `LineIndex::html`) and
+diagnostics render as `xmllint --html` prints them:
 
 ```rust
 use std::ops::ControlFlow;
 use yaxml::html::{self, Event};
 
 let mut tags = Vec::new();
-let summary = html::parse_events(b"<p>a</i>", html::Options::default(), |event| {
+let input = b"<p>a</i>";
+let summary = html::parse_events(input, html::Options::default(), |event| {
     if let Event::Start { name, .. } = event {
         tags.push(name.to_owned());
     }
@@ -445,7 +447,7 @@ let summary = html::parse_events(b"<p>a</i>", html::Options::default(), |event| 
 })?;
 assert_eq!(tags, ["html", "body", "p"]);
 assert_eq!(
-    summary.diagnostics[0].render("f.html"),
+    summary.diagnostics[0].render("f.html", &summary.line_index(input)),
     "f.html:1: HTML parser error : Unexpected end tag : i\n<p>a</i>\n        ^\n"
 );
 # Ok::<(), yaxml::Error>(())

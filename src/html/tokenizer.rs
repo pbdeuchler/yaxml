@@ -98,11 +98,11 @@ pub(super) struct Tokenizer {
     phase: Phase,
     pub(super) has_encoding: bool,
     /// Where the scan that met an invalid byte sequence started (libxml2's
-    /// input position when it reports one), relative to the step's input.
+    /// input position when it reports one), relative to the step's input
+    /// after skipped blanks.
     pub(super) invalid: Cell<Option<usize>>,
-    /// The last step scanned character data (htmlParseCharData), not markup.
-    pub(super) text_step: bool,
-    /// Blanks the last step skipped before its token.
+    /// Prolog blanks the last step skipped before its token; the reader
+    /// takes it (it stays 0 in content).
     pub(super) skipped: usize,
     value_limit: usize,
     name_limit: usize,
@@ -268,7 +268,6 @@ impl Tokenizer {
             phase: Phase::Misc,
             has_encoding: false,
             invalid: Cell::new(None),
-            text_step: false,
             skipped: 0,
             value_limit,
             name_limit,
@@ -348,22 +347,19 @@ impl Tokenizer {
         let start = if self.phase == Phase::Content {
             0
         } else {
-            blanks(buf, 0)
+            let start = blanks(buf, 0);
+            self.skipped = start;
+            start
         };
         let rest = &buf[start..];
         if rest.is_empty() {
             return if eof { Ok(None) } else { Err(Stop::More) };
         }
-        self.skipped = start;
-        self.text_step = !(self.mode == Mode::Data && rest[0] == b'<');
-        let scanned = if self.text_step {
-            self.text(rest, eof)
-        } else {
+        let scanned = if self.mode == Mode::Data && rest[0] == b'<' {
             self.markup(rest, eof)
+        } else {
+            self.text(rest, eof)
         };
-        if let Some(at) = self.invalid.get() {
-            self.invalid.set(Some(start + at));
-        }
         let (token, used) = scanned.map_err(|stop| match stop {
             Stop::Switch(offset) => Stop::Switch(start + offset),
             stop => stop,

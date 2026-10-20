@@ -153,8 +153,9 @@ fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Err
             yaxml::html::Options::DEFAULT.flags(flags).limits(limits),
         )?;
         // xmllint --html reports what the HTML parser recovered from.
+        let lines = LineIndex::html(input, &parsed.document);
         for diagnostic in &parsed.diagnostics {
-            eprint!("{}", diagnostic.render(name));
+            eprint!("{}", diagnostic.render(name, &lines));
         }
         return Ok(parsed.document);
     }

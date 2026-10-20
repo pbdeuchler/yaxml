@@ -30,7 +30,7 @@ use std::ops::ControlFlow;
 use crate::diagnostic::{self, Domain, Level, code};
 use crate::encoding::WINDOWS_1252;
 use crate::owned::HtmlBuilder;
-use crate::{Error, ErrorKind, Limit, Limits, OwnedDocument};
+use crate::{Error, ErrorKind, Limit, Limits, LineIndex, OwnedDocument};
 
 mod encoding;
 mod entities;
@@ -131,22 +131,25 @@ impl Options {
     }
 }
 
-/// A problem libxml2 reports while recovering, where its input was then:
-/// `offset` counts bytes of the decoded UTF-8 text, `line` is libxml2's line
-/// and `column` counts characters from that line's start.
+/// A problem libxml2 reports while recovering. `offset` counts bytes of the
+/// decoded text and is where libxml2's input is when it reports; its line,
+/// column and report come from [`LineIndex::html`] or
+/// [`Summary::line_index`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Diagnostic {
     pub kind: DiagnosticKind,
     pub offset: usize,
-    pub line: usize,
-    pub column: usize,
     /// libxml2's message, without its trailing newline.
     pub message: String,
+    /// A text offset on the line libxml2 reports (its `input->line` lags
+    /// within a character-data run).
+    mark: usize,
     domain: Domain,
     level: Level,
-    /// The context lines `xmlFormatError` prints after the message.
-    context: String,
+    /// Reported before a `<meta>` or guessed charset re-decoded the text
+    /// after it: libxml2's context line shows the bytes as they were.
+    early: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -170,24 +173,24 @@ impl Diagnostic {
     fn new(
         kind: DiagnosticKind,
         offset: usize,
-        line: usize,
+        mark: usize,
         message: String,
         (domain, level): (Domain, Level),
     ) -> Self {
         Self {
             kind,
             offset,
-            line,
-            column: 0,
             message,
+            mark,
             domain,
             level,
-            context: String::new(),
+            early: false,
         }
     }
 
-    /// libxml2's `xmlError` for this diagnostic.
-    pub fn describe(&self) -> diagnostic::Diagnostic {
+    /// libxml2's `xmlError` for this diagnostic, in the input `lines`
+    /// indexes: its line, and a column counted in characters.
+    pub fn describe(&self, lines: &LineIndex<'_>) -> diagnostic::Diagnostic {
         let code = match self.kind {
             DiagnosticKind::InvalidEncoding => code::INVALID_ENCODING,
             DiagnosticKind::UnsupportedEncoding => code::UNSUPPORTED_ENCODING,
@@ -201,16 +204,19 @@ impl Diagnostic {
             domain: self.domain,
             code,
             level: self.level,
-            line: self.line,
-            column: self.column,
+            line: lines.text_line(self.mark),
+            column: lines.text_column(self.offset),
             message: self.message.clone(),
             ..diagnostic::Diagnostic::default()
         }
     }
 
-    /// The report `xmllint --html` prints for this diagnostic in `file`.
-    pub fn render(&self, file: &str) -> String {
-        self.describe().header(file) + &self.context
+    /// The report `xmllint --html` prints for this diagnostic in `file`,
+    /// whose input `lines` indexes.
+    pub fn render(&self, file: &str, lines: &LineIndex<'_>) -> String {
+        // Unconverted input shows its bytes at an invalid sequence.
+        let bytes = self.kind == DiagnosticKind::InvalidEncoding && self.domain == Domain::Html;
+        self.describe(lines).header(file) + &lines.html_context(self.offset, self.early, bytes)
     }
 }
 
@@ -256,6 +262,52 @@ pub struct Summary {
     pub diagnostics: Vec<Diagnostic>,
     /// A resource ceiling or the handler stopped parsing early.
     pub stopped: bool,
+    decoding: Decoding,
+}
+
+impl Summary {
+    /// The line index of `input`, the parsed bytes, as the parser decoded
+    /// them: lines and reports for [`Diagnostic`]s.
+    pub fn line_index<'s>(&self, input: &'s [u8]) -> LineIndex<'s> {
+        LineIndex::decoded_html(input, &self.decoding)
+    }
+}
+
+/// How the parser turned its input into the text offsets point into: a
+/// byte-order mark skipped, a first converter, and at most one switch from
+/// unconverted input to another converter at a text offset (a `<meta>`
+/// charset or the windows-1252/prescan guess). Lines are counted from it
+/// only when asked for.
+#[derive(Clone, Debug)]
+pub(crate) struct Decoding {
+    skip: usize,
+    initial: Decoder,
+    switch: Option<(usize, Decoder)>,
+}
+
+impl Decoding {
+    /// The decoded text, and the unconverted text when a switch re-decoded
+    /// part of it.
+    pub(crate) fn text<'a>(&self, input: &'a [u8]) -> (Cow<'a, [u8]>, Option<&'a [u8]>) {
+        let body = &input[self.skip.min(input.len())..];
+        let decode = |decoder: &Decoder, bytes: &[u8], text: &mut Vec<u8>| {
+            decoder.fresh().decode(bytes, true, text);
+        };
+        match (&self.initial, &self.switch) {
+            (Decoder::Utf8, None) => (Cow::Borrowed(body), None),
+            (Decoder::Utf8, Some((at, decoder))) => {
+                let at = (*at).min(body.len());
+                let mut text = body[..at].to_vec();
+                decode(decoder, &body[at..], &mut text);
+                (Cow::Owned(text), Some(body))
+            }
+            (decoder, _) => {
+                let mut text = Vec::new();
+                decode(decoder, body, &mut text);
+                (Cow::Owned(text), None)
+            }
+        }
+    }
 }
 
 /// Parses a complete HTML document, like `htmlReadMemory`.
@@ -350,7 +402,7 @@ impl PushParser {
 
 /// Incremental event parsing, like `htmlParseChunk` with custom SAX
 /// callbacks. Events do not depend on how the input is split.
-pub struct EventParser<F>(Push<Events<F>>);
+pub struct EventParser<F: FnMut(Event<'_>) -> ControlFlow<()>>(Push<Events<F>>);
 
 impl<F: FnMut(Event<'_>) -> ControlFlow<()>> EventParser<F> {
     pub fn new(options: Options, handler: F) -> Result<Self, Error> {
@@ -373,7 +425,7 @@ impl<F: FnMut(Event<'_>) -> ControlFlow<()>> EventParser<F> {
 }
 
 /// The push driver both push parsers share.
-struct Push<S> {
+struct Push<S: Sink> {
     engine: Engine<'static, S>,
     raw: Vec<u8>,
     failed: bool,
@@ -434,32 +486,54 @@ impl<S: Sink> Push<S> {
 /// is: at the token holding the first malformed character, so that it does
 /// not depend on how much input was converted. Reported once, as invalid
 /// UTF-8 is.
-fn converted<S: Sink>(tree: &mut Tree<S>, invalid: &mut bool, offset: usize, line: usize) {
+fn converted<S: Sink>(tree: &mut Tree<S>, invalid: &mut bool, offset: usize) {
     if !std::mem::replace(invalid, true) {
         let message = "Invalid bytes in character encoding".to_owned();
         let kind = DiagnosticKind::InvalidEncoding;
-        tree.report(kind, offset, line, message, (Domain::Io, Level::Fatal));
+        tree.report(kind, offset, offset, message, (Domain::Io, Level::Fatal));
     }
 }
 
-/// Line feeds in `text`. Most tokens are short, where a plain count (which
-/// vectorizes) beats `memchr_iter`'s setup.
-fn newlines(text: &[u8]) -> usize {
-    text.iter().filter(|&&byte| byte == b'\n').count()
-}
-
-/// Line counting over the decoded text, up to `counted`, and the last
-/// column computed, so columns cost the distance between diagnostics.
-struct Lines {
-    /// The line `counted` is on.
-    line: usize,
-    counted: usize,
-    /// A text offset and its 1-based column.
-    column: (usize, usize),
+/// Invalid input met by the step at `tree.at`: a converter's first malformed
+/// character inside it, or invalid UTF-8 where the scan started at `invalid`
+/// (`text`: a character-data step, whose line is the run's).
+#[cold]
+#[inline(never)]
+fn irregular<S: Sink>(
+    tree: &mut Tree<S>,
+    reported: &mut bool,
+    malformed: &mut Option<usize>,
+    invalid: Option<usize>,
+    text: bool,
+) {
+    let at = tree.at;
+    if malformed.is_some_and(|malformed| malformed < at.end) {
+        *malformed = None;
+        converted(tree, reported, at.start);
+    }
+    if let Some(invalid) = invalid.filter(|_| !*reported) {
+        *reported = true;
+        let offset = at.start + invalid;
+        // Within a character-data run libxml2's line lags.
+        let mark = if text {
+            tree.run.unwrap_or(at.start)
+        } else {
+            offset
+        };
+        let message = "Invalid bytes in character encoding".to_owned();
+        let raised = (Domain::Html, Level::Error);
+        tree.report(
+            DiagnosticKind::InvalidEncoding,
+            offset,
+            mark,
+            message,
+            raised,
+        );
+    }
 }
 
 /// Shared pull/push driver: decoded text, the tokenizer and the tree.
-struct Engine<'a, S> {
+struct Engine<'a, S: Sink> {
     text: Cow<'a, [u8]>,
     pos: usize,
     /// Text bytes compacted away, for diagnostic offsets.
@@ -474,18 +548,11 @@ struct Engine<'a, S> {
     /// Rescan an incomplete token only once this much text is pending, so
     /// small chunks cost amortized linear time.
     retry: usize,
-    lines: Lines,
-    /// The current character-data run started on this line.
-    run_line: Option<usize>,
+    decoding: Decoding,
     /// Invalid input was reported; libxml2 reports it once.
     invalid: bool,
     /// Where converted text is first malformed, until reported.
     malformed: Option<usize>,
-    /// Diagnostics given a column so far.
-    annotated: usize,
-    /// Diagnostics still waiting for the text their context shows, and
-    /// whether it starts with the input bytes (unconverted input).
-    pending: Vec<(usize, bool)>,
     stopped: bool,
 }
 
@@ -519,16 +586,13 @@ impl<'a, S: Sink> Engine<'a, S> {
             encoding: None,
             input_bytes: 0,
             retry: 0,
-            lines: Lines {
-                line: 1,
-                counted: 0,
-                column: (0, 1),
+            decoding: Decoding {
+                skip: 0,
+                initial: Decoder::Utf8,
+                switch: None,
             },
-            run_line: None,
             invalid: false,
             malformed: None,
-            annotated: 0,
-            pending: Vec::new(),
             stopped: false,
         })
     }
@@ -566,6 +630,8 @@ impl<'a, S: Sink> Engine<'a, S> {
 
     /// Starts decoding after `skip` bytes.
     fn begin(&mut self, mut decoder: Decoder, input: Cow<'a, [u8]>, skip: usize, last: bool) {
+        self.decoding.skip = skip;
+        self.decoding.initial = decoder.fresh();
         let mut malformed = None;
         self.text = match (&mut decoder, input) {
             (Decoder::Utf8, Cow::Borrowed(input)) => Cow::Borrowed(&input[skip..]),
@@ -597,88 +663,11 @@ impl<'a, S: Sink> Engine<'a, S> {
 
     /// Drops consumed push input once it dominates the buffer.
     fn compact(&mut self) {
-        if self.pos > 4096 && self.pos > self.text.len() / 2 && self.pending.is_empty() {
-            // Later columns count from here.
-            self.column_at(self.offset());
+        if self.pos > 4096 && self.pos > self.text.len() / 2 {
             self.text.to_mut().drain(..self.pos);
             self.dropped += self.pos;
             self.pos = 0;
         }
-    }
-
-    /// The decoded text from global offset `from` to `to`.
-    fn span(&self, from: usize, to: usize) -> &[u8] {
-        &self.text[from - self.dropped..to - self.dropped]
-    }
-
-    /// libxml2's line at `to`, at or after everything counted.
-    fn line_at(&self, to: usize) -> usize {
-        self.lines.line + newlines(self.span(self.lines.counted, to))
-    }
-
-    /// 1-based characters from the start of `to`'s line, counted from the
-    /// last column computed.
-    fn column_at(&mut self, to: usize) -> usize {
-        let chars = |bytes: &[u8]| bytes.iter().filter(|&&b| b & 0xC0 != 0x80).count();
-        let (from, column) = self.lines.column;
-        let column = if to >= from {
-            let span = self.span(from, to);
-            memchr::memrchr(b'\n', span).map_or(column + chars(span), |newline| {
-                1 + chars(&span[newline + 1..])
-            })
-        } else if memchr::memchr(b'\n', self.span(to, from)).is_none() {
-            column - chars(self.span(to, from))
-        } else {
-            let before = self.span(self.dropped, to);
-            1 + chars(
-                memchr::memrchr(b'\n', before).map_or(before, |newline| &before[newline + 1..]),
-            )
-        };
-        self.lines.column = (to, column);
-        column
-    }
-
-    /// Gives new diagnostics their column; their context follows once the
-    /// text it shows is there.
-    fn annotate(&mut self) {
-        let utf8 = matches!(self.decoder, None | Some(Decoder::Utf8));
-        for index in self.annotated..self.tree.diagnostics.len() {
-            let diagnostic = &self.tree.diagnostics[index];
-            let (offset, invalid) = (
-                diagnostic.offset,
-                diagnostic.kind == DiagnosticKind::InvalidEncoding,
-            );
-            let column = self.column_at(offset);
-            let bytes = invalid && utf8;
-            self.tree.diagnostics[index].column = column;
-            self.pending.push((index, bytes));
-        }
-        self.annotated = self.tree.diagnostics.len();
-    }
-
-    /// `xmlParserInputGetWindow`'s lines for pending diagnostics: up to 80
-    /// bytes of text on each side, so push input waits for 84 more bytes or
-    /// a line end.
-    fn contextualize(&mut self, eof: bool) {
-        if self.pending.is_empty() {
-            return;
-        }
-        let mut pending = std::mem::take(&mut self.pending);
-        pending.retain(|&(index, bytes)| {
-            let at = self.tree.diagnostics[index].offset - self.dropped;
-            let after = &self.text[at.min(self.text.len())..];
-            let ready = eof
-                || after.len() >= 84
-                || memchr::memchr2(b'\n', b'\r', &after[..after.len().min(84)]).is_some();
-            if ready {
-                let from = at.saturating_sub(100);
-                let to = (at + 100).min(self.text.len());
-                self.tree.diagnostics[index].context =
-                    diagnostic::context(&self.text[from..to], at - from, bytes);
-            }
-            !ready
-        });
-        self.pending = pending;
     }
 
     /// Re-decodes the text from `at` with a newly chosen encoding.
@@ -688,7 +677,10 @@ impl<'a, S: Sink> Engine<'a, S> {
         let mut malformed = None;
         if !matches!(decoder, Decoder::Utf8) {
             // Earlier reports show the text as it was.
-            self.contextualize(true);
+            for diagnostic in &mut self.tree.diagnostics {
+                diagnostic.early = true;
+            }
+            self.decoding.switch = Some((self.dropped + at, decoder.fresh()));
             self.malformed = self.malformed.filter(|&m| m < self.dropped + at);
             let tail = self.text[at..].to_vec();
             let text = self.text.to_mut();
@@ -716,7 +708,7 @@ impl<'a, S: Sink> Engine<'a, S> {
     /// `htmlCheckMeta` and `xmlSetDeclaredEncoding` for a `<meta>` charset,
     /// which libxml2 checks with its input at the tag's `>`.
     fn declare(&mut self, label: String, last: bool, at: Place) {
-        let gt = (at.end - 1, at.end_line);
+        let gt = at.end - 1;
         match Decoder::for_label(&label) {
             Some(decoder) if decoder.ascii_compatible() => {
                 self.encoding = Some(label);
@@ -733,9 +725,9 @@ impl<'a, S: Sink> Engine<'a, S> {
         }
     }
 
-    fn error(&mut self, kind: DiagnosticKind, (offset, line): (usize, usize), message: String) {
+    fn error(&mut self, kind: DiagnosticKind, offset: usize, message: String) {
         let raised = (Domain::Html, Level::Error);
-        self.tree.report(kind, offset, line, message, raised);
+        self.tree.report(kind, offset, offset, message, raised);
     }
 
     fn located(&self, error: Error) -> Error {
@@ -744,16 +736,9 @@ impl<'a, S: Sink> Engine<'a, S> {
 
     /// Where the token `used` bytes long, after `skipped` blanks, lies.
     fn place(&self, skipped: usize, used: usize) -> Place {
-        let start = self.offset() + skipped;
-        let end = self.offset() + used;
-        let line = self.lines.line + newlines(self.span(self.offset(), start));
-        let end_line = line + newlines(self.span(start, end));
         Place {
-            start,
-            end,
-            line,
-            end_line,
-            run_line: self.run_line.unwrap_or(line),
+            start: self.offset() + skipped,
+            end: self.offset() + used,
         }
     }
 
@@ -761,11 +746,9 @@ impl<'a, S: Sink> Engine<'a, S> {
         let result = self.steps(eof);
         // Malformed input after the last token, such as a cut-off unit.
         if eof && !self.stopped && self.malformed.take().is_some() {
-            let (offset, line) = (self.offset(), self.line_at(self.offset()));
-            converted(&mut self.tree, &mut self.invalid, offset, line);
-            self.annotate();
+            let offset = self.offset();
+            converted(&mut self.tree, &mut self.invalid, offset);
         }
-        self.contextualize(eof);
         result
     }
 
@@ -776,65 +759,70 @@ impl<'a, S: Sink> Engine<'a, S> {
             if !eof && available < self.retry {
                 return Ok(());
             }
-            self.tokenizer.invalid.set(None);
             let step = self.tokenizer.next(rest, eof);
             let invalid = self.tokenizer.invalid.take();
+            // The prolog's blanks are skipped before its tokens.
+            let skipped = std::mem::take(&mut self.tokenizer.skipped);
             match step {
                 Ok(None) => return Ok(()),
-                Ok(Some((token, mut used))) => {
-                    let at = self.place(self.tokenizer.skipped, used);
-                    self.run_line = self.tokenizer.text_step.then_some(at.run_line);
-                    self.tree.at = at;
-                    if self.malformed.is_some_and(|malformed| malformed < at.end) {
-                        self.malformed = None;
-                        converted(&mut self.tree, &mut self.invalid, at.start, at.line);
+                Ok(Some((None, used))) => {
+                    if invalid.is_some() || self.malformed.is_some() {
+                        self.tree.at = self.place(skipped, used);
+                        irregular(
+                            &mut self.tree,
+                            &mut self.invalid,
+                            &mut self.malformed,
+                            invalid,
+                            false,
+                        );
                     }
-                    if let Some(invalid) = invalid.filter(|_| !self.invalid) {
-                        self.invalid = true;
-                        let offset = self.offset() + invalid;
-                        let line = if self.tokenizer.text_step {
-                            at.run_line
-                        } else {
-                            self.line_at(offset)
-                        };
-                        let message = "Invalid bytes in character encoding".to_owned();
-                        let raised = (Domain::Html, Level::Error);
-                        let kind = DiagnosticKind::InvalidEncoding;
-                        self.tree.report(kind, offset, line, message, raised);
-                    }
-                    let mut charset = None;
-                    if let Some(token) = token {
-                        charset = match &token {
-                            Token::StartTag {
-                                name,
-                                attributes,
-                                end,
-                                ..
-                            } if name == "meta"
-                                && *end != TagEnd::Eof
-                                && !self.tokenizer.has_encoding
-                                && !self.options.has(IGNORE_ENC) =>
-                            {
-                                meta_charset(attributes)
-                            }
-                            _ => None,
-                        };
-                        let reaction = self.tree.consume(token)?;
-                        self.retry = 0;
-                        match reaction {
-                            Reaction::Continue => {}
-                            Reaction::Enter(mode) => {
-                                self.tokenizer.enter(mode, self.tree.top_name());
-                            }
-                            // The tag's end is read again, as text.
-                            Reaction::Reread(bytes) => used -= bytes,
-                            Reaction::Halt => self.stopped = true,
-                        }
+                    // A tokenless step of markup (`</>`) ends a run of
+                    // character data; one of text (a dropped NUL) does not.
+                    if self.text[self.pos + skipped] == b'<' {
+                        self.tree.run = None;
                     }
                     self.pos += used;
-                    // A reread tag end holds no line feed.
-                    self.lines.line = at.end_line;
-                    self.lines.counted = self.offset();
+                }
+                Ok(Some((Some(token), mut used))) => {
+                    let at = self.place(skipped, used);
+                    self.tree.at = at;
+                    if invalid.is_some() || self.malformed.is_some() {
+                        let text = matches!(token, Token::Text { .. });
+                        irregular(
+                            &mut self.tree,
+                            &mut self.invalid,
+                            &mut self.malformed,
+                            invalid,
+                            text,
+                        );
+                    }
+                    let charset = match &token {
+                        Token::StartTag {
+                            name,
+                            attributes,
+                            end,
+                            ..
+                        } if name == "meta"
+                            && *end != TagEnd::Eof
+                            && !self.tokenizer.has_encoding
+                            && !self.options.has(IGNORE_ENC) =>
+                        {
+                            meta_charset(attributes)
+                        }
+                        _ => None,
+                    };
+                    let reaction = self.tree.consume(token)?;
+                    self.retry = 0;
+                    match reaction {
+                        Reaction::Continue => {}
+                        Reaction::Enter(mode) => {
+                            self.tokenizer.enter(mode, self.tree.top_name());
+                        }
+                        // The tag's end is read again, as text.
+                        Reaction::Reread(bytes) => used -= bytes,
+                        Reaction::Halt => self.stopped = true,
+                    }
+                    self.pos += used;
                     if let Some(label) = charset {
                         self.declare(label, eof, at);
                     }
@@ -850,10 +838,9 @@ impl<'a, S: Sink> Engine<'a, S> {
                 }
                 Err(Stop::Switch(at)) => self.fallback(self.pos + at),
                 Err(Stop::TooLong) => {
-                    let (offset, line) = (self.offset(), self.line_at(self.offset()));
-                    let raised = (Domain::Html, Level::Error);
+                    let (offset, raised) = (self.offset(), (Domain::Html, Level::Error));
                     self.tree
-                        .halt(offset, line, "value too long".to_owned(), raised);
+                        .halt(offset, offset, "value too long".to_owned(), raised);
                     self.stopped = true;
                 }
                 Err(Stop::Attributes) => {
@@ -861,11 +848,6 @@ impl<'a, S: Sink> Engine<'a, S> {
                         self.located(Error::new(ErrorKind::LimitExceeded(Limit::Attributes), 0))
                     );
                 }
-            }
-            // libxml2 shows the text as it is when it reports.
-            if self.annotated < self.tree.diagnostics.len() || !self.pending.is_empty() {
-                self.annotate();
-                self.contextualize(eof);
             }
         }
         Ok(())
@@ -876,6 +858,7 @@ impl<'a, S: Sink> Engine<'a, S> {
         Summary {
             diagnostics,
             stopped,
+            decoding: self.decoding,
         }
     }
 }
@@ -885,7 +868,7 @@ impl Engine<'_, Document> {
         let default_doctype = !self.options.has(NODEFDTD);
         let (document, diagnostics, stopped) = self.tree.finish();
         Ok(Parsed {
-            document: document.finish(default_doctype, self.encoding)?,
+            document: document.finish(default_doctype, self.encoding, self.decoding)?,
             diagnostics,
             stopped,
         })

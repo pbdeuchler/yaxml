@@ -324,16 +324,18 @@ fn invalid_bytes_are_reported_from_the_scan_start() {
 }
 
 #[test]
-fn steps_report_skipped_blanks_and_text() {
+fn only_the_prolog_skips_blanks() {
     let mut tokenizer = tokenizer(Mode::Data, "");
-    let (token, used) = tokenizer.next(b" \n<p>", true).unwrap().unwrap();
-    assert!(token.is_some());
-    assert_eq!(
-        (tokenizer.skipped, used, tokenizer.text_step),
-        (2, 5, false)
-    );
-    assert!(tokenizer.next(b"a<", true).unwrap().is_some());
-    assert_eq!((tokenizer.skipped, tokenizer.text_step), (0, true));
+    let (token, used) = tokenizer.next(b" \n<!--c-->", true).unwrap().unwrap();
+    assert_eq!((token.is_some(), used, tokenizer.skipped), (true, 10, 2));
+    tokenizer.skipped = 0;
+    assert!(tokenizer.next(b"<p>", true).unwrap().is_some());
+    assert!(tokenizer.next(b" x", true).unwrap().is_some());
+    assert_eq!(tokenizer.skipped, 0);
+    let mut fragment = super::Tokenizer::new(1 << 20, 50_000, 64);
+    fragment.fragment();
+    let (_, used) = fragment.next(b" <!--c-->", true).unwrap().unwrap();
+    assert_eq!((used, fragment.skipped), (1, 0));
 }
 
 #[test]

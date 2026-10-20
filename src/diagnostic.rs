@@ -220,6 +220,9 @@ pub struct LineIndex<'s> {
     starts: Vec<usize>,
     /// Transcoded input: its decoder and the input offset of each line's first byte.
     decoded: Option<(Decoder, Vec<usize>)>,
+    /// HTML input re-decoded after a charset switch, before conversion:
+    /// what earlier reports show.
+    raw: Option<&'s [u8]>,
 }
 
 /// The decoders of transcoded input.
@@ -300,6 +303,7 @@ impl<'s> LineIndex<'s> {
             text: Cow::Owned(text.into_bytes()),
             starts,
             decoded: Some((decoder, raw)),
+            raw: None,
         }
     }
 
@@ -313,6 +317,7 @@ impl<'s> LineIndex<'s> {
             text: Cow::Borrowed(text),
             starts,
             decoded: None,
+            raw: None,
         }
     }
 
@@ -348,11 +353,49 @@ impl<'s> LineIndex<'s> {
         self.text_column(self.to_text(offset))
     }
 
-    fn text_line(&self, at: usize) -> usize {
+    /// The index of an HTML document's input: offsets count bytes of the
+    /// text the HTML parser decoded (BOM skipped, `<meta>` and guessed
+    /// charsets applied), which is what HTML node origins and
+    /// [`html::Diagnostic`](crate::html::Diagnostic) offsets are. `document`
+    /// must be the one parsed from `input` ([`html::parse`](crate::html::parse)
+    /// or [`html::parse_fragment`](crate::html::parse_fragment)); for another
+    /// document this is [`LineIndex::new`].
+    pub fn html(input: &'s [u8], document: &crate::OwnedDocument) -> Self {
+        match document.html_decoding() {
+            Some(decoding) => Self::decoded_html(input, decoding),
+            None => Self::new(input),
+        }
+    }
+
+    pub(crate) fn decoded_html(input: &'s [u8], decoding: &crate::html::Decoding) -> Self {
+        let (text, raw) = decoding.text(input);
+        let starts = std::iter::once(0)
+            .chain(memchr::memchr_iter(b'\n', &text).map(|i| i + 1))
+            .collect();
+        Self {
+            input,
+            text,
+            starts,
+            decoded: None,
+            raw,
+        }
+    }
+
+    /// libxml2's context lines for an HTML report at text offset `at`, from
+    /// the text before a charset switch when it was raised `early`.
+    pub(crate) fn html_context(&self, at: usize, early: bool, bytes: bool) -> String {
+        let text = self.raw.filter(|_| early).unwrap_or(&self.text);
+        let at = at.min(text.len());
+        // The window reaches 80 bytes back and forward.
+        let (from, to) = (at.saturating_sub(100), (at + 100).min(text.len()));
+        context(&text[from..to], at - from, bytes)
+    }
+
+    pub(crate) fn text_line(&self, at: usize) -> usize {
         self.starts.partition_point(|&start| start <= at).max(1)
     }
 
-    fn text_column(&self, at: usize) -> usize {
+    pub(crate) fn text_column(&self, at: usize) -> usize {
         let start = self.starts[self.text_line(at) - 1].min(at);
         1 + self.text[start..at]
             .iter()
@@ -401,12 +444,12 @@ impl<'s> LineIndex<'s> {
             let from = previous.or((own(parent) == Some(true)).then_some(parent))?;
             return self.node_line(tree, from);
         };
-        if let Some(line) = tree.line(id) {
-            return Some(line);
+        let range = tree.range(id)?;
+        if tree.marks_lines() {
+            // The text offset whose line libxml2 recorded.
+            return Some(self.text_line(range.start));
         }
-        let range = tree
-            .range(id)
-            .filter(|range| range.start < self.input.len())?;
+        let range = Some(range).filter(|range| range.start < self.input.len())?;
         Some(if element {
             self.tag_line(self.to_text(range.start))
         } else {

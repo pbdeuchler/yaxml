@@ -978,10 +978,10 @@ impl<A: Allocator> OwnedDocument<A> {
         self.html.as_ref()?.encoding.as_deref()
     }
 
-    /// The line the HTML parser recorded for a node slot, if any.
-    pub(crate) fn html_line(&self, slot: usize) -> Option<usize> {
-        let line = *self.html.as_ref()?.lines.get(slot)?;
-        (line != 0).then_some(line as usize)
+    /// How an HTML document's input was decoded into the text its node
+    /// origins point into.
+    pub(crate) fn html_decoding(&self) -> Option<&crate::html::Decoding> {
+        Some(&self.html.as_ref()?.decoding)
     }
 
     /// Opens a bounded tree editor. Owned-byte, created-node and created-attribute
@@ -1928,20 +1928,14 @@ fn append_record<A: Allocator>(
     Ok(id)
 }
 
-/// A line as `HtmlMeta::lines` stores it.
-fn stored_line(line: usize) -> u32 {
-    u32::try_from(line).unwrap_or(u32::MAX)
-}
-
 /// State that only HTML documents carry.
 #[derive(Clone, Debug)]
 struct HtmlMeta {
     encoding: Option<String>,
     /// Sorted attribute-arena indices of attributes written without a value.
     valueless: Vec<usize>,
-    /// libxml2's `node->line` per parsed node slot (0: none); slots past
-    /// the end are constructed nodes.
-    lines: Vec<u32>,
+    /// How the input became the text node origins point into.
+    decoding: crate::html::Decoding,
 }
 
 /// An element's last child other than comments, as `areBlanks` inspects it.
@@ -1962,7 +1956,6 @@ pub(crate) struct HtmlBuilder {
     pool: Pool,
     root_element: NodeId,
     valueless: Vec<usize>,
-    lines: Vec<u32>,
     budget: Budget,
 }
 
@@ -1975,22 +1968,23 @@ impl HtmlBuilder {
             pool: Pool::default(),
             root_element: NodeId(0),
             valueless: Vec::new(),
-            lines: vec![0],
             budget: Budget::new(limits),
         })
     }
 
-    /// Appends a node created while the input was on `line`.
-    fn append(&mut self, parent: NodeId, content: Content, line: usize) -> Result<NodeId, Error> {
+    /// Appends a node whose origin is the empty range at text offset `mark`,
+    /// on the line libxml2 gives the node (`None`: no line).
+    fn append(
+        &mut self,
+        parent: NodeId,
+        content: Content,
+        mark: Option<usize>,
+    ) -> Result<NodeId, Error> {
         if self.nodes.len() > self.budget.max_events() {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::Events), 0));
         }
-        self.lines
-            .try_reserve(1)
-            .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
-        let id = append_record(&mut self.nodes, parent, content, None, 0)?;
-        self.lines.push(stored_line(line));
-        Ok(id)
+        let origin = mark.map(|mark| SourceOrigin::input(mark..mark));
+        append_record(&mut self.nodes, parent, content, origin, 0)
     }
 
     fn name(&mut self, name: &str) -> Result<StoredName, Error> {
@@ -2006,7 +2000,7 @@ impl HtmlBuilder {
         parent: NodeId,
         name: &str,
         attributes: &[(String, Option<String>)],
-        line: usize,
+        mark: usize,
     ) -> Result<NodeId, Error> {
         let allocation = Error::new(ErrorKind::Allocation, 0);
         let name = self.name(name)?;
@@ -2030,7 +2024,7 @@ impl HtmlBuilder {
             self.attributes.push(StoredAttribute { name, value });
         }
         let attributes = start..self.attributes.len();
-        let id = self.append(parent, Content::Element { name, attributes }, line)?;
+        let id = self.append(parent, Content::Element { name, attributes }, Some(mark))?;
         if parent == NodeId(0) && self.root_element == NodeId(0) {
             self.root_element = id;
         }
@@ -2045,7 +2039,7 @@ impl HtmlBuilder {
         value: &str,
         cdata: bool,
         limit: usize,
-        line: usize,
+        mark: usize,
     ) -> Result<bool, Error> {
         let last = self.nodes[parent.0].last_child.get();
         let merge = last.and_then(|last| match &self.nodes[last.0].content {
@@ -2060,7 +2054,7 @@ impl HtmlBuilder {
             } else {
                 Content::Text(range)
             };
-            self.append(parent, content, line)?;
+            self.append(parent, content, Some(mark))?;
             return Ok(true);
         };
         if value.len() > limit || range.len() > limit - value.len() {
@@ -2071,7 +2065,7 @@ impl HtmlBuilder {
             Content::Cdata(range)
         } else {
             // xmlSAX2Text moves a merged text node's line forward.
-            self.lines[last.0] = stored_line(line);
+            self.nodes[last.0].source = Some(SourceOrigin::input(mark..mark));
             Content::Text(range)
         };
         Ok(true)
@@ -2081,10 +2075,11 @@ impl HtmlBuilder {
         &mut self,
         parent: NodeId,
         value: &str,
-        line: usize,
+        mark: usize,
     ) -> Result<(), Error> {
         let range = self.pool.store(value, 0, &mut self.budget)?;
-        self.append(parent, Content::Comment(range), line).map(drop)
+        self.append(parent, Content::Comment(range), Some(mark))
+            .map(drop)
     }
 
     /// Ends an element: everything appended since it is its subtree.
@@ -2115,6 +2110,7 @@ impl HtmlBuilder {
         mut self,
         doctype: Option<Doctype<'_>>,
         encoding: Option<String>,
+        decoding: crate::html::Decoding,
     ) -> Result<OwnedDocument, Error> {
         let mut preorder = true;
         if let Some(doctype) = doctype {
@@ -2130,7 +2126,7 @@ impl HtmlBuilder {
                 internal_subset: None,
             });
             let first = self.nodes[0].first_child;
-            let id = self.append(NodeId(0), content, 0)?;
+            let id = self.append(NodeId(0), content, None)?;
             if let Some(first) = first.get() {
                 // Move the new last child to the front.
                 let link = Link(id.0);
@@ -2160,7 +2156,7 @@ impl HtmlBuilder {
             html: Some(Box::new(HtmlMeta {
                 encoding,
                 valueless: self.valueless,
-                lines: self.lines,
+                decoding,
             })),
             ids: Vec::new(),
             dtd: None,
@@ -2399,7 +2395,9 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
 
     /// Original source location, independent of current logical content and
     /// pool storage. Parsed nodes retain their origins; constructed nodes have
-    /// no source provenance. This cannot index the owned string pool.
+    /// no source provenance. This cannot index the owned string pool. An HTML
+    /// node's origin is the empty range, in the decoded text, where libxml2
+    /// takes its line (see docs/html.md).
     #[inline]
     pub fn range(self) -> Option<Range<usize>> {
         self.origin().and_then(SourceOrigin::input_range)

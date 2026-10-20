@@ -100,13 +100,14 @@ fn ours(input: &[u8], mode: &Mode) -> Outcome {
     } else {
         html::parse(input, options).unwrap()
     };
+    let lines = yaxml::LineIndex::html(input, &parsed.document);
     Outcome {
         tree: dump::dump(&parsed.document),
         output: html::save(&parsed.document, mode.format).unwrap(),
         errors: parsed
             .diagnostics
             .iter()
-            .map(|diagnostic| diagnostic.render("-"))
+            .map(|diagnostic| diagnostic.render("-", &lines))
             .collect(),
     }
 }
@@ -265,11 +266,11 @@ fn escaped(out: &mut String, text: Option<&str>) {
 
 /// The helper's error records, without the column (libxml2's skips tag
 /// names; ours counts characters), and the columns apart.
-fn errors(diagnostics: &[html::Diagnostic]) -> (String, Vec<usize>) {
+fn errors(diagnostics: &[html::Diagnostic], lines: &yaxml::LineIndex<'_>) -> (String, Vec<usize>) {
     let mut out = String::new();
     let mut columns = Vec::new();
     for diagnostic in diagnostics {
-        let record = diagnostic.describe();
+        let record = diagnostic.describe(lines);
         out += &format!(
             "error\t{}\t{}\t{}\t{}",
             record.domain as u8, record.code, record.level as u8, record.line
@@ -347,14 +348,14 @@ fn sax_records(input: &[u8], flags: u32) -> (String, String, Vec<usize>) {
         std::ops::ControlFlow::Continue(())
     })
     .unwrap();
-    let (errors, columns) = errors(&summary.diagnostics);
+    let (errors, columns) = errors(&summary.diagnostics, &summary.line_index(input));
     (out, errors, columns)
 }
 
 fn line_records(input: &[u8], flags: u32) -> (String, String, Vec<usize>) {
     use yaxml::{LineIndex, OwnedNodeKind};
     let parsed = html::parse(input, Options::new(flags)).unwrap();
-    let lines = LineIndex::new(b"");
+    let lines = LineIndex::html(input, &parsed.document);
     let mut out = String::new();
     for node in parsed.document.root().descendants().skip(1) {
         let depth = std::iter::successors(node.parent(), |n| n.parent()).count() - 1;
@@ -376,7 +377,7 @@ fn line_records(input: &[u8], flags: u32) -> (String, String, Vec<usize>) {
         let line = node.line(&lines).map_or(-1, |line| line as i64);
         out += &format!("\t{line}\n");
     }
-    let (errors, columns) = errors(&parsed.diagnostics);
+    let (errors, columns) = errors(&parsed.diagnostics, &lines);
     (out, errors, columns)
 }
 
@@ -384,11 +385,12 @@ fn fragment_records(input: &[u8], flags: u32) -> (String, String, Vec<usize>) {
     let parsed = html::parse_fragment(input, None, Options::new(flags)).unwrap();
     let list = dump::dump_list(&parsed.document);
     // xmlParseInNodeContext returns the last error's code for an empty list.
+    let lines = yaxml::LineIndex::html(input, &parsed.document);
     let code = match parsed.diagnostics.last() {
-        Some(last) if list.is_empty() => last.describe().code,
+        Some(last) if list.is_empty() => last.describe(&lines).code,
         _ => 0,
     };
-    let (errors, columns) = errors(&parsed.diagnostics);
+    let (errors, columns) = errors(&parsed.diagnostics, &lines);
     (format!("result\t{code}\n{list}"), errors, columns)
 }
 

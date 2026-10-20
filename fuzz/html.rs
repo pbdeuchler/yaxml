@@ -126,7 +126,7 @@ fn last_line(input: &[u8]) -> usize {
 /// the line its input is on, which only moves forward).
 fn lines(document: &OwnedDocument, input: &[u8]) -> Vec<Option<usize>> {
     let last = last_line(input);
-    let index = LineIndex::new(b"");
+    let index = LineIndex::html(input, document);
     let lines: Vec<_> = document.nodes().map(|node| node.line(&index)).collect();
     let mut previous = 1;
     for (node, line) in document.nodes().zip(&lines) {
@@ -146,45 +146,36 @@ fn lines(document: &OwnedDocument, input: &[u8]) -> Vec<Option<usize>> {
 }
 
 /// Diagnostics: a line within the input, and a report naming it.
-fn diagnosed(diagnostics: &[html::Diagnostic], input: &[u8]) {
+fn diagnosed(diagnostics: &[html::Diagnostic], lines: &LineIndex<'_>, input: &[u8]) {
     let last = last_line(input);
     for diagnostic in diagnostics {
-        assert!((1..=last).contains(&diagnostic.line), "{diagnostic:?}");
-        assert!(diagnostic.column >= 1, "{diagnostic:?}");
-        let report = diagnostic.render("f");
+        let record = diagnostic.describe(lines);
+        assert!((1..=last).contains(&record.line), "{diagnostic:?}");
+        assert!(record.column >= 1, "{diagnostic:?}");
+        let report = diagnostic.render("f", lines);
         assert!(
-            report.starts_with(&format!("f:{}: ", diagnostic.line)),
+            report.starts_with(&format!("f:{}: ", record.line)),
             "{report}"
         );
         assert!(report.ends_with("^\n"), "{report:?}");
     }
 }
 
-/// Diagnostics as push must reproduce them: their context lines only for
-/// ASCII input, since a `<meta>` charset re-decodes text that push input
-/// shows only once it arrives.
-fn reported(diagnostics: &[html::Diagnostic], input: &[u8]) -> Vec<String> {
-    let ascii = input.is_ascii();
+/// Diagnostics with their records and reports, which push must reproduce.
+fn reported(diagnostics: &[html::Diagnostic], lines: &LineIndex<'_>) -> Vec<String> {
     diagnostics
         .iter()
-        .map(|d| {
-            let report = format!(
-                "{:?} {} {} {} {}",
-                d.kind, d.offset, d.line, d.column, d.message
-            );
-            if ascii {
-                report + &d.render("")
-            } else {
-                report
-            }
-        })
+        .map(|d| format!("{d:?} {:?} {}", d.describe(lines), d.render("", lines)))
         .collect()
 }
 
 fn outcome(parsed: &Parsed, input: &[u8]) -> (Vec<u8>, Vec<String>, bool, Vec<Option<usize>>) {
     (
         html::save(&parsed.document, false).expect("parsed encodings serialize"),
-        reported(&parsed.diagnostics, input),
+        reported(
+            &parsed.diagnostics,
+            &LineIndex::html(input, &parsed.document),
+        ),
         parsed.stopped,
         lines(&parsed.document, input),
     )
@@ -296,11 +287,11 @@ fn events(input: &[u8], options: Options, seed: u64, whole: Option<&Parsed>) {
     };
     assert_eq!(pulled, pushed, "events depend on chunking");
     assert_eq!(
-        reported(&summary.diagnostics, input),
-        reported(&streamed.diagnostics, input)
+        reported(&summary.diagnostics, &summary.line_index(input)),
+        reported(&streamed.diagnostics, &streamed.line_index(input))
     );
     assert_eq!(summary.stopped, streamed.stopped);
-    diagnosed(&summary.diagnostics, input);
+    diagnosed(&summary.diagnostics, &summary.line_index(input), input);
     // Without a tree, areBlanks keeps what NOBLANKS drops from one.
     if let Some(whole) = whole
         && !whole.stopped
@@ -339,7 +330,8 @@ fn fragment(input: &[u8], options: Options, whole: Option<&Parsed>) {
         Ok(parsed) => {
             check(&parsed.document, options, true);
             lines(&parsed.document, input);
-            diagnosed(&parsed.diagnostics, input);
+            let index = LineIndex::html(input, &parsed.document);
+            diagnosed(&parsed.diagnostics, &index, input);
             assert!(html::save(&parsed.document, false).is_ok());
         }
         Err(error) => allowed(error),
@@ -512,7 +504,8 @@ pub(super) fn exercise(input: &[u8]) {
     match (&whole, &pushed) {
         (Ok(whole), Ok(pushed)) => {
             check(&whole.document, options, false);
-            diagnosed(&whole.diagnostics, input);
+            let index = LineIndex::html(input, &whole.document);
+            diagnosed(&whole.diagnostics, &index, input);
             assert_eq!(
                 outcome(whole, input),
                 outcome(pushed, input),
