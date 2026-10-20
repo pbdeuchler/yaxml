@@ -7,8 +7,8 @@
 use std::ops::{ControlFlow, Range};
 
 use yaxml::{
-    DecodeLimits, Document, Error, ErrorKind, Event, Limit, Limits, OwnedDocument, PushParser,
-    ReadError, Reader,
+    DecodeLimits, Document, Error, ErrorKind, Event, Limit, Limits, OwnedDocument, ParseOptions,
+    PushParser, ReadError, Reader, Transcoded,
 };
 
 use super::Outcome;
@@ -372,6 +372,7 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
     }
     temporary.fill(0);
     drop(temporary);
+    transcoded(input, owned.as_ref());
     if valid && input.len() <= 1024 {
         assert!(result.is_ok(), "small valid UTF-16 rejected by stream");
         assert!(owned.is_ok(), "small valid UTF-16 rejected by owned tree");
@@ -443,6 +444,85 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
     Outcome {
         error: result.err(),
         events: count,
+    }
+}
+
+/// The borrowing surfaces on `Transcoded` input agree with the owned DOM and
+/// the push parser, their text offsets mapped back to the input.
+fn transcoded(input: &[u8], owned: Result<&OwnedDocument, &Error>) {
+    let text = match Transcoded::new(input, &ParseOptions::default()) {
+        Ok(text) => text,
+        Err(error) => {
+            super::check_error(error, input);
+            // Transcoding reports a decoding error before any later markup's.
+            assert!(owned.is_err(), "owned DOM accepted undecodable input");
+            return;
+        }
+    };
+    let map = |range: Range<usize>| text.source_offset(range.start)..text.source_offset(range.end);
+    let mut events = Vec::new();
+    let read = (|| {
+        let mut reader = Reader::transcoded(&text, ParseOptions::default())?;
+        while let Some(event) = reader.read_event()? {
+            events.push(super::recover::render(
+                &event,
+                map(super::span(reader.event_origin().unwrap())),
+            ));
+        }
+        Ok(())
+    })();
+    let mut pushed = Vec::new();
+    let push = super::drive_push(input, &[], Limits::default(), |event, range| {
+        pushed.push(super::recover::render(event, range));
+    });
+    let document = Document::parse_transcoded(&text, ParseOptions::default());
+    assert_eq!(
+        read.err(),
+        document.as_ref().err().copied(),
+        "transcoded reader and DOM differ"
+    );
+    match (document, owned) {
+        (Ok(document), Ok(owned)) => {
+            assert_eq!(push, Ok(()));
+            assert_eq!(events, pushed, "transcoded reader and push parser differ");
+            let declaration =
+                |d: Option<yaxml::Declaration<'_>>| d.map(|d| d.encoding.map(str::to_owned));
+            assert_eq!(
+                declaration(document.declaration().copied()),
+                declaration(owned.declaration())
+            );
+            let mut root = true;
+            super::owned::check_nodes(owned, &document, |range| match std::mem::take(&mut root) {
+                true => 0..input.len(),
+                false => map(range),
+            });
+        }
+        (Err(error), Err(expected)) => {
+            assert!(text.source_offset(error.offset) <= input.len());
+            let lines = yaxml::LineIndex::transcoded(&text);
+            assert!(error.describe(&lines).line <= lines.line(usize::MAX));
+            // The slice checks characters before grammar, and all of them
+            // first, unlike a stream.
+            let characters = matches!(
+                error.kind,
+                ErrorKind::InvalidCharacter | ErrorKind::InvalidUtf8
+            );
+            if error.kind == expected.kind && !resource_error(error.kind) && !characters {
+                assert_eq!(
+                    text.source_offset(error.offset),
+                    expected.offset,
+                    "{error} vs {expected}"
+                );
+            }
+        }
+        (Ok(_), Err(error)) => assert!(
+            resource_error(error.kind),
+            "only the owned DOM rejected: {error}"
+        ),
+        (Err(error), Ok(_)) => assert!(
+            resource_error(error.kind),
+            "only the owned DOM accepted: {error}"
+        ),
     }
 }
 

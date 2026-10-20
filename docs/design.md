@@ -192,6 +192,26 @@ prefix/local parts share one stored qualified spelling. Original source spans
 are separate from pool ranges. This supports long-lived application state and
 future bindings without self-references or changing the borrowing API.
 
+A borrowing tree or `Reader` over UTF-16 or single-byte input needs decoded
+UTF-8 that outlives it. `Transcoded::new(input, &options)` is that owner: it
+borrows UTF-8 input unchanged and otherwise runs the streaming `Decoder` once
+(the same detection, declaration switch, `max_input_bytes` and `DecodeLimits`;
+external entities decode through it too). The caller keeps it beside the tree
+and parses it with `Document::parse_transcoded` or `Reader::transcoded`, which
+seed the parser with the detected encoding, so the declaration is checked
+exactly as a stream checks it (a BOM outranks the label, BOM-less UTF-16 needs
+one, a single-byte label is already applied). Rejected: a closure API
+(`parse_decoded(input, |doc| ..)`) cannot return the tree; owned strings per
+node fail on `Declaration` and `Doctype`, which lend `&str`; a bare
+`Cow<[u8]>` loses the detected encoding, so the parser could not tell decoded
+text from UTF-8 that names another charset. The cost: offsets of a transcoded
+parse count bytes of the UTF-8 text. Mapping every origin to the input needs
+an offset map or a rescan per node, so `Transcoded::source_offset` converts one
+offset on demand (linear in it) and `LineIndex::transcoded` gives libxml2's
+lines and columns, which do not depend on the source encoding. UTF-8 stays
+zero-copy: the plain constructors are unchanged, and transcoding UTF-8 is one
+prefix check.
+
 Both forms consume the same validated parser events. Borrowing records retain
 their compact immutable preorder layout; owned records separately carry the
 links and live subtree counts required for mutation. Owned pool growth charges

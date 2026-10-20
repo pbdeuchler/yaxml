@@ -109,7 +109,7 @@ CI requires the checked-in per-ID, per-interface pass baseline. A required
 the original result row is retained. Newly supported pairs may become passes.
 `hst-lhs-007` and `hst-lhs-008` expect rejection of a BOM/label disagreement that libxml2 2.15.4 accepts with a warning; yaxml follows libxml2, so the runner scores an acceptance there as a `gap` (`libxml2-encoding-mismatch-warning`), not a mismatch.
 
-The baseline protects 9,728 pairs across 1,962 IDs. Its masks follow
+The baseline protects 9,810 pairs across 1,962 IDs. Its masks follow
 `reader, document, owned, push, buffered`. Review baseline additions alongside
 new feature evidence; do not remove requirements merely to accept a regression.
 Omitting `--required-pass` is useful for exploring another catalog, and the

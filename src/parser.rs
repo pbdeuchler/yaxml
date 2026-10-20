@@ -2332,6 +2332,8 @@ fn validate_encoding(
         (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {
             return Ok(SourceEncoding::Byte(table));
         }
+        // Transcoded input, which the label switched already.
+        (SourceEncoding::Byte(_), Some(Charset::Byte(_))) => return Ok(source),
         _ => ErrorKind::UnsupportedEncoding,
     };
     Err(Error::new(kind, offset))

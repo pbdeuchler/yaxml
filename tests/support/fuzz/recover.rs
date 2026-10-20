@@ -1,19 +1,21 @@
 //! `RECOVER` on the streams, and the namespace errors strict parsing keeps.
 //! For every chunking, push and pull deliver the same events, ranges and
-//! recovered errors; on UTF-8 input the slice reader's, which project onto
-//! the recovered DOM.
+//! recovered errors; on decodable input the slice reader's over its
+//! transcoded text, which project onto the recovered DOM.
 
 use std::io::BufReader;
 use std::ops::{ControlFlow, Range};
 
 use yaxml::options::{NOBLANKS, RECOVER};
-use yaxml::{BufferedReader, Document, Error, ErrorKind, Event, ParseOptions, PushParser, Reader};
+use yaxml::{
+    BufferedReader, Document, Error, ErrorKind, Event, ParseOptions, PushParser, Reader, Transcoded,
+};
 
 /// Events with their ranges, then the recovered errors; or the fatal error.
 type Stream = Result<(Vec<String>, Vec<Error>), ErrorKind>;
 
 /// An event as text, its attribute list however it is lent.
-fn render(event: &Event<'_>, range: Range<usize>) -> String {
+pub(super) fn render(event: &Event<'_>, range: Range<usize>) -> String {
     match event {
         Event::Start(element) | Event::Empty(element) => format!(
             "{} {:?} {:?} {range:?}",
@@ -64,36 +66,49 @@ fn pulled(input: &[u8], flags: u32, capacity: usize) -> Stream {
     Ok((events, reader.errors().to_vec()))
 }
 
-/// The slice reader's stream, and its events for the DOM projection;
-/// `None` when it rejects the input up front.
-fn sliced(input: &[u8], flags: u32) -> Option<(Stream, Vec<Event<'_>>)> {
-    let mut reader = Reader::with_options(input, options(flags)).ok()?;
+/// The slice reader's stream over transcoded `input`, offsets in the input,
+/// and its events for the DOM projection; `None` when it rejects the input
+/// up front.
+fn sliced<'t>(input: &'t Transcoded<'_>, flags: u32) -> Option<(Stream, Vec<Event<'t>>)> {
+    let mut reader = Reader::transcoded(input, options(flags)).ok()?;
     let (mut lines, mut events) = (Vec::new(), Vec::new());
     loop {
         match reader.read_event() {
             Ok(Some(event)) => {
-                lines.push(render(&event, super::span(reader.event_origin().unwrap())));
+                let range = super::span(reader.event_origin().unwrap());
+                lines.push(render(
+                    &event,
+                    input.source_offset(range.start)..input.source_offset(range.end),
+                ));
                 events.push(event);
             }
-            Ok(None) => return Some((Ok((lines, reader.errors().to_vec())), events)),
+            Ok(None) => return Some((Ok((lines, sourced(input, reader.errors()))), events)),
             Err(error) => return Some((Err(error.kind), events)),
         }
     }
 }
 
-/// Whether the slice reader reads `input` as the streams do: UTF-8 without
-/// a declared charset (which only streams decode), and without characters
-/// a DTD stack meets (the slice reader's stops at the first of the whole
-/// input; a stream's at the token holding it).
-pub(super) fn comparable(input: &[u8]) -> bool {
-    let declared = input
-        .windows(8)
-        .any(|w| w.eq_ignore_ascii_case(b"encoding"));
-    let characters = std::str::from_utf8(input).map_or(true, |text| {
+/// `errors` at their input offsets.
+pub(super) fn sourced(input: &Transcoded<'_>, errors: &[Error]) -> Vec<Error> {
+    let source = |e: &Error| Error {
+        offset: input.source_offset(e.offset),
+        ..*e
+    };
+    errors.iter().map(source).collect()
+}
+
+/// `input` transcoded, when the slice reader reads it as the streams do:
+/// decodable (the streams drop text pending at a decoding error recovery
+/// stops at), and without characters a DTD stack meets (the slice reader's
+/// stops at the first of the whole input; a stream's at the token holding it).
+pub(super) fn comparable(input: &[u8], flags: u32) -> Option<Transcoded<'_>> {
+    Transcoded::new(input, &options(flags & !RECOVER)).ok()?;
+    let text = Transcoded::new(input, &options(flags)).ok()?;
+    let characters = std::str::from_utf8(text.as_bytes()).map_or(true, |text| {
         text.chars().any(|c| !yaxml::chars::is_char(u32::from(c)))
     });
-    let doctype = input.windows(9).any(|w| w == b"<!DOCTYPE");
-    !super::encoding::recognizes(input) && !declared && !(doctype && characters)
+    let doctype = text.as_bytes().windows(9).any(|w| w == b"<!DOCTYPE");
+    (!(doctype && characters)).then_some(text)
 }
 
 /// The streams on `input` under `flags` (`RECOVER` or strict), chunked as
@@ -130,15 +145,22 @@ pub(super) fn exercise(input: &[u8], flags: u32, control: u8) {
             assert!(flags & RECOVER != 0 || error.kind == ErrorKind::Namespace);
         }
     }
-    let Some((slice, events)) = sliced(input, flags).filter(|_| comparable(input) && !owned) else {
+    let Some(text) = comparable(input, flags).filter(|_| !owned) else {
+        return;
+    };
+    let Some((slice, events)) = sliced(&text, flags) else {
         return;
     };
     assert_eq!(stream, slice, "stream/slice recovery differ on {input:?}");
     if slice.is_ok()
         && flags & NOBLANKS == 0
-        && let Ok(document) = Document::parse_with(input, options(flags))
+        && let Ok(document) = Document::parse_transcoded(&text, options(flags))
     {
-        assert_eq!(document.errors(), slice.as_ref().unwrap().1, "DOM errors");
+        assert_eq!(
+            sourced(&text, document.errors()),
+            slice.as_ref().unwrap().1,
+            "DOM errors"
+        );
         super::check_projection(&document, &events);
     }
 }

@@ -745,7 +745,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                 max_input_bytes,
                 ..limits
             };
-            let mut reader = Reader::configured(source, read, decode, flags, options)?;
+            let mut reader = Reader::configured(source, None, read, decode, flags, options)?;
             if let Some((bindings, dtd)) = context {
                 reader = reader.in_context(bindings, dtd)?;
             }

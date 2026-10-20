@@ -1,6 +1,7 @@
+use std::borrow::Cow;
 use std::ops::Range;
 
-use crate::{Error, ErrorKind, Limit};
+use crate::{Error, ErrorKind, Limit, ParseOptions};
 
 /// Ceilings on the UTF-8 that input decoding produces; a byte order mark
 /// counts toward neither.
@@ -26,6 +27,107 @@ impl DecodeLimits {
 impl Default for DecodeLimits {
     fn default() -> Self {
         Self::DEFAULT
+    }
+}
+
+/// Input as UTF-8 for the borrowing parsers ([`Reader::transcoded`],
+/// [`Document::parse_transcoded`]): UTF-8 input as it is, without a copy;
+/// UTF-16 and declared single-byte input decoded once, as the streaming
+/// parsers decode it ([encoding](https://github.com/pbdeuchler/yaxml/blob/main/docs/encoding.md)).
+/// Keep it alive beside the tree, which borrows it.
+///
+/// Errors and origins of a transcoded parse count bytes of this text, as
+/// its [`LineIndex::transcoded`] does; [`Transcoded::source_offset`] maps
+/// one to the input.
+///
+/// ```
+/// use yaxml::{Document, LineIndex, ParseOptions, Transcoded};
+///
+/// let latin1 = b"<?xml version='1.0' encoding='ISO-8859-1'?>\n<r>caf\xe9</r>";
+/// let input = Transcoded::new(latin1, &ParseOptions::default())?;
+/// let document = Document::parse_transcoded(&input, ParseOptions::default())?;
+/// let text = document.root_element().first_child().unwrap();
+/// assert_eq!(text.content().as_deref(), Some("caf\u{e9}"));
+/// assert_eq!(text.range(), Some(47..52));
+/// assert_eq!(input.source_offset(52), 51);
+/// assert_eq!(text.line(&LineIndex::transcoded(&input)), Some(2));
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+///
+/// [`Reader::transcoded`]: crate::Reader::transcoded
+/// [`Document::parse_transcoded`]: crate::Document::parse_transcoded
+/// [`LineIndex::transcoded`]: crate::LineIndex::transcoded
+#[derive(Clone, Debug)]
+pub struct Transcoded<'a> {
+    text: Cow<'a, [u8]>,
+    /// For decoded text: the source encoding and, under `RECOVER`, the
+    /// decoding error that ends the text.
+    pub(crate) decoded: Option<(SourceEncoding, Option<Error>)>,
+}
+
+impl<'a> Transcoded<'a> {
+    /// Detects `input`'s encoding from its BOM, signature or declaration and
+    /// decodes it unless it is UTF-8, within `options`' `max_input_bytes`
+    /// and [`DecodeLimits`]. Under `IGNORE_ENC` a declared charset is ignored.
+    ///
+    /// # Errors
+    ///
+    /// `LimitExceeded` (`InputBytes`, `DecodedBytes`), `Allocation`, and the
+    /// decoding errors at their input offset: `InvalidUtf16`, `UnmappedByte`
+    /// and `UnsupportedEncoding`. Under `RECOVER` a decoding error ends the
+    /// text instead, and the parse recovers from it there.
+    pub fn new(input: &'a [u8], options: &ParseOptions) -> Result<Self, Error> {
+        let (limits, decode) = options.effective_limits();
+        if input.len() > limits.max_input_bytes {
+            return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
+        }
+        if !needs_decoding(input) {
+            return Ok(Self {
+                text: Cow::Borrowed(input),
+                decoded: None,
+            });
+        }
+        let recovers = options.has(crate::options::RECOVER);
+        let table = declared_table(input)
+            .filter(|_| !options.has(crate::options::IGNORE_ENC))
+            .filter(|_| !recovers || recovered_label(input).is_some());
+        let mut text = Vec::new();
+        let (encoding, end) = transcode(input, table, decode.max_decoded_bytes, &mut text);
+        let cut = match end {
+            Ok(()) => None,
+            Err(error)
+                if recovers
+                    && !matches!(
+                        error.kind,
+                        ErrorKind::LimitExceeded(_) | ErrorKind::Allocation
+                    ) =>
+            {
+                Some(Error::new(error.kind, text.len()))
+            }
+            Err(error) => return Err(error),
+        };
+        Ok(Self {
+            text: Cow::Owned(text),
+            decoded: Some((encoding, cut)),
+        })
+    }
+
+    /// The input offset of text offset `offset`, which starts a character:
+    /// linear in `offset` for decoded text.
+    pub fn source_offset(&self, offset: usize) -> usize {
+        let Some((encoding, _)) = self.decoded else {
+            return offset;
+        };
+        let bom = match encoding {
+            SourceEncoding::Utf16 { bom: true, .. } => 2,
+            _ => 0,
+        };
+        bom + encoding.source_length(&self.text[..offset.min(self.text.len())])
+    }
+
+    /// The UTF-8 text the borrowing parsers read.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.text
     }
 }
 
@@ -622,9 +724,71 @@ pub(crate) fn needs_decoding(input: &[u8]) -> bool {
         || UNSUPPORTED
             .iter()
             .any(|signature| input.starts_with(signature))
-        || declared_label(input)
-            .and_then(charset)
-            .is_some_and(|charset| matches!(charset, Charset::Byte(_)))
+        || declared_table(input).is_some()
+}
+
+/// The single-byte charset a leading declaration names.
+pub(crate) fn declared_table(input: &[u8]) -> Option<&'static [u16; 128]> {
+    match declared_label(input).and_then(charset)? {
+        Charset::Byte(table) => Some(table),
+        _ => None,
+    }
+}
+
+/// The label a leading declaration keeps when the parser recovers from its
+/// errors, which can drop it.
+fn recovered_label(input: &[u8]) -> Option<&str> {
+    let end = memchr::memmem::find(input, b"?>")?;
+    let body = std::str::from_utf8(input.get(5..end)?).ok()?;
+    let (declaration, _) =
+        crate::parser::parse_declaration(body, 5, false, &mut |_| Ok(())).ok()?;
+    declaration.encoding
+}
+
+/// Decodes complete `input` into `output` as the streams do, in the byte
+/// charset `table` after the declaration naming it: the detected encoding
+/// and how decoding ended (`output` then holds the text before the error).
+pub(crate) fn transcode(
+    input: &[u8],
+    table: Option<&'static [u16; 128]>,
+    limit: usize,
+    output: &mut Vec<u8>,
+) -> (SourceEncoding, Result<(), Error>) {
+    let mut decoder = Decoder::new(limit);
+    let mut encoding = SourceEncoding::Utf8;
+    let mut sink = |decoded: Decoded<'_>| {
+        let consumed = match decoded {
+            Decoded::Start {
+                encoding: found, ..
+            } => {
+                encoding = found;
+                0
+            }
+            Decoded::Bytes(bytes) => {
+                output
+                    .try_reserve(bytes.len())
+                    .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
+                output.extend_from_slice(bytes);
+                bytes.len()
+            }
+        };
+        Ok(DecodeProgress {
+            consumed,
+            suspended: false,
+        })
+    };
+    let split = table.map_or(0, |_| {
+        memchr::memmem::find(input, b"?>").expect("declared label is terminated") + 2
+    });
+    let end = (|| {
+        decoder.advance(&input[..split], &mut sink)?;
+        if let Some(table) = table {
+            decoder.switch(SourceEncoding::Byte(table));
+        }
+        decoder.advance(&input[split..], &mut sink)?;
+        decoder.finish_step(&mut sink).map(drop)
+    })();
+    (table.map_or(encoding, SourceEncoding::Byte), end)
 }
 
 /// Locates a leading declaration's label only to route it to the decoder;

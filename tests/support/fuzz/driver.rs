@@ -351,6 +351,14 @@ fn dom(input: &[u8]) -> Outcome {
     if let Ok(text) = std::str::from_utf8(input) {
         assert_eq!(document.is_ok(), Document::parse(text).is_ok());
     }
+    // UTF-8 input transcodes to itself, which parses as the input does.
+    let options = yaxml::ParseOptions::default;
+    if let Ok(text) = yaxml::Transcoded::new(input, &options())
+        && std::ptr::eq(text.as_bytes(), input)
+    {
+        let transcoded = Document::parse_transcoded(&text, options()).map(drop);
+        assert_eq!(transcoded, document.as_ref().map(drop).map_err(|e| *e));
+    }
     outcome
 }
 

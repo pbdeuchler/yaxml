@@ -3,7 +3,7 @@
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
 
-use crate::encoding::{DecodeProgress, Decoded, Decoder, SourceEncoding, charset, declared_label};
+use crate::encoding::charset;
 use crate::escape::xml_char;
 use crate::{ErrorKind, Limit, Limits, Uri};
 
@@ -277,41 +277,9 @@ impl Loader {
 /// Decodes an external parsed entity: BOM or declared encoding, character
 /// validity, line ends and the leading text declaration, which is removed.
 pub(crate) fn decode(bytes: &[u8]) -> Result<String, ErrorKind> {
-    let mut decoder = Decoder::new(usize::MAX);
     let mut output = Vec::new();
-    let mut sink = |decoded: Decoded<'_>| {
-        let consumed = match decoded {
-            Decoded::Start { .. } => 0,
-            Decoded::Bytes(bytes) => {
-                output
-                    .try_reserve(bytes.len())
-                    .map_err(|_| crate::Error::new(ErrorKind::Allocation, 0))?;
-                output.extend_from_slice(bytes);
-                bytes.len()
-            }
-        };
-        Ok(DecodeProgress {
-            consumed,
-            suspended: false,
-        })
-    };
-    let byte_charset = declared_label(bytes)
-        .and_then(charset)
-        .and_then(|charset| match charset {
-            crate::encoding::Charset::Byte(table) => Some(table),
-            _ => None,
-        });
-    let split = byte_charset.map_or(0, |_| {
-        memchr::memmem::find(bytes, b"?>").expect("declared label is terminated") + 2
-    });
-    let decoded = (|| {
-        decoder.advance(&bytes[..split], &mut sink)?;
-        if let Some(table) = byte_charset {
-            decoder.switch(SourceEncoding::Byte(table));
-        }
-        decoder.advance(&bytes[split..], &mut sink)?;
-        decoder.finish_step(&mut sink)
-    })();
+    let table = crate::encoding::declared_table(bytes);
+    let (_, decoded) = crate::encoding::transcode(bytes, table, usize::MAX, &mut output);
     decoded.map_err(|error| error.kind)?;
     let text = String::from_utf8(output).map_err(|_| ErrorKind::InvalidUtf8)?;
     if !text.chars().all(xml_char) {

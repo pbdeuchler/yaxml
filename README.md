@@ -37,8 +37,10 @@ assert_eq!(value, xpath::Value::Number(7.0));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-`Document` borrows its input and never copies text that needs no decoding.
-`OwnedDocument` owns its strings and can be edited.
+`Document` borrows its input and never copies text that needs no decoding;
+for UTF-16 or single-byte input, `Transcoded` decodes it once and
+`Document::parse_transcoded` borrows that. `OwnedDocument` owns its strings,
+decodes any input itself, and can be edited.
 
 ## Stream
 

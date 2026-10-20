@@ -108,7 +108,7 @@ pub mod xsd;
 pub use buffered::BufferedReader;
 pub use diagnostic::{Diagnostic, LineIndex};
 pub use dom::{Document, Node, NodeId, NodeKind};
-pub use encoding::DecodeLimits;
+pub use encoding::{DecodeLimits, Transcoded};
 pub(crate) use error::DtdError;
 pub use error::{
     EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
