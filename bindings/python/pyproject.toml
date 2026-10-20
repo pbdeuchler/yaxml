@@ -1,0 +1,38 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "yaxml"
+version = "0.1.0"
+description = "lxml.etree-style XML for Python on yaxml, a safe Rust libxml2 2.15.4 rewrite"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT OR Apache-2.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Text Processing :: Markup :: XML",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+compare = ["lxml>=5"]
+
+[tool.maturin]
+python-source = "python"
+module-name = "yaxml._yaxml"
+profile = "release"
+
+[tool.uv]
+# Rebuild the extension whenever Rust sources (binding or core) change.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "../../Cargo.toml" },
+    { file = "../../src/**/*.rs" },
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
