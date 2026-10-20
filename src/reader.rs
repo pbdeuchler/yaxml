@@ -3,13 +3,13 @@ use std::{borrow::Cow, ops::Range};
 use memchr::memchr;
 
 use crate::dtd::DtdLimits;
-use crate::dtd_controller::content::{BorrowedContentController, ContentOutcome};
+use crate::dtd_controller::content::BorrowedContentController;
 use crate::dtd_controller::{BorrowedDtdController, DtdController, DtdEvent};
 use crate::escape::invalid_char;
 use crate::options::Flags;
 use crate::parser::{Budget, ParserState, space};
 use crate::resolve::Loader;
-use crate::tokenizer::{TokenKind, Tokenizer, tag_close};
+use crate::tokenizer::{TokenKind, tag_close};
 use crate::{DecodeLimits, Error, ErrorKind, Limit, Name, ParseOptions, SourceOrigin};
 
 /// Inclusive resource ceilings. An element's start tag counts as one token.
@@ -321,10 +321,6 @@ pub enum Event<'a> {
     EntityEnd,
 }
 
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the phase occupies one fallibly reserved out-of-line slot"
-)]
 enum Phase<'input> {
     Declarations {
         controller: BorrowedDtdController<'input>,
@@ -348,7 +344,6 @@ pub struct Reader<'a> {
     source: &'a str,
     ordinary: Option<SliceReader<'a>>,
     session: Vec<Phase<'a>>,
-    limits: Limits,
     decode: DecodeLimits,
     options: DtdLimits,
     standalone: bool,
@@ -409,7 +404,6 @@ impl<'a> Reader<'a> {
             physical: ordinary.position(),
             ordinary: Some(ordinary),
             session: Vec::new(),
-            limits,
             decode,
             options: DtdLimits {
                 flags,
@@ -499,6 +493,14 @@ impl<'a> Reader<'a> {
                 },
                 Err(error) => Err(error),
             },
+            // Without a cut, the session's result is the reader's.
+            None if self.dtd_cut.is_none() => {
+                let result = self.read_session();
+                if let Err(error) = &result {
+                    self.failure = Some(*error);
+                }
+                return result;
+            }
             None => self.read_session(),
         };
         // Reading the prefix before a cut ends with the cut's error.
@@ -556,23 +558,15 @@ impl<'a> Reader<'a> {
                         return Ok(Some(Event::Doctype(doctype)));
                     }
                 }
-                Phase::Content(controller) => match controller.advance_borrowed()?.outcome {
-                    ContentOutcome::EventReady => {
-                        let (event, origin) = controller.take_event()?;
-                        if let Some(event) = event {
-                            self.origin = Some(origin);
-                            return Ok(Some(event));
-                        }
+                Phase::Content(controller) => {
+                    let event = controller.next_stable();
+                    match &event {
+                        Ok(Some(_)) => self.origin = Some(controller.origin()),
+                        Ok(None) => self.finished = true,
+                        Err(_) => {}
                     }
-                    ContentOutcome::Progress => {}
-                    ContentOutcome::Complete => {
-                        self.finished = true;
-                        return Ok(None);
-                    }
-                    ContentOutcome::NeedPhysicalInput => {
-                        return Err(Error::new(ErrorKind::InvalidState, controller.position().1));
-                    }
-                },
+                    return event;
+                }
             }
         }
     }
@@ -605,12 +599,9 @@ impl<'a> Reader<'a> {
             unreachable!("declaration handoff")
         };
         let body = controller.into_body_state()?;
-        let tokenizer = Tokenizer::new(
-            self.limits.max_token_bytes,
-            self.decode.max_decoded_token_bytes,
-        );
+        let decoded = self.decode.max_decoded_token_bytes;
         let controller =
-            BorrowedContentController::stable_utf8(body, parser, tokenizer, self.source)?;
+            BorrowedContentController::stable_utf8(body, parser, self.source, decoded)?;
         self.session.push(Phase::Content(controller));
         Ok(())
     }

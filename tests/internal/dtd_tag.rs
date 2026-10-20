@@ -61,9 +61,9 @@ fn kept_form_charges_the_literal_before_reserving() {
     assert_eq!(charged, Some(5));
     // Nothing is charged when nothing is kept.
     let refused = |_| {
-        Err(DtdError::new(
+        Err(crate::Error::new(
             ErrorKind::LimitExceeded(crate::Limit::OwnedBytes),
-            None,
+            0,
         ))
     };
     assert_eq!(

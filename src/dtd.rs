@@ -792,13 +792,9 @@ impl<'a, 'r> Parser<'a, 'r> {
 
     /// Steps over name characters; whether any were found.
     fn name_characters(&mut self) -> bool {
-        let start = self.position;
-        let length = self
-            .remaining()
-            .find(|character| !name_char(character, true))
-            .unwrap_or(self.remaining().len());
+        let length = crate::name::name_chars_length(self.remaining(), true);
         self.position += length;
-        self.position != start
+        length != 0
     }
 
     fn name(&mut self) -> Result<usize, Error> {
@@ -899,6 +895,18 @@ impl<'a, 'r> Parser<'a, 'r> {
             if byte == quote {
                 self.position += 1;
                 return self.push(TokenKind::Literal(kind), start..self.position);
+            }
+            // Bytes no rule below reads are taken as one run.
+            let rest = self.remaining().as_bytes();
+            let run = match kind {
+                LiteralKind::EntityValue => memchr::memchr3(quote, b'%', b'&', rest),
+                LiteralKind::AttributeValue => memchr::memchr3(quote, b'<', b'&', rest),
+                LiteralKind::SystemIdentifier => memchr::memchr2(quote, b'#', rest),
+                _ => Some(0),
+            };
+            if let Some(run @ 1..) = run {
+                self.position += run;
+                continue;
             }
             let character = self.remaining().chars().next().expect("byte exists");
             match (kind, byte) {

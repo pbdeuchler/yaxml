@@ -88,6 +88,8 @@ Bounded, not removed:
 
 With the default limits every family above, fed 60 MiB, finishes or fails with a limit error within 0.75 s (the borrowed DOM, same machine), except the 1.4 s content-model case, and the validation families within 1.3 s.
 
+DTD lookups on the content path (see "DTD-heavy parsing" in [benchmarks](benchmarks.md)): entity and element names go through `Recent`, a 64-slot direct-mapped cache whose slot index is an unkeyed hash, in front of std's keyed SipHash maps. Crafted colliding names only evict slots, so the worst case is the keyed lookup plus one comparison of at most 15 bytes; no unkeyed table holds attacker-chosen keys. Linear searches are bounded by constants (ATTLISTs up to 8 entries, duplicate checks below 8 attributes). A tag charges copied defaults as the element's precomputed total less its specified attributes and walks the declarations only to copy (`DTDATTR`, namespace defaults) or note standalone defaults: `default_attrs` (1,000 defaults, `<a/>` repeated, 4 MiB) took 2.5 s and takes 0.07-0.11 s.
+
 There is deliberately no generic CPU budget: with the fixes above, parsing time is linear in input, DTD-controlled work is bounded by byte budgets that are already enforced, and deadlines belong to the embedding application. Regression coverage: `tests/budgets.rs` (inclusive attribute ceiling on the DOM builders and its absence on the streaming readers, `HUGE` interaction, and the formerly quadratic paths under a generous time bound; the three-size series is `--ignored`).
 
 ### Defaults against libxml2 2.15.4

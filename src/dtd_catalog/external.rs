@@ -120,14 +120,6 @@ impl DtdCatalog {
         Ok(external.text.is_some())
     }
 
-    /// Loads the external general entity `name` before content lookup.
-    pub(crate) fn load_general(&mut self, name: &str) -> Result<(), DtdError> {
-        match self.dtd.general.get(name) {
-            Some(&id) => self.load(id).map(drop),
-            None => Ok(()),
-        }
-    }
-
     /// Processes an external PE referenced between internal declarations;
     /// `outer` lists the internal PEs already being expanded.
     pub(crate) fn include_parameter(
@@ -322,6 +314,7 @@ impl DtdCatalog {
                     DeclarationContext {
                         internal_subset: false,
                         literals: LiteralSource::Replacement,
+                        input: None,
                     },
                 )?;
                 continue;

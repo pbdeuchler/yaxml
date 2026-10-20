@@ -1,7 +1,7 @@
 use super::*;
-use crate::dtd::{DtdLimits, LiteralSource};
+use crate::dtd::DtdLimits;
 use crate::dtd_catalog::DtdCatalog;
-use crate::dtd_tag::prepare_dtd_tag;
+use crate::dtd_controller::content::publish_replacement;
 
 impl ParserState<'_> {
     pub(crate) fn retained_snapshot(&self) -> [(usize, usize); 4] {
@@ -28,255 +28,122 @@ fn owned<'event>(
     )
 }
 
-fn generated_start_with_short_source(source: &str) -> Event<'static> {
-    let mut state = ParserState::new(Limits::default(), 0);
-    state
-        .process_token(TokenKind::Start, source, 0..source.len(), |raw, _, _| {
-            Ok(Cow::Borrowed(raw))
-        })
-        .unwrap();
+/// A replacement-text token published as the content controller publishes
+/// it for the slice reader: owned, failures at `offset`.
+fn replacement(
+    state: &mut ParserState<'static>,
+    kind: TokenKind,
+    raw: &str,
+    offset: usize,
+) -> Result<Option<Event<'static>>, Error> {
     let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
-    let generated = String::from("<p:child/>");
-    state
-        .process_dtd_start_owned(&generated, source.len(), &mut catalog)
-        .unwrap()
+    let origin = crate::dtd_frames::FragmentOrigin::input(offset..offset).unwrap();
+    let copy = &mut |raw: &str, offset, budget: &mut Budget| budget.copy(raw, offset);
+    let event = publish_replacement(state, &mut catalog, (kind, raw, offset, origin), copy)?;
+    event
+        .map(|event| owned_event(event, state.owned_budget(), offset))
+        .transpose()
 }
 
-#[test]
-fn generated_start_owns_names_and_an_inherited_borrowed_namespace() {
-    let physical = String::from("<p:root xmlns:p='urn:physical'>");
-    let event = generated_start_with_short_source(&physical);
-    drop(physical);
-    let Event::Empty(element) = event else {
-        panic!("expected generated empty element");
-    };
-    assert_eq!(element.name.qualified(), "p:child");
-    assert_eq!(element.name.namespace(), Some("urn:physical"));
-
-    let mut state = ParserState::new(Limits::default(), 0);
-    let raw = state.collect_raw_tag("<p:child/>", 11).unwrap();
-    let prepared = prepare_dtd_tag(
-        &mut DtdCatalog::new(DtdLimits::STANDALONE, false),
-        state.owned_budget(),
-        raw,
-        LiteralSource::Physical,
-        false,
-    )
-    .unwrap();
-    assert_eq!(
-        prepared.try_into_static().unwrap_err(),
-        Error::new(ErrorKind::InvalidState, 12)
-    );
-}
-
-#[test]
-fn generated_namespace_copy_limit_fails_before_publication() {
-    let limits = Limits {
-        max_owned_bytes: 3,
-        ..Limits::default()
-    };
-    let source = "<p:r xmlns:p='urn:physical'>";
+fn physical(source: &'static str, limits: Limits) -> ParserState<'static> {
     let mut state = ParserState::new(limits, 0);
     state
         .process_token(TokenKind::Start, source, 0..source.len(), |raw, _, _| {
             Ok(Cow::Borrowed(raw))
         })
         .unwrap();
-    let mut catalog = DtdCatalog::new(DtdLimits::STANDALONE, false);
-    let start = source.len();
-    let error = state
-        .process_dtd_start_owned("<p:c/>", start, &mut catalog)
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
-    assert_eq!(error.offset, Some(start + 1));
-    assert_eq!(state.element_depth(), 1);
-    assert_eq!(state.events, 1);
+    state
 }
 
 #[test]
-fn generated_end_is_owned_and_failures_cannot_pop_the_current_frame() {
-    fn close(source: &str) -> Event<'static> {
-        let mut state = ParserState::new(Limits::default(), 0);
-        state
-            .process_token(TokenKind::Start, source, 0..source.len(), |raw, _, _| {
-                Ok(Cow::Borrowed(raw))
-            })
-            .unwrap();
-        state.process_dtd_end_owned("</p:r>", source.len()).unwrap()
-    }
-
-    let source = String::from("<p:r xmlns:p='urn:physical'>");
-    let event = close(&source);
-    drop(source);
-    assert!(
-        matches!(event, Event::End(name) if name.qualified() == "p:r" && name.namespace() == Some("urn:physical"))
-    );
-
+fn replacement_tags_are_owned_and_inherit_physical_namespaces() {
     let source = "<p:r xmlns:p='urn:physical'>";
-    let mut state = ParserState::new(
-        Limits {
-            max_owned_bytes: 0,
-            ..Limits::default()
-        },
-        0,
-    );
-    state
-        .process_token(TokenKind::Start, source, 0..source.len(), |raw, _, _| {
-            Ok(Cow::Borrowed(raw))
-        })
-        .unwrap();
-    let events = state.events;
-    let error = state
-        .process_dtd_end_owned("</p:r>", source.len())
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
-    assert_eq!(error.offset, source.len() + 2);
-    assert_eq!(state.element_depth(), 1);
-    assert_eq!(state.events, events);
+    let mut state = physical(source, Limits::default());
+    let start = String::from("<p:child/>");
+    let event = replacement(&mut state, TokenKind::Start, &start, source.len()).unwrap();
+    drop(start);
+    let Some(Event::Empty(element)) = event else {
+        panic!("expected generated empty element");
+    };
+    assert_eq!(element.name.qualified(), "p:child");
+    assert_eq!(element.name.namespace(), Some("urn:physical"));
 
-    let error = state
-        .process_dtd_end_owned("</p:x>", source.len())
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::MismatchedEndTag);
-    assert_eq!(state.element_depth(), 1);
-
-    let mut state = ParserState::new(
-        Limits {
-            max_owned_bytes: "urn:physical".len(),
-            ..Limits::default()
-        },
-        0,
+    let end = String::from("</p:r>");
+    let event = replacement(&mut state, TokenKind::End, &end, source.len()).unwrap();
+    drop(end);
+    assert!(
+        matches!(event, Some(Event::End(name)) if name.qualified() == "p:r" && name.namespace() == Some("urn:physical"))
     );
-    state
-        .process_token(TokenKind::Start, source, 0..source.len(), |raw, _, _| {
-            Ok(Cow::Borrowed(raw))
-        })
-        .unwrap();
-    let error = state
-        .process_dtd_end_owned("</p:r>", source.len())
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
-    assert_eq!(error.offset, source.len() + 2);
-    assert_eq!(state.element_depth(), 1);
-    assert_eq!(state.events, 1);
-    assert_eq!(state.budget.remaining_owned(), 0);
 }
 
 #[test]
-fn generated_leaves_preserve_replacement_eol_and_do_not_rescan_final_data() {
+fn replacement_copies_are_charged_and_stop_at_markup_errors() {
+    let source = "<p:r xmlns:p='urn:physical'>";
+    for (kind, raw) in [(TokenKind::Start, "<p:c/>"), (TokenKind::End, "</p:r>")] {
+        let mut state = physical(source, Limits::default().max_owned_bytes(3));
+        let error = replacement(&mut state, kind, raw, 40).unwrap_err();
+        assert_eq!(
+            error,
+            Error::new(ErrorKind::LimitExceeded(Limit::OwnedBytes), 40)
+        );
+    }
+    // Recovery does not repair replacement text, which libxml2 stops at.
+    let mut state = physical(source, Limits::default())
+        .with_flags(crate::options::Flags(crate::options::RECOVER));
+    for raw in ["</p:x>", "<!--a--b-->", "<?xml version='1.0'?>", "a]]>b"] {
+        let kind = match raw.as_bytes()[1] {
+            b'/' => TokenKind::End,
+            b'!' => TokenKind::Comment,
+            b'?' => TokenKind::Instruction,
+            _ => TokenKind::Text,
+        };
+        assert!(replacement(&mut state, kind, raw, 40).is_err(), "{raw}");
+        assert_eq!(state.element_depth(), 1);
+    }
+}
+
+#[test]
+fn replacement_leaves_keep_declared_line_ends_and_exact_copies() {
     let mut state = ParserState::new(Limits::default(), 0);
     owned(&mut state, TokenKind::Start, "<r>", 0).unwrap();
     let raw = String::from("a\r\n&amp;T;&#13;");
-    let event = state
-        .process_dtd_leaf_owned(DtdLeafKind::Text, &raw, 3)
-        .unwrap();
+    let event = replacement(&mut state, TokenKind::Text, &raw, 3).unwrap();
     drop(raw);
-    assert!(matches!(event, Event::Text(value) if value == "a\r\n&T;\r"));
-
-    let comment = state
-        .process_dtd_leaf_owned(DtdLeafKind::Comment, "<!--a\r\nb-->", 20)
-        .unwrap();
-    assert!(matches!(comment, Event::Comment(value) if value == "a\r\nb"));
-
-    let cdata = state
-        .process_dtd_leaf_owned(DtdLeafKind::Cdata, "<![CDATA[π\r]]>", 32)
-        .unwrap();
-    assert!(matches!(cdata, Event::Cdata(value) if value == "π\r"));
-
-    let instruction = state
-        .process_dtd_leaf_owned(DtdLeafKind::ProcessingInstruction, "<?π a\r?>", 50)
-        .unwrap();
+    assert!(matches!(event, Some(Event::Text(value)) if value == "a\r\n&T;\r"));
+    let comment = replacement(&mut state, TokenKind::Comment, "<!--a\r\nb-->", 20).unwrap();
+    assert!(matches!(comment, Some(Event::Comment(value)) if value == "a\r\nb"));
+    let cdata = replacement(&mut state, TokenKind::Cdata, "<![CDATA[π\r]]>", 32).unwrap();
+    assert!(matches!(cdata, Some(Event::Cdata(value)) if value == "π\r"));
+    let instruction = replacement(&mut state, TokenKind::Instruction, "<?π a\r?>", 50).unwrap();
     assert!(
-        matches!(instruction, Event::ProcessingInstruction { target, data } if target == "π" && data == "a\r")
+        matches!(instruction, Some(Event::ProcessingInstruction { target, data }) if target == "π" && data == "a\r")
     );
-
-    let before = state.events;
-    let error = state
-        .process_dtd_leaf_owned(
-            DtdLeafKind::ProcessingInstruction,
+    let tag = replacement(&mut state, TokenKind::Start, "<e a='x\r\ny'/>", 60).unwrap();
+    assert!(matches!(tag, Some(Event::Empty(element)) if element.attributes[0].value == "x  y"));
+    for (kind, raw, error) in [
+        (
+            TokenKind::Instruction,
             "<?XmL version='1.0'?>",
-            40,
-        )
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::InvalidDeclaration);
-    assert_eq!(error.offset, 40);
-    assert_eq!(state.events, before);
-
-    let before = state.events;
-    let error = state
-        .process_dtd_leaf_owned(DtdLeafKind::Text, "π&missing;", 90)
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::UnknownEntity);
-    assert_eq!(error.offset, 92);
-    assert_eq!(state.events, before);
-}
-
-#[test]
-fn generated_text_rejects_prolog_and_epilog_before_spending_resources() {
-    for (raw, prolog_offset) in [("", 7), (" \n", 7), ("x", 7), (" x", 8)] {
-        let mut state = ParserState::new(Limits::default(), 0);
-        let before = state.budget.remaining_owned();
-        let error = state
-            .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 7)
-            .unwrap_err();
-        assert_eq!(error.kind, ErrorKind::TextOutsideRoot);
-        assert_eq!(error.offset, prolog_offset);
-        assert_eq!(state.budget.remaining_owned(), before);
-        assert_eq!(state.events, 0);
-
-        owned(&mut state, TokenKind::Start, "<r/>", 0).unwrap();
-        let before = state.budget.remaining_owned();
-        let events = state.events;
-        let error = state
-            .process_dtd_leaf_owned(DtdLeafKind::Text, raw, 11)
-            .unwrap_err();
-        assert_eq!(error.kind, ErrorKind::TextOutsideRoot);
-        assert_eq!(error.offset, prolog_offset + 4);
-        assert_eq!(state.budget.remaining_owned(), before);
-        assert_eq!(state.events, events);
+            ErrorKind::InvalidDeclaration,
+        ),
+        (TokenKind::Text, "π&missing;", ErrorKind::UnknownEntity),
+    ] {
+        let error_offset = Error::new(error, 40);
+        assert_eq!(
+            replacement(&mut state, kind, raw, 40).unwrap_err(),
+            error_offset
+        );
     }
-}
 
-#[test]
-fn generated_leaf_copy_quota_is_exact_for_unicode_bytes() {
-    let mut exact = ParserState::new(
-        Limits {
-            max_owned_bytes: "π".len(),
-            ..Limits::default()
-        },
-        0,
-    );
-    exact
-        .process_token(TokenKind::Start, "<r>", 0..3, |raw, _, _| {
-            Ok(Cow::Borrowed(raw))
-        })
-        .unwrap();
-    assert!(matches!(
-        exact
-            .process_dtd_leaf_owned(DtdLeafKind::Text, "π", 3)
-            .unwrap(),
-        Event::Text(value) if value == "π"
-    ));
-    assert_eq!(exact.budget.remaining_owned(), 0);
-
-    let mut short = ParserState::new(
-        Limits {
-            max_owned_bytes: "π".len() - 1,
-            ..Limits::default()
-        },
-        0,
-    );
-    short
-        .process_token(TokenKind::Start, "<r>", 0..3, |raw, _, _| {
-            Ok(Cow::Borrowed(raw))
-        })
-        .unwrap();
-    let error = short
-        .process_dtd_leaf_owned(DtdLeafKind::Text, "π", 3)
-        .unwrap_err();
-    assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::OwnedBytes));
-    assert_eq!(error.offset, 3);
-    assert_eq!(short.events, 1);
+    for (limit, accepted) in [("π".len(), true), ("π".len() - 1, false)] {
+        let mut state = physical("<r>", Limits::default().max_owned_bytes(limit));
+        let result = replacement(&mut state, TokenKind::Text, "π", 3);
+        assert_eq!(result.is_ok(), accepted);
+        assert_eq!(
+            state.budget.remaining_owned(),
+            limit - "π".len().min(limit) * usize::from(accepted)
+        );
+    }
 }
 
 #[test]

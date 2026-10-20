@@ -26,8 +26,11 @@ target/release/examples/parse_benchmark \
 ```
 
 Fixtures are `tiny`, `flat`, `text`, `attributes`, `namespaces`, `normalized`,
-`unicode`, `deep` and `mixed`. Select `--input PATH` instead of `--fixture` for
-external UTF-8, XML 1.0, DTD-free bytes. Modes are `dom`, `owned`, `reader`,
+`unicode`, `deep` and `mixed`, plus the DOCTYPE family `dtd-decl`, `dtd-refs`,
+`dtd-nested`, `dtd-attrs` and `dtd` run under the helpers' `dtd` profile (see
+[DTD-heavy parsing](#dtd-heavy-parsing-2026-10-20-dtd-fixture-family)). Select
+`--input PATH` instead of `--fixture` for external UTF-8, XML 1.0, DTD-free
+bytes, or DOCTYPE bytes with `--profile dtd`. Modes are `dom`, `owned`, `reader`,
 `push` and `buffered`; `owned` compares to the reference DOM. The driver checks
 engine/version identity, requested work, six semantic counters and the digest
 against both the pair and preflight before publishing a retained pair. It
@@ -161,9 +164,135 @@ text, `ContentControllerCore::take_event`/`enter_general`), allocation, and
 SipHash (about 8%, the `valid::Dtd` and attribute-declaration tables); each
 reference re-tokenizes its replacement text where libxml2 copies the
 entity's cached node list. No single hot spot; closing it is a design
-change, not a tuning pass. `mixed` push/7 retires 6.7% more instructions
+change, not a tuning pass (done in [DTD-heavy parsing](#dtd-heavy-parsing-2026-10-20-dtd-fixture-family)). `mixed` push/7 retires 6.7% more instructions
 than libxml2 (15.82M against 14.82M) for the reasons in the fifth series;
 no new lead.
+
+### DTD-heavy parsing (2026-10-20, `dtd` fixture family)
+
+Five DOCTYPE fixtures joined the matrix (`examples/support/parse_benchmark.rs`):
+`dtd-decl` (2,000 general entities and 1,000 element/ATTLIST pairs, `<r/>`),
+`dtd-refs` (5,000 paragraphs with three internal references each, one with
+markup, one with a character reference), `dtd-nested` (5,000 references to
+an entity nesting two levels of markup and text references), `dtd-attrs`
+(20 ATTLISTs with four CDATA defaults, NMTOKENS normalization and an ID,
+5,000 elements) and `dtd`, the `cargo bench --bench parse` document. Both
+helpers run them under the `dtd` profile: DOCTYPE accepted and entities
+substituted (`NOENT`), so every mode observes the same expanded content. The
+libxml2 push mode keeps the SAX2 DTD handlers; neither side's tree applies
+defaulted attributes without `DTDATTR`, and the observers ignore them.
+`--profile dtd` selects the profile for `--input`.
+
+Instructions per document (difference of N- and 2N-document runs, minimum
+of 3, chunk 8192) for libxml2, main (`3b00e38` with this harness) and
+after (`6c9b4d3`, main merged); ratio is libxml2/yaxml.
+
+| Fixture | Mode | libxml2 | main | after | ratio | change |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| dtd-decl | dom | 21.97M | 56.21M | 26.13M | 0.39 → **0.84** | -53.51% |
+| dtd-decl | owned | 21.97M | 56.08M | 25.92M | 0.39 → **0.85** | -53.77% |
+| dtd-decl | reader | 23.59M | 55.85M | 26.10M | 0.42 → **0.90** | -53.27% |
+| dtd-decl | push | 23.97M | 59.00M | 29.55M | 0.41 → **0.81** | -49.92% |
+| dtd-decl | buffered | 24.04M | 59.00M | 29.61M | 0.41 → **0.81** | -49.82% |
+| dtd-refs | dom | 53.77M | 143.29M | 77.12M | 0.38 → **0.70** | -46.18% |
+| dtd-refs | owned | 53.77M | 143.42M | 74.72M | 0.37 → **0.72** | -47.90% |
+| dtd-refs | reader | 49.56M | 129.52M | 60.78M | 0.38 → **0.82** | -53.07% |
+| dtd-refs | push | 51.87M | 148.87M | 54.49M | 0.35 → **0.95** | -63.40% |
+| dtd-refs | buffered | 49.64M | 168.97M | 118.18M | 0.29 → **0.42** | -30.06% |
+| dtd-nested | dom | 49.93M | 237.10M | 109.96M | 0.21 → **0.45** | -53.62% |
+| dtd-nested | owned | 49.93M | 245.83M | 110.36M | 0.20 → **0.45** | -55.11% |
+| dtd-nested | reader | 55.77M | 222.16M | 86.23M | 0.25 → **0.65** | -61.18% |
+| dtd-nested | push | 106.24M | 239.46M | 83.06M | 0.44 → **1.28** | -65.31% |
+| dtd-nested | buffered | 56.00M | 257.50M | 141.42M | 0.22 → **0.40** | -45.08% |
+| dtd-attrs | dom | 50.40M | 84.90M | 38.51M | 0.59 → **1.31** | -54.64% |
+| dtd-attrs | owned | 50.40M | 92.56M | 46.08M | 0.54 → **1.09** | -50.22% |
+| dtd-attrs | reader | 40.90M | 77.44M | 30.95M | 0.53 → **1.32** | -60.04% |
+| dtd-attrs | push | 25.21M | 83.35M | 29.68M | 0.30 → **0.85** | -64.40% |
+| dtd-attrs | buffered | 40.74M | 89.12M | 49.01M | 0.46 → **0.83** | -45.01% |
+| dtd | dom | 120.01M | 283.54M | 160.38M | 0.42 → **0.75** | -43.44% |
+| dtd | owned | 120.01M | 296.41M | 173.88M | 0.40 → **0.69** | -41.34% |
+| dtd | reader | 108.70M | 267.08M | 143.40M | 0.41 → **0.76** | -46.31% |
+| dtd | push | 87.99M | 292.89M | 113.80M | 0.30 → **0.77** | -61.15% |
+| dtd | buffered | 108.88M | 319.60M | 207.96M | 0.34 → **0.52** | -34.93% |
+
+Timing with the matched driver (9 alternating pairs, 20 documents per
+sample, chunk 8192, parse + observe + destruction; ratio of medians
+libxml2/yaxml with the per-pair min–max), main → after, same host
+(Apple M1 Max, other jobs running):
+
+| Fixture | DOM | Owned | Reader | Push | Buffered |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| dtd-decl | 0.61 → **1.26** (1.25-1.27) | 0.61 → **1.25** (1.23-1.26) | 0.68 → **1.39** (1.35-1.42) | 0.65 → **1.25** (1.20-1.34) | 0.65 → **1.26** (1.19-1.27) |
+| dtd-refs | 0.36 → **0.61** (0.61-0.62) | 0.38 → **0.66** (0.64-0.67) | 0.37 → **0.74** (0.74-0.75) | 0.32 → **0.92** (0.90-0.94) | 0.28 → **0.40** (0.40-0.40) |
+| dtd-nested | 0.23 → **0.44** (0.43-0.44) | 0.22 → **0.45** (0.44-0.46) | 0.26 → **0.61** (0.60-0.64) | 0.41 → **1.34** (1.32-1.36) | 0.21 → **0.40** (0.39-0.41) |
+| dtd-attrs | 0.53 → **1.16** (1.15-1.20) | 0.50 → **1.07** (1.05-1.08) | 0.50 → **1.27** (1.26-1.29) | 0.32 → **0.88** (0.87-0.89) | 0.45 → **0.88** (0.87-0.95) |
+| dtd | 0.38 → **0.66** (0.65-0.66) | 0.37 → **0.64** (0.63-0.64) | 0.37 → **0.72** (0.71-0.74) | 0.27 → **0.78** (0.78-0.80) | 0.31 → **0.50** (0.50-0.52) |
+
+DTD-free rows did not move: `attributes`, `namespaces`, `flat` and `mixed`
+in DOM, reader, push and buffered modes stay within ±1.6% instructions of
+main (largest: `attributes` DOM/reader +1.5%, the one start-tag path now
+also serving DTD tags).
+
+Root causes, in order of weight:
+
+1. A second, copying token pipeline. Every content token after a DOCTYPE
+   and every token of every entity expansion was re-tokenized into owned
+   storage (`tokenizer/local.rs`, `process_dtd_*_owned`), then published
+   through owned events. Stable input (slices, the DOMs) and replacement
+   text are now scanned in place by `content::scan`; push reads plain UTF-8
+   chunks in place as the DTD-free stream does; replacement tokens go
+   through the physical token path with a `replacement` flag (its markup
+   errors stop the parse where physical input recovers).
+2. Per-reference rescanning. Each reference re-tokenized its entity's
+   replacement text. The text is now scanned once into cached pieces
+   (charged to catalog storage); every reference still charges its whole
+   expansion to the amplification and expansion ledgers, so
+   `max_entity_amplification`, `max_entity_expansion_bytes` and the
+   per-use cost asserted by `tests/amplification.rs` are unchanged.
+3. A separate DTD start-tag path (`RawTag` → `PreparedTag` → pending
+   namespaces → publish) with its own name copies and hash sets. DTD tags
+   now share `start_element` with a `TagDeclarations` view: one element
+   declaration lookup per tag, unchanged attribute values borrowed,
+   duplicate checks linear only below 8 attributes.
+4. Hashing. Entity and element lookups went through SipHash per reference
+   and per tag. `Recent<T>` puts a 64-slot direct-mapped cache in front of
+   the SipHash maps; ATTLISTs are searched up to 8 attributes and indexed
+   beyond; the declared map keeps only unbound names.
+
+Security of the hashing change: std's keyed SipHash (`RandomState`) stays
+the backing store; no unkeyed hash map was introduced and no dependency
+added. `Recent` slots are chosen by an unkeyed hash, so an attacker can
+choose names that collide, but a collision only evicts a slot: the lookup
+then falls back to the keyed table, so the worst case is the cost before
+this change plus one slot comparison of at most 15 bytes. Linear searches
+are bounded by constants (8 ATTLIST entries, 8 attributes per tag before
+hashing; specified-attribute bookkeeping past 64 declarations is sorted
+and binary-searched). A tag now charges copied defaults as the element's
+precomputed total less its specified attributes, instead of walking every
+declaration twice: `adversarial_scaling default_attrs` (1,000 defaults,
+`<a/>` repeated, 4 MiB) went from 2.5 s to 0.07–0.11 s with charges
+unchanged (`tests/amplification.rs` `only_unspecified_defaults_are_charged`
+passes on main too). Every other adversarial family keeps its slope (DOM
+and reader, 1 and 4 MiB); `ids`, `entity_refs`, `many_entities`,
+`mixed_valid` and `req_attrs` are 1.5–3.8x faster. One got slower:
+`pe_chain` (1.4 M `%p;` references to a comment in the internal subset)
+retires 5.5% more instructions (5.47G → 5.78G at 4 MiB, 0.28 → 0.31 s),
+spread over the DTD scanner's run handling with no single hot spot.
+
+By time yaxml leads in 9 of 25 rows (all of `dtd-decl`, `dtd-attrs` DOM,
+owned and reader, `dtd-nested` push) against none before; by instructions in
+4. `dtd-decl` runs faster than libxml2 while retiring more instructions
+(libxml2's declaration phase is allocation-bound).
+
+Remaining gaps: `buffered` (0.40–0.88) pays the session's per-event
+lend/prepare/drive layering; lending from `fill_buf` would break the
+contract that `position()` equals consumed source bytes and gained under
+2% when tried. DOM and owned `dtd-nested` (0.44–0.45) and `dtd-refs` (0.61–0.72)
+pay the builders on top of the reader and still re-parse each reference
+where libxml2 copies the entity's cached node list. Push `dtd-attrs`
+(0.85–0.88) is libxml2's cheapest mode (SAX without a tree: 25M instructions
+against 50M for its DOM); not profiled further. The declaration phase
+(`dtd-decl`, 0.81–0.90 by instructions) still allocates per declaration.
 
 ### Fifth series (2026-10-19, `840662a` → `11608692`)
 

@@ -8,7 +8,7 @@ pub const MAGIC: &str = "YAXML-PARSE-BENCH-1";
 pub const MAX_INPUT: usize = 8 * 1024 * 1024;
 pub const MAX_WORK: usize = 512 * 1024 * 1024;
 pub const MODES: [&str; 5] = ["dom", "owned", "reader", "push", "buffered"];
-pub const FIXTURES: [&str; 9] = [
+pub const FIXTURES: [&str; 14] = [
     "tiny",
     "flat",
     "text",
@@ -18,7 +18,19 @@ pub const FIXTURES: [&str; 9] = [
     "unicode",
     "deep",
     "mixed",
+    "dtd-decl",
+    "dtd-refs",
+    "dtd-nested",
+    "dtd-attrs",
+    "dtd",
 ];
+
+/// The helper profile of a fixture: `dtd` fixtures carry a DOCTYPE, which
+/// both helpers then accept and parse with entity substitution (`NOENT`),
+/// so every mode observes the same expanded content.
+pub fn profile(fixture: &str) -> Option<&'static str> {
+    fixture.starts_with("dtd").then_some("dtd")
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Config {
@@ -27,6 +39,8 @@ pub struct Config {
     pub input: Option<PathBuf>,
     pub fixture: Option<String>,
     pub mode: String,
+    /// `dtd`: DOCTYPE input parsed with `NOENT`; see [`profile`].
+    pub profile: Option<&'static str>,
     pub iterations: usize,
     pub chunk: usize,
     pub samples: usize,
@@ -51,6 +65,7 @@ pub fn config(arguments: impl IntoIterator<Item = OsString>) -> Result<Config, &
             "--input",
             "--fixture",
             "--mode",
+            "--profile",
             "--iterations",
             "--chunk-size",
             "--samples",
@@ -100,6 +115,11 @@ pub fn config(arguments: impl IntoIterator<Item = OsString>) -> Result<Config, &
     if input.is_some() == fixture.is_some() {
         return Err("select exactly one input or fixture");
     }
+    let profile = match (values.remove("--profile"), fixture.as_deref()) {
+        (None, fixture) => fixture.and_then(profile),
+        (Some(value), None) if value == "dtd" => Some("dtd"),
+        _ => return Err("--profile dtd applies only to --input"),
+    };
     let libxml2 = values
         .remove("--libxml2-helper")
         .ok_or("missing libxml2 helper")?;
@@ -115,6 +135,7 @@ pub fn config(arguments: impl IntoIterator<Item = OsString>) -> Result<Config, &
         input,
         fixture,
         mode,
+        profile,
         iterations: iterations as usize,
         chunk: chunk as usize,
         samples: samples as usize,
@@ -155,6 +176,40 @@ pub fn fixture(name: &str) -> Result<Vec<u8>, &'static str> {
         "mixed" => format!(
             "<?xml version='1.0'?><!--before--><r>{}</r><?after ok?>",
             "a<![CDATA[b]]>&amp;c<!-- note --><?go data?><e/>d".repeat(2048)
+        ),
+        "dtd-decl" => {
+            let entities: String = (0..2000)
+                .map(|n| format!("<!ENTITY e{n} 'value {n} <b>x</b>'>"))
+                .collect();
+            let lists: String = (0..1000)
+                .map(|n| {
+                    format!("<!ELEMENT l{n} (#PCDATA)><!ATTLIST l{n} a{n} CDATA 'd{n}' b NMTOKENS #IMPLIED>")
+                })
+                .collect();
+            format!("<!DOCTYPE r [{entities}{lists}]><r/>")
+        }
+        "dtd-refs" => format!(
+            "<!DOCTYPE r [<!ENTITY a 'alpha'><!ENTITY b 'beta <i>x</i>'><!ENTITY c '&#x33;3'>]><r>{}</r>",
+            "<p>&a; and &b; or &c;</p>\n".repeat(5000)
+        ),
+        "dtd-nested" => format!(
+            "<!DOCTYPE r [<!ENTITY z 'zz'><!ENTITY y '<y>&z;-&z;</y>'><!ENTITY x 'a&y;b&y;c'>]><r>{}</r>",
+            "<p>&x;</p>\n".repeat(5000)
+        ),
+        "dtd-attrs" => {
+            let defaults: String = (0..4).map(|n| format!(" a{n} CDATA 'v{n}'")).collect();
+            let lists: String = (0..20)
+                .map(|n| format!("<!ATTLIST e{n}{defaults} t NMTOKENS ' x  y ' id ID #IMPLIED>"))
+                .collect();
+            let body: String = (0..5000)
+                .map(|n| format!("<e{} t=' p  q ' a3='w'/>\n", n % 20))
+                .collect();
+            format!("<!DOCTYPE r [{lists}]><r>{body}</r>")
+        }
+        // The `cargo bench --bench parse` fixture.
+        "dtd" => format!(
+            "<!DOCTYPE root [<!ENTITY e 'one <b>two</b> &#x33;'><!ATTLIST item a CDATA 'd' t NMTOKENS ' x  y '>]><root>{}</root>",
+            "<item t=' p  q '>&e;&amp;</item>".repeat(10_000)
         ),
         _ => return Err("unknown fixture"),
     };
@@ -338,7 +393,18 @@ mod tests {
         }
         let mut input = args();
         input[4] = "--input".into();
-        assert!(config(input).unwrap().input.is_some());
+        assert!(config(input.clone()).unwrap().input.is_some());
+        assert_eq!(config(input.clone()).unwrap().profile, None);
+        input.extend(["--profile", "dtd"].map(OsString::from));
+        assert_eq!(config(input.clone()).unwrap().profile, Some("dtd"));
+        input.truncate(input.len() - 1);
+        input.push("plain".into());
+        assert!(config(input).is_err());
+        let mut fixture = args();
+        fixture[5] = "dtd-refs".into();
+        assert_eq!(config(fixture.clone()).unwrap().profile, Some("dtd"));
+        fixture.extend(["--profile", "dtd"].map(OsString::from));
+        assert!(config(fixture).is_err());
         let mut unknown = args();
         unknown[5] = "missing".into();
         assert!(config(unknown).is_err());
@@ -427,7 +493,12 @@ mod tests {
         for name in FIXTURES {
             let bytes = fixture(name).unwrap();
             assert!(bytes.len() <= MAX_INPUT);
-            yaxml::Document::parse_bytes(&bytes).unwrap();
+            let flags = match profile(name) {
+                Some(_) => yaxml::options::NOENT,
+                None => 0,
+            };
+            yaxml::Document::parse_with(&bytes, yaxml::ParseOptions::new(flags)).unwrap();
+            assert_eq!(profile(name).is_some(), bytes.starts_with(b"<!DOCTYPE"));
             assert!(
                 identities.insert(input_hash(&bytes)),
                 "duplicate fixture {name}"

@@ -22,6 +22,9 @@ pub(crate) use crate::origin::EntityId;
 pub(crate) struct DeclarationContext {
     pub(crate) internal_subset: bool,
     pub(crate) literals: LiteralSource,
+    /// Where the declaration starts in complete input that content is read
+    /// from in place, when it was read from that input.
+    pub(crate) input: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -114,12 +117,57 @@ pub(crate) struct EntityDecl {
     /// `extSubset`), not in the internal subset or a parameter entity it
     /// references.
     pub(crate) external_subset: bool,
+    /// Where an internal entity's replacement text appears verbatim in the
+    /// complete input, as its declaration's literal.
+    pub(crate) input: Option<usize>,
 }
 
 #[derive(Clone, Copy)]
 struct ValueFrame {
     entity: Option<EntityId>,
     cursor: usize,
+}
+
+/// Recent lookups of short names, in front of a SipHash table: direct-mapped
+/// slots chosen by an unkeyed hash of the name, which they hold inline
+/// (length first; zero is empty). Content names repeat, so most lookups
+/// hit; crafted names can only collide and evict, which costs no more than
+/// the keyed table lookup they then fall back to.
+struct Recent<T> {
+    slots: [([u8; 16], T); 64],
+}
+
+impl<T: Copy> Recent<T> {
+    fn new(empty: T) -> Self {
+        Self {
+            slots: [([0; 16], empty); 64],
+        }
+    }
+
+    /// The slot and inline key of a name of 1 to 15 bytes.
+    fn key(name: &str) -> Option<(usize, [u8; 16])> {
+        let bytes = name.as_bytes();
+        let (&first, &last) = bytes.first().zip(bytes.last())?;
+        let mut key = [0; 16];
+        key[0] = u8::try_from(bytes.len())
+            .ok()
+            .filter(|length| *length < 16)?;
+        key[1..=bytes.len()].copy_from_slice(bytes);
+        let slot = bytes.len() ^ usize::from(first) << 1 ^ usize::from(last) << 2;
+        Some((slot & 63, key))
+    }
+
+    fn get(&self, name: &str) -> Option<T> {
+        let (slot, key) = Self::key(name)?;
+        let (held, value) = &self.slots[slot];
+        (*held == key).then_some(*value)
+    }
+
+    fn put(&mut self, name: &str, value: T) {
+        if let Some((slot, key)) = Self::key(name) {
+            self.slots[slot] = (key, value);
+        }
+    }
 }
 
 pub(crate) struct DtdCatalog {
@@ -132,6 +180,12 @@ pub(crate) struct DtdCatalog {
     /// Declarations come from the external subset (libxml2's `inSubset == 2`).
     reading_external_subset: bool,
     parameter_reference: bool,
+    /// Whether any element has an attribute declaration.
+    attribute_lists: bool,
+    /// Recently referenced general entities, and whether recently started
+    /// elements declare attributes.
+    recent_entities: Recent<EntityId>,
+    recent_elements: Recent<Option<usize>>,
     amplification_ceiling: usize,
     loader: Option<Loader>,
     /// The DOCTYPE's external identifier, kept only for loading.
@@ -152,6 +206,9 @@ impl DtdCatalog {
             external_subset: false,
             reading_external_subset: false,
             parameter_reference: false,
+            attribute_lists: false,
+            recent_entities: Recent::new(EntityId(0)),
+            recent_elements: Recent::new(None),
             amplification_ceiling: usize::MAX,
             loader: None,
             subset: None,
@@ -204,12 +261,19 @@ impl DtdCatalog {
         } else {
             &self.dtd.general
         };
-        let Some(&id) = table.get(name) else {
-            return match self.may_be_unread() {
-                true => EntityLookup::UnreadEntity,
-                false => EntityLookup::Undeclared,
-            };
-        };
+        match table.get(name) {
+            Some(&id) => self.classify(parameter, id),
+            None if self.may_be_unread() => EntityLookup::UnreadEntity,
+            None => EntityLookup::Undeclared,
+        }
+    }
+
+    /// A general entity's lookup by its id.
+    pub(crate) fn entity_lookup(&self, id: EntityId) -> EntityLookup<'_> {
+        self.classify(false, id)
+    }
+
+    fn classify(&self, parameter: bool, id: EntityId) -> EntityLookup<'_> {
         match &self.dtd.entities[id.0].body {
             EntityBody::Internal(replacement) => EntityLookup::Internal { id, replacement },
             EntityBody::External(entity) => match (&entity.notation, &entity.text) {
@@ -227,12 +291,35 @@ impl DtdCatalog {
     pub(crate) fn lookup_general(&self, name: &str) -> EntityLookup<'_> {
         self.lookup(false, name)
     }
+    /// A general entity referenced in content, loading external text first.
+    pub(crate) fn resolve_general(&mut self, name: &str) -> Result<EntityLookup<'_>, DtdError> {
+        let id = self.recent_entities.get(name).or_else(|| {
+            let id = self.dtd.general.get(name).copied();
+            if let Some(id) = id {
+                self.recent_entities.put(name, id);
+            }
+            id
+        });
+        match id {
+            Some(id) => {
+                self.load(id)?;
+                Ok(self.classify(false, id))
+            }
+            None if self.may_be_unread() => Ok(EntityLookup::UnreadEntity),
+            None => Ok(EntityLookup::Undeclared),
+        }
+    }
     pub(crate) fn lookup_parameter(&self, name: &str) -> EntityLookup<'_> {
         self.lookup(true, name)
     }
 
     pub(crate) fn replacement(&self, id: EntityId) -> Option<&str> {
         self.dtd.entities.get(id.0)?.body.text()
+    }
+
+    /// Where `id`'s replacement text appears verbatim in complete input.
+    pub(crate) fn replacement_input(&self, id: EntityId) -> Option<usize> {
+        self.dtd.entities[id.0].input
     }
 
     pub(crate) fn standalone(&self) -> bool {
@@ -242,11 +329,11 @@ impl DtdCatalog {
     /// Whether `attribute`'s value keeps its general references
     /// ([`kept_form`](crate::dtd_tag::kept_form)): without `NOENT`, except
     /// namespace declarations, which libxml2 always expands.
-    pub(crate) fn keeps_references(&self, attribute: &crate::parser::RawAttribute<'_>) -> bool {
+    pub(crate) fn keeps_references(&self, name: &str, literal: &str) -> bool {
         !self.limits.flags.substitutes()
-            && attribute.literal.contains('&')
-            && attribute.qualified != "xmlns"
-            && !attribute.qualified.starts_with("xmlns:")
+            && literal.contains('&')
+            && name != "xmlns"
+            && !name.starts_with("xmlns:")
     }
 
     /// Whether a reference to general entity `name` is kept: it is declared
@@ -275,6 +362,45 @@ impl DtdCatalog {
     /// copied every entity, name and value (DTD-heavy DOM builds +10%).
     pub(crate) fn take_dtd(&mut self) -> Dtd {
         std::mem::take(&mut self.dtd)
+    }
+
+    /// Whether a start tag needs nothing from the declarations: no
+    /// attribute value has a reference, and its element declares no
+    /// attribute (so nothing is normalized, defaulted or noted).
+    pub(crate) fn plain_tag(&mut self, raw: &str) -> bool {
+        if memchr::memchr(b'&', raw.as_bytes()).is_some() {
+            return false;
+        }
+        if !self.attribute_lists {
+            return true;
+        }
+        let name = raw.get(1..).unwrap_or_default();
+        let end = name
+            .bytes()
+            .position(|byte| matches!(byte, b' ' | b'\t' | b'\r' | b'\n' | b'/' | b'>'))
+            .unwrap_or(name.len());
+        self.element_decl(&name[..end])
+            .is_none_or(|element| self.dtd.elements[element].attributes.is_empty())
+    }
+
+    /// The declaration of element `name`, from its attribute list or
+    /// element declaration.
+    pub(crate) fn element_decl(&mut self, name: &str) -> Option<usize> {
+        self.recent_elements.get(name).unwrap_or_else(|| {
+            let element = self.dtd.element_index.get(name).copied();
+            self.recent_elements.put(name, element);
+            element
+        })
+    }
+
+    /// The attributes `element` declares.
+    pub(crate) fn element_attributes(&self, element: usize) -> &[AttributeDecl] {
+        &self.dtd.elements[element].attributes
+    }
+
+    /// The position of `element`'s declaration of attribute `name`.
+    pub(crate) fn attribute_position(&self, element: usize, name: &str) -> Option<usize> {
+        self.dtd.elements[element].attribute(name)
     }
 
     pub(crate) fn attributes(&self, element: &str) -> impl Iterator<Item = &AttributeDecl> {
@@ -334,6 +460,7 @@ impl DtdCatalog {
             }
             DtdUnitView::Entity(entity) => {
                 let parameter = entity.is_parameter();
+                let mut input = None;
                 // WFC Entity Declared: a standalone document cannot use general
                 // entities from external markup, so they are stored (libxml2
                 // still finds them for ENTITY attributes) but never bound.
@@ -341,7 +468,7 @@ impl DtdCatalog {
                 let duplicate = match (parameter, bound) {
                     (true, _) => self.dtd.parameter.contains_key(entity.name()),
                     (false, true) => self.dtd.general.contains_key(entity.name()),
-                    (false, false) => self.dtd.declared.contains_key(entity.name()),
+                    (false, false) => self.dtd.declared(entity.name()).is_some(),
                 };
                 let (body, bytes) = match entity.definition() {
                     EntityDefinitionView::Internal(literal) => {
@@ -363,6 +490,8 @@ impl DtdCatalog {
                             return Ok(());
                         }
                         let bytes = result.len();
+                        input = context.input.filter(|_| result == content);
+                        input = input.map(|unit| unit + offset);
                         (EntityBody::Internal(result.into_owned()), bytes)
                     }
                     EntityDefinitionView::External {
@@ -390,7 +519,7 @@ impl DtdCatalog {
                 };
                 self.store_bytes(checked_sum(&[entity.name().len(), bytes])?)?;
                 self.add_binding()?;
-                self.insert_entity(entity.name(), parameter, bound, body)?;
+                self.insert_entity(entity.name(), (parameter, bound, input), body)?;
             }
             DtdUnitView::AttributeList(list) => {
                 for definition in list.definitions() {
@@ -439,8 +568,8 @@ impl DtdCatalog {
                     };
                     self.dtd.check_attribute(element, &attribute);
                     if self.dtd.elements[element]
-                        .index
-                        .contains_key(definition.name())
+                        .attribute(definition.name())
+                        .is_some()
                     {
                         continue;
                     }
@@ -452,15 +581,10 @@ impl DtdCatalog {
                         attribute.default.value().map_or(0, str::len),
                         values,
                     ])?)?;
-                    let attributes = &mut self.dtd.elements[element];
-                    attributes.index.try_reserve(1).map_err(|_| allocation())?;
-                    attributes
-                        .attributes
-                        .try_reserve(1)
-                        .map_err(|_| allocation())?;
-                    let key = copy_string(definition.name())?;
-                    attributes.index.insert(key, attributes.attributes.len());
-                    attributes.attributes.push(attribute);
+                    self.dtd.elements[element]
+                        .push_attribute(attribute)
+                        .map_err(|()| allocation())?;
+                    self.attribute_lists = true;
                 }
             }
             DtdUnitView::Element(view) => {
@@ -525,8 +649,7 @@ impl DtdCatalog {
     fn insert_entity(
         &mut self,
         name: &str,
-        parameter: bool,
-        bound: bool,
+        (parameter, bound, input): (bool, bool, Option<usize>),
         body: EntityBody,
     ) -> Result<(), DtdError> {
         let dtd = &mut self.dtd;
@@ -537,24 +660,18 @@ impl DtdCatalog {
             body,
             parameter,
             external_subset: self.reading_external_subset,
+            input,
         });
-        // `apply` returned for duplicates, so only a bound general entity
-        // can find its name in `declared` (an unbound one came first).
-        let bind = |table: &mut HashMap<String, EntityId>, fresh: bool| {
-            if fresh || !table.contains_key(name) {
-                table.try_reserve(1).map_err(|_| allocation())?;
-                table.insert(copy_string(name)?, id);
-            }
-            Ok(())
+        // `apply` returned for duplicates: the name is new to its table.
+        let table = match (bound, parameter) {
+            (false, true) => return Ok(()),
+            (false, false) => &mut dtd.unbound,
+            (true, true) => &mut dtd.parameter,
+            (true, false) => &mut dtd.general,
         };
-        if !parameter {
-            bind(&mut dtd.declared, !bound)?;
-        }
-        match (bound, parameter) {
-            (false, _) => Ok(()),
-            (true, true) => bind(&mut dtd.parameter, true),
-            (true, false) => bind(&mut dtd.general, true),
-        }
+        table.try_reserve(1).map_err(|_| allocation())?;
+        table.insert(copy_string(name)?, id);
+        Ok(())
     }
 
     fn external_entity(
@@ -576,7 +693,9 @@ impl DtdCatalog {
         })
     }
 
-    fn store_bytes(&mut self, bytes: usize) -> Result<(), DtdError> {
+    /// Retains `bytes` more for the declarations: the stored text, and the
+    /// scanned replacement text content keeps.
+    pub(crate) fn store_bytes(&mut self, bytes: usize) -> Result<(), DtdError> {
         let ceiling = self.limits.storage;
         increment(
             &mut self.usage.storage_bytes,
@@ -592,35 +711,17 @@ impl DtdCatalog {
         increment(&mut self.usage.bindings, 1, ceiling, DTD_BYTES, Some(0))
     }
 
-    pub(crate) fn tokenized_attribute(&self, element: &str, name: &str) -> bool {
-        self.dtd
-            .element_index
-            .get(element)
-            .and_then(|index| {
-                let attributes = &self.dtd.elements[*index];
-                attributes
-                    .index
-                    .get(name)
-                    .map(|index| attributes.attributes[*index].kind != AttributeKind::Cdata)
-            })
-            .unwrap_or(false)
-    }
-
-    /// Normalizes attribute `name` of `element`, spending at most
-    /// `caller_value_bytes` of new capacity, recorded in `requested`. With
-    /// `borrow`, an unchanged physical literal is returned as is.
-    #[expect(clippy::too_many_arguments, reason = "one normalization request")]
-    pub(crate) fn normalize_attribute<'raw>(
+    /// Normalizes an attribute value (`tokenized` unless CDATA), spending
+    /// at most `caller_value_bytes` of new capacity, recorded in
+    /// `requested`. With `borrow`, an unchanged physical literal is
+    /// returned as is.
+    pub(crate) fn normalize_value<'raw>(
         &mut self,
-        element: &str,
-        name: &str,
         literal_content: &'raw str,
-        source: LiteralSource,
-        borrow: bool,
+        (source, borrow, tokenized): (LiteralSource, bool, bool),
         caller_value_bytes: usize,
         requested: &mut usize,
     ) -> Result<Cow<'raw, str>, DtdError> {
-        let tokenized = self.tokenized_attribute(element, name);
         let mut request = ValueRequest {
             ceiling: Some(caller_value_bytes),
             requested: 0,
@@ -648,6 +749,9 @@ impl DtdCatalog {
         // EntityValue admits `%` only to start a PE reference; it sets hasPErefs first.
         if matches!(mode, ValueMode::Entity) && raw.contains('%') {
             self.parameter_reference = true;
+        }
+        if let Some(value) = self.unchanged(raw, mode, request.borrow_physical) {
+            return Ok(value);
         }
         let may_be_unread = self.may_be_unread();
         let (usage, requested) = (self.usage, request.requested);
@@ -686,6 +790,41 @@ impl DtdCatalog {
                 }
             }
         }
+    }
+}
+
+impl DtdCatalog {
+    /// `raw` when processing in `mode` leaves it unchanged, its bytes
+    /// charged as `ValueProcessor` charges them one by one: a unit of work
+    /// and an expanded byte each, and a second unit matching a physical
+    /// literal that is `borrow`ed. Anything else, including a charge that
+    /// would fail at some byte, is left to `ValueProcessor`.
+    fn unchanged<'raw>(
+        &mut self,
+        raw: &'raw str,
+        mode: ValueMode,
+        borrow: bool,
+    ) -> Option<Cow<'raw, str>> {
+        let bytes = raw.as_bytes();
+        let plain = match mode {
+            ValueMode::Entity => memchr::memchr3(b'&', b'%', b'\r', bytes).is_none(),
+            ValueMode::Attribute { tokenized } => {
+                memchr::memchr3(b'&', b'<', b'\r', bytes).is_none()
+                    && memchr::memchr2(b'\t', b'\n', bytes).is_none()
+                    && !(tokenized
+                        && (raw.starts_with(' ') || raw.ends_with(' ') || raw.contains("  ")))
+            }
+        };
+        let work = raw.len().checked_mul(1 + usize::from(borrow))?;
+        let work = self.usage.work.checked_add(work)?;
+        let expanded = self.usage.expanded_bytes.checked_add(raw.len())?;
+        let within = raw.len() <= self.limits.token
+            && work <= self.limits.work
+            && expanded <= self.limits.expansion;
+        (plain && within).then(|| {
+            (self.usage.work, self.usage.expanded_bytes) = (work, expanded);
+            Cow::Borrowed(raw)
+        })
     }
 }
 

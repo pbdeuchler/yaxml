@@ -147,9 +147,9 @@ pub struct Dtd {
     /// declarations are not bound.
     pub(crate) general: HashMap<String, EntityId>,
     pub(crate) parameter: HashMap<String, EntityId>,
-    /// The first declaration of each general entity, bound or not, as
-    /// ENTITY attribute validation finds it.
-    pub(crate) declared: HashMap<String, EntityId>,
+    /// The first declaration of each general entity that is not bound (a
+    /// standalone document's external one, declared before any bound one).
+    pub(crate) unbound: HashMap<String, EntityId>,
     /// Diagnostics libxml2 reports while parsing, with their input offsets.
     pub(crate) issues: Vec<(Code, Option<usize>, String)>,
 }
@@ -163,7 +163,12 @@ pub(crate) struct ElementDecl {
     pub(crate) model: String,
     pub(crate) internal: bool,
     pub(crate) attributes: Vec<AttributeDecl>,
-    pub(crate) index: HashMap<String, usize>,
+    /// Attribute names to positions, built once the list outgrows a search.
+    index: HashMap<String, usize>,
+    /// The amplification charge of copying every default (`copy_cost`).
+    pub(crate) copied: usize,
+    /// Some default declares a namespace.
+    pub(crate) namespace_defaults: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -194,6 +199,19 @@ pub(crate) struct AttributeDecl {
 }
 
 impl AttributeDecl {
+    /// The amplification charge of copying its default into a tag, as
+    /// libxml2 counts `expandedSize`; zero without one.
+    pub(crate) fn copy_cost(&self) -> usize {
+        self.default.value().map_or(0, |value| {
+            self.name.len() + value.len() + crate::dtd_controller::ENTITY_FIXED_COST
+        })
+    }
+
+    /// It is `xmlns` or `xmlns:*`.
+    pub(crate) fn declares_namespace(&self) -> bool {
+        self.name == "xmlns" || self.name.starts_with("xmlns:")
+    }
+
     fn fixed(&self) -> Option<&str> {
         match &self.default {
             StoredDefault::Value {
@@ -201,6 +219,24 @@ impl AttributeDecl {
             } => Some(value),
             _ => None,
         }
+    }
+}
+
+impl Dtd {
+    /// The first declaration of general entity `name`, bound or not, as
+    /// ENTITY attribute validation finds it.
+    pub(crate) fn declared(&self, name: &str) -> Option<EntityId> {
+        (self.unbound.get(name).or_else(|| self.general.get(name))).copied()
+    }
+
+    /// The first declaration of each general entity (see `declared`).
+    pub(crate) fn declared_ids(&self) -> impl Iterator<Item = EntityId> {
+        let bound = self.general.iter();
+        let bound = bound.filter(|(name, _)| !self.unbound.contains_key(*name));
+        self.unbound
+            .values()
+            .chain(bound.map(|(_, id)| id))
+            .copied()
     }
 }
 
@@ -213,7 +249,41 @@ impl ElementDecl {
             internal: false,
             attributes: Vec::new(),
             index: HashMap::new(),
+            copied: 0,
+            namespace_defaults: false,
         }
+    }
+
+    /// The position of attribute `name`: a short list is searched, a longer
+    /// one indexed.
+    pub(crate) fn attribute(&self, name: &str) -> Option<usize> {
+        match self.index.is_empty() {
+            true => self.attributes.iter().position(|decl| decl.name == name),
+            false => self.index.get(name).copied(),
+        }
+    }
+
+    /// Appends an attribute that is not declared yet; fails without memory.
+    pub(crate) fn push_attribute(&mut self, attribute: AttributeDecl) -> Result<(), ()> {
+        const SEARCHED: usize = 8;
+        self.attributes.try_reserve(1).map_err(drop)?;
+        self.copied = self.copied.saturating_add(attribute.copy_cost());
+        self.namespace_defaults |=
+            attribute.default.value().is_some() && attribute.declares_namespace();
+        self.attributes.push(attribute);
+        if self.attributes.len() <= SEARCHED {
+            return Ok(());
+        }
+        let indexed = self.index.len();
+        let fresh = &self.attributes[indexed..];
+        self.index.try_reserve(fresh.len()).map_err(drop)?;
+        for (position, attribute) in (indexed..).zip(fresh) {
+            let mut key = String::new();
+            key.try_reserve_exact(attribute.name.len()).map_err(drop)?;
+            key.push_str(&attribute.name);
+            self.index.insert(key, position);
+        }
+        Ok(())
     }
 }
 
@@ -281,8 +351,8 @@ impl Dtd {
     pub(crate) fn declares_id(&self, element: &str, attribute: &str) -> bool {
         self.element_index.get(element).is_some_and(|&index| {
             let element = &self.elements[index];
-            (element.index.get(attribute))
-                .is_some_and(|&a| element.attributes[a].kind == AttributeKind::Id)
+            (element.attribute(attribute))
+                .is_some_and(|a| element.attributes[a].kind == AttributeKind::Id)
         })
     }
 
@@ -290,7 +360,7 @@ impl Dtd {
     /// (names as written), as `xmlGetDtdQAttrDesc` finds it.
     pub(crate) fn default_value(&self, element: &str, attribute: &str) -> Option<&str> {
         let element = &self.elements[*self.element_index.get(element)?];
-        element.attributes[*element.index.get(attribute)?]
+        element.attributes[element.attribute(attribute)?]
             .default
             .value()
     }
@@ -303,7 +373,7 @@ impl Dtd {
     ) -> Option<((usize, usize), &AttributeDecl)> {
         let declared = |name: &str| {
             let owner = *self.element_index.get(name)?;
-            let slot = *self.elements[owner].index.get(attribute)?;
+            let slot = self.elements[owner].attribute(attribute)?;
             Some(((owner, slot), &self.elements[owner].attributes[slot]))
         };
         declared(element.qualified).or_else(|| {
@@ -414,7 +484,7 @@ impl Dtd {
             let message = format!("Attribute {owner} of {name}: invalid default value");
             self.issues.push((Code::AttributeDefault, None, message));
         }
-        match decl.index.get(name).map(|&index| &decl.attributes[index]) {
+        match decl.attribute(name).map(|index| &decl.attributes[index]) {
             Some(previous) => {
                 if previous.internal == attribute.internal {
                     let message = format!("Attribute {name} of element {owner}: already defined");
@@ -749,7 +819,7 @@ impl Dtd {
         let decl = &self.elements[*self.element_index.get(element)?];
         Some(Attribute::new(
             &decl.name,
-            &decl.attributes[*decl.index.get(name)?],
+            &decl.attributes[decl.attribute(name)?],
         ))
     }
 

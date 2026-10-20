@@ -118,11 +118,9 @@ fn sample(
     let iterations = config.iterations.to_string();
     let chunk = config.chunk.to_string();
     let path_string = input.to_str().ok_or("private input path is not UTF-8")?;
-    let row = Row::parse(&helper(
-        path,
-        &[mode, path_string, &iterations, &chunk],
-        config.timeout_ms,
-    )?)?;
+    let mut args = vec![mode, path_string, &iterations, &chunk];
+    args.extend(config.profile);
+    let row = Row::parse(&helper(path, &args, config.timeout_ms)?)?;
     row.validate(config, engine, original.len())?;
     if read_input(input)? != original {
         return Err("benchmark input changed during helper execution".into());
@@ -162,9 +160,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let c = sample(&config, &input, &bytes, "libxml2")?;
     reference.same_observation(&c)?;
     println!(
-        "matched_parse=1 fixture={} mode={} bytes={} input_fnv={:016x} iterations={} chunk={} samples={} status=preflight_complete",
+        "matched_parse=1 fixture={} mode={}{} bytes={} input_fnv={:016x} iterations={} chunk={} samples={} status=preflight_complete",
         config.fixture.as_deref().unwrap_or("external"),
         config.mode,
+        config
+            .profile
+            .map_or(String::new(), |profile| format!(" profile={profile}")),
         bytes.len(),
         benchmark::input_hash(&bytes),
         config.iterations,

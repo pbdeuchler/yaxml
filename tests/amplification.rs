@@ -238,6 +238,30 @@ fn every_expansion_costs_a_constant_amount_per_use() {
 }
 
 #[test]
+fn only_unspecified_defaults_are_charged() {
+    // 70 declarations, so specified ones are tracked by bit (a0) and past
+    // the 64-bit set (a69); each default costs its name, value and 20.
+    let declared: String = (0..70).map(|n| format!(" a{n} CDATA 'x'")).collect();
+    let document = |tag: &str, n| {
+        let prefix = format!("<!DOCTYPE r [<!ATTLIST e{declared}>]><r>");
+        repeat(&prefix, tag, n, "</r>")
+    };
+    let unit = |tag| threshold(&document(tag, 2)) - threshold(&document(tag, 1));
+    let all = unit("<e/>");
+    assert_eq!(all, 10 * 23 + 60 * 24);
+    assert_eq!(all - unit("<e a0='y' a69='y'/>"), 23 + 24);
+    // A specified attribute without a default changes nothing.
+    assert_eq!(unit("<e b='y'/>"), all);
+    // Fully specified, the default costs nothing: as if it were #IMPLIED.
+    let growth = |default| {
+        let prefix = format!("<!DOCTYPE r [<!ATTLIST e a CDATA {default}>]><r>");
+        let tags = |n| threshold(&repeat(&prefix, "<e a='y'/>", n, "</r>"));
+        tags(8) - tags(1)
+    };
+    assert_eq!(growth("'x'"), growth("#IMPLIED"));
+}
+
+#[test]
 fn amplification_scales_with_consumed_input_above_the_floor() {
     let input = |n| {
         repeat(

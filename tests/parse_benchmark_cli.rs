@@ -85,7 +85,19 @@ fn build(directory: &Directory) -> (PathBuf, PathBuf) {
 }
 
 fn successful_row(helper: &Path, mode: &str, input: &Path, chunk: &str) -> benchmark::Row {
-    let output = execute(helper, &[mode, path(input), "2", chunk]);
+    profiled_row(helper, mode, input, chunk, None)
+}
+
+fn profiled_row(
+    helper: &Path,
+    mode: &str,
+    input: &Path,
+    chunk: &str,
+    profile: Option<&str>,
+) -> benchmark::Row {
+    let mut args = vec![mode, path(input), "2", chunk];
+    args.extend(profile);
+    let output = execute(helper, &args);
     assert!(
         output.status.success(),
         "{mode}: {}",
@@ -134,10 +146,11 @@ fn rust_helper_observes_complete_documents_and_rejects_invalid_requests() {
     let input = directory.0.join("input.xml");
     for fixture in benchmark::FIXTURES {
         fs::write(&input, benchmark::fixture(fixture).unwrap()).unwrap();
-        let expected = successful_row(&rust, "dom", &input, "7");
+        let profile = benchmark::profile(fixture);
+        let expected = profiled_row(&rust, "dom", &input, "7", profile);
         for mode in benchmark::MODES {
             for chunk in ["1", "7", "8192"] {
-                let observed = successful_row(&rust, mode, &input, chunk);
+                let observed = profiled_row(&rust, mode, &input, chunk, profile);
                 expected
                     .same_observation(&observed)
                     .unwrap_or_else(|error| panic!("{fixture}/{mode}/{chunk}: {error}"));
@@ -162,6 +175,7 @@ fn rust_helper_observes_complete_documents_and_rejects_invalid_requests() {
         vec!["dom", path(&input), "1", "65537"],
         vec!["dom", path(&input), "+1", "1"],
         vec!["dom", path(&input), "1", "1", "extra"],
+        vec!["dom", path(&input), "1", "1", "dtd", "dtd"],
         vec!["dom", path(&directory.0), "1", "1"],
     ] {
         rejected(&rust, &args);
@@ -230,10 +244,11 @@ fn pinned_helpers_and_driver_agree_on_all_versioned_fixtures_and_failure_paths()
     literal_anchor(&c, &input, &["dom", "reader", "push", "buffered"]);
     for fixture in benchmark::FIXTURES {
         fs::write(&input, benchmark::fixture(fixture).unwrap()).unwrap();
-        let expected = successful_row(&rust, "dom", &input, "7");
+        let profile = benchmark::profile(fixture);
+        let expected = profiled_row(&rust, "dom", &input, "7", profile);
         for mode in ["dom", "reader", "push", "buffered"] {
             for chunk in ["1", "7", "8192"] {
-                let observed = successful_row(&c, mode, &input, chunk);
+                let observed = profiled_row(&c, mode, &input, chunk, profile);
                 expected
                     .same_observation(&observed)
                     .unwrap_or_else(|error| panic!("{fixture}/{mode}/{chunk}: {error}"));
@@ -328,6 +343,7 @@ fn pinned_helpers_and_driver_agree_on_all_versioned_fixtures_and_failure_paths()
         vec!["dom", path(&input), "1", "65537"],
         vec!["dom", path(&input), "+1", "1"],
         vec!["dom", path(&input), "1", "1", "extra"],
+        vec!["dom", path(&input), "1", "1", "dtd", "dtd"],
         vec!["dom", path(&directory.0), "1", "1"],
     ] {
         rejected(&c, &args);

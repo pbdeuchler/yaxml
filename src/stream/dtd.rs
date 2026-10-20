@@ -7,10 +7,6 @@ use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::dtd_frames::FragmentOrigin;
 use crate::options::Flags;
 
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the entire phase already occupies one fallibly reserved, out-of-line session slot"
-)]
 enum Phase {
     Declarations {
         controller: DtdController,
@@ -279,6 +275,7 @@ impl StreamingSession {
             }
         }
         loop {
+            consumed += self.drive_chunk(&input[consumed..], emit)?;
             let step = self.prepare_inner(&input[consumed..])?;
             consumed += step.consumed;
             match step.outcome {
@@ -295,6 +292,35 @@ impl StreamingSession {
             }
         }
     }
+    /// Content in plain UTF-8 chunks read in place, as the DTD-free stream
+    /// reads it (see `ContentControllerCore::drive_chunk`).
+    fn drive_chunk(
+        &mut self,
+        input: &[u8],
+        emit: &mut impl FnMut(&Event<'_>, SourceOrigin, &mut Budget) -> Result<(), Error>,
+    ) -> Result<usize, Error> {
+        let Some(session) = self.session.first_mut().filter(|_| !self.finalizing) else {
+            return Ok(0);
+        };
+        let (Some(Phase::Content(controller)), Some(allowance)) =
+            (&mut session.phase, session.decoder.utf8_allowance())
+        else {
+            return Ok(0);
+        };
+        if !session.replay.is_empty() || session.decoder_finished {
+            return Ok(0);
+        }
+        let (decoder, origin) = (&mut session.decoder, &mut self.origin);
+        controller.drive_chunk(
+            &input[..input.len().min(allowance)],
+            &mut |length| decoder.skip_utf8(length),
+            &mut |event, at, budget| {
+                *origin = Some(at);
+                emit(event, at, budget)
+            },
+        )
+    }
+
     fn prepare_inner(&mut self, input: &[u8]) -> Result<SessionStep, Error> {
         let step = |consumed, outcome| Ok(SessionStep { consumed, outcome });
         // The plain stream comes here only to hand over its parked DOCTYPE token.

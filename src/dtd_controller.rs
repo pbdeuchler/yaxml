@@ -316,12 +316,25 @@ impl<'input> DtdControllerCore<'input> {
                 }
                 return Ok(cursor);
             }
-            let byte = input[cursor];
-            let cost = self.encoding.source_length(std::slice::from_ref(&byte));
+            // UTF-8 bytes each cost one physical byte, so the scanner takes
+            // as many as the DOCTYPE ceiling allows; other encodings go
+            // byte by byte.
+            let rest = &input[cursor..];
+            let utf8 = self.encoding == SourceEncoding::Utf8;
+            let allowed = self.limits.declarations - self.counters.physical_bytes;
+            let length = if utf8 {
+                rest.len().min(allowed).max(1)
+            } else {
+                1
+            };
+            let cost = |bytes: &[u8]| match utf8 {
+                true => bytes.len(),
+                false => self.encoding.source_length(bytes),
+            };
             let physical_block = self
                 .counters
                 .physical_bytes
-                .checked_add(cost)
+                .checked_add(cost(&rest[..1]))
                 .is_none_or(|count| count > self.limits.declarations);
             // The scanner's own work ceiling stops it when either budget runs out.
             let remaining = if physical_block {
@@ -332,10 +345,11 @@ impl<'input> DtdControllerCore<'input> {
             self.physical
                 .cap_work(self.physical.position().saturating_add(remaining));
             let before = self.physical.position();
-            let result = self.physical.advance(std::slice::from_ref(&byte));
+            let result = self.physical.advance(&rest[..length]);
             let consumed = self.physical.position() - before;
             self.counters.work += consumed;
             if consumed != 0 {
+                let cost = cost(&rest[..consumed]);
                 self.position += cost;
                 self.counters.physical_bytes += cost;
                 cursor += consumed;
@@ -414,10 +428,12 @@ impl<'input> DtdControllerCore<'input> {
         // Grammar is always checked before an input-mode-dependent raw copy.
         self.charge_work(raw_len, origin)?;
         let (encoding, started, limits) = (self.encoding, self.started, self.limits);
+        let mut input = None;
         let (unit, salvaged) = match (side, self.stable) {
             (Side::Physical, Some((source, source_start))) => {
                 let range = origin.input_range().expect("physical unit");
                 let raw = &source[range.start - source_start..range.end - source_start];
+                input = Some(range.start - source_start);
                 parse_unit(raw, limits, (kind, side, started), encoding, origin, budget)?
             }
             _ => {
@@ -458,6 +474,7 @@ impl<'input> DtdControllerCore<'input> {
             DeclarationContext {
                 internal_subset: true,
                 literals,
+                input,
             },
         );
         self.counters.work += self.catalog.usage().work - before;
