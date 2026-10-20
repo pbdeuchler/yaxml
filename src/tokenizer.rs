@@ -47,7 +47,13 @@ pub(crate) struct Tokenizer {
     encoding: SourceEncoding,
     limit: usize,
     decoded_limit: usize,
-    ready: Option<(TokenKind, TokenSpan)>,
+    /// The ready token's kind; its span is `span`. Kept apart, so marking
+    /// a token stores plain fields instead of repacking one tuple.
+    ready: Option<TokenKind>,
+    span: TokenSpan,
+    /// No buffered byte can start a character outside `Char`: short runs
+    /// are screened as they are appended, so their token skips the screen.
+    screened: bool,
     lookahead: Option<(usize, usize)>,
 }
 
@@ -64,6 +70,12 @@ impl Tokenizer {
             limit,
             decoded_limit,
             ready: None,
+            span: TokenSpan {
+                decoded: 0..0,
+                source: 0..0,
+                encoding: SourceEncoding::Utf8,
+            },
+            screened: true,
             lookahead: None,
         }
     }
@@ -100,8 +112,13 @@ impl Tokenizer {
     }
 
     pub(crate) fn current(&self) -> Option<(TokenKind, &[u8], &TokenSpan)> {
-        let (kind, span) = self.ready.as_ref()?;
-        Some((*kind, self.buffer.as_slice(), span))
+        Some((self.ready?, self.buffer.as_slice(), &self.span))
+    }
+
+    /// Whether the ready token's characters are known to be `Char`s once
+    /// it is valid UTF-8.
+    pub(crate) fn screened(&self) -> bool {
+        self.screened
     }
 
     fn raw_length(&self) -> usize {
@@ -138,6 +155,7 @@ impl Tokenizer {
     pub(crate) fn release(&mut self) {
         if self.ready.take().is_some() {
             self.buffer.clear();
+            self.screened = true;
             self.scan = Scan::Text;
         }
     }
@@ -197,54 +215,59 @@ impl Tokenizer {
             self.buffer.push(b'<');
             self.scan = Scan::Prefix;
         }
-        let mut cursor = 0;
-        while cursor < input.len() {
-            let rest = &input[cursor..];
-            if REFERENCES && matches!(self.scan, Scan::Text) && rest[0] == b'&' {
+        // The token so far is the buffer then `input[..cursor]`, which is
+        // appended once, when the token completes or the input runs out.
+        let (mut cursor, mut kind) = (0, None);
+        while cursor < input.len() && kind.is_none() {
+            if REFERENCES && matches!(self.scan, Scan::Text) && input[cursor] == b'&' {
+                self.extend(&input[..cursor])?;
                 return Ok((cursor, true));
             }
-            let (length, kind) = self.step::<REFERENCES>(rest);
-            self.extend(&rest[..length])?;
-            cursor += length;
-            match kind {
-                None => continue,
-                // Text ends before its `<`, which is consumed as lookahead.
-                Some(TokenKind::Text) => {
-                    let (offset, source_offset) = (self.position, self.source_position);
-                    self.position += 1;
-                    self.source_position += self.encoding.source_length(b"<");
-                    self.mark_at(TokenKind::Text, offset, source_offset);
-                    self.lookahead = Some((offset, source_offset));
-                    cursor += 1;
-                }
-                Some(TokenKind::Start) if self.buffer.starts_with(b"</") => {
-                    self.mark(TokenKind::End, self.position);
-                }
-                Some(kind) => self.mark(kind, self.position),
+            (cursor, kind) = self.step::<REFERENCES>(input, cursor);
+        }
+        self.extend(&input[..cursor])?;
+        match kind {
+            None => {}
+            // Text ends before its `<`, which is consumed as lookahead.
+            Some(TokenKind::Text) => {
+                let (offset, source_offset) = (self.position, self.source_position);
+                self.position += 1;
+                self.source_position += self.encoding.source_length(b"<");
+                self.mark_at(TokenKind::Text, offset, source_offset);
+                self.lookahead = Some((offset, source_offset));
+                cursor += 1;
             }
-            break;
+            Some(TokenKind::Start) if self.buffer.starts_with(b"</") => {
+                self.mark(TokenKind::End, self.position);
+            }
+            Some(kind) => self.mark(kind, self.position),
         }
         Ok((cursor, false))
     }
 
-    /// One lexical step over the front of `input`: the bytes that extend the
-    /// current token and the kind of token they complete (`Start` for any
-    /// tag). Delimiters are found with `memchr` from the carried state, so
-    /// no accumulated token prefix is rescanned. Text ends before its `<`;
-    /// with `REFERENCES` it also stops before `&`.
-    fn step<const REFERENCES: bool>(&mut self, input: &[u8]) -> (usize, Option<TokenKind>) {
+    /// One lexical step over `input` from `at`: where the bytes that extend
+    /// the current token end, and the kind of token they complete (`Start`
+    /// for any tag). Delimiters are found with `memchr` from the carried
+    /// state, so no accumulated token prefix is rescanned. Text ends before
+    /// its `<`; with `REFERENCES` it also stops before `&`.
+    fn step<const REFERENCES: bool>(
+        &mut self,
+        input: &[u8],
+        at: usize,
+    ) -> (usize, Option<TokenKind>) {
+        let rest = &input[at..];
         match self.scan {
             Scan::Text => {
                 let found = if REFERENCES {
-                    memchr2(b'<', b'&', input)
+                    memchr2(b'<', b'&', rest)
                 } else {
-                    memchr(b'<', input)
+                    memchr(b'<', rest)
                 };
                 match found {
                     None => (input.len(), None),
-                    Some(index) if input[index] == b'&' => (index, None),
-                    Some(index) if index > 0 || !self.buffer.is_empty() => {
-                        (index, Some(TokenKind::Text))
+                    Some(index) if rest[index] == b'&' => (at + index, None),
+                    Some(index) if at + index > 0 || !self.buffer.is_empty() => {
+                        (at + index, Some(TokenKind::Text))
                     }
                     Some(_) => {
                         self.scan = Scan::Prefix;
@@ -252,26 +275,26 @@ impl Tokenizer {
                     }
                 }
             }
-            Scan::Prefix => self.prefix(input, 0),
-            Scan::Tag { quote: Some(quote) } => match memchr(quote, input) {
+            Scan::Prefix => self.prefix(input, at),
+            Scan::Tag { quote: Some(quote) } => match memchr(quote, rest) {
                 Some(index) => {
                     self.scan = Scan::Tag { quote: None };
-                    (index + 1, None)
+                    (at + index + 1, None)
                 }
                 None => (input.len(), None),
             },
-            Scan::Tag { quote: None } => match memchr3(b'\'', b'"', b'>', input) {
-                Some(index) if input[index] == b'>' => (index + 1, Some(TokenKind::Start)),
+            Scan::Tag { quote: None } => match memchr3(b'\'', b'"', b'>', rest) {
+                Some(index) if rest[index] == b'>' => (at + index + 1, Some(TokenKind::Start)),
                 Some(index) => {
                     self.scan = Scan::Tag {
-                        quote: Some(input[index]),
+                        quote: Some(rest[index]),
                     };
-                    (index + 1, None)
+                    (at + index + 1, None)
                 }
                 None => (input.len(), None),
             },
-            Scan::Delimited { kind, marker, run } => match delimited_end(input, marker, run) {
-                Ok(end) => (end, Some(kind)),
+            Scan::Delimited { kind, marker, run } => match delimited_end(rest, marker, run) {
+                Ok(end) => (at + end, Some(kind)),
                 Err(run) => {
                     self.scan = Scan::Delimited { kind, marker, run };
                     (input.len(), None)
@@ -281,7 +304,7 @@ impl Tokenizer {
     }
 
     /// Classifies markup through as many leading bytes as `input` holds
-    /// from `at`; the token's earlier bytes are buffered, then `input[..at]`.
+    /// from `at`; the token's earlier bytes are the buffer, then `input[..at]`.
     fn prefix(&mut self, input: &[u8], mut at: usize) -> (usize, Option<TokenKind>) {
         while at < input.len() {
             match self.classify(input, at) {
@@ -357,11 +380,23 @@ impl Tokenizer {
             return Err(self.overflow(run));
         }
         // Within spare capacity the ceilings already hold, so only growth
-        // takes the checked path; single bytes (one-byte chunks) skip the copy call.
+        // takes the checked path. Short runs (small chunks) are appended and
+        // screened byte by byte, which is cheaper than a copy call and a
+        // screen of the whole token; longer ones leave the token unscreened.
         let spare = self.buffer.capacity() - self.buffer.len();
         match run {
-            [byte] if spare > 0 => self.buffer.push(*byte),
-            _ if run.len() <= spare => self.buffer.extend_from_slice(run),
+            _ if run.len() <= 8 && run.len() <= spare => {
+                let mut suspect = false;
+                self.buffer.extend(run.iter().map(|&byte| {
+                    suspect |= crate::escape::suspect(byte);
+                    byte
+                }));
+                self.screened &= !suspect;
+            }
+            _ if run.len() <= spare => {
+                self.buffer.extend_from_slice(run);
+                self.screened = false;
+            }
             _ => self.append_slice(run)?,
         }
         self.position += run.len();
@@ -373,7 +408,7 @@ impl Tokenizer {
     fn width(&self, bytes: &[u8]) -> usize {
         match self.encoding {
             SourceEncoding::Utf8 => bytes.len(),
-            encoding => encoding.source_length(bytes),
+            encoding => decoded_width(encoding, bytes),
         }
     }
 
@@ -497,6 +532,7 @@ impl Tokenizer {
                 .map_err(|_| Error::new(ErrorKind::Allocation, self.diagnostic_start()))?;
         }
         self.buffer.extend_from_slice(bytes);
+        self.screened = false;
         Ok(())
     }
 
@@ -505,14 +541,12 @@ impl Tokenizer {
     }
 
     fn mark_at(&mut self, kind: TokenKind, end: usize, source_end: usize) {
-        self.ready = Some((
-            kind,
-            TokenSpan {
-                decoded: self.start..end,
-                source: self.source_start..source_end,
-                encoding: self.encoding,
-            },
-        ));
+        self.span = TokenSpan {
+            decoded: self.start..end,
+            source: self.source_start..source_end,
+            encoding: self.encoding,
+        };
+        self.ready = Some(kind);
     }
 
     #[cfg(test)]
@@ -544,6 +578,13 @@ impl Tokenizer {
         }
         Ok(())
     }
+}
+
+/// [`SourceEncoding::source_length`] out of line, so the UTF-8 token loop
+/// keeps no vector state for it.
+#[inline(never)]
+fn decoded_width(encoding: SourceEncoding, bytes: &[u8]) -> usize {
+    encoding.source_length(bytes)
 }
 
 /// Kind and length of a complete UTF-8 token at the start of `input`, using
